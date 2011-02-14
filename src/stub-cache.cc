@@ -542,6 +542,33 @@ MaybeObject* StubCache::ComputeKeyedStoreSpecialized(JSObject* receiver) {
 }
 
 
+MaybeObject* StubCache::ComputeKeyedStorePixelArray(JSObject* receiver) {
+  // Using NORMAL as the PropertyType for array element stores is a misuse. The
+  // generated stub always accesses fast elements, not slow-mode fields, but
+  // some property type is required for the stub lookup. Note that overloading
+  // the NORMAL PropertyType is only safe as long as no stubs are generated for
+  // other keyed field stores. This is guaranteed to be the case since all field
+  // keyed stores that are not array elements go through a generic builtin stub.
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, NORMAL);
+  String* name = Heap::KeyedStorePixelArray_symbol();
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
+  if (code->IsUndefined()) {
+    KeyedStoreStubCompiler compiler;
+    { MaybeObject* maybe_code = compiler.CompileStorePixelArray(receiver);
+      if (!maybe_code->ToObject(&code)) return maybe_code;
+    }
+    PROFILE(CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(code), 0));
+    Object* result;
+    { MaybeObject* maybe_result =
+          receiver->UpdateMapCodeCache(name, Code::cast(code));
+      if (!maybe_result->ToObject(&result)) return maybe_result;
+    }
+  }
+  return code;
+}
+
+
 namespace {
 
 ExternalArrayType ElementsKindToExternalArrayType(JSObject::ElementsKind kind) {

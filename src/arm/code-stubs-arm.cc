@@ -6028,6 +6028,91 @@ void GenerateFastPixelArrayLoad(MacroAssembler* masm,
 }
 
 
+void GenerateFastPixelArrayStore(MacroAssembler* masm,
+                                 Register receiver,
+                                 Register key,
+                                 Register value,
+                                 Register elements,
+                                 Register elements_map,
+                                 Register scratch1,
+                                 Register scratch2,
+                                 bool load_elements_from_receiver,
+                                 bool load_elements_map_from_elements,
+                                 Label* key_not_smi,
+                                 Label* value_not_smi,
+                                 Label* not_pixel_array,
+                                 Label* out_of_range) {
+  // Register use:
+  //   receiver - holds the receiver and is unchanged unless the
+  //              store succeeds.
+  //   key - holds the key (must be a smi) and is unchanged.
+  //   value - holds the value (must be a smi) and is unchanged.
+  //   elements - holds the element object of the receiver on entry if
+  //              load_elements_from_receiver is false, otherwise used
+  //              internally to store the pixel arrays elements and
+  //              external array pointer.
+  //   elements_map - holds the map of the element object if
+  //              load_elements_map_from_elements is false, otherwise
+  //              loaded with the element map.
+  //
+  Register external_pointer = elements;
+  Register untagged_key = scratch1;
+  Register untagged_value = scratch2;
+
+  if (load_elements_from_receiver) {
+    __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  }
+
+  // By passing NULL as not_pixel_array, callers signal that they have already
+  // verified that the receiver has pixel array elements.
+  if (not_pixel_array != NULL) {
+    if (load_elements_map_from_elements) {
+      __ ldr(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
+    }
+    __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
+    __ cmp(elements_map, ip);
+    __ b(ne, not_pixel_array);
+  } else {
+    if (FLAG_debug_code) {
+      // Map check should have already made sure that elements is a pixel array.
+      __ ldr(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
+      __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
+      __ cmp(elements_map, ip);
+      __ Assert(eq, "Elements isn't a pixel array");
+    }
+  }
+
+  // Some callers already have verified that the key is a smi.  key_not_smi is
+  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
+  // to ensure the key is a smi must be added.
+  if (key_not_smi != NULL) {
+    __ JumpIfNotSmi(key, key_not_smi);
+  } else {
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(key);
+    }
+  }
+
+  __ SmiUntag(untagged_key, key);
+
+  // Perform bounds check.
+  __ ldr(scratch2, FieldMemOperand(elements, PixelArray::kLengthOffset));
+  __ cmp(untagged_key, scratch2);
+  __ b(hs, out_of_range);  // unsigned check handles negative keys.
+
+  __ JumpIfNotSmi(value, value_not_smi);
+  __ SmiUntag(untagged_value, value);
+
+  // Clamp the value to [0..255].
+  __ Usat(untagged_value, 8, Operand(untagged_value));
+  // Get the pointer to the external array. This clobbers elements.
+  __ ldr(external_pointer,
+         FieldMemOperand(elements, PixelArray::kExternalPointerOffset));
+  __ strb(untagged_value, MemOperand(external_pointer, untagged_key));
+  __ Ret();
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

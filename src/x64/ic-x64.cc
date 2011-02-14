@@ -822,27 +822,18 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rbx: receiver's elements array
   // rcx: index, zero-extended.
   __ bind(&check_pixel_array);
-  __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
-                 Heap::kPixelArrayMapRootIndex);
-  __ j(not_equal, &slow);
-  // Check that the value is a smi. If a conversion is needed call into the
-  // runtime to convert and clamp.
-  __ JumpIfNotSmi(rax, &slow);
-  __ cmpl(rcx, FieldOperand(rbx, PixelArray::kLengthOffset));
-  __ j(above_equal, &slow);
-  // No more bailouts to slow case on this path, so key not needed.
-  __ SmiToInteger32(rdi, rax);
-  {  // Clamp the value to [0..255].
-    NearLabel done;
-    __ testl(rdi, Immediate(0xFFFFFF00));
-    __ j(zero, &done);
-    __ setcc(negative, rdi);  // 1 if negative, 0 if positive.
-    __ decb(rdi);  // 0 if negative, 255 if positive.
-    __ bind(&done);
-  }
-  __ movq(rbx, FieldOperand(rbx, PixelArray::kExternalPointerOffset));
-  __ movb(Operand(rbx, rcx, times_1, 0), rdi);
-  __ ret(0);
+  GenerateFastPixelArrayStore(masm,
+                              rdx,
+                              rcx,
+                              rax,
+                              rbx,
+                              rdi,
+                              false,
+                              true,
+                              NULL,
+                              &slow,
+                              &slow,
+                              &slow);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one

@@ -10691,7 +10691,62 @@ THREADED_TEST(PixelArray) {
                       "result");
   CHECK_EQ(32640, result->Int32Value());
 
-    // Make sure that pixel array loads are optimized by crankshaft.
+  // Make sure that pixel array store ICs clamp values correctly.
+  result = CompileRun("function pa_store(p) {"
+                      "  for (var j = 0; j < 256; j++) { p[j] = j * 2; }"
+                      "}"
+                      "pa_store(pixels);"
+                      "var sum = 0;"
+                      "for (var j = 0; j < 256; j++) { sum += pixels[j]; }"
+                      "sum");
+  CHECK_EQ(48896, result->Int32Value());
+
+  // Make sure that pixel array stores correctly handle accesses outside
+  // of the pixel array..
+  result = CompileRun("function pa_store(p,start) {"
+                      "  for (var j = 0; j < 256; j++) {"
+                      "    p[j+start] = j * 2;"
+                      "  }"
+                      "}"
+                      "pa_store(pixels,0);"
+                      "pa_store(pixels,-128);"
+                      "var sum = 0;"
+                      "for (var j = 0; j < 256; j++) { sum += pixels[j]; }"
+                      "sum");
+  CHECK_EQ(65280, result->Int32Value());
+
+  // Make sure that the generic store stub correctly handle accesses outside
+  // of the pixel array..
+  result = CompileRun("function pa_store(p,start) {"
+                      "  for (var j = 0; j < 256; j++) {"
+                      "    p[j+start] = j * 2;"
+                      "  }"
+                      "}"
+                      "pa_store(pixels,0);"
+                      "just_ints = new Object();"
+                      "for (var i = 0; i < 256; ++i) { just_ints[i] = i; }"
+                      "pa_store(just_ints, 0);"
+                      "pa_store(pixels,-128);"
+                      "var sum = 0;"
+                      "for (var j = 0; j < 256; j++) { sum += pixels[j]; }"
+                      "sum");
+  CHECK_EQ(65280, result->Int32Value());
+
+  // Make sure that the generic keyed store stub clamps pixel array values
+  // correctly.
+  result = CompileRun("function pa_store(p) {"
+                      "  for (var j = 0; j < 256; j++) { p[j] = j * 2; }"
+                      "}"
+                      "pa_store(pixels);"
+                      "just_ints = new Object();"
+                      "pa_store(just_ints);"
+                      "pa_store(pixels);"
+                      "var sum = 0;"
+                      "for (var j = 0; j < 256; j++) { sum += pixels[j]; }"
+                      "sum");
+  CHECK_EQ(48896, result->Int32Value());
+
+  // Make sure that pixel array loads are optimized by crankshaft.
   result = CompileRun("function pa_load(p) {"
                       "  var sum = 0;"
                       "  for (var i=0; i<256; ++i) {"

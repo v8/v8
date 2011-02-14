@@ -809,28 +809,17 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ecx: key (a smi)
   // edx: receiver
   // edi: elements array
-  __ CheckMap(edi, Factory::pixel_array_map(), &slow, true);
-  // Check that the value is a smi. If a conversion is needed call into the
-  // runtime to convert and clamp.
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(not_zero, &slow);
-  __ mov(ebx, ecx);
-  __ SmiUntag(ebx);
-  __ cmp(ebx, FieldOperand(edi, PixelArray::kLengthOffset));
-  __ j(above_equal, &slow);
-  __ mov(ecx, eax);  // Save the value. Key is not longer needed.
-  __ SmiUntag(ecx);
-  {  // Clamp the value to [0..255].
-    Label done;
-    __ test(ecx, Immediate(0xFFFFFF00));
-    __ j(zero, &done);
-    __ setcc(negative, ecx);  // 1 if negative, 0 if positive.
-    __ dec_b(ecx);  // 0 if negative, 255 if positive.
-    __ bind(&done);
-  }
-  __ mov(edi, FieldOperand(edi, PixelArray::kExternalPointerOffset));
-  __ mov_b(Operand(edi, ebx, times_1, 0), ecx);
-  __ ret(0);  // Return value in eax.
+  GenerateFastPixelArrayStore(masm,
+                              edx,
+                              ecx,
+                              eax,
+                              edi,
+                              ebx,
+                              false,
+                              NULL,
+                              &slow,
+                              &slow,
+                              &slow);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one

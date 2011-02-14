@@ -176,6 +176,9 @@ class StubCache : public AllStatic {
   MUST_USE_RESULT static MaybeObject* ComputeKeyedStoreSpecialized(
       JSObject* receiver);
 
+  MUST_USE_RESULT static MaybeObject* ComputeKeyedStorePixelArray(
+      JSObject* receiver);
+
   MUST_USE_RESULT static MaybeObject* ComputeKeyedLoadOrStoreExternalArray(
       JSObject* receiver,
       bool is_store);
@@ -658,6 +661,8 @@ class KeyedStoreStubCompiler: public StubCompiler {
                                                  String* name);
 
   MUST_USE_RESULT MaybeObject* CompileStoreSpecialized(JSObject* receiver);
+
+  MUST_USE_RESULT MaybeObject* CompileStorePixelArray(JSObject* receiver);
 
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
