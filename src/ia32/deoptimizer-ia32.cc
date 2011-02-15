@@ -80,7 +80,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   Address prev_address = code_start_address;
   for (unsigned i = 0; i < table.length(); ++i) {
     Address curr_address = code_start_address + table.GetPcOffset(i);
-    ASSERT_GE(curr_address - prev_address, patch_size());
+    ASSERT_GE(curr_address, prev_address);
     ZapCodeRange(prev_address, curr_address);
 
     SafepointEntry safepoint_entry = table.GetEntry(i);
