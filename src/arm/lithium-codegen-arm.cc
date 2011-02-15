@@ -1897,13 +1897,32 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
 
 
 void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
-  Abort("DoHasCachedArrayIndex unimplemented.");
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  Register scratch = scratch0();
+
+  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
+  __ ldr(scratch,
+         FieldMemOperand(input, String::kContainsCachedArrayIndexMask));
+  __ tst(scratch, Operand(String::kContainsCachedArrayIndexMask));
+  __ LoadRoot(result, Heap::kTrueValueRootIndex, ne);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex, eq);
 }
 
 
 void LCodeGen::DoHasCachedArrayIndexAndBranch(
     LHasCachedArrayIndexAndBranch* instr) {
-  Abort("DoHasCachedArrayIndexAndBranch unimplemented.");
+  Register input = ToRegister(instr->InputAt(0));
+  Register scratch = scratch0();
+
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
+  __ ldr(scratch,
+         FieldMemOperand(input, String::kContainsCachedArrayIndexMask));
+  __ tst(scratch, Operand(String::kContainsCachedArrayIndexMask));
+  EmitBranch(true_block, false_block, ne);
 }
 
 
