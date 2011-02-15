@@ -1918,7 +1918,6 @@ void LCodeGen::DoHasCachedArrayIndexAndBranch(
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
 
-  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
   __ ldr(scratch,
          FieldMemOperand(input, String::kContainsCachedArrayIndexMask));
   __ tst(scratch, Operand(String::kContainsCachedArrayIndexMask));
