@@ -581,6 +581,7 @@ class DirectCEntryStub: public CodeStub {
   DirectCEntryStub() {}
   void Generate(MacroAssembler* masm);
   void GenerateCall(MacroAssembler* masm, ApiFunction *function);
+  void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
   Major MajorKey() { return DirectCEntry; }

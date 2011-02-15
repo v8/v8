@@ -1542,6 +1542,96 @@ void MacroAssembler::PopTryHandler() {
 }
 
 
+void MacroAssembler::Throw(Register value) {
+  // Check that stack should contain next handler, frame pointer, state and
+  // return address in that order.
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset + kPointerSize ==
+            StackHandlerConstants::kStateOffset);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset + kPointerSize ==
+            StackHandlerConstants::kPCOffset);
+  // Keep thrown value in rax.
+  if (!value.is(rax)) {
+    movq(rax, value);
+  }
+
+  ExternalReference handler_address(Top::k_handler_address);
+  movq(kScratchRegister, handler_address);
+  movq(rsp, Operand(kScratchRegister, 0));
+  // get next in chain
+  pop(rcx);
+  movq(Operand(kScratchRegister, 0), rcx);
+  pop(rbp);  // pop frame pointer
+  pop(rdx);  // remove state
+
+  // Before returning we restore the context from the frame pointer if not NULL.
+  // The frame pointer is NULL in the exception handler of a JS entry frame.
+  Set(rsi, 0);  // Tentatively set context pointer to NULL
+  NearLabel skip;
+  cmpq(rbp, Immediate(0));
+  j(equal, &skip);
+  movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  bind(&skip);
+  ret(0);
+}
+
+
+void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
+                                      Register value) {
+  // Keep thrown value in rax.
+  if (!value.is(rax)) {
+    movq(rax, value);
+  }
+  // Fetch top stack handler.
+  ExternalReference handler_address(Top::k_handler_address);
+  movq(kScratchRegister, handler_address);
+  movq(rsp, Operand(kScratchRegister, 0));
+
+  // Unwind the handlers until the ENTRY handler is found.
+  NearLabel loop, done;
+  bind(&loop);
+  // Load the type of the current stack handler.
+  const int kStateOffset = StackHandlerConstants::kStateOffset;
+  cmpq(Operand(rsp, kStateOffset), Immediate(StackHandler::ENTRY));
+  j(equal, &done);
+  // Fetch the next handler in the list.
+  const int kNextOffset = StackHandlerConstants::kNextOffset;
+  movq(rsp, Operand(rsp, kNextOffset));
+  jmp(&loop);
+  bind(&done);
+
+  // Set the top handler address to next handler past the current ENTRY handler.
+  movq(kScratchRegister, handler_address);
+  pop(Operand(kScratchRegister, 0));
+
+  if (type == OUT_OF_MEMORY) {
+    // Set external caught exception to false.
+    ExternalReference external_caught(Top::k_external_caught_exception_address);
+    movq(rax, Immediate(false));
+    store_rax(external_caught);
+
+    // Set pending exception and rax to out of memory exception.
+    ExternalReference pending_exception(Top::k_pending_exception_address);
+    movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE);
+    store_rax(pending_exception);
+  }
+
+  // Clear the context pointer.
+  Set(rsi, 0);
+
+  // Restore registers from handler.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset + kPointerSize ==
+            StackHandlerConstants::kFPOffset);
+  pop(rbp);  // FP
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset + kPointerSize ==
+            StackHandlerConstants::kStateOffset);
+  pop(rdx);  // State
+
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset + kPointerSize ==
+            StackHandlerConstants::kPCOffset);
+  ret(0);
+}
+
+
 void MacroAssembler::Ret() {
   ret(0);
 }

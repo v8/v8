@@ -3299,105 +3299,13 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  // r0 holds the exception.
-
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
-
-  // Drop the sp to the top of the handler.
-  __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
-  __ ldr(sp, MemOperand(r3));
-
-  // Restore the next handler and frame pointer, discard handler state.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  __ pop(r2);
-  __ str(r2, MemOperand(r3));
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  __ ldm(ia_w, sp, r3.bit() | fp.bit());  // r3: discarded state.
-
-  // Before returning we restore the context from the frame pointer if
-  // not NULL.  The frame pointer is NULL in the exception handler of a
-  // JS entry frame.
-  __ cmp(fp, Operand(0, RelocInfo::NONE));
-  // Set cp to NULL if fp is NULL.
-  __ mov(cp, Operand(0, RelocInfo::NONE), LeaveCC, eq);
-  // Restore cp otherwise.
-  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
-#ifdef DEBUG
-  if (FLAG_debug_code) {
-    __ mov(lr, Operand(pc));
-  }
-#endif
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
-  __ pop(pc);
+  __ Throw(r0);
 }
 
 
 void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
                                           UncatchableExceptionType type) {
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
-
-  // Drop sp to the top stack handler.
-  __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
-  __ ldr(sp, MemOperand(r3));
-
-  // Unwind the handlers until the ENTRY handler is found.
-  Label loop, done;
-  __ bind(&loop);
-  // Load the type of the current stack handler.
-  const int kStateOffset = StackHandlerConstants::kStateOffset;
-  __ ldr(r2, MemOperand(sp, kStateOffset));
-  __ cmp(r2, Operand(StackHandler::ENTRY));
-  __ b(eq, &done);
-  // Fetch the next handler in the list.
-  const int kNextOffset = StackHandlerConstants::kNextOffset;
-  __ ldr(sp, MemOperand(sp, kNextOffset));
-  __ jmp(&loop);
-  __ bind(&done);
-
-  // Set the top handler address to next handler past the current ENTRY handler.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  __ pop(r2);
-  __ str(r2, MemOperand(r3));
-
-  if (type == OUT_OF_MEMORY) {
-    // Set external caught exception to false.
-    ExternalReference external_caught(Top::k_external_caught_exception_address);
-    __ mov(r0, Operand(false, RelocInfo::NONE));
-    __ mov(r2, Operand(external_caught));
-    __ str(r0, MemOperand(r2));
-
-    // Set pending exception and r0 to out of memory exception.
-    Failure* out_of_memory = Failure::OutOfMemoryException();
-    __ mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
-    __ mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
-    __ str(r0, MemOperand(r2));
-  }
-
-  // Stack layout at this point. See also StackHandlerConstants.
-  // sp ->   state (ENTRY)
-  //         fp
-  //         lr
-
-  // Discard handler state (r2 is not used) and restore frame pointer.
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  __ ldm(ia_w, sp, r2.bit() | fp.bit());  // r2: discarded state.
-  // Before returning we restore the context from the frame pointer if
-  // not NULL.  The frame pointer is NULL in the exception handler of a
-  // JS entry frame.
-  __ cmp(fp, Operand(0, RelocInfo::NONE));
-  // Set cp to NULL if fp is NULL.
-  __ mov(cp, Operand(0, RelocInfo::NONE), LeaveCC, eq);
-  // Restore cp otherwise.
-  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
-#ifdef DEBUG
-  if (FLAG_debug_code) {
-    __ mov(lr, Operand(pc));
-  }
-#endif
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
-  __ pop(pc);
+  __ ThrowUncatchable(type, r0);
 }
 
 
@@ -3484,7 +3392,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // r0:r1: result
   // sp: stack pointer
   // fp: frame pointer
-  __ LeaveExitFrame(save_doubles_);
+  //  Callee-saved register r4 still holds argc.
+  __ LeaveExitFrame(save_doubles_, r4);
+  __ mov(pc, lr);
 
   // check if we should retry or throw exception
   Label retry;
@@ -4263,24 +4173,27 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(&Counters::regexp_entry_native, 1, r0, r2);
 
   static const int kRegExpExecuteArguments = 7;
-  __ push(lr);
-  __ PrepareCallCFunction(kRegExpExecuteArguments, r0);
+  static const int kParameterRegisters = 4;
+  __ EnterExitFrame(false, kRegExpExecuteArguments - kParameterRegisters);
 
-  // Argument 7 (sp[8]): Indicate that this is a direct call from JavaScript.
+  // Stack pointer now points to cell where return address is to be written.
+  // Arguments are before that on the stack or in registers.
+
+  // Argument 7 (sp[12]): Indicate that this is a direct call from JavaScript.
   __ mov(r0, Operand(1));
-  __ str(r0, MemOperand(sp, 2 * kPointerSize));
+  __ str(r0, MemOperand(sp, 3 * kPointerSize));
 
-  // Argument 6 (sp[4]): Start (high end) of backtracking stack memory area.
+  // Argument 6 (sp[8]): Start (high end) of backtracking stack memory area.
   __ mov(r0, Operand(address_of_regexp_stack_memory_address));
   __ ldr(r0, MemOperand(r0, 0));
   __ mov(r2, Operand(address_of_regexp_stack_memory_size));
   __ ldr(r2, MemOperand(r2, 0));
   __ add(r0, r0, Operand(r2));
-  __ str(r0, MemOperand(sp, 1 * kPointerSize));
+  __ str(r0, MemOperand(sp, 2 * kPointerSize));
 
-  // Argument 5 (sp[0]): static offsets vector buffer.
+  // Argument 5 (sp[4]): static offsets vector buffer.
   __ mov(r0, Operand(ExternalReference::address_of_static_offsets_vector()));
-  __ str(r0, MemOperand(sp, 0 * kPointerSize));
+  __ str(r0, MemOperand(sp, 1 * kPointerSize));
 
   // For arguments 4 and 3 get string length, calculate start of string data and
   // calculate the shift of the index (0 for ASCII and 1 for two byte).
@@ -4302,8 +4215,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Locate the code entry and call it.
   __ add(r7, r7, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ CallCFunction(r7, kRegExpExecuteArguments);
-  __ pop(lr);
+  DirectCEntryStub stub;
+  stub.GenerateCall(masm, r7);
+
+  __ LeaveExitFrame(false, no_reg);
 
   // r0: result
   // subject: subject string (callee saved)
@@ -4312,6 +4227,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Check the result.
   Label success;
+
   __ cmp(r0, Operand(NativeRegExpMacroAssembler::SUCCESS));
   __ b(eq, &success);
   Label failure;
@@ -4324,12 +4240,26 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
-  __ mov(r0, Operand(ExternalReference::the_hole_value_location()));
-  __ ldr(r0, MemOperand(r0, 0));
-  __ mov(r1, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ mov(r1, Operand(ExternalReference::the_hole_value_location()));
   __ ldr(r1, MemOperand(r1, 0));
+  __ mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ ldr(r0, MemOperand(r2, 0));
   __ cmp(r0, r1);
   __ b(eq, &runtime);
+
+  __ str(r1, MemOperand(r2, 0));  // Clear pending exception.
+
+  // Check if the exception is a termination. If so, throw as uncatchable.
+  __ LoadRoot(ip, Heap::kTerminationExceptionRootIndex);
+  __ cmp(r0, ip);
+  Label termination_exception;
+  __ b(eq, &termination_exception);
+
+  __ Throw(r0);  // Expects thrown value in r0.
+
+  __ bind(&termination_exception);
+  __ ThrowUncatchable(TERMINATION, r0);  // Expects thrown value in r0.
+
   __ bind(&failure);
   // For failure and exception return null.
   __ mov(r0, Operand(Factory::null_value()));
@@ -5953,11 +5883,21 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     ApiFunction *function) {
   __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
                      RelocInfo::CODE_TARGET));
-  // Push return address (accessible to GC through exit frame pc).
   __ mov(r2,
          Operand(ExternalReference(function, ExternalReference::DIRECT_CALL)));
+  // Push return address (accessible to GC through exit frame pc).
   __ str(pc, MemOperand(sp, 0));
   __ Jump(r2);  // Call the api function.
+}
+
+
+void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
+                                    Register target) {
+  __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
+                     RelocInfo::CODE_TARGET));
+  // Push return address (accessible to GC through exit frame pc).
+  __ str(pc, MemOperand(sp, 0));
+  __ Jump(target);  // Call the C++ function.
 }
 
 
