@@ -8356,7 +8356,7 @@ static MaybeObject* Runtime_ArrayConcat(Arguments args) {
     }
   }
 
-  // Allocate an empty array, will set length and content later.
+  // Allocate an empty array, will set map, length, and content later.
   Handle<JSArray> result = Factory::NewJSArray(0);
 
   uint32_t estimate_nof_elements = IterateArguments(arguments, NULL);
@@ -8365,23 +8365,20 @@ static MaybeObject* Runtime_ArrayConcat(Arguments args) {
   // dictionary.
   bool fast_case = (estimate_nof_elements * 2) >= result_length;
 
+  Handle<Map> map;
   Handle<FixedArray> storage;
   if (fast_case) {
     // The backing storage array must have non-existing elements to
     // preserve holes across concat operations.
+    map = Factory::GetFastElementsMap(Handle<Map>(result->map()));
     storage = Factory::NewFixedArrayWithHoles(result_length);
-    Handle<Map> fast_map =
-        Factory::GetFastElementsMap(Handle<Map>(result->map()));
-    result->set_map(*fast_map);
   } else {
+    map = Factory::GetSlowElementsMap(Handle<Map>(result->map()));
     // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
-                  Factory::NewNumberDictionary(at_least_space_for));
-    Handle<Map> slow_map =
-        Factory::GetSlowElementsMap(Handle<Map>(result->map()));
-    result->set_map(*slow_map);
+        Factory::NewNumberDictionary(at_least_space_for));
   }
 
   Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
@@ -8390,8 +8387,12 @@ static MaybeObject* Runtime_ArrayConcat(Arguments args) {
 
   IterateArguments(arguments, &visitor);
 
+  // Please note:
+  // - the storage might have been changed in the visitor;
+  // - the map and the storage must be set together to avoid breaking
+  //   the invariant that the map describes the array's elements.
+  result->set_map(*map);
   result->set_length(*len);
-  // Please note the storage might have changed in the visitor.
   result->set_elements(*visitor.storage());
 
   return *result;
