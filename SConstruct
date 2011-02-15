@@ -890,7 +890,7 @@ def VerifyOptions(env):
     return False
   if env['os'] == 'win32' and env['library'] == 'shared' and env['prof'] == 'on':
     Abort("Profiling on windows only supported for static library.")
-  if env['gdbjit'] == 'on' and (env['os'] != 'linux' or (env['arch'] != 'ia32' and env['arch'] != 'x64')):
+  if env['gdbjit'] == 'on' and (env['os'] != 'linux' or (env['arch'] != 'ia32' and env['arch'] != 'x64' and env['arch'] != 'arm')):
     Abort("GDBJIT interface is supported only for Intel-compatible (ia32 or x64) Linux target.")
   if env['os'] == 'win32' and env['soname'] == 'on':
     Abort("Shared Object soname not applicable for Windows.")
