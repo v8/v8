@@ -601,7 +601,16 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 
 
 void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  __ int3();
+  // For now, we are relying on the fact that Runtime::NotifyOSR
+  // doesn't do any garbage collection which allows us to save/restore
+  // the registers without worrying about which of them contain
+  // pointers. This seems a bit fragile.
+  __ Pushad();
+  __ EnterInternalFrame();
+  __ CallRuntime(Runtime::kNotifyOSR, 0);
+  __ LeaveInternalFrame();
+  __ Popad();
+  __ ret(0);
 }
 
 
@@ -1406,7 +1415,58 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  __ int3();
+  // Get the loop depth of the stack guard check. This is recorded in
+  // a test(rax, depth) instruction right after the call.
+  Label stack_check;
+  __ movq(rbx, Operand(rsp, 0));  // return address
+  __ movzxbq(rbx, Operand(rbx, 1));  // depth
+
+  // Get the loop nesting level at which we allow OSR from the
+  // unoptimized code and check if we want to do OSR yet. If not we
+  // should perform a stack guard check so we can get interrupts while
+  // waiting for on-stack replacement.
+  __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ movq(rcx, FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset));
+  __ movq(rcx, FieldOperand(rcx, SharedFunctionInfo::kCodeOffset));
+  __ cmpb(rbx, FieldOperand(rcx, Code::kAllowOSRAtLoopNestingLevelOffset));
+  __ j(greater, &stack_check);
+
+  // Pass the function to optimize as the argument to the on-stack
+  // replacement runtime function.
+  __ EnterInternalFrame();
+  __ push(rax);
+  __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
+  __ LeaveInternalFrame();
+
+  // If the result was -1 it means that we couldn't optimize the
+  // function. Just return and continue in the unoptimized version.
+  NearLabel skip;
+  __ SmiCompare(rax, Smi::FromInt(-1));
+  __ j(not_equal, &skip);
+  __ ret(0);
+
+  // If we decide not to perform on-stack replacement we perform a
+  // stack guard check to enable interrupts.
+  __ bind(&stack_check);
+  NearLabel ok;
+  __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+  __ j(above_equal, &ok);
+
+  StackCheckStub stub;
+  __ TailCallStub(&stub);
+  __ Abort("Unreachable code: returned from tail call.");
+  __ bind(&ok);
+  __ ret(0);
+
+  __ bind(&skip);
+  // Untag the AST id and push it on the stack.
+  __ SmiToInteger32(rax, rax);
+  __ push(rax);
+
+  // Generate the code for doing the frame-to-frame translation using
+  // the deoptimizer infrastructure.
+  Deoptimizer::EntryGenerator generator(masm, Deoptimizer::OSR);
+  generator.Generate();
 }
 
 

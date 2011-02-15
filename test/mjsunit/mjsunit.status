@@ -119,9 +119,6 @@ regress/regress-deopt-gc: SKIP
 ##############################################################################
 [ $arch == x64 && $crankshaft ]
 
-# BUG (1026) This test is currently flaky.
-compiler/simple-osr: SKIP
-
 # BUG (1094)
 regress/regress-deopt-gc: SKIP
 

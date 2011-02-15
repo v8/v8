@@ -2109,7 +2109,7 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
 
 
 void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
-  Abort("Unimplemented: %s", "DoCallRuntime");
+  CallRuntime(instr->function(), instr->arity(), instr);
 }
 
 
@@ -2741,7 +2741,19 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
 
 
 void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
-  Abort("Unimplemented: %s", "DoOsrEntry");
+  // This is a pseudo-instruction that ensures that the environment here is
+  // properly registered for deoptimization and records the assembler's PC
+  // offset.
+  LEnvironment* environment = instr->environment();
+  environment->SetSpilledRegisters(instr->SpilledRegisterArray(),
+                                   instr->SpilledDoubleRegisterArray());
+
+  // If the environment were already registered, we would have no way of
+  // backpatching it with the spill slot operands.
+  ASSERT(!environment->HasBeenRegistered());
+  RegisterEnvironmentForDeoptimization(environment);
+  ASSERT(osr_pc_offset_ == -1);
+  osr_pc_offset_ = masm()->pc_offset();
 }
 
 #undef __
