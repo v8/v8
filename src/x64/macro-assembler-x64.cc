@@ -1443,13 +1443,15 @@ void MacroAssembler::Pushad() {
   push(r14);
   // r15 is kSmiConstantRegister
   STATIC_ASSERT(11 == kNumSafepointSavedRegisters);
-  subq(rsp, Immediate(
-      (kNumSafepointRegisters-kNumSafepointSavedRegisters) * kPointerSize));
+  // Use lea for symmetry with Popad.
+  lea(rsp, Operand(rsp,
+      -(kNumSafepointRegisters-kNumSafepointSavedRegisters) * kPointerSize));
 }
 
 
 void MacroAssembler::Popad() {
-  addq(rsp, Immediate(
+  // Popad must not change the flags, so use lea instead of addq.
+  lea(rsp, Operand(rsp,
       (kNumSafepointRegisters-kNumSafepointSavedRegisters) * kPointerSize));
   pop(r14);
   pop(r12);
