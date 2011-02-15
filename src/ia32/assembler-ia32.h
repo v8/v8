@@ -957,8 +957,9 @@ class Assembler : public Malloced {
   void RecordDebugBreakSlot();
 
   // Record a comment relocation entry that can be used by a disassembler.
-  // Use --code-comments to enable.
-  void RecordComment(const char* msg);
+  // Use --code-comments to enable, or provide "force = true" flag to always
+  // write a comment.
+  void RecordComment(const char* msg, bool force = false);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.

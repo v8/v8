@@ -43,13 +43,20 @@ class SafepointGenerator : public PostCallGenerator {
  public:
   SafepointGenerator(LCodeGen* codegen,
                      LPointerMap* pointers,
-                     int deoptimization_index)
+                     int deoptimization_index,
+                     bool ensure_reloc_space = false)
       : codegen_(codegen),
         pointers_(pointers),
-        deoptimization_index_(deoptimization_index) { }
+        deoptimization_index_(deoptimization_index),
+        ensure_reloc_space_(ensure_reloc_space) { }
   virtual ~SafepointGenerator() { }
 
   virtual void Generate() {
+    // Ensure that we have enough space in the reloc info to patch
+    // this with calls when doing deoptimization.
+    if (ensure_reloc_space_) {
+      codegen_->masm()->RecordComment(RelocInfo::kFillerCommentString, true);
+    }
     codegen_->RecordSafepoint(pointers_, deoptimization_index_);
   }
 
@@ -57,6 +64,7 @@ class SafepointGenerator : public PostCallGenerator {
   LCodeGen* codegen_;
   LPointerMap* pointers_;
   int deoptimization_index_;
+  bool ensure_reloc_space_;
 };
 
 
@@ -2221,7 +2229,8 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   RegisterEnvironmentForDeoptimization(env);
   SafepointGenerator safepoint_generator(this,
                                          pointers,
-                                         env->deoptimization_index());
+                                         env->deoptimization_index(),
+                                         true);
   v8::internal::ParameterCount actual(eax);
   __ InvokeFunction(function, actual, CALL_FUNCTION, &safepoint_generator);
 }
@@ -2292,6 +2301,10 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   if (*function == *graph()->info()->closure()) {
     __ CallSelf();
   } else {
+    // This is an indirect call and will not be recorded in the reloc info.
+    // Add a comment to the reloc info in case we need to patch this during
+    // deoptimization.
+    __ RecordComment(RelocInfo::kFillerCommentString, true);
     __ call(FieldOperand(edi, JSFunction::kCodeEntryOffset));
   }
 
@@ -3731,9 +3744,13 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   LEnvironment* env = instr->deoptimization_environment();
   RecordPosition(pointers->position());
   RegisterEnvironmentForDeoptimization(env);
+  // Create safepoint generator that will also ensure enough space in the
+  // reloc info for patching in deoptimization (since this is invoking a
+  // builtin)
   SafepointGenerator safepoint_generator(this,
                                          pointers,
-                                         env->deoptimization_index());
+                                         env->deoptimization_index(),
+                                         true);
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ push(Immediate(Smi::FromInt(strict_mode_flag())));
   __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, &safepoint_generator);

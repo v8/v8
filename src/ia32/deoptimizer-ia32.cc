@@ -80,6 +80,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   Address prev_address = code_start_address;
   for (unsigned i = 0; i < table.length(); ++i) {
     Address curr_address = code_start_address + table.GetPcOffset(i);
+    ASSERT_GE(curr_address - prev_address, patch_size());
     ZapCodeRange(prev_address, curr_address);
 
     SafepointEntry safepoint_entry = table.GetEntry(i);
@@ -97,7 +98,8 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
                       RelocInfo::RUNTIME_ENTRY,
                       reinterpret_cast<intptr_t>(deopt_entry));
       reloc_info_writer.Write(&rinfo);
-
+      ASSERT_GE(reloc_info_writer.pos(),
+                reloc_info->address() + ByteArray::kHeaderSize);
       curr_address += patch_size();
     }
     prev_address = curr_address;
