@@ -436,3 +436,45 @@ repeat(10, function() { testAssignToUndefined(false); });
   assertThrows(function() { delete_element(object, 3.14); }, TypeError);
   assertEquals(object[3.14], "pi");
 })();
+
+// Not transforming this in Function.call and Function.apply.
+(function testThisTransform() {
+  function non_strict() {
+    return this;
+  }
+  function strict() {
+    "use strict";
+    return this;
+  }
+
+  var global_object = (function() { return this; })();
+  var object = {};
+
+  // Non-strict call.
+  assertTrue(non_strict.call(null) === global_object);
+  assertTrue(non_strict.call(undefined) === global_object);
+  assertEquals(typeof non_strict.call(7), "object");
+  assertEquals(typeof non_strict.call("Hello"), "object");
+  assertTrue(non_strict.call(object) === object);
+
+  // Non-strict apply.
+  assertTrue(non_strict.apply(null) === global_object);
+  assertTrue(non_strict.apply(undefined) === global_object);
+  assertEquals(typeof non_strict.apply(7), "object");
+  assertEquals(typeof non_strict.apply("Hello"), "object");
+  assertTrue(non_strict.apply(object) === object);
+
+  // Strict call.
+  assertTrue(strict.call(null) === null);
+  assertTrue(strict.call(undefined) === undefined);
+  assertEquals(typeof strict.call(7), "number");
+  assertEquals(typeof strict.call("Hello"), "string");
+  assertTrue(strict.call(object) === object);
+
+  // Strict apply.
+  assertTrue(strict.apply(null) === null);
+  assertTrue(strict.apply(undefined) === undefined);
+  assertEquals(typeof strict.apply(7), "number");
+  assertEquals(typeof strict.apply("Hello"), "string");
+  assertTrue(strict.apply(object) === object);
+})();

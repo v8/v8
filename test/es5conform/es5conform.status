@@ -239,15 +239,6 @@ chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-2: FAIL_OK
 # Incorrect test - need double escape in eval.
 chapter07/7.8/7.8.4/7.8.4-1-s: FAIL
 
-# this is not coerced to an object in strict mode (Number)
-chapter10/10.4/10.4.3/10.4.3-1-1-s: FAIL
-# this is not coerced to an object in strict mode (string)
-chapter10/10.4/10.4.3/10.4.3-1-2-s: FAIL
-# this is not coerced to an object in strict mode (undefined)
-chapter10/10.4/10.4.3/10.4.3-1-3-s: FAIL
-# this is not coerced to an object in strict mode (boolean)
-chapter10/10.4/10.4.3/10.4.3-1-4-s: FAIL
-
 # arguments[i] remains same after changing actual parameters in strict mode
 chapter10/10.6/10.6-10-c-ii-1-s: FAIL
 # arguments[i] doesn't map to actual parameters in strict mode
@@ -436,53 +427,13 @@ chapter13/13.1/13.1-3-11-s: FAIL
 # Test fails to return true on success (invalid test case).
 chapter13/13.1/13.1-3-12-s: FAIL
 
-# 'use strict' directive - correct usage
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-1-s: FAIL
-# "use strict" directive - correct usage double quotes
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-2-s: FAIL
-# 'use strict' directive - may follow other directives
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-8-s: FAIL
-# 'use strict' directive - may occur multiple times
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-9-s: FAIL
-# other directives - may follow 'use strict' directive
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-10-s: FAIL
-# comments may preceed 'use strict' directive
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-11-s: FAIL
-# comments may follow 'use strict' directive
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-12-s: FAIL
-# semicolon insertion works for'use strict' directive
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-13-s: FAIL
-# semicolon insertion may come before 'use strict' directive
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-14-s: FAIL
-# blank lines may come before 'use strict' directive
-# depends on "this is not coerced to an object in strict mode (undefined)"
-chapter14/14.1/14.1-15-s: FAIL
-
 # Duplicate combined parameter name allowed in Function constructor called
 # in strict mode if body not strict
 # Test fails to return true on success (invalid test case).
 chapter15/15.3/15.3.2/15.3.2.1/15.3.2.1-11-6-s: FAIL
 
-# Array.prototype.every - thisArg not passed to strict callbackfn
-chapter15/15.4/15.4.4/15.4.4.16/15.4.4.16-5-1-s: FAIL
-# Array.prototype.some - thisArg not passed to strict callbackfn
-chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-5-1-s: FAIL
-# Array.prototype.forEach - thisArg not passed to strict callbackfn
-chapter15/15.4/15.4.4/15.4.4.18/15.4.4.18-5-1-s: FAIL
-# Array.prototype.map - thisArg not passed to strict callbackfn
-chapter15/15.4/15.4.4/15.4.4.19/15.4.4.19-5-1-s: FAIL
-# Array.prototype.filter - thisArg not passed to strict callbackfn
-chapter15/15.4/15.4.4/15.4.4.20/15.4.4.20-5-1-s: FAIL
 # Array.prototype.reduce - null passed as thisValue to strict callbackfn
+# Invalid test case: http://es5conform.codeplex.com/workitem/29085
 chapter15/15.4/15.4.4/15.4.4.21/15.4.4.21-9-c-ii-4-s: FAIL
 
 [ $arch == mips ]
