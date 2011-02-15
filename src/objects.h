@@ -4388,7 +4388,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kOptimizationDisabled = 7;
   static const int kStrictModeFunction = 8;
 
-private:
+ private:
 #if V8_HOST_ARCH_32_BIT
   // On 32 bit platforms, compiler hints is a smi.
   static const int kCompilerHintsSmiTagSize = kSmiTagSize;
@@ -4399,7 +4399,7 @@ private:
   static const int kCompilerHintsSize = kIntSize;
 #endif
 
-public:
+ public:
   // Constants for optimizing codegen for strict mode function tests.
   // Allows to use byte-widgh instructions.
   static const int kStrictModeBitWithinByte =
@@ -4416,7 +4416,7 @@ public:
 #error Unknown byte ordering
 #endif
 
-private:
+ private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
 
