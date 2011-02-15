@@ -106,18 +106,10 @@ void HBasicBlock::AddInstruction(HInstruction* instr) {
   if (first_ == NULL) {
     HBlockEntry* entry = new HBlockEntry();
     entry->InitializeAsFirst(this);
-    first_ = entry;
+    first_ = last_ = entry;
   }
-  instr->InsertAfter(GetLastInstruction());
-}
-
-
-HInstruction* HBasicBlock::GetLastInstruction() {
-  if (end_ != NULL) return end_->previous();
-  if (first_ == NULL) return NULL;
-  if (last_ == NULL) last_ = first_;
-  while (last_->next() != NULL) last_ = last_->next();
-  return last_;
+  instr->InsertAfter(last_);
+  last_ = instr;
 }
 
 
@@ -178,7 +170,7 @@ void HBasicBlock::SetJoinId(int id) {
   for (int i = 0; i < length; i++) {
     HBasicBlock* predecessor = predecessors_[i];
     ASSERT(predecessor->end()->IsGoto());
-    HSimulate* simulate = HSimulate::cast(predecessor->GetLastInstruction());
+    HSimulate* simulate = HSimulate::cast(predecessor->end()->previous());
     // We only need to verify the ID once.
     ASSERT(i != 0 ||
            predecessor->last_environment()->closure()->shared()
@@ -3086,53 +3078,47 @@ void HGraphBuilder::VisitCatchExtensionObject(CatchExtensionObject* expr) {
 }
 
 
-HBasicBlock* HGraphBuilder::BuildTypeSwitch(ZoneMapList* maps,
-                                            ZoneList<HSubgraph*>* subgraphs,
-                                            HValue* receiver,
+HBasicBlock* HGraphBuilder::BuildTypeSwitch(HValue* receiver,
+                                            ZoneMapList* maps,
+                                            ZoneList<HSubgraph*>* body_graphs,
+                                            HSubgraph* default_graph,
                                             int join_id) {
-  ASSERT(subgraphs->length() == (maps->length() + 1));
-
-  // Build map compare subgraphs for all but the first map.
-  ZoneList<HSubgraph*> map_compare_subgraphs(maps->length() - 1);
-  for (int i = maps->length() - 1; i > 0; --i) {
-    HSubgraph* subgraph = CreateBranchSubgraph(environment());
-    SubgraphScope scope(this, subgraph);
-    HSubgraph* else_subgraph =
-        (i == (maps->length() - 1))
-        ? subgraphs->last()
-        : map_compare_subgraphs.last();
-    HCompareMap* compare = new HCompareMap(receiver,
-                                           maps->at(i),
-                                           subgraphs->at(i)->entry_block(),
-                                           else_subgraph->entry_block());
-    current_subgraph_->exit_block()->Finish(compare);
-    map_compare_subgraphs.Add(subgraph);
-  }
-
-  // Generate first map check to end the current block.
+  ASSERT(maps->length() == body_graphs->length());
+  HBasicBlock* join_block = graph()->CreateBasicBlock();
   AddInstruction(new HCheckNonSmi(receiver));
-  HSubgraph* else_subgraph =
-      (maps->length() == 1) ? subgraphs->at(1) : map_compare_subgraphs.last();
-  HCompareMap* compare = new HCompareMap(receiver,
-                                         Handle<Map>(maps->first()),
-                                         subgraphs->first()->entry_block(),
-                                         else_subgraph->entry_block());
-  current_subgraph_->exit_block()->Finish(compare);
 
-  // Join all the call subgraphs in a new basic block and make
-  // this basic block the current basic block.
-  HBasicBlock* join_block = graph_->CreateBasicBlock();
-  for (int i = 0; i < subgraphs->length(); ++i) {
-    HSubgraph* subgraph = subgraphs->at(i);
-    if (subgraph->HasExit()) {
+  for (int i = 0; i < maps->length(); ++i) {
+    // Build the branches, connect all the target subgraphs to the join
+    // block.  Use the default as a target of the last branch.
+    HSubgraph* if_true = body_graphs->at(i);
+    HSubgraph* if_false = (i == maps->length() - 1)
+        ? default_graph
+        : CreateBranchSubgraph(environment());
+    HCompareMap* compare =
+        new HCompareMap(receiver,
+                        maps->at(i),
+                        if_true->entry_block(),
+                        if_false->entry_block());
+    subgraph()->exit_block()->Finish(compare);
+
+    if (if_true->HasExit()) {
       // In an effect context the value of the type switch is not needed.
       // There is no need to merge it at the join block only to discard it.
-      HBasicBlock* subgraph_exit = subgraph->exit_block();
       if (ast_context()->IsEffect()) {
-        subgraph_exit->last_environment()->Drop(1);
+        if_true->exit_block()->last_environment()->Drop(1);
       }
-      subgraph_exit->Goto(join_block);
+      if_true->exit_block()->Goto(join_block);
     }
+
+    subgraph()->set_exit_block(if_false->exit_block());
+  }
+
+  // Connect the default if necessary.
+  if (subgraph()->HasExit()) {
+    if (ast_context()->IsEffect()) {
+      environment()->Drop(1);
+    }
+    subgraph()->exit_block()->Goto(join_block);
   }
 
   if (join_block->predecessors()->is_empty()) return NULL;
@@ -3238,7 +3224,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
                                                      Handle<String> name) {
   int number_of_types = Min(types->length(), kMaxStorePolymorphism);
   ZoneMapList maps(number_of_types);
-  ZoneList<HSubgraph*> subgraphs(number_of_types + 1);
+  ZoneList<HSubgraph*> subgraphs(number_of_types);
   bool needs_generic = (types->length() > kMaxStorePolymorphism);
 
   // Build subgraphs for each of the specific maps.
@@ -3250,7 +3236,6 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
     Handle<Map> map = types->at(i);
     LookupResult lookup;
     if (ComputeStoredField(map, name, &lookup)) {
-      maps.Add(map);
       HSubgraph* subgraph = CreateBranchSubgraph(environment());
       SubgraphScope scope(this, subgraph);
       HInstruction* instr =
@@ -3258,6 +3243,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
       Push(value);
       instr->set_position(expr->position());
       AddInstruction(instr);
+      maps.Add(map);
       subgraphs.Add(subgraph);
     } else {
       needs_generic = true;
@@ -3275,22 +3261,20 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
     ast_context()->ReturnValue(Pop());
   } else {
     // Build subgraph for generic store through IC.
-    {
-      HSubgraph* subgraph = CreateBranchSubgraph(environment());
-      SubgraphScope scope(this, subgraph);
+    HSubgraph* default_graph = CreateBranchSubgraph(environment());
+    { SubgraphScope scope(this, default_graph);
       if (!needs_generic && FLAG_deoptimize_uncommon_cases) {
-        subgraph->FinishExit(new HDeoptimize());
+        default_graph->FinishExit(new HDeoptimize());
       } else {
         HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
         Push(value);
         instr->set_position(expr->position());
         AddInstruction(instr);
       }
-      subgraphs.Add(subgraph);
     }
 
     HBasicBlock* new_exit_block =
-        BuildTypeSwitch(&maps, &subgraphs, object, expr->id());
+        BuildTypeSwitch(object, &maps, &subgraphs, default_graph, expr->id());
     subgraph()->set_exit_block(new_exit_block);
     // In an effect context, we did not materialized the value in the
     // predecessor environments so there's no need to handle it here.
@@ -3565,7 +3549,7 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
                                                     Handle<String> name) {
   int number_of_types = Min(types->length(), kMaxLoadPolymorphism);
   ZoneMapList maps(number_of_types);
-  ZoneList<HSubgraph*> subgraphs(number_of_types + 1);
+  ZoneList<HSubgraph*> subgraphs(number_of_types);
   bool needs_generic = (types->length() > kMaxLoadPolymorphism);
 
   // Build subgraphs for each of the specific maps.
@@ -3578,7 +3562,6 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
     LookupResult lookup;
     map->LookupInDescriptors(NULL, *name, &lookup);
     if (lookup.IsProperty() && lookup.type() == FIELD) {
-      maps.Add(map);
       HSubgraph* subgraph = CreateBranchSubgraph(environment());
       SubgraphScope scope(this, subgraph);
       HLoadNamedField* instr =
@@ -3586,6 +3569,7 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
       instr->set_position(expr->position());
       instr->ClearFlag(HValue::kUseGVN);  // Don't do GVN on polymorphic loads.
       PushAndAdd(instr);
+      maps.Add(map);
       subgraphs.Add(subgraph);
     } else {
       needs_generic = true;
@@ -3600,21 +3584,19 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
     ast_context()->ReturnInstruction(instr, expr->id());
   } else {
     // Build subgraph for generic load through IC.
-    {
-      HSubgraph* subgraph = CreateBranchSubgraph(environment());
-      SubgraphScope scope(this, subgraph);
+    HSubgraph* default_graph = CreateBranchSubgraph(environment());
+    { SubgraphScope scope(this, default_graph);
       if (!needs_generic && FLAG_deoptimize_uncommon_cases) {
-        subgraph->FinishExit(new HDeoptimize());
+        default_graph->FinishExit(new HDeoptimize());
       } else {
         HInstruction* instr = BuildLoadNamedGeneric(object, expr);
         instr->set_position(expr->position());
         PushAndAdd(instr);
       }
-      subgraphs.Add(subgraph);
     }
 
     HBasicBlock* new_exit_block =
-        BuildTypeSwitch(&maps, &subgraphs, object, expr->id());
+        BuildTypeSwitch(object, &maps, &subgraphs, default_graph, expr->id());
     subgraph()->set_exit_block(new_exit_block);
     // In an effect context, we did not materialized the value in the
     // predecessor environments so there's no need to handle it here.
@@ -3891,7 +3873,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   int argument_count = expr->arguments()->length() + 1;  // Plus receiver.
   int number_of_types = Min(types->length(), kMaxCallPolymorphism);
   ZoneMapList maps(number_of_types);
-  ZoneList<HSubgraph*> subgraphs(number_of_types + 1);
+  ZoneList<HSubgraph*> subgraphs(number_of_types);
   bool needs_generic = (types->length() > kMaxCallPolymorphism);
 
   // Build subgraphs for each of the specific maps.
@@ -3902,7 +3884,6 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   for (int i = 0; i < number_of_types; ++i) {
     Handle<Map> map = types->at(i);
     if (expr->ComputeTarget(map, name)) {
-      maps.Add(map);
       HSubgraph* subgraph = CreateBranchSubgraph(environment());
       SubgraphScope scope(this, subgraph);
       AddCheckConstantFunction(expr, receiver, map, false);
@@ -3919,6 +3900,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
         PreProcessCall(call);
         PushAndAdd(call);
       }
+      maps.Add(map);
       subgraphs.Add(subgraph);
     } else {
       needs_generic = true;
@@ -3936,11 +3918,10 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
     ast_context()->ReturnInstruction(call, expr->id());
   } else {
     // Build subgraph for generic call through IC.
-    {
-      HSubgraph* subgraph = CreateBranchSubgraph(environment());
-      SubgraphScope scope(this, subgraph);
+    HSubgraph* default_graph = CreateBranchSubgraph(environment());
+    { SubgraphScope scope(this, default_graph);
       if (!needs_generic && FLAG_deoptimize_uncommon_cases) {
-        subgraph->FinishExit(new HDeoptimize());
+        default_graph->FinishExit(new HDeoptimize());
       } else {
         HContext* context = new HContext;
         AddInstruction(context);
@@ -3949,11 +3930,10 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
         PreProcessCall(call);
         PushAndAdd(call);
       }
-      subgraphs.Add(subgraph);
     }
 
     HBasicBlock* new_exit_block =
-        BuildTypeSwitch(&maps, &subgraphs, receiver, expr->id());
+        BuildTypeSwitch(receiver, &maps, &subgraphs, default_graph, expr->id());
     subgraph()->set_exit_block(new_exit_block);
     // In an effect context, we did not materialized the value in the
     // predecessor environments so there's no need to handle it here.

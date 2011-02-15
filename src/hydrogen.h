@@ -60,6 +60,8 @@ class HBasicBlock: public ZoneObject {
   HGraph* graph() const { return graph_; }
   const ZoneList<HPhi*>* phis() const { return &phis_; }
   HInstruction* first() const { return first_; }
+  HInstruction* last() const { return last_; }
+  void set_last(HInstruction* instr) { last_ = instr; }
   HInstruction* GetLastInstruction();
   HControlInstruction* end() const { return end_; }
   HLoopInformation* loop_information() const { return loop_information_; }
@@ -148,7 +150,7 @@ class HBasicBlock: public ZoneObject {
   HGraph* graph_;
   ZoneList<HPhi*> phis_;
   HInstruction* first_;
-  HInstruction* last_;  // Last non-control instruction of the block.
+  HInstruction* last_;
   HControlInstruction* end_;
   HLoopInformation* loop_information_;
   ZoneList<HBasicBlock*> predecessors_;
@@ -826,9 +828,10 @@ class HGraphBuilder: public AstVisitor {
                                 bool smi_and_map_check);
 
 
-  HBasicBlock* BuildTypeSwitch(ZoneMapList* maps,
-                               ZoneList<HSubgraph*>* subgraphs,
-                               HValue* receiver,
+  HBasicBlock* BuildTypeSwitch(HValue* receiver,
+                               ZoneMapList* maps,
+                               ZoneList<HSubgraph*>* body_graphs,
+                               HSubgraph* default_graph,
                                int join_id);
 
   TypeFeedbackOracle* oracle_;
