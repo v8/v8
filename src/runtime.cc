@@ -5849,7 +5849,12 @@ static MaybeObject* Runtime_StringBuilderJoin(Arguments args) {
   }
   int length = (array_length - 1) * separator_length;
   for (int i = 0; i < array_length; i++) {
-    String* element = String::cast(fixed_array->get(i));
+    Object* element_obj = fixed_array->get(i);
+    if (!element_obj->IsString()) {
+      // TODO(1161): handle this case.
+      return Top::Throw(Heap::illegal_argument_symbol());
+    }
+    String* element = String::cast(element_obj);
     int increment = element->length();
     if (increment > String::kMaxLength - length) {
       Top::context()->mark_out_of_memory();
