@@ -4837,21 +4837,20 @@ void GenerateFastPixelArrayStore(MacroAssembler* masm,
     }
   }
 
-  // Some callers already have verified that the key is a smi.  key_not_smi is
-  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
-  // to ensure the key is a smi must be added.
-  if (key_not_smi != NULL) {
-    __ JumpIfNotSmi(key, key_not_smi);
-  } else {
-    if (FLAG_debug_code) {
-      __ AbortIfNotSmi(key);
-    }
-  }
-
   // Key must be a smi and it must be in range.
   if (key_is_untagged) {
     untagged_key = key;
   } else {
+    // Some callers already have verified that the key is a smi.  key_not_smi is
+    // set to NULL as a sentinel for that case.  Otherwise, add an explicit
+    // check to ensure the key is a smi.
+    if (key_not_smi != NULL) {
+      __ JumpIfNotSmi(key, key_not_smi);
+    } else {
+      if (FLAG_debug_code) {
+        __ AbortIfNotSmi(key);
+      }
+    }
     __ SmiToInteger32(untagged_key, key);
   }
   __ cmpl(untagged_key, FieldOperand(elements, PixelArray::kLengthOffset));
