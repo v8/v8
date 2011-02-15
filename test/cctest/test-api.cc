@@ -5617,6 +5617,35 @@ TEST(AccessControl) {
 }
 
 
+// This is a regression test for issue 1154.
+TEST(AccessControlObjectKeys) {
+  v8::HandleScope handle_scope;
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+
+  global_template->SetAccessCheckCallbacks(NamedAccessBlocker,
+                                           IndexedAccessBlocker);
+
+  // Add an accessor that is not accessible by cross-domain JS code.
+  global_template->SetAccessor(v8_str("blocked_prop"),
+                               UnreachableGetter, UnreachableSetter,
+                               v8::Handle<Value>(),
+                               v8::DEFAULT);
+
+  // Create an environment
+  v8::Persistent<Context> context0 = Context::New(NULL, global_template);
+  context0->Enter();
+
+  v8::Handle<v8::Object> global0 = context0->Global();
+
+  v8::Persistent<Context> context1 = Context::New();
+  context1->Enter();
+  v8::Handle<v8::Object> global1 = context1->Global();
+  global1->Set(v8_str("other"), global0);
+
+  ExpectTrue("Object.keys(other).indexOf('blocked_prop') == -1");
+}
+
+
 static bool GetOwnPropertyNamesNamedBlocker(Local<v8::Object> global,
                                             Local<Value> name,
                                             v8::AccessType type,

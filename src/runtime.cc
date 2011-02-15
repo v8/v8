@@ -4214,6 +4214,14 @@ static MaybeObject* Runtime_LocalKeys(Arguments args) {
   Handle<JSObject> object(raw_object);
 
   if (object->IsJSGlobalProxy()) {
+    // Do access checks before going to the global object.
+    if (object->IsAccessCheckNeeded() &&
+        !Top::MayNamedAccess(*object, Heap::undefined_value(),
+                             v8::ACCESS_KEYS)) {
+      Top::ReportFailedAccessCheck(*object, v8::ACCESS_KEYS);
+      return *Factory::NewJSArray(0);
+    }
+
     Handle<Object> proto(object->GetPrototype());
     // If proxy is detached we simply return an empty array.
     if (proto->IsNull()) return *Factory::NewJSArray(0);
