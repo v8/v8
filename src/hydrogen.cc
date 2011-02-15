@@ -3375,10 +3375,6 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
   BinaryOperation* operation = expr->binary_operation();
 
   if (var != NULL) {
-    if (!var->is_global() && !var->IsStackAllocated()) {
-      BAILOUT("non-stack/non-global in compound assignment");
-    }
-
     VISIT_FOR_VALUE(operation);
 
     if (var->is_global()) {
@@ -3386,8 +3382,16 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
                                      Top(),
                                      expr->position(),
                                      expr->AssignmentId());
-    } else {
+    } else if (var->IsStackAllocated()) {
       Bind(var, Top());
+    } else if (var->IsContextSlot()) {
+      HValue* context = BuildContextChainWalk(var);
+      int index = var->AsSlot()->index();
+      HStoreContextSlot* instr = new HStoreContextSlot(context, index, Top());
+      AddInstruction(instr);
+      if (instr->HasSideEffects()) AddSimulate(expr->AssignmentId());
+    } else {
+      BAILOUT("compound assignment to lookup slot");
     }
     ast_context()->ReturnValue(Pop());
 
@@ -4704,10 +4708,6 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
   bool inc = expr->op() == Token::INC;
 
   if (var != NULL) {
-    if (!var->is_global() && !var->IsStackAllocated()) {
-      BAILOUT("non-stack/non-global variable in count operation");
-    }
-
     VISIT_FOR_VALUE(target);
 
     // Match the full code generator stack by simulating an extra stack
@@ -4723,9 +4723,16 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
                                      after,
                                      expr->position(),
                                      expr->AssignmentId());
-    } else {
-      ASSERT(var->IsStackAllocated());
+    } else if (var->IsStackAllocated()) {
       Bind(var, after);
+    } else if (var->IsContextSlot()) {
+      HValue* context = BuildContextChainWalk(var);
+      int index = var->AsSlot()->index();
+      HStoreContextSlot* instr = new HStoreContextSlot(context, index, after);
+      AddInstruction(instr);
+      if (instr->HasSideEffects()) AddSimulate(expr->AssignmentId());
+    } else {
+      BAILOUT("lookup variable in count operation");
     }
     Drop(has_extra ? 2 : 1);
     ast_context()->ReturnValue(expr->is_postfix() ? before : after);
