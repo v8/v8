@@ -3767,7 +3767,7 @@ HInstruction* HGraphBuilder::BuildStoreKeyedPixelArrayElement(
     HValue* object,
     HValue* key,
     HValue* val,
-    XExpression* expr) {
+    Expression* expr) {
   ASSERT(expr->IsMonomorphic());
   AddInstruction(new HCheckNonSmi(object));
   Handle<Map> map = expr->GetMonomorphicReceiverType();
