@@ -1422,6 +1422,13 @@ LInstruction* LChunkBuilder::DoHasInstanceType(HHasInstanceType* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoGetCachedArrayIndex(
+    HGetCachedArrayIndex* instr)  {
+  Abort("Unimplemented: %s", "DoGetCachedArrayIndex");
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoHasCachedArrayIndex(
     HHasCachedArrayIndex* instr) {
   Abort("Unimplemented: %s", "DoHasCachedArrayIndex");

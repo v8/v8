@@ -1896,6 +1896,16 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
 }
 
 
+void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  Register scratch = scratch0();
+
+  __ ldr(scratch, FieldMemOperand(input, String::kHashFieldOffset));
+  __ IndexFromHash(scratch, result);
+}
+
+
 void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
@@ -1903,10 +1913,10 @@ void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
 
   ASSERT(instr->hydrogen()->value()->representation().IsTagged());
   __ ldr(scratch,
-         FieldMemOperand(input, String::kContainsCachedArrayIndexMask));
+         FieldMemOperand(input, String::kHashFieldOffset));
   __ tst(scratch, Operand(String::kContainsCachedArrayIndexMask));
-  __ LoadRoot(result, Heap::kTrueValueRootIndex, ne);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex, eq);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex, eq);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex, ne);
 }
 
 
@@ -1919,9 +1929,9 @@ void LCodeGen::DoHasCachedArrayIndexAndBranch(
   int false_block = chunk_->LookupDestination(instr->false_block_id());
 
   __ ldr(scratch,
-         FieldMemOperand(input, String::kContainsCachedArrayIndexMask));
+         FieldMemOperand(input, String::kHashFieldOffset));
   __ tst(scratch, Operand(String::kContainsCachedArrayIndexMask));
-  EmitBranch(true_block, false_block, ne);
+  EmitBranch(true_block, false_block, eq);
 }
 
 

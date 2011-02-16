@@ -107,6 +107,7 @@ class LChunkBuilder;
   V(EnterInlined)                              \
   V(FixedArrayLength)                          \
   V(FunctionLiteral)                           \
+  V(GetCachedArrayIndex)                       \
   V(GlobalObject)                              \
   V(GlobalReceiver)                            \
   V(Goto)                                      \
@@ -2325,6 +2326,17 @@ class HHasCachedArrayIndex: public HUnaryPredicate {
   explicit HHasCachedArrayIndex(HValue* value) : HUnaryPredicate(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(HasCachedArrayIndex, "has_cached_array_index")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+};
+
+
+class HGetCachedArrayIndex: public HUnaryPredicate {
+ public:
+  explicit HGetCachedArrayIndex(HValue* value) : HUnaryPredicate(value) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(GetCachedArrayIndex, "get_cached_array_index")
 
  protected:
   virtual bool DataEquals(HValue* other) const { return true; }

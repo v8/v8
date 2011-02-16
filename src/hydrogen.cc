@@ -5463,7 +5463,10 @@ void HGraphBuilder::GenerateIsRegExpEquivalent(int argument_count,
 
 void HGraphBuilder::GenerateGetCachedArrayIndex(int argument_count,
                                                 int ast_id) {
-  BAILOUT("inlined runtime function: GetCachedArrayIndex");
+  ASSERT(argument_count == 1);
+  HValue* value = Pop();
+  HGetCachedArrayIndex* result = new HGetCachedArrayIndex(value);
+  ast_context()->ReturnInstruction(result, ast_id);
 }
 
 
