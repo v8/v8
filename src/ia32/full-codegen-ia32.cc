@@ -331,6 +331,7 @@ FullCodeGenerator::ConstantOperand FullCodeGenerator::GetConstantOperand(
   } else if (right->IsSmiLiteral()) {
     return kRightConstant;
   } else if (left->IsSmiLiteral() && !Token::IsShiftOp(op)) {
+    // Don't inline shifts with constant left hand side.
     return kLeftConstant;
   } else {
     return kNoConstants;
@@ -1644,6 +1645,9 @@ void FullCodeGenerator::EmitConstantSmiAdd(Expression* expr,
                                            bool left_is_constant_smi,
                                            Smi* value) {
   NearLabel call_stub, done;
+  // Optimistically add smi value with unknown object. If result overflows or is
+  // not a smi then we had either a smi overflow or added a smi with a tagged
+  // pointer.
   __ add(Operand(eax), Immediate(value));
   __ j(overflow, &call_stub);
   JumpPatchSite patch_site(masm_);
@@ -1652,8 +1656,7 @@ void FullCodeGenerator::EmitConstantSmiAdd(Expression* expr,
   // Undo the optimistic add operation and call the shared stub.
   __ bind(&call_stub);
   __ sub(Operand(eax), Immediate(value));
-  Token::Value op = Token::ADD;
-  TypeRecordingBinaryOpStub stub(op, mode);
+  TypeRecordingBinaryOpStub stub(Token::ADD, mode);
   if (left_is_constant_smi) {
     __ mov(edx, Immediate(value));
   } else {
@@ -1672,6 +1675,9 @@ void FullCodeGenerator::EmitConstantSmiSub(Expression* expr,
                                            bool left_is_constant_smi,
                                            Smi* value) {
   NearLabel call_stub, done;
+  // Optimistically subtract smi value with unknown object. If result overflows
+  // or is not a smi then we had either a smi overflow or added a smi with a
+  // tagged pointer.
   if (left_is_constant_smi) {
     __ mov(ecx, eax);
     __ mov(eax, Immediate(value));
@@ -1692,8 +1698,7 @@ void FullCodeGenerator::EmitConstantSmiSub(Expression* expr,
     __ mov(edx, eax);
     __ mov(eax, Immediate(value));
   }
-  Token::Value op = Token::SUB;
-  TypeRecordingBinaryOpStub stub(op, mode);
+  TypeRecordingBinaryOpStub stub(Token::SUB, mode);
   EmitCallIC(stub.GetCode(), &patch_site);
 
   __ bind(&done);
@@ -1729,7 +1734,7 @@ void FullCodeGenerator::EmitConstantSmiShiftOp(Expression* expr,
           __ shl(edx, shift_value - 1);
         }
         // Convert int result to smi, checking that it is in int range.
-        ASSERT(kSmiTagSize == 1);  // Adjust code if not the case.
+        STATIC_ASSERT(kSmiTagSize == 1);  // Adjust code if not the case.
         __ add(edx, Operand(edx));
         __ j(overflow, &call_stub);
         __ mov(eax, edx);  // Put result back into eax.
@@ -1742,6 +1747,8 @@ void FullCodeGenerator::EmitConstantSmiShiftOp(Expression* expr,
       }
       break;
     case Token::SHR:
+      // SHR must return a positive value. When shifting by 0 or 1 we need to
+      // check that smi tagging the result will not create a negative value.
       if (shift_value < 2) {
         __ mov(edx, eax);
         __ SmiUntag(edx);
