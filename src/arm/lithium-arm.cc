@@ -1806,6 +1806,13 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
 }
 
 
+LInstruction* LChunkBuilder::DoStorePixelArrayElement(
+    HStorePixelArrayElement* instr) {
+  Abort("DoStorePixelArrayElement not implemented");
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
   LOperand* obj = UseFixed(instr->object(), r2);
   LOperand* key = UseFixed(instr->key(), r1);

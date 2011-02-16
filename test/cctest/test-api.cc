@@ -10825,6 +10825,24 @@ THREADED_TEST(PixelArray) {
                       "result");
   CHECK_EQ(32640, result->Int32Value());
 
+  // Make sure that pixel array stores are optimized by crankshaft.
+  result = CompileRun("function pa_init(p) {"
+                      "for (var i = 0; i < 256; ++i) { p[i] = i; }"
+                      "}"
+                      "function pa_load(p) {"
+                      "  var sum = 0;"
+                      "  for (var i=0; i<256; ++i) {"
+                      "    sum += p[i];"
+                      "  }"
+                      "  return sum; "
+                      "}"
+                      "for (var i = 0; i < 100000; ++i) {"
+                      "  pa_init(pixels);"
+                      "}"
+                      "result = pa_load(pixels);"
+                      "result");
+  CHECK_EQ(32640, result->Int32Value());
+
   free(pixel_data);
 }
 

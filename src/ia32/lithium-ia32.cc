@@ -1840,6 +1840,23 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
 }
 
 
+LInstruction* LChunkBuilder::DoStorePixelArrayElement(
+    HStorePixelArrayElement* instr) {
+  ASSERT(instr->value()->representation().IsInteger32());
+  ASSERT(instr->external_pointer()->representation().IsExternal());
+  ASSERT(instr->key()->representation().IsInteger32());
+
+  LOperand* external_pointer = UseRegister(instr->external_pointer());
+  LOperand* val = UseRegister(instr->value());
+  LOperand* key = UseRegister(instr->key());
+  // The generated code requires that the clamped value is in a byte
+  // register. eax is an arbitrary choice to satisfy this requirement.
+  LOperand* clamped = FixedTemp(eax);
+
+  return new LStorePixelArrayElement(external_pointer, key, val, clamped);
+}
+
+
 LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* object = UseFixed(instr->object(), edx);

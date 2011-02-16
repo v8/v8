@@ -151,6 +151,7 @@ class LChunkBuilder;
   V(StoreContextSlot)                          \
   V(StoreGlobal)                               \
   V(StoreKeyedFastElement)                     \
+  V(StorePixelArrayElement)                    \
   V(StoreKeyedGeneric)                         \
   V(StoreNamedField)                           \
   V(StoreNamedGeneric)                         \
@@ -3179,6 +3180,43 @@ class HStoreKeyedFastElement: public HStoreKeyed {
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastElement,
                                "store_keyed_fast_element")
+};
+
+
+class HStorePixelArrayElement: public HInstruction {
+ public:
+  HStorePixelArrayElement(HValue* external_elements, HValue* key, HValue* val) {
+    SetFlag(kChangesPixelArrayElements);
+    SetOperandAt(0, external_elements);
+    SetOperandAt(1, key);
+    SetOperandAt(2, val);
+  }
+
+  virtual void PrintDataTo(StringStream* stream) const;
+  virtual int OperandCount() const { return operands_.length(); }
+  virtual HValue* OperandAt(int index) const { return operands_[index]; }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    if (index == 0) {
+      return Representation::External();
+    } else {
+      return Representation::Integer32();
+    }
+  }
+
+  HValue* external_pointer() const { return operands_[0]; }
+  HValue* key() const { return operands_[1]; }
+  HValue* value() const { return operands_[2]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(StorePixelArrayElement,
+                               "store_pixel_array_element")
+
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value) {
+    operands_[index] = value;
+  }
+
+  HOperandVector<3> operands_;
 };
 
 

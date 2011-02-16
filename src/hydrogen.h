@@ -816,6 +816,11 @@ class HGraphBuilder: public AstVisitor {
                                            HValue* val,
                                            Expression* expr);
 
+  HInstruction* BuildStoreKeyedPixelArrayElement(HValue* object,
+                                                 HValue* key,
+                                                 HValue* val,
+                                                 Expression* expr);
+
   HCompare* BuildSwitchCompare(HSubgraph* subgraph,
                                HValue* switch_value,
                                CaseClause* clause);

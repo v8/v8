@@ -2148,6 +2148,24 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 }
 
 
+void LCodeGen::DoStorePixelArrayElement(LStorePixelArrayElement* instr) {
+  Register external_pointer = ToRegister(instr->external_pointer());
+  Register key = ToRegister(instr->key());
+  Register value = ToRegister(instr->value());
+
+  {  // Clamp the value to [0..255].
+    NearLabel done;
+    __ testl(value, Immediate(0xFFFFFF00));
+    __ j(zero, &done);
+    __ setcc(negative, value);  // 1 if negative, 0 if positive.
+    __ decb(value);  // 0 if negative, 255 if positive.
+    __ bind(&done);
+  }
+
+  __ movb(Operand(external_pointer, key, times_1, 0), value);
+}
+
+
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   if (instr->length()->IsRegister()) {
     __ cmpq(ToRegister(instr->index()), ToRegister(instr->length()));

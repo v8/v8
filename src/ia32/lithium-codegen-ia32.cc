@@ -2100,13 +2100,13 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 
 
 void LCodeGen::DoLoadPixelArrayElement(LLoadPixelArrayElement* instr) {
-  Register external_elements = ToRegister(instr->external_pointer());
+  Register external_pointer = ToRegister(instr->external_pointer());
   Register key = ToRegister(instr->key());
   Register result = ToRegister(instr->result());
-  ASSERT(result.is(external_elements));
+  ASSERT(result.is(external_pointer));
 
   // Load the result.
-  __ movzx_b(result, Operand(external_elements, key, times_1, 0));
+  __ movzx_b(result, Operand(external_pointer, key, times_1, 0));
 }
 
 
@@ -2728,6 +2728,25 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   __ cmp(ToRegister(instr->index()), ToOperand(instr->length()));
   DeoptimizeIf(above_equal, instr->environment());
+}
+
+
+void LCodeGen::DoStorePixelArrayElement(LStorePixelArrayElement* instr) {
+  Register external_pointer = ToRegister(instr->external_pointer());
+  Register key = ToRegister(instr->key());
+  Register value = ToRegister(instr->value());
+  ASSERT(ToRegister(instr->TempAt(0)).is(eax));
+
+  __ mov(eax, value);
+  {  // Clamp the value to [0..255].
+    NearLabel done;
+    __ test(eax, Immediate(0xFFFFFF00));
+    __ j(zero, &done);
+    __ setcc(negative, eax);  // 1 if negative, 0 if positive.
+    __ dec_b(eax);  // 0 if negative, 255 if positive.
+    __ bind(&done);
+  }
+  __ mov_b(Operand(external_pointer, key, times_1, 0), eax);
 }
 
 

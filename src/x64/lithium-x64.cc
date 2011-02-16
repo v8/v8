@@ -1716,6 +1716,20 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
 }
 
 
+LInstruction* LChunkBuilder::DoStorePixelArrayElement(
+    HStorePixelArrayElement* instr) {
+  ASSERT(instr->value()->representation().IsInteger32());
+  ASSERT(instr->external_pointer()->representation().IsExternal());
+  ASSERT(instr->key()->representation().IsInteger32());
+
+  LOperand* external_pointer = UseRegister(instr->external_pointer());
+  LOperand* val = UseTempRegister(instr->value());
+  LOperand* key = UseRegister(instr->key());
+
+  return new LStorePixelArrayElement(external_pointer, key, val);
+}
+
+
 LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
   Abort("Unimplemented: %s", "DoStoreKeyedGeneric");
   return NULL;

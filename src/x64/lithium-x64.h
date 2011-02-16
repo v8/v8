@@ -146,6 +146,7 @@ class LCodeGen;
   V(StoreKeyedGeneric)                          \
   V(StoreNamedField)                            \
   V(StoreNamedGeneric)                          \
+  V(StorePixelArrayElement)                     \
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
@@ -1539,6 +1540,26 @@ class LStoreKeyedFastElement: public LStoreKeyed {
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastElement,
                                "store-keyed-fast-element")
   DECLARE_HYDROGEN_ACCESSOR(StoreKeyedFastElement)
+};
+
+
+class LStorePixelArrayElement: public LTemplateInstruction<0, 3, 0> {
+ public:
+  LStorePixelArrayElement(LOperand* external_pointer,
+                          LOperand* key,
+                          LOperand* val) {
+    inputs_[0] = external_pointer;
+    inputs_[1] = key;
+    inputs_[2] = val;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StorePixelArrayElement,
+                               "store-pixel-array-element")
+  DECLARE_HYDROGEN_ACCESSOR(StorePixelArrayElement)
+
+  LOperand* external_pointer() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+  LOperand* value() { return inputs_[2]; }
 };
 
 

@@ -3326,12 +3326,20 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     HValue* key = Pop();
     HValue* object = Pop();
 
-    bool is_fast_elements = expr->IsMonomorphic() &&
-        expr->GetMonomorphicReceiverType()->has_fast_elements();
-
-    instr = is_fast_elements
-        ? BuildStoreKeyedFastElement(object, key, value, expr)
-        : BuildStoreKeyedGeneric(object, key, value);
+    if (expr->IsMonomorphic()) {
+      Handle<Map> receiver_type(expr->GetMonomorphicReceiverType());
+      // An object has either fast elements or pixel array elements, but never
+      // both. Pixel array maps that are assigned to pixel array elements are
+      // always created with the fast elements flag cleared.
+      if (receiver_type->has_pixel_array_elements()) {
+        instr = BuildStoreKeyedPixelArrayElement(object, key, value, expr);
+      } else if (receiver_type->has_fast_elements()) {
+        instr = BuildStoreKeyedFastElement(object, key, value, expr);
+      }
+    }
+    if (instr == NULL) {
+      instr = BuildStoreKeyedGeneric(object, key, value);
+    }
   }
 
   Push(value);
@@ -3711,7 +3719,8 @@ HInstruction* HGraphBuilder::BuildLoadKeyedPixelArrayElement(HValue* object,
   AddInstruction(new HCheckMap(object, map));
   HLoadElements* elements = new HLoadElements(object);
   AddInstruction(elements);
-  HInstruction* length = AddInstruction(new HPixelArrayLength(elements));
+  HInstruction* length = new HPixelArrayLength(elements);
+  AddInstruction(length);
   AddInstruction(new HBoundsCheck(key, length));
   HLoadPixelArrayExternalPointer* external_elements =
       new HLoadPixelArrayExternalPointer(elements);
@@ -3751,6 +3760,27 @@ HInstruction* HGraphBuilder::BuildStoreKeyedFastElement(HValue* object,
   }
   AddInstruction(new HBoundsCheck(key, length));
   return new HStoreKeyedFastElement(elements, key, val);
+}
+
+
+HInstruction* HGraphBuilder::BuildStoreKeyedPixelArrayElement(HValue* object,
+                                                              HValue* key,
+                                                              HValue* val,
+                                                              Expression* expr) {
+  ASSERT(expr->IsMonomorphic());
+  AddInstruction(new HCheckNonSmi(object));
+  Handle<Map> map = expr->GetMonomorphicReceiverType();
+  ASSERT(!map->has_fast_elements());
+  ASSERT(map->has_pixel_array_elements());
+  AddInstruction(new HCheckMap(object, map));
+  HLoadElements* elements = new HLoadElements(object);
+  AddInstruction(elements);
+  HInstruction* length = AddInstruction(new HPixelArrayLength(elements));
+  AddInstruction(new HBoundsCheck(key, length));
+  HLoadPixelArrayExternalPointer* external_elements =
+      new HLoadPixelArrayExternalPointer(elements);
+  AddInstruction(external_elements);
+  return new HStorePixelArrayElement(external_elements, key, val);
 }
 
 
