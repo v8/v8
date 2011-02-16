@@ -1313,11 +1313,16 @@ class LCallNamed: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LCallFunction: public LTemplateInstruction<1, 0, 0> {
+class LCallFunction: public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LCallFunction(LOperand* context) {
+    inputs_[0] = context;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(CallFunction, "call-function")
   DECLARE_HYDROGEN_ACCESSOR(CallFunction)
 
+  LOperand* context() { return inputs_[0]; }
   int arity() const { return hydrogen()->argument_count() - 2; }
 };
 

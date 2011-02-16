@@ -2142,7 +2142,13 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
 
 
 void LCodeGen::DoCallFunction(LCallFunction* instr) {
-  Abort("Unimplemented: %s", "DoCallFunction");
+  ASSERT(ToRegister(instr->context()).is(rsi));
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  int arity = instr->arity();
+  CallFunctionStub stub(arity, NOT_IN_LOOP, RECEIVER_MIGHT_BE_VALUE);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  __ Drop(1);
 }
 
 
