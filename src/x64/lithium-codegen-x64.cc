@@ -2142,12 +2142,12 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
 
 
 void LCodeGen::DoCallFunction(LCallFunction* instr) {
-  ASSERT(ToRegister(instr->context()).is(rsi));
   ASSERT(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
   CallFunctionStub stub(arity, NOT_IN_LOOP, RECEIVER_MIGHT_BE_VALUE);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   __ Drop(1);
 }
 

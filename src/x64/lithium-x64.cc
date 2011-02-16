@@ -1219,8 +1219,9 @@ LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
-  Abort("Unimplemented: %s", "DoCallFunction");
-  return NULL;
+  argument_count_ -= instr->argument_count();
+  LCallFunction* result = new LCallFunction();
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 
