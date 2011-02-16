@@ -2691,6 +2691,41 @@ THREADED_TEST(CatchExceptionFromWith) {
 }
 
 
+THREADED_TEST(TryCatchAndFinallyHidingException) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+  CHECK(!try_catch.HasCaught());
+  CompileRun("function f(k) { try { this[k]; } finally { return 0; } };");
+  CompileRun("f({toString: function() { throw 42; }});");
+  CHECK(!try_catch.HasCaught());
+}
+
+
+v8::Handle<v8::Value> WithTryCatch(const v8::Arguments& args) {
+  v8::TryCatch try_catch;
+  return v8::Undefined();
+}
+
+
+THREADED_TEST(TryCatchAndFinally) {
+  v8::HandleScope scope;
+  LocalContext context;
+  context->Global()->Set(
+      v8_str("native_with_try_catch"),
+      v8::FunctionTemplate::New(WithTryCatch)->GetFunction());
+  v8::TryCatch try_catch;
+  CHECK(!try_catch.HasCaught());
+  CompileRun(
+      "try {\n"
+      "  throw new Error('a');\n"
+      "} finally {\n"
+      "  native_with_try_catch();\n"
+      "}\n");
+  CHECK(try_catch.HasCaught());
+}
+
+
 THREADED_TEST(Equality) {
   v8::HandleScope scope;
   LocalContext context;
