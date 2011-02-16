@@ -4273,6 +4273,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
                                    capture_index);
       }
       builder->AddAtom(body);
+      // For compatability with JSC and ES3, we allow quantifiers after
+      // lookaheads, and break in all cases.
       break;
     }
     case '|': {
@@ -4346,7 +4348,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
                                            type,
                                            captures_started());
       builder = stored_state->builder();
-      break;
+      continue;
     }
     case '[': {
       RegExpTree* atom = ParseCharacterClass(CHECK_FAILED);
@@ -4369,11 +4371,11 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         builder->AddAssertion(
             new RegExpAssertion(RegExpAssertion::NON_BOUNDARY));
         continue;
-        // AtomEscape ::
-        //   CharacterClassEscape
-        //
-        // CharacterClassEscape :: one of
-        //   d D s S w W
+      // AtomEscape ::
+      //   CharacterClassEscape
+      //
+      // CharacterClassEscape :: one of
+      //   d D s S w W
       case 'd': case 'D': case 's': case 'S': case 'w': case 'W': {
         uc32 c = Next();
         Advance(2);
