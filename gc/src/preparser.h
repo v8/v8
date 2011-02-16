@@ -144,7 +144,8 @@ class PreParser {
         scope_(NULL),
         stack_limit_(stack_limit),
         stack_overflow_(false),
-        allow_lazy_(true) { }
+        allow_lazy_(true),
+        parenthesized_function_(false) { }
 
   // Preparse the program. Only called in PreParseProgram after creating
   // the instance.
@@ -242,6 +243,8 @@ class PreParser {
     return scanner_->Next();
   }
 
+  bool peek_any_identifier();
+
   void Consume(i::Token::Value token) { Next(); }
 
   void Expect(i::Token::Value token, bool* ok) {
@@ -268,6 +271,7 @@ class PreParser {
   uintptr_t stack_limit_;
   bool stack_overflow_;
   bool allow_lazy_;
+  bool parenthesized_function_;
 };
 } }  // v8::preparser
 

@@ -32,14 +32,23 @@
 #include "compilation-cache.h"
 #include "frames-inl.h"
 #include "runtime-profiler.h"
-#include "simulator.h"
 
 namespace v8 {
 namespace internal {
 
+class Simulator;
 
 #define RETURN_IF_SCHEDULED_EXCEPTION() \
   if (Top::has_scheduled_exception()) return Top::PromoteScheduledException()
+
+#define RETURN_IF_EMPTY_HANDLE_VALUE(call, value) \
+  if (call.is_null()) {                           \
+    ASSERT(Top::has_pending_exception());         \
+    return value;                                 \
+  }
+
+#define RETURN_IF_EMPTY_HANDLE(call)      \
+  RETURN_IF_EMPTY_HANDLE_VALUE(call, Failure::Exception())
 
 // Top has static variables used for JavaScript execution.
 
@@ -109,7 +118,7 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #ifdef USE_SIMULATOR
 #ifdef V8_TARGET_ARCH_ARM
-  assembler::arm::Simulator* simulator_;
+  Simulator* simulator_;
 #elif V8_TARGET_ARCH_MIPS
   assembler::mips::Simulator* simulator_;
 #endif
@@ -386,7 +395,9 @@ class Top {
   static void DoThrow(MaybeObject* exception,
                       MessageLocation* location,
                       const char* message);
-  static bool ShouldReturnException(bool* is_caught_externally,
+  // Checks if exception should be reported and finds out if it's
+  // caught externally.
+  static bool ShouldReportException(bool* is_caught_externally,
                                     bool catchable_by_javascript);
 
   // Attempts to compute the current source location, storing the

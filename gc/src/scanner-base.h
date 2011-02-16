@@ -64,10 +64,10 @@ class UC16CharacterStream {
   // Returns and advances past the next UC16 character in the input
   // stream. If there are no more characters, it returns a negative
   // value.
-  inline int32_t Advance() {
+  inline uc32 Advance() {
     if (buffer_cursor_ < buffer_end_ || ReadBlock()) {
       pos_++;
-      return *(buffer_cursor_++);
+      return static_cast<uc32>(*(buffer_cursor_++));
     }
     // Note: currently the following increment is necessary to avoid a
     // parser problem! The scanner treats the final kEndOfInput as
@@ -97,13 +97,14 @@ class UC16CharacterStream {
     return SlowSeekForward(character_count);
   }
 
-  // Pushes back the most recently read UC16 character, i.e.,
-  // the value returned by the most recent call to Advance.
+  // Pushes back the most recently read UC16 character (or negative
+  // value if at end of input), i.e., the value returned by the most recent
+  // call to Advance.
   // Must not be used right after calling SeekForward.
-  virtual void PushBack(uc16 character) = 0;
+  virtual void PushBack(int32_t character) = 0;
 
  protected:
-  static const int32_t kEndOfInput = -1;
+  static const uc32 kEndOfInput = -1;
 
   // Ensures that the buffer_cursor_ points to the character at
   // position pos_ of the input, if possible. If the position
@@ -246,6 +247,9 @@ class LiteralBuffer {
 // Generic functionality used by both JSON and JavaScript scanners.
 class Scanner {
  public:
+  // -1 is outside of the range of any real source code.
+  static const int kNoOctalLocation = -1;
+
   typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
 
   class LiteralScope {
@@ -270,14 +274,27 @@ class Scanner {
   struct Location {
     Location(int b, int e) : beg_pos(b), end_pos(e) { }
     Location() : beg_pos(0), end_pos(0) { }
+
+    bool IsValid() const {
+      return beg_pos >= 0 && end_pos >= beg_pos;
+    }
+
     int beg_pos;
     int end_pos;
   };
+
+  static Location NoLocation() {
+    return Location(-1, -1);
+  }
 
   // Returns the location information for the current token
   // (the token returned by Next()).
   Location location() const { return current_.location; }
   Location peek_location() const { return next_.location; }
+
+  // Returns the location of the last seen octal literal
+  int octal_position() const { return octal_pos_; }
+  void clear_octal_position() { octal_pos_ = -1; }
 
   // Returns the literal string, if any, for the current token (the
   // token returned by Next()). The string is 0-terminated and in
@@ -392,6 +409,8 @@ class Scanner {
   }
 
   uc32 ScanHexEscape(uc32 c, int length);
+
+  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
   uc32 ScanOctalEscape(uc32 c, int length);
 
   // Return the current source position.
@@ -409,6 +428,8 @@ class Scanner {
   // Input stream. Must be initialized to an UC16CharacterStream.
   UC16CharacterStream* source_;
 
+  // Start position of the octal literal last scanned.
+  int octal_pos_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;
@@ -543,10 +564,17 @@ class KeywordMatcher {
     CON,
     D,
     DE,
+    E,
+    EX,
     F,
     I,
+    IM,
+    IMP,
     IN,
     N,
+    P,
+    PR,
+    S,
     T,
     TH,
     TR,
@@ -562,7 +590,7 @@ class KeywordMatcher {
 
   // Range of possible first characters of a keyword.
   static const unsigned int kFirstCharRangeMin = 'b';
-  static const unsigned int kFirstCharRangeMax = 'w';
+  static const unsigned int kFirstCharRangeMax = 'y';
   static const unsigned int kFirstCharRangeLength =
       kFirstCharRangeMax - kFirstCharRangeMin + 1;
   // State map for first keyword character range.

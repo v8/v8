@@ -217,10 +217,18 @@ Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
 Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
                                    Handle<Object> key);
 
-Handle<Object> IgnoreAttributesAndSetLocalProperty(Handle<JSObject> object,
-                                                   Handle<String> key,
-                                                   Handle<Object> value,
+Handle<Object> SetLocalPropertyIgnoreAttributes(
+    Handle<JSObject> object,
+    Handle<String> key,
+    Handle<Object> value,
     PropertyAttributes attributes);
+
+// Used to set local properties on the object we totally control
+// and which therefore has no accessors and alikes.
+void SetLocalPropertyNoThrow(Handle<JSObject> object,
+                             Handle<String> key,
+                             Handle<Object> value,
+                             PropertyAttributes attributes = NONE);
 
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
@@ -230,6 +238,10 @@ Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
 Handle<Object> SetElement(Handle<JSObject> object,
                           uint32_t index,
                           Handle<Object> value);
+
+Handle<Object> SetOwnElement(Handle<JSObject> object,
+                             uint32_t index,
+                             Handle<Object> value);
 
 Handle<Object> GetProperty(Handle<JSObject> obj,
                            const char* name);

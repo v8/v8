@@ -35,10 +35,10 @@
 #include "data-flow.h"
 #include "debug.h"
 #include "full-codegen.h"
+#include "gdb-jit.h"
 #include "hydrogen.h"
-#include "lithium-allocator.h"
+#include "lithium.h"
 #include "liveedit.h"
-#include "oprofile-agent.h"
 #include "parser.h"
 #include "rewriter.h"
 #include "runtime-profiler.h"
@@ -89,6 +89,25 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
       supports_deoptimization_(false),
       osr_ast_id_(AstNode::kNoNumber) {
   Initialize(BASE);
+}
+
+
+void CompilationInfo::DisableOptimization() {
+  if (FLAG_optimize_closures) {
+    // If we allow closures optimizations and it's an optimizable closure
+    // mark it correspondingly.
+    bool is_closure = closure_.is_null() && !scope_->HasTrivialOuterContext();
+    if (is_closure) {
+      bool is_optimizable_closure =
+          !scope_->outer_scope_calls_eval() && !scope_->inside_with();
+      if (is_optimizable_closure) {
+        SetMode(BASE);
+        return;
+      }
+    }
+  }
+
+  SetMode(NONOPT);
 }
 
 
@@ -188,7 +207,8 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 
   // Limit the number of times we re-compile a functions with
   // the optimizing compiler.
-  const int kMaxOptCount = FLAG_deopt_every_n_times == 0 ? 10 : 1000;
+  const int kMaxOptCount =
+      FLAG_deopt_every_n_times == 0 ? Compiler::kDefaultMaxOptCount : 1000;
   if (info->shared_info()->opt_count() > kMaxOptCount) {
     AbortAndDisable(info);
     // True indicates the compilation pipeline is still going, not
@@ -262,10 +282,17 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
     HTracer::Instance()->TraceCompilation(info->function());
   }
 
-  TypeFeedbackOracle oracle(Handle<Code>(info->shared_info()->code()));
+  TypeFeedbackOracle oracle(
+      Handle<Code>(info->shared_info()->code()),
+      Handle<Context>(info->closure()->context()->global_context()));
   HGraphBuilder builder(&oracle);
   HPhase phase(HPhase::kTotal);
   HGraph* graph = builder.CreateGraph(info);
+  if (Top::has_pending_exception()) {
+    info->SetCode(Handle<Code>::null());
+    return false;
+  }
+
   if (graph != NULL && FLAG_build_lithium) {
     Handle<Code> code = graph->Compile();
     if (!code.is_null()) {
@@ -396,9 +423,9 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
             : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
         *info->code(),
         String::cast(script->name())));
-    OPROFILE(CreateNativeCodeRegion(String::cast(script->name()),
-                                    info->code()->instruction_start(),
-                                    info->code()->instruction_size()));
+    GDBJIT(AddCode(Handle<String>(String::cast(script->name())),
+                   script,
+                   info->code()));
   } else {
     PROFILE(CodeCreateEvent(
         info->is_eval()
@@ -406,9 +433,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
             : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
         *info->code(),
         ""));
-    OPROFILE(CreateNativeCodeRegion(info->is_eval() ? "Eval" : "Script",
-                                    info->code()->instruction_start(),
-                                    info->code()->instruction_size()));
+    GDBJIT(AddCode(Handle<String>(), script, info->code()));
   }
 
   // Allocate function.
@@ -521,7 +546,8 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
 
 Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
                                                  Handle<Context> context,
-                                                 bool is_global) {
+                                                 bool is_global,
+                                                 StrictModeFlag strict_mode) {
   int source_length = source->length();
   Counters::total_eval_size.Increment(source_length);
   Counters::total_compile_size.Increment(source_length);
@@ -532,7 +558,10 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
   // Do a lookup in the compilation cache; if the entry is not there, invoke
   // the compiler and add the result to the cache.
   Handle<SharedFunctionInfo> result;
-  result = CompilationCache::LookupEval(source, context, is_global);
+  result = CompilationCache::LookupEval(source,
+                                        context,
+                                        is_global,
+                                        strict_mode);
 
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
@@ -540,9 +569,14 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     CompilationInfo info(script);
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
+    if (strict_mode == kStrictMode) info.MarkAsStrict();
     info.SetCallingContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
+      // If caller is strict mode, the result must be strict as well,
+      // but not the other way around. Consider:
+      // eval("'use strict'; ...");
+      ASSERT(strict_mode == kNonStrictMode || result->strict_mode());
       CompilationCache::PutEval(source, context, is_global, result);
     }
   }
@@ -572,7 +606,9 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
     // Compile the code.
     if (!MakeCode(info)) {
-      Top::StackOverflow();
+      if (!Top::has_pending_exception()) {
+        Top::StackOverflow();
+      }
     } else {
       ASSERT(!info->code().is_null());
       Handle<Code> code = info->code();
@@ -735,6 +771,7 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
       *lit->this_property_assignments());
   function_info->set_try_full_codegen(lit->try_full_codegen());
   function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
+  function_info->set_strict_mode(lit->strict_mode());
 }
 
 
@@ -746,7 +783,6 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
   if (Logger::is_logging() ||
-      OProfileAgent::is_enabled() ||
       CpuProfiler::is_profiling()) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
@@ -758,20 +794,16 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               *name,
                               String::cast(script->name()),
                               line_num));
-      OPROFILE(CreateNativeCodeRegion(*name,
-                                      String::cast(script->name()),
-                                      line_num,
-                                      code->instruction_start(),
-                                      code->instruction_size()));
     } else {
       PROFILE(CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
                               *name));
-      OPROFILE(CreateNativeCodeRegion(*name,
-                                      code->instruction_start(),
-                                      code->instruction_size()));
     }
   }
+
+  GDBJIT(AddCode(name,
+                 Handle<Script>(info->script()),
+                 Handle<Code>(info->code())));
 }
 
 } }  // namespace v8::internal

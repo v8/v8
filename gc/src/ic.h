@@ -193,16 +193,29 @@ class CallICBase: public IC {
 
  public:
   MUST_USE_RESULT MaybeObject* LoadFunction(State state,
+                                            Code::ExtraICState extra_ic_state,
                                             Handle<Object> object,
                                             Handle<String> name);
 
  protected:
   Code::Kind kind_;
 
+  bool TryUpdateExtraICState(LookupResult* lookup,
+                             Handle<Object> object,
+                             Code::ExtraICState* extra_ic_state);
+
+  MUST_USE_RESULT MaybeObject* ComputeMonomorphicStub(
+      LookupResult* lookup,
+      State state,
+      Code::ExtraICState extra_ic_state,
+      Handle<Object> object,
+      Handle<String> name);
+
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
                     State state,
+                    Code::ExtraICState extra_ic_state,
                     Handle<Object> object,
                     Handle<String> name);
 
@@ -271,7 +284,8 @@ class LoadIC: public IC {
 
   // Specialized code generator routines.
   static void GenerateArrayLength(MacroAssembler* masm);
-  static void GenerateStringLength(MacroAssembler* masm);
+  static void GenerateStringLength(MacroAssembler* masm,
+                                   bool support_wrappers);
   static void GenerateFunctionPrototype(MacroAssembler* masm);
 
   // Clear the use of the inlined version.
@@ -332,12 +346,6 @@ class KeyedLoadIC: public IC {
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateString(MacroAssembler* masm);
 
-  // Generators for external array types. See objects.h.
-  // These are similar to the generic IC; they optimize the case of
-  // operating upon external array types but fall back to the runtime
-  // for all other types.
-  static void GenerateExternalArray(MacroAssembler* masm,
-                                    ExternalArrayType array_type);
   static void GenerateIndexedInterceptor(MacroAssembler* masm);
 
   // Clear the use of the inlined version.
@@ -373,7 +381,6 @@ class KeyedLoadIC: public IC {
   static Code* string_stub() {
     return Builtins::builtin(Builtins::KeyedLoadIC_String);
   }
-  static Code* external_array_stub(JSObject::ElementsKind elements_kind);
 
   static Code* indexed_interceptor_stub() {
     return Builtins::builtin(Builtins::KeyedLoadIC_IndexedInterceptor);
@@ -391,9 +398,16 @@ class KeyedLoadIC: public IC {
 
 class StoreIC: public IC {
  public:
+
+  enum StoreICStrictMode {
+    kStoreICNonStrict = kNonStrictMode,
+    kStoreICStrict = kStrictMode
+  };
+
   StoreIC() : IC(NO_EXTRA_FRAME) { ASSERT(target()->is_store_stub()); }
 
   MUST_USE_RESULT MaybeObject* Store(State state,
+                                     Code::ExtraICState extra_ic_state,
                                      Handle<Object> object,
                                      Handle<String> name,
                                      Handle<Object> value);
@@ -401,7 +415,8 @@ class StoreIC: public IC {
   // Code generators for stub routines. Only called once at startup.
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm);
+  static void GenerateMegamorphic(MacroAssembler* masm,
+                                  Code::ExtraICState extra_ic_state);
   static void GenerateArrayLength(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateGlobalProxy(MacroAssembler* masm);
@@ -417,7 +432,9 @@ class StoreIC: public IC {
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
-                    State state, Handle<JSObject> receiver,
+                    State state,
+                    Code::ExtraICState extra_ic_state,
+                    Handle<JSObject> receiver,
                     Handle<String> name,
                     Handle<Object> value);
 
@@ -425,11 +442,20 @@ class StoreIC: public IC {
   static Code* megamorphic_stub() {
     return Builtins::builtin(Builtins::StoreIC_Megamorphic);
   }
+  static Code* megamorphic_stub_strict() {
+    return Builtins::builtin(Builtins::StoreIC_Megamorphic_Strict);
+  }
   static Code* initialize_stub() {
     return Builtins::builtin(Builtins::StoreIC_Initialize);
   }
+  static Code* initialize_stub_strict() {
+    return Builtins::builtin(Builtins::StoreIC_Initialize_Strict);
+  }
   static Code* global_proxy_stub() {
     return Builtins::builtin(Builtins::StoreIC_GlobalProxy);
+  }
+  static Code* global_proxy_stub_strict() {
+    return Builtins::builtin(Builtins::StoreIC_GlobalProxy_Strict);
   }
 
   static void Clear(Address address, Code* target);
@@ -457,13 +483,6 @@ class KeyedStoreIC: public IC {
   static void GenerateRuntimeSetProperty(MacroAssembler* masm);
   static void GenerateGeneric(MacroAssembler* masm);
 
-  // Generators for external array types. See objects.h.
-  // These are similar to the generic IC; they optimize the case of
-  // operating upon external array types but fall back to the runtime
-  // for all other types.
-  static void GenerateExternalArray(MacroAssembler* masm,
-                                    ExternalArrayType array_type);
-
   // Clear the inlined version so the IC is always hit.
   static void ClearInlinedVersion(Address address);
 
@@ -488,7 +507,6 @@ class KeyedStoreIC: public IC {
   static Code* generic_stub() {
     return Builtins::builtin(Builtins::KeyedStoreIC_Generic);
   }
-  static Code* external_array_stub(JSObject::ElementsKind elements_kind);
 
   static void Clear(Address address, Code* target);
 

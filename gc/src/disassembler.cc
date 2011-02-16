@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -268,10 +268,13 @@ static int DecodeIt(FILE* f,
                              Code::Kind2String(kind),
                              CodeStub::MajorName(major_key, false));
             switch (major_key) {
-              case CodeStub::CallFunction:
-                out.AddFormatted("argc = %d", minor_key);
+              case CodeStub::CallFunction: {
+                int argc =
+                    CallFunctionStub::ExtractArgcFromMinorKey(minor_key);
+                out.AddFormatted("argc = %d", argc);
                 break;
-            default:
+              }
+              default:
                 out.AddFormatted("minor: %d", minor_key);
             }
           }
@@ -310,12 +313,12 @@ int Disassembler::Decode(FILE* f, byte* begin, byte* end) {
 // Called by Code::CodePrint.
 void Disassembler::Decode(FILE* f, Code* code) {
   int decode_size = (code->kind() == Code::OPTIMIZED_FUNCTION)
-      ? static_cast<int>(code->safepoint_table_start())
+      ? static_cast<int>(code->safepoint_table_offset())
       : code->instruction_size();
   // If there might be a stack check table, stop before reaching it.
   if (code->kind() == Code::FUNCTION) {
     decode_size =
-        Min(decode_size, static_cast<int>(code->stack_check_table_start()));
+        Min(decode_size, static_cast<int>(code->stack_check_table_offset()));
   }
 
   byte* begin = code->instruction_start();

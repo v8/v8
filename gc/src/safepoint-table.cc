@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -26,60 +26,78 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "safepoint-table.h"
+
+#include "deoptimizer.h"
 #include "disasm.h"
+#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {
 
+
+bool SafepointEntry::HasRegisters() const {
+  ASSERT(is_valid());
+  ASSERT(IsAligned(kNumSafepointRegisters, kBitsPerByte));
+  const int num_reg_bytes = kNumSafepointRegisters >> kBitsPerByteLog2;
+  for (int i = 0; i < num_reg_bytes; i++) {
+    if (bits_[i] != SafepointTable::kNoRegisters) return true;
+  }
+  return false;
+}
+
+
+bool SafepointEntry::HasRegisterAt(int reg_index) const {
+  ASSERT(is_valid());
+  ASSERT(reg_index >= 0 && reg_index < kNumSafepointRegisters);
+  int byte_index = reg_index >> kBitsPerByteLog2;
+  int bit_index = reg_index & (kBitsPerByte - 1);
+  return (bits_[byte_index] & (1 << bit_index)) != 0;
+}
+
+
 SafepointTable::SafepointTable(Code* code) {
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
   code_ = code;
-  Address header = code->instruction_start() + code->safepoint_table_start();
+  Address header = code->instruction_start() + code->safepoint_table_offset();
   length_ = Memory::uint32_at(header + kLengthOffset);
   entry_size_ = Memory::uint32_at(header + kEntrySizeOffset);
   pc_and_deoptimization_indexes_ = header + kHeaderSize;
   entries_ = pc_and_deoptimization_indexes_ +
             (length_ * kPcAndDeoptimizationIndexSize);
   ASSERT(entry_size_ > 0);
-  ASSERT_EQ(DeoptimizationIndexField::max(), Safepoint::kNoDeoptimizationIndex);
+  ASSERT_EQ(SafepointEntry::DeoptimizationIndexField::max(),
+            Safepoint::kNoDeoptimizationIndex);
 }
 
 
-bool SafepointTable::HasRegisters(uint8_t* entry) {
-  ASSERT(IsAligned(kNumSafepointRegisters, kBitsPerByte));
-  const int num_reg_bytes = kNumSafepointRegisters >> kBitsPerByteLog2;
-  for (int i = 0; i < num_reg_bytes; i++) {
-    if (entry[i] != kNoRegisters) return true;
+SafepointEntry SafepointTable::FindEntry(Address pc) const {
+  unsigned pc_offset = static_cast<unsigned>(pc - code_->instruction_start());
+  for (unsigned i = 0; i < length(); i++) {
+    // TODO(kasperl): Replace the linear search with binary search.
+    if (GetPcOffset(i) == pc_offset) return GetEntry(i);
   }
-  return false;
-}
-
-
-bool SafepointTable::HasRegisterAt(uint8_t* entry, int reg_index) {
-  ASSERT(reg_index >= 0 && reg_index < kNumSafepointRegisters);
-  int byte_index = reg_index >> kBitsPerByteLog2;
-  int bit_index = reg_index & (kBitsPerByte - 1);
-  return (entry[byte_index] & (1 << bit_index)) != 0;
+  return SafepointEntry();
 }
 
 
 void SafepointTable::PrintEntry(unsigned index) const {
   disasm::NameConverter converter;
-  uint8_t* entry = GetEntry(index);
+  SafepointEntry entry = GetEntry(index);
+  uint8_t* bits = entry.bits();
 
   // Print the stack slot bits.
   if (entry_size_ > 0) {
     ASSERT(IsAligned(kNumSafepointRegisters, kBitsPerByte));
     const int first = kNumSafepointRegisters >> kBitsPerByteLog2;
     int last = entry_size_ - 1;
-    for (int i = first; i < last; i++) PrintBits(entry[i], kBitsPerByte);
+    for (int i = first; i < last; i++) PrintBits(bits[i], kBitsPerByte);
     int last_bits = code_->stack_slots() - ((last - first) * kBitsPerByte);
-    PrintBits(entry[last], last_bits);
+    PrintBits(bits[last], last_bits);
 
     // Print the registers (if any).
-    if (!HasRegisters(entry)) return;
+    if (!entry.HasRegisters()) return;
     for (int j = 0; j < kNumSafepointRegisters; j++) {
-      if (HasRegisterAt(entry, j)) {
+      if (entry.HasRegisterAt(j)) {
         PrintF(" | %s", converter.NameOfCPURegister(j));
       }
     }
@@ -95,31 +113,27 @@ void SafepointTable::PrintBits(uint8_t byte, int digits) {
 }
 
 
-Safepoint SafepointTableBuilder::DefineSafepoint(Assembler* assembler,
-                                                 int deoptimization_index) {
-  ASSERT(deoptimization_index != -1);
-  DeoptimizationInfo pc_and_deoptimization_index;
-  pc_and_deoptimization_index.pc = assembler->pc_offset();
-  pc_and_deoptimization_index.deoptimization_index = deoptimization_index;
-  pc_and_deoptimization_index.pc_after_gap = assembler->pc_offset();
-  deoptimization_info_.Add(pc_and_deoptimization_index);
-  indexes_.Add(new ZoneList<int>(8));
-  registers_.Add(NULL);
-  return Safepoint(indexes_.last(), registers_.last());
+void Safepoint::DefinePointerRegister(Register reg) {
+  registers_->Add(reg.code());
 }
 
 
-Safepoint SafepointTableBuilder::DefineSafepointWithRegisters(
-    Assembler* assembler, int arguments, int deoptimization_index) {
+Safepoint SafepointTableBuilder::DefineSafepoint(
+    Assembler* assembler, Safepoint::Kind kind, int arguments,
+    int deoptimization_index) {
   ASSERT(deoptimization_index != -1);
-  ASSERT(arguments == 0);  // Only case that works for now.
+  ASSERT(arguments >= 0);
   DeoptimizationInfo pc_and_deoptimization_index;
   pc_and_deoptimization_index.pc = assembler->pc_offset();
   pc_and_deoptimization_index.deoptimization_index = deoptimization_index;
   pc_and_deoptimization_index.pc_after_gap = assembler->pc_offset();
+  pc_and_deoptimization_index.arguments = arguments;
+  pc_and_deoptimization_index.has_doubles = (kind & Safepoint::kWithDoubles);
   deoptimization_info_.Add(pc_and_deoptimization_index);
   indexes_.Add(new ZoneList<int>(8));
-  registers_.Add(new ZoneList<int>(4));
+  registers_.Add((kind & Safepoint::kWithRegisters)
+      ? new ZoneList<int>(4)
+      : NULL);
   return Safepoint(indexes_.last(), registers_.last());
 }
 
@@ -131,6 +145,14 @@ unsigned SafepointTableBuilder::GetCodeOffset() const {
 
 
 void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
+  // For lazy deoptimization we need space to patch a call after every call.
+  // Ensure there is always space for such patching, even if the code ends
+  // in a call.
+  int target_offset = assembler->pc_offset() + Deoptimizer::patch_size();
+  while (assembler->pc_offset() < target_offset) {
+    assembler->nop();
+  }
+
   // Make sure the safepoint table is properly aligned. Pad with nops.
   assembler->Align(kIntSize);
   assembler->RecordComment(";;; Safepoint table.");
@@ -152,7 +174,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   // pc after gap information.
   for (int i = 0; i < length; i++) {
     assembler->dd(deoptimization_info_[i].pc);
-    assembler->dd(EncodeDeoptimizationIndexAndGap(deoptimization_info_[i]));
+    assembler->dd(EncodeExceptPC(deoptimization_info_[i]));
   }
 
   // Emit table of bitmaps.
@@ -197,14 +219,35 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
 }
 
 
-uint32_t SafepointTableBuilder::EncodeDeoptimizationIndexAndGap(
-    DeoptimizationInfo info) {
+uint32_t SafepointTableBuilder::EncodeExceptPC(const DeoptimizationInfo& info) {
   unsigned index = info.deoptimization_index;
   unsigned gap_size = info.pc_after_gap - info.pc;
-  uint32_t encoding = SafepointTable::DeoptimizationIndexField::encode(index);
-  encoding |= SafepointTable::GapCodeSizeField::encode(gap_size);
+  uint32_t encoding = SafepointEntry::DeoptimizationIndexField::encode(index);
+  encoding |= SafepointEntry::GapCodeSizeField::encode(gap_size);
+  encoding |= SafepointEntry::ArgumentsField::encode(info.arguments);
+  encoding |= SafepointEntry::SaveDoublesField::encode(info.has_doubles);
   return encoding;
 }
+
+
+int SafepointTableBuilder::CountShortDeoptimizationIntervals(unsigned limit) {
+  int result = 0;
+  if (!deoptimization_info_.is_empty()) {
+    unsigned previous_gap_end = deoptimization_info_[0].pc_after_gap;
+    for (int i = 1, n = deoptimization_info_.length(); i < n; i++) {
+      DeoptimizationInfo info = deoptimization_info_[i];
+      if (static_cast<int>(info.deoptimization_index) !=
+          Safepoint::kNoDeoptimizationIndex) {
+        if (previous_gap_end + limit > info.pc) {
+          result++;
+        }
+        previous_gap_end = info.pc_after_gap;
+      }
+    }
+  }
+  return result;
+}
+
 
 
 } }  // namespace v8::internal

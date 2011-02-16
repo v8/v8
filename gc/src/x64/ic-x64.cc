@@ -108,6 +108,9 @@ static void GenerateStringDictionaryProbes(MacroAssembler* masm,
                                            Register name,
                                            Register r0,
                                            Register r1) {
+  // Assert that name contains a string.
+  if (FLAG_debug_code) __ AbortIfNotString(name);
+
   // Compute the capacity mask.
   const int kCapacityOffset =
       StringDictionary::kHeaderSize +
@@ -397,7 +400,7 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateStringLength(MacroAssembler* masm) {
+void LoadIC::GenerateStringLength(MacroAssembler* masm, bool support_wrappers) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
   //  -- rcx    : name
@@ -405,7 +408,8 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // -----------------------------------
   Label miss;
 
-  StubCompiler::GenerateLoadStringLength(masm, rax, rdx, rbx, &miss);
+  StubCompiler::GenerateLoadStringLength(masm, rax, rdx, rbx, &miss,
+                                         support_wrappers);
   __ bind(&miss);
   StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
@@ -579,20 +583,15 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ret(0);
 
   __ bind(&check_pixel_array);
-  // Check whether the elements object is a pixel array.
-  // rdx: receiver
-  // rax: key
-  __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ SmiToInteger32(rbx, rax);  // Used on both directions of next branch.
-  __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
-                 Heap::kPixelArrayMapRootIndex);
-  __ j(not_equal, &check_number_dictionary);
-  __ cmpl(rbx, FieldOperand(rcx, PixelArray::kLengthOffset));
-  __ j(above_equal, &slow);
-  __ movq(rax, FieldOperand(rcx, PixelArray::kExternalPointerOffset));
-  __ movzxbq(rax, Operand(rax, rbx, times_1, 0));
-  __ Integer32ToSmi(rax, rax);
-  __ ret(0);
+  GenerateFastPixelArrayLoad(masm,
+                             rdx,
+                             rax,
+                             rcx,
+                             rbx,
+                             rax,
+                             &check_number_dictionary,
+                             NULL,
+                             &slow);
 
   __ bind(&check_number_dictionary);
   // Check whether the elements is a number dictionary.
@@ -727,131 +726,6 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
-                                        ExternalArrayType array_type) {
-  // ----------- S t a t e -------------
-  //  -- rax    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  Label slow;
-
-  // Check that the object isn't a smi.
-  __ JumpIfSmi(rdx, &slow);
-
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rax, &slow);
-
-  // Check that the object is a JS object.
-  __ CmpObjectType(rdx, JS_OBJECT_TYPE, rcx);
-  __ j(not_equal, &slow);
-  // Check that the receiver does not require access checks.  We need
-  // to check this explicitly since this generic stub does not perform
-  // map checks.  The map is already in rdx.
-  __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsAccessCheckNeeded));
-  __ j(not_zero, &slow);
-
-  // Check that the elements array is the appropriate type of
-  // ExternalArray.
-  // rax: index (as a smi)
-  // rdx: JSObject
-  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
-                 Heap::RootIndexForExternalArrayType(array_type));
-  __ j(not_equal, &slow);
-
-  // Check that the index is in range.
-  __ SmiToInteger32(rcx, rax);
-  __ cmpl(rcx, FieldOperand(rbx, ExternalArray::kLengthOffset));
-  // Unsigned comparison catches both negative and too-large values.
-  __ j(above_equal, &slow);
-
-  // rax: index (as a smi)
-  // rdx: receiver (JSObject)
-  // rcx: untagged index
-  // rbx: elements array
-  __ movq(rbx, FieldOperand(rbx, ExternalArray::kExternalPointerOffset));
-  // rbx: base pointer of external storage
-  switch (array_type) {
-    case kExternalByteArray:
-      __ movsxbq(rcx, Operand(rbx, rcx, times_1, 0));
-      break;
-    case kExternalUnsignedByteArray:
-      __ movzxbq(rcx, Operand(rbx, rcx, times_1, 0));
-      break;
-    case kExternalShortArray:
-      __ movsxwq(rcx, Operand(rbx, rcx, times_2, 0));
-      break;
-    case kExternalUnsignedShortArray:
-      __ movzxwq(rcx, Operand(rbx, rcx, times_2, 0));
-      break;
-    case kExternalIntArray:
-      __ movsxlq(rcx, Operand(rbx, rcx, times_4, 0));
-      break;
-    case kExternalUnsignedIntArray:
-      __ movl(rcx, Operand(rbx, rcx, times_4, 0));
-      break;
-    case kExternalFloatArray:
-      __ cvtss2sd(xmm0, Operand(rbx, rcx, times_4, 0));
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
-
-  // rax: index
-  // rdx: receiver
-  // For integer array types:
-  // rcx: value
-  // For floating-point array type:
-  // xmm0: value as double.
-
-  ASSERT(kSmiValueSize == 32);
-  if (array_type == kExternalUnsignedIntArray) {
-    // For the UnsignedInt array type, we need to see whether
-    // the value can be represented in a Smi. If not, we need to convert
-    // it to a HeapNumber.
-    NearLabel box_int;
-
-    __ JumpIfUIntNotValidSmiValue(rcx, &box_int);
-
-    __ Integer32ToSmi(rax, rcx);
-    __ ret(0);
-
-    __ bind(&box_int);
-
-    // Allocate a HeapNumber for the int and perform int-to-double
-    // conversion.
-    // The value is zero-extended since we loaded the value from memory
-    // with movl.
-    __ cvtqsi2sd(xmm0, rcx);
-
-    __ AllocateHeapNumber(rcx, rbx, &slow);
-    // Set the value.
-    __ movsd(FieldOperand(rcx, HeapNumber::kValueOffset), xmm0);
-    __ movq(rax, rcx);
-    __ ret(0);
-  } else if (array_type == kExternalFloatArray) {
-    // For the floating-point array type, we need to always allocate a
-    // HeapNumber.
-    __ AllocateHeapNumber(rcx, rbx, &slow);
-    // Set the value.
-    __ movsd(FieldOperand(rcx, HeapNumber::kValueOffset), xmm0);
-    __ movq(rax, rcx);
-    __ ret(0);
-  } else {
-    __ Integer32ToSmi(rax, rcx);
-    __ ret(0);
-  }
-
-  // Slow case: Jump to runtime.
-  __ bind(&slow);
-  __ IncrementCounter(&Counters::keyed_load_external_array_slow, 1);
-  GenerateRuntimeGetProperty(masm);
-}
-
-
 void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : key
@@ -948,27 +822,18 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rbx: receiver's elements array
   // rcx: index, zero-extended.
   __ bind(&check_pixel_array);
-  __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
-                 Heap::kPixelArrayMapRootIndex);
-  __ j(not_equal, &slow);
-  // Check that the value is a smi. If a conversion is needed call into the
-  // runtime to convert and clamp.
-  __ JumpIfNotSmi(rax, &slow);
-  __ cmpl(rcx, FieldOperand(rbx, PixelArray::kLengthOffset));
-  __ j(above_equal, &slow);
-  // No more bailouts to slow case on this path, so key not needed.
-  __ SmiToInteger32(rdi, rax);
-  {  // Clamp the value to [0..255].
-    NearLabel done;
-    __ testl(rdi, Immediate(0xFFFFFF00));
-    __ j(zero, &done);
-    __ setcc(negative, rdi);  // 1 if negative, 0 if positive.
-    __ decb(rdi);  // 0 if negative, 255 if positive.
-    __ bind(&done);
-  }
-  __ movq(rbx, FieldOperand(rbx, PixelArray::kExternalPointerOffset));
-  __ movb(Operand(rbx, rcx, times_1, 0), rdi);
-  __ ret(0);
+  GenerateFastPixelArrayStore(masm,
+                              rdx,
+                              rcx,
+                              rax,
+                              rbx,
+                              rdi,
+                              false,
+                              true,
+                              NULL,
+                              &slow,
+                              &slow,
+                              &slow);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -1023,149 +888,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
-                                         ExternalArrayType array_type) {
-  // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : key
-  //  -- rdx     : receiver
-  //  -- rsp[0]  : return address
-  // -----------------------------------
-  Label slow;
-
-  // Check that the object isn't a smi.
-  __ JumpIfSmi(rdx, &slow);
-  // Get the map from the receiver.
-  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
-  // Check that the receiver does not require access checks.  We need
-  // to do this because this generic stub does not perform map checks.
-  __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsAccessCheckNeeded));
-  __ j(not_zero, &slow);
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rcx, &slow);
-
-  // Check that the object is a JS object.
-  __ CmpInstanceType(rbx, JS_OBJECT_TYPE);
-  __ j(not_equal, &slow);
-
-  // Check that the elements array is the appropriate type of
-  // ExternalArray.
-  // rax: value
-  // rcx: key (a smi)
-  // rdx: receiver (a JSObject)
-  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
-                 Heap::RootIndexForExternalArrayType(array_type));
-  __ j(not_equal, &slow);
-
-  // Check that the index is in range.
-  __ SmiToInteger32(rdi, rcx);  // Untag the index.
-  __ cmpl(rdi, FieldOperand(rbx, ExternalArray::kLengthOffset));
-  // Unsigned comparison catches both negative and too-large values.
-  __ j(above_equal, &slow);
-
-  // Handle both smis and HeapNumbers in the fast path. Go to the
-  // runtime for all other kinds of values.
-  // rax: value
-  // rcx: key (a smi)
-  // rdx: receiver (a JSObject)
-  // rbx: elements array
-  // rdi: untagged key
-  NearLabel check_heap_number;
-  __ JumpIfNotSmi(rax, &check_heap_number);
-  // No more branches to slow case on this path.  Key and receiver not needed.
-  __ SmiToInteger32(rdx, rax);
-  __ movq(rbx, FieldOperand(rbx, ExternalArray::kExternalPointerOffset));
-  // rbx: base pointer of external storage
-  switch (array_type) {
-    case kExternalByteArray:
-    case kExternalUnsignedByteArray:
-      __ movb(Operand(rbx, rdi, times_1, 0), rdx);
-      break;
-    case kExternalShortArray:
-    case kExternalUnsignedShortArray:
-      __ movw(Operand(rbx, rdi, times_2, 0), rdx);
-      break;
-    case kExternalIntArray:
-    case kExternalUnsignedIntArray:
-      __ movl(Operand(rbx, rdi, times_4, 0), rdx);
-      break;
-    case kExternalFloatArray:
-      // Need to perform int-to-float conversion.
-      __ cvtlsi2ss(xmm0, rdx);
-      __ movss(Operand(rbx, rdi, times_4, 0), xmm0);
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
-  __ ret(0);
-
-  __ bind(&check_heap_number);
-  // rax: value
-  // rcx: key (a smi)
-  // rdx: receiver (a JSObject)
-  // rbx: elements array
-  // rdi: untagged key
-  __ CmpObjectType(rax, HEAP_NUMBER_TYPE, kScratchRegister);
-  __ j(not_equal, &slow);
-  // No more branches to slow case on this path.
-
-  // The WebGL specification leaves the behavior of storing NaN and
-  // +/-Infinity into integer arrays basically undefined. For more
-  // reproducible behavior, convert these to zero.
-  __ movsd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ movq(rbx, FieldOperand(rbx, ExternalArray::kExternalPointerOffset));
-  // rdi: untagged index
-  // rbx: base pointer of external storage
-  // top of FPU stack: value
-  if (array_type == kExternalFloatArray) {
-    __ cvtsd2ss(xmm0, xmm0);
-    __ movss(Operand(rbx, rdi, times_4, 0), xmm0);
-    __ ret(0);
-  } else {
-    // Need to perform float-to-int conversion.
-    // Test the value for NaN.
-
-    // Convert to int32 and store the low byte/word.
-    // If the value is NaN or +/-infinity, the result is 0x80000000,
-    // which is automatically zero when taken mod 2^n, n < 32.
-    // rdx: value (converted to an untagged integer)
-    // rdi: untagged index
-    // rbx: base pointer of external storage
-    switch (array_type) {
-      case kExternalByteArray:
-      case kExternalUnsignedByteArray:
-        __ cvtsd2si(rdx, xmm0);
-        __ movb(Operand(rbx, rdi, times_1, 0), rdx);
-        break;
-      case kExternalShortArray:
-      case kExternalUnsignedShortArray:
-        __ cvtsd2si(rdx, xmm0);
-        __ movw(Operand(rbx, rdi, times_2, 0), rdx);
-        break;
-      case kExternalIntArray:
-      case kExternalUnsignedIntArray: {
-        // Convert to int64, so that NaN and infinities become
-        // 0x8000000000000000, which is zero mod 2^32.
-        __ cvtsd2siq(rdx, xmm0);
-        __ movl(Operand(rbx, rdi, times_4, 0), rdx);
-        break;
-      }
-      default:
-        UNREACHABLE();
-        break;
-    }
-    __ ret(0);
-  }
-
-  // Slow case: call runtime.
-  __ bind(&slow);
-  GenerateRuntimeSetProperty(masm);
-}
-
-
 // The generated code does not accept smi keys.
 // The generated code falls through if both probes miss.
 static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
@@ -1178,8 +900,12 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   Label number, non_number, non_string, boolean, probe, miss;
 
   // Probe the stub cache.
-  Code::Flags flags =
-      Code::ComputeFlags(kind, NOT_IN_LOOP, MONOMORPHIC, NORMAL, argc);
+  Code::Flags flags = Code::ComputeFlags(kind,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC,
+                                         Code::kNoExtraICState,
+                                         NORMAL,
+                                         argc);
   StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, rax);
 
   // If the stub cache probing failed, the receiver might be a value.
@@ -1501,7 +1227,13 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // rsp[(argc + 1) * 8]      : argument 0 = receiver
   // -----------------------------------
 
+  // Check if the name is a string.
+  Label miss;
+  __ JumpIfSmi(rcx, &miss);
+  Condition cond = masm->IsObjectStringType(rcx, rax, rax);
+  __ j(NegateCondition(cond), &miss);
   GenerateCallNormal(masm, argc);
+  __ bind(&miss);
   GenerateMiss(masm, argc);
 }
 
@@ -1741,7 +1473,8 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
+void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
+                                  Code::ExtraICState extra_ic_state) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
@@ -1752,7 +1485,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // Get the receiver from the stack and probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
-                                         MONOMORPHIC);
+                                         MONOMORPHIC,
+                                         extra_ic_state);
   StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, no_reg);
 
   // Cache miss: Jump to runtime.
@@ -1941,11 +1675,23 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
 }
 
 
+static bool HasInlinedSmiCode(Address address) {
+  // The address of the instruction following the call.
+  Address test_instruction_address =
+      address + Assembler::kCallTargetAddressOffset;
+
+  // If the instruction following the call is not a test al, nothing
+  // was inlined.
+  return *test_instruction_address == Assembler::kTestAlByte;
+}
+
+
 void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   HandleScope scope;
   Handle<Code> rewritten;
   State previous_state = GetState();
-  State state = TargetState(previous_state, false, x, y);
+
+  State state = TargetState(previous_state, HasInlinedSmiCode(address()), x, y);
   if (state == GENERIC) {
     CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS);
     rewritten = stub.GetCode();
@@ -1963,10 +1709,43 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
            Token::Name(op_));
   }
 #endif
+
+  // Activate inlined smi code.
+  if (previous_state == UNINITIALIZED) {
+    PatchInlinedSmiCode(address());
+  }
 }
 
 void PatchInlinedSmiCode(Address address) {
-  UNIMPLEMENTED();
+  // The address of the instruction following the call.
+  Address test_instruction_address =
+      address + Assembler::kCallTargetAddressOffset;
+
+  // If the instruction following the call is not a test al, nothing
+  // was inlined.
+  if (*test_instruction_address != Assembler::kTestAlByte) {
+    ASSERT(*test_instruction_address == Assembler::kNopByte);
+    return;
+  }
+
+  Address delta_address = test_instruction_address + 1;
+  // The delta to the start of the map check instruction and the
+  // condition code uses at the patched jump.
+  int8_t delta = *reinterpret_cast<int8_t*>(delta_address);
+  if (FLAG_trace_ic) {
+    PrintF("[  patching ic at %p, test=%p, delta=%d\n",
+           address, test_instruction_address, delta);
+  }
+
+  // Patch with a short conditional jump. There must be a
+  // short jump-if-carry/not-carry at this position.
+  Address jmp_address = test_instruction_address - delta;
+  ASSERT(*jmp_address == Assembler::kJncShortOpcode ||
+         *jmp_address == Assembler::kJcShortOpcode);
+  Condition cc = *jmp_address == Assembler::kJncShortOpcode
+      ? not_zero
+      : zero;
+  *jmp_address = static_cast<byte>(Assembler::kJccShortPrefix | cc);
 }
 
 

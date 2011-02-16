@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -128,14 +128,32 @@ class Deoptimizer : public Malloced {
 
   static void VisitAllOptimizedFunctions(OptimizedFunctionVisitor* visitor);
 
-  // Given the relocation info of a call to the stack check stub, patch the
-  // code so as to go unconditionally to the on-stack replacement builtin
-  // instead.
-  static void PatchStackCheckCode(RelocInfo* rinfo, Code* replacement_code);
+  // The size in bytes of the code required at a lazy deopt patch site.
+  static int patch_size();
 
-  // Given the relocation info of a call to the on-stack replacement
-  // builtin, patch the code back to the original stack check code.
-  static void RevertStackCheckCode(RelocInfo* rinfo, Code* check_code);
+  // Patch all stack guard checks in the unoptimized code to
+  // unconditionally call replacement_code.
+  static void PatchStackCheckCode(Code* unoptimized_code,
+                                  Code* check_code,
+                                  Code* replacement_code);
+
+  // Patch stack guard check at instruction before pc_after in
+  // the unoptimized code to unconditionally call replacement_code.
+  static void PatchStackCheckCodeAt(Address pc_after,
+                                    Code* check_code,
+                                    Code* replacement_code);
+
+  // Change all patched stack guard checks in the unoptimized code
+  // back to a normal stack guard check.
+  static void RevertStackCheckCode(Code* unoptimized_code,
+                                   Code* check_code,
+                                   Code* replacement_code);
+
+  // Change all patched stack guard checks in the unoptimized code
+  // back to a normal stack guard check.
+  static void RevertStackCheckCodeAt(Address pc_after,
+                                     Code* check_code,
+                                     Code* replacement_code);
 
   ~Deoptimizer();
 

@@ -280,13 +280,24 @@ Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
 }
 
 
-Handle<Object> IgnoreAttributesAndSetLocalProperty(
+Handle<Object> SetLocalPropertyIgnoreAttributes(
     Handle<JSObject> object,
     Handle<String> key,
     Handle<Object> value,
     PropertyAttributes attributes) {
   CALL_HEAP_FUNCTION(object->
-      IgnoreAttributesAndSetLocalProperty(*key, *value, attributes), Object);
+      SetLocalPropertyIgnoreAttributes(*key, *value, attributes), Object);
+}
+
+
+void SetLocalPropertyNoThrow(Handle<JSObject> object,
+                             Handle<String> key,
+                             Handle<Object> value,
+                             PropertyAttributes attributes) {
+  ASSERT(!Top::has_pending_exception());
+  CHECK(!SetLocalPropertyIgnoreAttributes(
+        object, key, value, attributes).is_null());
+  CHECK(!Top::has_pending_exception());
 }
 
 
@@ -419,6 +430,15 @@ Handle<Object> SetElement(Handle<JSObject> object,
     }
   }
   CALL_HEAP_FUNCTION(object->SetElement(index, *value), Object);
+}
+
+
+Handle<Object> SetOwnElement(Handle<JSObject> object,
+                             uint32_t index,
+                             Handle<Object> value) {
+  ASSERT(!object->HasPixelElements());
+  ASSERT(!object->HasExternalArrayElements());
+  CALL_HEAP_FUNCTION(object->SetElement(index, *value, false), Object);
 }
 
 
@@ -799,6 +819,7 @@ static bool CompileLazyHelper(CompilationInfo* info,
                               ClearExceptionFlag flag) {
   // Compile the source information to a code object.
   ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
+  ASSERT(!Top::has_pending_exception());
   bool result = Compiler::CompileLazy(info);
   ASSERT(result != Top::has_pending_exception());
   if (!result && flag == CLEAR_EXCEPTION) Top::clear_pending_exception();
@@ -864,7 +885,7 @@ OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
                                            int expected_additional_properties,
                                            bool condition) {
   object_ = object;
-  if (condition && object_->HasFastProperties()) {
+  if (condition && object_->HasFastProperties() && !object->IsJSGlobalProxy()) {
     // Normalize the properties of object to avoid n^2 behavior
     // when extending the object multiple properties. Indicate the number of
     // properties to be added.

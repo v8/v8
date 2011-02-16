@@ -133,28 +133,37 @@ class StubCache : public AllStatic {
   MUST_USE_RESULT static MaybeObject* ComputeKeyedLoadSpecialized(
       JSObject* receiver);
 
+  MUST_USE_RESULT static MaybeObject* ComputeKeyedLoadPixelArray(
+      JSObject* receiver);
+
   // ---
 
-  MUST_USE_RESULT static MaybeObject* ComputeStoreField(String* name,
-                                                        JSObject* receiver,
-                                                        int field_index,
-                                                        Map* transition = NULL);
+  MUST_USE_RESULT static MaybeObject* ComputeStoreField(
+      String* name,
+      JSObject* receiver,
+      int field_index,
+      Map* transition,
+      Code::ExtraICState extra_ic_state);
 
-  MUST_USE_RESULT static MaybeObject* ComputeStoreNormal();
+  MUST_USE_RESULT static MaybeObject* ComputeStoreNormal(
+      Code::ExtraICState extra_ic_state);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreGlobal(
       String* name,
       GlobalObject* receiver,
-      JSGlobalPropertyCell* cell);
+      JSGlobalPropertyCell* cell,
+      Code::ExtraICState extra_ic_state);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreCallback(
       String* name,
       JSObject* receiver,
-      AccessorInfo* callback);
+      AccessorInfo* callback,
+      Code::ExtraICState extra_ic_state);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreInterceptor(
       String* name,
-      JSObject* receiver);
+      JSObject* receiver,
+      Code::ExtraICState extra_ic_state);
 
   // ---
 
@@ -167,6 +176,13 @@ class StubCache : public AllStatic {
   MUST_USE_RESULT static MaybeObject* ComputeKeyedStoreSpecialized(
       JSObject* receiver);
 
+  MUST_USE_RESULT static MaybeObject* ComputeKeyedStorePixelArray(
+      JSObject* receiver);
+
+  MUST_USE_RESULT static MaybeObject* ComputeKeyedLoadOrStoreExternalArray(
+      JSObject* receiver,
+      bool is_store);
+
   // ---
 
   MUST_USE_RESULT static MaybeObject* ComputeCallField(int argc,
@@ -177,13 +193,15 @@ class StubCache : public AllStatic {
                                                        JSObject* holder,
                                                        int index);
 
-  MUST_USE_RESULT static MaybeObject* ComputeCallConstant(int argc,
-                                                          InLoopFlag in_loop,
-                                                          Code::Kind,
-                                                          String* name,
-                                                          Object* object,
-                                                          JSObject* holder,
-                                                          JSFunction* function);
+  MUST_USE_RESULT static MaybeObject* ComputeCallConstant(
+      int argc,
+      InLoopFlag in_loop,
+      Code::Kind,
+      Code::ExtraICState extra_ic_state,
+      String* name,
+      Object* object,
+      JSObject* holder,
+      JSFunction* function);
 
   MUST_USE_RESULT static MaybeObject* ComputeCallNormal(int argc,
                                                         InLoopFlag in_loop,
@@ -421,7 +439,8 @@ class StubCompiler BASE_EMBEDDED {
                                        Register receiver,
                                        Register scratch1,
                                        Register scratch2,
-                                       Label* miss_label);
+                                       Label* miss_label,
+                                       bool support_wrappers);
 
   static void GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                             Register receiver,
@@ -495,17 +514,16 @@ class StubCompiler BASE_EMBEDDED {
                          String* name,
                          Label* miss);
 
-  bool GenerateLoadCallback(JSObject* object,
-                            JSObject* holder,
-                            Register receiver,
-                            Register name_reg,
-                            Register scratch1,
-                            Register scratch2,
-                            Register scratch3,
-                            AccessorInfo* callback,
-                            String* name,
-                            Label* miss,
-                            Failure** failure);
+  MaybeObject* GenerateLoadCallback(JSObject* object,
+                                    JSObject* holder,
+                                    Register receiver,
+                                    Register name_reg,
+                                    Register scratch1,
+                                    Register scratch2,
+                                    Register scratch3,
+                                    AccessorInfo* callback,
+                                    String* name,
+                                    Label* miss);
 
   void GenerateLoadConstant(JSObject* object,
                             JSObject* holder,
@@ -601,6 +619,7 @@ class KeyedLoadStubCompiler: public StubCompiler {
   MUST_USE_RESULT MaybeObject* CompileLoadFunctionPrototype(String* name);
 
   MUST_USE_RESULT MaybeObject* CompileLoadSpecialized(JSObject* receiver);
+  MUST_USE_RESULT MaybeObject* CompileLoadPixelArray(JSObject* receiver);
 
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
@@ -609,6 +628,9 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
 class StoreStubCompiler: public StubCompiler {
  public:
+  explicit StoreStubCompiler(Code::ExtraICState extra_ic_state)
+    : extra_ic_state_(extra_ic_state) { }
+
   MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
                                                  int index,
                                                  Map* transition,
@@ -626,6 +648,8 @@ class StoreStubCompiler: public StubCompiler {
 
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
+
+  Code::ExtraICState extra_ic_state_;
 };
 
 
@@ -637,6 +661,8 @@ class KeyedStoreStubCompiler: public StubCompiler {
                                                  String* name);
 
   MUST_USE_RESULT MaybeObject* CompileStoreSpecialized(JSObject* receiver);
+
+  MUST_USE_RESULT MaybeObject* CompileStorePixelArray(JSObject* receiver);
 
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
@@ -660,6 +686,7 @@ class CallStubCompiler: public StubCompiler {
   CallStubCompiler(int argc,
                    InLoopFlag in_loop,
                    Code::Kind kind,
+                   Code::ExtraICState extra_ic_state,
                    InlineCacheHolderFlag cache_holder);
 
   MUST_USE_RESULT MaybeObject* CompileCallField(JSObject* object,
@@ -705,6 +732,7 @@ class CallStubCompiler: public StubCompiler {
   const ParameterCount arguments_;
   const InLoopFlag in_loop_;
   const Code::Kind kind_;
+  const Code::ExtraICState extra_ic_state_;
   const InlineCacheHolderFlag cache_holder_;
 
   const ParameterCount& arguments() { return arguments_; }
@@ -791,6 +819,20 @@ class CallOptimization BASE_EMBEDDED {
   bool is_simple_api_call_;
   FunctionTemplateInfo* expected_receiver_type_;
   CallHandlerInfo* api_call_info_;
+};
+
+class ExternalArrayStubCompiler: public StubCompiler {
+ public:
+  explicit ExternalArrayStubCompiler() {}
+
+  MUST_USE_RESULT MaybeObject* CompileKeyedLoadStub(
+      ExternalArrayType array_type, Code::Flags flags);
+
+  MUST_USE_RESULT MaybeObject* CompileKeyedStoreStub(
+      ExternalArrayType array_type, Code::Flags flags);
+
+ private:
+  MaybeObject* GetCode(Code::Flags flags);
 };
 
 } }  // namespace v8::internal

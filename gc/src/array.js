@@ -117,50 +117,61 @@ function Join(array, length, separator, convert) {
     // Fast case for one-element arrays.
     if (length == 1) {
       var e = array[0];
-      if (!IS_UNDEFINED(e) || (0 in array)) {
-        if (IS_STRING(e)) return e;
-        return convert(e);
-      }
+      if (IS_STRING(e)) return e;
+      return convert(e);
     }
 
     // Construct an array for the elements.
-    var elements;
-    var elements_length = 0;
+    var elements = new $Array(length);
 
     // We pull the empty separator check outside the loop for speed!
     if (separator.length == 0) {
-      elements = new $Array(length);
+      var elements_length = 0;
       for (var i = 0; i < length; i++) {
         var e = array[i];
-        if (!IS_UNDEFINED(e) || (i in array)) {
+        if (!IS_UNDEFINED(e)) {
           if (!IS_STRING(e)) e = convert(e);
           elements[elements_length++] = e;
         }
       }
-    } else {
-      elements = new $Array(length << 1);
-      for (var i = 0; i < length; i++) {
-        var e = array[i];
-        if (i != 0) elements[elements_length++] = separator;
-        if (!IS_UNDEFINED(e) || (i in array)) {
-          if (!IS_STRING(e)) e = convert(e);
-          elements[elements_length++] = e;
-        }
-      }
+      elements.length = elements_length;
+      var result = %_FastAsciiArrayJoin(elements, '');
+      if (!IS_UNDEFINED(result)) return result;
+      return %StringBuilderConcat(elements, elements_length, '');
     }
-    elements.length = elements_length;
-    var result = %_FastAsciiArrayJoin(elements, "");
-    if (!IS_UNDEFINED(result)) return result;
-    return %StringBuilderConcat(elements, elements_length, '');
+    // Non-empty separator case.
+    // If the first element is a number then use the heuristic that the 
+    // remaining elements are also likely to be numbers.
+    if (!IS_NUMBER(array[0])) {
+      for (var i = 0; i < length; i++) {
+        var e = array[i];
+        if (!IS_STRING(e)) e = convert(e);
+        elements[i] = e;
+      }
+    } else { 
+      for (var i = 0; i < length; i++) {
+        var e = array[i];
+        if (IS_NUMBER(e)) elements[i] = %_NumberToString(e);
+        else {
+          if (!IS_STRING(e)) e = convert(e);
+          elements[i] = e;
+        }
+      }
+    }   
+    var result = %_FastAsciiArrayJoin(elements, separator);
+    if (!IS_UNDEFINED(result)) return result;   
+
+    return %StringBuilderJoin(elements, length, separator);
   } finally {
-    // Make sure to pop the visited array no matter what happens.
-    if (is_array) visited_arrays.pop();
+    // Make sure to remove the last element of the visited array no
+    // matter what happens.
+    if (is_array) visited_arrays.length = visited_arrays.length - 1;
   }
 }
 
 
 function ConvertToString(x) {
-  if (IS_STRING(x)) return x;
+  // Assumes x is a non-string. 
   if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   return (IS_NULL_OR_UNDEFINED(x)) ? '' : %ToString(%DefaultString(x));
@@ -585,16 +596,17 @@ function ArraySplice(start, delete_count) {
   }
 
   // SpiderMonkey, TraceMonkey and JSC treat the case where no delete count is
-  // given differently from when an undefined delete count is given.
+  // given as a request to delete all the elements from the start.
+  // And it differs from the case of undefined delete count.
   // This does not follow ECMA-262, but we do the same for
   // compatibility.
   var del_count = 0;
-  if (num_arguments > 1) {
+  if (num_arguments == 1) {
+    del_count = len - start_i;
+  } else {
     del_count = TO_INTEGER(delete_count);
     if (del_count < 0) del_count = 0;
     if (del_count > len - start_i) del_count = len - start_i;
-  } else {
-    del_count = len - start_i;
   }
 
   var deleted_elements = [];
@@ -998,9 +1010,11 @@ function ArrayIndexOf(element, index) {
   } else {
     index = TO_INTEGER(index);
     // If index is negative, index from the end of the array.
-    if (index < 0) index = length + index;
-    // If index is still negative, search the entire array.
-    if (index < 0) index = 0;
+    if (index < 0) {
+      index = length + index;
+      // If index is still negative, search the entire array.
+      if (index < 0) index = 0;
+    }
   }
   var min = index;
   var max = length;

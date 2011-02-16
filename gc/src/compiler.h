@@ -49,6 +49,7 @@ class CompilationInfo BASE_EMBEDDED {
   bool is_lazy() const { return (flags_ & IsLazy::mask()) != 0; }
   bool is_eval() const { return (flags_ & IsEval::mask()) != 0; }
   bool is_global() const { return (flags_ & IsGlobal::mask()) != 0; }
+  bool is_strict() const { return (flags_ & IsStrict::mask()) != 0; }
   bool is_in_loop() const { return (flags_ & IsInLoop::mask()) != 0; }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
@@ -68,6 +69,12 @@ class CompilationInfo BASE_EMBEDDED {
   void MarkAsGlobal() {
     ASSERT(!is_lazy());
     flags_ |= IsGlobal::encode(true);
+  }
+  void MarkAsStrict() {
+    flags_ |= IsStrict::encode(true);
+  }
+  StrictModeFlag StrictMode() {
+    return is_strict() ? kStrictMode : kNonStrictMode;
   }
   void MarkAsInLoop() {
     ASSERT(is_lazy());
@@ -114,7 +121,7 @@ class CompilationInfo BASE_EMBEDDED {
     SetMode(OPTIMIZE);
     osr_ast_id_ = osr_ast_id;
   }
-  void DisableOptimization() { SetMode(NONOPT); }
+  void DisableOptimization();
 
   // Deoptimization support.
   bool HasDeoptimizationSupport() const { return supports_deoptimization_; }
@@ -125,9 +132,7 @@ class CompilationInfo BASE_EMBEDDED {
 
   // Determine whether or not we can adaptively optimize.
   bool AllowOptimize() {
-    return V8::UseCrankshaft() &&
-           !closure_.is_null() &&
-           function_->AllowOptimize();
+    return V8::UseCrankshaft() && !closure_.is_null();
   }
 
  private:
@@ -147,6 +152,9 @@ class CompilationInfo BASE_EMBEDDED {
 
   void Initialize(Mode mode) {
     mode_ = V8::UseCrankshaft() ? mode : NONOPT;
+    if (!shared_info_.is_null() && shared_info_->strict_mode()) {
+      MarkAsStrict();
+    }
   }
 
   void SetMode(Mode mode) {
@@ -164,6 +172,8 @@ class CompilationInfo BASE_EMBEDDED {
   class IsGlobal: public BitField<bool, 2, 1> {};
   // Flags that can be set for lazy compilation.
   class IsInLoop: public BitField<bool, 3, 1> {};
+  // Strict mode - used in eager compilation.
+  class IsStrict: public BitField<bool, 4, 1> {};
 
   unsigned flags_;
 
@@ -211,9 +221,13 @@ class CompilationInfo BASE_EMBEDDED {
 
 class Compiler : public AllStatic {
  public:
-  // All routines return a JSFunction.
-  // If an error occurs an exception is raised and
-  // the return handle contains NULL.
+  // Default maximum number of function optimization attempts before we
+  // give up.
+  static const int kDefaultMaxOptCount = 10;
+
+  // All routines return a SharedFunctionInfo.
+  // If an error occurs an exception is raised and the return handle
+  // contains NULL.
 
   // Compile a String source within a context.
   static Handle<SharedFunctionInfo> Compile(Handle<String> source,
@@ -228,7 +242,8 @@ class Compiler : public AllStatic {
   // Compile a String source within a context for Eval.
   static Handle<SharedFunctionInfo> CompileEval(Handle<String> source,
                                                 Handle<Context> context,
-                                                bool is_global);
+                                                bool is_global,
+                                                StrictModeFlag strict_mode);
 
   // Compile from function info (used for lazy compilation). Returns true on
   // success and false if the compilation resulted in a stack overflow.

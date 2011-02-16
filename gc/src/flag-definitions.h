@@ -134,13 +134,14 @@ DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_bool(aggressive_loop_invariant_motion, true,
             "aggressive motion of instructions out of loops")
-#ifdef V8_TARGET_ARCH_IA32
-DEFINE_bool(use_osr, true, "use on-stack replacement")
-#else
+#ifdef V8_TARGET_ARCH_X64
 DEFINE_bool(use_osr, false, "use on-stack replacement")
+#else
+DEFINE_bool(use_osr, true, "use on-stack replacement")
 #endif
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
+DEFINE_bool(optimize_closures, true, "optimize closures")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,
@@ -230,6 +231,10 @@ DEFINE_bool(debugger_auto_break, true,
             "in the queue")
 DEFINE_bool(enable_liveedit, true, "enable liveedit experimental feature")
 
+// execution.cc
+DEFINE_int(stack_size, kPointerSize * 128,
+           "default size of stack region v8 is allowed to use (in KkBytes)")
+
 // frames.cc
 DEFINE_int(max_stack_trace_source_length, 300,
            "maximum length of function source code printed in a stack trace.")
@@ -300,6 +305,7 @@ DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
 
 // parser.cc
 DEFINE_bool(allow_natives_syntax, false, "allow natives syntax")
+DEFINE_bool(strict_mode, true, "allow strict mode directives")
 
 // rewriter.cc
 DEFINE_bool(optimize_ast, true, "optimize the ast")
@@ -354,6 +360,24 @@ DEFINE_int(debugger_port, 5858, "Port to use for remote debugging")
 DEFINE_string(map_counters, NULL, "Map counters to a file")
 DEFINE_args(js_arguments, JSArguments(),
             "Pass all remaining arguments to the script. Alias for \"--\".")
+
+#if defined(WEBOS__)
+DEFINE_bool(debug_compile_events, false, "Enable debugger compile events")
+DEFINE_bool(debug_script_collected_events, false,
+            "Enable debugger script collected events")
+#else
+DEFINE_bool(debug_compile_events, true, "Enable debugger compile events")
+DEFINE_bool(debug_script_collected_events, true,
+            "Enable debugger script collected events")
+#endif
+
+
+//
+// GDB JIT integration flags.
+//
+
+DEFINE_bool(gdbjit, false, "enable GDBJIT interface (disables compacting GC)")
+DEFINE_bool(gdbjit_full, false, "enable GDBJIT interface for all code objects")
 
 //
 // Debug only flags
@@ -473,7 +497,6 @@ DEFINE_bool(log_regexp, false, "Log regular expression execution.")
 DEFINE_bool(sliding_state_window, false,
             "Update sliding state window counters.")
 DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
-DEFINE_bool(oprofile, false, "Enable JIT agent for OProfile.")
 DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
 
 //

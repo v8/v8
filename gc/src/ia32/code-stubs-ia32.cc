@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -38,6 +38,28 @@ namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM(masm)
+
+void ToNumberStub::Generate(MacroAssembler* masm) {
+  // The ToNumber stub takes one argument in eax.
+  NearLabel check_heap_number, call_builtin;
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(not_zero, &check_heap_number);
+  __ ret(0);
+
+  __ bind(&check_heap_number);
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ cmp(Operand(ebx), Immediate(Factory::heap_number_map()));
+  __ j(not_equal, &call_builtin);
+  __ ret(0);
+
+  __ bind(&call_builtin);
+  __ pop(ecx);  // Pop return address.
+  __ push(eax);
+  __ push(ecx);  // Push return address.
+  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
+}
+
+
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Create a new closure from the given function info in new
   // space. Set the context to the current context in esi.
@@ -1803,42 +1825,12 @@ void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 }
 
 
-
 void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
-  Label call_runtime;
   ASSERT(operands_type_ == TRBinaryOpIC::STRING);
   ASSERT(op_ == Token::ADD);
-  // If one of the arguments is a string, call the string add stub.
-  // Otherwise, transition to the generic TRBinaryOpIC type.
-
-  // Registers containing left and right operands respectively.
-  Register left = edx;
-  Register right = eax;
-
-  // Test if left operand is a string.
-  NearLabel left_not_string;
-  __ test(left, Immediate(kSmiTagMask));
-  __ j(zero, &left_not_string);
-  __ CmpObjectType(left, FIRST_NONSTRING_TYPE, ecx);
-  __ j(above_equal, &left_not_string);
-
-  StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
-  GenerateRegisterArgsPush(masm);
-  __ TailCallStub(&string_add_left_stub);
-
-  // Left operand is not a string, test right.
-  __ bind(&left_not_string);
-  __ test(right, Immediate(kSmiTagMask));
-  __ j(zero, &call_runtime);
-  __ CmpObjectType(right, FIRST_NONSTRING_TYPE, ecx);
-  __ j(above_equal, &call_runtime);
-
-  StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
-  GenerateRegisterArgsPush(masm);
-  __ TailCallStub(&string_add_right_stub);
-
-  // Neither argument is a string.
-  __ bind(&call_runtime);
+  // Try to add arguments as strings, otherwise, transition to the generic
+  // TRBinaryOpIC type.
+  GenerateAddStrings(masm);
   GenerateTypeTransition(masm);
 }
 
@@ -2047,8 +2039,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 
 void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
   Label call_runtime;
-  ASSERT(operands_type_ == TRBinaryOpIC::HEAP_NUMBER ||
-         operands_type_ == TRBinaryOpIC::INT32);
+  ASSERT(operands_type_ == TRBinaryOpIC::HEAP_NUMBER);
 
   // Floating point case.
   switch (op_) {
@@ -2380,36 +2371,8 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&call_runtime);
   switch (op_) {
     case Token::ADD: {
+      GenerateAddStrings(masm);
       GenerateRegisterArgsPush(masm);
-      // Test for string arguments before calling runtime.
-      // Registers containing left and right operands respectively.
-      Register lhs, rhs;
-      lhs = edx;
-      rhs = eax;
-
-      // Test if left operand is a string.
-      NearLabel lhs_not_string;
-      __ test(lhs, Immediate(kSmiTagMask));
-      __ j(zero, &lhs_not_string);
-      __ CmpObjectType(lhs, FIRST_NONSTRING_TYPE, ecx);
-      __ j(above_equal, &lhs_not_string);
-
-      StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
-      __ TailCallStub(&string_add_left_stub);
-
-      NearLabel call_add_runtime;
-      // Left operand is not a string, test right.
-      __ bind(&lhs_not_string);
-      __ test(rhs, Immediate(kSmiTagMask));
-      __ j(zero, &call_add_runtime);
-      __ CmpObjectType(rhs, FIRST_NONSTRING_TYPE, ecx);
-      __ j(above_equal, &call_add_runtime);
-
-      StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
-      __ TailCallStub(&string_add_right_stub);
-
-      // Neither argument is a string.
-      __ bind(&call_add_runtime);
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
       break;
     }
@@ -2449,6 +2412,40 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
+  NearLabel call_runtime;
+
+  // Registers containing left and right operands respectively.
+  Register left = edx;
+  Register right = eax;
+
+  // Test if left operand is a string.
+  NearLabel left_not_string;
+  __ test(left, Immediate(kSmiTagMask));
+  __ j(zero, &left_not_string);
+  __ CmpObjectType(left, FIRST_NONSTRING_TYPE, ecx);
+  __ j(above_equal, &left_not_string);
+
+  StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
+  GenerateRegisterArgsPush(masm);
+  __ TailCallStub(&string_add_left_stub);
+
+  // Left operand is not a string, test right.
+  __ bind(&left_not_string);
+  __ test(right, Immediate(kSmiTagMask));
+  __ j(zero, &call_runtime);
+  __ CmpObjectType(right, FIRST_NONSTRING_TYPE, ecx);
+  __ j(above_equal, &call_runtime);
+
+  StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
+  GenerateRegisterArgsPush(masm);
+  __ TailCallStub(&string_add_right_stub);
+
+  // Neither argument is a string.
+  __ bind(&call_runtime);
 }
 
 
@@ -3533,10 +3530,12 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &not_minus_half);
 
   // Calculates reciprocal of square root.
-  // Note that 1/sqrt(x) = sqrt(1/x))
-  __ divsd(xmm3, xmm0);
-  __ movsd(xmm1, xmm3);
+  // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
+  __ xorpd(xmm1, xmm1);
+  __ addsd(xmm1, xmm0);
   __ sqrtsd(xmm1, xmm1);
+  __ divsd(xmm3, xmm1);
+  __ movsd(xmm1, xmm3);
   __ jmp(&allocate_return);
 
   // Test for 0.5.
@@ -3548,7 +3547,9 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ ucomisd(xmm2, xmm1);
   __ j(not_equal, &call_runtime);
   // Calculates square root.
-  __ movsd(xmm1, xmm0);
+  // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
+  __ xorpd(xmm1, xmm1);
+  __ addsd(xmm1, xmm0);
   __ sqrtsd(xmm1, xmm1);
 
   __ bind(&allocate_return);
@@ -3917,7 +3918,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(&Counters::regexp_entry_native, 1);
 
   static const int kRegExpExecuteArguments = 7;
-  __ PrepareCallCFunction(kRegExpExecuteArguments, ecx);
+  __ EnterApiExitFrame(kRegExpExecuteArguments);
 
   // Argument 7: Indicate that this is a direct call from JavaScript.
   __ mov(Operand(esp, 6 * kPointerSize), Immediate(1));
@@ -3962,7 +3963,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Locate the code entry and call it.
   __ add(Operand(edx), Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ CallCFunction(edx, kRegExpExecuteArguments);
+  __ call(Operand(edx));
+
+  // Drop arguments and come back to JS mode.
+  __ LeaveApiExitFrame();
 
   // Check the result.
   Label success;
@@ -3979,12 +3983,30 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception(Top::k_pending_exception_address);
-  __ mov(eax,
+  __ mov(edx,
          Operand::StaticVariable(ExternalReference::the_hole_value_location()));
-  __ cmp(eax, Operand::StaticVariable(pending_exception));
+  __ mov(eax, Operand::StaticVariable(pending_exception));
+  __ cmp(edx, Operand(eax));
   __ j(equal, &runtime);
+  // For exception, throw the exception again.
+
+  // Clear the pending exception variable.
+  __ mov(Operand::StaticVariable(pending_exception), edx);
+
+  // Special handling of termination exceptions which are uncatchable
+  // by javascript code.
+  __ cmp(eax, Factory::termination_exception());
+  Label throw_termination_exception;
+  __ j(equal, &throw_termination_exception);
+
+  // Handle normal exception by following handler chain.
+  __ Throw(eax);
+
+  __ bind(&throw_termination_exception);
+  __ ThrowUncatchable(TERMINATION, eax);
+
   __ bind(&failure);
-  // For failure and exception return null.
+  // For failure to match, return null.
   __ mov(Operand(eax), Factory::null_value());
   __ ret(4 * kPointerSize);
 
@@ -4662,34 +4684,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  // eax holds the exception.
-
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
-
-  // Drop the sp to the top of the handler.
-  ExternalReference handler_address(Top::k_handler_address);
-  __ mov(esp, Operand::StaticVariable(handler_address));
-
-  // Restore next handler and frame pointer, discard handler state.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  __ pop(Operand::StaticVariable(handler_address));
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 1 * kPointerSize);
-  __ pop(ebp);
-  __ pop(edx);  // Remove state.
-
-  // Before returning we restore the context from the frame pointer if
-  // not NULL.  The frame pointer is NULL in the exception handler of
-  // a JS entry frame.
-  __ Set(esi, Immediate(0));  // Tentatively set context pointer to NULL.
-  NearLabel skip;
-  __ cmp(ebp, 0);
-  __ j(equal, &skip, not_taken);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  __ bind(&skip);
-
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
-  __ ret(0);
+  __ Throw(eax);
 }
 
 
@@ -4698,8 +4693,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
                               bool do_gc,
-                              bool always_allocate_scope,
-                              int /* alignment_skew */) {
+                              bool always_allocate_scope) {
   // eax: result parameter for PerformGC, if any
   // ebx: pointer to C function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
@@ -4758,6 +4752,23 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ test(ecx, Immediate(kFailureTagMask));
   __ j(zero, &failure_returned, not_taken);
 
+  ExternalReference pending_exception_address(Top::k_pending_exception_address);
+
+  // Check that there is no pending exception, otherwise we
+  // should have returned some failure value.
+  if (FLAG_debug_code) {
+    __ push(edx);
+    __ mov(edx, Operand::StaticVariable(
+           ExternalReference::the_hole_value_location()));
+    NearLabel okay;
+    __ cmp(edx, Operand::StaticVariable(pending_exception_address));
+    // Cannot use check here as it attempts to generate call into runtime.
+    __ j(equal, &okay);
+    __ int3();
+    __ bind(&okay);
+    __ pop(edx);
+  }
+
   // Exit the JavaScript to C++ exit frame.
   __ LeaveExitFrame(save_doubles_ == kSaveFPRegs);
   __ ret(0);
@@ -4776,7 +4787,6 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(equal, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
-  ExternalReference pending_exception_address(Top::k_pending_exception_address);
   __ mov(eax, Operand::StaticVariable(pending_exception_address));
   __ mov(edx,
          Operand::StaticVariable(ExternalReference::the_hole_value_location()));
@@ -4797,52 +4807,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
 void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
                                           UncatchableExceptionType type) {
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
-
-  // Drop sp to the top stack handler.
-  ExternalReference handler_address(Top::k_handler_address);
-  __ mov(esp, Operand::StaticVariable(handler_address));
-
-  // Unwind the handlers until the ENTRY handler is found.
-  NearLabel loop, done;
-  __ bind(&loop);
-  // Load the type of the current stack handler.
-  const int kStateOffset = StackHandlerConstants::kStateOffset;
-  __ cmp(Operand(esp, kStateOffset), Immediate(StackHandler::ENTRY));
-  __ j(equal, &done);
-  // Fetch the next handler in the list.
-  const int kNextOffset = StackHandlerConstants::kNextOffset;
-  __ mov(esp, Operand(esp, kNextOffset));
-  __ jmp(&loop);
-  __ bind(&done);
-
-  // Set the top handler address to next handler past the current ENTRY handler.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  __ pop(Operand::StaticVariable(handler_address));
-
-  if (type == OUT_OF_MEMORY) {
-    // Set external caught exception to false.
-    ExternalReference external_caught(Top::k_external_caught_exception_address);
-    __ mov(eax, false);
-    __ mov(Operand::StaticVariable(external_caught), eax);
-
-    // Set pending exception and eax to out of memory exception.
-    ExternalReference pending_exception(Top::k_pending_exception_address);
-    __ mov(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
-    __ mov(Operand::StaticVariable(pending_exception), eax);
-  }
-
-  // Clear the context pointer.
-  __ Set(esi, Immediate(0));
-
-  // Restore fp from handler and discard handler state.
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 1 * kPointerSize);
-  __ pop(ebp);
-  __ pop(edx);  // State.
-
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
-  __ ret(0);
+  __ ThrowUncatchable(type, eax);
 }
 
 
@@ -5008,7 +4973,26 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 }
 
 
+// Generate stub code for instanceof.
+// This code can patch a call site inlined cache of the instance of check,
+// which looks like this.
+//
+//   81 ff XX XX XX XX   cmp    edi, <the hole, patched to a map>
+//   75 0a               jne    <some near label>
+//   b8 XX XX XX XX      mov    eax, <the hole, patched to either true or false>
+//
+// If call site patching is requested the stack will have the delta from the
+// return address to the cmp instruction just below the return address. This
+// also means that call site patching can only take place with arguments in
+// registers. TOS looks like this when call site patching is requested
+//
+//   esp[0] : return address
+//   esp[4] : delta from return address to cmp instruction
+//
 void InstanceofStub::Generate(MacroAssembler* masm) {
+  // Call site inlining and patching implies arguments in registers.
+  ASSERT(HasArgsInRegisters() || !HasCallSiteInlineCheck());
+
   // Fixed register usage throughout the stub.
   Register object = eax;  // Object (lhs).
   Register map = ebx;  // Map of the object.
@@ -5016,9 +5000,22 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   Register prototype = edi;  // Prototype of the function.
   Register scratch = ecx;
 
+  // Constants describing the call site code to patch.
+  static const int kDeltaToCmpImmediate = 2;
+  static const int kDeltaToMov = 8;
+  static const int kDeltaToMovImmediate = 9;
+  static const int8_t kCmpEdiImmediateByte1 = BitCast<int8_t, uint8_t>(0x81);
+  static const int8_t kCmpEdiImmediateByte2 = BitCast<int8_t, uint8_t>(0xff);
+  static const int8_t kMovEaxImmediateByte = BitCast<int8_t, uint8_t>(0xb8);
+
+  ExternalReference roots_address = ExternalReference::roots_address();
+
+  ASSERT_EQ(object.code(), InstanceofStub::left().code());
+  ASSERT_EQ(function.code(), InstanceofStub::right().code());
+
   // Get the object and function - they are always both needed.
   Label slow, not_js_object;
-  if (!args_in_registers()) {
+  if (!HasArgsInRegisters()) {
     __ mov(object, Operand(esp, 2 * kPointerSize));
     __ mov(function, Operand(esp, 1 * kPointerSize));
   }
@@ -5028,22 +5025,26 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ j(zero, &not_js_object, not_taken);
   __ IsObjectJSObjectType(object, map, scratch, &not_js_object);
 
-  // Look up the function and the map in the instanceof cache.
-  NearLabel miss;
-  ExternalReference roots_address = ExternalReference::roots_address();
-  __ mov(scratch, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
-  __ cmp(function,
-         Operand::StaticArray(scratch, times_pointer_size, roots_address));
-  __ j(not_equal, &miss);
-  __ mov(scratch, Immediate(Heap::kInstanceofCacheMapRootIndex));
-  __ cmp(map, Operand::StaticArray(scratch, times_pointer_size, roots_address));
-  __ j(not_equal, &miss);
-  __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
-  __ mov(eax, Operand::StaticArray(scratch, times_pointer_size, roots_address));
-  __ IncrementCounter(&Counters::instance_of_cache, 1);
-  __ ret((args_in_registers() ? 0 : 2) * kPointerSize);
+  // If there is a call site cache don't look in the global cache, but do the
+  // real lookup and update the call site cache.
+  if (!HasCallSiteInlineCheck()) {
+    // Look up the function and the map in the instanceof cache.
+    NearLabel miss;
+    __ mov(scratch, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
+    __ cmp(function,
+           Operand::StaticArray(scratch, times_pointer_size, roots_address));
+    __ j(not_equal, &miss);
+    __ mov(scratch, Immediate(Heap::kInstanceofCacheMapRootIndex));
+    __ cmp(map, Operand::StaticArray(
+        scratch, times_pointer_size, roots_address));
+    __ j(not_equal, &miss);
+    __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
+    __ mov(eax, Operand::StaticArray(
+        scratch, times_pointer_size, roots_address));
+    __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
+    __ bind(&miss);
+  }
 
-  __ bind(&miss);
   // Get the prototype of the function.
   __ TryGetFunctionPrototype(function, prototype, scratch, &slow);
 
@@ -5052,13 +5053,29 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ j(zero, &slow, not_taken);
   __ IsObjectJSObjectType(prototype, scratch, scratch, &slow);
 
-  // Update the golbal instanceof cache with the current map and function. The
-  // cached answer will be set when it is known.
+  // Update the global instanceof or call site inlined cache with the current
+  // map and function. The cached answer will be set when it is known below.
+  if (!HasCallSiteInlineCheck()) {
   __ mov(scratch, Immediate(Heap::kInstanceofCacheMapRootIndex));
   __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_address), map);
   __ mov(scratch, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
   __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_address),
          function);
+  } else {
+    // The constants for the code patching are based on no push instructions
+    // at the call site.
+    ASSERT(HasArgsInRegisters());
+    // Get return address and delta to inlined map check.
+    __ mov(scratch, Operand(esp, 0 * kPointerSize));
+    __ sub(scratch, Operand(esp, 1 * kPointerSize));
+    if (FLAG_debug_code) {
+      __ cmpb(Operand(scratch, 0), kCmpEdiImmediateByte1);
+      __ Assert(equal, "InstanceofStub unexpected call site cache (cmp 1)");
+      __ cmpb(Operand(scratch, 1), kCmpEdiImmediateByte2);
+      __ Assert(equal, "InstanceofStub unexpected call site cache (cmp 2)");
+    }
+    __ mov(Operand(scratch, kDeltaToCmpImmediate), map);
+  }
 
   // Loop through the prototype chain of the object looking for the function
   // prototype.
@@ -5074,18 +5091,48 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ jmp(&loop);
 
   __ bind(&is_instance);
-  __ IncrementCounter(&Counters::instance_of_stub_true, 1);
-  __ Set(eax, Immediate(0));
-  __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
-  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_address), eax);
-  __ ret((args_in_registers() ? 0 : 2) * kPointerSize);
+  if (!HasCallSiteInlineCheck()) {
+    __ Set(eax, Immediate(0));
+    __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
+    __ mov(Operand::StaticArray(scratch,
+                                times_pointer_size, roots_address), eax);
+  } else {
+    // Get return address and delta to inlined map check.
+    __ mov(eax, Factory::true_value());
+    __ mov(scratch, Operand(esp, 0 * kPointerSize));
+    __ sub(scratch, Operand(esp, 1 * kPointerSize));
+    if (FLAG_debug_code) {
+      __ cmpb(Operand(scratch, kDeltaToMov), kMovEaxImmediateByte);
+      __ Assert(equal, "InstanceofStub unexpected call site cache (mov)");
+    }
+    __ mov(Operand(scratch, kDeltaToMovImmediate), eax);
+    if (!ReturnTrueFalseObject()) {
+      __ Set(eax, Immediate(0));
+    }
+  }
+  __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   __ bind(&is_not_instance);
-  __ IncrementCounter(&Counters::instance_of_stub_false, 1);
-  __ Set(eax, Immediate(Smi::FromInt(1)));
-  __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
-  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_address), eax);
-  __ ret((args_in_registers() ? 0 : 2) * kPointerSize);
+  if (!HasCallSiteInlineCheck()) {
+    __ Set(eax, Immediate(Smi::FromInt(1)));
+    __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
+    __ mov(Operand::StaticArray(
+        scratch, times_pointer_size, roots_address), eax);
+  } else {
+    // Get return address and delta to inlined map check.
+    __ mov(eax, Factory::false_value());
+    __ mov(scratch, Operand(esp, 0 * kPointerSize));
+    __ sub(scratch, Operand(esp, 1 * kPointerSize));
+    if (FLAG_debug_code) {
+      __ cmpb(Operand(scratch, kDeltaToMov), kMovEaxImmediateByte);
+      __ Assert(equal, "InstanceofStub unexpected call site cache (mov)");
+    }
+    __ mov(Operand(scratch, kDeltaToMovImmediate), eax);
+    if (!ReturnTrueFalseObject()) {
+      __ Set(eax, Immediate(Smi::FromInt(1)));
+    }
+  }
+  __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   Label object_not_null, object_not_null_or_smi;
   __ bind(&not_js_object);
@@ -5099,37 +5146,59 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Null is not instance of anything.
   __ cmp(object, Factory::null_value());
   __ j(not_equal, &object_not_null);
-  __ IncrementCounter(&Counters::instance_of_stub_false_null, 1);
   __ Set(eax, Immediate(Smi::FromInt(1)));
-  __ ret((args_in_registers() ? 0 : 2) * kPointerSize);
+  __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   __ bind(&object_not_null);
   // Smi values is not instance of anything.
   __ test(object, Immediate(kSmiTagMask));
   __ j(not_zero, &object_not_null_or_smi, not_taken);
   __ Set(eax, Immediate(Smi::FromInt(1)));
-  __ ret((args_in_registers() ? 0 : 2) * kPointerSize);
+  __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   __ bind(&object_not_null_or_smi);
   // String values is not instance of anything.
   Condition is_string = masm->IsObjectStringType(object, scratch, scratch);
   __ j(NegateCondition(is_string), &slow);
-  __ IncrementCounter(&Counters::instance_of_stub_false_string, 1);
   __ Set(eax, Immediate(Smi::FromInt(1)));
-  __ ret((args_in_registers() ? 0 : 2) * kPointerSize);
+  __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   // Slow-case: Go through the JavaScript implementation.
   __ bind(&slow);
-  if (args_in_registers()) {
-    // Push arguments below return address.
-    __ pop(scratch);
+  if (!ReturnTrueFalseObject()) {
+    // Tail call the builtin which returns 0 or 1.
+    if (HasArgsInRegisters()) {
+      // Push arguments below return address.
+      __ pop(scratch);
+      __ push(object);
+      __ push(function);
+      __ push(scratch);
+    }
+    __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
+  } else {
+    // Call the builtin and convert 0/1 to true/false.
+    __ EnterInternalFrame();
     __ push(object);
     __ push(function);
-    __ push(scratch);
+    __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
+    __ LeaveInternalFrame();
+    NearLabel true_value, done;
+    __ test(eax, Operand(eax));
+    __ j(zero, &true_value);
+    __ mov(eax, Factory::false_value());
+    __ jmp(&done);
+    __ bind(&true_value);
+    __ mov(eax, Factory::true_value());
+    __ bind(&done);
+    __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
   }
-  __ IncrementCounter(&Counters::instance_of_slow, 1);
-  __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
 }
+
+
+Register InstanceofStub::left() { return eax; }
+
+
+Register InstanceofStub::right() { return edx; }
 
 
 int CompareStub::MinorKey() {
@@ -6439,6 +6508,148 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 
   // Do a tail call to the rewritten stub.
   __ jmp(Operand(edi));
+}
+
+
+// Loads a indexed element from a pixel array.
+void GenerateFastPixelArrayLoad(MacroAssembler* masm,
+                                Register receiver,
+                                Register key,
+                                Register elements,
+                                Register untagged_key,
+                                Register result,
+                                Label* not_pixel_array,
+                                Label* key_not_smi,
+                                Label* out_of_range) {
+  // Register use:
+  //   receiver - holds the receiver and is unchanged.
+  //   key - holds the key and is unchanged (must be a smi).
+  //   elements - is set to the the receiver's element if
+  //       the receiver doesn't have a pixel array or the
+  //       key is not a smi, otherwise it's the elements'
+  //       external pointer.
+  //   untagged_key - is set to the untagged key
+
+  // Some callers already have verified that the key is a smi.  key_not_smi is
+  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
+  // to ensure the key is a smi must be added.
+  if (key_not_smi != NULL) {
+    __ JumpIfNotSmi(key, key_not_smi);
+  } else {
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(key);
+    }
+  }
+  __ mov(untagged_key, key);
+  __ SmiUntag(untagged_key);
+
+  __ mov(elements, FieldOperand(receiver, JSObject::kElementsOffset));
+  // By passing NULL as not_pixel_array, callers signal that they have already
+  // verified that the receiver has pixel array elements.
+  if (not_pixel_array != NULL) {
+    __ CheckMap(elements, Factory::pixel_array_map(), not_pixel_array, true);
+  } else {
+    if (FLAG_debug_code) {
+      // Map check should have already made sure that elements is a pixel array.
+      __ cmp(FieldOperand(elements, HeapObject::kMapOffset),
+             Immediate(Factory::pixel_array_map()));
+      __ Assert(equal, "Elements isn't a pixel array");
+    }
+  }
+
+  // Key must be in range.
+  __ cmp(untagged_key, FieldOperand(elements, PixelArray::kLengthOffset));
+  __ j(above_equal, out_of_range);  // unsigned check handles negative keys.
+
+  // Perform the indexed load and tag the result as a smi.
+  __ mov(elements, FieldOperand(elements, PixelArray::kExternalPointerOffset));
+  __ movzx_b(result, Operand(elements, untagged_key, times_1, 0));
+  __ SmiTag(result);
+  __ ret(0);
+}
+
+
+// Stores an indexed element into a pixel array, clamping the stored value.
+void GenerateFastPixelArrayStore(MacroAssembler* masm,
+                                 Register receiver,
+                                 Register key,
+                                 Register value,
+                                 Register elements,
+                                 Register scratch1,
+                                 bool load_elements_from_receiver,
+                                 Label* key_not_smi,
+                                 Label* value_not_smi,
+                                 Label* not_pixel_array,
+                                 Label* out_of_range) {
+  // Register use:
+  //   receiver - holds the receiver and is unchanged unless the
+  //              store succeeds.
+  //   key - holds the key (must be a smi) and is unchanged.
+  //   value - holds the value (must be a smi) and is unchanged.
+  //   elements - holds the element object of the receiver on entry if
+  //              load_elements_from_receiver is false, otherwise used
+  //              internally to store the pixel arrays elements and
+  //              external array pointer.
+  //
+  // receiver, key and value remain unmodified until it's guaranteed that the
+  // store will succeed.
+  Register external_pointer = elements;
+  Register untagged_key = scratch1;
+  Register untagged_value = receiver;  // Only set once success guaranteed.
+
+  // Fetch the receiver's elements if the caller hasn't already done so.
+  if (load_elements_from_receiver) {
+    __ mov(elements, FieldOperand(receiver, JSObject::kElementsOffset));
+  }
+
+  // By passing NULL as not_pixel_array, callers signal that they have already
+  // verified that the receiver has pixel array elements.
+  if (not_pixel_array != NULL) {
+    __ CheckMap(elements, Factory::pixel_array_map(), not_pixel_array, true);
+  } else {
+    if (FLAG_debug_code) {
+      // Map check should have already made sure that elements is a pixel array.
+      __ cmp(FieldOperand(elements, HeapObject::kMapOffset),
+             Immediate(Factory::pixel_array_map()));
+      __ Assert(equal, "Elements isn't a pixel array");
+    }
+  }
+
+  // Some callers already have verified that the key is a smi.  key_not_smi is
+  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
+  // to ensure the key is a smi must be added.
+  if (key_not_smi != NULL) {
+    __ JumpIfNotSmi(key, key_not_smi);
+  } else {
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(key);
+    }
+  }
+
+  // Key must be a smi and it must be in range.
+  __ mov(untagged_key, key);
+  __ SmiUntag(untagged_key);
+  __ cmp(untagged_key, FieldOperand(elements, PixelArray::kLengthOffset));
+  __ j(above_equal, out_of_range);  // unsigned check handles negative keys.
+
+  // Value must be a smi.
+  __ JumpIfNotSmi(value, value_not_smi);
+  __ mov(untagged_value, value);
+  __ SmiUntag(untagged_value);
+
+  {  // Clamp the value to [0..255].
+    NearLabel done;
+    __ test(untagged_value, Immediate(0xFFFFFF00));
+    __ j(zero, &done);
+    __ setcc(negative, untagged_value);  // 1 if negative, 0 if positive.
+    __ dec_b(untagged_value);  // 0 if negative, 255 if positive.
+    __ bind(&done);
+  }
+
+  __ mov(external_pointer,
+         FieldOperand(elements, PixelArray::kExternalPointerOffset));
+  __ mov_b(Operand(external_pointer, untagged_key, times_1, 0), untagged_value);
+  __ ret(0);  // Return value in eax.
 }
 
 

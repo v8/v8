@@ -131,6 +131,7 @@ namespace internal {
   SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)         \
   SC(map_slow_to_fast_elements, V8.MapSlowToFastElements)             \
   SC(map_fast_to_slow_elements, V8.MapFastToSlowElements)             \
+  SC(map_to_pixel_array_elements, V8.MapToPixelArrayElements)         \
   /* How is the generic keyed-load stub used? */                      \
   SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                  \
   SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)            \
@@ -252,15 +253,7 @@ namespace internal {
   SC(smi_checks_removed, V8.SmiChecksRemoved)                         \
   SC(map_checks_removed, V8.MapChecksRemoved)                         \
   SC(quote_json_char_count, V8.QuoteJsonCharacterCount)               \
-  SC(quote_json_char_recount, V8.QuoteJsonCharacterReCount)           \
-  SC(instance_of, V8.InstanceOf)                                      \
-  SC(instance_of_cache, V8.InstanceOfCache)                           \
-  SC(instance_of_stub_true, V8.InstanceOfStubTrue)                    \
-  SC(instance_of_stub_false, V8.InstanceOfStubFalse)                  \
-  SC(instance_of_stub_false_null, V8.InstanceOfStubFalseNull)         \
-  SC(instance_of_stub_false_string, V8.InstanceOfStubFalseString)     \
-  SC(instance_of_full, V8.InstanceOfFull)                             \
-  SC(instance_of_slow, V8.InstanceOfSlow)
+  SC(quote_json_char_recount, V8.QuoteJsonCharacterReCount)
 
 
 // This file contains all the v8 counters that are in use.

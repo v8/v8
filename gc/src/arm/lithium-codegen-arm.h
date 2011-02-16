@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -39,7 +39,29 @@ namespace internal {
 
 // Forward declarations.
 class LDeferredCode;
+class LGapNode;
 class SafepointGenerator;
+
+class LGapResolver BASE_EMBEDDED {
+ public:
+  LGapResolver();
+  const ZoneList<LMoveOperands>* Resolve(const ZoneList<LMoveOperands>* moves,
+                                         LOperand* marker_operand);
+
+ private:
+  LGapNode* LookupNode(LOperand* operand);
+  bool CanReach(LGapNode* a, LGapNode* b, int visited_id);
+  bool CanReach(LGapNode* a, LGapNode* b);
+  void RegisterMove(LMoveOperands move);
+  void AddResultMove(LOperand* from, LOperand* to);
+  void AddResultMove(LGapNode* from, LGapNode* to);
+  void ResolveCycle(LGapNode* start, LOperand* marker_operand);
+
+  ZoneList<LGapNode*> nodes_;
+  ZoneList<LGapNode*> identified_cycles_;
+  ZoneList<LMoveOperands> result_;
+  int next_visited_id_;
+};
 
 
 class LCodeGen BASE_EMBEDDED {
@@ -71,14 +93,23 @@ class LCodeGen BASE_EMBEDDED {
   void FinishCode(Handle<Code> code);
 
   // Deferred code support.
+  template<int T>
+  void DoDeferredGenericBinaryStub(LTemplateInstruction<1, 2, T>* instr,
+                                   Token::Value op);
   void DoDeferredNumberTagD(LNumberTagD* instr);
   void DoDeferredNumberTagI(LNumberTagI* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LGoto* instr);
+  void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
+  void DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
+                                        Label* map_check);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
+
+  // Emit frame translation commands for an environment.
+  void WriteTranslation(LEnvironment* environment, Translation* translation);
 
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) void Do##type(L##type* node);
@@ -98,12 +129,17 @@ class LCodeGen BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
+  int strict_mode_flag() const {
+    return info_->is_strict() ? kStrictMode : kNonStrictMode;
+  }
+
   LChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
   MacroAssembler* masm() const { return masm_; }
 
   Register scratch0() { return r9; }
+  DwVfpRegister double_scratch0() { return d0; }
 
   int GetNextEmittedBlock(int block);
   LInstruction* GetNextInstruction();
@@ -149,7 +185,7 @@ class LCodeGen BASE_EMBEDDED {
                          int arity,
                          LInstruction* instr);
 
-  void LoadPrototype(Register result, Handle<JSObject> prototype);
+  void LoadHeapObject(Register result, Handle<HeapObject> object);
 
   void RegisterLazyDeoptimization(LInstruction* instr);
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment);
@@ -185,15 +221,28 @@ class LCodeGen BASE_EMBEDDED {
   MemOperand ToMemOperand(LOperand* op) const;
 
   // Specific math operations - used from DoUnaryMathOperation.
+  void EmitIntegerMathAbs(LUnaryMathOperation* instr);
   void DoMathAbs(LUnaryMathOperation* instr);
+  void EmitVFPTruncate(VFPRoundingMode rounding_mode,
+                       SwVfpRegister result,
+                       DwVfpRegister double_input,
+                       Register scratch1,
+                       Register scratch2);
   void DoMathFloor(LUnaryMathOperation* instr);
   void DoMathSqrt(LUnaryMathOperation* instr);
 
   // Support for recording safepoint and position information.
+  void RecordSafepoint(LPointerMap* pointers,
+                       Safepoint::Kind kind,
+                       int arguments,
+                       int deoptimization_index);
   void RecordSafepoint(LPointerMap* pointers, int deoptimization_index);
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     int deoptimization_index);
+  void RecordSafepointWithRegistersAndDoubles(LPointerMap* pointers,
+                                              int arguments,
+                                              int deoptimization_index);
   void RecordPosition(int position);
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
@@ -219,6 +268,10 @@ class LCodeGen BASE_EMBEDDED {
                          Label* is_not_object,
                          Label* is_object);
 
+  // Emits optimized code for %_IsConstructCall().
+  // Caller should branch on equal condition.
+  void EmitIsConstructCall(Register temp1, Register temp2);
+
   LChunk* const chunk_;
   MacroAssembler* const masm_;
   CompilationInfo* const info_;
@@ -238,6 +291,9 @@ class LCodeGen BASE_EMBEDDED {
   // Builder that keeps track of safepoints in the code. The table
   // itself is emitted at the end of the generated code.
   SafepointTableBuilder safepoints_;
+
+  // Compiler from a set of parallel moves to a sequential list of moves.
+  LGapResolver resolver_;
 
   friend class LDeferredCode;
   friend class LEnvironment;

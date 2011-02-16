@@ -286,6 +286,9 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   CodeGenerator::MakeCodePrologue(info);
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  masm.positions_recorder()->StartGDBJITLineInfoRecording();
+#endif
 
   FullCodeGenerator cgen(&masm);
   cgen.Generate(info);
@@ -301,9 +304,17 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   cgen.PopulateDeoptimizationData(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_allow_osr_at_loop_nesting_level(0);
-  code->set_stack_check_table_start(table_offset);
+  code->set_stack_check_table_offset(table_offset);
   CodeGenerator::PrintCode(code, info);
   info->SetCode(code);  // may be an empty handle.
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (FLAG_gdbjit && !code.is_null()) {
+    GDBJITLineInfo* lineinfo =
+        masm.positions_recorder()->DetachGDBJITLineInfo();
+
+    GDBJIT(RegisterDetailedLineInfo(*code, lineinfo));
+  }
+#endif
   return !code.is_null();
 }
 
@@ -902,7 +913,7 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
 
-  PrepareForBailoutForId(stmt->EntryId(), TOS_REG);
+  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
   VisitStatements(stmt->statements());
   __ bind(nested_statement.break_target());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);

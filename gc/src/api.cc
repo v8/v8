@@ -115,7 +115,9 @@ static FatalErrorCallback exception_behavior = NULL;
 
 static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
-  ENTER_V8;
+#ifdef ENABLE_VMSTATE_TRACKING
+  i::VMState __state__(i::OTHER);
+#endif
   API_Fatal(location, message);
 }
 
@@ -668,7 +670,7 @@ static void InitializeTemplate(i::Handle<i::TemplateInfo> that, int type) {
 
 void Template::Set(v8::Handle<String> name, v8::Handle<Data> value,
                    v8::PropertyAttribute attribute) {
-  if (IsDeadCheck("v8::Template::SetProperty()")) return;
+  if (IsDeadCheck("v8::Template::Set()")) return;
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::Object> list(Utils::OpenHandle(this)->property_list());
@@ -1478,11 +1480,11 @@ v8::Handle<Value> Message::GetScriptResourceName() const {
   }
   ENTER_V8;
   HandleScope scope;
-  i::Handle<i::JSObject> obj =
-      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   // Return this.script.name.
   i::Handle<i::JSValue> script =
-      i::Handle<i::JSValue>::cast(GetProperty(obj, "script"));
+      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script()));
   i::Handle<i::Object> resource_name(i::Script::cast(script->value())->name());
   return scope.Close(Utils::ToLocal(resource_name));
 }
@@ -1494,11 +1496,11 @@ v8::Handle<Value> Message::GetScriptData() const {
   }
   ENTER_V8;
   HandleScope scope;
-  i::Handle<i::JSObject> obj =
-      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   // Return this.script.data.
   i::Handle<i::JSValue> script =
-      i::Handle<i::JSValue>::cast(GetProperty(obj, "script"));
+      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script()));
   i::Handle<i::Object> data(i::Script::cast(script->value())->data());
   return scope.Close(Utils::ToLocal(data));
 }
@@ -1510,9 +1512,9 @@ v8::Handle<v8::StackTrace> Message::GetStackTrace() const {
   }
   ENTER_V8;
   HandleScope scope;
-  i::Handle<i::JSObject> obj =
-      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::Object> stackFramesObj = GetProperty(obj, "stackFrames");
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::Object> stackFramesObj(message->stack_frames());
   if (!stackFramesObj->IsJSArray()) return v8::Handle<v8::StackTrace>();
   i::Handle<i::JSArray> stackTrace =
       i::Handle<i::JSArray>::cast(stackFramesObj);
@@ -1552,6 +1554,7 @@ int Message::GetLineNumber() const {
   ON_BAILOUT("v8::Message::GetLineNumber()", return kNoLineNumberInfo);
   ENTER_V8;
   HandleScope scope;
+
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> result = CallV8HeapFunction("GetLineNumber",
                                                    Utils::OpenHandle(this),
@@ -1565,9 +1568,9 @@ int Message::GetStartPosition() const {
   if (IsDeadCheck("v8::Message::GetStartPosition()")) return 0;
   ENTER_V8;
   HandleScope scope;
-
-  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
-  return static_cast<int>(GetProperty(data_obj, "startPos")->Number());
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
+  return message->start_position();
 }
 
 
@@ -1575,8 +1578,9 @@ int Message::GetEndPosition() const {
   if (IsDeadCheck("v8::Message::GetEndPosition()")) return 0;
   ENTER_V8;
   HandleScope scope;
-  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
-  return static_cast<int>(GetProperty(data_obj, "endPos")->Number());
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
+  return message->end_position();
 }
 
 
@@ -1606,8 +1610,10 @@ int Message::GetEndColumn() const {
       data_obj,
       &has_pending_exception);
   EXCEPTION_BAILOUT_CHECK(0);
-  int start = static_cast<int>(GetProperty(data_obj, "startPos")->Number());
-  int end = static_cast<int>(GetProperty(data_obj, "endPos")->Number());
+  i::Handle<i::JSMessageObject> message =
+      i::Handle<i::JSMessageObject>::cast(data_obj);
+  int start = message->start_position();
+  int end = message->end_position();
   return static_cast<int>(start_col_obj->Number()) + (end - start);
 }
 
@@ -2200,6 +2206,12 @@ bool Value::Equals(Handle<Value> that) const {
   ENTER_V8;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> other = Utils::OpenHandle(*that);
+  // If both obj and other are JSObjects, we'd better compare by identity
+  // immediately when going into JS builtin.  The reason is Invoke
+  // would overwrite global object receiver with global proxy.
+  if (obj->IsJSObject() && other->IsJSObject()) {
+    return *obj == *other;
+  }
   i::Object** args[1] = { other.location() };
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> result =
@@ -2649,26 +2661,38 @@ int v8::Object::GetIdentityHash() {
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, true));
-  i::Handle<i::Object> hash_symbol = i::Factory::identity_hash_symbol();
-  i::Handle<i::Object> hash = i::GetProperty(hidden_props, hash_symbol);
-  int hash_value;
-  if (hash->IsSmi()) {
-    hash_value = i::Smi::cast(*hash)->value();
-  } else {
-    int attempts = 0;
-    do {
-      // Generate a random 32-bit hash value but limit range to fit
-      // within a smi.
-      hash_value = i::V8::Random() & i::Smi::kMaxValue;
-      attempts++;
-    } while (hash_value == 0 && attempts < 30);
-    hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
-    i::SetProperty(hidden_props,
-                   hash_symbol,
-                   i::Handle<i::Object>(i::Smi::FromInt(hash_value)),
-                   static_cast<PropertyAttributes>(None));
+  i::Handle<i::Object> hidden_props_obj(i::GetHiddenProperties(self, true));
+  if (!hidden_props_obj->IsJSObject()) {
+    // We failed to create hidden properties.  That's a detached
+    // global proxy.
+    ASSERT(hidden_props_obj->IsUndefined());
+    return 0;
   }
+  i::Handle<i::JSObject> hidden_props =
+      i::Handle<i::JSObject>::cast(hidden_props_obj);
+  i::Handle<i::String> hash_symbol = i::Factory::identity_hash_symbol();
+  if (hidden_props->HasLocalProperty(*hash_symbol)) {
+    i::Handle<i::Object> hash = i::GetProperty(hidden_props, hash_symbol);
+    CHECK(!hash.is_null());
+    CHECK(hash->IsSmi());
+    return i::Smi::cast(*hash)->value();
+  }
+
+  int hash_value;
+  int attempts = 0;
+  do {
+    // Generate a random 32-bit hash value but limit range to fit
+    // within a smi.
+    hash_value = i::V8::Random() & i::Smi::kMaxValue;
+    attempts++;
+  } while (hash_value == 0 && attempts < 30);
+  hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
+  CHECK(!i::SetLocalPropertyIgnoreAttributes(
+          hidden_props,
+          hash_symbol,
+          i::Handle<i::Object>(i::Smi::FromInt(hash_value)),
+          static_cast<PropertyAttributes>(None)).is_null());
+
   return hash_value;
 }
 
@@ -2745,9 +2769,9 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
     return;
   }
   i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(length, data);
-  i::Handle<i::Map> slow_map =
-      i::Factory::GetSlowElementsMap(i::Handle<i::Map>(self->map()));
-  self->set_map(*slow_map);
+  i::Handle<i::Map> pixel_array_map =
+      i::Factory::GetPixelArrayElementsMap(i::Handle<i::Map>(self->map()));
+  self->set_map(*pixel_array_map);
   self->set_elements(*pixels);
 }
 
@@ -3266,18 +3290,35 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
 }
 
 
+static bool CanBeEncodedAsSmi(void* ptr) {
+  const uintptr_t address = reinterpret_cast<uintptr_t>(ptr);
+  return ((address & i::kEncodablePointerMask) == 0);
+}
+
+
+static i::Smi* EncodeAsSmi(void* ptr) {
+  ASSERT(CanBeEncodedAsSmi(ptr));
+  const uintptr_t address = reinterpret_cast<uintptr_t>(ptr);
+  i::Smi* result = reinterpret_cast<i::Smi*>(address << i::kPointerToSmiShift);
+  ASSERT(i::Internals::HasSmiTag(result));
+  ASSERT_EQ(result, i::Smi::FromInt(result->value()));
+  ASSERT_EQ(ptr, i::Internals::GetExternalPointerFromSmi(result));
+  return result;
+}
+
+
 void v8::Object::SetPointerInInternalField(int index, void* value) {
   ENTER_V8;
-  i::Object* as_object = reinterpret_cast<i::Object*>(value);
-  if (as_object->IsSmi()) {
-    Utils::OpenHandle(this)->SetInternalField(index, as_object);
-    return;
+  if (CanBeEncodedAsSmi(value)) {
+    Utils::OpenHandle(this)->SetInternalField(index, EncodeAsSmi(value));
+  } else {
+    HandleScope scope;
+    i::Handle<i::Proxy> proxy =
+        i::Factory::NewProxy(reinterpret_cast<i::Address>(value), i::TENURED);
+    if (!proxy.is_null())
+        Utils::OpenHandle(this)->SetInternalField(index, *proxy);
   }
-  HandleScope scope;
-  i::Handle<i::Proxy> proxy =
-      i::Factory::NewProxy(reinterpret_cast<i::Address>(value), i::TENURED);
-  if (!proxy.is_null())
-      Utils::OpenHandle(this)->SetInternalField(index, *proxy);
+  ASSERT_EQ(value, GetPointerFromInternalField(index));
 }
 
 
@@ -3299,7 +3340,8 @@ bool v8::V8::Dispose() {
 
 HeapStatistics::HeapStatistics(): total_heap_size_(0),
                                   total_heap_size_executable_(0),
-                                  used_heap_size_(0) { }
+                                  used_heap_size_(0),
+                                  heap_size_limit_(0) { }
 
 
 void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
@@ -3307,6 +3349,7 @@ void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->set_total_heap_size_executable(
       i::Heap::CommittedMemoryExecutable());
   heap_statistics->set_used_heap_size(i::Heap::SizeOfObjects());
+  heap_statistics->set_heap_size_limit(i::Heap::MaxReserved());
 }
 
 
@@ -3560,11 +3603,13 @@ Local<Value> v8::External::Wrap(void* data) {
   LOG_API("External::Wrap");
   EnsureInitialized("v8::External::Wrap()");
   ENTER_V8;
-  i::Object* as_object = reinterpret_cast<i::Object*>(data);
-  if (as_object->IsSmi()) {
-    return Utils::ToLocal(i::Handle<i::Object>(as_object));
-  }
-  return ExternalNewImpl(data);
+
+  v8::Local<v8::Value> result = CanBeEncodedAsSmi(data)
+      ? Utils::ToLocal(i::Handle<i::Object>(EncodeAsSmi(data)))
+      : v8::Local<v8::Value>(ExternalNewImpl(data));
+
+  ASSERT_EQ(data, Unwrap(result));
+  return result;
 }
 
 
@@ -3572,7 +3617,7 @@ void* v8::Object::SlowGetPointerFromInternalField(int index) {
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   i::Object* value = obj->GetInternalField(index);
   if (value->IsSmi()) {
-    return value;
+    return i::Internals::GetExternalPointerFromSmi(value);
   } else if (value->IsProxy()) {
     return reinterpret_cast<void*>(i::Proxy::cast(value)->proxy());
   } else {
@@ -3586,8 +3631,7 @@ void* v8::External::FullUnwrap(v8::Handle<v8::Value> wrapper) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*wrapper);
   void* result;
   if (obj->IsSmi()) {
-    // The external value was an aligned pointer.
-    result = *obj;
+    result = i::Internals::GetExternalPointerFromSmi(*obj);
   } else if (obj->IsProxy()) {
     result = ExternalValueImpl(obj);
   } else {

@@ -631,10 +631,10 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
 
   Comment cmnt(masm_, "[ store arguments object");
   if (mode == LAZY_ARGUMENTS_ALLOCATION && initial) {
-    // When using lazy arguments allocation, we store the hole value
+    // When using lazy arguments allocation, we store the arguments marker value
     // as a sentinel indicating that the arguments object hasn't been
     // allocated yet.
-    frame_->Push(Factory::the_hole_value());
+    frame_->Push(Factory::arguments_marker());
   } else {
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
     frame_->PushFunction();
@@ -659,9 +659,9 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     if (probe.is_constant()) {
       // We have to skip updating the arguments object if it has
       // been assigned a proper value.
-      skip_arguments = !probe.handle()->IsTheHole();
+      skip_arguments = !probe.handle()->IsArgumentsMarker();
     } else {
-      __ CompareRoot(probe.reg(), Heap::kTheHoleValueRootIndex);
+      __ CompareRoot(probe.reg(), Heap::kArgumentsMarkerRootIndex);
       probe.Unuse();
       done.Branch(not_equal);
     }
@@ -2520,9 +2520,9 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
     Label slow, done;
     bool try_lazy = true;
     if (probe.is_constant()) {
-      try_lazy = probe.handle()->IsTheHole();
+      try_lazy = probe.handle()->IsArgumentsMarker();
     } else {
-      __ CompareRoot(probe.reg(), Heap::kTheHoleValueRootIndex);
+      __ CompareRoot(probe.reg(), Heap::kArgumentsMarkerRootIndex);
       probe.Unuse();
       __ j(not_equal, &slow);
     }
@@ -2997,21 +2997,22 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // Leave the frame and return popping the arguments and the
   // receiver.
   frame_->Exit();
-  masm_->ret((scope()->num_parameters() + 1) * kPointerSize);
+  int arguments_bytes = (scope()->num_parameters() + 1) * kPointerSize;
+  __ Ret(arguments_bytes, rcx);
   DeleteFrame();
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Add padding that will be overwritten by a debugger breakpoint.
-  // frame_->Exit() generates "movq rsp, rbp; pop rbp; ret k"
+  // The shortest return sequence generated is "movq rsp, rbp; pop rbp; ret k"
   // with length 7 (3 + 1 + 3).
   const int kPadding = Assembler::kJSReturnSequenceLength - 7;
   for (int i = 0; i < kPadding; ++i) {
     masm_->int3();
   }
-  // Check that the size of the code used for returning matches what is
-  // expected by the debugger.
-  ASSERT_EQ(Assembler::kJSReturnSequenceLength,
-            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+  // Check that the size of the code used for returning is large enough
+  // for the debugger's requirements.
+  ASSERT(Assembler::kJSReturnSequenceLength <=
+         masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
 }
 
@@ -4421,7 +4422,7 @@ void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
   // If the loaded value is a constant, we know if the arguments
   // object has been lazily loaded yet.
   if (value.is_constant()) {
-    if (value.handle()->IsTheHole()) {
+    if (value.handle()->IsArgumentsMarker()) {
       Result arguments = StoreArgumentsObject(false);
       frame_->Push(&arguments);
     } else {
@@ -4434,7 +4435,7 @@ void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
   // indicates that we haven't loaded the arguments object yet, we
   // need to do it now.
   JumpTarget exit;
-  __ CompareRoot(value.reg(), Heap::kTheHoleValueRootIndex);
+  __ CompareRoot(value.reg(), Heap::kArgumentsMarkerRootIndex);
   frame_->Push(&value);
   exit.Branch(not_equal);
   Result arguments = StoreArgumentsObject(false);
@@ -4901,7 +4902,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           Load(property->value());
           if (property->emit_store()) {
             Result ignored =
-                frame_->CallStoreIC(Handle<String>::cast(key), false);
+                frame_->CallStoreIC(Handle<String>::cast(key), false,
+                                    strict_mode_flag());
             // A test rax instruction following the store IC call would
             // indicate the presence of an inlined version of the
             // store. Add a nop to indicate that there is no such
@@ -5414,9 +5416,12 @@ void CodeGenerator::VisitCall(Call* node) {
       }
       frame_->PushParameterAt(-1);
 
+      // Push the strict mode flag.
+      frame_->Push(Smi::FromInt(strict_mode_flag()));
+
       // Resolve the call.
       result =
-          frame_->CallRuntime(Runtime::kResolvePossiblyDirectEvalNoLookup, 3);
+          frame_->CallRuntime(Runtime::kResolvePossiblyDirectEvalNoLookup, 4);
 
       done.Jump(&result);
       slow.Bind();
@@ -5433,8 +5438,11 @@ void CodeGenerator::VisitCall(Call* node) {
     }
     frame_->PushParameterAt(-1);
 
+    // Push the strict mode flag.
+    frame_->Push(Smi::FromInt(strict_mode_flag()));
+
     // Resolve the call.
-    result = frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+    result = frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
 
     // If we generated fast-case code bind the jump-target where fast
     // and slow case merge.
@@ -6984,10 +6992,12 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   __ j(not_equal, &not_minus_half);
 
   // Calculates reciprocal of square root.
-  // Note that 1/sqrt(x) = sqrt(1/x))
-  __ divsd(xmm3, xmm0);
-  __ movsd(xmm1, xmm3);
+  // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
+  __ xorpd(xmm1, xmm1);
+  __ addsd(xmm1, xmm0);
   __ sqrtsd(xmm1, xmm1);
+  __ divsd(xmm3, xmm1);
+  __ movsd(xmm1, xmm3);
   __ jmp(&allocate_return);
 
   // Test for 0.5.
@@ -7000,7 +7010,9 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   call_runtime.Branch(not_equal);
 
   // Calculates square root.
-  __ movsd(xmm1, xmm0);
+  // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
+  __ xorpd(xmm1, xmm1);
+  __ addsd(xmm1, xmm0);
   __ sqrtsd(xmm1, xmm1);
 
   JumpTarget done;
@@ -7233,36 +7245,35 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     if (property != NULL) {
       Load(property->obj());
       Load(property->key());
-      Result answer = frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 2);
+      frame_->Push(Smi::FromInt(strict_mode_flag()));
+      Result answer = frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 3);
       frame_->Push(&answer);
       return;
     }
 
     Variable* variable = node->expression()->AsVariableProxy()->AsVariable();
     if (variable != NULL) {
+      // Delete of an unqualified identifier is disallowed in strict mode
+      // so this code can only be reached in non-strict mode.
+      ASSERT(strict_mode_flag() == kNonStrictMode);
       Slot* slot = variable->AsSlot();
       if (variable->is_global()) {
         LoadGlobal();
         frame_->Push(variable->name());
+        frame_->Push(Smi::FromInt(kNonStrictMode));
         Result answer = frame_->InvokeBuiltin(Builtins::DELETE,
-                                              CALL_FUNCTION, 2);
+                                              CALL_FUNCTION, 3);
         frame_->Push(&answer);
         return;
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
-        // Call the runtime to look up the context holding the named
+        // Call the runtime to delete from the context holding the named
         // variable.  Sync the virtual frame eagerly so we can push the
         // arguments directly into place.
         frame_->SyncRange(0, frame_->element_count() - 1);
         frame_->EmitPush(rsi);
         frame_->EmitPush(variable->name());
-        Result context = frame_->CallRuntime(Runtime::kLookupContext, 2);
-        ASSERT(context.is_register());
-        frame_->EmitPush(context.reg());
-        context.Unuse();
-        frame_->EmitPush(variable->name());
-        Result answer = frame_->InvokeBuiltin(Builtins::DELETE,
-                                              CALL_FUNCTION, 2);
+        Result answer = frame_->CallRuntime(Runtime::kDeleteContextSlot, 2);
         frame_->Push(&answer);
         return;
       }
@@ -8244,7 +8255,7 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
 
   Result result;
   if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
-      result = frame()->CallStoreIC(name, is_contextual);
+      result = frame()->CallStoreIC(name, is_contextual, strict_mode_flag());
       // A test rax instruction following the call signals that the inobject
       // property case was inlined.  Ensure that there is not a test rax
       // instruction here.
@@ -8347,7 +8358,7 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     slow.Bind(&value, &receiver);
     frame()->Push(&receiver);
     frame()->Push(&value);
-    result = frame()->CallStoreIC(name, is_contextual);
+    result = frame()->CallStoreIC(name, is_contextual, strict_mode_flag());
     // Encode the offset to the map check instruction and the offset
     // to the write barrier store address computation in a test rax
     // instruction.

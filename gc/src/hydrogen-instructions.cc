@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -253,6 +253,7 @@ bool HValue::Equals(HValue* other) const {
   if (other->opcode() != opcode()) return false;
   if (!other->representation().Equals(representation())) return false;
   if (!other->type_.Equals(type_)) return false;
+  if (other->flags() != flags()) return false;
   if (OperandCount() != other->OperandCount()) return false;
   for (int i = 0; i < OperandCount(); ++i) {
     if (OperandAt(i)->id() != other->OperandAt(i)->id()) return false;
@@ -277,6 +278,33 @@ void HValue::SetOperandAt(int index, HValue* value) {
   ASSERT(value == NULL || !value->representation().IsNone());
   RegisterUse(index, value);
   InternalSetOperandAt(index, value);
+}
+
+
+void HLoadKeyedGeneric::InternalSetOperandAt(int index, HValue* value) {
+  if (index < 2) {
+    operands_[index] = value;
+  } else {
+    context_ = value;
+  }
+}
+
+
+void HStoreKeyedGeneric::InternalSetOperandAt(int index, HValue* value) {
+  if (index < 3) {
+    operands_[index] = value;
+  } else {
+    context_ = value;
+  }
+}
+
+
+void HStoreNamedGeneric::InternalSetOperandAt(int index, HValue* value) {
+  if (index < 2) {
+    operands_[index] = value;
+  } else {
+    context_ = value;
+  }
 }
 
 
@@ -437,9 +465,16 @@ void HInstruction::PrintTo(StringStream* stream) const {
 void HInstruction::Unlink() {
   ASSERT(IsLinked());
   ASSERT(!IsControlInstruction());  // Must never move control instructions.
+  ASSERT(!IsBlockEntry());  // Doesn't make sense to delete these.
+  ASSERT(previous_ != NULL);
+  previous_->next_ = next_;
+  if (next_ == NULL) {
+    ASSERT(block()->last() == this);
+    block()->set_last(previous_);
+  } else {
+    next_->previous_ = previous_;
+  }
   clear_block();
-  if (previous_ != NULL) previous_->next_ = next_;
-  if (next_ != NULL) next_->previous_ = previous_;
 }
 
 
@@ -490,7 +525,7 @@ void HInstruction::InsertAfter(HInstruction* previous) {
 
 
 #ifdef DEBUG
-void HInstruction::Verify() const {
+void HInstruction::Verify() {
   // Verify that input operands are defined before use.
   HBasicBlock* cur_block = block();
   for (int i = 0; i < OperandCount(); ++i) {
@@ -517,30 +552,73 @@ void HInstruction::Verify() const {
   if (HasSideEffects() && !IsOsrEntry()) {
     ASSERT(next()->IsSimulate());
   }
+
+  // Verify that instructions that can be eliminated by GVN have overridden
+  // HValue::DataEquals.  The default implementation is UNREACHABLE.  We
+  // don't actually care whether DataEquals returns true or false here.
+  if (CheckFlag(kUseGVN)) DataEquals(this);
 }
 #endif
 
 
-HCall::HCall(int count) : arguments_(Zone::NewArray<HValue*>(count), count) {
-  for (int i = 0; i < count; ++i) arguments_[i] = NULL;
-  set_representation(Representation::Tagged());
-  SetFlagMask(AllSideEffects());
+void HCall::PrintDataTo(StringStream* stream) const {
+  stream->Add("#%d", argument_count());
 }
 
 
-void HCall::PrintDataTo(StringStream* stream) const {
-  stream->Add("(");
-  for (int i = 0; i < arguments_.length(); ++i) {
-    if (i != 0) stream->Add(", ");
-    arguments_.at(i)->PrintNameTo(stream);
+void HUnaryCall::PrintDataTo(StringStream* stream) const {
+  value()->PrintNameTo(stream);
+  stream->Add(" ");
+  HCall::PrintDataTo(stream);
+}
+
+
+void HBinaryCall::PrintDataTo(StringStream* stream) const {
+  first()->PrintNameTo(stream);
+  stream->Add(" ");
+  second()->PrintNameTo(stream);
+  stream->Add(" ");
+  HCall::PrintDataTo(stream);
+}
+
+
+void HCallConstantFunction::PrintDataTo(StringStream* stream) const {
+  if (IsApplyFunction()) {
+    stream->Add("optimized apply ");
+  } else {
+    stream->Add("%o ", function()->shared()->DebugName());
   }
-  stream->Add(")");
+  HCall::PrintDataTo(stream);
+}
+
+
+void HCallNamed::PrintDataTo(StringStream* stream) const {
+  stream->Add("%o ", *name());
+  HUnaryCall::PrintDataTo(stream);
+}
+
+
+void HCallGlobal::PrintDataTo(StringStream* stream) const {
+  stream->Add("%o ", *name());
+  HUnaryCall::PrintDataTo(stream);
+}
+
+
+void HCallKnownGlobal::PrintDataTo(StringStream* stream) const {
+  stream->Add("o ", target()->shared()->DebugName());
+  HCall::PrintDataTo(stream);
+}
+
+
+void HCallRuntime::PrintDataTo(StringStream* stream) const {
+  stream->Add("%o ", *name());
+  HCall::PrintDataTo(stream);
 }
 
 
 void HClassOfTest::PrintDataTo(StringStream* stream) const {
   stream->Add("class_of_test(");
-  value()->PrintTo(stream);
+  value()->PrintNameTo(stream);
   stream->Add(", \"%o\")", *class_name());
 }
 
@@ -554,50 +632,29 @@ void HAccessArgumentsAt::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HCall::SetArgumentAt(int index, HPushArgument* push_argument) {
-  push_argument->set_argument_index(index);
-  SetOperandAt(index, push_argument);
-}
-
-
-void HCallConstantFunction::PrintDataTo(StringStream* stream) const {
-  if (IsApplyFunction()) {
-    stream->Add("SPECIAL function: apply");
-  } else {
-    stream->Add("%s", *(function()->shared()->DebugName()->ToCString()));
+void HControlInstruction::PrintDataTo(StringStream* stream) const {
+  if (FirstSuccessor() != NULL) {
+    int first_id = FirstSuccessor()->block_id();
+    if (SecondSuccessor() == NULL) {
+      stream->Add(" B%d", first_id);
+    } else {
+      int second_id = SecondSuccessor()->block_id();
+      stream->Add(" goto (B%d, B%d)", first_id, second_id);
+    }
   }
-  HCall::PrintDataTo(stream);
 }
 
 
-void HBranch::PrintDataTo(StringStream* stream) const {
-  int first_id = FirstSuccessor()->block_id();
-  int second_id = SecondSuccessor()->block_id();
-  stream->Add("on ");
+void HUnaryControlInstruction::PrintDataTo(StringStream* stream) const {
   value()->PrintNameTo(stream);
-  stream->Add(" (B%d, B%d)", first_id, second_id);
+  HControlInstruction::PrintDataTo(stream);
 }
 
 
-void HCompareMapAndBranch::PrintDataTo(StringStream* stream) const {
-  stream->Add("on ");
+void HCompareMap::PrintDataTo(StringStream* stream) const {
   value()->PrintNameTo(stream);
   stream->Add(" (%p)", *map());
-}
-
-
-void HGoto::PrintDataTo(StringStream* stream) const {
-  stream->Add("B%d", FirstSuccessor()->block_id());
-}
-
-
-void HReturn::PrintDataTo(StringStream* stream) const {
-  value()->PrintNameTo(stream);
-}
-
-
-void HThrow::PrintDataTo(StringStream* stream) const {
-  value()->PrintNameTo(stream);
+  HControlInstruction::PrintDataTo(stream);
 }
 
 
@@ -662,14 +719,6 @@ void HTypeofIs::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HPushArgument::PrintDataTo(StringStream* stream) const {
-  HUnaryOperation::PrintDataTo(stream);
-  if (argument_index() != -1) {
-    stream->Add(" [%d]", argument_index_);
-  }
-}
-
-
 void HChange::PrintDataTo(StringStream* stream) const {
   HUnaryOperation::PrintDataTo(stream);
   stream->Add(" %s to %s", from_.Mnemonic(), to_.Mnemonic());
@@ -698,42 +747,19 @@ void HCheckFunction::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HCallKeyed::PrintDataTo(StringStream* stream) const {
-  stream->Add("[");
-  key()->PrintNameTo(stream);
-  stream->Add("](");
-  for (int i = 1; i < arguments_.length(); ++i) {
-    if (i != 1) stream->Add(", ");
-    arguments_.at(i)->PrintNameTo(stream);
-  }
-  stream->Add(")");
-}
-
-
-void HCallNamed::PrintDataTo(StringStream* stream) const {
-  SmartPointer<char> name_string = name()->ToCString();
-  stream->Add("%s ", *name_string);
-  HCall::PrintDataTo(stream);
-}
-
-
-void HCallGlobal::PrintDataTo(StringStream* stream) const {
-  SmartPointer<char> name_string = name()->ToCString();
-  stream->Add("%s ", *name_string);
-  HCall::PrintDataTo(stream);
-}
-
-
-void HCallRuntime::PrintDataTo(StringStream* stream) const {
-  SmartPointer<char> name_string = name()->ToCString();
-  stream->Add("%s ", *name_string);
-  HCall::PrintDataTo(stream);
-}
-
 void HCallStub::PrintDataTo(StringStream* stream) const {
-  stream->Add("%s(%d)",
-              CodeStub::MajorName(major_key_, false),
-              argument_count_);
+  stream->Add("%s ",
+              CodeStub::MajorName(major_key_, false));
+  HUnaryCall::PrintDataTo(stream);
+}
+
+
+void HInstanceOf::PrintDataTo(StringStream* stream) const {
+  left()->PrintNameTo(stream);
+  stream->Add(" ");
+  right()->PrintNameTo(stream);
+  stream->Add(" ");
+  context()->PrintNameTo(stream);
 }
 
 
@@ -899,17 +925,6 @@ void HPhi::AddInput(HValue* value) {
 }
 
 
-bool HPhi::HasReceiverOperand() {
-  for (int i = 0; i < OperandCount(); i++) {
-    if (OperandAt(i)->IsParameter() &&
-        HParameter::cast(OperandAt(i))->index() == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 HValue* HPhi::GetRedundantReplacement() const {
   HValue* candidate = NULL;
   int count = OperandCount();
@@ -996,7 +1011,8 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
   SetFlag(kUseGVN);
   if (handle_->IsNumber()) {
     double n = handle_->Number();
-    has_int32_value_ = static_cast<double>(static_cast<int32_t>(n)) == n;
+    double roundtrip_value = static_cast<double>(static_cast<int32_t>(n));
+    has_int32_value_ = BitCast<int64_t>(roundtrip_value) == BitCast<int64_t>(n);
     if (has_int32_value_) int32_value_ = static_cast<int32_t>(n);
     double_value_ = n;
     has_double_value_ = true;
@@ -1123,10 +1139,10 @@ void HCompare::PrintDataTo(StringStream* stream) const {
 void HCompare::SetInputRepresentation(Representation r) {
   input_representation_ = r;
   if (r.IsTagged()) {
-    SetFlagMask(AllSideEffects());
+    SetAllSideEffects();
     ClearFlag(kUseGVN);
   } else {
-    ClearFlagMask(AllSideEffects());
+    ClearAllSideEffects();
     SetFlag(kUseGVN);
   }
 }
@@ -1145,6 +1161,14 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) const {
 
 void HLoadKeyed::PrintDataTo(StringStream* stream) const {
   object()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("]");
+}
+
+
+void HLoadPixelArrayElement::PrintDataTo(StringStream* stream) const {
+  external_pointer()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("]");
@@ -1186,6 +1210,19 @@ void HLoadGlobal::PrintDataTo(StringStream* stream) const {
 
 void HStoreGlobal::PrintDataTo(StringStream* stream) const {
   stream->Add("[%p] = ", *cell());
+  value()->PrintNameTo(stream);
+}
+
+
+void HLoadContextSlot::PrintDataTo(StringStream* stream) const {
+  value()->PrintNameTo(stream);
+  stream->Add("[%d]", slot_index());
+}
+
+
+void HStoreContextSlot::PrintDataTo(StringStream* stream) const {
+  context()->PrintNameTo(stream);
+  stream->Add("[%d] = ", slot_index());
   value()->PrintNameTo(stream);
 }
 
@@ -1246,6 +1283,11 @@ HType HCompareJSObjectEq::CalculateInferredType() const {
 
 HType HUnaryPredicate::CalculateInferredType() const {
   return HType::Boolean();
+}
+
+
+HType HBitwiseBinaryOperation::CalculateInferredType() const {
+  return HType::TaggedNumber();
 }
 
 
@@ -1382,7 +1424,7 @@ HValue* HAdd::EnsureAndPropagateNotMinusZero(BitVector* visited) {
 // Node-specific verification code is only included in debug mode.
 #ifdef DEBUG
 
-void HPhi::Verify() const {
+void HPhi::Verify() {
   ASSERT(OperandCount() == block()->predecessors()->length());
   for (int i = 0; i < OperandCount(); ++i) {
     HValue* value = OperandAt(i);
@@ -1394,49 +1436,49 @@ void HPhi::Verify() const {
 }
 
 
-void HSimulate::Verify() const {
+void HSimulate::Verify() {
   HInstruction::Verify();
   ASSERT(HasAstId());
 }
 
 
-void HBoundsCheck::Verify() const {
+void HBoundsCheck::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }
 
 
-void HCheckSmi::Verify() const {
+void HCheckSmi::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }
 
 
-void HCheckNonSmi::Verify() const {
+void HCheckNonSmi::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }
 
 
-void HCheckInstanceType::Verify() const {
+void HCheckInstanceType::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }
 
 
-void HCheckMap::Verify() const {
+void HCheckMap::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }
 
 
-void HCheckFunction::Verify() const {
+void HCheckFunction::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }
 
 
-void HCheckPrototypeMaps::Verify() const {
+void HCheckPrototypeMaps::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }

@@ -54,6 +54,7 @@ namespace internal {
   V(Object, null_value, NullValue)                                             \
   V(Object, true_value, TrueValue)                                             \
   V(Object, false_value, FalseValue)                                           \
+  V(Object, arguments_marker, ArgumentsMarker)                                 \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
@@ -94,6 +95,7 @@ namespace internal {
   V(Map, oddball_map, OddballMap)                                              \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
+  V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, proxy_map, ProxyMap)                                                  \
   V(Object, nan_value, NanValue)                                               \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
@@ -121,7 +123,12 @@ namespace internal {
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
 #define STRONG_ROOT_LIST(V)                                                    \
   UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
-  V(Code, re_c_entry_code, RegExpCEntryCode)
+  V(Code, re_c_entry_code, RegExpCEntryCode)                                   \
+  V(Code, direct_c_entry_code, DirectCEntryCode)
+#elif V8_TARGET_ARCH_ARM
+#define STRONG_ROOT_LIST(V)                                                    \
+  UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
+  V(Code, direct_c_entry_code, DirectCEntryCode)
 #else
 #define STRONG_ROOT_LIST(V) UNCONDITIONAL_STRONG_ROOT_LIST(V)
 #endif
@@ -177,6 +184,8 @@ namespace internal {
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
   V(KeyedLoadSpecialized_symbol, "KeyedLoadSpecialized")                 \
   V(KeyedStoreSpecialized_symbol, "KeyedStoreSpecialized")               \
+  V(KeyedLoadPixelArray_symbol, "KeyedLoadPixelArray")                   \
+  V(KeyedStorePixelArray_symbol, "KeyedStorePixelArray")                 \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
   V(illegal_access_symbol, "illegal access")                             \
   V(out_of_memory_symbol, "out-of-memory")                               \
@@ -203,7 +212,10 @@ namespace internal {
   V(zero_symbol, "0")                                                    \
   V(global_eval_symbol, "GlobalEval")                                    \
   V(identity_hash_symbol, "v8::IdentityHash")                            \
-  V(closure_symbol, "(closure)")
+  V(closure_symbol, "(closure)")                                         \
+  V(use_strict, "use strict")                                            \
+  V(KeyedLoadExternalArray_symbol, "KeyedLoadExternalArray")             \
+  V(KeyedStoreExternalArray_symbol, "KeyedStoreExternalArray")
 
 
 // Forward declarations.
@@ -624,6 +636,19 @@ class Heap : public AllStatic {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT static MaybeObject* AllocateSharedFunctionInfo(Object* name);
+
+  // Allocates a new JSMessageObject object.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note that this does not perform a garbage collection.
+  MUST_USE_RESULT static MaybeObject* AllocateJSMessageObject(
+      String* type,
+      JSArray* arguments,
+      int start_position,
+      int end_position,
+      Object* script,
+      Object* stack_trace,
+      Object* stack_frames);
 
   // Allocates a new cons string object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -1298,12 +1323,13 @@ class Heap : public AllStatic {
   static bool CreateInitialMaps();
   static bool CreateInitialObjects();
 
-  // These four Create*EntryStub functions are here and forced to not be inlined
+  // These five Create*EntryStub functions are here and forced to not be inlined
   // because of a gcc-4.4 bug that assigns wrong vtable entries.
   NO_INLINE(static void CreateCEntryStub());
   NO_INLINE(static void CreateJSEntryStub());
   NO_INLINE(static void CreateJSConstructEntryStub());
   NO_INLINE(static void CreateRegExpCEntryStub());
+  NO_INLINE(static void CreateDirectCEntryStub());
 
   static void CreateFixedStubs();
 
@@ -1838,7 +1864,7 @@ class GCTracer BASE_EMBEDDED {
     }
 
     ~Scope() {
-      ASSERT((0 <= scope_) && (scope_ < kNumberOfScopes));
+      ASSERT(scope_ < kNumberOfScopes);  // scope_ is unsigned.
       tracer_->scopes_[scope_] += OS::TimeCurrentMillis() - start_time_;
     }
 

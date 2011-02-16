@@ -192,7 +192,7 @@ void ExternalReferenceTable::PopulateTable() {
   { BUILTIN, \
     Builtins::name, \
     "Builtins::" #name },
-#define DEF_ENTRY_A(name, kind, state) DEF_ENTRY_C(name, ignored)
+#define DEF_ENTRY_A(name, kind, state, extra) DEF_ENTRY_C(name, ignored)
 
   BUILTIN_LIST_C(DEF_ENTRY_C)
   BUILTIN_LIST_A(DEF_ENTRY_A)
@@ -335,7 +335,7 @@ void ExternalReferenceTable::PopulateTable() {
 
   Add(ExternalReference::delete_handle_scope_extensions().address(),
       RUNTIME_ENTRY,
-      3,
+      4,
       "HandleScope::DeleteExtensions");
 
   // Miscellaneous
@@ -486,22 +486,30 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       36,
       "LDoubleConstant::one_half");
-  Add(ExternalReference::address_of_negative_infinity().address(),
+  Add(ExternalReference::address_of_minus_zero().address(),
       UNCLASSIFIED,
       37,
+      "LDoubleConstant::minus_zero");
+  Add(ExternalReference::address_of_negative_infinity().address(),
+      UNCLASSIFIED,
+      38,
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function().address(),
       UNCLASSIFIED,
-      38,
+      39,
       "power_double_double_function");
   Add(ExternalReference::power_double_int_function().address(),
       UNCLASSIFIED,
-      39,
+      40,
       "power_double_int_function");
   Add(ExternalReference::store_buffer_top().address(),
       UNCLASSIFIED,
-      40,
+      41,
       "store_buffer_top");
+  Add(ExternalReference::arguments_marker_location().address(),
+      UNCLASSIFIED,
+      42,
+      "Factory::arguments_marker().location()");
 }
 
 
