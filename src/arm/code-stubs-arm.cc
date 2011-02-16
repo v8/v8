@@ -2661,8 +2661,8 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
 
       // Allocate new heap number for result.
       Register result = r5;
-      __ AllocateHeapNumber(
-          result, scratch1, scratch2, heap_number_map, gc_required);
+      GenerateHeapResultAllocation(
+          masm, result, heap_number_map, scratch1, scratch2, gc_required);
 
       // Load the operands.
       if (smi_operands) {
@@ -2811,8 +2811,14 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
 
       // Allocate new heap number for result.
       __ bind(&result_not_a_smi);
-      __ AllocateHeapNumber(
-          r5, scratch1, scratch2, heap_number_map, gc_required);
+      Register result = r5;
+      if (smi_operands) {
+        __ AllocateHeapNumber(
+            result, scratch1, scratch2, heap_number_map, gc_required);
+      } else {
+        GenerateHeapResultAllocation(
+            masm, result, heap_number_map, scratch1, scratch2, gc_required);
+      }
 
       // r2: Answer as signed int32.
       // r5: Heap number to write answer into.
@@ -2934,21 +2940,19 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
-  Label call_runtime;
+  Label call_runtime, call_string_add_or_runtime;
 
   GenerateSmiCode(masm, &call_runtime, ALLOW_HEAPNUMBER_RESULTS);
 
-  // If all else fails, use the runtime system to get the correct
-  // result.
-  __ bind(&call_runtime);
+  GenerateFPOperation(masm, false, &call_string_add_or_runtime, &call_runtime);
 
-  // Try to add strings before calling runtime.
+  __ bind(&call_string_add_or_runtime);
   if (op_ == Token::ADD) {
     GenerateAddStrings(masm);
   }
 
-  GenericBinaryOpStub stub(op_, mode_, r1, r0);
-  __ TailCallStub(&stub);
+  __ bind(&call_runtime);
+  GenerateCallRuntime(masm);
 }
 
 

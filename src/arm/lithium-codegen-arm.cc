@@ -987,7 +987,7 @@ void LCodeGen::DoModI(LModI* instr) {
     DeferredModI(LCodeGen* codegen, LModI* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() {
-      codegen()->DoDeferredGenericBinaryStub(instr_, Token::MOD);
+      codegen()->DoDeferredBinaryOpStub(instr_, Token::MOD);
     }
    private:
     LModI* instr_;
@@ -1016,7 +1016,7 @@ void LCodeGen::DoModI(LModI* instr) {
     __ bind(&ok);
   }
 
-  // Try a few common cases before using the generic stub.
+  // Try a few common cases before using the stub.
   Label call_stub;
   const int kUnfolds = 3;
   // Skip if either side is negative.
@@ -1044,7 +1044,7 @@ void LCodeGen::DoModI(LModI* instr) {
   __ and_(result, scratch, Operand(left));
 
   __ bind(&call_stub);
-  // Call the generic stub. The numbers in r0 and r1 have
+  // Call the stub. The numbers in r0 and r1 have
   // to be tagged to Smis. If that is not possible, deoptimize.
   DeferredModI* deferred = new DeferredModI(this, instr);
   __ TrySmiTag(left, &deoptimize, scratch);
@@ -1070,7 +1070,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     DeferredDivI(LCodeGen* codegen, LDivI* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() {
-      codegen()->DoDeferredGenericBinaryStub(instr_, Token::DIV);
+      codegen()->DoDeferredBinaryOpStub(instr_, Token::DIV);
     }
    private:
     LDivI* instr_;
@@ -1123,7 +1123,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
   __ mov(result, Operand(left, ASR, 2), LeaveCC, eq);
   __ b(eq, &done);
 
-  // Call the generic stub. The numbers in r0 and r1 have
+  // Call the stub. The numbers in r0 and r1 have
   // to be tagged to Smis. If that is not possible, deoptimize.
   DeferredDivI* deferred = new DeferredDivI(this, instr);
 
@@ -1145,13 +1145,27 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
 
 template<int T>
-void LCodeGen::DoDeferredGenericBinaryStub(LTemplateInstruction<1, 2, T>* instr,
-                                           Token::Value op) {
+void LCodeGen::DoDeferredBinaryOpStub(LTemplateInstruction<1, 2, T>* instr,
+                                      Token::Value op) {
   Register left = ToRegister(instr->InputAt(0));
   Register right = ToRegister(instr->InputAt(1));
 
   __ PushSafepointRegistersAndDoubles();
-  GenericBinaryOpStub stub(op, OVERWRITE_LEFT, left, right);
+  // Move left to r1 and right to r0 for the stub call.
+  if (left.is(r1)) {
+    __ Move(r0, right);
+  } else if (left.is(r0) && right.is(r1)) {
+    __ Swap(r0, r1, r2);
+  } else if (left.is(r0)) {
+    ASSERT(!right.is(r1));
+    __ mov(r1, r0);
+    __ mov(r0, right);
+  } else {
+    ASSERT(!left.is(r0) && !right.is(r0));
+    __ mov(r0, right);
+    __ mov(r1, left);
+  }
+  TypeRecordingBinaryOpStub stub(op, OVERWRITE_LEFT);
   __ CallStub(&stub);
   RecordSafepointWithRegistersAndDoubles(instr->pointer_map(),
                                          0,
@@ -1431,10 +1445,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   ASSERT(ToRegister(instr->InputAt(1)).is(r0));
   ASSERT(ToRegister(instr->result()).is(r0));
 
-  // TODO(regis): Implement TypeRecordingBinaryOpStub and replace current
-  // GenericBinaryOpStub:
-  // TypeRecordingBinaryOpStub stub(instr->op(), NO_OVERWRITE);
-  GenericBinaryOpStub stub(instr->op(), NO_OVERWRITE, r1, r0);
+  TypeRecordingBinaryOpStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
