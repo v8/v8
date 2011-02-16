@@ -58,7 +58,7 @@ bool SafepointEntry::HasRegisterAt(int reg_index) const {
 SafepointTable::SafepointTable(Code* code) {
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
   code_ = code;
-  Address header = code->instruction_start() + code->safepoint_table_start();
+  Address header = code->instruction_start() + code->safepoint_table_offset();
   length_ = Memory::uint32_at(header + kLengthOffset);
   entry_size_ = Memory::uint32_at(header + kEntrySizeOffset);
   pc_and_deoptimization_indexes_ = header + kHeaderSize;

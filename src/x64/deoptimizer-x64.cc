@@ -88,8 +88,8 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   }
 #ifdef DEBUG
   // Destroy the code which is not supposed to run again.
-  CHECK(code->safepoint_table_start() >= last_pc_offset);
-  unsigned instructions = code->safepoint_table_start() - last_pc_offset;
+  CHECK(code->safepoint_table_offset() >= last_pc_offset);
+  unsigned instructions = code->safepoint_table_offset() - last_pc_offset;
   CodePatcher destroyer(code->instruction_start() + last_pc_offset,
                         instructions);
   for (unsigned i = 0; i < instructions; i++) {

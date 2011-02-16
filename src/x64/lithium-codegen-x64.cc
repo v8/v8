@@ -53,7 +53,7 @@ bool LCodeGen::GenerateCode() {
 void LCodeGen::FinishCode(Handle<Code> code) {
   ASSERT(is_done());
   code->set_stack_slots(StackSlotCount());
-  code->set_safepoint_table_start(safepoints_.GetCodeOffset());
+  code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
   PopulateDeoptimizationData(code);
 }
 
