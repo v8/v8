@@ -1081,9 +1081,8 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     } else if (v->IsInstanceOf()) {
       HInstanceOf* instance_of = HInstanceOf::cast(v);
       LInstanceOfAndBranch* result =
-          new LInstanceOfAndBranch(
-              UseFixed(instance_of->left(), InstanceofStub::left()),
-              UseFixed(instance_of->right(), InstanceofStub::right()));
+          new LInstanceOfAndBranch(UseFixed(instance_of->left(), rax),
+                                   UseFixed(instance_of->right(), rdx));
       return MarkAsCall(result, instr);
     } else if (v->IsTypeofIs()) {
       HTypeofIs* typeof_is = HTypeofIs::cast(v);
@@ -1124,15 +1123,19 @@ LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
 
 
 LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
-  Abort("Unimplemented: %s", "DoInstanceOf");
-  return NULL;
+  LOperand* left = UseFixed(instr->left(), rax);
+  LOperand* right = UseFixed(instr->right(), rdx);
+  LInstanceOf* result = new LInstanceOf(left, right);
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
     HInstanceOfKnownGlobal* instr) {
-  Abort("Unimplemented: %s", "DoInstanceOfKnownGlobal");
-  return NULL;
+  LInstanceOfKnownGlobal* result =
+      new LInstanceOfKnownGlobal(UseRegisterAtStart(instr->value()));
+  MarkAsSaveDoubles(result);
+  return AssignEnvironment(AssignPointerMap(DefineFixed(result, rax)));
 }
 
 

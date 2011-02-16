@@ -3461,6 +3461,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // is and instance of the function and anything else to
   // indicate that the value is not an instance.
 
+  // None of the flags are supported on X64.
+  ASSERT(flags_ == kNoFlags);
+
   // Get the object - go slow case if it's a smi.
   Label slow;
   __ movq(rax, Operand(rsp, 2 * kPointerSize));
@@ -3536,10 +3539,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 }
 
 
-Register InstanceofStub::left() { return rax; }
+// Passing arguments in registers is not supported.
+Register InstanceofStub::left() { return no_reg; }
 
 
-Register InstanceofStub::right() { return rdx; }
+Register InstanceofStub::right() { return no_reg; }
 
 
 int CompareStub::MinorKey() {

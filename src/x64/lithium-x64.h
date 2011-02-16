@@ -831,11 +831,10 @@ class LInstanceOfAndBranch: public LControlInstruction<2, 0> {
 };
 
 
-class LInstanceOfKnownGlobal: public LTemplateInstruction<1, 1, 1> {
+class LInstanceOfKnownGlobal: public LTemplateInstruction<1, 1, 0> {
  public:
-  LInstanceOfKnownGlobal(LOperand* value, LOperand* temp) {
+  explicit LInstanceOfKnownGlobal(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOfKnownGlobal,

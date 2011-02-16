@@ -1599,7 +1599,18 @@ void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
 
 
 void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
-  Abort("Unimplemented: %s", "DoInstanceOf");
+  InstanceofStub stub(InstanceofStub::kNoFlags);
+  __ push(ToRegister(instr->InputAt(0)));
+  __ push(ToRegister(instr->InputAt(1)));
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  NearLabel true_value, done;
+  __ testq(rax, rax);
+  __ j(zero, &true_value);
+  __ LoadRoot(ToRegister(instr->result()), Heap::kFalseValueRootIndex);
+  __ jmp(&done);
+  __ bind(&true_value);
+  __ LoadRoot(ToRegister(instr->result()), Heap::kTrueValueRootIndex);
+  __ bind(&done);
 }
 
 
@@ -1607,7 +1618,9 @@ void LCodeGen::DoInstanceOfAndBranch(LInstanceOfAndBranch* instr) {
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
 
-  InstanceofStub stub(InstanceofStub::kArgsInRegisters);
+  InstanceofStub stub(InstanceofStub::kNoFlags);
+  __ push(ToRegister(instr->InputAt(0)));
+  __ push(ToRegister(instr->InputAt(1)));
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   __ testq(rax, rax);
   EmitBranch(true_block, false_block, zero);
@@ -1615,13 +1628,65 @@ void LCodeGen::DoInstanceOfAndBranch(LInstanceOfAndBranch* instr) {
 
 
 void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
-  Abort("Unimplemented: %s", "DoInstanceOfKnowGLobal");
+  class DeferredInstanceOfKnownGlobal: public LDeferredCode {
+   public:
+    DeferredInstanceOfKnownGlobal(LCodeGen* codegen,
+                                  LInstanceOfKnownGlobal* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() {
+      codegen()->DoDeferredLInstanceOfKnownGlobal(instr_);
+    }
+
+   private:
+    LInstanceOfKnownGlobal* instr_;
+  };
+
+
+  DeferredInstanceOfKnownGlobal* deferred;
+  deferred = new DeferredInstanceOfKnownGlobal(this, instr);
+
+  Label false_result;
+  Register object = ToRegister(instr->InputAt(0));
+
+  // A Smi is not an instance of anything.
+  __ JumpIfSmi(object, &false_result);
+
+  // Null is not an instance of anything.
+  __ CompareRoot(object, Heap::kNullValueRootIndex);
+  __ j(equal, &false_result);
+
+  // String values are not instances of anything.
+  __ JumpIfNotString(object, kScratchRegister, deferred->entry());
+
+  __ bind(&false_result);
+  __ LoadRoot(ToRegister(instr->result()), Heap::kFalseValueRootIndex);
+
+  __ bind(deferred->exit());
 }
 
 
-void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
-                                                Label* map_check) {
-  Abort("Unimplemented: %s", "DoDeferredLInstanceOfKnownGlobakl");
+void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
+  __ PushSafepointRegisters();
+
+  InstanceofStub stub(InstanceofStub::kNoFlags);
+
+  __ push(ToRegister(instr->InputAt(0)));
+  __ Push(instr->function());
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
+  __ movq(kScratchRegister, rax);
+  __ PopSafepointRegisters();
+  __ testq(kScratchRegister, kScratchRegister);
+  Label load_false;
+  Label done;
+  __ j(not_zero, &load_false);
+  __ LoadRoot(rax, Heap::kTrueValueRootIndex);
+  __ jmp(&done);
+  __ bind(&load_false);
+  __ LoadRoot(rax, Heap::kFalseValueRootIndex);
+  __ bind(&done);
 }
 
 
