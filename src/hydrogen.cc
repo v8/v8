@@ -3763,10 +3763,11 @@ HInstruction* HGraphBuilder::BuildStoreKeyedFastElement(HValue* object,
 }
 
 
-HInstruction* HGraphBuilder::BuildStoreKeyedPixelArrayElement(HValue* object,
-                                                              HValue* key,
-                                                              HValue* val,
-                                                              Expression* expr) {
+HInstruction* HGraphBuilder::BuildStoreKeyedPixelArrayElement(
+    HValue* object,
+    HValue* key,
+    HValue* val,
+    XExpression* expr) {
   ASSERT(expr->IsMonomorphic());
   AddInstruction(new HCheckNonSmi(object));
   Handle<Map> map = expr->GetMonomorphicReceiverType();
