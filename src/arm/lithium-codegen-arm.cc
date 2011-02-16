@@ -1896,14 +1896,42 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
 }
 
 
+void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  Register scratch = scratch0();
+
+  __ ldr(scratch, FieldMemOperand(input, String::kHashFieldOffset));
+  __ IndexFromHash(scratch, result);
+}
+
+
 void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
-  Abort("DoHasCachedArrayIndex unimplemented.");
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  Register scratch = scratch0();
+
+  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
+  __ ldr(scratch,
+         FieldMemOperand(input, String::kHashFieldOffset));
+  __ tst(scratch, Operand(String::kContainsCachedArrayIndexMask));
+  __ LoadRoot(result, Heap::kTrueValueRootIndex, eq);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex, ne);
 }
 
 
 void LCodeGen::DoHasCachedArrayIndexAndBranch(
     LHasCachedArrayIndexAndBranch* instr) {
-  Abort("DoHasCachedArrayIndexAndBranch unimplemented.");
+  Register input = ToRegister(instr->InputAt(0));
+  Register scratch = scratch0();
+
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  __ ldr(scratch,
+         FieldMemOperand(input, String::kHashFieldOffset));
+  __ tst(scratch, Operand(String::kContainsCachedArrayIndexMask));
+  EmitBranch(true_block, false_block, eq);
 }
 
 
@@ -3888,7 +3916,9 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
 void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   Register object = ToRegister(instr->object());
   Register key = ToRegister(instr->key());
-  __ Push(object, key);
+  Register strict = scratch0();
+  __ mov(strict, Operand(Smi::FromInt(strict_mode_flag())));
+  __ Push(object, key, strict);
   ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
   LPointerMap* pointers = instr->pointer_map();
   LEnvironment* env = instr->deoptimization_environment();

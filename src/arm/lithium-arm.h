@@ -94,6 +94,7 @@ class LCodeGen;
   V(FixedArrayLength)                           \
   V(FunctionLiteral)                            \
   V(Gap)                                        \
+  V(GetCachedArrayIndex)                        \
   V(GlobalObject)                               \
   V(GlobalReceiver)                             \
   V(Goto)                                       \
@@ -736,6 +737,17 @@ class LHasCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(HasCachedArrayIndex, "has-cached-array-index")
   DECLARE_HYDROGEN_ACCESSOR(HasCachedArrayIndex)
+};
+
+
+class LGetCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LGetCachedArrayIndex(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(GetCachedArrayIndex, "get-cached-array-index")
+  DECLARE_HYDROGEN_ACCESSOR(GetCachedArrayIndex)
 };
 
 

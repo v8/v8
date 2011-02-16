@@ -3713,7 +3713,7 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
                                                        attr);
   }
 
-  return Runtime::SetObjectProperty(js_object, name, obj_value, attr);
+  return Runtime::ForceSetObjectProperty(js_object, name, obj_value, attr);
 }
 
 
@@ -3914,11 +3914,14 @@ static MaybeObject* Runtime_IgnoreAttributesAndSetProperty(Arguments args) {
 
 static MaybeObject* Runtime_DeleteProperty(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 3);
 
   CONVERT_CHECKED(JSObject, object, args[0]);
   CONVERT_CHECKED(String, key, args[1]);
-  return object->DeleteProperty(key, JSObject::NORMAL_DELETION);
+  CONVERT_SMI_CHECKED(strict, args[2]);
+  return object->DeleteProperty(key, strict == kStrictMode
+                                      ? JSObject::STRICT_DELETION
+                                      : JSObject::NORMAL_DELETION);
 }
 
 
@@ -5808,6 +5811,89 @@ static MaybeObject* Runtime_StringBuilderConcat(Arguments args) {
                               array_length);
     return answer;
   }
+}
+
+
+static MaybeObject* Runtime_StringBuilderJoin(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+  CONVERT_CHECKED(JSArray, array, args[0]);
+  if (!args[1]->IsSmi()) {
+    Top::context()->mark_out_of_memory();
+    return Failure::OutOfMemoryException();
+  }
+  int array_length = Smi::cast(args[1])->value();
+  CONVERT_CHECKED(String, separator, args[2]);
+
+  if (!array->HasFastElements()) {
+    return Top::Throw(Heap::illegal_argument_symbol());
+  }
+  FixedArray* fixed_array = FixedArray::cast(array->elements());
+  if (fixed_array->length() < array_length) {
+    array_length = fixed_array->length();
+  }
+
+  if (array_length == 0) {
+    return Heap::empty_string();
+  } else if (array_length == 1) {
+    Object* first = fixed_array->get(0);
+    if (first->IsString()) return first;
+  }
+
+  int separator_length = separator->length();
+  int max_nof_separators =
+      (String::kMaxLength + separator_length - 1) / separator_length;
+  if (max_nof_separators < (array_length - 1)) {
+      Top::context()->mark_out_of_memory();
+      return Failure::OutOfMemoryException();
+  }
+  int length = (array_length - 1) * separator_length;
+  for (int i = 0; i < array_length; i++) {
+    Object* element_obj = fixed_array->get(i);
+    if (!element_obj->IsString()) {
+      // TODO(1161): handle this case.
+      return Top::Throw(Heap::illegal_argument_symbol());
+    }
+    String* element = String::cast(element_obj);
+    int increment = element->length();
+    if (increment > String::kMaxLength - length) {
+      Top::context()->mark_out_of_memory();
+      return Failure::OutOfMemoryException();
+    }
+    length += increment;
+  }
+
+  Object* object;
+  { MaybeObject* maybe_object = Heap::AllocateRawTwoByteString(length);
+    if (!maybe_object->ToObject(&object)) return maybe_object;
+  }
+  SeqTwoByteString* answer = SeqTwoByteString::cast(object);
+
+  uc16* sink = answer->GetChars();
+#ifdef DEBUG
+  uc16* end = sink + length;
+#endif
+
+  String* first = String::cast(fixed_array->get(0));
+  int first_length = first->length();
+  String::WriteToFlat(first, sink, 0, first_length);
+  sink += first_length;
+
+  for (int i = 1; i < array_length; i++) {
+    ASSERT(sink + separator_length <= end);
+    String::WriteToFlat(separator, sink, 0, separator_length);
+    sink += separator_length;
+
+    String* element = String::cast(fixed_array->get(i));
+    int element_length = element->length();
+    ASSERT(sink + element_length <= end);
+    String::WriteToFlat(element, sink, 0, element_length);
+    sink += element_length;
+  }
+  ASSERT(sink == end);
+
+  ASSERT(!answer->HasOnlyAsciiChars());  // Use %_FastAsciiArrayJoin instead.
+  return answer;
 }
 
 
@@ -8275,7 +8361,7 @@ static MaybeObject* Runtime_ArrayConcat(Arguments args) {
     }
   }
 
-  // Allocate an empty array, will set length and content later.
+  // Allocate an empty array, will set map, length, and content later.
   Handle<JSArray> result = Factory::NewJSArray(0);
 
   uint32_t estimate_nof_elements = IterateArguments(arguments, NULL);
@@ -8284,23 +8370,20 @@ static MaybeObject* Runtime_ArrayConcat(Arguments args) {
   // dictionary.
   bool fast_case = (estimate_nof_elements * 2) >= result_length;
 
+  Handle<Map> map;
   Handle<FixedArray> storage;
   if (fast_case) {
     // The backing storage array must have non-existing elements to
     // preserve holes across concat operations.
+    map = Factory::GetFastElementsMap(Handle<Map>(result->map()));
     storage = Factory::NewFixedArrayWithHoles(result_length);
-    Handle<Map> fast_map =
-        Factory::GetFastElementsMap(Handle<Map>(result->map()));
-    result->set_map(*fast_map);
   } else {
+    map = Factory::GetSlowElementsMap(Handle<Map>(result->map()));
     // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
-                  Factory::NewNumberDictionary(at_least_space_for));
-    Handle<Map> slow_map =
-        Factory::GetSlowElementsMap(Handle<Map>(result->map()));
-    result->set_map(*slow_map);
+        Factory::NewNumberDictionary(at_least_space_for));
   }
 
   Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
@@ -8309,8 +8392,12 @@ static MaybeObject* Runtime_ArrayConcat(Arguments args) {
 
   IterateArguments(arguments, &visitor);
 
+  // Please note:
+  // - the storage might have been changed in the visitor;
+  // - the map and the storage must be set together to avoid breaking
+  //   the invariant that the map describes the array's elements.
+  result->set_map(*map);
   result->set_length(*len);
-  // Please note the storage might have changed in the visitor.
   result->set_elements(*visitor.storage());
 
   return *result;

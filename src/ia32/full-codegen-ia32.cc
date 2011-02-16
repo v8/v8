@@ -331,6 +331,7 @@ FullCodeGenerator::ConstantOperand FullCodeGenerator::GetConstantOperand(
   } else if (right->IsSmiLiteral()) {
     return kRightConstant;
   } else if (left->IsSmiLiteral() && !Token::IsShiftOp(op)) {
+    // Don't inline shifts with constant left hand side.
     return kLeftConstant;
   } else {
     return kNoConstants;
@@ -1644,6 +1645,9 @@ void FullCodeGenerator::EmitConstantSmiAdd(Expression* expr,
                                            bool left_is_constant_smi,
                                            Smi* value) {
   NearLabel call_stub, done;
+  // Optimistically add smi value with unknown object. If result overflows or is
+  // not a smi then we had either a smi overflow or added a smi with a tagged
+  // pointer.
   __ add(Operand(eax), Immediate(value));
   __ j(overflow, &call_stub);
   JumpPatchSite patch_site(masm_);
@@ -1652,8 +1656,7 @@ void FullCodeGenerator::EmitConstantSmiAdd(Expression* expr,
   // Undo the optimistic add operation and call the shared stub.
   __ bind(&call_stub);
   __ sub(Operand(eax), Immediate(value));
-  Token::Value op = Token::ADD;
-  TypeRecordingBinaryOpStub stub(op, mode);
+  TypeRecordingBinaryOpStub stub(Token::ADD, mode);
   if (left_is_constant_smi) {
     __ mov(edx, Immediate(value));
   } else {
@@ -1672,6 +1675,9 @@ void FullCodeGenerator::EmitConstantSmiSub(Expression* expr,
                                            bool left_is_constant_smi,
                                            Smi* value) {
   NearLabel call_stub, done;
+  // Optimistically subtract smi value with unknown object. If result overflows
+  // or is not a smi then we had either a smi overflow or added a smi with a
+  // tagged pointer.
   if (left_is_constant_smi) {
     __ mov(ecx, eax);
     __ mov(eax, Immediate(value));
@@ -1692,8 +1698,7 @@ void FullCodeGenerator::EmitConstantSmiSub(Expression* expr,
     __ mov(edx, eax);
     __ mov(eax, Immediate(value));
   }
-  Token::Value op = Token::SUB;
-  TypeRecordingBinaryOpStub stub(op, mode);
+  TypeRecordingBinaryOpStub stub(Token::SUB, mode);
   EmitCallIC(stub.GetCode(), &patch_site);
 
   __ bind(&done);
@@ -1729,7 +1734,7 @@ void FullCodeGenerator::EmitConstantSmiShiftOp(Expression* expr,
           __ shl(edx, shift_value - 1);
         }
         // Convert int result to smi, checking that it is in int range.
-        ASSERT(kSmiTagSize == 1);  // Adjust code if not the case.
+        STATIC_ASSERT(kSmiTagSize == 1);  // Adjust code if not the case.
         __ add(edx, Operand(edx));
         __ j(overflow, &call_stub);
         __ mov(eax, edx);  // Put result back into eax.
@@ -1742,6 +1747,8 @@ void FullCodeGenerator::EmitConstantSmiShiftOp(Expression* expr,
       }
       break;
     case Token::SHR:
+      // SHR must return a positive value. When shifting by 0 or 1 we need to
+      // check that smi tagging the result will not create a negative value.
       if (shift_value < 2) {
         __ mov(edx, eax);
         __ SmiUntag(edx);
@@ -1984,10 +1991,20 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
     }
     case KEYED_PROPERTY: {
       __ push(eax);  // Preserve value.
-      VisitForStackValue(prop->obj());
-      VisitForAccumulatorValue(prop->key());
-      __ mov(ecx, eax);
-      __ pop(edx);
+      if (prop->is_synthetic()) {
+        ASSERT(prop->obj()->AsVariableProxy() != NULL);
+        ASSERT(prop->key()->AsLiteral() != NULL);
+        { AccumulatorValueContext for_object(this);
+          EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
+        }
+        __ mov(edx, eax);
+        __ Set(ecx, Immediate(prop->key()->AsLiteral()->handle()));
+      } else {
+        VisitForStackValue(prop->obj());
+        VisitForAccumulatorValue(prop->key());
+        __ mov(ecx, eax);
+        __ pop(edx);
+      }
       __ pop(eax);  // Restore value.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
@@ -3711,19 +3728,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Comment cmnt(masm_, "[ UnaryOperation (DELETE)");
       Property* prop = expr->expression()->AsProperty();
       Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
-      if (prop == NULL && var == NULL) {
-        // Result of deleting non-property, non-variable reference is true.
-        // The subexpression may have side effects.
-        VisitForEffect(expr->expression());
-        context()->Plug(true);
-      } else if (var != NULL &&
-                 !var->is_global() &&
-                 var->AsSlot() != NULL &&
-                 var->AsSlot()->type() != Slot::LOOKUP) {
-        // Result of deleting non-global, non-dynamic variables is false.
-        // The subexpression does not have side effects.
-        context()->Plug(false);
-      } else if (prop != NULL) {
+
+      if (prop != NULL) {
         if (prop->is_synthetic()) {
           // Result of deleting parameters is false, even when they rewrite
           // to accesses on the arguments object.
@@ -3731,21 +3737,38 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         } else {
           VisitForStackValue(prop->obj());
           VisitForStackValue(prop->key());
+          __ push(Immediate(Smi::FromInt(strict_mode_flag())));
           __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
           context()->Plug(eax);
         }
-      } else if (var->is_global()) {
-        __ push(GlobalObjectOperand());
-        __ push(Immediate(var->name()));
-        __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
-        context()->Plug(eax);
+      } else if (var != NULL) {
+        // Delete of an unqualified identifier is disallowed in strict mode
+        // so this code can only be reached in non-strict mode.
+        ASSERT(strict_mode_flag() == kNonStrictMode);
+        if (var->is_global()) {
+          __ push(GlobalObjectOperand());
+          __ push(Immediate(var->name()));
+          __ push(Immediate(Smi::FromInt(kNonStrictMode)));
+          __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
+          context()->Plug(eax);
+        } else if (var->AsSlot() != NULL &&
+                   var->AsSlot()->type() != Slot::LOOKUP) {
+          // Result of deleting non-global, non-dynamic variables is false.
+          // The subexpression does not have side effects.
+          context()->Plug(false);
+        } else {
+          // Non-global variable.  Call the runtime to try to delete from the
+          // context where the variable was introduced.
+          __ push(context_register());
+          __ push(Immediate(var->name()));
+          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
+          context()->Plug(eax);
+        }
       } else {
-        // Non-global variable.  Call the runtime to try to delete from the
-        // context where the variable was introduced.
-        __ push(context_register());
-        __ push(Immediate(var->name()));
-        __ CallRuntime(Runtime::kDeleteContextSlot, 2);
-        context()->Plug(eax);
+        // Result of deleting non-property, non-variable reference is true.
+        // The subexpression may have side effects.
+        VisitForEffect(expr->expression());
+        context()->Plug(true);
       }
       break;
     }

@@ -1,3 +1,14 @@
+2011-02-16: Version 3.1.5
+
+        Change RegExp parsing to disallow /(*)/.
+
+        Added GDB JIT support for ARM.
+
+        Fixed several crash bugs.
+
+        Performance improvements on the IA32 platform.
+
+
 2011-02-14: Version 3.1.4
 
         Fixed incorrect compare of prototypes of the global object (issue

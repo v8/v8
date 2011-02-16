@@ -714,7 +714,8 @@ int MacroAssembler::ActivationFrameAlignment() {
 }
 
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles) {
+void MacroAssembler::LeaveExitFrame(bool save_doubles,
+                                    Register argument_count) {
   // Optionally restore all double registers.
   if (save_doubles) {
     for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
@@ -736,12 +737,12 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   str(r3, MemOperand(ip));
 #endif
 
-  // Tear down the exit frame, pop the arguments, and return. Callee-saved
-  // register r4 still holds argc.
+  // Tear down the exit frame, pop the arguments, and return.
   mov(sp, Operand(fp));
   ldm(ia_w, sp, fp.bit() | lr.bit());
-  add(sp, sp, Operand(r4, LSL, kPointerSizeLog2));
-  mov(pc, lr);
+  if (argument_count.is_valid()) {
+    add(sp, sp, Operand(argument_count, LSL, kPointerSizeLog2));
+  }
 }
 
 
@@ -929,8 +930,8 @@ void MacroAssembler::IsInstanceJSObjectType(Register map,
 
 
 void MacroAssembler::IsObjectJSStringType(Register object,
-                                           Register scratch,
-                                           Label* fail) {
+                                          Register scratch,
+                                          Label* fail) {
   ASSERT(kNotStringTag != 0);
 
   ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
@@ -1002,6 +1003,117 @@ void MacroAssembler::PopTryHandler() {
   mov(ip, Operand(ExternalReference(Top::k_handler_address)));
   add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
   str(r1, MemOperand(ip));
+}
+
+
+void MacroAssembler::Throw(Register value) {
+  // r0 is expected to hold the exception.
+  if (!value.is(r0)) {
+    mov(r0, value);
+  }
+
+  // Adjust this code if not the case.
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
+  // Drop the sp to the top of the handler.
+  mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+  ldr(sp, MemOperand(r3));
+
+  // Restore the next handler and frame pointer, discard handler state.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  pop(r2);
+  str(r2, MemOperand(r3));
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
+  ldm(ia_w, sp, r3.bit() | fp.bit());  // r3: discarded state.
+
+  // Before returning we restore the context from the frame pointer if
+  // not NULL.  The frame pointer is NULL in the exception handler of a
+  // JS entry frame.
+  cmp(fp, Operand(0, RelocInfo::NONE));
+  // Set cp to NULL if fp is NULL.
+  mov(cp, Operand(0, RelocInfo::NONE), LeaveCC, eq);
+  // Restore cp otherwise.
+  ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
+#ifdef DEBUG
+  if (FLAG_debug_code) {
+    mov(lr, Operand(pc));
+  }
+#endif
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+  pop(pc);
+}
+
+
+void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
+                                      Register value) {
+  // Adjust this code if not the case.
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
+  // r0 is expected to hold the exception.
+  if (!value.is(r0)) {
+    mov(r0, value);
+  }
+
+  // Drop sp to the top stack handler.
+  mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+  ldr(sp, MemOperand(r3));
+
+  // Unwind the handlers until the ENTRY handler is found.
+  Label loop, done;
+  bind(&loop);
+  // Load the type of the current stack handler.
+  const int kStateOffset = StackHandlerConstants::kStateOffset;
+  ldr(r2, MemOperand(sp, kStateOffset));
+  cmp(r2, Operand(StackHandler::ENTRY));
+  b(eq, &done);
+  // Fetch the next handler in the list.
+  const int kNextOffset = StackHandlerConstants::kNextOffset;
+  ldr(sp, MemOperand(sp, kNextOffset));
+  jmp(&loop);
+  bind(&done);
+
+  // Set the top handler address to next handler past the current ENTRY handler.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  pop(r2);
+  str(r2, MemOperand(r3));
+
+  if (type == OUT_OF_MEMORY) {
+    // Set external caught exception to false.
+    ExternalReference external_caught(Top::k_external_caught_exception_address);
+    mov(r0, Operand(false, RelocInfo::NONE));
+    mov(r2, Operand(external_caught));
+    str(r0, MemOperand(r2));
+
+    // Set pending exception and r0 to out of memory exception.
+    Failure* out_of_memory = Failure::OutOfMemoryException();
+    mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
+    mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
+    str(r0, MemOperand(r2));
+  }
+
+  // Stack layout at this point. See also StackHandlerConstants.
+  // sp ->   state (ENTRY)
+  //         fp
+  //         lr
+
+  // Discard handler state (r2 is not used) and restore frame pointer.
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
+  ldm(ia_w, sp, r2.bit() | fp.bit());  // r2: discarded state.
+  // Before returning we restore the context from the frame pointer if
+  // not NULL.  The frame pointer is NULL in the exception handler of a
+  // JS entry frame.
+  cmp(fp, Operand(0, RelocInfo::NONE));
+  // Set cp to NULL if fp is NULL.
+  mov(cp, Operand(0, RelocInfo::NONE), LeaveCC, eq);
+  // Restore cp otherwise.
+  ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
+#ifdef DEBUG
+  if (FLAG_debug_code) {
+    mov(lr, Operand(pc));
+  }
+#endif
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+  pop(pc);
 }
 
 
@@ -1554,9 +1666,10 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   cmp(r4, r5);
   b(ne, &promote_scheduled_exception);
 
-  // LeaveExitFrame expects unwind space to be in r4.
+  // LeaveExitFrame expects unwind space to be in a register.
   mov(r4, Operand(stack_space));
-  LeaveExitFrame(false);
+  LeaveExitFrame(false, r4);
+  mov(pc, lr);
 
   bind(&promote_scheduled_exception);
   MaybeObject* result = TryTailCallExternalReference(
@@ -2120,6 +2233,19 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
   tst(object, Operand(kSmiTagMask));
   Assert(eq, "Operand is not smi");
 }
+
+
+void MacroAssembler::AbortIfNotString(Register object) {
+  STATIC_ASSERT(kSmiTag == 0);
+  tst(object, Operand(kSmiTagMask));
+  Assert(ne, "Operand is not a string");
+  push(object);
+  ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
+  CompareInstanceType(object, object, FIRST_NONSTRING_TYPE);
+  pop(object);
+  Assert(lo, "Operand is not a string");
+}
+
 
 
 void MacroAssembler::AbortIfNotRootValue(Register src,

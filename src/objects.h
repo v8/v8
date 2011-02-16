@@ -1286,7 +1286,12 @@ class HeapNumber: public HeapObject {
 // caching.
 class JSObject: public HeapObject {
  public:
-  enum DeleteMode { NORMAL_DELETION, FORCE_DELETION };
+  enum DeleteMode {
+    NORMAL_DELETION,
+    STRICT_DELETION,
+    FORCE_DELETION
+  };
+
   enum ElementsKind {
     // The only "fast" kind.
     FAST_ELEMENTS,
@@ -1541,8 +1546,8 @@ class JSObject: public HeapObject {
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
-  MaybeObject* GetElementWithReceiver(JSObject* receiver, uint32_t index);
-  MaybeObject* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
+  MaybeObject* GetElementWithReceiver(Object* receiver, uint32_t index);
+  MaybeObject* GetElementWithInterceptor(Object* receiver, uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetFastElementsCapacityAndLength(int capacity,
                                                                 int length);
@@ -1799,7 +1804,7 @@ class JSObject: public HeapObject {
       Object* value,
       bool check_prototype);
 
-  MaybeObject* GetElementPostInterceptor(JSObject* receiver, uint32_t index);
+  MaybeObject* GetElementPostInterceptor(Object* receiver, uint32_t index);
 
   MUST_USE_RESULT MaybeObject* DeletePropertyPostInterceptor(String* name,
                                                              DeleteMode mode);
@@ -4365,7 +4370,6 @@ class SharedFunctionInfo: public HeapObject {
                               kThisPropertyAssignmentsOffset + kPointerSize,
                               kSize> BodyDescriptor;
 
- private:
   // Bit positions in start_position_and_type.
   // The source code start position is in the 30 most significant bits of
   // the start_position_and_type field.
@@ -4384,6 +4388,35 @@ class SharedFunctionInfo: public HeapObject {
   static const int kOptimizationDisabled = 7;
   static const int kStrictModeFunction = 8;
 
+ private:
+#if V8_HOST_ARCH_32_BIT
+  // On 32 bit platforms, compiler hints is a smi.
+  static const int kCompilerHintsSmiTagSize = kSmiTagSize;
+  static const int kCompilerHintsSize = kPointerSize;
+#else
+  // On 64 bit platforms, compiler hints is not a smi, see comment above.
+  static const int kCompilerHintsSmiTagSize = 0;
+  static const int kCompilerHintsSize = kIntSize;
+#endif
+
+ public:
+  // Constants for optimizing codegen for strict mode function tests.
+  // Allows to use byte-widgh instructions.
+  static const int kStrictModeBitWithinByte =
+      (kStrictModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+  static const int kStrictModeByteOffset = kCompilerHintsOffset +
+    (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+  static const int kStrictModeByteOffset = kCompilerHintsOffset +
+    (kCompilerHintsSize - 1) -
+    ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
+#else
+#error Unknown byte ordering
+#endif
+
+ private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
 

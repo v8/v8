@@ -304,6 +304,11 @@ class MacroAssembler: public Assembler {
   // Unlink the stack handler on top of the stack from the try handler chain.
   void PopTryHandler();
 
+  // Activate the top handler in the try hander chain.
+  void Throw(Register value);
+
+  void ThrowUncatchable(UncatchableExceptionType type, Register value);
+
   // ---------------------------------------------------------------------------
   // Inline caching support
 

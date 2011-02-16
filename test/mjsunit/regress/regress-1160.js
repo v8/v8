@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,47 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_X64_SIMULATOR_X64_H_
-#define V8_X64_SIMULATOR_X64_H_
+// See: http://code.google.com/p/v8/issues/detail?id=1160
 
-#include "allocation.h"
+// Array.prototype.join uses a temporary array internally. Verify it
+// does not crash and throws an illegal argument exception instead
+// when keyed store on the array does not work as expected because of
+// the setter on its prototype.
 
-namespace v8 {
-namespace internal {
-
-// Since there is no simulator for the x64 architecture the only thing we can
-// do is to call the entry directly.
-// TODO(X64): Don't pass p0, since it isn't used?
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  (entry(p0, p1, p2, p3, p4))
-
-typedef int (*regexp_matcher)(String*, int, const byte*,
-                              const byte*, int*, Address, int);
-
-// Call the generated regexp code directly. The code at the entry address should
-// expect seven int/pointer sized arguments and return an int.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
-  (FUNCTION_CAST<regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6))
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  (reinterpret_cast<TryCatch*>(try_catch_address))
-
-// The stack limit beyond which we will throw stack overflow errors in
-// generated code. Because generated code on x64 uses the C stack, we
-// just use the C stack limit.
-class SimulatorStack : public v8::internal::AllStatic {
- public:
-  static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
-    return c_limit;
+try {
+  var N = 100;
+  var array = Array(N);
+  for (var i = 0; i < N; ++i) {
+    array[i] = i;
   }
-
-  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
-    return try_catch_address;
-  }
-
-  static inline void UnregisterCTryCatch() { }
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_X64_SIMULATOR_X64_H_
+  Array.prototype.__defineSetter__(32, function() { });
+  // The next line throws. We should make it work even with changed
+  // prototype. See http://code.google.com/p/v8/issues/detail?id=1161
+  array.join(",");
+  assertUnreachable();
+} catch (e) { }

@@ -2607,8 +2607,8 @@ void Assembler::RecordDebugBreakSlot() {
 }
 
 
-void Assembler::RecordComment(const char* msg) {
-  if (FLAG_code_comments) {
+void Assembler::RecordComment(const char* msg, bool force) {
+  if (FLAG_code_comments || force) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }

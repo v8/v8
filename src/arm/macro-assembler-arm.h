@@ -297,7 +297,9 @@ class MacroAssembler: public Assembler {
   void EnterExitFrame(bool save_doubles, int stack_space = 0);
 
   // Leave the current exit frame. Expects the return value in r0.
-  void LeaveExitFrame(bool save_doubles);
+  // Expect the number of values, pushed prior to the exit frame, to
+  // remove in a register (or no_reg, if there is nothing to remove).
+  void LeaveExitFrame(bool save_doubles, Register argument_count);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -370,6 +372,13 @@ class MacroAssembler: public Assembler {
   // Unlink the stack handler on top of the stack from the try handler chain.
   // Must preserve the result register.
   void PopTryHandler();
+
+  // Passes thrown value (in r0) to the handler of top of the try handler chain.
+  void Throw(Register value);
+
+  // Propagates an uncatchable exception to the top of the current JS stack's
+  // handler chain.
+  void ThrowUncatchable(UncatchableExceptionType type, Register value);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -790,6 +799,9 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is a smi. Used in debug code.
   void AbortIfSmi(Register object);
   void AbortIfNotSmi(Register object);
+
+  // Abort execution if argument is a string. Used in debug code.
+  void AbortIfNotString(Register object);
 
   // Abort execution if argument is not the root value with the given index.
   void AbortIfNotRootValue(Register src,

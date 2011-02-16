@@ -1686,11 +1686,21 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
     }
     case KEYED_PROPERTY: {
       __ push(rax);  // Preserve value.
-      VisitForStackValue(prop->obj());
-      VisitForAccumulatorValue(prop->key());
-      __ movq(rcx, rax);
-      __ pop(rdx);
-      __ pop(rax);
+      if (prop->is_synthetic()) {
+        ASSERT(prop->obj()->AsVariableProxy() != NULL);
+        ASSERT(prop->key()->AsLiteral() != NULL);
+        { AccumulatorValueContext for_object(this);
+          EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
+        }
+        __ movq(rdx, rax);
+        __ Move(rcx, prop->key()->AsLiteral()->handle());
+      } else {
+        VisitForStackValue(prop->obj());
+        VisitForAccumulatorValue(prop->key());
+        __ movq(rcx, rax);
+        __ pop(rdx);
+      }
+      __ pop(rax);  // Restore value.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
@@ -3050,19 +3060,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Comment cmnt(masm_, "[ UnaryOperation (DELETE)");
       Property* prop = expr->expression()->AsProperty();
       Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
-      if (prop == NULL && var == NULL) {
-        // Result of deleting non-property, non-variable reference is true.
-        // The subexpression may have side effects.
-        VisitForEffect(expr->expression());
-        context()->Plug(true);
-      } else if (var != NULL &&
-                 !var->is_global() &&
-                 var->AsSlot() != NULL &&
-                 var->AsSlot()->type() != Slot::LOOKUP) {
-        // Result of deleting non-global, non-dynamic variables is false.
-        // The subexpression does not have side effects.
-        context()->Plug(false);
-      } else if (prop != NULL) {
+
+      if (prop != NULL) {
         if (prop->is_synthetic()) {
           // Result of deleting parameters is false, even when they rewrite
           // to accesses on the arguments object.
@@ -3070,21 +3069,38 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         } else {
           VisitForStackValue(prop->obj());
           VisitForStackValue(prop->key());
+          __ Push(Smi::FromInt(strict_mode_flag()));
           __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
           context()->Plug(rax);
         }
-      } else if (var->is_global()) {
-        __ push(GlobalObjectOperand());
-        __ Push(var->name());
-        __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
-        context()->Plug(rax);
+      } else if (var != NULL) {
+        // Delete of an unqualified identifier is disallowed in strict mode
+        // so this code can only be reached in non-strict mode.
+        ASSERT(strict_mode_flag() == kNonStrictMode);
+        if (var->is_global()) {
+          __ push(GlobalObjectOperand());
+          __ Push(var->name());
+          __ Push(Smi::FromInt(kNonStrictMode));
+          __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
+          context()->Plug(rax);
+        } else if (var->AsSlot() != NULL &&
+                   var->AsSlot()->type() != Slot::LOOKUP) {
+          // Result of deleting non-global, non-dynamic variables is false.
+          // The subexpression does not have side effects.
+          context()->Plug(false);
+        } else {
+          // Non-global variable.  Call the runtime to try to delete from the
+          // context where the variable was introduced.
+          __ push(context_register());
+          __ Push(var->name());
+          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
+          context()->Plug(rax);
+        }
       } else {
-        // Non-global variable.  Call the runtime to try to delete from the
-        // context where the variable was introduced.
-        __ push(context_register());
-        __ Push(var->name());
-        __ CallRuntime(Runtime::kDeleteContextSlot, 2);
-        context()->Plug(rax);
+        // Result of deleting non-property, non-variable reference is true.
+        // The subexpression may have side effects.
+        VisitForEffect(expr->expression());
+        context()->Plug(true);
       }
       break;
     }

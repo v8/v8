@@ -134,11 +134,7 @@ DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_bool(aggressive_loop_invariant_motion, true,
             "aggressive motion of instructions out of loops")
-#ifdef V8_TARGET_ARCH_IA32
 DEFINE_bool(use_osr, true, "use on-stack replacement")
-#else
-DEFINE_bool(use_osr, false, "use on-stack replacement")
-#endif
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
@@ -378,6 +374,7 @@ DEFINE_bool(debug_script_collected_events, true,
 
 DEFINE_bool(gdbjit, false, "enable GDBJIT interface (disables compacting GC)")
 DEFINE_bool(gdbjit_full, false, "enable GDBJIT interface for all code objects")
+DEFINE_bool(gdbjit_dump, false, "dump elf objects with debug info to disk")
 
 //
 // Debug only flags

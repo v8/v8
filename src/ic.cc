@@ -1632,19 +1632,25 @@ MaybeObject* KeyedStoreIC::Store(State state,
 
   if (use_ic) {
     Code* stub = generic_stub();
-    if (object->IsJSObject()) {
-      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-      if (receiver->HasExternalArrayElements()) {
-        MaybeObject* probe =
-            StubCache::ComputeKeyedLoadOrStoreExternalArray(*receiver, true);
-        stub =
-            probe->IsFailure() ? NULL : Code::cast(probe->ToObjectUnchecked());
-      } else if (state == UNINITIALIZED &&
-                 key->IsSmi() &&
-                 receiver->map()->has_fast_elements()) {
-        MaybeObject* probe = StubCache::ComputeKeyedStoreSpecialized(*receiver);
-        stub =
-            probe->IsFailure() ? NULL : Code::cast(probe->ToObjectUnchecked());
+    if (state == UNINITIALIZED) {
+      if (object->IsJSObject()) {
+        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+        if (receiver->HasExternalArrayElements()) {
+          MaybeObject* probe =
+              StubCache::ComputeKeyedLoadOrStoreExternalArray(*receiver, true);
+          stub = probe->IsFailure() ?
+              NULL : Code::cast(probe->ToObjectUnchecked());
+        } else if (receiver->HasPixelElements()) {
+          MaybeObject* probe =
+              StubCache::ComputeKeyedStorePixelArray(*receiver);
+          stub = probe->IsFailure() ?
+              NULL : Code::cast(probe->ToObjectUnchecked());
+        } else if (key->IsSmi() && receiver->map()->has_fast_elements()) {
+          MaybeObject* probe =
+              StubCache::ComputeKeyedStoreSpecialized(*receiver);
+          stub = probe->IsFailure() ?
+              NULL : Code::cast(probe->ToObjectUnchecked());
+        }
       }
     }
     if (stub != NULL) set_target(stub);

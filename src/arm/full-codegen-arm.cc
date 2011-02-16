@@ -341,7 +341,17 @@ void FullCodeGenerator::EmitReturnSequence() {
 FullCodeGenerator::ConstantOperand FullCodeGenerator::GetConstantOperand(
     Token::Value op, Expression* left, Expression* right) {
   ASSERT(ShouldInlineSmiCase(op));
-  return kNoConstants;
+  if (op == Token::DIV || op == Token::MOD || op == Token::MUL) {
+    // We never generate inlined constant smi operations for these.
+    return kNoConstants;
+  } else if (right->IsSmiLiteral()) {
+    return kRightConstant;
+  } else if (left->IsSmiLiteral() && !Token::IsShiftOp(op)) {
+    // Don't inline shifts with constant left hand side.
+    return kLeftConstant;
+  } else {
+    return kNoConstants;
+  }
 }
 
 
@@ -1598,14 +1608,308 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 }
 
 
+void FullCodeGenerator::EmitConstantSmiAdd(Expression* expr,
+                                           OverwriteMode mode,
+                                           bool left_is_constant_smi,
+                                           Smi* value) {
+  Label call_stub, done;
+  // Optimistically add smi value with unknown object. If result overflows or is
+  // not a smi then we had either a smi overflow or added a smi with a tagged
+  // pointer.
+  __ mov(r1, Operand(value));
+  __ add(r2, r0, r1, SetCC);
+  __ b(vs, &call_stub);
+  JumpPatchSite patch_site(masm_);
+  patch_site.EmitJumpIfNotSmi(r2, &call_stub);
+  __ mov(r0, r2);
+  __ b(&done);
+
+  // Call the shared stub.
+  __ bind(&call_stub);
+  if (!left_is_constant_smi) {
+    __ Swap(r0, r1, r2);
+  }
+  TypeRecordingBinaryOpStub stub(Token::ADD, mode);
+  EmitCallIC(stub.GetCode(), &patch_site);
+
+  __ bind(&done);
+  context()->Plug(r0);
+}
+
+
+void FullCodeGenerator::EmitConstantSmiSub(Expression* expr,
+                                           OverwriteMode mode,
+                                           bool left_is_constant_smi,
+                                           Smi* value) {
+  Label call_stub, done;
+  // Optimistically subtract smi value and unknown object. If result overflows
+  // or is not a smi then we had either a smi overflow or subtraction between a
+  // smi and a tagged pointer.
+  __ mov(r1, Operand(value));
+  if (left_is_constant_smi) {
+    __ sub(r2, r1, r0, SetCC);
+  } else {
+    __ sub(r2, r0, r1, SetCC);
+  }
+  __ b(vs, &call_stub);
+  JumpPatchSite patch_site(masm_);
+  patch_site.EmitJumpIfNotSmi(r2, &call_stub);
+  __ mov(r0, r2);
+  __ b(&done);
+
+  // Call the shared stub.
+  __ bind(&call_stub);
+  if (!left_is_constant_smi) {
+    __ Swap(r0, r1, r2);
+  }
+  TypeRecordingBinaryOpStub stub(Token::SUB, mode);
+  EmitCallIC(stub.GetCode(), &patch_site);
+
+  __ bind(&done);
+  context()->Plug(r0);
+}
+
+
+void FullCodeGenerator::EmitConstantSmiShiftOp(Expression* expr,
+                                               Token::Value op,
+                                               OverwriteMode mode,
+                                               Smi* value) {
+  Label call_stub, smi_case, done;
+  int shift_value = value->value() & 0x1f;
+
+  JumpPatchSite patch_site(masm_);
+  patch_site.EmitJumpIfSmi(r0, &smi_case);
+
+  // Call stub.
+  __ bind(&call_stub);
+  __ mov(r1, r0);
+  __ mov(r0, Operand(value));
+  TypeRecordingBinaryOpStub stub(op, mode);
+  EmitCallIC(stub.GetCode(), &patch_site);
+  __ b(&done);
+
+  // Smi case.
+  __ bind(&smi_case);
+  switch (op) {
+    case Token::SHL:
+      if (shift_value != 0) {
+        __ mov(r1, r0);
+        if (shift_value > 1) {
+          __ mov(r1, Operand(r1, LSL, shift_value - 1));
+        }
+        // Convert int result to smi, checking that it is in int range.
+        __ SmiTag(r1, SetCC);
+        __ b(vs, &call_stub);
+        __ mov(r0, r1);  // Put result back into r0.
+      }
+      break;
+    case Token::SAR:
+      if (shift_value != 0) {
+        __ mov(r0, Operand(r0, ASR, shift_value));
+        __ bic(r0, r0, Operand(kSmiTagMask));
+      }
+      break;
+    case Token::SHR:
+      // SHR must return a positive value. When shifting by 0 or 1 we need to
+      // check that smi tagging the result will not create a negative value.
+      if (shift_value < 2) {
+        __ mov(r2, Operand(shift_value));
+        __ SmiUntag(r1, r0);
+        if (shift_value != 0) {
+          __ mov(r1, Operand(r1, LSR, shift_value));
+        }
+        __ tst(r1, Operand(0xc0000000));
+        __ b(ne, &call_stub);
+        __ SmiTag(r0, r1);  // result in r0.
+      } else {
+        __ SmiUntag(r0);
+        __ mov(r0, Operand(r0, LSR, shift_value));
+        __ SmiTag(r0);
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ bind(&done);
+  context()->Plug(r0);
+}
+
+
+void FullCodeGenerator::EmitConstantSmiBitOp(Expression* expr,
+                                             Token::Value op,
+                                             OverwriteMode mode,
+                                             Smi* value) {
+  Label smi_case, done;
+
+  JumpPatchSite patch_site(masm_);
+  patch_site.EmitJumpIfSmi(r0, &smi_case);
+
+  // The order of the arguments does not matter for bit-ops with a
+  // constant operand.
+  __ mov(r1, Operand(value));
+  TypeRecordingBinaryOpStub stub(op, mode);
+  EmitCallIC(stub.GetCode(), &patch_site);
+  __ jmp(&done);
+
+  // Smi case.
+  __ bind(&smi_case);
+  __ mov(r1, Operand(value));
+  switch (op) {
+    case Token::BIT_OR:
+      __ orr(r0, r0, Operand(r1));
+      break;
+    case Token::BIT_XOR:
+      __ eor(r0, r0, Operand(r1));
+      break;
+    case Token::BIT_AND:
+      __ and_(r0, r0, Operand(r1));
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ bind(&done);
+  context()->Plug(r0);
+}
+
+
+void FullCodeGenerator::EmitConstantSmiBinaryOp(Expression* expr,
+                                                Token::Value op,
+                                                OverwriteMode mode,
+                                                bool left_is_constant_smi,
+                                                Smi* value) {
+  switch (op) {
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+      EmitConstantSmiBitOp(expr, op, mode, value);
+      break;
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+      ASSERT(!left_is_constant_smi);
+      EmitConstantSmiShiftOp(expr, op, mode, value);
+      break;
+    case Token::ADD:
+      EmitConstantSmiAdd(expr, mode, left_is_constant_smi, value);
+      break;
+    case Token::SUB:
+      EmitConstantSmiSub(expr, mode, left_is_constant_smi, value);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
 void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
                                               Token::Value op,
                                               OverwriteMode mode,
-                                              Expression* left,
-                                              Expression* right,
+                                              Expression* left_expr,
+                                              Expression* right_expr,
                                               ConstantOperand constant) {
-  ASSERT(constant == kNoConstants);  // Only handled case.
-  EmitBinaryOp(op, mode);
+  if (constant == kRightConstant) {
+    Smi* value =  Smi::cast(*right_expr->AsLiteral()->handle());
+    EmitConstantSmiBinaryOp(expr, op, mode, false, value);
+    return;
+  } else if (constant == kLeftConstant) {
+    Smi* value =  Smi::cast(*left_expr->AsLiteral()->handle());
+    EmitConstantSmiBinaryOp(expr, op, mode, true, value);
+    return;
+  }
+
+  Label done, smi_case, stub_call;
+
+  Register scratch1 = r2;
+  Register scratch2 = r3;
+
+  // Get the arguments.
+  Register left = r1;
+  Register right = r0;
+  __ pop(left);
+
+  // Perform combined smi check on both operands.
+  __ orr(scratch1, left, Operand(right));
+  STATIC_ASSERT(kSmiTag == 0);
+  JumpPatchSite patch_site(masm_);
+  patch_site.EmitJumpIfSmi(scratch1, &smi_case);
+
+  __ bind(&stub_call);
+  TypeRecordingBinaryOpStub stub(op, mode);
+  EmitCallIC(stub.GetCode(), &patch_site);
+  __ jmp(&done);
+
+  __ bind(&smi_case);
+  // Smi case. This code works the same way as the smi-smi case in the type
+  // recording binary operation stub, see
+  // TypeRecordingBinaryOpStub::GenerateSmiSmiOperation for comments.
+  switch (op) {
+    case Token::SAR:
+      __ b(&stub_call);
+      __ GetLeastBitsFromSmi(scratch1, right, 5);
+      __ mov(right, Operand(left, ASR, scratch1));
+      __ bic(right, right, Operand(kSmiTagMask));
+      break;
+    case Token::SHL: {
+      __ b(&stub_call);
+      __ SmiUntag(scratch1, left);
+      __ GetLeastBitsFromSmi(scratch2, right, 5);
+      __ mov(scratch1, Operand(scratch1, LSL, scratch2));
+      __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
+      __ b(mi, &stub_call);
+      __ SmiTag(right, scratch1);
+      break;
+    }
+    case Token::SHR: {
+      __ b(&stub_call);
+      __ SmiUntag(scratch1, left);
+      __ GetLeastBitsFromSmi(scratch2, right, 5);
+      __ mov(scratch1, Operand(scratch1, LSR, scratch2));
+      __ tst(scratch1, Operand(0xc0000000));
+      __ b(ne, &stub_call);
+      __ SmiTag(right, scratch1);
+      break;
+    }
+    case Token::ADD:
+      __ add(scratch1, left, Operand(right), SetCC);
+      __ b(vs, &stub_call);
+      __ mov(right, scratch1);
+      break;
+    case Token::SUB:
+      __ sub(scratch1, left, Operand(right), SetCC);
+      __ b(vs, &stub_call);
+      __ mov(right, scratch1);
+      break;
+    case Token::MUL: {
+      __ SmiUntag(ip, right);
+      __ smull(scratch1, scratch2, left, ip);
+      __ mov(ip, Operand(scratch1, ASR, 31));
+      __ cmp(ip, Operand(scratch2));
+      __ b(ne, &stub_call);
+      __ tst(scratch1, Operand(scratch1));
+      __ mov(right, Operand(scratch1), LeaveCC, ne);
+      __ b(ne, &done);
+      __ add(scratch2, right, Operand(left), SetCC);
+      __ mov(right, Operand(Smi::FromInt(0)), LeaveCC, pl);
+      __ b(mi, &stub_call);
+      break;
+    }
+    case Token::BIT_OR:
+      __ orr(right, left, Operand(right));
+      break;
+    case Token::BIT_AND:
+      __ and_(right, left, Operand(right));
+      break;
+    case Token::BIT_XOR:
+      __ eor(right, left, Operand(right));
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ bind(&done);
+  context()->Plug(r0);
 }
 
 
@@ -1656,10 +1960,20 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
     }
     case KEYED_PROPERTY: {
       __ push(r0);  // Preserve value.
-      VisitForStackValue(prop->obj());
-      VisitForAccumulatorValue(prop->key());
-      __ mov(r1, r0);
-      __ pop(r2);
+      if (prop->is_synthetic()) {
+        ASSERT(prop->obj()->AsVariableProxy() != NULL);
+        ASSERT(prop->key()->AsLiteral() != NULL);
+        { AccumulatorValueContext for_object(this);
+          EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
+        }
+        __ mov(r2, r0);
+        __ mov(r1, Operand(prop->key()->AsLiteral()->handle()));
+      } else {
+        VisitForStackValue(prop->obj());
+        VisitForAccumulatorValue(prop->key());
+        __ mov(r1, r0);
+        __ pop(r2);
+      }
       __ pop(r0);  // Restore value.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
@@ -3043,19 +3357,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Comment cmnt(masm_, "[ UnaryOperation (DELETE)");
       Property* prop = expr->expression()->AsProperty();
       Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
-      if (prop == NULL && var == NULL) {
-        // Result of deleting non-property, non-variable reference is true.
-        // The subexpression may have side effects.
-        VisitForEffect(expr->expression());
-        context()->Plug(true);
-      } else if (var != NULL &&
-                 !var->is_global() &&
-                 var->AsSlot() != NULL &&
-                 var->AsSlot()->type() != Slot::LOOKUP) {
-        // Result of deleting non-global, non-dynamic variables is false.
-        // The subexpression does not have side effects.
-        context()->Plug(false);
-      } else if (prop != NULL) {
+
+      if (prop != NULL) {
         if (prop->is_synthetic()) {
           // Result of deleting parameters is false, even when they rewrite
           // to accesses on the arguments object.
@@ -3063,23 +3366,41 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         } else {
           VisitForStackValue(prop->obj());
           VisitForStackValue(prop->key());
+          __ mov(r1, Operand(Smi::FromInt(strict_mode_flag())));
+          __ push(r1);
           __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
           context()->Plug(r0);
         }
-      } else if (var->is_global()) {
-        __ ldr(r1, GlobalObjectOperand());
-        __ mov(r0, Operand(var->name()));
-        __ Push(r1, r0);
-        __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
-        context()->Plug(r0);
+      } else if (var != NULL) {
+        // Delete of an unqualified identifier is disallowed in strict mode
+        // so this code can only be reached in non-strict mode.
+        ASSERT(strict_mode_flag() == kNonStrictMode);
+        if (var->is_global()) {
+          __ ldr(r2, GlobalObjectOperand());
+          __ mov(r1, Operand(var->name()));
+          __ mov(r0, Operand(Smi::FromInt(kNonStrictMode)));
+          __ Push(r2, r1, r0);
+          __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
+          context()->Plug(r0);
+        } else if (var->AsSlot() != NULL &&
+                   var->AsSlot()->type() != Slot::LOOKUP) {
+          // Result of deleting non-global, non-dynamic variables is false.
+          // The subexpression does not have side effects.
+          context()->Plug(false);
+        } else {
+          // Non-global variable.  Call the runtime to try to delete from the
+          // context where the variable was introduced.
+          __ push(context_register());
+          __ mov(r2, Operand(var->name()));
+          __ push(r2);
+          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
+          context()->Plug(r0);
+        }
       } else {
-        // Non-global variable.  Call the runtime to try to delete from the
-        // context where the variable was introduced.
-        __ push(context_register());
-        __ mov(r2, Operand(var->name()));
-        __ push(r2);
-        __ CallRuntime(Runtime::kDeleteContextSlot, 2);
-        context()->Plug(r0);
+        // Result of deleting non-property, non-variable reference is true.
+        // The subexpression may have side effects.
+        VisitForEffect(expr->expression());
+        context()->Plug(true);
       }
       break;
     }
@@ -3270,13 +3591,16 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Inline smi case if we are in a loop.
   Label stub_call, done;
+  JumpPatchSite patch_site(masm_);
+
   int count_value = expr->op() == Token::INC ? 1 : -1;
   if (ShouldInlineSmiCase(expr->op())) {
     __ add(r0, r0, Operand(Smi::FromInt(count_value)), SetCC);
     __ b(vs, &stub_call);
     // We could eliminate this smi check if we split the code at
     // the first smi check before calling ToNumber.
-    __ JumpIfSmi(r0, &done);
+    patch_site.EmitJumpIfSmi(r0, &done);
+
     __ bind(&stub_call);
     // Call stub. Undo operation first.
     __ sub(r0, r0, Operand(Smi::FromInt(count_value)));
@@ -3286,8 +3610,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Record position before stub call.
   SetSourcePosition(expr->position());
 
-  GenericBinaryOpStub stub(Token::ADD, NO_OVERWRITE, r1, r0);
-  __ CallStub(&stub);
+  TypeRecordingBinaryOpStub stub(Token::ADD, NO_OVERWRITE);
+  EmitCallIC(stub.GetCode(), &patch_site);
   __ bind(&done);
 
   // Store the value returned in r0.

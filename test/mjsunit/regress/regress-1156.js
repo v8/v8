@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,47 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_X64_SIMULATOR_X64_H_
-#define V8_X64_SIMULATOR_X64_H_
+// Flags: --allow-natives-syntax --nouse-inlining
 
-#include "allocation.h"
+// Test that we do not crash we invoke builtins from optimized code that
+// is then deoptimized.
 
-namespace v8 {
-namespace internal {
+function foo(a) {
+  delete a[1];
+  delete a[2];
+  delete a[3];
+  delete a[4];
+  delete a[5];
+  return void 0;
+}
 
-// Since there is no simulator for the x64 architecture the only thing we can
-// do is to call the entry directly.
-// TODO(X64): Don't pass p0, since it isn't used?
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  (entry(p0, p1, p2, p3, p4))
+function call_and_deopt() {
+  var b = [1,2,3];
+  foo(b);
+  foo(b);
+  %DeoptimizeFunction(foo);
+}
 
-typedef int (*regexp_matcher)(String*, int, const byte*,
-                              const byte*, int*, Address, int);
-
-// Call the generated regexp code directly. The code at the entry address should
-// expect seven int/pointer sized arguments and return an int.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
-  (FUNCTION_CAST<regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6))
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  (reinterpret_cast<TryCatch*>(try_catch_address))
-
-// The stack limit beyond which we will throw stack overflow errors in
-// generated code. Because generated code on x64 uses the C stack, we
-// just use the C stack limit.
-class SimulatorStack : public v8::internal::AllStatic {
- public:
-  static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
-    return c_limit;
-  }
-
-  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
-    return try_catch_address;
-  }
-
-  static inline void UnregisterCTryCatch() { }
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_X64_SIMULATOR_X64_H_
+call_and_deopt();

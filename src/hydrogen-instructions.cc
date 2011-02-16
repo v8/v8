@@ -465,9 +465,16 @@ void HInstruction::PrintTo(StringStream* stream) const {
 void HInstruction::Unlink() {
   ASSERT(IsLinked());
   ASSERT(!IsControlInstruction());  // Must never move control instructions.
+  ASSERT(!IsBlockEntry());  // Doesn't make sense to delete these.
+  ASSERT(previous_ != NULL);
+  previous_->next_ = next_;
+  if (next_ == NULL) {
+    ASSERT(block()->last() == this);
+    block()->set_last(previous_);
+  } else {
+    next_->previous_ = previous_;
+  }
   clear_block();
-  if (previous_ != NULL) previous_->next_ = next_;
-  if (next_ != NULL) next_->previous_ = previous_;
 }
 
 
