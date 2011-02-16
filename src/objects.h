@@ -1546,8 +1546,8 @@ class JSObject: public HeapObject {
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
-  MaybeObject* GetElementWithReceiver(JSObject* receiver, uint32_t index);
-  MaybeObject* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
+  MaybeObject* GetElementWithReceiver(Object* receiver, uint32_t index);
+  MaybeObject* GetElementWithInterceptor(Object* receiver, uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetFastElementsCapacityAndLength(int capacity,
                                                                 int length);
@@ -1804,7 +1804,7 @@ class JSObject: public HeapObject {
       Object* value,
       bool check_prototype);
 
-  MaybeObject* GetElementPostInterceptor(JSObject* receiver, uint32_t index);
+  MaybeObject* GetElementPostInterceptor(Object* receiver, uint32_t index);
 
   MUST_USE_RESULT MaybeObject* DeletePropertyPostInterceptor(String* name,
                                                              DeleteMode mode);

@@ -531,10 +531,25 @@ MaybeObject* Object::GetProperty(Object* receiver,
 
 
 MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
-  // Non-JS objects do not have integer indexed properties.
-  if (!IsJSObject()) return Heap::undefined_value();
-  return JSObject::cast(this)->GetElementWithReceiver(JSObject::cast(receiver),
-                                                      index);
+  if (IsJSObject()) {
+    return JSObject::cast(this)->GetElementWithReceiver(receiver, index);
+  }
+
+  Object* holder = NULL;
+  Context* global_context = Top::context()->global_context();
+  if (IsString()) {
+    holder = global_context->string_function()->instance_prototype();
+  } else if (IsNumber()) {
+    holder = global_context->number_function()->instance_prototype();
+  } else if (IsBoolean()) {
+    holder = global_context->boolean_function()->instance_prototype();
+  } else {
+    // Undefined and null have no indexed properties.
+    ASSERT(IsUndefined() || IsNull());
+    return Heap::undefined_value();
+  }
+
+  return JSObject::cast(holder)->GetElementWithReceiver(receiver, index);
 }
 
 
@@ -7237,7 +7252,7 @@ MaybeObject* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index,
 }
 
 
-MaybeObject* JSObject::GetElementPostInterceptor(JSObject* receiver,
+MaybeObject* JSObject::GetElementPostInterceptor(Object* receiver,
                                                  uint32_t index) {
   // Get element works for both JSObject and JSArray since
   // JSArray::length cannot change.
@@ -7294,14 +7309,14 @@ MaybeObject* JSObject::GetElementPostInterceptor(JSObject* receiver,
 }
 
 
-MaybeObject* JSObject::GetElementWithInterceptor(JSObject* receiver,
+MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
                                                  uint32_t index) {
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
   HandleScope scope;
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
-  Handle<JSObject> this_handle(receiver);
+  Handle<Object> this_handle(receiver);
   Handle<JSObject> holder_handle(this);
 
   if (!interceptor->getter()->IsUndefined()) {
@@ -7327,7 +7342,7 @@ MaybeObject* JSObject::GetElementWithInterceptor(JSObject* receiver,
 }
 
 
-MaybeObject* JSObject::GetElementWithReceiver(JSObject* receiver,
+MaybeObject* JSObject::GetElementWithReceiver(Object* receiver,
                                               uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
