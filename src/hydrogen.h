@@ -210,9 +210,6 @@ class HSubgraph: public ZoneObject {
 
   void PreProcessOsrEntry(IterationStatement* statement);
 
-  void AppendOptional(HSubgraph* graph,
-                      bool on_true_branch,
-                      HValue* boolean_value);
   void AppendJoin(HSubgraph* then_graph, HSubgraph* else_graph, AstNode* node);
   void AppendWhile(HSubgraph* condition,
                    HSubgraph* body,

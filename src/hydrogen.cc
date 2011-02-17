@@ -482,23 +482,6 @@ HConstant* HGraph::GetConstantFalse() {
 }
 
 
-void HSubgraph::AppendOptional(HSubgraph* graph,
-                               bool on_true_branch,
-                               HValue* value) {
-  ASSERT(HasExit() && graph->HasExit());
-  HBasicBlock* other_block = graph_->CreateBasicBlock();
-  HBasicBlock* join_block = graph_->CreateBasicBlock();
-
-  HTest* test = on_true_branch
-      ? new HTest(value, graph->entry_block(), other_block)
-      : new HTest(value, other_block, graph->entry_block());
-  exit_block_->Finish(test);
-  other_block->Goto(join_block);
-  graph->exit_block()->Goto(join_block);
-  exit_block_ = join_block;
-}
-
-
 void HSubgraph::AppendJoin(HSubgraph* then_graph,
                            HSubgraph* else_graph,
                            AstNode* node) {
@@ -4977,7 +4960,7 @@ void HGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
       subgraph()->set_exit_block(eval_right);
       Visit(expr->right());
 
-    } else {
+    } else if (ast_context()->IsValue()) {
       VISIT_FOR_VALUE(expr->left());
       ASSERT(current_subgraph_->HasExit());
 
@@ -4987,9 +4970,50 @@ void HGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
       HSubgraph* right_subgraph;
       right_subgraph = CreateBranchSubgraph(environment_copy);
       ADD_TO_SUBGRAPH(right_subgraph, expr->right());
-      current_subgraph_->AppendOptional(right_subgraph, is_logical_and, left);
-      current_subgraph_->exit_block()->SetJoinId(expr->id());
+
+      ASSERT(subgraph()->HasExit() && right_subgraph->HasExit());
+      // We need an extra block to maintain edge-split form.
+      HBasicBlock* empty_block = graph()->CreateBasicBlock();
+      HBasicBlock* join_block = graph()->CreateBasicBlock();
+
+      HTest* test = is_logical_and
+          ? new HTest(left, right_subgraph->entry_block(), empty_block)
+          : new HTest(left, empty_block, right_subgraph->entry_block());
+      subgraph()->exit_block()->Finish(test);
+      empty_block->Goto(join_block);
+      right_subgraph->exit_block()->Goto(join_block);
+      join_block->SetJoinId(expr->id());
+      subgraph()->set_exit_block(join_block);
       ast_context()->ReturnValue(Pop());
+    } else {
+      ASSERT(ast_context()->IsEffect());
+      // In an effect context, we don't need the value of the left
+      // subexpression, only its control flow and side effects.  We need an
+      // extra block to maintain edge-split form.
+      HBasicBlock* empty_block = graph()->CreateBasicBlock();
+      HBasicBlock* right_block = graph()->CreateBasicBlock();
+      HBasicBlock* join_block = graph()->CreateBasicBlock();
+      if (is_logical_and) {
+        VISIT_FOR_CONTROL(expr->left(), right_block, empty_block);
+      } else {
+        VISIT_FOR_CONTROL(expr->left(), empty_block, right_block);
+      }
+      // TODO(kmillikin): Find a way to fix this.  It's ugly that there are
+      // actually two empty blocks (one here and one inserted by
+      // TestContext::BuildBranch, and that they both have an HSimulate
+      // though the second one is not a merge node, and that we really have
+      // no good AST ID to put on that first HSimulate.
+      empty_block->SetJoinId(expr->id());
+      right_block->SetJoinId(expr->RightId());
+      subgraph()->set_exit_block(right_block);
+      VISIT_FOR_EFFECT(expr->right());
+
+      empty_block->Goto(join_block);
+      subgraph()->exit_block()->Goto(join_block);
+      join_block->SetJoinId(expr->id());
+      subgraph()->set_exit_block(join_block);
+      // We did not materialize any value in the predecessor environments,
+      // so there is no need to handle it here.
     }
 
   } else {
