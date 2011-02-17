@@ -2586,8 +2586,8 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   // Compute the cell operand to use.
   Operand cell_operand = Operand::Cell(Handle<JSGlobalPropertyCell>(cell));
   if (Serializer::enabled()) {
-    __ mov(ecx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
-    cell_operand = FieldOperand(ecx, JSGlobalPropertyCell::kValueOffset);
+    __ mov(ebx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
+    cell_operand = FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset);
   }
 
   // Check that the value in the cell is not the hole. If it is, this
