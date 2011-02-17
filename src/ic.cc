@@ -435,16 +435,28 @@ Object* CallICBase::TryCallAsFunction(Object* object) {
 }
 
 
-void CallICBase::ReceiverToObject(Handle<Object> object) {
-  HandleScope scope;
-  Handle<Object> receiver(object);
+void CallICBase::ReceiverToObjectIfRequired(Object* callee,
+                                            Handle<Object> object) {
+  if (callee->IsJSFunction()) {
+    JSFunction* function = JSFunction::cast(callee);
+    if (function->shared()->strict_mode() || function->IsBuiltin()) {
+      // Do not wrap receiver for strict mode functions or for builtins.
+      return;
+    }
+  }
 
-  // Change the receiver to the result of calling ToObject on it.
-  const int argc = this->target()->arguments_count();
-  StackFrameLocator locator;
-  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-  int index = frame->ComputeExpressionsCount() - (argc + 1);
-  frame->SetExpression(index, *Factory::ToObject(object));
+  if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
+    // And only wrap string, number or boolean.
+    HandleScope scope;
+    Handle<Object> receiver(object);
+
+    // Change the receiver to the result of calling ToObject on it.
+    const int argc = this->target()->arguments_count();
+    StackFrameLocator locator;
+    JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
+    int index = frame->ComputeExpressionsCount() - (argc + 1);
+    frame->SetExpression(index, *Factory::ToObject(object));
+  }
 }
 
 
@@ -456,10 +468,6 @@ MaybeObject* CallICBase::LoadFunction(State state,
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
     return TypeError("non_object_property_call", object, name);
-  }
-
-  if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    ReceiverToObject(object);
   }
 
   // Check if the name is trivially convertible to an index and get
@@ -505,6 +513,12 @@ MaybeObject* CallICBase::LoadFunction(State state,
         object->GetProperty(*object, &lookup, *name, &attr);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
+
+  // Make receiver an object if the callee requires it. Strict mode or builtin
+  // functions do not wrap the receiver, non-strict functions and objects
+  // called as functions do.
+  ReceiverToObjectIfRequired(result, object);
+
   if (lookup.type() == INTERCEPTOR) {
     // If the object does not have the requested property, check which
     // exception we need to throw.
@@ -565,8 +579,8 @@ bool CallICBase::TryUpdateExtraICState(LookupResult* lookup,
     case kStringCharAt:
       if (object->IsString()) {
         String* string = String::cast(*object);
-        // Check that there's the right wrapper in the receiver slot.
-        ASSERT(string == JSValue::cast(args[0])->value());
+        // Check there's the right string value or wrapper in the receiver slot.
+        ASSERT(string == args[0] || string == JSValue::cast(args[0])->value());
         // If we're in the default (fastest) state and the index is
         // out of bounds, update the state to record this fact.
         if (*extra_ic_state == DEFAULT_STRING_STUB &&
@@ -775,10 +789,6 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
     return TypeError("non_object_property_call", object, key);
   }
 
-  if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    ReceiverToObject(object);
-  }
-
   if (FLAG_use_ic && state != MEGAMORPHIC && !object->IsAccessCheckNeeded()) {
     int argc = target()->arguments_count();
     InLoopFlag in_loop = target()->ic_in_loop();
@@ -793,10 +803,17 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
 #endif
     }
   }
+
   Object* result;
   { MaybeObject* maybe_result = Runtime::GetObjectProperty(object, key);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
+
+  // Make receiver an object if the callee requires it. Strict mode or builtin
+  // functions do not wrap the receiver, non-strict functions and objects
+  // called as functions do.
+  ReceiverToObjectIfRequired(result, object);
+
   if (result->IsJSFunction()) return result;
   result = TryCallAsFunction(result);
   MaybeObject* answer = result;
