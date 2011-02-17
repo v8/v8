@@ -7000,7 +7000,7 @@ static MaybeObject* Runtime_LazyRecompile(Arguments args) {
     function->ReplaceCode(function->shared()->code());
     return function->code();
   }
-  if (CompileOptimized(function, AstNode::kNoNumber)) {
+  if (CompileOptimized(function, AstNode::kNoNumber, KEEP_EXCEPTION)) {
     return function->code();
   }
   if (FLAG_trace_opt) {
@@ -7169,7 +7169,8 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(Arguments args) {
     // Try to compile the optimized code.  A true return value from
     // CompileOptimized means that compilation succeeded, not necessarily
     // that optimization succeeded.
-    if (CompileOptimized(function, ast_id) && function->IsOptimized()) {
+    if (CompileOptimized(function, ast_id, CLEAR_EXCEPTION) &&
+        function->IsOptimized()) {
       DeoptimizationInputData* data = DeoptimizationInputData::cast(
           function->code()->deoptimization_data());
       if (data->OsrPcOffset()->value() >= 0) {
@@ -7212,6 +7213,9 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(Arguments args) {
     ASSERT(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
     return Smi::FromInt(ast_id);
   } else {
+    if (function->IsMarkedForLazyRecompilation()) {
+      function->ReplaceCode(function->shared()->code());
+    }
     return Smi::FromInt(-1);
   }
 }

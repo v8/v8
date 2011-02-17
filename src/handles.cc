@@ -871,10 +871,12 @@ bool CompileLazyInLoop(Handle<JSFunction> function,
 }
 
 
-bool CompileOptimized(Handle<JSFunction> function, int osr_ast_id) {
+bool CompileOptimized(Handle<JSFunction> function,
+                      int osr_ast_id,
+                      ClearExceptionFlag flag) {
   CompilationInfo info(function);
   info.SetOptimizing(osr_ast_id);
-  bool result = CompileLazyHelper(&info, KEEP_EXCEPTION);
+  bool result = CompileLazyHelper(&info, flag);
   if (result) PROFILE(FunctionCreateEvent(*function));
   return result;
 }
