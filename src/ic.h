@@ -224,7 +224,7 @@ class CallICBase: public IC {
   // Otherwise, it returns the undefined value.
   Object* TryCallAsFunction(Object* object);
 
-  void ReceiverToObjectIfRequired(Object* callee, Handle<Object> object);
+  void ReceiverToObject(Handle<Object> object);
 
   static void Clear(Address address, Code* target);
   friend class IC;
