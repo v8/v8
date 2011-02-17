@@ -568,6 +568,25 @@ class RegExpCEntryStub: public CodeStub {
 };
 
 
+// Trampoline stub to call into native code. To call safely into native code
+// in the presence of compacting GC (which can move code objects) we need to
+// keep the code which called into native pinned in the memory. Currently the
+// simplest approach is to generate such stub early enough so it can never be
+// moved by GC
+class DirectCEntryStub: public CodeStub {
+ public:
+  DirectCEntryStub() {}
+  void Generate(MacroAssembler* masm);
+  void GenerateCall(MacroAssembler* masm, ApiFunction *function);
+  void GenerateCall(MacroAssembler* masm, Register target);
+
+ private:
+  Major MajorKey() { return DirectCEntry; }
+  int MinorKey() { return 0; }
+  const char* GetName() { return "DirectCEntryStub"; }
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_ARM_CODE_STUBS_ARM_H_

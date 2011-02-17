@@ -614,11 +614,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::EnterExitFrame(bool save_doubles) {
-  // Compute the argv pointer in a callee-saved register.
-  add(r6, sp, Operand(r0, LSL, kPointerSizeLog2));
-  sub(r6, r6, Operand(kPointerSize));
-
+void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   // Setup the frame structure on the stack.
   ASSERT_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   ASSERT_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
@@ -640,10 +636,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles) {
   mov(ip, Operand(ExternalReference(Top::k_context_address)));
   str(cp, MemOperand(ip));
 
-  // Setup argc and the builtin function in callee-saved registers.
-  mov(r4, Operand(r0));
-  mov(r5, Operand(r1));
-
   // Optionally save all double registers.
   if (save_doubles) {
     sub(sp, sp, Operand(DwVfpRegister::kNumRegisters * kDoubleSize));
@@ -657,10 +649,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles) {
     // since the sp slot and code slot were pushed after the fp.
   }
 
-  // Reserve place for the return address and align the frame preparing for
-  // calling the runtime function.
+  // Reserve place for the return address and stack space and align the frame
+  // preparing for calling the runtime function.
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
-  sub(sp, sp, Operand(kPointerSize));
+  sub(sp, sp, Operand((stack_space + 1) * kPointerSize));
   if (frame_alignment > 0) {
     ASSERT(IsPowerOf2(frame_alignment));
     and_(sp, sp, Operand(-frame_alignment));
@@ -704,7 +696,8 @@ int MacroAssembler::ActivationFrameAlignment() {
 }
 
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles) {
+void MacroAssembler::LeaveExitFrame(bool save_doubles,
+                                    Register argument_count) {
   // Optionally restore all double registers.
   if (save_doubles) {
     for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
@@ -726,12 +719,12 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   str(r3, MemOperand(ip));
 #endif
 
-  // Tear down the exit frame, pop the arguments, and return. Callee-saved
-  // register r4 still holds argc.
+  // Tear down the exit frame, pop the arguments, and return.
   mov(sp, Operand(fp));
   ldm(ia_w, sp, fp.bit() | lr.bit());
-  add(sp, sp, Operand(r4, LSL, kPointerSizeLog2));
-  mov(pc, lr);
+  if (argument_count.is_valid()) {
+    add(sp, sp, Operand(argument_count, LSL, kPointerSizeLog2));
+  }
 }
 
 
@@ -992,6 +985,117 @@ void MacroAssembler::PopTryHandler() {
   mov(ip, Operand(ExternalReference(Top::k_handler_address)));
   add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
   str(r1, MemOperand(ip));
+}
+
+
+void MacroAssembler::Throw(Register value) {
+  // r0 is expected to hold the exception.
+  if (!value.is(r0)) {
+    mov(r0, value);
+  }
+
+  // Adjust this code if not the case.
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
+  // Drop the sp to the top of the handler.
+  mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+  ldr(sp, MemOperand(r3));
+
+  // Restore the next handler and frame pointer, discard handler state.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  pop(r2);
+  str(r2, MemOperand(r3));
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
+  ldm(ia_w, sp, r3.bit() | fp.bit());  // r3: discarded state.
+
+  // Before returning we restore the context from the frame pointer if
+  // not NULL.  The frame pointer is NULL in the exception handler of a
+  // JS entry frame.
+  cmp(fp, Operand(0, RelocInfo::NONE));
+  // Set cp to NULL if fp is NULL.
+  mov(cp, Operand(0, RelocInfo::NONE), LeaveCC, eq);
+  // Restore cp otherwise.
+  ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
+#ifdef DEBUG
+  if (FLAG_debug_code) {
+    mov(lr, Operand(pc));
+  }
+#endif
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+  pop(pc);
+}
+
+
+void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
+                                      Register value) {
+  // Adjust this code if not the case.
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
+  // r0 is expected to hold the exception.
+  if (!value.is(r0)) {
+    mov(r0, value);
+  }
+
+  // Drop sp to the top stack handler.
+  mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+  ldr(sp, MemOperand(r3));
+
+  // Unwind the handlers until the ENTRY handler is found.
+  Label loop, done;
+  bind(&loop);
+  // Load the type of the current stack handler.
+  const int kStateOffset = StackHandlerConstants::kStateOffset;
+  ldr(r2, MemOperand(sp, kStateOffset));
+  cmp(r2, Operand(StackHandler::ENTRY));
+  b(eq, &done);
+  // Fetch the next handler in the list.
+  const int kNextOffset = StackHandlerConstants::kNextOffset;
+  ldr(sp, MemOperand(sp, kNextOffset));
+  jmp(&loop);
+  bind(&done);
+
+  // Set the top handler address to next handler past the current ENTRY handler.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  pop(r2);
+  str(r2, MemOperand(r3));
+
+  if (type == OUT_OF_MEMORY) {
+    // Set external caught exception to false.
+    ExternalReference external_caught(Top::k_external_caught_exception_address);
+    mov(r0, Operand(false, RelocInfo::NONE));
+    mov(r2, Operand(external_caught));
+    str(r0, MemOperand(r2));
+
+    // Set pending exception and r0 to out of memory exception.
+    Failure* out_of_memory = Failure::OutOfMemoryException();
+    mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
+    mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
+    str(r0, MemOperand(r2));
+  }
+
+  // Stack layout at this point. See also StackHandlerConstants.
+  // sp ->   state (ENTRY)
+  //         fp
+  //         lr
+
+  // Discard handler state (r2 is not used) and restore frame pointer.
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
+  ldm(ia_w, sp, r2.bit() | fp.bit());  // r2: discarded state.
+  // Before returning we restore the context from the frame pointer if
+  // not NULL.  The frame pointer is NULL in the exception handler of a
+  // JS entry frame.
+  cmp(fp, Operand(0, RelocInfo::NONE));
+  // Set cp to NULL if fp is NULL.
+  mov(cp, Operand(0, RelocInfo::NONE), LeaveCC, eq);
+  // Restore cp otherwise.
+  ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
+#ifdef DEBUG
+  if (FLAG_debug_code) {
+    mov(lr, Operand(pc));
+  }
+#endif
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+  pop(pc);
 }
 
 
@@ -1459,14 +1563,113 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
 
 void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
-  ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
+  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
-  ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
+  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
+}
+
+
+MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub, Condition cond) {
+  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  Object* result;
+  { MaybeObject* maybe_result = stub->TryGetCode();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
+  return result;
+}
+
+
+static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
+  return ref0.address() - ref1.address();
+}
+
+
+MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
+    ApiFunction* function, int stack_space) {
+  ExternalReference next_address =
+      ExternalReference::handle_scope_next_address();
+  const int kNextOffset = 0;
+  const int kLimitOffset = AddressOffset(
+      ExternalReference::handle_scope_limit_address(),
+      next_address);
+  const int kLevelOffset = AddressOffset(
+      ExternalReference::handle_scope_level_address(),
+      next_address);
+
+  // Allocate HandleScope in callee-save registers.
+  mov(r7, Operand(next_address));
+  ldr(r4, MemOperand(r7, kNextOffset));
+  ldr(r5, MemOperand(r7, kLimitOffset));
+  ldr(r6, MemOperand(r7, kLevelOffset));
+  add(r6, r6, Operand(1));
+  str(r6, MemOperand(r7, kLevelOffset));
+
+  // Native call returns to the DirectCEntry stub which redirects to the
+  // return address pushed on stack (could have moved after GC).
+  // DirectCEntry stub itself is generated early and never moves.
+  DirectCEntryStub stub;
+  stub.GenerateCall(this, function);
+
+  Label promote_scheduled_exception;
+  Label delete_allocated_handles;
+  Label leave_exit_frame;
+
+  // If result is non-zero, dereference to get the result value
+  // otherwise set it to undefined.
+  cmp(r0, Operand(0));
+  LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
+  ldr(r0, MemOperand(r0), ne);
+
+  // No more valid handles (the result handle was the last one). Restore
+  // previous handle scope.
+  str(r4, MemOperand(r7, kNextOffset));
+  if (FLAG_debug_code) {
+    ldr(r1, MemOperand(r7, kLevelOffset));
+    cmp(r1, r6);
+    Check(eq, "Unexpected level after return from api call");
+  }
+  sub(r6, r6, Operand(1));
+  str(r6, MemOperand(r7, kLevelOffset));
+  ldr(ip, MemOperand(r7, kLimitOffset));
+  cmp(r5, ip);
+  b(ne, &delete_allocated_handles);
+
+  // Check if the function scheduled an exception.
+  bind(&leave_exit_frame);
+  LoadRoot(r4, Heap::kTheHoleValueRootIndex);
+  mov(ip, Operand(ExternalReference::scheduled_exception_address()));
+  ldr(r5, MemOperand(ip));
+  cmp(r4, r5);
+  b(ne, &promote_scheduled_exception);
+
+  // LeaveExitFrame expects unwind space to be in a register.
+  mov(r4, Operand(stack_space));
+  LeaveExitFrame(false, r4);
+  mov(pc, lr);
+
+  bind(&promote_scheduled_exception);
+  MaybeObject* result = TryTailCallExternalReference(
+      ExternalReference(Runtime::kPromoteScheduledException), 0, 1);
+  if (result->IsFailure()) {
+    return result;
+  }
+
+  // HandleScope limit has changed. Delete allocated extensions.
+  bind(&delete_allocated_handles);
+  str(r5, MemOperand(r7, kLimitOffset));
+  mov(r4, r0);
+  PrepareCallCFunction(0, r5);
+  CallCFunction(ExternalReference::delete_handle_scope_extensions(), 0);
+  mov(r0, r4);
+  jmp(&leave_exit_frame);
+
+  return result;
 }
 
 
@@ -1723,6 +1926,17 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
 }
 
 
+MaybeObject* MacroAssembler::TryTailCallExternalReference(
+    const ExternalReference& ext, int num_arguments, int result_size) {
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  mov(r0, Operand(num_arguments));
+  return TryJumpToExternalReference(ext);
+}
+
+
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
                                      int num_arguments,
                                      int result_size) {
@@ -1738,6 +1952,18 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   mov(r1, Operand(builtin));
   CEntryStub stub(1);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+MaybeObject* MacroAssembler::TryJumpToExternalReference(
+    const ExternalReference& builtin) {
+#if defined(__thumb__)
+  // Thumb mode builtin.
+  ASSERT((reinterpret_cast<intptr_t>(builtin.address()) & 1) == 1);
+#endif
+  mov(r1, Operand(builtin));
+  CEntryStub stub(1);
+  return TryTailCallStub(&stub);
 }
 
 
