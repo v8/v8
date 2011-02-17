@@ -1957,7 +1957,7 @@ void Assembler::vstr(const DwVfpRegister src,
                      const Condition cond) {
   ASSERT(!operand.rm().is_valid());
   ASSERT(operand.am_ == Offset);
-  vldr(src, operand.rn(), operand.offset(), cond);
+  vstr(src, operand.rn(), operand.offset(), cond);
 }
 
 
