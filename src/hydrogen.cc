@@ -4654,7 +4654,7 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
       VisitForControl(expr->expression(),
                       context->if_false(),
                       context->if_true());
-    } else {
+    } else if (ast_context()->IsValue()) {
       HSubgraph* true_graph = CreateEmptySubgraph();
       HSubgraph* false_graph = CreateEmptySubgraph();
       VISIT_FOR_CONTROL(expr->expression(),
@@ -4668,7 +4668,11 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
 
       current_subgraph_->AppendJoin(true_graph, false_graph, expr);
       ast_context()->ReturnValue(Pop());
+    } else {
+      ASSERT(ast_context()->IsEffect());
+      VISIT_FOR_EFFECT(expr->expression());
     }
+
   } else if (op == Token::BIT_NOT || op == Token::SUB) {
     VISIT_FOR_VALUE(expr->expression());
     HValue* value = Pop();
