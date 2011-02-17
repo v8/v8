@@ -25,14 +25,42 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// This should properly catch the exception from the setter triggered
-// by the loaded file, and it should not fail an assertion in debug mode.
+var setter_value = 0;
 
-__defineSetter__("x", function(){ throw 42; });
+__proto__.__defineSetter__("a", function(v) { setter_value = v; });
+eval("var a = 1");
+assertEquals(1, setter_value);
+assertFalse(hasOwnProperty("a"));
 
+eval("with({}) { eval('var a = 2') }");
+assertEquals(2, setter_value);
+assertFalse(hasOwnProperty("a"));
+
+// Function declarations are treated specially to match Safari. We do
+// not call setters for them.
+eval("function a() {}");
+assertTrue(hasOwnProperty("a"));
+
+__proto__.__defineSetter__("b", function(v) {   assertUnreachable(); });
 try {
-   this.eval('function x(){}');
-   assertUnreachable();
-} catch (e) {
-   assertEquals(42, e);
+  eval("const b = 23");
+  assertUnreachable();
+} catch(e) {
+  assertTrue(/TypeError/.test(e));
 }
+try {
+  eval("with({}) { eval('const b = 23') }");
+  assertUnreachable();
+} catch(e) {
+  assertTrue(/TypeError/.test(e));
+}
+
+__proto__.__defineSetter__("c", function(v) { throw 42; });
+try {
+  eval("var c = 1");
+  assertUnreachable();
+} catch(e) {
+  assertEquals(42, e);
+  assertFalse(hasOwnProperty("c"));
+}
+
