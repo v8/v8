@@ -273,7 +273,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   // optimizable marker in the code object and optimize anyway. This
   // is safe as long as the unoptimized code has deoptimization
   // support.
-  ASSERT(FLAG_always_opt || info->shared_info()->code()->optimizable());
+  ASSERT(FLAG_always_opt || code->optimizable());
   ASSERT(info->shared_info()->has_deoptimization_support());
 
   if (FLAG_trace_hydrogen) {
@@ -283,8 +283,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   }
 
   TypeFeedbackOracle oracle(
-      Handle<Code>(info->shared_info()->code()),
-      Handle<Context>(info->closure()->context()->global_context()));
+      code, Handle<Context>(info->closure()->context()->global_context()));
   HGraphBuilder builder(&oracle);
   HPhase phase(HPhase::kTotal);
   HGraph* graph = builder.CreateGraph(info);
@@ -294,9 +293,9 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   }
 
   if (graph != NULL && FLAG_build_lithium) {
-    Handle<Code> code = graph->Compile();
-    if (!code.is_null()) {
-      info->SetCode(code);
+    Handle<Code> optimized_code = graph->Compile();
+    if (!optimized_code.is_null()) {
+      info->SetCode(optimized_code);
       FinishOptimization(info->closure(), start);
       return true;
     }
