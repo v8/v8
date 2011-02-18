@@ -2493,11 +2493,6 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
   XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
   ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
-  ExternalReference negative_infinity =
-      ExternalReference::address_of_negative_infinity();
-  __ movdbl(xmm_scratch, Operand::StaticVariable(negative_infinity));
-  __ ucomisd(xmm_scratch, input_reg);
-  DeoptimizeIf(equal, instr->environment());
   __ xorpd(xmm_scratch, xmm_scratch);
   __ addsd(input_reg, xmm_scratch);  // Convert -0 to +0.
   __ sqrtsd(input_reg, input_reg);

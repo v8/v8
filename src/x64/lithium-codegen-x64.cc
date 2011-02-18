@@ -2097,22 +2097,76 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoMathFloor");
+  XMMRegister xmm_scratch = xmm0;
+  Register output_reg = ToRegister(instr->result());
+  XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
+  __ xorpd(xmm_scratch, xmm_scratch);  // Zero the register.
+  __ ucomisd(input_reg, xmm_scratch);
+
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    DeoptimizeIf(below_equal, instr->environment());
+  } else {
+    DeoptimizeIf(below, instr->environment());
+  }
+
+  // Use truncating instruction (OK because input is positive).
+  __ cvttsd2si(output_reg, input_reg);
+
+  // Overflow is signalled with minint.
+  __ cmpl(output_reg, Immediate(0x80000000));
+  DeoptimizeIf(equal, instr->environment());
 }
 
 
 void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoMathRound");
+  const XMMRegister xmm_scratch = xmm0;
+  Register output_reg = ToRegister(instr->result());
+  XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
+
+  // xmm_scratch = 0.5
+  __ movq(kScratchRegister, V8_INT64_C(0x3FE0000000000000), RelocInfo::NONE);
+  __ movq(xmm_scratch, kScratchRegister);
+
+  // input = input + 0.5
+  __ addsd(input_reg, xmm_scratch);
+
+  // We need to return -0 for the input range [-0.5, 0[, otherwise
+  // compute Math.floor(value + 0.5).
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ ucomisd(input_reg, xmm_scratch);
+    DeoptimizeIf(below_equal, instr->environment());
+  } else {
+    // If we don't need to bailout on -0, we check only bailout
+    // on negative inputs.
+    __ xorpd(xmm_scratch, xmm_scratch);  // Zero the register.
+    __ ucomisd(input_reg, xmm_scratch);
+    DeoptimizeIf(below, instr->environment());
+  }
+
+  // Compute Math.floor(value + 0.5).
+  // Use truncating instruction (OK because input is positive).
+  __ cvttsd2si(output_reg, input_reg);
+
+  // Overflow is signalled with minint.
+  __ cmpl(output_reg, Immediate(0x80000000));
+  DeoptimizeIf(equal, instr->environment());
 }
 
 
 void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoMathSqrt");
+  XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
+  ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
+  __ sqrtsd(input_reg, input_reg);
 }
 
 
 void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoMathPowHalf");
+  XMMRegister xmm_scratch = xmm0;
+  XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
+  ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
+  __ xorpd(xmm_scratch, xmm_scratch);
+  __ addsd(input_reg, xmm_scratch);  // Convert -0 to +0.
+  __ sqrtsd(input_reg, input_reg);
 }
 
 
@@ -2137,7 +2191,35 @@ void LCodeGen::DoMathSin(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoUnaryMathOperation");
+  switch (instr->op()) {
+    case kMathAbs:
+      DoMathAbs(instr);
+      break;
+    case kMathFloor:
+      DoMathFloor(instr);
+      break;
+    case kMathRound:
+      DoMathRound(instr);
+      break;
+    case kMathSqrt:
+      DoMathSqrt(instr);
+      break;
+    case kMathPowHalf:
+      DoMathPowHalf(instr);
+      break;
+    case kMathCos:
+      DoMathCos(instr);
+      break;
+    case kMathSin:
+      DoMathSin(instr);
+      break;
+    case kMathLog:
+      DoMathLog(instr);
+      break;
+
+    default:
+      UNREACHABLE();
+  }
 }
 
 

@@ -1181,8 +1181,30 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
 
 
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoUnaryMathOperation");
-  return NULL;
+  BuiltinFunctionId op = instr->op();
+  if (op == kMathLog || op == kMathSin || op == kMathCos) {
+    LOperand* input = UseFixedDouble(instr->value(), xmm1);
+    LUnaryMathOperation* result = new LUnaryMathOperation(input);
+    return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
+  } else {
+    LOperand* input = UseRegisterAtStart(instr->value());
+    LUnaryMathOperation* result = new LUnaryMathOperation(input);
+    switch (op) {
+      case kMathAbs:
+        return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
+      case kMathFloor:
+        return AssignEnvironment(DefineAsRegister(result));
+      case kMathRound:
+        return AssignEnvironment(DefineAsRegister(result));
+      case kMathSqrt:
+        return DefineSameAsFirst(result);
+      case kMathPowHalf:
+        return DefineSameAsFirst(result);
+      default:
+        UNREACHABLE();
+        return NULL;
+    }
+  }
 }
 
 

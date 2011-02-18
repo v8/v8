@@ -1223,7 +1223,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       case kMathSqrt:
         return DefineSameAsFirst(result);
       case kMathPowHalf:
-        return AssignEnvironment(DefineSameAsFirst(result));
+        return DefineSameAsFirst(result);
       default:
         UNREACHABLE();
         return NULL;
