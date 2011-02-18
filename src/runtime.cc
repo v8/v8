@@ -6946,6 +6946,7 @@ static MaybeObject* Runtime_NewObject(Arguments args) {
 
   bool first_allocation = !shared->live_objects_may_exist();
   Handle<JSObject> result = Factory::NewJSObject(function);
+  RETURN_IF_EMPTY_HANDLE(result);
   // Delay setting the stub if inobject slack tracking is in progress.
   if (first_allocation && !shared->IsInobjectSlackTrackingInProgress()) {
     TrySettingInlineConstructStub(function);
