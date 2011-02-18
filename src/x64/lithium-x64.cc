@@ -1465,8 +1465,9 @@ LInstruction* LChunkBuilder::DoPixelArrayLength(HPixelArrayLength* instr) {
 
 
 LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
-  Abort("Unimplemented: %s", "DoValueOf");
-  return NULL;
+  LOperand* object = UseRegister(instr->value());
+  LValueOf* result = new LValueOf(object);
+  return AssignEnvironment(DefineSameAsFirst(result));
 }
 
 
@@ -1830,7 +1831,10 @@ LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
 
 
 LInstruction* LChunkBuilder::DoArgumentsObject(HArgumentsObject* instr) {
-  Abort("Unimplemented: %s", "DoArgumentsObject");
+  // There are no real uses of the arguments object.
+  // arguments.length and element access are supported directly on
+  // stack arguments, and any real arguments object use causes a bailout.
+  // So this value is never used.
   return NULL;
 }
 

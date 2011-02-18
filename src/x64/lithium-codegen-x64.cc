@@ -929,7 +929,19 @@ void LCodeGen::DoPixelArrayLength(LPixelArrayLength* instr) {
 
 
 void LCodeGen::DoValueOf(LValueOf* instr) {
-  Abort("Unimplemented: %s", "DoValueOf");
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  ASSERT(input.is(result));
+  NearLabel done;
+  // If the object is a smi return the object.
+  __ JumpIfSmi(input, &done);
+
+  // If the object is not a value type, return the object.
+  __ CmpObjectType(input, JS_VALUE_TYPE, kScratchRegister);
+  __ j(not_equal, &done);
+  __ movq(result, FieldOperand(input, JSValue::kValueOffset));
+
+  __ bind(&done);
 }
 
 

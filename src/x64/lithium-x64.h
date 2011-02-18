@@ -1005,11 +1005,10 @@ class LFixedArrayLength: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LValueOf: public LTemplateInstruction<1, 1, 1> {
+class LValueOf: public LTemplateInstruction<1, 1, 0> {
  public:
-  LValueOf(LOperand* value, LOperand* temp) {
+  explicit LValueOf(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ValueOf, "value-of")
