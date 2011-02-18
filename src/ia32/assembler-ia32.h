@@ -184,7 +184,7 @@ typedef XMMRegister DoubleRegister;
 
 
 // Index of register used in pusha/popa.
-// Order of pushed registers: EAX, ECX, EDX, EBX, ESP, EBP, ESI, and EDI
+// Order of pushed registers: eax, ecx, edx, ebx, esp, ebp, esi, and edi.
 inline int EspIndexForPushAll(Register reg) {
   return Register::kNumRegisters - 1 - reg.code();
 }

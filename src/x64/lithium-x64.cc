@@ -1782,8 +1782,10 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
-  Abort("Unimplemented: %s", "DoStringCharCodeAt");
-  return NULL;
+  LOperand* string = UseRegister(instr->string());
+  LOperand* index = UseRegisterOrConstant(instr->index());
+  LStringCharCodeAt* result = new LStringCharCodeAt(string, index);
+  return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
 }
 
 
@@ -1804,8 +1806,7 @@ LInstruction* LChunkBuilder::DoObjectLiteral(HObjectLiteral* instr) {
 
 
 LInstruction* LChunkBuilder::DoRegExpLiteral(HRegExpLiteral* instr) {
-  Abort("Unimplemented: %s", "DoRegExpLiteral");
-  return NULL;
+  return MarkAsCall(DefineFixed(new LRegExpLiteral, rax), instr);
 }
 
 

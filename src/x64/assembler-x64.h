@@ -99,13 +99,17 @@ struct Register {
   static const int kNumAllocatableRegisters = 10;
 
   static int ToAllocationIndex(Register reg) {
-    return allocationIndexByRegisterCode[reg.code()];
+    return kAllocationIndexByRegisterCode[reg.code()];
   }
 
   static Register FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    Register result = { registerCodeByAllocationIndex[index] };
+    Register result = { kRegisterCodeByAllocationIndex[index] };
     return result;
+  }
+
+  static int ToRspIndexForPushAll(Register reg) {
+    return kRspIndexForPushAllByRegisterCode[reg.code()];
   }
 
   static const char* AllocationIndexToString(int index) {
@@ -155,8 +159,9 @@ struct Register {
   int code_;
 
  private:
-  static const int registerCodeByAllocationIndex[kNumAllocatableRegisters];
-  static const int allocationIndexByRegisterCode[kNumRegisters];
+  static const int kRegisterCodeByAllocationIndex[kNumAllocatableRegisters];
+  static const int kAllocationIndexByRegisterCode[kNumRegisters];
+  static const int kRspIndexForPushAllByRegisterCode[kNumRegisters];
 };
 
 const Register rax = { 0 };

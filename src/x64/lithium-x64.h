@@ -147,6 +147,7 @@ class LCodeGen;
   V(StoreNamedField)                            \
   V(StoreNamedGeneric)                          \
   V(StorePixelArrayElement)                     \
+  V(StringCharCodeAt)                           \
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
@@ -1569,6 +1570,21 @@ class LStoreKeyedGeneric: public LStoreKeyed {
       : LStoreKeyed(object, key, value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store-keyed-generic")
+};
+
+
+class LStringCharCodeAt: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LStringCharCodeAt(LOperand* string, LOperand* index) {
+    inputs_[0] = string;
+    inputs_[1] = index;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringCharCodeAt, "string-char-code-at")
+  DECLARE_HYDROGEN_ACCESSOR(StringCharCodeAt)
+
+  LOperand* string() { return inputs_[0]; }
+  LOperand* index() { return inputs_[1]; }
 };
 
 

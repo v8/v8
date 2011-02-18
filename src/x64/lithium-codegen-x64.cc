@@ -2309,6 +2309,147 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 }
 
 
+void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
+  class DeferredStringCharCodeAt: public LDeferredCode {
+   public:
+    DeferredStringCharCodeAt(LCodeGen* codegen, LStringCharCodeAt* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredStringCharCodeAt(instr_); }
+   private:
+    LStringCharCodeAt* instr_;
+  };
+
+  Register string = ToRegister(instr->string());
+  Register index = no_reg;
+  int const_index = -1;
+  if (instr->index()->IsConstantOperand()) {
+    const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+    STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
+    if (!Smi::IsValid(const_index)) {
+      // Guaranteed to be out of bounds because of the assert above.
+      // So the bounds check that must dominate this instruction must
+      // have deoptimized already.
+      if (FLAG_debug_code) {
+        __ Abort("StringCharCodeAt: out of bounds index.");
+      }
+      // No code needs to be generated.
+      return;
+    }
+  } else {
+    index = ToRegister(instr->index());
+  }
+  Register result = ToRegister(instr->result());
+
+  DeferredStringCharCodeAt* deferred =
+      new DeferredStringCharCodeAt(this, instr);
+
+  NearLabel flat_string, ascii_string, done;
+
+  // Fetch the instance type of the receiver into result register.
+  __ movq(result, FieldOperand(string, HeapObject::kMapOffset));
+  __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
+
+  // We need special handling for non-sequential strings.
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ testb(result, Immediate(kStringRepresentationMask));
+  __ j(zero, &flat_string);
+
+  // Handle cons strings and go to deferred code for the rest.
+  __ testb(result, Immediate(kIsConsStringMask));
+  __ j(zero, deferred->entry());
+
+  // ConsString.
+  // Check whether the right hand side is the empty string (i.e. if
+  // this is really a flat string in a cons string). If that is not
+  // the case we would rather go to the runtime system now to flatten
+  // the string.
+  __ CompareRoot(FieldOperand(string, ConsString::kSecondOffset),
+                 Heap::kEmptyStringRootIndex);
+  __ j(not_equal, deferred->entry());
+  // Get the first of the two strings and load its instance type.
+  __ movq(string, FieldOperand(string, ConsString::kFirstOffset));
+  __ movq(result, FieldOperand(string, HeapObject::kMapOffset));
+  __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
+  // If the first cons component is also non-flat, then go to runtime.
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ testb(result, Immediate(kStringRepresentationMask));
+  __ j(not_zero, deferred->entry());
+
+  // Check for ASCII or two-byte string.
+  __ bind(&flat_string);
+  STATIC_ASSERT(kAsciiStringTag != 0);
+  __ testb(result, Immediate(kStringEncodingMask));
+  __ j(not_zero, &ascii_string);
+
+  // Two-byte string.
+  // Load the two-byte character code into the result register.
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  if (instr->index()->IsConstantOperand()) {
+    __ movzxwl(result,
+               FieldOperand(string,
+                            SeqTwoByteString::kHeaderSize + 
+                            (kUC16Size * const_index)));
+  } else {
+    __ movzxwl(result, FieldOperand(string,
+                                    index,
+                                    times_2,
+                                    SeqTwoByteString::kHeaderSize));
+  }
+  __ jmp(&done);
+
+  // ASCII string.
+  // Load the byte into the result register.
+  __ bind(&ascii_string);
+  if (instr->index()->IsConstantOperand()) {
+    __ movzxbl(result, FieldOperand(string,
+                                    SeqAsciiString::kHeaderSize + const_index));
+  } else {
+    __ movzxbl(result, FieldOperand(string,
+                                    index,
+                                    times_1,
+                                    SeqAsciiString::kHeaderSize));
+  }
+  __ bind(&done);
+  __ bind(deferred->exit());
+}
+
+
+void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
+  Register string = ToRegister(instr->string());
+  Register result = ToRegister(instr->result());
+
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  __ Set(result, 0);
+
+  __ PushSafepointRegisters();
+  __ push(string);
+  // Push the index as a smi. This is safe because of the checks in
+  // DoStringCharCodeAt above.
+  STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
+  if (instr->index()->IsConstantOperand()) {
+    int const_index = ToInteger32(LConstantOperand::cast(instr->index()));
+    __ Push(Smi::FromInt(const_index));
+  } else {
+    Register index = ToRegister(instr->index());
+    __ Integer32ToSmi(index, index);
+    __ push(index);
+  }
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ CallRuntimeSaveDoubles(Runtime::kStringCharCodeAt);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 2, Safepoint::kNoDeoptimizationIndex);
+  if (FLAG_debug_code) {
+    __ AbortIfNotSmi(rax);
+  }
+  __ SmiToInteger32(rax, rax);
+  __ movq(Operand(rsp, Register::ToRspIndexForPushAll(result) * kPointerSize),
+          rax);
+  __ PopSafepointRegisters();
+}
+
+
 void LCodeGen::DoStringLength(LStringLength* instr) {
   Register string = ToRegister(instr->string());
   Register result = ToRegister(instr->result());
@@ -2667,7 +2808,54 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
 
 
 void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
-  Abort("Unimplemented: %s", "DoRegExpLiteral");
+  NearLabel materialized;
+  // Registers will be used as follows:
+  // rdi = JS function.
+  // rcx = literals array.
+  // rbx = regexp literal.
+  // rax = regexp literal clone.
+  __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ movq(rcx, FieldOperand(rdi, JSFunction::kLiteralsOffset));
+  int literal_offset = FixedArray::kHeaderSize +
+      instr->hydrogen()->literal_index() * kPointerSize;
+  __ movq(rbx, FieldOperand(rcx, literal_offset));
+  __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
+  __ j(not_equal, &materialized);
+
+  // Create regexp literal using runtime function
+  // Result will be in rax.
+  __ push(rcx);
+  __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
+  __ Push(instr->hydrogen()->pattern());
+  __ Push(instr->hydrogen()->flags());
+  CallRuntime(Runtime::kMaterializeRegExpLiteral, 4, instr);
+  __ movq(rbx, rax);
+
+  __ bind(&materialized);
+  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
+  Label allocated, runtime_allocate;
+  __ AllocateInNewSpace(size, rax, rcx, rdx, &runtime_allocate, TAG_OBJECT);
+  __ jmp(&allocated);
+
+  __ bind(&runtime_allocate);
+  __ push(rbx);
+  __ Push(Smi::FromInt(size));
+  CallRuntime(Runtime::kAllocateInNewSpace, 1, instr);
+  __ pop(rbx);
+
+  __ bind(&allocated);
+  // Copy the content into the newly allocated memory.
+  // (Unroll copy loop once for better throughput).
+  for (int i = 0; i < size - kPointerSize; i += 2 * kPointerSize) {
+    __ movq(rdx, FieldOperand(rbx, i));
+    __ movq(rcx, FieldOperand(rbx, i + kPointerSize));
+    __ movq(FieldOperand(rax, i), rdx);
+    __ movq(FieldOperand(rax, i + kPointerSize), rcx);
+  }
+  if ((size % (2 * kPointerSize)) != 0) {
+    __ movq(rdx, FieldOperand(rbx, size - kPointerSize));
+    __ movq(FieldOperand(rax, size - kPointerSize), rdx);
+  }
 }
 
 

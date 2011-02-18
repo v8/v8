@@ -2859,19 +2859,20 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   __ test(result, Immediate(kStringRepresentationMask));
   __ j(not_zero, deferred->entry());
 
-  // Check for 1-byte or 2-byte string.
+  // Check for ASCII or two-byte string.
   __ bind(&flat_string);
   STATIC_ASSERT(kAsciiStringTag != 0);
   __ test(result, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string);
 
-  // 2-byte string.
-  // Load the 2-byte character code into the result register.
+  // Two-byte string.
+  // Load the two-byte character code into the result register.
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   if (instr->index()->IsConstantOperand()) {
     __ movzx_w(result,
                FieldOperand(string,
-                            SeqTwoByteString::kHeaderSize + 2 * const_index));
+                            SeqTwoByteString::kHeaderSize + 
+                            (kUC16Size * const_index)));
   } else {
     __ movzx_w(result, FieldOperand(string,
                                     index,
