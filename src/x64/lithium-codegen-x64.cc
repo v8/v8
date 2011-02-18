@@ -1938,7 +1938,11 @@ void LCodeGen::DoLoadPixelArrayElement(LLoadPixelArrayElement* instr) {
 
 
 void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
-  Abort("Unimplemented: %s", "DoLoadKeyedGeneric");
+  ASSERT(ToRegister(instr->object()).is(rdx));
+  ASSERT(ToRegister(instr->key()).is(rax));
+
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -2227,7 +2231,12 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
 
 void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
-  Abort("Unimplemented: %s", "DoStoreNamedGeneric");
+  ASSERT(ToRegister(instr->object()).is(rdx));
+  ASSERT(ToRegister(instr->value()).is(rax));
+
+  __ Move(rcx, instr->hydrogen()->name());
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -2291,7 +2300,12 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
 
 
 void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
-  Abort("Unimplemented: %s", "DoStoreKeyedGeneric");
+  ASSERT(ToRegister(instr->object()).is(rdx));
+  ASSERT(ToRegister(instr->key()).is(rcx));
+  ASSERT(ToRegister(instr->value()).is(rax));
+
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 

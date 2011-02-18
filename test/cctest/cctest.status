@@ -59,9 +59,6 @@ test-heap/TestInternalWeakListsTraverseWithGC: PASS || FAIL
 
 # Tests that fail with crankshaft.
 test-deoptimization/DeoptimizeBinaryOperationMOD: FAIL
-test-deoptimization/DeoptimizeLoadICStoreIC: FAIL
-test-deoptimization/DeoptimizeLoadICStoreICNested: FAIL
-test-deoptimization/DeoptimizeCompare: PASS || FAIL
 
 ##############################################################################
 [ $arch == arm ]

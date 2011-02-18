@@ -1697,8 +1697,11 @@ LInstruction* LChunkBuilder::DoLoadPixelArrayElement(
 
 
 LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
-  Abort("Unimplemented: %s", "DoLoadKeyedGeneric");
-  return NULL;
+  LOperand* object = UseFixed(instr->object(), rdx);
+  LOperand* key = UseFixed(instr->key(), rax);
+
+  LLoadKeyedGeneric* result = new LLoadKeyedGeneric(object, key);
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 
@@ -1736,8 +1739,16 @@ LInstruction* LChunkBuilder::DoStorePixelArrayElement(
 
 
 LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
-  Abort("Unimplemented: %s", "DoStoreKeyedGeneric");
-  return NULL;
+  LOperand* object = UseFixed(instr->object(), rdx);
+  LOperand* key = UseFixed(instr->key(), rcx);
+  LOperand* value = UseFixed(instr->value(), rax);
+
+  ASSERT(instr->object()->representation().IsTagged());
+  ASSERT(instr->key()->representation().IsTagged());
+  ASSERT(instr->value()->representation().IsTagged());
+
+  LStoreKeyedGeneric* result = new LStoreKeyedGeneric(object, key, value);
+  return MarkAsCall(result, instr);
 }
 
 
@@ -1762,8 +1773,11 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
-  Abort("Unimplemented: %s", "DoStoreNamedGeneric");
-  return NULL;
+  LOperand* object = UseFixed(instr->object(), rdx);
+  LOperand* value = UseFixed(instr->value(), rax);
+
+  LStoreNamedGeneric* result = new LStoreNamedGeneric(object, value);
+  return MarkAsCall(result, instr);
 }
 
 
