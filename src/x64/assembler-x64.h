@@ -109,7 +109,9 @@ struct Register {
   }
 
   static int ToRspIndexForPushAll(Register reg) {
-    return kRspIndexForPushAllByRegisterCode[reg.code()];
+    // TODO(ager): Refactor this so we can use the right constants for
+    // this computation. Move it to the macro assembler as on ARM.
+    return kRspIndexForPushAllByRegisterCode[reg.code()] + 5;
   }
 
   static const char* AllocationIndexToString(int index) {
