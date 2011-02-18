@@ -26,70 +26,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Platform specific code for Win32.
-#ifndef WIN32_LEAN_AND_MEAN
-// WIN32_LEAN_AND_MEAN implies NOCRYPT and NOGDI.
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#ifndef NOKERNEL
-#define NOKERNEL
-#endif
-#ifndef NOUSER
-#define NOUSER
-#endif
-#ifndef NOSERVICE
-#define NOSERVICE
-#endif
-#ifndef NOSOUND
-#define NOSOUND
-#endif
-#ifndef NOMCX
-#define NOMCX
-#endif
-// Require Windows XP or higher (this is required for the RtlCaptureContext
-// function to be present).
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x501
-#endif
 
-#include <windows.h>
-
-#include <time.h>  // For LocalOffset() implementation.
-#include <mmsystem.h>  // For timeGetTime().
-#ifdef __MINGW32__
-// Require Windows XP or higher when compiling with MinGW. This is for MinGW
-// header files to expose getaddrinfo.
-#undef _WIN32_WINNT
-#define _WIN32_WINNT 0x501
-#endif  // __MINGW32__
-#ifndef __MINGW32__
-#include <dbghelp.h>  // For SymLoadModule64 and al.
-#endif  // __MINGW32__
-#include <limits.h>  // For INT_MAX and al.
-#include <tlhelp32.h>  // For Module32First and al.
-
-// These additional WIN32 includes have to be right here as the #undef's below
-// makes it impossible to have them elsewhere.
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <process.h>  // for _beginthreadex()
-#include <stdlib.h>
-
-#undef VOID
-#undef DELETE
-#undef IN
-#undef THIS
-#undef CONST
-#undef NAN
-#undef GetObject
-#undef CreateMutex
-#undef CreateSemaphore
+#define V8_WIN32_HEADERS_FULL
+#include "win32-headers.h"
 
 #include "v8.h"
 
 #include "platform.h"
+#include "vm-state-inl.h"
 
 // Extra POSIX/ANSI routines for Win32 when when using Visual Studio C++. Please
 // refer to The Open Group Base Specification for specification of the correct
@@ -1170,7 +1114,7 @@ static bool LoadSymbols(HANDLE process_handle) {
   // Initialize the symbol engine.
   ok = _SymInitialize(process_handle,  // hProcess
                       NULL,            // UserSearchPath
-                      FALSE);          // fInvadeProcess
+                      false);          // fInvadeProcess
   if (!ok) return false;
 
   DWORD options = _SymGetOptions();
@@ -1430,7 +1374,7 @@ bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   ASSERT(IsReserved());
-  return VirtualFree(address, size, MEM_DECOMMIT) != FALSE;
+  return VirtualFree(address, size, MEM_DECOMMIT) != false;
 }
 
 
@@ -1593,16 +1537,22 @@ class Win32Mutex : public Mutex {
 
   Win32Mutex() { InitializeCriticalSection(&cs_); }
 
-  ~Win32Mutex() { DeleteCriticalSection(&cs_); }
+  virtual ~Win32Mutex() { DeleteCriticalSection(&cs_); }
 
-  int Lock() {
+  virtual int Lock() {
     EnterCriticalSection(&cs_);
     return 0;
   }
 
-  int Unlock() {
+  virtual int Unlock() {
     LeaveCriticalSection(&cs_);
     return 0;
+  }
+
+
+  virtual bool TryLock() {
+    // Returns non-zero if critical section is entered successfully entered.
+    return TryEnterCriticalSection(&cs_);
   }
 
  private:
@@ -1787,7 +1737,7 @@ int Win32Socket::Receive(char* data, int len) const {
 
 
 bool Win32Socket::SetReuseAddress(bool reuse_address) {
-  BOOL on = reuse_address ? TRUE : FALSE;
+  BOOL on = reuse_address ? true : false;
   int status = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR,
                           reinterpret_cast<char*>(&on), sizeof(on));
   return status == SOCKET_ERROR;
@@ -1842,142 +1792,174 @@ Socket* OS::CreateSocket() {
 
 // ----------------------------------------------------------------------------
 // Win32 profiler support.
-//
-// On win32 we use a sampler thread with high priority to sample the program
-// counter for the profiled thread.
 
 class Sampler::PlatformData : public Malloced {
  public:
-  explicit PlatformData(Sampler* sampler) {
-    sampler_ = sampler;
-    sampler_thread_ = INVALID_HANDLE_VALUE;
-    profiled_thread_ = INVALID_HANDLE_VALUE;
-  }
+  // Get a handle to the calling thread. This is the thread that we are
+  // going to profile. We need to make a copy of the handle because we are
+  // going to use it in the sampler thread. Using GetThreadHandle() will
+  // not work in this case. We're using OpenThread because DuplicateHandle
+  // for some reason doesn't work in Chrome's sandbox.
+  PlatformData() : profiled_thread_(OpenThread(THREAD_GET_CONTEXT |
+                                               THREAD_SUSPEND_RESUME |
+                                               THREAD_QUERY_INFORMATION,
+                                               false,
+                                               GetCurrentThreadId())) {}
 
-  Sampler* sampler_;
-  HANDLE sampler_thread_;
-  HANDLE profiled_thread_;
-
-  // Sampler thread handler.
-  void Runner() {
-    // Context used for sampling the register state of the profiled thread.
-    CONTEXT context;
-    memset(&context, 0, sizeof(context));
-    // Loop until the sampler is disengaged, keeping the specified
-    // sampling frequency.
-    for ( ; sampler_->IsActive(); Sleep(sampler_->interval_)) {
-      TickSample sample_obj;
-      TickSample* sample = CpuProfiler::TickSampleEvent();
-      if (sample == NULL) sample = &sample_obj;
-
-      // If the sampler runs in sync with the JS thread, we try to
-      // suspend it. If we fail, we skip the current sample.
-      if (sampler_->IsSynchronous()) {
-        static const DWORD kSuspendFailed = static_cast<DWORD>(-1);
-        if (SuspendThread(profiled_thread_) == kSuspendFailed) continue;
-      }
-
-      // We always sample the VM state.
-      sample->state = VMState::current_state();
-
-      // If profiling, we record the pc and sp of the profiled thread.
-      if (sampler_->IsProfiling()) {
-        context.ContextFlags = CONTEXT_FULL;
-        if (GetThreadContext(profiled_thread_, &context) != 0) {
-#if V8_HOST_ARCH_X64
-          sample->pc = reinterpret_cast<Address>(context.Rip);
-          sample->sp = reinterpret_cast<Address>(context.Rsp);
-          sample->fp = reinterpret_cast<Address>(context.Rbp);
-#else
-          sample->pc = reinterpret_cast<Address>(context.Eip);
-          sample->sp = reinterpret_cast<Address>(context.Esp);
-          sample->fp = reinterpret_cast<Address>(context.Ebp);
-#endif
-          sampler_->SampleStack(sample);
-        }
-      }
-
-      // Invoke tick handler with program counter and stack pointer.
-      sampler_->Tick(sample);
-
-      // If the sampler runs in sync with the JS thread, we have to
-      // remember to resume it.
-      if (sampler_->IsSynchronous()) ResumeThread(profiled_thread_);
+  ~PlatformData() {
+    if (profiled_thread_ != NULL) {
+      CloseHandle(profiled_thread_);
+      profiled_thread_ = NULL;
     }
   }
+
+  HANDLE profiled_thread() { return profiled_thread_; }
+
+ private:
+  HANDLE profiled_thread_;
 };
 
 
-// Entry point for sampler thread.
-static unsigned int __stdcall SamplerEntry(void* arg) {
-  Sampler::PlatformData* data =
-      reinterpret_cast<Sampler::PlatformData*>(arg);
-  Thread::SetThreadLocal(Isolate::isolate_key(), data->sampler_->isolate());
-  data->Runner();
-  return 0;
-}
+class SamplerThread : public Thread {
+ public:
+  explicit SamplerThread(int interval) : Thread(NULL), interval_(interval) {}
+
+  static void AddActiveSampler(Sampler* sampler) {
+    ScopedLock lock(mutex_);
+    SamplerRegistry::AddActiveSampler(sampler);
+    if (instance_ == NULL) {
+      instance_ = new SamplerThread(sampler->interval());
+      instance_->Start();
+    } else {
+      ASSERT(instance_->interval_ == sampler->interval());
+    }
+  }
+
+  static void RemoveActiveSampler(Sampler* sampler) {
+    ScopedLock lock(mutex_);
+    SamplerRegistry::RemoveActiveSampler(sampler);
+    if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
+      RuntimeProfiler::WakeUpRuntimeProfilerThreadBeforeShutdown();
+      instance_->Join();
+      delete instance_;
+      instance_ = NULL;
+    }
+  }
+
+  // Implement Thread::Run().
+  virtual void Run() {
+    SamplerRegistry::State state = SamplerRegistry::GetState();
+    while (state != SamplerRegistry::HAS_NO_SAMPLERS) {
+      bool cpu_profiling_enabled =
+          (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
+      bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
+      // When CPU profiling is enabled both JavaScript and C++ code is
+      // profiled. We must not suspend.
+      if (!cpu_profiling_enabled) {
+        if (rate_limiter_.SuspendIfNecessary()) continue;
+      }
+      if (cpu_profiling_enabled) {
+        if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this)) {
+          return;
+        }
+      }
+      if (runtime_profiler_enabled) {
+        if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile, NULL)) {
+          return;
+        }
+      }
+      OS::Sleep(interval_);
+    }
+  }
+
+  static void DoCpuProfile(Sampler* sampler, void* raw_sampler_thread) {
+    if (!sampler->IsProfiling()) return;
+    SamplerThread* sampler_thread =
+        reinterpret_cast<SamplerThread*>(raw_sampler_thread);
+    sampler_thread->SampleContext(sampler);
+  }
+
+  static void DoRuntimeProfile(Sampler* sampler, void* ignored) {
+    if (!sampler->isolate()->IsInitialized()) return;
+    sampler->isolate()->runtime_profiler()->NotifyTick();
+  }
+
+  void SampleContext(Sampler* sampler) {
+    HANDLE profiled_thread = sampler->platform_data()->profiled_thread();
+    if (profiled_thread == NULL) return;
+
+    // Context used for sampling the register state of the profiled thread.
+    CONTEXT context;
+    memset(&context, 0, sizeof(context));
+
+    TickSample sample_obj;
+    TickSample* sample = CpuProfiler::TickSampleEvent(sampler->isolate());
+    if (sample == NULL) sample = &sample_obj;
+
+    static const DWORD kSuspendFailed = static_cast<DWORD>(-1);
+    if (SuspendThread(profiled_thread) == kSuspendFailed) return;
+    sample->state = sampler->isolate()->current_vm_state();
+
+    context.ContextFlags = CONTEXT_FULL;
+    if (GetThreadContext(profiled_thread, &context) != 0) {
+#if V8_HOST_ARCH_X64
+      sample->pc = reinterpret_cast<Address>(context.Rip);
+      sample->sp = reinterpret_cast<Address>(context.Rsp);
+      sample->fp = reinterpret_cast<Address>(context.Rbp);
+#else
+      sample->pc = reinterpret_cast<Address>(context.Eip);
+      sample->sp = reinterpret_cast<Address>(context.Esp);
+      sample->fp = reinterpret_cast<Address>(context.Ebp);
+#endif
+      sampler->SampleStack(sample);
+      sampler->Tick(sample);
+    }
+    ResumeThread(profiled_thread);
+  }
+
+  const int interval_;
+  RuntimeProfilerRateLimiter rate_limiter_;
+
+  // Protects the process wide state below.
+  static Mutex* mutex_;
+  static SamplerThread* instance_;
+
+  DISALLOW_COPY_AND_ASSIGN(SamplerThread);
+};
 
 
-// Initialize a profile sampler.
-Sampler::Sampler(Isolate* isolate, int interval, bool profiling)
+Mutex* SamplerThread::mutex_ = OS::CreateMutex();
+SamplerThread* SamplerThread::instance_ = NULL;
+
+
+Sampler::Sampler(Isolate* isolate, int interval)
     : isolate_(isolate),
       interval_(interval),
-      profiling_(profiling),
-      synchronous_(profiling),
+      profiling_(false),
       active_(false),
       samples_taken_(0) {
-  data_ = new PlatformData(this);
+  data_ = new PlatformData;
 }
 
 
 Sampler::~Sampler() {
+  ASSERT(!IsActive());
   delete data_;
 }
 
 
-// Start profiling.
 void Sampler::Start() {
-  // If we are starting a synchronous sampler, we need to be able to
-  // access the calling thread.
-  if (IsSynchronous()) {
-    // Get a handle to the calling thread. This is the thread that we are
-    // going to profile. We need to make a copy of the handle because we are
-    // going to use it in the sampler thread. Using GetThreadHandle() will
-    // not work in this case. We're using OpenThread because DuplicateHandle
-    // for some reason doesn't work in Chrome's sandbox.
-    data_->profiled_thread_ = OpenThread(THREAD_GET_CONTEXT |
-                                         THREAD_SUSPEND_RESUME |
-                                         THREAD_QUERY_INFORMATION,
-                                         FALSE,
-                                         GetCurrentThreadId());
-    BOOL ok = data_->profiled_thread_ != NULL;
-    if (!ok) return;
-  }
-
-  // Start sampler thread.
-  unsigned int tid;
-  active_ = true;
-  data_->sampler_thread_ = reinterpret_cast<HANDLE>(
-      _beginthreadex(NULL, 0, SamplerEntry, data_, 0, &tid));
-  // Set thread to high priority to increase sampling accuracy.
-  SetThreadPriority(data_->sampler_thread_, THREAD_PRIORITY_TIME_CRITICAL);
+  ASSERT(!IsActive());
+  SetActive(true);
+  SamplerThread::AddActiveSampler(this);
 }
 
 
-// Stop profiling.
 void Sampler::Stop() {
-  // Seting active to false triggers termination of the sampler
-  // thread.
-  active_ = false;
-
-  // Wait for sampler thread to terminate.
-  WaitForSingleObject(data_->sampler_thread_, INFINITE);
-
-  // Release the thread handles
-  CloseHandle(data_->sampler_thread_);
-  CloseHandle(data_->profiled_thread_);
+  ASSERT(IsActive());
+  SamplerThread::RemoveActiveSampler(this);
+  SetActive(false);
 }
-
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 

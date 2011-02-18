@@ -490,25 +490,19 @@ static int PagesInChunk(Address start, size_t size) {
 }
 
 
-Page* MemoryAllocator::AllocatePages(int requested_pages, int* allocated_pages,
+Page* MemoryAllocator::AllocatePages(int requested_pages,
+                                     int* allocated_pages,
                                      PagedSpace* owner) {
   if (requested_pages <= 0) return Page::FromAddress(NULL);
   size_t chunk_size = requested_pages * Page::kPageSize;
 
-  // There is not enough space to guarantee the desired number pages can be
-  // allocated.
-  if (size_ + static_cast<int>(chunk_size) > capacity_) {
-    // Request as many pages as we can.
-    chunk_size = capacity_ - size_;
-    requested_pages = static_cast<int>(chunk_size >> kPageSizeBits);
-
-    if (requested_pages <= 0) return Page::FromAddress(NULL);
-  }
   void* chunk = AllocateRawMemory(chunk_size, &chunk_size, owner->executable());
   if (chunk == NULL) return Page::FromAddress(NULL);
   LOG(NewEvent("PagedChunk", chunk, chunk_size));
 
   *allocated_pages = PagesInChunk(static_cast<Address>(chunk), chunk_size);
+  // We may 'lose' a page due to alignment.
+  ASSERT(*allocated_pages >= kPagesPerChunk - 1);
   if (*allocated_pages == 0) {
     FreeRawMemory(chunk, chunk_size, owner->executable());
     LOG(DeleteEvent("PagedChunk", chunk));
@@ -520,7 +514,9 @@ Page* MemoryAllocator::AllocatePages(int requested_pages, int* allocated_pages,
 
   ObjectSpace space = static_cast<ObjectSpace>(1 << owner->identity());
   PerformAllocationCallback(space, kAllocationActionAllocate, chunk_size);
-  return InitializePagesInChunk(chunk_id, *allocated_pages, owner);
+  Page* new_pages = InitializePagesInChunk(chunk_id, *allocated_pages, owner);
+
+  return new_pages;
 }
 
 
@@ -1017,7 +1013,10 @@ bool PagedSpace::Expand(Page* last_page) {
 
   int available_pages =
       static_cast<int>((max_capacity_ - Capacity()) / Page::kObjectAreaSize);
-  if (available_pages <= 0) return false;
+  // We don't want to have to handle small chunks near the end so if there are
+  // not kPagesPerChunk pages available without exceeding the max capacity then
+  // act as if memory has run out.
+  if (available_pages < MemoryAllocator::kPagesPerChunk) return false;
 
   int desired_pages = Min(available_pages, MemoryAllocator::kPagesPerChunk);
   Page* p = heap()->isolate()->memory_allocator()->AllocatePages(
@@ -1556,6 +1555,7 @@ static void ReportCodeKindStatistics() {
   for (int i = 0; i < Code::NUMBER_OF_KINDS; i++) {
     switch (static_cast<Code::Kind>(i)) {
       CASE(FUNCTION);
+      CASE(OPTIMIZED_FUNCTION);
       CASE(STUB);
       CASE(BUILTIN);
       CASE(LOAD_IC);
@@ -1565,6 +1565,8 @@ static void ReportCodeKindStatistics() {
       CASE(CALL_IC);
       CASE(KEYED_CALL_IC);
       CASE(BINARY_OP_IC);
+      CASE(TYPE_RECORDING_BINARY_OP_IC);
+      CASE(COMPARE_IC);
     }
   }
 
@@ -2708,31 +2710,44 @@ HeapObject* LargeObjectIterator::next() {
 // LargeObjectChunk
 
 LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
-                                        size_t* chunk_size,
                                         Executability executable) {
   size_t requested = ChunkSizeFor(size_in_bytes);
+  size_t size;
   void* mem = Isolate::Current()->memory_allocator()->AllocateRawMemory(
-      requested, chunk_size, executable);
+      requested, &size, executable);
   if (mem == NULL) return NULL;
-  LOG(NewEvent("LargeObjectChunk", mem, *chunk_size));
-  if (*chunk_size < requested) {
+
+  // The start of the chunk may be overlayed with a page so we have to
+  // make sure that the page flags fit in the size field.
+  ASSERT((size & Page::kPageFlagMask) == 0);
+
+  LOG(NewEvent("LargeObjectChunk", mem, size));
+  if (size < requested) {
     Isolate::Current()->memory_allocator()->FreeRawMemory(
-        mem, *chunk_size, executable);
+        mem, size, executable);
     LOG(DeleteEvent("LargeObjectChunk", mem));
     return NULL;
   }
-  ObjectSpace space =
-      (executable == EXECUTABLE) ? kObjectSpaceCodeSpace : kObjectSpaceLoSpace;
+
+  ObjectSpace space = (executable == EXECUTABLE)
+      ? kObjectSpaceCodeSpace
+      : kObjectSpaceLoSpace;
   Isolate::Current()->memory_allocator()->PerformAllocationCallback(
-      space, kAllocationActionAllocate, *chunk_size);
-  return reinterpret_cast<LargeObjectChunk*>(mem);
+      space, kAllocationActionAllocate, size);
+
+  LargeObjectChunk* chunk = reinterpret_cast<LargeObjectChunk*>(mem);
+  chunk->size_ = size;
+  Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
+  page->heap_ = Isolate::Current()->heap();
+  return chunk;
 }
 
 
 int LargeObjectChunk::ChunkSizeFor(int size_in_bytes) {
   int os_alignment = static_cast<int>(OS::AllocateAlignment());
-  if (os_alignment < Page::kPageSize)
+  if (os_alignment < Page::kPageSize) {
     size_in_bytes += (Page::kPageSize - os_alignment);
+  }
   return size_in_bytes + Page::kObjectStartOffset;
 }
 
@@ -2817,27 +2832,24 @@ MaybeObject* LargeObjectSpace::AllocateRawInternal(int requested_size,
     return Failure::RetryAfterGC(identity());
   }
 
-  size_t chunk_size;
-  LargeObjectChunk* chunk =
-      LargeObjectChunk::New(requested_size, &chunk_size, executable);
+  LargeObjectChunk* chunk = LargeObjectChunk::New(requested_size, executable);
   if (chunk == NULL) {
     return Failure::RetryAfterGC(identity());
   }
 
-  size_ += static_cast<int>(chunk_size);
+  size_ += static_cast<int>(chunk->size());
   objects_size_ += requested_size;
   page_count_++;
   chunk->set_next(first_chunk_);
-  chunk->set_size(chunk_size);
   first_chunk_ = chunk;
 
   // Initialize page header.
   Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
   Address object_address = page->ObjectAreaStart();
+
   // Clear the low order bit of the second word in the page to flag it as a
   // large object page.  If the chunk_size happened to be written there, its
   // low order bit should already be clear.
-  ASSERT((chunk_size & 0x1) == 0);
   page->SetIsLargeObjectPage(true);
   page->SetIsPageExecutable(executable);
   page->SetRegionMarks(Page::kAllRegionsCleanMarks);

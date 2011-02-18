@@ -26,19 +26,23 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <v8.h>
+#include <v8-testing.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../src/v8.h"
+
 // TODO(isolates):
-//   o Add thread implementation for more platforms.
+//   o Either use V8 internal platform stuff for every platform or
+//     re-implement it.
 //   o Do not assume not WIN32 implies pthreads.
 #ifndef WIN32
-#include <pthread.h>
+#include <pthread.h>  // NOLINT
 #endif
 
-v8::Handle<v8::Context> CreateShellContext();
+v8::Persistent<v8::Context> CreateShellContext();
 void RunShell(v8::Handle<v8::Context> context);
 bool ExecuteString(v8::Handle<v8::String> source,
                    v8::Handle<v8::Value> name,
@@ -57,10 +61,18 @@ void ReportException(v8::TryCatch* handler);
 void* IsolateThreadEntry(void* arg);
 #endif
 
+static bool last_run = true;
+
 class SourceGroup {
  public:
-  SourceGroup() : argv_(NULL), begin_offset_(0), end_offset_(0) {
+  SourceGroup() : argv_(NULL),
+                  begin_offset_(0),
+                  end_offset_(0),
+                  next_semaphore_(NULL),
+                  done_semaphore_(NULL) {
 #ifndef WIN32
+    next_semaphore_ = v8::internal::OS::CreateSemaphore(0);
+    done_semaphore_ = v8::internal::OS::CreateSemaphore(0);
     thread_ = 0;
 #endif
   }
@@ -109,31 +121,60 @@ class SourceGroup {
 
 #else
   void StartExecuteInThread() {
-    pthread_create(&thread_, NULL, &IsolateThreadEntry, this);
+    if (thread_ == 0) {
+      pthread_attr_t attr;
+      // On some systems (OSX 10.6) the stack size default is 0.5Mb or less
+      // which is not enough to parse the big literal expressions used in tests.
+      // The stack size should be at least StackGuard::kLimitSize + some
+      // OS-specific padding for thread startup code.
+      size_t stacksize = 1024 * 1024;  // 1 Mb seems to be enough
+      pthread_attr_init(&attr);
+      pthread_attr_setstacksize(&attr, stacksize);
+      int error = pthread_create(&thread_, &attr, &IsolateThreadEntry, this);
+      if (error) {
+        printf("Error creating isolate thread.\n");
+        exit(1);
+      }
+    }
+    next_semaphore_->Signal();
   }
 
   void WaitForThread() {
     if (thread_ == 0) return;
-    pthread_join(thread_, NULL);
-    thread_ = 0;
+    if (last_run) {
+      pthread_join(thread_, NULL);
+      thread_ = 0;
+    } else {
+      done_semaphore_->Wait();
+    }
   }
 #endif  // WIN32
 
  private:
   void ExecuteInThread() {
     v8::Isolate* isolate = v8::Isolate::New();
-    {
-      v8::Isolate::Scope iscope(isolate);
-      v8::HandleScope scope;
-      v8::Context::Scope cscope(CreateShellContext());
-      Execute();
-    }
+    do {
+      if (next_semaphore_ != NULL) next_semaphore_->Wait();
+      {
+        v8::Isolate::Scope iscope(isolate);
+        v8::HandleScope scope;
+        v8::Persistent<v8::Context> context = CreateShellContext();
+        {
+          v8::Context::Scope cscope(context);
+          Execute();
+        }
+        context.Dispose();
+      }
+      if (done_semaphore_ != NULL) done_semaphore_->Signal();
+    } while (!last_run);
     isolate->Dispose();
   }
 
   const char** argv_;
   int begin_offset_;
   int end_offset_;
+  v8::internal::Semaphore* next_semaphore_;
+  v8::internal::Semaphore* done_semaphore_;
 #ifndef WIN32
   pthread_t thread_;
 #endif
@@ -149,37 +190,42 @@ void* IsolateThreadEntry(void* arg) {
 #endif
 
 
+static SourceGroup* isolate_sources = NULL;
+
+
 int RunMain(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::HandleScope handle_scope;
-  v8::Handle<v8::Context> context = CreateShellContext();
+  v8::Persistent<v8::Context> context = CreateShellContext();
   // Enter the newly created execution environment.
-  v8::Context::Scope context_scope(context);
+  context->Enter();
   bool run_shell = (argc == 1);
   int num_isolates = 1;
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--isolate") == 0) ++num_isolates;
   }
-  SourceGroup* isolate_sources = new SourceGroup[num_isolates];
-  SourceGroup* current = isolate_sources;
-  current->Begin(argv, 1);
-  for (int i = 1; i < argc; i++) {
-    const char* str = argv[i];
-    if (strcmp(str, "--isolate") == 0) {
-      current->End(i);
-      current++;
-      current->Begin(argv, i + 1);
-    } else if (strcmp(str, "--shell") == 0) {
-      run_shell = true;
-    } else if (strcmp(str, "-f") == 0) {
-      // Ignore any -f flags for compatibility with the other stand-
-      // alone JavaScript engines.
-      continue;
-    } else if (strncmp(str, "--", 2) == 0) {
-      printf("Warning: unknown flag %s.\nTry --help for options\n", str);
+  if (isolate_sources == NULL) {
+    isolate_sources = new SourceGroup[num_isolates];
+    SourceGroup* current = isolate_sources;
+    current->Begin(argv, 1);
+    for (int i = 1; i < argc; i++) {
+      const char* str = argv[i];
+      if (strcmp(str, "--isolate") == 0) {
+        current->End(i);
+        current++;
+        current->Begin(argv, i + 1);
+      } else if (strcmp(str, "--shell") == 0) {
+        run_shell = true;
+      } else if (strcmp(str, "-f") == 0) {
+        // Ignore any -f flags for compatibility with the other stand-
+        // alone JavaScript engines.
+        continue;
+      } else if (strncmp(str, "--", 2) == 0) {
+        printf("Warning: unknown flag %s.\nTry --help for options\n", str);
+      }
     }
+    current->End(argc);
   }
-  current->End(argc);
   for (int i = 1; i < num_isolates; ++i) {
     isolate_sources[i].StartExecuteInThread();
   }
@@ -188,13 +234,54 @@ int RunMain(int argc, char* argv[]) {
   for (int i = 1; i < num_isolates; ++i) {
     isolate_sources[i].WaitForThread();
   }
-  delete[] isolate_sources;
+  if (last_run) {
+    delete[] isolate_sources;
+    isolate_sources = NULL;
+  }
+  context->Exit();
+  context.Dispose();
   return 0;
 }
 
 
 int main(int argc, char* argv[]) {
-  int result = RunMain(argc, argv);
+  // Figure out if we're requested to stress the optimization
+  // infrastructure by running tests multiple times and forcing
+  // optimization in the last run.
+  bool FLAG_stress_opt = false;
+  bool FLAG_stress_deopt = false;
+  for (int i = 0; i < argc; i++) {
+    if (strcmp(argv[i], "--stress-opt") == 0) {
+      FLAG_stress_opt = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--stress-deopt") == 0) {
+      FLAG_stress_deopt = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--noalways-opt") == 0) {
+      // No support for stressing if we can't use --always-opt.
+      FLAG_stress_opt = false;
+      FLAG_stress_deopt = false;
+      break;
+    }
+  }
+
+  v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
+  int result = 0;
+  if (FLAG_stress_opt || FLAG_stress_deopt) {
+    v8::Testing::SetStressRunType(FLAG_stress_opt
+                                  ? v8::Testing::kStressTypeOpt
+                                  : v8::Testing::kStressTypeDeopt);
+    int stress_runs = v8::Testing::GetStressRuns();
+    for (int i = 0; i < stress_runs && result == 0; i++) {
+      printf("============ Stress %d/%d ============\n",
+             i + 1, stress_runs);
+      v8::Testing::PrepareStressRun(i);
+      last_run = (i == stress_runs - 1);
+      result = RunMain(argc, argv);
+    }
+  } else {
+    result = RunMain(argc, argv);
+  }
   v8::V8::Dispose();
   return result;
 }
@@ -208,7 +295,7 @@ const char* ToCString(const v8::String::Utf8Value& value) {
 
 // Creates a new execution environment containing the built-in
 // functions.
-v8::Handle<v8::Context> CreateShellContext() {
+v8::Persistent<v8::Context> CreateShellContext() {
   // Create a template for the global object.
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
   // Bind the global 'print' function to the C++ Print callback.
@@ -330,6 +417,8 @@ v8::Handle<v8::String> ReadFile(const char* name) {
 void RunShell(v8::Handle<v8::Context> context) {
   printf("V8 version %s\n", v8::V8::GetVersion());
   static const int kBufferSize = 256;
+  // Enter the execution environment before evaluating any code.
+  v8::Context::Scope context_scope(context);
   while (true) {
     char buffer[kBufferSize];
     printf("> ");

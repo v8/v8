@@ -51,6 +51,10 @@ static const int kNumJSCallerSaved = 5;
 
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
+
+// Number of registers for which space is reserved in safepoints.
+static const int kNumSafepointRegisters = 8;
+
 // ----------------------------------------------------
 
 
@@ -92,6 +96,7 @@ class ExitFrameConstants : public AllStatic {
 
 class StandardFrameConstants : public AllStatic {
  public:
+  static const int kFixedFrameSize    =  4;
   static const int kExpressionsOffset = -3 * kPointerSize;
   static const int kMarkerOffset      = -2 * kPointerSize;
   static const int kContextOffset     = -1 * kPointerSize;

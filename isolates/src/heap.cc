@@ -38,10 +38,12 @@
 #include "mark-compact.h"
 #include "natives.h"
 #include "objects-visiting.h"
+#include "runtime-profiler.h"
 #include "scanner-base.h"
 #include "scopeinfo.h"
 #include "snapshot.h"
 #include "v8threads.h"
+#include "vm-state-inl.h"
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
 #include "regexp-macro-assembler.h"
 #include "arm/regexp-macro-assembler-arm.h"
@@ -837,6 +839,8 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
   isolate_->context_slot_cache()->Clear();
   isolate_->descriptor_lookup_cache()->Clear();
 
+  isolate_->runtime_profiler()->MarkCompactPrologue(is_compacting);
+
   isolate_->compilation_cache()->MarkCompactPrologue();
 
   CompletelyClearInstanceofCache();
@@ -1016,6 +1020,15 @@ void Heap::Scavenge() {
   // Scavenge object reachable from the global contexts list directly.
   scavenge_visitor.VisitPointer(BitCast<Object**>(&global_contexts_list_));
 
+  // Scavenge objects reachable from the runtime-profiler sampler
+  // window directly.
+  RuntimeProfiler* runtime_profiler = isolate_->runtime_profiler();
+  Object** sampler_window_address = runtime_profiler->SamplerWindowAddress();
+  int sampler_window_size = runtime_profiler->SamplerWindowSize();
+  scavenge_visitor.VisitPointers(
+      sampler_window_address,
+      sampler_window_address + sampler_window_size);
+
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
   UpdateNewSpaceReferencesInExternalStringTable(
@@ -1086,6 +1099,41 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
 }
 
 
+static Object* ProcessFunctionWeakReferences(Heap* heap,
+                                             Object* function,
+                                             WeakObjectRetainer* retainer) {
+  Object* head = heap->undefined_value();
+  JSFunction* tail = NULL;
+  Object* candidate = function;
+  while (candidate != heap->undefined_value()) {
+    // Check whether to keep the candidate in the list.
+    JSFunction* candidate_function = reinterpret_cast<JSFunction*>(candidate);
+    Object* retain = retainer->RetainAs(candidate);
+    if (retain != NULL) {
+      if (head == heap->undefined_value()) {
+        // First element in the list.
+        head = candidate_function;
+      } else {
+        // Subsequent elements in the list.
+        ASSERT(tail != NULL);
+        tail->set_next_function_link(candidate_function);
+      }
+      // Retained function is new tail.
+      tail = candidate_function;
+    }
+    // Move to next element in the list.
+    candidate = candidate_function->next_function_link();
+  }
+
+  // Terminate the list if there is one or more elements.
+  if (tail != NULL) {
+    tail->set_next_function_link(heap->undefined_value());
+  }
+
+  return head;
+}
+
+
 void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
   Object* head = undefined_value();
   Context* tail = NULL;
@@ -1108,6 +1156,17 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
       }
       // Retained context is new tail.
       tail = candidate_context;
+
+      // Process the weak list of optimized functions for the context.
+      Object* function_list_head =
+          ProcessFunctionWeakReferences(
+              this,
+              candidate_context->get(Context::OPTIMIZED_FUNCTIONS_LIST),
+              retainer);
+      candidate_context->set_unchecked(this,
+                                       Context::OPTIMIZED_FUNCTIONS_LIST,
+                                       function_list_head,
+                                       UPDATE_WRITE_BARRIER);
     }
     // Move to next element in the list.
     candidate = candidate_context->get(Context::NEXT_CONTEXT_LINK);
@@ -1624,6 +1683,11 @@ bool Heap::CreateInitialMaps() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_byte_array_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateByteArray(0, TENURED);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_empty_byte_array(ByteArray::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(PIXEL_ARRAY_TYPE, PixelArray::kAlignedSize);
@@ -2233,9 +2297,11 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_debug_info(undefined_value());
   share->set_inferred_name(empty_string());
   share->set_compiler_hints(0);
+  share->set_deopt_counter(Smi::FromInt(FLAG_deopt_every_n_times));
   share->set_initial_map(undefined_value());
   share->set_this_property_assignments_count(0);
   share->set_this_property_assignments(undefined_value());
+  share->set_opt_count(0);
   share->set_num_literals(0);
   share->set_end_position(0);
   share->set_function_token_position(0);
@@ -2656,6 +2722,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_info(ByteArray::cast(reloc_info));
   code->set_flags(flags);
+  code->set_deoptimization_data(empty_fixed_array());
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_reference.is_null()) {
@@ -2786,6 +2853,7 @@ MaybeObject* Heap::InitializeFunction(JSFunction* function,
   function->set_prototype_or_initial_map(prototype);
   function->set_context(undefined_value());
   function->set_literals(empty_fixed_array());
+  function->set_next_function_link(undefined_value());
   return function;
 }
 

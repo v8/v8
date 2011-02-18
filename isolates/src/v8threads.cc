@@ -74,7 +74,7 @@ Locker::Locker() : has_lock_(false), top_level_(true) {
     // Make sure that V8 is initialized.  Archiving of threads interferes
     // with deserialization by adding additional root pointers, so we must
     // initialize here, before anyone can call ~Locker() or Unlocker().
-    if (!internal::V8::IsRunning()) {
+    if (!isolate->IsInitialized()) {
       V8::Initialize();
     }
     // This may be a locker within an unlocker in which case we have to
@@ -82,7 +82,7 @@ Locker::Locker() : has_lock_(false), top_level_(true) {
     if (isolate->thread_manager()->RestoreThread()) {
       top_level_ = false;
     } else {
-      internal::ExecutionAccess access;
+      internal::ExecutionAccess access(isolate);
       isolate->stack_guard()->ClearThread(access);
       isolate->stack_guard()->InitThread(access);
     }
@@ -98,6 +98,8 @@ bool Locker::IsLocked() {
 
 
 Locker::~Locker() {
+  // TODO(isolate): this should use a field storing the isolate it
+  // locked instead.
   internal::Isolate* isolate = internal::Isolate::Current();
   ASSERT(isolate->thread_manager()->IsLockedByCurrentThread());
   if (has_lock_) {
@@ -120,6 +122,7 @@ Unlocker::Unlocker() {
 
 
 Unlocker::~Unlocker() {
+  // TODO(isolates): check it's the isolate we unlocked.
   internal::Isolate* isolate = internal::Isolate::Current();
   ASSERT(!isolate->thread_manager()->IsLockedByCurrentThread());
   isolate->thread_manager()->Lock();
@@ -157,7 +160,7 @@ bool ThreadManager::RestoreThread() {
 
   // Make sure that the preemption thread cannot modify the thread state while
   // it is being archived or restored.
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
 
   // If there is another thread that was lazily archived then we have to really
   // archive it now.
@@ -290,7 +293,7 @@ ThreadManager::ThreadManager()
 
 
 ThreadManager::~ThreadManager() {
-  // TODO(isolates): Destroy TLS keys and mutexes.
+  // TODO(isolates): Destroy mutexes.
 }
 
 

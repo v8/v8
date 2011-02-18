@@ -49,13 +49,6 @@ void SetVersion(int major, int minor, int build, int patch,
 } }  // namespace v8::internal
 
 
-static void CheckBakedVersion() {
-  static v8::internal::EmbeddedVector<char, 128> dyn_version_str;
-  Version::GetString(dyn_version_str);
-  CHECK_EQ(Version::GetVersion(), dyn_version_str.start());
-}
-
-
 static void CheckVersion(int major, int minor, int build,
                          int patch, bool candidate,
                          const char* expected_version_string,
@@ -81,7 +74,20 @@ static void CheckVersion(int major, int minor, int build,
 
 
 TEST(VersionString) {
-  CheckBakedVersion();
+#ifdef USE_SIMULATOR
+  CheckVersion(0, 0, 0, 0, false, "0.0.0 SIMULATOR", "libv8-0.0.0.so");
+  CheckVersion(0, 0, 0, 0, true,
+               "0.0.0 (candidate) SIMULATOR", "libv8-0.0.0-candidate.so");
+  CheckVersion(1, 0, 0, 0, false, "1.0.0 SIMULATOR", "libv8-1.0.0.so");
+  CheckVersion(1, 0, 0, 0, true,
+               "1.0.0 (candidate) SIMULATOR", "libv8-1.0.0-candidate.so");
+  CheckVersion(1, 0, 0, 1, false, "1.0.0.1 SIMULATOR", "libv8-1.0.0.1.so");
+  CheckVersion(1, 0, 0, 1, true,
+               "1.0.0.1 (candidate) SIMULATOR", "libv8-1.0.0.1-candidate.so");
+  CheckVersion(2, 5, 10, 7, false, "2.5.10.7 SIMULATOR", "libv8-2.5.10.7.so");
+  CheckVersion(2, 5, 10, 7, true,
+               "2.5.10.7 (candidate) SIMULATOR", "libv8-2.5.10.7-candidate.so");
+#else
   CheckVersion(0, 0, 0, 0, false, "0.0.0", "libv8-0.0.0.so");
   CheckVersion(0, 0, 0, 0, true,
                "0.0.0 (candidate)", "libv8-0.0.0-candidate.so");
@@ -94,4 +100,5 @@ TEST(VersionString) {
   CheckVersion(2, 5, 10, 7, false, "2.5.10.7", "libv8-2.5.10.7.so");
   CheckVersion(2, 5, 10, 7, true,
                "2.5.10.7 (candidate)", "libv8-2.5.10.7-candidate.so");
+#endif
 }

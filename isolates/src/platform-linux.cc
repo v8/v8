@@ -58,6 +58,7 @@
 
 #include "platform.h"
 #include "v8threads.h"
+#include "vm-state-inl.h"
 
 
 namespace v8 {
@@ -660,6 +661,16 @@ class LinuxMutex : public Mutex {
     return result;
   }
 
+  virtual bool TryLock() {
+    int result = pthread_mutex_trylock(&mutex_);
+    // Return false if the lock is busy and locking failed.
+    if (result == EBUSY) {
+      return false;
+    }
+    ASSERT(result == 0);  // Verify no other errors.
+    return true;
+  }
+
  private:
   pthread_mutex_t mutex_;   // Pthread mutex for POSIX platforms.
 };
@@ -742,9 +753,6 @@ Semaphore* OS::CreateSemaphore(int count) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
-static Sampler* active_sampler_ = NULL;
-
-
 #if !defined(__GLIBC__) && (defined(__arm__) || defined(__thumb__))
 // Android runs a fairly new Linux kernel, so signal info is there,
 // but the C library doesn't have the structs defined.
@@ -771,169 +779,237 @@ enum ArmRegisters {R15 = 15, R13 = 13, R11 = 11};
 #endif
 
 
+static int GetThreadID() {
+  // Glibc doesn't provide a wrapper for gettid(2).
+  return syscall(SYS_gettid);
+}
+
+
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #ifndef V8_HOST_ARCH_MIPS
   USE(info);
   if (signal != SIGPROF) return;
-  if (active_sampler_ == NULL) return;
+  Isolate* isolate = Isolate::UncheckedCurrent();
+  if (isolate == NULL || !isolate->IsInUse()) return;
+  Sampler* sampler = isolate->logger()->sampler();
+  if (sampler == NULL || !sampler->IsActive()) return;
 
   TickSample sample_obj;
-  TickSample* sample = CpuProfiler::TickSampleEvent();
+  TickSample* sample = CpuProfiler::TickSampleEvent(isolate);
   if (sample == NULL) sample = &sample_obj;
 
-  // We always sample the VM state.
-  sample->state = VMState::current_state();
-
-  // If profiling, we extract the current pc and sp.
-  if (active_sampler_->IsProfiling()) {
-    // Extracting the sample from the context is extremely machine dependent.
-    ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-    mcontext_t& mcontext = ucontext->uc_mcontext;
+  // Extracting the sample from the context is extremely machine dependent.
+  ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
+  mcontext_t& mcontext = ucontext->uc_mcontext;
+  sample->state = isolate->current_vm_state();
 #if V8_HOST_ARCH_IA32
-    sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
-    sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_ESP]);
-    sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_EBP]);
+  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_ESP]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_EBP]);
 #elif V8_HOST_ARCH_X64
-    sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_RIP]);
-    sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
-    sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
+  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_RIP]);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
 #elif V8_HOST_ARCH_ARM
 // An undefined macro evaluates to 0, so this applies to Android's Bionic also.
 #if (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
-    sample->pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
-    sample->sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
-    sample->fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
+  sample->pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
 #else
-    sample->pc = reinterpret_cast<Address>(mcontext.arm_pc);
-    sample->sp = reinterpret_cast<Address>(mcontext.arm_sp);
-    sample->fp = reinterpret_cast<Address>(mcontext.arm_fp);
+  sample->pc = reinterpret_cast<Address>(mcontext.arm_pc);
+  sample->sp = reinterpret_cast<Address>(mcontext.arm_sp);
+  sample->fp = reinterpret_cast<Address>(mcontext.arm_fp);
 #endif
 #elif V8_HOST_ARCH_MIPS
-    // Implement this on MIPS.
-    UNIMPLEMENTED();
+  // Implement this on MIPS.
+  UNIMPLEMENTED();
 #endif
-    active_sampler_->SampleStack(sample);
-  }
-
-  active_sampler_->Tick(sample);
+  sampler->SampleStack(sample);
+  sampler->Tick(sample);
 #endif
 }
 
 
 class Sampler::PlatformData : public Malloced {
  public:
-  explicit PlatformData(Sampler* sampler)
-      : sampler_(sampler),
-        signal_handler_installed_(false),
-        vm_tgid_(getpid()),
-        // Glibc doesn't provide a wrapper for gettid(2).
-        vm_tid_(syscall(SYS_gettid)),
-        signal_sender_launched_(false) {
-  }
+  PlatformData() : vm_tid_(GetThreadID()) {}
 
-  void SignalSender() {
-    while (sampler_->IsActive()) {
-      // Glibc doesn't provide a wrapper for tgkill(2).
-      syscall(SYS_tgkill, vm_tgid_, vm_tid_, SIGPROF);
-      // Convert ms to us and subtract 100 us to compensate delays
-      // occuring during signal delivery.
-      const useconds_t interval = sampler_->interval_ * 1000 - 100;
-      int result = usleep(interval);
-#ifdef DEBUG
-      if (result != 0 && errno != EINTR) {
-        fprintf(stderr,
-                "SignalSender usleep error; interval = %u, errno = %d\n",
-                interval,
-                errno);
-        ASSERT(result == 0 || errno == EINTR);
-      }
-#endif
-      USE(result);
-    }
-  }
+  int vm_tid() const { return vm_tid_; }
 
-  Sampler* sampler_;
-  bool signal_handler_installed_;
-  struct sigaction old_signal_handler_;
-  int vm_tgid_;
-  int vm_tid_;
-  bool signal_sender_launched_;
-  pthread_t signal_sender_thread_;
+ private:
+  const int vm_tid_;
 };
 
 
-static void* SenderEntry(void* arg) {
-  Sampler::PlatformData* data =
-      reinterpret_cast<Sampler::PlatformData*>(arg);
-  data->SignalSender();
-  return 0;
-}
+class SignalSender : public Thread {
+ public:
+  enum SleepInterval {
+    HALF_INTERVAL,
+    FULL_INTERVAL
+  };
+
+  explicit SignalSender(int interval)
+      : Thread(NULL), vm_tgid_(getpid()), interval_(interval) {}
+
+  static void AddActiveSampler(Sampler* sampler) {
+    ScopedLock lock(mutex_);
+    SamplerRegistry::AddActiveSampler(sampler);
+    if (instance_ == NULL) {
+      // Install a signal handler.
+      struct sigaction sa;
+      sa.sa_sigaction = ProfilerSignalHandler;
+      sigemptyset(&sa.sa_mask);
+      sa.sa_flags = SA_RESTART | SA_SIGINFO;
+      signal_handler_installed_ =
+          (sigaction(SIGPROF, &sa, &old_signal_handler_) != 0);
+
+      // Start a thread that sends SIGPROF signal to VM threads.
+      instance_ = new SignalSender(sampler->interval());
+      instance_->Start();
+    } else {
+      ASSERT(instance_->interval_ == sampler->interval());
+    }
+  }
+
+  static void RemoveActiveSampler(Sampler* sampler) {
+    ScopedLock lock(mutex_);
+    SamplerRegistry::RemoveActiveSampler(sampler);
+    if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
+      RuntimeProfiler::WakeUpRuntimeProfilerThreadBeforeShutdown();
+      instance_->Join();
+      delete instance_;
+      instance_ = NULL;
+
+      // Restore the old signal handler.
+      if (signal_handler_installed_) {
+        sigaction(SIGPROF, &old_signal_handler_, 0);
+        signal_handler_installed_ = false;
+      }
+    }
+  }
+
+  // Implement Thread::Run().
+  virtual void Run() {
+    SamplerRegistry::State state = SamplerRegistry::GetState();
+    while (state != SamplerRegistry::HAS_NO_SAMPLERS) {
+      bool cpu_profiling_enabled =
+          (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
+      bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
+      // When CPU profiling is enabled both JavaScript and C++ code is
+      // profiled. We must not suspend.
+      if (!cpu_profiling_enabled) {
+        if (rate_limiter_.SuspendIfNecessary()) continue;
+      }
+      if (cpu_profiling_enabled && runtime_profiler_enabled) {
+        if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this)) {
+          return;
+        }
+        Sleep(HALF_INTERVAL);
+        if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile, NULL)) {
+          return;
+        }
+        Sleep(HALF_INTERVAL);
+      } else {
+        if (cpu_profiling_enabled) {
+          if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile,
+                                                      this)) {
+            return;
+          }
+        }
+        if (runtime_profiler_enabled) {
+          if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile,
+                                                      NULL)) {
+            return;
+          }
+        }
+        Sleep(FULL_INTERVAL);
+      }
+    }
+  }
+
+  static void DoCpuProfile(Sampler* sampler, void* raw_sender) {
+    if (!sampler->IsProfiling()) return;
+    SignalSender* sender = reinterpret_cast<SignalSender*>(raw_sender);
+    sender->SendProfilingSignal(sampler->platform_data()->vm_tid());
+  }
+
+  static void DoRuntimeProfile(Sampler* sampler, void* ignored) {
+    if (!sampler->isolate()->IsInitialized()) return;
+    sampler->isolate()->runtime_profiler()->NotifyTick();
+  }
+
+  void SendProfilingSignal(int tid) {
+    // Glibc doesn't provide a wrapper for tgkill(2).
+    syscall(SYS_tgkill, vm_tgid_, tid, SIGPROF);
+  }
+
+  void Sleep(SleepInterval full_or_half) {
+    // Convert ms to us and subtract 100 us to compensate delays
+    // occuring during signal delivery.
+    useconds_t interval = interval_ * 1000 - 100;
+    if (full_or_half == HALF_INTERVAL) interval /= 2;
+    int result = usleep(interval);
+#ifdef DEBUG
+    if (result != 0 && errno != EINTR) {
+      fprintf(stderr,
+              "SignalSender usleep error; interval = %u, errno = %d\n",
+              interval,
+              errno);
+      ASSERT(result == 0 || errno == EINTR);
+    }
+#endif
+    USE(result);
+  }
+
+  const int vm_tgid_;
+  const int interval_;
+  RuntimeProfilerRateLimiter rate_limiter_;
+
+  // Protects the process wide state below.
+  static Mutex* mutex_;
+  static SignalSender* instance_;
+  static bool signal_handler_installed_;
+  static struct sigaction old_signal_handler_;
+
+  DISALLOW_COPY_AND_ASSIGN(SignalSender);
+};
 
 
-Sampler::Sampler(Isolate* isolate, int interval, bool profiling)
+Mutex* SignalSender::mutex_ = OS::CreateMutex();
+SignalSender* SignalSender::instance_ = NULL;
+struct sigaction SignalSender::old_signal_handler_;
+bool SignalSender::signal_handler_installed_ = false;
+
+
+Sampler::Sampler(Isolate* isolate, int interval)
     : isolate_(isolate),
       interval_(interval),
-      synchronous_(profiling),
-      profiling_(profiling),
+      profiling_(false),
       active_(false),
       samples_taken_(0) {
-  data_ = new PlatformData(this);
+  data_ = new PlatformData;
 }
 
 
 Sampler::~Sampler() {
-  ASSERT(!data_->signal_sender_launched_);
+  ASSERT(!IsActive());
   delete data_;
 }
 
 
 void Sampler::Start() {
-  // There can only be one active sampler at the time on POSIX
-  // platforms.
-  if (active_sampler_ != NULL) return;
-
-  // Request profiling signals.
-  struct sigaction sa;
-  sa.sa_sigaction = ProfilerSignalHandler;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART | SA_SIGINFO;
-  if (sigaction(SIGPROF, &sa, &data_->old_signal_handler_) != 0) return;
-  data_->signal_handler_installed_ = true;
-
-  // Start a thread that sends SIGPROF signal to VM thread.
-  // Sending the signal ourselves instead of relying on itimer provides
-  // much better accuracy.
-  active_ = true;
-  if (pthread_create(
-          &data_->signal_sender_thread_, NULL, SenderEntry, data_) == 0) {
-    data_->signal_sender_launched_ = true;
-  }
-
-  // Set this sampler as the active sampler.
-  active_sampler_ = this;
+  ASSERT(!IsActive());
+  SetActive(true);
+  SignalSender::AddActiveSampler(this);
 }
 
 
 void Sampler::Stop() {
-  active_ = false;
-
-  // Wait for signal sender termination (it will exit after setting
-  // active_ to false).
-  if (data_->signal_sender_launched_) {
-    pthread_join(data_->signal_sender_thread_, NULL);
-    data_->signal_sender_launched_ = false;
-  }
-
-  // Restore old signal handler
-  if (data_->signal_handler_installed_) {
-    sigaction(SIGPROF, &data_->old_signal_handler_, 0);
-    data_->signal_handler_installed_ = false;
-  }
-
-  // This sampler is no longer the active sampler.
-  active_sampler_ = NULL;
+  ASSERT(IsActive());
+  SignalSender::RemoveActiveSampler(this);
+  SetActive(false);
 }
-
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 

@@ -30,6 +30,7 @@
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+#include "atomicops.h"
 #include "circular-queue.h"
 #include "unbound-queue.h"
 
@@ -243,7 +244,7 @@ class CpuProfiler {
   static CpuProfile* FindProfile(Object* security_token, unsigned uid);
 
   // Invoked from stack sampler (thread or signal handler.)
-  static TickSample* TickSampleEvent();
+  static TickSample* TickSampleEvent(Isolate* isolate);
 
   // Must be called via PROFILE macro, otherwise will crash when
   // profiling is not enabled.
@@ -271,13 +272,15 @@ class CpuProfiler {
   static void ProcessMovedFunctions();
   static void SetterCallbackEvent(String* name, Address entry_point);
 
+  // TODO(isolates): this doesn't have to use atomics anymore.
+
   static INLINE(bool is_profiling()) {
     return is_profiling(Isolate::Current());
   }
 
   static INLINE(bool is_profiling(Isolate* isolate)) {
-    return isolate->cpu_profiler() != NULL &&
-           isolate->cpu_profiler()->processor_ != NULL;
+    CpuProfiler* profiler = isolate->cpu_profiler();
+    return profiler != NULL && NoBarrier_Load(&profiler->is_profiling_);
   }
 
  private:
@@ -296,6 +299,7 @@ class CpuProfiler {
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
   int saved_logging_nesting_;
+  Atomic32 is_profiling_;
 
 #else
   static INLINE(bool is_profiling()) { return false; }

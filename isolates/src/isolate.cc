@@ -34,18 +34,23 @@
 #include "codegen.h"
 #include "compilation-cache.h"
 #include "debug.h"
+#include "deoptimizer.h"
 #include "heap-profiler.h"
+#include "hydrogen.h"
 #include "isolate.h"
+#include "lithium-allocator.h"
 #include "log.h"
+#include "oprofile-agent.h"
 #include "regexp-stack.h"
-#include "serialize.h"
+#include "runtime-profiler.h"
 #include "scanner.h"
 #include "scopeinfo.h"
+#include "serialize.h"
 #include "simulator.h"
-#include "stub-cache.h"
 #include "spaces.h"
-#include "oprofile-agent.h"
+#include "stub-cache.h"
 #include "version.h"
+
 
 namespace v8 {
 namespace internal {
@@ -168,7 +173,7 @@ Isolate* Isolate::default_isolate_ = NULL;
 Thread::LocalStorageKey Isolate::isolate_key_;
 Thread::LocalStorageKey Isolate::thread_id_key_;
 Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
-Mutex* Isolate::process_wide_mutex_ = NULL;
+Mutex* Isolate::process_wide_mutex_ = OS::CreateMutex();
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 Isolate::ThreadId Isolate::highest_thread_id_ = 0;
 
@@ -234,11 +239,6 @@ Isolate::PerIsolateThreadData*
 
 
 void Isolate::EnsureDefaultIsolate() {
-  // Assume there is only one static-initializing thread.
-  if (process_wide_mutex_ == NULL) {
-    process_wide_mutex_ = OS::CreateMutex();
-  }
-
   ScopedLock lock(process_wide_mutex_);
   if (default_isolate_ == NULL) {
     isolate_key_ = Thread::CreateThreadLocalKey();
@@ -328,6 +328,7 @@ Isolate::Isolate()
       preallocated_memory_thread_(NULL),
       preallocated_message_space_(NULL),
       bootstrapper_(NULL),
+      runtime_profiler_(NULL),
       compilation_cache_(NULL),
       counters_(new Counters()),
       cpu_features_(NULL),
@@ -336,6 +337,7 @@ Isolate::Isolate()
       logger_(new Logger()),
       stats_table_(new StatsTable()),
       stub_cache_(NULL),
+      deoptimizer_data_(NULL),
       capture_stack_trace_for_uncaught_exceptions_(false),
       stack_trace_for_uncaught_exceptions_frame_limit_(0),
       stack_trace_for_uncaught_exceptions_options_(StackTrace::kOverview),
@@ -429,6 +431,13 @@ void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
 
+    if (FLAG_time_hydrogen) HStatistics::Instance()->Print();
+
+    // We must stop the logger before we tear down other components.
+    logger_->EnsureTickerStopped();
+
+    delete deoptimizer_data_;
+    deoptimizer_data_ = NULL;
     OProfileAgent::TearDown();
     if (FLAG_preemption) {
       v8::Locker locker;
@@ -444,6 +453,11 @@ void Isolate::Deinit() {
 
     HeapProfiler::TearDown();
     CpuProfiler::TearDown();
+    if (runtime_profiler_ != NULL) {
+      runtime_profiler_->TearDown();
+      delete runtime_profiler_;
+      runtime_profiler_ = NULL;
+    }
     heap_.TearDown();
     logger_->TearDown();
 
@@ -644,7 +658,7 @@ bool Isolate::Init(Deserializer* des) {
     // Ensure that the thread has a valid stack guard.  The v8::Locker object
     // will ensure this too, but we don't have to use lockers if we are only
     // using one thread.
-    ExecutionAccess lock;
+    ExecutionAccess lock(this);
     stack_guard_.InitThread(lock);
   }
 
@@ -697,6 +711,10 @@ bool Isolate::Init(Deserializer* des) {
   CPU::Setup();
 
   OProfileAgent::Initialize();
+  deoptimizer_data_ = new DeoptimizerData;
+  LAllocator::Setup();
+  runtime_profiler_ = new RuntimeProfiler(this);
+  runtime_profiler_->Setup();
 
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.
@@ -779,6 +797,11 @@ void Isolate::Exit() {
 
   // Reinit the current thread for the isolate it was running before this one.
   SetIsolateThreadLocals(previous_isolate, previous_thread_data);
+}
+
+
+void Isolate::ResetEagerOptimizingData() {
+  compilation_cache_->ResetEagerOptimizingData();
 }
 
 } }  // namespace v8::internal

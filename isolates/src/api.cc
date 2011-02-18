@@ -33,6 +33,7 @@
 #include "bootstrapper.h"
 #include "compiler.h"
 #include "debug.h"
+#include "deoptimizer.h"
 #include "execution.h"
 #include "global-handles.h"
 #include "heap-profiler.h"
@@ -40,19 +41,25 @@
 #include "parser.h"
 #include "platform.h"
 #include "profile-generator-inl.h"
+#include "runtime-profiler.h"
 #include "serialize.h"
 #include "snapshot.h"
 #include "v8threads.h"
 #include "version.h"
+#include "vm-state-inl.h"
 
 #include "../include/v8-profiler.h"
+#include "../include/v8-testing.h"
 
 #define LOG_API(expr) LOG(ApiEntryCall(expr))
 
 // TODO(isolates): avoid repeated TLS reads in function prologues.
 #ifdef ENABLE_VMSTATE_TRACKING
-#define ENTER_V8 i::VMState __state__(i::Isolate::Current(), i::OTHER)
-#define LEAVE_V8 i::VMState __state__(i::Isolate::Current(), i::EXTERNAL)
+#define ENTER_V8                                        \
+  ASSERT(i::Isolate::Current()->IsInitialized());                           \
+  i::VMState __state__(i::Isolate::Current(), i::OTHER)
+#define LEAVE_V8 \
+  i::VMState __state__(i::Isolate::Current(), i::EXTERNAL)
 #else
 #define ENTER_V8 ((void) 0)
 #define LEAVE_V8 ((void) 0)
@@ -105,7 +112,6 @@ namespace v8 {
 
 
 // --- E x c e p t i o n   B e h a v i o r ---
-
 
 
 static void DefaultFatalErrorHandler(const char* location,
@@ -248,7 +254,7 @@ static bool ReportEmptyHandle(const char* location) {
  * yet been done.
  */
 static inline bool IsDeadCheck(const char* location) {
-  return !i::V8::IsRunning()
+  return !i::Isolate::Current()->IsInitialized()
       && i::V8::IsDead() ? ReportV8Dead(location) : false;
 }
 
@@ -273,19 +279,9 @@ static bool InitializeHelper() {
 
 static inline bool EnsureInitializedForIsolate(i::Isolate* isolate,
                                                const char* location) {
+  if (IsDeadCheck(location)) return false;
   if (isolate != NULL) {
-    if (isolate->IsDefaultIsolate()) {
-      if (i::V8::IsRunning()) {
-        return true;
-      }
-      if (IsDeadCheck(location)) {
-        return false;
-      }
-    } else {
-      if (isolate->IsInitialized()) {
-        return true;
-      }
-    }
+    if (isolate->IsInitialized()) return true;
   }
   return ApiCheck(InitializeHelper(), location, "Error initializing V8");
 }
@@ -460,21 +456,21 @@ void V8::ClearWeak(i::Object** obj) {
 
 bool V8::IsGlobalNearDeath(i::Object** obj) {
   LOG_API("IsGlobalNearDeath");
-  if (!i::V8::IsRunning()) return false;
+  if (!i::Isolate::Current()->IsInitialized()) return false;
   return i::GlobalHandles::IsNearDeath(obj);
 }
 
 
 bool V8::IsGlobalWeak(i::Object** obj) {
   LOG_API("IsGlobalWeak");
-  if (!i::V8::IsRunning()) return false;
+  if (!i::Isolate::Current()->IsInitialized()) return false;
   return i::GlobalHandles::IsWeak(obj);
 }
 
 
 void V8::DisposeGlobal(i::Object** obj) {
   LOG_API("DisposeGlobal");
-  if (!i::V8::IsRunning()) return;
+  if (!i::Isolate::Current()->IsInitialized()) return;
   i::Isolate::Current()->global_handles()->Destroy(obj);
 }
 
@@ -551,7 +547,7 @@ void Context::Enter() {
 
 
 void Context::Exit() {
-  if (!i::V8::IsRunning()) return;
+  if (!i::Isolate::Current()->IsInitialized()) return;
   // TODO(isolates): Context should have a pointer to isolate.
   i::Isolate* isolate = i::Isolate::Current();
 
@@ -2352,6 +2348,11 @@ bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+
+  // When turning on access checks for a global object deoptimize all functions
+  // as optimized code does not always handle access checks.
+  i::Deoptimizer::DeoptimizeGlobalObject(*self);
+
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> obj = i::ForceDeleteProperty(self, key_obj);
   has_pending_exception = obj.is_null();
@@ -2637,6 +2638,10 @@ void v8::Object::TurnOnAccessCheck() {
   ENTER_V8;
   HandleScope scope;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+
+  // When turning on access checks for a global object deoptimize all functions
+  // as optimized code does not always handle access checks.
+  i::Deoptimizer::DeoptimizeGlobalObject(*obj);
 
   i::Handle<i::Map> new_map =
     FACTORY->CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
@@ -3241,10 +3246,9 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
 
 bool v8::V8::Initialize() {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
-  if (isolate != NULL && isolate->IsDefaultIsolate() && i::V8::IsRunning()) {
+  if (isolate != NULL && isolate->IsInitialized()) {
     return true;
   }
-  ENTER_V8;
   return InitializeHelper();
 }
 
@@ -3277,19 +3281,19 @@ void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
 bool v8::V8::IdleNotification() {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.
-  if (!i::V8::IsRunning()) return true;
+  if (!i::Isolate::Current()->IsInitialized()) return true;
   return i::V8::IdleNotification();
 }
 
 
 void v8::V8::LowMemoryNotification() {
-  if (!i::V8::IsRunning()) return;
+  if (!i::Isolate::Current()->IsInitialized()) return;
   HEAP->CollectAllGarbage(true);
 }
 
 
 int v8::V8::ContextDisposedNotification() {
-  if (!i::V8::IsRunning()) return 0;
+  if (!i::Isolate::Current()->IsInitialized()) return 0;
   return HEAP->NotifyContextDisposed();
 }
 
@@ -3370,6 +3374,7 @@ Persistent<Context> v8::Context::New(
       global_constructor->set_needs_access_check(
           proxy_constructor->needs_access_check());
     }
+    i::Isolate::Current()->runtime_profiler()->Reset();
   }
   // Leave V8.
 
@@ -4137,7 +4142,7 @@ int V8::GetCurrentThreadId() {
 
 
 void V8::TerminateExecution(int thread_id) {
-  if (!i::V8::IsRunning()) return;
+  if (!i::Isolate::Current()->IsInitialized()) return;
   API_ENTRY_CHECK("V8::GetCurrentThreadId()");
   i::Isolate* isolate = i::Isolate::Current();
   // If the thread_id identifies the current thread just terminate
@@ -4152,13 +4157,13 @@ void V8::TerminateExecution(int thread_id) {
 
 
 void V8::TerminateExecution() {
-  if (!i::V8::IsRunning()) return;
+  if (!i::Isolate::Current()->IsInitialized()) return;
   i::Isolate::Current()->stack_guard()->TerminateExecution();
 }
 
 
 bool V8::IsExecutionTerminating() {
-  if (!i::V8::IsRunning()) return false;
+  if (!i::Isolate::Current()->IsInitialized()) return false;
   if (i::Isolate::Current()->has_scheduled_exception()) {
     return i::Isolate::Current()->scheduled_exception() ==
         HEAP->termination_exception();
@@ -4419,7 +4424,7 @@ bool Debug::SetDebugEventListener(v8::Handle<v8::Object> that,
 
 
 void Debug::DebugBreak() {
-  if (!i::V8::IsRunning()) return;
+  if (!i::Isolate::Current()->IsInitialized()) return;
   i::Isolate::Current()->stack_guard()->DebugBreak();
 }
 
@@ -4430,7 +4435,7 @@ void Debug::CancelDebugBreak() {
 
 
 void Debug::DebugBreakForCommand(ClientData* data) {
-  if (!i::V8::IsRunning()) return;
+  if (!i::Isolate::Current()->IsInitialized()) return;
   i::Isolate::Current()->debugger()->EnqueueDebugCommand(data);
 }
 
@@ -4472,7 +4477,7 @@ void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
 
 void Debug::SendCommand(const uint16_t* command, int length,
                         ClientData* client_data) {
-  if (!i::V8::IsRunning()) return;
+  if (!i::Isolate::Current()->IsInitialized()) return;
   i::Isolate::Current()->debugger()->ProcessCommand(
       i::Vector<const uint16_t>(command, length), client_data);
 }
@@ -4497,7 +4502,7 @@ void Debug::SetDebugMessageDispatchHandler(
 
 Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
                          v8::Handle<v8::Value> data) {
-  if (!i::V8::IsRunning()) return Local<Value>();
+  if (!i::Isolate::Current()->IsInitialized()) return Local<Value>();
   ON_BAILOUT("v8::Debug::Call()", return Local<Value>());
   ENTER_V8;
   i::Handle<i::Object> result;
@@ -4518,7 +4523,7 @@ Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
 
 
 Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
-  if (!i::V8::IsRunning()) return Local<Value>();
+  if (!i::Isolate::Current()->IsInitialized()) return Local<Value>();
   ON_BAILOUT("v8::Debug::GetMirror()", return Local<Value>());
   ENTER_V8;
   v8::HandleScope scope;
@@ -4987,6 +4992,66 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
+
+
+v8::Testing::StressType internal::Testing::stress_type_ =
+    v8::Testing::kStressTypeOpt;
+
+
+void Testing::SetStressRunType(Testing::StressType type) {
+  internal::Testing::set_stress_type(type);
+}
+
+int Testing::GetStressRuns() {
+#ifdef DEBUG
+  // In debug mode the code runs much slower so stressing will only make two
+  // runs.
+  return 2;
+#else
+  return 5;
+#endif
+}
+
+
+static void SetFlagsFromString(const char* flags) {
+  V8::SetFlagsFromString(flags, i::StrLength(flags));
+}
+
+
+void Testing::PrepareStressRun(int run) {
+  static const char* kLazyOptimizations =
+      "--prepare-always-opt --nolimit-inlining "
+      "--noalways-opt --noopt-eagerly";
+  static const char* kEagerOptimizations = "--opt-eagerly";
+  static const char* kForcedOptimizations = "--always-opt";
+
+  // If deoptimization stressed turn on frequent deoptimization. If no value
+  // is spefified through --deopt-every-n-times use a default default value.
+  static const char* kDeoptEvery13Times = "--deopt-every-n-times=13";
+  if (internal::Testing::stress_type() == Testing::kStressTypeDeopt &&
+      internal::FLAG_deopt_every_n_times == 0) {
+    SetFlagsFromString(kDeoptEvery13Times);
+  }
+
+#ifdef DEBUG
+  // As stressing in debug mode only make two runs skip the deopt stressing
+  // here.
+  if (run == GetStressRuns() - 1) {
+    SetFlagsFromString(kForcedOptimizations);
+  } else {
+    SetFlagsFromString(kEagerOptimizations);
+    SetFlagsFromString(kLazyOptimizations);
+  }
+#else
+  if (run == GetStressRuns() - 1) {
+    SetFlagsFromString(kForcedOptimizations);
+  } else if (run == GetStressRuns() - 2) {
+    SetFlagsFromString(kEagerOptimizations);
+  } else {
+    SetFlagsFromString(kLazyOptimizations);
+  }
+#endif
+}
 
 
 namespace internal {

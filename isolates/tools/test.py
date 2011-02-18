@@ -361,7 +361,7 @@ class TestCase(object):
     full_command = self.context.processor(command)
     output = Execute(full_command,
                      self.context,
-                     self.context.GetTimeout(self.mode))
+                     self.context.GetTimeout(self, self.mode))
     self.Cleanup()
     return TestOutput(self,
                       full_command,
@@ -572,7 +572,7 @@ class TestSuite(object):
 
 # Use this to run several variants of the tests, e.g.:
 # VARIANT_FLAGS = [[], ['--always_compact', '--noflush_code']]
-VARIANT_FLAGS = [[]]
+VARIANT_FLAGS = [[], ['--stress-opt', '--always-opt'], ['--nocrankshaft']]
 
 
 class TestRepository(TestSuite):
@@ -676,8 +676,12 @@ class Context(object):
   def GetVmFlags(self, testcase, mode):
     return testcase.variant_flags + FLAGS[mode]
 
-  def GetTimeout(self, mode):
-    return self.timeout * TIMEOUT_SCALEFACTOR[mode]
+  def GetTimeout(self, testcase, mode):
+    result = self.timeout * TIMEOUT_SCALEFACTOR[mode]
+    if '--stress-opt' in self.GetVmFlags(testcase, mode):
+      return result * 2
+    else:
+      return result
 
 def RunTestCases(cases_to_run, progress, tasks):
   progress = PROGRESS_INDICATORS[progress](cases_to_run)
@@ -1166,12 +1170,18 @@ def BuildOptions():
         dest="suppress_dialogs", action="store_false")
   result.add_option("--shell", help="Path to V8 shell", default="shell")
   result.add_option("--isolates", help="Whether to test isolates", default=False, action="store_true")
-  result.add_option("--store-unexpected-output", 
+  result.add_option("--store-unexpected-output",
       help="Store the temporary JS files from tests that fails",
       dest="store_unexpected_output", default=True, action="store_true")
-  result.add_option("--no-store-unexpected-output", 
+  result.add_option("--no-store-unexpected-output",
       help="Deletes the temporary JS files from tests that fails",
       dest="store_unexpected_output", action="store_false")
+  result.add_option("--stress-only",
+                    help="Only run tests with --always-opt --stress-opt",
+                    default=False, action="store_true")
+  result.add_option("--nostress",
+                    help="Don't run crankshaft --always-opt --stress-op test",
+                    default=False, action="store_true")
   return result
 
 
@@ -1201,6 +1211,11 @@ def ProcessOptions(options):
     options.scons_flags.append("arch=" + options.arch)
   if options.snapshot:
     options.scons_flags.append("snapshot=on")
+  global VARIANT_FLAGS
+  if options.stress_only:
+    VARIANT_FLAGS = [['--stress-opt', '--always-opt']]
+  if options.nostress:
+    VARIANT_FLAGS = [[],['--nocrankshaft']]
   return True
 
 

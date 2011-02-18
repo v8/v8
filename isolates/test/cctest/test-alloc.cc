@@ -134,7 +134,7 @@ TEST(StressJS) {
   // Force the creation of an initial map and set the code to
   // something empty.
   FACTORY->NewJSObject(function);
-  function->set_code(Isolate::Current()->builtins()->builtin(
+  function->ReplaceCode(Isolate::Current()->builtins()->builtin(
       Builtins::EmptyFunction));
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map());

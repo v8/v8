@@ -28,8 +28,10 @@
 #ifndef V8_ISOLATE_H_
 #define V8_ISOLATE_H_
 
+#include "../include/v8-debug.h"
 #include "allocation.h"
 #include "apiutils.h"
+#include "atomicops.h"
 #include "builtins.h"
 #include "contexts.h"
 #include "execution.h"
@@ -38,9 +40,9 @@
 #include "handles.h"
 #include "heap.h"
 #include "regexp-stack.h"
+#include "runtime-profiler.h"
 #include "runtime.h"
 #include "zone.h"
-#include "../include/v8-debug.h"
 
 
 #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
@@ -59,13 +61,14 @@ namespace internal {
 class AstSentinels;
 class Bootstrapper;
 class CodeGenerator;
+class CodeRange;
 class CompilationCache;
 class ContextSlotCache;
 class ContextSwitcher;
-class CodeRange;
 class Counters;
 class CpuFeatures;
 class CpuProfiler;
+class DeoptimizerData;
 class Deserializer;
 class EmptyStatement;
 class ExternalReferenceTable;
@@ -75,17 +78,18 @@ class HandleScopeImplementer;
 class HeapProfiler;
 class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
+class PcToCodeCache;
 class PreallocatedMemoryThread;
 class ProducerHeapProfile;
 class RegExpStack;
 class SaveContext;
-class StubCache;
+class ScannerConstants;
 class StringInputBuffer;
 class StringTracker;
-class ScannerConstants;
-class ThreadVisitor;  // Defined in v8threads.h
+class StubCache;
 class ThreadManager;
 class ThreadState;
+class ThreadVisitor;  // Defined in v8threads.h
 class VMState;
 
 typedef void* ExternalReferenceRedirector(void* original, bool fp_return);
@@ -195,10 +199,11 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   Address js_entry_sp_;  // the stack pointer of the bottom js entry frame
+  Address external_callback_;  // the external callback we're currently in
 #endif
 
 #ifdef ENABLE_VMSTATE_TRACKING
-  VMState* current_vm_state_;
+  StateTag current_vm_state_;
 #endif
 
   // Generated code scratch locations.
@@ -215,7 +220,9 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #define ISOLATE_PLATFORM_INIT_LIST(V)                                          \
   /* VirtualFrame::SpilledScope state */                                       \
-  V(bool, is_virtual_frame_in_spilled_scope, false)
+  V(bool, is_virtual_frame_in_spilled_scope, false)                            \
+  /* CodeGenerator::EmitNamedStore state */                                    \
+  V(int, inlined_write_barrier_size, -1)
 
 #if !defined(__arm__)
 class HashMap;
@@ -302,6 +309,9 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   V(int*, irregexp_interpreter_backtrack_stack_cache, NULL)                    \
   /* Serializer state. */                                                      \
   V(ExternalReferenceTable*, external_reference_table, NULL)                   \
+  /* AstNode state. */                                                         \
+  V(unsigned, ast_node_id, 0)                                                  \
+  V(unsigned, ast_node_count, 0)                                               \
   ISOLATE_PLATFORM_INIT_LIST(V)                                                \
   ISOLATE_LOGGING_INIT_LIST(V)                                                 \
   ISOLATE_DEBUGGER_INIT_LIST(V)
@@ -537,16 +547,6 @@ class Isolate {
   }
 #endif
 
-#ifdef ENABLE_VMSTATE_TRACKING
-  VMState* current_vm_state() {
-    return thread_local_top_.current_vm_state_;
-  }
-
-  void set_current_vm_state(VMState* state) {
-    thread_local_top_.current_vm_state_ = state;
-  }
-#endif
-
   // Generated code scratch locations.
   void* formal_count_address() { return &thread_local_top_.formal_count_; }
 
@@ -682,14 +682,19 @@ class Isolate {
 
   Bootstrapper* bootstrapper() { return bootstrapper_; }
   Counters* counters() { return counters_; }
+  // TODO(isolates): Having CPU features per isolate is probably too
+  // flexible. We only really need to have the set of currently
+  // enabled features for asserts in DEBUG builds.
   CpuFeatures* cpu_features() { return cpu_features_; }
   CodeRange* code_range() { return code_range_; }
+  RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
   Logger* logger() { return logger_; }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
   StatsTable* stats_table() { return stats_table_; }
   StubCache* stub_cache() { return stub_cache_; }
+  DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
 
   TranscendentalCache* transcendental_cache() const {
@@ -850,6 +855,36 @@ class Isolate {
 
   static const int kJSRegexpStaticOffsetsVectorSize = 50;
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  Address external_callback() {
+    return thread_local_top_.external_callback_;
+  }
+  void set_external_callback(Address callback) {
+    thread_local_top_.external_callback_ = callback;
+  }
+#endif
+
+#ifdef ENABLE_VMSTATE_TRACKING
+  StateTag current_vm_state() {
+    return thread_local_top_.current_vm_state_;
+  }
+
+  void SetCurrentVMState(StateTag state) {
+    if (RuntimeProfiler::IsEnabled()) {
+      if (state == JS) {
+        // JS or non-JS -> JS transition.
+        RuntimeProfiler::IsolateEnteredJS(this);
+      } else if (thread_local_top_.current_vm_state_ == JS) {
+        // JS -> non-JS transition.
+        ASSERT(RuntimeProfiler::IsSomeIsolateInJS());
+        RuntimeProfiler::IsolateExitedJS(this);
+      }
+    }
+    thread_local_top_.current_vm_state_ = state;
+  }
+#endif
+
+  void ResetEagerOptimizingData();
 
  private:
   Isolate();
@@ -964,6 +999,7 @@ class Isolate {
   NoAllocationStringAllocator* preallocated_message_space_;
 
   Bootstrapper* bootstrapper_;
+  RuntimeProfiler* runtime_profiler_;
   CompilationCache* compilation_cache_;
   Counters* counters_;
   CpuFeatures* cpu_features_;
@@ -974,6 +1010,7 @@ class Isolate {
   StackGuard stack_guard_;
   StatsTable* stats_table_;
   StubCache* stub_cache_;
+  DeoptimizerData* deoptimizer_data_;
   ThreadLocalTop thread_local_top_;
   bool capture_stack_trace_for_uncaught_exceptions_;
   int stack_trace_for_uncaught_exceptions_frame_limit_;
@@ -1046,6 +1083,7 @@ class Isolate {
   ISOLATE_INIT_ARRAY_LIST(GLOBAL_ARRAY_BACKING_STORE)
 #undef GLOBAL_ARRAY_BACKING_STORE
 
+  friend class ExecutionAccess;
   friend class IsolateInitializer;
   friend class v8::Isolate;
   friend class v8::Locker;
@@ -1126,8 +1164,20 @@ class AssertNoContextChange BASE_EMBEDDED {
 
 class ExecutionAccess BASE_EMBEDDED {
  public:
-  ExecutionAccess();
-  ~ExecutionAccess();
+  explicit ExecutionAccess(Isolate* isolate) : isolate_(isolate) {
+    Lock(isolate);
+  }
+  ~ExecutionAccess() { Unlock(isolate_); }
+
+  static void Lock(Isolate* isolate) { isolate->break_access_->Lock(); }
+  static void Unlock(Isolate* isolate) { isolate->break_access_->Unlock(); }
+
+  static bool TryLock(Isolate* isolate) {
+    return isolate->break_access_->TryLock();
+  }
+
+ private:
+  Isolate* isolate_;
 };
 
 

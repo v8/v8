@@ -35,10 +35,13 @@
 #include "platform.h"
 #include "simulator.h"
 #include "string-stream.h"
+#include "vm-state-inl.h"
+
+// TODO(isolates): move to isolate.cc. This stuff is kept here to
+// simplify merging.
 
 namespace v8 {
 namespace internal {
-
 
 v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
   return TRY_CATCH_FROM_ADDRESS(try_catch_handler_address());
@@ -56,10 +59,11 @@ void ThreadLocalTop::Initialize() {
 #endif
 #endif
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  js_entry_sp_ = 0;
+  js_entry_sp_ = NULL;
+  external_callback_ = NULL;
 #endif
 #ifdef ENABLE_VMSTATE_TRACKING
-  current_vm_state_ = NULL;
+  current_vm_state_ = EXTERNAL;
 #endif
   try_catch_handler_address_ = NULL;
   context_ = NULL;
@@ -203,79 +207,85 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
   StackTraceFrameIterator it;
   int frames_seen = 0;
   while (!it.done() && (frames_seen < limit)) {
-    // Create a JSObject to hold the information for the StackFrame.
-    Handle<JSObject> stackFrame = factory()->NewJSObject(object_function());
-
     JavaScriptFrame* frame = it.frame();
-    Handle<JSFunction> fun(JSFunction::cast(frame->function()));
-    Handle<Script> script(Script::cast(fun->shared()->script()));
 
-    if (options & StackTrace::kLineNumber) {
-      int script_line_offset = script->line_offset()->value();
-      int position = frame->LookupCode(this)->SourcePosition(frame->pc());
-      int line_number = GetScriptLineNumber(script, position);
-      // line_number is already shifted by the script_line_offset.
-      int relative_line_number = line_number - script_line_offset;
-      if (options & StackTrace::kColumnOffset && relative_line_number >= 0) {
-        Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
-        int start = (relative_line_number == 0) ? 0 :
-            Smi::cast(line_ends->get(relative_line_number - 1))->value() + 1;
-        int column_offset = position - start;
-        if (relative_line_number == 0) {
-          // For the case where the code is on the same line as the script tag.
-          column_offset += script->column_offset()->value();
+    List<FrameSummary> frames(3);  // Max 2 levels of inlining.
+    frame->Summarize(&frames);
+    for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
+      // Create a JSObject to hold the information for the StackFrame.
+      Handle<JSObject> stackFrame = factory()->NewJSObject(object_function());
+
+      Handle<JSFunction> fun = frames[i].function();
+      Handle<Script> script(Script::cast(fun->shared()->script()));
+
+      if (options & StackTrace::kLineNumber) {
+        int script_line_offset = script->line_offset()->value();
+        int position = frames[i].code()->SourcePosition(frames[i].pc());
+        int line_number = GetScriptLineNumber(script, position);
+        // line_number is already shifted by the script_line_offset.
+        int relative_line_number = line_number - script_line_offset;
+        if (options & StackTrace::kColumnOffset && relative_line_number >= 0) {
+          Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
+          int start = (relative_line_number == 0) ? 0 :
+              Smi::cast(line_ends->get(relative_line_number - 1))->value() + 1;
+          int column_offset = position - start;
+          if (relative_line_number == 0) {
+            // For the case where the code is on the same line as the script
+            // tag.
+            column_offset += script->column_offset()->value();
+          }
+          SetProperty(stackFrame, column_key,
+                      Handle<Smi>(Smi::FromInt(column_offset + 1), this), NONE);
         }
-        SetProperty(stackFrame, column_key,
-                    Handle<Smi>(Smi::FromInt(column_offset + 1)), NONE);
+        SetProperty(stackFrame, line_key,
+                    Handle<Smi>(Smi::FromInt(line_number + 1), this), NONE);
       }
-      SetProperty(stackFrame, line_key,
-                  Handle<Smi>(Smi::FromInt(line_number + 1)), NONE);
-    }
 
-    if (options & StackTrace::kScriptName) {
-      Handle<Object> script_name(script->name());
-      SetProperty(stackFrame, script_key, script_name, NONE);
-    }
-
-    if (options & StackTrace::kScriptNameOrSourceURL) {
-      Handle<Object> script_name(script->name());
-      Handle<JSValue> script_wrapper = GetScriptWrapper(script);
-      Handle<Object> property = GetProperty(script_wrapper,
-                                            name_or_source_url_key);
-      ASSERT(property->IsJSFunction());
-      Handle<JSFunction> method = Handle<JSFunction>::cast(property);
-      bool caught_exception;
-      Handle<Object> result = Execution::TryCall(method, script_wrapper, 0,
-                                                 NULL, &caught_exception);
-      if (caught_exception) {
-        result = factory()->undefined_value();
+      if (options & StackTrace::kScriptName) {
+        Handle<Object> script_name(script->name(), this);
+        SetProperty(stackFrame, script_key, script_name, NONE);
       }
-      SetProperty(stackFrame, script_name_or_source_url_key, result, NONE);
-    }
 
-    if (options & StackTrace::kFunctionName) {
-      Handle<Object> fun_name(fun->shared()->name());
-      if (fun_name->ToBoolean()->IsFalse()) {
-        fun_name = Handle<Object>(fun->shared()->inferred_name());
+      if (options & StackTrace::kScriptNameOrSourceURL) {
+        Handle<Object> script_name(script->name(), this);
+        Handle<JSValue> script_wrapper = GetScriptWrapper(script);
+        Handle<Object> property = GetProperty(script_wrapper,
+                                              name_or_source_url_key);
+        ASSERT(property->IsJSFunction());
+        Handle<JSFunction> method = Handle<JSFunction>::cast(property);
+        bool caught_exception;
+        Handle<Object> result = Execution::TryCall(method, script_wrapper, 0,
+                                                   NULL, &caught_exception);
+        if (caught_exception) {
+          result = factory()->undefined_value();
+        }
+        SetProperty(stackFrame, script_name_or_source_url_key, result, NONE);
       }
-      SetProperty(stackFrame, function_key, fun_name, NONE);
-    }
 
-    if (options & StackTrace::kIsEval) {
-      int type = Smi::cast(script->compilation_type())->value();
-      Handle<Object> is_eval = (type == Script::COMPILATION_TYPE_EVAL) ?
-          factory()->true_value() : factory()->false_value();
-      SetProperty(stackFrame, eval_key, is_eval, NONE);
-    }
+      if (options & StackTrace::kFunctionName) {
+        Handle<Object> fun_name(fun->shared()->name(), this);
+        if (fun_name->ToBoolean()->IsFalse()) {
+          fun_name = Handle<Object>(fun->shared()->inferred_name(), this);
+        }
+        SetProperty(stackFrame, function_key, fun_name, NONE);
+      }
 
-    if (options & StackTrace::kIsConstructor) {
-      Handle<Object> is_constructor = (frame->IsConstructor()) ?
-          factory()->true_value() : factory()->false_value();
-      SetProperty(stackFrame, constructor_key, is_constructor, NONE);
-    }
+      if (options & StackTrace::kIsEval) {
+        int type = Smi::cast(script->compilation_type())->value();
+        Handle<Object> is_eval = (type == Script::COMPILATION_TYPE_EVAL) ?
+            factory()->true_value() : factory()->false_value();
+        SetProperty(stackFrame, eval_key, is_eval, NONE);
+      }
 
-    FixedArray::cast(stack_trace->elements())->set(frames_seen, *stackFrame);
-    frames_seen++;
+      if (options & StackTrace::kIsConstructor) {
+        Handle<Object> is_constructor = (frames[i].is_constructor()) ?
+            factory()->true_value() : factory()->false_value();
+        SetProperty(stackFrame, constructor_key, is_constructor, NONE);
+      }
+
+      FixedArray::cast(stack_trace->elements())->set(frames_seen, *stackFrame);
+      frames_seen++;
+    }
     it.Advance();
   }
 
@@ -890,6 +900,9 @@ Handle<Context> Isolate::GetCallingGlobalContext() {
 
 
 char* Isolate::ArchiveThread(char* to) {
+  if (RuntimeProfiler::IsEnabled() && current_vm_state() == JS) {
+    RuntimeProfiler::IsolateExitedJS(this);
+  }
   memcpy(to, reinterpret_cast<char*>(thread_local_top()),
          sizeof(ThreadLocalTop));
   InitializeThreadLocal();
@@ -909,18 +922,10 @@ char* Isolate::RestoreThread(char* from) {
   thread_local_top()->simulator_ = assembler::mips::Simulator::current(this);
 #endif
 #endif
+  if (RuntimeProfiler::IsEnabled() && current_vm_state() == JS) {
+    RuntimeProfiler::IsolateEnteredJS(this);
+  }
   return from + sizeof(ThreadLocalTop);
 }
-
-
-ExecutionAccess::ExecutionAccess() {
-  Isolate::Current()->break_access()->Lock();
-}
-
-
-ExecutionAccess::~ExecutionAccess() {
-  Isolate::Current()->break_access()->Unlock();
-}
-
 
 } }  // namespace v8::internal

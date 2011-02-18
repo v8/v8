@@ -29,6 +29,7 @@
 #define V8_VM_STATE_INL_H_
 
 #include "vm-state.h"
+#include "runtime-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -49,56 +50,33 @@ inline const char* StateToString(StateTag state) {
       return "COMPILER";
     case OTHER:
       return "OTHER";
+    case EXTERNAL:
+      return "EXTERNAL";
     default:
       UNREACHABLE();
       return NULL;
   }
 }
 
-VMState::VMState(Isolate* isolate, StateTag state)
-    : isolate_(isolate),
-      disabled_(true),
-      state_(OTHER),
-      external_callback_(NULL) {
-  ASSERT(isolate == Isolate::Current());
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!isolate_->logger()->is_logging() &&
-      !CpuProfiler::is_profiling(isolate_)) {
-    return;
-  }
-#endif
-
-  disabled_ = false;
-#if !defined(ENABLE_HEAP_PROTECTION)
-  // When not protecting the heap, there is no difference between
-  // EXTERNAL and OTHER.  As an optimization in that case, we will not
-  // perform EXTERNAL->OTHER transitions through the API.  We thus
-  // compress the two states into one.
-  if (state == EXTERNAL) state = OTHER;
-#endif
-  state_ = state;
-  // Save the previous state.
-  previous_ = isolate_->current_vm_state();
-  // Install the new state.
-  isolate_->set_current_vm_state(this);
-
+VMState::VMState(Isolate* isolate, StateTag tag)
+    : isolate_(isolate), previous_tag_(isolate->current_vm_state()) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
-    LOG(UncheckedStringEvent("Entering", StateToString(state_)));
-    if (previous_ != NULL) {
-      LOG(UncheckedStringEvent("From", StateToString(previous_->state_)));
-    }
+    LOG(UncheckedStringEvent("Entering", StateToString(tag)));
+    LOG(UncheckedStringEvent("From", StateToString(previous_tag_)));
   }
 #endif
+
+  isolate_->SetCurrentVMState(tag);
 
 #ifdef ENABLE_HEAP_PROTECTION
   if (FLAG_protect_heap) {
-    if (state_ == EXTERNAL) {
+    if (tag == EXTERNAL) {
       // We are leaving V8.
-      ASSERT((previous_ != NULL) && (previous_->state_ != EXTERNAL));
+      ASSERT(previous_tag_ != EXTERNAL);
       isolate_->heap()->Protect();
-    } else if ((previous_ == NULL) || (previous_->state_ == EXTERNAL)) {
+    } else if (previous_tag_ = EXTERNAL) {
       // We are entering V8.
       isolate_->heap()->Unprotect();
     }
@@ -108,34 +86,50 @@ VMState::VMState(Isolate* isolate, StateTag state)
 
 
 VMState::~VMState() {
-  ASSERT(isolate_ == Isolate::Current());
-  if (disabled_) return;
-  // Return to the previous state.
-  isolate_->set_current_vm_state(previous_);
-
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
-    LOG(UncheckedStringEvent("Leaving", StateToString(state_)));
-    if (previous_ != NULL) {
-      LOG(UncheckedStringEvent("To", StateToString(previous_->state_)));
-    }
+    LOG(UncheckedStringEvent("Leaving",
+                             StateToString(isolate_->current_vm_state())));
+    LOG(UncheckedStringEvent("To", StateToString(previous_tag_)));
   }
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 #ifdef ENABLE_HEAP_PROTECTION
+  StateTag tag = isolate_->current_vm_state();
+#endif
+
+  isolate_->SetCurrentVMState(previous_tag_);
+
+#ifdef ENABLE_HEAP_PROTECTION
   if (FLAG_protect_heap) {
-    if (state_ == EXTERNAL) {
+    if (tag == EXTERNAL) {
       // We are reentering V8.
-      ASSERT((previous_ != NULL) && (previous_->state_ != EXTERNAL));
+      ASSERT(previous_tag_ != EXTERNAL);
       isolate_->heap()->Unprotect();
-    } else if ((previous_ == NULL) || (previous_->state_ == EXTERNAL)) {
+    } else if (previous_tag_ == EXTERNAL) {
       // We are leaving V8.
       isolate_->heap()->Protect();
     }
   }
 #endif  // ENABLE_HEAP_PROTECTION
 }
+
 #endif  // ENABLE_VMSTATE_TRACKING
+
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+
+ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
+    : isolate_(isolate), previous_callback_(isolate->external_callback()) {
+  isolate_->set_external_callback(callback);
+}
+
+ExternalCallbackScope::~ExternalCallbackScope() {
+  isolate_->set_external_callback(previous_callback_);
+}
+
+#endif  // ENABLE_LOGGING_AND_PROFILING
+
 
 } }  // namespace v8::internal
 

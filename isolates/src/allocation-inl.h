@@ -34,38 +34,6 @@ namespace v8 {
 namespace internal {
 
 
-NativeAllocationChecker::NativeAllocationChecker(
-    NativeAllocationChecker::NativeAllocationAllowed allowed)
-    : allowed_(allowed) {
-#ifdef DEBUG
-  if (allowed == DISALLOW) {
-    Isolate* isolate = Isolate::Current();
-    isolate->set_allocation_disallowed(isolate->allocation_disallowed() + 1);
-  }
-#endif
-}
-
-
-NativeAllocationChecker::~NativeAllocationChecker() {
-#ifdef DEBUG
-  Isolate* isolate = Isolate::Current();
-  if (allowed_ == DISALLOW) {
-    isolate->set_allocation_disallowed(isolate->allocation_disallowed() - 1);
-  }
-  ASSERT(isolate->allocation_disallowed() >= 0);
-#endif
-}
-
-
-bool NativeAllocationChecker::allocation_allowed() {
-#ifdef DEBUG
-  return Isolate::Current()->allocation_disallowed() == 0;
-#else
-  return true;
-#endif  // DEBUG
-}
-
-
 void* PreallocatedStorage::New(size_t size) {
   return Isolate::Current()->PreallocatedStorageNew(size);
 }

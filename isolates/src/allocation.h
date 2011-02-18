@@ -40,13 +40,18 @@ void FatalProcessOutOfMemory(const char* message);
 // the C++ heap only!
 class NativeAllocationChecker {
  public:
-  typedef enum { ALLOW, DISALLOW } NativeAllocationAllowed;
-  explicit inline NativeAllocationChecker(NativeAllocationAllowed allowed);
-  inline ~NativeAllocationChecker();
-  static inline bool allocation_allowed();
+  enum NativeAllocationAllowed { ALLOW, DISALLOW };
+#ifdef DEBUG
+  explicit NativeAllocationChecker(NativeAllocationAllowed allowed);
+  ~NativeAllocationChecker();
+  static bool allocation_allowed();
  private:
   // This flag applies to this particular instance.
   NativeAllocationAllowed allowed_;
+#else
+  explicit inline NativeAllocationChecker(NativeAllocationAllowed allowed) {}
+  static inline bool allocation_allowed() { return true; }
+#endif
 };
 
 

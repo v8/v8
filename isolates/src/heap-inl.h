@@ -429,7 +429,7 @@ Isolate* Heap::isolate() {
     }                                                                     \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
     ISOLATE->heap()->CollectGarbage(Failure::cast(__maybe_object__)->     \
-                             allocation_space());                         \
+                                    allocation_space());                  \
     __maybe_object__ = FUNCTION_CALL;                                     \
     if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
     if (__maybe_object__->IsOutOfMemory()) {                              \

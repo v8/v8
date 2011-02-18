@@ -33,8 +33,10 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
+#include "runtime-profiler.h"
 #include "simulator.h"
 #include "v8threads.h"
+#include "vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -244,14 +246,14 @@ Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
 
 
 bool StackGuard::IsStackOverflow() {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   return (thread_local_.jslimit_ != kInterruptLimit &&
           thread_local_.climit_ != kInterruptLimit);
 }
 
 
 void StackGuard::EnableInterrupts() {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   if (has_pending_interrupts(access)) {
     set_interrupt_limits(access);
   }
@@ -259,7 +261,7 @@ void StackGuard::EnableInterrupts() {
 
 
 void StackGuard::SetStackLimit(uintptr_t limit) {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   // If the current limits are special (eg due to a pending interrupt) then
   // leave them alone.
   uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(limit);
@@ -275,73 +277,92 @@ void StackGuard::SetStackLimit(uintptr_t limit) {
 
 
 void StackGuard::DisableInterrupts() {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   reset_limits(access);
 }
 
 
 bool StackGuard::IsInterrupted() {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   return thread_local_.interrupt_flags_ & INTERRUPT;
 }
 
 
 void StackGuard::Interrupt() {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   thread_local_.interrupt_flags_ |= INTERRUPT;
   set_interrupt_limits(access);
 }
 
 
 bool StackGuard::IsPreempted() {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   return thread_local_.interrupt_flags_ & PREEMPT;
 }
 
 
 void StackGuard::Preempt() {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   thread_local_.interrupt_flags_ |= PREEMPT;
   set_interrupt_limits(access);
 }
 
 
 bool StackGuard::IsTerminateExecution() {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   return thread_local_.interrupt_flags_ & TERMINATE;
 }
 
 
 void StackGuard::TerminateExecution() {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   thread_local_.interrupt_flags_ |= TERMINATE;
   set_interrupt_limits(access);
 }
 
 
+bool StackGuard::IsRuntimeProfilerTick() {
+  ExecutionAccess access(isolate_);
+  return thread_local_.interrupt_flags_ & RUNTIME_PROFILER_TICK;
+}
+
+
+void StackGuard::RequestRuntimeProfilerTick() {
+  // Ignore calls if we're not optimizing or if we can't get the lock.
+  if (FLAG_opt && ExecutionAccess::TryLock(isolate_)) {
+    thread_local_.interrupt_flags_ |= RUNTIME_PROFILER_TICK;
+    if (thread_local_.postpone_interrupts_nesting_ == 0) {
+      thread_local_.jslimit_ = thread_local_.climit_ = kInterruptLimit;
+      isolate_->heap()->SetStackLimits();
+    }
+    ExecutionAccess::Unlock(isolate_);
+  }
+}
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 bool StackGuard::IsDebugBreak() {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   return thread_local_.interrupt_flags_ & DEBUGBREAK;
 }
 
 
 void StackGuard::DebugBreak() {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   thread_local_.interrupt_flags_ |= DEBUGBREAK;
   set_interrupt_limits(access);
 }
 
 
 bool StackGuard::IsDebugCommand() {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   return thread_local_.interrupt_flags_ & DEBUGCOMMAND;
 }
 
 
 void StackGuard::DebugCommand() {
   if (FLAG_debugger_auto_break) {
-    ExecutionAccess access;
+    ExecutionAccess access(isolate_);
     thread_local_.interrupt_flags_ |= DEBUGCOMMAND;
     set_interrupt_limits(access);
   }
@@ -349,7 +370,7 @@ void StackGuard::DebugCommand() {
 #endif
 
 void StackGuard::Continue(InterruptFlag after_what) {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   thread_local_.interrupt_flags_ &= ~static_cast<int>(after_what);
   if (!should_postpone_interrupts(access) && !has_pending_interrupts(access)) {
     reset_limits(access);
@@ -358,7 +379,7 @@ void StackGuard::Continue(InterruptFlag after_what) {
 
 
 char* StackGuard::ArchiveStackGuard(char* to) {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   memcpy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
   ThreadLocal blank;
 
@@ -375,7 +396,7 @@ char* StackGuard::ArchiveStackGuard(char* to) {
 
 
 char* StackGuard::RestoreStackGuard(char* from) {
-  ExecutionAccess access;
+  ExecutionAccess access(isolate_);
   memcpy(reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
   isolate_->heap()->SetStackLimits();
   return from + sizeof(ThreadLocal);
@@ -722,20 +743,26 @@ void Execution::ProcessDebugMesssages(bool debug_command_only) {
 
 MaybeObject* Execution::HandleStackGuardInterrupt() {
   Isolate* isolate = Isolate::Current();
+  StackGuard* stack_guard = isolate->stack_guard();
+  isolate->counters()->stack_interrupts()->Increment();
+  if (stack_guard->IsRuntimeProfilerTick()) {
+    isolate->counters()->runtime_profiler_ticks()->Increment();
+    stack_guard->Continue(RUNTIME_PROFILER_TICK);
+    isolate->runtime_profiler()->OptimizeNow();
+  }
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  if (isolate->stack_guard()->IsDebugBreak() ||
-      isolate->stack_guard()->IsDebugCommand()) {
+  if (stack_guard->IsDebugBreak() || stack_guard->IsDebugCommand()) {
     DebugBreakHelper();
   }
 #endif
-  if (isolate->stack_guard()->IsPreempted()) RuntimePreempt();
-  if (isolate->stack_guard()->IsTerminateExecution()) {
-    isolate->stack_guard()->Continue(TERMINATE);
+  if (stack_guard->IsPreempted()) RuntimePreempt();
+  if (stack_guard->IsTerminateExecution()) {
+    stack_guard->Continue(TERMINATE);
     return isolate->TerminateExecution();
   }
-  if (isolate->stack_guard()->IsInterrupted()) {
+  if (stack_guard->IsInterrupted()) {
     // interrupt
-    isolate->stack_guard()->Continue(INTERRUPT);
+    stack_guard->Continue(INTERRUPT);
     return isolate->StackOverflow();
   }
   return isolate->heap()->undefined_value();

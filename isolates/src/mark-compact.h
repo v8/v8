@@ -39,9 +39,10 @@ namespace internal {
 typedef bool (*IsAliveFunction)(HeapObject* obj, int* size, int* offset);
 
 // Forward declarations.
+class CodeFlusher;
 class GCTracer;
-class RootMarkingVisitor;
 class MarkingVisitor;
+class RootMarkingVisitor;
 
 
 // ----------------------------------------------------------------------------
@@ -190,8 +191,13 @@ class MarkCompactCollector {
 
   inline Heap* heap() const { return heap_; }
 
+  CodeFlusher* code_flusher() { return code_flusher_; }
+  inline bool is_code_flushing_enabled() const { return code_flusher_ != NULL; }
+  void EnableCodeFlushing(bool enable);
+
  private:
   MarkCompactCollector();
+  ~MarkCompactCollector();
 
 #ifdef DEBUG
   enum CollectorState {
@@ -487,6 +493,8 @@ class MarkCompactCollector {
 
   Heap* heap_;
   MarkingStack marking_stack_;
+  CodeFlusher* code_flusher_;
+
   friend class Heap;
   friend class OverflowedObjectsScanner;
 };

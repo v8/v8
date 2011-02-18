@@ -28,6 +28,7 @@
 #ifndef V8_SPACES_H_
 #define V8_SPACES_H_
 
+#include "atomicops.h"
 #include "list-inl.h"
 #include "log.h"
 
@@ -662,13 +663,23 @@ class MemoryAllocator {
   // 8K * 8K * 16 = 1G bytes.
 #ifdef V8_TARGET_ARCH_X64
   static const int kPagesPerChunk = 32;
+  // On 64 bit the chunk table consists of 4 levels of 4096-entry tables.
+  static const int kPagesPerChunkLog2 = 5;
+  static const int kChunkTableLevels = 4;
+  static const int kChunkTableBitsPerLevel = 12;
 #else
   static const int kPagesPerChunk = 16;
+  // On 32 bit the chunk table consists of 2 levels of 256-entry tables.
+  static const int kPagesPerChunkLog2 = 4;
+  static const int kChunkTableLevels = 2;
+  static const int kChunkTableBitsPerLevel = 8;
 #endif
-  static const int kChunkSize = kPagesPerChunk * Page::kPageSize;
 
  private:
   MemoryAllocator();
+
+  static const int kChunkSize = kPagesPerChunk * Page::kPageSize;
+  static const int kChunkSizeLog2 = kPagesPerChunkLog2 + kPageSizeBits;
 
   // Maximum space size in bytes.
   intptr_t capacity_;
@@ -1038,6 +1049,8 @@ class PagedSpace : public Space {
   // Checks whether an object/address is in this space.
   inline bool Contains(Address a);
   bool Contains(HeapObject* o) { return Contains(o->address()); }
+  // Never crashes even if a is not a valid pointer.
+  inline bool SafeContains(Address a);
 
   // Given an address occupied by a live object, return that object if it is
   // in this space, or Failure::Exception() if it is not. The implementation
@@ -2160,10 +2173,10 @@ class LargeObjectChunk {
   // Allocates a new LargeObjectChunk that contains a large object page
   // (Page::kPageSize aligned) that has at least size_in_bytes (for a large
   // object) bytes after the object area start of that page.
-  // The allocated chunk size is set in the output parameter chunk_size.
-  static LargeObjectChunk* New(int size_in_bytes,
-                               size_t* chunk_size,
-                               Executability executable);
+  static LargeObjectChunk* New(int size_in_bytes, Executability executable);
+
+  // Free the memory associated with the chunk.
+  inline void Free(Executability executable);
 
   // Interpret a raw address as a large object chunk.
   static LargeObjectChunk* FromAddress(Address address) {
@@ -2176,12 +2189,13 @@ class LargeObjectChunk {
   // Accessors for the fields of the chunk.
   LargeObjectChunk* next() { return next_; }
   void set_next(LargeObjectChunk* chunk) { next_ = chunk; }
-
   size_t size() { return size_ & ~Page::kPageFlagMask; }
-  void set_size(size_t size_in_bytes) { size_ = size_in_bytes; }
+
+  // Compute the start address in the chunk.
+  inline Address GetStartAddress();
 
   // Returns the object in this chunk.
-  inline HeapObject* GetObject();
+  HeapObject* GetObject() { return HeapObject::FromAddress(GetStartAddress()); }
 
   // Given a requested size returns the physical size of a chunk to be
   // allocated.
@@ -2198,7 +2212,7 @@ class LargeObjectChunk {
   // A pointer to the next large object chunk in the space or NULL.
   LargeObjectChunk* next_;
 
-  // The size of this chunk.
+  // The total size of this chunk.
   size_t size_;
 
  public:

@@ -140,6 +140,9 @@ class CompressionHelper;
 // original tags when writing to the log.
 
 
+class Sampler;
+
+
 class Logger {
  public:
 #define DECLARE_ENUM(enum_item, ignore1, ignore2) enum_item,
@@ -151,6 +154,11 @@ class Logger {
 
   // Acquires resources for logging if the right flags are set.
   bool Setup();
+
+  void EnsureTickerStarted();
+  void EnsureTickerStopped();
+
+  Sampler* sampler();
 
   // Frees resources acquired in Setup.
   void TearDown();
@@ -407,10 +415,43 @@ class Logger {
 };
 
 
+// Process wide registry of samplers.
+class SamplerRegistry : public AllStatic {
+ public:
+  enum State {
+    HAS_NO_SAMPLERS,
+    HAS_SAMPLERS,
+    HAS_CPU_PROFILING_SAMPLERS
+  };
+
+  typedef void (*VisitSampler)(Sampler*, void*);
+
+  static State GetState();
+
+  // Iterates over all active samplers keeping the internal lock held.
+  // Returns whether there are any active samplers.
+  static bool IterateActiveSamplers(VisitSampler func, void* param);
+
+  // Adds/Removes an active sampler.
+  static void AddActiveSampler(Sampler* sampler);
+  static void RemoveActiveSampler(Sampler* sampler);
+
+ private:
+  static bool ActiveSamplersExist() {
+    return active_samplers_ != NULL && !active_samplers_->is_empty();
+  }
+
+  static Mutex* mutex_;  // Protects the state below.
+  static List<Sampler*>* active_samplers_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SamplerRegistry);
+};
+
+
 // Class that extracts stack trace, used for profiling.
 class StackTracer : public AllStatic {
  public:
-  static void Trace(TickSample* sample);
+  static void Trace(Isolate* isolate, TickSample* sample);
 };
 
 } }  // namespace v8::internal

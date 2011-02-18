@@ -113,6 +113,8 @@ int signbit(double x);
 
 #endif  // __GNUC__
 
+#include "atomicops.h"
+
 namespace v8 {
 namespace internal {
 
@@ -436,17 +438,22 @@ class Mutex {
   // Unlocks the given mutex. The mutex is assumed to be locked and owned by
   // the calling thread on entrance.
   virtual int Unlock() = 0;
+
+  // Tries to lock the given mutex. Returns whether the mutex was
+  // successfully locked.
+  virtual bool TryLock() = 0;
 };
 
 
 // ----------------------------------------------------------------------------
-// ScopedLock
+// ScopedLock/ScopedUnlock
 //
-// Stack-allocated ScopedLocks provide block-scoped locking and unlocking
-// of a mutex.
+// Stack-allocated ScopedLocks/ScopedUnlocks provide block-scoped
+// locking and unlocking of a mutex.
 class ScopedLock {
  public:
   explicit ScopedLock(Mutex* mutex): mutex_(mutex) {
+    ASSERT(mutex_ != NULL);
     mutex_->Lock();
   }
   ~ScopedLock() {
@@ -557,8 +564,10 @@ class TickSample {
 class Sampler {
  public:
   // Initialize sampler.
-  Sampler(Isolate* isolate, int interval, bool profiling);
+  Sampler(Isolate* isolate, int interval);
   virtual ~Sampler();
+
+  int interval() const { return interval_; }
 
   // Performs stack sampling.
   void SampleStack(TickSample* sample) {
@@ -575,16 +584,12 @@ class Sampler {
   void Stop();
 
   // Is the sampler used for profiling?
-  bool IsProfiling() const { return profiling_; }
-
-  // Is the sampler running in sync with the JS thread? On platforms
-  // where the sampler is implemented with a thread that wakes up
-  // every now and then, having a synchronous sampler implies
-  // suspending/resuming the JS thread.
-  bool IsSynchronous() const { return synchronous_; }
+  bool IsProfiling() const { return NoBarrier_Load(&profiling_) > 0; }
+  void IncreaseProfilingDepth() { NoBarrier_AtomicIncrement(&profiling_, 1); }
+  void DecreaseProfilingDepth() { NoBarrier_AtomicIncrement(&profiling_, -1); }
 
   // Whether the sampler is running (that is, consumes resources).
-  bool IsActive() const { return active_; }
+  bool IsActive() const { return NoBarrier_Load(&active_); }
 
   Isolate* isolate() { return isolate_; }
 
@@ -594,22 +599,24 @@ class Sampler {
 
   class PlatformData;
 
+  PlatformData* platform_data() { return data_; }
+
  protected:
   virtual void DoSampleStack(TickSample* sample) = 0;
 
  private:
-  Isolate* isolate_;
-
+  void SetActive(bool value) { NoBarrier_Store(&active_, value); }
   void IncSamplesTaken() { if (++samples_taken_ < 0) samples_taken_ = 0; }
 
+  Isolate* isolate_;
   const int interval_;
-  const bool synchronous_;
-  const bool profiling_;
-  bool active_;
+  Atomic32 profiling_;
+  Atomic32 active_;
   PlatformData* data_;  // Platform specific data.
   int samples_taken_;  // Counts stack samples taken.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
+
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 

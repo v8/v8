@@ -32,6 +32,7 @@
 #include "bootstrapper.h"
 #include "builtins.h"
 #include "ic-inl.h"
+#include "vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1052,9 +1053,8 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
     {
       // Leaving JavaScript.
       VMState state(isolate, EXTERNAL);
-#ifdef ENABLE_LOGGING_AND_PROFILING
-      state.set_external_callback(v8::ToCData<Address>(callback_obj));
-#endif
+      ExternalCallbackScope call_scope(isolate,
+                                       v8::ToCData<Address>(callback_obj));
       value = callback(new_args);
     }
     if (value.IsEmpty()) {
@@ -1125,9 +1125,8 @@ BUILTIN(FastHandleApiCall) {
   {
     // Leaving JavaScript.
     VMState state(isolate, EXTERNAL);
-#ifdef ENABLE_LOGGING_AND_PROFILING
-    state.set_external_callback(v8::ToCData<Address>(callback_obj));
-#endif
+    ExternalCallbackScope call_scope(isolate,
+                                     v8::ToCData<Address>(callback_obj));
     v8::InvocationCallback callback =
         v8::ToCData<v8::InvocationCallback>(callback_obj);
 
@@ -1193,9 +1192,8 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
     {
       // Leaving JavaScript.
       VMState state(isolate, EXTERNAL);
-#ifdef ENABLE_LOGGING_AND_PROFILING
-      state.set_external_callback(v8::ToCData<Address>(callback_obj));
-#endif
+      ExternalCallbackScope call_scope(isolate,
+                                       v8::ToCData<Address>(callback_obj));
       value = callback(new_args);
     }
     if (value.IsEmpty()) {
@@ -1353,6 +1351,11 @@ static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
 
 static void Generate_StoreIC_ArrayLength(MacroAssembler* masm) {
   StoreIC::GenerateArrayLength(masm);
+}
+
+
+static void Generate_StoreIC_GlobalProxy(MacroAssembler* masm) {
+  StoreIC::GenerateGlobalProxy(masm);
 }
 
 
@@ -1641,5 +1644,6 @@ const char* Builtins::Lookup(byte* pc) {
   }
   return NULL;
 }
+
 
 } }  // namespace v8::internal

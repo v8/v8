@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -54,6 +54,12 @@ class Factory {
   Handle<StringDictionary> NewStringDictionary(int at_least_space_for);
 
   Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors);
+  Handle<DeoptimizationInputData> NewDeoptimizationInputData(
+      int deopt_entry_count,
+      PretenureFlag pretenure);
+  Handle<DeoptimizationOutputData> NewDeoptimizationOutputData(
+      int deopt_entry_count,
+      PretenureFlag pretenure);
 
   Handle<String> LookupSymbol(Vector<const char> str);
   Handle<String> LookupAsciiSymbol(const char* str) {
@@ -169,6 +175,9 @@ class Factory {
       ExternalArrayType array_type,
       void* external_pointer,
       PretenureFlag pretenure = NOT_TENURED);
+
+  Handle<JSGlobalPropertyCell> NewJSGlobalPropertyCell(
+      Handle<Object> value);
 
   Handle<Map> NewMap(InstanceType type, int instance_size);
 

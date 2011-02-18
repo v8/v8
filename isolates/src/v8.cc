@@ -27,15 +27,8 @@
 
 #include "v8.h"
 
-#include "bootstrapper.h"
-#include "debug.h"
 #include "isolate.h"
 #include "serialize.h"
-#include "simulator.h"
-#include "stub-cache.h"
-#include "heap-profiler.h"
-#include "oprofile-agent.h"
-#include "log.h"
 
 namespace v8 {
 namespace internal {
@@ -44,6 +37,7 @@ bool V8::is_running_ = false;
 bool V8::has_been_setup_ = false;
 bool V8::has_been_disposed_ = false;
 bool V8::has_fatal_error_ = false;
+bool V8::use_crankshaft_ = true;
 
 
 bool V8::Initialize(Deserializer* des) {
@@ -61,18 +55,19 @@ bool V8::Initialize(Deserializer* des) {
   ASSERT(i::Isolate::CurrentPerIsolateThreadData()->isolate() ==
          i::Isolate::Current());
 
-  Isolate* isolate = Isolate::Current();
-  if (isolate->IsDefaultIsolate()) {
-    if (has_been_disposed_ || has_fatal_error_) return false;
-    if (IsRunning()) return true;
+  if (IsDead()) return false;
 
-    is_running_ = true;
-    has_been_setup_ = true;
-    has_fatal_error_ = false;
-    has_been_disposed_ = false;
-  } else {
-    if (isolate->IsInitialized()) return true;
-  }
+  Isolate* isolate = Isolate::Current();
+  if (isolate->IsInitialized()) return true;
+
+  use_crankshaft_ = FLAG_crankshaft;
+  // Peephole optimization might interfere with deoptimization.
+  FLAG_peephole_optimization = !use_crankshaft_;
+
+  is_running_ = true;
+  has_been_setup_ = true;
+  has_fatal_error_ = false;
+  has_been_disposed_ = false;
 
   return isolate->Init(des);
 }

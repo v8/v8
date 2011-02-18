@@ -523,7 +523,8 @@ SAMPLE_FLAGS = {
       'CCFLAGS':      ['-O2']
     },
     'mode:debug': {
-      'CCFLAGS':      ['-g', '-O0']
+      'CCFLAGS':      ['-g', '-O0'],
+      'CPPDEFINES':   ['DEBUG']
     },
     'prof:oprofile': {
       'LIBPATH': ['/usr/lib32', '/usr/lib32/oprofile'],
@@ -578,13 +579,14 @@ SAMPLE_FLAGS = {
       'LINKFLAGS': ['/MACHINE:X64', '/STACK:2091752']
     },
     'mode:debug': {
-      'CCFLAGS':   ['/Od'],
-      'LINKFLAGS': ['/DEBUG'],
+      'CCFLAGS':    ['/Od'],
+      'LINKFLAGS':  ['/DEBUG'],
+      'CPPDEFINES': ['DEBUG'],
       'msvcrt:static': {
-        'CCFLAGS': ['/MTd']
+        'CCFLAGS':  ['/MTd']
       },
       'msvcrt:shared': {
-        'CCFLAGS': ['/MDd']
+        'CCFLAGS':  ['/MDd']
       }
     }
   }

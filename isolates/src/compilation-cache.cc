@@ -51,12 +51,19 @@ CompilationCache::CompilationCache()
       eval_global_(kEvalGlobalGenerations),
       eval_contextual_(kEvalContextualGenerations),
       reg_exp_(kRegExpGenerations),
-      enabled_(true) {
+      enabled_(true),
+      eager_optimizing_set_(NULL) {
   CompilationSubCache* subcaches[kSubCacheCount] =
     {&script_, &eval_global_, &eval_contextual_, &reg_exp_};
   for (int i = 0; i < kSubCacheCount; ++i) {
     subcaches_[i] = subcaches[i];
   }
+}
+
+
+CompilationCache::~CompilationCache() {
+  delete eager_optimizing_set_;
+  eager_optimizing_set_ = NULL;
 }
 
 
@@ -81,7 +88,6 @@ Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
   }
   return result;
 }
-
 
 void CompilationSubCache::Age() {
   // Age the generations implicitly killing off the oldest.
@@ -111,6 +117,18 @@ void CompilationSubCache::Iterate(ObjectVisitor* v) {
 
 void CompilationSubCache::Clear() {
   MemsetPointer(tables_, HEAP->undefined_value(), generations_);
+}
+
+
+void CompilationSubCache::Remove(Handle<SharedFunctionInfo> function_info) {
+  // Probe the script generation tables. Make sure not to leak handles
+  // into the caller's handle scope.
+  { HandleScope scope;
+    for (int generation = 0; generation < generations(); generation++) {
+      Handle<CompilationCacheTable> table = GetTable(generation);
+      table->Remove(*function_info);
+    }
+  }
 }
 
 
@@ -351,6 +369,15 @@ void CompilationCacheRegExp::Put(Handle<String> source,
 }
 
 
+void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
+  if (!IsEnabled()) return;
+
+  eval_global_.Remove(function_info);
+  eval_contextual_.Remove(function_info);
+  script_.Remove(function_info);
+}
+
+
 Handle<SharedFunctionInfo> CompilationCache::LookupScript(Handle<String> source,
                                                           Handle<Object> name,
                                                           int line_offset,
@@ -426,6 +453,47 @@ void CompilationCache::PutRegExp(Handle<String> source,
   }
 
   reg_exp_.Put(source, flags, data);
+}
+
+
+static bool SourceHashCompare(void* key1, void* key2) {
+  return key1 == key2;
+}
+
+
+HashMap* CompilationCache::EagerOptimizingSet() {
+  if (eager_optimizing_set_ == NULL) {
+    eager_optimizing_set_ = new HashMap(&SourceHashCompare);
+  }
+  return eager_optimizing_set_;
+}
+
+
+bool CompilationCache::ShouldOptimizeEagerly(Handle<JSFunction> function) {
+  if (FLAG_opt_eagerly) return true;
+  uint32_t hash = function->SourceHash();
+  void* key = reinterpret_cast<void*>(hash);
+  return EagerOptimizingSet()->Lookup(key, hash, false) != NULL;
+}
+
+
+void CompilationCache::MarkForEagerOptimizing(Handle<JSFunction> function) {
+  uint32_t hash = function->SourceHash();
+  void* key = reinterpret_cast<void*>(hash);
+  EagerOptimizingSet()->Lookup(key, hash, true);
+}
+
+
+void CompilationCache::MarkForLazyOptimizing(Handle<JSFunction> function) {
+  uint32_t hash = function->SourceHash();
+  void* key = reinterpret_cast<void*>(hash);
+  EagerOptimizingSet()->Remove(key, hash);
+}
+
+
+void CompilationCache::ResetEagerOptimizingData() {
+  HashMap* set = EagerOptimizingSet();
+  if (set->occupancy() > 0) set->Clear();
 }
 
 

@@ -31,6 +31,7 @@
 namespace v8 {
 namespace internal {
 
+class HashMap;
 
 // The compilation cache consists of several generational sub-caches which uses
 // this class as a base class. A sub-cache contains a compilation cache tables
@@ -70,6 +71,9 @@ class CompilationSubCache {
 
   // Clear this sub-cache evicting all its content.
   void Clear();
+
+  // Remove given shared function info from sub-cache.
+  void Remove(Handle<SharedFunctionInfo> function_info);
 
   // Number of generations in this sub-cache.
   inline int generations() { return generations_; }
@@ -211,8 +215,19 @@ class CompilationCache {
                  JSRegExp::Flags flags,
                  Handle<FixedArray> data);
 
+  // Support for eager optimization tracking.
+  bool ShouldOptimizeEagerly(Handle<JSFunction> function);
+  void MarkForEagerOptimizing(Handle<JSFunction> function);
+  void MarkForLazyOptimizing(Handle<JSFunction> function);
+
+  // Reset the eager optimization tracking data.
+  void ResetEagerOptimizingData();
+
   // Clear the cache - also used to initialize the cache at startup.
   void Clear();
+
+  // Remove given shared function info from all caches.
+  void Remove(Handle<SharedFunctionInfo> function_info);
 
   // GC support.
   void Iterate(ObjectVisitor* v);
@@ -229,6 +244,9 @@ class CompilationCache {
   void Disable();
  private:
   CompilationCache();
+  ~CompilationCache();
+
+  HashMap* EagerOptimizingSet();
 
   // The number of sub caches covering the different types to cache.
   static const int kSubCacheCount = 4;
@@ -241,6 +259,8 @@ class CompilationCache {
 
   // Current enable state of the compilation cache.
   bool enabled_;
+
+  HashMap* eager_optimizing_set_;
 
   bool IsEnabled() { return FLAG_compilation_cache && enabled_; }
 

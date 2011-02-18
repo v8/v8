@@ -52,6 +52,7 @@
 #include "v8.h"
 
 #include "platform.h"
+#include "vm-state-inl.h"
 
 
 // It seems there is a bug in some Solaris distributions (experienced in
@@ -604,11 +605,10 @@ class Sampler::PlatformData : public Malloced {
 };
 
 
-Sampler::Sampler(Isolate* isolate, int interval, bool profiling)
+Sampler::Sampler(Isolate* isolate, int interval)
     : isolate_(isolate),
       interval_(interval),
-      profiling_(profiling),
-      synchronous_(profiling),
+      profiling_(false),
       active_(false),
       samples_taken_(0) {
   data_ = new PlatformData();

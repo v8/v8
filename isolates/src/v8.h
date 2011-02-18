@@ -66,7 +66,6 @@
 #include "log-inl.h"
 #include "cpu-profiler-inl.h"
 #include "handles-inl.h"
-#include "vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -84,7 +83,10 @@ class V8 : public AllStatic {
   static bool Initialize(Deserializer* des);
   static void TearDown();
   static bool IsRunning() { return is_running_; }
+  static bool UseCrankshaft() { return use_crankshaft_; }
+  static void DisableCrankshaft() { use_crankshaft_ = false; }
   // To be dead you have to have lived
+  // TODO(isolates): move IsDead to Isolate.
   static bool IsDead() { return has_fatal_error_ || has_been_disposed_; }
   static void SetFatalError();
 
@@ -115,6 +117,8 @@ class V8 : public AllStatic {
   // True if engine has been shut down
   // (reset if engine is restarted)
   static bool has_been_disposed_;
+  // True if we are using the crankshaft optimizing compiler.
+  static bool use_crankshaft_;
 };
 
 } }  // namespace v8::internal

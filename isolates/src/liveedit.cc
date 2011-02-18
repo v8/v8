@@ -31,7 +31,9 @@
 #include "liveedit.h"
 
 #include "compiler.h"
+#include "compilation-cache.h"
 #include "debug.h"
+#include "deoptimizer.h"
 #include "global-handles.h"
 #include "memory.h"
 #include "oprofile-agent.h"
@@ -610,18 +612,18 @@ class FunctionInfoListener {
 
   void FunctionDone() {
     HandleScope scope;
-    Object* element =
-        result_->GetElementNoExceptionThrown(current_parent_index_);
-    FunctionInfoWrapper info = FunctionInfoWrapper::cast(element);
+    FunctionInfoWrapper info =
+        FunctionInfoWrapper::cast(
+            result_->GetElementNoExceptionThrown(current_parent_index_));
     current_parent_index_ = info.GetParentIndex();
   }
 
   // Saves only function code, because for a script function we
   // may never create a SharedFunctionInfo object.
   void FunctionCode(Handle<Code> function_code) {
-    Object* element =
-        result_->GetElementNoExceptionThrown(current_parent_index_);
-    FunctionInfoWrapper info = FunctionInfoWrapper::cast(element);
+    FunctionInfoWrapper info =
+        FunctionInfoWrapper::cast(
+            result_->GetElementNoExceptionThrown(current_parent_index_));
     info.SetFunctionCode(function_code, Handle<Object>(HEAP->null_value()));
   }
 
@@ -631,9 +633,9 @@ class FunctionInfoListener {
     if (!shared->IsSharedFunctionInfo()) {
       return;
     }
-    Object* element =
-        result_->GetElementNoExceptionThrown(current_parent_index_);
-    FunctionInfoWrapper info = FunctionInfoWrapper::cast(element);
+    FunctionInfoWrapper info =
+        FunctionInfoWrapper::cast(
+            result_->GetElementNoExceptionThrown(current_parent_index_));
     info.SetFunctionCode(Handle<Code>(shared->code()),
         Handle<Object>(shared->scope_info()));
     info.SetSharedFunctionInfo(shared);
@@ -832,6 +834,61 @@ static bool IsJSFunctionCode(Code* code) {
 }
 
 
+// Returns true if an instance of candidate were inlined into function's code.
+static bool IsInlined(JSFunction* function, SharedFunctionInfo* candidate) {
+  AssertNoAllocation no_gc;
+
+  if (function->code()->kind() != Code::OPTIMIZED_FUNCTION) return false;
+
+  DeoptimizationInputData* data =
+      DeoptimizationInputData::cast(function->code()->deoptimization_data());
+
+  if (data == HEAP->empty_fixed_array()) return false;
+
+  FixedArray* literals = data->LiteralArray();
+
+  int inlined_count = data->InlinedFunctionCount()->value();
+  for (int i = 0; i < inlined_count; ++i) {
+    JSFunction* inlined = JSFunction::cast(literals->get(i));
+    if (inlined->shared() == candidate) return true;
+  }
+
+  return false;
+}
+
+
+class DependentFunctionsDeoptimizingVisitor : public OptimizedFunctionVisitor {
+ public:
+  explicit DependentFunctionsDeoptimizingVisitor(
+      SharedFunctionInfo* function_info)
+      : function_info_(function_info) {}
+
+  virtual void EnterContext(Context* context) {
+  }
+
+  virtual void VisitFunction(JSFunction* function) {
+    if (function->shared() == function_info_ ||
+        IsInlined(function, function_info_)) {
+      Deoptimizer::DeoptimizeFunction(function);
+    }
+  }
+
+  virtual void LeaveContext(Context* context) {
+  }
+
+ private:
+  SharedFunctionInfo* function_info_;
+};
+
+
+static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
+  AssertNoAllocation no_allocation;
+
+  DependentFunctionsDeoptimizingVisitor visitor(function_info);
+  Deoptimizer::VisitAllOptimizedFunctions(&visitor);
+}
+
+
 MaybeObject* LiveEdit::ReplaceFunctionCode(
     Handle<JSArray> new_compile_info_array,
     Handle<JSArray> shared_info_array) {
@@ -869,17 +926,38 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
       Isolate::Current()->builtins()->builtin(
           Builtins::JSConstructStubGeneric));
 
+  DeoptimizeDependentFunctions(*shared_info);
+  Isolate::Current()->compilation_cache()->Remove(shared_info);
+
   return HEAP->undefined_value();
 }
 
 
-// TODO(635): Eval caches its scripts (same text -- same compiled info).
-// Make sure we clear such caches.
+MaybeObject* LiveEdit::FunctionSourceUpdated(
+    Handle<JSArray> shared_info_array) {
+  HandleScope scope;
+
+  if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
+    return Isolate::Current()->ThrowIllegalOperation();
+  }
+
+  SharedInfoWrapper shared_info_wrapper(shared_info_array);
+  Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
+
+  DeoptimizeDependentFunctions(*shared_info);
+  Isolate::Current()->compilation_cache()->Remove(shared_info);
+
+  return HEAP->undefined_value();
+}
+
+
 void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
                                  Handle<Object> script_handle) {
   Handle<SharedFunctionInfo> shared_info =
       Handle<SharedFunctionInfo>::cast(UnwrapJSValue(function_wrapper));
   shared_info->set_script(*script_handle);
+
+  Isolate::Current()->compilation_cache()->Remove(shared_info);
 }
 
 
@@ -1141,11 +1219,14 @@ void LiveEdit::ReplaceRefToNestedFunction(
 // Check an activation against list of functions. If there is a function
 // that matches, its status in result array is changed to status argument value.
 static bool CheckActivation(Handle<JSArray> shared_info_array,
-                            Handle<JSArray> result, StackFrame* frame,
+                            Handle<JSArray> result,
+                            StackFrame* frame,
                             LiveEdit::FunctionPatchabilityStatus status) {
-  if (!frame->is_java_script()) {
-    return false;
-  }
+  if (!frame->is_java_script()) return false;
+
+  Handle<JSFunction> function(
+      JSFunction::cast(JavaScriptFrame::cast(frame)->function()));
+
   int len = Smi::cast(shared_info_array->length())->value();
   for (int i = 0; i < len; i++) {
     JSValue* wrapper =
@@ -1153,7 +1234,7 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
     Handle<SharedFunctionInfo> shared(
         SharedFunctionInfo::cast(wrapper->value()));
 
-    if (frame->LookupCode(Isolate::Current()) == shared->code()) {
+    if (function->shared() == *shared || IsInlined(*function, *shared)) {
       SetElement(result, i, Handle<Smi>(Smi::FromInt(status)));
       return true;
     }

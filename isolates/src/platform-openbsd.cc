@@ -52,6 +52,7 @@
 #include "v8.h"
 
 #include "platform.h"
+#include "vm-state-inl.h"
 
 
 namespace v8 {
@@ -574,11 +575,10 @@ class Sampler::PlatformData : public Malloced {
 };
 
 
-Sampler::Sampler(Isolate* isolate, int interval, bool profiling)
+Sampler::Sampler(Isolate* isolate, int interval)
     : isolate_(isolate),
       interval_(interval),
-      profiling_(profiling),
-      synchronous_(profiling),
+      profiling_(false),
       active_(false),
       samples_taken_(0) {
   data_ = new PlatformData();
