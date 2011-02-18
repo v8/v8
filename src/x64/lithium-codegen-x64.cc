@@ -2387,7 +2387,7 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   if (instr->index()->IsConstantOperand()) {
     __ movzxwl(result,
                FieldOperand(string,
-                            SeqTwoByteString::kHeaderSize + 
+                            SeqTwoByteString::kHeaderSize +
                             (kUC16Size * const_index)));
   } else {
     __ movzxwl(result, FieldOperand(string,
