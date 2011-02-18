@@ -3690,6 +3690,8 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
       is_element) {
     // Normalize the elements to enable attributes on the property.
     if (js_object->IsJSGlobalProxy()) {
+      // We do not need to do access checks here since these has already
+      // been performed by the call to GetOwnProperty.
       Handle<Object> proto(js_object->GetPrototype());
       // If proxy is detached, ignore the assignment. Alternatively,
       // we could throw an exception.

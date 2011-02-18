@@ -5652,8 +5652,7 @@ TEST(AccessControl) {
 }
 
 
-// This is a regression test for issue 1154.
-TEST(AccessControlObjectKeys) {
+TEST(AccessControlES5) {
   v8::HandleScope handle_scope;
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
 
@@ -5677,7 +5676,29 @@ TEST(AccessControlObjectKeys) {
   v8::Handle<v8::Object> global1 = context1->Global();
   global1->Set(v8_str("other"), global0);
 
+  // Regression test for issue 1154.
   ExpectTrue("Object.keys(other).indexOf('blocked_prop') == -1");
+
+  ExpectUndefined("other.blocked_prop");
+
+  // Regression test for issue 1027.
+  CompileRun("Object.defineProperty(\n"
+             "  other, 'blocked_prop', {configurable: false})");
+  ExpectUndefined("other.blocked_prop");
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'blocked_prop')");
+
+  // Regression test for issue 1171.
+  ExpectTrue("Object.isExtensible(other)");
+  CompileRun("Object.preventExtensions(other)");
+  ExpectTrue("Object.isExtensible(other)");
+
+  // Object.seal and Object.freeze.
+  CompileRun("Object.freeze(other)");
+  ExpectTrue("Object.isExtensible(other)");
+
+  CompileRun("Object.seal(other)");
+  ExpectTrue("Object.isExtensible(other)");
 }
 
 

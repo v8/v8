@@ -2813,6 +2813,12 @@ bool JSObject::ReferencesObject(Object* obj) {
 
 
 MaybeObject* JSObject::PreventExtensions() {
+  if (IsAccessCheckNeeded() &&
+      !Top::MayNamedAccess(this, Heap::undefined_value(), v8::ACCESS_KEYS)) {
+    Top::ReportFailedAccessCheck(this, v8::ACCESS_KEYS);
+    return Heap::false_value();
+  }
+
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return this;
