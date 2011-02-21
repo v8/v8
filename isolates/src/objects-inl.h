@@ -2738,18 +2738,11 @@ Code* Code::GetCodeFromTargetAddress(Address address) {
 
 
 Heap* Map::heap() {
-  Heap* heap = reinterpret_cast<Heap*>(READ_INTPTR_FIELD(this, kHeapOffset));
+  // NOTE: address() helper is not used to save one instruction.
+  Heap* heap = Page::FromAddress(reinterpret_cast<Address>(this))->heap_;
   ASSERT(heap != NULL);
   ASSERT(heap->isolate() == Isolate::Current());
   return heap;
-}
-
-
-void Map::set_heap(Heap* heap) {
-  ASSERT(heap != NULL);
-  ASSERT(heap->isolate() == Isolate::Current());
-  // WRITE_FIELD does not invoke write barrier, but there is no need here.
-  WRITE_INTPTR_FIELD(this, kHeapOffset, reinterpret_cast<intptr_t>(heap));
 }
 
 

@@ -3557,9 +3557,8 @@ class Map: public HeapObject {
   inline int visitor_id();
   inline void set_visitor_id(int visitor_id);
 
-  // Meta map has a heap pointer for fast access to Heap and Isolate.
+  // Returns the heap this map belongs to.
   inline Heap* heap();
-  inline void set_heap(Heap* heap);
 
   typedef void (*TraverseCallback)(Map* map, void* data);
 
@@ -3568,8 +3567,7 @@ class Map: public HeapObject {
   static const int kMaxPreAllocatedPropertyFields = 255;
 
   // Layout description.
-  static const int kHeapOffset = HeapObject::kHeaderSize;
-  static const int kInstanceSizesOffset = kHeapOffset + kPointerSize;
+  static const int kInstanceSizesOffset = HeapObject::kHeaderSize;
   static const int kInstanceAttributesOffset = kInstanceSizesOffset + kIntSize;
   static const int kPrototypeOffset = kInstanceAttributesOffset + kIntSize;
   static const int kConstructorOffset = kPrototypeOffset + kPointerSize;

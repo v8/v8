@@ -3447,7 +3447,7 @@ class Internals {
   // These values match non-compiler-dependent values defined within
   // the implementation of v8.
   static const int kHeapObjectMapOffset = 0;
-  static const int kMapInstanceTypeOffset = 2 * kApiPointerSize + kApiIntSize;
+  static const int kMapInstanceTypeOffset = 1 * kApiPointerSize + kApiIntSize;
   static const int kStringResourceOffset =
       InternalConstants<kApiPointerSize>::kStringResourceOffset;
 

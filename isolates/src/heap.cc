@@ -1498,7 +1498,6 @@ MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
 
   // Map::cast cannot be used due to uninitialized map field.
   reinterpret_cast<Map*>(result)->set_map(raw_unchecked_meta_map());
-  reinterpret_cast<Map*>(result)->set_heap(this);
   reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
   reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
   reinterpret_cast<Map*>(result)->set_visitor_id(
@@ -1520,7 +1519,6 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
 
   Map* map = reinterpret_cast<Map*>(result);
   map->set_map(meta_map());
-  map->set_heap(this);
   map->set_instance_type(instance_type);
   map->set_visitor_id(
       StaticVisitorBase::GetVisitorId(instance_type, instance_size));
