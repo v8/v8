@@ -1446,15 +1446,17 @@ void MacroAssembler::Pushad() {
   // r15 is kSmiConstantRegister
   STATIC_ASSERT(11 == kNumSafepointSavedRegisters);
   // Use lea for symmetry with Popad.
-  lea(rsp, Operand(rsp,
-      -(kNumSafepointRegisters-kNumSafepointSavedRegisters) * kPointerSize));
+  int sp_delta =
+      (kNumSafepointRegisters - kNumSafepointSavedRegisters) * kPointerSize;
+  lea(rsp, Operand(rsp, -sp_delta));
 }
 
 
 void MacroAssembler::Popad() {
   // Popad must not change the flags, so use lea instead of addq.
-  lea(rsp, Operand(rsp,
-      (kNumSafepointRegisters-kNumSafepointSavedRegisters) * kPointerSize));
+  int sp_delta =
+      (kNumSafepointRegisters - kNumSafepointSavedRegisters) * kPointerSize;
+  lea(rsp, Operand(rsp, sp_delta));
   pop(r14);
   pop(r12);
   pop(r11);
@@ -1494,6 +1496,16 @@ int MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
     10,
     -1
 };
+
+
+void MacroAssembler::StoreToSafepointRegisterSlot(Register dst, Register src) {
+  movq(SafepointRegisterSlot(dst), src);
+}
+
+
+Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
+  return Operand(rsp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
+}
 
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,

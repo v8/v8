@@ -926,7 +926,7 @@ void LCodeGen::DoDeferredBinaryOpStub(LTemplateInstruction<1, 2, T>* instr,
                                          0,
                                          Safepoint::kNoDeoptimizationIndex);
   // Overwrite the stored value of r0 with the result of the stub.
-  __ StoreToSafepointRegistersAndDoublesSlot(r0);
+  __ StoreToSafepointRegistersAndDoublesSlot(r0, r0);
   __ PopSafepointRegistersAndDoubles();
 }
 
@@ -1940,7 +1940,7 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   __ bind(&before_push_delta);
   __ BlockConstPoolFor(kAdditionalDelta);
   __ mov(temp, Operand(delta * kPointerSize));
-  __ StoreToSafepointRegisterSlot(temp);
+  __ StoreToSafepointRegisterSlot(temp, temp);
   __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
   ASSERT_EQ(kAdditionalDelta,
             masm_->InstructionsGeneratedSince(&before_push_delta));
@@ -1948,7 +1948,7 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
       instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
   // Put the result value into the result register slot and
   // restore all registers.
-  __ StoreToSafepointRegisterSlot(result);
+  __ StoreToSafepointRegisterSlot(result, result);
 
   __ PopSafepointRegisters();
 }
@@ -2481,7 +2481,7 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
   // Set the pointer to the new heap number in tmp.
   if (!tmp1.is(r0)) __ mov(tmp1, Operand(r0));
   // Restore input_reg after call to runtime.
-  __ LoadFromSafepointRegisterSlot(input);
+  __ LoadFromSafepointRegisterSlot(input, input);
   __ ldr(exponent, FieldMemOperand(input, HeapNumber::kExponentOffset));
 
   __ bind(&allocated);
@@ -2492,7 +2492,7 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
   __ ldr(tmp2, FieldMemOperand(input, HeapNumber::kMantissaOffset));
   __ str(tmp2, FieldMemOperand(tmp1, HeapNumber::kMantissaOffset));
 
-  __ str(tmp1, masm()->SafepointRegisterSlot(input));
+  __ StoreToSafepointRegisterSlot(tmp1, input);
   __ PopSafepointRegisters();
 
   __ bind(&done);
@@ -2950,8 +2950,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
     __ AbortIfNotSmi(r0);
   }
   __ SmiUntag(r0);
-  MemOperand result_stack_slot = masm()->SafepointRegisterSlot(result);
-  __ str(r0, result_stack_slot);
+  __ StoreToSafepointRegisterSlot(r0, result);
   __ PopSafepointRegisters();
 }
 
@@ -3032,9 +3031,7 @@ void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   // register is stored, as this register is in the pointer map, but contains an
   // integer value.
   __ mov(ip, Operand(0));
-  int reg_stack_index = __ SafepointRegisterStackIndex(reg.code());
-  __ str(ip, MemOperand(sp, reg_stack_index * kPointerSize));
-
+  __ StoreToSafepointRegisterSlot(ip, reg);
   __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
   RecordSafepointWithRegisters(
       instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
@@ -3045,7 +3042,7 @@ void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   __ bind(&done);
   __ sub(ip, reg, Operand(kHeapObjectTag));
   __ vstr(dbl_scratch, ip, HeapNumber::kValueOffset);
-  __ str(reg, MemOperand(sp, reg_stack_index * kPointerSize));
+  __ StoreToSafepointRegisterSlot(reg, reg);
   __ PopSafepointRegisters();
 }
 
@@ -3090,8 +3087,7 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
   __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
   RecordSafepointWithRegisters(
       instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
-  int reg_stack_index = __ SafepointRegisterStackIndex(reg.code());
-  __ str(r0, MemOperand(sp, reg_stack_index * kPointerSize));
+  __ StoreToSafepointRegisterSlot(r0, reg);
   __ PopSafepointRegisters();
 }
 

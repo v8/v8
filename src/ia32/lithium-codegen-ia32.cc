@@ -1836,7 +1836,7 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   Label before_push_delta;
   __ bind(&before_push_delta);
   __ mov(temp, Immediate(delta));
-  __ mov(Operand(esp, EspIndexForPushAll(temp) * kPointerSize), temp);
+  __ StoreToSafepointRegisterSlot(temp, temp);
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ call(stub.GetCode(), RelocInfo::CODE_TARGET);
   ASSERT_EQ(kAdditionalDelta,
@@ -1844,8 +1844,7 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   RecordSafepointWithRegisters(
       instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
   // Put the result value into the eax slot and restore all registers.
-  __ mov(Operand(esp, EspIndexForPushAll(eax) * kPointerSize), eax);
-
+  __ StoreToSafepointRegisterSlot(eax, eax);
   __ PopSafepointRegisters();
 }
 
@@ -2360,7 +2359,7 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
   if (!tmp.is(eax)) __ mov(tmp, eax);
 
   // Restore input_reg after call to runtime.
-  __ mov(input_reg, Operand(esp, EspIndexForPushAll(input_reg) * kPointerSize));
+  __ LoadFromSafepointRegisterSlot(input_reg, input_reg);
 
   __ bind(&allocated);
   __ mov(tmp2, FieldOperand(input_reg, HeapNumber::kExponentOffset));
@@ -2368,7 +2367,7 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
   __ mov(FieldOperand(tmp, HeapNumber::kExponentOffset), tmp2);
   __ mov(tmp2, FieldOperand(input_reg, HeapNumber::kMantissaOffset));
   __ mov(FieldOperand(tmp, HeapNumber::kMantissaOffset), tmp2);
-  __ mov(Operand(esp, EspIndexForPushAll(input_reg) * kPointerSize), tmp);
+  __ StoreToSafepointRegisterSlot(input_reg, tmp);
 
   __ bind(&done);
   __ PopSafepointRegisters();
@@ -2923,7 +2922,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
     __ AbortIfNotSmi(eax);
   }
   __ SmiUntag(eax);
-  __ mov(Operand(esp, EspIndexForPushAll(result) * kPointerSize), eax);
+  __ StoreToSafepointRegisterSlot(result, eax);
   __ PopSafepointRegisters();
 }
 
@@ -2991,7 +2990,7 @@ void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   // TODO(3095996): Put a valid pointer value in the stack slot where the result
   // register is stored, as this register is in the pointer map, but contains an
   // integer value.
-  __ mov(Operand(esp, EspIndexForPushAll(reg) * kPointerSize), Immediate(0));
+  __ StoreToSafepointRegisterSlot(reg, Immediate(0));
 
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
@@ -3003,7 +3002,7 @@ void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   // number.
   __ bind(&done);
   __ movdbl(FieldOperand(reg, HeapNumber::kValueOffset), xmm0);
-  __ mov(Operand(esp, EspIndexForPushAll(reg) * kPointerSize), reg);
+  __ StoreToSafepointRegisterSlot(reg, reg);
   __ PopSafepointRegisters();
 }
 
@@ -3045,7 +3044,7 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
   __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
   RecordSafepointWithRegisters(
       instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
-  __ mov(Operand(esp, EspIndexForPushAll(reg) * kPointerSize), eax);
+  __ StoreToSafepointRegisterSlot(reg, eax);
   __ PopSafepointRegisters();
 }
 

@@ -3710,7 +3710,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
     // The offset was stored in r4 safepoint slot.
     // (See LCodeGen::DoDeferredLInstanceOfKnownGlobal)
-    __ ldr(scratch, MacroAssembler::SafepointRegisterSlot(r4));
+    __ LoadFromSafepointRegisterSlot(scratch, r4);
     __ sub(inline_site, lr, scratch);
     // Get the map location in scratch and patch it.
     __ GetRelocatedValueLocation(inline_site, scratch);

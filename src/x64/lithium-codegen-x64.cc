@@ -2620,8 +2620,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
     __ AbortIfNotSmi(rax);
   }
   __ SmiToInteger32(rax, rax);
-  __ movq(Operand(rsp, Register::ToRspIndexForPushAll(result) * kPointerSize),
-          rax);
+  __ StoreToSafepointRegisterSlot(result, rax);
   __ PopSafepointRegisters();
 }
 

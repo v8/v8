@@ -183,13 +183,6 @@ const XMMRegister xmm7 = { 7 };
 typedef XMMRegister DoubleRegister;
 
 
-// Index of register used in pusha/popa.
-// Order of pushed registers: eax, ecx, edx, ebx, esp, ebp, esi, and edi.
-inline int EspIndexForPushAll(Register reg) {
-  return Register::kNumRegisters - 1 - reg.code();
-}
-
-
 enum Condition {
   // any value < 0 is considered no_condition
   no_condition  = -1,

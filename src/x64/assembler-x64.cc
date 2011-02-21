@@ -200,11 +200,6 @@ const int Register::kAllocationIndexByRegisterCode[kNumRegisters] = {
 };
 
 
-const int Register::kRspIndexForPushAllByRegisterCode[kNumRegisters] = {
-  10, 9, 8, 7, -1, -1, 6, 5, 4, 3, -1, 2, 1, -1, 0, -1
-};
-
-
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 

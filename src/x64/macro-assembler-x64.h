@@ -171,10 +171,9 @@ class MacroAssembler: public Assembler {
   // Push and pop the registers that can hold pointers.
   void PushSafepointRegisters() { Pushad(); }
   void PopSafepointRegisters() { Popad(); }
-  static int SafepointRegisterStackIndex(int reg_code) {
-    return kNumSafepointRegisters - 1 -
-        kSafepointPushRegisterIndices[reg_code];
-  }
+  // Store the value in register src in the safepoint register stack
+  // slot for register dst.
+  void StoreToSafepointRegisterSlot(Register dst, Register src);
 
 
   // ---------------------------------------------------------------------------
@@ -1035,6 +1034,17 @@ class MacroAssembler: public Assembler {
   Object* PopHandleScopeHelper(Register saved,
                                Register scratch,
                                bool gc_allowed);
+
+
+  // Compute memory operands for safepoint stack slots.
+  Operand SafepointRegisterSlot(Register reg);
+  static int SafepointRegisterStackIndex(int reg_code) {
+    return kNumSafepointRegisters - kSafepointPushRegisterIndices[reg_code] - 1;
+  }
+
+  // Needs access to SafepointRegisterStackIndex for optimized frame
+  // traversal.
+  friend class OptimizedFrame;
 };
 
 

@@ -485,18 +485,19 @@ void MacroAssembler::PopSafepointRegistersAndDoubles() {
   PopSafepointRegisters();
 }
 
-void MacroAssembler::StoreToSafepointRegistersAndDoublesSlot(Register reg) {
-  str(reg, SafepointRegistersAndDoublesSlot(reg));
+void MacroAssembler::StoreToSafepointRegistersAndDoublesSlot(Register src,
+                                                             Register dst) {
+  str(src, SafepointRegistersAndDoublesSlot(dst));
 }
 
 
-void MacroAssembler::StoreToSafepointRegisterSlot(Register reg) {
-  str(reg, SafepointRegisterSlot(reg));
+void MacroAssembler::StoreToSafepointRegisterSlot(Register src, Register dst) {
+  str(src, SafepointRegisterSlot(dst));
 }
 
 
-void MacroAssembler::LoadFromSafepointRegisterSlot(Register reg) {
-  ldr(reg, SafepointRegisterSlot(reg));
+void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
+  ldr(dst, SafepointRegisterSlot(src));
 }
 
 
