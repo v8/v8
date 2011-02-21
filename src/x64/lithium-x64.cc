@@ -1318,8 +1318,32 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 
 
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
-  Abort("Unimplemented: %s", "DoMod");
-  return NULL;
+  if (instr->representation().IsInteger32()) {
+    ASSERT(instr->left()->representation().IsInteger32());
+    ASSERT(instr->right()->representation().IsInteger32());
+    // The temporary operand is necessary to ensure that right is not allocated
+    // into edx.
+    LOperand* temp = FixedTemp(rdx);
+    LOperand* value = UseFixed(instr->left(), rax);
+    LOperand* divisor = UseRegister(instr->right());
+    LModI* mod = new LModI(value, divisor, temp);
+    LInstruction* result = DefineFixed(mod, rdx);
+    return (instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
+            instr->CheckFlag(HValue::kCanBeDivByZero))
+        ? AssignEnvironment(result)
+        : result;
+  } else if (instr->representation().IsTagged()) {
+    return DoArithmeticT(Token::MOD, instr);
+  } else {
+    ASSERT(instr->representation().IsDouble());
+    // We call a C function for double modulo. It can't trigger a GC.
+    // We need to use fixed result register for the call.
+    // TODO(fschneider): Allow any register as input registers.
+    LOperand* left = UseFixedDouble(instr->left(), xmm1);
+    LOperand* right = UseFixedDouble(instr->right(), xmm2);
+    LArithmeticD* result = new LArithmeticD(Token::MOD, left, right);
+    return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
+  }
 }
 
 

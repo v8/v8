@@ -683,7 +683,42 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 
 
 void LCodeGen::DoModI(LModI* instr) {
-  Abort("Unimplemented: %s", "DoModI");
+  LOperand* right = instr->InputAt(1);
+  ASSERT(ToRegister(instr->result()).is(rdx));
+  ASSERT(ToRegister(instr->InputAt(0)).is(rax));
+  ASSERT(!ToRegister(instr->InputAt(1)).is(rax));
+  ASSERT(!ToRegister(instr->InputAt(1)).is(rdx));
+
+  Register right_reg = ToRegister(right);
+
+  // Check for x % 0.
+  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ testl(right_reg, right_reg);
+    DeoptimizeIf(zero, instr->environment());
+  }
+
+  // Sign extend eax to edx. (We are using only the low 32 bits of the values.)
+  __ cdq();
+
+  // Check for (0 % -x) that will produce negative zero.
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    NearLabel positive_left;
+    NearLabel done;
+    __ testl(rax, rax);
+    __ j(not_sign, &positive_left);
+    __ idivl(right_reg);
+
+    // Test the remainder for 0, because then the result would be -0.
+    __ testl(rdx, rdx);
+    __ j(not_zero, &done);
+
+    DeoptimizeIf(no_condition, instr->environment());
+    __ bind(&positive_left);
+    __ idivl(right_reg);
+    __ bind(&done);
+  } else {
+    __ idivl(right_reg);
+  }
 }
 
 
