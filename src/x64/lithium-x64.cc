@@ -1140,8 +1140,15 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
 
 
 LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
-  Abort("Unimplemented: %s", "DoApplyArguments");
-  return NULL;
+  LOperand* function = UseFixed(instr->function(), rdi);
+  LOperand* receiver = UseFixed(instr->receiver(), rax);
+  LOperand* length = UseFixed(instr->length(), rbx);
+  LOperand* elements = UseFixed(instr->elements(), rcx);
+  LApplyArguments* result = new LApplyArguments(function,
+                                                receiver,
+                                                length,
+                                                elements);
+  return MarkAsCall(DefineFixed(result, rax), instr, CAN_DEOPTIMIZE_EAGERLY);
 }
 
 
