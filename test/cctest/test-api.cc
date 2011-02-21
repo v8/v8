@@ -10883,6 +10883,53 @@ THREADED_TEST(PixelArrayInfo) {
 }
 
 
+static v8::Handle<Value> NotHandledIndexedPropertyGetter(
+    uint32_t index,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  return v8::Handle<Value>();
+}
+
+
+static v8::Handle<Value> NotHandledIndexedPropertySetter(
+    uint32_t index,
+    Local<Value> value,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  return v8::Handle<Value>();
+}
+
+
+THREADED_TEST(PixelArrayWithInterceptor) {
+  v8::HandleScope scope;
+  LocalContext context;
+  const int kElementCount = 260;
+  uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
+  i::Handle<i::PixelArray> pixels =
+      i::Factory::NewPixelArray(kElementCount, pixel_data);
+  for (int i = 0; i < kElementCount; i++) {
+    pixels->set(i, i % 256);
+  }
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(NotHandledIndexedPropertyGetter,
+                                   NotHandledIndexedPropertySetter);
+  v8::Handle<v8::Object> obj = templ->NewInstance();
+  obj->SetIndexedPropertiesToPixelData(pixel_data, kElementCount);
+  context->Global()->Set(v8_str("pixels"), obj);
+  v8::Handle<v8::Value> result = CompileRun("pixels[1]");
+  CHECK_EQ(1, result->Int32Value());
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = -i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(-28, result->Int32Value());
+  result = CompileRun("pixels.hasOwnProperty('1')");
+  CHECK(result->BooleanValue());
+  free(pixel_data);
+}
+
+
 static int ExternalArrayElementSize(v8::ExternalArrayType array_type) {
   switch (array_type) {
     case v8::kExternalByteArray:
