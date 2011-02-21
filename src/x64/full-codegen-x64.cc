@@ -3114,16 +3114,22 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::NOT: {
       Comment cmnt(masm_, "[ UnaryOperation (NOT)");
-      Label materialize_true, materialize_false;
-      Label* if_true = NULL;
-      Label* if_false = NULL;
-      Label* fall_through = NULL;
-      // Notice that the labels are swapped.
-      context()->PrepareTest(&materialize_true, &materialize_false,
-                             &if_false, &if_true, &fall_through);
-      if (context()->IsTest()) ForwardBailoutToChild(expr);
-      VisitForControl(expr->expression(), if_true, if_false, fall_through);
-      context()->Plug(if_false, if_true);  // Labels swapped.
+      if (context()->IsEffect()) {
+        // Unary NOT has no side effects so it's only necessary to visit the
+        // subexpression.  Match the optimizing compiler by not branching.
+        VisitForEffect(expr->expression());
+      } else {
+        Label materialize_true, materialize_false;
+        Label* if_true = NULL;
+        Label* if_false = NULL;
+        Label* fall_through = NULL;
+        // Notice that the labels are swapped.
+        context()->PrepareTest(&materialize_true, &materialize_false,
+                               &if_false, &if_true, &fall_through);
+        if (context()->IsTest()) ForwardBailoutToChild(expr);
+        VisitForControl(expr->expression(), if_true, if_false, fall_through);
+        context()->Plug(if_false, if_true);  // Labels swapped.
+      }
       break;
     }
 
