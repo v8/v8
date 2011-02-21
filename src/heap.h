@@ -1180,7 +1180,7 @@ class Heap : public AllStatic {
 
   static int mc_count_;  // how many mark-compact collections happened
   static int ms_count_;  // how many mark-sweep collections happened
-  static int gc_count_;  // how many gc happened
+  static unsigned int gc_count_;  // how many gc happened
 
   // Total length of the strings we failed to flatten since the last GC.
   static int unflattened_strings_length_;
@@ -1907,7 +1907,7 @@ class GCTracer BASE_EMBEDDED {
   void set_collector(GarbageCollector collector) { collector_ = collector; }
 
   // Sets the GC count.
-  void set_gc_count(int count) { gc_count_ = count; }
+  void set_gc_count(unsigned int count) { gc_count_ = count; }
 
   // Sets the full GC count.
   void set_full_gc_count(int count) { full_gc_count_ = count; }
@@ -1950,7 +1950,7 @@ class GCTracer BASE_EMBEDDED {
 
   // A count (including this one, eg, the first collection is 1) of the
   // number of garbage collections.
-  int gc_count_;
+  unsigned int gc_count_;
 
   // A count (including this one) of the number of full garbage collections.
   int full_gc_count_;
