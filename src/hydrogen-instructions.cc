@@ -928,7 +928,7 @@ void HPhi::AddInput(HValue* value) {
 }
 
 
-HValue* HPhi::GetRedundantReplacement() const {
+HValue* HPhi::GetRedundantReplacement() {
   HValue* candidate = NULL;
   int count = OperandCount();
   int position = 0;
