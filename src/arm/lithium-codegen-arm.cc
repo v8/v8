@@ -2609,6 +2609,30 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
 }
 
 
+void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  Register scratch1 = scratch0();
+  Register scratch2 = result;
+  EmitVFPTruncate(kRoundToNearest,
+                  double_scratch0().low(),
+                  input,
+                  scratch1,
+                  scratch2);
+  DeoptimizeIf(ne, instr->environment());
+  __ vmov(result, double_scratch0().low());
+
+  // Test for -0.
+  Label done;
+  __ cmp(result, Operand(0));
+  __ b(ne, &done);
+  __ vmov(scratch1, input.high());
+  __ tst(scratch1, Operand(HeapNumber::kSignMask));
+  DeoptimizeIf(ne, instr->environment());
+  __ bind(&done);
+}
+
+
 void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
   ASSERT(ToDoubleRegister(instr->result()).is(input));
@@ -2623,6 +2647,9 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
       break;
     case kMathFloor:
       DoMathFloor(instr);
+      break;
+    case kMathRound:
+      DoMathRound(instr);
       break;
     case kMathSqrt:
       DoMathSqrt(instr);

@@ -1204,8 +1204,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathSqrt:
       return DefineSameAsFirst(result);
     case kMathRound:
-      Abort("MathRound LUnaryMathOperation not implemented");
-      return NULL;
+      return AssignEnvironment(DefineAsRegister(result));
     case kMathPowHalf:
       Abort("MathPowHalf LUnaryMathOperation not implemented");
       return NULL;

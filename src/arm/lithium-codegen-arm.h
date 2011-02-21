@@ -212,6 +212,7 @@ class LCodeGen BASE_EMBEDDED {
                        Register scratch1,
                        Register scratch2);
   void DoMathFloor(LUnaryMathOperation* instr);
+  void DoMathRound(LUnaryMathOperation* instr);
   void DoMathSqrt(LUnaryMathOperation* instr);
 
   // Support for recording safepoint and position information.
