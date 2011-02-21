@@ -283,8 +283,8 @@ void Heap::RecordWrite(Address address, int offset) {
 
 void Heap::RecordWrites(Address address, int start, int len) {
   if (!InNewSpace(address)) {
-    for (int i = 0; i < len; i += kPointerSize) {
-      StoreBuffer::Mark(address + start + i);
+    for (int i = 0; i < len; i++) {
+      StoreBuffer::Mark(address + start + i * kPointerSize);
     }
   }
 }
