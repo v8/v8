@@ -196,8 +196,7 @@ class HSubgraph: public ZoneObject {
   explicit HSubgraph(HGraph* graph)
       : graph_(graph),
         entry_block_(NULL),
-        exit_block_(NULL),
-        break_continue_info_(4) {
+        exit_block_(NULL) {
   }
 
   HGraph* graph() const { return graph_; }
@@ -215,23 +214,24 @@ class HSubgraph: public ZoneObject {
                    HSubgraph* body,
                    IterationStatement* statement,
                    HSubgraph* continue_subgraph,
-                   HSubgraph* exit);
+                   HSubgraph* exit,
+                   HBasicBlock* break_block);
   void AppendDoWhile(HSubgraph* body,
                      IterationStatement* statement,
                      HSubgraph* go_back,
-                     HSubgraph* exit);
-  void AppendEndless(HSubgraph* body, IterationStatement* statement);
-  void Append(HSubgraph* next, BreakableStatement* statement);
-  void ResolveContinue(IterationStatement* statement);
-  HBasicBlock* BundleBreak(BreakableStatement* statement);
-  HBasicBlock* BundleContinue(IterationStatement* statement);
-  HBasicBlock* BundleBreakContinue(BreakableStatement* statement,
-                                   bool is_continue,
-                                   int join_id);
+                     HSubgraph* exit,
+                     HBasicBlock* break_block);
+  void AppendEndless(HSubgraph* body,
+                     IterationStatement* statement,
+                     HBasicBlock* break_block);
+  void Append(HSubgraph* next,
+              BreakableStatement* stmt,
+              HBasicBlock* break_block);
+  void ResolveContinue(IterationStatement* statement,
+                       HBasicBlock* continue_block);
   HBasicBlock* JoinBlocks(HBasicBlock* a, HBasicBlock* b, int id);
 
   void FinishExit(HControlInstruction* instruction);
-  void FinishBreakContinue(BreakableStatement* target, bool is_continue);
   void Initialize(HBasicBlock* block) {
     ASSERT(entry_block_ == NULL);
     entry_block_ = block;
@@ -249,38 +249,10 @@ class HSubgraph: public ZoneObject {
     }
   }
 
-  void AddBreakContinueInfo(HSubgraph* other) {
-    break_continue_info_.AddAll(other->break_continue_info_);
-  }
-
  protected:
-  class BreakContinueInfo: public ZoneObject {
-   public:
-    BreakContinueInfo(BreakableStatement* target, HBasicBlock* block,
-                      bool is_continue)
-      : target_(target), block_(block), continue_(is_continue) {}
-    BreakableStatement* target() const { return target_; }
-    HBasicBlock* block() const { return block_; }
-    bool is_continue() const { return continue_; }
-    bool IsResolved() const { return block_ == NULL; }
-    void Resolve() { block_ = NULL; }
-
-   private:
-    BreakableStatement* target_;
-    HBasicBlock* block_;
-    bool continue_;
-  };
-
-  const ZoneList<BreakContinueInfo*>* break_continue_info() const {
-    return &break_continue_info_;
-  }
-
   HGraph* graph_;  // The graph this is a subgraph of.
   HBasicBlock* entry_block_;
   HBasicBlock* exit_block_;
-
- private:
-  ZoneList<BreakContinueInfo*> break_continue_info_;
 };
 
 
@@ -618,6 +590,53 @@ class TestContext: public AstContext {
 
 class HGraphBuilder: public AstVisitor {
  public:
+  enum BreakType { BREAK, CONTINUE };
+
+  // A class encapsulating (lazily-allocated) break and continue blocks for
+  // a breakable statement.  Separated from BreakAndContinueScope so that it
+  // can have a separate lifetime.
+  class BreakAndContinueInfo BASE_EMBEDDED {
+   public:
+    explicit BreakAndContinueInfo(BreakableStatement* target)
+      : target_(target), break_block_(NULL), continue_block_(NULL) {
+    }
+
+    BreakableStatement* target() { return target_; }
+    HBasicBlock* break_block() { return break_block_; }
+    void set_break_block(HBasicBlock* block) { break_block_ = block; }
+    HBasicBlock* continue_block() { return continue_block_; }
+    void set_continue_block(HBasicBlock* block) { continue_block_ = block; }
+
+   private:
+    BreakableStatement* target_;
+    HBasicBlock* break_block_;
+    HBasicBlock* continue_block_;
+  };
+
+  // A helper class to maintain a stack of current BreakAndContinueInfo
+  // structures mirroring BreakableStatement nesting.
+  class BreakAndContinueScope BASE_EMBEDDED {
+   public:
+    BreakAndContinueScope(BreakAndContinueInfo* info, HGraphBuilder* owner)
+        : info_(info), owner_(owner), next_(owner->break_scope()) {
+      owner->set_break_scope(this);
+    }
+
+    ~BreakAndContinueScope() { owner_->set_break_scope(next_); }
+
+    BreakAndContinueInfo* info() { return info_; }
+    HGraphBuilder* owner() { return owner_; }
+    BreakAndContinueScope* next() { return next_; }
+
+    // Search the break stack for a break or continue target.
+    HBasicBlock* Get(BreakableStatement* stmt, BreakType type);
+
+   private:
+    BreakAndContinueInfo* info_;
+    HGraphBuilder* owner_;
+    BreakAndContinueScope* next_;
+  };
+
   explicit HGraphBuilder(TypeFeedbackOracle* oracle)
       : oracle_(oracle),
         graph_(NULL),
@@ -626,13 +645,17 @@ class HGraphBuilder: public AstVisitor {
         ast_context_(NULL),
         call_context_(NULL),
         function_return_(NULL),
-        inlined_count_(0) { }
+        inlined_count_(0),
+        break_scope_(NULL) {
+  }
 
   HGraph* CreateGraph(CompilationInfo* info);
 
   // Simple accessors.
   HGraph* graph() const { return graph_; }
   HSubgraph* subgraph() const { return current_subgraph_; }
+  BreakAndContinueScope* break_scope() const { return break_scope_; }
+  void set_break_scope(BreakAndContinueScope* head) { break_scope_ = head; }
 
   HEnvironment* environment() const { return subgraph()->environment(); }
   HBasicBlock* CurrentBlock() const { return subgraph()->exit_block(); }
@@ -682,7 +705,8 @@ class HGraphBuilder: public AstVisitor {
   void AppendPeeledWhile(IterationStatement* stmt,
                          HSubgraph* cond_graph,
                          HSubgraph* body_graph,
-                         HSubgraph* exit_graph);
+                         HSubgraph* exit_graph,
+                         HBasicBlock* break_block);
 
   void AddToSubgraph(HSubgraph* graph, ZoneList<Statement*>* stmts);
   void AddToSubgraph(HSubgraph* graph, Statement* stmt);
@@ -857,6 +881,8 @@ class HGraphBuilder: public AstVisitor {
   HBasicBlock* function_return_;
 
   int inlined_count_;
+
+  BreakAndContinueScope* break_scope_;
 
   friend class AstContext;  // Pushes and pops the AST context stack.
 
