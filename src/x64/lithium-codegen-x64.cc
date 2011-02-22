@@ -2869,7 +2869,42 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
 
 
 void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
-  Abort("Unimplemented: %s", "DoDoubleToI");
+  LOperand* input = instr->InputAt(0);
+  ASSERT(input->IsDoubleRegister());
+  LOperand* result = instr->result();
+  ASSERT(result->IsRegister());
+
+  XMMRegister input_reg = ToDoubleRegister(input);
+  Register result_reg = ToRegister(result);
+
+  if (instr->truncating()) {
+    // Performs a truncating conversion of a floating point number as used by
+    // the JS bitwise operations.
+    __ cvttsd2siq(result_reg, input_reg);
+    __ movq(kScratchRegister, V8_INT64_C(0x8000000000000000), RelocInfo::NONE);
+    __ cmpl(result_reg, kScratchRegister);
+      DeoptimizeIf(equal, instr->environment());
+  } else {
+    __ cvttsd2si(result_reg, input_reg);
+    __ cvtlsi2sd(xmm0, result_reg);
+    __ ucomisd(xmm0, input_reg);
+    DeoptimizeIf(not_equal, instr->environment());
+    DeoptimizeIf(parity_even, instr->environment());  // NaN.
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      NearLabel done;
+      // The integer converted back is equal to the original. We
+      // only have to test if we got -0 as an input.
+      __ testl(result_reg, result_reg);
+      __ j(not_zero, &done);
+      __ movmskpd(result_reg, input_reg);
+      // Bit 0 contains the sign of the double in input_reg.
+      // If input was positive, we are ok and return 0, otherwise
+      // deoptimize.
+      __ andl(result_reg, Immediate(1));
+      DeoptimizeIf(not_zero, instr->environment());
+      __ bind(&done);
+    }
+  }
 }
 
 

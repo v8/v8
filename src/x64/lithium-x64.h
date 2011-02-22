@@ -1405,11 +1405,10 @@ class LNumberTagD: public LTemplateInstruction<1, 1, 1> {
 
 
 // Sometimes truncating conversion from a tagged value to an int32.
-class LDoubleToI: public LTemplateInstruction<1, 1, 1> {
+class LDoubleToI: public LTemplateInstruction<1, 1, 0> {
  public:
-  LDoubleToI(LOperand* value, LOperand* temp) {
+  explicit LDoubleToI(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(DoubleToI, "double-to-i")
