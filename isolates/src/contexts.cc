@@ -76,8 +76,8 @@ void Context::set_global_proxy(JSObject* object) {
 
 Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
                                int* index_, PropertyAttributes* attributes) {
-  Heap* heap = GetHeap();
-  Handle<Context> context(this);
+  Isolate* isolate = GetIsolate();
+  Handle<Context> context(this, isolate);
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
   *index_ = -1;
@@ -98,7 +98,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
     // check extension/with object
     if (context->has_extension()) {
-      Handle<JSObject> extension = Handle<JSObject>(context->extension());
+      Handle<JSObject> extension = Handle<JSObject>(context->extension(),
+                                                    isolate);
       // Context extension objects needs to behave as if they have no
       // prototype.  So even if we want to follow prototype chains, we
       // need to only do a local lookup for context extension objects.
@@ -123,7 +124,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
       // check non-parameter locals in context
       Handle<SerializedScopeInfo> scope_info(
-          context->closure()->shared()->scope_info());
+          context->closure()->shared()->scope_info(), isolate);
       Variable::Mode mode;
       int index = scope_info->ContextSlotIndex(*name, &mode);
       ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
@@ -156,11 +157,12 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       int param_index = scope_info->ParameterIndex(*name);
       if (param_index >= 0) {
         // slot found.
-        int index =
-            scope_info->ContextSlotIndex(heap->arguments_shadow_symbol(), NULL);
+        int index = scope_info->ContextSlotIndex(
+            isolate->heap()->arguments_shadow_symbol(), NULL);
         ASSERT(index >= 0);  // arguments must exist and be in the heap context
-        Handle<JSObject> arguments(JSObject::cast(context->get(index)));
-        ASSERT(arguments->HasLocalProperty(heap->length_symbol()));
+        Handle<JSObject> arguments(JSObject::cast(context->get(index)),
+                                   isolate);
+        ASSERT(arguments->HasLocalProperty(isolate->heap()->length_symbol()));
         if (FLAG_trace_contexts) {
           PrintF("=> found parameter %d in arguments object\n", param_index);
         }
@@ -189,9 +191,10 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     if (context->IsGlobalContext()) {
       follow_context_chain = false;
     } else if (context->is_function_context()) {
-      context = Handle<Context>(Context::cast(context->closure()->context()));
+      context = Handle<Context>(Context::cast(context->closure()->context()),
+                                isolate);
     } else {
-      context = Handle<Context>(context->previous());
+      context = Handle<Context>(context->previous(), isolate);
     }
   } while (follow_context_chain);
 

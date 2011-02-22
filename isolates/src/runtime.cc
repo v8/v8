@@ -5444,7 +5444,7 @@ static MaybeObject* Runtime_StringToArray(RUNTIME_CALLING_CONVENTION) {
           isolate->heap()->AllocateUninitializedFixedArray(length);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
-    elements = Handle<FixedArray>(FixedArray::cast(obj));
+    elements = Handle<FixedArray>(FixedArray::cast(obj), isolate);
 
     Vector<const char> chars = s->ToAsciiVector();
     // Note, this will initialize all elements (not only the prefix)
@@ -7893,7 +7893,7 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(
   Handle<Object> receiver;  // Will be overwritten.
 
   // Compute the calling context.
-  Handle<Context> context = Handle<Context>(isolate->context());
+  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 #ifdef DEBUG
   // Make sure Isolate::context() agrees with the old code that traversed
   // the stack frames to compute the context.
@@ -7914,9 +7914,10 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(
     // reached.
     if (attributes != ABSENT || context->IsGlobalContext()) break;
     if (context->is_function_context()) {
-      context = Handle<Context>(Context::cast(context->closure()->context()));
+      context = Handle<Context>(Context::cast(context->closure()->context()),
+                                isolate);
     } else {
-      context = Handle<Context>(context->previous());
+      context = Handle<Context>(context->previous(), isolate);
     }
   }
 
@@ -7938,7 +7939,7 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(
       receiver = Handle<Object>(context->get(index), isolate);
     } else if (receiver->IsJSContextExtensionObject()) {
       receiver = Handle<JSObject>(
-          isolate->context()->global()->global_receiver());
+          isolate->context()->global()->global_receiver(), isolate);
     }
     return MakePair(*callee, *receiver);
   }
