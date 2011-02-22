@@ -114,7 +114,7 @@ class RuntimeProfiler {
   // the window might contain stale pointers. The window is updated on
   // scavenges and (parts of it) cleared on mark-sweep and
   // mark-sweep-compact.
-  JSFunction* sampler_window_[kSamplerWindowSize];
+  Object* sampler_window_[kSamplerWindowSize];
   int sampler_window_position_;
   int sampler_window_weight_[kSamplerWindowSize];
 

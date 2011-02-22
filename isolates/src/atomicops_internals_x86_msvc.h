@@ -30,6 +30,7 @@
 #ifndef V8_ATOMICOPS_INTERNALS_X86_MSVC_H_
 #define V8_ATOMICOPS_INTERNALS_X86_MSVC_H_
 
+#include "checks.h"
 #include "win32-headers.h"
 
 namespace v8 {

@@ -313,7 +313,7 @@ int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
   }
   ASSERT_EQ(0,
       static_cast<int>(addr - base->GetStartAddress()) % table_entry_size_);
-  return (addr - base->GetStartAddress()) / table_entry_size_;
+  return static_cast<int>(addr - base->GetStartAddress()) / table_entry_size_;
 }
 
 
@@ -414,7 +414,7 @@ void Deoptimizer::DoComputeOutputFrames() {
     PrintF("[deoptimizing: end 0x%08" V8PRIxPTR " ",
            reinterpret_cast<intptr_t>(function));
     function->PrintName();
-    PrintF(" => node=%u, pc=0x%08x, state=%s, took %0.3f ms]\n",
+    PrintF(" => node=%u, pc=0x%08" V8PRIxPTR ", state=%s, took %0.3f ms]\n",
            node_id,
            output_[index]->GetPc(),
            FullCodeGenerator::State2String(
@@ -484,13 +484,14 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
 
     case Translation::REGISTER: {
       int input_reg = iterator->Next();
-      uint32_t input_value = input_->GetRegister(input_reg);
+      intptr_t input_value = input_->GetRegister(input_reg);
       if (FLAG_trace_deopt) {
-        PrintF("    0x%08x: [top + %d] <- 0x%08x ; %s\n",
-               output_[frame_index]->GetTop() + output_offset,
-               output_offset,
-               input_value,
-               converter.NameOfCPURegister(input_reg));
+        PrintF(
+            "    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08" V8PRIxPTR " ; %s\n",
+            output_[frame_index]->GetTop() + output_offset,
+            output_offset,
+            input_value,
+            converter.NameOfCPURegister(input_reg));
       }
       output_[frame_index]->SetFrameSlot(output_offset, input_value);
       return;
@@ -498,25 +499,28 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
 
     case Translation::INT32_REGISTER: {
       int input_reg = iterator->Next();
-      uint32_t value = input_->GetRegister(input_reg);
+      intptr_t value = input_->GetRegister(input_reg);
       bool is_smi = Smi::IsValid(value);
       unsigned output_index = output_offset / kPointerSize;
       if (FLAG_trace_deopt) {
-        PrintF("    0x%08x: [top + %d] <- %d ; %s (%s)\n",
-               output_[frame_index]->GetTop() + output_offset,
-               output_offset,
-               value,
-               converter.NameOfCPURegister(input_reg),
-               is_smi ? "smi" : "heap number");
+        PrintF(
+            "    0x%08" V8PRIxPTR ": [top + %d] <- %" V8PRIdPTR " ; %s (%s)\n",
+            output_[frame_index]->GetTop() + output_offset,
+            output_offset,
+            value,
+            converter.NameOfCPURegister(input_reg),
+            is_smi ? "smi" : "heap number");
       }
       if (is_smi) {
         intptr_t tagged_value =
-            reinterpret_cast<intptr_t>(Smi::FromInt(value));
+            reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, tagged_value);
       } else {
         // We save the untagged value on the side and store a GC-safe
         // temporary placeholder in the frame.
-        AddInteger32Value(frame_index, output_index, value);
+        AddInteger32Value(frame_index,
+                          output_index,
+                          static_cast<int32_t>(value));
         output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
       }
       return;
@@ -527,7 +531,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       double value = input_->GetDoubleRegister(input_reg);
       unsigned output_index = output_offset / kPointerSize;
       if (FLAG_trace_deopt) {
-        PrintF("    0x%08x: [top + %d] <- %e ; %s\n",
+        PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- %e ; %s\n",
                output_[frame_index]->GetTop() + output_offset,
                output_offset,
                value,
@@ -544,10 +548,11 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       int input_slot_index = iterator->Next();
       unsigned input_offset =
           input_->GetOffsetFromSlotIndex(this, input_slot_index);
-      uint32_t input_value = input_->GetFrameSlot(input_offset);
+      intptr_t input_value = input_->GetFrameSlot(input_offset);
       if (FLAG_trace_deopt) {
-        PrintF("    0x%08x: [top + %d] <- 0x%08x ; [esp + %d]\n",
-               output_[frame_index]->GetTop() + output_offset,
+        PrintF("    0x%08" V8PRIxPTR ": ",
+               output_[frame_index]->GetTop() + output_offset);
+        PrintF("[top + %d] <- 0x%08" V8PRIxPTR " ; [esp + %d]\n",
                output_offset,
                input_value,
                input_offset);
@@ -560,12 +565,13 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       int input_slot_index = iterator->Next();
       unsigned input_offset =
           input_->GetOffsetFromSlotIndex(this, input_slot_index);
-      int32_t value = input_->GetFrameSlot(input_offset);
+      intptr_t value = input_->GetFrameSlot(input_offset);
       bool is_smi = Smi::IsValid(value);
       unsigned output_index = output_offset / kPointerSize;
       if (FLAG_trace_deopt) {
-        PrintF("    0x%08x: [top + %d] <- %d ; [esp + %d] (%s)\n",
-               output_[frame_index]->GetTop() + output_offset,
+        PrintF("    0x%08" V8PRIxPTR ": ",
+               output_[frame_index]->GetTop() + output_offset);
+        PrintF("[top + %d] <- %" V8PRIdPTR " ; [esp + %d] (%s)\n",
                output_offset,
                value,
                input_offset,
@@ -573,12 +579,14 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       }
       if (is_smi) {
         intptr_t tagged_value =
-            reinterpret_cast<intptr_t>(Smi::FromInt(value));
+            reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, tagged_value);
       } else {
         // We save the untagged value on the side and store a GC-safe
         // temporary placeholder in the frame.
-        AddInteger32Value(frame_index, output_index, value);
+        AddInteger32Value(frame_index,
+                          output_index,
+                          static_cast<int32_t>(value));
         output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
       }
       return;
@@ -591,7 +599,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       double value = input_->GetDoubleFrameSlot(input_offset);
       unsigned output_index = output_offset / kPointerSize;
       if (FLAG_trace_deopt) {
-        PrintF("    0x%08x: [top + %d] <- %e ; [esp + %d]\n",
+        PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- %e ; [esp + %d]\n",
                output_[frame_index]->GetTop() + output_offset,
                output_offset,
                value,
@@ -607,7 +615,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::LITERAL: {
       Object* literal = ComputeLiteral(iterator->Next());
       if (FLAG_trace_deopt) {
-        PrintF("    0x%08x: [top + %d] <- ",
+        PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- ",
                output_[frame_index]->GetTop() + output_offset,
                output_offset);
         literal->ShortPrint();
@@ -623,7 +631,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       // after the deoptimized frame is built.
       ASSERT(frame_index == 0);  // Only supported for first frame.
       if (FLAG_trace_deopt) {
-        PrintF("    0x%08x: [top + %d] <- ",
+        PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- ",
                output_[frame_index]->GetTop() + output_offset,
                output_offset);
         isolate_->heap()->the_hole_value()->ShortPrint();
@@ -645,7 +653,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
 
   // The input values are all part of the unoptimized frame so they
   // are all tagged pointers.
-  uint32_t input_value = input_->GetFrameSlot(*input_offset);
+  uintptr_t input_value = input_->GetFrameSlot(*input_offset);
   Object* input_object = reinterpret_cast<Object*>(input_value);
 
   Translation::Opcode opcode =
@@ -665,7 +673,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
      case Translation::REGISTER: {
        int output_reg = iterator->Next();
        if (FLAG_trace_osr) {
-         PrintF("    %s <- 0x%08x ; [esp + %d]\n",
+         PrintF("    %s <- 0x%08" V8PRIxPTR " ; [esp + %d]\n",
                 converter.NameOfCPURegister(output_reg),
                 input_value,
                 *input_offset);
@@ -722,7 +730,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
       unsigned output_offset =
           output->GetOffsetFromSlotIndex(this, output_index);
       if (FLAG_trace_osr) {
-        PrintF("    [esp + %d] <- 0x%08x ; [esp + %d]\n",
+        PrintF("    [esp + %d] <- 0x%08" V8PRIxPTR " ; [esp + %d]\n",
                output_offset,
                input_value,
                *input_offset);
@@ -971,13 +979,13 @@ unsigned FrameDescription::GetOffsetFromSlotIndex(Deoptimizer* deoptimizer,
   if (slot_index >= 0) {
     // Local or spill slots. Skip the fixed part of the frame
     // including all arguments.
-    unsigned base =
-        GetFrameSize() - deoptimizer->ComputeFixedSize(GetFunction());
+    unsigned base = static_cast<unsigned>(
+        GetFrameSize() - deoptimizer->ComputeFixedSize(GetFunction()));
     return base - ((slot_index + 1) * kPointerSize);
   } else {
     // Incoming parameter.
-    unsigned base = GetFrameSize() -
-        deoptimizer->ComputeIncomingArgumentSize(GetFunction());
+    unsigned base = static_cast<unsigned>(GetFrameSize() -
+        deoptimizer->ComputeIncomingArgumentSize(GetFunction()));
     return base - ((slot_index + 1) * kPointerSize);
   }
 }

@@ -75,6 +75,10 @@ test-api/OutOfMemoryNested: SKIP
 # BUG(355): Test crashes on ARM.
 test-log/ProfLazyMode: SKIP
 
+# BUG(945): Socket connect fails on ARM
+test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
+test-sockets/Socket: SKIP
+
 
 ##############################################################################
 [ $arch == mips ]

@@ -1164,7 +1164,7 @@ void HValueMap::Kill(int flags) {
 
 
 HValue* HValueMap::Lookup(HValue* value) const {
-  uint32_t hash = value->Hashcode();
+  uint32_t hash = static_cast<uint32_t>(value->Hashcode());
   uint32_t pos = Bound(hash);
   if (array_[pos].value != NULL) {
     if (array_[pos].value->Equals(value)) return array_[pos].value;
@@ -1252,7 +1252,7 @@ void HValueMap::Insert(HValue* value) {
   if (count_ >= array_size_ >> 1) Resize(array_size_ << 1);
   ASSERT(count_ < array_size_);
   count_++;
-  uint32_t pos = Bound(value->Hashcode());
+  uint32_t pos = Bound(static_cast<uint32_t>(value->Hashcode()));
   if (array_[pos].value == NULL) {
     array_[pos].value = value;
     array_[pos].next = kNil;
@@ -3977,17 +3977,27 @@ bool HGraphBuilder::TryInline(Call* expr) {
   if (body->HasExit()) {
     // Add a return of undefined if control can fall off the body.  In a
     // test context, undefined is false.
-    HValue* return_value = NULL;
-    HBasicBlock* target = NULL;
+    HValue* return_value = graph()->GetConstantUndefined();
     if (test_context == NULL) {
       ASSERT(function_return_ != NULL);
-      return_value = graph()->GetConstantUndefined();
-      target = function_return_;
+      body->exit_block()->AddLeaveInlined(return_value, function_return_);
     } else {
-      return_value = graph()->GetConstantFalse();
-      target = test_context->if_false();
+      // The graph builder assumes control can reach both branches of a
+      // test, so we materialize the undefined value and test it rather than
+      // simply jumping to the false target.
+      //
+      // TODO(3168478): refactor to avoid this.
+      HBasicBlock* materialize_true = graph()->CreateBasicBlock();
+      HBasicBlock* materialize_false = graph()->CreateBasicBlock();
+      HBranch* branch =
+          new HBranch(materialize_true, materialize_false, return_value);
+      body->exit_block()->Finish(branch);
+
+      materialize_true->AddLeaveInlined(graph()->GetConstantTrue(),
+                                        test_context->if_true());
+      materialize_false->AddLeaveInlined(graph()->GetConstantFalse(),
+                                         test_context->if_false());
     }
-    body->exit_block()->AddLeaveInlined(return_value, target);
     body->set_exit_block(NULL);
   }
 

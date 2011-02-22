@@ -226,7 +226,7 @@ void RuntimeProfiler::ClearSampleBufferNewSpaceEntries() {
 int RuntimeProfiler::LookupSample(JSFunction* function) {
   int weight = 0;
   for (int i = 0; i < kSamplerWindowSize; i++) {
-    JSFunction* sample = sampler_window_[i];
+    Object* sample = sampler_window_[i];
     if (sample != NULL) {
       if (function == sample) {
         weight += sampler_window_weight_[i];
@@ -353,7 +353,7 @@ void RuntimeProfiler::TearDown() {
 
 
 Object** RuntimeProfiler::SamplerWindowAddress() {
-  return reinterpret_cast<Object**>(sampler_window_);
+  return sampler_window_;
 }
 
 
