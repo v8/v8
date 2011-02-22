@@ -5436,7 +5436,8 @@ void HGraphBuilder::GenerateRegExpConstructResult(CallRuntime* call) {
   CHECK_BAILOUT;
   HContext* context = new HContext;
   AddInstruction(context);
-  HCallStub* result = new HCallStub(context, CodeStub::RegExpConstructResult, 3);
+  HCallStub* result =
+      new HCallStub(context, CodeStub::RegExpConstructResult, 3);
   Drop(3);
   ast_context()->ReturnInstruction(result, call->id());
 }
