@@ -973,6 +973,10 @@ class Assembler : public Malloced {
 
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
+  int relocation_writer_size() {
+    return (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  }
+
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;
   static const int kMinimalBufferSize = 4*KB;
