@@ -647,8 +647,7 @@ class HGraphBuilder: public AstVisitor {
 
  private:
   // Type of a member function that generates inline code for a native function.
-  typedef void (HGraphBuilder::*InlineFunctionGenerator)(int argument_count,
-                                                         int ast_id);
+  typedef void (HGraphBuilder::*InlineFunctionGenerator)(CallRuntime* call);
 
   // Forward declarations for inner scope classes.
   class SubgraphScope;
@@ -672,7 +671,7 @@ class HGraphBuilder: public AstVisitor {
 
   // Generators for inline runtime functions.
 #define INLINE_FUNCTION_GENERATOR_DECLARATION(Name, argc, ressize)      \
-  void Generate##Name(int argument_count, int ast_id);
+  void Generate##Name(CallRuntime* call);
 
   INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
   INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
@@ -699,9 +698,13 @@ class HGraphBuilder: public AstVisitor {
                        HBasicBlock* true_block,
                        HBasicBlock* false_block);
 
-  // Visit an argument subexpression.
+  // Visit an argument subexpression and emit a push to the outgoing
+  // arguments.
   void VisitArgument(Expression* expr);
   void VisitArgumentList(ZoneList<Expression*>* arguments);
+
+  // Visit a list of expressions from left to right, each in a value context.
+  void VisitExpressions(ZoneList<Expression*>* exprs);
 
   void AddPhi(HPhi* phi);
 

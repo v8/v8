@@ -1049,7 +1049,9 @@ class HLeaveInlined: public HInstruction {
 
 class HPushArgument: public HUnaryOperation {
  public:
-  explicit HPushArgument(HValue* value) : HUnaryOperation(value) { }
+  explicit HPushArgument(HValue* value) : HUnaryOperation(value) {
+    set_representation(Representation::Tagged());
+  }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
