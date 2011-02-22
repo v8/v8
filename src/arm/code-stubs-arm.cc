@@ -2958,10 +2958,10 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
 
 void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   ASSERT(op_ == Token::ADD);
+  Label left_not_string, call_runtime;
 
   Register left = r1;
   Register right = r0;
-  Label left_not_string, call_runtime;
 
   // Check if left argument is a string.
   __ JumpIfSmi(left, &left_not_string);
