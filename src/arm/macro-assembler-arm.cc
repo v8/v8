@@ -912,8 +912,8 @@ void MacroAssembler::IsInstanceJSObjectType(Register map,
 
 
 void MacroAssembler::IsObjectJSStringType(Register object,
-                                           Register scratch,
-                                           Label* fail) {
+                                          Register scratch,
+                                          Label* fail) {
   ASSERT(kNotStringTag != 0);
 
   ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
@@ -2195,6 +2195,18 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
   Assert(eq, "Operand is not smi");
+}
+
+
+void MacroAssembler::AbortIfNotString(Register object) {
+  STATIC_ASSERT(kSmiTag == 0);
+  tst(object, Operand(kSmiTagMask));
+  Assert(ne, "Operand is not a string");
+  push(object);
+  ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
+  CompareInstanceType(object, object, FIRST_NONSTRING_TYPE);
+  pop(object);
+  Assert(lo, "Operand is not a string");
 }
 
 

@@ -777,6 +777,9 @@ class MacroAssembler: public Assembler {
   void AbortIfSmi(Register object);
   void AbortIfNotSmi(Register object);
 
+  // Abort execution if argument is a string. Used in debug code.
+  void AbortIfNotString(Register object);
+
   // ---------------------------------------------------------------------------
   // HeapNumber utilities
 
