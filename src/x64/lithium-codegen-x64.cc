@@ -163,6 +163,45 @@ bool LCodeGen::GeneratePrologue() {
     }
   }
 
+  // Possibly allocate a local context.
+  int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  if (heap_slots > 0) {
+    Comment(";;; Allocate local context");
+    // Argument to NewContext is the function, which is still in rdi.
+    __ push(rdi);
+    if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+      FastNewContextStub stub(heap_slots);
+      __ CallStub(&stub);
+    } else {
+      __ CallRuntime(Runtime::kNewContext, 1);
+    }
+    RecordSafepoint(Safepoint::kNoDeoptimizationIndex);
+    // Context is returned in both rax and rsi.  It replaces the context
+    // passed to us.  It's saved in the stack and kept live in rsi.
+    __ movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
+
+    // Copy any necessary parameters into the context.
+    int num_parameters = scope()->num_parameters();
+    for (int i = 0; i < num_parameters; i++) {
+      Slot* slot = scope()->parameter(i)->AsSlot();
+      if (slot != NULL && slot->type() == Slot::CONTEXT) {
+        int parameter_offset = StandardFrameConstants::kCallerSPOffset +
+            (num_parameters - 1 - i) * kPointerSize;
+        // Load parameter from stack.
+        __ movq(rax, Operand(rbp, parameter_offset));
+        // Store it in the context.
+        int context_offset = Context::SlotOffset(slot->index());
+        __ movq(Operand(rsi, context_offset), rax);
+        // Update the write barrier. This clobbers all involved
+        // registers, so we have use a third register to avoid
+        // clobbering rsi.
+        __ movq(rcx, rsi);
+        __ RecordWrite(rcx, context_offset, rax, rbx);
+      }
+    }
+    Comment(";;; End allocate local context");
+  }
+
   // Trace the call.
   if (FLAG_trace) {
     __ CallRuntime(Runtime::kTraceEnter, 0);
@@ -567,6 +606,12 @@ void LCodeGen::RecordSafepoint(
 void LCodeGen::RecordSafepoint(LPointerMap* pointers,
                                int deoptimization_index) {
   RecordSafepoint(pointers, Safepoint::kSimple, 0, deoptimization_index);
+}
+
+
+void LCodeGen::RecordSafepoint(int deoptimization_index) {
+  LPointerMap empty_pointers(RelocInfo::kNoPosition);
+  RecordSafepoint(&empty_pointers, deoptimization_index);
 }
 
 

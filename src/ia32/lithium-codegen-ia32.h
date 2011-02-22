@@ -210,6 +210,7 @@ class LCodeGen BASE_EMBEDDED {
                        int arguments,
                        int deoptimization_index);
   void RecordSafepoint(LPointerMap* pointers, int deoptimization_index);
+  void RecordSafepoint(int deoptimization_index);
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     int deoptimization_index);
