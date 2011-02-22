@@ -291,6 +291,13 @@ CheckStrictMode("function strict() { var variable; delete variable; }",
                 SyntaxError);
 CheckStrictMode("var variable; delete variable;", SyntaxError);
 
+(function TestStrictDelete() {
+  "use strict";
+  // "delete this" is allowed in strict mode and should work.
+  function strict_delete() { delete this; }
+  strict_delete();
+})();
+
 // Prefix unary operators other than delete, ++, -- are valid in strict mode
 (function StrictModeUnaryOperators() {
   "use strict";
