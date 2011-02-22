@@ -297,7 +297,7 @@ void LLoadContextSlot::PrintDataTo(StringStream* stream) {
 
 
 void LCallKeyed::PrintDataTo(StringStream* stream) {
-  stream->Add("[ecx] #%d / ", arity());
+  stream->Add("[rcx] #%d / ", arity());
 }
 
 
@@ -1216,8 +1216,11 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoCallKeyed(HCallKeyed* instr) {
-  Abort("Unimplemented: %s", "DoCallKeyed");
-  return NULL;
+  ASSERT(instr->key()->representation().IsTagged());
+  LOperand* key = UseFixed(instr->key(), rcx);
+  argument_count_ -= instr->argument_count();
+  LCallKeyed* result = new LCallKeyed(key);
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 

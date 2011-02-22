@@ -1295,6 +1295,8 @@ class LCallKeyed: public LTemplateInstruction<1, 1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CallKeyed, "call-keyed")
   DECLARE_HYDROGEN_ACCESSOR(CallKeyed)
 
+  LOperand* key() { return inputs_[0]; }
+
   virtual void PrintDataTo(StringStream* stream);
 
   int arity() const { return hydrogen()->argument_count() - 1; }
