@@ -673,6 +673,9 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is a smi. Used in debug code.
   void AbortIfSmi(Register object);
 
+  // Abort execution if argument is a string. Used in debug code.
+  void AbortIfNotString(Register object);
+
   // ---------------------------------------------------------------------------
   // String utilities
 
