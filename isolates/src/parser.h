@@ -391,6 +391,8 @@ class RegExpParser {
     int disjunction_capture_index_;
   };
 
+  Isolate* isolate() { return isolate_; }
+
   uc32 current() { return current_; }
   bool has_more() { return has_more_; }
   bool has_next() { return next_pos_ < in()->length(); }
@@ -398,6 +400,7 @@ class RegExpParser {
   FlatStringReader* in() { return in_; }
   void ScanForCaptures();
 
+  Isolate* isolate_;
   Handle<String>* error_;
   ZoneList<RegExpCapture*>* captures_;
   FlatStringReader* in_;
@@ -439,6 +442,8 @@ class Parser {
     PARSE_LAZILY,
     PARSE_EAGERLY
   };
+
+  Isolate* isolate() { return isolate_; }
 
   // Report syntax error
   void ReportUnexpectedToken(Token::Value token);
@@ -558,7 +563,7 @@ class Parser {
     if (stack_overflow_) {
       return Token::ILLEGAL;
     }
-    if (StackLimitCheck(isolate_).HasOverflowed()) {
+    if (StackLimitCheck(isolate()).HasOverflowed()) {
       // Any further calls to Next or peek will return the illegal token.
       stack_overflow_ = true;
     }
@@ -707,8 +712,10 @@ class JsonParser BASE_EMBEDDED {
   }
 
  private:
-  JsonParser() { }
+  JsonParser() : isolate_(Isolate::Current()) { }
   ~JsonParser() { }
+
+  Isolate* isolate() { return isolate_; }
 
   // Parse a string containing a single JSON value.
   Handle<Object> ParseJson(Handle<String>);
@@ -736,6 +743,7 @@ class JsonParser BASE_EMBEDDED {
   // Converts the currently parsed literal to a JavaScript String.
   Handle<String> GetString();
 
+  Isolate* isolate_;
   JsonScanner scanner_;
   bool stack_overflow_;
 };

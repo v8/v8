@@ -310,7 +310,8 @@ TemporaryScope::TemporaryScope(TemporaryScope** variable)
   : materialized_literal_count_(0),
     expected_property_count_(0),
     only_simple_this_property_assignments_(false),
-    this_property_assignments_(FACTORY->empty_fixed_array()),
+    this_property_assignments_(
+        Isolate::Current()->factory()->empty_fixed_array()),
     loop_count_(0),
     variable_(variable),
     parent_(*variable) {
@@ -331,7 +332,7 @@ Handle<String> Parser::LookupSymbol(int symbol_id,
   // if there is some preparser data.
   if (static_cast<unsigned>(symbol_id)
       >= static_cast<unsigned>(symbol_cache_.length())) {
-    return FACTORY->LookupSymbol(string);
+    return isolate()->factory()->LookupSymbol(string);
   }
   return LookupCachedSymbol(symbol_id, string);
 }
@@ -347,7 +348,7 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id,
   }
   Handle<String> result = symbol_cache_.at(symbol_id);
   if (result.is_null()) {
-    result = FACTORY->LookupSymbol(string);
+    result = isolate()->factory()->LookupSymbol(string);
     symbol_cache_.at(symbol_id) = result;
     return result;
   }
@@ -622,7 +623,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
     in_global_context
       ? Scope::GLOBAL_SCOPE
       : Scope::EVAL_SCOPE;
-  Handle<String> no_name = FACTORY->empty_symbol();
+  Handle<String> no_name = isolate()->factory()->empty_symbol();
 
   FunctionLiteral* result = NULL;
   { Scope* scope = NewScope(top_scope_, type, inside_with());
@@ -647,7 +648,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
           false,
           temp_scope.ContainsLoops());
     } else if (stack_overflow_) {
-      Isolate::Current()->StackOverflow();
+      isolate()->StackOverflow();
     }
   }
 
@@ -682,7 +683,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
 
   {
     // Parse the function literal.
-    Handle<String> no_name = FACTORY->empty_symbol();
+    Handle<String> no_name = isolate()->factory()->empty_symbol();
     Scope* scope =
         NewScope(top_scope_, Scope::GLOBAL_SCOPE, inside_with());
     LexicalScope lexical_scope(&this->top_scope_, &this->with_nesting_level_,
@@ -705,7 +706,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
   // If there was a stack overflow we have to get rid of AST and it is
   // not safe to do before scope has been deleted.
   if (result == NULL) {
-    Isolate::Current()->StackOverflow();
+    isolate()->StackOverflow();
     zone_scope.DeleteOnExit();
   } else {
     Handle<String> inferred_name(info->inferred_name());
@@ -735,12 +736,13 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
                              Vector<const char*> args) {
   MessageLocation location(script_,
                            source_location.beg_pos, source_location.end_pos);
-  Handle<JSArray> array = FACTORY->NewJSArray(args.length());
+  Handle<JSArray> array = isolate()->factory()->NewJSArray(args.length());
   for (int i = 0; i < args.length(); i++) {
-    SetElement(array, i, FACTORY->NewStringFromUtf8(CStrVector(args[i])));
+    SetElement(array, i,
+               isolate()->factory()->NewStringFromUtf8(CStrVector(args[i])));
   }
-  Handle<Object> result = FACTORY->NewSyntaxError(type, array);
-  Isolate::Current()->Throw(*result, &location);
+  Handle<Object> result = isolate()->factory()->NewSyntaxError(type, array);
+  isolate()->Throw(*result, &location);
 }
 
 
@@ -1196,9 +1198,9 @@ VariableProxy* Parser::Declare(Handle<String> name,
                var->mode() == Variable::CONST);
         const char* type = (var->mode() == Variable::VAR) ? "var" : "const";
         Handle<String> type_string =
-            FACTORY->NewStringFromUtf8(CStrVector(type), TENURED);
+            isolate()->factory()->NewStringFromUtf8(CStrVector(type), TENURED);
         Expression* expression =
-            NewThrowTypeError(FACTORY->redeclaration_symbol(),
+            NewThrowTypeError(isolate()->factory()->redeclaration_symbol(),
                               type_string, name);
         top_scope_->SetIllegalRedeclaration(expression);
       }
@@ -1304,7 +1306,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<SharedFunctionInfo> shared =
-      FACTORY->NewSharedFunctionInfo(name, literals, code,
+      isolate()->factory()->NewSharedFunctionInfo(name, literals, code,
           Handle<SerializedScopeInfo>(fun->shared()->scope_info()));
   shared->set_construct_stub(*construct_stub);
 
@@ -1519,13 +1521,13 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
       if (is_const) {
         initialize =
           new CallRuntime(
-            FACTORY->InitializeConstGlobal_symbol(),
+            isolate()->factory()->InitializeConstGlobal_symbol(),
             Runtime::FunctionForId(Runtime::kInitializeConstGlobal),
             arguments);
       } else {
         initialize =
           new CallRuntime(
-            FACTORY->InitializeVarGlobal_symbol(),
+            isolate()->factory()->InitializeVarGlobal_symbol(),
             Runtime::FunctionForId(Runtime::kInitializeVarGlobal),
             arguments);
       }
@@ -1651,8 +1653,10 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
   if (target == NULL) {
     // Illegal continue statement.  To be consistent with KJS we delay
     // reporting of the syntax error until runtime.
-    Handle<String> error_type = FACTORY->illegal_continue_symbol();
-    if (!label.is_null()) error_type = FACTORY->unknown_label_symbol();
+    Handle<String> error_type = isolate()->factory()->illegal_continue_symbol();
+    if (!label.is_null()) {
+      error_type = isolate()->factory()->unknown_label_symbol();
+    }
     Expression* throw_error = NewThrowSyntaxError(error_type, label);
     return new ExpressionStatement(throw_error);
   }
@@ -1682,8 +1686,10 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
   if (target == NULL) {
     // Illegal break statement.  To be consistent with KJS we delay
     // reporting of the syntax error until runtime.
-    Handle<String> error_type = FACTORY->illegal_break_symbol();
-    if (!label.is_null()) error_type = FACTORY->unknown_label_symbol();
+    Handle<String> error_type = isolate()->factory()->illegal_break_symbol();
+    if (!label.is_null()) {
+      error_type = isolate()->factory()->unknown_label_symbol();
+    }
     Expression* throw_error = NewThrowSyntaxError(error_type, label);
     return new ExpressionStatement(throw_error);
   }
@@ -1707,7 +1713,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   //
   // To be consistent with KJS we report the syntax error at runtime.
   if (!top_scope_->is_function_scope()) {
-    Handle<String> type = FACTORY->illegal_return_symbol();
+    Handle<String> type = isolate()->factory()->illegal_return_symbol();
     Expression* throw_error = NewThrowSyntaxError(type, Handle<Object>::null());
     return new ExpressionStatement(throw_error);
   }
@@ -1908,7 +1914,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     if (peek() == Token::LBRACE) {
       // Allocate a temporary for holding the finally state while
       // executing the finally block.
-      catch_var = top_scope_->NewTemporary(FACTORY->catch_var_symbol());
+      catch_var =
+          top_scope_->NewTemporary(isolate()->factory()->catch_var_symbol());
       Literal* name_literal = new Literal(name);
       VariableProxy* catch_var_use = new VariableProxy(catch_var);
       Expression* obj = new CatchExtensionObject(name_literal, catch_var_use);
@@ -2059,7 +2066,8 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         // error here but for compatibility with JSC we choose to report
         // the error at runtime.
         if (expression == NULL || !expression->IsValidLeftHandSide()) {
-          Handle<String> type = FACTORY->invalid_lhs_in_for_in_symbol();
+          Handle<String> type =
+              isolate()->factory()->invalid_lhs_in_for_in_symbol();
           expression = NewThrowReferenceError(type);
         }
         ForInStatement* loop = new ForInStatement(labels);
@@ -2144,7 +2152,8 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   // for compatibility with JSC we choose to report the error at
   // runtime.
   if (expression == NULL || !expression->IsValidLeftHandSide()) {
-    Handle<String> type = FACTORY->invalid_lhs_in_assignment_symbol();
+    Handle<String> type =
+        isolate()->factory()->invalid_lhs_in_assignment_symbol();
     expression = NewThrowReferenceError(type);
   }
 
@@ -2391,7 +2400,8 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     // error here but for compatibility with JSC we choose to report the
     // error at runtime.
     if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      Handle<String> type = FACTORY->invalid_lhs_in_prefix_op_symbol();
+      Handle<String> type =
+          isolate()->factory()->invalid_lhs_in_prefix_op_symbol();
       expression = NewThrowReferenceError(type);
     }
     int position = scanner().location().beg_pos;
@@ -2415,7 +2425,8 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
     // error here but for compatibility with JSC we choose to report the
     // error at runtime.
     if (expression == NULL || !expression->IsValidLeftHandSide()) {
-      Handle<String> type = FACTORY->invalid_lhs_in_postfix_op_symbol();
+      Handle<String> type =
+          isolate()->factory()->invalid_lhs_in_postfix_op_symbol();
       expression = NewThrowReferenceError(type);
     }
     Token::Value next = Next();
@@ -2462,7 +2473,8 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         // potentially direct eval calls. Whether they are actually direct calls
         // to eval is determined at run time.
         VariableProxy* callee = result->AsVariableProxy();
-        if (callee != NULL && callee->IsVariable(FACTORY->eval_symbol())) {
+        if (callee != NULL &&
+            callee->IsVariable(isolate()->factory()->eval_symbol())) {
           Handle<String> name = callee->name();
           Variable* var = top_scope_->Lookup(name);
           if (var == NULL) {
@@ -2655,17 +2667,17 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
 
     case Token::NULL_LITERAL:
       Consume(Token::NULL_LITERAL);
-      result = new Literal(FACTORY->null_value());
+      result = new Literal(isolate()->factory()->null_value());
       break;
 
     case Token::TRUE_LITERAL:
       Consume(Token::TRUE_LITERAL);
-      result = new Literal(FACTORY->true_value());
+      result = new Literal(isolate()->factory()->true_value());
       break;
 
     case Token::FALSE_LITERAL:
       Consume(Token::FALSE_LITERAL);
-      result = new Literal(FACTORY->false_value());
+      result = new Literal(isolate()->factory()->false_value());
       break;
 
     case Token::IDENTIFIER: {
@@ -2785,7 +2797,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
 
   // Allocate a fixed array with all the literals.
   Handle<FixedArray> literals =
-      FACTORY->NewFixedArray(values->length(), TENURED);
+      isolate()->factory()->NewFixedArray(values->length(), TENURED);
 
   // Fill in the literals.
   bool is_simple = true;
@@ -2807,7 +2819,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
   // Simple and shallow arrays can be lazily copied, we transform the
   // elements array to a copy-on-write array.
   if (is_simple && depth == 1 && values->length() > 0) {
-    literals->set_map(HEAP->fixed_cow_array_map());
+    literals->set_map(isolate()->heap()->fixed_cow_array_map());
   }
 
   return new ArrayLiteral(literals, values,
@@ -2880,7 +2892,7 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
   if (CompileTimeValue::IsCompileTimeValue(expression)) {
     return CompileTimeValue::GetValue(expression);
   }
-  return FACTORY->undefined_value();
+  return isolate()->factory()->undefined_value();
 }
 
 
@@ -3069,8 +3081,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   // Computation of literal_index must happen before pre parse bailout.
   int literal_index = temp_scope_->NextMaterializedLiteralIndex();
 
-  Handle<FixedArray> constant_properties =
-      FACTORY->NewFixedArray(number_of_boilerplate_properties * 2, TENURED);
+  Handle<FixedArray> constant_properties = isolate()->factory()->NewFixedArray(
+      number_of_boilerplate_properties * 2, TENURED);
 
   bool is_simple = true;
   bool fast_elements = true;
@@ -3100,10 +3112,10 @@ Expression* Parser::ParseRegExpLiteral(bool seen_equal, bool* ok) {
   int literal_index = temp_scope_->NextMaterializedLiteralIndex();
 
   Handle<String> js_pattern =
-      FACTORY->NewStringFromUtf8(scanner_.next_literal(), TENURED);
+      isolate()->factory()->NewStringFromUtf8(scanner_.next_literal(), TENURED);
   scanner_.ScanRegExpFlags();
   Handle<String> js_flags =
-      FACTORY->NewStringFromUtf8(scanner_.next_literal(), TENURED);
+      isolate()->factory()->NewStringFromUtf8(scanner_.next_literal(), TENURED);
   Next();
 
   return new RegExpLiteral(js_pattern, js_flags, literal_index);
@@ -3140,9 +3152,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
   // this is the actual function name, otherwise this is the name of the
   // variable declared and initialized with the function (expression). In
   // that case, we don't have a function name (it's empty).
-  Handle<String> name = is_named ? var_name : FACTORY->empty_symbol();
+  Handle<String> name =
+      is_named ? var_name : isolate()->factory()->empty_symbol();
   // The function name, if any.
-  Handle<String> function_name = FACTORY->empty_symbol();
+  Handle<String> function_name = isolate()->factory()->empty_symbol();
   if (is_named && (type == EXPRESSION || type == NESTED)) {
     function_name = name;
   }
@@ -3218,7 +3231,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       materialized_literal_count = entry.literal_count();
       expected_property_count = entry.property_count();
       only_simple_this_property_assignments = false;
-      this_property_assignments = FACTORY->empty_fixed_array();
+      this_property_assignments = isolate()->factory()->empty_fixed_array();
       Expect(Token::RBRACE, CHECK_OK);
     } else {
       ParseSourceElements(body, Token::RBRACE, CHECK_OK);
@@ -3344,12 +3357,12 @@ void Parser::ExpectSemicolon(bool* ok) {
 
 
 Literal* Parser::GetLiteralUndefined() {
-  return new Literal(FACTORY->undefined_value());
+  return new Literal(isolate()->factory()->undefined_value());
 }
 
 
 Literal* Parser::GetLiteralTheHole() {
-  return new Literal(FACTORY->the_hole_value());
+  return new Literal(isolate()->factory()->the_hole_value());
 }
 
 
@@ -3452,12 +3465,12 @@ void Parser::RegisterTargetUse(BreakTarget* target, Target* stop) {
 
 
 Literal* Parser::NewNumberLiteral(double number) {
-  return new Literal(FACTORY->NewNumber(number, TENURED));
+  return new Literal(isolate()->factory()->NewNumber(number, TENURED));
 }
 
 
 Expression* Parser::NewThrowReferenceError(Handle<String> type) {
-  return NewThrowError(FACTORY->MakeReferenceError_symbol(),
+  return NewThrowError(isolate()->factory()->MakeReferenceError_symbol(),
                        type, HandleVector<Object>(NULL, 0));
 }
 
@@ -3466,7 +3479,8 @@ Expression* Parser::NewThrowSyntaxError(Handle<String> type,
                                         Handle<Object> first) {
   int argc = first.is_null() ? 0 : 1;
   Vector< Handle<Object> > arguments = HandleVector<Object>(&first, argc);
-  return NewThrowError(FACTORY->MakeSyntaxError_symbol(), type, arguments);
+  return NewThrowError(
+      isolate()->factory()->MakeSyntaxError_symbol(), type, arguments);
 }
 
 
@@ -3477,7 +3491,8 @@ Expression* Parser::NewThrowTypeError(Handle<String> type,
   Handle<Object> elements[] = { first, second };
   Vector< Handle<Object> > arguments =
       HandleVector<Object>(elements, ARRAY_SIZE(elements));
-  return NewThrowError(FACTORY->MakeTypeError_symbol(), type, arguments);
+  return NewThrowError(
+      isolate()->factory()->MakeTypeError_symbol(), type, arguments);
 }
 
 
@@ -3485,7 +3500,7 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
                                   Handle<String> type,
                                   Vector< Handle<Object> > arguments) {
   int argc = arguments.length();
-  Handle<JSArray> array = FACTORY->NewJSArray(argc, TENURED);
+  Handle<JSArray> array = isolate()->factory()->NewJSArray(argc, TENURED);
   ASSERT(array->IsJSArray() && array->HasFastElements());
   for (int i = 0; i < argc; i++) {
     Handle<Object> element = arguments[i];
@@ -3513,7 +3528,7 @@ Handle<Object> JsonParser::ParseJson(Handle<String> source) {
   if (result.is_null() || scanner_.Next() != Token::EOS) {
     if (stack_overflow_) {
       // Scanner failed.
-      Isolate::Current()->StackOverflow();
+      isolate()->StackOverflow();
     } else {
       // Parse failed. Scanner's current token is the unexpected token.
       Token::Value token = scanner_.current_token();
@@ -3542,18 +3557,20 @@ Handle<Object> JsonParser::ParseJson(Handle<String> source) {
       }
 
       Scanner::Location source_location = scanner_.location();
-      MessageLocation location(FACTORY->NewScript(source),
+      MessageLocation location(isolate()->factory()->NewScript(source),
                                source_location.beg_pos,
                                source_location.end_pos);
       int argc = (name_opt == NULL) ? 0 : 1;
-      Handle<JSArray> array = FACTORY->NewJSArray(argc);
+      Handle<JSArray> array = isolate()->factory()->NewJSArray(argc);
       if (name_opt != NULL) {
-        SetElement(array,
-                   0,
-                   FACTORY->NewStringFromUtf8(CStrVector(name_opt)));
+        SetElement(
+            array,
+            0,
+            isolate()->factory()->NewStringFromUtf8(CStrVector(name_opt)));
       }
-      Handle<Object> result = FACTORY->NewSyntaxError(message, array);
-      Isolate::Current()->Throw(*result, &location);
+      Handle<Object> result =
+          isolate()->factory()->NewSyntaxError(message, array);
+      isolate()->Throw(*result, &location);
       return Handle<Object>::null();
     }
   }
@@ -3564,11 +3581,11 @@ Handle<Object> JsonParser::ParseJson(Handle<String> source) {
 Handle<String> JsonParser::GetString() {
   int literal_length = scanner_.literal_length();
   if (literal_length == 0) {
-    return FACTORY->empty_string();
+    return isolate()->factory()->empty_string();
   }
   const char* literal_string = scanner_.literal_string();
   Vector<const char> literal(literal_string, literal_length);
-  return FACTORY->NewStringFromUtf8(literal);
+  return isolate()->factory()->NewStringFromUtf8(literal);
 }
 
 
@@ -3583,14 +3600,14 @@ Handle<Object> JsonParser::ParseJsonValue() {
       double value = StringToDouble(scanner_.literal(),
                                     NO_FLAGS,  // Hex, octal or trailing junk.
                                     OS::nan_value());
-      return FACTORY->NewNumber(value);
+      return isolate()->factory()->NewNumber(value);
     }
     case Token::FALSE_LITERAL:
-      return FACTORY->false_value();
+      return isolate()->factory()->false_value();
     case Token::TRUE_LITERAL:
-      return FACTORY->true_value();
+      return isolate()->factory()->true_value();
     case Token::NULL_LITERAL:
-      return FACTORY->null_value();
+      return isolate()->factory()->null_value();
     case Token::LBRACE:
       return ParseJsonObject();
     case Token::LBRACK:
@@ -3603,15 +3620,14 @@ Handle<Object> JsonParser::ParseJsonValue() {
 
 // Parse a JSON object. Scanner must be right after '{' token.
 Handle<Object> JsonParser::ParseJsonObject() {
-  Isolate* isolate = Isolate::Current();
   Handle<JSFunction> object_constructor(
-      isolate->global_context()->object_function());
+      isolate()->global_context()->object_function());
   Handle<JSObject> json_object =
-      isolate->factory()->NewJSObject(object_constructor);
+      isolate()->factory()->NewJSObject(object_constructor);
   if (scanner_.peek() == Token::RBRACE) {
     scanner_.Next();
   } else {
-    if (StackLimitCheck(isolate).HasOverflowed()) {
+    if (StackLimitCheck(isolate()).HasOverflowed()) {
       stack_overflow_ = true;
       return Handle<Object>::null();
     }
@@ -3649,7 +3665,7 @@ Handle<Object> JsonParser::ParseJsonArray() {
   if (token == Token::RBRACK) {
     scanner_.Next();
   } else {
-    if (StackLimitCheck(Isolate::Current()).HasOverflowed()) {
+    if (StackLimitCheck(isolate()).HasOverflowed()) {
       stack_overflow_ = true;
       return Handle<Object>::null();
     }
@@ -3666,13 +3682,13 @@ Handle<Object> JsonParser::ParseJsonArray() {
 
   // Allocate a fixed array with all the elements.
   Handle<FixedArray> fast_elements =
-      FACTORY->NewFixedArray(elements.length());
+      isolate()->factory()->NewFixedArray(elements.length());
 
   for (int i = 0, n = elements.length(); i < n; i++) {
     fast_elements->set(i, *elements[i]);
   }
 
-  return FACTORY->NewJSArrayWithElements(fast_elements);
+  return isolate()->factory()->NewJSArrayWithElements(fast_elements);
 }
 
 // ----------------------------------------------------------------------------
@@ -3682,18 +3698,19 @@ Handle<Object> JsonParser::ParseJsonArray() {
 RegExpParser::RegExpParser(FlatStringReader* in,
                            Handle<String>* error,
                            bool multiline)
-  : error_(error),
-    captures_(NULL),
-    in_(in),
-    current_(kEndMarker),
-    next_pos_(0),
-    capture_count_(0),
-    has_more_(true),
-    multiline_(multiline),
-    simple_(false),
-    contains_anchor_(false),
-    is_scanned_for_captures_(false),
-    failed_(false) {
+    : isolate_(Isolate::Current()),
+      error_(error),
+      captures_(NULL),
+      in_(in),
+      current_(kEndMarker),
+      next_pos_(0),
+      capture_count_(0),
+      has_more_(true),
+      multiline_(multiline),
+      simple_(false),
+      contains_anchor_(false),
+      is_scanned_for_captures_(false),
+      failed_(false) {
   Advance(1);
 }
 
@@ -3709,11 +3726,10 @@ uc32 RegExpParser::Next() {
 
 void RegExpParser::Advance() {
   if (next_pos_ < in()->length()) {
-    Isolate* isolate = Isolate::Current();
-    StackLimitCheck check(isolate);
+    StackLimitCheck check(isolate());
     if (check.HasOverflowed()) {
       ReportError(CStrVector(Isolate::kStackOverflowMessage));
-    } else if (isolate->zone()->excess_allocation()) {
+    } else if (isolate()->zone()->excess_allocation()) {
       ReportError(CStrVector("Regular expression too large"));
     } else {
       current_ = in()->Get(next_pos_);
@@ -3744,7 +3760,7 @@ bool RegExpParser::simple() {
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
   failed_ = true;
-  *error_ = FACTORY->NewStringFromAscii(message, NOT_TENURED);
+  *error_ = isolate()->factory()->NewStringFromAscii(message, NOT_TENURED);
   // Zip to the end to make sure the no more input is read.
   current_ = kEndMarker;
   next_pos_ = in()->length();

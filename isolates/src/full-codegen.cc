@@ -275,10 +275,11 @@ void BreakableStatementChecker::VisitThisFunction(ThisFunction* expr) {
 #define __ ACCESS_MASM(masm())
 
 bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
+  Isolate* isolate = Isolate::Current();
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
-    COUNTERS->total_full_codegen_source_size()->Increment(len);
+    isolate->counters()->total_full_codegen_source_size()->Increment(len);
   }
   if (FLAG_trace_codegen) {
     PrintF("Full Compiler - ");
@@ -290,7 +291,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   FullCodeGenerator cgen(&masm);
   cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
-    ASSERT(!Isolate::Current()->has_pending_exception());
+    ASSERT(!isolate->has_pending_exception());
     return false;
   }
   unsigned table_offset = cgen.EmitStackCheckTable();
@@ -332,7 +333,7 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   if (!info_->HasDeoptimizationSupport()) return;
   int length = bailout_entries_.length();
   Handle<DeoptimizationOutputData> data =
-      Isolate::Current()->factory()->
+      isolate()->factory()->
       NewDeoptimizationOutputData(length, TENURED);
   for (int i = 0; i < length; i++) {
     data->SetAstId(i, Smi::FromInt(bailout_entries_[i].id));
@@ -535,7 +536,8 @@ void FullCodeGenerator::VisitDeclarations(
   // Compute array of global variable and function declarations.
   // Do nothing in case of no declared global functions or variables.
   if (globals > 0) {
-    Handle<FixedArray> array = FACTORY->NewFixedArray(2 * globals, TENURED);
+    Handle<FixedArray> array =
+        isolate()->factory()->NewFixedArray(2 * globals, TENURED);
     for (int j = 0, i = 0; i < length; i++) {
       Declaration* decl = declarations->at(i);
       Variable* var = decl->proxy()->var();
@@ -586,7 +588,7 @@ void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
 void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
   if (FLAG_debug_info) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    if (!Isolate::Current()->debugger()->IsDebuggerActive()) {
+    if (!isolate()->debugger()->IsDebuggerActive()) {
       CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
     } else {
       // Check if the statement will be breakable without adding a debug break
@@ -614,7 +616,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
 void FullCodeGenerator::SetExpressionPosition(Expression* expr, int pos) {
   if (FLAG_debug_info) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    if (!Isolate::Current()->debugger()->IsDebuggerActive()) {
+    if (!isolate()->debugger()->IsDebuggerActive()) {
       CodeGenerator::RecordPositions(masm_, pos);
     } else {
       // Check if the expression will be breakable without adding a debug break
