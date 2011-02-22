@@ -485,16 +485,17 @@ HConstant* HGraph::GetConstantFalse() {
 void HSubgraph::AppendJoin(HSubgraph* then_graph,
                            HSubgraph* else_graph,
                            AstNode* node) {
-  if (then_graph->HasExit() && else_graph->HasExit()) {
+  if (then_graph->exit_block() != NULL &&
+      else_graph->exit_block() != NULL) {
     // We need to merge, create new merge block.
     HBasicBlock* join_block = graph_->CreateBasicBlock();
     then_graph->exit_block()->Goto(join_block);
     else_graph->exit_block()->Goto(join_block);
     join_block->SetJoinId(node->id());
     exit_block_ = join_block;
-  } else if (then_graph->HasExit()) {
+  } else if (then_graph->exit_block() != NULL) {
     exit_block_ = then_graph->exit_block_;
-  } else if (else_graph->HasExit()) {
+  } else if (else_graph->exit_block() != NULL) {
     exit_block_ = else_graph->exit_block_;
   } else {
     exit_block_ = NULL;
@@ -526,8 +527,12 @@ HBasicBlock* HSubgraph::JoinBlocks(HBasicBlock* a, HBasicBlock* b, int id) {
 void HSubgraph::AppendEndless(HSubgraph* body,
                               IterationStatement* statement,
                               HBasicBlock* break_block) {
-  ConnectExitTo(body->entry_block());
-  body->ConnectExitTo(body->entry_block(), true);
+  if (exit_block() != NULL) {
+    exit_block()->Goto(body->entry_block(), false);
+  }
+  if (body->exit_block() != NULL) {
+    body->exit_block()->Goto(body->entry_block(), true);
+  }
   if (break_block != NULL) break_block->SetJoinId(statement->ExitId());
   exit_block_ = break_block;
   body->entry_block()->PostProcessLoopHeader(statement);
@@ -539,8 +544,12 @@ void HSubgraph::AppendDoWhile(HSubgraph* body,
                               HSubgraph* go_back,
                               HSubgraph* exit,
                               HBasicBlock* break_block) {
-  ConnectExitTo(body->entry_block());
-  go_back->ConnectExitTo(body->entry_block(), true);
+  if (exit_block() != NULL) {
+    exit_block()->Goto(body->entry_block(), false);
+  }
+  if (go_back->exit_block() != NULL) {
+    go_back->exit_block()->Goto(body->entry_block(), true);
+  }
   if (break_block != NULL) break_block->SetJoinId(statement->ExitId());
   exit_block_ =
       JoinBlocks(exit->exit_block(), break_block, statement->ExitId());
@@ -554,20 +563,26 @@ void HSubgraph::AppendWhile(HSubgraph* condition,
                             HSubgraph* continue_subgraph,
                             HSubgraph* exit,
                             HBasicBlock* break_block) {
-  ConnectExitTo(condition->entry_block());
+  if (exit_block() != NULL) {
+    exit_block()->Goto(condition->entry_block(), false);
+  }
 
   if (break_block != NULL) break_block->SetJoinId(statement->ExitId());
   exit_block_ =
       JoinBlocks(exit->exit_block(), break_block, statement->ExitId());
 
   if (continue_subgraph != NULL) {
-    body->ConnectExitTo(continue_subgraph->entry_block(), true);
+    if (body->exit_block() != NULL) {
+      body->exit_block()->Goto(continue_subgraph->entry_block(), true);
+    }
     continue_subgraph->entry_block()->SetJoinId(statement->EntryId());
     exit_block_ = JoinBlocks(exit_block_,
                              continue_subgraph->exit_block(),
                              statement->ExitId());
   } else {
-    body->ConnectExitTo(condition->entry_block(), true);
+    if (body->exit_block() != NULL) {
+      body->exit_block()->Goto(condition->entry_block(), true);
+    }
   }
   condition->entry_block()->PostProcessLoopHeader(statement);
 }
@@ -588,7 +603,7 @@ void HSubgraph::Append(HSubgraph* next,
 
 
 void HSubgraph::FinishExit(HControlInstruction* instruction) {
-  ASSERT(HasExit());
+  ASSERT(exit_block() != NULL);
   exit_block_->Finish(instruction);
   exit_block_->ClearEnvironment();
   exit_block_ = NULL;
@@ -1936,14 +1951,14 @@ AstContext::~AstContext() {
 
 EffectContext::~EffectContext() {
   ASSERT(owner()->HasStackOverflow() ||
-         !owner()->subgraph()->HasExit() ||
+         owner()->current_block() == NULL ||
          owner()->environment()->length() == original_length_);
 }
 
 
 ValueContext::~ValueContext() {
   ASSERT(owner()->HasStackOverflow() ||
-         !owner()->subgraph()->HasExit() ||
+         owner()->current_block() == NULL ||
          owner()->environment()->length() == original_length_ + 1);
 }
 
@@ -2001,7 +2016,7 @@ void TestContext::BuildBranch(HValue* value) {
   HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
   HTest* test = new HTest(value, empty_true, empty_false);
-  builder->CurrentBlock()->Finish(test);
+  builder->current_block()->Finish(test);
 
   HValue* const no_return_value = NULL;
   HBasicBlock* true_target = if_true();
@@ -2017,7 +2032,7 @@ void TestContext::BuildBranch(HValue* value) {
   } else {
     empty_false->Goto(false_target);
   }
-  builder->subgraph()->set_exit_block(NULL);
+  builder->set_current_block(NULL);
 }
 
 
@@ -2124,7 +2139,7 @@ void HGraphBuilder::VisitArgument(Expression* expr) {
 void HGraphBuilder::VisitArgumentList(ZoneList<Expression*>* arguments) {
   for (int i = 0; i < arguments->length(); i++) {
     VisitArgument(arguments->at(i));
-    if (HasStackOverflow() || !current_subgraph_->HasExit()) return;
+    if (HasStackOverflow() || current_block() == NULL) return;
   }
 }
 
@@ -2158,7 +2173,7 @@ HGraph* HGraphBuilder::CreateGraph(CompilationInfo* info) {
     current_subgraph_->Append(body, NULL, NULL);
     body->entry_block()->SetJoinId(info->function()->id());
 
-    if (graph_->HasExit()) {
+    if (graph()->exit_block() != NULL) {
       graph_->FinishExit(new HReturn(graph_->GetConstantUndefined()));
     }
   }
@@ -2219,21 +2234,21 @@ void HGraphBuilder::AddToSubgraph(HSubgraph* graph,
 
 
 HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
-  ASSERT(current_subgraph_->HasExit());
-  current_subgraph_->exit_block()->AddInstruction(instr);
+  ASSERT(current_block() != NULL);
+  current_block()->AddInstruction(instr);
   return instr;
 }
 
 
 void HGraphBuilder::AddSimulate(int id) {
-  ASSERT(current_subgraph_->HasExit());
-  current_subgraph_->exit_block()->AddSimulate(id);
+  ASSERT(current_block() != NULL);
+  current_block()->AddSimulate(id);
 }
 
 
 void HGraphBuilder::AddPhi(HPhi* instr) {
-  ASSERT(current_subgraph_->HasExit());
-  current_subgraph_->exit_block()->AddPhi(instr);
+  ASSERT(current_block() != NULL);
+  current_block()->AddPhi(instr);
 }
 
 
@@ -2296,7 +2311,7 @@ void HGraphBuilder::SetupScope(Scope* scope) {
 void HGraphBuilder::VisitStatements(ZoneList<Statement*>* statements) {
   for (int i = 0; i < statements->length(); i++) {
     Visit(statements->at(i));
-    if (HasStackOverflow() || !current_subgraph_->HasExit()) break;
+    if (HasStackOverflow() || current_block() == NULL) break;
   }
 }
 
@@ -2435,15 +2450,15 @@ HBasicBlock* HGraphBuilder::BreakAndContinueScope::Get(
 
 void HGraphBuilder::VisitContinueStatement(ContinueStatement* stmt) {
   HBasicBlock* continue_block = break_scope()->Get(stmt->target(), CONTINUE);
-  subgraph()->exit_block()->Goto(continue_block);
-  subgraph()->set_exit_block(NULL);
+  current_block()->Goto(continue_block);
+  set_current_block(NULL);
 }
 
 
 void HGraphBuilder::VisitBreakStatement(BreakStatement* stmt) {
   HBasicBlock* break_block = break_scope()->Get(stmt->target(), BREAK);
-  subgraph()->exit_block()->Goto(break_block);
-  subgraph()->set_exit_block(NULL);
+  current_block()->Goto(break_block);
+  set_current_block(NULL);
 }
 
 
@@ -2472,9 +2487,9 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
         VISIT_FOR_VALUE(stmt->expression());
         return_value = environment()->Pop();
       }
-      subgraph()->exit_block()->AddLeaveInlined(return_value,
+      current_block()->AddLeaveInlined(return_value,
                                                 function_return_);
-      subgraph()->set_exit_block(NULL);
+      set_current_block(NULL);
     }
   }
 }
@@ -2495,7 +2510,7 @@ HCompare* HGraphBuilder::BuildSwitchCompare(HSubgraph* subgraph,
                                             CaseClause* clause) {
   AddToSubgraph(subgraph, clause->label());
   if (HasStackOverflow()) return NULL;
-  HValue* clause_value = subgraph->environment()->Pop();
+  HValue* clause_value = subgraph->exit_block()->last_environment()->Pop();
   HCompare* compare = new HCompare(switch_value,
                                    clause_value,
                                    Token::EQ_STRICT);
@@ -2576,7 +2591,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   // last_false_block is the (empty) false-block of the last comparison. If
   // there are no comparisons at all (a single default clause), it is just
   // the last block of the current subgraph.
-  HBasicBlock* last_false_block = current_subgraph_->exit_block();
+  HBasicBlock* last_false_block = current_block();
   if (prev_graph != current_subgraph_) {
     last_false_block = graph()->CreateBasicBlock();
     HBasicBlock* empty = graph()->CreateBasicBlock();
@@ -2619,7 +2634,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     }
 
     // Check for fall-through from previous statement block.
-    if (previous_subgraph != NULL && previous_subgraph->HasExit()) {
+    if (previous_subgraph != NULL && previous_subgraph->exit_block() != NULL) {
       if (subgraph == NULL) subgraph = CreateEmptySubgraph();
       previous_subgraph->exit_block()->
           Finish(new HGoto(subgraph->entry_block()));
@@ -2641,7 +2656,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 
   // If the last statement block has a fall-through, connect it to the
   // single exit block.
-  if (previous_subgraph != NULL && previous_subgraph->HasExit()) {
+  if (previous_subgraph != NULL && previous_subgraph->exit_block() != NULL) {
     previous_subgraph->exit_block()->Finish(new HGoto(single_exit_block));
   }
 
@@ -2651,9 +2666,9 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   }
 
   if (single_exit_block->HasPredecessor()) {
-    current_subgraph_->set_exit_block(single_exit_block);
+    set_current_block(single_exit_block);
   } else {
-    current_subgraph_->set_exit_block(NULL);
+    set_current_block(NULL);
   }
 }
 
@@ -2695,7 +2710,7 @@ void HSubgraph::PreProcessOsrEntry(IterationStatement* statement) {
 
 
 void HGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  ASSERT(subgraph()->HasExit());
+  ASSERT(current_block() != NULL);
   subgraph()->PreProcessOsrEntry(stmt);
 
   HSubgraph* body_graph = CreateLoopHeaderSubgraph(environment());
@@ -2705,7 +2720,7 @@ void HGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   }
   body_graph->ResolveContinue(stmt, break_info.continue_block());
 
-  if (!body_graph->HasExit() || stmt->cond()->ToBooleanIsTrue()) {
+  if (body_graph->exit_block() == NULL || stmt->cond()->ToBooleanIsTrue()) {
     subgraph()->AppendEndless(body_graph, stmt, break_info.break_block());
   } else {
     HSubgraph* go_back = CreateEmptySubgraph();
@@ -2730,7 +2745,7 @@ bool HGraphBuilder::ShouldPeel(HSubgraph* cond, HSubgraph* body) {
 
 
 void HGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
-  ASSERT(subgraph()->HasExit());
+  ASSERT(current_block() != NULL);
   subgraph()->PreProcessOsrEntry(stmt);
 
   HSubgraph* cond_graph = NULL;
@@ -2776,12 +2791,12 @@ void HGraphBuilder::AppendPeeledWhile(IterationStatement* stmt,
                                       HSubgraph* exit_graph,
                                       HBasicBlock* break_block) {
   HSubgraph* loop = NULL;
-  if (body_graph->HasExit() && stmt != peeled_statement_ &&
+  if (body_graph->exit_block() != NULL && stmt != peeled_statement_ &&
       ShouldPeel(cond_graph, body_graph)) {
     // Save the last peeled iteration statement to prevent infinite recursion.
     IterationStatement* outer_peeled_statement = peeled_statement_;
     peeled_statement_ = stmt;
-    loop = CreateGotoSubgraph(body_graph->environment());
+    loop = CreateGotoSubgraph(body_graph->exit_block()->last_environment());
     ADD_TO_SUBGRAPH(loop, stmt);
     peeled_statement_ = outer_peeled_statement;
   }
@@ -2796,7 +2811,7 @@ void HGraphBuilder::VisitForStatement(ForStatement* stmt) {
     Visit(stmt->init());
     CHECK_BAILOUT;
   }
-  ASSERT(subgraph()->HasExit());
+  ASSERT(current_block() != NULL);
   subgraph()->PreProcessOsrEntry(stmt);
 
   HSubgraph* cond_graph = NULL;
@@ -2825,8 +2840,9 @@ void HGraphBuilder::VisitForStatement(ForStatement* stmt) {
   HSubgraph* next_graph = NULL;
   body_graph->ResolveContinue(stmt, break_info.continue_block());
 
-  if (stmt->next() != NULL && body_graph->HasExit()) {
-    next_graph = CreateGotoSubgraph(body_graph->environment());
+  if (stmt->next() != NULL && body_graph->exit_block() != NULL) {
+    next_graph =
+        CreateGotoSubgraph(body_graph->exit_block()->last_environment());
     ADD_TO_SUBGRAPH(next_graph, stmt->next());
     body_graph->Append(next_graph, NULL, NULL);
     next_graph->entry_block()->SetJoinId(stmt->ContinueId());
@@ -3103,9 +3119,9 @@ HBasicBlock* HGraphBuilder::BuildTypeSwitch(HValue* receiver,
                         maps->at(i),
                         if_true->entry_block(),
                         if_false->entry_block());
-    subgraph()->exit_block()->Finish(compare);
+    current_block()->Finish(compare);
 
-    if (if_true->HasExit()) {
+    if (if_true->exit_block() != NULL) {
       // In an effect context the value of the type switch is not needed.
       // There is no need to merge it at the join block only to discard it.
       if (ast_context()->IsEffect()) {
@@ -3114,15 +3130,15 @@ HBasicBlock* HGraphBuilder::BuildTypeSwitch(HValue* receiver,
       if_true->exit_block()->Goto(join_block);
     }
 
-    subgraph()->set_exit_block(if_false->exit_block());
+    set_current_block(if_false->exit_block());
   }
 
   // Connect the default if necessary.
-  if (subgraph()->HasExit()) {
+  if (current_block() != NULL) {
     if (ast_context()->IsEffect()) {
       environment()->Drop(1);
     }
-    subgraph()->exit_block()->Goto(join_block);
+    current_block()->Goto(join_block);
   }
 
   if (join_block->predecessors()->is_empty()) return NULL;
@@ -3279,10 +3295,10 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
 
     HBasicBlock* new_exit_block =
         BuildTypeSwitch(object, &maps, &subgraphs, default_graph, expr->id());
-    subgraph()->set_exit_block(new_exit_block);
+    set_current_block(new_exit_block);
     // In an effect context, we did not materialized the value in the
     // predecessor environments so there's no need to handle it here.
-    if (subgraph()->HasExit() && !ast_context()->IsEffect()) {
+    if (current_block() != NULL && !ast_context()->IsEffect()) {
       ast_context()->ReturnValue(Pop());
     }
   }
@@ -3613,10 +3629,10 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
 
     HBasicBlock* new_exit_block =
         BuildTypeSwitch(object, &maps, &subgraphs, default_graph, expr->id());
-    subgraph()->set_exit_block(new_exit_block);
+    set_current_block(new_exit_block);
     // In an effect context, we did not materialized the value in the
     // predecessor environments so there's no need to handle it here.
-    if (subgraph()->HasExit() && !ast_context()->IsEffect()) {
+    if (current_block() != NULL && !ast_context()->IsEffect()) {
       ast_context()->ReturnValue(Pop());
     }
   }
@@ -3973,7 +3989,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
 
     HBasicBlock* new_exit_block =
         BuildTypeSwitch(receiver, &maps, &subgraphs, default_graph, expr->id());
-    subgraph()->set_exit_block(new_exit_block);
+    set_current_block(new_exit_block);
     // In an effect context, we did not materialized the value in the
     // predecessor environments so there's no need to handle it here.
     if (new_exit_block != NULL && !ast_context()->IsEffect()) {
@@ -4142,7 +4158,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
 
   if (FLAG_trace_inlining) TraceInline(target, true);
 
-  if (body->HasExit()) {
+  if (body->exit_block() != NULL) {
     // Add a return of undefined if control can fall off the body.  In a
     // test context, undefined is false.
     HValue* return_value = graph()->GetConstantUndefined();
@@ -4171,7 +4187,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
   AddSimulate(expr->ReturnId());
 
   // Jump to the function entry (without re-recording the environment).
-  subgraph()->exit_block()->Finish(new HGoto(body->entry_block()));
+  current_block()->Finish(new HGoto(body->entry_block()));
 
   // Fix up the function exits.
   if (test_context != NULL) {
@@ -4201,11 +4217,11 @@ bool HGraphBuilder::TryInline(Call* expr) {
     // TODO(kmillikin): Come up with a better way to handle this. It is too
     // subtle. NULL here indicates that the enclosing context has no control
     // flow to handle.
-    subgraph()->set_exit_block(NULL);
+    set_current_block(NULL);
 
   } else {
     function_return_->SetJoinId(expr->id());
-    subgraph()->set_exit_block(function_return_);
+    set_current_block(function_return_);
   }
 
   call_context_ = saved_call_context;
@@ -4434,7 +4450,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
         AddCheckConstantFunction(expr, receiver, receiver_map, true);
 
         if (TryInline(expr)) {
-          if (subgraph()->HasExit()) {
+          if (current_block() != NULL) {
             HValue* return_value = Pop();
             // If we inlined a function in a test context then we need to emit
             // a simulate here to shadow the ones at the end of the
@@ -4505,7 +4521,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
         environment()->SetExpressionStackAt(receiver_index, global_receiver);
 
         if (TryInline(expr)) {
-          if (subgraph()->HasExit()) {
+          if (current_block() != NULL) {
             HValue* return_value = Pop();
             // If we inlined a function in a test context then we need to
             // emit a simulate here to shadow the ones at the end of the
@@ -4673,10 +4689,12 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
                         false_graph->entry_block(),
                         true_graph->entry_block());
       true_graph->entry_block()->SetJoinId(expr->expression()->id());
-      true_graph->environment()->Push(graph_->GetConstantTrue());
+      true_graph->exit_block()->last_environment()->Push(
+          graph_->GetConstantTrue());
 
       false_graph->entry_block()->SetJoinId(expr->expression()->id());
-      false_graph->environment()->Push(graph_->GetConstantFalse());
+      false_graph->exit_block()->last_environment()->Push(
+          graph_->GetConstantFalse());
 
       current_subgraph_->AppendJoin(true_graph, false_graph, expr);
       ast_context()->ReturnValue(Pop());
@@ -4973,12 +4991,12 @@ void HGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
 
       // Translate right subexpression by visiting it in the same AST
       // context as the entire expression.
-      subgraph()->set_exit_block(eval_right);
+      set_current_block(eval_right);
       Visit(expr->right());
 
     } else if (ast_context()->IsValue()) {
       VISIT_FOR_VALUE(expr->left());
-      ASSERT(current_subgraph_->HasExit());
+      ASSERT(current_block() != NULL);
 
       HValue* left = Top();
       HEnvironment* environment_copy = environment()->Copy();
@@ -4987,7 +5005,8 @@ void HGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
       right_subgraph = CreateBranchSubgraph(environment_copy);
       ADD_TO_SUBGRAPH(right_subgraph, expr->right());
 
-      ASSERT(subgraph()->HasExit() && right_subgraph->HasExit());
+      ASSERT(current_block() != NULL &&
+             right_subgraph->exit_block() != NULL);
       // We need an extra block to maintain edge-split form.
       HBasicBlock* empty_block = graph()->CreateBasicBlock();
       HBasicBlock* join_block = graph()->CreateBasicBlock();
@@ -4995,11 +5014,11 @@ void HGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
       HTest* test = is_logical_and
           ? new HTest(left, right_subgraph->entry_block(), empty_block)
           : new HTest(left, empty_block, right_subgraph->entry_block());
-      subgraph()->exit_block()->Finish(test);
+      current_block()->Finish(test);
       empty_block->Goto(join_block);
       right_subgraph->exit_block()->Goto(join_block);
       join_block->SetJoinId(expr->id());
-      subgraph()->set_exit_block(join_block);
+      set_current_block(join_block);
       ast_context()->ReturnValue(Pop());
     } else {
       ASSERT(ast_context()->IsEffect());
@@ -5021,13 +5040,13 @@ void HGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
       // no good AST ID to put on that first HSimulate.
       empty_block->SetJoinId(expr->id());
       right_block->SetJoinId(expr->RightId());
-      subgraph()->set_exit_block(right_block);
+      set_current_block(right_block);
       VISIT_FOR_EFFECT(expr->right());
 
       empty_block->Goto(join_block);
-      subgraph()->exit_block()->Goto(join_block);
+      current_block()->Goto(join_block);
       join_block->SetJoinId(expr->id());
-      subgraph()->set_exit_block(join_block);
+      set_current_block(join_block);
       // We did not materialize any value in the predecessor environments,
       // so there is no need to handle it here.
     }

@@ -200,12 +200,11 @@ class HSubgraph: public ZoneObject {
   }
 
   HGraph* graph() const { return graph_; }
-  HEnvironment* environment() const {
-    ASSERT(HasExit());
-    return exit_block_->last_environment();
+  HBasicBlock* entry_block() const { return entry_block_; }
+  HBasicBlock* exit_block() const { return exit_block_; }
+  void set_exit_block(HBasicBlock* block) {
+    exit_block_ = block;
   }
-
-  bool HasExit() const { return exit_block_ != NULL; }
 
   void PreProcessOsrEntry(IterationStatement* statement);
 
@@ -236,17 +235,6 @@ class HSubgraph: public ZoneObject {
     ASSERT(entry_block_ == NULL);
     entry_block_ = block;
     exit_block_ = block;
-  }
-  HBasicBlock* entry_block() const { return entry_block_; }
-  HBasicBlock* exit_block() const { return exit_block_; }
-  void set_exit_block(HBasicBlock* block) {
-    exit_block_ = block;
-  }
-
-  void ConnectExitTo(HBasicBlock* other, bool include_stack_check = false) {
-    if (HasExit()) {
-      exit_block()->Goto(other, include_stack_check);
-    }
   }
 
  protected:
@@ -657,8 +645,13 @@ class HGraphBuilder: public AstVisitor {
   BreakAndContinueScope* break_scope() const { return break_scope_; }
   void set_break_scope(BreakAndContinueScope* head) { break_scope_ = head; }
 
-  HEnvironment* environment() const { return subgraph()->environment(); }
-  HBasicBlock* CurrentBlock() const { return subgraph()->exit_block(); }
+  HBasicBlock* current_block() const { return subgraph()->exit_block(); }
+  void set_current_block(HBasicBlock* block) {
+    subgraph()->set_exit_block(block);
+  }
+  HEnvironment* environment() const {
+    return current_block()->last_environment();
+  }
 
   // Adding instructions.
   HInstruction* AddInstruction(HInstruction* instr);
