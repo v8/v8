@@ -55,7 +55,7 @@ class SafepointGenerator : public PostCallGenerator {
     // Ensure that we have enough space in the reloc info to patch
     // this with calls when doing deoptimization.
     if (ensure_reloc_space_) {
-      codegen_->masm()->RecordComment(RelocInfo::kFillerCommentString, true);
+      codegen_->EnsureRelocSpaceForDeoptimization();
     }
     codegen_->RecordSafepoint(pointers_, deoptimization_index_);
   }
@@ -78,6 +78,7 @@ bool LCodeGen::GenerateCode() {
   return GeneratePrologue() &&
       GenerateBody() &&
       GenerateDeferredCode() &&
+      GenerateRelocPadding() &&
       GenerateSafepointTable();
 }
 
@@ -119,6 +120,16 @@ void LCodeGen::Comment(const char* format, ...) {
   Vector<char> copy = Vector<char>::New(length + 1);
   memcpy(copy.start(), builder.Finalize(), copy.length());
   masm()->RecordComment(copy.start());
+}
+
+
+bool LCodeGen::GenerateRelocPadding() {
+  int reloc_size = masm()->relocation_writer_size();
+  while (reloc_size < deoptimization_reloc_size.min_size) {
+    __ RecordComment(RelocInfo::kFillerCommentString, true);
+    reloc_size += RelocInfo::kRelocCommentSize;
+  }
+  return !is_aborted();
 }
 
 
@@ -335,6 +346,22 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
 }
 
 
+void LCodeGen::EnsureRelocSpaceForDeoptimization() {
+  // Since we patch the reloc info with RUNTIME_ENTRY calls every patch
+  // site will take up 2 bytes + any pc-jumps.
+  // We are conservative and always reserver 6 bytes in case where a
+  // simple pc-jump is not enough.
+  uint32_t pc_delta =
+      masm()->pc_offset() - deoptimization_reloc_size.last_pc_offset;
+  if (is_uintn(pc_delta, 6)) {
+    deoptimization_reloc_size.min_size += 2;
+  } else {
+    deoptimization_reloc_size.min_size += 6;
+  }
+  deoptimization_reloc_size.last_pc_offset = masm()->pc_offset();
+}
+
+
 void LCodeGen::AddToTranslation(Translation* translation,
                                 LOperand* op,
                                 bool is_tagged) {
@@ -382,10 +409,13 @@ void LCodeGen::CallCode(Handle<Code> code,
   ASSERT(instr != NULL);
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
+
   if (!adjusted) {
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   }
   __ call(code, mode);
+
+  EnsureRelocSpaceForDeoptimization();
   RegisterLazyDeoptimization(instr);
 
   // Signal that we don't inline smi code before these stubs in the
@@ -2300,11 +2330,8 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   if (*function == *graph()->info()->closure()) {
     __ CallSelf();
   } else {
-    // This is an indirect call and will not be recorded in the reloc info.
-    // Add a comment to the reloc info in case we need to patch this during
-    // deoptimization.
-    __ RecordComment(RelocInfo::kFillerCommentString, true);
     __ call(FieldOperand(edi, JSFunction::kCodeEntryOffset));
+    EnsureRelocSpaceForDeoptimization();
   }
 
   // Setup deoptimization.

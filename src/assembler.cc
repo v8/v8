@@ -228,6 +228,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteTaggedPC(pc_delta, kEmbeddedObjectTag);
   } else if (rmode == RelocInfo::CODE_TARGET) {
     WriteTaggedPC(pc_delta, kCodeTargetTag);
+    ASSERT(begin_pos - pos_ <= RelocInfo::kMaxCallSize);
   } else if (RelocInfo::IsPosition(rmode)) {
     // Use signed delta-encoding for data.
     intptr_t data_delta = rinfo->data() - last_data_;
@@ -251,6 +252,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteExtraTaggedPC(pc_delta, kPCJumpTag);
     WriteExtraTaggedData(rinfo->data() - last_data_, kCommentTag);
     last_data_ = rinfo->data();
+    ASSERT(begin_pos - pos_ == RelocInfo::kRelocCommentSize);
   } else {
     // For all other modes we simply use the mode as the extra tag.
     // None of these modes need a data component.
