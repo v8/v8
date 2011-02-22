@@ -4099,10 +4099,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
     if (!FullCodeGenerator::MakeCode(&inner_info)) return false;
     shared->EnableDeoptimizationSupport(*inner_info.code());
     Compiler::RecordFunctionCompilation(
-        Logger::FUNCTION_TAG,
-        Handle<String>(shared->DebugName()),
-        shared->start_position(),
-        &inner_info);
+        Logger::FUNCTION_TAG, &inner_info, shared);
   }
 
   // Save the pending call context and type feedback oracle. Set up new ones

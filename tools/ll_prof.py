@@ -311,7 +311,7 @@ class CodeLogReader(object):
     r"code-info,([^,]+),(\d+)")
 
   _CODE_CREATE_RE = re.compile(
-    r"code-creation,([^,]+),(0x[a-f0-9]+),(\d+),\"(.*)\"(?:,(\d+))?")
+    r"code-creation,([^,]+),(0x[a-f0-9]+),(\d+),\"(.*)\"(?:,(0x[a-f0-9]+),([~*])?)?(?:,(\d+))?")
 
   _CODE_MOVE_RE = re.compile(
     r"code-move,(0x[a-f0-9]+),(0x[a-f0-9]+)")
@@ -358,12 +358,18 @@ class CodeLogReader(object):
           name = self.address_to_snapshot_name[start_address]
           origin = JS_SNAPSHOT_ORIGIN
         else:
-          name = "%s:%s" % (match.group(1), match.group(4))
+          tag = match.group(1)
+          optimization_status = match.group(6)
+          func_name = match.group(4)
+          if optimization_status:
+            name = "%s:%s%s" % (tag, optimization_status, func_name)
+          else:
+            name = "%s:%s" % (tag, func_name)
           origin = JS_ORIGIN
         if self.is_snapshot:
           origin_offset = 0
         else:
-          origin_offset = int(match.group(5))
+          origin_offset = int(match.group(7))
         code = Code(name, start_address, end_address, origin, origin_offset)
         conficting_code = self.code_map.Find(start_address)
         if conficting_code:

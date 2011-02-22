@@ -847,9 +847,6 @@ static bool CompileLazyFunction(Handle<JSFunction> function,
     result = CompileLazyHelper(&info, flag);
     ASSERT(!result || function->is_compiled());
   }
-  if (result && function->is_compiled()) {
-    PROFILE(FunctionCreateEvent(*function));
-  }
   return result;
 }
 
@@ -869,9 +866,7 @@ bool CompileLazyInLoop(Handle<JSFunction> function,
 bool CompileOptimized(Handle<JSFunction> function, int osr_ast_id) {
   CompilationInfo info(function);
   info.SetOptimizing(osr_ast_id);
-  bool result = CompileLazyHelper(&info, KEEP_EXCEPTION);
-  if (result) PROFILE(FunctionCreateEvent(*function));
-  return result;
+  return CompileLazyHelper(&info, KEEP_EXCEPTION);
 }
 
 
