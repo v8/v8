@@ -684,6 +684,8 @@ class MacroAssembler: public Assembler {
   void CallCFunction(ExternalReference function, int num_arguments);
   void CallCFunction(Register function, int num_arguments);
 
+  void GetCFunctionDoubleResult(const DoubleRegister dst);
+
   // Calls an API function. Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions. Restores context.
   // stack_space - space to be unwound on exit (includes the call js

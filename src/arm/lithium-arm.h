@@ -135,6 +135,7 @@ class LCodeGen;
   V(OuterContext)                               \
   V(Parameter)                                  \
   V(PixelArrayLength)                           \
+  V(Power)                                      \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
   V(Return)                                     \
@@ -1055,6 +1056,18 @@ class LAddI: public LTemplateInstruction<1, 2, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
   DECLARE_HYDROGEN_ACCESSOR(Add)
+};
+
+
+class LPower: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LPower(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Power, "power")
+  DECLARE_HYDROGEN_ACCESSOR(Power)
 };
 
 

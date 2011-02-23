@@ -1226,7 +1226,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ vmov(r2, r3, right);
       __ CallCFunction(ExternalReference::double_fp_operation(Token::MOD), 4);
       // Move the result in the double result register.
-      __ vmov(ToDoubleRegister(instr->result()), r0, r1);
+      __ GetCFunctionDoubleResult(ToDoubleRegister(instr->result()));
 
       // Restore r0-r3.
       __ ldm(ia_w, sp, r0.bit() | r1.bit() | r2.bit() | r3.bit());
@@ -2681,6 +2681,64 @@ void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
   ASSERT(ToDoubleRegister(instr->result()).is(input));
   __ vsqrt(input, input);
+}
+
+
+void LCodeGen::DoPower(LPower* instr) {
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  Register scratch = scratch0();
+  DoubleRegister result_reg = ToDoubleRegister(instr->result());
+  Representation exponent_type = instr->hydrogen()->right()->representation();
+  if (exponent_type.IsDouble()) {
+    // Prepare arguments and call C function.
+    __ PrepareCallCFunction(4, scratch);
+    __ vmov(r0, r1, ToDoubleRegister(left));
+    __ vmov(r2, r3, ToDoubleRegister(right));
+    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+  } else if (exponent_type.IsInteger32()) {
+    ASSERT(ToRegister(right).is(r0));
+    // Prepare arguments and call C function.
+    __ PrepareCallCFunction(4, scratch);
+    __ mov(r2, ToRegister(right));
+    __ vmov(r0, r1, ToDoubleRegister(left));
+    __ CallCFunction(ExternalReference::power_double_int_function(), 4);
+  } else {
+    ASSERT(exponent_type.IsTagged());
+    ASSERT(instr->hydrogen()->left()->representation().IsDouble());
+
+    Register right_reg = ToRegister(right);
+
+    // Check for smi on the right hand side.
+    Label non_smi, call;
+    __ JumpIfNotSmi(right_reg, &non_smi);
+
+    // Untag smi and convert it to a double.
+    __ SmiUntag(right_reg);
+    SwVfpRegister single_scratch = double_scratch0().low();
+    __ vmov(single_scratch, right_reg);
+    __ vcvt_f64_s32(result_reg, single_scratch);
+    __ jmp(&call);
+
+    // Heap number map check.
+    __ bind(&non_smi);
+    __ ldr(scratch, FieldMemOperand(right_reg, HeapObject::kMapOffset));
+    __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
+    __ cmp(scratch, Operand(ip));
+    DeoptimizeIf(ne, instr->environment());
+    int32_t value_offset = HeapNumber::kValueOffset - kHeapObjectTag;
+    __ add(scratch, right_reg, Operand(value_offset));
+    __ vldr(result_reg, scratch, 0);
+
+    // Prepare arguments and call C function.
+    __ bind(&call);
+    __ PrepareCallCFunction(4, scratch);
+    __ vmov(r0, r1, ToDoubleRegister(left));
+    __ vmov(r2, r3, result_reg);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+  }
+  // Store the result in the result register.
+  __ GetCFunctionDoubleResult(result_reg);
 }
 
 

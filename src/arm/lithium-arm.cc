@@ -1417,8 +1417,19 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
 
 
 LInstruction* LChunkBuilder::DoPower(HPower* instr) {
-  Abort("LPower instruction not implemented on ARM");
-  return NULL;
+  ASSERT(instr->representation().IsDouble());
+  // We call a C function for double power. It can't trigger a GC.
+  // We need to use fixed result register for the call.
+  Representation exponent_type = instr->right()->representation();
+  ASSERT(instr->left()->representation().IsDouble());
+  LOperand* left = UseFixedDouble(instr->left(), d1);
+  LOperand* right = exponent_type.IsDouble() ?
+      UseFixedDouble(instr->right(), d2) :
+      UseFixed(instr->right(), r0);
+  LPower* result = new LPower(left, right);
+  return MarkAsCall(DefineFixedDouble(result, d3),
+                    instr,
+                    CAN_DEOPTIMIZE_EAGERLY);
 }
 
 

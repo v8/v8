@@ -852,12 +852,14 @@ double power_double_double(double x, double y) {
 
 
 ExternalReference ExternalReference::power_double_double_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_double)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_double),
+                                    FP_RETURN_CALL));
 }
 
 
 ExternalReference ExternalReference::power_double_int_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_int)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_int),
+                                    FP_RETURN_CALL));
 }
 
 

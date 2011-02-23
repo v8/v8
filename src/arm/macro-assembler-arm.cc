@@ -746,6 +746,14 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   }
 }
 
+void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
+#if !defined(USE_ARM_EABI)
+  UNREACHABLE();
+#else
+  vmov(dst, r0, r1);
+#endif
+}
+
 
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     const ParameterCount& actual,
