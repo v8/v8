@@ -141,6 +141,7 @@ class LCodeGen;
   V(SmiTag)                                     \
   V(SmiUntag)                                   \
   V(StackCheck)                                 \
+  V(StoreContextSlot)                           \
   V(StoreGlobal)                                \
   V(StoreKeyedFastElement)                      \
   V(StoreKeyedGeneric)                          \
@@ -1241,6 +1242,25 @@ class LLoadContextSlot: public LTemplateInstruction<1, 1, 0> {
 
   LOperand* context() { return InputAt(0); }
   int slot_index() { return hydrogen()->slot_index(); }
+
+  virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class LStoreContextSlot: public LTemplateInstruction<0, 2, 0> {
+ public:
+  LStoreContextSlot(LOperand* context, LOperand* value) {
+    inputs_[0] = context;
+    inputs_[1] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreContextSlot, "store-context-slot")
+  DECLARE_HYDROGEN_ACCESSOR(StoreContextSlot)
+
+  LOperand* context() { return InputAt(0); }
+  LOperand* value() { return InputAt(1); }
+  int slot_index() { return hydrogen()->slot_index(); }
+  int needs_write_barrier() { return hydrogen()->NeedsWriteBarrier(); }
 
   virtual void PrintDataTo(StringStream* stream);
 };

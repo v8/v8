@@ -296,6 +296,13 @@ void LLoadContextSlot::PrintDataTo(StringStream* stream) {
 }
 
 
+void LStoreContextSlot::PrintDataTo(StringStream* stream) {
+  InputAt(0)->PrintTo(stream);
+  stream->Add("[%d] <- ", slot_index());
+  InputAt(1)->PrintTo(stream);
+}
+
+
 void LCallKeyed::PrintDataTo(StringStream* stream) {
   stream->Add("[rcx] #%d / ", arity());
 }
@@ -1679,14 +1686,22 @@ LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
-  Abort("Unimplemented: %s", "DoLoadContextSlot");
-  return NULL;
+  LOperand* context = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LLoadContextSlot(context));
 }
 
 
 LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
-  Abort("Unimplemented: DoStoreContextSlot");
-  return NULL;
+  LOperand* context;
+  LOperand* value;
+  if (instr->NeedsWriteBarrier()) {
+    context = UseTempRegister(instr->context());
+    value = UseTempRegister(instr->value());
+  } else {
+    context = UseRegister(instr->context());
+    value = UseRegister(instr->value());
+  }
+  return new LStoreContextSlot(context, value);
 }
 
 
@@ -1874,8 +1889,9 @@ LInstruction* LChunkBuilder::DoDeleteProperty(HDeleteProperty* instr) {
 
 
 LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {
-  Abort("Unimplemented: %s", "DoOsrEntry");
-  return NULL;
+  allocator_->MarkAsOsrEntry();
+  current_block_->last_environment()->set_ast_id(instr->ast_id());
+  return AssignEnvironment(new LOsrEntry);
 }
 
 
@@ -1886,8 +1902,8 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
 
 
 LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
-  Abort("Unimplemented: %s", "DoUnknownOSRValue");
-  return NULL;
+  int spill_index = chunk()->GetNextSpillIndex(false);  // Not double-width.
+  return DefineAsSpilled(new LUnknownOSRValue, spill_index);
 }
 
 
