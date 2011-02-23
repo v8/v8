@@ -208,23 +208,26 @@ class HSubgraph: public ZoneObject {
 
   void PreProcessOsrEntry(IterationStatement* statement);
 
-  void AppendJoin(HSubgraph* then_graph, HSubgraph* else_graph, AstNode* node);
-  void AppendWhile(HSubgraph* condition,
-                   HSubgraph* body,
-                   IterationStatement* statement,
-                   HSubgraph* continue_subgraph,
-                   HSubgraph* exit,
-                   HBasicBlock* break_block);
-  void AppendDoWhile(HSubgraph* body,
-                     IterationStatement* statement,
-                     HSubgraph* go_back,
-                     HSubgraph* exit,
+  void AppendJoin(HBasicBlock* first, HBasicBlock* second, int join_id);
+  void AppendWhile(IterationStatement* statement,
+                   HBasicBlock* condition_entry,
+                   HBasicBlock* exit_block,
+                   HBasicBlock* body_exit,
+                   HBasicBlock* break_block,
+                   HBasicBlock* loop_entry,
+                   HBasicBlock* loop_exit);
+  void AppendDoWhile(IterationStatement* statement,
+                     HBasicBlock* body_entry,
+                     HBasicBlock* go_back,
+                     HBasicBlock* exit_block,
                      HBasicBlock* break_block);
-  void AppendEndless(HSubgraph* body,
-                     IterationStatement* statement,
+  void AppendEndless(IterationStatement* statement,
+                     HBasicBlock* body_entry,
+                     HBasicBlock* body_exit,
                      HBasicBlock* break_block);
-  void Append(HSubgraph* next,
-              BreakableStatement* stmt,
+  void Append(BreakableStatement* stmt,
+              HBasicBlock* entry_block,
+              HBasicBlock* exit_block,
               HBasicBlock* break_block);
   void ResolveContinue(IterationStatement* statement,
                        HBasicBlock* continue_block);
@@ -696,9 +699,9 @@ class HGraphBuilder: public AstVisitor {
   void Bailout(const char* reason);
 
   void AppendPeeledWhile(IterationStatement* stmt,
-                         HSubgraph* cond_graph,
-                         HSubgraph* body_graph,
-                         HSubgraph* exit_graph,
+                         HBasicBlock* condition_entry,
+                         HBasicBlock* exit_block,
+                         HBasicBlock* body_exit,
                          HBasicBlock* break_block);
 
   void AddToSubgraph(HSubgraph* graph, ZoneList<Statement*>* stmts);
@@ -740,8 +743,6 @@ class HGraphBuilder: public AstVisitor {
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
-
-  bool ShouldPeel(HSubgraph* cond, HSubgraph* body);
 
   HBasicBlock* CreateBasicBlock(HEnvironment* env);
   HSubgraph* CreateEmptySubgraph();
