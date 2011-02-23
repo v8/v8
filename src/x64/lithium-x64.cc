@@ -1951,14 +1951,13 @@ LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
 
 
 LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
-  Abort("Unimplemented: %s", "DoTypeof");
-  return NULL;
+  LTypeof* result = new LTypeof(UseAtStart(instr->value()));
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 
 LInstruction* LChunkBuilder::DoTypeofIs(HTypeofIs* instr) {
-  Abort("Unimplemented: %s", "DoTypeofIs");
-  return NULL;
+  return DefineSameAsFirst(new LTypeofIs(UseRegister(instr->value())));
 }
 
 

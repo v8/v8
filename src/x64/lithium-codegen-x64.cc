@@ -322,8 +322,7 @@ int LCodeGen::ToInteger32(LConstantOperand* op) const {
 
 Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
   Handle<Object> literal = chunk_->LookupLiteral(op);
-  Representation r = chunk_->LookupLiteralRepresentation(op);
-  ASSERT(r.IsTagged());
+  ASSERT(chunk_->LookupLiteralRepresentation(op).IsTagged());
   return literal;
 }
 
@@ -3175,60 +3174,39 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
 
 
 void LCodeGen::DoTypeof(LTypeof* instr) {
-  Abort("Unimplemented: %s", "DoTypeof");
+  LOperand* input = instr->InputAt(0);
+  if (input->IsConstantOperand()) {
+    __ Push(ToHandle(LConstantOperand::cast(input)));
+  } else if (input->IsRegister()) {
+    __ push(ToRegister(input));
+  } else {
+    ASSERT(input->IsStackSlot());
+    __ push(ToOperand(input));
+  }
+  CallRuntime(Runtime::kTypeof, 1, instr);
 }
 
 
 void LCodeGen::DoTypeofIs(LTypeofIs* instr) {
-  Abort("Unimplemented: %s", "DoTypeofIs");
-}
-
-
-void LCodeGen::DoIsConstructCall(LIsConstructCall* instr) {
+  Register input = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
-  NearLabel true_label;
-  NearLabel false_label;
+  Label true_label;
+  Label false_label;
   NearLabel done;
 
-  EmitIsConstructCall(result);
-  __ j(equal, &true_label);
-
+  Condition final_branch_condition = EmitTypeofIs(&true_label,
+                                                  &false_label,
+                                                  input,
+                                                  instr->type_literal());
+  __ j(final_branch_condition, &true_label);
+  __ bind(&false_label);
   __ LoadRoot(result, Heap::kFalseValueRootIndex);
   __ jmp(&done);
 
   __ bind(&true_label);
   __ LoadRoot(result, Heap::kTrueValueRootIndex);
 
-
   __ bind(&done);
-}
-
-
-void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
-  Register temp = ToRegister(instr->TempAt(0));
-  int true_block = chunk_->LookupDestination(instr->true_block_id());
-  int false_block = chunk_->LookupDestination(instr->false_block_id());
-
-  EmitIsConstructCall(temp);
-  EmitBranch(true_block, false_block, equal);
-}
-
-
-void LCodeGen::EmitIsConstructCall(Register temp) {
-  // Get the frame pointer for the calling frame.
-  __ movq(temp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-
-  // Skip the arguments adaptor frame if it exists.
-  NearLabel check_frame_marker;
-  __ SmiCompare(Operand(temp, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(not_equal, &check_frame_marker);
-  __ movq(temp, Operand(rax, StandardFrameConstants::kCallerFPOffset));
-
-  // Check the marker in the calling frame.
-  __ bind(&check_frame_marker);
-  __ SmiCompare(Operand(temp, StandardFrameConstants::kMarkerOffset),
-                Smi::FromInt(StackFrame::CONSTRUCT));
 }
 
 
@@ -3326,6 +3304,54 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   }
 
   return final_branch_condition;
+}
+
+
+void LCodeGen::DoIsConstructCall(LIsConstructCall* instr) {
+  Register result = ToRegister(instr->result());
+  NearLabel true_label;
+  NearLabel false_label;
+  NearLabel done;
+
+  EmitIsConstructCall(result);
+  __ j(equal, &true_label);
+
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ jmp(&done);
+
+  __ bind(&true_label);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+
+
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
+  Register temp = ToRegister(instr->TempAt(0));
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  EmitIsConstructCall(temp);
+  EmitBranch(true_block, false_block, equal);
+}
+
+
+void LCodeGen::EmitIsConstructCall(Register temp) {
+  // Get the frame pointer for the calling frame.
+  __ movq(temp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+
+  // Skip the arguments adaptor frame if it exists.
+  NearLabel check_frame_marker;
+  __ SmiCompare(Operand(temp, StandardFrameConstants::kContextOffset),
+                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(not_equal, &check_frame_marker);
+  __ movq(temp, Operand(rax, StandardFrameConstants::kCallerFPOffset));
+
+  // Check the marker in the calling frame.
+  __ bind(&check_frame_marker);
+  __ SmiCompare(Operand(temp, StandardFrameConstants::kMarkerOffset),
+                Smi::FromInt(StackFrame::CONSTRUCT));
 }
 
 
