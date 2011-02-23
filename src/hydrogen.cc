@@ -6016,7 +6016,7 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type) {
     if (op != NULL && op->IsUnallocated()) hint_index = op->VirtualRegister();
     trace_.Add(" %d %d", parent_index, hint_index);
     UseInterval* cur_interval = range->first_interval();
-    while (cur_interval != NULL) {
+    while (cur_interval != NULL && range->Covers(cur_interval->start())) {
       trace_.Add(" [%d, %d[",
                  cur_interval->start().Value(),
                  cur_interval->end().Value());
@@ -6025,7 +6025,7 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type) {
 
     UsePosition* current_pos = range->first_pos();
     while (current_pos != NULL) {
-      if (current_pos->RegisterIsBeneficial()) {
+      if (current_pos->RegisterIsBeneficial() || FLAG_trace_all_uses) {
         trace_.Add(" %d M", current_pos->pos().Value());
       }
       current_pos = current_pos->next();

@@ -478,11 +478,6 @@ void LiveRange::ConvertOperands() {
 }
 
 
-UsePosition* LiveRange::AddUsePosition(LifetimePosition pos) {
-  return AddUsePosition(pos, CreateAssignedOperand());
-}
-
-
 bool LiveRange::CanCover(LifetimePosition position) const {
   if (IsEmpty()) return false;
   return Start().Value() <= position.Value() &&
