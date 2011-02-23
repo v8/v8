@@ -134,8 +134,8 @@ DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_bool(aggressive_loop_invariant_motion, true,
             "aggressive motion of instructions out of loops")
-#ifdef V8_TARGET_ARCH_X64		
-DEFINE_bool(use_osr, false, "use on-stack replacement")		
+#ifdef V8_TARGET_ARCH_X64
+DEFINE_bool(use_osr, false, "use on-stack replacement")
 #else
 DEFINE_bool(use_osr, true, "use on-stack replacement")
 #endif
