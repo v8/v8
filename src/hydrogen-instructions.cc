@@ -284,33 +284,6 @@ void HValue::SetOperandAt(int index, HValue* value) {
 }
 
 
-void HLoadKeyedGeneric::InternalSetOperandAt(int index, HValue* value) {
-  if (index < 2) {
-    operands_[index] = value;
-  } else {
-    context_ = value;
-  }
-}
-
-
-void HStoreKeyedGeneric::InternalSetOperandAt(int index, HValue* value) {
-  if (index < 3) {
-    operands_[index] = value;
-  } else {
-    context_ = value;
-  }
-}
-
-
-void HStoreNamedGeneric::InternalSetOperandAt(int index, HValue* value) {
-  if (index < 2) {
-    operands_[index] = value;
-  } else {
-    context_ = value;
-  }
-}
-
-
 void HValue::ReplaceAndDelete(HValue* other) {
   ReplaceValue(other);
   Delete();
@@ -564,15 +537,10 @@ void HInstruction::Verify() {
 #endif
 
 
-void HCall::PrintDataTo(StringStream* stream) {
-  stream->Add("#%d", argument_count());
-}
-
-
 void HUnaryCall::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" ");
-  HCall::PrintDataTo(stream);
+  stream->Add("#%d", argument_count());
 }
 
 
@@ -581,7 +549,7 @@ void HBinaryCall::PrintDataTo(StringStream* stream) {
   stream->Add(" ");
   second()->PrintNameTo(stream);
   stream->Add(" ");
-  HCall::PrintDataTo(stream);
+  stream->Add("#%d", argument_count());
 }
 
 
@@ -591,7 +559,7 @@ void HCallConstantFunction::PrintDataTo(StringStream* stream) {
   } else {
     stream->Add("%o ", function()->shared()->DebugName());
   }
-  HCall::PrintDataTo(stream);
+  stream->Add("#%d", argument_count());
 }
 
 
@@ -609,13 +577,13 @@ void HCallGlobal::PrintDataTo(StringStream* stream) {
 
 void HCallKnownGlobal::PrintDataTo(StringStream* stream) {
   stream->Add("o ", target()->shared()->DebugName());
-  HCall::PrintDataTo(stream);
+  stream->Add("#%d", argument_count());
 }
 
 
 void HCallRuntime::PrintDataTo(StringStream* stream) {
   stream->Add("%o ", *name());
-  HCall::PrintDataTo(stream);
+  stream->Add("#%d", argument_count());
 }
 
 
@@ -1162,7 +1130,15 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
 }
 
 
-void HLoadKeyed::PrintDataTo(StringStream* stream) {
+void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("]");
+}
+
+
+void HLoadKeyedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);
@@ -1178,7 +1154,7 @@ void HLoadPixelArrayElement::PrintDataTo(StringStream* stream) {
 }
 
 
-void HStoreNamed::PrintDataTo(StringStream* stream) {
+void HStoreNamedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(".");
   ASSERT(name()->IsString());
@@ -1189,14 +1165,28 @@ void HStoreNamed::PrintDataTo(StringStream* stream) {
 
 
 void HStoreNamedField::PrintDataTo(StringStream* stream) {
-  HStoreNamed::PrintDataTo(stream);
+  object()->PrintNameTo(stream);
+  stream->Add(".");
+  ASSERT(name()->IsString());
+  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(" = ");
+  value()->PrintNameTo(stream);
   if (!transition().is_null()) {
     stream->Add(" (transition map %p)", *transition());
   }
 }
 
 
-void HStoreKeyed::PrintDataTo(StringStream* stream) {
+void HStoreKeyedFastElement::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("] = ");
+  value()->PrintNameTo(stream);
+}
+
+
+void HStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);

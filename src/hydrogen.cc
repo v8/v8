@@ -2258,7 +2258,8 @@ void HGraphBuilder::PushAndAdd(HInstruction* instr) {
 }
 
 
-void HGraphBuilder::PreProcessCall(HCall* call) {
+template <int V>
+HInstruction* HGraphBuilder::PreProcessCall(HCall<V>* call) {
   int count = call->argument_count();
   ZoneList<HValue*> arguments(count);
   for (int i = 0; i < count; ++i) {
@@ -2268,6 +2269,7 @@ void HGraphBuilder::PreProcessCall(HCall* call) {
   while (!arguments.is_empty()) {
     AddInstruction(new HPushArgument(arguments.RemoveLast()));
   }
+  return call;
 }
 
 
@@ -3951,7 +3953,8 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
         // Check for bailout, as trying to inline might fail due to bailout
         // during hydrogen processing.
         CHECK_BAILOUT;
-        HCall* call = new HCallConstantFunction(expr->target(), argument_count);
+        HCallConstantFunction* call =
+          new HCallConstantFunction(expr->target(), argument_count);
         call->set_position(expr->position());
         PreProcessCall(call);
         PushAndAdd(call);
@@ -3968,7 +3971,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   if (maps.length() == 0) {
     HContext* context = new HContext;
     AddInstruction(context);
-    HCall* call = new HCallNamed(context, name, argument_count);
+    HCallNamed* call = new HCallNamed(context, name, argument_count);
     call->set_position(expr->position());
     PreProcessCall(call);
     ast_context()->ReturnInstruction(call, expr->id());
@@ -3981,7 +3984,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
       } else {
         HContext* context = new HContext;
         AddInstruction(context);
-        HCall* call = new HCallNamed(context, name, argument_count);
+        HCallNamed* call = new HCallNamed(context, name, argument_count);
         call->set_position(expr->position());
         PreProcessCall(call);
         PushAndAdd(call);
@@ -4382,7 +4385,7 @@ static bool HasCustomCallGenerator(Handle<JSFunction> function) {
 void HGraphBuilder::VisitCall(Call* expr) {
   Expression* callee = expr->expression();
   int argument_count = expr->arguments()->length() + 1;  // Plus receiver.
-  HCall* call = NULL;
+  HInstruction* call = NULL;
 
   Property* prop = callee->AsProperty();
   if (prop != NULL) {
@@ -4402,9 +4405,8 @@ void HGraphBuilder::VisitCall(Call* expr) {
 
       HContext* context = new HContext;
       AddInstruction(context);
-      call = new HCallKeyed(context, key, argument_count);
+      call = PreProcessCall(new HCallKeyed(context, key, argument_count));
       call->set_position(expr->position());
-      PreProcessCall(call);
       Drop(1);  // Key.
       ast_context()->ReturnInstruction(call, expr->id());
       return;
@@ -4444,7 +4446,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
         // IC when a primitive receiver check is required.
         HContext* context = new HContext;
         AddInstruction(context);
-        call = new HCallNamed(context, name, argument_count);
+        call = PreProcessCall(new HCallNamed(context, name, argument_count));
       } else {
         AddCheckConstantFunction(expr, receiver, receiver_map, true);
 
@@ -4464,7 +4466,8 @@ void HGraphBuilder::VisitCall(Call* expr) {
           // Check for bailout, as the TryInline call in the if condition above
           // might return false due to bailout during hydrogen processing.
           CHECK_BAILOUT;
-          call = new HCallConstantFunction(expr->target(), argument_count);
+          call = PreProcessCall(new HCallConstantFunction(expr->target(),
+                                                          argument_count));
         }
       }
     } else if (types != NULL && types->length() > 1) {
@@ -4475,7 +4478,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
     } else {
       HContext* context = new HContext;
       AddInstruction(context);
-      call = new HCallNamed(context, name, argument_count);
+      call = PreProcessCall(new HCallNamed(context, name, argument_count));
     }
 
   } else {
@@ -4536,7 +4539,8 @@ void HGraphBuilder::VisitCall(Call* expr) {
         // during hydrogen processing.
         CHECK_BAILOUT;
 
-        call = new HCallKnownGlobal(expr->target(), argument_count);
+        call = PreProcessCall(new HCallKnownGlobal(expr->target(),
+                                                   argument_count));
       } else {
         HContext* context = new HContext;
         AddInstruction(context);
@@ -4544,7 +4548,9 @@ void HGraphBuilder::VisitCall(Call* expr) {
         VisitExpressions(expr->arguments());
         CHECK_BAILOUT;
 
-        call = new HCallGlobal(context, var->name(), argument_count);
+        call = PreProcessCall(new HCallGlobal(context,
+                                              var->name(),
+                                              argument_count));
       }
 
     } else {
@@ -4556,12 +4562,11 @@ void HGraphBuilder::VisitCall(Call* expr) {
       VisitExpressions(expr->arguments());
       CHECK_BAILOUT;
 
-      call = new HCallFunction(context, argument_count);
+      call = PreProcessCall(new HCallFunction(context, argument_count));
     }
   }
 
   call->set_position(expr->position());
-  PreProcessCall(call);
   ast_context()->ReturnInstruction(call, expr->id());
 }
 
@@ -4580,7 +4585,7 @@ void HGraphBuilder::VisitCallNew(CallNew* expr) {
   // to the construct call.
   int arg_count = expr->arguments()->length() + 1;  // Plus constructor.
   HValue* constructor = environment()->ExpressionStackAt(arg_count - 1);
-  HCall* call = new HCallNew(context, constructor, arg_count);
+  HCallNew* call = new HCallNew(context, constructor, arg_count);
   call->set_position(expr->position());
   PreProcessCall(call);
   ast_context()->ReturnInstruction(call, expr->id());
@@ -4629,7 +4634,7 @@ void HGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
 
     Handle<String> name = expr->name();
     int argument_count = expr->arguments()->length();
-    HCall* call = new HCallRuntime(name, function, argument_count);
+    HCallRuntime* call = new HCallRuntime(name, function, argument_count);
     call->set_position(RelocInfo::kNoPosition);
     Drop(argument_count);
     ast_context()->ReturnInstruction(call, expr->id());

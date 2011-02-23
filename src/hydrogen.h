@@ -729,7 +729,7 @@ class HGraphBuilder: public AstVisitor {
 
   // Remove the arguments from the bailout environment and emit instructions
   // to push them as outgoing parameters.
-  void PreProcessCall(HCall* call);
+  template <int V> HInstruction* PreProcessCall(HCall<V>* call);
 
   void AssumeRepresentation(HValue* value, Representation r);
   static Representation ToRepresentation(TypeInfo info);
