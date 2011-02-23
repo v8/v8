@@ -1710,6 +1710,7 @@ LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
+  Abort("Unimplemented: DoStoreContextSlot");  // Temporarily disabled (whesse).
   LOperand* context;
   LOperand* value;
   if (instr->NeedsWriteBarrier()) {
