@@ -2190,18 +2190,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 void LCodeGen::DoPushArgument(LPushArgument* instr) {
   LOperand* argument = instr->InputAt(0);
   if (argument->IsConstantOperand()) {
-    LConstantOperand* const_op = LConstantOperand::cast(argument);
-    Handle<Object> literal = chunk_->LookupLiteral(const_op);
-    Representation r = chunk_->LookupLiteralRepresentation(const_op);
-    if (r.IsInteger32()) {
-      ASSERT(literal->IsNumber());
-      __ push(Immediate(static_cast<int32_t>(literal->Number())));
-    } else if (r.IsDouble()) {
-      Abort("unsupported double immediate");
-    } else {
-      ASSERT(r.IsTagged());
-      __ Push(literal);
-    }
+    EmitPushConstantOperand(argument);
   } else if (argument->IsRegister()) {
     __ push(ToRegister(argument));
   } else {
@@ -3243,6 +3232,23 @@ void LCodeGen::EmitIsConstructCall(Register temp) {
 }
 
 
+void LCodeGen::EmitPushConstantOperand(LOperand* operand) {
+  ASSERT(operand->IsConstantOperand());
+  LConstantOperand* const_op = LConstantOperand::cast(operand);
+  Handle<Object> literal = chunk_->LookupLiteral(const_op);
+  Representation r = chunk_->LookupLiteralRepresentation(const_op);
+  if (r.IsInteger32()) {
+    ASSERT(literal->IsNumber());
+    __ push(Immediate(static_cast<int32_t>(literal->Number())));
+  } else if (r.IsDouble()) {
+    Abort("unsupported double immediate");
+  } else {
+    ASSERT(r.IsTagged());
+    __ Push(literal);
+  }
+}
+
+
 void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
   Register input = ToRegister(instr->InputAt(0));
   int true_block = chunk_->LookupDestination(instr->true_block_id());
@@ -3335,7 +3341,36 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
 
 
 void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
-  Abort("Unimplemented: %s", "DoDeleteProperty");
+  LOperand* obj = instr->object();
+  LOperand* key = instr->key();
+  // Push object.
+  if (obj->IsRegister()) {
+    __ push(ToRegister(obj));
+  } else {
+    __ push(ToOperand(obj));
+  }
+  // Push key.
+  if (key->IsConstantOperand()) {
+    EmitPushConstantOperand(key);
+  } else if (key->IsRegister()) {
+    __ push(ToRegister(key));
+  } else {
+    __ push(ToOperand(key));
+  }
+  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
+  LPointerMap* pointers = instr->pointer_map();
+  LEnvironment* env = instr->deoptimization_environment();
+  RecordPosition(pointers->position());
+  RegisterEnvironmentForDeoptimization(env);
+  // Create safepoint generator that will also ensure enough space in the
+  // reloc info for patching in deoptimization (since this is invoking a
+  // builtin)
+  SafepointGenerator safepoint_generator(this,
+                                         pointers,
+                                         env->deoptimization_index(),
+                                         true);
+  __ Push(Smi::FromInt(strict_mode_flag()));
+  __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, &safepoint_generator);
 }
 
 

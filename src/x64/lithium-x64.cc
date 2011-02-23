@@ -1883,8 +1883,9 @@ LInstruction* LChunkBuilder::DoFunctionLiteral(HFunctionLiteral* instr) {
 
 
 LInstruction* LChunkBuilder::DoDeleteProperty(HDeleteProperty* instr) {
-  Abort("Unimplemented: %s", "DoDeleteProperty");
-  return NULL;
+  LDeleteProperty* result =
+      new LDeleteProperty(Use(instr->object()), UseOrConstant(instr->key()));
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 
