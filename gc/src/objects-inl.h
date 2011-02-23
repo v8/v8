@@ -44,6 +44,8 @@
 #include "spaces.h"
 #include "store-buffer.h"
 
+#include "incremental-marking.h"
+
 namespace v8 {
 namespace internal {
 
@@ -79,7 +81,7 @@ PropertyDetails PropertyDetails::AsDeleted() {
   type* holder::name() { return type::cast(READ_FIELD(this, offset)); } \
   void holder::set_##name(type* value, WriteBarrierMode mode) {         \
     WRITE_FIELD(this, offset, value);                                   \
-    CONDITIONAL_WRITE_BARRIER(this, offset, mode);                      \
+    WRITE_BARRIER(this, offset, value);                                 \
   }
 
 
@@ -803,21 +805,9 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_FIELD(p, offset, value) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
 
-
-#define WRITE_BARRIER(object, offset) \
+#define WRITE_BARRIER(object, offset, value) \
+  IncrementalMarking::RecordWrite(object, value); \
   Heap::RecordWrite(object->address(), offset);
-
-// CONDITIONAL_WRITE_BARRIER must be issued after the actual
-// write due to the assert validating the written value.
-#define CONDITIONAL_WRITE_BARRIER(object, offset, mode) \
-  if (mode == UPDATE_WRITE_BARRIER) { \
-    Heap::RecordWrite(object->address(), offset); \
-  } else { \
-    ASSERT(mode == SKIP_WRITE_BARRIER); \
-    ASSERT(Heap::InNewSpace(object) || \
-           !Heap::InNewSpace(READ_FIELD(object, offset)) || \
-           StoreBuffer::CellIsInStoreBuffer(object->address() + offset)); \
-  }
 
 #define READ_DOUBLE_FIELD(p, offset) \
   (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)))
@@ -1016,6 +1006,7 @@ Map* HeapObject::map() {
 
 void HeapObject::set_map(Map* value) {
   set_map_word(MapWord::FromMap(value));
+  IncrementalMarking::RecordWrite(this, value);
 }
 
 
@@ -1099,7 +1090,7 @@ void JSObject::set_elements(HeapObject* value, WriteBarrierMode mode) {
   ASSERT(value->IsFixedArray() || value->IsPixelArray() ||
          value->IsExternalArray());
   WRITE_FIELD(this, kElementsOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kElementsOffset, mode);
+  WRITE_BARRIER(this, kElementsOffset, value);
 }
 
 
@@ -1140,6 +1131,7 @@ void JSGlobalPropertyCell::set_value(Object* val, WriteBarrierMode ignored) {
   // The write barrier is not used for global property cells.
   ASSERT(!val->IsJSGlobalPropertyCell());
   WRITE_FIELD(this, kValueOffset, val);
+  IncrementalMarking::RecordWrite(this, val);
 }
 
 
@@ -1200,7 +1192,7 @@ void JSObject::SetInternalField(int index, Object* value) {
   // to adjust the index here.
   int offset = GetHeaderSize() + (kPointerSize * index);
   WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(this, offset);
+  WRITE_BARRIER(this, offset, value);
 }
 
 
@@ -1226,7 +1218,7 @@ Object* JSObject::FastPropertyAtPut(int index, Object* value) {
   if (index < 0) {
     int offset = map()->instance_size() + (index * kPointerSize);
     WRITE_FIELD(this, offset, value);
-    WRITE_BARRIER(this, offset);
+    WRITE_BARRIER(this, offset, value);
   } else {
     ASSERT(index < properties()->length());
     properties()->set(index, value);
@@ -1252,7 +1244,7 @@ Object* JSObject::InObjectPropertyAtPut(int index,
   ASSERT(index < 0);
   int offset = map()->instance_size() + (index * kPointerSize);
   WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(this, offset, mode);
+  WRITE_BARRIER(this, offset, value);
   return value;
 }
 
@@ -1340,7 +1332,7 @@ void FixedArray::set(int index, Object* value) {
   ASSERT(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(this, offset);
+  WRITE_BARRIER(this, offset, value);
 }
 
 
@@ -1357,7 +1349,7 @@ void FixedArray::set(int index,
   ASSERT(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(this, offset, mode);
+  WRITE_BARRIER(this, offset, value);
 }
 
 
@@ -1366,6 +1358,7 @@ void FixedArray::fast_set(FixedArray* array, int index, Object* value) {
   ASSERT(index >= 0 && index < array->length());
   ASSERT(!Heap::InNewSpace(value));
   WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
+  IncrementalMarking::RecordWrite(array, value);
 }
 
 
@@ -1406,7 +1399,7 @@ void FixedArray::set_unchecked(int index,
                                WriteBarrierMode mode) {
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(this, offset, mode);
+  WRITE_BARRIER(this, offset, value);
 }
 
 
@@ -1817,7 +1810,7 @@ Object* ConsString::unchecked_first() {
 
 void ConsString::set_first(String* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kFirstOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kFirstOffset, mode);
+  WRITE_BARRIER(this, kFirstOffset, value);
 }
 
 
@@ -1833,7 +1826,7 @@ Object* ConsString::unchecked_second() {
 
 void ConsString::set_second(String* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kSecondOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kSecondOffset, mode);
+  WRITE_BARRIER(this, kSecondOffset, value);
 }
 
 
@@ -2593,7 +2586,7 @@ Object* Map::prototype() {
 void Map::set_prototype(Object* value, WriteBarrierMode mode) {
   ASSERT(value->IsNull() || value->IsJSObject());
   WRITE_FIELD(this, kPrototypeOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kPrototypeOffset, mode);
+  WRITE_BARRIER(this, kPrototypeOffset, value);
 }
 
 
@@ -2943,7 +2936,7 @@ Code* SharedFunctionInfo::unchecked_code() {
 
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kCodeOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kCodeOffset, mode);
+  WRITE_BARRIER(this, kCodeOffset, value);
 }
 
 
@@ -2956,7 +2949,7 @@ SerializedScopeInfo* SharedFunctionInfo::scope_info() {
 void SharedFunctionInfo::set_scope_info(SerializedScopeInfo* value,
                                         WriteBarrierMode mode) {
   WRITE_FIELD(this, kScopeInfoOffset, reinterpret_cast<Object*>(value));
-  CONDITIONAL_WRITE_BARRIER(this, kScopeInfoOffset, mode);
+  WRITE_BARRIER(this, kScopeInfoOffset, reinterpret_cast<Object*>(value));
 }
 
 
@@ -3051,6 +3044,7 @@ void JSFunction::set_code(Code* value) {
   ASSERT(!Heap::InNewSpace(value));
   Address entry = value->entry();
   WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
+  IncrementalMarking::RecordWrite(this, value);
 }
 
 
@@ -3090,7 +3084,7 @@ SharedFunctionInfo* JSFunction::unchecked_shared() {
 void JSFunction::set_context(Object* value) {
   ASSERT(value == Heap::undefined_value() || value->IsContext());
   WRITE_FIELD(this, kContextOffset, value);
-  WRITE_BARRIER(this, kContextOffset);
+  WRITE_BARRIER(this, kContextOffset, value);
 }
 
 ACCESSORS(JSFunction, prototype_or_initial_map, Object,
@@ -3164,7 +3158,7 @@ void JSBuiltinsObject::set_javascript_builtin(Builtins::JavaScript id,
                                               Object* value) {
   ASSERT(id < kJSBuiltinsCount);  // id is unsigned.
   WRITE_FIELD(this, OffsetOfFunctionWithId(id), value);
-  WRITE_BARRIER(this, OffsetOfFunctionWithId(id));
+  WRITE_BARRIER(this, OffsetOfFunctionWithId(id), value);
 }
 
 
@@ -3796,7 +3790,6 @@ void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
 #undef READ_FIELD
 #undef WRITE_FIELD
 #undef WRITE_BARRIER
-#undef CONDITIONAL_WRITE_BARRIER
 #undef READ_MEMADDR_FIELD
 #undef WRITE_MEMADDR_FIELD
 #undef READ_DOUBLE_FIELD

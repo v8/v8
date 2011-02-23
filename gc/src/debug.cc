@@ -373,25 +373,25 @@ void BreakLocationIterator::PrepareStepIn() {
   // Step in can only be prepared if currently positioned on an IC call,
   // construct call or CallFunction stub call.
   Address target = rinfo()->target_address();
-  Handle<Code> code(Code::GetCodeFromTargetAddress(target));
-  if (code->is_call_stub() || code->is_keyed_call_stub()) {
+  Handle<Code> target_code(Code::GetCodeFromTargetAddress(target));
+  if (target_code->is_call_stub() || target_code->is_keyed_call_stub()) {
     // Step in through IC call is handled by the runtime system. Therefore make
     // sure that the any current IC is cleared and the runtime system is
     // called. If the executing code has a debug break at the location change
     // the call in the original code as it is the code there that will be
     // executed in place of the debug break call.
-    Handle<Code> stub = ComputeCallDebugPrepareStepIn(code->arguments_count(),
-                                                      code->kind());
+    Handle<Code> stub = ComputeCallDebugPrepareStepIn(
+        target_code->arguments_count(), target_code->kind());
     if (IsDebugBreak()) {
-      original_rinfo()->set_target_address(stub->entry());
+      original_rinfo()->set_target_address(stub->entry(), code());
     } else {
-      rinfo()->set_target_address(stub->entry());
+      rinfo()->set_target_address(stub->entry(), code());
     }
   } else {
 #ifdef DEBUG
     // All the following stuff is needed only for assertion checks so the code
     // is wrapped in ifdef.
-    Handle<Code> maybe_call_function_stub = code;
+    Handle<Code> maybe_call_function_stub = target_code;
     if (IsDebugBreak()) {
       Address original_target = original_rinfo()->target_address();
       maybe_call_function_stub =
@@ -408,8 +408,9 @@ void BreakLocationIterator::PrepareStepIn() {
     // Step in through CallFunction stub should also be prepared by caller of
     // this function (Debug::PrepareStep) which should flood target function
     // with breakpoints.
-    ASSERT(RelocInfo::IsConstructCall(rmode()) || code->is_inline_cache_stub()
-           || is_call_function_stub);
+    ASSERT(RelocInfo::IsConstructCall(rmode()) ||
+           target_code->is_inline_cache_stub() ||
+           is_call_function_stub);
 #endif
   }
 }
@@ -441,30 +442,30 @@ bool BreakLocationIterator::IsDebugBreak() {
 void BreakLocationIterator::SetDebugBreakAtIC() {
   // Patch the original code with the current address as the current address
   // might have changed by the inline caching since the code was copied.
-  original_rinfo()->set_target_address(rinfo()->target_address());
+  original_rinfo()->set_target_address(rinfo()->target_address(), code());
 
   RelocInfo::Mode mode = rmode();
   if (RelocInfo::IsCodeTarget(mode)) {
     Address target = rinfo()->target_address();
-    Handle<Code> code(Code::GetCodeFromTargetAddress(target));
+    Handle<Code> target_code(Code::GetCodeFromTargetAddress(target));
 
     // Patch the code to invoke the builtin debug break function matching the
     // calling convention used by the call site.
-    Handle<Code> dbgbrk_code(Debug::FindDebugBreak(code, mode));
-    rinfo()->set_target_address(dbgbrk_code->entry());
+    Handle<Code> dbgbrk_code(Debug::FindDebugBreak(target_code, mode));
+    rinfo()->set_target_address(dbgbrk_code->entry(), code());
 
     // For stubs that refer back to an inlined version clear the cached map for
     // the inlined case to always go through the IC. As long as the break point
     // is set the patching performed by the runtime system will take place in
     // the code copy and will therefore have no effect on the running code
     // keeping it from using the inlined code.
-    if (code->is_keyed_load_stub()) {
+    if (target_code->is_keyed_load_stub()) {
       KeyedLoadIC::ClearInlinedVersion(pc());
-    } else if (code->is_keyed_store_stub()) {
+    } else if (target_code->is_keyed_store_stub()) {
       KeyedStoreIC::ClearInlinedVersion(pc());
-    } else if (code->is_load_stub()) {
+    } else if (target_code->is_load_stub()) {
       LoadIC::ClearInlinedVersion(pc());
-    } else if (code->is_store_stub()) {
+    } else if (target_code->is_store_stub()) {
       StoreIC::ClearInlinedVersion(pc());
     }
   }
@@ -473,7 +474,7 @@ void BreakLocationIterator::SetDebugBreakAtIC() {
 
 void BreakLocationIterator::ClearDebugBreakAtIC() {
   // Patch the code to the original invoke.
-  rinfo()->set_target_address(original_rinfo()->target_address());
+  rinfo()->set_target_address(original_rinfo()->target_address(), code());
 
   RelocInfo::Mode mode = rmode();
   if (RelocInfo::IsCodeTarget(mode)) {

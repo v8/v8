@@ -38,6 +38,7 @@
 #include "deoptimizer.h"
 #include "execution.h"
 #include "ic-inl.h"
+#include "incremental-marking.h"
 #include "factory.h"
 #include "runtime.h"
 #include "runtime-profiler.h"
@@ -589,6 +590,11 @@ ExternalReference::ExternalReference(Top::AddressId id)
 
 ExternalReference::ExternalReference(const SCTableReference& table_ref)
   : address_(table_ref.address()) {}
+
+
+ExternalReference ExternalReference::incremental_marking_record_write_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(IncrementalMarking::RecordWrite)));
+}
 
 
 ExternalReference ExternalReference::perform_gc_function() {

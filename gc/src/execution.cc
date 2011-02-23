@@ -260,7 +260,7 @@ void StackGuard::DisableInterrupts() {
 
 bool StackGuard::IsInterrupted() {
   ExecutionAccess access;
-  return thread_local_.interrupt_flags_ & INTERRUPT;
+  return (thread_local_.interrupt_flags_ & INTERRUPT) != 0;
 }
 
 
@@ -286,7 +286,7 @@ void StackGuard::Preempt() {
 
 bool StackGuard::IsTerminateExecution() {
   ExecutionAccess access;
-  return thread_local_.interrupt_flags_ & TERMINATE;
+  return (thread_local_.interrupt_flags_ & TERMINATE) != 0;
 }
 
 
@@ -299,7 +299,7 @@ void StackGuard::TerminateExecution() {
 
 bool StackGuard::IsRuntimeProfilerTick() {
   ExecutionAccess access;
-  return thread_local_.interrupt_flags_ & RUNTIME_PROFILER_TICK;
+  return (thread_local_.interrupt_flags_ & RUNTIME_PROFILER_TICK) != 0;
 }
 
 
@@ -312,6 +312,22 @@ void StackGuard::RequestRuntimeProfilerTick() {
       Heap::SetStackLimits();
     }
     ExecutionAccess::Unlock();
+  }
+}
+
+
+bool StackGuard::IsGCRequest() {
+  ExecutionAccess access;
+  return (thread_local_.interrupt_flags_ & GC_REQUEST) != 0;
+}
+
+
+void StackGuard::RequestGC() {
+  ExecutionAccess access;
+  thread_local_.interrupt_flags_ |= GC_REQUEST;
+  if (thread_local_.postpone_interrupts_nesting_ == 0) {
+    thread_local_.jslimit_ = thread_local_.climit_ = kInterruptLimit;
+    Heap::SetStackLimits();
   }
 }
 
@@ -704,6 +720,11 @@ void Execution::ProcessDebugMesssages(bool debug_command_only) {
 #endif
 
 MaybeObject* Execution::HandleStackGuardInterrupt() {
+  if (StackGuard::IsGCRequest()) {
+    Heap::CollectAllGarbage(false);
+    StackGuard::Continue(GC_REQUEST);
+  }
+
   Counters::stack_interrupts.Increment();
   if (StackGuard::IsRuntimeProfilerTick()) {
     Counters::runtime_profiler_ticks.Increment();

@@ -82,6 +82,7 @@ SOURCES = {
     hydrogen.cc
     hydrogen-instructions.cc
     ic.cc
+    incremental-marking.cc
     inspector.cc
     interpreter-irregexp.cc
     jsregexp.cc

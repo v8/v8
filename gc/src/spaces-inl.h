@@ -202,11 +202,18 @@ HeapObject* PagedSpace::AllocateLinearly(AllocationInfo* alloc_info,
 MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
   ASSERT(HasBeenSetup());
   ASSERT_OBJECT_SIZE(size_in_bytes);
+
   HeapObject* object = AllocateLinearly(&allocation_info_, size_in_bytes);
-  if (object != NULL) return object;
+  if (object != NULL) {
+    IncrementalMarking::Step(size_in_bytes);
+    return object;
+  }
 
   object = SlowAllocateRaw(size_in_bytes);
-  if (object != NULL) return object;
+  if (object != NULL) {
+    IncrementalMarking::Step(size_in_bytes);
+    return object;
+  }
 
   return Failure::RetryAfterGC(identity());
 }
@@ -229,6 +236,9 @@ MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes,
          && alloc_info->top <= space->high()
          && alloc_info->limit == space->high());
 #endif
+
+  IncrementalMarking::Step(size_in_bytes);
+
   return obj;
 }
 

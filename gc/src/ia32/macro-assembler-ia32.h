@@ -61,6 +61,10 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
+  void IncrementalMarkingRecordWrite(Register object,
+                                     Register value,
+                                     Register scratch);
+
   // For page containing |object| mark region covering |addr| dirty.
   // RecordWriteHelper only works if the object is not in new
   // space.

@@ -136,7 +136,9 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
-void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
+// TODO(gc) make use of unoptimized_code when supporting incremental marking.
+void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
+                                        Address pc_after,
                                         Code* check_code,
                                         Code* replacement_code) {
   Address call_target_address = pc_after - kIntSize;
@@ -165,6 +167,7 @@ void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
   *(call_target_address - 2) = 0x90;  // nop
   Assembler::set_target_address_at(call_target_address,
                                    replacement_code->entry());
+  IncrementalMarking::RecordWrite(unoptimized_code, replacement_code);
 }
 
 
@@ -183,6 +186,7 @@ void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
   *(call_target_address - 2) = 0x07;  // offset
   Assembler::set_target_address_at(call_target_address,
                                    check_code->entry());
+  IncrementalMarking::RecordWriteOf(check_code);
 }
 
 

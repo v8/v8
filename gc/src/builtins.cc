@@ -295,6 +295,7 @@ static void CopyElements(AssertNoAllocation* no_gc,
   if (mode == UPDATE_WRITE_BARRIER) {
     Heap::RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
   }
+  IncrementalMarking::RecordWrites(dst);
 }
 
 
@@ -312,6 +313,7 @@ static void MoveElements(AssertNoAllocation* no_gc,
   if (mode == UPDATE_WRITE_BARRIER) {
     Heap::RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
   }
+  IncrementalMarking::RecordWrites(dst);
 }
 
 

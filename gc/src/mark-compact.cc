@@ -90,6 +90,65 @@ void Marking::TearDown() {
 }
 
 
+#ifdef DEBUG
+class VerifyMarkingVisitor: public ObjectVisitor {
+ public:
+  void VisitPointers(Object** start, Object** end) {
+    for (Object** current = start; current < end; current++) {
+      if ((*current)->IsHeapObject()) {
+        HeapObject* object = HeapObject::cast(*current);
+        ASSERT(Marking::IsMarked(object));
+      }
+    }
+  }
+};
+
+
+static void VerifyMarking(Address bottom, Address top) {
+  VerifyMarkingVisitor visitor;
+  HeapObject* object;
+
+  for (Address current = bottom;
+       current < top;
+       current += object->Size()) {
+    object = HeapObject::FromAddress(current);
+    if (Marking::IsMarked(object)) object->Iterate(&visitor);
+  }
+}
+
+
+static void VerifyMarking(Page* p) {
+  VerifyMarking(p->ObjectAreaStart(), p->AllocationTop());
+}
+
+
+static void VerifyMarking(NewSpace* space) {
+  VerifyMarking(space->bottom(), space->top());
+}
+
+
+static void VerifyMarking(PagedSpace* space) {
+  PageIterator it(space, PageIterator::PAGES_IN_USE);
+
+  while (it.has_next()) {
+    VerifyMarking(it.next());
+  }
+}
+
+
+static void VerifyMarking() {
+  VerifyMarking(Heap::old_pointer_space());
+  VerifyMarking(Heap::old_data_space());
+  VerifyMarking(Heap::code_space());
+  VerifyMarking(Heap::cell_space());
+  VerifyMarking(Heap::map_space());
+  VerifyMarking(Heap::new_space());
+
+  VerifyMarkingVisitor visitor;
+  Heap::IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
+}
+#endif
+
 void MarkCompactCollector::CollectGarbage() {
   // Make sure that Prepare() has been called. The individual steps below will
   // update the state as they proceed.
@@ -99,8 +158,20 @@ void MarkCompactCollector::CollectGarbage() {
   // Tell the tracer.
   if (IsCompacting()) tracer_->set_is_compacting();
 
-  MarkLiveObjects();
+  if (IncrementalMarking::state() == IncrementalMarking::STOPPED) {
+    MarkLiveObjects();
+  } else {
+    {
+      GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_MARK);
+      IncrementalMarking::Finalize();
+      ASSERT(IncrementalMarking::state() == IncrementalMarking::STOPPED);
+    }
+    MarkLiveObjects();
+  }
 
+#ifdef DEBUG
+  VerifyMarking();
+#endif
   if (FLAG_collect_maps) ClearNonLiveTransitions();
 
   SweepSpaces();
@@ -154,10 +225,36 @@ static void ClearMarkbits() {
 }
 
 
+void Marking::TransferMark(Address old_start, Address new_start) {
+  if (IncrementalMarking::state() == IncrementalMarking::MARKING) {
+    if (IncrementalMarking::IsBlack(HeapObject::FromAddress(old_start))) {
+      IncrementalMarking::MarkBlack(HeapObject::FromAddress(new_start));
+    } else if (IncrementalMarking::IsGrey(HeapObject::FromAddress(old_start))) {
+      IncrementalMarking::WhiteToGrey(HeapObject::FromAddress(new_start));
+      // TODO(gc): if we shift huge array in the loop we might end up pushing
+      // to much to marking stack. maybe we should check one or two elements
+      // on top of it to see whether they are equal to old_start.
+    }
+  } else {
+    if (Heap::InNewSpace(old_start) ||
+        Page::FromAddress(old_start)->IsFlagSet(Page::IS_CONTINUOUS) ||
+        !IsMarked(old_start)) {
+      return;
+    }
+    SetMark(new_start);
+  }
+}
+
+
 void MarkCompactCollector::Prepare(GCTracer* tracer) {
   FLAG_flush_code = false;
   FLAG_always_compact = false;
   FLAG_never_compact = true;
+
+  // Disable collection of maps if incremental marking is enabled.
+  // TODO(gc) improve maps collection algorithm to work with incremental
+  // marking.
+  if (FLAG_incremental_marking) FLAG_collect_maps = false;
 
   // Rather than passing the tracer around we stash it in a static member
   // variable.
@@ -174,8 +271,9 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   compact_on_next_gc_ = false;
 
   if (FLAG_never_compact) compacting_collection_ = false;
-  if (!Heap::map_space()->MapPointersEncodable())
-      compacting_collection_ = false;
+  if (!Heap::map_space()->MapPointersEncodable()) {
+    compacting_collection_ = false;
+  }
   if (FLAG_collect_maps) CreateBackPointers();
 #ifdef ENABLE_GDB_JIT_INTERFACE
   if (FLAG_gdbjit) {
@@ -190,17 +288,20 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
     space->PrepareForMarkCompact(compacting_collection_);
   }
 
-  Address new_space_top = Heap::new_space()->top();
-  Address new_space_bottom = Heap::new_space()->bottom();
+  if (IncrementalMarking::state() == IncrementalMarking::STOPPED) {
+    Address new_space_top = Heap::new_space()->top();
+    Address new_space_bottom = Heap::new_space()->bottom();
 
-  Marking::ClearRange(new_space_bottom,
-                      static_cast<int>(new_space_top - new_space_bottom));
+    Marking::ClearRange(new_space_bottom,
+                        static_cast<int>(new_space_top - new_space_bottom));
 
-  ClearMarkbits();
+    ClearMarkbits();
+#ifdef DEBUG
+    VerifyMarkbitsAreClean();
+#endif
+  }
 
 #ifdef DEBUG
-  VerifyMarkbitsAreClean();
-
   live_bytes_ = 0;
   live_young_objects_size_ = 0;
   live_old_pointer_objects_size_ = 0;
@@ -545,7 +646,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     Object* old_cell = cell;
     VisitPointer(&cell);
     if (cell != old_cell) {
-      rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell));
+      rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell), NULL);
     }
   }
 
@@ -1388,6 +1489,11 @@ void MarkCompactCollector::MarkLiveObjects() {
   // weak roots.
   ProcessObjectGroups();
 
+  AfterMarking();
+}
+
+
+void MarkCompactCollector::AfterMarking() {
   // Prune the symbol table removing all symbols only pointed to by the
   // symbol table.  Cannot use symbol_table() here because the symbol
   // table is marked.
@@ -1406,7 +1512,9 @@ void MarkCompactCollector::MarkLiveObjects() {
   GlobalHandles::RemoveObjectGroups();
 
   // Flush code from collected candidates.
-  FlushCode::ProcessCandidates();
+  if (FLAG_flush_code) {
+    FlushCode::ProcessCandidates();
+  }
 }
 
 
@@ -1566,7 +1674,7 @@ class PointersToNewGenUpdatingVisitor: public ObjectVisitor {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     VisitPointer(&target);
-    rinfo->set_target_address(Code::cast(target)->instruction_start());
+    rinfo->set_target_address(Code::cast(target)->instruction_start(), NULL);
   }
 
   void VisitDebugTarget(RelocInfo* rinfo) {
@@ -1896,6 +2004,9 @@ static void SweepPrecisely(PagedSpace* space,
         is_previous_alive = true;
       }
     } else {
+      ASSERT((current + kPointerSize) >= p->AllocationTop() ||
+             object->Size() == kPointerSize ||
+             IncrementalMarking::IsWhite(object));
       MarkCompactCollector::ReportDeleteIfNeeded(object);
       if (is_previous_alive) {  // Transition from live to free.
         free_start = current;
@@ -2038,17 +2149,24 @@ void MarkCompactCollector::SweepSpaces() {
 #ifdef DEBUG
   state_ = SWEEP_SPACES;
 #endif
+
+#ifndef DEBUG
+  SweeperType fast_sweeper = CONSERVATIVE;
+#else
+  SweeperType fast_sweeper = PRECISE;
+#endif
+
   ASSERT(!IsCompacting());
   // Noncompacting collections simply sweep the spaces to clear the mark
   // bits and free the nonlive blocks (for old and map spaces).  We sweep
   // the map space last because freeing non-live maps overwrites them and
   // the other spaces rely on possibly non-live maps to get the sizes for
   // non-live objects.
-  SweepSpace(Heap::old_pointer_space(), CONSERVATIVE);
-  SweepSpace(Heap::old_data_space(), CONSERVATIVE);
+  SweepSpace(Heap::old_pointer_space(), fast_sweeper);
+  SweepSpace(Heap::old_data_space(), fast_sweeper);
   SweepSpace(Heap::code_space(), PRECISE);
   // TODO(gc): implement specialized sweeper for cell space.
-  SweepSpace(Heap::cell_space(), CONSERVATIVE);
+  SweepSpace(Heap::cell_space(), fast_sweeper);
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP_NEWSPACE);
     SweepNewSpace(Heap::new_space());
   }

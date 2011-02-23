@@ -209,16 +209,7 @@ class Marking {
     return FirstMarkedObject(page, cell_index, cells[cell_index]);
   }
 
-  static inline void TransferMark(Address old_start,
-                                  Address new_start) {
-    if (Heap::InNewSpace(old_start) ||
-        Page::FromAddress(old_start)->IsFlagSet(Page::IS_CONTINUOUS) ||
-        !IsMarked(old_start)) {
-      return;
-    }
-
-    SetMark(new_start);
-  }
+  static void TransferMark(Address old_start, Address new_start);
 
   static bool Setup();
 
@@ -402,6 +393,9 @@ class MarkCompactCollector: public AllStatic {
 
   // Marking operations for objects reachable from roots.
   static void MarkLiveObjects();
+
+  static void AfterMarking();
+
 
   INLINE(static void MarkObject(HeapObject* obj)) {
     if (!Marking::TestAndMark(obj->address())) {

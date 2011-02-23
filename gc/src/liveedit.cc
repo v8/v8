@@ -864,7 +864,9 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
     }
     Address substitution_entry = substitution->instruction_start();
     for (int i = 0; i < reloc_infos_.length(); i++) {
-      reloc_infos_[i].set_target_address(substitution_entry);
+      reloc_infos_[i].set_target_address(substitution_entry, NULL);
+      // TODO(gc) more precise barrier.
+      IncrementalMarking::RecordWriteOf(substitution);
     }
     for (int i = 0; i < code_entries_.length(); i++) {
       Address entry = code_entries_[i];
@@ -1289,7 +1291,7 @@ void LiveEdit::ReplaceRefToNestedFunction(
   for (RelocIterator it(parent_shared->code()); !it.done(); it.next()) {
     if (it.rinfo()->rmode() == RelocInfo::EMBEDDED_OBJECT) {
       if (it.rinfo()->target_object() == *orig_shared) {
-        it.rinfo()->set_target_object(*subst_shared);
+        it.rinfo()->set_target_object(*subst_shared, NULL);
       }
     }
   }

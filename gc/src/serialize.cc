@@ -327,16 +327,19 @@ void ExternalReferenceTable::PopulateTable() {
       RUNTIME_ENTRY,
       2,
       "V8::FillHeapNumberWithRandom");
-
   Add(ExternalReference::random_uint32_function().address(),
       RUNTIME_ENTRY,
       3,
       "V8::Random");
-
   Add(ExternalReference::delete_handle_scope_extensions().address(),
       RUNTIME_ENTRY,
       4,
       "HandleScope::DeleteExtensions");
+  Add(ExternalReference::incremental_marking_record_write_function().address(),
+      RUNTIME_ENTRY,
+      5,
+      "IncrementalMarking::RecordWrite");
+
 
   // Miscellaneous
   Add(ExternalReference::the_hole_value_location().address(),

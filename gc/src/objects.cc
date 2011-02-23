@@ -5899,7 +5899,7 @@ void ObjectVisitor::VisitGlobalPropertyCell(RelocInfo* rinfo) {
   Object* old_cell = cell;
   VisitPointer(&cell);
   if (cell != old_cell) {
-    rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell));
+    rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell), NULL);
   }
 }
 
@@ -5950,16 +5950,16 @@ void Code::CopyFrom(const CodeDesc& desc) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
-      it.rinfo()->set_target_object(*p);
+      it.rinfo()->set_target_object(*p, this);
     } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-      Handle<JSGlobalPropertyCell> cell = it.rinfo()->target_cell_handle();
-      it.rinfo()->set_target_cell(*cell);
+      Handle<JSGlobalPropertyCell> cell  = it.rinfo()->target_cell_handle();
+      it.rinfo()->set_target_cell(*cell, this);
     } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles in inline cache targets to direct
       // pointers to the first instruction in the code object
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       Code* code = Code::cast(*p);
-      it.rinfo()->set_target_address(code->instruction_start());
+      it.rinfo()->set_target_address(code->instruction_start(), this);
     } else {
       it.rinfo()->apply(delta);
     }

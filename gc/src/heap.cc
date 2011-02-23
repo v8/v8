@@ -34,6 +34,7 @@
 #include "compilation-cache.h"
 #include "debug.h"
 #include "heap-profiler.h"
+#include "incremental-marking.h"
 #include "global-handles.h"
 #include "liveobjectlist-inl.h"
 #include "mark-compact.h"
@@ -469,6 +470,14 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
   allocation_timeout_ = Max(6, FLAG_gc_interval);
 #endif
 
+  if (collector == SCAVENGER &&
+      IncrementalMarking::state() != IncrementalMarking::STOPPED) {
+    if (FLAG_trace_incremental_marking) {
+      PrintF("[IncrementalMarking] SCAVENGE -> MARK-SWEEP\n");
+    }
+    collector = MARK_COMPACTOR;
+  }
+
   bool next_gc_likely_to_collect_more = false;
 
   { GCTracer tracer;
@@ -491,6 +500,10 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
     GarbageCollectionEpilogue();
   }
 
+  ASSERT(IncrementalMarking::state() == IncrementalMarking::STOPPED);
+  if (NextGCIsLikelyToBeFull() && FLAG_incremental_marking) {
+    IncrementalMarking::Start();
+  }
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_gc) HeapProfiler::WriteSample();
@@ -503,7 +516,11 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
 
 void Heap::PerformScavenge() {
   GCTracer tracer;
-  PerformGarbageCollection(SCAVENGER, &tracer);
+  if (IncrementalMarking::state() == IncrementalMarking::STOPPED) {
+    PerformGarbageCollection(SCAVENGER, &tracer);
+  } else {
+    PerformGarbageCollection(MARK_COMPACTOR, &tracer);
+  }
 }
 
 

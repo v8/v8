@@ -1716,7 +1716,9 @@ LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
-  LStoreGlobal* result = new LStoreGlobal(UseRegisterAtStart(instr->value()));
+  LStoreGlobal* result = new LStoreGlobal(UseTempRegister(instr->value()),
+                                          TempRegister(),
+                                          TempRegister());
   return instr->check_hole_value() ? AssignEnvironment(result) : result;
 }
 

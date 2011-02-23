@@ -74,6 +74,7 @@ void HeapObjectIterator::Initialize(Address cur, Address end,
   cur_limit_ = (p == end_page_) ? end_addr_ : p->AllocationTop();
 
   if (!p->IsFlagSet(Page::IS_CONTINUOUS)) {
+    ASSERT(IncrementalMarking::state() == IncrementalMarking::STOPPED);
     cur_addr_ = Marking::FirstLiveObject(cur_addr_, cur_limit_);
     if (cur_addr_ > cur_limit_) cur_addr_ = cur_limit_;
   }
@@ -95,6 +96,7 @@ HeapObject* HeapObjectIterator::FromNextPage() {
   cur_limit_ = (cur_page == end_page_) ? end_addr_ : cur_page->AllocationTop();
 
   if (!cur_page->IsFlagSet(Page::IS_CONTINUOUS)) {
+    ASSERT(IncrementalMarking::state() == IncrementalMarking::STOPPED);
     cur_addr_ = Marking::FirstLiveObject(cur_addr_, cur_limit_);
     if (cur_addr_ > cur_limit_) cur_addr_ = cur_limit_;
   }
@@ -109,6 +111,7 @@ HeapObject* HeapObjectIterator::FromNextPage() {
 
 
 void HeapObjectIterator::AdvanceUsingMarkbits() {
+  ASSERT(IncrementalMarking::state() == IncrementalMarking::STOPPED);
   HeapObject* obj = HeapObject::FromAddress(cur_addr_);
   int obj_size = (size_func_ == NULL) ? obj->Size() : size_func_(obj);
   ASSERT_OBJECT_SIZE(obj_size);
@@ -2310,6 +2313,8 @@ MaybeObject* LargeObjectSpace::AllocateRawInternal(int object_size,
   page->set_next_page(first_page_);
   first_page_ = page;
 
+
+  IncrementalMarking::Step(object_size);
   return page->GetObject();
 }
 

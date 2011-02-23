@@ -48,6 +48,26 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
       code_object_(Heap::undefined_value()) {
 }
 
+
+void MacroAssembler::IncrementalMarkingRecordWrite(Register object,
+                                                   Register value,
+                                                   Register scratch) {
+  ASSERT(!object.is(scratch));
+  ASSERT(!value.is(scratch));
+  push(eax);
+  push(ecx);
+  push(edx);
+  PrepareCallCFunction(2, scratch);
+  mov(Operand(esp, 0 * kPointerSize), object);
+  mov(Operand(esp, 1 * kPointerSize), value);
+  CallCFunction(
+      ExternalReference::incremental_marking_record_write_function(), 2);
+  pop(edx);
+  pop(ecx);
+  pop(eax);
+}
+
+
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register addr,
                                        Register scratch,
@@ -88,12 +108,14 @@ void MacroAssembler::RecordWrite(Register object,
                                  SaveFPRegsMode save_fp) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
-  NearLabel done;
+  Label done;
 
   // Skip barrier if writing a smi.
   ASSERT_EQ(0, kSmiTag);
   test(value, Immediate(kSmiTagMask));
   j(zero, &done);
+
+  IncrementalMarkingRecordWrite(object, value, scratch);
 
   InNewSpace(object, value, equal, &done);
 

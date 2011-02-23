@@ -1098,6 +1098,13 @@ void LAllocator::ResolveControlFlow(LiveRange* range,
       } else {
         ASSERT(pred->end()->SecondSuccessor() == NULL);
         gap = GetLastGap(pred);
+
+        if (HasTaggedValue(range->id())) {
+          LInstruction* branch = InstructionAt(pred->last_instruction_index());
+          if (branch->HasPointerMap()) {
+            branch->pointer_map()->RecordPointer(cur_op);
+          }
+        }
       }
       gap->GetOrCreateParallelMove(LGap::START)->AddMove(pred_op, cur_op);
     }

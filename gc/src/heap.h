@@ -1119,6 +1119,24 @@ class Heap : public AllStatic {
     survived_since_last_expansion_ += survived;
   }
 
+  static inline bool NextGCIsLikelyToBeFull() {
+    intptr_t total_promoted =
+        PromotedSpaceSize() + PromotedExternalMemorySize();
+
+    intptr_t adjusted_promotion_limit =
+        old_gen_promotion_limit_ - new_space_.Capacity();
+
+    if (total_promoted >= adjusted_promotion_limit) return true;
+
+    intptr_t adjusted_allocation_limit =
+        old_gen_allocation_limit_ - new_space_.Capacity() / 5;
+
+    if (PromotedSpaceSize() >= adjusted_allocation_limit) return true;
+
+    return false;
+  }
+
+
   static void UpdateNewSpaceReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
 

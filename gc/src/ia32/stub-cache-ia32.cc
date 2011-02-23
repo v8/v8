@@ -1498,6 +1498,8 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       __ bind(&with_write_barrier);
 
+      __ IncrementalMarkingRecordWrite(ebx, ecx, edx);
+
       __ InNewSpace(ebx, ecx, equal, &exit);
 
       __ RecordWriteHelper(ebx, edx, ecx, kDontSaveFPRegs);
@@ -2583,13 +2585,9 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
          Immediate(Handle<Map>(object->map())));
   __ j(not_equal, &miss, not_taken);
 
-
   // Compute the cell operand to use.
-  Operand cell_operand = Operand::Cell(Handle<JSGlobalPropertyCell>(cell));
-  if (Serializer::enabled()) {
-    __ mov(ecx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
-    cell_operand = FieldOperand(ecx, JSGlobalPropertyCell::kValueOffset);
-  }
+  __ mov(ebx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
+  Operand cell_operand = FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset);
 
   // Check that the value in the cell is not the hole. If it is, this
   // cell could have been deleted and reintroducing the global needs
@@ -2600,6 +2598,15 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
 
   // Store the value in the cell.
   __ mov(cell_operand, eax);
+  Label done;
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &done);
+
+  __ mov(ecx, eax);
+  __ IncrementalMarkingRecordWrite(ebx, ecx, edx);
+
+   // Return the value (register eax).
+  __ bind(&done);
 
   // Return the value (register eax).
   __ IncrementCounter(&Counters::named_store_global_inline, 1);
