@@ -1190,8 +1190,8 @@ LInstruction* LChunkBuilder::DoContext(HContext* instr) {
 
 
 LInstruction* LChunkBuilder::DoOuterContext(HOuterContext* instr) {
-  Abort("Unimplemented: DoOuterContext");
-  return NULL;
+  LOperand* context = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LOuterContext(context));
 }
 
 

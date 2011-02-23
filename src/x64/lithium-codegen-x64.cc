@@ -2205,6 +2205,15 @@ void LCodeGen::DoContext(LContext* instr) {
 }
 
 
+void LCodeGen::DoOuterContext(LOuterContext* instr) {
+  Register context = ToRegister(instr->context());
+  Register result = ToRegister(instr->result());
+  __ movq(result,
+	  Operand(context, Context::SlotOffset(Context::CLOSURE_INDEX)));
+  __ movq(result, FieldOperand(result, JSFunction::kContextOffset));
+}
+
+
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
   Register result = ToRegister(instr->result());
   __ movq(result, GlobalObjectOperand());

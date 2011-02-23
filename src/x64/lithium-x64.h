@@ -129,6 +129,7 @@ class LCodeGen;
   V(NumberUntagD)                               \
   V(ObjectLiteral)                              \
   V(OsrEntry)                                   \
+  V(OuterContext)                               \
   V(Parameter)                                  \
   V(PixelArrayLength)                           \
   V(Power)                                      \
@@ -1277,6 +1278,18 @@ class LPushArgument: public LTemplateInstruction<0, 1, 0> {
 class LContext: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(Context, "context")
+};
+
+
+class LOuterContext: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LOuterContext(LOperand* context) {
+    inputs_[0] = context;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(OuterContext, "outer-context")
+
+  LOperand* context() { return InputAt(0); }
 };
 
 
