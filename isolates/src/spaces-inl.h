@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -480,7 +480,7 @@ void LargeObjectChunk::Free(Executability executable) {
 }
 
 // -----------------------------------------------------------------------------
-// LargeObjectSpace
+// NewSpace
 
 MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes,
                                            AllocationInfo* alloc_info) {
@@ -503,6 +503,18 @@ MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes,
 intptr_t LargeObjectSpace::Available() {
   return LargeObjectChunk::ObjectSizeFor(
       heap()->isolate()->memory_allocator()->Available());
+}
+
+
+template <typename StringType>
+void NewSpace::ShrinkStringAtAllocationBoundary(String* string, int length) {
+  ASSERT(length <= string->length());
+  ASSERT(string->IsSeqString());
+  ASSERT(string->address() + StringType::SizeFor(string->length()) ==
+         allocation_info_.top);
+  allocation_info_.top =
+      string->address() + StringType::SizeFor(length);
+  string->set_length(length);
 }
 
 

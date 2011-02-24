@@ -625,6 +625,7 @@ class SamplerThread : public Thread {
         }
       }
       OS::Sleep(interval_);
+      state = SamplerRegistry::GetState();
     }
   }
 

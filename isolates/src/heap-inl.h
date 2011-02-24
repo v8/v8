@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -46,6 +46,21 @@ void PromotionQueue::insert(HeapObject* target, int size) {
 
 int Heap::MaxObjectSizeInPagedSpace() {
   return Page::kMaxHeapObjectSize;
+}
+
+
+MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> str,
+                                          PretenureFlag pretenure) {
+  // Check for ASCII first since this is the common case.
+  for (int i = 0; i < str.length(); ++i) {
+    if (static_cast<uint8_t>(str[i]) > String::kMaxAsciiCharCodeU) {
+      // Non-ASCII and we need to decode.
+      return AllocateStringFromUtf8Slow(str, pretenure);
+    }
+  }
+  // If the string is ASCII, we do not need to convert the characters
+  // since UTF8 is backwards compatible with ASCII.
+  return AllocateStringFromAscii(str, pretenure);
 }
 
 
@@ -554,6 +569,30 @@ MaybeObject* TranscendentalCache::Get(Type type, double input) {
 
 Address TranscendentalCache::cache_array_address() {
   return reinterpret_cast<Address>(caches_);
+}
+
+
+double TranscendentalCache::SubCache::Calculate(double input) {
+  switch (type_) {
+    case ACOS:
+      return acos(input);
+    case ASIN:
+      return asin(input);
+    case ATAN:
+      return atan(input);
+    case COS:
+      return cos(input);
+    case EXP:
+      return exp(input);
+    case LOG:
+      return log(input);
+    case SIN:
+      return sin(input);
+    case TAN:
+      return tan(input);
+    default:
+      return 0.0;  // Never happens.
+  }
 }
 
 

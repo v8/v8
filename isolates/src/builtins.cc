@@ -528,10 +528,11 @@ BUILTIN(ArrayShift) {
   Object* elms_obj;
   { MaybeObject* maybe_elms_obj =
         EnsureJSArrayWithWritableFastElements(heap, receiver);
+    if (maybe_elms_obj == NULL)
+        return CallJsBuiltin(isolate, "ArrayShift", args);
     if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
   }
-  if (elms_obj == NULL ||
-      !IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
+  if (!IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArrayShift", args);
   }
   FixedArray* elms = FixedArray::cast(elms_obj);
@@ -571,10 +572,11 @@ BUILTIN(ArrayUnshift) {
   Object* elms_obj;
   { MaybeObject* maybe_elms_obj =
         EnsureJSArrayWithWritableFastElements(heap, receiver);
+    if (maybe_elms_obj == NULL)
+        return CallJsBuiltin(isolate, "ArrayUnshift", args);
     if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
   }
-  if (elms_obj == NULL ||
-      !IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
+  if (!IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArrayUnshift", args);
   }
   FixedArray* elms = FixedArray::cast(elms_obj);
@@ -626,21 +628,46 @@ BUILTIN(ArrayUnshift) {
 BUILTIN(ArraySlice) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  Object* elms_obj;
+  FixedArray* elms;
+  int len = -1;
   { MaybeObject* maybe_elms_obj =
         EnsureJSArrayWithWritableFastElements(heap, receiver);
-    if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
-  }
-  if (elms_obj == NULL ||
-      !IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
-    return CallJsBuiltin(isolate, "ArraySlice", args);
-  }
-  FixedArray* elms = FixedArray::cast(elms_obj);
-  JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastElements());
+    Object* elms_obj;
+    if (maybe_elms_obj != NULL && maybe_elms_obj->ToObject(&elms_obj)) {
+      if (!IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
+        return CallJsBuiltin(isolate, "ArraySlice", args);
+      }
+      elms = FixedArray::cast(elms_obj);
+      JSArray* array = JSArray::cast(receiver);
+      ASSERT(array->HasFastElements());
 
-  int len = Smi::cast(array->length())->value();
+      len = Smi::cast(array->length())->value();
+    } else {
+      // Array.slice(arguments, ...) is quite a common idiom (notably more
+      // than 50% of invocations in Web apps).  Treat it in C++ as well.
+      Map* arguments_map =
+          isolate->context()->global_context()->arguments_boilerplate()->map();
 
+      bool is_arguments_object_with_fast_elements =
+          receiver->IsJSObject()
+          && JSObject::cast(receiver)->map() == arguments_map
+          && JSObject::cast(receiver)->HasFastElements();
+      if (!is_arguments_object_with_fast_elements) {
+        return CallJsBuiltin(isolate, "ArraySlice", args);
+      }
+      elms = FixedArray::cast(JSObject::cast(receiver)->elements());
+      len = elms->length();
+#ifdef DEBUG
+      // Arguments object by construction should have no holes, check it.
+      if (FLAG_enable_slow_asserts) {
+        for (int i = 0; i < len; i++) {
+          ASSERT(elms->get(i) != heap->the_hole_value());
+        }
+      }
+#endif
+    }
+  }
+  ASSERT(len >= 0);
   int n_arguments = args.length() - 1;
 
   // Note carefully choosen defaults---if argument is missing,
@@ -709,10 +736,11 @@ BUILTIN(ArraySplice) {
   Object* elms_obj;
   { MaybeObject* maybe_elms_obj =
         EnsureJSArrayWithWritableFastElements(heap, receiver);
+    if (maybe_elms_obj == NULL)
+        return CallJsBuiltin(isolate, "ArraySplice", args);
     if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
   }
-  if (elms_obj == NULL ||
-      !IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
+  if (!IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArraySplice", args);
   }
   FixedArray* elms = FixedArray::cast(elms_obj);

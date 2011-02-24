@@ -761,7 +761,6 @@ MaybeObject* Execution::HandleStackGuardInterrupt() {
     return isolate->TerminateExecution();
   }
   if (stack_guard->IsInterrupted()) {
-    // interrupt
     stack_guard->Continue(INTERRUPT);
     return isolate->StackOverflow();
   }

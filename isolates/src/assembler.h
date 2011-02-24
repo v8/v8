@@ -49,6 +49,7 @@ class DoubleConstant: public AllStatic {
  public:
   static const double min_int;
   static const double one_half;
+  static const double negative_infinity;
 };
 
 
@@ -320,7 +321,7 @@ class RelocInfo BASE_EMBEDDED {
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* RelocModeName(Mode rmode);
-  void Print();
+  void Print(FILE* out);
 #endif  // ENABLE_DISASSEMBLER
 #ifdef DEBUG
   // Debugging
@@ -538,6 +539,8 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference double_fp_operation(Token::Value operation);
   static ExternalReference compare_doubles();
+  static ExternalReference power_double_double_function();
+  static ExternalReference power_double_int_function();
 
   static ExternalReference handle_scope_next_address();
   static ExternalReference handle_scope_limit_address();
@@ -548,6 +551,7 @@ class ExternalReference BASE_EMBEDDED {
   // Static variables containing common double constants.
   static ExternalReference address_of_min_int();
   static ExternalReference address_of_one_half();
+  static ExternalReference address_of_negative_infinity();
 
   Address address() const {return reinterpret_cast<Address>(address_);}
 
@@ -711,6 +715,10 @@ static inline int NumberOfBitsSet(uint32_t x) {
   }
   return num_bits_set;
 }
+
+// Computes pow(x, y) with the special cases in the spec for Math.pow.
+double power_double_int(double x, int y);
+double power_double_double(double x, double y);
 
 } }  // namespace v8::internal
 

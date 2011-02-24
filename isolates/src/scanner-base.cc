@@ -41,12 +41,6 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// UTF16Buffer
-
-UTF16Buffer::UTF16Buffer()
-    : pos_(0), end_(kNoEndPosition) { }
-
-// ----------------------------------------------------------------------------
 // LiteralCollector
 
 LiteralCollector::LiteralCollector()
@@ -87,9 +81,8 @@ bool ScannerConstants::IsIdentifier(unibrow::CharacterStream* buffer) {
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner()
-    : scanner_constants_(Isolate::Current()->scanner_constants()),
-      source_(NULL) {
+Scanner::Scanner(Isolate* isolate)
+    : scanner_constants_(isolate->scanner_constants()) {
 }
 
 
@@ -140,9 +133,7 @@ uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
 // ----------------------------------------------------------------------------
 // JavaScriptScanner
 
-JavaScriptScanner::JavaScriptScanner(ScannerConstants* scanner_constants)
-    : scanner_constants_(scanner_constants),
-      has_line_terminator_before_next_(false) {}
+JavaScriptScanner::JavaScriptScanner(Isolate* isolate) : Scanner(isolate) {}
 
 
 Token::Value JavaScriptScanner::Next() {
@@ -502,12 +493,21 @@ void JavaScriptScanner::Scan() {
 
 
 void JavaScriptScanner::SeekForward(int pos) {
-  source_->SeekForward(pos - 1);
-  Advance();
-  // This function is only called to seek to the location
-  // of the end of a function (at the "}" token). It doesn't matter
-  // whether there was a line terminator in the part we skip.
-  has_line_terminator_before_next_ = false;
+  // After this call, we will have the token at the given position as
+  // the "next" token. The "current" token will be invalid.
+  if (pos == next_.location.beg_pos) return;
+  int current_pos = source_pos();
+  ASSERT_EQ(next_.location.end_pos, current_pos);
+  // Positions inside the lookahead token aren't supported.
+  ASSERT(pos >= current_pos);
+  if (pos != current_pos) {
+    source_->SeekForward(pos - source_->pos());
+    Advance();
+    // This function is only called to seek to the location
+    // of the end of a function (at the "}" token). It doesn't matter
+    // whether there was a line terminator in the part we skip.
+    has_line_terminator_before_next_ = false;
+  }
   Scan();
 }
 

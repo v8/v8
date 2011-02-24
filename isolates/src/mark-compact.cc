@@ -1325,6 +1325,11 @@ void MarkCompactCollector::ProcessObjectGroups() {
 
 void MarkCompactCollector::MarkLiveObjects() {
   GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_MARK);
+  // The recursive GC marker detects when it is nearing stack overflow,
+  // and switches to a different marking system.  JS interrupts interfere
+  // with the C stack limit check.
+  PostponeInterruptsScope postpone(heap_->isolate());
+
 #ifdef DEBUG
   ASSERT(state_ == PREPARE_GC);
   state_ = MARK_LIVE_OBJECTS;

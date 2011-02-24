@@ -40,6 +40,13 @@ class Object;
 class PendingListNode;
 class Semaphore;
 
+
+enum SamplerState {
+  IN_NON_JS_STATE = 0,
+  IN_JS_STATE = 1
+};
+
+
 class RuntimeProfiler {
  public:
   explicit RuntimeProfiler(Isolate* isolate);
@@ -89,6 +96,7 @@ class RuntimeProfiler {
 
  private:
   static const int kSamplerWindowSize = 16;
+  static const int kStateWindowSize = 128;
 
   static void HandleWakeUp(Isolate* isolate);
 
@@ -104,10 +112,18 @@ class RuntimeProfiler {
 
   void AddSample(JSFunction* function, int weight);
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  void UpdateStateRatio(SamplerState current_state);
+#endif
+
   Isolate* isolate_;
 
   int sampler_threshold_;
   int sampler_threshold_size_factor_;
+  int sampler_ticks_until_threshold_adjustment_;
+
+  // The ratio of ticks spent in JS code in percent.
+  Atomic32 js_ratio_;
 
   // The JSFunctions in the sampler window are not GC safe. Old-space
   // pointers are not cleared during mark-sweep collection and therefore
@@ -120,6 +136,10 @@ class RuntimeProfiler {
 
   // Support for pending 'optimize soon' requests.
   PendingListNode* optimize_soon_list_;
+
+  SamplerState state_window_[kStateWindowSize];
+  int state_window_position_;
+  int state_counts_[2];
 
   // Possible state values:
   //   -1            => the profiler thread is waiting on the semaphore

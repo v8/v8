@@ -490,7 +490,10 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateStringFromAscii(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
-  MUST_USE_RESULT MaybeObject* AllocateStringFromUtf8(
+  MUST_USE_RESULT inline MaybeObject* AllocateStringFromUtf8(
+      Vector<const char> str,
+      PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT MaybeObject* AllocateStringFromUtf8Slow(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* AllocateStringFromTwoByte(
@@ -1211,9 +1214,9 @@ class Heap {
   int contexts_disposed_;
 
 #if defined(V8_TARGET_ARCH_X64)
-  static const int kMaxObjectSizeInNewSpace = 512*KB;
+  static const int kMaxObjectSizeInNewSpace = 1024*KB;
 #else
-  static const int kMaxObjectSizeInNewSpace = 256*KB;
+  static const int kMaxObjectSizeInNewSpace = 512*KB;
 #endif
 
   NewSpace new_space_;
@@ -1724,17 +1727,18 @@ class SpaceIterator : public Malloced {
 // nodes filtering uses GC marks, it can't be used during MS/MC GC
 // phases. Also, it is forbidden to interrupt iteration in this mode,
 // as this will leave heap objects marked (and thus, unusable).
-class FreeListNodesFilter;
+class HeapObjectsFilter;
 
 class HeapIterator BASE_EMBEDDED {
  public:
-  enum FreeListNodesFiltering {
+  enum HeapObjectsFiltering {
     kNoFiltering,
-    kPreciseFiltering
+    kFilterFreeListNodes,
+    kFilterUnreachable
   };
 
   HeapIterator();
-  explicit HeapIterator(FreeListNodesFiltering filtering);
+  explicit HeapIterator(HeapObjectsFiltering filtering);
   ~HeapIterator();
 
   HeapObject* next();
@@ -1747,8 +1751,8 @@ class HeapIterator BASE_EMBEDDED {
   void Shutdown();
   HeapObject* NextObject();
 
-  FreeListNodesFiltering filtering_;
-  FreeListNodesFilter* filter_;
+  HeapObjectsFiltering filtering_;
+  HeapObjectsFilter* filter_;
   // Space iterator for iterating all the spaces.
   SpaceIterator* space_iterator_;
   // Object iterator for the space currently being iterated.
@@ -2062,6 +2066,8 @@ class GCTracer BASE_EMBEDDED {
 class TranscendentalCache {
  public:
   enum Type {ACOS, ASIN, ATAN, COS, EXP, LOG, SIN, TAN, kNumberOfCaches};
+  static const int kTranscendentalTypeBits = 3;
+  STATIC_ASSERT((1 << kTranscendentalTypeBits) >= kNumberOfCaches);
 
   // Returns a heap number with f(input), where f is a math function specified
   // by the 'type' argument.
@@ -2079,28 +2085,7 @@ class TranscendentalCache {
 
     MUST_USE_RESULT inline MaybeObject* Get(double input);
 
-    inline double Calculate(double input) {
-      switch (type_) {
-        case ACOS:
-          return acos(input);
-        case ASIN:
-          return asin(input);
-        case ATAN:
-          return atan(input);
-        case COS:
-          return cos(input);
-        case EXP:
-          return exp(input);
-        case LOG:
-          return log(input);
-        case SIN:
-          return sin(input);
-        case TAN:
-          return tan(input);
-        default:
-          return 0.0;  // Never happens.
-      }
-    }
+    inline double Calculate(double input);
 
     struct Element {
       uint32_t in[2];
@@ -2119,15 +2104,16 @@ class TranscendentalCache {
       return (hash & (kCacheSize - 1));
     }
 
-    // Inline implementation of the caching.
-    friend class TranscendentalCacheStub;
-
-    // For evaluating value.
-    friend class TranscendentalCache;
-
     Element elements_[kCacheSize];
     Type type_;
     Isolate* isolate_;
+
+    // Allow access to the caches_ array as an ExternalReference.
+    friend class ExternalReference;
+    // Inline implementation of the cache.
+    friend class TranscendentalCacheStub;
+    // For evaluating value.
+    friend class TranscendentalCache;
 
     DISALLOW_COPY_AND_ASSIGN(SubCache);
   };

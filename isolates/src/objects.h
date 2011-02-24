@@ -607,10 +607,18 @@ class MaybeObject BASE_EMBEDDED {
     return reinterpret_cast<Object*>(this);
   }
 
-#ifdef DEBUG
+#ifdef OBJECT_PRINT
   // Prints this object with details.
-  void Print();
-  void PrintLn();
+  inline void Print() {
+    Print(stdout);
+  };
+  inline void PrintLn() {
+    PrintLn(stdout);
+  }
+  void Print(FILE* out);
+  void PrintLn(FILE* out);
+#endif
+#ifdef DEBUG
   // Verifies the object.
   void Verify();
 #endif
@@ -763,7 +771,10 @@ class Object : public MaybeObject {
 #endif
 
   // Prints this object without details.
-  void ShortPrint();
+  inline void ShortPrint() {
+    ShortPrint(stdout);
+  }
+  void ShortPrint(FILE* out);
 
   // Prints this object without details to a message accumulator.
   void ShortPrint(StringStream* accumulator);
@@ -802,7 +813,10 @@ class Smi: public Object {
   static inline Smi* cast(Object* object);
 
   // Dispatched behavior.
-  void SmiPrint();
+  inline void SmiPrint() {
+    SmiPrint(stdout);
+  }
+  void SmiPrint(FILE* out);
   void SmiPrint(StringStream* accumulator);
 #ifdef DEBUG
   void SmiVerify();
@@ -871,7 +885,10 @@ class Failure: public MaybeObject {
   static inline Failure* cast(MaybeObject* object);
 
   // Dispatched behavior.
-  void FailurePrint();
+  inline void FailurePrint() {
+    FailurePrint(stdout);
+  }
+  void FailurePrint(FILE* out);
   void FailurePrint(StringStream* accumulator);
 #ifdef DEBUG
   void FailureVerify();
@@ -1108,14 +1125,23 @@ class HeapObject: public Object {
 
   // Dispatched behavior.
   void HeapObjectShortPrint(StringStream* accumulator);
+#ifdef OBJECT_PRINT
+  inline void HeapObjectPrint() {
+    HeapObjectPrint(stdout);
+  }
+  void HeapObjectPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void HeapObjectPrint();
   void HeapObjectVerify();
   inline void VerifyObjectField(int offset);
   inline void VerifySmiField(int offset);
+#endif
 
-  void PrintHeader(const char* id);
+#ifdef OBJECT_PRINT
+  void PrintHeader(FILE* out, const char* id);
+#endif
 
+#ifdef DEBUG
   // Verify a pointer is a valid HeapObject pointer that points to object
   // areas in the heap.
   static void VerifyHeapPointer(Object* p);
@@ -1198,7 +1224,10 @@ class HeapNumber: public HeapObject {
 
   // Dispatched behavior.
   Object* HeapNumberToBoolean();
-  void HeapNumberPrint();
+  inline void HeapNumberPrint() {
+    HeapNumberPrint(stdout);
+  }
+  void HeapNumberPrint(FILE* out);
   void HeapNumberPrint(StringStream* accumulator);
 #ifdef DEBUG
   void HeapNumberVerify();
@@ -1377,7 +1406,7 @@ class JSObject: public HeapObject {
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(String* name,
                                               bool is_getter,
-                                              JSFunction* fun,
+                                              Object* fun,
                                               PropertyAttributes attributes);
   Object* LookupAccessor(String* name, bool is_getter);
 
@@ -1658,12 +1687,28 @@ class JSObject: public HeapObject {
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
+#ifdef OBJECT_PRINT
+  inline void JSObjectPrint() {
+    JSObjectPrint(stdout);
+  }
+  void JSObjectPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void JSObjectPrint();
   void JSObjectVerify();
-  void PrintProperties();
-  void PrintElements();
+#endif
+#ifdef OBJECT_PRINT
+  inline void PrintProperties() {
+    PrintProperties(stdout);
+  }
+  void PrintProperties(FILE* out);
 
+  inline void PrintElements() {
+    PrintElements(stdout);
+  }
+  void PrintElements(FILE* out);
+#endif
+
+#ifdef DEBUG
   // Structure for collecting spill information about JSObjects.
   class SpillInformation {
    public:
@@ -1698,7 +1743,7 @@ class JSObject: public HeapObject {
   static const uint32_t kMaxGap = 1024;
   static const int kMaxFastElementsLength = 5000;
   static const int kInitialMaxFastElementArray = 100000;
-  static const int kMaxFastProperties = 8;
+  static const int kMaxFastProperties = 12;
   static const int kMaxInstanceSize = 255 * kPointerSize;
   // When extending the backing storage for property values, we increase
   // its size by more than the 1 entry necessary, so sequentially adding fields
@@ -1849,8 +1894,13 @@ class FixedArray: public HeapObject {
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kPointerSize;
 
   // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void FixedArrayPrint() {
+    FixedArrayPrint(stdout);
+  }
+  void FixedArrayPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void FixedArrayPrint();
   void FixedArrayVerify();
   // Checks if two FixedArrays have identical contents.
   bool IsEqualTo(FixedArray* other);
@@ -2028,10 +2078,15 @@ class DescriptorArray: public FixedArray {
   static const int kEnumCacheBridgeCacheOffset =
     kEnumCacheBridgeEnumOffset + kPointerSize;
 
-#ifdef DEBUG
+#ifdef OBJECT_PRINT
   // Print all the descriptors.
-  void PrintDescriptors();
+  inline void PrintDescriptors() {
+    PrintDescriptors(stdout);
+  }
+  void PrintDescriptors(FILE* out);
+#endif
 
+#ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?
   bool IsSortedNoDuplicates();
 
@@ -2413,8 +2468,11 @@ class Dictionary: public HashTable<Shape, Key> {
   // Ensure enough space for n additional elements.
   MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
 
-#ifdef DEBUG
-  void Print();
+#ifdef OBJECT_PRINT
+  inline void Print() {
+    Print(stdout);
+  }
+  void Print(FILE* out);
 #endif
   // Returns the key (slow).
   Object* SlowReverseLookup(Object* value);
@@ -2636,8 +2694,13 @@ class ByteArray: public HeapObject {
   inline int ByteArraySize() {
     return SizeFor(this->length());
   }
+#ifdef OBJECT_PRINT
+  inline void ByteArrayPrint() {
+    ByteArrayPrint(stdout);
+  }
+  void ByteArrayPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void ByteArrayPrint();
   void ByteArrayVerify();
 #endif
 
@@ -2686,8 +2749,13 @@ class PixelArray: public HeapObject {
   // Casting.
   static inline PixelArray* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void PixelArrayPrint() {
+    PixelArrayPrint(stdout);
+  }
+  void PixelArrayPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void PixelArrayPrint();
   void PixelArrayVerify();
 #endif  // DEBUG
 
@@ -2758,8 +2826,13 @@ class ExternalByteArray: public ExternalArray {
   // Casting.
   static inline ExternalByteArray* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void ExternalByteArrayPrint() {
+    ExternalByteArrayPrint(stdout);
+  }
+  void ExternalByteArrayPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void ExternalByteArrayPrint();
   void ExternalByteArrayVerify();
 #endif  // DEBUG
 
@@ -2781,8 +2854,13 @@ class ExternalUnsignedByteArray: public ExternalArray {
   // Casting.
   static inline ExternalUnsignedByteArray* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void ExternalUnsignedByteArrayPrint() {
+    ExternalUnsignedByteArrayPrint(stdout);
+  }
+  void ExternalUnsignedByteArrayPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void ExternalUnsignedByteArrayPrint();
   void ExternalUnsignedByteArrayVerify();
 #endif  // DEBUG
 
@@ -2804,8 +2882,13 @@ class ExternalShortArray: public ExternalArray {
   // Casting.
   static inline ExternalShortArray* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void ExternalShortArrayPrint() {
+    ExternalShortArrayPrint(stdout);
+  }
+  void ExternalShortArrayPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void ExternalShortArrayPrint();
   void ExternalShortArrayVerify();
 #endif  // DEBUG
 
@@ -2827,8 +2910,13 @@ class ExternalUnsignedShortArray: public ExternalArray {
   // Casting.
   static inline ExternalUnsignedShortArray* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void ExternalUnsignedShortArrayPrint() {
+    ExternalUnsignedShortArrayPrint(stdout);
+  }
+  void ExternalUnsignedShortArrayPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void ExternalUnsignedShortArrayPrint();
   void ExternalUnsignedShortArrayVerify();
 #endif  // DEBUG
 
@@ -2850,8 +2938,13 @@ class ExternalIntArray: public ExternalArray {
   // Casting.
   static inline ExternalIntArray* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void ExternalIntArrayPrint() {
+    ExternalIntArrayPrint(stdout);
+  }
+  void ExternalIntArrayPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void ExternalIntArrayPrint();
   void ExternalIntArrayVerify();
 #endif  // DEBUG
 
@@ -2873,8 +2966,13 @@ class ExternalUnsignedIntArray: public ExternalArray {
   // Casting.
   static inline ExternalUnsignedIntArray* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void ExternalUnsignedIntArrayPrint() {
+    ExternalUnsignedIntArrayPrint(stdout);
+  }
+  void ExternalUnsignedIntArrayPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void ExternalUnsignedIntArrayPrint();
   void ExternalUnsignedIntArrayVerify();
 #endif  // DEBUG
 
@@ -2896,8 +2994,13 @@ class ExternalFloatArray: public ExternalArray {
   // Casting.
   static inline ExternalFloatArray* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void ExternalFloatArrayPrint() {
+    ExternalFloatArrayPrint(stdout);
+  }
+  void ExternalFloatArrayPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void ExternalFloatArrayPrint();
   void ExternalFloatArrayVerify();
 #endif  // DEBUG
 
@@ -2977,8 +3080,8 @@ class DeoptimizationInputData: public FixedArray {
   // Casting.
   static inline DeoptimizationInputData* cast(Object* obj);
 
-#ifdef DEBUG
-  void DeoptimizationInputDataPrint();
+#ifdef OBJECT_PRINT
+  void DeoptimizationInputDataPrint(FILE* out);
 #endif
 
  private:
@@ -3016,8 +3119,8 @@ class DeoptimizationOutputData: public FixedArray {
   // Casting.
   static inline DeoptimizationOutputData* cast(Object* obj);
 
-#ifdef DEBUG
-  void DeoptimizationOutputDataPrint();
+#ifdef OBJECT_PRINT
+  void DeoptimizationOutputDataPrint(FILE* out);
 #endif
 };
 
@@ -3066,7 +3169,10 @@ class Code: public HeapObject {
   static const char* Kind2String(Kind kind);
   static const char* ICState2String(InlineCacheState state);
   static const char* PropertyType2String(PropertyType type);
-  void Disassemble(const char* name);
+  inline void Disassemble(const char* name) {
+    Disassemble(name, stdout);
+  }
+  void Disassemble(const char* name, FILE* out);
 #endif  // ENABLE_DISASSEMBLER
 
   // [instruction_size]: Size of the native instructions
@@ -3259,8 +3365,13 @@ class Code: public HeapObject {
 
   template<typename StaticVisitor>
   inline void CodeIterateBody(Heap* heap);
+#ifdef OBJECT_PRINT
+  inline void CodePrint() {
+    CodePrint(stdout);
+  }
+  void CodePrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void CodePrint();
   void CodeVerify();
 #endif
 
@@ -3548,8 +3659,13 @@ class Map: public HeapObject {
   void ClearNonLiveTransitions(Heap* heap, Object* real_prototype);
 
   // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void MapPrint() {
+    MapPrint(stdout);
+  }
+  void MapPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void MapPrint();
   void MapVerify();
   void SharedMapVerify();
 #endif
@@ -3708,8 +3824,13 @@ class Script: public Struct {
   // resource is accessible. Otherwise, always return true.
   inline bool HasValidSource();
 
+#ifdef OBJECT_PRINT
+  inline void ScriptPrint() {
+    ScriptPrint(stdout);
+  }
+  void ScriptPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void ScriptPrint();
   void ScriptVerify();
 #endif
 
@@ -3734,22 +3855,49 @@ class Script: public Struct {
 };
 
 
-enum MathFunctionId {
-  kNotSpecialMathFunction = 0,
-  // These numbers must be kept in sync with the ones in math.js.
-  kMathFloor = 1,
-  kMathRound = 2,
-  kMathCeil = 3,
-  kMathAbs = 4,
-  kMathLog = 5,
-  kMathSin = 6,
-  kMathCos = 7,
-  kMathTan = 8,
-  kMathASin = 9,
-  kMathACos = 0xa,
-  kMathATan = 0xb,
-  kMathExp = 0xc,
-  kMathSqrt = 0xd
+// List of builtin functions we want to identify to improve code
+// generation.
+//
+// Each entry has a name of a global object property holding an object
+// optionally followed by ".prototype", a name of a builtin function
+// on the object (the one the id is set for), and a label.
+//
+// Installation of ids for the selected builtin functions is handled
+// by the bootstrapper.
+//
+// NOTE: Order is important: math functions should be at the end of
+// the list and MathFloor should be the first math function.
+#define FUNCTIONS_WITH_ID_LIST(V)                   \
+  V(Array.prototype, push, ArrayPush)               \
+  V(Array.prototype, pop, ArrayPop)                 \
+  V(String.prototype, charCodeAt, StringCharCodeAt) \
+  V(String.prototype, charAt, StringCharAt)         \
+  V(String, fromCharCode, StringFromCharCode)       \
+  V(Math, floor, MathFloor)                         \
+  V(Math, round, MathRound)                         \
+  V(Math, ceil, MathCeil)                           \
+  V(Math, abs, MathAbs)                             \
+  V(Math, log, MathLog)                             \
+  V(Math, sin, MathSin)                             \
+  V(Math, cos, MathCos)                             \
+  V(Math, tan, MathTan)                             \
+  V(Math, asin, MathASin)                           \
+  V(Math, acos, MathACos)                           \
+  V(Math, atan, MathATan)                           \
+  V(Math, exp, MathExp)                             \
+  V(Math, sqrt, MathSqrt)                           \
+  V(Math, pow, MathPow)
+
+
+enum BuiltinFunctionId {
+#define DECLARE_FUNCTION_ID(ignored1, ignore2, name)    \
+  k##name,
+  FUNCTIONS_WITH_ID_LIST(DECLARE_FUNCTION_ID)
+#undef DECLARE_FUNCTION_ID
+  // Fake id for a special case of Math.pow. Note, it continues the
+  // list of math functions.
+  kMathPowHalf,
+  kFirstMathFunctionId = kMathFloor
 };
 
 
@@ -3890,7 +4038,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // [function data]: This field holds some additional data for function.
   // Currently it either has FunctionTemplateInfo to make benefit the API
-  // or Smi identifying a custom call generator.
+  // or Smi identifying a builtin function.
   // In the long run we don't want all functions to have this field but
   // we can fix that when we have a better model for storing hidden data
   // on objects.
@@ -3898,8 +4046,9 @@ class SharedFunctionInfo: public HeapObject {
 
   inline bool IsApiFunction();
   inline FunctionTemplateInfo* get_api_func_data();
-  inline bool HasCustomCallGenerator();
-  inline int custom_call_generator_id();
+  inline bool HasBuiltinFunctionId();
+  inline bool IsBuiltinMathFunction();
+  inline BuiltinFunctionId builtin_function_id();
 
   // [script info]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)
@@ -4044,8 +4193,13 @@ class SharedFunctionInfo: public HeapObject {
   // Dispatched behavior.
   // Set max_length to -1 for unlimited length.
   void SourceCodePrint(StringStream* accumulator, int max_length);
+#ifdef OBJECT_PRINT
+  inline void SharedFunctionInfoPrint() {
+    SharedFunctionInfoPrint(stdout);
+  }
+  void SharedFunctionInfoPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void SharedFunctionInfoPrint();
   void SharedFunctionInfoVerify();
 #endif
 
@@ -4150,12 +4304,6 @@ class SharedFunctionInfo: public HeapObject {
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
-  // Get/set a special tag on the functions from math.js so we can inline
-  // efficient versions of them in the code.
-  inline MathFunctionId math_function_id();
-  inline void set_math_function_id(int id);
-  static inline int max_math_id_number() { return kMathFunctionMask; }
-
   typedef FixedBodyDescriptor<kNameOffset,
                               kThisPropertyAssignmentsOffset + kPointerSize,
                               kSize> BodyDescriptor;
@@ -4173,12 +4321,10 @@ class SharedFunctionInfo: public HeapObject {
   static const int kHasOnlySimpleThisPropertyAssignments = 0;
   static const int kTryFullCodegen = 1;
   static const int kAllowLazyCompilation = 2;
-  static const int kMathFunctionShift = 3;
-  static const int kMathFunctionMask = 0xf;
-  static const int kLiveObjectsMayExist = 7;
-  static const int kCodeAgeShift = 8;
+  static const int kLiveObjectsMayExist = 3;
+  static const int kCodeAgeShift = 4;
   static const int kCodeAgeMask = 0x7;
-  static const int kOptimizationDisabled = 11;
+  static const int kOptimizationDisabled = 7;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
@@ -4285,7 +4431,10 @@ class JSFunction: public JSObject {
   DECL_ACCESSORS(next_function_link, Object)
 
   // Prints the name of the function using PrintF.
-  void PrintName();
+  inline void PrintName() {
+    PrintName(stdout);
+  }
+  void PrintName(FILE* out);
 
   // Casting.
   static inline JSFunction* cast(Object* obj);
@@ -4295,8 +4444,13 @@ class JSFunction: public JSObject {
   void JSFunctionIterateBody(int object_size, ObjectVisitor* v);
 
   // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSFunctionPrint() {
+    JSFunctionPrint(stdout);
+  }
+  void JSFunctionPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void JSFunctionPrint();
   void JSFunctionVerify();
 #endif
 
@@ -4345,8 +4499,13 @@ class JSGlobalProxy : public JSObject {
   static inline JSGlobalProxy* cast(Object* obj);
 
   // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSGlobalProxyPrint() {
+    JSGlobalProxyPrint(stdout);
+  }
+  void JSGlobalProxyPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void JSGlobalProxyPrint();
   void JSGlobalProxyVerify();
 #endif
 
@@ -4416,8 +4575,13 @@ class JSGlobalObject: public GlobalObject {
   static inline JSGlobalObject* cast(Object* obj);
 
   // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSGlobalObjectPrint() {
+    JSGlobalObjectPrint(stdout);
+  }
+  void JSGlobalObjectPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void JSGlobalObjectPrint();
   void JSGlobalObjectVerify();
 #endif
 
@@ -4445,8 +4609,13 @@ class JSBuiltinsObject: public GlobalObject {
   static inline JSBuiltinsObject* cast(Object* obj);
 
   // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSBuiltinsObjectPrint() {
+    JSBuiltinsObjectPrint(stdout);
+  }
+  void JSBuiltinsObjectPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void JSBuiltinsObjectPrint();
   void JSBuiltinsObjectVerify();
 #endif
 
@@ -4483,8 +4652,13 @@ class JSValue: public JSObject {
   static inline JSValue* cast(Object* obj);
 
   // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSValuePrint() {
+    JSValuePrint(stdout);
+  }
+  void JSValuePrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void JSValuePrint();
   void JSValueVerify();
 #endif
 
@@ -4673,8 +4847,13 @@ class CodeCache: public Struct {
 
   static inline CodeCache* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void CodeCachePrint() {
+    CodeCachePrint(stdout);
+  }
+  void CodeCachePrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void CodeCachePrint();
   void CodeCacheVerify();
 #endif
 
@@ -4975,8 +5154,13 @@ class String: public HeapObject {
 
   // Dispatched behavior.
   void StringShortPrint(StringStream* accumulator);
+#ifdef OBJECT_PRINT
+  inline void StringPrint() {
+    StringPrint(stdout);
+  }
+  void StringPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void StringPrint();
   void StringVerify();
 #endif
   inline bool IsFlat();
@@ -5541,7 +5725,12 @@ class JSGlobalPropertyCell: public HeapObject {
 
 #ifdef DEBUG
   void JSGlobalPropertyCellVerify();
-  void JSGlobalPropertyCellPrint();
+#endif
+#ifdef OBJECT_PRINT
+  inline void JSGlobalPropertyCellPrint() {
+    JSGlobalPropertyCellPrint(stdout);
+  }
+  void JSGlobalPropertyCellPrint(FILE* out);
 #endif
 
   // Layout description.
@@ -5576,8 +5765,13 @@ class Proxy: public HeapObject {
   template<typename StaticVisitor>
   inline void ProxyIterateBody();
 
+#ifdef OBJECT_PRINT
+  inline void ProxyPrint() {
+    ProxyPrint(stdout);
+  }
+  void ProxyPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void ProxyPrint();
   void ProxyVerify();
 #endif
 
@@ -5626,8 +5820,13 @@ class JSArray: public JSObject {
   inline void EnsureSize(int minimum_size_of_backing_fixed_array);
 
   // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSArrayPrint() {
+    JSArrayPrint(stdout);
+  }
+  void JSArrayPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void JSArrayPrint();
   void JSArrayVerify();
 #endif
 
@@ -5698,8 +5897,13 @@ class AccessorInfo: public Struct {
 
   static inline AccessorInfo* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void AccessorInfoPrint() {
+    AccessorInfoPrint(stdout);
+  }
+  void AccessorInfoPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void AccessorInfoPrint();
   void AccessorInfoVerify();
 #endif
 
@@ -5729,8 +5933,13 @@ class AccessCheckInfo: public Struct {
 
   static inline AccessCheckInfo* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void AccessCheckInfoPrint() {
+    AccessCheckInfoPrint(stdout);
+  }
+  void AccessCheckInfoPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void AccessCheckInfoPrint();
   void AccessCheckInfoVerify();
 #endif
 
@@ -5755,8 +5964,13 @@ class InterceptorInfo: public Struct {
 
   static inline InterceptorInfo* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void InterceptorInfoPrint() {
+    InterceptorInfoPrint(stdout);
+  }
+  void InterceptorInfoPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void InterceptorInfoPrint();
   void InterceptorInfoVerify();
 #endif
 
@@ -5780,8 +5994,13 @@ class CallHandlerInfo: public Struct {
 
   static inline CallHandlerInfo* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void CallHandlerInfoPrint() {
+    CallHandlerInfoPrint(stdout);
+  }
+  void CallHandlerInfoPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void CallHandlerInfoPrint();
   void CallHandlerInfoVerify();
 #endif
 
@@ -5837,8 +6056,13 @@ class FunctionTemplateInfo: public TemplateInfo {
 
   static inline FunctionTemplateInfo* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void FunctionTemplateInfoPrint() {
+    FunctionTemplateInfoPrint(stdout);
+  }
+  void FunctionTemplateInfoPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void FunctionTemplateInfoPrint();
   void FunctionTemplateInfoVerify();
 #endif
 
@@ -5880,8 +6104,13 @@ class ObjectTemplateInfo: public TemplateInfo {
 
   static inline ObjectTemplateInfo* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void ObjectTemplateInfoPrint() {
+    ObjectTemplateInfoPrint(stdout);
+  }
+  void ObjectTemplateInfoPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void ObjectTemplateInfoPrint();
   void ObjectTemplateInfoVerify();
 #endif
 
@@ -5899,8 +6128,13 @@ class SignatureInfo: public Struct {
 
   static inline SignatureInfo* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void SignatureInfoPrint() {
+    SignatureInfoPrint(stdout);
+  }
+  void SignatureInfoPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void SignatureInfoPrint();
   void SignatureInfoVerify();
 #endif
 
@@ -5919,8 +6153,13 @@ class TypeSwitchInfo: public Struct {
 
   static inline TypeSwitchInfo* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void TypeSwitchInfoPrint() {
+    TypeSwitchInfoPrint(stdout);
+  }
+  void TypeSwitchInfoPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void TypeSwitchInfoPrint();
   void TypeSwitchInfoVerify();
 #endif
 
@@ -5966,8 +6205,13 @@ class DebugInfo: public Struct {
 
   static inline DebugInfo* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void DebugInfoPrint() {
+    DebugInfoPrint(stdout);
+  }
+  void DebugInfoPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void DebugInfoPrint();
   void DebugInfoVerify();
 #endif
 
@@ -6019,8 +6263,13 @@ class BreakPointInfo: public Struct {
 
   static inline BreakPointInfo* cast(Object* obj);
 
+#ifdef OBJECT_PRINT
+  inline void BreakPointInfoPrint() {
+    BreakPointInfoPrint(stdout);
+  }
+  void BreakPointInfoPrint(FILE* out);
+#endif
 #ifdef DEBUG
-  void BreakPointInfoPrint();
   void BreakPointInfoVerify();
 #endif
 

@@ -72,7 +72,7 @@ class PendingListNode : public Malloced {
 static const int kSamplerFrameCount = 2;
 static const int kSamplerFrameWeight[kSamplerFrameCount] = { 2, 1 };
 
-static const int kSamplerTicksDelta = 32;
+static const int kSamplerTicksBetweenThresholdAdjustment = 32;
 
 static const int kSamplerThresholdInit = 3;
 static const int kSamplerThresholdMin = 1;
@@ -115,15 +115,24 @@ static bool IsOptimizable(JSFunction* function) {
 Atomic32 RuntimeProfiler::state_ = 0;
 // TODO(isolates): Create the semaphore lazily and clean it up when no
 // longer required.
+#ifdef ENABLE_LOGGING_AND_PROFILING
 Semaphore* RuntimeProfiler::semaphore_ = OS::CreateSemaphore(0);
+#endif
 
 
 RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
     : isolate_(isolate),
       sampler_threshold_(kSamplerThresholdInit),
       sampler_threshold_size_factor_(kSamplerThresholdSizeFactorInit),
+      sampler_ticks_until_threshold_adjustment_(
+        kSamplerTicksBetweenThresholdAdjustment),
+      js_ratio_(0),
       sampler_window_position_(0),
-      optimize_soon_list_(NULL) {
+      optimize_soon_list_(NULL),
+      state_window_position_(0) {
+  state_counts_[0] = kStateWindowSize;
+  state_counts_[1] = 0;
+  memset(state_window_, 0, sizeof(state_window_));
   ClearSampleBuffer();
 }
 
@@ -267,41 +276,72 @@ void RuntimeProfiler::OptimizeNow() {
   // have a sample of the function, we mark it for optimizations
   // (eagerly or lazily).
   JSFunction* samples[kSamplerFrameCount];
-  int count = 0;
+  int sample_count = 0;
+  int frame_count = 0;
   for (JavaScriptFrameIterator it;
-       count < kSamplerFrameCount && !it.done();
+       frame_count++ < kSamplerFrameCount && !it.done();
        it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     JSFunction* function = JSFunction::cast(frame->function());
-    int function_size = function->shared()->SourceSize();
-    int threshold_size_factor;
-    if (function_size > kSizeLimit) {
-      threshold_size_factor = sampler_threshold_size_factor_;
-    } else {
-      threshold_size_factor = 1;
+
+    // Adjust threshold each time we have processed
+    // a certain number of ticks.
+    if (sampler_ticks_until_threshold_adjustment_ > 0) {
+      sampler_ticks_until_threshold_adjustment_--;
+      if (sampler_ticks_until_threshold_adjustment_ <= 0) {
+        // If the threshold is not already at the minimum
+        // modify and reset the ticks until next adjustment.
+        if (sampler_threshold_ > kSamplerThresholdMin) {
+          sampler_threshold_ -= kSamplerThresholdDelta;
+          sampler_ticks_until_threshold_adjustment_ =
+              kSamplerTicksBetweenThresholdAdjustment;
+        }
+      }
     }
 
-    int threshold = sampler_threshold_ * threshold_size_factor;
-    samples[count++] = function;
     if (function->IsMarkedForLazyRecompilation()) {
       Code* unoptimized = function->shared()->code();
       int nesting = unoptimized->allow_osr_at_loop_nesting_level();
       if (nesting == 0) AttemptOnStackReplacement(function);
       int new_nesting = Min(nesting + 1, Code::kMaxLoopNestingMarker);
       unoptimized->set_allow_osr_at_loop_nesting_level(new_nesting);
-    } else if (LookupSample(function) >= threshold) {
-      if (IsOptimizable(function)) {
-        Optimize(function, false, 0);
-        isolate_->compilation_cache()->MarkForEagerOptimizing(
-            Handle<JSFunction>(function, isolate_));
-      }
+    }
+
+    // Do not record non-optimizable functions.
+    if (!IsOptimizable(function)) continue;
+    samples[sample_count++] = function;
+
+    int function_size = function->shared()->SourceSize();
+    int threshold_size_factor = (function_size > kSizeLimit)
+        ? sampler_threshold_size_factor_
+        : 1;
+
+    int threshold = sampler_threshold_ * threshold_size_factor;
+    int current_js_ratio = NoBarrier_Load(&js_ratio_);
+
+    // Adjust threshold depending on the ratio of time spent
+    // in JS code.
+    if (current_js_ratio < 20) {
+      // If we spend less than 20% of the time in JS code,
+      // do not optimize.
+      continue;
+    } else if (current_js_ratio < 75) {
+      // Below 75% of time spent in JS code, only optimize very
+      // frequently used functions.
+      threshold *= 3;
+    }
+
+    if (LookupSample(function) >= threshold) {
+      Optimize(function, false, 0);
+      isolate_->compilation_cache()->MarkForEagerOptimizing(
+          Handle<JSFunction>(function));
     }
   }
 
   // Add the collected functions as samples. It's important not to do
   // this as part of collecting them because this will interfere with
   // the sample lookup in case of recursive functions.
-  for (int i = 0; i < count; i++) {
+  for (int i = 0; i < sample_count; i++) {
     AddSample(samples[i], kSamplerFrameWeight[i]);
   }
 }
@@ -315,8 +355,30 @@ void RuntimeProfiler::OptimizeSoon(JSFunction* function) {
 }
 
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+void RuntimeProfiler::UpdateStateRatio(SamplerState current_state) {
+  SamplerState old_state = state_window_[state_window_position_];
+  state_counts_[old_state]--;
+  state_window_[state_window_position_] = current_state;
+  state_counts_[current_state]++;
+  ASSERT(IsPowerOf2(kStateWindowSize));
+  state_window_position_ = (state_window_position_ + 1) &
+      (kStateWindowSize - 1);
+  NoBarrier_Store(&js_ratio_, state_counts_[IN_JS_STATE] * 100 /
+                  kStateWindowSize);
+}
+#endif
+
+
 void RuntimeProfiler::NotifyTick() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // Record state sample.
+  SamplerState state = IsSomeIsolateInJS()
+      ? IN_JS_STATE
+      : IN_NON_JS_STATE;
+  UpdateStateRatio(state);
   isolate_->stack_guard()->RequestRuntimeProfilerTick();
+#endif
 }
 
 
@@ -344,6 +406,8 @@ void RuntimeProfiler::Setup() {
 void RuntimeProfiler::Reset() {
   sampler_threshold_ = kSamplerThresholdInit;
   sampler_threshold_size_factor_ = kSamplerThresholdSizeFactorInit;
+  sampler_ticks_until_threshold_adjustment_ =
+      kSamplerTicksBetweenThresholdAdjustment;
 }
 
 
@@ -363,6 +427,7 @@ int RuntimeProfiler::SamplerWindowSize() {
 
 
 void RuntimeProfiler::HandleWakeUp(Isolate* isolate) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   // The profiler thread must still be waiting.
   ASSERT(NoBarrier_Load(&state_) >= 0);
   // In IsolateEnteredJS we have already incremented the counter and
@@ -371,6 +436,7 @@ void RuntimeProfiler::HandleWakeUp(Isolate* isolate) {
   NoBarrier_AtomicIncrement(&state_, 1);
   semaphore_->Signal();
   isolate->ResetEagerOptimizingData();
+#endif
 }
 
 
@@ -380,21 +446,25 @@ bool RuntimeProfiler::IsSomeIsolateInJS() {
 
 
 bool RuntimeProfiler::WaitForSomeIsolateToEnterJS() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   Atomic32 old_state = NoBarrier_CompareAndSwap(&state_, 0, -1);
   ASSERT(old_state >= -1);
   if (old_state != 0) return false;
   semaphore_->Wait();
+#endif
   return true;
 }
 
 
 void RuntimeProfiler::WakeUpRuntimeProfilerThreadBeforeShutdown() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   semaphore_->Signal();
+#endif
 }
 
 
 bool RuntimeProfilerRateLimiter::SuspendIfNecessary() {
-  if (!RuntimeProfiler::IsEnabled()) return false;
+#ifdef ENABLE_LOGGING_AND_PROFILING
   static const int kNonJSTicksThreshold = 100;
   if (RuntimeProfiler::IsSomeIsolateInJS()) {
     non_js_ticks_ = 0;
@@ -405,6 +475,7 @@ bool RuntimeProfilerRateLimiter::SuspendIfNecessary() {
       return RuntimeProfiler::WaitForSomeIsolateToEnterJS();
     }
   }
+#endif
   return false;
 }
 
