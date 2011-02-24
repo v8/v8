@@ -269,6 +269,13 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   // the deoptimization input data found in the optimized code.
   RecordStackCheck(stmt->OsrEntryId());
 
+  // Loop stack checks can be patched to perform on-stack replacement. In
+  // order to decide whether or not to perform OSR we embed the loop depth
+  // in a test instruction after the call so we can extract it from the OSR
+  // builtin.
+  ASSERT(loop_depth() > 0);
+  __ testl(rax, Immediate(Min(loop_depth(), Code::kMaxLoopNestingMarker)));
+
   __ bind(&ok);
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
   // Record a mapping of the OSR id to this PC.  This is used if the OSR
