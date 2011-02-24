@@ -304,7 +304,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
   USE(height_in_bytes);
 
   unsigned fixed_size = ComputeFixedSize(function_);
-  unsigned input_frame_size = input_->GetFrameSize();
+  unsigned input_frame_size = static_cast<unsigned>(input_->GetFrameSize());
   ASSERT(fixed_size + height_in_bytes == input_frame_size);
 
   unsigned stack_slot_size = optimized_code_->stack_slots() * kPointerSize;

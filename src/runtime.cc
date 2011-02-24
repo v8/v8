@@ -8274,6 +8274,7 @@ static void CollectElementIndices(Handle<JSObject> object,
         }
         default:
           UNREACHABLE();
+          dense_elements_length = 0;
           break;
       }
       uint32_t length = static_cast<uint32_t>(dense_elements_length);
