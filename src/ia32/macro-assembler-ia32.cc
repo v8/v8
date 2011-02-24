@@ -1283,7 +1283,7 @@ MaybeObject* MacroAssembler::TryTailCallRuntime(Runtime::FunctionId fid,
 // If false, it is returned as a pointer to a preallocated by caller memory
 // region. Pointer to this region should be passed to a function as an
 // implicit first argument.
-#if defined(USING_BSD_ABI) || defined(__MINGW32__)
+#if defined(USING_BSD_ABI) || defined(__MINGW32__) || defined(__CYGWIN__)
 static const bool kReturnHandlesDirectly = true;
 #else
 static const bool kReturnHandlesDirectly = false;
@@ -1651,6 +1651,28 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
     Abort("Global functions must have initial map");
     bind(&ok);
   }
+}
+
+
+// Store the value in register src in the safepoint register stack
+// slot for register dst.
+void MacroAssembler::StoreToSafepointRegisterSlot(Register dst, Register src) {
+  mov(SafepointRegisterSlot(dst), src);
+}
+
+
+void MacroAssembler::StoreToSafepointRegisterSlot(Register dst, Immediate src) {
+  mov(SafepointRegisterSlot(dst), src);
+}
+
+
+void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
+  mov(dst, SafepointRegisterSlot(src));
+}
+
+
+Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
+  return Operand(esp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
 }
 
 
