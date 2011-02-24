@@ -418,7 +418,6 @@ function ArrayPush() {
 
 
 function ArrayConcat(arg1) {  // length == 1
-  // TODO: can we just use arguments?
   var arg_count = %_ArgumentsLength();
   var arrays = new $Array(1 + arg_count);
   arrays[0] = this;
