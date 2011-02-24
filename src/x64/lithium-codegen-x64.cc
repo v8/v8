@@ -1579,7 +1579,20 @@ static Condition BranchCondition(HHasInstanceType* instr) {
 
 
 void LCodeGen::DoHasInstanceType(LHasInstanceType* instr) {
-  Abort("Unimplemented: %s", "DoHasInstanceType");
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+
+  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
+  __ testl(input, Immediate(kSmiTagMask));
+  NearLabel done, is_false;
+  __ j(zero, &is_false);
+  __ CmpObjectType(input, TestType(instr->hydrogen()), result);
+  __ j(NegateCondition(BranchCondition(instr->hydrogen())), &is_false);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+  __ jmp(&done);
+  __ bind(&is_false);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ bind(&done);
 }
 
 
