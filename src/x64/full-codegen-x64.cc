@@ -1095,7 +1095,7 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(
   // This function is used only for loads, not stores, so it's safe to
   // return an rsi-based operand (the write barrier cannot be allowed to
   // destroy the rsi register).
-  return ContextOperand(temp, slot->index());
+  return ContextOperand(context, slot->index());
 }
 
 
