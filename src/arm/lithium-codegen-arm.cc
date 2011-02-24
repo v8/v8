@@ -2112,17 +2112,13 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
-  __ ldr(result,
-         MemOperand(context, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-  __ ldr(result, ContextOperand(result, instr->slot_index()));
+  __ ldr(result, ContextOperand(context, instr->slot_index()));
 }
 
 
 void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register value = ToRegister(instr->value());
-  __ ldr(context,
-         MemOperand(context, Context::SlotOffset(Context::FCONTEXT_INDEX)));
   __ str(value, ContextOperand(context, instr->slot_index()));
   if (instr->needs_write_barrier()) {
     int offset = Context::SlotOffset(instr->slot_index());
