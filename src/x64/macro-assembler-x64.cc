@@ -136,7 +136,7 @@ void MacroAssembler::RecordWrite(Register object,
                                  Register value) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
-  // registers are esi.
+  // registers are rsi.
   ASSERT(!object.is(rsi) && !value.is(rsi) && !address.is(rsi));
 
   // First, check if a write barrier is even needed. The tests below
@@ -2531,9 +2531,21 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     }
     // The context may be an intermediate context, not a function context.
     movq(dst, Operand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-  } else {  // context is the current function context.
-    // The context may be an intermediate context, not a function context.
-    movq(dst, Operand(rsi, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  } else {
+    // Slot is in the current function context.  Move it into the
+    // destination register in case we store into it (the write barrier
+    // cannot be allowed to destroy the context in rsi).
+    movq(dst, rsi);
+  }
+
+  // We should not have found a 'with' context by walking the context chain
+  // (i.e., the static scope chain and runtime context chain do not agree).
+  // A variable occurring in such a scope should have slot type LOOKUP and
+  // not CONTEXT.
+  if (FLAG_debug_code) {
+    cmpq(dst, Operand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+    Check(equal, "Yo dawg, I heard you liked function contexts "
+                 "so I put function contexts in all your contexts");
   }
 }
 

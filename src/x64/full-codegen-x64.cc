@@ -207,43 +207,45 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     Move(dot_arguments_slot, rcx, rbx, rdx);
   }
 
-  { Comment cmnt(masm_, "[ Declarations");
-    // For named function expressions, declare the function name as a
-    // constant.
-    if (scope()->is_function_scope() && scope()->function() != NULL) {
-      EmitDeclaration(scope()->function(), Variable::CONST, NULL);
-    }
-    // Visit all the explicit declarations unless there is an illegal
-    // redeclaration.
-    if (scope()->HasIllegalRedeclaration()) {
-      scope()->VisitIllegalRedeclaration(this);
-    } else {
-      VisitDeclarations(scope()->declarations());
-    }
-  }
-
   if (FLAG_trace) {
     __ CallRuntime(Runtime::kTraceEnter, 0);
   }
 
-  { Comment cmnt(masm_, "[ Stack check");
-    PrepareForBailout(info->function(), NO_REGISTERS);
-    NearLabel ok;
-    __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
-    __ j(above_equal, &ok);
-    StackCheckStub stub;
-    __ CallStub(&stub);
-    __ bind(&ok);
+  // Visit the declarations and body unless there is an illegal
+  // redeclaration.
+  if (scope()->HasIllegalRedeclaration()) {
+    Comment cmnt(masm_, "[ Declarations");
+    scope()->VisitIllegalRedeclaration(this);
+  } else {
+    { Comment cmnt(masm_, "[ Declarations");
+      // For named function expressions, declare the function name as a
+      // constant.
+      if (scope()->is_function_scope() && scope()->function() != NULL) {
+        EmitDeclaration(scope()->function(), Variable::CONST, NULL);
+      }
+      VisitDeclarations(scope()->declarations());
+    }
+
+    { Comment cmnt(masm_, "[ Stack check");
+      PrepareForBailout(info->function(), NO_REGISTERS);
+      NearLabel ok;
+      __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+      __ j(above_equal, &ok);
+      StackCheckStub stub;
+      __ CallStub(&stub);
+      __ bind(&ok);
+    }
+
+    { Comment cmnt(masm_, "[ Body");
+      ASSERT(loop_depth() == 0);
+      VisitStatements(function()->body());
+      ASSERT(loop_depth() == 0);
+    }
   }
 
-  { Comment cmnt(masm_, "[ Body");
-    ASSERT(loop_depth() == 0);
-    VisitStatements(function()->body());
-    ASSERT(loop_depth() == 0);
-  }
-
+  // Always emit a 'return undefined' in case control fell off the end of
+  // the body.
   { Comment cmnt(masm_, "[ return <undefined>;");
-    // Emit a 'return undefined' in case control fell off the end of the body.
     __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
     EmitReturnSequence();
   }
@@ -1082,7 +1084,10 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(
   // Check that last extension is NULL.
   __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
   __ j(not_equal, slow);
-  __ movq(temp, ContextOperand(context, Context::FCONTEXT_INDEX));
+
+  // This function is used only for loads, not stores, so it's safe to
+  // return an rsi-based operand (the write barrier cannot be allowed to
+  // destroy the rsi register).
   return ContextOperand(temp, slot->index());
 }
 
@@ -1730,57 +1735,75 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         : Builtins::StoreIC_Initialize));
     EmitCallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
 
-  } else if (var->mode() != Variable::CONST || op == Token::INIT_CONST) {
-    // Perform the assignment for non-const variables and for initialization
-    // of const variables.  Const assignments are simply skipped.
-    Label done;
+  } else if (op == Token::INIT_CONST) {
+    // Like var declarations, const declarations are hoisted to function
+    // scope.  However, unlike var initializers, const initializers are able
+    // to drill a hole to that function context, even from inside a 'with'
+    // context.  We thus bypass the normal static scope lookup.
+    Slot* slot = var->AsSlot();
+    Label skip;
+    switch (slot->type()) {
+      case Slot::PARAMETER:
+        // No const parameters.
+        UNREACHABLE();
+        break;
+      case Slot::LOCAL:
+        __ movq(rdx, Operand(rbp, SlotOffset(slot)));
+        __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
+        __ j(not_equal, &skip);
+        __ movq(Operand(rbp, SlotOffset(slot)), rax);
+        break;
+      case Slot::CONTEXT: {
+        __ movq(rcx, ContextOperand(rsi, Context::FCONTEXT_INDEX));
+        __ movq(rdx, ContextOperand(rcx, slot->index()));
+        __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
+        __ j(not_equal, &skip);
+        __ movq(ContextOperand(rcx, slot->index()), rax);
+        int offset = Context::SlotOffset(slot->index());
+        __ movq(rdx, rax);  // Preserve the stored value in eax.
+        __ RecordWrite(rcx, offset, rdx, rbx);
+        break;
+      }
+      case Slot::LOOKUP:
+        __ push(rax);
+        __ push(rsi);
+        __ Push(var->name());
+        __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+        break;
+    }
+    __ bind(&skip);
+
+  } else if (var->mode() != Variable::CONST) {
+    // Perform the assignment for non-const variables.  Const assignments
+    // are simply skipped.
     Slot* slot = var->AsSlot();
     switch (slot->type()) {
       case Slot::PARAMETER:
       case Slot::LOCAL:
-        if (op == Token::INIT_CONST) {
-          // Detect const reinitialization by checking for the hole value.
-          __ movq(rdx, Operand(rbp, SlotOffset(slot)));
-          __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
-          __ j(not_equal, &done);
-        }
         // Perform the assignment.
         __ movq(Operand(rbp, SlotOffset(slot)), rax);
         break;
 
       case Slot::CONTEXT: {
         MemOperand target = EmitSlotSearch(slot, rcx);
-        if (op == Token::INIT_CONST) {
-          // Detect const reinitialization by checking for the hole value.
-          __ movq(rdx, target);
-          __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
-          __ j(not_equal, &done);
-        }
         // Perform the assignment and issue the write barrier.
         __ movq(target, rax);
         // The value of the assignment is in rax.  RecordWrite clobbers its
         // register arguments.
         __ movq(rdx, rax);
-        int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+        int offset = Context::SlotOffset(slot->index());
         __ RecordWrite(rcx, offset, rdx, rbx);
         break;
       }
 
       case Slot::LOOKUP:
-        // Call the runtime for the assignment.  The runtime will ignore
-        // const reinitialization.
+        // Call the runtime for the assignment.
         __ push(rax);  // Value.
         __ push(rsi);  // Context.
         __ Push(var->name());
-        if (op == Token::INIT_CONST) {
-          // The runtime will ignore const redeclaration.
-          __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
-        } else {
-          __ CallRuntime(Runtime::kStoreContextSlot, 3);
-        }
+        __ CallRuntime(Runtime::kStoreContextSlot, 3);
         break;
     }
-    __ bind(&done);
   }
 }
 
