@@ -481,21 +481,22 @@ class Debug_Address;
 class ExternalReference BASE_EMBEDDED {
  public:
   // Used in the simulator to support different native api calls.
-  //
-  // BUILTIN_CALL - builtin call.
-  // MaybeObject* f(v8::internal::Arguments).
-  //
-  // FP_RETURN_CALL - builtin call that returns floating point.
-  // double f(double, double).
-  //
-  // DIRECT_CALL - direct call to API function native callback
-  // from generated code.
-  // Handle<Value> f(v8::Arguments&)
-  //
   enum Type {
+    // Builtin call.
+    // MaybeObject* f(v8::internal::Arguments).
     BUILTIN_CALL,  // default
+
+    // Builtin call that returns floating point.
+    // double f(double, double).
     FP_RETURN_CALL,
-    DIRECT_CALL
+
+    // Direct call to API function callback.
+    // Handle<Value> f(v8::Arguments&)
+    DIRECT_API_CALL,
+
+    // Direct call to accessor getter callback.
+    // Handle<value> f(Local<String> property, AccessorInfo& info)
+    DIRECT_GETTER_CALL
   };
 
   typedef void* ExternalReferenceRedirector(void* original, Type type);
