@@ -2180,7 +2180,6 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     Check(eq, "Yo dawg, I heard you liked function contexts "
               "so I put function contexts in all your contexts");
   }
-
 }
 
 
