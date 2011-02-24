@@ -1503,6 +1503,11 @@ void MacroAssembler::StoreToSafepointRegisterSlot(Register dst, Register src) {
 }
 
 
+void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
+  movq(dst, SafepointRegisterSlot(src));
+}
+
+
 Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
   return Operand(rsp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
 }

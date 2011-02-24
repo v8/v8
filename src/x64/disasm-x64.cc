@@ -1040,14 +1040,18 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         AppendToBuffer(", %s", NameOfXMMRegister(regop));
       } else {
         const char* mnemonic = "?";
-        if (opcode == 0x57) {
+        if (opcode == 0x50) {
+          mnemonic = "movmskpd";
+        } else  if (opcode == 0x54) {
+          mnemonic = "andpd";
+        } else  if (opcode == 0x56) {
+          mnemonic = "orpd";
+        } else  if (opcode == 0x57) {
           mnemonic = "xorpd";
         } else if (opcode == 0x2E) {
           mnemonic = "ucomisd";
         } else if (opcode == 0x2F) {
           mnemonic = "comisd";
-        } else if (opcode == 0x50) {
-          mnemonic = "movmskpd";
         } else {
           UnimplementedInstruction();
         }

@@ -174,7 +174,7 @@ class MacroAssembler: public Assembler {
   // Store the value in register src in the safepoint register stack
   // slot for register dst.
   void StoreToSafepointRegisterSlot(Register dst, Register src);
-
+  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
