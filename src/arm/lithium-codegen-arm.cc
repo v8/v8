@@ -3371,10 +3371,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->TempAt(0));
 
-  VFPRoundingMode rounding_mode = instr->truncating() ? kRoundToMinusInf
-                                                      : kRoundToNearest;
-
-  EmitVFPTruncate(rounding_mode,
+  EmitVFPTruncate(kRoundToZero,
                   single_scratch,
                   double_input,
                   scratch1,
