@@ -711,7 +711,8 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       break;
     }
     case CodeStub::TranscendentalCache: {
-      TranscendentalCacheStub stub(instr->transcendental_type());
+      TranscendentalCacheStub stub(instr->transcendental_type(),
+                                   TranscendentalCacheStub::TAGGED);
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
@@ -2466,17 +2467,26 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoMathLog");
+  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
+  TranscendentalCacheStub stub(TranscendentalCache::LOG,
+                               TranscendentalCacheStub::UNTAGGED);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
 void LCodeGen::DoMathCos(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoMathCos");
+  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
+  TranscendentalCacheStub stub(TranscendentalCache::LOG,
+                               TranscendentalCacheStub::UNTAGGED);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
 void LCodeGen::DoMathSin(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoMathSin");
+  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
+  TranscendentalCacheStub stub(TranscendentalCache::LOG,
+                               TranscendentalCacheStub::UNTAGGED);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
