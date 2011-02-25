@@ -2530,6 +2530,7 @@ void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
   int arity = instr->arity();
   Handle<Code> ic = StubCache::ComputeKeyedCallInitialize(arity, NOT_IN_LOOP);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 

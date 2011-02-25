@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 // A lightweight X64 Assembler.
 
