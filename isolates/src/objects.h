@@ -710,6 +710,7 @@ class Object : public MaybeObject {
   INLINE(bool IsTheHole());  // Shadows MaybeObject's implementation.
   INLINE(bool IsTrue());
   INLINE(bool IsFalse());
+  inline bool IsArgumentsMarker();
 
   // Extract the number.
   inline double Number();
@@ -1350,7 +1351,8 @@ class JSObject: public HeapObject {
   MUST_USE_RESULT MaybeObject* SetPropertyWithFailedAccessCheck(
       LookupResult* result,
       String* name,
-      Object* value);
+      Object* value,
+      bool check_prototype);
   MUST_USE_RESULT MaybeObject* SetPropertyWithCallback(Object* structure,
                                                        String* name,
                                                        Object* value,
@@ -1365,7 +1367,7 @@ class JSObject: public HeapObject {
       String* name,
       Object* value,
       PropertyAttributes attributes);
-  MUST_USE_RESULT MaybeObject* IgnoreAttributesAndSetLocalProperty(
+  MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
       String* key,
       Object* value,
       PropertyAttributes attributes);
@@ -1514,11 +1516,15 @@ class JSObject: public HeapObject {
   bool HasElementWithInterceptor(JSObject* receiver, uint32_t index);
   bool HasElementPostInterceptor(JSObject* receiver, uint32_t index);
 
-  MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
+                                              Object* value,
+                                              bool check_prototype = true);
 
   // Set the index'th array element.
   // A Failure object is returned if GC is needed.
-  MUST_USE_RESULT MaybeObject* SetElement(uint32_t index, Object* value);
+  MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
+                                          Object* value,
+                                          bool check_prototype = true);
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
@@ -1772,9 +1778,12 @@ class JSObject: public HeapObject {
                                       Object* value,
                                       JSObject* holder);
   MUST_USE_RESULT MaybeObject* SetElementWithInterceptor(uint32_t index,
-                                                         Object* value);
-  MUST_USE_RESULT MaybeObject* SetElementWithoutInterceptor(uint32_t index,
-                                                            Object* value);
+                                                         Object* value,
+                                                         bool check_prototype);
+  MUST_USE_RESULT MaybeObject* SetElementWithoutInterceptor(
+      uint32_t index,
+      Object* value,
+      bool check_prototype);
 
   MaybeObject* GetElementPostInterceptor(JSObject* receiver, uint32_t index);
 
@@ -2344,6 +2353,10 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   // been enlarged.  If the return value is not a failure, the symbol
   // pointer *s is set to the symbol found.
   MUST_USE_RESULT MaybeObject* LookupSymbol(Vector<const char> str, Object** s);
+  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Vector<const char> str,
+                                                 Object** s);
+  MUST_USE_RESULT MaybeObject* LookupTwoByteSymbol(Vector<const uc16> str,
+                                                   Object** s);
   MUST_USE_RESULT MaybeObject* LookupString(String* key, Object** s);
 
   // Looks up a symbol that is equal to the given string and returns
@@ -3125,6 +3138,9 @@ class DeoptimizationOutputData: public FixedArray {
 };
 
 
+class SafepointEntry;
+
+
 // Code describes objects with on-the-fly generated machine code.
 class Code: public HeapObject {
  public:
@@ -3272,9 +3288,8 @@ class Code: public HeapObject {
   inline byte compare_state();
   inline void set_compare_state(byte value);
 
-  // Get the safepoint entry for the given pc. Returns NULL for
-  // non-safepoint pcs.
-  uint8_t* GetSafepointEntry(Address pc);
+  // Get the safepoint entry for the given pc.
+  SafepointEntry GetSafepointEntry(Address pc);
 
   // Mark this code object as not having a stack check table.  Assumes kind
   // is FUNCTION.
@@ -5094,6 +5109,8 @@ class String: public HeapObject {
   // String equality operations.
   inline bool Equals(String* other);
   bool IsEqualTo(Vector<const char> str);
+  bool IsAsciiEqualTo(Vector<const char> str);
+  bool IsTwoByteEqualTo(Vector<const uc16> str);
 
   // Return a UTF8 representation of the string.  The string is null
   // terminated but may optionally contain nulls.  Length is returned
@@ -5264,6 +5281,34 @@ class String: public HeapObject {
                           sinkchar* sink,
                           int from,
                           int to);
+
+  static inline bool IsAscii(const char* chars, int length) {
+    const char* limit = chars + length;
+#ifdef V8_HOST_CAN_READ_UNALIGNED
+    ASSERT(kMaxAsciiCharCode == 0x7F);
+    const uintptr_t non_ascii_mask = kUintptrAllBitsSet / 0xFF * 0x80;
+    while (chars <= limit - sizeof(uintptr_t)) {
+      if (*reinterpret_cast<const uintptr_t*>(chars) & non_ascii_mask) {
+        return false;
+      }
+      chars += sizeof(uintptr_t);
+    }
+#endif
+    while (chars < limit) {
+      if (static_cast<uint8_t>(*chars) > kMaxAsciiCharCodeU) return false;
+      ++chars;
+    }
+    return true;
+  }
+
+  static inline bool IsAscii(const uc16* chars, int length) {
+    const uc16* limit = chars + length;
+    while (chars < limit) {
+      if (*chars > kMaxAsciiCharCodeU) return false;
+      ++chars;
+    }
+    return true;
+  }
 
  protected:
   class ReadBlockBuffer {
@@ -5703,8 +5748,9 @@ class Oddball: public HeapObject {
   static const byte kNotBooleanMask = ~1;
   static const byte kTheHole = 2;
   static const byte kNull = 3;
-  static const byte kUndefined = 4;
-  static const byte kOther = 5;
+  static const byte kArgumentMarker = 4;
+  static const byte kUndefined = 5;
+  static const byte kOther = 6;
 
   typedef FixedBodyDescriptor<kToStringOffset,
                               kToNumberOffset + kPointerSize,

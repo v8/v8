@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,3 +30,22 @@ assertFalse(e.hasOwnProperty('message'));
 Error.prototype.toString = Object.prototype.toString;
 assertEquals("[object Error]", Error.prototype.toString());
 assertEquals(Object.prototype, Error.prototype.__proto__);
+
+// Check that error construction does not call setters for the
+// properties on error objects in prototypes.
+function fail() { assertTrue(false); };
+ReferenceError.prototype.__defineSetter__('stack', fail);
+ReferenceError.prototype.__defineSetter__('message', fail);
+ReferenceError.prototype.__defineSetter__('type', fail);
+ReferenceError.prototype.__defineSetter__('arguments', fail);
+var e0 = new ReferenceError();
+var e1 = new ReferenceError('123');
+assertTrue(e1.hasOwnProperty('message'));
+assertTrue(e0.hasOwnProperty('stack'));
+assertTrue(e1.hasOwnProperty('stack'));
+assertTrue(e0.hasOwnProperty('type'));
+assertTrue(e1.hasOwnProperty('type'));
+assertTrue(e0.hasOwnProperty('arguments'));
+assertTrue(e1.hasOwnProperty('arguments'));
+
+

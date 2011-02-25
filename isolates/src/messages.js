@@ -946,12 +946,20 @@ function DefineError(f) {
   f.prototype.name = name;
   %SetCode(f, function(m) {
     if (%_IsConstructCall()) {
+      // Define all the expected properties directly on the error
+      // object. This avoids going through getters and setters defined
+      // on prototype objects.
+      %IgnoreAttributesAndSetProperty(this, 'stack', void 0);
+      %IgnoreAttributesAndSetProperty(this, 'arguments', void 0);
+      %IgnoreAttributesAndSetProperty(this, 'type', void 0);
       if (m === kAddMessageAccessorsMarker) {
+        // DefineOneShotAccessor always inserts a message property and
+        // ignores setters.
         DefineOneShotAccessor(this, 'message', function (obj) {
           return FormatMessage({type: obj.type, args: obj.arguments});
         });
       } else if (!IS_UNDEFINED(m)) {
-        this.message = ToString(m);
+        %IgnoreAttributesAndSetProperty(this, 'message', ToString(m));
       }
       captureStackTrace(this, f);
     } else {
@@ -992,8 +1000,8 @@ $Error.prototype.message = '';
   if (type && !this.hasOwnProperty("message")) {
     return this.name + ": " + FormatMessage({ type: type, args: this.arguments });
   }
-  var message = this.message;
-  return this.name + (message ? (": " + message) : "");
+  var message = this.hasOwnProperty("message") ? (": " + this.message) : "";
+  return this.name + message;
 }, DONT_ENUM);
 
 

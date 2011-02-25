@@ -276,7 +276,7 @@ void SlidingStateWindow::AddState(StateTag state) {
 // Profiler implementation.
 //
 Profiler::Profiler(Isolate* isolate)
-    : Thread(isolate),
+    : Thread(isolate, "v8:Profiler"),
       head_(0),
       tail_(0),
       overflow_(false),

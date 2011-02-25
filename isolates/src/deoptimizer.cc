@@ -317,9 +317,9 @@ int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
 }
 
 
-unsigned Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
-                                    unsigned id,
-                                    SharedFunctionInfo* shared) {
+int Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
+                               unsigned id,
+                               SharedFunctionInfo* shared) {
   // TODO(kasperl): For now, we do a simple linear search for the PC
   // offset associated with the given node id. This should probably be
   // changed to a binary search.
@@ -627,18 +627,18 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     }
 
     case Translation::ARGUMENTS_OBJECT: {
-      // Use the hole value as a sentinel and fill in the arguments object
-      // after the deoptimized frame is built.
+      // Use the arguments marker value as a sentinel and fill in the arguments
+      // object after the deoptimized frame is built.
       ASSERT(frame_index == 0);  // Only supported for first frame.
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- ",
                output_[frame_index]->GetTop() + output_offset,
                output_offset);
-        isolate_->heap()->the_hole_value()->ShortPrint();
+        isolate_->heap()->arguments_marker()->ShortPrint();
         PrintF(" ; arguments object\n");
       }
       intptr_t value = reinterpret_cast<intptr_t>(
-          isolate_->heap()->the_hole_value());
+          isolate_->heap()->arguments_marker());
       output_[frame_index]->SetFrameSlot(output_offset, value);
       return;
     }

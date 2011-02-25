@@ -155,7 +155,6 @@ class StandAloneJavaScriptScanner : public JavaScriptScanner {
  public:
   void Initialize(UC16CharacterStream* source) {
     source_ = source;
-    literal_flags_ = kLiteralString | kLiteralIdentifier;
     Init();
     // Skip initial whitespace allowing HTML comment ends just like
     // after a newline and scan first token.

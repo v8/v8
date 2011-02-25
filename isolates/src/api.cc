@@ -3276,7 +3276,8 @@ bool v8::V8::Dispose() {
 
 HeapStatistics::HeapStatistics(): total_heap_size_(0),
                                   total_heap_size_executable_(0),
-                                  used_heap_size_(0) { }
+                                  used_heap_size_(0),
+                                  heap_size_limit_(0) { }
 
 
 void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
@@ -3284,6 +3285,7 @@ void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->set_total_heap_size_executable(
       HEAP->CommittedMemoryExecutable());
   heap_statistics->set_used_heap_size(HEAP->SizeOfObjects());
+  heap_statistics->set_heap_size_limit(HEAP->MaxReserved());
 }
 
 

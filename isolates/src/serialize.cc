@@ -486,18 +486,26 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       37,
       "isolate");
-  Add(ExternalReference::address_of_negative_infinity().address(),
+  Add(ExternalReference::address_of_minus_zero().address(),
       UNCLASSIFIED,
       38,
+      "LDoubleConstant::minus_zero");
+  Add(ExternalReference::address_of_negative_infinity().address(),
+      UNCLASSIFIED,
+      39,
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function().address(),
       UNCLASSIFIED,
-      39,
+      40,
       "power_double_double_function");
   Add(ExternalReference::power_double_int_function().address(),
       UNCLASSIFIED,
-      40,
+      41,
       "power_double_int_function");
+  Add(ExternalReference::arguments_marker_location().address(),
+      UNCLASSIFIED,
+      42,
+      "Factory::arguments_marker().location()");
 }
 
 

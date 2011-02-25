@@ -58,7 +58,9 @@ TypeInfo TypeInfo::TypeFromValue(Handle<Object> value) {
 }
 
 
-TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code) {
+TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
+                                       Handle<Context> global_context) {
+  global_context_ = global_context;
   Initialize(code);
 }
 
@@ -72,17 +74,18 @@ void TypeFeedbackOracle::Initialize(Handle<Code> code) {
 
 
 bool TypeFeedbackOracle::LoadIsMonomorphic(Property* expr) {
-  return IsMonomorphic(expr->position());
+  return GetElement(map_, expr->position())->IsMap();
 }
 
 
 bool TypeFeedbackOracle:: StoreIsMonomorphic(Assignment* expr) {
-  return IsMonomorphic(expr->position());
+  return GetElement(map_, expr->position())->IsMap();
 }
 
 
 bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
-  return IsMonomorphic(expr->position());
+  Handle<Object> value = GetElement(map_, expr->position());
+  return value->IsMap() || value->IsSmi();
 }
 
 
@@ -94,12 +97,6 @@ Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
 
 Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Assignment* expr) {
   ASSERT(StoreIsMonomorphic(expr));
-  return Handle<Map>::cast(GetElement(map_, expr->position()));
-}
-
-
-Handle<Map> TypeFeedbackOracle::CallMonomorphicReceiverType(Call* expr) {
-  ASSERT(CallIsMonomorphic(expr));
   return Handle<Map>::cast(GetElement(map_, expr->position()));
 }
 
@@ -124,6 +121,37 @@ ZoneMapList* TypeFeedbackOracle::CallReceiverTypes(Call* expr,
   Code::Flags flags = Code::ComputeMonomorphicFlags(
       Code::CALL_IC, NORMAL, OWN_MAP, NOT_IN_LOOP, arity);
   return CollectReceiverTypes(expr->position(), name, flags);
+}
+
+
+CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
+  Handle<Object> value = GetElement(map_, expr->position());
+  if (!value->IsSmi()) return RECEIVER_MAP_CHECK;
+  CheckType check = static_cast<CheckType>(Smi::cast(*value)->value());
+  ASSERT(check != RECEIVER_MAP_CHECK);
+  return check;
+}
+
+
+Handle<JSObject> TypeFeedbackOracle::GetPrototypeForPrimitiveCheck(
+    CheckType check) {
+  JSFunction* function = NULL;
+  switch (check) {
+    case RECEIVER_MAP_CHECK:
+      UNREACHABLE();
+      break;
+    case STRING_CHECK:
+      function = global_context_->string_function();
+      break;
+    case NUMBER_CHECK:
+      function = global_context_->number_function();
+      break;
+    case BOOLEAN_CHECK:
+      function = global_context_->boolean_function();
+      break;
+  }
+  ASSERT(function != NULL);
+  return Handle<JSObject>(JSObject::cast(function->instance_prototype()));
 }
 
 
@@ -221,6 +249,7 @@ TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr, Side side) {
   return unknown;
 }
 
+
 TypeInfo TypeFeedbackOracle::SwitchType(CaseClause* clause) {
   Handle<Object> object = GetElement(map_, clause->position());
   TypeInfo unknown = TypeInfo::Unknown();
@@ -248,13 +277,12 @@ TypeInfo TypeFeedbackOracle::SwitchType(CaseClause* clause) {
 }
 
 
-
 ZoneMapList* TypeFeedbackOracle::CollectReceiverTypes(int position,
                                                       Handle<String> name,
                                                       Code::Flags flags) {
   Isolate* isolate = Isolate::Current();
   Handle<Object> object = GetElement(map_, position);
-  if (object->IsUndefined()) return NULL;
+  if (object->IsUndefined() || object->IsSmi()) return NULL;
 
   if (*object == isolate->builtins()->builtin(Builtins::StoreIC_GlobalProxy)) {
     // TODO(fschneider): We could collect the maps and signal that
@@ -303,11 +331,20 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
         SetElement(map_, position, target);
       }
     } else if (state == MONOMORPHIC) {
-      Map* map = target->FindFirstMap();
-      if (map == NULL) {
-        SetElement(map_, position, target);
+      if (target->kind() != Code::CALL_IC ||
+          target->check_type() == RECEIVER_MAP_CHECK) {
+        Map* map = target->FindFirstMap();
+        if (map == NULL) {
+          SetElement(map_, position, target);
+        } else {
+          SetElement(map_, position, Handle<Map>(map));
+        }
       } else {
-        SetElement(map_, position, Handle<Map>(map));
+        ASSERT(target->kind() == Code::CALL_IC);
+        CheckType check = target->check_type();
+        ASSERT(check != RECEIVER_MAP_CHECK);
+        SetElement(map_, position, Handle<Object>(Smi::FromInt(check)));
+        ASSERT(Smi::cast(*GetElement(map_, position))->value() == check);
       }
     } else if (state == MEGAMORPHIC) {
       SetElement(map_, position, target);
@@ -344,8 +381,6 @@ void TypeFeedbackOracle::CollectPositions(Code* code,
         } else if (kind == Code::COMPARE_IC) {
           if (target->compare_state() == CompareIC::GENERIC) continue;
         } else {
-          if (kind == Code::CALL_IC && state == MONOMORPHIC &&
-              target->check_type() != RECEIVER_MAP_CHECK) continue;
           if (state != MONOMORPHIC && state != MEGAMORPHIC) continue;
         }
         code_positions->Add(

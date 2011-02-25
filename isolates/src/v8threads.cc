@@ -390,7 +390,7 @@ void ThreadManager::TerminateExecution(int thread_id) {
 
 
 ContextSwitcher::ContextSwitcher(Isolate* isolate, int every_n_ms)
-  : Thread(isolate),
+  : Thread(isolate, "v8:CtxtSwitcher"),
     keep_going_(true),
     sleep_ms_(every_n_ms) {
 }

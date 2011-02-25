@@ -41,27 +41,6 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// LiteralCollector
-
-LiteralCollector::LiteralCollector()
-    : buffer_(kInitialCapacity), recording_(false) { }
-
-
-LiteralCollector::~LiteralCollector() {}
-
-
-void LiteralCollector::AddCharSlow(uc32 c) {
-  ASSERT(static_cast<unsigned>(c) > unibrow::Utf8::kMaxOneByteChar);
-  int length = unibrow::Utf8::Length(c);
-  Vector<char> block = buffer_.AddBlock(length, '\0');
-#ifdef DEBUG
-  int written_length = unibrow::Utf8::Encode(block.start(), c);
-  CHECK_EQ(length, written_length);
-#else
-  unibrow::Utf8::Encode(block.start(), c);
-#endif
-}
-
 // Compound predicates.
 
 bool ScannerConstants::IsIdentifier(unibrow::CharacterStream* buffer) {
@@ -253,7 +232,7 @@ Token::Value JavaScriptScanner::ScanHtmlComment() {
 
 
 void JavaScriptScanner::Scan() {
-  next_.literal_chars = Vector<const char>();
+  next_.literal_chars = NULL;
   Token::Value token;
   do {
     // Remember the position of the next token
@@ -558,7 +537,7 @@ Token::Value JavaScriptScanner::ScanString() {
   uc32 quote = c0_;
   Advance();  // consume quote
 
-  LiteralScope literal(this, kLiteralString);
+  LiteralScope literal(this);
   while (c0_ != quote && c0_ >= 0
          && !scanner_constants_->IsLineTerminator(c0_)) {
     uc32 c = c0_;
@@ -589,7 +568,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
 
   enum { DECIMAL, HEX, OCTAL } kind = DECIMAL;
 
-  LiteralScope literal(this, kLiteralNumber);
+  LiteralScope literal(this);
   if (seen_period) {
     // we have already seen a decimal point of the float
     AddLiteralChar('.');
@@ -678,7 +657,7 @@ uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
 
 Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
   ASSERT(scanner_constants_->IsIdentifierStart(c0_));
-  LiteralScope literal(this, kLiteralIdentifier);
+  LiteralScope literal(this);
   KeywordMatcher keyword_match;
   // Scan identifier start character.
   if (c0_ == '\\') {
@@ -744,17 +723,24 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
   // Scan regular expression body: According to ECMA-262, 3rd, 7.8.5,
   // the scanner should pass uninterpreted bodies to the RegExp
   // constructor.
-  LiteralScope literal(this, kLiteralRegExp);
+  LiteralScope literal(this);
   if (seen_equal)
     AddLiteralChar('=');
 
   while (c0_ != '/' || in_character_class) {
     if (scanner_constants_->IsLineTerminator(c0_) || c0_ < 0) return false;
-    if (c0_ == '\\') {  // escaped character
+    if (c0_ == '\\') {  // Escape sequence.
       AddLiteralCharAdvance();
       if (scanner_constants_->IsLineTerminator(c0_) || c0_ < 0) return false;
       AddLiteralCharAdvance();
-    } else {  // unescaped character
+      // If the escape allows more characters, i.e., \x??, \u????, or \c?,
+      // only "safe" characters are allowed (letters, digits, underscore),
+      // otherwise the escape isn't valid and the invalid character has
+      // its normal meaning. I.e., we can just continue scanning without
+      // worrying whether the following characters are part of the escape
+      // or not, since any '/', '\\' or '[' is guaranteed to not be part
+      // of the escape sequence.
+    } else {  // Unescaped character.
       if (c0_ == '[') in_character_class = true;
       if (c0_ == ']') in_character_class = false;
       AddLiteralCharAdvance();
@@ -770,7 +756,7 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
 
 bool JavaScriptScanner::ScanRegExpFlags() {
   // Scan regular expression flags.
-  LiteralScope literal(this, kLiteralRegExpFlags);
+  LiteralScope literal(this);
   while (scanner_constants_->IsIdentifierPart(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();

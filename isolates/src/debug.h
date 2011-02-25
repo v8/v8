@@ -33,6 +33,7 @@
 #include "debug-agent.h"
 #include "execution.h"
 #include "factory.h"
+#include "flags.h"
 #include "hashmap.h"
 #include "platform.h"
 #include "string-stream.h"
@@ -780,6 +781,15 @@ class Debugger {
       if (isolate_->debug()->debugger_entry() == NULL) {
         UnloadDebugger();
       }
+    }
+
+    if (((event == v8::BeforeCompile) || (event == v8::AfterCompile)) &&
+        !FLAG_debug_compile_events) {
+      return false;
+
+    } else if ((event == v8::ScriptCollected) &&
+               !FLAG_debug_script_collected_events) {
+      return false;
     }
 
     // Currently argument event is not used.

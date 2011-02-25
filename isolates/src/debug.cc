@@ -59,7 +59,7 @@ Debug::Debug(Isolate* isolate)
       debug_info_list_(NULL),
       disable_break_(false),
       break_on_exception_(false),
-      break_on_uncaught_exception_(true),
+      break_on_uncaught_exception_(false),
       debug_break_return_(NULL),
       debug_break_slot_(NULL),
       isolate_(isolate) {
@@ -630,9 +630,6 @@ Object** Debug::SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
 }
 
 const int Debug::kFrameDropperFrameSize = 4;
-
-
-
 
 
 void ScriptCache::Add(Handle<Script> script) {
@@ -2824,8 +2821,10 @@ bool Debugger::StartAgent(const char* name, int port,
   }
 
   if (Socket::Setup()) {
-    agent_ = new DebuggerAgent(isolate_, name, port);
-    agent_->Start();
+    if (agent_ == NULL) {
+      agent_ = new DebuggerAgent(isolate_, name, port);
+      agent_->Start();
+    }
     return true;
   }
 
@@ -3125,7 +3124,8 @@ void LockingCommandMessageQueue::Clear() {
 
 
 MessageDispatchHelperThread::MessageDispatchHelperThread(Isolate* isolate)
-    : Thread(isolate), sem_(OS::CreateSemaphore(0)), mutex_(OS::CreateMutex()),
+    : Thread(isolate, "v8:MsgDispHelpr"),
+      sem_(OS::CreateSemaphore(0)), mutex_(OS::CreateMutex()),
       already_signalled_(false) {
 }
 

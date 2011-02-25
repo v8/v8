@@ -126,8 +126,8 @@ MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
       // This means one of the object's prototypes is a JSArray and
       // the object does not have a 'length' property.
       // Calling SetProperty causes an infinite loop.
-      return object->IgnoreAttributesAndSetLocalProperty(HEAP->length_symbol(),
-                                                         value, NONE);
+      return object->SetLocalPropertyIgnoreAttributes(HEAP->length_symbol(),
+                                                      value, NONE);
     }
   }
   return Isolate::Current()->Throw(
@@ -779,7 +779,7 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
         if (index >= 0) {
           Handle<Object> arguments =
               Handle<Object>(frame->GetExpression(index), isolate);
-          if (!arguments->IsTheHole()) return *arguments;
+          if (!arguments->IsArgumentsMarker()) return *arguments;
         }
 
         // If there isn't an arguments variable in the stack, we need to

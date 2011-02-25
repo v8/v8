@@ -136,8 +136,7 @@ class V8JavaScriptScanner : public JavaScriptScanner {
   explicit V8JavaScriptScanner(Isolate* isolate)
       : JavaScriptScanner(isolate) {}
 
-  void Initialize(UC16CharacterStream* source,
-                  int literal_flags = kAllLiterals);
+  void Initialize(UC16CharacterStream* source);
 };
 
 

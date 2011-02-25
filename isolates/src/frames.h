@@ -29,6 +29,7 @@
 #define V8_FRAMES_H_
 
 #include "handles.h"
+#include "safepoint-table.h"
 
 namespace v8 {
 namespace internal {
@@ -52,7 +53,7 @@ class PcToCodeCache {
   struct PcToCodeCacheEntry {
     Address pc;
     Code* code;
-    uint8_t* safepoint_entry;
+    SafepointEntry safepoint_entry;
   };
 
   explicit PcToCodeCache(Isolate* isolate) : isolate_(isolate) {
@@ -215,7 +216,7 @@ class StackFrame BASE_EMBEDDED {
   // safepoint entry and the number of stack slots. The pc must be at
   // a safepoint.
   static Code* GetSafepointData(Address pc,
-                                uint8_t** safepoint_entry,
+                                SafepointEntry* safepoint_entry,
                                 unsigned* stack_slots);
 
   virtual void Iterate(ObjectVisitor* v) const = 0;

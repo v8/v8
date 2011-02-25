@@ -74,7 +74,7 @@ TEST(AssemblerIa320) {
       Code::ComputeFlags(Code::STUB),
       Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
   CHECK(code->IsCode());
-#ifdef DEBUG
+#ifdef OBJECT_PRINT
   Code::cast(code)->Print();
 #endif
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
@@ -112,7 +112,7 @@ TEST(AssemblerIa321) {
       Code::ComputeFlags(Code::STUB),
       Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
   CHECK(code->IsCode());
-#ifdef DEBUG
+#ifdef OBJECT_PRINT
   Code::cast(code)->Print();
 #endif
   F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
@@ -154,7 +154,7 @@ TEST(AssemblerIa322) {
       Code::ComputeFlags(Code::STUB),
       Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
   CHECK(code->IsCode());
-#ifdef DEBUG
+#ifdef OBJECT_PRINT
   Code::cast(code)->Print();
 #endif
   F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
@@ -328,7 +328,7 @@ TEST(AssemblerIa328) {
       Code::ComputeFlags(Code::STUB),
       Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
   CHECK(code->IsCode());
-#ifdef DEBUG
+#ifdef OBJECT_PRINT
   Code::cast(code)->Print();
 #endif
   F6 f = FUNCTION_CAST<F6>(Code::cast(code)->entry());
@@ -383,7 +383,7 @@ TEST(AssemblerIa329) {
       Code::ComputeFlags(Code::STUB),
       Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
   CHECK(code->IsCode());
-#ifdef DEBUG
+#ifdef OBJECT_PRINT
   Code::cast(code)->Print();
 #endif
 

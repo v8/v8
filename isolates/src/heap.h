@@ -59,6 +59,7 @@ inline Heap* _inline_get_heap_();
   V(Object, null_value, NullValue)                                             \
   V(Object, true_value, TrueValue)                                             \
   V(Object, false_value, FalseValue)                                           \
+  V(Object, arguments_marker, ArgumentsMarker)                                 \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
@@ -508,6 +509,14 @@ class Heap {
                                                      int chars,
                                                      uint32_t hash_field);
 
+  MUST_USE_RESULT inline MaybeObject* AllocateAsciiSymbol(
+        Vector<const char> str,
+        uint32_t hash_field);
+
+  MUST_USE_RESULT inline MaybeObject* AllocateTwoByteSymbol(
+        Vector<const uc16> str,
+        uint32_t hash_field);
+
   MUST_USE_RESULT MaybeObject* AllocateInternalSymbol(
       unibrow::CharacterStream* buffer, int chars, uint32_t hash_field);
 
@@ -753,6 +762,9 @@ class Heap {
   // failed.
   // Please note this function does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* LookupSymbol(Vector<const char> str);
+  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Vector<const char> str);
+  MUST_USE_RESULT MaybeObject* LookupTwoByteSymbol(
+      Vector<const uc16> str);
   MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(const char* str) {
     return LookupSymbol(CStrVector(str));
   }
@@ -1968,7 +1980,7 @@ class GCTracer BASE_EMBEDDED {
     }
 
     ~Scope() {
-      ASSERT((0 <= scope_) && (scope_ < kNumberOfScopes));
+      ASSERT(scope_ < kNumberOfScopes);  // scope_ is unsigned.
       tracer_->scopes_[scope_] += OS::TimeCurrentMillis() - start_time_;
     }
 

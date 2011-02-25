@@ -127,7 +127,7 @@ class PreallocatedMemoryThread: public Thread {
 
  private:
   explicit PreallocatedMemoryThread(Isolate* isolate)
-      : Thread(isolate),
+      : Thread(isolate, "v8:PreallocMem"),
         keep_running_(true),
         wait_for_ever_semaphore_(OS::CreateSemaphore(0)),
         data_ready_semaphore_(OS::CreateSemaphore(0)),

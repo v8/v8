@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -71,6 +71,8 @@ class Zone {
   inline bool excess_allocation();
 
   inline void adjust_segment_bytes_allocated(int delta);
+
+  static unsigned allocation_size_;
 
  private:
   friend class Isolate;

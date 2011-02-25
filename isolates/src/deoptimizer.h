@@ -171,9 +171,9 @@ class Deoptimizer : public Malloced {
 
   static Address GetDeoptimizationEntry(int id, BailoutType type);
   static int GetDeoptimizationId(Address addr, BailoutType type);
-  static unsigned GetOutputInfo(DeoptimizationOutputData* data,
-                                unsigned node_id,
-                                SharedFunctionInfo* shared);
+  static int GetOutputInfo(DeoptimizationOutputData* data,
+                           unsigned node_id,
+                           SharedFunctionInfo* shared);
 
   // Code generation support.
   static int input_offset() { return OFFSET_OF(Deoptimizer, input_); }

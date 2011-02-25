@@ -321,7 +321,6 @@ class RegExpParser {
   // and sets the value if it is.
   bool ParseHexEscape(int length, uc32* value);
 
-  uc32 ParseControlLetterEscape();
   uc32 ParseOctalLiteral();
 
   // Tries to parse the input as a back reference.  If successful it
@@ -583,6 +582,26 @@ class Parser {
   bool Check(Token::Value token);
   void ExpectSemicolon(bool* ok);
 
+  Handle<String> LiteralString(PretenureFlag tenured) {
+    if (scanner().is_literal_ascii()) {
+      return isolate_->factory()->NewStringFromAscii(
+          scanner().literal_ascii_string(), tenured);
+    } else {
+      return isolate_->factory()->NewStringFromTwoByte(
+            scanner().literal_uc16_string(), tenured);
+    }
+  }
+
+  Handle<String> NextLiteralString(PretenureFlag tenured) {
+    if (scanner().is_next_literal_ascii()) {
+      return isolate_->factory()->NewStringFromAscii(
+          scanner().next_literal_ascii_string(), tenured);
+    } else {
+      return isolate_->factory()->NewStringFromTwoByte(
+          scanner().next_literal_uc16_string(), tenured);
+    }
+  }
+
   Handle<String> GetSymbol(bool* ok);
 
   // Get odd-ball literals.
@@ -617,11 +636,9 @@ class Parser {
 
   Scope* NewScope(Scope* parent, Scope::Type type, bool inside_with);
 
-  Handle<String> LookupSymbol(int symbol_id,
-                              Vector<const char> string);
+  Handle<String> LookupSymbol(int symbol_id);
 
-  Handle<String> LookupCachedSymbol(int symbol_id,
-                                    Vector<const char> string);
+  Handle<String> LookupCachedSymbol(int symbol_id);
 
   Expression* NewCall(Expression* expression,
                       ZoneList<Expression*>* arguments,

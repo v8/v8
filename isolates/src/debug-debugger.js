@@ -654,13 +654,19 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
 
 Debug.enableBreakPoint = function(break_point_number) {
   var break_point = this.findBreakPoint(break_point_number, false);
-  break_point.enable();
+  // Only enable if the breakpoint hasn't been deleted:
+  if (break_point) {
+    break_point.enable();
+  }
 };
 
 
 Debug.disableBreakPoint = function(break_point_number) {
   var break_point = this.findBreakPoint(break_point_number, false);
-  break_point.disable();
+  // Only enable if the breakpoint hasn't been deleted:
+  if (break_point) {
+    break_point.disable();
+  }
 };
 
 
@@ -698,6 +704,17 @@ Debug.clearAllBreakPoints = function() {
     %ClearBreakPoint(break_point);
   }
   break_points = [];
+};
+
+
+Debug.disableAllBreakPoints = function() {
+  // Disable all user defined breakpoints:
+  for (var i = 1; i < next_break_point_number; i++) {
+    Debug.disableBreakPoint(i);
+  }
+  // Disable all exception breakpoints:
+  %ChangeBreakOnException(Debug.ExceptionBreak.Caught, false);
+  %ChangeBreakOnException(Debug.ExceptionBreak.Uncaught, false);
 };
 
 
@@ -1341,6 +1358,10 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         this.clearBreakPointRequest_(request, response);
       } else if (request.command == 'clearbreakpointgroup') {
         this.clearBreakPointGroupRequest_(request, response);
+      } else if (request.command == 'disconnect') {
+        this.disconnectRequest_(request, response);
+      } else if (request.command == 'setexceptionbreak') {
+        this.setExceptionBreakRequest_(request, response);
       } else if (request.command == 'listbreakpoints') {
         this.listBreakpointsRequest_(request, response);
       } else if (request.command == 'backtrace') {
@@ -1373,6 +1394,13 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         this.changeLiveRequest_(request, response);
       } else if (request.command == 'flags') {
         this.debuggerFlagsRequest_(request, response);
+      } else if (request.command == 'v8flags') {
+        this.v8FlagsRequest_(request, response);
+
+      // GC tools:
+      } else if (request.command == 'gc') {
+        this.gcRequest_(request, response);
+
       } else {
         throw new Error('Unknown command "' + request.command + '" in request');
       }
@@ -1690,7 +1718,63 @@ DebugCommandProcessor.prototype.listBreakpointsRequest_ = function(request, resp
     array.push(description);
   }
 
-  response.body = { breakpoints: array }
+  response.body = {
+    breakpoints: array,
+    breakOnExceptions: Debug.isBreakOnException(),
+    breakOnUncaughtExceptions: Debug.isBreakOnUncaughtException()
+  }
+}
+
+
+DebugCommandProcessor.prototype.disconnectRequest_ =
+    function(request, response) {
+  Debug.disableAllBreakPoints();
+  this.continueRequest_(request, response);
+}
+
+
+DebugCommandProcessor.prototype.setExceptionBreakRequest_ =
+    function(request, response) {
+  // Check for legal request.
+  if (!request.arguments) {
+    response.failed('Missing arguments');
+    return;
+  }
+
+  // Pull out and check the 'type' argument:
+  var type = request.arguments.type;
+  if (!type) {
+    response.failed('Missing argument "type"');
+    return;
+  }
+
+  // Initialize the default value of enable:
+  var enabled;
+  if (type == 'all') {
+    enabled = !Debug.isBreakOnException();
+  } else if (type == 'uncaught') {
+    enabled = !Debug.isBreakOnUncaughtException();
+  }  
+
+  // Pull out and check the 'enabled' argument if present:
+  if (!IS_UNDEFINED(request.arguments.enabled)) {
+    enabled = request.arguments.enabled;
+    if ((enabled != true) && (enabled != false)) {
+      response.failed('Illegal value for "enabled":"' + enabled + '"');
+    }
+  }
+
+  // Now set the exception break state:
+  if (type == 'all') {
+    %ChangeBreakOnException(Debug.ExceptionBreak.Caught, enabled);
+  } else if (type == 'uncaught') {
+    %ChangeBreakOnException(Debug.ExceptionBreak.Uncaught, enabled);
+  } else {
+    response.failed('Unknown "type":"' + type + '"');
+  }
+
+  // Add the cleared break point number to the response.
+  response.body = { 'type': type, 'enabled': enabled };
 }
 
 
@@ -2047,6 +2131,16 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
         idsToInclude[ids[i]] = true;
       }
     }
+
+    var filterStr = null;
+    var filterNum = null;
+    if (!IS_UNDEFINED(request.arguments.filter)) {
+      var num = %ToNumber(request.arguments.filter);
+      if (!isNaN(num)) {
+        filterNum = num;
+      }
+      filterStr = request.arguments.filter;
+    }
   }
 
   // Collect all scripts in the heap.
@@ -2057,6 +2151,21 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
   for (var i = 0; i < scripts.length; i++) {
     if (idsToInclude && !idsToInclude[scripts[i].id]) {
       continue;
+    }
+    if (filterStr || filterNum) {
+      var script = scripts[i];
+      var found = false;
+      if (filterNum && !found) {
+        if (script.id && script.id === filterNum) {
+          found = true;
+        }
+      }
+      if (filterStr && !found) {
+        if (script.name && script.name.indexOf(filterStr) >= 0) {
+          found = true;
+        }
+      }
+      if (!found) continue;
     }
     if (types & ScriptTypeFlag(scripts[i].type)) {
       response.body.push(MakeMirror(scripts[i]));
@@ -2194,6 +2303,27 @@ DebugCommandProcessor.prototype.debuggerFlagsRequest_ = function(request,
     }
   }
 }
+
+
+DebugCommandProcessor.prototype.v8FlagsRequest_ = function(request, response) {
+  var flags = request.arguments.flags;
+  if (!flags) flags = '';
+  %SetFlags(flags);
+};
+
+
+DebugCommandProcessor.prototype.gcRequest_ = function(request, response) {
+  var type = request.arguments.type;
+  if (!type) type = 'all';
+
+  var before = %GetHeapUsage();
+  %CollectGarbage(type);
+  var after = %GetHeapUsage();
+
+  response.body = { "before": before, "after": after };
+};
+
+
 
 
 // Check whether the previously processed command caused the VM to become

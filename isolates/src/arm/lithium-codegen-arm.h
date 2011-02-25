@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -80,6 +80,9 @@ class LCodeGen BASE_EMBEDDED {
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
 
+  // Emit frame translation commands for an environment.
+  void WriteTranslation(LEnvironment* environment, Translation* translation);
+
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) void Do##type(L##type* node);
   LITHIUM_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
@@ -102,6 +105,11 @@ class LCodeGen BASE_EMBEDDED {
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
   MacroAssembler* masm() const { return masm_; }
+
+  Register scratch0() { return r9; }
+  SwVfpRegister single_scratch0() { return s0; }
+  SwVfpRegister single_scratch1() { return s1; }
+  DwVfpRegister double_scratch0() { return d1; }
 
   int GetNextEmittedBlock(int block);
   LInstruction* GetNextInstruction();
@@ -236,6 +244,9 @@ class LCodeGen BASE_EMBEDDED {
   // Builder that keeps track of safepoints in the code. The table
   // itself is emitted at the end of the generated code.
   SafepointTableBuilder safepoints_;
+
+  // Compiler from a set of parallel moves to a sequential list of moves.
+  LGapResolver resolver_;
 
   friend class LDeferredCode;
   friend class LEnvironment;

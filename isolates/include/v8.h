@@ -1653,9 +1653,9 @@ class Object : public Value {
    *       the backing store is preserved while V8 has a reference.
    */
   V8EXPORT void SetIndexedPropertiesToPixelData(uint8_t* data, int length);
-  bool HasIndexedPropertiesInPixelData();
-  uint8_t* GetIndexedPropertiesPixelData();
-  int GetIndexedPropertiesPixelDataLength();
+  V8EXPORT bool HasIndexedPropertiesInPixelData();
+  V8EXPORT uint8_t* GetIndexedPropertiesPixelData();
+  V8EXPORT int GetIndexedPropertiesPixelDataLength();
 
   /**
    * Set the backing store of the indexed properties to be managed by the
@@ -1668,10 +1668,10 @@ class Object : public Value {
       void* data,
       ExternalArrayType array_type,
       int number_of_elements);
-  bool HasIndexedPropertiesInExternalArrayData();
-  void* GetIndexedPropertiesExternalArrayData();
-  ExternalArrayType GetIndexedPropertiesExternalArrayDataType();
-  int GetIndexedPropertiesExternalArrayDataLength();
+  V8EXPORT bool HasIndexedPropertiesInExternalArrayData();
+  V8EXPORT void* GetIndexedPropertiesExternalArrayData();
+  V8EXPORT ExternalArrayType GetIndexedPropertiesExternalArrayDataType();
+  V8EXPORT int GetIndexedPropertiesExternalArrayDataLength();
 
   V8EXPORT static Local<Object> New();
   static inline Object* Cast(Value* obj);
@@ -2517,6 +2517,7 @@ class V8EXPORT HeapStatistics {
   size_t total_heap_size() { return total_heap_size_; }
   size_t total_heap_size_executable() { return total_heap_size_executable_; }
   size_t used_heap_size() { return used_heap_size_; }
+  size_t heap_size_limit() { return heap_size_limit_; }
 
  private:
   void set_total_heap_size(size_t size) { total_heap_size_ = size; }
@@ -2524,10 +2525,12 @@ class V8EXPORT HeapStatistics {
     total_heap_size_executable_ = size;
   }
   void set_used_heap_size(size_t size) { used_heap_size_ = size; }
+  void set_heap_size_limit(size_t size) { heap_size_limit_ = size; }
 
   size_t total_heap_size_;
   size_t total_heap_size_executable_;
   size_t used_heap_size_;
+  size_t heap_size_limit_;
 
   friend class V8;
 };
@@ -3162,6 +3165,18 @@ class V8EXPORT Context {
    * Returns a persistent handle to the newly allocated context. This
    * persistent handle has to be disposed when the context is no
    * longer used so the context can be garbage collected.
+   *
+   * \param extensions An optional extension configuration containing
+   * the extensions to be installed in the newly created context.
+   *
+   * \param global_template An optional object template from which the
+   * global object for the newly created context will be created.
+   *
+   * \param global_object An optional global object to be reused for
+   * the newly created context. This global object must have been
+   * created by a previous call to Context::New with the same global
+   * template. The state of the global object will be completely reset
+   * and only object identify will remain.
    */
   static Persistent<Context> New(
       ExtensionConfiguration* extensions = NULL,
