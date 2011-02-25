@@ -552,7 +552,7 @@ void FullCodeGenerator::DoTest(Label* if_true,
   __ j(equal, if_true);
   __ CompareRoot(result_register(), Heap::kFalseValueRootIndex);
   __ j(equal, if_false);
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   __ SmiCompare(result_register(), Smi::FromInt(0));
   __ j(equal, if_false);
   Condition is_smi = masm_->CheckSmi(result_register());
@@ -1032,8 +1032,14 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
                                        bool pretenure) {
   // Use the fast case closure allocation code that allocates in new
-  // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() &&
+  // space for nested functions that don't need literals cloning. If
+  // we're running with the --always-opt or the --prepare-always-opt
+  // flag, we need to use the runtime function so that the new function
+  // we are creating here gets a chance to have its code optimized and
+  // doesn't just get a copy of the existing unoptimized code.
+  if (!FLAG_always_opt &&
+      !FLAG_prepare_always_opt &&
+      scope()->is_function_scope() &&
       info->num_literals() == 0 &&
       !pretenure) {
     FastNewClosureStub stub;
@@ -3085,8 +3091,11 @@ void FullCodeGenerator::EmitHasCachedArrayIndex(ZoneList<Expression*>* args) {
 
 void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
-
   VisitForAccumulatorValue(args->at(0));
+
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(rax);
+  }
 
   __ movl(rax, FieldOperand(rax, String::kHashFieldOffset));
   ASSERT(String::kHashShift >= kSmiTagSize);
@@ -3800,6 +3809,22 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
 
 
 void FullCodeGenerator::EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site) {
+  switch (ic->kind()) {
+    case Code::LOAD_IC:
+      __ IncrementCounter(&Counters::named_load_full, 1);
+      break;
+    case Code::KEYED_LOAD_IC:
+      __ IncrementCounter(&Counters::keyed_load_full, 1);
+      break;
+    case Code::STORE_IC:
+      __ IncrementCounter(&Counters::named_store_full, 1);
+      break;
+    case Code::KEYED_STORE_IC:
+      __ IncrementCounter(&Counters::keyed_store_full, 1);
+    default:
+      break;
+  }
+
   __ call(ic, RelocInfo::CODE_TARGET);
   if (patch_site != NULL && patch_site->is_bound()) {
     patch_site->EmitPatchInfo();
