@@ -7279,8 +7279,10 @@ MaybeObject* JSObject::GetElementPostInterceptor(Object* receiver,
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS: {
-      MaybeObject* value = GetExternalElement(index);
-      if (!value->ToObjectUnchecked()->IsUndefined()) return value;
+      MaybeObject* maybe_value = GetExternalElement(index);
+      Object* value;
+      if (!maybe_value->ToObject(&value)) return maybe_value;
+      if (!value->IsUndefined()) return value;
       break;
     }
     case DICTIONARY_ELEMENTS: {
@@ -7376,8 +7378,10 @@ MaybeObject* JSObject::GetElementWithReceiver(Object* receiver,
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS: {
-      MaybeObject* value = GetExternalElement(index);
-      if (!value->ToObjectUnchecked()->IsUndefined()) return value;
+      MaybeObject* maybe_value = GetExternalElement(index);
+      Object* value;
+      if (!maybe_value->ToObject(&value)) return maybe_value;
+      if (!value->IsUndefined()) return value;
       break;
     }
     case DICTIONARY_ELEMENTS: {
