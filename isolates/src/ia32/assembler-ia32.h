@@ -977,9 +977,6 @@ class Assembler : public Malloced {
 
   int pc_offset() const { return pc_ - buffer_; }
 
-  //dimich
-  byte* buffer() { return buffer_; }
-
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
   // an instruction or relocation information.

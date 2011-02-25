@@ -439,7 +439,9 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
     Handle<String> subject,
     int index,
     Vector<int> output) {
-  Handle<FixedArray> irregexp(FixedArray::cast(regexp->data()));
+  Isolate* isolate = regexp->GetIsolate();
+
+  Handle<FixedArray> irregexp(FixedArray::cast(regexp->data()), isolate);
 
   ASSERT(index >= 0);
   ASSERT(index <= subject->length());
@@ -447,25 +449,24 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
 
   // A flat ASCII string might have a two-byte first part.
   if (subject->IsConsString()) {
-    subject = Handle<String>(ConsString::cast(*subject)->first());
+    subject = Handle<String>(ConsString::cast(*subject)->first(), isolate);
   }
 
 #ifndef V8_INTERPRETED_REGEXP
-  ASSERT(output.length() >=
-      (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
+  ASSERT(output.length() >= (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
   do {
     bool is_ascii = subject->IsAsciiRepresentation();
-    Handle<Code> code(IrregexpNativeCode(*irregexp, is_ascii));
+    Handle<Code> code(IrregexpNativeCode(*irregexp, is_ascii), isolate);
     NativeRegExpMacroAssembler::Result res =
         NativeRegExpMacroAssembler::Match(code,
                                           subject,
                                           output.start(),
                                           output.length(),
                                           index,
-                                          regexp->GetIsolate());
+                                          isolate);
     if (res != NativeRegExpMacroAssembler::RETRY) {
       ASSERT(res != NativeRegExpMacroAssembler::EXCEPTION ||
-             Isolate::Current()->has_pending_exception());
+             isolate->has_pending_exception());
       STATIC_ASSERT(
           static_cast<int>(NativeRegExpMacroAssembler::SUCCESS) == RE_SUCCESS);
       STATIC_ASSERT(
@@ -496,7 +497,7 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
   for (int i = number_of_capture_registers - 1; i >= 0; i--) {
     register_vector[i] = -1;
   }
-  Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_ascii));
+  Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_ascii), isolate);
 
   if (IrregexpInterpreter::Match(byte_codes,
                                  subject,
@@ -558,7 +559,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
     return Handle<Object>::null();
   }
   ASSERT(res == RE_FAILURE);
-  return FACTORY->null_value();
+  return Isolate::Current()->factory()->null_value();
 }
 
 

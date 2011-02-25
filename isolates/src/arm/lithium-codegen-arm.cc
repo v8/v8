@@ -2045,7 +2045,7 @@ void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
-  Handle<Code> ic = 
+  Handle<Code> ic =
       Isolate::Current()->stub_cache()->ComputeKeyedCallInitialize(arity,
                                                                    NOT_IN_LOOP);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);

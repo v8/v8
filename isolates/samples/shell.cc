@@ -127,11 +127,11 @@ class SourceGroup {
       // which is not enough to parse the big literal expressions used in tests.
       // The stack size should be at least StackGuard::kLimitSize + some
       // OS-specific padding for thread startup code.
-      size_t stacksize = 1024 * 1024;  // 1 Mb seems to be enough
+      size_t stacksize = 2 << 20;  // 2 Mb seems to be enough
       pthread_attr_init(&attr);
       pthread_attr_setstacksize(&attr, stacksize);
       int error = pthread_create(&thread_, &attr, &IsolateThreadEntry, this);
-      if (error) {
+      if (error != 0) {
         printf("Error creating isolate thread.\n");
         exit(1);
       }

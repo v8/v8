@@ -142,7 +142,7 @@ class V8JavaScriptScanner : public JavaScriptScanner {
 
 class JsonScanner : public Scanner {
  public:
-  JsonScanner(Isolate* isolate);
+  explicit JsonScanner(Isolate* isolate);
 
   void Initialize(UC16CharacterStream* source);
 

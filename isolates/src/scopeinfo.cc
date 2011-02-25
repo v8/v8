@@ -449,7 +449,7 @@ int SerializedScopeInfo::StackSlotIndex(String* name) {
 
 int SerializedScopeInfo::ContextSlotIndex(String* name, Variable::Mode* mode) {
   ASSERT(name->IsSymbol());
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = GetIsolate();
   int result = isolate->context_slot_cache()->Lookup(this, name, mode);
   if (result != ContextSlotCache::kNotFound) return result;
   if (length() > 0) {

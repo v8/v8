@@ -138,9 +138,11 @@ Address IC::OriginalCodeAddress() {
 #endif
 
 
-static bool HasNormalObjectsInPrototypeChain(LookupResult* lookup,
+static bool HasNormalObjectsInPrototypeChain(Isolate* isolate,
+                                             LookupResult* lookup,
                                              Object* receiver) {
-  Object* end = lookup->IsProperty() ? lookup->holder() : HEAP->null_value();
+  Object* end = lookup->IsProperty()
+      ? lookup->holder() : isolate->heap()->null_value();
   for (Object* current = receiver;
        current != end;
        current = current->GetPrototype()) {
@@ -220,7 +222,7 @@ IC::State IC::StateFrom(Code* target, Object* receiver, Object* name) {
 
 RelocInfo::Mode IC::ComputeMode() {
   Address addr = address();
-  Code* code = Code::cast(HEAP->FindCodeObject(addr));
+  Code* code = Code::cast(isolate()->heap()->FindCodeObject(addr));
   for (RelocIterator it(code, RelocInfo::kCodeTargetMask);
        !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
@@ -234,17 +236,18 @@ RelocInfo::Mode IC::ComputeMode() {
 Failure* IC::TypeError(const char* type,
                        Handle<Object> object,
                        Handle<Object> key) {
-  HandleScope scope;
+  HandleScope scope(isolate());
   Handle<Object> args[2] = { key, object };
-  Handle<Object> error = FACTORY->NewTypeError(type, HandleVector(args, 2));
+  Handle<Object> error = isolate()->factory()->NewTypeError(
+      type, HandleVector(args, 2));
   return isolate()->Throw(*error);
 }
 
 
 Failure* IC::ReferenceError(const char* type, Handle<String> name) {
-  HandleScope scope;
-  Handle<Object> error =
-      FACTORY->NewReferenceError(type, HandleVector(&name, 1));
+  HandleScope scope(isolate());
+  Handle<Object> error = isolate()->factory()->NewReferenceError(
+      type, HandleVector(&name, 1));
   return isolate()->Throw(*error);
 }
 
@@ -464,8 +467,8 @@ static void LookupForRead(Object* object,
 
 
 Object* CallICBase::TryCallAsFunction(Object* object) {
-  HandleScope scope;
-  Handle<Object> target(object);
+  HandleScope scope(isolate());
+  Handle<Object> target(object, isolate());
   Handle<Object> delegate = Execution::GetFunctionDelegate(target);
 
   if (delegate->IsJSFunction()) {
@@ -484,15 +487,15 @@ Object* CallICBase::TryCallAsFunction(Object* object) {
 
 
 void CallICBase::ReceiverToObject(Handle<Object> object) {
-  HandleScope scope;
-  Handle<Object> receiver(object);
+  HandleScope scope(isolate());
+  Handle<Object> receiver = object;
 
   // Change the receiver to the result of calling ToObject on it.
   const int argc = this->target()->arguments_count();
   StackFrameLocator locator;
   JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
   int index = frame->ComputeExpressionsCount() - (argc + 1);
-  frame->SetExpression(index, *FACTORY->ToObject(object));
+  frame->SetExpression(index, *isolate()->factory()->ToObject(object));
 }
 
 
@@ -563,7 +566,7 @@ MaybeObject* CallICBase::LoadFunction(State state,
     }
   }
 
-  ASSERT(result != HEAP->the_hole_value());
+  ASSERT(result != isolate()->heap()->the_hole_value());
 
   if (result->IsJSFunction()) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -572,8 +575,8 @@ MaybeObject* CallICBase::LoadFunction(State state,
     if (debug->StepInActive()) {
       // Protect the result in a handle as the debugger can allocate and might
       // cause GC.
-      HandleScope scope;
-      Handle<JSFunction> function(JSFunction::cast(result));
+      HandleScope scope(isolate());
+      Handle<JSFunction> function(JSFunction::cast(result), isolate());
       debug->HandleStepIn(function, object, fp(), false);
       return *function;
     }
@@ -600,7 +603,8 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
   if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
 
   if (lookup->holder() != *object &&
-      HasNormalObjectsInPrototypeChain(lookup, object->GetPrototype())) {
+      HasNormalObjectsInPrototypeChain(
+          isolate(), lookup, object->GetPrototype())) {
     // Suppress optimization for prototype chains with slow properties objects
     // in the middle.
     return;
@@ -793,11 +797,12 @@ MaybeObject* LoadIC::Load(State state,
     // objects is read-only and therefore always returns the length of
     // the underlying string value.  See ECMA-262 15.5.5.1.
     if ((object->IsString() || object->IsStringWrapper()) &&
-        name->Equals(HEAP->length_symbol())) {
-      HandleScope scope;
+        name->Equals(isolate()->heap()->length_symbol())) {
+      HandleScope scope(isolate());
       // Get the string if we have a string wrapper object.
       if (object->IsJSValue()) {
-        object = Handle<Object>(Handle<JSValue>::cast(object)->value());
+        object = Handle<Object>(Handle<JSValue>::cast(object)->value(),
+                                isolate());
       }
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
@@ -816,7 +821,8 @@ MaybeObject* LoadIC::Load(State state,
     }
 
     // Use specialized code for getting the length of arrays.
-    if (object->IsJSArray() && name->Equals(HEAP->length_symbol())) {
+    if (object->IsJSArray() &&
+        name->Equals(isolate()->heap()->length_symbol())) {
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
 #endif
@@ -831,7 +837,8 @@ MaybeObject* LoadIC::Load(State state,
     }
 
     // Use specialized code for getting prototype of functions.
-    if (object->IsJSFunction() && name->Equals(HEAP->prototype_symbol()) &&
+    if (object->IsJSFunction() &&
+        name->Equals(isolate()->heap()->prototype_symbol()) &&
         JSFunction::cast(*object)->should_have_prototype()) {
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
@@ -955,7 +962,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
   if (!object->IsJSObject()) return;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
-  if (HasNormalObjectsInPrototypeChain(lookup, *object)) return;
+  if (HasNormalObjectsInPrototypeChain(isolate(), lookup, *object)) return;
 
   // Compute the code stub for this load.
   MaybeObject* maybe_code = NULL;
@@ -1065,7 +1072,8 @@ MaybeObject* KeyedLoadIC::Load(State state,
 
     if (FLAG_use_ic) {
       // Use specialized code for getting the length of strings.
-      if (object->IsString() && name->Equals(HEAP->length_symbol())) {
+      if (object->IsString() &&
+          name->Equals(isolate()->heap()->length_symbol())) {
         Handle<String> string = Handle<String>::cast(object);
         Object* code = NULL;
         { MaybeObject* maybe_code =
@@ -1081,7 +1089,8 @@ MaybeObject* KeyedLoadIC::Load(State state,
       }
 
       // Use specialized code for getting the length of arrays.
-      if (object->IsJSArray() && name->Equals(HEAP->length_symbol())) {
+      if (object->IsJSArray() &&
+          name->Equals(isolate()->heap()->length_symbol())) {
         Handle<JSArray> array = Handle<JSArray>::cast(object);
         Object* code;
         { MaybeObject* maybe_code =
@@ -1097,7 +1106,8 @@ MaybeObject* KeyedLoadIC::Load(State state,
       }
 
       // Use specialized code for getting prototype of functions.
-      if (object->IsJSFunction() && name->Equals(HEAP->prototype_symbol()) &&
+      if (object->IsJSFunction() &&
+          name->Equals(isolate()->heap()->prototype_symbol()) &&
         JSFunction::cast(*object)->should_have_prototype()) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(object);
         Object* code;
@@ -1118,7 +1128,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
     // the element or char if so.
     uint32_t index = 0;
     if (name->AsArrayIndex(&index)) {
-      HandleScope scope;
+      HandleScope scope(isolate());
       // Rewrite to the generic keyed load stub.
       if (FLAG_use_ic) set_target(generic_stub());
       return Runtime::GetElementOrCharAt(isolate(), object, index);
@@ -1213,7 +1223,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
   if (!object->IsJSObject()) return;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
-  if (HasNormalObjectsInPrototypeChain(lookup, *object)) return;
+  if (HasNormalObjectsInPrototypeChain(isolate(), lookup, *object)) return;
 
   // Compute the code stub for this load.
   MaybeObject* maybe_code = NULL;
@@ -1329,7 +1339,7 @@ MaybeObject* StoreIC::Store(State state,
   // Check if the given name is an array index.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    HandleScope scope;
+    HandleScope scope(isolate());
     Handle<Object> result = SetElement(receiver, index, value);
     if (result.is_null()) return Failure::Exception();
     return *value;
@@ -1337,7 +1347,7 @@ MaybeObject* StoreIC::Store(State state,
 
   // Use specialized code for setting the length of arrays.
   if (receiver->IsJSArray()
-      && name->Equals(HEAP->length_symbol())
+      && name->Equals(isolate()->heap()->length_symbol())
       && receiver->AllowsSetElementsLength()) {
 #ifdef DEBUG
     if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
@@ -1450,7 +1460,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
     }
     case MAP_TRANSITION: {
       if (lookup->GetAttributes() != NONE) return;
-      HandleScope scope;
+      HandleScope scope(isolate());
       ASSERT(type == MAP_TRANSITION);
       Handle<Map> transition(lookup->GetTransitionMap());
       int index = transition->PropertyIndexFor(*name);
@@ -1536,7 +1546,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
     // Check if the given name is an array index.
     uint32_t index;
     if (name->AsArrayIndex(&index)) {
-      HandleScope scope;
+      HandleScope scope(isolate());
       Handle<Object> result = SetElement(receiver, index, value);
       if (result.is_null()) return Failure::Exception();
       return *value;
@@ -1617,7 +1627,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
     }
     case MAP_TRANSITION: {
       if (lookup->GetAttributes() == NONE) {
-        HandleScope scope;
+        HandleScope scope(isolate());
         ASSERT(type == MAP_TRANSITION);
         Handle<Map> transition(lookup->GetTransitionMap());
         int index = transition->PropertyIndexFor(*name);
@@ -1658,11 +1668,12 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
 // Static IC stub generators.
 //
 
-static JSFunction* CompileFunction(JSFunction* function,
+static JSFunction* CompileFunction(Isolate* isolate,
+                                   JSFunction* function,
                                    InLoopFlag in_loop) {
   // Compile now with optimization.
-  HandleScope scope;
-  Handle<JSFunction> function_handle(function);
+  HandleScope scope(isolate);
+  Handle<JSFunction> function_handle(function, isolate);
   if (in_loop == IN_LOOP) {
     CompileLazyInLoop(function_handle, CLEAR_EXCEPTION);
   } else {
@@ -1695,7 +1706,9 @@ MUST_USE_RESULT MaybeObject* CallIC_Miss(RUNTIME_CALLING_CONVENTION) {
   if (!result->IsJSFunction() || JSFunction::cast(result)->is_compiled()) {
     return result;
   }
-  return CompileFunction(JSFunction::cast(result), ic.target()->ic_in_loop());
+  return CompileFunction(isolate,
+                         JSFunction::cast(result),
+                         ic.target()->ic_in_loop());
 }
 
 
@@ -1715,7 +1728,9 @@ MUST_USE_RESULT MaybeObject* KeyedCallIC_Miss(RUNTIME_CALLING_CONVENTION) {
   if (!result->IsJSFunction() || JSFunction::cast(result)->is_compiled()) {
     return result;
   }
-  return CompileFunction(JSFunction::cast(result), ic.target()->ic_in_loop());
+  return CompileFunction(isolate,
+                         JSFunction::cast(result),
+                         ic.target()->ic_in_loop());
 }
 
 
@@ -1885,7 +1900,7 @@ MUST_USE_RESULT MaybeObject* BinaryOp_Patch(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   ASSERT(args.length() == 5);
 
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<Object> left = args.at<Object>(0);
   Handle<Object> right = args.at<Object>(1);
   int key = Smi::cast(args[2])->value();
@@ -1907,7 +1922,7 @@ MUST_USE_RESULT MaybeObject* BinaryOp_Patch(RUNTIME_CALLING_CONVENTION) {
   }
 
   Handle<JSBuiltinsObject> builtins = Handle<JSBuiltinsObject>(
-      isolate->thread_local_top()->context_->builtins());
+      isolate->thread_local_top()->context_->builtins(), isolate);
   Object* builtin = NULL;  // Initialization calms down the compiler.
   switch (op) {
     case Token::ADD:
@@ -1947,7 +1962,8 @@ MUST_USE_RESULT MaybeObject* BinaryOp_Patch(RUNTIME_CALLING_CONVENTION) {
       UNREACHABLE();
   }
 
-  Handle<JSFunction> builtin_function(JSFunction::cast(builtin));
+  Handle<JSFunction> builtin_function(JSFunction::cast(builtin),
+                                      isolate);
 
   bool caught_exception;
   Object** builtin_args[] = { right.location() };
@@ -2098,7 +2114,7 @@ MaybeObject* TypeRecordingBinaryOp_Patch(RUNTIME_CALLING_CONVENTION) {
   }
 
   Handle<JSBuiltinsObject> builtins = Handle<JSBuiltinsObject>(
-      isolate->thread_local_top()->context_->builtins());
+      isolate->thread_local_top()->context_->builtins(), isolate);
   Object* builtin = NULL;  // Initialization calms down the compiler.
   switch (op) {
     case Token::ADD:
@@ -2138,7 +2154,7 @@ MaybeObject* TypeRecordingBinaryOp_Patch(RUNTIME_CALLING_CONVENTION) {
       UNREACHABLE();
   }
 
-  Handle<JSFunction> builtin_function(JSFunction::cast(builtin));
+  Handle<JSFunction> builtin_function(JSFunction::cast(builtin), isolate);
 
   bool caught_exception;
   Object** builtin_args[] = { right.location() };
