@@ -4091,6 +4091,8 @@ bool HGraphBuilder::TryInline(Call* expr) {
       !Scope::Analyze(&inner_info)) {
     if (Top::has_pending_exception()) {
       SetStackOverflow();
+      // Stop trying to optimize and inline this function.
+      target->shared()->set_optimization_disabled(true);
     }
     return false;
   }
