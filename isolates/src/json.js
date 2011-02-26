@@ -193,14 +193,14 @@ function BasicSerializeArray(value, stack, builder) {
     // First entry is a string. Remaining entries are likely to be strings too.
     builder.push(%QuoteJSONString(val));
     for (var i = 1; i < len; i++) {
-      builder.push(",");
       val = value[i];
       if (IS_STRING(val)) {
-        builder.push(%QuoteJSONString(val));
+        builder.push(%QuoteJSONStringComma(val));
       } else {
+        builder.push(",");
         var before = builder.length;
         BasicJSONSerialize(i, value[i], stack, builder);
-        if (before == builder.length) builder.push("null");
+        if (before == builder.length) builder[before - 1] = ",null";
       }
     }
   } else if (IS_NUMBER(val)) {
@@ -216,7 +216,7 @@ function BasicSerializeArray(value, stack, builder) {
       } else {
         var before = builder.length;
         BasicJSONSerialize(i, value[i], stack, builder);
-        if (before == builder.length) builder.push("null");
+        if (before == builder.length) builder[before - 1] = ",null";
       }
     }
   } else {
@@ -228,7 +228,7 @@ function BasicSerializeArray(value, stack, builder) {
       before = builder.length;
       val = value[i];
       BasicJSONSerialize(i, val, stack, builder);
-      if (before == builder.length) builder.push("null");
+      if (before == builder.length) builder[before - 1] = ",null";
     }
   }
   stack.pop();
@@ -241,9 +241,14 @@ function BasicSerializeObject(value, stack, builder) {
     throw MakeTypeError('circular_structure', []);
   }
   builder.push("{");
+  var first = true;
   for (var p in value) {
     if (%HasLocalProperty(value, p)) {
-      builder.push(%QuoteJSONString(p));
+      if (!first) {
+        builder.push(%QuoteJSONStringComma(p));
+      } else {
+        builder.push(%QuoteJSONString(p));
+      }
       builder.push(":");
       var before = builder.length;
       BasicJSONSerialize(p, value[p], stack, builder);
@@ -251,16 +256,12 @@ function BasicSerializeObject(value, stack, builder) {
         builder.pop();
         builder.pop();
       } else {
-        builder.push(",");
+        first = false;
       }
     }
   }
   stack.pop();
-  if (builder.pop() != ",") {
-    builder.push("{}");  // Object has no own properties. Push "{" back on.
-  } else {
-    builder.push("}");
-  }
+  builder.push("}");
 }
 
 

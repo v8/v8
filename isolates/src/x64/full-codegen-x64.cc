@@ -711,6 +711,8 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   // Compile all the tests with branches to their bodies.
   for (int i = 0; i < clauses->length(); i++) {
     CaseClause* clause = clauses->at(i);
+    clause->body_target()->entry_label()->Unuse();
+
     // The default is not a test, but remember it as final fall through.
     if (clause->is_default()) {
       default_clause = clause;
@@ -2024,16 +2026,21 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Call to a keyed property.
       // For a synthetic property use keyed load IC followed by function call,
       // for a regular property use keyed EmitCallIC.
-      { PreservePositionScope scope(masm()->positions_recorder());
-        VisitForStackValue(prop->obj());
-      }
       if (prop->is_synthetic()) {
-        { PreservePositionScope scope(masm()->positions_recorder());
-          VisitForAccumulatorValue(prop->key());
-        }
+        // Do not visit the object and key subexpressions (they are shared
+        // by all occurrences of the same rewritten parameter).
+        ASSERT(prop->obj()->AsVariableProxy() != NULL);
+        ASSERT(prop->obj()->AsVariableProxy()->var()->AsSlot() != NULL);
+        Slot* slot = prop->obj()->AsVariableProxy()->var()->AsSlot();
+        MemOperand operand = EmitSlotSearch(slot, rdx);
+        __ movq(rdx, operand);
+
+        ASSERT(prop->key()->AsLiteral() != NULL);
+        ASSERT(prop->key()->AsLiteral()->handle()->IsSmi());
+        __ Move(rax, prop->key()->AsLiteral()->handle());
+
         // Record source code position for IC call.
         SetSourcePosition(prop->position());
-        __ pop(rdx);  // We do not need to keep the receiver.
 
         Handle<Code> ic(isolate()->builtins()->builtin(
             Builtins::KeyedLoadIC_Initialize));
@@ -2045,6 +2052,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         __ push(FieldOperand(rcx, GlobalObject::kGlobalReceiverOffset));
         EmitCallWithStub(expr);
       } else {
+        { PreservePositionScope scope(masm()->positions_recorder());
+          VisitForStackValue(prop->obj());
+        }
         EmitKeyedCallWithIC(expr, prop->key(), RelocInfo::CODE_TARGET);
       }
     }
@@ -3019,19 +3029,18 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         if (prop != NULL) {
           VisitForStackValue(prop->obj());
           VisitForStackValue(prop->key());
+          __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
         } else if (var->is_global()) {
           __ push(GlobalObjectOperand());
           __ Push(var->name());
+          __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
         } else {
-          // Non-global variable.  Call the runtime to look up the context
-          // where the variable was introduced.
+          // Non-global variable.  Call the runtime to delete from the
+          // context where the variable was introduced.
           __ push(context_register());
           __ Push(var->name());
-          __ CallRuntime(Runtime::kLookupContext, 2);
-          __ push(rax);
-          __ Push(var->name());
+          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
         }
-        __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
         context()->Plug(rax);
       }
       break;

@@ -2065,18 +2065,38 @@ void ExternalTwoByteString::set_resource(
 
 
 void JSFunctionResultCache::MakeZeroSize() {
-  set(kFingerIndex, Smi::FromInt(kEntriesIndex));
-  set(kCacheSizeIndex, Smi::FromInt(kEntriesIndex));
+  set_finger_index(kEntriesIndex);
+  set_size(kEntriesIndex);
 }
 
 
 void JSFunctionResultCache::Clear() {
-  int cache_size = Smi::cast(get(kCacheSizeIndex))->value();
+  int cache_size = size();
   Object** entries_start = RawField(this, OffsetOfElementAt(kEntriesIndex));
   MemsetPointer(entries_start,
                 GetHeap()->the_hole_value(),
                 cache_size - kEntriesIndex);
   MakeZeroSize();
+}
+
+
+int JSFunctionResultCache::size() {
+  return Smi::cast(get(kCacheSizeIndex))->value();
+}
+
+
+void JSFunctionResultCache::set_size(int size) {
+  set(kCacheSizeIndex, Smi::FromInt(size));
+}
+
+
+int JSFunctionResultCache::finger_index() {
+  return Smi::cast(get(kFingerIndex))->value();
+}
+
+
+void JSFunctionResultCache::set_finger_index(int finger_index) {
+  set(kFingerIndex, Smi::FromInt(finger_index));
 }
 
 
@@ -2483,6 +2503,12 @@ InlineCacheState Code::ic_state() {
 }
 
 
+Code::ExtraICState Code::extra_ic_state() {
+  ASSERT(is_inline_cache_stub());
+  return ExtractExtraICStateFromFlags(flags());
+}
+
+
 PropertyType Code::type() {
   ASSERT(ic_state() == MONOMORPHIC);
   return ExtractTypeFromFlags(flags());
@@ -2659,14 +2685,20 @@ bool Code::is_inline_cache_stub() {
 Code::Flags Code::ComputeFlags(Kind kind,
                                InLoopFlag in_loop,
                                InlineCacheState ic_state,
+                               ExtraICState extra_ic_state,
                                PropertyType type,
                                int argc,
                                InlineCacheHolderFlag holder) {
+  // Extra IC state is only allowed for monomorphic call IC stubs.
+  ASSERT(extra_ic_state == kNoExtraICState ||
+         (kind == CALL_IC && (ic_state == MONOMORPHIC ||
+                              ic_state == MONOMORPHIC_PROTOTYPE_FAILURE)));
   // Compute the bit mask.
   int bits = kind << kFlagsKindShift;
   if (in_loop) bits |= kFlagsICInLoopMask;
   bits |= ic_state << kFlagsICStateShift;
   bits |= type << kFlagsTypeShift;
+  bits |= extra_ic_state << kFlagsExtraICStateShift;
   bits |= argc << kFlagsArgumentsCountShift;
   if (holder == PROTOTYPE_MAP) bits |= kFlagsCacheInPrototypeMapMask;
   // Cast to flags and validate result before returning it.
@@ -2675,6 +2707,7 @@ Code::Flags Code::ComputeFlags(Kind kind,
   ASSERT(ExtractICStateFromFlags(result) == ic_state);
   ASSERT(ExtractICInLoopFromFlags(result) == in_loop);
   ASSERT(ExtractTypeFromFlags(result) == type);
+  ASSERT(ExtractExtraICStateFromFlags(result) == extra_ic_state);
   ASSERT(ExtractArgumentsCountFromFlags(result) == argc);
   return result;
 }
@@ -2682,10 +2715,12 @@ Code::Flags Code::ComputeFlags(Kind kind,
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           PropertyType type,
+                                          ExtraICState extra_ic_state,
                                           InlineCacheHolderFlag holder,
                                           InLoopFlag in_loop,
                                           int argc) {
-  return ComputeFlags(kind, in_loop, MONOMORPHIC, type, argc, holder);
+  return ComputeFlags(
+      kind, in_loop, MONOMORPHIC, extra_ic_state, type, argc, holder);
 }
 
 
@@ -2698,6 +2733,12 @@ Code::Kind Code::ExtractKindFromFlags(Flags flags) {
 InlineCacheState Code::ExtractICStateFromFlags(Flags flags) {
   int bits = (flags & kFlagsICStateMask) >> kFlagsICStateShift;
   return static_cast<InlineCacheState>(bits);
+}
+
+
+Code::ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
+  int bits = (flags & kFlagsExtraICStateMask) >> kFlagsExtraICStateShift;
+  return static_cast<ExtraICState>(bits);
 }
 
 
@@ -3086,14 +3127,6 @@ Code* SharedFunctionInfo::unchecked_code() {
 
 
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
-  // If optimization has been disabled for the shared function info,
-  // reflect that in the code object so it will not be counted as
-  // optimizable code.
-  ASSERT(value->kind() != Code::FUNCTION ||
-         !value->optimizable() ||
-         this->code() == Isolate::Current()->builtins()->
-             builtin(Builtins::Illegal) ||
-         this->allows_lazy_compilation());
   WRITE_FIELD(this, kCodeOffset, value);
   ASSERT(!Isolate::Current()->heap()->InNewSpace(value));
 }
@@ -3141,12 +3174,6 @@ FunctionTemplateInfo* SharedFunctionInfo::get_api_func_data() {
 
 bool SharedFunctionInfo::HasBuiltinFunctionId() {
   return function_data()->IsSmi();
-}
-
-
-bool SharedFunctionInfo::IsBuiltinMathFunction() {
-  return HasBuiltinFunctionId() &&
-      builtin_function_id() >= kFirstMathFunctionId;
 }
 
 

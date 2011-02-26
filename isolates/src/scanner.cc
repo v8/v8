@@ -48,14 +48,18 @@ BufferedUC16CharacterStream::BufferedUC16CharacterStream()
 
 BufferedUC16CharacterStream::~BufferedUC16CharacterStream() { }
 
-void BufferedUC16CharacterStream::PushBack(uc16 character) {
-  if (pushback_limit_ == NULL && buffer_cursor_ > buffer_) {
-    // buffer_ is writable, buffer_cursor_ is const pointer.
-    buffer_[--buffer_cursor_ - buffer_] = character;
+void BufferedUC16CharacterStream::PushBack(uc32 character) {
+  if (character == kEndOfInput) {
     pos_--;
     return;
   }
-  SlowPushBack(character);
+  if (pushback_limit_ == NULL && buffer_cursor_ > buffer_) {
+    // buffer_ is writable, buffer_cursor_ is const pointer.
+    buffer_[--buffer_cursor_ - buffer_] = static_cast<uc16>(character);
+    pos_--;
+    return;
+  }
+  SlowPushBack(static_cast<uc16>(character));
 }
 
 

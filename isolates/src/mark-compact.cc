@@ -30,8 +30,10 @@
 #include "compilation-cache.h"
 #include "execution.h"
 #include "heap-profiler.h"
+#include "gdb-jit.h"
 #include "global-handles.h"
 #include "ic-inl.h"
+#include "liveobjectlist-inl.h"
 #include "mark-compact.h"
 #include "objects-visiting.h"
 #include "stub-cache.h"
@@ -124,6 +126,12 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   if (!HEAP->map_space()->MapPointersEncodable())
       compacting_collection_ = false;
   if (FLAG_collect_maps) CreateBackPointers();
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (FLAG_gdbjit) {
+    // If GDBJIT interface is active disable compaction.
+    compacting_collection_ = false;
+  }
+#endif
 
   PagedSpaces spaces;
   for (PagedSpace* space = spaces.next();
@@ -1707,6 +1715,7 @@ inline void EncodeForwardingAddressesInRange(MarkCompactCollector* collector,
         free_start = current;
         is_prev_alive = false;
       }
+      LiveObjectList::ProcessNonLive(object);
     }
   }
 
@@ -1938,6 +1947,9 @@ static void SweepNewSpace(Heap* heap, NewSpace* space) {
                     size,
                     false);
     } else {
+      // Process the dead object before we write a NULL into its header.
+      LiveObjectList::ProcessNonLive(object);
+
       size = object->Size();
       Memory::Address_at(current) = NULL;
     }
@@ -1957,6 +1969,7 @@ static void SweepNewSpace(Heap* heap, NewSpace* space) {
 
   // Update roots.
   heap->IterateRoots(&updating_visitor, VISIT_ALL_IN_SCAVENGE);
+  LiveObjectList::IterateElements(&updating_visitor);
 
   // Update pointers in old spaces.
   heap->IterateDirtyRegions(heap->old_pointer_space(),
@@ -2044,6 +2057,7 @@ static void SweepSpace(Heap* heap, PagedSpace* space) {
           free_start = current;
           is_previous_alive = false;
         }
+        LiveObjectList::ProcessNonLive(object);
       }
       // The object is now unmarked for the call to Size() at the top of the
       // loop.
@@ -2224,6 +2238,7 @@ class MapCompact {
     MapUpdatingVisitor map_updating_visitor;
     heap_->IterateRoots(&map_updating_visitor, VISIT_ONLY_STRONG);
     heap_->isolate_->global_handles()->IterateWeakRoots(&map_updating_visitor);
+    LiveObjectList::IterateElements(&map_updating_visitor);
   }
 
   void UpdateMapPointersInPagedSpace(PagedSpace* space) {
@@ -2595,6 +2610,8 @@ void MarkCompactCollector::UpdatePointers() {
 
   // Update the pointer to the head of the weak list of global contexts.
   updating_visitor.VisitPointer(&heap_->global_contexts_list_);
+
+  LiveObjectList::IterateElements(&updating_visitor);
 
   int live_maps_size = IterateLiveObjects(
       heap_->map_space(), &MarkCompactCollector::UpdatePointersInOldObject);
@@ -2991,6 +3008,11 @@ void MarkCompactCollector::EnableCodeFlushing(bool enable) {
 
 
 void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (obj->IsCode()) {
+    GDBJITInterface::RemoveCode(reinterpret_cast<Code*>(obj));
+  }
+#endif
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (obj->IsCode()) {
     PROFILE(CodeDeleteEvent(obj->address()));

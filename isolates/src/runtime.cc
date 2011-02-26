@@ -1832,6 +1832,7 @@ static MaybeObject* Runtime_SetCode(RUNTIME_CALLING_CONVENTION) {
     // Array, and Object, and some web code
     // doesn't like seeing source code for constructors.
     target->shared()->set_script(isolate->heap()->undefined_value());
+    target->shared()->code()->set_optimizable(false);
     // Clear the optimization hints related to the compiled code as these are no
     // longer valid when the code is overwritten.
     target->shared()->ClearThisPropertyAssignmentsInfo();
@@ -4826,12 +4827,12 @@ MaybeObject* AllocateRawString<SeqAsciiString>(int length) {
 }
 
 
-template <typename Char, typename StringType>
+template <typename Char, typename StringType, bool comma>
 static MaybeObject* SlowQuoteJsonString(Vector<const Char> characters) {
   int length = characters.length();
   const Char* read_cursor = characters.start();
   const Char* end = read_cursor + length;
-  const int kSpaceForQuotes = 2;
+  const int kSpaceForQuotes = 2 + (comma ? 1 :0);
   int quoted_length = kSpaceForQuotes;
   while (read_cursor < end) {
     Char c = *(read_cursor++);
@@ -4850,6 +4851,7 @@ static MaybeObject* SlowQuoteJsonString(Vector<const Char> characters) {
 
   Char* write_cursor = reinterpret_cast<Char*>(
       new_string->address() + SeqAsciiString::kHeaderSize);
+  if (comma) *(write_cursor++) = ',';
   *(write_cursor++) = '"';
 
   read_cursor = characters.start();
@@ -4871,14 +4873,14 @@ static MaybeObject* SlowQuoteJsonString(Vector<const Char> characters) {
 }
 
 
-template <typename Char, typename StringType>
+template <typename Char, typename StringType, bool comma>
 static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
   int length = characters.length();
   COUNTERS->quote_json_char_count()->Increment(length);
-  const int kSpaceForQuotes = 2;
+  const int kSpaceForQuotes = 2 + (comma ? 1 :0);
   int worst_case_length = length * kJsonQuoteWorstCaseBlowup + kSpaceForQuotes;
   if (worst_case_length > kMaxGuaranteedNewSpaceString) {
-    return SlowQuoteJsonString<Char, StringType>(characters);
+    return SlowQuoteJsonString<Char, StringType, comma>(characters);
   }
 
   MaybeObject* new_alloc = AllocateRawString<StringType>(worst_case_length);
@@ -4891,7 +4893,7 @@ static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
     // handle it being allocated in old space as may happen in the third
     // attempt.  See CALL_AND_RETRY in heap-inl.h and similar code in
     // CEntryStub::GenerateCore.
-    return SlowQuoteJsonString<Char, StringType>(characters);
+    return SlowQuoteJsonString<Char, StringType, comma>(characters);
   }
   StringType* new_string = StringType::cast(new_object);
   ASSERT(HEAP->new_space()->Contains(new_string));
@@ -4899,6 +4901,7 @@ static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
   STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
   Char* write_cursor = reinterpret_cast<Char*>(
       new_string->address() + SeqAsciiString::kHeaderSize);
+  if (comma) *(write_cursor++) = ',';
   *(write_cursor++) = '"';
 
   const Char* read_cursor = characters.start();
@@ -4950,13 +4953,32 @@ static MaybeObject* Runtime_QuoteJSONString(RUNTIME_CALLING_CONVENTION) {
     ASSERT(str->IsFlat());
   }
   if (str->IsTwoByteRepresentation()) {
-    return QuoteJsonString<uc16, SeqTwoByteString>(str->ToUC16Vector());
+    return QuoteJsonString<uc16, SeqTwoByteString, false>(str->ToUC16Vector());
   } else {
-    return QuoteJsonString<char, SeqAsciiString>(str->ToAsciiVector());
+    return QuoteJsonString<char, SeqAsciiString, false>(str->ToAsciiVector());
   }
 }
 
 
+static MaybeObject* Runtime_QuoteJSONStringComma(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
+  NoHandleAllocation ha;
+  CONVERT_CHECKED(String, str, args[0]);
+  if (!str->IsFlat()) {
+    MaybeObject* try_flatten = str->TryFlatten();
+    Object* flat;
+    if (!try_flatten->ToObject(&flat)) {
+      return try_flatten;
+    }
+    str = String::cast(flat);
+    ASSERT(str->IsFlat());
+  }
+  if (str->IsTwoByteRepresentation()) {
+    return QuoteJsonString<uc16, SeqTwoByteString, true>(str->ToUC16Vector());
+  } else {
+    return QuoteJsonString<char, SeqAsciiString, true>(str->ToAsciiVector());
+  }
+}
 
 static MaybeObject* Runtime_StringParseInt(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
@@ -7008,11 +7030,23 @@ static MaybeObject* Runtime_LazyRecompile(RUNTIME_CALLING_CONVENTION) {
   // code from the full compiler.
   if (!function->shared()->code()->optimizable() ||
       isolate->debug()->has_break_points()) {
+    if (FLAG_trace_opt) {
+      PrintF("[failed to optimize ");
+      function->PrintName();
+      PrintF(": is code optimizable: %s, is debugger enabled: %s]\n",
+          function->shared()->code()->optimizable() ? "T" : "F",
+          isolate->debug()->has_break_points() ? "T" : "F");
+    }
     function->ReplaceCode(function->shared()->code());
     return function->code();
   }
   if (CompileOptimized(function, AstNode::kNoNumber)) {
     return function->code();
+  }
+  if (FLAG_trace_opt) {
+    PrintF("[failed to optimize ");
+    function->PrintName();
+    PrintF(": optimized compilation failed]\n");
   }
   function->ReplaceCode(function->shared()->code());
   return Failure::Exception();
@@ -7209,15 +7243,9 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(
   Handle<Code> check_code = check_stub.GetCode();
   Handle<Code> replacement_code(
       isolate->builtins()->builtin(Builtins::OnStackReplacement));
-  // Iterate the unoptimized code and revert all the patched stack checks.
-  for (RelocIterator it(*unoptimized, RelocInfo::kCodeTargetMask);
-       !it.done();
-       it.next()) {
-    RelocInfo* rinfo = it.rinfo();
-    if (rinfo->target_address() == replacement_code->entry()) {
-      Deoptimizer::RevertStackCheckCode(rinfo, *check_code);
-    }
-  }
+  Deoptimizer::RevertStackCheckCode(*unoptimized,
+                                    *check_code,
+                                    *replacement_code);
 
   // Allow OSR only at nesting level zero again.
   unoptimized->set_allow_osr_at_loop_nesting_level(0);
@@ -7320,7 +7348,7 @@ static MaybeObject* Runtime_PushCatchContext(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-static MaybeObject* Runtime_LookupContext(RUNTIME_CALLING_CONVENTION) {
+static MaybeObject* Runtime_DeleteContextSlot(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
@@ -7331,16 +7359,31 @@ static MaybeObject* Runtime_LookupContext(RUNTIME_CALLING_CONVENTION) {
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = FOLLOW_CHAINS;
-  Handle<Object> holder =
-      context->Lookup(name, flags, &index, &attributes);
+  Handle<Object> holder = context->Lookup(name, flags, &index, &attributes);
 
-  if (index < 0 && !holder.is_null()) {
-    ASSERT(holder->IsJSObject());
-    return *holder;
+  // If the slot was not found the result is true.
+  if (holder.is_null()) {
+    return isolate->heap()->true_value();
   }
 
-  // No intermediate context found. Use global object by default.
-  return isolate->context()->global();
+  // If the slot was found in a context, it should be DONT_DELETE.
+  if (holder->IsContext()) {
+    return isolate->heap()->false_value();
+  }
+
+  // The slot was found in a JSObject, either a context extension object,
+  // the global object, or an arguments object.  Try to delete it
+  // (respecting DONT_DELETE).  For consistency with V8's usual behavior,
+  // which allows deleting all parameters in functions that mention
+  // 'arguments', we do this even for the case of slots found on an
+  // arguments object.  The slot was found on an arguments object if the
+  // index is non-negative.
+  Handle<JSObject> object = Handle<JSObject>::cast(holder);
+  if (index >= 0) {
+    return object->DeleteElement(index, JSObject::NORMAL_DELETION);
+  } else {
+    return object->DeleteProperty(*name, JSObject::NORMAL_DELETION);
+  }
 }
 
 
@@ -7417,8 +7460,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = FOLLOW_CHAINS;
-  Handle<Object> holder =
-      context->Lookup(name, flags, &index, &attributes);
+  Handle<Object> holder = context->Lookup(name, flags, &index, &attributes);
 
   // If the index is non-negative, the slot has been found in a local
   // variable or a parameter. Read it from the context object or the
@@ -7492,8 +7534,7 @@ static MaybeObject* Runtime_StoreContextSlot(RUNTIME_CALLING_CONVENTION) {
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = FOLLOW_CHAINS;
-  Handle<Object> holder =
-      context->Lookup(name, flags, &index, &attributes);
+  Handle<Object> holder = context->Lookup(name, flags, &index, &attributes);
 
   if (index >= 0) {
     if (holder->IsContext()) {
@@ -11100,53 +11141,13 @@ static MaybeObject* Runtime_Abort(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-MUST_USE_RESULT static MaybeObject* CacheMiss(Isolate* isolate,
-                                              FixedArray* cache_obj,
-                                              int index,
-                                              Object* key_obj) {
-  ASSERT(index % 2 == 0);  // index of the key
-  ASSERT(index >= JSFunctionResultCache::kEntriesIndex);
-  ASSERT(index < cache_obj->length());
-
-  HandleScope scope(isolate);
-
-  Handle<FixedArray> cache(cache_obj);
-  Handle<Object> key(key_obj, isolate);
-  Handle<JSFunction> factory(JSFunction::cast(
-        cache->get(JSFunctionResultCache::kFactoryIndex)));
-  // TODO(antonm): consider passing a receiver when constructing a cache.
-  Handle<Object> receiver(isolate->global_context()->global(), isolate);
-
-  Handle<Object> value;
-  {
-    // This handle is nor shared, nor used later, so it's safe.
-    Object** argv[] = { key.location() };
-    bool pending_exception = false;
-    value = Execution::Call(factory,
-                            receiver,
-                            1,
-                            argv,
-                            &pending_exception);
-    if (pending_exception) return Failure::Exception();
-  }
-
-  cache->set(index, *key);
-  cache->set(index + 1, *value);
-  cache->set(JSFunctionResultCache::kFingerIndex, Smi::FromInt(index));
-
-  return *value;
-}
-
-
 static MaybeObject* Runtime_GetFromCache(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   // This is only called from codegen, so checks might be more lax.
-  CONVERT_CHECKED(FixedArray, cache, args[0]);
+  CONVERT_CHECKED(JSFunctionResultCache, cache, args[0]);
   Object* key = args[1];
 
-  const int finger_index =
-      Smi::cast(cache->get(JSFunctionResultCache::kFingerIndex))->value();
-
+  int finger_index = cache->finger_index();
   Object* o = cache->get(finger_index);
   if (o == key) {
     // The fastest case: hit the same place again.
@@ -11158,35 +11159,78 @@ static MaybeObject* Runtime_GetFromCache(RUNTIME_CALLING_CONVENTION) {
        i -= 2) {
     o = cache->get(i);
     if (o == key) {
-      cache->set(JSFunctionResultCache::kFingerIndex, Smi::FromInt(i));
+      cache->set_finger_index(i);
       return cache->get(i + 1);
     }
   }
 
-  const int size =
-      Smi::cast(cache->get(JSFunctionResultCache::kCacheSizeIndex))->value();
+  int size = cache->size();
   ASSERT(size <= cache->length());
 
   for (int i = size - 2; i > finger_index; i -= 2) {
     o = cache->get(i);
     if (o == key) {
-      cache->set(JSFunctionResultCache::kFingerIndex, Smi::FromInt(i));
+      cache->set_finger_index(i);
       return cache->get(i + 1);
     }
   }
 
-  // Cache miss.  If we have spare room, put new data into it, otherwise
-  // evict post finger entry which must be least recently used.
-  if (size < cache->length()) {
-    cache->set(JSFunctionResultCache::kCacheSizeIndex, Smi::FromInt(size + 2));
-    return CacheMiss(isolate, cache, size, key);
-  } else {
-    int target_index = finger_index + JSFunctionResultCache::kEntrySize;
-    if (target_index == cache->length()) {
-      target_index = JSFunctionResultCache::kEntriesIndex;
-    }
-    return CacheMiss(isolate, cache, target_index, key);
+  // There is no value in the cache.  Invoke the function and cache result.
+  HandleScope scope(isolate);
+
+  Handle<JSFunctionResultCache> cache_handle(cache);
+  Handle<Object> key_handle(key);
+  Handle<Object> value;
+  {
+    Handle<JSFunction> factory(JSFunction::cast(
+          cache_handle->get(JSFunctionResultCache::kFactoryIndex)));
+    // TODO(antonm): consider passing a receiver when constructing a cache.
+    Handle<Object> receiver(isolate->global_context()->global());
+    // This handle is nor shared, nor used later, so it's safe.
+    Object** argv[] = { key_handle.location() };
+    bool pending_exception = false;
+    value = Execution::Call(factory,
+                            receiver,
+                            1,
+                            argv,
+                            &pending_exception);
+    if (pending_exception) return Failure::Exception();
   }
+
+#ifdef DEBUG
+  cache_handle->JSFunctionResultCacheVerify();
+#endif
+
+  // Function invocation may have cleared the cache.  Reread all the data.
+  finger_index = cache_handle->finger_index();
+  size = cache_handle->size();
+
+  // If we have spare room, put new data into it, otherwise evict post finger
+  // entry which is likely to be the least recently used.
+  int index = -1;
+  if (size < cache_handle->length()) {
+    cache_handle->set_size(size + JSFunctionResultCache::kEntrySize);
+    index = size;
+  } else {
+    index = finger_index + JSFunctionResultCache::kEntrySize;
+    if (index == cache_handle->length()) {
+      index = JSFunctionResultCache::kEntriesIndex;
+    }
+  }
+
+  ASSERT(index % 2 == 0);
+  ASSERT(index >= JSFunctionResultCache::kEntriesIndex);
+  ASSERT(index < cache_handle->length());
+
+  cache_handle->set(index, *key_handle);
+  cache_handle->set(index + 1, *value);
+  cache_handle->set_finger_index(index);
+
+#ifdef DEBUG
+  cache_handle->JSFunctionResultCacheVerify();
+#endif
+
+  return *value;
 }
 
 #ifdef DEBUG

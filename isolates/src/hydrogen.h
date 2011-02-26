@@ -296,6 +296,9 @@ class HGraph: public HSubgraph {
   explicit HGraph(CompilationInfo* info);
 
   CompilationInfo* info() const { return info_; }
+
+  bool AllowCodeMotion() const;
+
   const ZoneList<HBasicBlock*>* blocks() const { return &blocks_; }
   const ZoneList<HPhi*>* phi_list() const { return phi_list_; }
   Handle<String> debug_name() const { return info_->function()->debug_name(); }
@@ -745,7 +748,10 @@ class HGraphBuilder: public AstVisitor {
   bool TryArgumentsAccess(Property* expr);
   bool TryCallApply(Call* expr);
   bool TryInline(Call* expr);
-  bool TryMathFunctionInline(Call* expr);
+  bool TryInlineBuiltinFunction(Call* expr,
+                                HValue* receiver,
+                                Handle<Map> receiver_map,
+                                CheckType check_type);
   void TraceInline(Handle<JSFunction> target, bool result);
 
   void HandleGlobalVariableAssignment(Variable* var,
@@ -769,6 +775,8 @@ class HGraphBuilder: public AstVisitor {
                                   ZoneMapList* types,
                                   Handle<String> name);
 
+  HStringCharCodeAt* BuildStringCharCodeAt(HValue* string,
+                                           HValue* index);
   HInstruction* BuildBinaryOperation(BinaryOperation* expr,
                                      HValue* left,
                                      HValue* right);

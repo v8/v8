@@ -107,6 +107,7 @@ void PendingListNode::WeakCallback(v8::Persistent<v8::Value>, void* data) {
 
 
 static bool IsOptimizable(JSFunction* function) {
+  if (function->GetHeap()->InNewSpace(function)) return false;
   Code* code = function->code();
   return code->kind() == Code::FUNCTION && code->optimizable();
 }
@@ -170,8 +171,10 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   }
 
   SharedFunctionInfo* shared = function->shared();
-  // If the code is not optimizable, don't try OSR.
-  if (!shared->code()->optimizable()) return;
+  // If the code is not optimizable or references context slots, don't try OSR.
+  if (!shared->code()->optimizable() || !shared->allows_lazy_compilation()) {
+    return;
+  }
 
   // We are not prepared to do OSR for a function that already has an
   // allocated arguments object.  The optimized code would bypass it for
@@ -196,22 +199,9 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
     Code* replacement_code =
         isolate_->builtins()->builtin(Builtins::OnStackReplacement);
     Code* unoptimized_code = shared->code();
-    // Iterate the unoptimized code and patch every stack check except at
-    // the function entry.  This code assumes the function entry stack
-    // check appears first i.e., is not deferred or otherwise reordered.
-    bool first = true;
-    for (RelocIterator it(unoptimized_code, RelocInfo::kCodeTargetMask);
-         !it.done();
-         it.next()) {
-      RelocInfo* rinfo = it.rinfo();
-      if (rinfo->target_address() == Code::cast(check_code)->entry()) {
-        if (first) {
-          first = false;
-        } else {
-          Deoptimizer::PatchStackCheckCode(rinfo, replacement_code);
-        }
-      }
-    }
+    Deoptimizer::PatchStackCheckCode(unoptimized_code,
+                                     Code::cast(check_code),
+                                     replacement_code);
   }
 }
 

@@ -108,6 +108,7 @@ namespace internal {
   F(URIEscape, 1, 1) \
   F(URIUnescape, 1, 1) \
   F(QuoteJSONString, 1, 1) \
+  F(QuoteJSONStringComma, 1, 1) \
   \
   F(NumberToString, 1, 1) \
   F(NumberToStringSkipCache, 1, 1) \
@@ -285,7 +286,7 @@ namespace internal {
   F(NewContext, 1, 1) \
   F(PushContext, 1, 1) \
   F(PushCatchContext, 1, 1) \
-  F(LookupContext, 2, 1) \
+  F(DeleteContextSlot, 2, 1) \
   F(LoadContextSlot, 2, 2) \
   F(LoadContextSlotNoReferenceError, 2, 2) \
   F(StoreContextSlot, 3, 1) \

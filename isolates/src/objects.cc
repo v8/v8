@@ -5491,7 +5491,8 @@ void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
 
 void JSFunction::MarkForLazyRecompilation() {
   ASSERT(is_compiled() && !IsOptimized());
-  ASSERT(shared()->allows_lazy_compilation());
+  ASSERT(shared()->allows_lazy_compilation() ||
+         code()->optimizable());
   Builtins* builtins = GetIsolate()->builtins();
   ReplaceCode(builtins->builtin(Builtins::LazyRecompile));
 }

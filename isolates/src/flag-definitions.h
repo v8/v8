@@ -141,6 +141,7 @@ DEFINE_bool(use_osr, false, "use on-stack replacement")
 #endif
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
+DEFINE_bool(optimize_closures, true, "optimize closures")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,
@@ -300,6 +301,7 @@ DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
 
 // parser.cc
 DEFINE_bool(allow_natives_syntax, false, "allow natives syntax")
+DEFINE_bool(strict_mode, true, "allow strict mode directives")
 
 // rewriter.cc
 DEFINE_bool(optimize_ast, true, "optimize the ast")
@@ -364,6 +366,14 @@ DEFINE_bool(debug_compile_events, true, "Enable debugger compile events")
 DEFINE_bool(debug_script_collected_events, true,
             "Enable debugger script collected events")
 #endif
+
+
+//
+// GDB JIT integration flags.
+//
+
+DEFINE_bool(gdbjit, false, "enable GDBJIT interface (disables compacting GC)")
+DEFINE_bool(gdbjit_full, false, "enable GDBJIT interface for all code objects")
 
 //
 // Debug only flags

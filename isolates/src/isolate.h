@@ -45,16 +45,6 @@
 #include "zone.h"
 
 
-#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
-namespace assembler {
-namespace arm {
-class Redirection;
-class Simulator;
-}
-}
-#endif
-
-
 namespace v8 {
 namespace internal {
 
@@ -101,6 +91,10 @@ class Debugger;
 class DebuggerAgent;
 #endif
 
+#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
+class Redirection;
+class Simulator;
+#endif
 
 // Static indirection table for handles to constants.  If a frame
 // element represents a constant, the data contains an index into
@@ -191,7 +185,7 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #ifdef USE_SIMULATOR
 #ifdef V8_TARGET_ARCH_ARM
-  assembler::arm::Simulator* simulator_;
+  Simulator* simulator_;
 #elif V8_TARGET_ARCH_MIPS
   assembler::mips::Simulator* simulator_;
 #endif
@@ -349,8 +343,8 @@ class Isolate {
     void set_thread_state(ThreadState* value) { thread_state_ = value; }
 
 #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
-    assembler::arm::Simulator* simulator() const { return simulator_; }
-    void set_simulator(assembler::arm::Simulator* simulator) {
+    Simulator* simulator() const { return simulator_; }
+    void set_simulator(Simulator* simulator) {
       simulator_ = simulator;
     }
 #endif
@@ -366,7 +360,7 @@ class Isolate {
     ThreadState* thread_state_;
 
 #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
-    assembler::arm::Simulator* simulator_;
+    Simulator* simulator_;
 #endif
 
     PerIsolateThreadData* next_;
@@ -840,10 +834,10 @@ class Isolate {
     simulator_i_cache_ = hash_map;
   }
 
-  assembler::arm::Redirection* simulator_redirection() {
+  Redirection* simulator_redirection() {
     return simulator_redirection_;
   }
-  void set_simulator_redirection(assembler::arm::Redirection* redirection) {
+  void set_simulator_redirection(Redirection* redirection) {
     simulator_redirection_ = redirection;
   }
 #endif
@@ -1054,7 +1048,7 @@ class Isolate {
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
   bool simulator_initialized_;
   HashMap* simulator_i_cache_;
-  assembler::arm::Redirection* simulator_redirection_;
+  Redirection* simulator_redirection_;
 #endif
 
 #ifdef DEBUG

@@ -53,9 +53,9 @@ void ThreadLocalTop::Initialize() {
   handler_ = 0;
 #ifdef USE_SIMULATOR
 #ifdef V8_TARGET_ARCH_ARM
-  simulator_ = assembler::arm::Simulator::current(Isolate::Current());
+  simulator_ = Simulator::current(Isolate::Current());
 #elif V8_TARGET_ARCH_MIPS
-  simulator_ = assembler::mips::Simulator::current(Isolate::Current());
+  simulator_ = Simulator::current(Isolate::Current());
 #endif
 #endif
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -917,9 +917,9 @@ char* Isolate::RestoreThread(char* from) {
   // thread_local_ is restored on a separate OS thread.
 #ifdef USE_SIMULATOR
 #ifdef V8_TARGET_ARCH_ARM
-  thread_local_top()->simulator_ = assembler::arm::Simulator::current(this);
+  thread_local_top()->simulator_ = Simulator::current(this);
 #elif V8_TARGET_ARCH_MIPS
-  thread_local_top()->simulator_ = assembler::mips::Simulator::current(this);
+  thread_local_top()->simulator_ = Simulator::current(this);
 #endif
 #endif
   if (RuntimeProfiler::IsEnabled() && current_vm_state() == JS) {

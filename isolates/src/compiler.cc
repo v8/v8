@@ -35,8 +35,9 @@
 #include "data-flow.h"
 #include "debug.h"
 #include "full-codegen.h"
+#include "gdb-jit.h"
 #include "hydrogen.h"
-#include "lithium-allocator.h"
+#include "lithium.h"
 #include "liveedit.h"
 #include "oprofile-agent.h"
 #include "parser.h"
@@ -92,6 +93,25 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
       supports_deoptimization_(false),
       osr_ast_id_(AstNode::kNoNumber) {
   Initialize(BASE);
+}
+
+
+void CompilationInfo::DisableOptimization() {
+  if (FLAG_optimize_closures) {
+    // If we allow closures optimizations and it's an optimizable closure
+    // mark it correspondingly.
+    bool is_closure = closure_.is_null() && !scope_->HasTrivialOuterContext();
+    if (is_closure) {
+      bool is_optimizable_closure =
+          !scope_->outer_scope_calls_eval() && !scope_->inside_with();
+      if (is_optimizable_closure) {
+        SetMode(BASE);
+        return;
+      }
+    }
+  }
+
+  SetMode(NONOPT);
 }
 
 
@@ -192,7 +212,8 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 
   // Limit the number of times we re-compile a functions with
   // the optimizing compiler.
-  const int kMaxOptCount = FLAG_deopt_every_n_times == 0 ? 10 : 1000;
+  const int kMaxOptCount =
+      FLAG_deopt_every_n_times == 0 ? Compiler::kDefaultMaxOptCount : 1000;
   if (info->shared_info()->opt_count() > kMaxOptCount) {
     AbortAndDisable(info);
     // True indicates the compilation pipeline is still going, not
@@ -407,6 +428,9 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
     OPROFILE(CreateNativeCodeRegion(String::cast(script->name()),
                                     info->code()->instruction_start(),
                                     info->code()->instruction_size()));
+    GDBJIT(AddCode(Handle<String>(String::cast(script->name())),
+                   script,
+                   info->code()));
   } else {
     PROFILE(CodeCreateEvent(
         info->is_eval()
@@ -417,6 +441,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
     OPROFILE(CreateNativeCodeRegion(info->is_eval() ? "Eval" : "Script",
                                     info->code()->instruction_start(),
                                     info->code()->instruction_size()));
+    GDBJIT(AddCode(Handle<String>(), script, info->code()));
   }
 
   // Allocate function.
@@ -791,6 +816,10 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                       code->instruction_size()));
     }
   }
+
+  GDBJIT(AddCode(name,
+                 Handle<Script>(info->script()),
+                 Handle<Code>(info->code())));
 }
 
 } }  // namespace v8::internal

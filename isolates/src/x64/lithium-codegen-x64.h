@@ -34,6 +34,7 @@
 #include "deoptimizer.h"
 #include "safepoint-table.h"
 #include "scopes.h"
+#include "x64/lithium-gap-resolver-x64.h"
 
 namespace v8 {
 namespace internal {
@@ -57,9 +58,23 @@ class LCodeGen BASE_EMBEDDED {
         scope_(chunk->graph()->info()->scope()),
         status_(UNUSED),
         deferred_(8),
-        osr_pc_offset_(-1) {
+        osr_pc_offset_(-1),
+        resolver_(this) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
+
+  // Simple accessors.
+  MacroAssembler* masm() const { return masm_; }
+
+  // Support for converting LOperands to assembler types.
+  Register ToRegister(LOperand* op) const;
+  XMMRegister ToDoubleRegister(LOperand* op) const;
+  bool IsInteger32Constant(LConstantOperand* op) const;
+  int ToInteger32(LConstantOperand* op) const;
+  bool IsTaggedConstant(LConstantOperand* op) const;
+  Handle<Object> ToHandle(LConstantOperand* op) const;
+  Operand ToOperand(LOperand* op) const;
+
 
   // Try to generate code for the entire chunk, but it may fail if the
   // chunk contains constructs we cannot handle. Returns true if the
@@ -72,7 +87,6 @@ class LCodeGen BASE_EMBEDDED {
 
   // Deferred code support.
   void DoDeferredNumberTagD(LNumberTagD* instr);
-  void DoDeferredNumberTagI(LNumberTagI* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LGoto* instr);
@@ -106,7 +120,6 @@ class LCodeGen BASE_EMBEDDED {
   LChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
-  MacroAssembler* masm() const { return masm_; }
 
   int GetNextEmittedBlock(int block);
   LInstruction* GetNextInstruction();
@@ -115,8 +128,7 @@ class LCodeGen BASE_EMBEDDED {
                        Label* if_false,
                        Handle<String> class_name,
                        Register input,
-                       Register temporary,
-                       Register temporary2);
+                       Register temporary);
 
   int StackSlotCount() const { return chunk()->spill_slot_count(); }
   int ParameterCount() const { return scope()->num_parameters(); }
@@ -152,7 +164,7 @@ class LCodeGen BASE_EMBEDDED {
                          int arity,
                          LInstruction* instr);
 
-  void LoadPrototype(Register result, Handle<JSObject> prototype);
+  void LoadHeapObject(Register result, Handle<HeapObject> object);
 
   void RegisterLazyDeoptimization(LInstruction* instr);
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment);
@@ -168,10 +180,6 @@ class LCodeGen BASE_EMBEDDED {
 
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
-  Register ToRegister(LOperand* op) const;
-  XMMRegister ToDoubleRegister(LOperand* op) const;
-  int ToInteger32(LConstantOperand* op) const;
-  Operand ToOperand(LOperand* op) const;
 
   // Specific math operations - used from DoUnaryMathOperation.
   void DoMathAbs(LUnaryMathOperation* instr);
@@ -206,8 +214,6 @@ class LCodeGen BASE_EMBEDDED {
   // Returns the condition on which a final split to
   // true and false label should be made, to optimize fallthrough.
   Condition EmitIsObject(Register input,
-                         Register temp1,
-                         Register temp2,
                          Label* is_not_object,
                          Label* is_object);
 

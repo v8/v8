@@ -671,7 +671,7 @@ void JSFunctionResultCache::JSFunctionResultCacheVerify() {
 
   int finger = Smi::cast(get(kFingerIndex))->value();
   ASSERT(kEntriesIndex <= finger);
-  ASSERT(finger < size || finger == kEntriesIndex);
+  ASSERT((finger < size) || (finger == kEntriesIndex && finger == size));
   ASSERT_EQ(0, finger % kEntrySize);
 
   if (FLAG_enable_slow_asserts) {

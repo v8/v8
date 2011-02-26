@@ -43,7 +43,7 @@ class BufferedUC16CharacterStream: public UC16CharacterStream {
   BufferedUC16CharacterStream();
   virtual ~BufferedUC16CharacterStream();
 
-  virtual void PushBack(uc16 character);
+  virtual void PushBack(uc32 character);
 
  protected:
   static const unsigned kBufferSize = 512;
@@ -107,11 +107,12 @@ class ExternalTwoByteStringUC16CharacterStream: public UC16CharacterStream {
                                            int end_position);
   virtual ~ExternalTwoByteStringUC16CharacterStream();
 
-  virtual void PushBack(uc16 character) {
+  virtual void PushBack(uc32 character) {
     ASSERT(buffer_cursor_ > raw_data_);
     buffer_cursor_--;
     pos_--;
   }
+
  protected:
   virtual unsigned SlowSeekForward(unsigned delta) {
     // Fast case always handles seeking.

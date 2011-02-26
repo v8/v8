@@ -32,7 +32,6 @@
 #include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
-#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -166,12 +165,6 @@ bool FunctionLiteral::AllowsLazyCompilation() {
 }
 
 
-bool FunctionLiteral::AllowOptimize() {
-  // We can't deal with heap-allocated locals.
-  return scope()->num_heap_slots() == 0;
-}
-
-
 ObjectLiteral::Property::Property(Literal* key, Expression* value) {
   emit_store_ = true;
   key_ = key;
@@ -246,12 +239,19 @@ void ObjectLiteral::CalculateEmitStore() {
     HashMap* table;
     void* key;
     uint32_t index;
+    Smi* smi_key_location;
     if (handle->IsSymbol()) {
       Handle<String> name(String::cast(*handle));
-      ASSERT(!name->AsArrayIndex(&index));
-      key = name.location();
-      hash = name->Hash();
-      table = &properties;
+      if (name->AsArrayIndex(&index)) {
+        smi_key_location = Smi::FromInt(index);
+        key = &smi_key_location;
+        hash = index;
+        table = &elements;
+      } else {
+        key = name.location();
+        hash = name->Hash();
+        table = &properties;
+      }
     } else if (handle->ToArrayIndex(&index)) {
       key = handle.location();
       hash = index;
@@ -521,6 +521,8 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   if (key()->IsPropertyName()) {
     if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_ArrayLength)) {
       is_array_length_ = true;
+    } else if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_StringLength)) {
+      is_string_length_ = true;
     } else if (oracle->LoadIsBuiltin(this,
                                      Builtins::LoadIC_FunctionPrototype)) {
       is_function_prototype_ = true;
@@ -566,25 +568,25 @@ void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-static bool CallWithoutIC(Handle<JSFunction> target, int arity) {
+static bool CanCallWithoutIC(Handle<JSFunction> target, int arity) {
   SharedFunctionInfo* info = target->shared();
-  if (target->NeedsArgumentsAdaption()) {
-    // If the number of formal parameters of the target function
-    // does not match the number of arguments we're passing, we
-    // don't want to deal with it.
-    return info->formal_parameter_count() == arity;
-  } else {
-    // If the target doesn't need arguments adaption, we can call
-    // it directly, but we avoid to do so if it has a custom call
-    // generator, because that is likely to generate better code.
-    return !info->HasBuiltinFunctionId() ||
-        !CallStubCompiler::HasCustomCallGenerator(info->builtin_function_id());
-  }
+  // If the number of formal parameters of the target function does
+  // not match the number of arguments we're passing, we don't want to
+  // deal with it. Otherwise, we can call it directly.
+  return !target->NeedsArgumentsAdaption() ||
+      info->formal_parameter_count() == arity;
 }
 
 
 bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
-  holder_ = Handle<JSObject>::null();
+  if (check_type_ == RECEIVER_MAP_CHECK) {
+    // For primitive checks the holder is set up to point to the
+    // corresponding prototype object, i.e. one step of the algorithm
+    // below has been already performed.
+    // For non-primitive checks we clear it to allow computing targets
+    // for polymorphic calls.
+    holder_ = Handle<JSObject>::null();
+  }
   while (true) {
     LookupResult lookup;
     type->LookupInDescriptors(NULL, *name, &lookup);
@@ -595,7 +597,7 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
       type = Handle<Map>(holder()->map());
     } else if (lookup.IsProperty() && lookup.type() == CONSTANT_FUNCTION) {
       target_ = Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
-      return CallWithoutIC(target_, arguments()->length());
+      return CanCallWithoutIC(target_, arguments()->length());
     } else {
       return false;
     }
@@ -615,8 +617,8 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
       Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
       // If the function is in new space we assume it's more likely to
       // change and thus prefer the general IC code.
-      if (!Isolate::Current()->heap()->InNewSpace(*candidate)
-          && CallWithoutIC(candidate, arguments()->length())) {
+      if (!HEAP->InNewSpace(*candidate) &&
+          CanCallWithoutIC(candidate, arguments()->length())) {
         target_ = candidate;
         return true;
       }
@@ -654,8 +656,9 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
       map = receiver_types_->at(0);
     } else {
       ASSERT(check_type_ != RECEIVER_MAP_CHECK);
-      map = Handle<Map>(
-          oracle->GetPrototypeForPrimitiveCheck(check_type_)->map());
+      holder_ = Handle<JSObject>(
+          oracle->GetPrototypeForPrimitiveCheck(check_type_));
+      map = Handle<Map>(holder_->map());
     }
     is_monomorphic_ = ComputeTarget(map, name);
   }

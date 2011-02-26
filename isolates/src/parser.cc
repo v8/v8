@@ -283,6 +283,11 @@ class TemporaryScope BASE_EMBEDDED {
   void AddLoop() { loop_count_++; }
   bool ContainsLoops() const { return loop_count_ > 0; }
 
+  bool StrictMode() { return strict_mode_; }
+  void EnableStrictMode() {
+    strict_mode_ = FLAG_strict_mode;
+  }
+
  private:
   // Captures the number of literals that need materialization in the
   // function.  Includes regexp literals, and boilerplate for object
@@ -300,6 +305,9 @@ class TemporaryScope BASE_EMBEDDED {
   // Captures the number of loops inside the scope.
   int loop_count_;
 
+  // Parsing strict mode code.
+  bool strict_mode_;
+
   // Bookkeeping
   TemporaryScope** variable_;
   TemporaryScope* parent_;
@@ -315,6 +323,8 @@ TemporaryScope::TemporaryScope(TemporaryScope** variable)
     loop_count_(0),
     variable_(variable),
     parent_(*variable) {
+  // Inherit the strict mode from the parent scope.
+  strict_mode_ = (parent_ != NULL) && parent_->strict_mode_;
   *variable = this;
 }
 
@@ -566,7 +576,6 @@ class LexicalScope BASE_EMBEDDED {
   int prev_level_;
 };
 
-
 // ----------------------------------------------------------------------------
 // The CHECK_OK macro is a convenient macro to enforce error
 // handling for functions that may fail (by returning !*ok).
@@ -606,7 +615,8 @@ Parser::Parser(Handle<Script> script,
       extension_(extension),
       pre_data_(pre_data),
       fni_(NULL),
-      stack_overflow_(false) {
+      stack_overflow_(false),
+      parenthesized_function_(false) {
   AstNode::ResetIds();
 }
 
@@ -660,7 +670,11 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
     TemporaryScope temp_scope(&this->temp_scope_);
     ZoneList<Statement*>* body = new ZoneList<Statement*>(16);
     bool ok = true;
+    int beg_loc = scanner().location().beg_pos;
     ParseSourceElements(body, Token::EOS, &ok);
+    if (ok && temp_scope_->StrictMode()) {
+      CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
+    }
     if (ok) {
       result = new FunctionLiteral(
           no_name,
@@ -674,7 +688,8 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
           0,
           source->length(),
           false,
-          temp_scope.ContainsLoops());
+          temp_scope.ContainsLoops(),
+          temp_scope.StrictMode());
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
     }
@@ -783,13 +798,29 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
                              const char* type,
                              Vector<const char*> args) {
   MessageLocation location(script_,
-                           source_location.beg_pos, source_location.end_pos);
+                           source_location.beg_pos,
+                           source_location.end_pos);
   Handle<JSArray> array = isolate()->factory()->NewJSArray(args.length());
   for (int i = 0; i < args.length(); i++) {
     SetElement(array, i,
                isolate()->factory()->NewStringFromUtf8(CStrVector(args[i])));
   }
   Handle<Object> result = isolate()->factory()->NewSyntaxError(type, array);
+  isolate()->Throw(*result, &location);
+}
+
+
+void Parser::ReportMessageAt(Scanner::Location source_location,
+                             const char* type,
+                             Vector<Handle<String> > args) {
+  MessageLocation location(script_,
+                           source_location.beg_pos,
+                           source_location.end_pos);
+  Handle<JSArray> array = FACTORY->NewJSArray(args.length());
+  for (int i = 0; i < args.length(); i++) {
+    SetElement(array, i, args[i]);
+  }
+  Handle<Object> result = FACTORY->NewSyntaxError(type, array);
   isolate()->Throw(*result, &location);
 }
 
@@ -1065,9 +1096,46 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
   ASSERT(processor != NULL);
   InitializationBlockFinder block_finder;
   ThisNamedPropertyAssigmentFinder this_property_assignment_finder;
+  bool directive_prologue = true;     // Parsing directive prologue.
+
   while (peek() != end_token) {
+    if (directive_prologue && peek() != Token::STRING) {
+      directive_prologue = false;
+    }
+
+    Scanner::Location token_loc = scanner().peek_location();
     Statement* stat = ParseStatement(NULL, CHECK_OK);
-    if (stat == NULL || stat->IsEmpty()) continue;
+
+    if (stat == NULL || stat->IsEmpty()) {
+      directive_prologue = false;   // End of directive prologue.
+      continue;
+    }
+
+    if (directive_prologue) {
+      // A shot at a directive.
+      ExpressionStatement *e_stat;
+      Literal *literal;
+      // Still processing directive prologue?
+      if ((e_stat = stat->AsExpressionStatement()) != NULL &&
+          (literal = e_stat->expression()->AsLiteral()) != NULL &&
+          literal->handle()->IsString()) {
+        Handle<String> directive = Handle<String>::cast(literal->handle());
+
+        // Check "use strict" directive (ES5 14.1).
+        if (!temp_scope_->StrictMode() &&
+            directive->Equals(isolate()->heap()->use_strict()) &&
+            token_loc.end_pos - token_loc.beg_pos ==
+              isolate()->heap()->use_strict()->length() + 2) {
+          temp_scope_->EnableStrictMode();
+          // "use strict" is the only directive for now.
+          directive_prologue = false;
+        }
+      } else {
+        // End of the directive prologue.
+        directive_prologue = false;
+      }
+    }
+
     // We find and mark the initialization blocks on top level code only.
     // This is because the optimization prevents reuse of the map transitions,
     // so it should be used only for code that will only be run once.
@@ -1421,6 +1489,10 @@ Block* Parser::ParseVariableStatement(bool* ok) {
   return result;
 }
 
+static bool IsEvalOrArguments(Handle<String> string) {
+  return string.is_identical_to(FACTORY->eval_symbol()) ||
+         string.is_identical_to(FACTORY->arguments_symbol());
+}
 
 // If the variable declaration declares exactly one non-const
 // variable, then *var is set to that variable. In all other cases,
@@ -1468,6 +1540,13 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     if (nvars > 0) Consume(Token::COMMA);
     Handle<String> name = ParseIdentifier(CHECK_OK);
     if (fni_ != NULL) fni_->PushVariableName(name);
+
+    // Strict mode variables may not be named eval or arguments
+    if (temp_scope_->StrictMode() && IsEvalOrArguments(name)) {
+      ReportMessage("strict_var_name", Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    }
 
     // Declare variable.
     // Note that we *always* must treat the initial value via a separate init
@@ -1699,14 +1778,16 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
   IterationStatement* target = NULL;
   target = LookupContinueTarget(label, CHECK_OK);
   if (target == NULL) {
-    // Illegal continue statement.  To be consistent with KJS we delay
-    // reporting of the syntax error until runtime.
-    Handle<String> error_type = isolate()->factory()->illegal_continue_symbol();
+    // Illegal continue statement.
+    const char* message = "illegal_continue";
+    Vector<Handle<String> > args;
     if (!label.is_null()) {
-      error_type = isolate()->factory()->unknown_label_symbol();
+      message = "unknown_label";
+      args = Vector<Handle<String> >(&label, 1);
     }
-    Expression* throw_error = NewThrowSyntaxError(error_type, label);
-    return new ExpressionStatement(throw_error);
+    ReportMessageAt(scanner().location(), message, args);
+    *ok = false;
+    return NULL;
   }
   ExpectSemicolon(CHECK_OK);
   return new ContinueStatement(target);
@@ -1732,14 +1813,16 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
   BreakableStatement* target = NULL;
   target = LookupBreakTarget(label, CHECK_OK);
   if (target == NULL) {
-    // Illegal break statement.  To be consistent with KJS we delay
-    // reporting of the syntax error until runtime.
-    Handle<String> error_type = isolate()->factory()->illegal_break_symbol();
+    // Illegal break statement.
+    const char* message = "illegal_break";
+    Vector<Handle<String> > args;
     if (!label.is_null()) {
-      error_type = isolate()->factory()->unknown_label_symbol();
+      message = "unknown_label";
+      args = Vector<Handle<String> >(&label, 1);
     }
-    Expression* throw_error = NewThrowSyntaxError(error_type, label);
-    return new ExpressionStatement(throw_error);
+    ReportMessageAt(scanner().location(), message, args);
+    *ok = false;
+    return NULL;
   }
   ExpectSemicolon(CHECK_OK);
   return new BreakStatement(target);
@@ -1825,6 +1908,13 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   //   'with' '(' Expression ')' Statement
 
   Expect(Token::WITH, CHECK_OK);
+
+  if (temp_scope_->StrictMode()) {
+    ReportMessage("strict_mode_with", Vector<const char*>::empty());
+    *ok = false;
+    return NULL;
+  }
+
   Expect(Token::LPAREN, CHECK_OK);
   Expression* expr = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
@@ -1957,6 +2047,13 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
     Expect(Token::LPAREN, CHECK_OK);
     Handle<String> name = ParseIdentifier(CHECK_OK);
+
+    if (temp_scope_->StrictMode() && IsEvalOrArguments(name)) {
+      ReportMessage("strict_catch_variable", Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    }
+
     Expect(Token::RPAREN, CHECK_OK);
 
     if (peek() == Token::LBRACE) {
@@ -2498,9 +2595,13 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         // The calls that need special treatment are the
         // direct (i.e. not aliased) eval calls. These calls are all of the
         // form eval(...) with no explicit receiver object where eval is not
-        // declared in the current scope chain. These calls are marked as
-        // potentially direct eval calls. Whether they are actually direct calls
-        // to eval is determined at run time.
+        // declared in the current scope chain.
+        // These calls are marked as potentially direct eval calls. Whether
+        // they are actually direct calls to eval is determined at run time.
+        // TODO(994): In ES5, it doesn't matter if the "eval" var is declared
+        // in the local scope chain. It only matters that it's called "eval",
+        // is called without a receiver and it refers to the original eval
+        // function.
         VariableProxy* callee = result->AsVariableProxy();
         if (callee != NULL &&
             callee->IsVariable(isolate()->factory()->eval_symbol())) {
@@ -2751,6 +2852,9 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
 
     case Token::LPAREN:
       Consume(Token::LPAREN);
+      // Heuristically try to detect immediately called functions before
+      // seeing the call parentheses.
+      parenthesized_function_ = (peek() == Token::FUNCTION);
       result = ParseExpression(true, CHECK_OK);
       Expect(Token::RPAREN, CHECK_OK);
       break;
@@ -2925,6 +3029,126 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
   return isolate()->factory()->undefined_value();
 }
 
+// Defined in ast.cc
+bool IsEqualString(void* first, void* second);
+bool IsEqualSmi(void* first, void* second);
+
+
+// Validation per 11.1.5 Object Initialiser
+class ObjectLiteralPropertyChecker {
+ public:
+  ObjectLiteralPropertyChecker(Parser* parser, bool strict) :
+    props(&IsEqualString),
+    elems(&IsEqualSmi),
+    parser_(parser),
+    strict_(strict) {
+  }
+
+  void CheckProperty(
+    ObjectLiteral::Property* property,
+    Scanner::Location loc,
+    bool* ok);
+
+ private:
+  enum PropertyKind {
+    kGetAccessor = 0x01,
+    kSetAccessor = 0x02,
+    kAccessor = kGetAccessor | kSetAccessor,
+    kData = 0x04
+  };
+
+  static intptr_t GetPropertyKind(ObjectLiteral::Property* property) {
+    switch (property->kind()) {
+      case ObjectLiteral::Property::GETTER:
+        return kGetAccessor;
+      case ObjectLiteral::Property::SETTER:
+        return kSetAccessor;
+      default:
+        return kData;
+    }
+  }
+
+  HashMap props;
+  HashMap elems;
+  Parser* parser_;
+  bool strict_;
+};
+
+
+void ObjectLiteralPropertyChecker::CheckProperty(
+    ObjectLiteral::Property* property,
+    Scanner::Location loc,
+    bool* ok) {
+
+  ASSERT(property != NULL);
+
+  Literal *lit = property->key();
+  Handle<Object> handle = lit->handle();
+
+  uint32_t hash;
+  HashMap* map;
+  void* key;
+  Smi* smi_key_location;
+
+  if (handle->IsSymbol()) {
+    Handle<String> name(String::cast(*handle));
+    if (name->AsArrayIndex(&hash)) {
+      smi_key_location = Smi::FromInt(hash);
+      key = &smi_key_location;
+      map = &elems;
+    } else {
+      key = handle.location();
+      hash = name->Hash();
+      map = &props;
+    }
+  } else if (handle->ToArrayIndex(&hash)) {
+    key = handle.location();
+    map = &elems;
+  } else {
+    ASSERT(handle->IsNumber());
+    double num = handle->Number();
+    char arr[100];
+    Vector<char> buffer(arr, ARRAY_SIZE(arr));
+    const char* str = DoubleToCString(num, buffer);
+    Handle<String> name = FACTORY->NewStringFromAscii(CStrVector(str));
+    key = name.location();
+    hash = name->Hash();
+    map = &props;
+  }
+
+  // Lookup property previously defined, if any.
+  HashMap::Entry* entry = map->Lookup(key, hash, true);
+  intptr_t prev = reinterpret_cast<intptr_t> (entry->value);
+  intptr_t curr = GetPropertyKind(property);
+
+  // Duplicate data properties are illegal in strict mode.
+  if (strict_ && (curr & prev & kData) != 0) {
+    parser_->ReportMessageAt(loc, "strict_duplicate_property",
+                             Vector<const char*>::empty());
+    *ok = false;
+    return;
+  }
+  // Data property conflicting with an accessor.
+  if (((curr & kData) && (prev & kAccessor)) ||
+      ((prev & kData) && (curr & kAccessor))) {
+    parser_->ReportMessageAt(loc, "accessor_data_property",
+                             Vector<const char*>::empty());
+    *ok = false;
+    return;
+  }
+  // Two accessors of the same type conflicting
+  if ((curr & prev & kAccessor) != 0) {
+    parser_->ReportMessageAt(loc, "accessor_get_set",
+                             Vector<const char*>::empty());
+    *ok = false;
+    return;
+  }
+
+  // Update map
+  entry->value = reinterpret_cast<void*> (prev | curr);
+  *ok = true;
+}
+
 
 void Parser::BuildObjectLiteralConstantProperties(
     ZoneList<ObjectLiteral::Property*>* properties,
@@ -3030,12 +3254,20 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       new ZoneList<ObjectLiteral::Property*>(4);
   int number_of_boilerplate_properties = 0;
 
+  ObjectLiteralPropertyChecker checker(this, temp_scope_->StrictMode());
+
   Expect(Token::LBRACE, CHECK_OK);
+  Scanner::Location loc = scanner().location();
+
   while (peek() != Token::RBRACE) {
     if (fni_ != NULL) fni_->Enter();
 
     Literal* key = NULL;
     Token::Value next = peek();
+
+    // Location of the property name token
+    Scanner::Location loc = scanner().peek_location();
+
     switch (next) {
       case Token::IDENTIFIER: {
         bool is_getter = false;
@@ -3045,11 +3277,15 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
         if (fni_ != NULL) fni_->PushLiteralName(id);
 
         if ((is_getter || is_setter) && peek() != Token::COLON) {
+            // Update loc to point to the identifier
+            loc = scanner().peek_location();
             ObjectLiteral::Property* property =
                 ParseObjectLiteralGetSet(is_getter, CHECK_OK);
             if (IsBoilerplateProperty(property)) {
               number_of_boilerplate_properties++;
             }
+            // Validate the property.
+            checker.CheckProperty(property, loc, CHECK_OK);
             properties->Add(property);
             if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
 
@@ -3106,6 +3342,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
     // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
     if (IsBoilerplateProperty(property)) number_of_boilerplate_properties++;
+    // Validate the property
+    checker.CheckProperty(property, loc, CHECK_OK);
     properties->Add(property);
 
     // TODO(1240767): Consider allowing trailing comma.
@@ -3117,6 +3355,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
     }
   }
   Expect(Token::RBRACE, CHECK_OK);
+
   // Computation of literal_index must happen before pre parse bailout.
   int literal_index = temp_scope_->NextMaterializedLiteralIndex();
 
@@ -3210,11 +3449,23 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     //    '(' (Identifier)*[','] ')'
     Expect(Token::LPAREN, CHECK_OK);
     int start_pos = scanner().location().beg_pos;
+    Scanner::Location name_loc = Scanner::NoLocation();
+    Scanner::Location dupe_loc = Scanner::NoLocation();
+
     bool done = (peek() == Token::RPAREN);
     while (!done) {
       Handle<String> param_name = ParseIdentifier(CHECK_OK);
-      top_scope_->AddParameter(top_scope_->DeclareLocal(param_name,
-                                                        Variable::VAR));
+
+      // Store locations for possible future error reports.
+      if (!name_loc.IsValid() && IsEvalOrArguments(param_name)) {
+        name_loc = scanner().location();
+      }
+      if (!dupe_loc.IsValid() && top_scope_->IsDeclared(param_name)) {
+        dupe_loc = scanner().location();
+      }
+
+      Variable* parameter = top_scope_->DeclareLocal(param_name, Variable::VAR);
+      top_scope_->AddParameter(parameter);
       num_parameters++;
       done = (peek() == Token::RPAREN);
       if (!done) Expect(Token::COMMA, CHECK_OK);
@@ -3243,8 +3494,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
 
     // Determine if the function will be lazily compiled. The mode can
     // only be PARSE_LAZILY if the --lazy flag is true.
-    bool is_lazily_compiled =
-        mode() == PARSE_LAZILY && top_scope_->HasTrivialOuterContext();
+    bool is_lazily_compiled = (mode() == PARSE_LAZILY &&
+                               top_scope_->outer_scope()->is_global_scope() &&
+                               top_scope_->HasTrivialOuterContext() &&
+                               !parenthesized_function_);
+    parenthesized_function_ = false;  // The bit was set for this function only.
 
     int function_block_pos = scanner().location().beg_pos;
     int materialized_literal_count;
@@ -3284,6 +3538,32 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       end_pos = scanner().location().end_pos;
     }
 
+    // Validate strict mode.
+    if (temp_scope_->StrictMode()) {
+      if (IsEvalOrArguments(name)) {
+        int position = function_token_position != RelocInfo::kNoPosition
+            ? function_token_position
+            : (start_pos > 0 ? start_pos - 1 : start_pos);
+        ReportMessageAt(Scanner::Location(position, start_pos),
+                        "strict_function_name", Vector<const char*>::empty());
+        *ok = false;
+        return NULL;
+      }
+      if (name_loc.IsValid()) {
+        ReportMessageAt(name_loc, "strict_param_name",
+                        Vector<const char*>::empty());
+        *ok = false;
+        return NULL;
+      }
+      if (dupe_loc.IsValid()) {
+        ReportMessageAt(dupe_loc, "strict_param_dupe",
+                        Vector<const char*>::empty());
+        *ok = false;
+        return NULL;
+      }
+      CheckOctalLiteral(start_pos, end_pos, CHECK_OK);
+    }
+
     FunctionLiteral* function_literal =
         new FunctionLiteral(name,
                             top_scope_,
@@ -3296,7 +3576,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
                             start_pos,
                             end_pos,
                             function_name->length() > 0,
-                            temp_scope.ContainsLoops());
+                            temp_scope.ContainsLoops(),
+                            temp_scope.StrictMode());
     function_literal->set_function_token_position(function_token_position);
 
     if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);
@@ -3424,6 +3705,18 @@ Handle<String> Parser::ParseIdentifierName(bool* ok) {
     return Handle<String>();
   }
   return GetSymbol(ok);
+}
+
+// Checks whether octal literal last seen is between beg_pos and end_pos.
+// If so, reports an error.
+void Parser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
+  int octal = scanner().octal_position();
+  if (beg_pos <= octal && octal <= end_pos) {
+    ReportMessageAt(Scanner::Location(octal, octal + 1), "strict_octal_literal",
+                    Vector<const char*>::empty());
+    scanner().clear_octal_position();
+    *ok = false;
+  }
 }
 
 

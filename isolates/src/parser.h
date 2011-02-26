@@ -433,6 +433,9 @@ class Parser {
   void ReportMessageAt(Scanner::Location loc,
                        const char* message,
                        Vector<const char*> args);
+  void ReportMessageAt(Scanner::Location loc,
+                       const char* message,
+                       Vector<Handle<String> > args);
 
  protected:
   FunctionLiteral* ParseLazy(Handle<SharedFunctionInfo> info,
@@ -615,6 +618,9 @@ class Parser {
                                            bool* is_set,
                                            bool* ok);
 
+  // Strict mode octal literal validation.
+  void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok);
+
   // Parser support
   VariableProxy* Declare(Handle<String> name, Variable::Mode mode,
                          FunctionLiteral* fun,
@@ -688,6 +694,11 @@ class Parser {
   ScriptDataImpl* pre_data_;
   FuncNameInferrer* fni_;
   bool stack_overflow_;
+  // If true, the next (and immediately following) function literal is
+  // preceded by a parenthesis.
+  // Heuristically that means that the function will be called immediately,
+  // so never lazily compile it.
+  bool parenthesized_function_;
 };
 
 
