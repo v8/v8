@@ -623,7 +623,7 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
       // call; used for rewriting to monomorphic state and making sure
       // that the code stub is in the stub cache.
       JSFunction* function = lookup->GetConstantFunction();
-      maybe_code = 
+      maybe_code =
           isolate()->stub_cache()->ComputeCallConstant(argc,
                                                        in_loop,
                                                        kind_,
@@ -1253,7 +1253,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
       } else if (state == UNINITIALIZED &&
                  key->IsSmi() &&
                  receiver->map()->has_fast_elements()) {
-        MaybeObject* probe = 
+        MaybeObject* probe =
             isolate()->stub_cache()->ComputeKeyedLoadSpecialized(*receiver);
         stub =
             probe->IsFailure() ? NULL : Code::cast(probe->ToObjectUnchecked());

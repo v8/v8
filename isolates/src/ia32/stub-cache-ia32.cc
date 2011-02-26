@@ -1351,7 +1351,7 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
 
 
 MaybeObject* CallStubCompiler::GenerateMissBranch() {
-  MaybeObject* maybe_obj = 
+  MaybeObject* maybe_obj =
       Isolate::Current()->stub_cache()->ComputeCallMiss(
           arguments().immediate(), kind_);
   Object* obj;
