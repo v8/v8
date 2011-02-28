@@ -1296,6 +1296,9 @@ void CompareStub::Generate(MacroAssembler* masm) {
 // This stub does not handle the inlined cases (Smis, Booleans, undefined).
 // The stub returns zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
+  // This stub uses VFP3 instructions.
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+
   Label false_result;
   Label not_heap_number;
   Register scratch = r9.is(tos_) ? r7 : r9;

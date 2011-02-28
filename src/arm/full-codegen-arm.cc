@@ -574,25 +574,35 @@ void FullCodeGenerator::TestContext::Plug(bool flag) const {
 void FullCodeGenerator::DoTest(Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  // Emit the inlined tests assumed by the stub.
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(result_register(), ip);
-  __ b(eq, if_false);
-  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-  __ cmp(result_register(), ip);
-  __ b(eq, if_true);
-  __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-  __ cmp(result_register(), ip);
-  __ b(eq, if_false);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ tst(result_register(), result_register());
-  __ b(eq, if_false);
-  __ JumpIfSmi(result_register(), if_true);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+    // Emit the inlined tests assumed by the stub.
+    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    __ cmp(result_register(), ip);
+    __ b(eq, if_false);
+    __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+    __ cmp(result_register(), ip);
+    __ b(eq, if_true);
+    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+    __ cmp(result_register(), ip);
+    __ b(eq, if_false);
+    STATIC_ASSERT(kSmiTag == 0);
+    __ tst(result_register(), result_register());
+    __ b(eq, if_false);
+    __ JumpIfSmi(result_register(), if_true);
 
-  // Call the ToBoolean stub for all other cases.
-  ToBooleanStub stub(result_register());
-  __ CallStub(&stub);
-  __ tst(result_register(), result_register());
+    // Call the ToBoolean stub for all other cases.
+    ToBooleanStub stub(result_register());
+    __ CallStub(&stub);
+    __ tst(result_register(), result_register());
+  } else {
+    // Call the runtime to find the boolean value of the source and then
+    // translate it into control flow to the pair of labels.
+    __ push(result_register());
+    __ CallRuntime(Runtime::kToBool, 1);
+    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+    __ cmp(r0, ip);
+  }
 
   // The stub returns nonzero for true.
   Split(ne, if_true, if_false, fall_through);
