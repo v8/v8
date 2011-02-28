@@ -1515,6 +1515,11 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
     Consume(Token::CONST);
+    if (temp_scope_->StrictMode()) {
+      ReportMessage("strict_const", Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    }
     mode = Variable::CONST;
     is_const = true;
   } else {
