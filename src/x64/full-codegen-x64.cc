@@ -2709,7 +2709,8 @@ void FullCodeGenerator::EmitMathPow(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
-  __ CallRuntime(Runtime::kMath_pow, 2);
+  MathPowStub stub;
+  __ CallStub(&stub);
   context()->Plug(rax);
 }
 

@@ -709,8 +709,8 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       break;
     }
     case CodeStub::MathPow: {
-      // TODO(1115): Add MathPow stub to x64.
-      Abort("Unimplemented: %s", "MathPow Stub");
+      MathPowStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
     case CodeStub::NumberToString: {
