@@ -400,6 +400,8 @@ class VirtualFrame : public ZoneObject {
   // Uses kScratchRegister, emits appropriate relocation info.
   void EmitPush(Handle<Object> value);
 
+  inline bool ConstantPoolOverflowed();
+
   // Push an element on the virtual frame.
   inline void Push(Register reg, TypeInfo info = TypeInfo::Unknown());
   inline void Push(Handle<Object> value);

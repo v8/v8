@@ -4694,7 +4694,18 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
 
 void CodeGenerator::VisitLiteral(Literal* node) {
   Comment cmnt(masm_, "[ Literal");
-  frame_->Push(node->handle());
+  if (frame_->ConstantPoolOverflowed()) {
+    Result temp = allocator_->Allocate();
+    ASSERT(temp.is_valid());
+    if (node->handle()->IsSmi()) {
+      __ Move(temp.reg(), Smi::cast(*node->handle()));
+    } else {
+      __ movq(temp.reg(), node->handle(), RelocInfo::EMBEDDED_OBJECT);
+    }
+    frame_->Push(&temp);
+  } else {
+    frame_->Push(node->handle());
+  }
 }
 
 
