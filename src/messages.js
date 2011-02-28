@@ -1059,8 +1059,8 @@ function errorToString() {
   }
 }
 
-%FunctionSetName(errorToString, 'toString');
-%SetProperty($Error.prototype, 'toString', errorToString, DONT_ENUM);
+
+InstallFunctions($Error.prototype, DONT_ENUM, ['toString', errorToString]);
 
 // Boilerplate for exceptions for stack overflows. Used from
 // Top::StackOverflow().
