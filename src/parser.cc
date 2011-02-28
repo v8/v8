@@ -1106,7 +1106,20 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
     }
 
     Scanner::Location token_loc = scanner().peek_location();
-    Statement* stat = ParseStatement(NULL, CHECK_OK);
+
+    Statement* stat;
+    if (peek() == Token::FUNCTION) {
+      // FunctionDeclaration is only allowed in the context of SourceElements
+      // (Ecma 262 5th Edition, clause 14):
+      // SourceElement:
+      //    Statement
+      //    FunctionDeclaration
+      // Common language extension is to allow function declaration in place
+      // of any statement. This language extension is disabled in strict mode.
+      stat = ParseFunctionDeclaration(CHECK_OK);
+    } else {
+      stat = ParseStatement(NULL, CHECK_OK);
+    }
 
     if (stat == NULL || stat->IsEmpty()) {
       directive_prologue = false;   // End of directive prologue.
@@ -1263,8 +1276,17 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       return result;
     }
 
-    case Token::FUNCTION:
+    case Token::FUNCTION: {
+      // In strict mode, FunctionDeclaration is only allowed in the context
+      // of SourceElements.
+      if (temp_scope_->StrictMode()) {
+        ReportMessageAt(scanner().peek_location(), "strict_function",
+                        Vector<const char*>::empty());
+        *ok = false;
+        return NULL;
+      }
       return ParseFunctionDeclaration(ok);
+    }
 
     case Token::NATIVE:
       return ParseNativeDeclaration(ok);
