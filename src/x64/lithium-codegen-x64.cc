@@ -77,6 +77,7 @@ bool LCodeGen::GenerateCode() {
   return GeneratePrologue() &&
       GenerateBody() &&
       GenerateDeferredCode() &&
+      GenerateJumpTable() &&
       GenerateSafepointTable();
 }
 
@@ -237,6 +238,16 @@ LInstruction* LCodeGen::GetNextInstruction() {
   } else {
     return NULL;
   }
+}
+
+
+bool LCodeGen::GenerateJumpTable() {
+  for (int i = 0; i < jump_table_.length(); i++) {
+    JumpTableEntry* info = jump_table_[i];
+    __ bind(&(info->label_));
+    __ Jump(info->address_, RelocInfo::RUNTIME_ENTRY);
+  }
+  return !is_aborted();
 }
 
 
@@ -512,10 +523,17 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   if (cc == no_condition) {
     __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
-    NearLabel done;
-    __ j(NegateCondition(cc), &done);
-    __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
-    __ bind(&done);
+    JumpTableEntry* jump_info = NULL;
+    // We often have several deopts to the same entry, reuse the last
+    // jump entry if this is the case.
+    if (jump_table_.length() > 0 &&
+        jump_table_[jump_table_.length() - 1]->address_ == entry) {
+      jump_info = jump_table_[jump_table_.length() - 1];
+    } else {
+      jump_info = new JumpTableEntry(entry);
+      jump_table_.Add(jump_info);
+    }
+    __ j(cc, &jump_info->label_);
   }
 }
 
