@@ -8310,6 +8310,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       switch (op) {
         case Token::SUB: {
           __ neg(value.reg());
+          frame_->Push(&value);
           if (node->no_negative_zero()) {
             // -MIN_INT is MIN_INT with the overflow flag set.
             unsafe_bailout_->Branch(overflow);
@@ -8322,17 +8323,18 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         }
         case Token::BIT_NOT: {
           __ not_(value.reg());
+          frame_->Push(&value);
           break;
         }
         case Token::ADD: {
           // Unary plus has no effect on int32 values.
+          frame_->Push(&value);
           break;
         }
         default:
           UNREACHABLE();
           break;
       }
-      frame_->Push(&value);
     } else {
       Load(node->expression());
       bool can_overwrite = node->expression()->ResultOverwriteAllowed();
