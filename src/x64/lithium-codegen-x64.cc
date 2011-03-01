@@ -2480,7 +2480,54 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoPower(LPower* instr) {
-  Abort("Unimplemented: %s", "DoPower");
+  LOperand* left = instr->InputAt(0);
+  XMMRegister left_reg = ToDoubleRegister(left);
+  ASSERT(!left_reg.is(xmm1));
+  LOperand* right = instr->InputAt(1);
+  XMMRegister result_reg = ToDoubleRegister(instr->result());
+  Representation exponent_type = instr->hydrogen()->right()->representation();
+  if (exponent_type.IsDouble()) {
+    __ PrepareCallCFunction(2);
+    // Move arguments to correct registers
+    __ movsd(xmm0, left_reg);
+    ASSERT(ToDoubleRegister(right).is(xmm1));
+    __ CallCFunction(ExternalReference::power_double_double_function(), 2);
+  } else if (exponent_type.IsInteger32()) {
+    __ PrepareCallCFunction(2);
+    // Move arguments to correct registers: xmm0 and edi (not rdi).
+    // On Windows, the registers are xmm0 and edx.
+    __ movsd(xmm0, left_reg);
+#ifdef _WIN64
+    ASSERT(ToRegister(right).is(rdx));
+#else
+    ASSERT(ToRegister(right).is(rdi));
+#endif
+    __ CallCFunction(ExternalReference::power_double_int_function(), 2);
+  } else {
+    ASSERT(exponent_type.IsTagged());
+    CpuFeatures::Scope scope(SSE2);
+    Register right_reg = ToRegister(right);
+
+    Label non_smi, call;
+    __ JumpIfNotSmi(right_reg, &non_smi);
+    __ SmiToInteger32(right_reg, right_reg);
+    __ cvtlsi2sd(xmm1, right_reg);
+    __ jmp(&call);
+
+    __ bind(&non_smi);
+    __ CmpObjectType(right_reg, HEAP_NUMBER_TYPE , kScratchRegister);
+    DeoptimizeIf(not_equal, instr->environment());
+    __ movsd(xmm1, FieldOperand(right_reg, HeapNumber::kValueOffset));
+
+    __ bind(&call);
+    __ PrepareCallCFunction(2);
+    // Move arguments to correct registers xmm0 and xmm1.
+    __ movsd(xmm0, left_reg);
+    // Right argument is already in xmm1.
+    __ CallCFunction(ExternalReference::power_double_double_function(), 2);
+  }
+  // Return value is in xmm0.
+  __ movsd(result_reg, xmm0);
 }
 
 
