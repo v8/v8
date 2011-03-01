@@ -7872,12 +7872,9 @@ static ObjectPair CompileGlobalEval(Handle<String> source,
 
 static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
   ASSERT(args.length() == 4);
-  if (!args[0]->IsJSFunction()) {
-    return MakePair(Top::ThrowIllegalOperation(), NULL);
-  }
 
   HandleScope scope;
-  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  Handle<Object> callee = args.at<Object>(0);
   Handle<Object> receiver;  // Will be overwritten.
 
   // Compute the calling context.
@@ -7945,12 +7942,9 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
 
 static ObjectPair Runtime_ResolvePossiblyDirectEvalNoLookup(Arguments args) {
   ASSERT(args.length() == 4);
-  if (!args[0]->IsJSFunction()) {
-    return MakePair(Top::ThrowIllegalOperation(), NULL);
-  }
 
   HandleScope scope;
-  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  Handle<Object> callee = args.at<Object>(0);
 
   // 'eval' is bound in the global context, but it may have been overwritten.
   // Compare it to the builtin 'GlobalEval' function to make sure.
