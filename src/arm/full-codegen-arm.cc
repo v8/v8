@@ -2132,6 +2132,29 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
 }
 
 
+void FullCodeGenerator::EmitResolvePossiblyDirectEval(ResolveEvalFlag flag,
+                                                      int arg_count) {
+  // Push copy of the first argument or undefined if it doesn't exist.
+  if (arg_count > 0) {
+    __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
+  } else {
+    __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
+  }
+  __ push(r1);
+
+  // Push the receiver of the enclosing function and do runtime call.
+  __ ldr(r1, MemOperand(fp, (2 + scope()->num_parameters()) * kPointerSize));
+  __ push(r1);
+  // Push the strict mode flag.
+  __ mov(r1, Operand(Smi::FromInt(strict_mode_flag())));
+  __ push(r1);
+
+  __ CallRuntime(flag == SKIP_CONTEXT_LOOKUP
+                 ? Runtime::kResolvePossiblyDirectEvalNoLookup
+                 : Runtime::kResolvePossiblyDirectEval, 4);
+}
+
+
 void FullCodeGenerator::VisitCall(Call* expr) {
 #ifdef DEBUG
   // We want to verify that RecordJSReturnSite gets called on all paths
@@ -2161,26 +2184,31 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         VisitForStackValue(args->at(i));
       }
 
-      // Push copy of the function - found below the arguments.
-      __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
-      __ push(r1);
-
-      // Push copy of the first argument or undefined if it doesn't exist.
-      if (arg_count > 0) {
-        __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
-        __ push(r1);
-      } else {
-        __ push(r2);
+      // If we know that eval can only be shadowed by eval-introduced
+      // variables we attempt to load the global eval function directly
+      // in generated code. If we succeed, there is no need to perform a
+      // context lookup in the runtime system.
+      Label done;
+      if (var->AsSlot() != NULL && var->mode() == Variable::DYNAMIC_GLOBAL) {
+        Label slow;
+        EmitLoadGlobalSlotCheckExtensions(var->AsSlot(),
+                                          NOT_INSIDE_TYPEOF,
+                                          &slow);
+        // Push the function and resolve eval.
+        __ push(r0);
+        EmitResolvePossiblyDirectEval(SKIP_CONTEXT_LOOKUP, arg_count);
+        __ jmp(&done);
+        __ bind(&slow);
       }
 
-      // Push the receiver of the enclosing function and do runtime call.
-      __ ldr(r1,
-             MemOperand(fp, (2 + scope()->num_parameters()) * kPointerSize));
+      // Push copy of the function (found below the arguments) and
+      // resolve eval.
+      __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
       __ push(r1);
-      // Push the strict mode flag.
-      __ mov(r1, Operand(Smi::FromInt(strict_mode_flag())));
-      __ push(r1);
-      __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
+      EmitResolvePossiblyDirectEval(PERFORM_CONTEXT_LOOKUP, arg_count);
+      if (done.is_linked()) {
+        __ bind(&done);
+      }
 
       // The runtime call returns a pair of values in r0 (function) and
       // r1 (receiver). Touch up the stack with the right values.

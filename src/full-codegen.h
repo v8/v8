@@ -421,6 +421,14 @@ class FullCodeGenerator: public AstVisitor {
                                        Label* done);
   void EmitVariableLoad(Variable* expr);
 
+  enum ResolveEvalFlag {
+    SKIP_CONTEXT_LOOKUP,
+    PERFORM_CONTEXT_LOOKUP
+  };
+
+  // Expects the arguments and the function already pushed.
+  void EmitResolvePossiblyDirectEval(ResolveEvalFlag flag, int arg_count);
+
   // Platform-specific support for allocating a new closure based on
   // the given function info.
   void EmitNewClosure(Handle<SharedFunctionInfo> info, bool pretenure);
