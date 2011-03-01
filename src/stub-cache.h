@@ -143,27 +143,27 @@ class StubCache : public AllStatic {
       JSObject* receiver,
       int field_index,
       Map* transition,
-      StrictModeFlag strict_mode);
+      Code::ExtraICState extra_ic_state);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreNormal(
-      StrictModeFlag strict_mode);
+      Code::ExtraICState extra_ic_state);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreGlobal(
       String* name,
       GlobalObject* receiver,
       JSGlobalPropertyCell* cell,
-      StrictModeFlag strict_mode);
+      Code::ExtraICState extra_ic_state);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreCallback(
       String* name,
       JSObject* receiver,
       AccessorInfo* callback,
-      StrictModeFlag strict_mode);
+      Code::ExtraICState extra_ic_state);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreInterceptor(
       String* name,
       JSObject* receiver,
-      StrictModeFlag strict_mode);
+      Code::ExtraICState extra_ic_state);
 
   // ---
 
@@ -171,21 +171,17 @@ class StubCache : public AllStatic {
       String* name,
       JSObject* receiver,
       int field_index,
-      Map* transition,
-      StrictModeFlag strict_mode);
+      Map* transition = NULL);
 
   MUST_USE_RESULT static MaybeObject* ComputeKeyedStoreSpecialized(
-      JSObject* receiver,
-      StrictModeFlag strict_mode);
+      JSObject* receiver);
 
   MUST_USE_RESULT static MaybeObject* ComputeKeyedStorePixelArray(
-      JSObject* receiver,
-      StrictModeFlag strict_mode);
+      JSObject* receiver);
 
   MUST_USE_RESULT static MaybeObject* ComputeKeyedLoadOrStoreExternalArray(
       JSObject* receiver,
-      bool is_store,
-      StrictModeFlag strict_mode);
+      bool is_store);
 
   // ---
 
@@ -632,8 +628,8 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
 class StoreStubCompiler: public StubCompiler {
  public:
-  explicit StoreStubCompiler(StrictModeFlag strict_mode)
-    : strict_mode_(strict_mode) { }
+  explicit StoreStubCompiler(Code::ExtraICState extra_ic_state)
+    : extra_ic_state_(extra_ic_state) { }
 
   MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
                                                  int index,
@@ -653,15 +649,12 @@ class StoreStubCompiler: public StubCompiler {
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
 
-  StrictModeFlag strict_mode_;
+  Code::ExtraICState extra_ic_state_;
 };
 
 
 class KeyedStoreStubCompiler: public StubCompiler {
  public:
-  explicit KeyedStoreStubCompiler(StrictModeFlag strict_mode)
-    : strict_mode_(strict_mode) { }
-
   MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
                                                  int index,
                                                  Map* transition,
@@ -673,8 +666,6 @@ class KeyedStoreStubCompiler: public StubCompiler {
 
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
-
-  StrictModeFlag strict_mode_;
 };
 
 

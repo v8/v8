@@ -3526,8 +3526,7 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   frame_->EmitPush(esi);  // The context is the first argument.
   frame_->EmitPush(Immediate(pairs));
   frame_->EmitPush(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
-  frame_->EmitPush(Immediate(Smi::FromInt(strict_mode_flag())));
-  Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 4);
+  Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
 }
 
@@ -5260,8 +5259,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       // by initialization.
       value = frame_->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
     } else {
-      frame_->Push(Smi::FromInt(strict_mode_flag()));
-      value = frame_->CallRuntime(Runtime::kStoreContextSlot, 4);
+      value = frame_->CallRuntime(Runtime::kStoreContextSlot, 3);
     }
     // Storing a variable must keep the (new) value on the expression
     // stack. This is necessary for compiling chained assignment
@@ -5620,9 +5618,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           Load(property->key());
           Load(property->value());
           if (property->emit_store()) {
-            frame_->Push(Smi::FromInt(NONE));   // PropertyAttributes
             // Ignore the result.
-            Result ignored = frame_->CallRuntime(Runtime::kSetProperty, 4);
+            Result ignored = frame_->CallRuntime(Runtime::kSetProperty, 3);
           } else {
             frame_->Drop(3);
           }
@@ -9471,13 +9468,11 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
   DeferredReferenceSetKeyedValue(Register value,
                                  Register key,
                                  Register receiver,
-                                 Register scratch,
-                                 StrictModeFlag strict_mode)
+                                 Register scratch)
       : value_(value),
         key_(key),
         receiver_(receiver),
-        scratch_(scratch),
-        strict_mode_(strict_mode) {
+        scratch_(scratch) {
     set_comment("[ DeferredReferenceSetKeyedValue");
   }
 
@@ -9491,7 +9486,6 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
   Register receiver_;
   Register scratch_;
   Label patch_site_;
-  StrictModeFlag strict_mode_;
 };
 
 
@@ -9550,9 +9544,7 @@ void DeferredReferenceSetKeyedValue::Generate() {
   }
 
   // Call the IC stub.
-  Handle<Code> ic(Builtins::builtin(
-      (strict_mode_ == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
-                                    : Builtins::KeyedStoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the
@@ -9914,8 +9906,7 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
         new DeferredReferenceSetKeyedValue(result.reg(),
                                            key.reg(),
                                            receiver.reg(),
-                                           tmp.reg(),
-                                           strict_mode_flag());
+                                           tmp.reg());
 
     // Check that the receiver is not a smi.
     __ test(receiver.reg(), Immediate(kSmiTagMask));
@@ -9970,7 +9961,7 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
 
     deferred->BindExit();
   } else {
-    result = frame()->CallKeyedStoreIC(strict_mode_flag());
+    result = frame()->CallKeyedStoreIC();
     // Make sure that we do not have a test instruction after the
     // call.  A test instruction after the call is used to
     // indicate that we have generated an inline version of the

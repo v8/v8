@@ -189,8 +189,7 @@ TEST(MarkCompactCollector) {
   function->set_initial_map(initial_map);
   Top::context()->global()->SetProperty(func_name,
                                         function,
-                                        NONE,
-                                        kNonStrictMode)->ToObjectChecked();
+                                        NONE)->ToObjectChecked();
 
   JSObject* obj =
       JSObject::cast(Heap::AllocateJSObject(function)->ToObjectChecked());
@@ -209,14 +208,10 @@ TEST(MarkCompactCollector) {
       String::cast(Heap::LookupAsciiSymbol("theObject")->ToObjectChecked());
   Top::context()->global()->SetProperty(obj_name,
                                         obj,
-                                        NONE,
-                                        kNonStrictMode)->ToObjectChecked();
+                                        NONE)->ToObjectChecked();
   String* prop_name =
       String::cast(Heap::LookupAsciiSymbol("theSlot")->ToObjectChecked());
-  obj->SetProperty(prop_name,
-                   Smi::FromInt(23),
-                   NONE,
-                   kNonStrictMode)->ToObjectChecked();
+  obj->SetProperty(prop_name, Smi::FromInt(23), NONE)->ToObjectChecked();
 
   Heap::CollectGarbage(OLD_POINTER_SPACE);
 

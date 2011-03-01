@@ -1328,12 +1328,12 @@ static void Generate_StoreIC_Normal_Strict(MacroAssembler* masm) {
 
 
 static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm, kNonStrictMode);
+  StoreIC::GenerateMegamorphic(masm, StoreIC::kStoreICNonStrict);
 }
 
 
 static void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm, kStrictMode);
+  StoreIC::GenerateMegamorphic(masm, StoreIC::kStoreICStrict);
 }
 
 
@@ -1348,22 +1348,17 @@ static void Generate_StoreIC_ArrayLength_Strict(MacroAssembler* masm) {
 
 
 static void Generate_StoreIC_GlobalProxy(MacroAssembler* masm) {
-  StoreIC::GenerateGlobalProxy(masm, kNonStrictMode);
+  StoreIC::GenerateGlobalProxy(masm);
 }
 
 
 static void Generate_StoreIC_GlobalProxy_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateGlobalProxy(masm, kStrictMode);
+  StoreIC::GenerateGlobalProxy(masm);
 }
 
 
 static void Generate_KeyedStoreIC_Generic(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateGeneric(masm, kNonStrictMode);
-}
-
-
-static void Generate_KeyedStoreIC_Generic_Strict(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateGeneric(masm, kStrictMode);
+  KeyedStoreIC::GenerateGeneric(masm);
 }
 
 
@@ -1373,11 +1368,6 @@ static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Initialize(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateInitialize(masm);
-}
-
-
-static void Generate_KeyedStoreIC_Initialize_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateInitialize(masm);
 }
 

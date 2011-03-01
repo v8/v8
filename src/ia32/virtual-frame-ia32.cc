@@ -1038,9 +1038,9 @@ Result VirtualFrame::CallStoreIC(Handle<String> name,
                                  StrictModeFlag strict_mode) {
   // Value and (if not contextual) receiver are on top of the frame.
   // The IC expects name in ecx, value in eax, and receiver in edx.
-  Handle<Code> ic(Builtins::builtin(
-      (strict_mode == kStrictMode) ? Builtins::StoreIC_Initialize_Strict
-                                   : Builtins::StoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(strict_mode == kStrictMode
+      ? Builtins::StoreIC_Initialize_Strict
+      : Builtins::StoreIC_Initialize));
 
   Result value = Pop();
   RelocInfo::Mode mode;
@@ -1061,7 +1061,7 @@ Result VirtualFrame::CallStoreIC(Handle<String> name,
 }
 
 
-Result VirtualFrame::CallKeyedStoreIC(StrictModeFlag strict_mode) {
+Result VirtualFrame::CallKeyedStoreIC() {
   // Value, key, and receiver are on the top of the frame.  The IC
   // expects value in eax, key in ecx, and receiver in edx.
   Result value = Pop();
@@ -1105,9 +1105,7 @@ Result VirtualFrame::CallKeyedStoreIC(StrictModeFlag strict_mode) {
     receiver.Unuse();
   }
 
-  Handle<Code> ic(Builtins::builtin(
-      (strict_mode == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
-                                   : Builtins::KeyedStoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
 }
 

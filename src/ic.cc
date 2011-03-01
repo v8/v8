@@ -343,7 +343,7 @@ void StoreIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   ClearInlinedVersion(address);
   SetTargetAtAddress(address,
-      (target->extra_ic_state() == kStrictMode)
+      target->extra_ic_state() == kStoreICStrict
         ? initialize_stub_strict()
         : initialize_stub());
 }
@@ -366,10 +366,7 @@ void KeyedStoreIC::RestoreInlinedVersion(Address address) {
 
 void KeyedStoreIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
-  SetTargetAtAddress(address,
-      (target->extra_ic_state() == kStrictMode)
-        ? initialize_stub_strict()
-        : initialize_stub());
+  SetTargetAtAddress(address, initialize_stub());
 }
 
 
@@ -1230,8 +1227,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
         if (receiver->HasExternalArrayElements()) {
           MaybeObject* probe =
               StubCache::ComputeKeyedLoadOrStoreExternalArray(*receiver,
-                                                              false,
-                                                              kNonStrictMode);
+                                                              false);
           stub = probe->IsFailure() ?
               NULL : Code::cast(probe->ToObjectUnchecked());
         } else if (receiver->HasIndexedInterceptor()) {
@@ -1387,7 +1383,7 @@ static bool LookupForWrite(JSObject* object,
 
 
 MaybeObject* StoreIC::Store(State state,
-                            StrictModeFlag strict_mode,
+                            Code::ExtraICState extra_ic_state,
                             Handle<Object> object,
                             Handle<String> name,
                             Handle<Object> value) {
@@ -1417,11 +1413,11 @@ MaybeObject* StoreIC::Store(State state,
 #ifdef DEBUG
     if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
 #endif
-    Builtins::Name target = (strict_mode == kStrictMode)
+    Builtins::Name target = (extra_ic_state == kStoreICStrict)
         ? Builtins::StoreIC_ArrayLength_Strict
         : Builtins::StoreIC_ArrayLength;
     set_target(Builtins::builtin(target));
-    return receiver->SetProperty(*name, *value, NONE, strict_mode);
+    return receiver->SetProperty(*name, *value, NONE);
   }
 
   // Lookup the property locally in the receiver.
@@ -1445,15 +1441,13 @@ MaybeObject* StoreIC::Store(State state,
           // Index is an offset from the end of the object.
           int offset = map->instance_size() + (index * kPointerSize);
           if (PatchInlinedStore(address(), map, offset)) {
-            set_target((strict_mode == kStrictMode)
-                         ? megamorphic_stub_strict()
-                         : megamorphic_stub());
+            set_target(megamorphic_stub());
 #ifdef DEBUG
             if (FLAG_trace_ic) {
               PrintF("[StoreIC : inline patch %s]\n", *name->ToCString());
             }
 #endif
-            return receiver->SetProperty(*name, *value, NONE, strict_mode);
+            return receiver->SetProperty(*name, *value, NONE);
 #ifdef DEBUG
 
           } else {
@@ -1480,16 +1474,11 @@ MaybeObject* StoreIC::Store(State state,
 
       // If no inlined store ic was patched, generate a stub for this
       // store.
-      UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
+      UpdateCaches(&lookup, state, extra_ic_state, receiver, name, value);
     } else {
-      // Strict mode doesn't allow setting non-existent global property
-      // or an assignment to a read only property.
-      if (strict_mode == kStrictMode) {
-        if (lookup.IsFound() && lookup.IsReadOnly()) {
-          return TypeError("strict_read_only_property", object, name);
-        } else if (IsContextual(object)) {
-          return ReferenceError("not_defined", name);
-        }
+      // Strict mode doesn't allow setting non-existent global property.
+      if (extra_ic_state == kStoreICStrict && IsContextual(object)) {
+        return ReferenceError("not_defined", name);
       }
     }
   }
@@ -1497,7 +1486,7 @@ MaybeObject* StoreIC::Store(State state,
   if (receiver->IsJSGlobalProxy()) {
     // Generate a generic stub that goes to the runtime when we see a global
     // proxy as receiver.
-    Code* stub = (strict_mode == kStrictMode)
+    Code* stub = (extra_ic_state == kStoreICStrict)
         ? global_proxy_stub_strict()
         : global_proxy_stub();
     if (target() != stub) {
@@ -1509,13 +1498,13 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   // Set the property.
-  return receiver->SetProperty(*name, *value, NONE, strict_mode);
+  return receiver->SetProperty(*name, *value, NONE);
 }
 
 
 void StoreIC::UpdateCaches(LookupResult* lookup,
                            State state,
-                           StrictModeFlag strict_mode,
+                           Code::ExtraICState extra_ic_state,
                            Handle<JSObject> receiver,
                            Handle<String> name,
                            Handle<Object> value) {
@@ -1537,7 +1526,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   switch (type) {
     case FIELD: {
       maybe_code = StubCache::ComputeStoreField(
-          *name, *receiver, lookup->GetFieldIndex(), NULL, strict_mode);
+          *name, *receiver, lookup->GetFieldIndex(), NULL, extra_ic_state);
       break;
     }
     case MAP_TRANSITION: {
@@ -1547,7 +1536,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       Handle<Map> transition(lookup->GetTransitionMap());
       int index = transition->PropertyIndexFor(*name);
       maybe_code = StubCache::ComputeStoreField(
-          *name, *receiver, index, *transition, strict_mode);
+          *name, *receiver, index, *transition, extra_ic_state);
       break;
     }
     case NORMAL: {
@@ -1559,10 +1548,10 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
         JSGlobalPropertyCell* cell =
             JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
         maybe_code = StubCache::ComputeStoreGlobal(
-            *name, *global, cell, strict_mode);
+            *name, *global, cell, extra_ic_state);
       } else {
         if (lookup->holder() != *receiver) return;
-        maybe_code = StubCache::ComputeStoreNormal(strict_mode);
+        maybe_code = StubCache::ComputeStoreNormal(extra_ic_state);
       }
       break;
     }
@@ -1571,13 +1560,13 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       AccessorInfo* callback = AccessorInfo::cast(lookup->GetCallbackObject());
       if (v8::ToCData<Address>(callback->setter()) == 0) return;
       maybe_code = StubCache::ComputeStoreCallback(
-          *name, *receiver, callback, strict_mode);
+          *name, *receiver, callback, extra_ic_state);
       break;
     }
     case INTERCEPTOR: {
       ASSERT(!receiver->GetNamedInterceptor()->setter()->IsUndefined());
       maybe_code = StubCache::ComputeStoreInterceptor(
-          *name, *receiver, strict_mode);
+          *name, *receiver, extra_ic_state);
       break;
     }
     default:
@@ -1594,7 +1583,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   } else if (state == MONOMORPHIC) {
     // Only move to megamorphic if the target changes.
     if (target() != Code::cast(code)) {
-      set_target((strict_mode == kStrictMode)
+      set_target(extra_ic_state == kStoreICStrict
                    ? megamorphic_stub_strict()
                    : megamorphic_stub());
     }
@@ -1610,7 +1599,6 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 
 
 MaybeObject* KeyedStoreIC::Store(State state,
-                                 StrictModeFlag strict_mode,
                                  Handle<Object> object,
                                  Handle<Object> key,
                                  Handle<Object> value) {
@@ -1642,11 +1630,11 @@ MaybeObject* KeyedStoreIC::Store(State state,
 
     // Update inline cache and stub cache.
     if (FLAG_use_ic) {
-      UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
+      UpdateCaches(&lookup, state, receiver, name, value);
     }
 
     // Set the property.
-    return receiver->SetProperty(*name, *value, NONE, strict_mode);
+    return receiver->SetProperty(*name, *value, NONE);
   }
 
   // Do not use ICs for objects that require access checks (including
@@ -1655,25 +1643,23 @@ MaybeObject* KeyedStoreIC::Store(State state,
   ASSERT(!(use_ic && object->IsJSGlobalProxy()));
 
   if (use_ic) {
-    Code* stub =
-        (strict_mode == kStrictMode) ? generic_stub_strict() : generic_stub();
+    Code* stub = generic_stub();
     if (state == UNINITIALIZED) {
       if (object->IsJSObject()) {
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
         if (receiver->HasExternalArrayElements()) {
           MaybeObject* probe =
-              StubCache::ComputeKeyedLoadOrStoreExternalArray(
-                  *receiver, true, strict_mode);
+              StubCache::ComputeKeyedLoadOrStoreExternalArray(*receiver, true);
           stub = probe->IsFailure() ?
               NULL : Code::cast(probe->ToObjectUnchecked());
         } else if (receiver->HasPixelElements()) {
           MaybeObject* probe =
-              StubCache::ComputeKeyedStorePixelArray(*receiver, strict_mode);
+              StubCache::ComputeKeyedStorePixelArray(*receiver);
           stub = probe->IsFailure() ?
               NULL : Code::cast(probe->ToObjectUnchecked());
         } else if (key->IsSmi() && receiver->map()->has_fast_elements()) {
           MaybeObject* probe =
-              StubCache::ComputeKeyedStoreSpecialized(*receiver, strict_mode);
+              StubCache::ComputeKeyedStoreSpecialized(*receiver);
           stub = probe->IsFailure() ?
               NULL : Code::cast(probe->ToObjectUnchecked());
         }
@@ -1683,13 +1669,12 @@ MaybeObject* KeyedStoreIC::Store(State state,
   }
 
   // Set the property.
-  return Runtime::SetObjectProperty(object, key, value, NONE, strict_mode);
+  return Runtime::SetObjectProperty(object, key, value, NONE);
 }
 
 
 void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
                                 State state,
-                                StrictModeFlag strict_mode,
                                 Handle<JSObject> receiver,
                                 Handle<String> name,
                                 Handle<Object> value) {
@@ -1716,8 +1701,8 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
 
   switch (type) {
     case FIELD: {
-      maybe_code = StubCache::ComputeKeyedStoreField(
-          *name, *receiver, lookup->GetFieldIndex(), NULL, strict_mode);
+      maybe_code = StubCache::ComputeKeyedStoreField(*name, *receiver,
+                                                     lookup->GetFieldIndex());
       break;
     }
     case MAP_TRANSITION: {
@@ -1726,8 +1711,8 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
         ASSERT(type == MAP_TRANSITION);
         Handle<Map> transition(lookup->GetTransitionMap());
         int index = transition->PropertyIndexFor(*name);
-        maybe_code = StubCache::ComputeKeyedStoreField(
-            *name, *receiver, index, *transition, strict_mode);
+        maybe_code = StubCache::ComputeKeyedStoreField(*name, *receiver,
+                                                       index, *transition);
         break;
       }
       // fall through.
@@ -1735,9 +1720,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
     default: {
       // Always rewrite to the generic case so that we do not
       // repeatedly try to rewrite.
-      maybe_code = (strict_mode == kStrictMode)
-          ? generic_stub_strict()
-          : generic_stub();
+      maybe_code = generic_stub();
       break;
     }
   }
@@ -1752,9 +1735,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
   if (state == UNINITIALIZED || state == PREMONOMORPHIC) {
     set_target(Code::cast(code));
   } else if (state == MONOMORPHIC) {
-    set_target((strict_mode == kStrictMode)
-                 ? megamorphic_stub_strict()
-                 : megamorphic_stub());
+    set_target(megamorphic_stub());
   }
 
 #ifdef DEBUG
@@ -1855,11 +1836,8 @@ MUST_USE_RESULT MaybeObject* StoreIC_Miss(Arguments args) {
   StoreIC ic;
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
-  return ic.Store(state,
-                  static_cast<StrictModeFlag>(extra_ic_state & kStrictMode),
-                  args.at<Object>(0),
-                  args.at<String>(1),
-                  args.at<Object>(2));
+  return ic.Store(state, extra_ic_state, args.at<Object>(0),
+                  args.at<String>(1), args.at<Object>(2));
 }
 
 
@@ -1923,11 +1901,7 @@ MUST_USE_RESULT MaybeObject* KeyedStoreIC_Miss(Arguments args) {
   ASSERT(args.length() == 3);
   KeyedStoreIC ic;
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
-  Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
-  return ic.Store(state,
-                  static_cast<StrictModeFlag>(extra_ic_state & kStrictMode),
-                  args.at<Object>(0),
-                  args.at<Object>(1),
+  return ic.Store(state, args.at<Object>(0), args.at<Object>(1),
                   args.at<Object>(2));
 }
 

@@ -2286,8 +2286,7 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
       self,
       key_obj,
       value_obj,
-      static_cast<PropertyAttributes>(attribs),
-      i::kNonStrictMode);
+      static_cast<PropertyAttributes>(attribs));
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(false);
   return true;
@@ -2712,8 +2711,7 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
       hidden_props,
       key_obj,
       value_obj,
-      static_cast<PropertyAttributes>(None),
-      i::kNonStrictMode);
+      static_cast<PropertyAttributes>(None));
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(false);
   return true;

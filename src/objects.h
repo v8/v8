@@ -1361,13 +1361,11 @@ class JSObject: public HeapObject {
 
   MUST_USE_RESULT MaybeObject* SetProperty(String* key,
                                            Object* value,
-                                           PropertyAttributes attributes,
-                                           StrictModeFlag strict);
+                                           PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* SetProperty(LookupResult* result,
                                            String* key,
                                            Object* value,
-                                           PropertyAttributes attributes,
-                                           StrictModeFlag strict);
+                                           PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* SetPropertyWithFailedAccessCheck(
       LookupResult* result,
       String* name,
@@ -1382,13 +1380,11 @@ class JSObject: public HeapObject {
   MUST_USE_RESULT MaybeObject* SetPropertyWithInterceptor(
       String* name,
       Object* value,
-      PropertyAttributes attributes,
-      StrictModeFlag strict);
+      PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* SetPropertyPostInterceptor(
       String* name,
       Object* value,
-      PropertyAttributes attributes,
-      StrictModeFlag strict);
+      PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
       String* key,
       Object* value,

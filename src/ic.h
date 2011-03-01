@@ -398,10 +398,16 @@ class KeyedLoadIC: public IC {
 
 class StoreIC: public IC {
  public:
+
+  enum StoreICStrictMode {
+    kStoreICNonStrict = kNonStrictMode,
+    kStoreICStrict = kStrictMode
+  };
+
   StoreIC() : IC(NO_EXTRA_FRAME) { ASSERT(target()->is_store_stub()); }
 
   MUST_USE_RESULT MaybeObject* Store(State state,
-                                     StrictModeFlag strict_mode,
+                                     Code::ExtraICState extra_ic_state,
                                      Handle<Object> object,
                                      Handle<String> name,
                                      Handle<Object> value);
@@ -410,11 +416,10 @@ class StoreIC: public IC {
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm,
-                                  StrictModeFlag strict_mode);
+                                  Code::ExtraICState extra_ic_state);
   static void GenerateArrayLength(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
-  static void GenerateGlobalProxy(MacroAssembler* masm,
-                                  StrictModeFlag strict_mode);
+  static void GenerateGlobalProxy(MacroAssembler* masm);
 
   // Clear the use of an inlined version.
   static void ClearInlinedVersion(Address address);
@@ -428,17 +433,10 @@ class StoreIC: public IC {
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
                     State state,
-                    StrictModeFlag strict_mode,
+                    Code::ExtraICState extra_ic_state,
                     Handle<JSObject> receiver,
                     Handle<String> name,
                     Handle<Object> value);
-
-  void set_target(Code* code) {
-    // Strict mode must be preserved across IC patching.
-    ASSERT((code->extra_ic_state() & kStrictMode) ==
-           (target()->extra_ic_state() & kStrictMode));
-    IC::set_target(code);
-  }
 
   // Stub accessors.
   static Code* megamorphic_stub() {
@@ -475,7 +473,6 @@ class KeyedStoreIC: public IC {
   KeyedStoreIC() : IC(NO_EXTRA_FRAME) { }
 
   MUST_USE_RESULT MaybeObject* Store(State state,
-                                     StrictModeFlag strict_mode,
                                      Handle<Object> object,
                                      Handle<Object> name,
                                      Handle<Object> value);
@@ -483,9 +480,8 @@ class KeyedStoreIC: public IC {
   // Code generators for stub routines.  Only called once at startup.
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictModeFlag strict_mode);
-  static void GenerateGeneric(MacroAssembler* masm, StrictModeFlag strict_mode);
+  static void GenerateRuntimeSetProperty(MacroAssembler* masm);
+  static void GenerateGeneric(MacroAssembler* masm);
 
   // Clear the inlined version so the IC is always hit.
   static void ClearInlinedVersion(Address address);
@@ -497,36 +493,19 @@ class KeyedStoreIC: public IC {
   // Update the inline cache.
   void UpdateCaches(LookupResult* lookup,
                     State state,
-                    StrictModeFlag strict_mode,
                     Handle<JSObject> receiver,
                     Handle<String> name,
                     Handle<Object> value);
-
-  void set_target(Code* code) {
-    // Strict mode must be preserved across IC patching.
-    ASSERT((code->extra_ic_state() & kStrictMode) ==
-           (target()->extra_ic_state() & kStrictMode));
-    IC::set_target(code);
-  }
 
   // Stub accessors.
   static Code* initialize_stub() {
     return Builtins::builtin(Builtins::KeyedStoreIC_Initialize);
   }
-  static Code* initialize_stub_strict() {
-    return Builtins::builtin(Builtins::KeyedStoreIC_Initialize_Strict);
-  }
   static Code* megamorphic_stub() {
     return Builtins::builtin(Builtins::KeyedStoreIC_Generic);
   }
-  static Code* megamorphic_stub_strict() {
-    return Builtins::builtin(Builtins::KeyedStoreIC_Generic_Strict);
-  }
   static Code* generic_stub() {
     return Builtins::builtin(Builtins::KeyedStoreIC_Generic);
-  }
-  static Code* generic_stub_strict() {
-    return Builtins::builtin(Builtins::KeyedStoreIC_Generic_Strict);
   }
 
   static void Clear(Address address, Code* target);

@@ -241,7 +241,7 @@ namespace internal {
   F(ResolvePossiblyDirectEval, 4, 2) \
   F(ResolvePossiblyDirectEvalNoLookup, 4, 2) \
   \
-  F(SetProperty, -1 /* 4 or 5 */, 1) \
+  F(SetProperty, -1 /* 3 or 4 */, 1) \
   F(DefineOrRedefineDataProperty, 4, 1) \
   F(DefineOrRedefineAccessorProperty, 5, 1) \
   F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */, 1) \
@@ -288,12 +288,12 @@ namespace internal {
   F(DeleteContextSlot, 2, 1) \
   F(LoadContextSlot, 2, 2) \
   F(LoadContextSlotNoReferenceError, 2, 2) \
-  F(StoreContextSlot, 4, 1) \
+  F(StoreContextSlot, 3, 1) \
   \
   /* Declarations and initialization */ \
-  F(DeclareGlobals, 4, 1) \
+  F(DeclareGlobals, 3, 1) \
   F(DeclareContextSlot, 4, 1) \
-  F(InitializeVarGlobal, -1 /* 2 or 3 */, 1) \
+  F(InitializeVarGlobal, -1 /* 1 or 2 */, 1) \
   F(InitializeConstGlobal, 2, 1) \
   F(InitializeConstContextSlot, 3, 1) \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
@@ -538,8 +538,7 @@ class Runtime : public AllStatic {
       Handle<Object> object,
       Handle<Object> key,
       Handle<Object> value,
-      PropertyAttributes attr,
-      StrictModeFlag strict);
+      PropertyAttributes attr);
 
   MUST_USE_RESULT static MaybeObject* ForceSetObjectProperty(
       Handle<JSObject> object,
