@@ -5170,11 +5170,11 @@ class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
 
     // Set the bit in the map to indicate that it has been checked safe for
     // default valueOf and set true result.
-    __ ldr(scratch1_, FieldMemOperand(map_result_, Map::kBitField2Offset));
+    __ ldrb(scratch1_, FieldMemOperand(map_result_, Map::kBitField2Offset));
     __ orr(scratch1_,
            scratch1_,
            Operand(1 << Map::kStringWrapperSafeForDefaultValueOf));
-    __ str(scratch1_, FieldMemOperand(map_result_, Map::kBitField2Offset));
+    __ strb(scratch1_, FieldMemOperand(map_result_, Map::kBitField2Offset));
     __ mov(map_result_, Operand(1));
     __ jmp(exit_label());
     __ bind(&false_result);
