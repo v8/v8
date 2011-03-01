@@ -1913,12 +1913,7 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   __ bind(&before_push_delta);
   __ mov(temp, Immediate(delta));
   __ StoreToSafepointRegisterSlot(temp, temp);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  __ call(stub.GetCode(), RelocInfo::CODE_TARGET);
-  ASSERT_EQ(kAdditionalDelta,
-            masm_->SizeOfCodeGeneratedSince(&before_push_delta));
-  RecordSafepointWithRegisters(
-      instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr, false);
   // Put the result value into the eax slot and restore all registers.
   __ StoreToSafepointRegisterSlot(eax, eax);
   __ PopSafepointRegisters();

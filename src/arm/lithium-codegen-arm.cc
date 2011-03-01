@@ -1986,11 +1986,7 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   __ BlockConstPoolFor(kAdditionalDelta);
   __ mov(temp, Operand(delta * kPointerSize));
   __ StoreToSafepointRegisterSlot(temp, temp);
-  __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
-  ASSERT_EQ(kAdditionalDelta,
-            masm_->InstructionsGeneratedSince(&before_push_delta));
-  RecordSafepointWithRegisters(
-      instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
+  CallCode(stub.GetCode(),  RelocInfo::CODE_TARGET, instr);
   // Put the result value into the result register slot and
   // restore all registers.
   __ StoreToSafepointRegisterSlot(result, result);

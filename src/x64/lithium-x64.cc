@@ -1159,8 +1159,7 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
     HInstanceOfKnownGlobal* instr) {
   LInstanceOfKnownGlobal* result =
       new LInstanceOfKnownGlobal(UseRegisterAtStart(instr->value()));
-  MarkAsSaveDoubles(result);
-  return AssignEnvironment(AssignPointerMap(DefineFixed(result, rax)));
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 

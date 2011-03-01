@@ -1165,8 +1165,7 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
       new LInstanceOfKnownGlobal(
           UseFixed(instr->value(), InstanceofStub::left()),
           FixedTemp(edi));
-  MarkAsSaveDoubles(result);
-  return AssignEnvironment(AssignPointerMap(DefineFixed(result, eax)));
+  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 

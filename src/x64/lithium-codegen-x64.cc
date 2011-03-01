@@ -1828,9 +1828,7 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   __ push(ToRegister(instr->InputAt(0)));
   __ Push(instr->function());
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-  __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
-  RecordSafepointWithRegisters(
-      instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   __ movq(kScratchRegister, rax);
   __ PopSafepointRegisters();
   __ testq(kScratchRegister, kScratchRegister);
