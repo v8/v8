@@ -1104,6 +1104,11 @@ static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
     // onload setter in those case and Safari does not. We follow
     // Safari for compatibility.
     if (value->IsJSFunction()) {
+      // Do not change DONT_DELETE to false from true.
+      if (lookup.IsProperty() && (lookup.type() != INTERCEPTOR)) {
+        attributes = static_cast<PropertyAttributes>(
+            attributes | (lookup.GetAttributes() & DONT_DELETE));
+      }
       RETURN_IF_EMPTY_HANDLE(SetLocalPropertyIgnoreAttributes(global,
                                                               name,
                                                               value,
