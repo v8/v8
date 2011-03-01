@@ -405,7 +405,7 @@ void Shell::AddHistogramSample(void* histogram, int sample) {
 void Shell::Initialize() {
   Shell::counter_map_ = new CounterMap();
   // Set up counters
-  if (i::FLAG_map_counters != NULL)
+  if (i::StrLength(i::FLAG_map_counters) != 0)
     MapCounters(i::FLAG_map_counters);
   if (i::FLAG_dump_counters) {
     V8::SetCounterFunction(LookupCounter);
