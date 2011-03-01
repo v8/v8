@@ -339,23 +339,6 @@ void FullCodeGenerator::EmitReturnSequence() {
 }
 
 
-FullCodeGenerator::ConstantOperand FullCodeGenerator::GetConstantOperand(
-    Token::Value op, Expression* left, Expression* right) {
-  ASSERT(ShouldInlineSmiCase(op));
-  if (op == Token::DIV || op == Token::MOD || op == Token::MUL) {
-    // We never generate inlined constant smi operations for these.
-    return kNoConstants;
-  } else if (right->IsSmiLiteral()) {
-    return kRightConstant;
-  } else if (left->IsSmiLiteral() && !Token::IsShiftOp(op)) {
-    // Don't inline shifts with constant left hand side.
-    return kLeftConstant;
-  } else {
-    return kNoConstants;
-  }
-}
-
-
 void FullCodeGenerator::EffectContext::Plug(Slot* slot) const {
 }
 
@@ -1634,14 +1617,8 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     }
 
     Token::Value op = expr->binary_op();
-    ConstantOperand constant = ShouldInlineSmiCase(op)
-        ? GetConstantOperand(op, expr->target(), expr->value())
-        : kNoConstants;
-    ASSERT(constant == kRightConstant || constant == kNoConstants);
-    if (constant == kNoConstants) {
-      __ push(r0);  // Left operand goes on the stack.
-      VisitForAccumulatorValue(expr->value());
-    }
+    __ push(r0);  // Left operand goes on the stack.
+    VisitForAccumulatorValue(expr->value());
 
     OverwriteMode mode = expr->value()->ResultOverwriteAllowed()
         ? OVERWRITE_RIGHT
@@ -1653,8 +1630,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
                             op,
                             mode,
                             expr->target(),
-                            expr->value(),
-                            constant);
+                            expr->value());
     } else {
       EmitBinaryOp(op, mode);
     }
@@ -1704,217 +1680,11 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 }
 
 
-void FullCodeGenerator::EmitConstantSmiAdd(Expression* expr,
-                                           OverwriteMode mode,
-                                           bool left_is_constant_smi,
-                                           Smi* value) {
-  Label call_stub, done;
-  // Optimistically add smi value with unknown object. If result overflows or is
-  // not a smi then we had either a smi overflow or added a smi with a tagged
-  // pointer.
-  __ mov(r1, Operand(value));
-  __ add(r2, r0, r1, SetCC);
-  __ b(vs, &call_stub);
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfNotSmi(r2, &call_stub);
-  __ mov(r0, r2);
-  __ b(&done);
-
-  // Call the shared stub.
-  __ bind(&call_stub);
-  if (!left_is_constant_smi) {
-    __ Swap(r0, r1, r2);
-  }
-  TypeRecordingBinaryOpStub stub(Token::ADD, mode);
-  EmitCallIC(stub.GetCode(), &patch_site);
-
-  __ bind(&done);
-  context()->Plug(r0);
-}
-
-
-void FullCodeGenerator::EmitConstantSmiSub(Expression* expr,
-                                           OverwriteMode mode,
-                                           bool left_is_constant_smi,
-                                           Smi* value) {
-  Label call_stub, done;
-  // Optimistically subtract smi value and unknown object. If result overflows
-  // or is not a smi then we had either a smi overflow or subtraction between a
-  // smi and a tagged pointer.
-  __ mov(r1, Operand(value));
-  if (left_is_constant_smi) {
-    __ sub(r2, r1, r0, SetCC);
-  } else {
-    __ sub(r2, r0, r1, SetCC);
-  }
-  __ b(vs, &call_stub);
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfNotSmi(r2, &call_stub);
-  __ mov(r0, r2);
-  __ b(&done);
-
-  // Call the shared stub.
-  __ bind(&call_stub);
-  if (!left_is_constant_smi) {
-    __ Swap(r0, r1, r2);
-  }
-  TypeRecordingBinaryOpStub stub(Token::SUB, mode);
-  EmitCallIC(stub.GetCode(), &patch_site);
-
-  __ bind(&done);
-  context()->Plug(r0);
-}
-
-
-void FullCodeGenerator::EmitConstantSmiShiftOp(Expression* expr,
-                                               Token::Value op,
-                                               OverwriteMode mode,
-                                               Smi* value) {
-  Label call_stub, smi_case, done;
-  int shift_value = value->value() & 0x1f;
-
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(r0, &smi_case);
-
-  // Call stub.
-  __ bind(&call_stub);
-  __ mov(r1, r0);
-  __ mov(r0, Operand(value));
-  TypeRecordingBinaryOpStub stub(op, mode);
-  EmitCallIC(stub.GetCode(), &patch_site);
-  __ b(&done);
-
-  // Smi case.
-  __ bind(&smi_case);
-  switch (op) {
-    case Token::SHL:
-      if (shift_value != 0) {
-        __ mov(r1, r0);
-        if (shift_value > 1) {
-          __ mov(r1, Operand(r1, LSL, shift_value - 1));
-        }
-        // Convert int result to smi, checking that it is in int range.
-        __ SmiTag(r1, SetCC);
-        __ b(vs, &call_stub);
-        __ mov(r0, r1);  // Put result back into r0.
-      }
-      break;
-    case Token::SAR:
-      if (shift_value != 0) {
-        __ mov(r0, Operand(r0, ASR, shift_value));
-        __ bic(r0, r0, Operand(kSmiTagMask));
-      }
-      break;
-    case Token::SHR:
-      // SHR must return a positive value. When shifting by 0 or 1 we need to
-      // check that smi tagging the result will not create a negative value.
-      if (shift_value < 2) {
-        __ mov(r2, Operand(shift_value));
-        __ SmiUntag(r1, r0);
-        if (shift_value != 0) {
-          __ mov(r1, Operand(r1, LSR, shift_value));
-        }
-        __ tst(r1, Operand(0xc0000000));
-        __ b(ne, &call_stub);
-        __ SmiTag(r0, r1);  // result in r0.
-      } else {
-        __ SmiUntag(r0);
-        __ mov(r0, Operand(r0, LSR, shift_value));
-        __ SmiTag(r0);
-      }
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  __ bind(&done);
-  context()->Plug(r0);
-}
-
-
-void FullCodeGenerator::EmitConstantSmiBitOp(Expression* expr,
-                                             Token::Value op,
-                                             OverwriteMode mode,
-                                             Smi* value) {
-  Label smi_case, done;
-
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(r0, &smi_case);
-
-  // The order of the arguments does not matter for bit-ops with a
-  // constant operand.
-  __ mov(r1, Operand(value));
-  TypeRecordingBinaryOpStub stub(op, mode);
-  EmitCallIC(stub.GetCode(), &patch_site);
-  __ jmp(&done);
-
-  // Smi case.
-  __ bind(&smi_case);
-  __ mov(r1, Operand(value));
-  switch (op) {
-    case Token::BIT_OR:
-      __ orr(r0, r0, Operand(r1));
-      break;
-    case Token::BIT_XOR:
-      __ eor(r0, r0, Operand(r1));
-      break;
-    case Token::BIT_AND:
-      __ and_(r0, r0, Operand(r1));
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  __ bind(&done);
-  context()->Plug(r0);
-}
-
-
-void FullCodeGenerator::EmitConstantSmiBinaryOp(Expression* expr,
-                                                Token::Value op,
-                                                OverwriteMode mode,
-                                                bool left_is_constant_smi,
-                                                Smi* value) {
-  switch (op) {
-    case Token::BIT_OR:
-    case Token::BIT_XOR:
-    case Token::BIT_AND:
-      EmitConstantSmiBitOp(expr, op, mode, value);
-      break;
-    case Token::SHL:
-    case Token::SAR:
-    case Token::SHR:
-      ASSERT(!left_is_constant_smi);
-      EmitConstantSmiShiftOp(expr, op, mode, value);
-      break;
-    case Token::ADD:
-      EmitConstantSmiAdd(expr, mode, left_is_constant_smi, value);
-      break;
-    case Token::SUB:
-      EmitConstantSmiSub(expr, mode, left_is_constant_smi, value);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
 void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
                                               Token::Value op,
                                               OverwriteMode mode,
                                               Expression* left_expr,
-                                              Expression* right_expr,
-                                              ConstantOperand constant) {
-  if (constant == kRightConstant) {
-    Smi* value =  Smi::cast(*right_expr->AsLiteral()->handle());
-    EmitConstantSmiBinaryOp(expr, op, mode, false, value);
-    return;
-  } else if (constant == kLeftConstant) {
-    Smi* value =  Smi::cast(*left_expr->AsLiteral()->handle());
-    EmitConstantSmiBinaryOp(expr, op, mode, true, value);
-    return;
-  }
-
+                                              Expression* right_expr) {
   Label done, smi_case, stub_call;
 
   Register scratch1 = r2;
