@@ -497,6 +497,14 @@ class MacroAssembler: public Assembler {
   // Copies a fixed number of fields of heap objects from src to dst.
   void CopyFields(Register dst, Register src, RegList temps, int field_count);
 
+  // Copies a number of bytes from src to dst. All registers are clobbered. On
+  // exit src and dst will point to the place just after where the last byte was
+  // read or written and length will be zero.
+  void CopyBytes(Register src,
+                 Register dst,
+                 Register length,
+                 Register scratch);
+
   // ---------------------------------------------------------------------------
   // Support functions.
 
@@ -777,11 +785,11 @@ class MacroAssembler: public Assembler {
     mov(reg, scratch);
   }
 
-  void SmiUntag(Register reg) {
-    mov(reg, Operand(reg, ASR, kSmiTagSize));
+  void SmiUntag(Register reg, SBit s = LeaveCC) {
+    mov(reg, Operand(reg, ASR, kSmiTagSize), s);
   }
-  void SmiUntag(Register dst, Register src) {
-    mov(dst, Operand(src, ASR, kSmiTagSize));
+  void SmiUntag(Register dst, Register src, SBit s = LeaveCC) {
+    mov(dst, Operand(src, ASR, kSmiTagSize), s);
   }
 
   // Jump the register contains a smi.

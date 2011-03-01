@@ -2389,6 +2389,60 @@ void MacroAssembler::CopyFields(Register dst,
 }
 
 
+void MacroAssembler::CopyBytes(Register src,
+                               Register dst,
+                               Register length,
+                               Register scratch) {
+  Label align_loop, align_loop_1, word_loop, byte_loop, byte_loop_1, done;
+
+  // Align src before copying in word size chunks.
+  bind(&align_loop);
+  cmp(length, Operand(0));
+  b(eq, &done);
+  bind(&align_loop_1);
+  tst(src, Operand(kPointerSize - 1));
+  b(eq, &word_loop);
+  ldrb(scratch, MemOperand(src, 1, PostIndex));
+  strb(scratch, MemOperand(dst, 1, PostIndex));
+  sub(length, length, Operand(1), SetCC);
+  b(ne, &byte_loop_1);
+
+  // Copy bytes in word size chunks.
+  bind(&word_loop);
+  if (FLAG_debug_code) {
+    tst(src, Operand(kPointerSize - 1));
+    Assert(eq, "Expecting alignment for CopyBytes");
+  }
+  cmp(length, Operand(kPointerSize));
+  b(lt, &byte_loop);
+  ldr(scratch, MemOperand(src, kPointerSize, PostIndex));
+#if CAN_USE_UNALIGNED_ACCESSES
+  str(scratch, MemOperand(dst, kPointerSize, PostIndex));
+#else
+  strb(scratch, MemOperand(dst, 1, PostIndex));
+  mov(scratch, Operand(scratch, LSR, 8));
+  strb(scratch, MemOperand(dst, 1, PostIndex));
+  mov(scratch, Operand(scratch, LSR, 8));
+  strb(scratch, MemOperand(dst, 1, PostIndex));
+  mov(scratch, Operand(scratch, LSR, 8));
+  strb(scratch, MemOperand(dst, 1, PostIndex));
+#endif
+  sub(length, length, Operand(kPointerSize));
+  b(&word_loop);
+
+  // Copy the last bytes if any left.
+  bind(&byte_loop);
+  cmp(length, Operand(0));
+  b(eq, &done);
+  bind(&byte_loop_1);
+  ldrb(scratch, MemOperand(src, 1, PostIndex));
+  strb(scratch, MemOperand(dst, 1, PostIndex));
+  sub(length, length, Operand(1), SetCC);
+  b(ne, &byte_loop_1);
+  bind(&done);
+}
+
+
 void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
                                        Register source,  // Input.
                                        Register scratch) {
