@@ -40,6 +40,7 @@
 #include "debug.h"
 #include "deoptimizer.h"
 #include "execution.h"
+#include "global-handles.h"
 #include "jsregexp.h"
 #include "liveedit.h"
 #include "parser.h"
@@ -8041,9 +8042,13 @@ class ArrayConcatVisitor {
  public:
   ArrayConcatVisitor(Handle<FixedArray> storage,
                      bool fast_elements) :
-      storage_(storage),
+    storage_(Handle<FixedArray>::cast(GlobalHandles::Create(*storage))),
       index_offset_(0u),
       fast_elements_(fast_elements) { }
+
+  ~ArrayConcatVisitor() {
+    clear_storage();
+  }
 
   void visit(uint32_t i, Handle<Object> elm) {
     if (i >= JSObject::kMaxElementCount - index_offset_) return;
@@ -8062,11 +8067,13 @@ class ArrayConcatVisitor {
       // Fall-through to dictionary mode.
     }
     ASSERT(!fast_elements_);
-    Handle<NumberDictionary> dict(storage_.cast<NumberDictionary>());
+    Handle<NumberDictionary> dict(NumberDictionary::cast(*storage_));
     Handle<NumberDictionary> result =
         Factory::DictionaryAtNumberPut(dict, index, elm);
     if (!result.is_identical_to(dict)) {
-      storage_ = Handle<FixedArray>::cast(result);
+      // Dictionary needed to grow.
+      clear_storage();
+      set_storage(*result);
     }
 }
 
@@ -8098,23 +8105,35 @@ class ArrayConcatVisitor {
   // Convert storage to dictionary mode.
   void SetDictionaryMode(uint32_t index) {
     ASSERT(fast_elements_);
-    Handle<FixedArray> current_storage(storage_.ToHandle());
-    HandleCell<NumberDictionary> slow_storage(
+    Handle<FixedArray> current_storage(*storage_);
+    Handle<NumberDictionary> slow_storage(
         Factory::NewNumberDictionary(current_storage->length()));
     uint32_t current_length = static_cast<uint32_t>(current_storage->length());
     for (uint32_t i = 0; i < current_length; i++) {
       HandleScope loop_scope;
       Handle<Object> element(current_storage->get(i));
       if (!element->IsTheHole()) {
-        slow_storage =
-          Factory::DictionaryAtNumberPut(slow_storage.ToHandle(), i, element);
+        Handle<NumberDictionary> new_storage =
+          Factory::DictionaryAtNumberPut(slow_storage, i, element);
+        if (!new_storage.is_identical_to(slow_storage)) {
+          slow_storage = loop_scope.CloseAndEscape(new_storage);
+        }
       }
     }
-    storage_ = slow_storage.cast<FixedArray>();
+    clear_storage();
+    set_storage(*slow_storage);
     fast_elements_ = false;
   }
 
-  HandleCell<FixedArray> storage_;
+  inline void clear_storage() {
+    GlobalHandles::Destroy(Handle<Object>::cast(storage_).location());
+  }
+
+  inline void set_storage(FixedArray* storage) {
+    storage_ = Handle<FixedArray>::cast(GlobalHandles::Create(storage));
+  }
+
+  Handle<FixedArray> storage_;  // Always a global handle.
   // Index after last seen index. Always less than or equal to
   // JSObject::kMaxElementCount.
   uint32_t index_offset_;
