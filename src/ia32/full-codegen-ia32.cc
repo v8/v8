@@ -3418,7 +3418,7 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
 
 void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   Label bailout, done, one_char_separator, long_separator,
-      non_trivial_array, not_size_one_array, loop, loop_condition,
+      non_trivial_array, not_size_one_array, loop,
       loop_1, loop_1_condition, loop_2, loop_2_entry, loop_3, loop_3_entry;
 
   ASSERT(args->length() == 2);
@@ -3460,7 +3460,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
 
   // If the array has length zero, return the empty string.
   __ mov(array_length, FieldOperand(array, JSArray::kLengthOffset));
-  __ sar(array_length, 1);
+  __ SmiUntag(array_length);
   __ j(not_zero, &non_trivial_array);
   __ mov(result_operand, Factory::empty_string());
   __ jmp(&done);
@@ -3483,14 +3483,15 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   // Loop condition: while (index < length).
   // Live loop registers: index, array_length, string,
   //                      scratch, string_length, elements.
-  __ jmp(&loop_condition);
+  if (FLAG_debug_code) {
+    __ cmp(index, Operand(array_length));
+    __ Assert(less, "No empty arrays here in EmitFastAsciiArrayJoin");
+  }
   __ bind(&loop);
-  __ cmp(index, Operand(array_length));
-  __ j(greater_equal, &done);
-
-  __ mov(string, FieldOperand(elements, index,
-                                      times_pointer_size,
-                                      FixedArray::kHeaderSize));
+  __ mov(string, FieldOperand(elements,
+                              index,
+                              times_pointer_size,
+                              FixedArray::kHeaderSize));
   __ test(string, Immediate(kSmiTagMask));
   __ j(zero, &bailout);
   __ mov(scratch, FieldOperand(string, HeapObject::kMapOffset));
@@ -3503,7 +3504,6 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
          FieldOperand(string, SeqAsciiString::kLengthOffset));
   __ j(overflow, &bailout);
   __ add(Operand(index), Immediate(1));
-  __ bind(&loop_condition);
   __ cmp(index, Operand(array_length));
   __ j(less, &loop);
 
@@ -3532,7 +3532,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
   __ and_(scratch, Immediate(
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
-  __ cmp(scratch, kStringTag | kAsciiStringTag | kSeqStringTag);
+  __ cmp(scratch, ASCII_STRING_TYPE);
   __ j(not_equal, &bailout);
 
   // Add (separator length times array_length) - separator length
