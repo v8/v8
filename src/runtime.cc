@@ -783,7 +783,8 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
       case JSObject::INTERCEPTED_ELEMENT:
       case JSObject::FAST_ELEMENT: {
         elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-        elms->set(VALUE_INDEX, *GetElement(obj, index));
+        Handle<Object> value = GetElement(obj, index);
+        elms->set(VALUE_INDEX, *value);
         elms->set(WRITABLE_INDEX, Heap::true_value());
         elms->set(ENUMERABLE_INDEX,  Heap::true_value());
         elms->set(CONFIGURABLE_INDEX, Heap::true_value());
@@ -816,12 +817,14 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
             }
             break;
           }
-          case NORMAL:
+          case NORMAL: {
             // This is a data property.
             elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-            elms->set(VALUE_INDEX, *GetElement(obj, index));
+            Handle<Object> value = GetElement(obj, index);
+            elms->set(VALUE_INDEX, *value);
             elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
             break;
+          }
           default:
             UNREACHABLE();
             break;
