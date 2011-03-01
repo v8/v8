@@ -741,7 +741,9 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
              prop->key()->AsLiteral()->handle()->IsSmi());
       __ Set(ecx, Immediate(prop->key()->AsLiteral()->handle()));
 
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic(Builtins::builtin(is_strict()
+          ? Builtins::KeyedStoreIC_Initialize_Strict
+          : Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
     }
   }
@@ -758,7 +760,8 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   __ push(esi);  // The context is the first argument.
   __ push(Immediate(pairs));
   __ push(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
-  __ CallRuntime(Runtime::kDeclareGlobals, 3);
+  __ push(Immediate(Smi::FromInt(strict_mode_flag())));
+  __ CallRuntime(Runtime::kDeclareGlobals, 4);
   // Return value is ignored.
 }
 
@@ -1380,7 +1383,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             VisitForAccumulatorValue(value);
             __ mov(ecx, Immediate(key->handle()));
             __ mov(edx, Operand(esp, 0));
-            Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+            Handle<Code> ic(Builtins::builtin(
+                is_strict() ? Builtins::StoreIC_Initialize_Strict
+                            : Builtins::StoreIC_Initialize));
             EmitCallIC(ic, RelocInfo::CODE_TARGET);
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
           } else {
@@ -1394,7 +1399,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         VisitForStackValue(key);
         VisitForStackValue(value);
         if (property->emit_store()) {
-          __ CallRuntime(Runtime::kSetProperty, 3);
+          __ push(Immediate(Smi::FromInt(NONE)));  // PropertyAttributes
+          __ CallRuntime(Runtime::kSetProperty, 4);
         } else {
           __ Drop(3);
         }
@@ -1985,7 +1991,9 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       __ mov(edx, eax);
       __ pop(eax);  // Restore value.
       __ mov(ecx, prop->key()->AsLiteral()->handle());
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+      Handle<Code> ic(Builtins::builtin(
+          is_strict() ? Builtins::StoreIC_Initialize_Strict
+                      : Builtins::StoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
     }
@@ -2006,7 +2014,9 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
         __ pop(edx);
       }
       __ pop(eax);  // Restore value.
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic(Builtins::builtin(
+          is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
+                      : Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
     }
@@ -2101,7 +2111,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ push(eax);  // Value.
         __ push(esi);  // Context.
         __ push(Immediate(var->name()));
-        __ CallRuntime(Runtime::kStoreContextSlot, 3);
+        __ push(Immediate(Smi::FromInt(strict_mode_flag())));
+        __ CallRuntime(Runtime::kStoreContextSlot, 4);
         break;
     }
   }
@@ -2132,7 +2143,9 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   } else {
     __ pop(edx);
   }
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(
+      is_strict() ? Builtins::StoreIC_Initialize_Strict
+                  : Builtins::StoreIC_Initialize));
   EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -2170,7 +2183,9 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   }
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(
+      is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
+                  : Builtins::KeyedStoreIC_Initialize));
   EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -4025,7 +4040,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case NAMED_PROPERTY: {
       __ mov(ecx, prop->key()->AsLiteral()->handle());
       __ pop(edx);
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+      Handle<Code> ic(Builtins::builtin(
+          is_strict() ? Builtins::StoreIC_Initialize_Strict
+                      : Builtins::StoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
@@ -4040,7 +4057,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       __ pop(ecx);
       __ pop(edx);
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic(Builtins::builtin(
+          is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
+                      : Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {

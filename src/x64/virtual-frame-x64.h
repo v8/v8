@@ -343,7 +343,7 @@ class VirtualFrame : public ZoneObject {
 
   // Call keyed store IC.  Value, key, and receiver are found on top
   // of the frame.  All three are dropped.
-  Result CallKeyedStoreIC();
+  Result CallKeyedStoreIC(StrictModeFlag strict_mode);
 
   // Call call IC.  Function name, arguments, and receiver are found on top
   // of the frame and dropped by the call.

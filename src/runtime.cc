@@ -160,7 +160,8 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(JSObject* boilerplate) {
           if (!maybe_result->ToObject(&result)) return maybe_result;
         }
         { MaybeObject* maybe_result =
-              copy->SetProperty(key_string, result, NONE);
+              // Creating object copy for literals. No strict mode needed.
+              copy->SetProperty(key_string, result, NONE, kNonStrictMode);
           if (!maybe_result->ToObject(&result)) return maybe_result;
         }
       }
@@ -546,7 +547,9 @@ static MaybeObject* Runtime_CreateCatchExtensionObject(Arguments args) {
   // Assign the exception value to the catch variable and make sure
   // that the catch variable is DontDelete.
   { MaybeObject* maybe_value =
-        JSObject::cast(object)->SetProperty(key, value, DONT_DELETE);
+        // Passing non-strict per ECMA-262 5th Ed. 12.14. Catch, bullet #4.
+        JSObject::cast(object)->SetProperty(
+            key, value, DONT_DELETE, kNonStrictMode);
     if (!maybe_value->ToObject(&value)) return maybe_value;
   }
   return object;
@@ -994,12 +997,16 @@ static Failure* ThrowRedeclarationError(const char* type, Handle<String> name) {
 
 
 static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
+  ASSERT(args.length() == 4);
   HandleScope scope;
   Handle<GlobalObject> global = Handle<GlobalObject>(Top::context()->global());
 
   Handle<Context> context = args.at<Context>(0);
   CONVERT_ARG_CHECKED(FixedArray, pairs, 1);
   bool is_eval = Smi::cast(args[2])->value() == 1;
+  StrictModeFlag strict_mode =
+      static_cast<StrictModeFlag>(Smi::cast(args[3])->value());
+  ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
 
   // Compute the property attributes. According to ECMA-262, section
   // 13, page 71, the property must be read-only and
@@ -1109,7 +1116,11 @@ static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
                                                               value,
                                                               attributes));
     } else {
-      RETURN_IF_EMPTY_HANDLE(SetProperty(global, name, value, attributes));
+      RETURN_IF_EMPTY_HANDLE(SetProperty(global,
+                                         name,
+                                         value,
+                                         attributes,
+                                         strict_mode));
     }
   }
 
@@ -1170,7 +1181,8 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
         // Slow case: The property is not in the FixedArray part of the context.
         Handle<JSObject> context_ext = Handle<JSObject>::cast(holder);
         RETURN_IF_EMPTY_HANDLE(
-            SetProperty(context_ext, name, initial_value, mode));
+            SetProperty(context_ext, name, initial_value,
+                        mode, kNonStrictMode));
       }
     }
 
@@ -1211,7 +1223,8 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
         return ThrowRedeclarationError("const", name);
       }
     }
-    RETURN_IF_EMPTY_HANDLE(SetProperty(context_ext, name, value, mode));
+    RETURN_IF_EMPTY_HANDLE(SetProperty(context_ext, name, value, mode,
+                                       kNonStrictMode));
   }
 
   return Heap::undefined_value();
@@ -1220,14 +1233,21 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
 
 static MaybeObject* Runtime_InitializeVarGlobal(Arguments args) {
   NoHandleAllocation nha;
+  // args[0] == name
+  // args[1] == strict_mode
+  // args[2] == value (optional)
 
   // Determine if we need to assign to the variable if it already
   // exists (based on the number of arguments).
-  RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
-  bool assign = args.length() == 2;
+  RUNTIME_ASSERT(args.length() == 2 || args.length() == 3);
+  bool assign = args.length() == 3;
 
   CONVERT_ARG_CHECKED(String, name, 0);
   GlobalObject* global = Top::context()->global();
+  RUNTIME_ASSERT(args[1]->IsSmi());
+  StrictModeFlag strict_mode =
+      static_cast<StrictModeFlag>(Smi::cast(args[1])->value());
+  ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
 
   // According to ECMA-262, section 12.2, page 62, the property must
   // not be deletable.
@@ -1283,8 +1303,9 @@ static MaybeObject* Runtime_InitializeVarGlobal(Arguments args) {
       }
 
       // Assign the value (or undefined) to the property.
-      Object* value = (assign) ? args[1] : Heap::undefined_value();
-      return real_holder->SetProperty(&lookup, *name, value, attributes);
+      Object* value = (assign) ? args[2] : Heap::undefined_value();
+      return real_holder->SetProperty(
+          &lookup, *name, value, attributes, strict_mode);
     }
 
     Object* proto = real_holder->GetPrototype();
@@ -1298,7 +1319,9 @@ static MaybeObject* Runtime_InitializeVarGlobal(Arguments args) {
   }
 
   global = Top::context()->global();
-  if (assign) return global->SetProperty(*name, args[1], attributes);
+  if (assign) {
+    return global->SetProperty(*name, args[2], attributes, strict_mode);
+  }
   return Heap::undefined_value();
 }
 
@@ -1357,13 +1380,19 @@ static MaybeObject* Runtime_InitializeConstGlobal(Arguments args) {
     // BUG 1213575: Handle the case where we have to set a read-only
     // property through an interceptor and only do it if it's
     // uninitialized, e.g. the hole. Nirk...
-    RETURN_IF_EMPTY_HANDLE(SetProperty(global, name, value, attributes));
+    // Passing non-strict mode because the property is writable.
+    RETURN_IF_EMPTY_HANDLE(SetProperty(global,
+                                       name,
+                                       value,
+                                       attributes,
+                                       kNonStrictMode));
     return *value;
   }
 
   // Set the value, but only we're assigning the initial value to a
   // constant. For now, we determine this by checking if the
   // current value is the hole.
+  // Strict mode handling not needed (const disallowed in strict mode).
   PropertyType type = lookup.type();
   if (type == FIELD) {
     FixedArray* properties = global->properties();
@@ -1439,7 +1468,9 @@ static MaybeObject* Runtime_InitializeConstContextSlot(Arguments args) {
   // context.
   if (attributes == ABSENT) {
     Handle<JSObject> global = Handle<JSObject>(Top::context()->global());
-    RETURN_IF_EMPTY_HANDLE(SetProperty(global, name, value, NONE));
+    // Strict mode not needed (const disallowed in strict mode).
+    RETURN_IF_EMPTY_HANDLE(
+        SetProperty(global, name, value, NONE, kNonStrictMode));
     return *value;
   }
 
@@ -1476,8 +1507,9 @@ static MaybeObject* Runtime_InitializeConstContextSlot(Arguments args) {
     // The property was found in a different context extension object.
     // Set it if it is not a read-only property.
     if ((attributes & READ_ONLY) == 0) {
+      // Strict mode not needed (const disallowed in strict mode).
       RETURN_IF_EMPTY_HANDLE(
-          SetProperty(context_ext, name, value, attributes));
+          SetProperty(context_ext, name, value, attributes, kNonStrictMode));
     }
   }
 
@@ -1643,7 +1675,7 @@ static Handle<JSFunction> InstallBuiltin(Handle<JSObject> holder,
                                                       code,
                                                       false);
   optimized->shared()->DontAdaptArguments();
-  SetProperty(holder, key, optimized, NONE);
+  SetProperty(holder, key, optimized, NONE, kStrictMode);
   return optimized;
 }
 
@@ -3739,7 +3771,8 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
 MaybeObject* Runtime::SetObjectProperty(Handle<Object> object,
                                         Handle<Object> key,
                                         Handle<Object> value,
-                                        PropertyAttributes attr) {
+                                        PropertyAttributes attr,
+                                        StrictModeFlag strict) {
   HandleScope scope;
 
   if (object->IsUndefined() || object->IsNull()) {
@@ -3769,6 +3802,7 @@ MaybeObject* Runtime::SetObjectProperty(Handle<Object> object,
       return *value;
     }
 
+    // TODO(1220): Implement SetElement strict mode.
     Handle<Object> result = SetElement(js_object, index, value);
     if (result.is_null()) return Failure::Exception();
     return *value;
@@ -3781,7 +3815,7 @@ MaybeObject* Runtime::SetObjectProperty(Handle<Object> object,
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
       key_string->TryFlatten();
-      result = SetProperty(js_object, key_string, value, attr);
+      result = SetProperty(js_object, key_string, value, attr, strict);
     }
     if (result.is_null()) return Failure::Exception();
     return *value;
@@ -3794,9 +3828,10 @@ MaybeObject* Runtime::SetObjectProperty(Handle<Object> object,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
+    // TODO(1220): Implement SetElement strict mode.
     return js_object->SetElement(index, *value);
   } else {
-    return js_object->SetProperty(*name, *value, attr);
+    return js_object->SetProperty(*name, *value, attr, strict);
   }
 }
 
@@ -3888,23 +3923,27 @@ MaybeObject* Runtime::ForceDeleteObjectProperty(Handle<JSObject> js_object,
 
 static MaybeObject* Runtime_SetProperty(Arguments args) {
   NoHandleAllocation ha;
-  RUNTIME_ASSERT(args.length() == 3 || args.length() == 4);
+  RUNTIME_ASSERT(args.length() == 4 || args.length() == 5);
 
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-
+  CONVERT_SMI_CHECKED(unchecked_attributes, args[3]);
+  RUNTIME_ASSERT(
+      (unchecked_attributes & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   // Compute attributes.
-  PropertyAttributes attributes = NONE;
-  if (args.length() == 4) {
-    CONVERT_CHECKED(Smi, value_obj, args[3]);
-    int unchecked_value = value_obj->value();
-    // Only attribute bits should be set.
-    RUNTIME_ASSERT(
-        (unchecked_value & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-    attributes = static_cast<PropertyAttributes>(unchecked_value);
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(unchecked_attributes);
+
+  StrictModeFlag strict = kNonStrictMode;
+  if (args.length() == 5) {
+    CONVERT_SMI_CHECKED(strict_unchecked, args[4]);
+    RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
+                   strict_unchecked == kNonStrictMode);
+    strict = static_cast<StrictModeFlag>(strict_unchecked);
   }
-  return Runtime::SetObjectProperty(object, key, value, attributes);
+
+  return Runtime::SetObjectProperty(object, key, value, attributes, strict);
 }
 
 
@@ -3938,7 +3977,7 @@ static MaybeObject* Runtime_DeleteProperty(Arguments args) {
   CONVERT_CHECKED(JSObject, object, args[0]);
   CONVERT_CHECKED(String, key, args[1]);
   CONVERT_SMI_CHECKED(strict, args[2]);
-  return object->DeleteProperty(key, strict == kStrictMode
+  return object->DeleteProperty(key, (strict == kStrictMode)
                                       ? JSObject::STRICT_DELETION
                                       : JSObject::NORMAL_DELETION);
 }
@@ -7486,11 +7525,16 @@ static ObjectPair Runtime_LoadContextSlotNoReferenceError(Arguments args) {
 
 static MaybeObject* Runtime_StoreContextSlot(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
 
   Handle<Object> value(args[0]);
   CONVERT_ARG_CHECKED(Context, context, 1);
   CONVERT_ARG_CHECKED(String, name, 2);
+  CONVERT_SMI_CHECKED(strict_unchecked, args[3]);
+  RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
+                 strict_unchecked == kNonStrictMode);
+  StrictModeFlag strict = static_cast<StrictModeFlag>(strict_unchecked);
+
 
   int index;
   PropertyAttributes attributes;
@@ -7534,7 +7578,12 @@ static MaybeObject* Runtime_StoreContextSlot(Arguments args) {
   // extension object itself.
   if ((attributes & READ_ONLY) == 0 ||
       (context_ext->GetLocalPropertyAttribute(*name) == ABSENT)) {
-    RETURN_IF_EMPTY_HANDLE(SetProperty(context_ext, name, value, NONE));
+    RETURN_IF_EMPTY_HANDLE(SetProperty(context_ext, name, value, NONE, strict));
+  } else if (strict == kStrictMode && (attributes & READ_ONLY) != 0) {
+    // Setting read only property in strict mode.
+    Handle<Object> error =
+      Factory::NewTypeError("strict_cannot_assign", HandleVector(&name, 1));
+    return Top::Throw(*error);
   }
   return *value;
 }
@@ -9267,7 +9316,9 @@ static bool CopyContextLocalsToScopeObject(
       RETURN_IF_EMPTY_HANDLE_VALUE(
           SetProperty(scope_object,
                       scope_info.context_slot_name(i),
-                      Handle<Object>(context->get(context_index)), NONE),
+                      Handle<Object>(context->get(context_index)),
+                      NONE,
+                      kNonStrictMode),
           false);
     }
   }
@@ -9293,7 +9344,9 @@ static Handle<JSObject> MaterializeLocalScope(JavaScriptFrame* frame) {
     RETURN_IF_EMPTY_HANDLE_VALUE(
         SetProperty(local_scope,
                     scope_info.parameter_name(i),
-                    Handle<Object>(frame->GetParameter(i)), NONE),
+                    Handle<Object>(frame->GetParameter(i)),
+                    NONE,
+                    kNonStrictMode),
         Handle<JSObject>());
   }
 
@@ -9302,7 +9355,9 @@ static Handle<JSObject> MaterializeLocalScope(JavaScriptFrame* frame) {
     RETURN_IF_EMPTY_HANDLE_VALUE(
         SetProperty(local_scope,
                     scope_info.stack_slot_name(i),
-                    Handle<Object>(frame->GetExpression(i)), NONE),
+                    Handle<Object>(frame->GetExpression(i)),
+                    NONE,
+                    kNonStrictMode),
         Handle<JSObject>());
   }
 
@@ -9326,7 +9381,11 @@ static Handle<JSObject> MaterializeLocalScope(JavaScriptFrame* frame) {
         ASSERT(keys->get(i)->IsString());
         Handle<String> key(String::cast(keys->get(i)));
         RETURN_IF_EMPTY_HANDLE_VALUE(
-            SetProperty(local_scope, key, GetProperty(ext, key), NONE),
+            SetProperty(local_scope,
+                        key,
+                        GetProperty(ext, key),
+                        NONE,
+                        kNonStrictMode),
             Handle<JSObject>());
       }
     }
@@ -9364,7 +9423,8 @@ static Handle<JSObject> MaterializeClosure(Handle<Context> context) {
           SetProperty(closure_scope,
                       scope_info.parameter_name(i),
                       Handle<Object>(element),
-                      NONE),
+                      NONE,
+                      kNonStrictMode),
           Handle<JSObject>());
     }
   }
@@ -9385,7 +9445,11 @@ static Handle<JSObject> MaterializeClosure(Handle<Context> context) {
       ASSERT(keys->get(i)->IsString());
       Handle<String> key(String::cast(keys->get(i)));
       RETURN_IF_EMPTY_HANDLE_VALUE(
-          SetProperty(closure_scope, key, GetProperty(ext, key), NONE),
+          SetProperty(closure_scope,
+                      key,
+                      GetProperty(ext, key),
+                      NONE,
+                      kNonStrictMode),
           Handle<JSObject>());
     }
   }

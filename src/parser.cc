@@ -1661,34 +1661,49 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
 
     if (top_scope_->is_global_scope()) {
       // Compute the arguments for the runtime call.
-      ZoneList<Expression*>* arguments = new ZoneList<Expression*>(2);
-      // Be careful not to assign a value to the global variable if
-      // we're in a with. The initialization value should not
-      // necessarily be stored in the global object in that case,
-      // which is why we need to generate a separate assignment node.
+      ZoneList<Expression*>* arguments = new ZoneList<Expression*>(3);
       arguments->Add(new Literal(name));  // we have at least 1 parameter
-      if (is_const || (value != NULL && !inside_with())) {
+      CallRuntime* initialize;
+
+      if (is_const) {
         arguments->Add(value);
         value = NULL;  // zap the value to avoid the unnecessary assignment
-      }
-      // Construct the call to Runtime::DeclareGlobal{Variable,Const}Locally
-      // and add it to the initialization statement block. Note that
-      // this function does different things depending on if we have
-      // 1 or 2 parameters.
-      CallRuntime* initialize;
-      if (is_const) {
+
+        // Construct the call to Runtime_InitializeConstGlobal
+        // and add it to the initialization statement block.
+        // Note that the function does different things depending on
+        // the number of arguments (1 or 2).
         initialize =
-          new CallRuntime(
-            Factory::InitializeConstGlobal_symbol(),
-            Runtime::FunctionForId(Runtime::kInitializeConstGlobal),
-            arguments);
+            new CallRuntime(
+              Factory::InitializeConstGlobal_symbol(),
+              Runtime::FunctionForId(Runtime::kInitializeConstGlobal),
+              arguments);
       } else {
+        // Add strict mode.
+        // We may want to pass singleton to avoid Literal allocations.
+        arguments->Add(NewNumberLiteral(
+            temp_scope_->StrictMode() ? kStrictMode : kNonStrictMode));
+
+        // Be careful not to assign a value to the global variable if
+        // we're in a with. The initialization value should not
+        // necessarily be stored in the global object in that case,
+        // which is why we need to generate a separate assignment node.
+        if (value != NULL && !inside_with()) {
+          arguments->Add(value);
+          value = NULL;  // zap the value to avoid the unnecessary assignment
+        }
+
+        // Construct the call to Runtime_InitializeVarGlobal
+        // and add it to the initialization statement block.
+        // Note that the function does different things depending on
+        // the number of arguments (2 or 3).
         initialize =
-          new CallRuntime(
-            Factory::InitializeVarGlobal_symbol(),
-            Runtime::FunctionForId(Runtime::kInitializeVarGlobal),
-            arguments);
+            new CallRuntime(
+              Factory::InitializeVarGlobal_symbol(),
+              Runtime::FunctionForId(Runtime::kInitializeVarGlobal),
+              arguments);
       }
+
       block->AddStatement(new ExpressionStatement(initialize));
     }
 

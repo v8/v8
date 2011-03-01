@@ -246,12 +246,14 @@ Handle<String> FlattenGetString(Handle<String> str);
 Handle<Object> SetProperty(Handle<JSObject> object,
                            Handle<String> key,
                            Handle<Object> value,
-                           PropertyAttributes attributes);
+                           PropertyAttributes attributes,
+                           StrictModeFlag strict);
 
 Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
-                           PropertyAttributes attributes);
+                           PropertyAttributes attributes,
+                           StrictModeFlag strict);
 
 Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> key,
@@ -282,7 +284,8 @@ void SetLocalPropertyNoThrow(Handle<JSObject> object,
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
                                           Handle<Object> value,
-                                          PropertyAttributes attributes);
+                                          PropertyAttributes attributes,
+                                          StrictModeFlag strict);
 
 Handle<Object> SetElement(Handle<JSObject> object,
                           uint32_t index,
