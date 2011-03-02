@@ -580,20 +580,15 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ret(0);
 
   __ bind(&check_pixel_array);
-  // Check whether the elements object is a pixel array.
-  // rdx: receiver
-  // rax: key
-  __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ SmiToInteger32(rbx, rax);  // Used on both directions of next branch.
-  __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
-                 Heap::kPixelArrayMapRootIndex);
-  __ j(not_equal, &check_number_dictionary);
-  __ cmpl(rbx, FieldOperand(rcx, PixelArray::kLengthOffset));
-  __ j(above_equal, &slow);
-  __ movq(rax, FieldOperand(rcx, PixelArray::kExternalPointerOffset));
-  __ movzxbq(rax, Operand(rax, rbx, times_1, 0));
-  __ Integer32ToSmi(rax, rax);
-  __ ret(0);
+  GenerateFastPixelArrayLoad(masm,
+                             rdx,
+                             rax,
+                             rcx,
+                             rbx,
+                             rax,
+                             &check_number_dictionary,
+                             NULL,
+                             &slow);
 
   __ bind(&check_number_dictionary);
   // Check whether the elements is a number dictionary.
@@ -1682,11 +1677,23 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
 }
 
 
+static bool HasInlinedSmiCode(Address address) {
+  // The address of the instruction following the call.
+  Address test_instruction_address =
+      address + Assembler::kCallTargetAddressOffset;
+
+  // If the instruction following the call is not a test al, nothing
+  // was inlined.
+  return *test_instruction_address == Assembler::kTestAlByte;
+}
+
+
 void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   HandleScope scope;
   Handle<Code> rewritten;
   State previous_state = GetState();
-  State state = TargetState(previous_state, false, x, y);
+
+  State state = TargetState(previous_state, HasInlinedSmiCode(address()), x, y);
   if (state == GENERIC) {
     CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS);
     rewritten = stub.GetCode();
@@ -1707,7 +1714,8 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 }
 
 void PatchInlinedSmiCode(Address address) {
-  UNIMPLEMENTED();
+  // Disabled, then patched inline smi code is not implemented on X64.
+  // So we do nothing in this case.
 }
 
 

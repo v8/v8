@@ -675,6 +675,91 @@ static void GetOwnPropertyImplementation(JSObject* obj,
 }
 
 
+static bool CheckAccessException(LookupResult* result,
+                                 v8::AccessType access_type) {
+  if (result->type() == CALLBACKS) {
+    Object* callback = result->GetCallbackObject();
+    if (callback->IsAccessorInfo()) {
+      AccessorInfo* info = AccessorInfo::cast(callback);
+      bool can_access =
+          (access_type == v8::ACCESS_HAS &&
+              (info->all_can_read() || info->all_can_write())) ||
+          (access_type == v8::ACCESS_GET && info->all_can_read()) ||
+          (access_type == v8::ACCESS_SET && info->all_can_write());
+      return can_access;
+    }
+  }
+
+  return false;
+}
+
+
+static bool CheckAccess(JSObject* obj,
+                        String* name,
+                        LookupResult* result,
+                        v8::AccessType access_type) {
+  ASSERT(result->IsProperty());
+
+  JSObject* holder = result->holder();
+  JSObject* current = obj;
+  Isolate* isolate = obj->GetIsolate();
+  while (true) {
+    if (current->IsAccessCheckNeeded() &&
+        !isolate->MayNamedAccess(current, name, access_type)) {
+      // Access check callback denied the access, but some properties
+      // can have a special permissions which override callbacks descision
+      // (currently see v8::AccessControl).
+      break;
+    }
+
+    if (current == holder) {
+      return true;
+    }
+
+    current = JSObject::cast(current->GetPrototype());
+  }
+
+  // API callbacks can have per callback access exceptions.
+  switch (result->type()) {
+    case CALLBACKS: {
+      if (CheckAccessException(result, access_type)) {
+        return true;
+      }
+      break;
+    }
+    case INTERCEPTOR: {
+      // If the object has an interceptor, try real named properties.
+      // Overwrite the result to fetch the correct property later.
+      holder->LookupRealNamedProperty(name, result);
+      if (result->IsProperty()) {
+        if (CheckAccessException(result, access_type)) {
+          return true;
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  isolate->ReportFailedAccessCheck(current, access_type);
+  return false;
+}
+
+
+// TODO(1095): we should traverse hidden prototype hierachy as well.
+static bool CheckElementAccess(JSObject* obj,
+                               uint32_t index,
+                               v8::AccessType access_type) {
+  if (obj->IsAccessCheckNeeded() &&
+      !obj->GetIsolate()->MayIndexedAccess(obj, index, access_type)) {
+    return false;
+  }
+
+  return true;
+}
+
+
 // Enumerator used as indices into the array returned from GetOwnProperty
 enum PropertyDescriptorIndices {
   IS_ACCESSOR_INDEX,
@@ -719,7 +804,7 @@ static MaybeObject* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
         // subsequent cases.
         Handle<JSValue> js_value = Handle<JSValue>::cast(obj);
         Handle<String> str(String::cast(js_value->value()));
-        Handle<String> substr = SubString(str, index, index+1, NOT_TENURED);
+        Handle<String> substr = SubString(str, index, index + 1, NOT_TENURED);
 
         elms->set(IS_ACCESSOR_INDEX, heap->false_value());
         elms->set(VALUE_INDEX, *substr);
@@ -732,8 +817,7 @@ static MaybeObject* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
       case JSObject::INTERCEPTED_ELEMENT:
       case JSObject::FAST_ELEMENT: {
         elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-        Handle<Object> element = GetElement(Handle<Object>(obj), index);
-        elms->set(VALUE_INDEX, *element);
+        elms->set(VALUE_INDEX, *GetElement(obj, index));
         elms->set(WRITABLE_INDEX, heap->true_value());
         elms->set(ENUMERABLE_INDEX,  heap->true_value());
         elms->set(CONFIGURABLE_INDEX, heap->true_value());
@@ -741,7 +825,14 @@ static MaybeObject* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
       }
 
       case JSObject::DICTIONARY_ELEMENT: {
-        NumberDictionary* dictionary = obj->element_dictionary();
+        Handle<JSObject> holder = obj;
+        if (obj->IsJSGlobalProxy()) {
+          Object* proto = obj->GetPrototype();
+          if (proto->IsNull()) return heap->undefined_value();
+          ASSERT(proto->IsJSGlobalObject());
+          holder = Handle<JSObject>(JSObject::cast(proto));
+        }
+        NumberDictionary* dictionary = holder->element_dictionary();
         int entry = dictionary->FindEntry(index);
         ASSERT(entry != NumberDictionary::kNotFound);
         PropertyDetails details = dictionary->DetailsAt(entry);
@@ -751,14 +842,18 @@ static MaybeObject* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
             FixedArray* callbacks =
                 FixedArray::cast(dictionary->ValueAt(entry));
             elms->set(IS_ACCESSOR_INDEX, heap->true_value());
-            elms->set(GETTER_INDEX, callbacks->get(0));
-            elms->set(SETTER_INDEX, callbacks->get(1));
+            if (CheckElementAccess(*obj, index, v8::ACCESS_GET)) {
+              elms->set(GETTER_INDEX, callbacks->get(0));
+            }
+            if (CheckElementAccess(*obj, index, v8::ACCESS_SET)) {
+              elms->set(SETTER_INDEX, callbacks->get(1));
+            }
             break;
           }
           case NORMAL:
             // This is a data property.
             elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-            elms->set(VALUE_INDEX, dictionary->ValueAt(entry));
+            elms->set(VALUE_INDEX, *GetElement(obj, index));
             elms->set(WRITABLE_INDEX, heap->ToBoolean(!details.IsReadOnly()));
             break;
           default:
@@ -778,35 +873,41 @@ static MaybeObject* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
   if (!result.IsProperty()) {
     return heap->undefined_value();
   }
-  if (result.type() == CALLBACKS) {
-    Object* structure = result.GetCallbackObject();
-    if (structure->IsProxy() || structure->IsAccessorInfo()) {
-      // Property that is internally implemented as a callback or
-      // an API defined callback.
-      Object* value;
-      { MaybeObject* maybe_value = obj->GetPropertyWithCallback(
-            *obj, structure, *name, result.holder());
-        if (!maybe_value->ToObject(&value)) return maybe_value;
-      }
-      elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-      elms->set(VALUE_INDEX, value);
-      elms->set(WRITABLE_INDEX, heap->ToBoolean(!result.IsReadOnly()));
-    } else if (structure->IsFixedArray()) {
-      // __defineGetter__/__defineSetter__ callback.
-      elms->set(IS_ACCESSOR_INDEX, heap->true_value());
-      elms->set(GETTER_INDEX, FixedArray::cast(structure)->get(0));
-      elms->set(SETTER_INDEX, FixedArray::cast(structure)->get(1));
-    } else {
-      return heap->undefined_value();
-    }
-  } else {
-    elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-    elms->set(VALUE_INDEX, result.GetLazyValue());
-    elms->set(WRITABLE_INDEX, heap->ToBoolean(!result.IsReadOnly()));
+
+  if (!CheckAccess(*obj, *name, &result, v8::ACCESS_HAS)) {
+    return heap->false_value();
   }
 
   elms->set(ENUMERABLE_INDEX, heap->ToBoolean(!result.IsDontEnum()));
   elms->set(CONFIGURABLE_INDEX, heap->ToBoolean(!result.IsDontDelete()));
+
+  bool is_js_accessor = (result.type() == CALLBACKS) &&
+                        (result.GetCallbackObject()->IsFixedArray());
+
+  if (is_js_accessor) {
+    // __defineGetter__/__defineSetter__ callback.
+    elms->set(IS_ACCESSOR_INDEX, heap->true_value());
+
+    FixedArray* structure = FixedArray::cast(result.GetCallbackObject());
+    if (CheckAccess(*obj, *name, &result, v8::ACCESS_GET)) {
+      elms->set(GETTER_INDEX, structure->get(0));
+    }
+    if (CheckAccess(*obj, *name, &result, v8::ACCESS_SET)) {
+      elms->set(SETTER_INDEX, structure->get(1));
+    }
+  } else {
+    elms->set(IS_ACCESSOR_INDEX, heap->false_value());
+    elms->set(WRITABLE_INDEX, heap->ToBoolean(!result.IsReadOnly()));
+
+    PropertyAttributes attrs;
+    Object* value;
+    // GetProperty will check access and report any violations.
+    { MaybeObject* maybe_value = obj->GetProperty(*obj, &result, *name, &attrs);
+      if (!maybe_value->ToObject(&value)) return maybe_value;
+    }
+    elms->set(VALUE_INDEX, value);
+  }
+
   return *desc;
 }
 
@@ -818,10 +919,17 @@ static MaybeObject* Runtime_PreventExtensions(RUNTIME_CALLING_CONVENTION) {
   return obj->PreventExtensions();
 }
 
+
 static MaybeObject* Runtime_IsExtensible(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(JSObject, obj, args[0]);
+  if (obj->IsJSGlobalProxy()) {
+    Object* proto = obj->GetPrototype();
+    if (proto->IsNull()) return isolate->heap()->false_value();
+    ASSERT(proto->IsJSGlobalObject());
+    obj = JSObject::cast(proto);
+  }
   return obj->map()->is_extensible() ? isolate->heap()->true_value()
                                      : isolate->heap()->false_value();
 }
@@ -1031,7 +1139,11 @@ static MaybeObject* Runtime_DeclareGlobals(RUNTIME_CALLING_CONVENTION) {
         const char* type = (lookup.IsReadOnly()) ? "const" : "var";
         return ThrowRedeclarationError(isolate, type, name);
       }
-      SetProperty(global, name, value, attributes);
+      Handle<Object> result = SetProperty(global, name, value, attributes);
+      if (result.is_null()) {
+        ASSERT(isolate->has_pending_exception());
+        return Failure::Exception();
+      }
     } else {
       // If a property with this name does not already exist on the
       // global object add the property locally.  We take special
@@ -1039,10 +1151,16 @@ static MaybeObject* Runtime_DeclareGlobals(RUNTIME_CALLING_CONVENTION) {
       // of callbacks in the prototype chain (this rules out using
       // SetProperty).  Also, we must use the handle-based version to
       // avoid GC issues.
-      SetLocalPropertyIgnoreAttributes(global, name, value, attributes);
+      Handle<Object> result =
+          SetLocalPropertyIgnoreAttributes(global, name, value, attributes);
+      if (result.is_null()) {
+        ASSERT(isolate->has_pending_exception());
+        return Failure::Exception();
+      }
     }
   }
 
+  ASSERT(!isolate->has_pending_exception());
   return isolate->heap()->undefined_value();
 }
 
@@ -1093,12 +1211,15 @@ static MaybeObject* Runtime_DeclareContextSlot(RUNTIME_CALLING_CONVENTION) {
         } else {
           // The holder is an arguments object.
           Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
-          SetElement(arguments, index, initial_value);
+          Handle<Object> result = SetElement(arguments, index, initial_value);
+          if (result.is_null()) return Failure::Exception();
         }
       } else {
         // Slow case: The property is not in the FixedArray part of the context.
         Handle<JSObject> context_ext = Handle<JSObject>::cast(holder);
-        SetProperty(context_ext, name, initial_value, mode);
+        Handle<Object> result =
+            SetProperty(context_ext, name, initial_value, mode);
+        if (result.is_null()) return Failure::Exception();
       }
     }
 
@@ -1126,8 +1247,8 @@ static MaybeObject* Runtime_DeclareContextSlot(RUNTIME_CALLING_CONVENTION) {
     ASSERT(!context_ext->HasLocalProperty(*name));
     Handle<Object> value(isolate->heap()->undefined_value(), isolate);
     if (*initial_value != NULL) value = initial_value;
-    SetProperty(context_ext, name, value, mode);
-    ASSERT(context_ext->GetLocalPropertyAttribute(*name) == mode);
+    Handle<Object> result = SetProperty(context_ext, name, value, mode);
+    if (result.is_null()) return Failure::Exception();
   }
 
   return isolate->heap()->undefined_value();
@@ -3646,8 +3767,10 @@ static MaybeObject* Runtime_KeyedGetProperty(RUNTIME_CALLING_CONVENTION) {
     HandleScope scope(isolate);
     Handle<String> str = args.at<String>(0);
     int index = Smi::cast(args[1])->value();
-    Handle<Object> result = GetCharAt(str, index);
-    return *result;
+    if (index >= 0 && index < str->length()) {
+      Handle<Object> result = GetCharAt(str, index);
+      return *result;
+    }
   }
 
   // Fall back to GetObjectProperty.
@@ -3656,7 +3779,12 @@ static MaybeObject* Runtime_KeyedGetProperty(RUNTIME_CALLING_CONVENTION) {
                                     args.at<Object>(1));
 }
 
-
+// Implements part of 8.12.9 DefineOwnProperty.
+// There are 3 cases that lead here:
+// Step 4b - define a new accessor property.
+// Steps 9c & 12 - replace an existing data property with an accessor property.
+// Step 12 - update an existing accessor property with an accessor or generic
+//           descriptor.
 static MaybeObject* Runtime_DefineOrRedefineAccessorProperty(
     RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
@@ -3690,6 +3818,12 @@ static MaybeObject* Runtime_DefineOrRedefineAccessorProperty(
   return obj->DefineAccessor(name, flag_setter->value() == 0, fun, attr);
 }
 
+// Implements part of 8.12.9 DefineOwnProperty.
+// There are 3 cases that lead here:
+// Step 4a - define a new data property.
+// Steps 9b & 12 - replace an existing accessor property with a data property.
+// Step 12 - update an existing data property with a data or generic
+//           descriptor.
 static MaybeObject* Runtime_DefineOrRedefineDataProperty(
     RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
@@ -3715,12 +3849,20 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(
   if (((unchecked & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0) &&
       is_element) {
     // Normalize the elements to enable attributes on the property.
+    if (js_object->IsJSGlobalProxy()) {
+      Handle<Object> proto(js_object->GetPrototype());
+      // If proxy is detached, ignore the assignment. Alternatively,
+      // we could throw an exception.
+      if (proto->IsNull()) return *obj_value;
+      js_object = Handle<JSObject>::cast(proto);
+    }
     NormalizeElements(js_object);
     Handle<NumberDictionary> dictionary(js_object->element_dictionary());
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
     PropertyDetails details = PropertyDetails(attr, NORMAL);
     NumberDictionarySet(dictionary, index, obj_value, details);
+    return *obj_value;
   }
 
   LookupResult result;
@@ -3735,6 +3877,11 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(
   if (result.IsProperty() &&
       (attr != result.GetAttributes() || result.type() == CALLBACKS)) {
     // New attributes - normalize to avoid writing to instance descriptor
+    if (js_object->IsJSGlobalProxy()) {
+      // Since the result is a property, the prototype will exist so
+      // we don't have to check for null.
+      js_object = Handle<JSObject>(JSObject::cast(js_object->GetPrototype()));
+    }
     NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
     // Use IgnoreAttributes version since a readonly property may be
     // overridden and SetProperty does not allow this.
@@ -4363,7 +4510,7 @@ static MaybeObject* Runtime_ToSlowProperties(RUNTIME_CALLING_CONVENTION) {
 
   ASSERT(args.length() == 1);
   Handle<Object> object = args.at<Object>(0);
-  if (object->IsJSObject()) {
+  if (object->IsJSObject() && !object->IsJSGlobalProxy()) {
     Handle<JSObject> js_object = Handle<JSObject>::cast(object);
     NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
   }
@@ -6855,25 +7002,46 @@ static MaybeObject* Runtime_NewObjectFromBound(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
+  // First argument is a function to use as a constructor.
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  CONVERT_ARG_CHECKED(JSArray, params, 1);
 
-  RUNTIME_ASSERT(params->HasFastElements());
-  FixedArray* fixed = FixedArray::cast(params->elements());
+  // Second argument is either null or an array of bound arguments.
+  FixedArray* bound_args = NULL;
+  int bound_argc = 0;
+  if (!args[1]->IsNull()) {
+    CONVERT_ARG_CHECKED(JSArray, params, 1);
+    RUNTIME_ASSERT(params->HasFastElements());
+    bound_args = FixedArray::cast(params->elements());
+    bound_argc = Smi::cast(params->length())->value();
+  }
 
-  int fixed_length = Smi::cast(params->length())->value();
-  SmartPointer<Object**> param_data(NewArray<Object**>(fixed_length));
-  for (int i = 0; i < fixed_length; i++) {
-    Handle<Object> val(fixed->get(i), isolate);
+  // Find frame containing arguments passed to the caller.
+  JavaScriptFrameIterator it;
+  JavaScriptFrame* frame = it.frame();
+  ASSERT(!frame->is_optimized());
+  it.AdvanceToArgumentsFrame();
+  frame = it.frame();
+  int argc = frame->GetProvidedParametersCount();
+
+  // Prepend bound arguments to caller's arguments.
+  int total_argc = bound_argc + argc;
+  SmartPointer<Object**> param_data(NewArray<Object**>(total_argc));
+  for (int i = 0; i < bound_argc; i++) {
+    Handle<Object> val = Handle<Object>(bound_args->get(i));
     param_data[i] = val.location();
+  }
+  for (int i = 0; i < argc; i++) {
+    Handle<Object> val = Handle<Object>(frame->GetParameter(i));
+    param_data[bound_argc + i] = val.location();
   }
 
   bool exception = false;
-  Handle<Object> result = Execution::New(
-      function, fixed_length, *param_data, &exception);
+  Handle<Object> result =
+      Execution::New(function, total_argc, *param_data, &exception);
   if (exception) {
       return Failure::Exception();
   }
+
   ASSERT(!result.is_null());
   return *result;
 }
@@ -7192,7 +7360,7 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(
     // the AST id matching the PC.
     Address start = unoptimized->instruction_start();
     unsigned target_pc_offset = static_cast<unsigned>(frame->pc() - start);
-    Address table_cursor = start + unoptimized->stack_check_table_start();
+    Address table_cursor = start + unoptimized->stack_check_table_offset();
     uint32_t table_length = Memory::uint32_at(table_cursor);
     table_cursor += kIntSize;
     for (unsigned i = 0; i < table_length; ++i) {
@@ -7540,12 +7708,17 @@ static MaybeObject* Runtime_StoreContextSlot(RUNTIME_CALLING_CONVENTION) {
     if (holder->IsContext()) {
       // Ignore if read_only variable.
       if ((attributes & READ_ONLY) == 0) {
-        Handle<Context>::cast(holder)->set(index, *value);
+        // Context is a fixed array and set cannot fail.
+        Context::cast(*holder)->set(index, *value);
       }
     } else {
       ASSERT((attributes & READ_ONLY) == 0);
-      Handle<JSObject>::cast(holder)->SetElement(index, *value)->
-          ToObjectUnchecked();
+      Handle<Object> result =
+          SetElement(Handle<JSObject>::cast(holder), index, value);
+      if (result.is_null()) {
+        ASSERT(isolate->has_pending_exception());
+        return Failure::Exception();
+      }
     }
     return *value;
   }
@@ -7568,8 +7741,8 @@ static MaybeObject* Runtime_StoreContextSlot(RUNTIME_CALLING_CONVENTION) {
   // extension object itself.
   if ((attributes & READ_ONLY) == 0 ||
       (context_ext->GetLocalPropertyAttribute(*name) == ABSENT)) {
-    Handle<Object> set = SetProperty(context_ext, name, value, NONE);
-    if (set.is_null()) {
+    Handle<Object> result = SetProperty(context_ext, name, value, NONE);
+    if (result.is_null()) {
       // Failure::Exception is converted to a null handle in the
       // handle-based methods such as SetProperty.  We therefore need
       // to convert null handles back to exceptions.
@@ -7888,7 +8061,8 @@ static MaybeObject* Runtime_CompileString(RUNTIME_CALLING_CONVENTION) {
   Handle<Context> context(isolate->context()->global_context());
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(source,
                                                             context,
-                                                            true);
+                                                            true,
+                                                            kNonStrictMode);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
@@ -7900,13 +8074,15 @@ static MaybeObject* Runtime_CompileString(RUNTIME_CALLING_CONVENTION) {
 
 static ObjectPair CompileGlobalEval(Isolate* isolate,
                                     Handle<String> source,
-                                    Handle<Object> receiver) {
+                                    Handle<Object> receiver,
+                                    StrictModeFlag mode) {
   // Deal with a normal eval call with a string argument. Compile it
   // and return the compiled function bound in the local context.
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source,
       Handle<Context>(isolate->context()),
-      isolate->context()->IsGlobalContext());
+      isolate->context()->IsGlobalContext(),
+      mode);
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
   Handle<JSFunction> compiled =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -7918,7 +8094,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
 static ObjectPair Runtime_ResolvePossiblyDirectEval(
     RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   if (!args[0]->IsJSFunction()) {
     return MakePair(isolate->ThrowIllegalOperation(), NULL);
   }
@@ -7987,14 +8163,19 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(
                     isolate->context()->global()->global_receiver());
   }
 
-  return CompileGlobalEval(isolate, args.at<String>(1), args.at<Object>(2));
+  ASSERT(args[3]->IsSmi());
+  return CompileGlobalEval(isolate,
+                           args.at<String>(1),
+                           args.at<Object>(2),
+                           static_cast<StrictModeFlag>(
+                                Smi::cast(args[3])->value()));
 }
 
 
 static ObjectPair Runtime_ResolvePossiblyDirectEvalNoLookup(
     RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   if (!args[0]->IsJSFunction()) {
     return MakePair(isolate->ThrowIllegalOperation(), NULL);
   }
@@ -8010,7 +8191,12 @@ static ObjectPair Runtime_ResolvePossiblyDirectEvalNoLookup(
                     isolate->context()->global()->global_receiver());
   }
 
-  return CompileGlobalEval(isolate, args.at<String>(1), args.at<Object>(2));
+  ASSERT(args[3]->IsSmi());
+  return CompileGlobalEval(isolate,
+                           args.at<String>(1),
+                           args.at<Object>(2),
+                           static_cast<StrictModeFlag>(
+                                Smi::cast(args[3])->value()));
 }
 
 
@@ -10237,10 +10423,14 @@ static MaybeObject* Runtime_DebugEvaluate(RUNTIME_CALLING_CONVENTION) {
   Handle<String> function_source =
       isolate->factory()->NewStringFromAscii(
           Vector<const char>(kSourceStr, sizeof(kSourceStr) - 1));
+
+  // Currently, the eval code will be executed in non-strict mode,
+  // even in the strict code context.
   Handle<SharedFunctionInfo> shared =
       Compiler::CompileEval(function_source,
                             context,
-                            context->IsGlobalContext());
+                            context->IsGlobalContext(),
+                            kNonStrictMode);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context);
@@ -10327,10 +10517,10 @@ static MaybeObject* Runtime_DebugEvaluateGlobal(RUNTIME_CALLING_CONVENTION) {
   }
 
   // Compile the source to be evaluated.
+  // Currently, the eval code will be executed in non-strict mode,
+  // even in the strict code context.
   Handle<SharedFunctionInfo> shared =
-      Compiler::CompileEval(source,
-                            context,
-                            is_global);
+      Compiler::CompileEval(source, context, is_global, kNonStrictMode);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Handle<JSFunction>(
@@ -11232,6 +11422,52 @@ static MaybeObject* Runtime_GetFromCache(RUNTIME_CALLING_CONVENTION) {
 
   return *value;
 }
+
+
+static MaybeObject* Runtime_NewMessageObject(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
+  HandleScope scope(isolate);
+  CONVERT_ARG_CHECKED(String, type, 0);
+  CONVERT_ARG_CHECKED(JSArray, arguments, 1);
+  return *isolate->factory()->NewJSMessageObject(
+      type,
+      arguments,
+      0,
+      0,
+      isolate->factory()->undefined_value(),
+      isolate->factory()->undefined_value(),
+      isolate->factory()->undefined_value());
+}
+
+
+static MaybeObject* Runtime_MessageGetType(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
+  CONVERT_CHECKED(JSMessageObject, message, args[0]);
+  return message->type();
+}
+
+
+static MaybeObject* Runtime_MessageGetArguments(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
+  CONVERT_CHECKED(JSMessageObject, message, args[0]);
+  return message->arguments();
+}
+
+
+static MaybeObject* Runtime_MessageGetStartPosition(
+    RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
+  CONVERT_CHECKED(JSMessageObject, message, args[0]);
+  return Smi::FromInt(message->start_position());
+}
+
+
+static MaybeObject* Runtime_MessageGetScript(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
+  CONVERT_CHECKED(JSMessageObject, message, args[0]);
+  return message->script();
+}
+
 
 #ifdef DEBUG
 // ListNatives is ONLY used by the fuzz-natives.js in debug mode

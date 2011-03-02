@@ -172,7 +172,7 @@ bool TypeFeedbackOracle::LoadIsBuiltin(Property* expr, Builtins::Name id) {
 }
 
 
-TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr, Side side) {
+TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
   Handle<Object> object = GetElement(map_, expr->position());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
@@ -199,7 +199,7 @@ TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr, Side side) {
 }
 
 
-TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr, Side side) {
+TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
   Handle<Object> object = GetElement(map_, expr->position());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;

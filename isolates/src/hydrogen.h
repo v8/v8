@@ -307,6 +307,7 @@ class HGraph: public HSubgraph {
   void InitializeInferredTypes();
   void InsertTypeConversions();
   void InsertRepresentationChanges();
+  void ComputeMinusZeroChecks();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
   void Canonicalize();
@@ -821,6 +822,8 @@ class HGraphBuilder: public AstVisitor {
   HCompare* BuildSwitchCompare(HSubgraph* subgraph,
                                HValue* switch_value,
                                CaseClause* clause);
+
+  HValue* BuildContextChainWalk(Variable* var);
 
   void AddCheckConstantFunction(Call* expr,
                                 HValue* receiver,

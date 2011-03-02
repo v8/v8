@@ -59,6 +59,7 @@ namespace internal {
   V(GenericUnaryOp)                      \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \
+  V(ToNumber)                            \
   V(CounterOp)                           \
   V(ArgumentsAccess)                     \
   V(RegExpExec)                          \
@@ -74,7 +75,8 @@ namespace internal {
   V(GetProperty)               \
   V(SetProperty)               \
   V(InvokeBuiltin)             \
-  V(RegExpCEntry)
+  V(RegExpCEntry)              \
+  V(DirectCEntry)
 #else
 #define CODE_STUB_LIST_ARM(V)
 #endif
@@ -257,6 +259,19 @@ class StackCheckStub : public CodeStub {
 
   Major MajorKey() { return StackCheck; }
   int MinorKey() { return 0; }
+};
+
+
+class ToNumberStub: public CodeStub {
+ public:
+  ToNumberStub() { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return ToNumber; }
+  int MinorKey() { return 0; }
+  const char* GetName() { return "ToNumberStub"; }
 };
 
 

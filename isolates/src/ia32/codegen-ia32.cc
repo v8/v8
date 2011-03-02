@@ -3776,14 +3776,15 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // Leave the frame and return popping the arguments and the
   // receiver.
   frame_->Exit();
-  masm_->ret((scope()->num_parameters() + 1) * kPointerSize);
+  int arguments_bytes = (scope()->num_parameters() + 1) * kPointerSize;
+  __ Ret(arguments_bytes, ecx);
   DeleteFrame();
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  // Check that the size of the code used for returning matches what is
-  // expected by the debugger.
-  ASSERT_EQ(Assembler::kJSReturnSequenceLength,
-            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+  // Check that the size of the code used for returning is large enough
+  // for the debugger's requirements.
+  ASSERT(Assembler::kJSReturnSequenceLength <=
+         masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
 }
 
@@ -6107,9 +6108,12 @@ void CodeGenerator::VisitCall(Call* node) {
       }
       frame_->PushParameterAt(-1);
 
+      // Push the strict mode flag.
+      frame_->Push(Smi::FromInt(strict_mode_flag()));
+
       // Resolve the call.
       result =
-          frame_->CallRuntime(Runtime::kResolvePossiblyDirectEvalNoLookup, 3);
+          frame_->CallRuntime(Runtime::kResolvePossiblyDirectEvalNoLookup, 4);
 
       done.Jump(&result);
       slow.Bind();
@@ -6126,8 +6130,11 @@ void CodeGenerator::VisitCall(Call* node) {
     }
     frame_->PushParameterAt(-1);
 
+    // Push the strict mode flag.
+    frame_->Push(Smi::FromInt(strict_mode_flag()));
+
     // Resolve the call.
-    result = frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+    result = frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
 
     // If we generated fast-case code bind the jump-target where fast
     // and slow case merge.
@@ -7956,10 +7963,12 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     __ j(not_equal, &not_minus_half);
 
     // Calculates reciprocal of square root.
-    // Note that 1/sqrt(x) = sqrt(1/x))
-    __ divsd(xmm3, xmm0);
-    __ movsd(xmm1, xmm3);
+    // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
+    __ xorpd(xmm1, xmm1);
+    __ addsd(xmm1, xmm0);
     __ sqrtsd(xmm1, xmm1);
+    __ divsd(xmm3, xmm1);
+    __ movsd(xmm1, xmm3);
     __ jmp(&allocate_return);
 
     // Test for 0.5.
@@ -7971,7 +7980,9 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
     __ ucomisd(xmm2, xmm1);
     call_runtime.Branch(not_equal);
     // Calculates square root.
-    __ movsd(xmm1, xmm0);
+    // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
+    __ xorpd(xmm1, xmm1);
+    __ addsd(xmm1, xmm0);
     __ sqrtsd(xmm1, xmm1);
 
     JumpTarget done;

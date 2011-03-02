@@ -177,6 +177,7 @@ Mutex* Isolate::process_wide_mutex_ = OS::CreateMutex();
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 Isolate::ThreadId Isolate::highest_thread_id_ = 0;
 
+
 class IsolateInitializer {
  public:
   IsolateInitializer() {
@@ -712,7 +713,6 @@ bool Isolate::Init(Deserializer* des) {
 
   OProfileAgent::Initialize();
   deoptimizer_data_ = new DeoptimizerData;
-  LAllocator::Setup();
   runtime_profiler_ = new RuntimeProfiler(this);
   runtime_profiler_->Setup();
 

@@ -2127,7 +2127,7 @@ static Instr EncodeVCVT(const VFPType dst_type,
                         const int dst_code,
                         const VFPType src_type,
                         const int src_code,
-                        Assembler::ConversionMode mode,
+                        VFPConversionMode mode,
                         const Condition cond) {
   ASSERT(src_type != dst_type);
   int D, Vd, M, Vm;
@@ -2170,7 +2170,7 @@ static Instr EncodeVCVT(const VFPType dst_type,
 
 void Assembler::vcvt_f64_s32(const DwVfpRegister dst,
                              const SwVfpRegister src,
-                             ConversionMode mode,
+                             VFPConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(F64, dst.code(), S32, src.code(), mode, cond));
@@ -2179,7 +2179,7 @@ void Assembler::vcvt_f64_s32(const DwVfpRegister dst,
 
 void Assembler::vcvt_f32_s32(const SwVfpRegister dst,
                              const SwVfpRegister src,
-                             ConversionMode mode,
+                             VFPConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(F32, dst.code(), S32, src.code(), mode, cond));
@@ -2188,7 +2188,7 @@ void Assembler::vcvt_f32_s32(const SwVfpRegister dst,
 
 void Assembler::vcvt_f64_u32(const DwVfpRegister dst,
                              const SwVfpRegister src,
-                             ConversionMode mode,
+                             VFPConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(F64, dst.code(), U32, src.code(), mode, cond));
@@ -2197,7 +2197,7 @@ void Assembler::vcvt_f64_u32(const DwVfpRegister dst,
 
 void Assembler::vcvt_s32_f64(const SwVfpRegister dst,
                              const DwVfpRegister src,
-                             ConversionMode mode,
+                             VFPConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(S32, dst.code(), F64, src.code(), mode, cond));
@@ -2206,7 +2206,7 @@ void Assembler::vcvt_s32_f64(const SwVfpRegister dst,
 
 void Assembler::vcvt_u32_f64(const SwVfpRegister dst,
                              const DwVfpRegister src,
-                             ConversionMode mode,
+                             VFPConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(U32, dst.code(), F64, src.code(), mode, cond));
@@ -2215,7 +2215,7 @@ void Assembler::vcvt_u32_f64(const SwVfpRegister dst,
 
 void Assembler::vcvt_f64_f32(const DwVfpRegister dst,
                              const SwVfpRegister src,
-                             ConversionMode mode,
+                             VFPConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(F64, dst.code(), F32, src.code(), mode, cond));
@@ -2224,10 +2224,18 @@ void Assembler::vcvt_f64_f32(const DwVfpRegister dst,
 
 void Assembler::vcvt_f32_f64(const SwVfpRegister dst,
                              const DwVfpRegister src,
-                             ConversionMode mode,
+                             VFPConversionMode mode,
                              const Condition cond) {
   ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
   emit(EncodeVCVT(F32, dst.code(), F64, src.code(), mode, cond));
+}
+
+
+void Assembler::vabs(const DwVfpRegister dst,
+                     const DwVfpRegister src,
+                     const Condition cond) {
+  emit(cond | 0xE*B24 | 0xB*B20 | dst.code()*B12 |
+       0x5*B9 | B8 | 0x3*B6 | src.code());
 }
 
 

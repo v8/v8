@@ -258,6 +258,17 @@ class MacroAssembler: public Assembler {
     j(not_carry, is_smi);
   }
 
+  // Jump the register contains a smi.
+  inline void JumpIfSmi(Register value, Label* smi_label) {
+    test(value, Immediate(kSmiTagMask));
+    j(zero, smi_label, not_taken);
+  }
+  // Jump if register contain a non-smi.
+  inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
+    test(value, Immediate(kSmiTagMask));
+    j(not_zero, not_smi_label, not_taken);
+  }
+
   // Assumes input is a heap object.
   void JumpIfNotNumber(Register reg, TypeInfo info, Label* on_not_number);
 
@@ -538,6 +549,10 @@ class MacroAssembler: public Assembler {
   // Utilities
 
   void Ret();
+
+  // Return and drop arguments from stack, where the number of arguments
+  // may be bigger than 2^16 - 1.  Requires a scratch register.
+  void Ret(int bytes_dropped, Register scratch);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the esp register.

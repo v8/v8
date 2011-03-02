@@ -184,7 +184,6 @@ class RelocInfo BASE_EMBEDDED {
     DEBUG_BREAK,  // Code target for the debugger statement.
     CODE_TARGET,  // Code target which is not any of the above.
     EMBEDDED_OBJECT,
-
     GLOBAL_PROPERTY_CELL,
 
     // Everything after runtime_entry (inclusive) is not GC'ed.
@@ -202,7 +201,7 @@ class RelocInfo BASE_EMBEDDED {
     NUMBER_OF_MODES,  // must be no greater than 14 - see RelocInfoWriter
     NONE,  // never recorded
     LAST_CODE_ENUM = CODE_TARGET,
-    LAST_GCED_ENUM = EMBEDDED_OBJECT
+    LAST_GCED_ENUM = GLOBAL_PROPERTY_CELL
   };
 
 
@@ -466,18 +465,35 @@ class Debug_Address;
 // addresses when deserializing a heap.
 class ExternalReference BASE_EMBEDDED {
  public:
+  // Used in the simulator to support different native api calls.
+  //
+  // BUILTIN_CALL - builtin call.
+  // MaybeObject* f(v8::internal::Arguments).
+  //
+  // FP_RETURN_CALL - builtin call that returns floating point.
+  // double f(double, double).
+  //
+  // DIRECT_CALL - direct call to API function native callback
+  // from generated code.
+  // Handle<Value> f(v8::Arguments&)
+  //
+  enum Type {
+    BUILTIN_CALL,  // default
+    FP_RETURN_CALL,
+    DIRECT_CALL
+  };
+
+  typedef void* ExternalReferenceRedirector(void* original, Type type);
+
   explicit ExternalReference(Builtins::CFunctionId id);
 
-  explicit ExternalReference(ApiFunction* ptr);
+  explicit ExternalReference(ApiFunction* ptr, Type type);
 
   explicit ExternalReference(Builtins::Name name);
 
   explicit ExternalReference(Runtime::FunctionId id);
 
   explicit ExternalReference(const Runtime::Function* f);
-
-  // Isolate::Current() as an external reference.
-  static ExternalReference isolate_address();
 
   explicit ExternalReference(const IC_Utility& ic_utility);
 
@@ -490,6 +506,9 @@ class ExternalReference BASE_EMBEDDED {
   explicit ExternalReference(Isolate::AddressId id);
 
   explicit ExternalReference(const SCTableReference& table_ref);
+
+  // Isolate::Current() as an external reference.
+  static ExternalReference isolate_address();
 
   // One-of-a-kind references. These references are not part of a general
   // pattern. This means that they have to be added to the
@@ -591,28 +610,33 @@ class ExternalReference BASE_EMBEDDED {
   static void set_redirector(ExternalReferenceRedirector* redirector) {
     // We can't stack them.
     ASSERT(Isolate::Current()->external_reference_redirector() == NULL);
-    Isolate::Current()->set_external_reference_redirector(redirector);
+    Isolate::Current()->set_external_reference_redirector(
+        reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
   }
 
  private:
   explicit ExternalReference(void* address)
       : address_(address) {}
 
-  static void* Redirect(void* address, bool fp_return = false) {
+  static void* Redirect(void* address,
+                        Type type = ExternalReference::BUILTIN_CALL) {
     ExternalReferenceRedirector* redirector =
-        Isolate::Current()->external_reference_redirector();
+        reinterpret_cast<ExternalReferenceRedirector*>(
+            Isolate::Current()->external_reference_redirector());
     if (redirector == NULL) return address;
-    void* answer = (*redirector)(address, fp_return);
+    void* answer = (*redirector)(address, type);
     return answer;
   }
 
-  static void* Redirect(Address address_arg, bool fp_return = false) {
+  static void* Redirect(Address address_arg,
+                        Type type = ExternalReference::BUILTIN_CALL) {
     ExternalReferenceRedirector* redirector =
-        Isolate::Current()->external_reference_redirector();
+        reinterpret_cast<ExternalReferenceRedirector*>(
+            Isolate::Current()->external_reference_redirector());
     void* address = reinterpret_cast<void*>(address_arg);
     void* answer = (redirector == NULL) ?
                    address :
-                   (*redirector)(address, fp_return);
+                   (*redirector)(address, type);
     return answer;
   }
 

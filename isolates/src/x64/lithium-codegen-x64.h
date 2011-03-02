@@ -65,6 +65,7 @@ class LCodeGen BASE_EMBEDDED {
 
   // Simple accessors.
   MacroAssembler* masm() const { return masm_; }
+  Isolate* isolate() const { return info_->isolate(); }
 
   // Support for converting LOperands to assembler types.
   Register ToRegister(LOperand* op) const;
@@ -192,6 +193,10 @@ class LCodeGen BASE_EMBEDDED {
   void DoMathSin(LUnaryMathOperation* instr);
 
   // Support for recording safepoint and position information.
+  void RecordSafepoint(LPointerMap* pointers,
+                       Safepoint::Kind kind,
+                       int arguments,
+                       int deoptimization_index);
   void RecordSafepoint(LPointerMap* pointers, int deoptimization_index);
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
@@ -216,6 +221,10 @@ class LCodeGen BASE_EMBEDDED {
   Condition EmitIsObject(Register input,
                          Label* is_not_object,
                          Label* is_object);
+
+  // Emits optimized code for %_IsConstructCall().
+  // Caller should branch on equal condition.
+  void EmitIsConstructCall(Register temp);
 
   LChunk* const chunk_;
   MacroAssembler* const masm_;

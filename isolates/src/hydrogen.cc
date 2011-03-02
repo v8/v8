@@ -870,13 +870,11 @@ void HGraph::EliminateRedundantPhis() {
       }
       uses_to_replace.Rewind(0);
       block->RemovePhi(phi);
-    } else if (phi->HasNoUses() &&
-               !phi->HasReceiverOperand() &&
-               FLAG_eliminate_dead_phis) {
-      // We can't eliminate phis that have the receiver as an operand
-      // because in case of throwing an error we need the correct
-      // receiver value in the environment to construct a corrent
-      // stack trace.
+    } else if (FLAG_eliminate_dead_phis && phi->HasNoUses() &&
+               !phi->IsReceiver()) {
+      // We can't eliminate phis in the receiver position in the environment
+      // because in case of throwing an error we need this value to
+      // construct a stack trace.
       block->RemovePhi(phi);
       block->RecordDeletedPhi(phi->merged_index());
     }
@@ -1813,15 +1811,6 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
                                               HValue* use,
                                               Representation to,
                                               bool is_truncating) {
-  // Propagate flags for negative zero checks upwards from conversions
-  // int32-to-tagged and int32-to-double.
-  Representation from = value->representation();
-  if (from.IsInteger32()) {
-    ASSERT(to.IsTagged() || to.IsDouble());
-    BitVector visited(GetMaximumValueID());
-    PropagateMinusZeroChecks(value, &visited);
-  }
-
   // Insert the representation change right before its use. For phi-uses we
   // insert at the end of the corresponding predecessor.
   HBasicBlock* insert_block = use->block();
@@ -1979,6 +1968,30 @@ void HGraph::InsertRepresentationChanges() {
     while (current != NULL) {
       InsertRepresentationChanges(current);
       current = current->next();
+    }
+  }
+}
+
+
+void HGraph::ComputeMinusZeroChecks() {
+  BitVector visited(GetMaximumValueID());
+  for (int i = 0; i < blocks_.length(); ++i) {
+    for (HInstruction* current = blocks_[i]->first();
+         current != NULL;
+         current = current->next()) {
+      if (current->IsChange()) {
+        HChange* change = HChange::cast(current);
+        // Propagate flags for negative zero checks upwards from conversions
+        // int32-to-tagged and int32-to-double.
+        Representation from = change->value()->representation();
+        ASSERT(from.Equals(change->from()));
+        if (from.IsInteger32()) {
+          ASSERT(change->to().IsTagged() || change->to().IsDouble());
+          ASSERT(visited.IsEmpty());
+          PropagateMinusZeroChecks(change->value(), &visited);
+          visited.Clear();
+        }
+      }
     }
   }
 }
@@ -2243,6 +2256,7 @@ HGraph* HGraphBuilder::CreateGraph(CompilationInfo* info) {
   graph_->InitializeInferredTypes();
   graph_->Canonicalize();
   graph_->InsertRepresentationChanges();
+  graph_->ComputeMinusZeroChecks();
 
   // Eliminate redundant stack checks on backwards branches.
   HStackCheckEliminator sce(graph_);
@@ -2936,6 +2950,22 @@ void HGraphBuilder::LookupGlobalPropertyCell(Variable* var,
   if (is_store && lookup->IsReadOnly()) {
     BAILOUT("read-only global variable");
   }
+  if (lookup->holder() != *global) {
+    BAILOUT("global property on prototype of global object");
+  }
+}
+
+
+HValue* HGraphBuilder::BuildContextChainWalk(Variable* var) {
+  ASSERT(var->IsContextSlot());
+  HInstruction* context = new HContext;
+  AddInstruction(context);
+  int length = graph()->info()->scope()->ContextChainLength(var->scope());
+  while (length-- > 0) {
+    context = new HOuterContext(context);
+    AddInstruction(context);
+  }
+  return context;
 }
 
 
@@ -2952,16 +2982,9 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
     if (variable->mode() == Variable::CONST) {
       BAILOUT("reference to const context slot");
     }
-    Slot* slot = variable->AsSlot();
-    CompilationInfo* info = graph()->info();
-    int context_chain_length = info->function()->scope()->
-        ContextChainLength(slot->var()->scope());
-    ASSERT(context_chain_length >= 0);
-    // TODO(antonm): if slot's value is not modified by closures, instead
-    // of reading it out of context, we could just embed the value as
-    // a constant.
-    HLoadContextSlot* instr =
-        new HLoadContextSlot(context_chain_length, slot->index());
+    HValue* context = BuildContextChainWalk(variable);
+    int index = variable->AsSlot()->index();
+    HLoadContextSlot* instr = new HLoadContextSlot(context, index);
     ast_context()->ReturnInstruction(instr, expr->id());
   } else if (variable->is_global()) {
     LookupResult lookup;
@@ -3370,9 +3393,10 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
   LookupGlobalPropertyCell(var, &lookup, true);
   CHECK_BAILOUT;
 
+  bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
   Handle<GlobalObject> global(graph()->info()->global_object());
   Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
-  HInstruction* instr = new HStoreGlobal(value, cell);
+  HInstruction* instr = new HStoreGlobal(value, cell, check_hole);
   instr->set_position(position);
   AddInstruction(instr);
   if (instr->HasSideEffects()) AddSimulate(ast_id);
@@ -3389,7 +3413,6 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
   // We have a second position recorded in the FullCodeGenerator to have
   // type feedback for the binary operation.
   BinaryOperation* operation = expr->binary_operation();
-  operation->RecordTypeFeedback(oracle());
 
   if (var != NULL) {
     if (!var->is_global() && !var->IsStackAllocated()) {
@@ -3499,35 +3522,48 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
     if (proxy->IsArguments()) BAILOUT("assignment to arguments");
 
     // Handle the assignment.
-    if (var->is_global()) {
+    if (var->IsStackAllocated()) {
+      HValue* value = NULL;
+      // Handle stack-allocated variables on the right-hand side directly.
+      // We do not allow the arguments object to occur in a context where it
+      // may escape, but assignments to stack-allocated locals are
+      // permitted.  Handling such assignments here bypasses the check for
+      // the arguments object in VisitVariableProxy.
+      Variable* rhs_var = expr->value()->AsVariableProxy()->AsVariable();
+      if (rhs_var != NULL && rhs_var->IsStackAllocated()) {
+        value = environment()->Lookup(rhs_var);
+      } else {
+        VISIT_FOR_VALUE(expr->value());
+        value = Pop();
+      }
+      Bind(var, value);
+      ast_context()->ReturnValue(value);
+
+    } else if (var->IsContextSlot() && var->mode() != Variable::CONST) {
+      VISIT_FOR_VALUE(expr->value());
+      HValue* context = BuildContextChainWalk(var);
+      int index = var->AsSlot()->index();
+      HStoreContextSlot* instr = new HStoreContextSlot(context, index, Top());
+      AddInstruction(instr);
+      if (instr->HasSideEffects()) AddSimulate(expr->AssignmentId());
+      ast_context()->ReturnValue(Pop());
+
+    } else if (var->is_global()) {
       VISIT_FOR_VALUE(expr->value());
       HandleGlobalVariableAssignment(var,
                                      Top(),
                                      expr->position(),
                                      expr->AssignmentId());
-    } else if (var->IsStackAllocated()) {
-      // We allow reference to the arguments object only in assignemtns
-      // to local variables to make sure that the arguments object does
-      // not escape and is not modified.
-      VariableProxy* rhs = expr->value()->AsVariableProxy();
-      if (rhs != NULL &&
-          rhs->var()->IsStackAllocated() &&
-          environment()->Lookup(rhs->var())->CheckFlag(HValue::kIsArguments)) {
-        Push(environment()->Lookup(rhs->var()));
-      } else {
-        VISIT_FOR_VALUE(expr->value());
-      }
-      Bind(proxy->var(), Top());
+      ast_context()->ReturnValue(Pop());
+
     } else {
-      BAILOUT("Assigning to no non-stack-allocated/non-global variable");
+      BAILOUT("assignment to LOOKUP or const CONTEXT variable");
     }
-    // Return the value.
-    ast_context()->ReturnValue(Pop());
 
   } else if (prop != NULL) {
     HandlePropertyAssignment(expr);
   } else {
-    BAILOUT("unsupported invalid lhs");
+    BAILOUT("invalid left-hand side in assignment");
   }
 }
 
@@ -3540,9 +3576,11 @@ void HGraphBuilder::VisitThrow(Throw* expr) {
   VISIT_FOR_VALUE(expr->exception());
 
   HValue* value = environment()->Pop();
-  HControlInstruction* instr = new HThrow(value);
+  HThrow* instr = new HThrow(value);
   instr->set_position(expr->position());
-  current_subgraph_->FinishExit(instr);
+  AddInstruction(instr);
+  AddSimulate(expr->id());
+  current_subgraph_->FinishExit(new HAbnormalExit);
 }
 
 
@@ -4404,7 +4442,10 @@ void HGraphBuilder::VisitCall(Call* expr) {
       if (known_global_function) {
         // Push the global object instead of the global receiver because
         // code generated by the full code generator expects it.
-        PushAndAdd(new HGlobalObject);
+        HContext* context = new HContext;
+        HGlobalObject* global_object = new HGlobalObject(context);
+        AddInstruction(context);
+        PushAndAdd(global_object);
         VisitArgumentList(expr->arguments());
         CHECK_BAILOUT;
 
@@ -4413,7 +4454,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
         AddInstruction(new HCheckFunction(function, expr->target()));
 
         // Replace the global object with the global receiver.
-        HGlobalReceiver* global_receiver = new HGlobalReceiver;
+        HGlobalReceiver* global_receiver = new HGlobalReceiver(global_object);
         // Index of the receiver from the top of the expression stack.
         const int receiver_index = argument_count - 1;
         AddInstruction(global_receiver);
@@ -4440,7 +4481,9 @@ void HGraphBuilder::VisitCall(Call* expr) {
 
         call = new HCallKnownGlobal(expr->target(), argument_count);
       } else {
-        PushAndAdd(new HGlobalObject);
+        HContext* context = new HContext;
+        AddInstruction(context);
+        PushAndAdd(new HGlobalObject(context));
         VisitArgumentList(expr->arguments());
         CHECK_BAILOUT;
 
@@ -4448,7 +4491,11 @@ void HGraphBuilder::VisitCall(Call* expr) {
       }
 
     } else {
-      PushAndAdd(new HGlobalReceiver);
+      HContext* context = new HContext;
+      HGlobalObject* global_object = new HGlobalObject(context);
+      AddInstruction(context);
+      AddInstruction(global_object);
+      PushAndAdd(new HGlobalReceiver(global_object));
       VisitArgumentList(expr->arguments());
       CHECK_BAILOUT;
 
@@ -4813,7 +4860,7 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
     default:
       UNREACHABLE();
   }
-  TypeInfo info = oracle()->BinaryType(expr, TypeFeedbackOracle::RESULT);
+  TypeInfo info = oracle()->BinaryType(expr);
   // If we hit an uninitialized binary op stub we will get type info
   // for a smi operation. If one of the operands is a constant string
   // do not generate code assuming it is a smi operation.
@@ -4964,7 +5011,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   HValue* left = Pop();
   Token::Value op = expr->op();
 
-  TypeInfo info = oracle()->CompareType(expr, TypeFeedbackOracle::RESULT);
+  TypeInfo info = oracle()->CompareType(expr);
   HInstruction* instr = NULL;
   if (op == Token::INSTANCEOF) {
     // Check to see if the rhs of the instanceof is a global function not
@@ -5139,9 +5186,10 @@ void HGraphBuilder::GenerateIsStringWrapperSafeForDefaultValueOf(
 }
 
 
-  // Support for construct call checks.
+// Support for construct call checks.
 void HGraphBuilder::GenerateIsConstructCall(int argument_count, int ast_id) {
-  BAILOUT("inlined runtime function: IsConstructCall");
+  ASSERT(argument_count == 0);
+  ast_context()->ReturnInstruction(new HIsConstructCall, ast_id);
 }
 
 

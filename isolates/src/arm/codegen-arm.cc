@@ -1109,7 +1109,7 @@ void DeferredInlineSmiOperation::GenerateNonSmiInput() {
 
   Register int32 = r2;
   // Not a 32bits signed int, fall back to the GenericBinaryOpStub.
-  __ ConvertToInt32(tos_register_, int32, r4, r5, entry_label());
+  __ ConvertToInt32(tos_register_, int32, r4, r5, d0, entry_label());
 
   // tos_register_ (r0 or r1): Original heap number.
   // int32: signed 32bits int.
@@ -2192,15 +2192,10 @@ void CodeGenerator::GenerateReturnSequence() {
     DeleteFrame();
 
 #ifdef DEBUG
-    // Check that the size of the code used for returning matches what is
-    // expected by the debugger. If the sp_delts above cannot be encoded in
-    // the add instruction the add will generate two instructions.
-    int return_sequence_length =
-        masm_->InstructionsGeneratedSince(&check_exit_codesize);
-    CHECK(return_sequence_length ==
-          Assembler::kJSReturnSequenceInstructions ||
-          return_sequence_length ==
-          Assembler::kJSReturnSequenceInstructions + 1);
+    // Check that the size of the code used for returning is large enough
+    // for the debugger's requirements.
+    ASSERT(Assembler::kJSReturnSequenceInstructions <=
+           masm_->InstructionsGeneratedSince(&check_exit_codesize));
 #endif
   }
 }
@@ -4178,7 +4173,10 @@ void CodeGenerator::VisitCall(Call* node) {
       __ ldr(r1, frame_->Receiver());
       frame_->EmitPush(r1);
 
-      frame_->CallRuntime(Runtime::kResolvePossiblyDirectEvalNoLookup, 3);
+      // Push the strict mode flag.
+      frame_->EmitPush(Operand(Smi::FromInt(strict_mode_flag())));
+
+      frame_->CallRuntime(Runtime::kResolvePossiblyDirectEvalNoLookup, 4);
 
       done.Jump();
       slow.Bind();
@@ -4198,8 +4196,11 @@ void CodeGenerator::VisitCall(Call* node) {
     __ ldr(r1, frame_->Receiver());
     frame_->EmitPush(r1);
 
+    // Push the strict mode flag.
+    frame_->EmitPush(Operand(Smi::FromInt(strict_mode_flag())));
+
     // Resolve the call.
-    frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+    frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
 
     // If we generated fast-case code bind the jump-target where fast
     // and slow case merge.
@@ -4702,12 +4703,15 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
                                  runtime.entry_label(),
                                  AVOID_NANS_AND_INFINITIES);
 
+    // Convert -0 into +0 by adding +0.
+    __ vmov(d2, 0.0);
+    __ vadd(d0, d2, d0);
     // Load 1.0 into d2.
     __ vmov(d2, 1.0);
 
-    // Calculate the reciprocal of the square root. 1/sqrt(x) = sqrt(1/x).
-    __ vdiv(d0, d2, d0);
+    // Calculate the reciprocal of the square root.
     __ vsqrt(d0, d0);
+    __ vdiv(d0, d2, d0);
 
     __ b(&allocate_return);
 
@@ -4721,6 +4725,9 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
                                  scratch1, scratch2, heap_number_map, s0,
                                  runtime.entry_label(),
                                  AVOID_NANS_AND_INFINITIES);
+    // Convert -0 into +0 by adding +0.
+    __ vmov(d2, 0.0);
+    __ vadd(d0, d2, d0);
     __ vsqrt(d0, d0);
 
     __ bind(&allocate_return);

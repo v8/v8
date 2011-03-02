@@ -44,7 +44,6 @@
 #include "runtime.h"
 #include "zone.h"
 
-
 namespace v8 {
 namespace internal {
 
@@ -82,7 +81,10 @@ class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
 class VMState;
 
-typedef void* ExternalReferenceRedirector(void* original, bool fp_return);
+// 'void function pointer', used to roundtrip the
+// ExternalReference::ExternalReferenceRedirector since we can not include
+// assembler.h, where it is defined, here.
+typedef void* ExternalReferenceRedirectorPointer();
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -288,7 +290,7 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the global context. */                                  \
   V(int, next_serial_number, 0)                                                \
-  V(ExternalReferenceRedirector*, external_reference_redirector, NULL)         \
+  V(ExternalReferenceRedirectorPointer*, external_reference_redirector, NULL)  \
   V(bool, always_allow_natives_syntax, false)                                  \
   /* Part of the state of liveedit. */                                         \
   V(FunctionInfoListener*, active_function_info_listener, NULL)                \
@@ -615,7 +617,9 @@ class Isolate {
   void DoThrow(MaybeObject* exception,
                MessageLocation* location,
                const char* message);
-  bool ShouldReturnException(bool* is_caught_externally,
+  // Checks if exception should be reported and finds out if it's
+  // caught externally.
+  bool ShouldReportException(bool* is_caught_externally,
                              bool catchable_by_javascript);
 
   // Attempts to compute the current source location, storing the

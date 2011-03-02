@@ -2444,9 +2444,17 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
          Handle<Map>(object->map()));
   __ j(not_equal, &miss);
 
+  // Check that the value in the cell is not the hole. If it is, this
+  // cell could have been deleted and reintroducing the global needs
+  // to update the property details in the property dictionary of the
+  // global object. We bail out to the runtime system to do that.
+  __ Move(rbx, Handle<JSGlobalPropertyCell>(cell));
+  __ CompareRoot(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset),
+                 Heap::kTheHoleValueRootIndex);
+  __ j(equal, &miss);
+
   // Store the value in the cell.
-  __ Move(rcx, Handle<JSGlobalPropertyCell>(cell));
-  __ movq(FieldOperand(rcx, JSGlobalPropertyCell::kValueOffset), rax);
+  __ movq(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset), rax);
 
   // Return the value (register rax).
   __ IncrementCounter(COUNTERS->named_store_global_inline(), 1);
@@ -2990,6 +2998,35 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
   __ j(equal, &miss);
   __ movq(rax, rbx);
   __ ret(0);
+
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
+}
+
+
+MaybeObject* KeyedLoadStubCompiler::CompileLoadPixelArray(JSObject* receiver) {
+  // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that the map matches.
+  __ CheckMap(rdx, Handle<Map>(receiver->map()), &miss, false);
+
+  GenerateFastPixelArrayLoad(masm(),
+                             rdx,
+                             rax,
+                             rbx,
+                             rcx,
+                             rax,
+                             &miss,
+                             &miss,
+                             &miss);
 
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);

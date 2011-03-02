@@ -124,7 +124,8 @@ class CompilationCacheEval: public CompilationSubCache {
       : CompilationSubCache(generations) { }
 
   Handle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                    Handle<Context> context);
+                                    Handle<Context> context,
+                                    StrictModeFlag strict_mode);
 
   void Put(Handle<String> source,
            Handle<Context> context,
@@ -190,7 +191,8 @@ class CompilationCache {
   // contain a script for the given source string.
   Handle<SharedFunctionInfo> LookupEval(Handle<String> source,
                                         Handle<Context> context,
-                                        bool is_global);
+                                        bool is_global,
+                                        StrictModeFlag strict_mode);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.

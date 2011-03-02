@@ -43,6 +43,58 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
+
+class JumpPatchSite BASE_EMBEDDED {
+ public:
+  explicit JumpPatchSite(MacroAssembler* masm)
+      : masm_(masm) {
+#ifdef DEBUG
+    info_emitted_ = false;
+#endif
+  }
+
+  ~JumpPatchSite() {
+    ASSERT(patch_site_.is_bound() == info_emitted_);
+  }
+
+  void EmitJumpIfNotSmi(Register reg, NearLabel* target) {
+    __ testb(reg, Immediate(kSmiTagMask));
+    EmitJump(not_carry, target);   // Always taken before patched.
+  }
+
+  void EmitJumpIfSmi(Register reg, NearLabel* target) {
+    __ testb(reg, Immediate(kSmiTagMask));
+    EmitJump(carry, target);  // Never taken before patched.
+  }
+
+  void EmitPatchInfo() {
+    int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(&patch_site_);
+    ASSERT(is_int8(delta_to_patch_site));
+    __ testl(rax, Immediate(delta_to_patch_site));
+#ifdef DEBUG
+    info_emitted_ = true;
+#endif
+  }
+
+  bool is_bound() const { return patch_site_.is_bound(); }
+
+ private:
+  // jc will be patched with jz, jnc will become jnz.
+  void EmitJump(Condition cc, NearLabel* target) {
+    ASSERT(!patch_site_.is_bound() && !info_emitted_);
+    ASSERT(cc == carry || cc == not_carry);
+    __ bind(&patch_site_);
+    __ j(cc, target);
+  }
+
+  MacroAssembler* masm_;
+  Label patch_site_;
+#ifdef DEBUG
+  bool info_emitted_;
+#endif
+};
+
+
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right, with the
 // return address on top of them.  The actual argument count matches the
@@ -245,19 +297,22 @@ void FullCodeGenerator::EmitReturnSequence() {
     // patch with the code required by the debugger.
     __ movq(rsp, rbp);
     __ pop(rbp);
-    __ ret((scope()->num_parameters() + 1) * kPointerSize);
+
+    int arguments_bytes = (scope()->num_parameters() + 1) * kPointerSize;
+    __ Ret(arguments_bytes, rcx);
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
     // Add padding that will be overwritten by a debugger breakpoint.  We
-    // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
+    // have just generated at least 7 bytes: "movq rsp, rbp; pop rbp; ret k"
     // (3 + 1 + 3).
     const int kPadding = Assembler::kJSReturnSequenceLength - 7;
     for (int i = 0; i < kPadding; ++i) {
       masm_->int3();
     }
-    // Check that the size of the code used for returning matches what is
-    // expected by the debugger.
-    ASSERT_EQ(Assembler::kJSReturnSequenceLength,
-            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+    // Check that the size of the code used for returning is large enough
+    // for the debugger's requirements.
+    ASSERT(Assembler::kJSReturnSequenceLength <=
+           masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
   }
 }
@@ -659,18 +714,24 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
   } else if (prop != NULL) {
     if (function != NULL || mode == Variable::CONST) {
       // We are declaring a function or constant that rewrites to a
-      // property.  Use (keyed) IC to set the initial value.
-      VisitForStackValue(prop->obj());
-      if (function != NULL) {
-        VisitForStackValue(prop->key());
-        VisitForAccumulatorValue(function);
-        __ pop(rcx);
-      } else {
-        VisitForAccumulatorValue(prop->key());
-        __ movq(rcx, result_register());
-        __ LoadRoot(result_register(), Heap::kTheHoleValueRootIndex);
+      // property.  Use (keyed) IC to set the initial value.  We
+      // cannot visit the rewrite because it's shared and we risk
+      // recording duplicate AST IDs for bailouts from optimized code.
+      ASSERT(prop->obj()->AsVariableProxy() != NULL);
+      { AccumulatorValueContext for_object(this);
+        EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
       }
-      __ pop(rdx);
+      if (function != NULL) {
+        __ push(rax);
+        VisitForAccumulatorValue(function);
+        __ pop(rdx);
+      } else {
+        __ movq(rdx, rax);
+        __ LoadRoot(rax, Heap::kTheHoleValueRootIndex);
+      }
+      ASSERT(prop->key()->AsLiteral() != NULL &&
+             prop->key()->AsLiteral()->handle()->IsSmi());
+      __ Move(rcx, prop->key()->AsLiteral()->handle());
 
       Handle<Code> ic(isolate()->builtins()->builtin(
           Builtins::KeyedStoreIC_Initialize));
@@ -729,21 +790,25 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     // Perform the comparison as if via '==='.
     __ movq(rdx, Operand(rsp, 0));  // Switch value.
     bool inline_smi_code = ShouldInlineSmiCase(Token::EQ_STRICT);
+    JumpPatchSite patch_site(masm_);
     if (inline_smi_code) {
-      Label slow_case;
-      __ JumpIfNotBothSmi(rdx, rax, &slow_case);
-      __ SmiCompare(rdx, rax);
+      NearLabel slow_case;
+      __ movq(rcx, rdx);
+      __ or_(rcx, rax);
+      patch_site.EmitJumpIfNotSmi(rcx, &slow_case);
+
+      __ cmpq(rdx, rax);
       __ j(not_equal, &next_test);
       __ Drop(1);  // Switch value is no longer needed.
       __ jmp(clause->body_target()->entry_label());
       __ bind(&slow_case);
     }
 
-    CompareFlags flags = inline_smi_code
-        ? NO_SMI_COMPARE_IN_STUB
-        : NO_COMPARE_FLAGS;
-    CompareStub stub(equal, true, flags);
-    __ CallStub(&stub);
+    // Record position before stub call for type feedback.
+    SetSourcePosition(clause->position());
+    Handle<Code> ic = CompareIC::GetUninitialized(Token::EQ_STRICT);
+    EmitCallIC(ic, &patch_site);
+
     __ testq(rax, rax);
     __ j(not_equal, &next_test);
     __ Drop(1);  // Switch value is no longer needed.
@@ -1533,21 +1598,17 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
   // Do combined smi check of the operands. Left operand is on the
   // stack (popped into rdx). Right operand is in rax but moved into
   // rcx to make the shifts easier.
-  Label done, stub_call, smi_case;
+  NearLabel done, stub_call, smi_case;
   __ pop(rdx);
   __ movq(rcx, rax);
-  Condition smi = masm()->CheckBothSmi(rdx, rax);
-  __ j(smi, &smi_case);
+  __ or_(rax, rdx);
+  JumpPatchSite patch_site(masm_);
+  patch_site.EmitJumpIfSmi(rax, &smi_case);
 
   __ bind(&stub_call);
-  GenericBinaryOpStub stub(op, mode, NO_SMI_CODE_IN_STUB, TypeInfo::Unknown());
-  if (stub.ArgsInRegistersSupported()) {
-    stub.GenerateCall(masm_, rdx, rcx);
-  } else {
-    __ push(rdx);
-    __ push(rcx);
-    __ CallStub(&stub);
-  }
+  __ movq(rax, rcx);
+  TypeRecordingBinaryOpStub stub(op, mode);
+  EmitCallIC(stub.GetCode(), &patch_site);
   __ jmp(&done);
 
   __ bind(&smi_case);
@@ -1591,14 +1652,9 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
 
 void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      OverwriteMode mode) {
-  GenericBinaryOpStub stub(op, mode, NO_GENERIC_BINARY_FLAGS);
-  if (stub.ArgsInRegistersSupported()) {
-    __ pop(rdx);
-    stub.GenerateCall(masm_, rdx, rax);
-  } else {
-    __ push(result_register());
-    __ CallStub(&stub);
-  }
+  TypeRecordingBinaryOpStub stub(op, mode);
+  __ pop(rdx);
+  __ CallStub(&stub);
   context()->Plug(rax);
 }
 
@@ -1952,7 +2008,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
       // Push the receiver of the enclosing function and do runtime call.
       __ push(Operand(rbp, (2 + scope()->num_parameters()) * kPointerSize));
-      __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+      // Push the strict mode flag.
+      __ Push(Smi::FromInt(strict_mode_flag()));
+      __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
 
       // The runtime call returns a pair of values in rax (function) and
       // rdx (receiver). Touch up the stack with the right values.
@@ -3084,8 +3142,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Label no_conversion;
       Condition is_smi = masm_->CheckSmi(result_register());
       __ j(is_smi, &no_conversion);
-      __ push(result_register());
-      __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+      ToNumberStub convert_stub;
+      __ CallStub(&convert_stub);
       __ bind(&no_conversion);
       context()->Plug(result_register());
       break;
@@ -3201,8 +3259,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   Condition is_smi;
   is_smi = masm_->CheckSmi(rax);
   __ j(is_smi, &no_conversion);
-  __ push(rax);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+  ToNumberStub convert_stub;
+  __ CallStub(&convert_stub);
   __ bind(&no_conversion);
 
   // Save result for postfix expressions.
@@ -3226,7 +3284,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Inline smi case if we are in a loop.
-  Label stub_call, done;
+  NearLabel stub_call, done;
+  JumpPatchSite patch_site(masm_);
+
   if (ShouldInlineSmiCase(expr->op())) {
     if (expr->op() == Token::INC) {
       __ SmiAddConstant(rax, rax, Smi::FromInt(1));
@@ -3236,8 +3296,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     __ j(overflow, &stub_call);
     // We could eliminate this smi check if we split the code at
     // the first smi check before calling ToNumber.
-    is_smi = masm_->CheckSmi(rax);
-    __ j(is_smi, &done);
+    patch_site.EmitJumpIfSmi(rax, &done);
+
     __ bind(&stub_call);
     // Call stub. Undo operation first.
     if (expr->op() == Token::INC) {
@@ -3251,10 +3311,14 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   SetSourcePosition(expr->position());
 
   // Call stub for +1/-1.
-  GenericBinaryOpStub stub(expr->binary_op(),
-                           NO_OVERWRITE,
-                           NO_GENERIC_BINARY_FLAGS);
-  stub.GenerateCall(masm_, rax, Smi::FromInt(1));
+  TypeRecordingBinaryOpStub stub(expr->binary_op(), NO_OVERWRITE);
+  if (expr->op() == Token::INC) {
+    __ Move(rdx, Smi::FromInt(1));
+  } else {
+    __ movq(rdx, rax);
+    __ Move(rax, Smi::FromInt(1));
+  }
+  EmitCallIC(stub.GetCode(), &patch_site);
   __ bind(&done);
 
   // Store the value returned in rax.
@@ -3527,19 +3591,21 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       }
 
       bool inline_smi_code = ShouldInlineSmiCase(op);
+      JumpPatchSite patch_site(masm_);
       if (inline_smi_code) {
-        Label slow_case;
-        __ JumpIfNotBothSmi(rax, rdx, &slow_case);
-        __ SmiCompare(rdx, rax);
+        NearLabel slow_case;
+        __ movq(rcx, rdx);
+        __ or_(rcx, rax);
+        patch_site.EmitJumpIfNotSmi(rcx, &slow_case);
+        __ cmpq(rdx, rax);
         Split(cc, if_true, if_false, NULL);
         __ bind(&slow_case);
       }
 
-      CompareFlags flags = inline_smi_code
-          ? NO_SMI_COMPARE_IN_STUB
-          : NO_COMPARE_FLAGS;
-      CompareStub stub(cc, strict, flags);
-      __ CallStub(&stub);
+      // Record position and call the compare IC.
+      SetSourcePosition(expr->position());
+      Handle<Code> ic = CompareIC::GetUninitialized(op);
+      EmitCallIC(ic, &patch_site);
 
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
       __ testq(rax, rax);
@@ -3602,10 +3668,30 @@ Register FullCodeGenerator::context_register() {
 void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
   ASSERT(mode == RelocInfo::CODE_TARGET ||
          mode == RelocInfo::CODE_TARGET_CONTEXT);
+  switch (ic->kind()) {
+    case Code::LOAD_IC:
+      __ IncrementCounter(COUNTERS->named_load_full(), 1);
+      break;
+    case Code::KEYED_LOAD_IC:
+      __ IncrementCounter(COUNTERS->keyed_load_full(), 1);
+      break;
+    case Code::STORE_IC:
+      __ IncrementCounter(COUNTERS->named_store_full(), 1);
+      break;
+    case Code::KEYED_STORE_IC:
+      __ IncrementCounter(COUNTERS->keyed_store_full(), 1);
+    default:
+      break;
+  }
+
   __ call(ic, mode);
 
   // Crankshaft doesn't need patching of inlined loads and stores.
-  if (V8::UseCrankshaft()) return;
+  // When compiling the snapshot we need to produce code that works
+  // with and without Crankshaft.
+  if (V8::UseCrankshaft() && !Serializer::enabled()) {
+    return;
+  }
 
   // If we're calling a (keyed) load or store stub, we have to mark
   // the call as containing no inlined code so we will not attempt to
@@ -3620,6 +3706,16 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
     default:
       // Do nothing.
       break;
+  }
+}
+
+
+void FullCodeGenerator::EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site) {
+  __ call(ic, RelocInfo::CODE_TARGET);
+  if (patch_site != NULL && patch_site->is_bound()) {
+    patch_site->EmitPatchInfo();
+  } else {
+    __ nop();  // Signals no inlined code.
   }
 }
 

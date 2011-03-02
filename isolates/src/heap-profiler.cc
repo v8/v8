@@ -377,6 +377,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name,
   bool generation_completed = true;
   switch (s_type) {
     case HeapSnapshot::kFull: {
+      HEAP->CollectAllGarbage(true);
       HeapSnapshotGenerator generator(result, control);
       generation_completed = generator.GenerateSnapshot();
       break;
@@ -815,7 +816,7 @@ void AggregatedHeapSnapshotGenerator::CollectStats(HeapObject* obj) {
 
 
 void AggregatedHeapSnapshotGenerator::GenerateSnapshot() {
-  HeapIterator iterator(HeapIterator::kFilterFreeListNodes);
+  HeapIterator iterator(HeapIterator::kFilterUnreachable);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     CollectStats(obj);
     agg_snapshot_->js_cons_profile()->CollectStats(obj);

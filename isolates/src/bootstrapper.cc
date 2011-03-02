@@ -1018,7 +1018,6 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "Instantiate", instantiate_fun);
   INSTALL_NATIVE(JSFunction, "ConfigureTemplateInstance",
                  configure_instance_fun);
-  INSTALL_NATIVE(JSFunction, "MakeMessage", make_message_fun);
   INSTALL_NATIVE(JSFunction, "GetStackTraceLine", get_stack_trace_line_fun);
   INSTALL_NATIVE(JSObject, "functionCache", function_cache);
 }
@@ -1783,9 +1782,8 @@ Genesis::Genesis(Handle<Object> global_object,
     AddToWeakGlobalContextList(*global_context_);
     isolate->set_context(*global_context_);
     isolate->counters()->contexts_created_by_snapshot()->Increment();
-    result_ = global_context_;
     JSFunction* empty_function =
-        JSFunction::cast(result_->function_map()->prototype());
+        JSFunction::cast(global_context_->function_map()->prototype());
     empty_function_ = Handle<JSFunction>(empty_function);
     Handle<GlobalObject> inner_global;
     Handle<JSGlobalProxy> global_proxy =

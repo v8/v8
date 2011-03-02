@@ -253,6 +253,7 @@ bool HValue::Equals(HValue* other) const {
   if (other->opcode() != opcode()) return false;
   if (!other->representation().Equals(representation())) return false;
   if (!other->type_.Equals(type_)) return false;
+  if (other->flags() != flags()) return false;
   if (OperandCount() != other->OperandCount()) return false;
   for (int i = 0; i < OperandCount(); ++i) {
     if (OperandAt(i)->id() != other->OperandAt(i)->id()) return false;
@@ -899,17 +900,6 @@ void HPhi::AddInput(HValue* value) {
 }
 
 
-bool HPhi::HasReceiverOperand() {
-  for (int i = 0; i < OperandCount(); i++) {
-    if (OperandAt(i)->IsParameter() &&
-        HParameter::cast(OperandAt(i))->index() == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 HValue* HPhi::GetRedundantReplacement() const {
   HValue* candidate = NULL;
   int count = OperandCount();
@@ -1192,7 +1182,15 @@ void HStoreGlobal::PrintDataTo(StringStream* stream) const {
 
 
 void HLoadContextSlot::PrintDataTo(StringStream* stream) const {
-  stream->Add("(%d, %d)", context_chain_length(), slot_index());
+  value()->PrintNameTo(stream);
+  stream->Add("[%d]", slot_index());
+}
+
+
+void HStoreContextSlot::PrintDataTo(StringStream* stream) const {
+  context()->PrintNameTo(stream);
+  stream->Add("[%d] = ", slot_index());
+  value()->PrintNameTo(stream);
 }
 
 

@@ -2590,13 +2590,23 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
          Immediate(Handle<Map>(object->map())));
   __ j(not_equal, &miss, not_taken);
 
-  // Store the value in the cell.
+
+  // Compute the cell operand to use.
+  Operand cell_operand = Operand::Cell(Handle<JSGlobalPropertyCell>(cell));
   if (Serializer::enabled()) {
     __ mov(ecx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
-    __ mov(FieldOperand(ecx, JSGlobalPropertyCell::kValueOffset), eax);
-  } else {
-    __ mov(Operand::Cell(Handle<JSGlobalPropertyCell>(cell)), eax);
+    cell_operand = FieldOperand(ecx, JSGlobalPropertyCell::kValueOffset);
   }
+
+  // Check that the value in the cell is not the hole. If it is, this
+  // cell could have been deleted and reintroducing the global needs
+  // to update the property details in the property dictionary of the
+  // global object. We bail out to the runtime system to do that.
+  __ cmp(cell_operand, FACTORY->the_hole_value());
+  __ j(equal, &miss);
+
+  // Store the value in the cell.
+  __ mov(cell_operand, eax);
 
   // Return the value (register eax).
   __ IncrementCounter(COUNTERS->named_store_global_inline(), 1);
@@ -3150,6 +3160,38 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
 
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
+}
+
+
+MaybeObject* KeyedLoadStubCompiler::CompileLoadPixelArray(JSObject* receiver) {
+  // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that the map matches.
+  __ CheckMap(edx, Handle<Map>(receiver->map()), &miss, false);
+
+  GenerateFastPixelArrayLoad(masm(),
+                             edx,
+                             eax,
+                             ecx,
+                             ebx,
+                             eax,
+                             &miss,
+                             &miss,
+                             &miss);
+
+  // Handle load cache miss.
+  __ bind(&miss);
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Miss));
+  __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
   return GetCode(NORMAL, NULL);

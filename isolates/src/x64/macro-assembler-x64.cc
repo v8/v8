@@ -68,7 +68,9 @@ void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
 }
 
 
-void MacroAssembler::CompareRoot(Operand with, Heap::RootListIndex index) {
+void MacroAssembler::CompareRoot(const Operand& with,
+                                 Heap::RootListIndex index) {
+  ASSERT(!with.AddressUsesRegister(kScratchRegister));
   LoadRoot(kScratchRegister, index);
   cmpq(with, kScratchRegister);
 }
@@ -1545,6 +1547,18 @@ void MacroAssembler::Ret() {
 }
 
 
+void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
+  if (is_uint16(bytes_dropped)) {
+    ret(bytes_dropped);
+  } else {
+    pop(scratch);
+    addq(rsp, Immediate(bytes_dropped));
+    push(scratch);
+    ret(0);
+  }
+}
+
+
 void MacroAssembler::FCmp() {
   fucomip();
   fstp(0);
@@ -1776,10 +1790,18 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   Move(rdi, Handle<JSFunction>(function));
   movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
-  // Invoke the cached code.
-  Handle<Code> code(function->code());
-  ParameterCount expected(function->shared()->formal_parameter_count());
-  InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+  if (V8::UseCrankshaft()) {
+    // Since Crankshaft can recompile a function, we need to load
+    // the Code object every time we call the function.
+    movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+    ParameterCount expected(function->shared()->formal_parameter_count());
+    InvokeCode(rdx, expected, actual, flag);
+  } else {
+    // Invoke the cached code.
+    Handle<Code> code(function->code());
+    ParameterCount expected(function->shared()->formal_parameter_count());
+    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+  }
 }
 
 
@@ -2094,11 +2116,11 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
 
   Register top_reg = result_end.is_valid() ? result_end : result;
 
-  if (top_reg.is(result)) {
-    addq(top_reg, Immediate(object_size));
-  } else {
-    lea(top_reg, Operand(result, object_size));
+  if (!top_reg.is(result)) {
+    movq(top_reg, result);
   }
+  addq(top_reg, Immediate(object_size));
+  j(carry, gc_required);
   movq(kScratchRegister, new_space_allocation_limit);
   cmpq(top_reg, Operand(kScratchRegister, 0));
   j(above, gc_required);
@@ -2148,7 +2170,12 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
       ExternalReference::new_space_allocation_limit_address();
-  lea(result_end, Operand(result, element_count, element_size, header_size));
+
+  // We assume that element_count*element_size + header_size does not
+  // overflow.
+  lea(result_end, Operand(element_count, element_size, header_size));
+  addq(result_end, result);
+  j(carry, gc_required);
   movq(kScratchRegister, new_space_allocation_limit);
   cmpq(result_end, Operand(kScratchRegister, 0));
   j(above, gc_required);
@@ -2194,6 +2221,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
     movq(result_end, object_size);
   }
   addq(result_end, result);
+  j(carry, gc_required);
   movq(kScratchRegister, new_space_allocation_limit);
   cmpq(result_end, Operand(kScratchRegister, 0));
   j(above, gc_required);

@@ -64,6 +64,7 @@ class LChunkBuilder;
 
 
 #define HYDROGEN_CONCRETE_INSTRUCTION_LIST(V)  \
+  V(AbnormalExit)                              \
   V(AccessArgumentsAt)                         \
   V(Add)                                       \
   V(ApplyArguments)                            \
@@ -97,6 +98,7 @@ class LChunkBuilder;
   V(CompareJSObjectEq)                         \
   V(CompareMap)                                \
   V(Constant)                                  \
+  V(Context)                                   \
   V(DeleteProperty)                            \
   V(Deoptimize)                                \
   V(Div)                                       \
@@ -111,6 +113,7 @@ class LChunkBuilder;
   V(IsNull)                                    \
   V(IsObject)                                  \
   V(IsSmi)                                     \
+  V(IsConstructCall)                           \
   V(HasInstanceType)                           \
   V(HasCachedArrayIndex)                       \
   V(JSArrayLength)                             \
@@ -128,6 +131,7 @@ class LChunkBuilder;
   V(Mul)                                       \
   V(ObjectLiteral)                             \
   V(OsrEntry)                                  \
+  V(OuterContext)                              \
   V(Parameter)                                 \
   V(Power)                                     \
   V(PushArgument)                              \
@@ -138,6 +142,7 @@ class LChunkBuilder;
   V(Shr)                                       \
   V(Simulate)                                  \
   V(StackCheck)                                \
+  V(StoreContextSlot)                          \
   V(StoreGlobal)                               \
   V(StoreKeyedFastElement)                     \
   V(StoreKeyedGeneric)                         \
@@ -162,6 +167,7 @@ class LChunkBuilder;
   V(GlobalVars)                                \
   V(Maps)                                      \
   V(ArrayLengths)                              \
+  V(ContextSlots)                              \
   V(OsrEntries)
 
 #define DECLARE_INSTRUCTION(type)                   \
@@ -834,12 +840,11 @@ class HReturn: public HUnaryControlInstruction {
 };
 
 
-class HThrow: public HUnaryControlInstruction {
+class HAbnormalExit: public HControlInstruction {
  public:
-  explicit HThrow(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) { }
+  HAbnormalExit() : HControlInstruction(NULL, NULL) { }
 
-  DECLARE_CONCRETE_INSTRUCTION(Throw, "throw")
+  DECLARE_CONCRETE_INSTRUCTION(AbnormalExit, "abnormal_exit")
 };
 
 
@@ -863,6 +868,20 @@ class HUnaryOperation: public HInstruction {
 
  private:
   HOperandVector<1> operands_;
+};
+
+
+class HThrow: public HUnaryOperation {
+ public:
+  explicit HThrow(HValue* value) : HUnaryOperation(value) {
+    SetAllSideEffects();
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Throw, "throw")
 };
 
 
@@ -989,7 +1008,7 @@ class HStackCheck: public HInstruction {
  public:
   HStackCheck() { }
 
-  DECLARE_CONCRETE_INSTRUCTION(Throw, "stack_check")
+  DECLARE_CONCRETE_INSTRUCTION(StackCheck, "stack_check")
 };
 
 
@@ -1046,12 +1065,39 @@ class HPushArgument: public HUnaryOperation {
 };
 
 
-class HGlobalObject: public HInstruction {
+class HContext: public HInstruction {
  public:
-  HGlobalObject() {
+  HContext() {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnCalls);
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Context, "context");
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+};
+
+
+class HOuterContext: public HUnaryOperation {
+ public:
+  explicit HOuterContext(HValue* inner) : HUnaryOperation(inner) {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(OuterContext, "outer_context");
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+};
+
+
+class HGlobalObject: public HUnaryOperation {
+ public:
+  explicit HGlobalObject(HValue* context) : HUnaryOperation(context) {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
   }
 
   DECLARE_CONCRETE_INSTRUCTION(GlobalObject, "global_object")
@@ -1061,12 +1107,12 @@ class HGlobalObject: public HInstruction {
 };
 
 
-class HGlobalReceiver: public HInstruction {
+class HGlobalReceiver: public HUnaryOperation {
  public:
-  HGlobalReceiver() {
+  explicit HGlobalReceiver(HValue* global_object)
+      : HUnaryOperation(global_object) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnCalls);
   }
 
   DECLARE_CONCRETE_INSTRUCTION(GlobalReceiver, "global_receiver")
@@ -1657,7 +1703,7 @@ class HPhi: public HValue {
   HValue* GetRedundantReplacement() const;
   void AddInput(HValue* value);
 
-  bool HasReceiverOperand();
+  bool IsReceiver() { return merged_index_ == 0; }
 
   int merged_index() const { return merged_index_; }
 
@@ -1832,6 +1878,7 @@ class HApplyArguments: public HInstruction {
     SetOperandAt(1, receiver);
     SetOperandAt(2, length);
     SetOperandAt(3, elements);
+    SetAllSideEffects();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -1850,8 +1897,6 @@ class HApplyArguments: public HInstruction {
   virtual HValue* OperandAt(int index) const { return operands_[index]; }
 
   DECLARE_CONCRETE_INSTRUCTION(ApplyArguments, "apply_arguments")
-
-
 
  protected:
   virtual void InternalSetOperandAt(int index, HValue* value) {
@@ -2130,6 +2175,22 @@ class HIsSmi: public HUnaryPredicate {
   explicit HIsSmi(HValue* value) : HUnaryPredicate(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(IsSmi, "is_smi")
+
+ protected:
+  virtual bool DataEquals(HValue* other) const { return true; }
+};
+
+
+class HIsConstructCall: public HInstruction {
+ public:
+  HIsConstructCall() {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual bool EmitAtUses() const { return uses()->length() <= 1; }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsConstructCall, "is_construct_call")
 
  protected:
   virtual bool DataEquals(HValue* other) const { return true; }
@@ -2576,12 +2637,17 @@ class HLoadGlobal: public HInstruction {
 
 class HStoreGlobal: public HUnaryOperation {
  public:
-  HStoreGlobal(HValue* value, Handle<JSGlobalPropertyCell> cell)
-      : HUnaryOperation(value), cell_(cell) {
+  HStoreGlobal(HValue* value,
+               Handle<JSGlobalPropertyCell> cell,
+               bool check_hole_value)
+      : HUnaryOperation(value),
+        cell_(cell),
+        check_hole_value_(check_hole_value) {
     SetFlag(kChangesGlobalVars);
   }
 
   Handle<JSGlobalPropertyCell> cell() const { return cell_; }
+  bool check_hole_value() const { return check_hole_value_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -2592,38 +2658,70 @@ class HStoreGlobal: public HUnaryOperation {
 
  private:
   Handle<JSGlobalPropertyCell> cell_;
+  bool check_hole_value_;
 };
 
 
-class HLoadContextSlot: public HInstruction {
+class HLoadContextSlot: public HUnaryOperation {
  public:
-  HLoadContextSlot(int context_chain_length , int slot_index)
-      : context_chain_length_(context_chain_length), slot_index_(slot_index) {
+  HLoadContextSlot(HValue* context , int slot_index)
+      : HUnaryOperation(context), slot_index_(slot_index) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnCalls);
+    SetFlag(kDependsOnContextSlots);
   }
 
-  int context_chain_length() const { return context_chain_length_; }
   int slot_index() const { return slot_index_; }
 
-  virtual void PrintDataTo(StringStream* stream) const;
-
-  virtual intptr_t Hashcode() const {
-    return context_chain_length() * 29 + slot_index();
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
   }
+
+  virtual void PrintDataTo(StringStream* stream) const;
 
   DECLARE_CONCRETE_INSTRUCTION(LoadContextSlot, "load_context_slot")
 
  protected:
   virtual bool DataEquals(HValue* other) const {
     HLoadContextSlot* b = HLoadContextSlot::cast(other);
-    return (context_chain_length() == b->context_chain_length())
-        && (slot_index() == b->slot_index());
+    return (slot_index() == b->slot_index());
   }
 
  private:
-  int context_chain_length_;
+  int slot_index_;
+};
+
+
+static inline bool StoringValueNeedsWriteBarrier(HValue* value) {
+  return !value->type().IsSmi() &&
+      !(value->IsConstant() && HConstant::cast(value)->InOldSpace());
+}
+
+
+class HStoreContextSlot: public HBinaryOperation {
+ public:
+  HStoreContextSlot(HValue* context, int slot_index, HValue* value)
+      : HBinaryOperation(context, value), slot_index_(slot_index) {
+    SetFlag(kChangesContextSlots);
+  }
+
+  HValue* context() const { return OperandAt(0); }
+  HValue* value() const { return OperandAt(1); }
+  int slot_index() const { return slot_index_; }
+
+  bool NeedsWriteBarrier() const {
+    return StoringValueNeedsWriteBarrier(value());
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  virtual void PrintDataTo(StringStream* stream) const;
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreContextSlot, "store_context_slot")
+
+ private:
   int slot_index_;
 };
 
@@ -2759,12 +2857,6 @@ class HLoadKeyedGeneric: public HLoadKeyed {
 };
 
 
-static inline bool StoringValueNeedsWriteBarrier(HValue* value) {
-  return !value->type().IsSmi() &&
-      !(value->IsConstant() && HConstant::cast(value)->InOldSpace());
-}
-
-
 class HStoreNamed: public HBinaryOperation {
  public:
   HStoreNamed(HValue* obj, Handle<Object> name, HValue* val)
@@ -2781,10 +2873,6 @@ class HStoreNamed: public HBinaryOperation {
   Handle<Object> name() const { return name_; }
   HValue* value() const { return OperandAt(1); }
   void set_value(HValue* value) { SetOperandAt(1, value); }
-
-  bool NeedsWriteBarrier() const {
-    return StoringValueNeedsWriteBarrier(value());
-  }
 
   DECLARE_INSTRUCTION(StoreNamed)
 
@@ -2813,7 +2901,7 @@ class HStoreNamedField: public HStoreNamed {
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedField, "store_named_field")
 
   virtual Representation RequiredInputRepresentation(int index) const {
-    return  Representation::Tagged();
+    return Representation::Tagged();
   }
   virtual void PrintDataTo(StringStream* stream) const;
 
@@ -2821,6 +2909,10 @@ class HStoreNamedField: public HStoreNamed {
   int offset() const { return offset_; }
   Handle<Map> transition() const { return transition_; }
   void set_transition(Handle<Map> map) { transition_ = map; }
+
+  bool NeedsWriteBarrier() const {
+    return StoringValueNeedsWriteBarrier(value());
+  }
 
  private:
   bool is_in_object_;
@@ -3066,6 +3158,10 @@ class HTypeof: public HUnaryOperation {
  public:
   explicit HTypeof(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Tagged());
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Typeof, "typeof")

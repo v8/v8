@@ -171,8 +171,9 @@ function Join(array, length, separator, convert) {
     }
     return %StringBuilderConcat(elements, length2, '');    
   } finally {
-    // Make sure to pop the visited array no matter what happens.
-    if (is_array) visited_arrays.pop();
+    // Make sure to remove the last element of the visited array no
+    // matter what happens.
+    if (is_array) visited_arrays.length = visited_arrays.length - 1;
   }
 }
 
@@ -603,16 +604,17 @@ function ArraySplice(start, delete_count) {
   }
 
   // SpiderMonkey, TraceMonkey and JSC treat the case where no delete count is
-  // given differently from when an undefined delete count is given.
+  // given as a request to delete all the elements from the start.
+  // And it differs from the case of undefined delete count.
   // This does not follow ECMA-262, but we do the same for
   // compatibility.
   var del_count = 0;
-  if (num_arguments > 1) {
+  if (num_arguments == 1) {
+    del_count = len - start_i;
+  } else {
     del_count = TO_INTEGER(delete_count);
     if (del_count < 0) del_count = 0;
     if (del_count > len - start_i) del_count = len - start_i;
-  } else {
-    del_count = len - start_i;
   }
 
   var deleted_elements = [];
@@ -1016,9 +1018,11 @@ function ArrayIndexOf(element, index) {
   } else {
     index = TO_INTEGER(index);
     // If index is negative, index from the end of the array.
-    if (index < 0) index = length + index;
-    // If index is still negative, search the entire array.
-    if (index < 0) index = 0;
+    if (index < 0) {
+      index = length + index;
+      // If index is still negative, search the entire array.
+      if (index < 0) index = 0;
+    }
   }
   var min = index;
   var max = length;

@@ -100,6 +100,7 @@ inline Heap* _inline_get_heap_();
   V(Map, oddball_map, OddballMap)                                              \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
+  V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, proxy_map, ProxyMap)                                                  \
   V(Object, nan_value, NanValue)                                               \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
@@ -127,7 +128,12 @@ inline Heap* _inline_get_heap_();
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
 #define STRONG_ROOT_LIST(V)                                                    \
   UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
-  V(Code, re_c_entry_code, RegExpCEntryCode)
+  V(Code, re_c_entry_code, RegExpCEntryCode)                                   \
+  V(Code, direct_c_entry_code, DirectCEntryCode)
+#elif V8_TARGET_ARCH_ARM
+#define STRONG_ROOT_LIST(V)                                                    \
+  UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
+  V(Code, direct_c_entry_code, DirectCEntryCode)
 #else
 #define STRONG_ROOT_LIST(V) UNCONDITIONAL_STRONG_ROOT_LIST(V)
 #endif
@@ -183,6 +189,7 @@ inline Heap* _inline_get_heap_();
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
   V(KeyedLoadSpecialized_symbol, "KeyedLoadSpecialized")                 \
   V(KeyedStoreSpecialized_symbol, "KeyedStoreSpecialized")               \
+  V(KeyedLoadPixelArray_symbol, "KeyedLoadPixelArray")                   \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
   V(illegal_access_symbol, "illegal access")                             \
   V(out_of_memory_symbol, "out-of-memory")                               \
@@ -696,6 +703,19 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateSharedFunctionInfo(Object* name);
+
+  // Allocates a new JSMessageObject object.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note that this does not perform a garbage collection.
+  MUST_USE_RESULT MaybeObject* AllocateJSMessageObject(
+      String* type,
+      JSArray* arguments,
+      int start_position,
+      int end_position,
+      Object* script,
+      Object* stack_trace,
+      Object* stack_frames);
 
   // Allocates a new cons string object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -1404,12 +1424,13 @@ class Heap {
   bool CreateInitialMaps();
   bool CreateInitialObjects();
 
-  // These four Create*EntryStub functions are here and forced to not be inlined
+  // These five Create*EntryStub functions are here and forced to not be inlined
   // because of a gcc-4.4 bug that assigns wrong vtable entries.
   NO_INLINE(void CreateCEntryStub());
   NO_INLINE(void CreateJSEntryStub());
   NO_INLINE(void CreateJSConstructEntryStub());
   NO_INLINE(void CreateRegExpCEntryStub());
+  NO_INLINE(void CreateDirectCEntryStub());
 
   void CreateFixedStubs();
 

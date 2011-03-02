@@ -578,71 +578,93 @@ static void CompileCallLoadPropertyWithInterceptor(MacroAssembler* masm,
   __ CallStub(&stub);
 }
 
+static const int kFastApiCallArguments = 3;
 
 // Reserves space for the extra arguments to FastHandleApiCall in the
 // caller's frame.
 //
-// These arguments are set by CheckPrototypes and GenerateFastApiCall.
+// These arguments are set by CheckPrototypes and GenerateFastApiDirectCall.
 static void ReserveSpaceForFastApiCall(MacroAssembler* masm,
                                        Register scratch) {
   __ mov(scratch, Operand(Smi::FromInt(0)));
-  __ push(scratch);
-  __ push(scratch);
-  __ push(scratch);
-  __ push(scratch);
+  for (int i = 0; i < kFastApiCallArguments; i++) {
+    __ push(scratch);
+  }
 }
 
 
 // Undoes the effects of ReserveSpaceForFastApiCall.
 static void FreeSpaceForFastApiCall(MacroAssembler* masm) {
-  __ Drop(4);
+  __ Drop(kFastApiCallArguments);
 }
 
 
-// Generates call to FastHandleApiCall builtin.
-static void GenerateFastApiCall(MacroAssembler* masm,
-                                const CallOptimization& optimization,
-                                int argc) {
+static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
+                                      const CallOptimization& optimization,
+                                      int argc) {
+  // ----------- S t a t e -------------
+  //  -- sp[0]              : holder (set by CheckPrototypes)
+  //  -- sp[4]              : callee js function
+  //  -- sp[8]              : call data
+  //  -- sp[12]             : last js argument
+  //  -- ...
+  //  -- sp[(argc + 3) * 4] : first js argument
+  //  -- sp[(argc + 4) * 4] : receiver
+  // -----------------------------------
   // Get the function and setup the context.
   JSFunction* function = optimization.constant_function();
   __ mov(r5, Operand(Handle<JSFunction>(function)));
   __ ldr(cp, FieldMemOperand(r5, JSFunction::kContextOffset));
 
   // Pass the additional arguments FastHandleApiCall expects.
-  bool info_loaded = false;
-  Object* callback = optimization.api_call_info()->callback();
-  if (HEAP->InNewSpace(callback)) {
-    info_loaded = true;
-    __ Move(r0, Handle<CallHandlerInfo>(optimization.api_call_info()));
-    __ ldr(r7, FieldMemOperand(r0, CallHandlerInfo::kCallbackOffset));
-  } else {
-    __ Move(r7, Handle<Object>(callback));
-  }
   Object* call_data = optimization.api_call_info()->data();
+  Handle<CallHandlerInfo> api_call_info_handle(optimization.api_call_info());
   if (HEAP->InNewSpace(call_data)) {
-    if (!info_loaded) {
-      __ Move(r0, Handle<CallHandlerInfo>(optimization.api_call_info()));
-    }
+    __ Move(r0, api_call_info_handle);
     __ ldr(r6, FieldMemOperand(r0, CallHandlerInfo::kDataOffset));
   } else {
     __ Move(r6, Handle<Object>(call_data));
   }
+  // Store js function and call data.
+  __ stm(ib, sp, r5.bit() | r6.bit());
 
-  __ add(sp, sp, Operand(1 * kPointerSize));
-  __ stm(ia, sp, r5.bit() | r6.bit() | r7.bit());
-  __ sub(sp, sp, Operand(1 * kPointerSize));
+  // r2 points to call data as expected by Arguments
+  // (refer to layout above).
+  __ add(r2, sp, Operand(2 * kPointerSize));
 
-  // Set the number of arguments.
-  __ mov(r0, Operand(argc + 4));
+  Object* callback = optimization.api_call_info()->callback();
+  Address api_function_address = v8::ToCData<Address>(callback);
+  ApiFunction fun(api_function_address);
 
-  // Jump to the fast api call builtin (tail call).
-  Handle<Code> code = Handle<Code>(
-      Isolate::Current()->builtins()->builtin(Builtins::FastHandleApiCall));
-  ParameterCount expected(0);
-  __ InvokeCode(code, expected, expected,
-                RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+  const int kApiStackSpace = 4;
+  __ EnterExitFrame(false, kApiStackSpace);
+
+  // r0 = v8::Arguments&
+  // Arguments is after the return address.
+  __ add(r0, sp, Operand(1 * kPointerSize));
+  // v8::Arguments::implicit_args = data
+  __ str(r2, MemOperand(r0, 0 * kPointerSize));
+  // v8::Arguments::values = last argument
+  __ add(ip, r2, Operand(argc * kPointerSize));
+  __ str(ip, MemOperand(r0, 1 * kPointerSize));
+  // v8::Arguments::length_ = argc
+  __ mov(ip, Operand(argc));
+  __ str(ip, MemOperand(r0, 2 * kPointerSize));
+  // v8::Arguments::is_construct_call = 0
+  __ mov(ip, Operand(0));
+  __ str(ip, MemOperand(r0, 3 * kPointerSize));
+
+  // Emitting a stub call may try to allocate (if the code is not
+  // already generated). Do not allow the assembler to perform a
+  // garbage collection but instead return the allocation failure
+  // object.
+  MaybeObject* result = masm->TryCallApiFunctionAndReturn(
+      &fun, argc + kFastApiCallArguments + 1);
+  if (result->IsFailure()) {
+    return result;
+  }
+  return HEAP->undefined_value();
 }
-
 
 class CallInterceptorCompiler BASE_EMBEDDED {
  public:
@@ -653,16 +675,16 @@ class CallInterceptorCompiler BASE_EMBEDDED {
         arguments_(arguments),
         name_(name) {}
 
-  void Compile(MacroAssembler* masm,
-               JSObject* object,
-               JSObject* holder,
-               String* name,
-               LookupResult* lookup,
-               Register receiver,
-               Register scratch1,
-               Register scratch2,
-               Register scratch3,
-               Label* miss) {
+  MaybeObject* Compile(MacroAssembler* masm,
+                       JSObject* object,
+                       JSObject* holder,
+                       String* name,
+                       LookupResult* lookup,
+                       Register receiver,
+                       Register scratch1,
+                       Register scratch2,
+                       Register scratch3,
+                       Label* miss) {
     ASSERT(holder->HasNamedInterceptor());
     ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
 
@@ -672,17 +694,17 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     CallOptimization optimization(lookup);
 
     if (optimization.is_constant_call()) {
-      CompileCacheable(masm,
-                       object,
-                       receiver,
-                       scratch1,
-                       scratch2,
-                       scratch3,
-                       holder,
-                       lookup,
-                       name,
-                       optimization,
-                       miss);
+      return CompileCacheable(masm,
+                              object,
+                              receiver,
+                              scratch1,
+                              scratch2,
+                              scratch3,
+                              holder,
+                              lookup,
+                              name,
+                              optimization,
+                              miss);
     } else {
       CompileRegular(masm,
                      object,
@@ -693,21 +715,22 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                      name,
                      holder,
                      miss);
+      return HEAP->undefined_value();
     }
   }
 
  private:
-  void CompileCacheable(MacroAssembler* masm,
-                       JSObject* object,
-                       Register receiver,
-                       Register scratch1,
-                       Register scratch2,
-                       Register scratch3,
-                       JSObject* interceptor_holder,
-                       LookupResult* lookup,
-                       String* name,
-                       const CallOptimization& optimization,
-                       Label* miss_label) {
+  MaybeObject* CompileCacheable(MacroAssembler* masm,
+                                JSObject* object,
+                                Register receiver,
+                                Register scratch1,
+                                Register scratch2,
+                                Register scratch3,
+                                JSObject* interceptor_holder,
+                                LookupResult* lookup,
+                                String* name,
+                                const CallOptimization& optimization,
+                                Label* miss_label) {
     ASSERT(optimization.is_constant_call());
     ASSERT(!lookup->holder()->IsGlobalObject());
 
@@ -771,7 +794,10 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 
     // Invoke function.
     if (can_do_fast_api_call) {
-      GenerateFastApiCall(masm, optimization, arguments_.immediate());
+      MaybeObject* result = GenerateFastApiDirectCall(masm,
+                                                      optimization,
+                                                      arguments_.immediate());
+      if (result->IsFailure()) return result;
     } else {
       __ InvokeFunction(optimization.constant_function(), arguments_,
                         JUMP_FUNCTION);
@@ -789,6 +815,8 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     if (can_do_fast_api_call) {
       FreeSpaceForFastApiCall(masm);
     }
+
+    return HEAP->undefined_value();
   }
 
   void CompileRegular(MacroAssembler* masm,
@@ -2060,11 +2088,11 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   //  - Make sure Flush-to-zero mode control bit is unset (bit 22).
   __ bic(r9, r3,
       Operand(kVFPExceptionMask | kVFPRoundingModeMask | kVFPFlushToZeroMask));
-  __ orr(r9, r9, Operand(kVFPRoundToMinusInfinityBits));
+  __ orr(r9, r9, Operand(kRoundToMinusInf));
   __ vmsr(r9);
 
   // Convert the argument to an integer.
-  __ vcvt_s32_f64(s0, d1, Assembler::FPSCRRounding, al);
+  __ vcvt_s32_f64(s0, d1, kFPSCRRounding);
 
   // Use vcvt latency to start checking for special cases.
   // Get the argument exponent and clear the sign bit.
@@ -2373,7 +2401,8 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
   }
 
   if (depth != kInvalidProtoDepth) {
-    GenerateFastApiCall(masm(), optimization, argc);
+    MaybeObject* result = GenerateFastApiDirectCall(masm(), optimization, argc);
+    if (result->IsFailure()) return result;
   } else {
     __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
   }
@@ -2417,16 +2446,19 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
   __ ldr(r1, MemOperand(sp, argc * kPointerSize));
 
   CallInterceptorCompiler compiler(this, arguments(), r2);
-  compiler.Compile(masm(),
-                   object,
-                   holder,
-                   name,
-                   &lookup,
-                   r1,
-                   r3,
-                   r4,
-                   r0,
-                   &miss);
+  MaybeObject* result = compiler.Compile(masm(),
+                                         object,
+                                         holder,
+                                         name,
+                                         &lookup,
+                                         r1,
+                                         r3,
+                                         r4,
+                                         r0,
+                                         &miss);
+  if (result->IsFailure()) {
+      return result;
+  }
 
   // Move returned value, the function to call, to r1.
   __ mov(r1, r0);
@@ -2657,9 +2689,18 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ cmp(r3, Operand(Handle<Map>(object->map())));
   __ b(ne, &miss);
 
+  // Check that the value in the cell is not the hole. If it is, this
+  // cell could have been deleted and reintroducing the global needs
+  // to update the property details in the property dictionary of the
+  // global object. We bail out to the runtime system to do that.
+  __ mov(r4, Operand(Handle<JSGlobalPropertyCell>(cell)));
+  __ LoadRoot(r5, Heap::kTheHoleValueRootIndex);
+  __ ldr(r6, FieldMemOperand(r4, JSGlobalPropertyCell::kValueOffset));
+  __ cmp(r5, r6);
+  __ b(eq, &miss);
+
   // Store the value in the cell.
-  __ mov(r2, Operand(Handle<JSGlobalPropertyCell>(cell)));
-  __ str(r0, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+  __ str(r0, FieldMemOperand(r4, JSGlobalPropertyCell::kValueOffset));
 
   __ IncrementCounter(COUNTERS->named_store_global_inline(), 1, r4, r3);
   __ Ret();
@@ -3081,6 +3122,39 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
 
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
+}
+
+
+MaybeObject* KeyedLoadStubCompiler::CompileLoadPixelArray(JSObject* receiver) {
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- r0    : key
+  //  -- r1    : receiver
+  // -----------------------------------
+  Label miss;
+
+  // Check that the map matches.
+  __ CheckMap(r1, r2, Handle<Map>(receiver->map()), &miss, false);
+
+  GenerateFastPixelArrayLoad(masm(),
+                             r1,
+                             r0,
+                             r2,
+                             r3,
+                             r4,
+                             r5,
+                             r0,
+                             &miss,
+                             &miss,
+                             &miss);
+
+  __ bind(&miss);
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Miss));
+  __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
   return GetCode(NORMAL, NULL);
@@ -3767,9 +3841,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
 
       // Not infinity or NaN simply convert to int.
       if (IsElementTypeSigned(array_type)) {
-        __ vcvt_s32_f64(s0, d0, Assembler::RoundToZero, ne);
+        __ vcvt_s32_f64(s0, d0, kDefaultRoundToZero, ne);
       } else {
-        __ vcvt_u32_f64(s0, d0, Assembler::RoundToZero, ne);
+        __ vcvt_u32_f64(s0, d0, kDefaultRoundToZero, ne);
       }
       __ vmov(r5, s0, ne);
 

@@ -880,10 +880,11 @@ static bool CompileLazyHelper(CompilationInfo* info,
                               ClearExceptionFlag flag) {
   // Compile the source information to a code object.
   ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
+  ASSERT(!info->isolate()->has_pending_exception());
   bool result = Compiler::CompileLazy(info);
   ASSERT(result != Isolate::Current()->has_pending_exception());
   if (!result && flag == CLEAR_EXCEPTION) {
-    Isolate::Current()->clear_pending_exception();
+    info->isolate()->clear_pending_exception();
   }
   return result;
 }
@@ -947,7 +948,7 @@ OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
                                            int expected_additional_properties,
                                            bool condition) {
   object_ = object;
-  if (condition && object_->HasFastProperties()) {
+  if (condition && object_->HasFastProperties() && !object->IsJSGlobalProxy()) {
     // Normalize the properties of object to avoid n^2 behavior
     // when extending the object multiple properties. Indicate the number of
     // properties to be added.

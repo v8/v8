@@ -146,6 +146,9 @@ class StubCache {
   MUST_USE_RESULT MaybeObject* ComputeKeyedLoadSpecialized(
       JSObject* receiver);
 
+  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadPixelArray(
+      JSObject* receiver);
+
   // ---
 
   MUST_USE_RESULT MaybeObject* ComputeStoreField(String* name,
@@ -617,6 +620,7 @@ class KeyedLoadStubCompiler: public StubCompiler {
   MUST_USE_RESULT MaybeObject* CompileLoadFunctionPrototype(String* name);
 
   MUST_USE_RESULT MaybeObject* CompileLoadSpecialized(JSObject* receiver);
+  MUST_USE_RESULT MaybeObject* CompileLoadPixelArray(JSObject* receiver);
 
  private:
   MaybeObject* GetCode(PropertyType type, String* name);

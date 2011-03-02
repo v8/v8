@@ -44,18 +44,35 @@ function CheckStrictMode(code, exception) {
     }", exception);
 }
 
-// Incorrect 'use strict' directive.
-function UseStrictEscape() {
-  "use\\x20strict";
-  with ({}) {};
+function CheckFunctionConstructorStrictMode() {
+  var args = [];
+  for (var i = 0; i < arguments.length; i ++) {
+    args[i] = arguments[i];
+  }
+  // Create non-strict function. No exception.
+  args[arguments.length] = "";
+  assertDoesNotThrow(function() {
+    Function.apply(this, args);
+  });
+  // Create strict mode function. Exception expected.
+  args[arguments.length] = "'use strict';";
+  assertThrows(function() {
+    Function.apply(this, args);
+  }, SyntaxError);
 }
 
+// Incorrect 'use strict' directive.
+(function UseStrictEscape() {
+  "use\\x20strict";
+  with ({}) {};
+})();
+
 // 'use strict' in non-directive position.
-function UseStrictNonDirective() {
+(function UseStrictNonDirective() {
   void(0);
   "use strict";
   with ({}) {};
-}
+})();
 
 // Multiple directives, including "use strict".
 assertThrows('\
@@ -70,37 +87,47 @@ with({}) {}', SyntaxError);
 CheckStrictMode("with({}) {}", SyntaxError);
 
 // Function named 'eval'.
-CheckStrictMode("function eval() {}", SyntaxError)
+CheckStrictMode("function eval() {}", SyntaxError);
 
 // Function named 'arguments'.
-CheckStrictMode("function arguments() {}", SyntaxError)
+CheckStrictMode("function arguments() {}", SyntaxError);
 
 // Function parameter named 'eval'.
-CheckStrictMode("function foo(a, b, eval, c, d) {}", SyntaxError)
+CheckStrictMode("function foo(a, b, eval, c, d) {}", SyntaxError);
 
 // Function parameter named 'arguments'.
-CheckStrictMode("function foo(a, b, arguments, c, d) {}", SyntaxError)
+CheckStrictMode("function foo(a, b, arguments, c, d) {}", SyntaxError);
 
 // Property accessor parameter named 'eval'.
-CheckStrictMode("var o = { set foo(eval) {} }", SyntaxError)
+CheckStrictMode("var o = { set foo(eval) {} }", SyntaxError);
 
 // Property accessor parameter named 'arguments'.
-CheckStrictMode("var o = { set foo(arguments) {} }", SyntaxError)
+CheckStrictMode("var o = { set foo(arguments) {} }", SyntaxError);
 
 // Duplicate function parameter name.
-CheckStrictMode("function foo(a, b, c, d, b) {}", SyntaxError)
+CheckStrictMode("function foo(a, b, c, d, b) {}", SyntaxError);
+
+// Function constructor: eval parameter name.
+CheckFunctionConstructorStrictMode("eval");
+
+// Function constructor: arguments parameter name.
+CheckFunctionConstructorStrictMode("arguments");
+
+// Function constructor: duplicate parameter name.
+CheckFunctionConstructorStrictMode("a", "b", "c", "b");
+CheckFunctionConstructorStrictMode("a,b,c,b");
 
 // catch(eval)
-CheckStrictMode("try{}catch(eval){};", SyntaxError)
+CheckStrictMode("try{}catch(eval){};", SyntaxError);
 
 // catch(arguments)
-CheckStrictMode("try{}catch(arguments){};", SyntaxError)
+CheckStrictMode("try{}catch(arguments){};", SyntaxError);
 
 // var eval
-CheckStrictMode("var eval;", SyntaxError)
+CheckStrictMode("var eval;", SyntaxError);
 
 // var arguments
-CheckStrictMode("var arguments;", SyntaxError)
+CheckStrictMode("var arguments;", SyntaxError);
 
 // Strict mode applies to the function in which the directive is used..
 assertThrows('\
@@ -109,12 +136,12 @@ function foo(eval) {\
 }', SyntaxError);
 
 // Strict mode doesn't affect the outer stop of strict code.
-function NotStrict(eval) {
+(function NotStrict(eval) {
   function Strict() {
     "use strict";
   }
   with ({}) {};
-}
+})();
 
 // Octal literal
 CheckStrictMode("var x = 012");
@@ -122,6 +149,12 @@ CheckStrictMode("012");
 CheckStrictMode("'Hello octal\\032'");
 CheckStrictMode("function octal() { return 012; }");
 CheckStrictMode("function octal() { return '\\032'; }");
+
+(function ValidEscape() {
+  "use strict";
+  var x = '\0';
+  var y = "\0";
+})();
 
 // Octal before "use strict"
 assertThrows('\
@@ -131,50 +164,175 @@ assertThrows('\
   }', SyntaxError);
 
 // Duplicate data properties.
-CheckStrictMode("var x = { dupe : 1, nondupe: 3, dupe : 2 };", SyntaxError)
-CheckStrictMode("var x = { '1234' : 1, '2345' : 2, '1234' : 3 };", SyntaxError)
-CheckStrictMode("var x = { '1234' : 1, '2345' : 2, 1234 : 3 };", SyntaxError)
-CheckStrictMode("var x = { 3.14 : 1, 2.71 : 2, 3.14 : 3 };", SyntaxError)
-CheckStrictMode("var x = { 3.14 : 1, '3.14' : 2 };", SyntaxError)
-CheckStrictMode("var x = { 123: 1, 123.00000000000000000000000000000000000000000000000000000000000000000001 : 2 }", SyntaxError)
+CheckStrictMode("var x = { dupe : 1, nondupe: 3, dupe : 2 };", SyntaxError);
+CheckStrictMode("var x = { '1234' : 1, '2345' : 2, '1234' : 3 };", SyntaxError);
+CheckStrictMode("var x = { '1234' : 1, '2345' : 2, 1234 : 3 };", SyntaxError);
+CheckStrictMode("var x = { 3.14 : 1, 2.71 : 2, 3.14 : 3 };", SyntaxError);
+CheckStrictMode("var x = { 3.14 : 1, '3.14' : 2 };", SyntaxError);
+CheckStrictMode("var x = { 123: 1, 123.00000000000000000000000000000000000000000000000000000000000000000001 : 2 }", SyntaxError);
 
 // Non-conflicting data properties.
-function StrictModeNonDuplicate() {
+(function StrictModeNonDuplicate() {
   "use strict";
   var x = { 123 : 1, "0123" : 2 };
   var x = { 123: 1, '123.00000000000000000000000000000000000000000000000000000000000000000001' : 2 }
-}
-
-//CheckStrictMode("", SyntaxError)
+})();
 
 // Two getters (non-strict)
-assertThrows("var x = { get foo() { }, get foo() { } };", SyntaxError)
-assertThrows("var x = { get foo(){}, get 'foo'(){}};", SyntaxError)
-assertThrows("var x = { get 12(){}, get '12'(){}};", SyntaxError)
+assertThrows("var x = { get foo() { }, get foo() { } };", SyntaxError);
+assertThrows("var x = { get foo(){}, get 'foo'(){}};", SyntaxError);
+assertThrows("var x = { get 12(){}, get '12'(){}};", SyntaxError);
 
 // Two setters (non-strict)
-assertThrows("var x = { set foo(v) { }, set foo(v) { } };", SyntaxError)
-assertThrows("var x = { set foo(v) { }, set 'foo'(v) { } };", SyntaxError)
-assertThrows("var x = { set 13(v) { }, set '13'(v) { } };", SyntaxError)
+assertThrows("var x = { set foo(v) { }, set foo(v) { } };", SyntaxError);
+assertThrows("var x = { set foo(v) { }, set 'foo'(v) { } };", SyntaxError);
+assertThrows("var x = { set 13(v) { }, set '13'(v) { } };", SyntaxError);
 
 // Setter and data (non-strict)
-assertThrows("var x = { foo: 'data', set foo(v) { } };", SyntaxError)
-assertThrows("var x = { set foo(v) { }, foo: 'data' };", SyntaxError)
-assertThrows("var x = { foo: 'data', set 'foo'(v) { } };", SyntaxError)
-assertThrows("var x = { set foo(v) { }, 'foo': 'data' };", SyntaxError)
-assertThrows("var x = { 'foo': 'data', set foo(v) { } };", SyntaxError)
-assertThrows("var x = { set 'foo'(v) { }, foo: 'data' };", SyntaxError)
-assertThrows("var x = { 'foo': 'data', set 'foo'(v) { } };", SyntaxError)
-assertThrows("var x = { set 'foo'(v) { }, 'foo': 'data' };", SyntaxError)
+assertThrows("var x = { foo: 'data', set foo(v) { } };", SyntaxError);
+assertThrows("var x = { set foo(v) { }, foo: 'data' };", SyntaxError);
+assertThrows("var x = { foo: 'data', set 'foo'(v) { } };", SyntaxError);
+assertThrows("var x = { set foo(v) { }, 'foo': 'data' };", SyntaxError);
+assertThrows("var x = { 'foo': 'data', set foo(v) { } };", SyntaxError);
+assertThrows("var x = { set 'foo'(v) { }, foo: 'data' };", SyntaxError);
+assertThrows("var x = { 'foo': 'data', set 'foo'(v) { } };", SyntaxError);
+assertThrows("var x = { set 'foo'(v) { }, 'foo': 'data' };", SyntaxError);
 assertThrows("var x = { 12: 1, set '12'(v){}};", SyntaxError);
 assertThrows("var x = { 12: 1, set 12(v){}};", SyntaxError);
 assertThrows("var x = { '12': 1, set '12'(v){}};", SyntaxError);
 assertThrows("var x = { '12': 1, set 12(v){}};", SyntaxError);
 
 // Getter and data (non-strict)
-assertThrows("var x = { foo: 'data', get foo() { } };", SyntaxError)
-assertThrows("var x = { get foo() { }, foo: 'data' };", SyntaxError)
-assertThrows("var x = { 'foo': 'data', get foo() { } };", SyntaxError)
-assertThrows("var x = { get 'foo'() { }, 'foo': 'data' };", SyntaxError)
+assertThrows("var x = { foo: 'data', get foo() { } };", SyntaxError);
+assertThrows("var x = { get foo() { }, foo: 'data' };", SyntaxError);
+assertThrows("var x = { 'foo': 'data', get foo() { } };", SyntaxError);
+assertThrows("var x = { get 'foo'() { }, 'foo': 'data' };", SyntaxError);
 assertThrows("var x = { '12': 1, get '12'(){}};", SyntaxError);
 assertThrows("var x = { '12': 1, get 12(){}};", SyntaxError);
+
+// Assignment to eval or arguments
+CheckStrictMode("function strict() { eval = undefined; }", SyntaxError);
+CheckStrictMode("function strict() { arguments = undefined; }", SyntaxError);
+CheckStrictMode("function strict() { print(eval = undefined); }", SyntaxError);
+CheckStrictMode("function strict() { print(arguments = undefined); }", SyntaxError);
+CheckStrictMode("function strict() { var x = eval = undefined; }", SyntaxError);
+CheckStrictMode("function strict() { var x = arguments = undefined; }", SyntaxError);
+
+// Compound assignment to eval or arguments
+CheckStrictMode("function strict() { eval *= undefined; }", SyntaxError);
+CheckStrictMode("function strict() { arguments /= undefined; }", SyntaxError);
+CheckStrictMode("function strict() { print(eval %= undefined); }", SyntaxError);
+CheckStrictMode("function strict() { print(arguments %= undefined); }", SyntaxError);
+CheckStrictMode("function strict() { var x = eval += undefined; }", SyntaxError);
+CheckStrictMode("function strict() { var x = arguments -= undefined; }", SyntaxError);
+CheckStrictMode("function strict() { eval <<= undefined; }", SyntaxError);
+CheckStrictMode("function strict() { arguments >>= undefined; }", SyntaxError);
+CheckStrictMode("function strict() { print(eval >>>= undefined); }", SyntaxError);
+CheckStrictMode("function strict() { print(arguments &= undefined); }", SyntaxError);
+CheckStrictMode("function strict() { var x = eval ^= undefined; }", SyntaxError);
+CheckStrictMode("function strict() { var x = arguments |= undefined; }", SyntaxError);
+
+// Postfix increment with eval or arguments
+CheckStrictMode("function strict() { eval++; }", SyntaxError);
+CheckStrictMode("function strict() { arguments++; }", SyntaxError);
+CheckStrictMode("function strict() { print(eval++); }", SyntaxError);
+CheckStrictMode("function strict() { print(arguments++); }", SyntaxError);
+CheckStrictMode("function strict() { var x = eval++; }", SyntaxError);
+CheckStrictMode("function strict() { var x = arguments++; }", SyntaxError);
+
+// Postfix decrement with eval or arguments
+CheckStrictMode("function strict() { eval--; }", SyntaxError);
+CheckStrictMode("function strict() { arguments--; }", SyntaxError);
+CheckStrictMode("function strict() { print(eval--); }", SyntaxError);
+CheckStrictMode("function strict() { print(arguments--); }", SyntaxError);
+CheckStrictMode("function strict() { var x = eval--; }", SyntaxError);
+CheckStrictMode("function strict() { var x = arguments--; }", SyntaxError);
+
+// Prefix increment with eval or arguments
+CheckStrictMode("function strict() { ++eval; }", SyntaxError);
+CheckStrictMode("function strict() { ++arguments; }", SyntaxError);
+CheckStrictMode("function strict() { print(++eval); }", SyntaxError);
+CheckStrictMode("function strict() { print(++arguments); }", SyntaxError);
+CheckStrictMode("function strict() { var x = ++eval; }", SyntaxError);
+CheckStrictMode("function strict() { var x = ++arguments; }", SyntaxError);
+
+// Prefix decrement with eval or arguments
+CheckStrictMode("function strict() { --eval; }", SyntaxError);
+CheckStrictMode("function strict() { --arguments; }", SyntaxError);
+CheckStrictMode("function strict() { print(--eval); }", SyntaxError);
+CheckStrictMode("function strict() { print(--arguments); }", SyntaxError);
+CheckStrictMode("function strict() { var x = --eval; }", SyntaxError);
+CheckStrictMode("function strict() { var x = --arguments; }", SyntaxError);
+
+// Prefix unary operators other than delete, ++, -- are valid in strict mode
+(function StrictModeUnaryOperators() {
+  "use strict";
+  var x = [void eval, typeof eval, +eval, -eval, ~eval, !eval];
+  var y = [void arguments, typeof arguments,
+           +arguments, -arguments, ~arguments, !arguments];
+})();
+
+// 7.6.1.2 Future Reserved Words
+var future_reserved_words = [
+  "class",
+  "enum",
+  "export",
+  "extends",
+  "import",
+  "super",
+  "implements",
+  "interface",
+  "let",
+  "package",
+  "private",
+  "protected",
+  "public",
+  "static",
+  "yield" ];
+
+function testFutureReservedWord(word) {
+  // Simple use of each reserved word
+  CheckStrictMode("var " + word + " = 1;", SyntaxError);
+
+  // object literal properties
+  eval("var x = { " + word + " : 42 };");
+  eval("var x = { get " + word + " () {} };");
+  eval("var x = { set " + word + " (value) {} };");
+
+  // object literal with string literal property names
+  eval("var x = { '" + word + "' : 42 };");
+  eval("var x = { get '" + word + "' () { } };");
+  eval("var x = { set '" + word + "' (value) { } };");
+  eval("var x = { get '" + word + "' () { 'use strict'; } };");
+  eval("var x = { set '" + word + "' (value) { 'use strict'; } };");
+
+  // Function names and arguments, strict and non-strict contexts
+  CheckStrictMode("function " + word + " () {}", SyntaxError);
+  CheckStrictMode("function foo (" + word + ") {}", SyntaxError);
+  CheckStrictMode("function foo (" + word + ", " + word + ") {}", SyntaxError);
+  CheckStrictMode("function foo (a, " + word + ") {}", SyntaxError);
+  CheckStrictMode("function foo (" + word + ", a) {}", SyntaxError);
+  CheckStrictMode("function foo (a, " + word + ", b) {}", SyntaxError);
+  CheckStrictMode("var foo = function (" + word + ") {}", SyntaxError);
+
+  // Function names and arguments when the body is strict
+  assertThrows("function " + word + " () { 'use strict'; }", SyntaxError);
+  assertThrows("function foo (" + word + ")  'use strict'; {}", SyntaxError);
+  assertThrows("function foo (" + word + ", " + word + ") { 'use strict'; }", SyntaxError);
+  assertThrows("function foo (a, " + word + ") { 'use strict'; }", SyntaxError);
+  assertThrows("function foo (" + word + ", a) { 'use strict'; }", SyntaxError);
+  assertThrows("function foo (a, " + word + ", b) { 'use strict'; }", SyntaxError);
+  assertThrows("var foo = function (" + word + ") { 'use strict'; }", SyntaxError);
+
+  // get/set when the body is strict
+  eval("var x = { get " + word + " () { 'use strict'; } };");
+  eval("var x = { set " + word + " (value) { 'use strict'; } };");
+  assertThrows("var x = { get foo(" + word + ") { 'use strict'; } };", SyntaxError);
+  assertThrows("var x = { set foo(" + word + ") { 'use strict'; } };", SyntaxError);
+}
+
+for (var i = 0; i < future_reserved_words.length; i++) {
+  testFutureReservedWord(future_reserved_words[i]);
+}
+
+

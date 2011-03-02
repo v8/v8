@@ -1238,25 +1238,31 @@ MaybeObject* KeyedLoadIC::Load(State state,
 
   if (use_ic) {
     Code* stub = generic_stub();
-    if (object->IsString() && key->IsNumber()) {
-      stub = string_stub();
-    } else if (object->IsJSObject()) {
-      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-      if (receiver->HasExternalArrayElements()) {
-        MaybeObject* probe =
-            isolate()->stub_cache()->ComputeKeyedLoadOrStoreExternalArray(
-                *receiver, false);
-        stub =
-            probe->IsFailure() ? NULL : Code::cast(probe->ToObjectUnchecked());
-      } else if (receiver->HasIndexedInterceptor()) {
-        stub = indexed_interceptor_stub();
-      } else if (state == UNINITIALIZED &&
-                 key->IsSmi() &&
-                 receiver->map()->has_fast_elements()) {
-        MaybeObject* probe =
-            isolate()->stub_cache()->ComputeKeyedLoadSpecialized(*receiver);
-        stub =
-            probe->IsFailure() ? NULL : Code::cast(probe->ToObjectUnchecked());
+    if (state == UNINITIALIZED) {
+      if (object->IsString() && key->IsNumber()) {
+        stub = string_stub();
+      } else if (object->IsJSObject()) {
+        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+        if (receiver->HasExternalArrayElements()) {
+          MaybeObject* probe =
+              isolate()->stub_cache()->ComputeKeyedLoadOrStoreExternalArray(
+                  *receiver, false);
+          stub = probe->IsFailure() ?
+              NULL : Code::cast(probe->ToObjectUnchecked());
+        } else if (receiver->HasIndexedInterceptor()) {
+          stub = indexed_interceptor_stub();
+        } else if (receiver->HasPixelElements()) {
+          MaybeObject* probe =
+              isolate()->stub_cache()->ComputeKeyedLoadPixelArray(*receiver);
+          stub = probe->IsFailure() ?
+              NULL : Code::cast(probe->ToObjectUnchecked());
+        } else if (key->IsSmi() &&
+                   receiver->map()->has_fast_elements()) {
+          MaybeObject* probe =
+              isolate()->stub_cache()->ComputeKeyedLoadSpecialized(*receiver);
+          stub = probe->IsFailure() ?
+              NULL : Code::cast(probe->ToObjectUnchecked());
+        }
       }
     }
     if (stub != NULL) set_target(stub);
@@ -2110,6 +2116,8 @@ TRBinaryOpIC::TypeInfo TRBinaryOpIC::GetTypeInfo(Handle<Object> left,
   }
 
   if (left_type.IsInteger32() && right_type.IsInteger32()) {
+    // Platforms with 32-bit Smis have no distinct INT32 type.
+    if (kSmiValueSize == 32) return SMI;
     return INT32;
   }
 
@@ -2154,9 +2162,11 @@ MaybeObject* TypeRecordingBinaryOp_Patch(RUNTIME_CALLING_CONVENTION) {
   }
   if (type == TRBinaryOpIC::SMI &&
       previous_type == TRBinaryOpIC::SMI) {
-    if (op == Token::DIV || op == Token::MUL) {
+    if (op == Token::DIV || op == Token::MUL || kSmiValueSize == 32) {
       // Arithmetic on two Smi inputs has yielded a heap number.
       // That is the only way to get here from the Smi stub.
+      // With 32-bit Smis, all overflows give heap numbers, but with
+      // 31-bit Smis, most operations overflow to int32 results.
       result_type = TRBinaryOpIC::HEAP_NUMBER;
     } else {
       // Other operations on SMIs that overflow yield int32s.

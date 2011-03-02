@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -177,6 +177,13 @@ class SafepointTable BASE_EMBEDDED {
 
 class Safepoint BASE_EMBEDDED {
  public:
+  typedef enum {
+    kSimple = 0,
+    kWithRegisters = 1 << 0,
+    kWithDoubles = 1 << 1,
+    kWithRegistersAndDoubles = kWithRegisters | kWithDoubles
+  } Kind;
+
   static const int kNoDeoptimizationIndex =
       (1 << (SafepointEntry::kDeoptIndexBits)) - 1;
 
@@ -205,30 +212,13 @@ class SafepointTableBuilder BASE_EMBEDDED {
   unsigned GetCodeOffset() const;
 
   // Define a new safepoint for the current position in the body.
-  Safepoint DefineSafepoint(
-      Assembler* assembler,
-      int deoptimization_index = Safepoint::kNoDeoptimizationIndex);
+  Safepoint DefineSafepoint(Assembler* assembler,
+                            Safepoint::Kind kind,
+                            int arguments,
+                            int deoptimization_index);
 
-  // Define a new safepoint with registers on the stack for the
-  // current position in the body and take the number of arguments on
-  // top of the registers into account.
-  Safepoint DefineSafepointWithRegisters(
-      Assembler* assembler,
-      int arguments,
-      int deoptimization_index = Safepoint::kNoDeoptimizationIndex);
-
-  // Define a new safepoint with all double registers and the normal
-  // registers on the stack for the current position in the body and
-  // take the number of arguments on top of the registers into account.
-  // TODO(1043) Rewrite the three SafepointTableBuilder::DefineSafepoint
-  // methods to one method that uses template arguments.
-  Safepoint DefineSafepointWithRegistersAndDoubles(
-      Assembler* assembler,
-      int arguments,
-      int deoptimization_index = Safepoint::kNoDeoptimizationIndex);
-
-  // Update the last safepoint with the size of the code generated for the gap
-  // following it.
+  // Update the last safepoint with the size of the code generated until the
+  // end of the gap following it.
   void SetPcAfterGap(int pc) {
     ASSERT(!deoptimization_info_.is_empty());
     int index = deoptimization_info_.length() - 1;
@@ -238,6 +228,11 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // Emit the safepoint table after the body. The number of bits per
   // entry must be enough to hold all the pointer indexes.
   void Emit(Assembler* assembler, int bits_per_entry);
+
+  // Count the number of deoptimization points where the next
+  // following deoptimization point comes less than limit bytes
+  // after the end of this point's gap.
+  int CountShortDeoptimizationIntervals(unsigned limit);
 
  private:
   struct DeoptimizationInfo {
@@ -254,8 +249,8 @@ class SafepointTableBuilder BASE_EMBEDDED {
   ZoneList<ZoneList<int>*> indexes_;
   ZoneList<ZoneList<int>*> registers_;
 
-  bool emitted_;
   unsigned offset_;
+  bool emitted_;
 
   DISALLOW_COPY_AND_ASSIGN(SafepointTableBuilder);
 };

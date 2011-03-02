@@ -268,15 +268,10 @@ void FullCodeGenerator::EmitReturnSequence() {
     }
 
 #ifdef DEBUG
-    // Check that the size of the code used for returning matches what is
-    // expected by the debugger. If the sp_delts above cannot be encoded in the
-    // add instruction the add will generate two instructions.
-    int return_sequence_length =
-        masm_->InstructionsGeneratedSince(&check_exit_codesize);
-    CHECK(return_sequence_length ==
-          Assembler::kJSReturnSequenceInstructions ||
-          return_sequence_length ==
-          Assembler::kJSReturnSequenceInstructions + 1);
+    // Check that the size of the code used for returning is large enough
+    // for the debugger's requirements.
+    ASSERT(Assembler::kJSReturnSequenceInstructions <=
+           masm_->InstructionsGeneratedSince(&check_exit_codesize));
 #endif
   }
 }
@@ -681,18 +676,24 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
   } else if (prop != NULL) {
     if (function != NULL || mode == Variable::CONST) {
       // We are declaring a function or constant that rewrites to a
-      // property.  Use (keyed) IC to set the initial value.
-      VisitForStackValue(prop->obj());
-      if (function != NULL) {
-        VisitForStackValue(prop->key());
-        VisitForAccumulatorValue(function);
-        __ pop(r1);  // Key.
-      } else {
-        VisitForAccumulatorValue(prop->key());
-        __ mov(r1, result_register());  // Key.
-        __ LoadRoot(result_register(), Heap::kTheHoleValueRootIndex);
+      // property.  Use (keyed) IC to set the initial value.  We
+      // cannot visit the rewrite because it's shared and we risk
+      // recording duplicate AST IDs for bailouts from optimized code.
+      ASSERT(prop->obj()->AsVariableProxy() != NULL);
+      { AccumulatorValueContext for_object(this);
+        EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
       }
-      __ pop(r2);  // Receiver.
+      if (function != NULL) {
+        __ push(r0);
+        VisitForAccumulatorValue(function);
+        __ pop(r2);
+      } else {
+        __ mov(r2, r0);
+        __ LoadRoot(r0, Heap::kTheHoleValueRootIndex);
+      }
+      ASSERT(prop->key()->AsLiteral() != NULL &&
+             prop->key()->AsLiteral()->handle()->IsSmi());
+      __ mov(r1, Operand(prop->key()->AsLiteral()->handle()));
 
       Handle<Code> ic(isolate()->builtins()->builtin(
           Builtins::KeyedStoreIC_Initialize));
@@ -1560,7 +1561,14 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
 void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      OverwriteMode mode) {
   __ pop(r1);
-  if (op == Token::ADD || op == Token::SUB) {
+  if (op == Token::ADD ||
+      op == Token::SUB ||
+      op == Token::MUL ||
+      op == Token::DIV ||
+      op == Token::MOD ||
+      op == Token::BIT_OR ||
+      op == Token::BIT_AND ||
+      op == Token::BIT_XOR) {
     TypeRecordingBinaryOpStub stub(op, mode);
     __ CallStub(&stub);
   } else {
@@ -1936,7 +1944,10 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ ldr(r1,
              MemOperand(fp, (2 + scope()->num_parameters()) * kPointerSize));
       __ push(r1);
-      __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
+      // Push the strict mode flag.
+      __ mov(r1, Operand(Smi::FromInt(strict_mode_flag())));
+      __ push(r1);
+      __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
 
       // The runtime call returns a pair of values in r0 (function) and
       // r1 (receiver). Touch up the stack with the right values.
@@ -3077,8 +3088,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Label no_conversion;
       __ tst(result_register(), Operand(kSmiTagMask));
       __ b(eq, &no_conversion);
-      __ push(r0);
-      __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS);
+      ToNumberStub convert_stub;
+      __ CallStub(&convert_stub);
       __ bind(&no_conversion);
       context()->Plug(result_register());
       break;
@@ -3197,8 +3208,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Call ToNumber only if operand is not a smi.
   Label no_conversion;
   __ JumpIfSmi(r0, &no_conversion);
-  __ push(r0);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS);
+  ToNumberStub convert_stub;
+  __ CallStub(&convert_stub);
   __ bind(&no_conversion);
 
   // Save result for postfix expressions.
