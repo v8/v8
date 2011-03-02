@@ -1632,7 +1632,17 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
 
 
 void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
-  Abort("Unimplemented: %s", "DoHasCachedArrayIndex");
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+
+  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+  __ testl(FieldOperand(input, String::kHashFieldOffset),
+           Immediate(String::kContainsCachedArrayIndexMask));
+  NearLabel done;
+  __ j(not_zero, &done);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ bind(&done);
 }
 
 
