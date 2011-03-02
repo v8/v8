@@ -274,6 +274,24 @@ void VirtualFrame::Push(Expression* expr) {
 }
 
 
+void VirtualFrame::Push(Handle<Object> value) {
+  if (ConstantPoolOverflowed()) {
+    Result temp = cgen()->allocator()->Allocate();
+    ASSERT(temp.is_valid());
+    if (value->IsSmi()) {
+      __ Move(temp.reg(), Smi::cast(*value));
+    } else {
+      __ movq(temp.reg(), value, RelocInfo::EMBEDDED_OBJECT);
+    }
+    Push(&temp);
+  } else {
+    FrameElement element =
+        FrameElement::ConstantElement(value, FrameElement::NOT_SYNCED);
+    elements_.Add(element);
+  }
+}
+
+
 void VirtualFrame::Drop(int count) {
   ASSERT(count >= 0);
   ASSERT(height() >= count);
