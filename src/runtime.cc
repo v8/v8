@@ -43,6 +43,7 @@
 #include "global-handles.h"
 #include "jsregexp.h"
 #include "liveedit.h"
+#include "liveobjectlist-inl.h"
 #include "parser.h"
 #include "platform.h"
 #include "runtime.h"
@@ -10948,6 +10949,207 @@ static MaybeObject* Runtime_GetHeapUsage(Arguments args) {
   }
   return Smi::FromInt(usage);
 }
+
+
+// Captures a live object list from the present heap.
+static MaybeObject* Runtime_HasLOLEnabled(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  return Heap::true_value();
+#else
+  return Heap::false_value();
+#endif
+}
+
+
+// Captures a live object list from the present heap.
+static MaybeObject* Runtime_CaptureLOL(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  return LiveObjectList::Capture();
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Deletes the specified live object list.
+static MaybeObject* Runtime_DeleteLOL(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  CONVERT_SMI_CHECKED(id, args[0]);
+  bool success = LiveObjectList::Delete(id);
+  return success ? Heap::true_value() : Heap::false_value();
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Generates the response to a debugger request for a dump of the objects
+// contained in the difference between the captured live object lists
+// specified by id1 and id2.
+// If id1 is 0 (i.e. not a valid lol), then the whole of lol id2 will be
+// dumped.
+static MaybeObject* Runtime_DumpLOL(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  HandleScope scope;
+  CONVERT_SMI_CHECKED(id1, args[0]);
+  CONVERT_SMI_CHECKED(id2, args[1]);
+  CONVERT_SMI_CHECKED(start, args[2]);
+  CONVERT_SMI_CHECKED(count, args[3]);
+  CONVERT_ARG_CHECKED(JSObject, filter_obj, 4);
+  EnterDebugger enter_debugger;
+  return LiveObjectList::Dump(id1, id2, start, count, filter_obj);
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Gets the specified object as requested by the debugger.
+// This is only used for obj ids shown in live object lists.
+static MaybeObject* Runtime_GetLOLObj(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  CONVERT_SMI_CHECKED(obj_id, args[0]);
+  Object* result = LiveObjectList::GetObj(obj_id);
+  return result;
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Gets the obj id for the specified address if valid.
+// This is only used for obj ids shown in live object lists.
+static MaybeObject* Runtime_GetLOLObjId(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(String, address, 0);
+  Object* result = LiveObjectList::GetObjId(address);
+  return result;
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Gets the retainers that references the specified object alive.
+static MaybeObject* Runtime_GetLOLObjRetainers(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  HandleScope scope;
+  CONVERT_SMI_CHECKED(obj_id, args[0]);
+  RUNTIME_ASSERT(args[1]->IsUndefined() || args[1]->IsJSObject());
+  RUNTIME_ASSERT(args[2]->IsUndefined() || args[2]->IsBoolean());
+  RUNTIME_ASSERT(args[3]->IsUndefined() || args[3]->IsSmi());
+  RUNTIME_ASSERT(args[4]->IsUndefined() || args[4]->IsSmi());
+  CONVERT_ARG_CHECKED(JSObject, filter_obj, 5);
+
+  Handle<JSObject> instance_filter;
+  if (args[1]->IsJSObject()) {
+    instance_filter = args.at<JSObject>(1);
+  }
+  bool verbose = false;
+  if (args[2]->IsBoolean()) {
+    verbose = args[2]->IsTrue();
+  }
+  int start = 0;
+  if (args[3]->IsSmi()) {
+    start = Smi::cast(args[3])->value();
+  }
+  int limit = Smi::kMaxValue;
+  if (args[4]->IsSmi()) {
+    limit = Smi::cast(args[4])->value();
+  }
+
+  return LiveObjectList::GetObjRetainers(obj_id,
+                                         instance_filter,
+                                         verbose,
+                                         start,
+                                         limit,
+                                         filter_obj);
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Gets the reference path between 2 objects.
+static MaybeObject* Runtime_GetLOLPath(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  HandleScope scope;
+  CONVERT_SMI_CHECKED(obj_id1, args[0]);
+  CONVERT_SMI_CHECKED(obj_id2, args[1]);
+  RUNTIME_ASSERT(args[2]->IsUndefined() || args[2]->IsJSObject());
+
+  Handle<JSObject> instance_filter;
+  if (args[2]->IsJSObject()) {
+    instance_filter = args.at<JSObject>(2);
+  }
+
+  Object* result =
+      LiveObjectList::GetPath(obj_id1, obj_id2, instance_filter);
+  return result;
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Generates the response to a debugger request for a list of all
+// previously captured live object lists.
+static MaybeObject* Runtime_InfoLOL(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  CONVERT_SMI_CHECKED(start, args[0]);
+  CONVERT_SMI_CHECKED(count, args[1]);
+  return LiveObjectList::Info(start, count);
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Gets a dump of the specified object as requested by the debugger.
+// This is only used for obj ids shown in live object lists.
+static MaybeObject* Runtime_PrintLOLObj(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  HandleScope scope;
+  CONVERT_SMI_CHECKED(obj_id, args[0]);
+  Object* result = LiveObjectList::PrintObj(obj_id);
+  return result;
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Resets and releases all previously captured live object lists.
+static MaybeObject* Runtime_ResetLOL(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  LiveObjectList::Reset();
+  return Heap::undefined_value();
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Generates the response to a debugger request for a summary of the types
+// of objects in the difference between the captured live object lists
+// specified by id1 and id2.
+// If id1 is 0 (i.e. not a valid lol), then the whole of lol id2 will be
+// summarized.
+static MaybeObject* Runtime_SummarizeLOL(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  HandleScope scope;
+  CONVERT_SMI_CHECKED(id1, args[0]);
+  CONVERT_SMI_CHECKED(id2, args[1]);
+  CONVERT_ARG_CHECKED(JSObject, filter_obj, 2);
+
+  EnterDebugger enter_debugger;
+  return LiveObjectList::Summarize(id1, id2, filter_obj);
+#else
+  return Heap::undefined_value();
+#endif
+}
+
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 

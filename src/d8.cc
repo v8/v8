@@ -425,6 +425,12 @@ void Shell::Initialize() {
   global_template->Set(String::New("quit"), FunctionTemplate::New(Quit));
   global_template->Set(String::New("version"), FunctionTemplate::New(Version));
 
+#ifdef LIVE_OBJECT_LIST
+  global_template->Set(String::New("lol_is_enabled"), Boolean::New(true));
+#else
+  global_template->Set(String::New("lol_is_enabled"), Boolean::New(false));
+#endif
+
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
   AddOSMethods(os_templ);
   global_template->Set(String::New("os"), os_templ);
