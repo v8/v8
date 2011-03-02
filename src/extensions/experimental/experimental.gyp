@@ -37,8 +37,6 @@
       'target_name': 'i18n_api',
       'type': 'static_library',
       'sources': [
-        'break-iterator.cc',
-        'break-iterator.h',
         'i18n-extension.cc',
         'i18n-extension.h',
       ],
