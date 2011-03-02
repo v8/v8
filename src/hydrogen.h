@@ -605,7 +605,6 @@ class HGraphBuilder: public AstVisitor {
       : oracle_(oracle),
         graph_(NULL),
         current_subgraph_(NULL),
-        peeled_statement_(NULL),
         ast_context_(NULL),
         call_context_(NULL),
         function_return_(NULL),
@@ -676,24 +675,23 @@ class HGraphBuilder: public AstVisitor {
   HBasicBlock* CreateJoin(HBasicBlock* first,
                           HBasicBlock* second,
                           int join_id);
-  HBasicBlock* CreateWhile(IterationStatement* statement,
-                           HBasicBlock* loop_entry,
-                           HBasicBlock* cond_false,
-                           HBasicBlock* body_exit,
-                           HBasicBlock* break_block);
-  HBasicBlock* CreateDoWhile(IterationStatement* statement,
-                             HBasicBlock* body_entry,
-                             HBasicBlock* go_back,
-                             HBasicBlock* exit_block,
-                             HBasicBlock* break_block);
-  HBasicBlock* CreateEndless(IterationStatement* statement,
-                             HBasicBlock* body_entry,
-                             HBasicBlock* body_exit,
-                             HBasicBlock* break_block);
+
+  // Create a back edge in the flow graph.  body_exit is the predecessor
+  // block and loop_entry is the successor block.  loop_successor is the
+  // block where control flow exits the loop normally (e.g., via failure of
+  // the condition) and break_block is the block where control flow breaks
+  // from the loop.  All blocks except loop_entry can be NULL.  The return
+  // value is the new successor block which is the join of loop_successor
+  // and break_block, or NULL.
+  HBasicBlock* CreateLoop(IterationStatement* statement,
+                          HBasicBlock* loop_entry,
+                          HBasicBlock* body_exit,
+                          HBasicBlock* loop_successor,
+                          HBasicBlock* break_block);
+
   HBasicBlock* JoinContinue(IterationStatement* statement,
                             HBasicBlock* exit_block,
                             HBasicBlock* continue_block);
-
 
   void AddToSubgraph(HSubgraph* graph, ZoneList<Statement*>* stmts);
   void AddToSubgraph(HSubgraph* graph, Statement* stmt);
@@ -737,9 +735,8 @@ class HGraphBuilder: public AstVisitor {
 
   HBasicBlock* CreateBasicBlock(HEnvironment* env);
   HSubgraph* CreateEmptySubgraph();
-  HSubgraph* CreateGotoSubgraph(HEnvironment* env);
   HSubgraph* CreateBranchSubgraph(HEnvironment* env);
-  HBasicBlock* CreateLoopHeader();
+  HBasicBlock* CreateLoopHeaderBlock();
   HSubgraph* CreateInlinedSubgraph(HEnvironment* outer,
                                    Handle<JSFunction> target,
                                    FunctionLiteral* function);
@@ -851,7 +848,6 @@ class HGraphBuilder: public AstVisitor {
   TypeFeedbackOracle* oracle_;
   HGraph* graph_;
   HSubgraph* current_subgraph_;
-  IterationStatement* peeled_statement_;
   // Expression context of the currently visited subexpression. NULL when
   // visiting statements.
   AstContext* ast_context_;

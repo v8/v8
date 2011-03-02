@@ -285,24 +285,19 @@ void HValue::SetOperandAt(int index, HValue* value) {
 
 
 void HValue::ReplaceAndDelete(HValue* other) {
-  ReplaceValue(other);
+  if (other != NULL) ReplaceValue(other);
   Delete();
 }
 
 
 void HValue::ReplaceValue(HValue* other) {
-  ZoneList<HValue*> start_uses(2);
   for (int i = 0; i < uses_.length(); ++i) {
-    HValue* use = uses_.at(i);
-    if (!use->block()->IsStartBlock()) {
-      InternalReplaceAtUse(use, other);
-      other->uses_.Add(use);
-    } else {
-      start_uses.Add(use);
-    }
+    HValue* use = uses_[i];
+    ASSERT(!use->block()->IsStartBlock());
+    InternalReplaceAtUse(use, other);
+    other->uses_.Add(use);
   }
-  uses_.Clear();
-  uses_.AddAll(start_uses);
+  uses_.Rewind(0);
 }
 
 
