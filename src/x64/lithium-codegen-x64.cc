@@ -705,8 +705,8 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       break;
     }
     case CodeStub::StringCharAt: {
-      // TODO(1116): Add StringCharAt stub to x64.
-      Abort("Unimplemented: %s", "StringCharAt Stub");
+      StringCharAtStub stub;
+      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
     case CodeStub::MathPow: {
