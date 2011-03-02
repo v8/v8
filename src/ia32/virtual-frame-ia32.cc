@@ -1339,6 +1339,20 @@ void VirtualFrame::Push(Expression* expr) {
 }
 
 
+void VirtualFrame::Push(Handle<Object> value) {
+  if (ConstantPoolOverflowed()) {
+    Result temp = cgen()->allocator()->Allocate();
+    ASSERT(temp.is_valid());
+    __ Set(temp.reg(), Immediate(value));
+    Push(&temp);
+  } else {
+    FrameElement element =
+        FrameElement::ConstantElement(value, FrameElement::NOT_SYNCED);
+    elements_.Add(element);
+  }
+}
+
+
 #undef __
 
 } }  // namespace v8::internal
