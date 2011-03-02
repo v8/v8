@@ -82,8 +82,9 @@ v8::Handle<v8::Value> BreakIterator::BreakIteratorAdoptText(
   }
 
   v8::Local<v8::String> text_value = args[0]->ToString();
-  UnicodeString text(*v8::String::Value(text_value),
-                     text_value->Length());
+  const UChar* text =
+      reinterpret_cast<const UChar*>(*v8::String::Value(text_value));
+  UnicodeString text(text, text_value->Length());
 
   break_iterator->setText(text);
 
