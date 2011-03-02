@@ -1114,25 +1114,31 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
 
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
-  LOperand* left = instr->InputAt(0);
-  LOperand* right = instr->InputAt(1);
+  XMMRegister left = ToDoubleRegister(instr->InputAt(0));
+  XMMRegister right = ToDoubleRegister(instr->InputAt(1));
+  XMMRegister result = ToDoubleRegister(instr->result());
   // All operations except MOD are computed in-place.
-  ASSERT(instr->op() == Token::MOD || left->Equals(instr->result()));
+  ASSERT(instr->op() == Token::MOD || left.is(result));
   switch (instr->op()) {
     case Token::ADD:
-      __ addsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ addsd(left, right);
       break;
     case Token::SUB:
-       __ subsd(ToDoubleRegister(left), ToDoubleRegister(right));
+       __ subsd(left, right);
        break;
     case Token::MUL:
-      __ mulsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ mulsd(left, right);
       break;
     case Token::DIV:
-      __ divsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ divsd(left, right);
       break;
     case Token::MOD:
-      Abort("Unimplemented: %s", "DoArithmeticD MOD");
+      __ PrepareCallCFunction(2);
+      __ movsd(xmm0, left);
+      ASSERT(right.is(xmm1));
+      __ CallCFunction(ExternalReference::double_fp_operation(Token::MOD), 2);
+      __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+      __ movsd(result, xmm0);
       break;
     default:
       UNREACHABLE();

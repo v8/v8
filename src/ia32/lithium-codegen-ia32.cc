@@ -1148,35 +1148,36 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
 
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
-  LOperand* left = instr->InputAt(0);
-  LOperand* right = instr->InputAt(1);
+  XMMRegister left = ToDoubleRegister(instr->InputAt(0));
+  XMMRegister right = ToDoubleRegister(instr->InputAt(1));
+  XMMRegister result = ToDoubleRegister(instr->result());
   // Modulo uses a fixed result register.
-  ASSERT(instr->op() == Token::MOD || left->Equals(instr->result()));
+  ASSERT(instr->op() == Token::MOD || left.is(result));
   switch (instr->op()) {
     case Token::ADD:
-      __ addsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ addsd(left, right);
       break;
     case Token::SUB:
-       __ subsd(ToDoubleRegister(left), ToDoubleRegister(right));
+       __ subsd(left, right);
        break;
     case Token::MUL:
-      __ mulsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ mulsd(left, right);
       break;
     case Token::DIV:
-      __ divsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ divsd(left, right);
       break;
     case Token::MOD: {
       // Pass two doubles as arguments on the stack.
       __ PrepareCallCFunction(4, eax);
-      __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
-      __ movdbl(Operand(esp, 1 * kDoubleSize), ToDoubleRegister(right));
+      __ movdbl(Operand(esp, 0 * kDoubleSize), left);
+      __ movdbl(Operand(esp, 1 * kDoubleSize), right);
       __ CallCFunction(ExternalReference::double_fp_operation(Token::MOD), 4);
 
       // Return value is in st(0) on ia32.
       // Store it into the (fixed) result register.
       __ sub(Operand(esp), Immediate(kDoubleSize));
       __ fstp_d(Operand(esp, 0));
-      __ movdbl(ToDoubleRegister(instr->result()), Operand(esp, 0));
+      __ movdbl(result, Operand(esp, 0));
       __ add(Operand(esp), Immediate(kDoubleSize));
       break;
     }
