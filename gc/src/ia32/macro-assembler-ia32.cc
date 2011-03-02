@@ -49,22 +49,70 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 }
 
 
-void MacroAssembler::IncrementalMarkingRecordWrite(Register object,
-                                                   Register value,
-                                                   Register scratch) {
+void MacroAssembler::IncrementalMarkingRecordWriteHelper(
+    Register object,
+    Register value,
+    Register scratch,
+    ObjectMode object_mode,
+    ValueMode value_mode,
+    ScratchMode scratch_mode) {
   ASSERT(!object.is(scratch));
   ASSERT(!value.is(scratch));
-  push(eax);
-  push(ecx);
-  push(edx);
+  ASSERT(!value.is(object));
+
+  bool preserve[Register::kNumRegisters];
+
+  for (int i = 0; i < Register::kNumRegisters; i++) preserve[i] = false;
+
+  preserve[eax.code()] = true;
+  preserve[ecx.code()] = true;
+  preserve[edx.code()] = true;
+  preserve[object.code()] = (object_mode == PRESERVE_OBJECT);
+  preserve[value.code()] = (value_mode == PRESERVE_VALUE);
+  preserve[scratch.code()] = (scratch_mode == PRESERVE_SCRATCH);
+
+  for (int i = 0; i < Register::kNumRegisters; i++) {
+    if (preserve[i]) push(Register::from_code(i));
+  }
+
+  // TODO(gc) we are assuming that xmm registers are not modified by
+  // the C function we are calling.
   PrepareCallCFunction(2, scratch);
   mov(Operand(esp, 0 * kPointerSize), object);
   mov(Operand(esp, 1 * kPointerSize), value);
   CallCFunction(
       ExternalReference::incremental_marking_record_write_function(), 2);
-  pop(edx);
-  pop(ecx);
-  pop(eax);
+
+  for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
+    if (preserve[i]) pop(Register::from_code(i));
+  }
+}
+
+
+void MacroAssembler::IncrementalMarkingRecordWrite(Register object,
+                                                   Register value,
+                                                   Register scratch,
+                                                   SmiCheck smi_check,
+                                                   ObjectMode object_mode,
+                                                   ValueMode value_mode,
+                                                   ScratchMode scratch_mode) {
+  if (FLAG_incremental_marking) {
+    Label done;
+
+    if (smi_check == INLINE_SMI_CHECK) {
+      ASSERT_EQ(0, kSmiTag);
+      test(value, Immediate(kSmiTagMask));
+      j(zero, &done);
+    }
+
+    IncrementalMarkingRecordWriteStub stub(
+        object, value, scratch, object_mode, value_mode, scratch_mode);
+    CallStub(&stub);
+
+    if (smi_check == INLINE_SMI_CHECK) {
+      bind(&done);
+    }
+  }
 }
 
 
@@ -115,7 +163,14 @@ void MacroAssembler::RecordWrite(Register object,
   test(value, Immediate(kSmiTagMask));
   j(zero, &done);
 
-  IncrementalMarkingRecordWrite(object, value, scratch);
+  IncrementalMarkingRecordWrite(object,
+                                value,
+                                scratch,
+                                OMIT_SMI_CHECK,
+                                PRESERVE_OBJECT,
+                                DESTROY_VALUE,
+                                (offset == 0) ? PRESERVE_SCRATCH
+                                              : DESTROY_SCRATCH);
 
   InNewSpace(object, value, equal, &done);
 

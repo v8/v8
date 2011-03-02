@@ -505,6 +505,64 @@ class NumberToStringStub: public CodeStub {
 };
 
 
+class IncrementalMarkingRecordWriteStub: public CodeStub {
+ public:
+  IncrementalMarkingRecordWriteStub(Register object,
+                                    Register value,
+                                    Register scratch,
+                                    ObjectMode object_mode,
+                                    ValueMode value_mode,
+                                    ScratchMode scratch_mode)
+      : object_(object),
+        value_(value),
+        scratch_(scratch),
+        object_mode_(object_mode),
+        value_mode_(value_mode),
+        scratch_mode_(scratch_mode) {
+  }
+
+
+  static byte GetInstruction(bool enable) {
+    static const byte kNopInstruction = 0x90;
+    static const byte kRet0Instruction = 0xc3;
+    return enable ? kNopInstruction : kRet0Instruction;
+  }
+
+  static void Patch(Code* stub, bool enable) {
+    ASSERT(*stub->instruction_start() == GetInstruction(!enable));
+    *stub->instruction_start() = GetInstruction(enable);
+  }
+
+ private:
+  void Generate(MacroAssembler* masm);
+
+  Major MajorKey() { return IncrementalMarkingRecordWrite; }
+
+  int MinorKey() {
+    return ObjectBits::encode(object_.code()) |
+        ValueBits::encode(value_.code()) |
+        ScratchBits::encode(scratch_.code()) |
+        ObjectModeBits::encode(object_mode_) |
+        ValueModeBits::encode(value_mode_) |
+        ScratchModeBits::encode(scratch_mode_);
+  }
+
+  class ObjectBits: public BitField<int, 0, 3> {};
+  class ValueBits: public BitField<int, 3, 3> {};
+  class ScratchBits: public BitField<int, 6, 3> {};
+  class ObjectModeBits: public BitField<ObjectMode, 9, 1> {};
+  class ValueModeBits: public BitField<ValueMode, 10, 1> {};
+  class ScratchModeBits: public BitField<ScratchMode, 11, 1> {};
+
+  Register object_;
+  Register value_;
+  Register scratch_;
+  ObjectMode object_mode_;
+  ValueMode value_mode_;
+  ScratchMode scratch_mode_;
+};
+
+
 // Generate code to load an element from a pixel array. The receiver is assumed
 // to not be a smi and to have elements, the caller must guarantee this
 // precondition. If key is not a smi, then the generated code branches to

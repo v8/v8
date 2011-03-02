@@ -1156,6 +1156,9 @@ class Heap : public AllStatic {
 
   static GCTracer* tracer() { return tracer_; }
 
+  // Returns the size of objects residing in non new spaces.
+  static intptr_t PromotedSpaceSize();
+
  private:
   static int reserved_semispace_size_;
   static int max_semispace_size_;
@@ -1188,9 +1191,6 @@ class Heap : public AllStatic {
   static CellSpace* cell_space_;
   static LargeObjectSpace* lo_space_;
   static HeapState gc_state_;
-
-  // Returns the size of object residing in non new spaces.
-  static intptr_t PromotedSpaceSize();
 
   // Returns the amount of external memory registered since last global gc.
   static int PromotedExternalMemorySize();

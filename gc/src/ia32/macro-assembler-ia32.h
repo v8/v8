@@ -53,6 +53,11 @@ typedef Operand MemOperand;
 class JumpTarget;
 class PostCallGenerator;
 
+enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
+enum ObjectMode { PRESERVE_OBJECT, DESTROY_OBJECT };
+enum ValueMode { PRESERVE_VALUE, DESTROY_VALUE };
+enum ScratchMode { PRESERVE_SCRATCH, DESTROY_SCRATCH };
+
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
  public:
@@ -61,9 +66,22 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
+  void IncrementalMarkingRecordWriteHelper(Register object,
+                                           Register value,
+                                           Register scratch,
+                                           ObjectMode object_mode,
+                                           ValueMode value_mode,
+                                           ScratchMode scratch_mode);
+
+
   void IncrementalMarkingRecordWrite(Register object,
                                      Register value,
-                                     Register scratch);
+                                     Register scratch,
+                                     SmiCheck smi_check,
+                                     ObjectMode object_mode,
+                                     ValueMode value_mode,
+                                     ScratchMode scratch_mode);
+
 
   // For page containing |object| mark region covering |addr| dirty.
   // RecordWriteHelper only works if the object is not in new

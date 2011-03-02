@@ -6653,6 +6653,23 @@ void GenerateFastPixelArrayStore(MacroAssembler* masm,
 }
 
 
+void IncrementalMarkingRecordWriteStub::Generate(MacroAssembler* masm) {
+  if (IncrementalMarking::IsStopped()) {
+    __ ret(0);
+  } else {
+    __ nop();
+  }
+
+  __ IncrementalMarkingRecordWriteHelper(object_,
+                                         value_,
+                                         scratch_,
+                                         object_mode_,
+                                         value_mode_,
+                                         scratch_mode_);
+  __ ret(0);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

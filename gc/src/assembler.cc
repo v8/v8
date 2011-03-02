@@ -592,8 +592,10 @@ ExternalReference::ExternalReference(const SCTableReference& table_ref)
   : address_(table_ref.address()) {}
 
 
-ExternalReference ExternalReference::incremental_marking_record_write_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(IncrementalMarking::RecordWrite)));
+ExternalReference ExternalReference::
+    incremental_marking_record_write_function() {
+  return ExternalReference(Redirect(
+      FUNCTION_ADDR(IncrementalMarking::RecordWrite)));
 }
 
 

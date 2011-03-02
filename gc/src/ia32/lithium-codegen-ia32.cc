@@ -1955,12 +1955,13 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
   __ mov(object, Immediate(cell_handle));
   __ mov(FieldOperand(object, JSGlobalPropertyCell::kValueOffset), value);
 
-  NearLabel done;
-  __ test(value, Immediate(kSmiTagMask));
-  __ j(zero, &done);
-  __ IncrementalMarkingRecordWrite(object, value, scratch);
-  __ bind(&done);
-
+  __ IncrementalMarkingRecordWrite(object,
+                                   value,
+                                   scratch,
+                                   INLINE_SMI_CHECK,
+                                   DESTROY_OBJECT,
+                                   DESTROY_VALUE,
+                                   DESTROY_SCRATCH);
 }
 
 

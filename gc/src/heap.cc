@@ -501,7 +501,7 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
   }
 
   ASSERT(IncrementalMarking::state() == IncrementalMarking::STOPPED);
-  if (NextGCIsLikelyToBeFull() && FLAG_incremental_marking) {
+  if (IncrementalMarking::WorthActivating() && NextGCIsLikelyToBeFull()) {
     IncrementalMarking::Start();
   }
 

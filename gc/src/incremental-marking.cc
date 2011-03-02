@@ -29,6 +29,7 @@
 
 #include "incremental-marking.h"
 
+#include "code-stubs.h"
 
 namespace v8 {
 namespace internal {
@@ -122,6 +123,41 @@ static void ClearMarkbits() {
   }
 #endif
 
+bool IncrementalMarking::WorthActivating() {
+#ifndef DEBUG
+  static const intptr_t kActivationThreshold = 20*MB;
+#else
+  // TODO(gc) consider setting this to some low level so that some
+  // debug tests run with incremental marking and some without.
+  static const intptr_t kActivationThreshold = 0;
+#endif
+
+  return FLAG_incremental_marking &&
+      Heap::PromotedSpaceSize() > kActivationThreshold;
+}
+
+
+static void PatchIncrementalMarkingRecordWriteStubs(bool enable) {
+  NumberDictionary* stubs = Heap::code_stubs();
+
+  int capacity = stubs->Capacity();
+  for (int i = 0; i < capacity; i++) {
+    Object* k = stubs->KeyAt(i);
+    if (stubs->IsKey(k)) {
+      uint32_t key = NumberToUint32(k);
+
+      if (CodeStub::MajorKeyFromKey(key) ==
+          CodeStub::IncrementalMarkingRecordWrite) {
+        Object* e = stubs->ValueAt(i);
+        if (e->IsCode()) {
+          IncrementalMarkingRecordWriteStub::Patch(Code::cast(e), enable);
+        }
+      }
+    }
+  }
+}
+
+
 void IncrementalMarking::Start() {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Start\n");
@@ -129,6 +165,8 @@ void IncrementalMarking::Start() {
   ASSERT(FLAG_incremental_marking);
   ASSERT(state_ == STOPPED);
   state_ = MARKING;
+
+  PatchIncrementalMarkingRecordWriteStubs(true);
 
   // Initialize marking stack.
   marking_stack_.Initialize(Heap::new_space()->FromSpaceLow(),
@@ -181,6 +219,7 @@ void IncrementalMarking::Hurry() {
 void IncrementalMarking::Finalize() {
   Hurry();
   state_ = STOPPED;
+  PatchIncrementalMarkingRecordWriteStubs(false);
   ASSERT(marking_stack_.is_empty());
 }
 

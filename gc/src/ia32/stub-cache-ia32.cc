@@ -1498,7 +1498,13 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       __ bind(&with_write_barrier);
 
-      __ IncrementalMarkingRecordWrite(ebx, ecx, edx);
+      __ IncrementalMarkingRecordWrite(ebx,
+                                       ecx,
+                                       edx,
+                                       OMIT_SMI_CHECK,
+                                       PRESERVE_OBJECT,
+                                       DESTROY_VALUE,
+                                       PRESERVE_SCRATCH);
 
       __ InNewSpace(ebx, ecx, equal, &exit);
 
@@ -2603,9 +2609,15 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ j(zero, &done);
 
   __ mov(ecx, eax);
-  __ IncrementalMarkingRecordWrite(ebx, ecx, edx);
+  __ IncrementalMarkingRecordWrite(ebx,
+                                   ecx,
+                                   edx,
+                                   INLINE_SMI_CHECK,
+                                   DESTROY_OBJECT,
+                                   DESTROY_VALUE,
+                                   DESTROY_SCRATCH);
 
-   // Return the value (register eax).
+  // Return the value (register eax).
   __ bind(&done);
 
   // Return the value (register eax).

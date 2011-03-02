@@ -52,6 +52,8 @@ class IncrementalMarking : public AllStatic {
 
   static inline bool IsStopped() { return state() == STOPPED; }
 
+  static bool WorthActivating();
+
   static void Start();
 
   static void Stop();

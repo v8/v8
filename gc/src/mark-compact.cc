@@ -169,10 +169,11 @@ void MarkCompactCollector::CollectGarbage() {
     MarkLiveObjects();
   }
 
+  if (FLAG_collect_maps) ClearNonLiveTransitions();
+
 #ifdef DEBUG
   VerifyMarking();
 #endif
-  if (FLAG_collect_maps) ClearNonLiveTransitions();
 
   SweepSpaces();
 
@@ -646,7 +647,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     Object* old_cell = cell;
     VisitPointer(&cell);
     if (cell != old_cell) {
-      rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell), NULL);
+      rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell),
+                             NULL);
     }
   }
 
