@@ -766,7 +766,8 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
     }
     case CodeStub::TranscendentalCache: {
       __ ldr(r0, MemOperand(sp, 0));
-      TranscendentalCacheStub stub(instr->transcendental_type());
+      TranscendentalCacheStub stub(instr->transcendental_type(),
+                                   TranscendentalCacheStub::TAGGED);
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
@@ -2700,6 +2701,30 @@ void LCodeGen::DoPower(LPower* instr) {
 }
 
 
+void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
+  ASSERT(ToDoubleRegister(instr->result()).is(d2));
+  TranscendentalCacheStub stub(TranscendentalCache::LOG,
+                               TranscendentalCacheStub::UNTAGGED);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+}
+
+
+void LCodeGen::DoMathCos(LUnaryMathOperation* instr) {
+  ASSERT(ToDoubleRegister(instr->result()).is(d2));
+  TranscendentalCacheStub stub(TranscendentalCache::COS,
+                               TranscendentalCacheStub::UNTAGGED);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+}
+
+
+void LCodeGen::DoMathSin(LUnaryMathOperation* instr) {
+  ASSERT(ToDoubleRegister(instr->result()).is(d2));
+  TranscendentalCacheStub stub(TranscendentalCache::SIN,
+                               TranscendentalCacheStub::UNTAGGED);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+}
+
+
 void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
   switch (instr->op()) {
     case kMathAbs:
@@ -2713,6 +2738,15 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
       break;
     case kMathSqrt:
       DoMathSqrt(instr);
+      break;
+    case kMathCos:
+      DoMathCos(instr);
+      break;
+    case kMathSin:
+      DoMathSin(instr);
+      break;
+    case kMathLog:
+      DoMathLog(instr);
       break;
     default:
       Abort("Unimplemented type of LUnaryMathOperation.");

@@ -1210,33 +1210,30 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
 
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   BuiltinFunctionId op = instr->op();
-  LOperand* input = UseRegisterAtStart(instr->value());
-  LOperand* temp = (op == kMathFloor) ? TempRegister() : NULL;
-  LUnaryMathOperation* result = new LUnaryMathOperation(input, temp);
-  switch (op) {
-    case kMathAbs:
-      return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
-    case kMathFloor:
-      return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
-    case kMathSqrt:
-      return DefineSameAsFirst(result);
-    case kMathRound:
-      return AssignEnvironment(DefineAsRegister(result));
-    case kMathPowHalf:
-      Abort("MathPowHalf LUnaryMathOperation not implemented");
-      return NULL;
-    case kMathLog:
-      Abort("MathLog LUnaryMathOperation not implemented");
-      return NULL;
-    case kMathCos:
-      Abort("MathCos LUnaryMathOperation not implemented");
-      return NULL;
-    case kMathSin:
-      Abort("MathSin LUnaryMathOperation not implemented");
-      return NULL;
-    default:
-      UNREACHABLE();
-      return NULL;
+  if (op == kMathLog || op == kMathSin || op == kMathCos) {
+    LOperand* input = UseFixedDouble(instr->value(), d2);
+    LUnaryMathOperation* result = new LUnaryMathOperation(input, NULL);
+    return MarkAsCall(DefineFixedDouble(result, d2), instr);
+  } else {
+    LOperand* input = UseRegisterAtStart(instr->value());
+    LOperand* temp = (op == kMathFloor) ? TempRegister() : NULL;
+    LUnaryMathOperation* result = new LUnaryMathOperation(input, temp);
+    switch (op) {
+      case kMathAbs:
+        return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
+      case kMathFloor:
+        return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+      case kMathSqrt:
+        return DefineSameAsFirst(result);
+      case kMathRound:
+        return AssignEnvironment(DefineAsRegister(result));
+      case kMathPowHalf:
+        Abort("MathPowHalf LUnaryMathOperation not implemented");
+        return NULL;
+      default:
+        UNREACHABLE();
+        return NULL;
+    }
   }
 }
 
