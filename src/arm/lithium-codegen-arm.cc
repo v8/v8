@@ -2583,41 +2583,6 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
 }
 
 
-// Truncates a double using a specific rounding mode.
-// Clears the z flag (ne condition) if an overflow occurs.
-void LCodeGen::EmitVFPTruncate(VFPRoundingMode rounding_mode,
-                               SwVfpRegister result,
-                               DwVfpRegister double_input,
-                               Register scratch1,
-                               Register scratch2) {
-  Register prev_fpscr = scratch1;
-  Register scratch = scratch2;
-
-  // Set custom FPCSR:
-  //  - Set rounding mode.
-  //  - Clear vfp cumulative exception flags.
-  //  - Make sure Flush-to-zero mode control bit is unset.
-  __ vmrs(prev_fpscr);
-  __ bic(scratch, prev_fpscr, Operand(kVFPExceptionMask |
-                                      kVFPRoundingModeMask |
-                                      kVFPFlushToZeroMask));
-  __ orr(scratch, scratch, Operand(rounding_mode));
-  __ vmsr(scratch);
-
-  // Convert the argument to an integer.
-  __ vcvt_s32_f64(result,
-                  double_input,
-                  kFPSCRRounding);
-
-  // Retrieve FPSCR.
-  __ vmrs(scratch);
-  // Restore FPSCR.
-  __ vmsr(prev_fpscr);
-  // Check for vfp exceptions.
-  __ tst(scratch, Operand(kVFPExceptionMask));
-}
-
-
 void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
@@ -2625,11 +2590,11 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->TempAt(0));
 
-  EmitVFPTruncate(kRoundToMinusInf,
-                  single_scratch,
-                  input,
-                  scratch1,
-                  scratch2);
+  __ EmitVFPTruncate(kRoundToMinusInf,
+                     single_scratch,
+                     input,
+                     scratch1,
+                     scratch2);
   DeoptimizeIf(ne, instr->environment());
 
   // Move the result back to general purpose register r0.
@@ -2651,11 +2616,11 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   Register result = ToRegister(instr->result());
   Register scratch1 = scratch0();
   Register scratch2 = result;
-  EmitVFPTruncate(kRoundToNearest,
-                  double_scratch0().low(),
-                  input,
-                  scratch1,
-                  scratch2);
+  __ EmitVFPTruncate(kRoundToNearest,
+                     double_scratch0().low(),
+                     input,
+                     scratch1,
+                     scratch2);
   DeoptimizeIf(ne, instr->environment());
   __ vmov(result, double_scratch0().low());
 
@@ -3370,11 +3335,12 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->TempAt(0));
 
-  EmitVFPTruncate(kRoundToZero,
-                  single_scratch,
-                  double_input,
-                  scratch1,
-                  scratch2);
+  __ EmitVFPTruncate(kRoundToZero,
+                     single_scratch,
+                     double_input,
+                     scratch1,
+                     scratch2);
+
   // Deoptimize if we had a vfp invalid exception.
   DeoptimizeIf(ne, instr->environment());
 

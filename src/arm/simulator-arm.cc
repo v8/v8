@@ -2564,6 +2564,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       double dn_value = get_double_from_d_register(vn);
       double dm_value = get_double_from_d_register(vm);
       double dd_value = dn_value / dm_value;
+      div_zero_vfp_flag_ = (dm_value == 0);
       set_d_register_from_double(vd, dd_value);
     } else {
       UNIMPLEMENTED();  // Not used by V8.
@@ -2798,14 +2799,17 @@ void Simulator::DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr) {
 
     inv_op_vfp_flag_ = get_inv_op_vfp_flag(mode, val, unsigned_integer);
 
+    double abs_diff =
+      unsigned_integer ? fabs(val - static_cast<uint32_t>(temp))
+                       : fabs(val - temp);
+
+    inexact_vfp_flag_ = (abs_diff != 0);
+
     if (inv_op_vfp_flag_) {
       temp = VFPConversionSaturate(val, unsigned_integer);
     } else {
       switch (mode) {
         case RN: {
-          double abs_diff =
-            unsigned_integer ? fabs(val - static_cast<uint32_t>(temp))
-                             : fabs(val - temp);
           int val_sign = (val > 0) ? 1 : -1;
           if (abs_diff > 0.5) {
             temp += val_sign;

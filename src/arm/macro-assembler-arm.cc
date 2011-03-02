@@ -271,6 +271,29 @@ void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width,
 }
 
 
+void MacroAssembler::Bfi(Register dst,
+                         Register src,
+                         Register scratch,
+                         int lsb,
+                         int width,
+                         Condition cond) {
+  ASSERT(0 <= lsb && lsb < 32);
+  ASSERT(0 <= width && width < 32);
+  ASSERT(lsb + width < 32);
+  ASSERT(!scratch.is(dst));
+  if (width == 0) return;
+  if (!CpuFeatures::IsSupported(ARMv7)) {
+    int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
+    bic(dst, dst, Operand(mask));
+    and_(scratch, src, Operand((1 << width) - 1));
+    mov(scratch, Operand(scratch, LSL, lsb));
+    orr(dst, dst, scratch);
+  } else {
+    bfi(dst, src, lsb, width, cond);
+  }
+}
+
+
 void MacroAssembler::Bfc(Register dst, int lsb, int width, Condition cond) {
   ASSERT(lsb < 32);
   if (!CpuFeatures::IsSupported(ARMv7)) {
@@ -1818,9 +1841,9 @@ void MacroAssembler::ConvertToInt32(Register source,
     ldr(scratch, FieldMemOperand(source, HeapNumber::kExponentOffset));
     // Get exponent alone in scratch2.
     Ubfx(scratch2,
-            scratch,
-            HeapNumber::kExponentShift,
-            HeapNumber::kExponentBits);
+         scratch,
+         HeapNumber::kExponentShift,
+         HeapNumber::kExponentBits);
     // Load dest with zero.  We use this either for the final shift or
     // for the answer.
     mov(dest, Operand(0, RelocInfo::NONE));
@@ -1880,6 +1903,52 @@ void MacroAssembler::ConvertToInt32(Register source,
     rsb(dest, dest, Operand(0, RelocInfo::NONE), LeaveCC, ne);
     bind(&done);
   }
+}
+
+
+void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
+                                     SwVfpRegister result,
+                                     DwVfpRegister double_input,
+                                     Register scratch1,
+                                     Register scratch2,
+                                     CheckForInexactConversion check_inexact) {
+  ASSERT(CpuFeatures::IsSupported(VFP3));
+  CpuFeatures::Scope scope(VFP3);
+  Register prev_fpscr = scratch1;
+  Register scratch = scratch2;
+
+  int32_t check_inexact_conversion =
+    (check_inexact == kCheckForInexactConversion) ? kVFPInexactExceptionBit : 0;
+
+  // Set custom FPCSR:
+  //  - Set rounding mode.
+  //  - Clear vfp cumulative exception flags.
+  //  - Make sure Flush-to-zero mode control bit is unset.
+  vmrs(prev_fpscr);
+  bic(scratch,
+      prev_fpscr,
+      Operand(kVFPExceptionMask |
+              check_inexact_conversion |
+              kVFPRoundingModeMask |
+              kVFPFlushToZeroMask));
+  // 'Round To Nearest' is encoded by 0b00 so no bits need to be set.
+  if (rounding_mode != kRoundToNearest) {
+    orr(scratch, scratch, Operand(rounding_mode));
+  }
+  vmsr(scratch);
+
+  // Convert the argument to an integer.
+  vcvt_s32_f64(result,
+               double_input,
+               (rounding_mode == kRoundToZero) ? kDefaultRoundToZero
+                                               : kFPSCRRounding);
+
+  // Retrieve FPSCR.
+  vmrs(scratch);
+  // Restore FPSCR.
+  vmsr(prev_fpscr);
+  // Check for vfp exceptions.
+  tst(scratch, Operand(kVFPExceptionMask | check_inexact_conversion));
 }
 
 
