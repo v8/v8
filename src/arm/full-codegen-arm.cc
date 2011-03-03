@@ -3113,7 +3113,80 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
   VisitForStackValue(args->at(2));
+  Label done;
+  Label slow_case;
+  Register object = r0;
+  Register index1 = r1;
+  Register index2 = r2;
+  Register elements = r3;
+  Register scratch1 = r4;
+  Register scratch2 = r5;
+
+  __ ldr(object, MemOperand(sp, 2 * kPointerSize));
+  // Fetch the map and check if array is in fast case.
+  // Check that object doesn't require security checks and
+  // has no indexed interceptor.
+  __ CompareObjectType(object, scratch1, scratch2, FIRST_JS_OBJECT_TYPE);
+  __ b(lt, &slow_case);
+  // Map is now in scratch1.
+
+  __ ldrb(scratch2, FieldMemOperand(scratch1, Map::kBitFieldOffset));
+  __ tst(scratch2, Operand(KeyedLoadIC::kSlowCaseBitFieldMask));
+  __ b(ne, &slow_case);
+
+  // Check the object's elements are in fast case and writable.
+  __ ldr(elements, FieldMemOperand(object, JSObject::kElementsOffset));
+  __ ldr(scratch1, FieldMemOperand(elements, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+  __ cmp(scratch1, ip);
+  __ b(ne, &slow_case);
+
+  // Check that both indices are smis.
+  __ ldr(index1, MemOperand(sp, 1 * kPointerSize));
+  __ ldr(index2, MemOperand(sp, 0));
+  __ JumpIfNotBothSmi(index1, index2, &slow_case);
+
+  // Check that both indices are valid.
+  __ ldr(scratch1, FieldMemOperand(object, JSArray::kLengthOffset));
+  __ cmp(scratch1, index1);
+  __ cmp(scratch1, index2, hi);
+  __ b(ls, &slow_case);
+
+  // Bring the address of the elements into index1 and index2.
+  __ add(scratch1, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(index1,
+         scratch1,
+         Operand(index1, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(index2,
+         scratch1,
+         Operand(index2, LSL, kPointerSizeLog2 - kSmiTagSize));
+
+  // Swap elements.
+  __ ldr(scratch1, MemOperand(index1, 0));
+  __ ldr(scratch2, MemOperand(index2, 0)));
+  __ str(scratch1, MemOperand(index2, 0));
+  __ str(scratch2, MemOperand(index1, 0));
+
+  Label new_space;
+  __ InNewSpace(elements, scratch1, eq, &new_space);
+  // Possible optimization: do a check that both values are Smis
+  // (or them and test against Smi mask.)
+
+  __ mov(scratch1, elements);
+  __ RecordWriteHelper(elements, index1, scratch2);
+  __ RecordWriteHelper(scratch1, index2, scratch2);  // scratch1 holds elements.
+  __ bind(&done);
+
+  __ bind(&new_space);
+  // We are done. Drop elements from the stack, and return undefined.
+  __ Drop(3);
+  __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+  __ jmp(&done);
+
+  __ bind(&slow_case);
   __ CallRuntime(Runtime::kSwapElements, 3);
+
+  __ bind(&done);
   context()->Plug(r0);
 }
 
