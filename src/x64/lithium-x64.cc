@@ -291,13 +291,15 @@ void LUnaryMathOperation::PrintDataTo(StringStream* stream) {
 
 
 void LLoadContextSlot::PrintDataTo(StringStream* stream) {
+  InputAt(0)->PrintTo(stream);
   stream->Add("[%d]", slot_index());
 }
 
 
 void LStoreContextSlot::PrintDataTo(StringStream* stream) {
-  stream->Add("[%d] <- ", slot_index());
   InputAt(0)->PrintTo(stream);
+  stream->Add("[%d] <- ", slot_index());
+  InputAt(1)->PrintTo(stream);
 }
 
 
@@ -1718,22 +1720,23 @@ LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
 
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
-  return DefineAsRegister(new LLoadContextSlot());
+  LOperand* context = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LLoadContextSlot(context));
 }
 
 
 LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
+  Abort("Unimplemented: DoStoreContextSlot");  // Temporarily disabled (whesse).
+  LOperand* context;
   LOperand* value;
-  LOperand* temp_1 = NULL;
-  LOperand* temp_2 = NULL;
   if (instr->NeedsWriteBarrier()) {
+    context = UseTempRegister(instr->context());
     value = UseTempRegister(instr->value());
-    temp_1 = TempRegister();
-    temp_2 = TempRegister();
   } else {
+    context = UseRegister(instr->context());
     value = UseRegister(instr->value());
   }
-  return new LStoreContextSlot(value, temp_1, temp_2);
+  return new LStoreContextSlot(context, value);
 }
 
 
