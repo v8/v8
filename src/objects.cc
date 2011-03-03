@@ -6522,13 +6522,6 @@ void JSArray::Expand(int required_size) {
 }
 
 
-// Computes the new capacity when expanding the elements of a JSObject.
-static int NewElementsCapacity(int old_capacity) {
-  // (old_capacity + 50%) + 16
-  return old_capacity + (old_capacity >> 1) + 16;
-}
-
-
 static Failure* ArrayLengthRangeError() {
   HandleScope scope;
   return Top::Throw(*Factory::NewRangeError("invalid_array_length",

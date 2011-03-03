@@ -803,10 +803,12 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
   MessageLocation location(script_,
                            source_location.beg_pos,
                            source_location.end_pos);
-  Handle<JSArray> array = Factory::NewJSArray(args.length());
+  Handle<FixedArray> elements = Factory::NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
-    SetElement(array, i, Factory::NewStringFromUtf8(CStrVector(args[i])));
+    Handle<String> arg_string = Factory::NewStringFromUtf8(CStrVector(args[i]));
+    elements->set(i, *arg_string);
   }
+  Handle<JSArray> array = Factory::NewJSArrayWithElements(elements);
   Handle<Object> result = Factory::NewSyntaxError(type, array);
   Top::Throw(*result, &location);
 }
@@ -818,10 +820,11 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
   MessageLocation location(script_,
                            source_location.beg_pos,
                            source_location.end_pos);
-  Handle<JSArray> array = Factory::NewJSArray(args.length());
+  Handle<FixedArray> elements = Factory::NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
-    SetElement(array, i, args[i]);
+    elements->set(i, *args[i]);
   }
+  Handle<JSArray> array = Factory::NewJSArrayWithElements(elements);
   Handle<Object> result = Factory::NewSyntaxError(type, array);
   Top::Throw(*result, &location);
 }
@@ -4035,12 +4038,14 @@ Handle<Object> JsonParser::ParseJson(Handle<String> script,
       MessageLocation location(Factory::NewScript(script),
                                source_location.beg_pos,
                                source_location.end_pos);
-      int argc = (name_opt == NULL) ? 0 : 1;
-      Handle<JSArray> array = Factory::NewJSArray(argc);
-      if (name_opt != NULL) {
-        SetElement(array,
-                   0,
-                   Factory::NewStringFromUtf8(CStrVector(name_opt)));
+      Handle<JSArray> array;
+      if (name_opt == NULL) {
+        array = Factory::NewJSArray(0);
+      } else {
+        Handle<String> name = Factory::NewStringFromUtf8(CStrVector(name_opt));
+        Handle<FixedArray> element = Factory::NewFixedArray(1);
+        element->set(0, *name);
+        array = Factory::NewJSArrayWithElements(element);
       }
       Handle<Object> result = Factory::NewSyntaxError(message, array);
       Top::Throw(*result, &location);

@@ -789,6 +789,7 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
       case JSObject::FAST_ELEMENT: {
         elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
         Handle<Object> value = GetElement(obj, index);
+        RETURN_IF_EMPTY_HANDLE(value);
         elms->set(VALUE_INDEX, *value);
         elms->set(WRITABLE_INDEX, Heap::true_value());
         elms->set(ENUMERABLE_INDEX,  Heap::true_value());
@@ -826,6 +827,7 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
             // This is a data property.
             elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
             Handle<Object> value = GetElement(obj, index);
+            ASSERT(!value.is_null());
             elms->set(VALUE_INDEX, *value);
             elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
             break;
@@ -1469,7 +1471,7 @@ static MaybeObject* Runtime_InitializeConstContextSlot(Arguments args) {
       // The holder is an arguments object.
       ASSERT((attributes & READ_ONLY) == 0);
       Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
-      SetElement(arguments, index, value);
+      RETURN_IF_EMPTY_HANDLE(SetElement(arguments, index, value));
     }
     return *value;
   }
@@ -8384,8 +8386,9 @@ static void CollectElementIndices(Handle<JSObject> object,
  * with the element index and the element's value.
  * Afterwards it increments the base-index of the visitor by the array
  * length.
+ * Returns false if any access threw an exception, otherwise true.
  */
-static void IterateElements(Handle<JSArray> receiver,
+static bool IterateElements(Handle<JSArray> receiver,
                             ArrayConcatVisitor* visitor) {
   uint32_t length = static_cast<uint32_t>(receiver->length()->Number());
   switch (receiver->GetElementsKind()) {
@@ -8404,6 +8407,7 @@ static void IterateElements(Handle<JSArray> receiver,
           // Call GetElement on receiver, not its prototype, or getters won't
           // have the correct receiver.
           element_value = GetElement(receiver, j);
+          if (element_value.is_null()) return false;
           visitor->visit(j, element_value);
         }
       }
@@ -8422,6 +8426,7 @@ static void IterateElements(Handle<JSArray> receiver,
         HandleScope loop_scope;
         uint32_t index = indices[j];
         Handle<Object> element = GetElement(receiver, index);
+        if (element.is_null()) return false;
         visitor->visit(index, element);
         // Skip to next different index (i.e., omit duplicates).
         do {
@@ -8478,6 +8483,7 @@ static void IterateElements(Handle<JSArray> receiver,
       break;
   }
   visitor->increase_index_offset(length);
+  return true;
 }
 
 
@@ -8559,7 +8565,9 @@ static MaybeObject* Runtime_ArrayConcat(Arguments args) {
     Handle<Object> obj(elements->get(i));
     if (obj->IsJSArray()) {
       Handle<JSArray> array = Handle<JSArray>::cast(obj);
-      IterateElements(array, &visitor);
+      if (!IterateElements(array, &visitor)) {
+        return Failure::Exception();
+      }
     } else {
       visitor.visit(0, obj);
       visitor.increase_index_offset(1);
@@ -8657,10 +8665,12 @@ static MaybeObject* Runtime_SwapElements(Arguments args) {
 
   Handle<JSObject> jsobject = Handle<JSObject>::cast(object);
   Handle<Object> tmp1 = GetElement(jsobject, index1);
+  RETURN_IF_EMPTY_HANDLE(tmp1);
   Handle<Object> tmp2 = GetElement(jsobject, index2);
+  RETURN_IF_EMPTY_HANDLE(tmp2);
 
-  SetElement(jsobject, index1, tmp2);
-  SetElement(jsobject, index2, tmp1);
+  RETURN_IF_EMPTY_HANDLE(SetElement(jsobject, index1, tmp2));
+  RETURN_IF_EMPTY_HANDLE(SetElement(jsobject, index2, tmp1));
 
   return Heap::undefined_value();
 }
@@ -11266,7 +11276,8 @@ static MaybeObject* Runtime_CollectStackTrace(Arguments args) {
 
   limit = Max(limit, 0);  // Ensure that limit is not negative.
   int initial_size = Min(limit, 10);
-  Handle<JSArray> result = Factory::NewJSArray(initial_size * 4);
+  Handle<FixedArray> elements =
+      Factory::NewFixedArrayWithHoles(initial_size * 4);
 
   StackFrameIterator iter;
   // If the caller parameter is a function we skip frames until we're
@@ -11282,27 +11293,30 @@ static MaybeObject* Runtime_CollectStackTrace(Arguments args) {
       List<FrameSummary> frames(3);  // Max 2 levels of inlining.
       frame->Summarize(&frames);
       for (int i = frames.length() - 1; i >= 0; i--) {
+        if (cursor + 4 > elements->length()) {
+          int new_capacity = JSObject::NewElementsCapacity(elements->length());
+          Handle<FixedArray> new_elements =
+              Factory::NewFixedArrayWithHoles(new_capacity);
+          for (int i = 0; i < cursor; i++) {
+            new_elements->set(i, elements->get(i));
+          }
+          elements = new_elements;
+        }
+        ASSERT(cursor + 4 <= elements->length());
+
         Handle<Object> recv = frames[i].receiver();
         Handle<JSFunction> fun = frames[i].function();
         Handle<Code> code = frames[i].code();
         Handle<Smi> offset(Smi::FromInt(frames[i].offset()));
-        FixedArray* elements = FixedArray::cast(result->elements());
-        if (cursor + 3 < elements->length()) {
-          elements->set(cursor++, *recv);
-          elements->set(cursor++, *fun);
-          elements->set(cursor++, *code);
-          elements->set(cursor++, *offset);
-        } else {
-          SetElement(result, cursor++, recv);
-          SetElement(result, cursor++, fun);
-          SetElement(result, cursor++, code);
-          SetElement(result, cursor++, offset);
-        }
+        elements->set(cursor++, *recv);
+        elements->set(cursor++, *fun);
+        elements->set(cursor++, *code);
+        elements->set(cursor++, *offset);
       }
     }
     iter.Advance();
   }
-
+  Handle<JSArray> result = Factory::NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(cursor));
   return *result;
 }
@@ -11467,7 +11481,13 @@ static MaybeObject* Runtime_MessageGetScript(Arguments args) {
 static MaybeObject* Runtime_ListNatives(Arguments args) {
   ASSERT(args.length() == 0);
   HandleScope scope;
-  Handle<JSArray> result = Factory::NewJSArray(0);
+#define COUNT_ENTRY(Name, argc, ressize) + 1
+  int entry_count = 0
+      RUNTIME_FUNCTION_LIST(COUNT_ENTRY)
+      INLINE_FUNCTION_LIST(COUNT_ENTRY)
+      INLINE_RUNTIME_FUNCTION_LIST(COUNT_ENTRY);
+#undef COUNT_ENTRY
+  Handle<FixedArray> elements = Factory::NewFixedArray(entry_count);
   int index = 0;
   bool inline_runtime_functions = false;
 #define ADD_ENTRY(Name, argc, ressize)                                       \
@@ -11482,10 +11502,11 @@ static MaybeObject* Runtime_ListNatives(Arguments args) {
       name = Factory::NewStringFromAscii(                                    \
           Vector<const char>(#Name, StrLength(#Name)));                      \
     }                                                                        \
-    Handle<JSArray> pair = Factory::NewJSArray(0);                           \
-    SetElement(pair, 0, name);                                               \
-    SetElement(pair, 1, Handle<Smi>(Smi::FromInt(argc)));                    \
-    SetElement(result, index++, pair);                                       \
+    Handle<FixedArray> pair_elements = Factory::NewFixedArray(2);            \
+    pair_elements->set(0, *name);                                            \
+    pair_elements->set(1, Smi::FromInt(argc));                               \
+    Handle<JSArray> pair = Factory::NewJSArrayWithElements(pair_elements);   \
+    elements->set(index++, *pair);                                           \
   }
   inline_runtime_functions = false;
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
@@ -11493,6 +11514,8 @@ static MaybeObject* Runtime_ListNatives(Arguments args) {
   INLINE_FUNCTION_LIST(ADD_ENTRY)
   INLINE_RUNTIME_FUNCTION_LIST(ADD_ENTRY)
 #undef ADD_ENTRY
+  ASSERT_EQ(index, entry_count);
+  Handle<JSArray> result = Factory::NewJSArrayWithElements(elements);
   return *result;
 }
 #endif

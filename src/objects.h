@@ -1515,6 +1515,12 @@ class JSObject: public HeapObject {
   inline bool HasElement(uint32_t index);
   bool HasElementWithReceiver(JSObject* receiver, uint32_t index);
 
+  // Computes the new capacity when expanding the elements of a JSObject.
+  static int NewElementsCapacity(int old_capacity) {
+    // (old_capacity + 50%) + 16
+    return old_capacity + (old_capacity >> 1) + 16;
+  }
+
   // Tells whether the index'th element is present and how it is stored.
   enum LocalElementType {
     // There is no element with given index.
