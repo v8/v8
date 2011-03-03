@@ -89,6 +89,7 @@ class LCodeGen;
   V(DoubleToI)                                  \
   V(FunctionLiteral)                            \
   V(Gap)                                        \
+  V(GetCachedArrayIndex)                        \
   V(GlobalObject)                               \
   V(GlobalReceiver)                             \
   V(Goto)                                       \
@@ -727,6 +728,17 @@ class LHasInstanceTypeAndBranch: public LControlInstruction<1, 0> {
   DECLARE_HYDROGEN_ACCESSOR(HasInstanceType)
 
   virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class LGetCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LGetCachedArrayIndex(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(GetCachedArrayIndex, "get-cached-array-index")
+  DECLARE_HYDROGEN_ACCESSOR(GetCachedArrayIndex)
 };
 
 

@@ -1711,10 +1711,13 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
 void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
-  Register scratch = scratch0();
 
-  __ ldr(scratch, FieldMemOperand(input, String::kHashFieldOffset));
-  __ IndexFromHash(scratch, result);
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(input);
+  }
+
+  __ ldr(result, FieldMemOperand(input, String::kHashFieldOffset));
+  __ IndexFromHash(result, result);
 }
 
 

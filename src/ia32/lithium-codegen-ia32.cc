@@ -1654,6 +1654,19 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
 }
 
 
+void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(input);
+  }
+
+  __ mov(result, FieldOperand(input, String::kHashFieldOffset));
+  __ IndexFromHash(result, result);
+}
+
+
 void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
@@ -1663,7 +1676,7 @@ void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
   __ test(FieldOperand(input, String::kHashFieldOffset),
           Immediate(String::kContainsCachedArrayIndexMask));
   NearLabel done;
-  __ j(not_zero, &done);
+  __ j(zero, &done);
   __ mov(result, Factory::false_value());
   __ bind(&done);
 }
@@ -1678,7 +1691,7 @@ void LCodeGen::DoHasCachedArrayIndexAndBranch(
 
   __ test(FieldOperand(input, String::kHashFieldOffset),
           Immediate(String::kContainsCachedArrayIndexMask));
-  EmitBranch(true_block, false_block, not_equal);
+  EmitBranch(true_block, false_block, equal);
 }
 
 
