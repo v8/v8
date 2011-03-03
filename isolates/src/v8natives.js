@@ -92,7 +92,7 @@ function GlobalIsFinite(number) {
 
 // ECMA-262 - 15.1.2.2
 function GlobalParseInt(string, radix) {
-  if (IS_UNDEFINED(radix)) {
+  if (IS_UNDEFINED(radix) || radix === 10 || radix === 0) {
     // Some people use parseInt instead of Math.floor.  This
     // optimization makes parseInt on a Smi 12 times faster (60ns
     // vs 800ns).  The following optimization makes parseInt on a
@@ -105,7 +105,7 @@ function GlobalParseInt(string, radix) {
       // Truncate number.
       return string | 0;
     }
-    radix = 0;
+    if (IS_UNDEFINED(radix)) radix = 0;
   } else {
     radix = TO_INT32(radix);
     if (!(radix == 0 || (2 <= radix && radix <= 36)))
@@ -586,17 +586,20 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
       // Step 7
       if (desc.isConfigurable() ||
           (desc.hasEnumerable() &&
-           desc.isEnumerable() != current.isEnumerable()))
+           desc.isEnumerable() != current.isEnumerable())) {
         throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+      }
       // Step 8
       if (!IsGenericDescriptor(desc)) {
         // Step 9a
-        if (IsDataDescriptor(current) != IsDataDescriptor(desc))
+        if (IsDataDescriptor(current) != IsDataDescriptor(desc)) {
           throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+        }
         // Step 10a
         if (IsDataDescriptor(current) && IsDataDescriptor(desc)) {
-          if (!current.isWritable() && desc.isWritable())
+          if (!current.isWritable() && desc.isWritable()) {
             throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+          }
           if (!current.isWritable() && desc.hasValue() &&
               !SameValue(desc.getValue(), current.getValue())) {
             throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
@@ -604,11 +607,12 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
         }
         // Step 11
         if (IsAccessorDescriptor(desc) && IsAccessorDescriptor(current)) {
-          if (desc.hasSetter() && !SameValue(desc.getSet(), current.getSet())){
+          if (desc.hasSetter() && !SameValue(desc.getSet(), current.getSet())) {
             throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
           }
-          if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet()))
+          if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet())) {
             throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+          }
         }
       }
     }

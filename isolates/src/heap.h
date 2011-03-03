@@ -30,6 +30,8 @@
 
 #include <math.h>
 
+#include "globals.h"
+#include "list.h"
 #include "mark-compact.h"
 #include "spaces.h"
 #include "splay-tree-inl.h"
@@ -190,6 +192,7 @@ inline Heap* _inline_get_heap_();
   V(KeyedLoadSpecialized_symbol, "KeyedLoadSpecialized")                 \
   V(KeyedStoreSpecialized_symbol, "KeyedStoreSpecialized")               \
   V(KeyedLoadPixelArray_symbol, "KeyedLoadPixelArray")                   \
+  V(KeyedStorePixelArray_symbol, "KeyedStorePixelArray")                 \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
   V(illegal_access_symbol, "illegal access")                             \
   V(out_of_memory_symbol, "out-of-memory")                               \
@@ -1271,7 +1274,7 @@ class Heap {
 
   int mc_count_;  // how many mark-compact collections happened
   int ms_count_;  // how many mark-sweep collections happened
-  int gc_count_;  // how many gc happened
+  unsigned int gc_count_;  // how many gc happened
 
   // Total length of the strings we failed to flatten since the last GC.
   int unflattened_strings_length_;
@@ -1562,7 +1565,7 @@ class Heap {
   intptr_t page_watermark_invalidated_mark_;
 
   int number_idle_notifications_;
-  int last_idle_notification_gc_count_;
+  unsigned int last_idle_notification_gc_count_;
   bool last_idle_notification_gc_count_init_;
 
   // Shared state read by the scavenge collector and set by ScavengeObject.
@@ -2021,7 +2024,7 @@ class GCTracer BASE_EMBEDDED {
   void set_collector(GarbageCollector collector) { collector_ = collector; }
 
   // Sets the GC count.
-  void set_gc_count(int count) { gc_count_ = count; }
+  void set_gc_count(unsigned int count) { gc_count_ = count; }
 
   // Sets the full GC count.
   void set_full_gc_count(int count) { full_gc_count_ = count; }
@@ -2055,7 +2058,7 @@ class GCTracer BASE_EMBEDDED {
 
   // A count (including this one, eg, the first collection is 1) of the
   // number of garbage collections.
-  int gc_count_;
+  unsigned int gc_count_;
 
   // A count (including this one) of the number of full garbage collections.
   int full_gc_count_;
@@ -2183,6 +2186,65 @@ class WeakObjectRetainer {
   // should be returned as in some GC situations the object has been moved.
   virtual Object* RetainAs(Object* object) = 0;
 };
+
+
+#if defined(DEBUG) || defined(LIVE_OBJECT_LIST)
+// Helper class for tracing paths to a search target Object from all roots.
+// The TracePathFrom() method can be used to trace paths from a specific
+// object to the search target object.
+class PathTracer : public ObjectVisitor {
+ public:
+  enum WhatToFind {
+    FIND_ALL,   // Will find all matches.
+    FIND_FIRST  // Will stop the search after first match.
+  };
+
+  // For the WhatToFind arg, if FIND_FIRST is specified, tracing will stop
+  // after the first match.  If FIND_ALL is specified, then tracing will be
+  // done for all matches.
+  PathTracer(Object* search_target,
+             WhatToFind what_to_find,
+             VisitMode visit_mode)
+      : search_target_(search_target),
+        found_target_(false),
+        found_target_in_trace_(false),
+        what_to_find_(what_to_find),
+        visit_mode_(visit_mode),
+        object_stack_(20),
+        no_alloc() {}
+
+  virtual void VisitPointers(Object** start, Object** end);
+
+  void Reset();
+  void TracePathFrom(Object** root);
+
+  bool found() const { return found_target_; }
+
+  static Object* const kAnyGlobalObject;
+
+ protected:
+  class MarkVisitor;
+  class UnmarkVisitor;
+
+  void MarkRecursively(Object** p, MarkVisitor* mark_visitor);
+  void UnmarkRecursively(Object** p, UnmarkVisitor* unmark_visitor);
+  virtual void ProcessResults();
+
+  // Tags 0, 1, and 3 are used. Use 2 for marking visited HeapObject.
+  static const int kMarkTag = 2;
+
+  Object* search_target_;
+  bool found_target_;
+  bool found_target_in_trace_;
+  WhatToFind what_to_find_;
+  VisitMode visit_mode_;
+  List<Object*> object_stack_;
+
+  AssertNoAllocation no_alloc;  // i.e. no gc allowed.
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PathTracer);
+};
+#endif  // DEBUG || LIVE_OBJECT_LIST
 
 
 } }  // namespace v8::internal

@@ -151,26 +151,32 @@ class StubCache {
 
   // ---
 
-  MUST_USE_RESULT MaybeObject* ComputeStoreField(String* name,
-                                                 JSObject* receiver,
-                                                 int field_index,
-                                                 Map* transition = NULL);
+  MUST_USE_RESULT MaybeObject* ComputeStoreField(
+      String* name,
+      JSObject* receiver,
+      int field_index,
+      Map* transition,
+      StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT MaybeObject* ComputeStoreNormal();
+  MUST_USE_RESULT MaybeObject* ComputeStoreNormal(
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT MaybeObject* ComputeStoreGlobal(
       String* name,
       GlobalObject* receiver,
-      JSGlobalPropertyCell* cell);
+      JSGlobalPropertyCell* cell,
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT MaybeObject* ComputeStoreCallback(
       String* name,
       JSObject* receiver,
-      AccessorInfo* callback);
+      AccessorInfo* callback,
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT MaybeObject* ComputeStoreInterceptor(
       String* name,
-      JSObject* receiver);
+      JSObject* receiver,
+      StrictModeFlag strict_mode);
 
   // ---
 
@@ -178,14 +184,21 @@ class StubCache {
       String* name,
       JSObject* receiver,
       int field_index,
-      Map* transition = NULL);
+      Map* transition,
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT MaybeObject* ComputeKeyedStoreSpecialized(
-      JSObject* receiver);
+      JSObject* receiver,
+      StrictModeFlag strict_mode);
+
+  MUST_USE_RESULT MaybeObject* ComputeKeyedStorePixelArray(
+      JSObject* receiver,
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT MaybeObject* ComputeKeyedLoadOrStoreExternalArray(
       JSObject* receiver,
-      bool is_store);
+      bool is_store,
+      StrictModeFlag strict_mode);
 
   // ---
 
@@ -629,6 +642,9 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
 class StoreStubCompiler: public StubCompiler {
  public:
+  explicit StoreStubCompiler(StrictModeFlag strict_mode)
+    : strict_mode_(strict_mode) { }
+
   MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
                                                  int index,
                                                  Map* transition,
@@ -646,11 +662,16 @@ class StoreStubCompiler: public StubCompiler {
 
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
+
+  StrictModeFlag strict_mode_;
 };
 
 
 class KeyedStoreStubCompiler: public StubCompiler {
  public:
+  explicit KeyedStoreStubCompiler(StrictModeFlag strict_mode)
+    : strict_mode_(strict_mode) { }
+
   MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
                                                  int index,
                                                  Map* transition,
@@ -658,8 +679,12 @@ class KeyedStoreStubCompiler: public StubCompiler {
 
   MUST_USE_RESULT MaybeObject* CompileStoreSpecialized(JSObject* receiver);
 
+  MUST_USE_RESULT MaybeObject* CompileStorePixelArray(JSObject* receiver);
+
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
+
+  StrictModeFlag strict_mode_;
 };
 
 

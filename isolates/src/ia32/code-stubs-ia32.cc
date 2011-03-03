@@ -2388,14 +2388,14 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
-  NearLabel call_runtime;
+  ASSERT(op_ == Token::ADD);
+  NearLabel left_not_string, call_runtime;
 
   // Registers containing left and right operands respectively.
   Register left = edx;
   Register right = eax;
 
   // Test if left operand is a string.
-  NearLabel left_not_string;
   __ test(left, Immediate(kSmiTagMask));
   __ j(zero, &left_not_string);
   __ CmpObjectType(left, FIRST_NONSTRING_TYPE, ecx);
@@ -3405,7 +3405,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ test(edx, Immediate(kSmiTagMask));
   __ j(not_zero, &base_nonsmi);
 
-  // Optimized version when both exponent and base is a smi.
+  // Optimized version when both exponent and base are smis.
   Label powi;
   __ SmiUntag(edx);
   __ cvtsi2sd(xmm0, Operand(edx));
@@ -3444,7 +3444,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ j(not_carry, &no_multiply);
   __ mulsd(xmm1, xmm0);
   __ bind(&no_multiply);
-  __ test(eax, Operand(eax));
   __ mulsd(xmm0, xmm0);
   __ j(not_zero, &while_true);
 
@@ -3531,7 +3530,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ AllocateHeapNumber(ecx, eax, edx, &call_runtime);
   __ movdbl(FieldOperand(ecx, HeapNumber::kValueOffset), xmm1);
   __ mov(eax, ecx);
-  __ ret(2);
+  __ ret(2 * kPointerSize);
 
   __ bind(&call_runtime);
   __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
@@ -3892,8 +3891,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // All checks done. Now push arguments for native regexp code.
   __ IncrementCounter(COUNTERS->regexp_entry_native(), 1);
 
-  static const int kRegExpExecuteArguments = 7;
-  __ PrepareCallCFunction(kRegExpExecuteArguments, ecx);
+  // Isolates: note we add an additional parameter here (isolate pointer).
+  static const int kRegExpExecuteArguments = 8;
+  __ EnterApiExitFrame(kRegExpExecuteArguments);
+
+  // Argument 8: Pass current isolate address.
+  __ mov(Operand(esp, 7 * kPointerSize),
+      Immediate(ExternalReference::isolate_address()));
 
   // Argument 7: Indicate that this is a direct call from JavaScript.
   __ mov(Operand(esp, 6 * kPointerSize), Immediate(1));
@@ -3938,7 +3942,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Locate the code entry and call it.
   __ add(Operand(edx), Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ CallCFunction(edx, kRegExpExecuteArguments);
+  __ call(Operand(edx));
+
+  // Drop arguments and come back to JS mode.
+  __ LeaveApiExitFrame();
 
   // Check the result.
   Label success;
@@ -3955,12 +3962,30 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception(Isolate::k_pending_exception_address);
-  __ mov(eax,
+  __ mov(edx,
          Operand::StaticVariable(ExternalReference::the_hole_value_location()));
-  __ cmp(eax, Operand::StaticVariable(pending_exception));
+  __ mov(eax, Operand::StaticVariable(pending_exception));
+  __ cmp(edx, Operand(eax));
   __ j(equal, &runtime);
+  // For exception, throw the exception again.
+
+  // Clear the pending exception variable.
+  __ mov(Operand::StaticVariable(pending_exception), edx);
+
+  // Special handling of termination exceptions which are uncatchable
+  // by javascript code.
+  __ cmp(eax, FACTORY->termination_exception());
+  Label throw_termination_exception;
+  __ j(equal, &throw_termination_exception);
+
+  // Handle normal exception by following handler chain.
+  __ Throw(eax);
+
+  __ bind(&throw_termination_exception);
+  __ ThrowUncatchable(TERMINATION, eax);
+
   __ bind(&failure);
-  // For failure and exception return null.
+  // For failure to match, return null.
   __ mov(Operand(eax), FACTORY->null_value());
   __ ret(4 * kPointerSize);
 
@@ -4635,34 +4660,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  // eax holds the exception.
-
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
-
-  // Drop the sp to the top of the handler.
-  ExternalReference handler_address(Isolate::k_handler_address);
-  __ mov(esp, Operand::StaticVariable(handler_address));
-
-  // Restore next handler and frame pointer, discard handler state.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  __ pop(Operand::StaticVariable(handler_address));
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 1 * kPointerSize);
-  __ pop(ebp);
-  __ pop(edx);  // Remove state.
-
-  // Before returning we restore the context from the frame pointer if
-  // not NULL.  The frame pointer is NULL in the exception handler of
-  // a JS entry frame.
-  __ Set(esi, Immediate(0));  // Tentatively set context pointer to NULL.
-  NearLabel skip;
-  __ cmp(ebp, 0);
-  __ j(equal, &skip, not_taken);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  __ bind(&skip);
-
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
-  __ ret(0);
+  __ Throw(eax);
 }
 
 
@@ -4788,53 +4786,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
 void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
                                           UncatchableExceptionType type) {
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
-
-  // Drop sp to the top stack handler.
-  ExternalReference handler_address(Isolate::k_handler_address);
-  __ mov(esp, Operand::StaticVariable(handler_address));
-
-  // Unwind the handlers until the ENTRY handler is found.
-  NearLabel loop, done;
-  __ bind(&loop);
-  // Load the type of the current stack handler.
-  const int kStateOffset = StackHandlerConstants::kStateOffset;
-  __ cmp(Operand(esp, kStateOffset), Immediate(StackHandler::ENTRY));
-  __ j(equal, &done);
-  // Fetch the next handler in the list.
-  const int kNextOffset = StackHandlerConstants::kNextOffset;
-  __ mov(esp, Operand(esp, kNextOffset));
-  __ jmp(&loop);
-  __ bind(&done);
-
-  // Set the top handler address to next handler past the current ENTRY handler.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  __ pop(Operand::StaticVariable(handler_address));
-
-  if (type == OUT_OF_MEMORY) {
-    // Set external caught exception to false.
-    ExternalReference external_caught(
-        Isolate::k_external_caught_exception_address);
-    __ mov(eax, false);
-    __ mov(Operand::StaticVariable(external_caught), eax);
-
-    // Set pending exception and eax to out of memory exception.
-    ExternalReference pending_exception(Isolate::k_pending_exception_address);
-    __ mov(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
-    __ mov(Operand::StaticVariable(pending_exception), eax);
-  }
-
-  // Clear the context pointer.
-  __ Set(esi, Immediate(0));
-
-  // Restore fp from handler and discard handler state.
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 1 * kPointerSize);
-  __ pop(ebp);
-  __ pop(edx);  // State.
-
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
-  __ ret(0);
+  __ ThrowUncatchable(type, eax);
 }
 
 
@@ -6574,9 +6526,19 @@ void GenerateFastPixelArrayLoad(MacroAssembler* masm,
   __ mov(untagged_key, key);
   __ SmiUntag(untagged_key);
 
-  // Verify that the receiver has pixel array elements.
   __ mov(elements, FieldOperand(receiver, JSObject::kElementsOffset));
-  __ CheckMap(elements, FACTORY->pixel_array_map(), not_pixel_array, true);
+  // By passing NULL as not_pixel_array, callers signal that they have already
+  // verified that the receiver has pixel array elements.
+  if (not_pixel_array != NULL) {
+    __ CheckMap(elements, FACTORY->pixel_array_map(), not_pixel_array, true);
+  } else {
+    if (FLAG_debug_code) {
+      // Map check should have already made sure that elements is a pixel array.
+      __ cmp(FieldOperand(elements, HeapObject::kMapOffset),
+             Immediate(FACTORY->pixel_array_map()));
+      __ Assert(equal, "Elements isn't a pixel array");
+    }
+  }
 
   // Key must be in range.
   __ cmp(untagged_key, FieldOperand(elements, PixelArray::kLengthOffset));
@@ -6587,6 +6549,90 @@ void GenerateFastPixelArrayLoad(MacroAssembler* masm,
   __ movzx_b(result, Operand(elements, untagged_key, times_1, 0));
   __ SmiTag(result);
   __ ret(0);
+}
+
+
+// Stores an indexed element into a pixel array, clamping the stored value.
+void GenerateFastPixelArrayStore(MacroAssembler* masm,
+                                 Register receiver,
+                                 Register key,
+                                 Register value,
+                                 Register elements,
+                                 Register scratch1,
+                                 bool load_elements_from_receiver,
+                                 Label* key_not_smi,
+                                 Label* value_not_smi,
+                                 Label* not_pixel_array,
+                                 Label* out_of_range) {
+  // Register use:
+  //   receiver - holds the receiver and is unchanged unless the
+  //              store succeeds.
+  //   key - holds the key (must be a smi) and is unchanged.
+  //   value - holds the value (must be a smi) and is unchanged.
+  //   elements - holds the element object of the receiver on entry if
+  //              load_elements_from_receiver is false, otherwise used
+  //              internally to store the pixel arrays elements and
+  //              external array pointer.
+  //
+  // receiver, key and value remain unmodified until it's guaranteed that the
+  // store will succeed.
+  Register external_pointer = elements;
+  Register untagged_key = scratch1;
+  Register untagged_value = receiver;  // Only set once success guaranteed.
+
+  // Fetch the receiver's elements if the caller hasn't already done so.
+  if (load_elements_from_receiver) {
+    __ mov(elements, FieldOperand(receiver, JSObject::kElementsOffset));
+  }
+
+  // By passing NULL as not_pixel_array, callers signal that they have already
+  // verified that the receiver has pixel array elements.
+  if (not_pixel_array != NULL) {
+    __ CheckMap(elements, FACTORY->pixel_array_map(), not_pixel_array, true);
+  } else {
+    if (FLAG_debug_code) {
+      // Map check should have already made sure that elements is a pixel array.
+      __ cmp(FieldOperand(elements, HeapObject::kMapOffset),
+             Immediate(FACTORY->pixel_array_map()));
+      __ Assert(equal, "Elements isn't a pixel array");
+    }
+  }
+
+  // Some callers already have verified that the key is a smi.  key_not_smi is
+  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
+  // to ensure the key is a smi must be added.
+  if (key_not_smi != NULL) {
+    __ JumpIfNotSmi(key, key_not_smi);
+  } else {
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(key);
+    }
+  }
+
+  // Key must be a smi and it must be in range.
+  __ mov(untagged_key, key);
+  __ SmiUntag(untagged_key);
+  __ cmp(untagged_key, FieldOperand(elements, PixelArray::kLengthOffset));
+  __ j(above_equal, out_of_range);  // unsigned check handles negative keys.
+
+  // Value must be a smi.
+  __ JumpIfNotSmi(value, value_not_smi);
+  __ mov(untagged_value, value);
+  __ SmiUntag(untagged_value);
+
+  {  // Clamp the value to [0..255].
+    NearLabel done;
+    __ test(untagged_value, Immediate(0xFFFFFF00));
+    __ j(zero, &done);
+    __ setcc(negative, untagged_value);  // 1 if negative, 0 if positive.
+    __ dec_b(untagged_value);  // 0 if negative, 255 if positive.
+    __ bind(&done);
+  }
+
+  __ mov(external_pointer,
+         FieldOperand(elements, PixelArray::kExternalPointerOffset));
+  __ mov_b(Operand(external_pointer, untagged_key, times_1, 0), untagged_value);
+  __ ret(0);  // Return value in eax.
 }
 
 

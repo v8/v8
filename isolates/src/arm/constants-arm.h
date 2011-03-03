@@ -385,7 +385,10 @@ enum VFPConversionMode {
   kDefaultRoundToZero = 1
 };
 
+// This mask does not include the "inexact" or "input denormal" cumulative
+// exceptions flags, because we usually don't want to check for it.
 static const uint32_t kVFPExceptionMask = 0xf;
+static const uint32_t kVFPInexactExceptionBit = 1 << 4;
 static const uint32_t kVFPFlushToZeroMask = 1 << 24;
 static const uint32_t kVFPInvalidExceptionBit = 1;
 
@@ -410,6 +413,11 @@ enum VFPRoundingMode {
 };
 
 static const uint32_t kVFPRoundingModeMask = 3 << 22;
+
+enum CheckForInexactConversion {
+  kCheckForInexactConversion,
+  kDontCheckForInexactConversion
+};
 
 // -----------------------------------------------------------------------------
 // Hints.
@@ -582,6 +590,7 @@ class Instruction {
   inline int TypeValue() const { return Bits(27, 25); }
 
   inline int RnValue() const { return Bits(19, 16); }
+  DECLARE_STATIC_ACCESSOR(RnValue);
   inline int RdValue() const { return Bits(15, 12); }
   DECLARE_STATIC_ACCESSOR(RdValue);
 
@@ -625,6 +634,7 @@ class Instruction {
   inline int SValue() const { return Bit(20); }
     // with register
   inline int RmValue() const { return Bits(3, 0); }
+  DECLARE_STATIC_ACCESSOR(RmValue);
   inline int ShiftValue() const { return static_cast<ShiftOp>(Bits(6, 5)); }
   inline ShiftOp ShiftField() const {
     return static_cast<ShiftOp>(BitField(6, 5));

@@ -68,7 +68,7 @@ const double DoubleConstant::min_int = kMinInt;
 const double DoubleConstant::one_half = 0.5;
 const double DoubleConstant::minus_zero = -0.0;
 const double DoubleConstant::negative_infinity = -V8_INFINITY;
-
+const char* RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
 // -----------------------------------------------------------------------------
 // Implementation of Label
@@ -228,6 +228,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteTaggedPC(pc_delta, kEmbeddedObjectTag);
   } else if (rmode == RelocInfo::CODE_TARGET) {
     WriteTaggedPC(pc_delta, kCodeTargetTag);
+    ASSERT(begin_pos - pos_ <= RelocInfo::kMaxCallSize);
   } else if (RelocInfo::IsPosition(rmode)) {
     // Use signed delta-encoding for data.
     intptr_t data_delta = rinfo->data() - last_data_;
@@ -251,6 +252,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteExtraTaggedPC(pc_delta, kPCJumpTag);
     WriteExtraTaggedData(rinfo->data() - last_data_, kCommentTag);
     last_data_ = rinfo->data();
+    ASSERT(begin_pos - pos_ >= RelocInfo::kMinRelocCommentSize);
   } else {
     // For all other modes we simply use the mode as the extra tag.
     // None of these modes need a data component.
@@ -829,6 +831,39 @@ static double mod_two_doubles(double x, double y) {
 }
 
 
+static double math_sin_double(double x) {
+  return sin(x);
+}
+
+
+static double math_cos_double(double x) {
+  return cos(x);
+}
+
+
+static double math_log_double(double x) {
+  return log(x);
+}
+
+
+ExternalReference ExternalReference::math_sin_double_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(math_sin_double),
+                                    FP_RETURN_CALL));
+}
+
+
+ExternalReference ExternalReference::math_cos_double_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(math_cos_double),
+                                    FP_RETURN_CALL));
+}
+
+
+ExternalReference ExternalReference::math_log_double_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(math_log_double),
+                                    FP_RETURN_CALL));
+}
+
+
 // Helper function to compute x^y, where y is known to be an
 // integer. Uses binary decomposition to limit the number of
 // multiplications; see the discussion in "Hacker's Delight" by Henry
@@ -865,12 +900,14 @@ double power_double_double(double x, double y) {
 
 
 ExternalReference ExternalReference::power_double_double_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_double)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_double),
+                                    FP_RETURN_CALL));
 }
 
 
 ExternalReference ExternalReference::power_double_int_function() {
-  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_int)));
+  return ExternalReference(Redirect(FUNCTION_ADDR(power_double_int),
+                                    FP_RETURN_CALL));
 }
 
 

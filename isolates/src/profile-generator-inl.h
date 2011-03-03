@@ -45,16 +45,6 @@ const char* StringsStorage::GetFunctionName(const char* name) {
 }
 
 
-CodeEntry::CodeEntry(int security_token_id)
-    : tag_(Logger::FUNCTION_TAG),
-      name_prefix_(kEmptyNamePrefix),
-      name_(""),
-      resource_name_(""),
-      line_number_(0),
-      security_token_id_(security_token_id) {
-}
-
-
 CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
                      const char* name_prefix,
                      const char* name,
@@ -66,6 +56,7 @@ CodeEntry::CodeEntry(Logger::LogEventsAndTags tag,
       name_(name),
       resource_name_(resource_name),
       line_number_(line_number),
+      shared_id_(0),
       security_token_id_(security_token_id) {
 }
 
@@ -128,34 +119,6 @@ uint64_t HeapEntry::id() {
     uint64_t returned_id;
   } id_adaptor = {id_};
   return id_adaptor.returned_id;
-}
-
-
-template<class Visitor>
-void HeapEntriesMap::UpdateEntries(Visitor* visitor) {
-  for (HashMap::Entry* p = entries_.Start();
-       p != NULL;
-       p = entries_.Next(p)) {
-    EntryInfo* entry_info = reinterpret_cast<EntryInfo*>(p->value);
-    entry_info->entry = visitor->GetEntry(
-        reinterpret_cast<HeapObject*>(p->key),
-        entry_info->children_count,
-        entry_info->retainers_count);
-    entry_info->children_count = 0;
-    entry_info->retainers_count = 0;
-  }
-}
-
-
-bool HeapSnapshotGenerator::ReportProgress(bool force) {
-  const int kProgressReportGranularity = 10000;
-  if (control_ != NULL
-      && (force || progress_counter_ % kProgressReportGranularity == 0)) {
-      return
-          control_->ReportProgressValue(progress_counter_, progress_total_) ==
-          v8::ActivityControl::kContinue;
-  }
-  return true;
 }
 
 } }  // namespace v8::internal

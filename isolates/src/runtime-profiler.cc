@@ -35,6 +35,7 @@
 #include "deoptimizer.h"
 #include "execution.h"
 #include "global-handles.h"
+#include "mark-compact.h"
 #include "platform.h"
 #include "scopeinfo.h"
 
@@ -107,7 +108,6 @@ void PendingListNode::WeakCallback(v8::Persistent<v8::Value>, void* data) {
 
 
 static bool IsOptimizable(JSFunction* function) {
-  if (function->GetHeap()->InNewSpace(function)) return false;
   Code* code = function->code();
   return code->kind() == Code::FUNCTION && code->optimizable();
 }
@@ -209,16 +209,6 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
 void RuntimeProfiler::ClearSampleBuffer() {
   memset(sampler_window_, 0, sizeof(sampler_window_));
   memset(sampler_window_weight_, 0, sizeof(sampler_window_weight_));
-}
-
-
-void RuntimeProfiler::ClearSampleBufferNewSpaceEntries() {
-  for (int i = 0; i < kSamplerWindowSize; i++) {
-    if (isolate_->heap()->InNewSpace(sampler_window_[i])) {
-      sampler_window_[i] = NULL;
-      sampler_window_weight_[i] = 0;
-    }
-  }
 }
 
 
@@ -372,19 +362,6 @@ void RuntimeProfiler::NotifyTick() {
 }
 
 
-void RuntimeProfiler::MarkCompactPrologue(bool is_compacting) {
-  if (is_compacting) {
-    // Clear all samples before mark-sweep-compact because every
-    // function might move.
-    ClearSampleBuffer();
-  } else {
-    // Clear only new space entries on mark-sweep since none of the
-    // old-space functions will move.
-    ClearSampleBufferNewSpaceEntries();
-  }
-}
-
-
 void RuntimeProfiler::Setup() {
   ClearSampleBuffer();
   // If the ticker hasn't already started, make sure to do so to get
@@ -406,13 +383,24 @@ void RuntimeProfiler::TearDown() {
 }
 
 
-Object** RuntimeProfiler::SamplerWindowAddress() {
-  return sampler_window_;
+int RuntimeProfiler::SamplerWindowSize() {
+  return kSamplerWindowSize;
 }
 
 
-int RuntimeProfiler::SamplerWindowSize() {
-  return kSamplerWindowSize;
+// Update the pointers in the sampler window after a GC.
+void RuntimeProfiler::UpdateSamplesAfterScavenge() {
+  for (int i = 0; i < kSamplerWindowSize; i++) {
+    Object* function = sampler_window_[i];
+    if (function != NULL && isolate_->heap()->InNewSpace(function)) {
+      MapWord map_word = HeapObject::cast(function)->map_word();
+      if (map_word.IsForwardingAddress()) {
+        sampler_window_[i] = map_word.ToForwardingAddress();
+      } else {
+        sampler_window_[i] = NULL;
+      }
+    }
+  }
 }
 
 
@@ -450,6 +438,23 @@ void RuntimeProfiler::WakeUpRuntimeProfilerThreadBeforeShutdown() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   semaphore_->Signal();
 #endif
+}
+
+
+void RuntimeProfiler::RemoveDeadSamples() {
+  for (int i = 0; i < kSamplerWindowSize; i++) {
+    Object* function = sampler_window_[i];
+    if (function != NULL && !HeapObject::cast(function)->IsMarked()) {
+      sampler_window_[i] = NULL;
+    }
+  }
+}
+
+
+void RuntimeProfiler::UpdateSamplesAfterCompact(ObjectVisitor* visitor) {
+  for (int i = 0; i < kSamplerWindowSize; i++) {
+    visitor->VisitPointer(&sampler_window_[i]);
+  }
 }
 
 

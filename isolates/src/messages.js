@@ -224,6 +224,12 @@ function FormatMessage(message) {
       strict_lhs_postfix:           ["Postfix increment/decrement may not have eval or arguments operand in strict mode"],
       strict_lhs_prefix:            ["Prefix increment/decrement may not have eval or arguments operand in strict mode"],
       strict_reserved_word:         ["Use of future reserved word in strict mode"],
+      strict_delete:                ["Delete of an unqualified identifier in strict mode."],
+      strict_delete_property:       ["Cannot delete property '", "%0", "' of ", "%1"],
+      strict_const:                 ["Use of const in strict mode."],
+      strict_function:              ["In strict mode code, functions can only be declared at top level or immediately within another function." ],
+      strict_read_only_property:    ["Cannot assign to read only property '", "%0", "' of ", "%1"],
+      strict_cannot_assign:         ["Cannot assign to read only '", "%0", "' in strict mode"],
     };
   }
   var message_type = %MessageGetType(message);
@@ -1057,8 +1063,8 @@ function errorToString() {
   }
 }
 
-%FunctionSetName(errorToString, 'toString');
-%SetProperty($Error.prototype, 'toString', errorToString, DONT_ENUM);
+
+InstallFunctions($Error.prototype, DONT_ENUM, ['toString', errorToString]);
 
 // Boilerplate for exceptions for stack overflows. Used from
 // Isolate::StackOverflow().

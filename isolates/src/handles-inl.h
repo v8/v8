@@ -45,21 +45,21 @@ inline Isolate* GetIsolateForHandle(HeapObject* obj) {
   return obj->GetIsolate();
 }
 
-template<class T>
+template<typename T>
 Handle<T>::Handle(T* obj) {
   ASSERT(!obj->IsFailure());
   location_ = HandleScope::CreateHandle(obj, GetIsolateForHandle(obj));
 }
 
 
-template<class T>
+template<typename T>
 Handle<T>::Handle(T* obj, Isolate* isolate) {
   ASSERT(!obj->IsFailure());
   location_ = HandleScope::CreateHandle(obj, isolate);
 }
 
 
-template <class T>
+template <typename T>
 inline T* Handle<T>::operator*() const {
   ASSERT(location_ != NULL);
   ASSERT(reinterpret_cast<Address>(*location_) != kHandleZapValue);
@@ -90,6 +90,10 @@ HandleScope::HandleScope(Isolate* isolate) {
 
 
 HandleScope::~HandleScope() {
+  CloseScope();
+}
+
+void HandleScope::CloseScope() {
   ASSERT(isolate_ == Isolate::Current());
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate_->handle_scope_data();
@@ -102,6 +106,25 @@ HandleScope::~HandleScope() {
 #ifdef DEBUG
   ZapRange(prev_next_, prev_limit_);
 #endif
+}
+
+
+template <typename T>
+Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
+  T* value = *handle_value;
+  // Throw away all handles in the current scope.
+  CloseScope();
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate_->handle_scope_data();
+  // Allocate one handle in the parent scope.
+  ASSERT(current->level > 0);
+  Handle<T> result(CreateHandle<T>(value, isolate_));
+  // Reinitialize the current scope (so that it's ready
+  // to be used or closed again).
+  prev_next_ = current->next;
+  prev_limit_ = current->limit;
+  current->level++;
+  return result;
 }
 
 

@@ -447,6 +447,14 @@ MaybeObject* Accessors::FunctionGetPrototype(Object* object, void*) {
   bool found_it = false;
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
   if (!found_it) return HEAP->undefined_value();
+  while (!function->should_have_prototype()) {
+    found_it = false;
+    function = FindInPrototypeChain<JSFunction>(object->GetPrototype(),
+                                                &found_it);
+    // There has to be one because we hit the getter.
+    ASSERT(found_it);
+  }
+
   if (!function->has_prototype()) {
     Object* prototype;
     { MaybeObject* maybe_prototype = HEAP->AllocateFunctionPrototype(function);
@@ -467,6 +475,13 @@ MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
   bool found_it = false;
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
   if (!found_it) return HEAP->undefined_value();
+  if (!function->should_have_prototype()) {
+    // Since we hit this accessor, object will have no prototype property.
+    return object->SetLocalPropertyIgnoreAttributes(HEAP->prototype_symbol(),
+                                                    value,
+                                                    NONE);
+  }
+
   if (function->has_initial_map()) {
     // If the function has allocated the initial map
     // replace it with a copy containing the new prototype.

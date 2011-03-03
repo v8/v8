@@ -197,6 +197,8 @@ class Factory {
 
   Handle<Map> GetSlowElementsMap(Handle<Map> map);
 
+  Handle<Map> GetPixelArrayElementsMap(Handle<Map> map);
+
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
   // Numbers (eg, literals) are pretenured by the parser.

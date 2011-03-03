@@ -94,9 +94,7 @@ class LogMessageBuilder;
   V(CODE_MOVE_EVENT,                "code-move")                \
   V(CODE_DELETE_EVENT,              "code-delete")              \
   V(CODE_MOVING_GC,                 "code-moving-gc")           \
-  V(FUNCTION_CREATION_EVENT,        "function-creation")        \
-  V(FUNCTION_MOVE_EVENT,            "function-move")            \
-  V(FUNCTION_DELETE_EVENT,          "function-delete")          \
+  V(SFI_MOVE_EVENT,                 "sfi-move")                 \
   V(SNAPSHOT_POSITION_EVENT,        "snapshot-pos")             \
   V(TICK_EVENT,                     "tick")                     \
   V(REPEAT_META_EVENT,              "repeat")                   \
@@ -214,9 +212,17 @@ class Logger {
   void GetterCallbackEvent(String* name, Address entry_point);
   void SetterCallbackEvent(String* name, Address entry_point);
   // Emits a code create event.
-  void CodeCreateEvent(LogEventsAndTags tag, Code* code, const char* source);
-  void CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name);
-  void CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name,
+  void CodeCreateEvent(LogEventsAndTags tag,
+                       Code* code, const char* source);
+  void CodeCreateEvent(LogEventsAndTags tag,
+                       Code* code, String* name);
+  void CodeCreateEvent(LogEventsAndTags tag,
+                       Code* code,
+                       SharedFunctionInfo* shared,
+                       String* name);
+  void CodeCreateEvent(LogEventsAndTags tag,
+                       Code* code,
+                       SharedFunctionInfo* shared,
                        String* source, int line);
   void CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count);
   void CodeMovingGCEvent();
@@ -226,13 +232,8 @@ class Logger {
   void CodeMoveEvent(Address from, Address to);
   // Emits a code delete event.
   void CodeDeleteEvent(Address from);
-  // Emits a function object create event.
-  void FunctionCreateEvent(JSFunction* function);
-  void FunctionCreateEventFromMove(Heap* heap, JSFunction* function);
-  // Emits a function move event.
-  void FunctionMoveEvent(Heap* heap, Address from, Address to);
-  // Emits a function delete event.
-  void FunctionDeleteEvent(Address from);
+
+  void SFIMoveEvent(Address from, Address to);
 
   void SnapshotPositionEvent(Address addr, int pos);
 
@@ -283,8 +284,6 @@ class Logger {
 
   // Logs all compiled functions found in the heap.
   void LogCompiledFunctions();
-  // Logs all compiled JSFunction objects found in the heap.
-  void LogFunctionObjects();
   // Logs all accessor callbacks found in the heap.
   void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.

@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 // A light-weight IA32 Assembler.
 
@@ -65,30 +65,14 @@ namespace internal {
 // and best performance in optimized code.
 //
 struct Register {
-  static const int kNumAllocatableRegisters = 5;
+  static const int kNumAllocatableRegisters = 6;
   static const int kNumRegisters = 8;
 
-  static int ToAllocationIndex(Register reg) {
-    ASSERT(reg.code() < 4 || reg.code() == 7);
-    return (reg.code() == 7) ? 4 : reg.code();
-  }
+  static inline const char* AllocationIndexToString(int index);
 
-  static Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    return (index == 4) ? from_code(7) : from_code(index);
-  }
+  static inline int ToAllocationIndex(Register reg);
 
-  static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    const char* const names[] = {
-      "eax",
-      "ecx",
-      "edx",
-      "ebx",
-      "edi"
-    };
-    return names[index];
-  }
+  static inline Register FromAllocationIndex(int index);
 
   static Register from_code(int code) {
     Register r = { code };
@@ -111,6 +95,7 @@ struct Register {
   int code_;
 };
 
+
 const Register eax = { 0 };
 const Register ecx = { 1 };
 const Register edx = { 2 };
@@ -120,6 +105,26 @@ const Register ebp = { 5 };
 const Register esi = { 6 };
 const Register edi = { 7 };
 const Register no_reg = { -1 };
+
+
+inline const char* Register::AllocationIndexToString(int index) {
+  ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+  // This is the mapping of allocation indices to registers.
+  const char* const kNames[] = { "eax", "ecx", "edx", "ebx", "esi", "edi" };
+  return kNames[index];
+}
+
+
+inline int Register::ToAllocationIndex(Register reg) {
+  ASSERT(reg.is_valid() && !reg.is(esp) && !reg.is(ebp));
+  return (reg.code() >= 6) ? reg.code() - 2 : reg.code();
+}
+
+
+inline Register Register::FromAllocationIndex(int index)  {
+  ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+  return (index >= 4) ? from_code(index + 2) : from_code(index);
+}
 
 
 struct XMMRegister {
@@ -177,13 +182,6 @@ const XMMRegister xmm7 = { 7 };
 
 
 typedef XMMRegister DoubleRegister;
-
-
-// Index of register used in pusha/popa.
-// Order of pushed registers: EAX, ECX, EDX, EBX, ESP, EBP, ESI, and EDI
-inline int EspIndexForPushAll(Register reg) {
-  return Register::kNumRegisters - 1 - reg.code();
-}
 
 
 enum Condition {
@@ -968,8 +966,9 @@ class Assembler : public Malloced {
   void RecordDebugBreakSlot();
 
   // Record a comment relocation entry that can be used by a disassembler.
-  // Use --code-comments to enable.
-  void RecordComment(const char* msg);
+  // Use --code-comments to enable, or provide "force = true" flag to always
+  // write a comment.
+  void RecordComment(const char* msg, bool force = false);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
@@ -989,6 +988,10 @@ class Assembler : public Malloced {
   static bool IsNop(Address addr) { return *addr == 0x90; }
 
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
+
+  int relocation_writer_size() {
+    return (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  }
 
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;

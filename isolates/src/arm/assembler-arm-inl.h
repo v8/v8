@@ -198,6 +198,8 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitPointer(target_object_address());
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(this);
+  } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
+    visitor->VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -222,6 +224,8 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitPointer(heap, target_object_address());
   } else if (RelocInfo::IsCodeTarget(mode)) {
     StaticVisitor::VisitCodeTarget(this);
+  } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
+    StaticVisitor::VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT

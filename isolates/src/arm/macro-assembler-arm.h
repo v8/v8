@@ -45,6 +45,12 @@ static inline MemOperand FieldMemOperand(Register object, int offset) {
 }
 
 
+static inline Operand SmiUntagOperand(Register object) {
+  return Operand(object, ASR, kSmiTagSize);
+}
+
+
+
 // Give alias names to registers
 const Register cp = { 8 };  // JavaScript context pointer
 const Register roots = { 10 };  // Roots array pointer.
@@ -115,6 +121,15 @@ class MacroAssembler: public Assembler {
             Condition cond = al);
   void Sbfx(Register dst, Register src, int lsb, int width,
             Condition cond = al);
+  // The scratch register is not used for ARMv7.
+  // scratch can be the same register as src (in which case it is trashed), but
+  // not the same as dst.
+  void Bfi(Register dst,
+           Register src,
+           Register scratch,
+           int lsb,
+           int width,
+           Condition cond = al);
   void Bfc(Register dst, int lsb, int width, Condition cond = al);
   void Usat(Register dst, int satpos, const Operand& src,
             Condition cond = al);
@@ -228,18 +243,30 @@ class MacroAssembler: public Assembler {
     }
   }
 
+  // Pop two registers. Pops rightmost register first (from lower address).
+  void Pop(Register src1, Register src2, Condition cond = al) {
+    ASSERT(!src1.is(src2));
+    if (src1.code() > src2.code()) {
+      ldm(ia_w, sp, src1.bit() | src2.bit(), cond);
+    } else {
+      ldr(src2, MemOperand(sp, 4, PostIndex), cond);
+      ldr(src1, MemOperand(sp, 4, PostIndex), cond);
+    }
+  }
+
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
   void PopSafepointRegisters();
   void PushSafepointRegistersAndDoubles();
   void PopSafepointRegistersAndDoubles();
-  void StoreToSafepointRegisterSlot(Register reg);
-  void StoreToSafepointRegistersAndDoublesSlot(Register reg);
-  void LoadFromSafepointRegisterSlot(Register reg);
-  static int SafepointRegisterStackIndex(int reg_code);
-  static MemOperand SafepointRegisterSlot(Register reg);
-  static MemOperand SafepointRegistersAndDoublesSlot(Register reg);
+  // Store value in register src in the safepoint stack slot for
+  // register dst.
+  void StoreToSafepointRegisterSlot(Register src, Register dst);
+  void StoreToSafepointRegistersAndDoublesSlot(Register src, Register dst);
+  // Load the value of the src register from its safepoint stack slot
+  // into register dst.
+  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // Load two consecutive registers with two consecutive memory locations.
   void Ldrd(Register dst1,
@@ -291,7 +318,9 @@ class MacroAssembler: public Assembler {
   void EnterExitFrame(bool save_doubles, int stack_space = 0);
 
   // Leave the current exit frame. Expects the return value in r0.
-  void LeaveExitFrame(bool save_doubles);
+  // Expect the number of values, pushed prior to the exit frame, to
+  // remove in a register (or no_reg, if there is nothing to remove).
+  void LeaveExitFrame(bool save_doubles, Register argument_count);
 
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
@@ -364,6 +393,13 @@ class MacroAssembler: public Assembler {
   // Unlink the stack handler on top of the stack from the try handler chain.
   // Must preserve the result register.
   void PopTryHandler();
+
+  // Passes thrown value (in r0) to the handler of top of the try handler chain.
+  void Throw(Register value);
+
+  // Propagates an uncatchable exception to the top of the current JS stack's
+  // handler chain.
+  void ThrowUncatchable(UncatchableExceptionType type, Register value);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -481,6 +517,14 @@ class MacroAssembler: public Assembler {
   // Copies a fixed number of fields of heap objects from src to dst.
   void CopyFields(Register dst, Register src, RegList temps, int field_count);
 
+  // Copies a number of bytes from src to dst. All registers are clobbered. On
+  // exit src and dst will point to the place just after where the last byte was
+  // read or written and length will be zero.
+  void CopyBytes(Register src,
+                 Register dst,
+                 Register length,
+                 Register scratch);
+
   // ---------------------------------------------------------------------------
   // Support functions.
 
@@ -558,6 +602,7 @@ class MacroAssembler: public Assembler {
 
   // Get the number of least significant bits from a register
   void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
+  void GetLeastBitsFromInt32(Register dst, Register src, int mun_least_bits);
 
   // Uses VFP instructions to Convert a Smi to a double.
   void IntegerToDoubleConversionWithVFP3(Register inReg,
@@ -595,6 +640,19 @@ class MacroAssembler: public Assembler {
                       Register scratch2,
                       DwVfpRegister double_scratch,
                       Label *not_int32);
+
+// Truncates a double using a specific rounding mode.
+// Clears the z flag (ne condition) if an overflow occurs.
+// If exact_conversion is true, the z flag is also cleared if the conversion
+// was inexact, ie. if the double value could not be converted exactly
+// to a 32bit integer.
+  void EmitVFPTruncate(VFPRoundingMode rounding_mode,
+                       SwVfpRegister result,
+                       DwVfpRegister double_input,
+                       Register scratch1,
+                       Register scratch2,
+                       CheckForInexactConversion check
+                           = kDontCheckForInexactConversion);
 
   // Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
   // instruction.  On pre-ARM5 hardware this routine gives the wrong answer
@@ -667,11 +725,13 @@ class MacroAssembler: public Assembler {
   void CallCFunction(ExternalReference function, int num_arguments);
   void CallCFunction(Register function, Register scratch, int num_arguments);
 
+  void GetCFunctionDoubleResult(const DoubleRegister dst);
+
   // Calls an API function. Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions. Restores context.
   // stack_space - space to be unwound on exit (includes the call js
   // arguments space and the additional space allocated for the fast call).
-  MaybeObject* TryCallApiFunctionAndReturn(ApiFunction* function,
+  MaybeObject* TryCallApiFunctionAndReturn(ExternalReference function,
                                            int stack_space);
 
   // Jump to a runtime routine.
@@ -758,11 +818,11 @@ class MacroAssembler: public Assembler {
     mov(reg, scratch);
   }
 
-  void SmiUntag(Register reg) {
-    mov(reg, Operand(reg, ASR, kSmiTagSize));
+  void SmiUntag(Register reg, SBit s = LeaveCC) {
+    mov(reg, Operand(reg, ASR, kSmiTagSize), s);
   }
-  void SmiUntag(Register dst, Register src) {
-    mov(dst, Operand(src, ASR, kSmiTagSize));
+  void SmiUntag(Register dst, Register src, SBit s = LeaveCC) {
+    mov(dst, Operand(src, ASR, kSmiTagSize), s);
   }
 
   // Jump the register contains a smi.
@@ -783,6 +843,9 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is a smi. Used in debug code.
   void AbortIfSmi(Register object);
   void AbortIfNotSmi(Register object);
+
+  // Abort execution if argument is a string. Used in debug code.
+  void AbortIfNotString(Register object);
 
   // Abort execution if argument is not the root value with the given index.
   void AbortIfNotRootValue(Register src,
@@ -869,10 +932,19 @@ class MacroAssembler: public Assembler {
                            Register scratch1,
                            Register scratch2);
 
+  // Compute memory operands for safepoint stack slots.
+  static int SafepointRegisterStackIndex(int reg_code);
+  MemOperand SafepointRegisterSlot(Register reg);
+  MemOperand SafepointRegistersAndDoublesSlot(Register reg);
+
   bool generating_stub_;
   bool allow_stub_calls_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
+
+  // Needs access to SafepointRegisterStackIndex for optimized frame
+  // traversal.
+  friend class OptimizedFrame;
 };
 
 
@@ -891,10 +963,14 @@ class CodePatcher {
   MacroAssembler* masm() { return &masm_; }
 
   // Emit an instruction directly.
-  void Emit(Instr x);
+  void Emit(Instr instr);
 
   // Emit an address directly.
   void Emit(Address addr);
+
+  // Emit the condition part of an instruction leaving the rest of the current
+  // instruction unchanged.
+  void EmitCondition(Condition cond);
 
  private:
   byte* address_;  // The address of the code being patched.

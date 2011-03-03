@@ -115,6 +115,9 @@ static void GenerateStringDictionaryProbes(MacroAssembler* masm,
                                            Register name,
                                            Register scratch1,
                                            Register scratch2) {
+  // Assert that name contains a string.
+  if (FLAG_debug_code) __ AbortIfNotString(name);
+
   // Compute the capacity mask.
   const int kCapacityOffset = StringDictionary::kHeaderSize +
       StringDictionary::kCapacityIndex * kPointerSize;
@@ -845,7 +848,14 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   //  -- lr    : return address
   // -----------------------------------
 
+  // Check if the name is a string.
+  Label miss;
+  __ tst(r2, Operand(kSmiTagMask));
+  __ b(eq, &miss);
+  __ IsObjectJSStringType(r2, r0, &miss);
+
   GenerateCallNormal(masm, argc);
+  __ bind(&miss);
   GenerateMiss(masm, argc);
 }
 
@@ -1393,7 +1403,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                              StrictModeFlag strict_mode) {
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r1     : key
@@ -1404,11 +1415,16 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
   // Push receiver, key and value for runtime call.
   __ Push(r2, r1, r0);
 
-  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+  __ mov(r1, Operand(Smi::FromInt(NONE)));          // PropertyAttributes
+  __ mov(r0, Operand(Smi::FromInt(strict_mode)));   // Strict mode.
+  __ Push(r1, r0);
+
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 }
 
 
-void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
+                                   StrictModeFlag strict_mode) {
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r1     : key
@@ -1463,29 +1479,25 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // r0: value.
   // r1: key.
   // r2: receiver.
-  GenerateRuntimeSetProperty(masm);
+  GenerateRuntimeSetProperty(masm, strict_mode);
 
   // Check whether the elements is a pixel array.
   // r4: elements map.
   __ bind(&check_pixel_array);
-  __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
-  __ cmp(r4, ip);
-  __ b(ne, &slow);
-  // Check that the value is a smi. If a conversion is needed call into the
-  // runtime to convert and clamp.
-  __ JumpIfNotSmi(value, &slow);
-  __ mov(r4, Operand(key, ASR, kSmiTagSize));  // Untag the key.
-  __ ldr(ip, FieldMemOperand(elements, PixelArray::kLengthOffset));
-  __ cmp(r4, Operand(ip));
-  __ b(hs, &slow);
-  __ mov(r5, Operand(value, ASR, kSmiTagSize));  // Untag the value.
-  __ Usat(r5, 8, Operand(r5));  // Clamp the value to [0..255].
-
-  // Get the pointer to the external array. This clobbers elements.
-  __ ldr(elements,
-         FieldMemOperand(elements, PixelArray::kExternalPointerOffset));
-  __ strb(r5, MemOperand(elements, r4));  // Elements is now external array.
-  __ Ret();
+  GenerateFastPixelArrayStore(masm,
+                              r2,
+                              r1,
+                              r0,
+                              elements,
+                              r4,
+                              r5,
+                              r6,
+                              false,
+                              false,
+                              NULL,
+                              &slow,
+                              &slow,
+                              &slow);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -1536,7 +1548,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
+void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
+                                  StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -1547,7 +1560,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // Get the receiver from the stack and probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
-                                         MONOMORPHIC);
+                                         MONOMORPHIC,
+                                         strict_mode);
 
   Isolate::Current()->stub_cache()->GenerateProbe(
       masm, flags, r1, r2, r3, r4, r5);
@@ -1643,7 +1657,8 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateGlobalProxy(MacroAssembler* masm) {
+void StoreIC::GenerateGlobalProxy(MacroAssembler* masm,
+                                  StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -1653,8 +1668,12 @@ void StoreIC::GenerateGlobalProxy(MacroAssembler* masm) {
 
   __ Push(r1, r2, r0);
 
+  __ mov(r1, Operand(Smi::FromInt(NONE)));  // PropertyAttributes
+  __ mov(r0, Operand(Smi::FromInt(strict_mode)));
+  __ Push(r1, r0);
+
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 }
 
 
@@ -1705,11 +1724,78 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
            Token::Name(op_));
   }
 #endif
+
+  // Activate inlined smi code.
+  if (previous_state == UNINITIALIZED) {
+    PatchInlinedSmiCode(address());
+  }
 }
 
 
 void PatchInlinedSmiCode(Address address) {
-  // Currently there is no smi inlining in the ARM full code generator.
+  Address cmp_instruction_address =
+      address + Assembler::kCallTargetAddressOffset;
+
+  // If the instruction following the call is not a cmp rx, #yyy, nothing
+  // was inlined.
+  Instr instr = Assembler::instr_at(cmp_instruction_address);
+  if (!Assembler::IsCmpImmediate(instr)) {
+    return;
+  }
+
+  // The delta to the start of the map check instruction and the
+  // condition code uses at the patched jump.
+  int delta = Assembler::GetCmpImmediateRawImmediate(instr);
+  delta +=
+      Assembler::GetCmpImmediateRegister(instr).code() * kOff12Mask;
+  // If the delta is 0 the instruction is cmp r0, #0 which also signals that
+  // nothing was inlined.
+  if (delta == 0) {
+    return;
+  }
+
+#ifdef DEBUG
+  if (FLAG_trace_ic) {
+    PrintF("[  patching ic at %p, cmp=%p, delta=%d\n",
+           address, cmp_instruction_address, delta);
+  }
+#endif
+
+  Address patch_address =
+      cmp_instruction_address - delta * Instruction::kInstrSize;
+  Instr instr_at_patch = Assembler::instr_at(patch_address);
+  Instr branch_instr =
+      Assembler::instr_at(patch_address + Instruction::kInstrSize);
+  ASSERT(Assembler::IsCmpRegister(instr_at_patch));
+  ASSERT_EQ(Assembler::GetRn(instr_at_patch).code(),
+            Assembler::GetRm(instr_at_patch).code());
+  ASSERT(Assembler::IsBranch(branch_instr));
+  if (Assembler::GetCondition(branch_instr) == eq) {
+    // This is patching a "jump if not smi" site to be active.
+    // Changing
+    //   cmp rx, rx
+    //   b eq, <target>
+    // to
+    //   tst rx, #kSmiTagMask
+    //   b ne, <target>
+    CodePatcher patcher(patch_address, 2);
+    Register reg = Assembler::GetRn(instr_at_patch);
+    patcher.masm()->tst(reg, Operand(kSmiTagMask));
+    patcher.EmitCondition(ne);
+  } else {
+    ASSERT(Assembler::GetCondition(branch_instr) == ne);
+    // This is patching a "jump if smi" site to be active.
+    // Changing
+    //   cmp rx, rx
+    //   b ne, <target>
+    // to
+    //   tst rx, #kSmiTagMask
+    //   b eq, <target>
+    CodePatcher patcher(patch_address, 2);
+    Register reg = Assembler::GetRn(instr_at_patch);
+    patcher.masm()->tst(reg, Operand(kSmiTagMask));
+    patcher.EmitCondition(eq);
+  }
 }
 
 

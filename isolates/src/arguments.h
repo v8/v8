@@ -78,7 +78,7 @@ class CustomArguments : public Relocatable {
  public:
   inline CustomArguments(Isolate* isolate,
                          Object* data,
-                         JSObject* self,
+                         Object* self,
                          JSObject* holder) : Relocatable(isolate) {
     values_[2] = self;
     values_[1] = holder;

@@ -1295,7 +1295,12 @@ class HeapNumber: public HeapObject {
 // caching.
 class JSObject: public HeapObject {
  public:
-  enum DeleteMode { NORMAL_DELETION, FORCE_DELETION };
+  enum DeleteMode {
+    NORMAL_DELETION,
+    STRICT_DELETION,
+    FORCE_DELETION
+  };
+
   enum ElementsKind {
     // The only "fast" kind.
     FAST_ELEMENTS,
@@ -1365,11 +1370,13 @@ class JSObject: public HeapObject {
 
   MUST_USE_RESULT MaybeObject* SetProperty(String* key,
                                            Object* value,
-                                           PropertyAttributes attributes);
+                                           PropertyAttributes attributes,
+                                           StrictModeFlag strict);
   MUST_USE_RESULT MaybeObject* SetProperty(LookupResult* result,
                                            String* key,
                                            Object* value,
-                                           PropertyAttributes attributes);
+                                           PropertyAttributes attributes,
+                                           StrictModeFlag strict);
   MUST_USE_RESULT MaybeObject* SetPropertyWithFailedAccessCheck(
       LookupResult* result,
       String* name,
@@ -1384,11 +1391,13 @@ class JSObject: public HeapObject {
   MUST_USE_RESULT MaybeObject* SetPropertyWithInterceptor(
       String* name,
       Object* value,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      StrictModeFlag strict);
   MUST_USE_RESULT MaybeObject* SetPropertyPostInterceptor(
       String* name,
       Object* value,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      StrictModeFlag strict);
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
       String* key,
       Object* value,
@@ -1550,8 +1559,13 @@ class JSObject: public HeapObject {
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
-  MaybeObject* GetElementWithReceiver(JSObject* receiver, uint32_t index);
-  MaybeObject* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
+  MaybeObject* GetElementWithReceiver(Object* receiver, uint32_t index);
+  MaybeObject* GetElementWithInterceptor(Object* receiver, uint32_t index);
+
+  // Get external element value at index if there is one and undefined
+  // otherwise. Can return a failure if allocation of a heap number
+  // failed.
+  MaybeObject* GetExternalElement(uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetFastElementsCapacityAndLength(int capacity,
                                                                 int length);
@@ -1808,7 +1822,7 @@ class JSObject: public HeapObject {
       Object* value,
       bool check_prototype);
 
-  MaybeObject* GetElementPostInterceptor(JSObject* receiver, uint32_t index);
+  MaybeObject* GetElementPostInterceptor(Object* receiver, uint32_t index);
 
   MUST_USE_RESULT MaybeObject* DeletePropertyPostInterceptor(String* name,
                                                              DeleteMode mode);
@@ -3217,6 +3231,7 @@ class Code: public HeapObject {
   static const char* Kind2String(Kind kind);
   static const char* ICState2String(InlineCacheState state);
   static const char* PropertyType2String(PropertyType type);
+  static void PrintExtraICState(FILE* out, Kind kind, ExtraICState extra);
   inline void Disassemble(const char* name) {
     Disassemble(name, stdout);
   }
@@ -3610,6 +3625,19 @@ class Map: public HeapObject {
     return ((1 << kHasFastElements) & bit_field2()) != 0;
   }
 
+  // Tells whether an instance has pixel array elements.
+  inline void set_has_pixel_array_elements(bool value) {
+    if (value) {
+      set_bit_field2(bit_field2() | (1 << kHasPixelArrayElements));
+    } else {
+      set_bit_field2(bit_field2() & ~(1 << kHasPixelArrayElements));
+    }
+  }
+
+  inline bool has_pixel_array_elements() {
+    return ((1 << kHasPixelArrayElements) & bit_field2()) != 0;
+  }
+
   // Tells whether the map is attached to SharedFunctionInfo
   // (for inobject slack tracking).
   inline void set_attached_to_shared_function_info(bool value);
@@ -3667,6 +3695,11 @@ class Map: public HeapObject {
   // otherwise returns a copy of the map, with all transitions dropped
   // from the descriptors and the fast elements bit cleared.
   MUST_USE_RESULT inline MaybeObject* GetSlowElementsMap();
+
+  // Returns this map if it has the pixel array elements bit is set, otherwise
+  // returns a copy of the map, with all transitions dropped from the
+  // descriptors and the pixel array elements bit set.
+  MUST_USE_RESULT inline MaybeObject* GetPixelArrayElementsMap();
 
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);
@@ -3789,6 +3822,7 @@ class Map: public HeapObject {
   static const int kStringWrapperSafeForDefaultValueOf = 3;
   static const int kAttachedToSharedFunctionInfo = 4;
   static const int kIsShared = 5;
+  static const int kHasPixelArrayElements = 6;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;
@@ -4365,7 +4399,6 @@ class SharedFunctionInfo: public HeapObject {
                               kThisPropertyAssignmentsOffset + kPointerSize,
                               kSize> BodyDescriptor;
 
- private:
   // Bit positions in start_position_and_type.
   // The source code start position is in the 30 most significant bits of
   // the start_position_and_type field.
@@ -4384,6 +4417,35 @@ class SharedFunctionInfo: public HeapObject {
   static const int kOptimizationDisabled = 7;
   static const int kStrictModeFunction = 8;
 
+ private:
+#if V8_HOST_ARCH_32_BIT
+  // On 32 bit platforms, compiler hints is a smi.
+  static const int kCompilerHintsSmiTagSize = kSmiTagSize;
+  static const int kCompilerHintsSize = kPointerSize;
+#else
+  // On 64 bit platforms, compiler hints is not a smi, see comment above.
+  static const int kCompilerHintsSmiTagSize = 0;
+  static const int kCompilerHintsSize = kIntSize;
+#endif
+
+ public:
+  // Constants for optimizing codegen for strict mode function tests.
+  // Allows to use byte-widgh instructions.
+  static const int kStrictModeBitWithinByte =
+      (kStrictModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+  static const int kStrictModeByteOffset = kCompilerHintsOffset +
+    (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+  static const int kStrictModeByteOffset = kCompilerHintsOffset +
+    (kCompilerHintsSize - 1) -
+    ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
+#else
+#error Unknown byte ordering
+#endif
+
+ private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
 

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -191,13 +191,13 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
 // -----------------------------------------------------------------------------
 // Register constants.
 
-const int Register::registerCodeByAllocationIndex[kNumAllocatableRegisters] = {
-    // rax, rbx, rdx, rcx, rdi, r8, r9, r11, r14, r12
-    0, 3, 2, 1, 7, 8, 9, 11, 14, 12
+const int Register::kRegisterCodeByAllocationIndex[kNumAllocatableRegisters] = {
+  // rax, rbx, rdx, rcx, rdi, r8, r9, r11, r14, r12
+  0, 3, 2, 1, 7, 8, 9, 11, 14, 12
 };
 
-const int Register::allocationIndexByRegisterCode[kNumRegisters] = {
-    0, 3, 2, 1, -1, -1, -1, 4, 5, 6, -1, 7, 9, -1, 8, -1
+const int Register::kAllocationIndexByRegisterCode[kNumRegisters] = {
+  0, 3, 2, 1, -1, -1, -1, 4, 5, 6, -1, 7, 9, -1, 8, -1
 };
 
 
@@ -2999,6 +2999,28 @@ void Assembler::divsd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::andpd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x54);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::orpd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x56);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -3118,8 +3140,8 @@ void Assembler::RecordDebugBreakSlot() {
 }
 
 
-void Assembler::RecordComment(const char* msg) {
-  if (FLAG_code_comments) {
+void Assembler::RecordComment(const char* msg, bool force) {
+  if (FLAG_code_comments || force) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }

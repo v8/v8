@@ -177,10 +177,24 @@ class RelocInfo BASE_EMBEDDED {
   // invalid/uninitialized position value.
   static const int kNoPosition = -1;
 
+  // This string is used to add padding comments to the reloc info in cases
+  // where we are not sure to have enough space for patching in during
+  // lazy deoptimization. This is the case if we have indirect calls for which
+  // we do not normally record relocation info.
+  static const char* kFillerCommentString;
+
+  // The minimum size of a comment is equal to three bytes for the extra tagged
+  // pc + the tag for the data, and kPointerSize for the actual pointer to the
+  // comment.
+  static const int kMinRelocCommentSize = 3 + kPointerSize;
+
+  // The maximum size for a call instruction including pc-jump.
+  static const int kMaxCallSize = 6;
+
   enum Mode {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
     CONSTRUCT_CALL,  // code target that is a call to a JavaScript constructor.
-    CODE_TARGET_CONTEXT,  // Code target used for contextual loads.
+    CODE_TARGET_CONTEXT,  // Code target used for contextual loads and stores.
     DEBUG_BREAK,  // Code target for the debugger statement.
     CODE_TARGET,  // Code target which is not any of the above.
     EMBEDDED_OBJECT,
@@ -466,21 +480,22 @@ class Debug_Address;
 class ExternalReference BASE_EMBEDDED {
  public:
   // Used in the simulator to support different native api calls.
-  //
-  // BUILTIN_CALL - builtin call.
-  // MaybeObject* f(v8::internal::Arguments).
-  //
-  // FP_RETURN_CALL - builtin call that returns floating point.
-  // double f(double, double).
-  //
-  // DIRECT_CALL - direct call to API function native callback
-  // from generated code.
-  // Handle<Value> f(v8::Arguments&)
-  //
   enum Type {
+    // Builtin call.
+    // MaybeObject* f(v8::internal::Arguments).
     BUILTIN_CALL,  // default
+
+    // Builtin call that returns floating point.
+    // double f(double, double).
     FP_RETURN_CALL,
-    DIRECT_CALL
+
+    // Direct call to API function callback.
+    // Handle<Value> f(v8::Arguments&)
+    DIRECT_API_CALL,
+
+    // Direct call to accessor getter callback.
+    // Handle<value> f(Local<String> property, AccessorInfo& info)
+    DIRECT_GETTER_CALL
   };
 
   typedef void* ExternalReferenceRedirector(void* original, Type type);
@@ -577,6 +592,10 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_one_half();
   static ExternalReference address_of_minus_zero();
   static ExternalReference address_of_negative_infinity();
+
+  static ExternalReference math_sin_double_function();
+  static ExternalReference math_cos_double_function();
+  static ExternalReference math_log_double_function();
 
   Address address() const {return reinterpret_cast<Address>(address_);}
 

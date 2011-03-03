@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -136,7 +136,7 @@ void MacroAssembler::RecordWrite(Register object,
                                  Register value) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
-  // registers are esi.
+  // registers are rsi.
   ASSERT(!object.is(rsi) && !value.is(rsi) && !address.is(rsi));
 
   // First, check if a write barrier is even needed. The tests below
@@ -629,7 +629,9 @@ MaybeObject* MacroAssembler::TryJumpToExternalReference(
 }
 
 
-void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
+void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
+                                   InvokeFlag flag,
+                                   PostCallGenerator* post_call_generator) {
   // Calls are not allowed in some stubs.
   ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
 
@@ -638,7 +640,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
   GetBuiltinEntry(rdx, id);
-  InvokeCode(rdx, expected, expected, flag);
+  InvokeCode(rdx, expected, expected, flag, post_call_generator);
 }
 
 
@@ -1448,10 +1450,19 @@ void MacroAssembler::Pushad() {
   // r13 is kRootRegister.
   push(r14);
   // r15 is kSmiConstantRegister
+  STATIC_ASSERT(11 == kNumSafepointSavedRegisters);
+  // Use lea for symmetry with Popad.
+  int sp_delta =
+      (kNumSafepointRegisters - kNumSafepointSavedRegisters) * kPointerSize;
+  lea(rsp, Operand(rsp, -sp_delta));
 }
 
 
 void MacroAssembler::Popad() {
+  // Popad must not change the flags, so use lea instead of addq.
+  int sp_delta =
+      (kNumSafepointRegisters - kNumSafepointSavedRegisters) * kPointerSize;
+  lea(rsp, Operand(rsp, sp_delta));
   pop(r14);
   pop(r12);
   pop(r11);
@@ -1467,8 +1478,7 @@ void MacroAssembler::Popad() {
 
 
 void MacroAssembler::Dropad() {
-  const int kRegistersPushedByPushad = 11;
-  addq(rsp, Immediate(kRegistersPushedByPushad * kPointerSize));
+  addq(rsp, Immediate(kNumSafepointRegisters * kPointerSize));
 }
 
 
@@ -1492,6 +1502,21 @@ int MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
     10,
     -1
 };
+
+
+void MacroAssembler::StoreToSafepointRegisterSlot(Register dst, Register src) {
+  movq(SafepointRegisterSlot(dst), src);
+}
+
+
+void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
+  movq(dst, SafepointRegisterSlot(src));
+}
+
+
+Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
+  return Operand(rsp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
+}
 
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
@@ -1539,6 +1564,97 @@ void MacroAssembler::PopTryHandler() {
   pop(Operand(kScratchRegister, 0));
   // Remove the remaining fields.
   addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+}
+
+
+void MacroAssembler::Throw(Register value) {
+  // Check that stack should contain next handler, frame pointer, state and
+  // return address in that order.
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset + kPointerSize ==
+            StackHandlerConstants::kStateOffset);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset + kPointerSize ==
+            StackHandlerConstants::kPCOffset);
+  // Keep thrown value in rax.
+  if (!value.is(rax)) {
+    movq(rax, value);
+  }
+
+  ExternalReference handler_address(Isolate::k_handler_address);
+  movq(kScratchRegister, handler_address);
+  movq(rsp, Operand(kScratchRegister, 0));
+  // get next in chain
+  pop(rcx);
+  movq(Operand(kScratchRegister, 0), rcx);
+  pop(rbp);  // pop frame pointer
+  pop(rdx);  // remove state
+
+  // Before returning we restore the context from the frame pointer if not NULL.
+  // The frame pointer is NULL in the exception handler of a JS entry frame.
+  Set(rsi, 0);  // Tentatively set context pointer to NULL
+  NearLabel skip;
+  cmpq(rbp, Immediate(0));
+  j(equal, &skip);
+  movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  bind(&skip);
+  ret(0);
+}
+
+
+void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
+                                      Register value) {
+  // Keep thrown value in rax.
+  if (!value.is(rax)) {
+    movq(rax, value);
+  }
+  // Fetch top stack handler.
+  ExternalReference handler_address(Isolate::k_handler_address);
+  movq(kScratchRegister, handler_address);
+  movq(rsp, Operand(kScratchRegister, 0));
+
+  // Unwind the handlers until the ENTRY handler is found.
+  NearLabel loop, done;
+  bind(&loop);
+  // Load the type of the current stack handler.
+  const int kStateOffset = StackHandlerConstants::kStateOffset;
+  cmpq(Operand(rsp, kStateOffset), Immediate(StackHandler::ENTRY));
+  j(equal, &done);
+  // Fetch the next handler in the list.
+  const int kNextOffset = StackHandlerConstants::kNextOffset;
+  movq(rsp, Operand(rsp, kNextOffset));
+  jmp(&loop);
+  bind(&done);
+
+  // Set the top handler address to next handler past the current ENTRY handler.
+  movq(kScratchRegister, handler_address);
+  pop(Operand(kScratchRegister, 0));
+
+  if (type == OUT_OF_MEMORY) {
+    // Set external caught exception to false.
+    ExternalReference external_caught(
+        Isolate::k_external_caught_exception_address);
+    movq(rax, Immediate(false));
+    store_rax(external_caught);
+
+    // Set pending exception and rax to out of memory exception.
+    ExternalReference pending_exception(Isolate::k_pending_exception_address);
+    movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE);
+    store_rax(pending_exception);
+  }
+
+  // Clear the context pointer.
+  Set(rsi, 0);
+
+  // Restore registers from handler.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset + kPointerSize ==
+            StackHandlerConstants::kFPOffset);
+  pop(rbp);  // FP
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset + kPointerSize ==
+            StackHandlerConstants::kStateOffset);
+  pop(rdx);  // State
+
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset + kPointerSize ==
+            StackHandlerConstants::kPCOffset);
+  ret(0);
 }
 
 
@@ -1613,6 +1729,17 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
   NearLabel ok;
   Condition is_smi = CheckSmi(object);
   Assert(is_smi, "Operand is not a smi");
+}
+
+
+void MacroAssembler::AbortIfNotString(Register object) {
+  testb(object, Immediate(kSmiTagMask));
+  Assert(not_equal, "Operand is not a string");
+  push(object);
+  movq(object, FieldOperand(object, HeapObject::kMapOffset));
+  CmpInstanceType(object, FIRST_NONSTRING_TYPE);
+  pop(object);
+  Assert(below, "Operand is not a string");
 }
 
 
@@ -1734,11 +1861,19 @@ void MacroAssembler::DebugBreak() {
 void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
-                                InvokeFlag flag) {
+                                InvokeFlag flag,
+                                PostCallGenerator* post_call_generator) {
   NearLabel done;
-  InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag);
+  InvokePrologue(expected,
+                 actual,
+                 Handle<Code>::null(),
+                 code,
+                 &done,
+                 flag,
+                 post_call_generator);
   if (flag == CALL_FUNCTION) {
     call(code);
+    if (post_call_generator != NULL) post_call_generator->Generate();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     jmp(code);
@@ -1751,12 +1886,20 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 RelocInfo::Mode rmode,
-                                InvokeFlag flag) {
+                                InvokeFlag flag,
+                                PostCallGenerator* post_call_generator) {
   NearLabel done;
   Register dummy = rax;
-  InvokePrologue(expected, actual, code, dummy, &done, flag);
+  InvokePrologue(expected,
+                 actual,
+                 code,
+                 dummy,
+                 &done,
+                 flag,
+                 post_call_generator);
   if (flag == CALL_FUNCTION) {
     Call(code, rmode);
+    if (post_call_generator != NULL) post_call_generator->Generate();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     Jump(code, rmode);
@@ -1767,7 +1910,8 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 
 void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& actual,
-                                    InvokeFlag flag) {
+                                    InvokeFlag flag,
+                                    PostCallGenerator* post_call_generator) {
   ASSERT(function.is(rdi));
   movq(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
@@ -1778,13 +1922,14 @@ void MacroAssembler::InvokeFunction(Register function,
   movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(rbx);
-  InvokeCode(rdx, expected, actual, flag);
+  InvokeCode(rdx, expected, actual, flag, post_call_generator);
 }
 
 
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
-                                    InvokeFlag flag) {
+                                    InvokeFlag flag,
+                                    PostCallGenerator* post_call_generator) {
   ASSERT(function->is_compiled());
   // Get the function and setup the context.
   Move(rdi, Handle<JSFunction>(function));
@@ -1795,12 +1940,17 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
     // the Code object every time we call the function.
     movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
     ParameterCount expected(function->shared()->formal_parameter_count());
-    InvokeCode(rdx, expected, actual, flag);
+    InvokeCode(rdx, expected, actual, flag, post_call_generator);
   } else {
     // Invoke the cached code.
     Handle<Code> code(function->code());
     ParameterCount expected(function->shared()->formal_parameter_count());
-    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+    InvokeCode(code,
+               expected,
+               actual,
+               RelocInfo::CODE_TARGET,
+               flag,
+               post_call_generator);
   }
 }
 
@@ -2393,9 +2543,21 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     }
     // The context may be an intermediate context, not a function context.
     movq(dst, Operand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-  } else {  // context is the current function context.
-    // The context may be an intermediate context, not a function context.
-    movq(dst, Operand(rsi, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  } else {
+    // Slot is in the current function context.  Move it into the
+    // destination register in case we store into it (the write barrier
+    // cannot be allowed to destroy the context in rsi).
+    movq(dst, rsi);
+  }
+
+  // We should not have found a 'with' context by walking the context chain
+  // (i.e., the static scope chain and runtime context chain do not agree).
+  // A variable occurring in such a scope should have slot type LOOKUP and
+  // not CONTEXT.
+  if (FLAG_debug_code) {
+    cmpq(dst, Operand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+    Check(equal, "Yo dawg, I heard you liked function contexts "
+                 "so I put function contexts in all your contexts");
   }
 }
 

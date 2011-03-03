@@ -272,7 +272,6 @@ Assembler::Assembler(void* buffer, int buffer_size)
     : positions_recorder_(this),
       allow_peephole_optimization_(false) {
   Isolate* isolate = Isolate::Current();
-  // BUG(3245989): disable peephole optimization if crankshaft is enabled.
   allow_peephole_optimization_ = FLAG_peephole_optimization;
   if (buffer == NULL) {
     // Do our own buffer management.
@@ -354,6 +353,11 @@ void Assembler::CodeTargetAlign() {
 }
 
 
+Condition Assembler::GetCondition(Instr instr) {
+  return Instruction::ConditionField(instr);
+}
+
+
 bool Assembler::IsBranch(Instr instr) {
   return (instr & (B27 | B25)) == (B27 | B25);
 }
@@ -430,6 +434,20 @@ Register Assembler::GetRd(Instr instr) {
 }
 
 
+Register Assembler::GetRn(Instr instr) {
+  Register reg;
+  reg.code_ = Instruction::RnValue(instr);
+  return reg;
+}
+
+
+Register Assembler::GetRm(Instr instr) {
+  Register reg;
+  reg.code_ = Instruction::RmValue(instr);
+  return reg;
+}
+
+
 bool Assembler::IsPush(Instr instr) {
   return ((instr & ~kRdMask) == kPushRegPattern);
 }
@@ -466,6 +484,35 @@ bool Assembler::IsLdrPcImmediateOffset(Instr instr) {
   return (instr & (kLdrPCMask & ~kCondMask)) == 0x051f0000;
 }
 
+
+bool Assembler::IsTstImmediate(Instr instr) {
+  return (instr & (B27 | B26 | I | kOpCodeMask | S | kRdMask)) ==
+      (I | TST | S);
+}
+
+
+bool Assembler::IsCmpRegister(Instr instr) {
+  return (instr & (B27 | B26 | I | kOpCodeMask | S | kRdMask | B4)) ==
+      (CMP | S);
+}
+
+
+bool Assembler::IsCmpImmediate(Instr instr) {
+  return (instr & (B27 | B26 | I | kOpCodeMask | S | kRdMask)) ==
+      (I | CMP | S);
+}
+
+
+Register Assembler::GetCmpImmediateRegister(Instr instr) {
+  ASSERT(IsCmpImmediate(instr));
+  return GetRn(instr);
+}
+
+
+int Assembler::GetCmpImmediateRawImmediate(Instr instr) {
+  ASSERT(IsCmpImmediate(instr));
+  return instr & kOff12Mask;
+}
 
 // Labels refer to positions in the (to be) generated code.
 // There are bound, linked, and unused labels.
@@ -1052,6 +1099,13 @@ void Assembler::teq(Register src1, const Operand& src2, Condition cond) {
 
 void Assembler::cmp(Register src1, const Operand& src2, Condition cond) {
   addrmod1(cond | CMP | S, src1, r0, src2);
+}
+
+
+void Assembler::cmp_raw_immediate(
+    Register src, int raw_immediate, Condition cond) {
+  ASSERT(is_uint12(raw_immediate));
+  emit(cond | I | CMP | S | src.code() << 16 | raw_immediate);
 }
 
 
@@ -1797,11 +1851,31 @@ void Assembler::vldr(const DwVfpRegister dst,
     offset = -offset;
     u = 0;
   }
-  ASSERT(offset % 4 == 0);
-  ASSERT((offset / 4) < 256);
+
   ASSERT(offset >= 0);
-  emit(cond | u*B23 | 0xD1*B20 | base.code()*B16 | dst.code()*B12 |
-       0xB*B8 | ((offset / 4) & 255));
+  if ((offset % 4) == 0 && (offset / 4) < 256) {
+    emit(cond | u*B23 | 0xD1*B20 | base.code()*B16 | dst.code()*B12 |
+         0xB*B8 | ((offset / 4) & 255));
+  } else {
+    // Larger offsets must be handled by computing the correct address
+    // in the ip register.
+    ASSERT(!base.is(ip));
+    if (u == 1) {
+      add(ip, base, Operand(offset));
+    } else {
+      sub(ip, base, Operand(offset));
+    }
+    emit(cond | 0xD1*B20 | ip.code()*B16 | dst.code()*B12 | 0xB*B8);
+  }
+}
+
+
+void Assembler::vldr(const DwVfpRegister dst,
+                     const MemOperand& operand,
+                     const Condition cond) {
+  ASSERT(!operand.rm().is_valid());
+  ASSERT(operand.am_ == Offset);
+  vldr(dst, operand.rn(), operand.offset(), cond);
 }
 
 
@@ -1819,13 +1893,33 @@ void Assembler::vldr(const SwVfpRegister dst,
     offset = -offset;
     u = 0;
   }
-  ASSERT(offset % 4 == 0);
-  ASSERT((offset / 4) < 256);
-  ASSERT(offset >= 0);
   int sd, d;
   dst.split_code(&sd, &d);
+  ASSERT(offset >= 0);
+
+  if ((offset % 4) == 0 && (offset / 4) < 256) {
   emit(cond | u*B23 | d*B22 | 0xD1*B20 | base.code()*B16 | sd*B12 |
        0xA*B8 | ((offset / 4) & 255));
+  } else {
+    // Larger offsets must be handled by computing the correct address
+    // in the ip register.
+    ASSERT(!base.is(ip));
+    if (u == 1) {
+      add(ip, base, Operand(offset));
+    } else {
+      sub(ip, base, Operand(offset));
+    }
+    emit(cond | d*B22 | 0xD1*B20 | ip.code()*B16 | sd*B12 | 0xA*B8);
+  }
+}
+
+
+void Assembler::vldr(const SwVfpRegister dst,
+                     const MemOperand& operand,
+                     const Condition cond) {
+  ASSERT(!operand.rm().is_valid());
+  ASSERT(operand.am_ == Offset);
+  vldr(dst, operand.rn(), operand.offset(), cond);
 }
 
 
@@ -1843,11 +1937,30 @@ void Assembler::vstr(const DwVfpRegister src,
     offset = -offset;
     u = 0;
   }
-  ASSERT(offset % 4 == 0);
-  ASSERT((offset / 4) < 256);
   ASSERT(offset >= 0);
-  emit(cond | u*B23 | 0xD0*B20 | base.code()*B16 | src.code()*B12 |
-       0xB*B8 | ((offset / 4) & 255));
+  if ((offset % 4) == 0 && (offset / 4) < 256) {
+    emit(cond | u*B23 | 0xD0*B20 | base.code()*B16 | src.code()*B12 |
+         0xB*B8 | ((offset / 4) & 255));
+  } else {
+    // Larger offsets must be handled by computing the correct address
+    // in the ip register.
+    ASSERT(!base.is(ip));
+    if (u == 1) {
+      add(ip, base, Operand(offset));
+    } else {
+      sub(ip, base, Operand(offset));
+    }
+    emit(cond | 0xD0*B20 | ip.code()*B16 | src.code()*B12 | 0xB*B8);
+  }
+}
+
+
+void Assembler::vstr(const DwVfpRegister src,
+                     const MemOperand& operand,
+                     const Condition cond) {
+  ASSERT(!operand.rm().is_valid());
+  ASSERT(operand.am_ == Offset);
+  vstr(src, operand.rn(), operand.offset(), cond);
 }
 
 
@@ -1865,13 +1978,32 @@ void Assembler::vstr(const SwVfpRegister src,
     offset = -offset;
     u = 0;
   }
-  ASSERT(offset % 4 == 0);
-  ASSERT((offset / 4) < 256);
-  ASSERT(offset >= 0);
   int sd, d;
   src.split_code(&sd, &d);
-  emit(cond | u*B23 | d*B22 | 0xD0*B20 | base.code()*B16 | sd*B12 |
-       0xA*B8 | ((offset / 4) & 255));
+  ASSERT(offset >= 0);
+  if ((offset % 4) == 0 && (offset / 4) < 256) {
+    emit(cond | u*B23 | d*B22 | 0xD0*B20 | base.code()*B16 | sd*B12 |
+         0xA*B8 | ((offset / 4) & 255));
+  } else {
+    // Larger offsets must be handled by computing the correct address
+    // in the ip register.
+    ASSERT(!base.is(ip));
+    if (u == 1) {
+      add(ip, base, Operand(offset));
+    } else {
+      sub(ip, base, Operand(offset));
+    }
+    emit(cond | d*B22 | 0xD0*B20 | ip.code()*B16 | sd*B12 | 0xA*B8);
+  }
+}
+
+
+void Assembler::vstr(const SwVfpRegister src,
+                     const MemOperand& operand,
+                     const Condition cond) {
+  ASSERT(!operand.rm().is_valid());
+  ASSERT(operand.am_ == Offset);
+  vldr(src, operand.rn(), operand.offset(), cond);
 }
 
 
@@ -2366,7 +2498,7 @@ void Assembler::nop(int type) {
 
 
 bool Assembler::IsNop(Instr instr, int type) {
-  // Check for mov rx, rx.
+  // Check for mov rx, rx where x = type.
   ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
   return instr == (al | 13*B21 | type*B12 | type);
 }

@@ -106,6 +106,11 @@ class FrameElement BASE_EMBEDDED {
     return result;
   }
 
+  static bool ConstantPoolOverflowed() {
+    return !DataField::is_valid(
+        Isolate::Current()->frame_element_constant_list()->length());
+  }
+
   bool is_synced() const { return SyncedField::decode(value_); }
 
   void set_sync() {

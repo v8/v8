@@ -154,7 +154,8 @@ class DebugLocalContext {
     Handle<v8::internal::String> debug_string =
         FACTORY->LookupAsciiSymbol("debug");
     SetProperty(global, debug_string,
-        Handle<Object>(debug->debug_context()->global_proxy()), DONT_ENUM);
+        Handle<Object>(debug->debug_context()->global_proxy()), DONT_ENUM,
+        ::v8::internal::kNonStrictMode);
   }
  private:
   v8::Persistent<v8::Context> context_;
@@ -1019,7 +1020,7 @@ TEST(DebugStub) {
   CheckDebugBreakFunction(&env,
                           "function f2(){x=1;}", "f2",
                           0,
-                          v8::internal::RelocInfo::CODE_TARGET,
+                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
                           Isolate::Current()->builtins()->builtin(
                               Builtins::StoreIC_DebugBreak));
   CheckDebugBreakFunction(&env,

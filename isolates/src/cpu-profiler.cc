@@ -54,13 +54,7 @@ ProfilerEventsProcessor::ProfilerEventsProcessor(Isolate* isolate,
       ticks_buffer_(sizeof(TickSampleEventRecord),
                     kTickSamplesBufferChunkSize,
                     kTickSamplesBufferChunksCount),
-      enqueue_order_(0),
-      known_functions_(new HashMap(AddressesMatch)) {
-}
-
-
-ProfilerEventsProcessor::~ProfilerEventsProcessor() {
-  delete known_functions_;
+      enqueue_order_(0) {
 }
 
 
@@ -76,6 +70,7 @@ void ProfilerEventsProcessor::CallbackCreateEvent(Logger::LogEventsAndTags tag,
   rec->start = start;
   rec->entry = generator_->NewCodeEntry(tag, prefix, name);
   rec->size = 1;
+  rec->sfi_address = NULL;
   events_buffer_.Enqueue(evt_rec);
 }
 
@@ -85,7 +80,8 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                               String* resource_name,
                                               int line_number,
                                               Address start,
-                                              unsigned size) {
+                                              unsigned size,
+                                              Address sfi_address) {
   if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec;
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -94,6 +90,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->start = start;
   rec->entry = generator_->NewCodeEntry(tag, name, resource_name, line_number);
   rec->size = size;
+  rec->sfi_address = sfi_address;
   events_buffer_.Enqueue(evt_rec);
 }
 
@@ -110,6 +107,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->start = start;
   rec->entry = generator_->NewCodeEntry(tag, name);
   rec->size = size;
+  rec->sfi_address = NULL;
   events_buffer_.Enqueue(evt_rec);
 }
 
@@ -126,6 +124,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->start = start;
   rec->entry = generator_->NewCodeEntry(tag, args_count);
   rec->size = size;
+  rec->sfi_address = NULL;
   events_buffer_.Enqueue(evt_rec);
 }
 
@@ -151,57 +150,14 @@ void ProfilerEventsProcessor::CodeDeleteEvent(Address from) {
 }
 
 
-void ProfilerEventsProcessor::FunctionCreateEvent(Address alias,
-                                                  Address start,
-                                                  int security_token_id) {
+void ProfilerEventsProcessor::SFIMoveEvent(Address from, Address to) {
   CodeEventsContainer evt_rec;
-  CodeAliasEventRecord* rec = &evt_rec.CodeAliasEventRecord_;
-  rec->type = CodeEventRecord::CODE_ALIAS;
+  SFIMoveEventRecord* rec = &evt_rec.SFIMoveEventRecord_;
+  rec->type = CodeEventRecord::SFI_MOVE;
   rec->order = ++enqueue_order_;
-  rec->start = alias;
-  rec->entry = generator_->NewCodeEntry(security_token_id);
-  rec->code_start = start;
+  rec->from = from;
+  rec->to = to;
   events_buffer_.Enqueue(evt_rec);
-
-  known_functions_->Lookup(alias, AddressHash(alias), true);
-}
-
-
-void ProfilerEventsProcessor::FunctionMoveEvent(Address from, Address to) {
-  CodeMoveEvent(from, to);
-
-  if (IsKnownFunction(from)) {
-    known_functions_->Remove(from, AddressHash(from));
-    known_functions_->Lookup(to, AddressHash(to), true);
-  }
-}
-
-
-void ProfilerEventsProcessor::FunctionDeleteEvent(Address from) {
-  CodeDeleteEvent(from);
-
-  known_functions_->Remove(from, AddressHash(from));
-}
-
-
-bool ProfilerEventsProcessor::IsKnownFunction(Address start) {
-  HashMap::Entry* entry =
-      known_functions_->Lookup(start, AddressHash(start), false);
-  return entry != NULL;
-}
-
-
-void ProfilerEventsProcessor::ProcessMovedFunctions() {
-  for (int i = 0; i < moved_functions_.length(); ++i) {
-    JSFunction* function = moved_functions_[i];
-    CpuProfiler::FunctionCreateEvent(function);
-  }
-  moved_functions_.Clear();
-}
-
-
-void ProfilerEventsProcessor::RememberMovedFunction(JSFunction* function) {
-  moved_functions_.Add(function);
 }
 
 
@@ -228,13 +184,12 @@ void ProfilerEventsProcessor::AddCurrentStack() {
   TickSample* sample = &record.sample;
   sample->state = Isolate::Current()->current_vm_state();
   sample->pc = reinterpret_cast<Address>(sample);  // Not NULL.
+  sample->tos = NULL;
   sample->frames_count = 0;
   for (StackTraceFrameIterator it;
        !it.done() && sample->frames_count < TickSample::kMaxFramesCount;
        it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    sample->stack[sample->frames_count++] =
-        reinterpret_cast<Address>(frame->function());
+    sample->stack[sample->frames_count++] = it.frame()->pc();
   }
   record.order = enqueue_order_;
   ticks_from_vm_buffer_.Enqueue(record);
@@ -395,20 +350,38 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       HEAP->empty_string(),
       v8::CpuProfileNode::kNoLineNumberInfo,
       code->address(),
-      code->ExecutableSize());
+      code->ExecutableSize(),
+      NULL);
 }
 
 
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
-                           Code* code, String* name,
-                           String* source, int line) {
+                                  Code* code,
+                                  SharedFunctionInfo* shared,
+                                  String* name) {
   Isolate::Current()->cpu_profiler()->processor_->CodeCreateEvent(
       tag,
       name,
+      HEAP->empty_string(),
+      v8::CpuProfileNode::kNoLineNumberInfo,
+      code->address(),
+      code->ExecutableSize(),
+      shared->address());
+}
+
+
+void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
+                                  Code* code,
+                                  SharedFunctionInfo* shared,
+                                  String* source, int line) {
+  Isolate::Current()->cpu_profiler()->processor_->CodeCreateEvent(
+      tag,
+      shared->DebugName(),
       source,
       line,
       code->address(),
-      code->ExecutableSize());
+      code->ExecutableSize(),
+      shared->address());
 }
 
 
@@ -432,51 +405,9 @@ void CpuProfiler::CodeDeleteEvent(Address from) {
 }
 
 
-void CpuProfiler::FunctionCreateEvent(JSFunction* function) {
+void CpuProfiler::SFIMoveEvent(Address from, Address to) {
   CpuProfiler* profiler = Isolate::Current()->cpu_profiler();
-  int security_token_id = TokenEnumerator::kNoSecurityToken;
-  if (function->unchecked_context()->IsContext()) {
-    security_token_id = profiler->token_enumerator_->GetTokenId(
-        function->context()->global_context()->security_token());
-  }
-  profiler->processor_->FunctionCreateEvent(
-      function->address(),
-      function->shared()->code()->address(),
-      security_token_id);
-}
-
-
-void CpuProfiler::ProcessMovedFunctions() {
-  CpuProfiler* profiler = Isolate::Current()->cpu_profiler();
-  profiler->processor_->ProcessMovedFunctions();
-}
-
-
-void CpuProfiler::FunctionCreateEventFromMove(Heap* heap,
-                                              JSFunction* function) {
-  // This function is called from GC iterators (during Scavenge,
-  // MC, and MS), so marking bits can be set on objects. That's
-  // why unchecked accessors are used here.
-
-  // The same function can be reported several times.
-  Isolate* isolate = heap->isolate();
-  if (function->unchecked_code() ==
-      isolate->builtins()->builtin(Builtins::LazyCompile)
-      || isolate->cpu_profiler()->processor_->IsKnownFunction(
-            function->address()))
-    return;
-
-  isolate->cpu_profiler()->processor_->RememberMovedFunction(function);
-}
-
-
-void CpuProfiler::FunctionMoveEvent(Heap* heap, Address from, Address to) {
-  heap->isolate()->cpu_profiler()->processor_->FunctionMoveEvent(from, to);
-}
-
-
-void CpuProfiler::FunctionDeleteEvent(Address from) {
-  Isolate::Current()->cpu_profiler()->processor_->FunctionDeleteEvent(from);
+  profiler->processor_->SFIMoveEvent(from, to);
 }
 
 
@@ -549,7 +480,6 @@ void CpuProfiler::StartProcessorIfNotStarted() {
         FLAG_log_code = saved_log_code_flag;
       }
       LOGGER->LogCompiledFunctions();
-      LOGGER->LogFunctionObjects();
       LOGGER->LogAccessorCallbacks();
     }
     // Enable stack sampling.

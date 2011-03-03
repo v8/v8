@@ -40,7 +40,6 @@
 #include "isolate.h"
 #include "lithium-allocator.h"
 #include "log.h"
-#include "oprofile-agent.h"
 #include "regexp-stack.h"
 #include "runtime-profiler.h"
 #include "scanner.h"
@@ -439,7 +438,6 @@ void Isolate::Deinit() {
 
     delete deoptimizer_data_;
     deoptimizer_data_ = NULL;
-    OProfileAgent::TearDown();
     if (FLAG_preemption) {
       v8::Locker locker;
       v8::Locker::StopPreemption();
@@ -711,7 +709,6 @@ bool Isolate::Init(Deserializer* des) {
   // objects in place for creating the code object used for probing.
   CPU::Setup();
 
-  OProfileAgent::Initialize();
   deoptimizer_data_ = new DeoptimizerData;
   runtime_profiler_ = new RuntimeProfiler(this);
   runtime_profiler_->Setup();

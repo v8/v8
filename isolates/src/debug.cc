@@ -855,7 +855,11 @@ bool Debug::Load() {
   // Expose the builtins object in the debugger context.
   Handle<String> key = FACTORY->LookupAsciiSymbol("builtins");
   Handle<GlobalObject> global = Handle<GlobalObject>(context->global());
-  SetProperty(global, key, Handle<Object>(global->builtins()), NONE);
+  RETURN_IF_EMPTY_HANDLE_VALUE(
+      isolate,
+      SetProperty(global, key, Handle<Object>(global->builtins()),
+                  NONE, kNonStrictMode),
+      false);
 
   // Compile the JavaScript for the debugger in the debugger context.
   isolate->debugger()->set_compiling_natives(true);

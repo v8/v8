@@ -62,7 +62,6 @@ class RuntimeProfiler {
   void Reset();
   void TearDown();
 
-  void MarkCompactPrologue(bool is_compacting);
   Object** SamplerWindowAddress();
   int SamplerWindowSize();
 
@@ -93,6 +92,10 @@ class RuntimeProfiler {
   // it's waiting on a semaphore will cause a deadlock, so we have to
   // wake it up first.
   static void WakeUpRuntimeProfilerThreadBeforeShutdown();
+
+  void UpdateSamplesAfterScavenge();
+  void RemoveDeadSamples();
+  void UpdateSamplesAfterCompact(ObjectVisitor* visitor);
 
  private:
   static const int kSamplerWindowSize = 16;
@@ -125,11 +128,6 @@ class RuntimeProfiler {
   // The ratio of ticks spent in JS code in percent.
   Atomic32 js_ratio_;
 
-  // The JSFunctions in the sampler window are not GC safe. Old-space
-  // pointers are not cleared during mark-sweep collection and therefore
-  // the window might contain stale pointers. The window is updated on
-  // scavenges and (parts of it) cleared on mark-sweep and
-  // mark-sweep-compact.
   Object* sampler_window_[kSamplerWindowSize];
   int sampler_window_position_;
   int sampler_window_weight_[kSamplerWindowSize];

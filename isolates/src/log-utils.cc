@@ -383,6 +383,8 @@ void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
       Append("\\,");
     } else if (c == '\\') {
       Append("\\\\");
+    } else if (c == '\"') {
+      Append("\"\"");
     } else {
       Append("%lc", c);
     }

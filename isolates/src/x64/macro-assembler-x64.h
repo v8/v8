@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -58,6 +58,7 @@ typedef Operand MemOperand;
 
 // Forward declaration.
 class JumpTarget;
+class PostCallGenerator;
 
 struct SmiIndex {
   SmiIndex(Register index_register, ScaleFactor scale)
@@ -170,10 +171,10 @@ class MacroAssembler: public Assembler {
   // Push and pop the registers that can hold pointers.
   void PushSafepointRegisters() { Pushad(); }
   void PopSafepointRegisters() { Popad(); }
-  static int SafepointRegisterStackIndex(int reg_code) {
-    return kSafepointPushRegisterIndices[reg_code];
-  }
-
+  // Store the value in register src in the safepoint register stack
+  // slot for register dst.
+  void StoreToSafepointRegisterSlot(Register dst, Register src);
+  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -182,27 +183,33 @@ class MacroAssembler: public Assembler {
   void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
-                  InvokeFlag flag);
+                  InvokeFlag flag,
+                  PostCallGenerator* post_call_generator = NULL);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
-                  InvokeFlag flag);
+                  InvokeFlag flag,
+                  PostCallGenerator* post_call_generator = NULL);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      PostCallGenerator* post_call_generator = NULL);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      PostCallGenerator* post_call_generator = NULL);
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
-  void InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag);
+  void InvokeBuiltin(Builtins::JavaScript id,
+                     InvokeFlag flag,
+                     PostCallGenerator* post_call_generator = NULL);
 
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, Builtins::JavaScript id);
@@ -661,6 +668,9 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a smi. Used in debug code.
   void AbortIfNotSmi(Register object);
 
+  // Abort execution if argument is a string. Used in debug code.
+  void AbortIfNotString(Register object);
+
   // Abort execution if argument is not the root value with the given index.
   void AbortIfNotRootValue(Register src,
                            Heap::RootListIndex root_value_index,
@@ -675,6 +685,13 @@ class MacroAssembler: public Assembler {
 
   // Unlink the stack handler on top of the stack from the try handler chain.
   void PopTryHandler();
+
+  // Activate the top handler in the try hander chain and pass the
+  // thrown value.
+  void Throw(Register value);
+
+  // Propagate an uncatchable exception out of the current JS stack.
+  void ThrowUncatchable(UncatchableExceptionType type, Register value);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -963,6 +980,8 @@ class MacroAssembler: public Assembler {
   // Order general registers are pushed by Pushad.
   // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14.
   static int kSafepointPushRegisterIndices[Register::kNumRegisters];
+  static const int kNumSafepointSavedRegisters = 11;
+
   bool generating_stub_;
   bool allow_stub_calls_;
 
@@ -983,7 +1002,8 @@ class MacroAssembler: public Assembler {
                       Handle<Code> code_constant,
                       Register code_register,
                       LabelType* done,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      PostCallGenerator* post_call_generator);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -1014,6 +1034,17 @@ class MacroAssembler: public Assembler {
   Object* PopHandleScopeHelper(Register saved,
                                Register scratch,
                                bool gc_allowed);
+
+
+  // Compute memory operands for safepoint stack slots.
+  Operand SafepointRegisterSlot(Register reg);
+  static int SafepointRegisterStackIndex(int reg_code) {
+    return kNumSafepointRegisters - kSafepointPushRegisterIndices[reg_code] - 1;
+  }
+
+  // Needs access to SafepointRegisterStackIndex for optimized frame
+  // traversal.
+  friend class OptimizedFrame;
 };
 
 
@@ -1034,6 +1065,17 @@ class CodePatcher {
   byte* address_;  // The address of the code being patched.
   int size_;  // Number of bytes of the expected patch size.
   MacroAssembler masm_;  // Macro assembler used to generate the code.
+};
+
+
+// Helper class for generating code or data associated with the code
+// right after a call instruction. As an example this can be used to
+// generate safepoint data after calls for crankshaft.
+class PostCallGenerator {
+ public:
+  PostCallGenerator() { }
+  virtual ~PostCallGenerator() { }
+  virtual void Generate() = 0;
 };
 
 
@@ -1743,7 +1785,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Handle<Code> code_constant,
                                     Register code_register,
                                     LabelType* done,
-                                    InvokeFlag flag) {
+                                    InvokeFlag flag,
+                                    PostCallGenerator* post_call_generator) {
   bool definitely_matches = false;
   NearLabel invoke;
   if (expected.is_immediate()) {
@@ -1795,6 +1838,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 
     if (flag == CALL_FUNCTION) {
       Call(adaptor, RelocInfo::CODE_TARGET);
+      if (post_call_generator != NULL) post_call_generator->Generate();
       jmp(done);
     } else {
       Jump(adaptor, RelocInfo::CODE_TARGET);

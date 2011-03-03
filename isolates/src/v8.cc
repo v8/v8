@@ -28,6 +28,14 @@
 #include "v8.h"
 
 #include "isolate.h"
+#include "bootstrapper.h"
+#include "debug.h"
+#include "deoptimizer.h"
+#include "heap-profiler.h"
+#include "hydrogen.h"
+#include "lithium-allocator.h"
+#include "log.h"
+#include "runtime-profiler.h"
 #include "serialize.h"
 
 namespace v8 {
@@ -60,7 +68,12 @@ bool V8::Initialize(Deserializer* des) {
   Isolate* isolate = Isolate::Current();
   if (isolate->IsInitialized()) return true;
 
+#if defined(V8_TARGET_ARCH_ARM) && !defined(USE_ARM_EABI)
+  use_crankshaft_ = false;
+#else
   use_crankshaft_ = FLAG_crankshaft;
+#endif
+
   // Peephole optimization might interfere with deoptimization.
   FLAG_peephole_optimization = !use_crankshaft_;
 

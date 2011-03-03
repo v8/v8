@@ -1209,7 +1209,7 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
 
 void MarkCompactCollector::MarkObjectGroups() {
   List<ObjectGroup*>* object_groups =
-      heap_->isolate_->global_handles()->object_groups();
+      heap_->isolate()->global_handles()->object_groups();
 
   for (int i = 0; i < object_groups->length(); i++) {
     ObjectGroup* entry = object_groups->at(i);
@@ -1366,9 +1366,10 @@ void MarkCompactCollector::MarkLiveObjects() {
   //
   // First we identify nonlive weak handles and mark them as pending
   // destruction.
-  heap_->isolate_->global_handles()->IdentifyWeakHandles(&IsUnmarkedHeapObject);
+  heap_->isolate()->global_handles()->IdentifyWeakHandles(
+      &IsUnmarkedHeapObject);
   // Then we mark the objects and process the transitive closure.
-  heap_->isolate_->global_handles()->IterateWeakRoots(&root_visitor);
+  heap_->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
   while (marking_stack_.overflowed()) {
     RefillMarkingStack();
     EmptyMarkingStack();
@@ -1393,12 +1394,15 @@ void MarkCompactCollector::MarkLiveObjects() {
   heap_->ProcessWeakReferences(&mark_compact_object_retainer);
 
   // Remove object groups after marking phase.
-  heap_->isolate_->global_handles()->RemoveObjectGroups();
+  heap_->isolate()->global_handles()->RemoveObjectGroups();
 
   // Flush code from collected candidates.
   if (is_code_flushing_enabled()) {
     code_flusher_->ProcessCandidates();
   }
+
+  // Clean up dead objects from the runtime profiler.
+  heap_->isolate()->runtime_profiler()->RemoveDeadSamples();
 }
 
 
@@ -2002,6 +2006,9 @@ static void SweepNewSpace(Heap* heap, NewSpace* space) {
   // All pointers were updated. Update auxiliary allocation info.
   heap->IncrementYoungSurvivorsCounter(survivors_size);
   space->set_age_mark(space->top());
+
+  // Update JSFunction pointers from the runtime profiler.
+  heap->isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
 }
 
 
@@ -2237,7 +2244,7 @@ class MapCompact {
   void UpdateMapPointersInRoots() {
     MapUpdatingVisitor map_updating_visitor;
     heap_->IterateRoots(&map_updating_visitor, VISIT_ONLY_STRONG);
-    heap_->isolate_->global_handles()->IterateWeakRoots(&map_updating_visitor);
+    heap_->isolate()->global_handles()->IterateWeakRoots(&map_updating_visitor);
     LiveObjectList::IterateElements(&map_updating_visitor);
   }
 
@@ -2605,8 +2612,10 @@ void MarkCompactCollector::UpdatePointers() {
   state_ = UPDATE_POINTERS;
 #endif
   UpdatingVisitor updating_visitor(heap_);
+  heap_->isolate()->runtime_profiler()->UpdateSamplesAfterCompact(
+      &updating_visitor);
   heap_->IterateRoots(&updating_visitor, VISIT_ONLY_STRONG);
-  heap_->isolate_->global_handles()->IterateWeakRoots(&updating_visitor);
+  heap_->isolate()->global_handles()->IterateWeakRoots(&updating_visitor);
 
   // Update the pointer to the head of the weak list of global contexts.
   updating_visitor.VisitPointer(&heap_->global_contexts_list_);
@@ -2892,9 +2901,8 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
   ASSERT(!HeapObject::FromAddress(new_addr)->IsCode());
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
-  if (copied_to->IsJSFunction()) {
-    PROFILE(FunctionMoveEvent(heap_, old_addr, new_addr));
-    PROFILE(FunctionCreateEventFromMove(heap_, JSFunction::cast(copied_to)));
+  if (copied_to->IsSharedFunctionInfo()) {
+    PROFILE(SFIMoveEvent(old_addr, new_addr));
   }
   HEAP_PROFILE(heap_, ObjectMoveEvent(old_addr, new_addr));
 
@@ -2985,9 +2993,8 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
 #endif
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
-  if (copied_to->IsJSFunction()) {
-    PROFILE(FunctionMoveEvent(heap_, old_addr, new_addr));
-    PROFILE(FunctionCreateEventFromMove(heap_, JSFunction::cast(copied_to)));
+  if (copied_to->IsSharedFunctionInfo()) {
+    PROFILE(SFIMoveEvent(old_addr, new_addr));
   }
   HEAP_PROFILE(heap_, ObjectMoveEvent(old_addr, new_addr));
 
@@ -3016,8 +3023,6 @@ void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (obj->IsCode()) {
     PROFILE(CodeDeleteEvent(obj->address()));
-  } else if (obj->IsJSFunction()) {
-    PROFILE(FunctionDeleteEvent(obj->address()));
   }
 #endif
 }

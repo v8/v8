@@ -658,12 +658,10 @@ static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
   // already generated). Do not allow the assembler to perform a
   // garbage collection but instead return the allocation failure
   // object.
-  MaybeObject* result = masm->TryCallApiFunctionAndReturn(
-      &fun, argc + kFastApiCallArguments + 1);
-  if (result->IsFailure()) {
-    return result;
-  }
-  return HEAP->undefined_value();
+  const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
+  ExternalReference ref =
+      ExternalReference(&fun, ExternalReference::DIRECT_API_CALL);
+  return masm->TryCallApiFunctionAndReturn(ref, kStackUnwindSpace);
 }
 
 class CallInterceptorCompiler BASE_EMBEDDED {
@@ -1248,18 +1246,38 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
       CheckPrototypes(object, receiver, holder, scratch1, scratch2, scratch3,
                       name, miss);
 
-  // Push the arguments on the JS stack of the caller.
-  __ push(receiver);  // Receiver.
-  __ mov(scratch3, Operand(Handle<AccessorInfo>(callback)));  // callback data
-  __ ldr(ip, FieldMemOperand(scratch3, AccessorInfo::kDataOffset));
-  __ Push(reg, ip, scratch3, name_reg);
+  // Build AccessorInfo::args_ list on the stack and push property name below
+  // the exit frame to make GC aware of them and store pointers to them.
+  __ push(receiver);
+  __ mov(scratch2, sp);  // scratch2 = AccessorInfo::args_
+  Handle<AccessorInfo> callback_handle(callback);
+  if (HEAP->InNewSpace(callback_handle->data())) {
+    __ Move(scratch3, callback_handle);
+    __ ldr(scratch3, FieldMemOperand(scratch3, AccessorInfo::kDataOffset));
+  } else {
+    __ Move(scratch3, Handle<Object>(callback_handle->data()));
+  }
+  __ Push(reg, scratch3, name_reg);
+  __ mov(r0, sp);  // r0 = Handle<String>
 
-  // Do tail-call to the runtime system.
-  ExternalReference load_callback_property =
-      ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-  __ TailCallExternalReference(load_callback_property, 5, 1);
+  Address getter_address = v8::ToCData<Address>(callback->getter());
+  ApiFunction fun(getter_address);
 
-  return HEAP->undefined_value();  // Success.
+  const int kApiStackSpace = 1;
+  __ EnterExitFrame(false, kApiStackSpace);
+  // Create AccessorInfo instance on the stack above the exit frame with
+  // scratch2 (internal::Object **args_) as the data.
+  __ str(scratch2, MemOperand(sp, 1 * kPointerSize));
+  __ add(r1, sp, Operand(1 * kPointerSize));  // r1 = AccessorInfo&
+
+  // Emitting a stub call may try to allocate (if the code is not
+  // already generated).  Do not allow the assembler to perform a
+  // garbage collection but instead return the allocation failure
+  // object.
+  const int kStackUnwindSpace = 4;
+  ExternalReference ref =
+      ExternalReference(&fun, ExternalReference::DIRECT_GETTER_CALL);
+  return masm()->TryCallApiFunctionAndReturn(ref, kStackUnwindSpace);
 }
 
 
@@ -2337,8 +2355,9 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       break;
 
     case STRING_CHECK:
-      if (!function->IsBuiltin()) {
-        // Calling non-builtins with a value as receiver requires boxing.
+      if (!function->IsBuiltin() && !function_info->strict_mode()) {
+        // Calling non-strict non-builtins with a value as the receiver
+        // requires boxing.
         __ jmp(&miss);
       } else {
         // Check that the object is a two-byte string or a symbol.
@@ -2353,8 +2372,9 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       break;
 
     case NUMBER_CHECK: {
-      if (!function->IsBuiltin()) {
-        // Calling non-builtins with a value as receiver requires boxing.
+      if (!function->IsBuiltin() && !function_info->strict_mode()) {
+        // Calling non-strict non-builtins with a value as the receiver
+        // requires boxing.
         __ jmp(&miss);
       } else {
         Label fast;
@@ -2374,8 +2394,9 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
     }
 
     case BOOLEAN_CHECK: {
-      if (!function->IsBuiltin()) {
-        // Calling non-builtins with a value as receiver requires boxing.
+      if (!function->IsBuiltin() && !function_info->strict_mode()) {
+        // Calling non-strict non-builtins with a value as the receiver
+        // requires boxing.
         __ jmp(&miss);
       } else {
         Label fast;
@@ -2657,10 +2678,13 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 
   __ Push(r1, r2, r0);  // Receiver, name, value.
 
+  __ mov(r0, Operand(Smi::FromInt(strict_mode_)));
+  __ push(r0);  // strict mode
+
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty));
-  __ TailCallExternalReference(store_ic_property, 3, 1);
+  __ TailCallExternalReference(store_ic_property, 4, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -3264,6 +3288,48 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
   __ bind(&miss);
   Handle<Code> ic(
       Isolate::Current()->builtins()->builtin(Builtins::KeyedStoreIC_Miss));
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
+}
+
+
+MaybeObject* KeyedStoreStubCompiler::CompileStorePixelArray(
+    JSObject* receiver) {
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : key
+  //  -- r2    : receiver
+  //  -- r3    : scratch
+  //  -- r4    : scratch
+  //  -- r5    : scratch
+  //  -- r6    : scratch
+  //  -- lr    : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that the map matches.
+  __ CheckMap(r2, r6, Handle<Map>(receiver->map()), &miss, false);
+
+  GenerateFastPixelArrayStore(masm(),
+                              r2,
+                              r1,
+                              r0,
+                              r3,
+                              r4,
+                              r5,
+                              r6,
+                              true,
+                              true,
+                              &miss,
+                              &miss,
+                              NULL,
+                              &miss);
+
+  __ bind(&miss);
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedStoreIC_Miss));
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -4007,7 +4073,12 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   // Push receiver, key and value for runtime call.
   __ Push(r2, r1, r0);
 
-  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+  __ mov(r1, Operand(Smi::FromInt(NONE)));  // PropertyAttributes
+  __ mov(r0, Operand(Smi::FromInt(
+      Code::ExtractExtraICStateFromFlags(flags) & kStrictMode)));
+  __ Push(r1, r0);
+
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 
   return GetCode(flags);
 }

@@ -1648,6 +1648,23 @@ THREADED_TEST(IdentityHash) {
   CHECK_NE(hash, hash3);
   int hash4 = obj->GetIdentityHash();
   CHECK_EQ(hash, hash4);
+
+  // Check identity hashes behaviour in the presence of JS accessors.
+  // Put a getter for 'v8::IdentityHash' on the Object's prototype:
+  {
+    CompileRun("Object.prototype['v8::IdentityHash'] = 42;\n");
+    Local<v8::Object> o1 = v8::Object::New();
+    Local<v8::Object> o2 = v8::Object::New();
+    CHECK_NE(o1->GetIdentityHash(), o2->GetIdentityHash());
+  }
+  {
+    CompileRun(
+        "function cnst() { return 42; };\n"
+        "Object.prototype.__defineGetter__('v8::IdentityHash', cnst);\n");
+    Local<v8::Object> o1 = v8::Object::New();
+    Local<v8::Object> o2 = v8::Object::New();
+    CHECK_NE(o1->GetIdentityHash(), o2->GetIdentityHash());
+  }
 }
 
 
@@ -2669,6 +2686,41 @@ THREADED_TEST(CatchExceptionFromWith) {
   v8::TryCatch try_catch;
   CHECK(!try_catch.HasCaught());
   Script::Compile(v8_str("var o = {}; with (o) { throw 42; }"))->Run();
+  CHECK(try_catch.HasCaught());
+}
+
+
+THREADED_TEST(TryCatchAndFinallyHidingException) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+  CHECK(!try_catch.HasCaught());
+  CompileRun("function f(k) { try { this[k]; } finally { return 0; } };");
+  CompileRun("f({toString: function() { throw 42; }});");
+  CHECK(!try_catch.HasCaught());
+}
+
+
+v8::Handle<v8::Value> WithTryCatch(const v8::Arguments& args) {
+  v8::TryCatch try_catch;
+  return v8::Undefined();
+}
+
+
+THREADED_TEST(TryCatchAndFinally) {
+  v8::HandleScope scope;
+  LocalContext context;
+  context->Global()->Set(
+      v8_str("native_with_try_catch"),
+      v8::FunctionTemplate::New(WithTryCatch)->GetFunction());
+  v8::TryCatch try_catch;
+  CHECK(!try_catch.HasCaught());
+  CompileRun(
+      "try {\n"
+      "  throw new Error('a');\n"
+      "} finally {\n"
+      "  native_with_try_catch();\n"
+      "}\n");
   CHECK(try_catch.HasCaught());
 }
 
@@ -5599,6 +5651,56 @@ TEST(AccessControl) {
 }
 
 
+TEST(AccessControlES5) {
+  v8::HandleScope handle_scope;
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+
+  global_template->SetAccessCheckCallbacks(NamedAccessBlocker,
+                                           IndexedAccessBlocker);
+
+  // Add an accessor that is not accessible by cross-domain JS code.
+  global_template->SetAccessor(v8_str("blocked_prop"),
+                               UnreachableGetter, UnreachableSetter,
+                               v8::Handle<Value>(),
+                               v8::DEFAULT);
+
+  // Create an environment
+  v8::Persistent<Context> context0 = Context::New(NULL, global_template);
+  context0->Enter();
+
+  v8::Handle<v8::Object> global0 = context0->Global();
+
+  v8::Persistent<Context> context1 = Context::New();
+  context1->Enter();
+  v8::Handle<v8::Object> global1 = context1->Global();
+  global1->Set(v8_str("other"), global0);
+
+  // Regression test for issue 1154.
+  ExpectTrue("Object.keys(other).indexOf('blocked_prop') == -1");
+
+  ExpectUndefined("other.blocked_prop");
+
+  // Regression test for issue 1027.
+  CompileRun("Object.defineProperty(\n"
+             "  other, 'blocked_prop', {configurable: false})");
+  ExpectUndefined("other.blocked_prop");
+  ExpectUndefined(
+      "Object.getOwnPropertyDescriptor(other, 'blocked_prop')");
+
+  // Regression test for issue 1171.
+  ExpectTrue("Object.isExtensible(other)");
+  CompileRun("Object.preventExtensions(other)");
+  ExpectTrue("Object.isExtensible(other)");
+
+  // Object.seal and Object.freeze.
+  CompileRun("Object.freeze(other)");
+  ExpectTrue("Object.isExtensible(other)");
+
+  CompileRun("Object.seal(other)");
+  ExpectTrue("Object.isExtensible(other)");
+}
+
+
 static bool GetOwnPropertyNamesNamedBlocker(Local<v8::Object> global,
                                             Local<Value> name,
                                             v8::AccessType type,
@@ -7524,10 +7626,11 @@ static void GenerateSomeGarbage() {
       "garbage = undefined;");
 }
 
+
 v8::Handle<v8::Value> DirectApiCallback(const v8::Arguments& args) {
   static int count = 0;
   if (count++ % 3 == 0) {
-    v8::V8::LowMemoryNotification();  // This should move the stub
+    HEAP->  CollectAllGarbage(true);  // This should move the stub
     GenerateSomeGarbage();  // This should ensure the old stub memory is flushed
   }
   return v8::Handle<v8::Value>();
@@ -7575,6 +7678,54 @@ THREADED_TEST(CallICFastApi_DirectCall_Throw) {
       "  }"
       "}"
       "f(); result;");
+  CHECK_EQ(v8_str("ggggg"), result);
+}
+
+
+v8::Handle<v8::Value> DirectGetterCallback(Local<String> name,
+                                           const v8::AccessorInfo& info) {
+  if (++p_getter_count % 3 == 0) {
+    HEAP->CollectAllGarbage(true);
+    GenerateSomeGarbage();
+  }
+  return v8::Handle<v8::Value>();
+}
+
+
+THREADED_TEST(LoadICFastApi_DirectCall_GCMoveStub) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::ObjectTemplate> obj = v8::ObjectTemplate::New();
+  obj->SetAccessor(v8_str("p1"), DirectGetterCallback);
+  context->Global()->Set(v8_str("o1"), obj->NewInstance());
+  p_getter_count = 0;
+  CompileRun(
+      "function f() {"
+      "  for (var i = 0; i < 30; i++) o1.p1;"
+      "}"
+      "f();");
+  CHECK_EQ(30, p_getter_count);
+}
+
+
+v8::Handle<v8::Value> ThrowingDirectGetterCallback(
+    Local<String> name, const v8::AccessorInfo& info) {
+  return v8::ThrowException(v8_str("g"));
+}
+
+
+THREADED_TEST(LoadICFastApi_DirectCall_Throw) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::ObjectTemplate> obj = v8::ObjectTemplate::New();
+  obj->SetAccessor(v8_str("p1"), ThrowingDirectGetterCallback);
+  context->Global()->Set(v8_str("o1"), obj->NewInstance());
+  v8::Handle<Value> result = CompileRun(
+      "var result = '';"
+      "for (var i = 0; i < 5; i++) {"
+      "    try { o1.p1; } catch (e) { result += e; }"
+      "}"
+      "result;");
   CHECK_EQ(v8_str("ggggg"), result);
 }
 
@@ -9965,9 +10116,11 @@ class RegExpStringModificationTest {
     // Inject the input as a global variable.
     i::Handle<i::String> input_name =
         FACTORY->NewStringFromAscii(i::Vector<const char>("input", 5));
-    i::Isolate::Current()->global_context()->global()->
-        SetProperty(*input_name, *input_, NONE)->ToObjectChecked();
-
+    i::Isolate::Current()->global_context()->global()->SetProperty(
+        *input_name,
+        *input_,
+        NONE,
+        i::kNonStrictMode)->ToObjectChecked();
 
     MorphThread morph_thread(i::Isolate::Current(), this);
     morph_thread.Start();
@@ -10699,6 +10852,94 @@ THREADED_TEST(PixelArray) {
                       "result");
   CHECK_EQ(32640, result->Int32Value());
 
+  // Make sure that pixel array store ICs clamp values correctly.
+  result = CompileRun("function pa_store(p) {"
+                      "  for (var j = 0; j < 256; j++) { p[j] = j * 2; }"
+                      "}"
+                      "pa_store(pixels);"
+                      "var sum = 0;"
+                      "for (var j = 0; j < 256; j++) { sum += pixels[j]; }"
+                      "sum");
+  CHECK_EQ(48896, result->Int32Value());
+
+  // Make sure that pixel array stores correctly handle accesses outside
+  // of the pixel array..
+  result = CompileRun("function pa_store(p,start) {"
+                      "  for (var j = 0; j < 256; j++) {"
+                      "    p[j+start] = j * 2;"
+                      "  }"
+                      "}"
+                      "pa_store(pixels,0);"
+                      "pa_store(pixels,-128);"
+                      "var sum = 0;"
+                      "for (var j = 0; j < 256; j++) { sum += pixels[j]; }"
+                      "sum");
+  CHECK_EQ(65280, result->Int32Value());
+
+  // Make sure that the generic store stub correctly handle accesses outside
+  // of the pixel array..
+  result = CompileRun("function pa_store(p,start) {"
+                      "  for (var j = 0; j < 256; j++) {"
+                      "    p[j+start] = j * 2;"
+                      "  }"
+                      "}"
+                      "pa_store(pixels,0);"
+                      "just_ints = new Object();"
+                      "for (var i = 0; i < 256; ++i) { just_ints[i] = i; }"
+                      "pa_store(just_ints, 0);"
+                      "pa_store(pixels,-128);"
+                      "var sum = 0;"
+                      "for (var j = 0; j < 256; j++) { sum += pixels[j]; }"
+                      "sum");
+  CHECK_EQ(65280, result->Int32Value());
+
+  // Make sure that the generic keyed store stub clamps pixel array values
+  // correctly.
+  result = CompileRun("function pa_store(p) {"
+                      "  for (var j = 0; j < 256; j++) { p[j] = j * 2; }"
+                      "}"
+                      "pa_store(pixels);"
+                      "just_ints = new Object();"
+                      "pa_store(just_ints);"
+                      "pa_store(pixels);"
+                      "var sum = 0;"
+                      "for (var j = 0; j < 256; j++) { sum += pixels[j]; }"
+                      "sum");
+  CHECK_EQ(48896, result->Int32Value());
+
+  // Make sure that pixel array loads are optimized by crankshaft.
+  result = CompileRun("function pa_load(p) {"
+                      "  var sum = 0;"
+                      "  for (var i=0; i<256; ++i) {"
+                      "    sum += p[i];"
+                      "  }"
+                      "  return sum; "
+                      "}"
+                      "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
+                      "for (var i = 0; i < 10000; ++i) {"
+                      "  result = pa_load(pixels);"
+                      "}"
+                      "result");
+  CHECK_EQ(32640, result->Int32Value());
+
+  // Make sure that pixel array stores are optimized by crankshaft.
+  result = CompileRun("function pa_init(p) {"
+                      "for (var i = 0; i < 256; ++i) { p[i] = i; }"
+                      "}"
+                      "function pa_load(p) {"
+                      "  var sum = 0;"
+                      "  for (var i=0; i<256; ++i) {"
+                      "    sum += p[i];"
+                      "  }"
+                      "  return sum; "
+                      "}"
+                      "for (var i = 0; i < 100000; ++i) {"
+                      "  pa_init(pixels);"
+                      "}"
+                      "result = pa_load(pixels);"
+                      "result");
+  CHECK_EQ(32640, result->Int32Value());
+
   free(pixel_data);
 }
 
@@ -10715,6 +10956,53 @@ THREADED_TEST(PixelArrayInfo) {
     CHECK_EQ(size, obj->GetIndexedPropertiesPixelDataLength());
     free(pixel_data);
   }
+}
+
+
+static v8::Handle<Value> NotHandledIndexedPropertyGetter(
+    uint32_t index,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  return v8::Handle<Value>();
+}
+
+
+static v8::Handle<Value> NotHandledIndexedPropertySetter(
+    uint32_t index,
+    Local<Value> value,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  return v8::Handle<Value>();
+}
+
+
+THREADED_TEST(PixelArrayWithInterceptor) {
+  v8::HandleScope scope;
+  LocalContext context;
+  const int kElementCount = 260;
+  uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
+  i::Handle<i::PixelArray> pixels =
+      FACTORY->NewPixelArray(kElementCount, pixel_data);
+  for (int i = 0; i < kElementCount; i++) {
+    pixels->set(i, i % 256);
+  }
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(NotHandledIndexedPropertyGetter,
+                                   NotHandledIndexedPropertySetter);
+  v8::Handle<v8::Object> obj = templ->NewInstance();
+  obj->SetIndexedPropertiesToPixelData(pixel_data, kElementCount);
+  context->Global()->Set(v8_str("pixels"), obj);
+  v8::Handle<v8::Value> result = CompileRun("pixels[1]");
+  CHECK_EQ(1, result->Int32Value());
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = -i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(-28, result->Int32Value());
+  result = CompileRun("pixels.hasOwnProperty('1')");
+  CHECK(result->BooleanValue());
+  free(pixel_data);
 }
 
 
@@ -11375,6 +11663,26 @@ TEST(CaptureStackTraceForUncaughtException) {
   Function::Cast(*trouble)->Call(global, 0, NULL);
   v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
   v8::V8::RemoveMessageListeners(StackTraceForUncaughtExceptionListener);
+}
+
+
+TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(true,
+                                                    1024,
+                                                    v8::StackTrace::kDetailed);
+
+  CompileRun(
+      "var setters = ['column', 'lineNumber', 'scriptName',\n"
+      "    'scriptNameOrSourceURL', 'functionName', 'isEval',\n"
+      "    'isConstructor'];\n"
+      "for (var i = 0; i < setters.length; i++) {\n"
+      "  var prop = setters[i];\n"
+      "  Object.prototype.__defineSetter__(prop, function() { throw prop; });\n"
+      "}\n");
+  CompileRun("throw 'exception';");
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
 }
 
 
@@ -12824,6 +13132,25 @@ TEST(RegExp) {
   CHECK(try_catch.HasCaught());
   context->Global()->Set(v8_str("ex"), try_catch.Exception());
   ExpectTrue("ex instanceof SyntaxError");
+}
+
+
+THREADED_TEST(Equals) {
+  v8::HandleScope handleScope;
+  LocalContext localContext;
+
+  v8::Handle<v8::Object> globalProxy = localContext->Global();
+  v8::Handle<Value> global = globalProxy->GetPrototype();
+
+  CHECK(global->StrictEquals(global));
+  CHECK(!global->StrictEquals(globalProxy));
+  CHECK(!globalProxy->StrictEquals(global));
+  CHECK(globalProxy->StrictEquals(globalProxy));
+
+  CHECK(global->Equals(global));
+  CHECK(!global->Equals(globalProxy));
+  CHECK(!globalProxy->Equals(global));
+  CHECK(globalProxy->Equals(globalProxy));
 }
 
 

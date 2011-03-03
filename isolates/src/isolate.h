@@ -110,6 +110,15 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
   if (isolate->has_scheduled_exception())         \
       return isolate->PromoteScheduledException()
 
+#define RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, value) \
+  if (call.is_null()) {                                    \
+    ASSERT(isolate->has_pending_exception());              \
+    return value;                                          \
+  }
+
+#define RETURN_IF_EMPTY_HANDLE(isolate, call)                       \
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, Failure::Exception())
+
 #define ISOLATE_ADDRESS_LIST(C)            \
   C(handler_address)                       \
   C(c_entry_fp_address)                    \
@@ -515,11 +524,11 @@ class Isolate {
     thread_local_top_.scheduled_exception_ = heap_.the_hole_value();
   }
 
-  void setup_external_caught() {
-    thread_local_top_.external_caught_exception_ =
-        has_pending_exception() &&
-        (thread_local_top_.catcher_ != NULL) &&
-        (try_catch_handler() == thread_local_top_.catcher_);
+  bool IsExternallyCaught();
+
+  bool is_catchable_by_javascript(MaybeObject* exception) {
+    return (exception != Failure::OutOfMemoryException()) &&
+        (exception != heap()->termination_exception());
   }
 
   // JS execution stack (see frames.h).
@@ -619,7 +628,7 @@ class Isolate {
                const char* message);
   // Checks if exception should be reported and finds out if it's
   // caught externally.
-  bool ShouldReportException(bool* is_caught_externally,
+  bool ShouldReportException(bool* can_be_caught_externally,
                              bool catchable_by_javascript);
 
   // Attempts to compute the current source location, storing the

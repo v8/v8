@@ -1938,8 +1938,9 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   frame_->EmitPush(cp);
   frame_->EmitPush(Operand(pairs));
   frame_->EmitPush(Operand(Smi::FromInt(is_eval() ? 1 : 0)));
+  frame_->EmitPush(Operand(Smi::FromInt(strict_mode_flag())));
 
-  frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
+  frame_->CallRuntime(Runtime::kDeclareGlobals, 4);
   // The result is discarded.
 }
 
@@ -3287,7 +3288,8 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       // context slot followed by initialization.
       frame_->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
     } else {
-      frame_->CallRuntime(Runtime::kStoreContextSlot, 3);
+      frame_->EmitPush(Operand(Smi::FromInt(strict_mode_flag())));
+      frame_->CallRuntime(Runtime::kStoreContextSlot, 4);
     }
     // Storing a variable must keep the (new) value on the expression
     // stack. This is necessary for compiling assignment expressions.
@@ -3638,7 +3640,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         Load(key);
         Load(value);
         if (property->emit_store()) {
-          frame_->CallRuntime(Runtime::kSetProperty, 3);
+          frame_->EmitPush(Operand(Smi::FromInt(NONE)));  // PropertyAttributes
+          frame_->CallRuntime(Runtime::kSetProperty, 4);
         } else {
           frame_->Drop(3);
         }
@@ -5174,11 +5177,11 @@ class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
 
     // Set the bit in the map to indicate that it has been checked safe for
     // default valueOf and set true result.
-    __ ldr(scratch1_, FieldMemOperand(map_result_, Map::kBitField2Offset));
+    __ ldrb(scratch1_, FieldMemOperand(map_result_, Map::kBitField2Offset));
     __ orr(scratch1_,
            scratch1_,
            Operand(1 << Map::kStringWrapperSafeForDefaultValueOf));
-    __ str(scratch1_, FieldMemOperand(map_result_, Map::kBitField2Offset));
+    __ strb(scratch1_, FieldMemOperand(map_result_, Map::kBitField2Offset));
     __ mov(map_result_, Operand(1));
     __ jmp(exit_label());
     __ bind(&false_result);
@@ -5660,7 +5663,8 @@ void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
   if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
-    TranscendentalCacheStub stub(TranscendentalCache::SIN);
+    TranscendentalCacheStub stub(TranscendentalCache::SIN,
+                                 TranscendentalCacheStub::TAGGED);
     frame_->SpillAllButCopyTOSToR0();
     frame_->CallStub(&stub, 1);
   } else {
@@ -5674,7 +5678,8 @@ void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
   if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
-    TranscendentalCacheStub stub(TranscendentalCache::COS);
+    TranscendentalCacheStub stub(TranscendentalCache::COS,
+                                 TranscendentalCacheStub::TAGGED);
     frame_->SpillAllButCopyTOSToR0();
     frame_->CallStub(&stub, 1);
   } else {
@@ -5688,7 +5693,8 @@ void CodeGenerator::GenerateMathLog(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
   if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
-    TranscendentalCacheStub stub(TranscendentalCache::LOG);
+    TranscendentalCacheStub stub(TranscendentalCache::LOG,
+                                 TranscendentalCacheStub::TAGGED);
     frame_->SpillAllButCopyTOSToR0();
     frame_->CallStub(&stub, 1);
   } else {
@@ -5849,15 +5855,20 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     if (property != NULL) {
       Load(property->obj());
       Load(property->key());
-      frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 2);
+      frame_->EmitPush(Operand(Smi::FromInt(strict_mode_flag())));
+      frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 3);
       frame_->EmitPush(r0);
 
     } else if (variable != NULL) {
+      // Delete of an unqualified identifier is disallowed in strict mode
+      // but "delete this" is.
+      ASSERT(strict_mode_flag() == kNonStrictMode || variable->is_this());
       Slot* slot = variable->AsSlot();
       if (variable->is_global()) {
         LoadGlobal();
         frame_->EmitPush(Operand(variable->name()));
-        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 2);
+        frame_->EmitPush(Operand(Smi::FromInt(kNonStrictMode)));
+        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 3);
         frame_->EmitPush(r0);
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
@@ -6678,8 +6689,12 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
  public:
   DeferredReferenceSetKeyedValue(Register value,
                                  Register key,
-                                 Register receiver)
-      : value_(value), key_(key), receiver_(receiver) {
+                                 Register receiver,
+                                 StrictModeFlag strict_mode)
+      : value_(value),
+        key_(key),
+        receiver_(receiver),
+        strict_mode_(strict_mode) {
     set_comment("[ DeferredReferenceSetKeyedValue");
   }
 
@@ -6689,6 +6704,7 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
   Register value_;
   Register key_;
   Register receiver_;
+  StrictModeFlag strict_mode_;
 };
 
 
@@ -6711,7 +6727,8 @@ void DeferredReferenceSetKeyedValue::Generate() {
     // Call keyed store IC. It has the arguments value, key and receiver in r0,
     // r1 and r2.
     Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Initialize));
+        (strict_mode_ == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
+                                      : Builtins::KeyedStoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop instruction to indicate that the
     // keyed store has been inlined.
@@ -6729,8 +6746,12 @@ class DeferredReferenceSetNamedValue: public DeferredCode {
  public:
   DeferredReferenceSetNamedValue(Register value,
                                  Register receiver,
-                                 Handle<String> name)
-      : value_(value), receiver_(receiver), name_(name) {
+                                 Handle<String> name,
+                                 StrictModeFlag strict_mode)
+      : value_(value),
+        receiver_(receiver),
+        name_(name),
+        strict_mode_(strict_mode) {
     set_comment("[ DeferredReferenceSetNamedValue");
   }
 
@@ -6740,6 +6761,7 @@ class DeferredReferenceSetNamedValue: public DeferredCode {
   Register value_;
   Register receiver_;
   Handle<String> name_;
+  StrictModeFlag strict_mode_;
 };
 
 
@@ -6760,7 +6782,8 @@ void DeferredReferenceSetNamedValue::Generate() {
     // Call keyed store IC. It has the arguments value, key and receiver in r0,
     // r1 and r2.
     Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-        Builtins::StoreIC_Initialize));
+        (strict_mode_ == kStrictMode) ? Builtins::StoreIC_Initialize_Strict
+                                      : Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // The call must be followed by a nop instruction to indicate that the
     // named store has been inlined.
@@ -6937,7 +6960,7 @@ void CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
 
   Result result;
   if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
-    frame()->CallStoreIC(name, is_contextual);
+    frame()->CallStoreIC(name, is_contextual, strict_mode_flag());
   } else {
     // Inline the in-object property case.
     JumpTarget slow, done;
@@ -6949,7 +6972,8 @@ void CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     Register receiver = r1;
 
     DeferredReferenceSetNamedValue* deferred =
-        new DeferredReferenceSetNamedValue(value, receiver, name);
+        new DeferredReferenceSetNamedValue(
+          value, receiver, name, strict_mode_flag());
 
     // Check that the receiver is a heap object.
     __ tst(receiver, Operand(kSmiTagMask));
@@ -7135,7 +7159,8 @@ void CodeGenerator::EmitKeyedStore(StaticType* key_type,
 
     // The deferred code expects value, key and receiver in registers.
     DeferredReferenceSetKeyedValue* deferred =
-        new DeferredReferenceSetKeyedValue(value, key, receiver);
+        new DeferredReferenceSetKeyedValue(
+          value, key, receiver, strict_mode_flag());
 
     // Check that the value is a smi. As this inlined code does not set the
     // write barrier it is only possible to store smi values.
@@ -7220,7 +7245,7 @@ void CodeGenerator::EmitKeyedStore(StaticType* key_type,
 
     deferred->BindExit();
   } else {
-    frame()->CallKeyedStoreIC();
+    frame()->CallKeyedStoreIC(strict_mode_flag());
   }
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,53 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_OPROFILE_AGENT_H_
-#define V8_OPROFILE_AGENT_H_
+// Test the case when finally clause throws another exception (stack overflow)
+// which goes through some try/catch block---we need to clear v8::TryCatch
+// catcher as it doesn't catch original exception any more.
 
-#include <stdlib.h>
-
-#include "globals.h"
-
-#ifdef ENABLE_OPROFILE_AGENT
-// opagent.h uses uint64_t type, which can be missing in
-// system headers (they have __uint64_t), but is defined
-// in V8's headers.
-#include <opagent.h>  // NOLINT
-
-#define OPROFILE(Call)                             \
-  do {                                             \
-    if (v8::internal::OProfileAgent::is_enabled()) \
-      v8::internal::OProfileAgent::Call;           \
-  } while (false)
-#else
-#define OPROFILE(Call) ((void) 0)
-#endif
-
-namespace v8 {
-namespace internal {
-
-class OProfileAgent {
- public:
-  static bool Initialize();
-  static void TearDown();
-#ifdef ENABLE_OPROFILE_AGENT
-  static void CreateNativeCodeRegion(const char* name,
-                                     const void* ptr, unsigned int size);
-  static void CreateNativeCodeRegion(String* name,
-                                     const void* ptr, unsigned int size);
-  static void CreateNativeCodeRegion(String* name, String* source, int line_num,
-                                     const void* ptr, unsigned int size);
-  static bool is_enabled() { return handle_ != NULL; }
-
- private:
-  static op_agent_t handle_;
-
-  // Size of the buffer that is used for composing code areas names.
-  static const int kFormattingBufSize = 256;
-#else
-  static bool is_enabled() { return false; }
-#endif
+o = {};
+o.__defineGetter__('foo', function() { throw 42; });
+function f() {
+ try {
+   // throw below sets up Top::thread_local_.catcher_...
+   throw 42;
+ } finally {
+   // ...JS accessor traverses v8 runtime/JS boundary and
+   // when coming back from JS to v8 runtime, retraverses
+   // stack with catcher set while processing exception
+   // which is not caught by external try catch.
+   try { o.foo; } catch(e) { };
+   return;
+ }
 };
-} }
-
-#endif  // V8_OPROFILE_AGENT_H_
+f();

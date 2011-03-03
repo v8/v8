@@ -193,7 +193,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   { BUILTIN, \
     Builtins::name, \
     "Builtins::" #name },
-#define DEF_ENTRY_A(name, kind, state) DEF_ENTRY_C(name, ignored)
+#define DEF_ENTRY_A(name, kind, state, extra) DEF_ENTRY_C(name, ignored)
 
   BUILTIN_LIST_C(DEF_ENTRY_C)
   BUILTIN_LIST_A(DEF_ENTRY_A)

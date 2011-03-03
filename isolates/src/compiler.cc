@@ -39,7 +39,6 @@
 #include "hydrogen.h"
 #include "lithium.h"
 #include "liveedit.h"
-#include "oprofile-agent.h"
 #include "parser.h"
 #include "rewriter.h"
 #include "runtime-profiler.h"
@@ -226,11 +225,12 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   // or perform on-stack replacement for function with too many
   // stack-allocated local variables.
   //
-  // The encoding is as a signed value, with parameters using the negative
-  // indices and locals the non-negative ones.
+  // The encoding is as a signed value, with parameters and receiver using
+  // the negative indices and locals the non-negative ones.
   const int limit = LUnallocated::kMaxFixedIndices / 2;
   Scope* scope = info->scope();
-  if (scope->num_parameters() > limit || scope->num_stack_slots() > limit) {
+  if ((scope->num_parameters() + 1) > limit ||
+      scope->num_stack_slots() > limit) {
     AbortAndDisable(info);
     // True indicates the compilation pipeline is still going, not
     // necessarily that we optimized the code.
@@ -266,10 +266,8 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
       Handle<SharedFunctionInfo> shared = info->shared_info();
       shared->EnableDeoptimizationSupport(*unoptimized.code());
       // The existing unoptimized code was replaced with the new one.
-      Compiler::RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG,
-          Handle<String>(shared->DebugName()),
-          shared->start_position(),
-          &unoptimized);
+      Compiler::RecordFunctionCompilation(
+          Logger::LAZY_COMPILE_TAG, &unoptimized, shared);
     }
   }
 
@@ -278,7 +276,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   // optimizable marker in the code object and optimize anyway. This
   // is safe as long as the unoptimized code has deoptimization
   // support.
-  ASSERT(FLAG_always_opt || info->shared_info()->code()->optimizable());
+  ASSERT(FLAG_always_opt || code->optimizable());
   ASSERT(info->shared_info()->has_deoptimization_support());
 
   if (FLAG_trace_hydrogen) {
@@ -288,15 +286,19 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   }
 
   TypeFeedbackOracle oracle(
-      Handle<Code>(info->shared_info()->code()),
-      Handle<Context>(info->closure()->context()->global_context()));
+      code, Handle<Context>(info->closure()->context()->global_context()));
   HGraphBuilder builder(&oracle);
   HPhase phase(HPhase::kTotal);
   HGraph* graph = builder.CreateGraph(info);
+  if (info->isolate()->has_pending_exception()) {
+    info->SetCode(Handle<Code>::null());
+    return false;
+  }
+
   if (graph != NULL && FLAG_build_lithium) {
-    Handle<Code> code = graph->Compile();
-    if (!code.is_null()) {
-      info->SetCode(code);
+    Handle<Code> optimized_code = graph->Compile();
+    if (!optimized_code.is_null()) {
+      info->SetCode(optimized_code);
       FinishOptimization(info->closure(), start);
       return true;
     }
@@ -417,17 +419,26 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
     return Handle<SharedFunctionInfo>::null();
   }
 
+  // Allocate function.
   ASSERT(!info->code().is_null());
+  Handle<SharedFunctionInfo> result =
+      isolate->factory()->NewSharedFunctionInfo(
+          lit->name(),
+          lit->materialized_literal_count(),
+          info->code(),
+          SerializedScopeInfo::Create(info->scope()));
+
+  ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
+  Compiler::SetFunctionInfo(result, lit, true, script);
+
   if (script->name()->IsString()) {
     PROFILE(CodeCreateEvent(
         info->is_eval()
             ? Logger::EVAL_TAG
             : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
         *info->code(),
+        *result,
         String::cast(script->name())));
-    OPROFILE(CreateNativeCodeRegion(String::cast(script->name()),
-                                    info->code()->instruction_start(),
-                                    info->code()->instruction_size()));
     GDBJIT(AddCode(Handle<String>(String::cast(script->name())),
                    script,
                    info->code()));
@@ -437,23 +448,10 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
             ? Logger::EVAL_TAG
             : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
         *info->code(),
-        ""));
-    OPROFILE(CreateNativeCodeRegion(info->is_eval() ? "Eval" : "Script",
-                                    info->code()->instruction_start(),
-                                    info->code()->instruction_size()));
+        *result,
+        isolate->heap()->empty_string()));
     GDBJIT(AddCode(Handle<String>(), script, info->code()));
   }
-
-  // Allocate function.
-  Handle<SharedFunctionInfo> result =
-      FACTORY->NewSharedFunctionInfo(
-          lit->name(),
-          lit->materialized_literal_count(),
-          info->code(),
-          SerializedScopeInfo::Create(info->scope()));
-
-  ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
-  Compiler::SetFunctionInfo(result, lit, true, script);
 
   // Hint to the runtime system used when allocating space for initial
   // property space by setting the expected number of properties for
@@ -622,15 +620,14 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
     // Compile the code.
     if (!MakeCode(info)) {
-      isolate->StackOverflow();
+      if (!isolate->has_pending_exception()) {
+        isolate->StackOverflow();
+      }
     } else {
       ASSERT(!info->code().is_null());
       Handle<Code> code = info->code();
       Handle<JSFunction> function = info->closure();
-      RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG,
-                                Handle<String>(shared->DebugName()),
-                                shared->start_position(),
-                                info);
+      RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 
       if (info->IsOptimizing()) {
         function->ReplaceCode(*code);
@@ -741,10 +738,6 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
     ASSERT(!info.code().is_null());
 
     // Function compilation complete.
-    RecordFunctionCompilation(Logger::FUNCTION_TAG,
-                              literal->debug_name(),
-                              literal->start_position(),
-                              &info);
     scope_info = SerializedScopeInfo::Create(info.scope());
   }
 
@@ -755,6 +748,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
                                      info.code(),
                                      scope_info);
   SetFunctionInfo(result, literal, false, script);
+  RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
   result->set_allows_lazy_compilation(allow_lazy);
 
   // Set the expected number of properties for instances and return
@@ -793,37 +787,32 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
 
 
 void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
-                                         Handle<String> name,
-                                         int start_position,
-                                         CompilationInfo* info) {
+                                         CompilationInfo* info,
+                                         Handle<SharedFunctionInfo> shared) {
+  // SharedFunctionInfo is passed separately, because if CompilationInfo
+  // was created using Script object, it will not have it.
+
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
-  if (info->isolate()->logger()->is_logging() ||
-      OProfileAgent::is_enabled() ||
-      CpuProfiler::is_profiling()) {
+  if (info->isolate()->logger()->is_logging() || CpuProfiler::is_profiling()) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
+    if (*code == info->isolate()->builtins()->builtin(Builtins::LazyCompile))
+      return;
     if (script->name()->IsString()) {
-      int line_num = GetScriptLineNumber(script, start_position) + 1;
+      int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
       USE(line_num);
       PROFILE(CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
-                              *name,
+                              *shared,
                               String::cast(script->name()),
                               line_num));
-      OPROFILE(CreateNativeCodeRegion(*name,
-                                      String::cast(script->name()),
-                                      line_num,
-                                      code->instruction_start(),
-                                      code->instruction_size()));
     } else {
       PROFILE(CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
-                              *name));
-      OPROFILE(CreateNativeCodeRegion(*name,
-                                      code->instruction_start(),
-                                      code->instruction_size()));
+                              *shared,
+                              shared->DebugName()));
     }
   }
 

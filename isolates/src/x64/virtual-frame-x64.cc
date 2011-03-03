@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -271,6 +271,24 @@ void VirtualFrame::Push(Expression* expr) {
     }
   }
   UNREACHABLE();
+}
+
+
+void VirtualFrame::Push(Handle<Object> value) {
+  if (ConstantPoolOverflowed()) {
+    Result temp = cgen()->allocator()->Allocate();
+    ASSERT(temp.is_valid());
+    if (value->IsSmi()) {
+      __ Move(temp.reg(), Smi::cast(*value));
+    } else {
+      __ movq(temp.reg(), value, RelocInfo::EMBEDDED_OBJECT);
+    }
+    Push(&temp);
+  } else {
+    FrameElement element =
+        FrameElement::ConstantElement(value, FrameElement::NOT_SYNCED);
+    elements_.Add(element);
+  }
 }
 
 
@@ -1121,28 +1139,34 @@ Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
 }
 
 
-Result VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
+Result VirtualFrame::CallStoreIC(Handle<String> name,
+                                 bool is_contextual,
+                                 StrictModeFlag strict_mode) {
   // Value and (if not contextual) receiver are on top of the frame.
   // The IC expects name in rcx, value in rax, and receiver in rdx.
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::StoreIC_Initialize));
+      (strict_mode == kStrictMode) ? Builtins::StoreIC_Initialize_Strict
+                                   : Builtins::StoreIC_Initialize));
   Result value = Pop();
+  RelocInfo::Mode mode;
   if (is_contextual) {
     PrepareForCall(0, 0);
     value.ToRegister(rax);
     __ movq(rdx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
     value.Unuse();
+    mode = RelocInfo::CODE_TARGET_CONTEXT;
   } else {
     Result receiver = Pop();
     PrepareForCall(0, 0);
     MoveResultsToRegisters(&value, &receiver, rax, rdx);
+    mode = RelocInfo::CODE_TARGET;
   }
   __ Move(rcx, name);
-  return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
+  return RawCallCodeObject(ic, mode);
 }
 
 
-Result VirtualFrame::CallKeyedStoreIC() {
+Result VirtualFrame::CallKeyedStoreIC(StrictModeFlag strict_mode) {
   // Value, key, and receiver are on the top of the frame.  The IC
   // expects value in rax, key in rcx, and receiver in rdx.
   Result value = Pop();
@@ -1187,7 +1211,8 @@ Result VirtualFrame::CallKeyedStoreIC() {
   }
 
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::KeyedStoreIC_Initialize));
+      (strict_mode == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
+                                   : Builtins::KeyedStoreIC_Initialize));
   return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
 }
 

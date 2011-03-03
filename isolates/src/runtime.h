@@ -47,7 +47,7 @@ namespace internal {
   /* Property access */ \
   F(GetProperty, 2, 1) \
   F(KeyedGetProperty, 2, 1) \
-  F(DeleteProperty, 2, 1) \
+  F(DeleteProperty, 3, 1) \
   F(HasLocalProperty, 2, 1) \
   F(HasProperty, 2, 1) \
   F(HasElement, 2, 1) \
@@ -130,6 +130,7 @@ namespace internal {
   \
   F(StringAdd, 2, 1) \
   F(StringBuilderConcat, 3, 1) \
+  F(StringBuilderJoin, 3, 1) \
   \
   /* Bit operations */ \
   F(NumberOr, 2, 1) \
@@ -242,7 +243,7 @@ namespace internal {
   F(ResolvePossiblyDirectEval, 4, 2) \
   F(ResolvePossiblyDirectEvalNoLookup, 4, 2) \
   \
-  F(SetProperty, -1 /* 3 or 4 */, 1) \
+  F(SetProperty, -1 /* 4 or 5 */, 1) \
   F(DefineOrRedefineDataProperty, 4, 1) \
   F(DefineOrRedefineAccessorProperty, 5, 1) \
   F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */, 1) \
@@ -289,12 +290,12 @@ namespace internal {
   F(DeleteContextSlot, 2, 1) \
   F(LoadContextSlot, 2, 2) \
   F(LoadContextSlotNoReferenceError, 2, 2) \
-  F(StoreContextSlot, 3, 1) \
+  F(StoreContextSlot, 4, 1) \
   \
   /* Declarations and initialization */ \
-  F(DeclareGlobals, 3, 1) \
+  F(DeclareGlobals, 4, 1) \
   F(DeclareContextSlot, 4, 1) \
-  F(InitializeVarGlobal, -1 /* 1 or 2 */, 1) \
+  F(InitializeVarGlobal, -1 /* 2 or 3 */, 1) \
   F(InitializeConstGlobal, 2, 1) \
   F(InitializeConstContextSlot, 3, 1) \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
@@ -377,7 +378,21 @@ namespace internal {
   \
   F(SetFlags, 1, 1) \
   F(CollectGarbage, 1, 1) \
-  F(GetHeapUsage, 0, 1)
+  F(GetHeapUsage, 0, 1) \
+  \
+  /* LiveObjectList support*/ \
+  F(HasLOLEnabled, 0, 1) \
+  F(CaptureLOL, 0, 1) \
+  F(DeleteLOL, 1, 1) \
+  F(DumpLOL, 5, 1) \
+  F(GetLOLObj, 1, 1) \
+  F(GetLOLObjId, 1, 1) \
+  F(GetLOLObjRetainers, 6, 1) \
+  F(GetLOLPath, 3, 1) \
+  F(InfoLOL, 2, 1) \
+  F(PrintLOLObj, 1, 1) \
+  F(ResetLOL, 0, 1) \
+  F(SummarizeLOL, 3, 1)
 
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
@@ -594,7 +609,8 @@ class Runtime : public AllStatic {
       Handle<Object> object,
       Handle<Object> key,
       Handle<Object> value,
-      PropertyAttributes attr);
+      PropertyAttributes attr,
+      StrictModeFlag strict);
 
   MUST_USE_RESULT static MaybeObject* ForceSetObjectProperty(
       Isolate* isolate,

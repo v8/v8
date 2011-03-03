@@ -793,6 +793,10 @@ bool Object::HasSpecificClassOf(String* name) {
 
 
 MaybeObject* Object::GetElement(uint32_t index) {
+  // GetElement can trigger a getter which can cause allocation.
+  // This was not always the case. This ASSERT is here to catch
+  // leftover incorrect uses.
+  ASSERT(HEAP->IsAllocationAllowed());
   return GetElementWithReceiver(this, index);
 }
 
@@ -2697,10 +2701,13 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                PropertyType type,
                                int argc,
                                InlineCacheHolderFlag holder) {
-  // Extra IC state is only allowed for monomorphic call IC stubs.
+  // Extra IC state is only allowed for monomorphic call IC stubs
+  // or for store IC stubs.
   ASSERT(extra_ic_state == kNoExtraICState ||
          (kind == CALL_IC && (ic_state == MONOMORPHIC ||
-                              ic_state == MONOMORPHIC_PROTOTYPE_FAILURE)));
+                              ic_state == MONOMORPHIC_PROTOTYPE_FAILURE)) ||
+         (kind == STORE_IC) ||
+         (kind == KEYED_STORE_IC));
   // Compute the bit mask.
   int bits = kind << kFlagsKindShift;
   if (in_loop) bits |= kFlagsICInLoopMask;
@@ -2839,6 +2846,22 @@ MaybeObject* Map::GetSlowElementsMap() {
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(false);
   COUNTERS->map_fast_to_slow_elements()->Increment();
+  return new_map;
+}
+
+
+MaybeObject* Map::GetPixelArrayElementsMap() {
+  if (has_pixel_array_elements()) return this;
+  // TODO(danno): Special case empty object map (or most common case)
+  // to return a pre-canned pixel array map.
+  Object* obj;
+  { MaybeObject* maybe_obj = CopyDropTransitions();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  Map* new_map = Map::cast(obj);
+  new_map->set_has_fast_elements(false);
+  new_map->set_has_pixel_array_elements(true);
+  COUNTERS->map_to_pixel_array_elements()->Increment();
   return new_map;
 }
 
@@ -3819,7 +3842,8 @@ MaybeObject* JSObject::SetHiddenPropertiesObject(Object* hidden_obj) {
   ASSERT(!IsJSGlobalProxy());
   return SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
                                     hidden_obj,
-                                    DONT_ENUM);
+                                    DONT_ENUM,
+                                    kNonStrictMode);
 }
 
 

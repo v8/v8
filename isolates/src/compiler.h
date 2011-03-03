@@ -75,7 +75,6 @@ class CompilationInfo BASE_EMBEDDED {
     flags_ |= IsGlobal::encode(true);
   }
   void MarkAsStrict() {
-    ASSERT(!is_lazy());
     flags_ |= IsStrict::encode(true);
   }
   StrictModeFlag StrictMode() {
@@ -159,6 +158,9 @@ class CompilationInfo BASE_EMBEDDED {
 
   void Initialize(Mode mode) {
     mode_ = V8::UseCrankshaft() ? mode : NONOPT;
+    if (!shared_info_.is_null() && shared_info_->strict_mode()) {
+      MarkAsStrict();
+    }
   }
 
   void SetMode(Mode mode) {
@@ -269,9 +271,8 @@ class Compiler : public AllStatic {
 #endif
 
   static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
-                                        Handle<String> name,
-                                        int start_position,
-                                        CompilationInfo* info);
+                                        CompilationInfo* info,
+                                        Handle<SharedFunctionInfo> shared);
 };
 
 

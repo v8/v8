@@ -228,7 +228,7 @@ class CallICBase: public IC {
   // Otherwise, it returns the undefined value.
   Object* TryCallAsFunction(Object* object);
 
-  void ReceiverToObject(Handle<Object> object);
+  void ReceiverToObjectIfRequired(Handle<Object> callee, Handle<Object> object);
 
   static void Clear(Address address, Code* target);
   friend class IC;
@@ -423,6 +423,7 @@ class StoreIC: public IC {
   }
 
   MUST_USE_RESULT MaybeObject* Store(State state,
+                                     StrictModeFlag strict_mode,
                                      Handle<Object> object,
                                      Handle<String> name,
                                      Handle<Object> value);
@@ -430,10 +431,12 @@ class StoreIC: public IC {
   // Code generators for stub routines. Only called once at startup.
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm);
+  static void GenerateMegamorphic(MacroAssembler* masm,
+                                  StrictModeFlag strict_mode);
   static void GenerateArrayLength(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
-  static void GenerateGlobalProxy(MacroAssembler* masm);
+  static void GenerateGlobalProxy(MacroAssembler* masm,
+                                  StrictModeFlag strict_mode);
 
   // Clear the use of an inlined version.
   static void ClearInlinedVersion(Address address);
@@ -446,22 +449,43 @@ class StoreIC: public IC {
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
-                    State state, Handle<JSObject> receiver,
+                    State state,
+                    StrictModeFlag strict_mode,
+                    Handle<JSObject> receiver,
                     Handle<String> name,
                     Handle<Object> value);
+
+  void set_target(Code* code) {
+    // Strict mode must be preserved across IC patching.
+    ASSERT((code->extra_ic_state() & kStrictMode) ==
+           (target()->extra_ic_state() & kStrictMode));
+    IC::set_target(code);
+  }
 
   // Stub accessors.
   Code* megamorphic_stub() {
     return isolate()->builtins()->builtin(
         Builtins::StoreIC_Megamorphic);
   }
+  Code* megamorphic_stub_strict() {
+    return isolate()->builtins()->builtin(
+        Builtins::StoreIC_Megamorphic_Strict);
+  }
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
         Builtins::StoreIC_Initialize);
   }
-  static Code* global_proxy_stub() {
+  static Code* initialize_stub_strict() {
     return Isolate::Current()->builtins()->builtin(
+        Builtins::StoreIC_Initialize_Strict);
+  }
+  Code* global_proxy_stub() {
+    return isolate()->builtins()->builtin(
         Builtins::StoreIC_GlobalProxy);
+  }
+  Code* global_proxy_stub_strict() {
+    return isolate()->builtins()->builtin(
+        Builtins::StoreIC_GlobalProxy_Strict);
   }
 
   static void Clear(Address address, Code* target);
@@ -479,6 +503,7 @@ class KeyedStoreIC: public IC {
   explicit KeyedStoreIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
 
   MUST_USE_RESULT MaybeObject* Store(State state,
+                                     StrictModeFlag strict_mode,
                                      Handle<Object> object,
                                      Handle<Object> name,
                                      Handle<Object> value);
@@ -486,8 +511,9 @@ class KeyedStoreIC: public IC {
   // Code generators for stub routines.  Only called once at startup.
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateRuntimeSetProperty(MacroAssembler* masm);
-  static void GenerateGeneric(MacroAssembler* masm);
+  static void GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                         StrictModeFlag strict_mode);
+  static void GenerateGeneric(MacroAssembler* masm, StrictModeFlag strict_mode);
 
   // Clear the inlined version so the IC is always hit.
   static void ClearInlinedVersion(Address address);
@@ -499,9 +525,17 @@ class KeyedStoreIC: public IC {
   // Update the inline cache.
   void UpdateCaches(LookupResult* lookup,
                     State state,
+                    StrictModeFlag strict_mode,
                     Handle<JSObject> receiver,
                     Handle<String> name,
                     Handle<Object> value);
+
+  void set_target(Code* code) {
+    // Strict mode must be preserved across IC patching.
+    ASSERT((code->extra_ic_state() & kStrictMode) ==
+           (target()->extra_ic_state() & kStrictMode));
+    IC::set_target(code);
+  }
 
   // Stub accessors.
   static Code* initialize_stub() {
@@ -512,9 +546,21 @@ class KeyedStoreIC: public IC {
     return isolate()->builtins()->builtin(
         Builtins::KeyedStoreIC_Generic);
   }
+  static Code* initialize_stub_strict() {
+    return Isolate::Current()->builtins()->builtin(
+        Builtins::KeyedStoreIC_Initialize_Strict);
+  }
+  Code* megamorphic_stub_strict() {
+    return isolate()->builtins()->builtin(
+        Builtins::KeyedStoreIC_Generic_Strict);
+  }
   Code* generic_stub() {
     return isolate()->builtins()->builtin(
         Builtins::KeyedStoreIC_Generic);
+  }
+  Code* generic_stub_strict() {
+    return isolate()->builtins()->builtin(
+        Builtins::KeyedStoreIC_Generic_Strict);
   }
 
   static void Clear(Address address, Code* target);

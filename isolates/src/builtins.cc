@@ -1337,6 +1337,11 @@ static void Generate_StoreIC_Initialize(MacroAssembler* masm) {
 }
 
 
+static void Generate_StoreIC_Initialize_Strict(MacroAssembler* masm) {
+  StoreIC::GenerateInitialize(masm);
+}
+
+
 static void Generate_StoreIC_Miss(MacroAssembler* masm) {
   StoreIC::GenerateMiss(masm);
 }
@@ -1347,8 +1352,18 @@ static void Generate_StoreIC_Normal(MacroAssembler* masm) {
 }
 
 
+static void Generate_StoreIC_Normal_Strict(MacroAssembler* masm) {
+  StoreIC::GenerateNormal(masm);
+}
+
+
 static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm);
+  StoreIC::GenerateMegamorphic(masm, kNonStrictMode);
+}
+
+
+static void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
+  StoreIC::GenerateMegamorphic(masm, kStrictMode);
 }
 
 
@@ -1357,13 +1372,28 @@ static void Generate_StoreIC_ArrayLength(MacroAssembler* masm) {
 }
 
 
+static void Generate_StoreIC_ArrayLength_Strict(MacroAssembler* masm) {
+  StoreIC::GenerateArrayLength(masm);
+}
+
+
 static void Generate_StoreIC_GlobalProxy(MacroAssembler* masm) {
-  StoreIC::GenerateGlobalProxy(masm);
+  StoreIC::GenerateGlobalProxy(masm, kNonStrictMode);
+}
+
+
+static void Generate_StoreIC_GlobalProxy_Strict(MacroAssembler* masm) {
+  StoreIC::GenerateGlobalProxy(masm, kStrictMode);
 }
 
 
 static void Generate_KeyedStoreIC_Generic(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateGeneric(masm);
+  KeyedStoreIC::GenerateGeneric(masm, kNonStrictMode);
+}
+
+
+static void Generate_KeyedStoreIC_Generic_Strict(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateGeneric(masm, kStrictMode);
 }
 
 
@@ -1373,6 +1403,11 @@ static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Initialize(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateInitialize(masm);
+}
+
+
+static void Generate_KeyedStoreIC_Initialize_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateInitialize(masm);
 }
 
@@ -1506,12 +1541,15 @@ void Builtins::InitBuiltinFunctionTable() {
     functions->extra_args = aextra_args;                               \
     ++functions;
 
-#define DEF_FUNCTION_PTR_A(aname, kind, state)                              \
+#define DEF_FUNCTION_PTR_A(aname, kind, state, extra)                       \
     functions->generator = FUNCTION_ADDR(Generate_##aname);                 \
     functions->c_code = NULL;                                               \
     functions->s_name = #aname;                                             \
     functions->name = aname;                                                \
-    functions->flags = Code::ComputeFlags(Code::kind, NOT_IN_LOOP, state);  \
+    functions->flags = Code::ComputeFlags(Code::kind,                       \
+                                          NOT_IN_LOOP,                      \
+                                          state,                            \
+                                          extra);                           \
     functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
     ++functions;
 
