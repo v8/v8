@@ -4915,28 +4915,23 @@ void HGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
       VISIT_FOR_VALUE(expr->left());
       ASSERT(current_block() != NULL);
 
-      HValue* left = Top();
-      HEnvironment* environment_copy = environment()->Copy();
-      environment_copy->Pop();
-      HSubgraph* right_subgraph;
-      right_subgraph = CreateBranchSubgraph(environment_copy);
-      ADD_TO_SUBGRAPH(right_subgraph, expr->right());
-
-      ASSERT(current_block() != NULL &&
-             right_subgraph->exit_block() != NULL);
       // We need an extra block to maintain edge-split form.
       HBasicBlock* empty_block = graph()->CreateBasicBlock();
-      HBasicBlock* join_block = graph()->CreateBasicBlock();
-
+      HBasicBlock* eval_right = graph()->CreateBasicBlock();
       HTest* test = is_logical_and
-          ? new HTest(left, right_subgraph->entry_block(), empty_block)
-          : new HTest(left, empty_block, right_subgraph->entry_block());
+          ? new HTest(Top(), eval_right, empty_block)
+          : new HTest(Top(), empty_block, eval_right);
       current_block()->Finish(test);
-      empty_block->Goto(join_block);
-      right_subgraph->exit_block()->Goto(join_block);
-      join_block->SetJoinId(expr->id());
+
+      set_current_block(eval_right);
+      Drop(1);  // Value of the left subexpression.
+      VISIT_FOR_VALUE(expr->right());
+
+      HBasicBlock* join_block =
+          CreateJoin(empty_block, current_block(), expr->id());
       set_current_block(join_block);
       ast_context()->ReturnValue(Pop());
+
     } else {
       ASSERT(ast_context()->IsEffect());
       // In an effect context, we don't need the value of the left
