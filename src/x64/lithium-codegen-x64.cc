@@ -3480,12 +3480,11 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 
   } else if (type_name->Equals(Heap::string_symbol())) {
     __ JumpIfSmi(input, false_label);
-    __ movq(input, FieldOperand(input, HeapObject::kMapOffset));
+    __ CmpObjectType(input, FIRST_NONSTRING_TYPE, input);
+    __ j(above_equal, false_label);
     __ testb(FieldOperand(input, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
-    __ j(not_zero, false_label);
-    __ CmpInstanceType(input, FIRST_NONSTRING_TYPE);
-    final_branch_condition = below;
+    final_branch_condition = zero;
 
   } else if (type_name->Equals(Heap::boolean_symbol())) {
     __ CompareRoot(input, Heap::kTrueValueRootIndex);
@@ -3510,17 +3509,16 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 
   } else if (type_name->Equals(Heap::object_symbol())) {
     __ JumpIfSmi(input, false_label);
-    __ Cmp(input, Factory::null_value());
+    __ CompareRoot(input, Heap::kNullValueRootIndex);
     __ j(equal, true_label);
+    __ CmpObjectType(input, FIRST_JS_OBJECT_TYPE, input);
+    __ j(below, false_label);
+    __ CmpInstanceType(input, FIRST_FUNCTION_CLASS_TYPE);
+    __ j(above_equal, false_label);
     // Check for undetectable objects => false.
     __ testb(FieldOperand(input, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
-    __ j(not_zero, false_label);
-    // Check for JS objects that are not RegExp or Function => true.
-    __ CmpInstanceType(input, FIRST_JS_OBJECT_TYPE);
-    __ j(below, false_label);
-    __ CmpInstanceType(input, FIRST_FUNCTION_CLASS_TYPE);
-    final_branch_condition = below_equal;
+    final_branch_condition = zero;
 
   } else {
     final_branch_condition = never;

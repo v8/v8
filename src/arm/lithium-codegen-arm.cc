@@ -3672,37 +3672,30 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   Condition final_branch_condition = kNoCondition;
   Register scratch = scratch0();
   if (type_name->Equals(Heap::number_symbol())) {
-    __ tst(input, Operand(kSmiTagMask));
-    __ b(eq, true_label);
+    __ JumpIfSmi(input, true_label);
     __ ldr(input, FieldMemOperand(input, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
     __ cmp(input, Operand(ip));
     final_branch_condition = eq;
 
   } else if (type_name->Equals(Heap::string_symbol())) {
-    __ tst(input, Operand(kSmiTagMask));
-    __ b(eq, false_label);
-    __ ldr(input, FieldMemOperand(input, HeapObject::kMapOffset));
+    __ JumpIfSmi(input, false_label);
+    __ CompareObjectType(input, input, scratch, FIRST_NONSTRING_TYPE);
+    __ b(ge, false_label);
     __ ldrb(ip, FieldMemOperand(input, Map::kBitFieldOffset));
     __ tst(ip, Operand(1 << Map::kIsUndetectable));
-    __ b(ne, false_label);
-    __ CompareInstanceType(input, scratch, FIRST_NONSTRING_TYPE);
-    final_branch_condition = lo;
+    final_branch_condition = eq;
 
   } else if (type_name->Equals(Heap::boolean_symbol())) {
-    __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-    __ cmp(input, ip);
+    __ CompareRoot(input, Heap::kTrueValueRootIndex);
     __ b(eq, true_label);
-    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-    __ cmp(input, ip);
+    __ CompareRoot(input, Heap::kFalseValueRootIndex);
     final_branch_condition = eq;
 
   } else if (type_name->Equals(Heap::undefined_symbol())) {
-    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-    __ cmp(input, ip);
+    __ CompareRoot(input, Heap::kUndefinedValueRootIndex);
     __ b(eq, true_label);
-    __ tst(input, Operand(kSmiTagMask));
-    __ b(eq, false_label);
+    __ JumpIfSmi(input, false_label);
     // Check for undetectable objects => true.
     __ ldr(input, FieldMemOperand(input, HeapObject::kMapOffset));
     __ ldrb(ip, FieldMemOperand(input, Map::kBitFieldOffset));
@@ -3710,32 +3703,22 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     final_branch_condition = ne;
 
   } else if (type_name->Equals(Heap::function_symbol())) {
-    __ tst(input, Operand(kSmiTagMask));
-    __ b(eq, false_label);
-    __ CompareObjectType(input, input, scratch, JS_FUNCTION_TYPE);
-    __ b(eq, true_label);
-    // Regular expressions => 'function' (they are callable).
-    __ CompareInstanceType(input, scratch, JS_REGEXP_TYPE);
-    final_branch_condition = eq;
+    __ JumpIfSmi(input, false_label);
+    __ CompareObjectType(input, input, scratch, FIRST_FUNCTION_CLASS_TYPE);
+    final_branch_condition = ge;
 
   } else if (type_name->Equals(Heap::object_symbol())) {
-    __ tst(input, Operand(kSmiTagMask));
-    __ b(eq, false_label);
-    __ LoadRoot(ip, Heap::kNullValueRootIndex);
-    __ cmp(input, ip);
+    __ JumpIfSmi(input, false_label);
+    __ CompareRoot(input, Heap::kNullValueRootIndex);
     __ b(eq, true_label);
-    // Regular expressions => 'function', not 'object'.
-    __ CompareObjectType(input, input, scratch, JS_REGEXP_TYPE);
-    __ b(eq, false_label);
+    __ CompareObjectType(input, input, scratch, FIRST_JS_OBJECT_TYPE);
+    __ b(lo, false_label);
+    __ CompareInstanceType(input, scratch, FIRST_FUNCTION_CLASS_TYPE);
+    __ b(hs, false_label);
     // Check for undetectable objects => false.
     __ ldrb(ip, FieldMemOperand(input, Map::kBitFieldOffset));
     __ tst(ip, Operand(1 << Map::kIsUndetectable));
-    __ b(ne, false_label);
-    // Check for JS objects => true.
-    __ CompareInstanceType(input, scratch, FIRST_JS_OBJECT_TYPE);
-    __ b(lo, false_label);
-    __ CompareInstanceType(input, scratch, LAST_JS_OBJECT_TYPE);
-    final_branch_condition = ls;
+    final_branch_condition = eq;
 
   } else {
     final_branch_condition = ne;

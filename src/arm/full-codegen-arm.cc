@@ -3977,71 +3977,52 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
 
   if (check->Equals(Heap::number_symbol())) {
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, if_true);
+    __ JumpIfSmi(r0, if_true);
     __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
     __ cmp(r0, ip);
     Split(eq, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::string_symbol())) {
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, if_false);
+    __ JumpIfSmi(r0, if_false);
     // Check for undetectable objects => false.
-    __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ CompareObjectType(r0, r0, r1, FIRST_NONSTRING_TYPE);
+    __ b(ge, if_false);
     __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
-    __ and_(r1, r1, Operand(1 << Map::kIsUndetectable));
-    __ cmp(r1, Operand(1 << Map::kIsUndetectable));
-    __ b(eq, if_false);
-    __ ldrb(r1, FieldMemOperand(r0, Map::kInstanceTypeOffset));
-    __ cmp(r1, Operand(FIRST_NONSTRING_TYPE));
-    Split(lt, if_true, if_false, fall_through);
+    __ tst(r1, Operand(1 << Map::kIsUndetectable));
+    Split(eq, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::boolean_symbol())) {
-    __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-    __ cmp(r0, ip);
+    __ CompareRoot(r0, Heap::kTrueValueRootIndex);
     __ b(eq, if_true);
-    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-    __ cmp(r0, ip);
+    __ CompareRoot(r0, Heap::kFalseValueRootIndex);
     Split(eq, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::undefined_symbol())) {
-    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-    __ cmp(r0, ip);
+    __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
     __ b(eq, if_true);
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, if_false);
+    __ JumpIfSmi(r0, if_false);
     // Check for undetectable objects => true.
     __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
-    __ and_(r1, r1, Operand(1 << Map::kIsUndetectable));
-    __ cmp(r1, Operand(1 << Map::kIsUndetectable));
-    Split(eq, if_true, if_false, fall_through);
+    __ tst(r1, Operand(1 << Map::kIsUndetectable));
+    Split(ne, if_true, if_false, fall_through);
+
   } else if (check->Equals(Heap::function_symbol())) {
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, if_false);
-    __ CompareObjectType(r0, r1, r0, JS_FUNCTION_TYPE);
-    __ b(eq, if_true);
-    // Regular expressions => 'function' (they are callable).
-    __ CompareInstanceType(r1, r0, JS_REGEXP_TYPE);
-    Split(eq, if_true, if_false, fall_through);
+    __ JumpIfSmi(r0, if_false);
+    __ CompareObjectType(r0, r1, r0, FIRST_FUNCTION_CLASS_TYPE);
+    Split(ge, if_true, if_false, fall_through);
+
   } else if (check->Equals(Heap::object_symbol())) {
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, if_false);
-    __ LoadRoot(ip, Heap::kNullValueRootIndex);
-    __ cmp(r0, ip);
+    __ JumpIfSmi(r0, if_false);
+    __ CompareRoot(r0, Heap::kNullValueRootIndex);
     __ b(eq, if_true);
-    // Regular expressions => 'function', not 'object'.
-    __ CompareObjectType(r0, r1, r0, JS_REGEXP_TYPE);
-    __ b(eq, if_false);
-    // Check for undetectable objects => false.
-    __ ldrb(r0, FieldMemOperand(r1, Map::kBitFieldOffset));
-    __ and_(r0, r0, Operand(1 << Map::kIsUndetectable));
-    __ cmp(r0, Operand(1 << Map::kIsUndetectable));
-    __ b(eq, if_false);
     // Check for JS objects => true.
-    __ ldrb(r0, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-    __ cmp(r0, Operand(FIRST_JS_OBJECT_TYPE));
-    __ b(lt, if_false);
-    __ cmp(r0, Operand(LAST_JS_OBJECT_TYPE));
-    Split(le, if_true, if_false, fall_through);
+    __ CompareObjectType(r0, r0, r1, FIRST_JS_OBJECT_TYPE);
+    __ b(lo, if_false);
+    __ CompareInstanceType(r0, r1, FIRST_FUNCTION_CLASS_TYPE);
+    __ b(hs, if_false);
+    // Check for undetectable objects => false.
+    __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
+    __ tst(r1, Operand(1 << Map::kIsUndetectable));
+    Split(eq, if_true, if_false, fall_through);
   } else {
     if (if_false != fall_through) __ jmp(if_false);
   }

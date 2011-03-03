@@ -3640,21 +3640,18 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
 
   if (check->Equals(Heap::number_symbol())) {
-    Condition is_smi = masm_->CheckSmi(rax);
-    __ j(is_smi, if_true);
+    __ JumpIfSmi(rax, if_true);
     __ movq(rax, FieldOperand(rax, HeapObject::kMapOffset));
     __ CompareRoot(rax, Heap::kHeapNumberMapRootIndex);
     Split(equal, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::string_symbol())) {
-    Condition is_smi = masm_->CheckSmi(rax);
-    __ j(is_smi, if_false);
+    __ JumpIfSmi(rax, if_false);
     // Check for undetectable objects => false.
-    __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rdx);
+    __ j(above_equal, if_false);
     __ testb(FieldOperand(rdx, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
-    __ j(not_zero, if_false);
-    __ CmpInstanceType(rdx, FIRST_NONSTRING_TYPE);
-    Split(below, if_true, if_false, fall_through);
+    Split(zero, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::boolean_symbol())) {
     __ CompareRoot(rax, Heap::kTrueValueRootIndex);
     __ j(equal, if_true);
@@ -3663,38 +3660,28 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
   } else if (check->Equals(Heap::undefined_symbol())) {
     __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
     __ j(equal, if_true);
-    Condition is_smi = masm_->CheckSmi(rax);
-    __ j(is_smi, if_false);
+    __ JumpIfSmi(rax, if_false);
     // Check for undetectable objects => true.
     __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
     __ testb(FieldOperand(rdx, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
     Split(not_zero, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::function_symbol())) {
-    Condition is_smi = masm_->CheckSmi(rax);
-    __ j(is_smi, if_false);
-    __ CmpObjectType(rax, JS_FUNCTION_TYPE, rdx);
-    __ j(equal, if_true);
-    // Regular expressions => 'function' (they are callable).
-    __ CmpInstanceType(rdx, JS_REGEXP_TYPE);
-    Split(equal, if_true, if_false, fall_through);
+    __ JumpIfSmi(rax, if_false);
+    __ CmpObjectType(rax, FIRST_FUNCTION_CLASS_TYPE, rdx);
+    Split(above_equal, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::object_symbol())) {
-    Condition is_smi = masm_->CheckSmi(rax);
-    __ j(is_smi, if_false);
+    __ JumpIfSmi(rax, if_false);
     __ CompareRoot(rax, Heap::kNullValueRootIndex);
     __ j(equal, if_true);
-    // Regular expressions => 'function', not 'object'.
-    __ CmpObjectType(rax, JS_REGEXP_TYPE, rdx);
-    __ j(equal, if_false);
+    __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rdx);
+    __ j(below, if_false);
+    __ CmpInstanceType(rdx, FIRST_FUNCTION_CLASS_TYPE);
+    __ j(above_equal, if_false);
     // Check for undetectable objects => false.
     __ testb(FieldOperand(rdx, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
-    __ j(not_zero, if_false);
-    // Check for JS objects => true.
-    __ CmpInstanceType(rdx, FIRST_JS_OBJECT_TYPE);
-    __ j(below, if_false);
-    __ CmpInstanceType(rdx, LAST_JS_OBJECT_TYPE);
-    Split(below_equal, if_true, if_false, fall_through);
+    Split(zero, if_true, if_false, fall_through);
   } else {
     if (if_false != fall_through) __ jmp(if_false);
   }
