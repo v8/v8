@@ -1445,14 +1445,14 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
     String* name,
     Object* value,
     PropertyAttributes attributes,
-    StrictModeFlag strict) {
+    StrictModeFlag strict_mode) {
   // Check local property, ignore interceptor.
   LookupResult result;
   LocalLookupRealNamedProperty(name, &result);
   if (result.IsFound()) {
     // An existing property, a map transition or a null descriptor was
     // found.  Use set property to handle all these cases.
-    return SetProperty(&result, name, value, attributes, strict);
+    return SetProperty(&result, name, value, attributes, strict_mode);
   }
   // Add a new real property.
   return AddProperty(name, value, attributes);
@@ -1578,7 +1578,7 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
     String* name,
     Object* value,
     PropertyAttributes attributes,
-    StrictModeFlag strict) {
+    StrictModeFlag strict_mode) {
   HandleScope scope;
   Handle<JSObject> this_handle(this);
   Handle<String> name_handle(name);
@@ -1608,7 +1608,7 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
       this_handle->SetPropertyPostInterceptor(*name_handle,
                                               *value_handle,
                                               attributes,
-                                              strict);
+                                              strict_mode);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
 }
@@ -1617,10 +1617,10 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
 MaybeObject* JSObject::SetProperty(String* name,
                                    Object* value,
                                    PropertyAttributes attributes,
-                                   StrictModeFlag strict) {
+                                   StrictModeFlag strict_mode) {
   LookupResult result;
   LocalLookup(name, &result);
-  return SetProperty(&result, name, value, attributes, strict);
+  return SetProperty(&result, name, value, attributes, strict_mode);
 }
 
 
@@ -1901,7 +1901,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
                                    String* name,
                                    Object* value,
                                    PropertyAttributes attributes,
-                                   StrictModeFlag strict) {
+                                   StrictModeFlag strict_mode) {
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
@@ -1929,7 +1929,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
     return JSObject::cast(proto)->SetProperty(
-        result, name, value, attributes, strict);
+        result, name, value, attributes, strict_mode);
   }
 
   if (!result->IsProperty() && !IsJSContextExtensionObject()) {
@@ -1949,7 +1949,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
     return AddProperty(name, value, attributes);
   }
   if (result->IsReadOnly() && result->IsProperty()) {
-    if (strict == kStrictMode) {
+    if (strict_mode == kStrictMode) {
       HandleScope scope;
       Handle<String> key(name);
       Handle<Object> holder(this);
@@ -1988,7 +1988,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
                                      value,
                                      result->holder());
     case INTERCEPTOR:
-      return SetPropertyWithInterceptor(name, value, attributes, strict);
+      return SetPropertyWithInterceptor(name, value, attributes, strict_mode);
     case CONSTANT_TRANSITION: {
       // If the same constant function is being added we can simply
       // transition to the target map.

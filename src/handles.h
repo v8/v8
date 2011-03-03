@@ -224,13 +224,13 @@ Handle<Object> SetProperty(Handle<JSObject> object,
                            Handle<String> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
-                           StrictModeFlag strict);
+                           StrictModeFlag strict_mode);
 
 Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
-                           StrictModeFlag strict);
+                           StrictModeFlag strict_mode);
 
 Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> key,
@@ -262,7 +262,7 @@ Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
-                                          StrictModeFlag strict);
+                                          StrictModeFlag strict_mode);
 
 Handle<Object> SetElement(Handle<JSObject> object,
                           uint32_t index,

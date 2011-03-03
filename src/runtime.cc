@@ -3784,7 +3784,7 @@ MaybeObject* Runtime::SetObjectProperty(Handle<Object> object,
                                         Handle<Object> key,
                                         Handle<Object> value,
                                         PropertyAttributes attr,
-                                        StrictModeFlag strict) {
+                                        StrictModeFlag strict_mode) {
   HandleScope scope;
 
   if (object->IsUndefined() || object->IsNull()) {
@@ -3827,7 +3827,7 @@ MaybeObject* Runtime::SetObjectProperty(Handle<Object> object,
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
       key_string->TryFlatten();
-      result = SetProperty(js_object, key_string, value, attr, strict);
+      result = SetProperty(js_object, key_string, value, attr, strict_mode);
     }
     if (result.is_null()) return Failure::Exception();
     return *value;
@@ -3843,7 +3843,7 @@ MaybeObject* Runtime::SetObjectProperty(Handle<Object> object,
     // TODO(1220): Implement SetElement strict mode.
     return js_object->SetElement(index, *value);
   } else {
-    return js_object->SetProperty(*name, *value, attr, strict);
+    return js_object->SetProperty(*name, *value, attr, strict_mode);
   }
 }
 
@@ -3947,15 +3947,19 @@ static MaybeObject* Runtime_SetProperty(Arguments args) {
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(unchecked_attributes);
 
-  StrictModeFlag strict = kNonStrictMode;
+  StrictModeFlag strict_mode = kNonStrictMode;
   if (args.length() == 5) {
     CONVERT_SMI_CHECKED(strict_unchecked, args[4]);
     RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
                    strict_unchecked == kNonStrictMode);
-    strict = static_cast<StrictModeFlag>(strict_unchecked);
+    strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
   }
 
-  return Runtime::SetObjectProperty(object, key, value, attributes, strict);
+  return Runtime::SetObjectProperty(object,
+                                    key,
+                                    value,
+                                    attributes,
+                                    strict_mode);
 }
 
 
@@ -7545,8 +7549,7 @@ static MaybeObject* Runtime_StoreContextSlot(Arguments args) {
   CONVERT_SMI_CHECKED(strict_unchecked, args[3]);
   RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
                  strict_unchecked == kNonStrictMode);
-  StrictModeFlag strict = static_cast<StrictModeFlag>(strict_unchecked);
-
+  StrictModeFlag strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
 
   int index;
   PropertyAttributes attributes;
@@ -7590,11 +7593,12 @@ static MaybeObject* Runtime_StoreContextSlot(Arguments args) {
   // extension object itself.
   if ((attributes & READ_ONLY) == 0 ||
       (context_ext->GetLocalPropertyAttribute(*name) == ABSENT)) {
-    RETURN_IF_EMPTY_HANDLE(SetProperty(context_ext, name, value, NONE, strict));
-  } else if (strict == kStrictMode && (attributes & READ_ONLY) != 0) {
+    RETURN_IF_EMPTY_HANDLE(
+        SetProperty(context_ext, name, value, NONE, strict_mode));
+  } else if (strict_mode == kStrictMode && (attributes & READ_ONLY) != 0) {
     // Setting read only property in strict mode.
     Handle<Object> error =
-      Factory::NewTypeError("strict_cannot_assign", HandleVector(&name, 1));
+        Factory::NewTypeError("strict_cannot_assign", HandleVector(&name, 1));
     return Top::Throw(*error);
   }
   return *value;
