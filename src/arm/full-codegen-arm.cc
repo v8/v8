@@ -3175,7 +3175,6 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ mov(scratch1, elements);
   __ RecordWriteHelper(elements, index1, scratch2);
   __ RecordWriteHelper(scratch1, index2, scratch2);  // scratch1 holds elements.
-  __ bind(&done);
 
   __ bind(&new_space);
   // We are done. Drop elements from the stack, and return undefined.
