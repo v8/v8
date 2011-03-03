@@ -3163,7 +3163,7 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
 
   // Swap elements.
   __ ldr(scratch1, MemOperand(index1, 0));
-  __ ldr(scratch2, MemOperand(index2, 0)));
+  __ ldr(scratch2, MemOperand(index2, 0));
   __ str(scratch1, MemOperand(index2, 0));
   __ str(scratch2, MemOperand(index1, 0));
 
