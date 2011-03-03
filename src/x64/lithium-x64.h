@@ -1242,34 +1242,32 @@ class LStoreGlobal: public LTemplateInstruction<0, 1, 1> {
 };
 
 
-class LLoadContextSlot: public LTemplateInstruction<1, 1, 0> {
+class LLoadContextSlot: public LTemplateInstruction<1, 0, 0> {
  public:
-  explicit LLoadContextSlot(LOperand* context) {
-    inputs_[0] = context;
+  explicit LLoadContextSlot() {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadContextSlot, "load-context-slot")
   DECLARE_HYDROGEN_ACCESSOR(LoadContextSlot)
 
-  LOperand* context() { return InputAt(0); }
   int slot_index() { return hydrogen()->slot_index(); }
 
   virtual void PrintDataTo(StringStream* stream);
 };
 
 
-class LStoreContextSlot: public LTemplateInstruction<0, 2, 0> {
+class LStoreContextSlot: public LTemplateInstruction<0, 1, 2> {
  public:
-  LStoreContextSlot(LOperand* context, LOperand* value) {
-    inputs_[0] = context;
-    inputs_[1] = value;
+  LStoreContextSlot(LOperand* value, LOperand* temp_1, LOperand* temp_2) {
+    inputs_[0] = value;
+    temps_[0] = temp_1;
+    temps_[1] = temp_2;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreContextSlot, "store-context-slot")
   DECLARE_HYDROGEN_ACCESSOR(StoreContextSlot)
 
-  LOperand* context() { return InputAt(0); }
-  LOperand* value() { return InputAt(1); }
+  LOperand* value() { return InputAt(0); }
   int slot_index() { return hydrogen()->slot_index(); }
   int needs_write_barrier() { return hydrogen()->NeedsWriteBarrier(); }
 

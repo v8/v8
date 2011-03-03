@@ -1966,19 +1966,20 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 
 
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
-  Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
-  __ movq(result, ContextOperand(context, instr->slot_index()));
+  __ movq(result, ContextOperand(rsi, instr->slot_index()));
 }
 
 
 void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
-  Register context = ToRegister(instr->context());
   Register value = ToRegister(instr->value());
-  __ movq(ContextOperand(context, instr->slot_index()), value);
+  __ movq(ContextOperand(rsi, instr->slot_index()), value);
   if (instr->needs_write_barrier()) {
     int offset = Context::SlotOffset(instr->slot_index());
-    __ RecordWrite(context, offset, value, kScratchRegister);
+    Register scratch_1 = ToRegister(instr->TempAt(0));
+    Register scratch_2 = ToRegister(instr->TempAt(1));
+    __ movq(scratch_1, rsi);
+    __ RecordWrite(scratch_1, offset, value, scratch_2);
   }
 }
 
