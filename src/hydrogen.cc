@@ -1663,8 +1663,7 @@ void HGraph::PropagateMinusZeroChecks(HValue* value, BitVector* visited) {
 
 void HGraph::InsertRepresentationChangeForUse(HValue* value,
                                               HValue* use,
-                                              Representation to,
-                                              bool is_truncating) {
+                                              Representation to) {
   // Insert the representation change right before its use. For phi-uses we
   // insert at the end of the corresponding predecessor.
   HInstruction* next = NULL;
@@ -1681,6 +1680,7 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   // information we treat constants like normal instructions and insert the
   // change instructions for them.
   HInstruction* new_value = NULL;
+  bool is_truncating = use->CheckFlag(HValue::kTruncatingToInt32);
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     // Try to create a new copy of the constant with the new representation.
@@ -1690,7 +1690,7 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   }
 
   if (new_value == NULL) {
-    new_value = new HChange(value, value->representation(), to);
+    new_value = new HChange(value, value->representation(), to, is_truncating);
   }
 
   new_value->InsertBefore(next);
@@ -1765,8 +1765,7 @@ void HGraph::InsertRepresentationChanges(HValue* current) {
   for (int i = 0; i < to_convert.length(); ++i) {
     HValue* use = to_convert[i];
     Representation r_to = to_convert_reps[i];
-    bool is_truncating = use->CheckFlag(HValue::kTruncatingToInt32);
-    InsertRepresentationChangeForUse(current, use, r_to, is_truncating);
+    InsertRepresentationChangeForUse(current, use, r_to);
   }
 
   if (current->uses()->is_empty()) {

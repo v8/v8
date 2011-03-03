@@ -940,13 +940,14 @@ class HChange: public HUnaryOperation {
  public:
   HChange(HValue* value,
           Representation from,
-          Representation to)
+          Representation to,
+          bool is_truncating)
       : HUnaryOperation(value), from_(from), to_(to) {
     ASSERT(!from.IsNone() && !to.IsNone());
     ASSERT(!from.Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
-
+    if (is_truncating) SetFlag(kTruncatingToInt32);
     if (from.IsInteger32() && to.IsTagged() && value->range() != NULL &&
         value->range()->IsInSmiRange()) {
       set_type(HType::Smi());
@@ -961,12 +962,7 @@ class HChange: public HUnaryOperation {
     return from_;
   }
 
-  bool CanTruncateToInt32() const {
-    for (int i = 0; i < uses()->length(); ++i) {
-      if (!uses()->at(i)->CheckFlag(HValue::kTruncatingToInt32)) return false;
-    }
-    return true;
-  }
+  bool CanTruncateToInt32() const { return CheckFlag(kTruncatingToInt32); }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -978,8 +974,7 @@ class HChange: public HUnaryOperation {
     if (!other->IsChange()) return false;
     HChange* change = HChange::cast(other);
     return value() == change->value()
-        && to().Equals(change->to())
-        && CanTruncateToInt32() == change->CanTruncateToInt32();
+        && to().Equals(change->to());
   }
 
  private:
