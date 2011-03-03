@@ -908,7 +908,7 @@ Condition MacroAssembler::CheckSmi(const Operand& src) {
 
 Condition MacroAssembler::CheckNonNegativeSmi(Register src) {
   ASSERT_EQ(0, kSmiTag);
-  // Make mask 0x8000000000000001 and test that both bits are zero.
+  // Test that both bits of the mask 0x8000000000000001 are zero.
   movq(kScratchRegister, src);
   rol(kScratchRegister, Immediate(1));
   testb(kScratchRegister, Immediate(3));
