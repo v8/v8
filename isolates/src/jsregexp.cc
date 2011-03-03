@@ -96,11 +96,12 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
                                         Handle<String> error_text,
                                         const char* message) {
   Isolate* isolate = re->GetIsolate();
-  Handle<JSArray> array = isolate->factory()->NewJSArray(2);
-  SetElement(array, 0, pattern);
-  SetElement(array, 1, error_text);
-  Handle<Object> regexp_err = isolate->factory()->NewSyntaxError(message,
-                                                                 array);
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> elements = factory->NewFixedArray(2);
+  elements->set(0, *pattern);
+  elements->set(1, *error_text);
+  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
+  Handle<Object> regexp_err = factory->NewSyntaxError(message, array);
   isolate->Throw(*regexp_err);
 }
 
@@ -337,14 +338,15 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
                             is_ascii);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
-    Handle<JSArray> array = isolate->factory()->NewJSArray(2);
-    SetElement(array, 0, pattern);
-    SetElement(array,
-               1,
-               isolate->factory()->
-                   NewStringFromUtf8(CStrVector(result.error_message)));
+    Factory* factory = isolate->factory();
+    Handle<FixedArray> elements = factory->NewFixedArray(2);
+    elements->set(0, *pattern);
+    Handle<String> error_message =
+        factory->NewStringFromUtf8(CStrVector(result.error_message));
+    elements->set(1, *error_message);
+    Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
     Handle<Object> regexp_err =
-        isolate->factory()->NewSyntaxError("malformed_regexp", array);
+        factory->NewSyntaxError("malformed_regexp", array);
     isolate->Throw(*regexp_err);
     re->SetDataAt(JSRegExp::code_index(is_ascii), *regexp_err);
     return false;

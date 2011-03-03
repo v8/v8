@@ -87,7 +87,7 @@ function StringConcat() {
   if (len === 1) {
     return this_as_string + %_Arguments(0);
   }
-  var parts = new $Array(len + 1);
+  var parts = new InternalArray(len + 1);
   parts[0] = this_as_string;
   for (var i = 0; i < len; i++) {
     var part = %_Arguments(i);
@@ -357,7 +357,7 @@ function addCaptureString(builder, matchInfo, index) {
 // TODO(lrn): This array will survive indefinitely if replace is never
 // called again. However, it will be empty, since the contents are cleared
 // in the finally block.
-var reusableReplaceArray = $Array(16);
+var reusableReplaceArray = new InternalArray(16);
 
 // Helper function for replacing regular expressions with the result of a
 // function application in String.prototype.replace.
@@ -370,7 +370,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
     // of another replace) or we have failed to set the reusable array
     // back due to an exception in a replacement function. Create a new
     // array to use in the future, or until the original is written back.
-    resultArray = $Array(16);
+    resultArray = new InternalArray(16);
   }
   var res = %RegExpExecMultiple(regexp,
                                 subject,
@@ -386,7 +386,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
   var i = 0;
   if (NUMBER_OF_CAPTURES(lastMatchInfo) == 2) {
     var match_start = 0;
-    var override = [null, 0, subject];
+    var override = new InternalArray(null, 0, subject);
     var receiver = %GetGlobalReceiver();
     while (i < len) {
       var elem = res[i];
@@ -447,7 +447,7 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
     replacement =
         %_CallFunction(%GetGlobalReceiver(), s, index, subject, replace);
   } else {
-    var parameters = $Array(m + 2);
+    var parameters = new InternalArray(m + 2);
     for (var j = 0; j < m; j++) {
       parameters[j] = CaptureString(subject, matchInfo, j);
     }
@@ -720,7 +720,7 @@ function StringTrimRight() {
   return %StringTrim(TO_STRING_INLINE(this), false, true);
 }
 
-var static_charcode_array = new $Array(4);
+var static_charcode_array = new InternalArray(4);
 
 // ECMA-262, section 15.5.3.2
 function StringFromCharCode(code) {
@@ -825,7 +825,7 @@ function ReplaceResultBuilder(str) {
   if (%_ArgumentsLength() > 1) {
     this.elements = %_Arguments(1);
   } else {
-    this.elements = new $Array();
+    this.elements = new InternalArray();
   }
   this.special_string = str;
 }

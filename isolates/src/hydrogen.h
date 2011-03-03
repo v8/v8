@@ -302,8 +302,7 @@ class HGraph: public HSubgraph {
   void PropagateMinusZeroChecks(HValue* value, BitVector* visited);
   void InsertRepresentationChangeForUse(HValue* value,
                                         HValue* use,
-                                        Representation to,
-                                        bool truncating);
+                                        Representation to);
   void InsertRepresentationChanges(HValue* current);
   void InferTypes(ZoneList<HValue*>* worklist);
   void InitializeInferredTypes(int from_inclusive, int to_inclusive);

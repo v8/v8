@@ -1519,7 +1519,7 @@ LInstruction* LChunkBuilder::DoHasInstanceType(HHasInstanceType* instr) {
 LInstruction* LChunkBuilder::DoGetCachedArrayIndex(
     HGetCachedArrayIndex* instr)  {
   ASSERT(instr->value()->representation().IsTagged());
-  LOperand* value = UseRegister(instr->value());
+  LOperand* value = UseRegisterAtStart(instr->value());
 
   return DefineAsRegister(new LGetCachedArrayIndex(value));
 }

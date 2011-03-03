@@ -1474,14 +1474,14 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
     String* name,
     Object* value,
     PropertyAttributes attributes,
-    StrictModeFlag strict) {
+    StrictModeFlag strict_mode) {
   // Check local property, ignore interceptor.
   LookupResult result;
   LocalLookupRealNamedProperty(name, &result);
   if (result.IsFound()) {
     // An existing property, a map transition or a null descriptor was
     // found.  Use set property to handle all these cases.
-    return SetProperty(&result, name, value, attributes, strict);
+    return SetProperty(&result, name, value, attributes, strict_mode);
   }
   // Add a new real property.
   return AddProperty(name, value, attributes);
@@ -1608,7 +1608,7 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
     String* name,
     Object* value,
     PropertyAttributes attributes,
-    StrictModeFlag strict) {
+    StrictModeFlag strict_mode) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
   Handle<JSObject> this_handle(this);
@@ -1640,7 +1640,7 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
       this_handle->SetPropertyPostInterceptor(*name_handle,
                                               *value_handle,
                                               attributes,
-                                              strict);
+                                              strict_mode);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return raw_result;
 }
@@ -1649,10 +1649,10 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
 MaybeObject* JSObject::SetProperty(String* name,
                                    Object* value,
                                    PropertyAttributes attributes,
-                                   StrictModeFlag strict) {
+                                   StrictModeFlag strict_mode) {
   LookupResult result;
   LocalLookup(name, &result);
-  return SetProperty(&result, name, value, attributes, strict);
+  return SetProperty(&result, name, value, attributes, strict_mode);
 }
 
 
@@ -1942,7 +1942,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
                                    String* name,
                                    Object* value,
                                    PropertyAttributes attributes,
-                                   StrictModeFlag strict) {
+                                   StrictModeFlag strict_mode) {
   Heap* heap = GetHeap();
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
@@ -1971,7 +1971,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
     return JSObject::cast(proto)->SetProperty(
-        result, name, value, attributes, strict);
+        result, name, value, attributes, strict_mode);
   }
 
   if (!result->IsProperty() && !IsJSContextExtensionObject()) {
@@ -1991,7 +1991,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
     return AddProperty(name, value, attributes);
   }
   if (result->IsReadOnly() && result->IsProperty()) {
-    if (strict == kStrictMode) {
+    if (strict_mode == kStrictMode) {
       HandleScope scope;
       Handle<String> key(name);
       Handle<Object> holder(this);
@@ -2030,7 +2030,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
                                      value,
                                      result->holder());
     case INTERCEPTOR:
-      return SetPropertyWithInterceptor(name, value, attributes, strict);
+      return SetPropertyWithInterceptor(name, value, attributes, strict_mode);
     case CONSTANT_TRANSITION: {
       // If the same constant function is being added we can simply
       // transition to the target map.
@@ -5650,6 +5650,10 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
 
 
 Object* JSFunction::RemovePrototype() {
+  if (map() == context()->global_context()->function_without_prototype_map()) {
+    // Be idempotent.
+    return this;
+  }
   ASSERT(map() == context()->global_context()->function_map());
   Heap* heap = GetHeap();
   set_map(context()->global_context()->function_without_prototype_map());
@@ -6632,13 +6636,6 @@ void JSArray::Expand(int required_size) {
   // Can't use this any more now because we may have had a GC!
   for (int i = 0; i < old_size; i++) new_backing->set(i, old_backing->get(i));
   self->SetContent(*new_backing);
-}
-
-
-// Computes the new capacity when expanding the elements of a JSObject.
-static int NewElementsCapacity(int old_capacity) {
-  // (old_capacity + 50%) + 16
-  return old_capacity + (old_capacity >> 1) + 16;
 }
 
 

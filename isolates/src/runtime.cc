@@ -823,6 +823,7 @@ static MaybeObject* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
       case JSObject::FAST_ELEMENT: {
         elms->set(IS_ACCESSOR_INDEX, heap->false_value());
         Handle<Object> value = GetElement(obj, index);
+        RETURN_IF_EMPTY_HANDLE(isolate, value);
         elms->set(VALUE_INDEX, *value);
         elms->set(WRITABLE_INDEX, heap->true_value());
         elms->set(ENUMERABLE_INDEX,  heap->true_value());
@@ -860,6 +861,7 @@ static MaybeObject* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
             // This is a data property.
             elms->set(IS_ACCESSOR_INDEX, heap->false_value());
             Handle<Object> value = GetElement(obj, index);
+            ASSERT(!value.is_null());
             elms->set(VALUE_INDEX, *value);
             elms->set(WRITABLE_INDEX, heap->ToBoolean(!details.IsReadOnly()));
             break;
@@ -1530,7 +1532,7 @@ static MaybeObject* Runtime_InitializeConstContextSlot(
       // The holder is an arguments object.
       ASSERT((attributes & READ_ONLY) == 0);
       Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
-      SetElement(arguments, index, value);
+      RETURN_IF_EMPTY_HANDLE(isolate, SetElement(arguments, index, value));
     }
     return *value;
   }
@@ -3955,7 +3957,7 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
                                         Handle<Object> key,
                                         Handle<Object> value,
                                         PropertyAttributes attr,
-                                        StrictModeFlag strict) {
+                                        StrictModeFlag strict_mode) {
   HandleScope scope(isolate);
 
   if (object->IsUndefined() || object->IsNull()) {
@@ -3998,7 +4000,7 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
       key_string->TryFlatten();
-      result = SetProperty(js_object, key_string, value, attr, strict);
+      result = SetProperty(js_object, key_string, value, attr, strict_mode);
     }
     if (result.is_null()) return Failure::Exception();
     return *value;
@@ -4014,7 +4016,7 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
     // TODO(1220): Implement SetElement strict mode.
     return js_object->SetElement(index, *value);
   } else {
-    return js_object->SetProperty(*name, *value, attr, strict);
+    return js_object->SetProperty(*name, *value, attr, strict_mode);
   }
 }
 
@@ -4121,12 +4123,12 @@ static MaybeObject* Runtime_SetProperty(RUNTIME_CALLING_CONVENTION) {
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(unchecked_attributes);
 
-  StrictModeFlag strict = kNonStrictMode;
+  StrictModeFlag strict_mode = kNonStrictMode;
   if (args.length() == 5) {
     CONVERT_SMI_CHECKED(strict_unchecked, args[4]);
     RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
                    strict_unchecked == kNonStrictMode);
-    strict = static_cast<StrictModeFlag>(strict_unchecked);
+    strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
   }
 
   return Runtime::SetObjectProperty(isolate,
@@ -4134,7 +4136,7 @@ static MaybeObject* Runtime_SetProperty(RUNTIME_CALLING_CONVENTION) {
                                     key,
                                     value,
                                     attributes,
-                                    strict);
+                                    strict_mode);
 }
 
 
@@ -7878,8 +7880,7 @@ static MaybeObject* Runtime_StoreContextSlot(RUNTIME_CALLING_CONVENTION) {
   CONVERT_SMI_CHECKED(strict_unchecked, args[3]);
   RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
                  strict_unchecked == kNonStrictMode);
-  StrictModeFlag strict = static_cast<StrictModeFlag>(strict_unchecked);
-
+  StrictModeFlag strict_mode = static_cast<StrictModeFlag>(strict_unchecked);
 
   int index;
   PropertyAttributes attributes;
@@ -7923,9 +7924,10 @@ static MaybeObject* Runtime_StoreContextSlot(RUNTIME_CALLING_CONVENTION) {
   // extension object itself.
   if ((attributes & READ_ONLY) == 0 ||
       (context_ext->GetLocalPropertyAttribute(*name) == ABSENT)) {
-    RETURN_IF_EMPTY_HANDLE(isolate,
-                           SetProperty(context_ext, name, value, NONE, strict));
-  } else if (strict == kStrictMode && (attributes & READ_ONLY) != 0) {
+    RETURN_IF_EMPTY_HANDLE(
+        isolate,
+        SetProperty(context_ext, name, value, NONE, strict_mode));
+  } else if (strict_mode == kStrictMode && (attributes & READ_ONLY) != 0) {
     // Setting read only property in strict mode.
     Handle<Object> error =
       isolate->factory()->NewTypeError(
@@ -8760,8 +8762,9 @@ static void CollectElementIndices(Handle<JSObject> object,
  * with the element index and the element's value.
  * Afterwards it increments the base-index of the visitor by the array
  * length.
+ * Returns false if any access threw an exception, otherwise true.
  */
-static void IterateElements(Isolate* isolate,
+static bool IterateElements(Isolate* isolate,
                             Handle<JSArray> receiver,
                             ArrayConcatVisitor* visitor) {
   uint32_t length = static_cast<uint32_t>(receiver->length()->Number());
@@ -8781,6 +8784,7 @@ static void IterateElements(Isolate* isolate,
           // Call GetElement on receiver, not its prototype, or getters won't
           // have the correct receiver.
           element_value = GetElement(receiver, j);
+          if (element_value.is_null()) return false;
           visitor->visit(j, element_value);
         }
       }
@@ -8799,6 +8803,7 @@ static void IterateElements(Isolate* isolate,
         HandleScope loop_scope;
         uint32_t index = indices[j];
         Handle<Object> element = GetElement(receiver, index);
+        if (element.is_null()) return false;
         visitor->visit(index, element);
         // Skip to next different index (i.e., omit duplicates).
         do {
@@ -8855,6 +8860,7 @@ static void IterateElements(Isolate* isolate,
       break;
   }
   visitor->increase_index_offset(length);
+  return true;
 }
 
 
@@ -8938,7 +8944,9 @@ static MaybeObject* Runtime_ArrayConcat(RUNTIME_CALLING_CONVENTION) {
     Handle<Object> obj(elements->get(i));
     if (obj->IsJSArray()) {
       Handle<JSArray> array = Handle<JSArray>::cast(obj);
-      IterateElements(isolate, array, &visitor);
+      if (!IterateElements(isolate, array, &visitor)) {
+        return Failure::Exception();
+      }
     } else {
       visitor.visit(0, obj);
       visitor.increase_index_offset(1);
@@ -9042,10 +9050,12 @@ static MaybeObject* Runtime_SwapElements(RUNTIME_CALLING_CONVENTION) {
 
   Handle<JSObject> jsobject = Handle<JSObject>::cast(object);
   Handle<Object> tmp1 = GetElement(jsobject, index1);
+  RETURN_IF_EMPTY_HANDLE(isolate, tmp1);
   Handle<Object> tmp2 = GetElement(jsobject, index2);
+  RETURN_IF_EMPTY_HANDLE(isolate, tmp2);
 
-  SetElement(jsobject, index1, tmp2);
-  SetElement(jsobject, index2, tmp1);
+  RETURN_IF_EMPTY_HANDLE(isolate, SetElement(jsobject, index1, tmp2));
+  RETURN_IF_EMPTY_HANDLE(isolate, SetElement(jsobject, index2, tmp1));
 
   return isolate->heap()->undefined_value();
 }
@@ -11785,10 +11795,12 @@ static MaybeObject* Runtime_CollectStackTrace(RUNTIME_CALLING_CONVENTION) {
   CONVERT_NUMBER_CHECKED(int32_t, limit, Int32, args[1]);
 
   HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
 
   limit = Max(limit, 0);  // Ensure that limit is not negative.
   int initial_size = Min(limit, 10);
-  Handle<JSArray> result = isolate->factory()->NewJSArray(initial_size * 4);
+  Handle<FixedArray> elements =
+      factory->NewFixedArrayWithHoles(initial_size * 4);
 
   StackFrameIterator iter;
   // If the caller parameter is a function we skip frames until we're
@@ -11804,27 +11816,30 @@ static MaybeObject* Runtime_CollectStackTrace(RUNTIME_CALLING_CONVENTION) {
       List<FrameSummary> frames(3);  // Max 2 levels of inlining.
       frame->Summarize(&frames);
       for (int i = frames.length() - 1; i >= 0; i--) {
+        if (cursor + 4 > elements->length()) {
+          int new_capacity = JSObject::NewElementsCapacity(elements->length());
+          Handle<FixedArray> new_elements =
+              factory->NewFixedArrayWithHoles(new_capacity);
+          for (int i = 0; i < cursor; i++) {
+            new_elements->set(i, elements->get(i));
+          }
+          elements = new_elements;
+        }
+        ASSERT(cursor + 4 <= elements->length());
+
         Handle<Object> recv = frames[i].receiver();
         Handle<JSFunction> fun = frames[i].function();
         Handle<Code> code = frames[i].code();
         Handle<Smi> offset(Smi::FromInt(frames[i].offset()));
-        FixedArray* elements = FixedArray::cast(result->elements());
-        if (cursor + 3 < elements->length()) {
-          elements->set(cursor++, *recv);
-          elements->set(cursor++, *fun);
-          elements->set(cursor++, *code);
-          elements->set(cursor++, *offset);
-        } else {
-          SetElement(result, cursor++, recv);
-          SetElement(result, cursor++, fun);
-          SetElement(result, cursor++, code);
-          SetElement(result, cursor++, offset);
-        }
+        elements->set(cursor++, *recv);
+        elements->set(cursor++, *fun);
+        elements->set(cursor++, *code);
+        elements->set(cursor++, *offset);
       }
     }
     iter.Advance();
   }
-
+  Handle<JSArray> result = factory->NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(cursor));
   return *result;
 }
@@ -12000,8 +12015,15 @@ static MaybeObject* Runtime_MessageGetScript(RUNTIME_CALLING_CONVENTION) {
 static MaybeObject* Runtime_ListNatives(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
   ASSERT(args.length() == 0);
-  HandleScope scope(isolate);
-  Handle<JSArray> result = isolate->factory()->NewJSArray(0);
+  HandleScope scope;
+#define COUNT_ENTRY(Name, argc, ressize) + 1
+  int entry_count = 0
+      RUNTIME_FUNCTION_LIST(COUNT_ENTRY)
+      INLINE_FUNCTION_LIST(COUNT_ENTRY)
+      INLINE_RUNTIME_FUNCTION_LIST(COUNT_ENTRY);
+#undef COUNT_ENTRY
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> elements = factory->NewFixedArray(entry_count);
   int index = 0;
   bool inline_runtime_functions = false;
 #define ADD_ENTRY(Name, argc, ressize)                                       \
@@ -12010,16 +12032,17 @@ static MaybeObject* Runtime_ListNatives(RUNTIME_CALLING_CONVENTION) {
     Handle<String> name;                                                     \
     /* Inline runtime functions have an underscore in front of the name. */  \
     if (inline_runtime_functions) {                                          \
-      name = isolate->factory()->NewStringFromAscii(                         \
+      name = factory->NewStringFromAscii(                                    \
           Vector<const char>("_" #Name, StrLength("_" #Name)));              \
     } else {                                                                 \
-      name = isolate->factory()->NewStringFromAscii(                         \
+      name = factory->NewStringFromAscii(                                    \
           Vector<const char>(#Name, StrLength(#Name)));                      \
     }                                                                        \
-    Handle<JSArray> pair = isolate->factory()->NewJSArray(0);                \
-    SetElement(pair, 0, name);                                               \
-    SetElement(pair, 1, Handle<Smi>(Smi::FromInt(argc)));                    \
-    SetElement(result, index++, pair);                                       \
+    Handle<FixedArray> pair_elements = factory->NewFixedArray(2);            \
+    pair_elements->set(0, *name);                                            \
+    pair_elements->set(1, Smi::FromInt(argc));                               \
+    Handle<JSArray> pair = factory->NewJSArrayWithElements(pair_elements);   \
+    elements->set(index++, *pair);                                           \
   }
   inline_runtime_functions = false;
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
@@ -12027,6 +12050,8 @@ static MaybeObject* Runtime_ListNatives(RUNTIME_CALLING_CONVENTION) {
   INLINE_FUNCTION_LIST(ADD_ENTRY)
   INLINE_RUNTIME_FUNCTION_LIST(ADD_ENTRY)
 #undef ADD_ENTRY
+  ASSERT_EQ(index, entry_count);
+  Handle<JSArray> result = factory->NewJSArrayWithElements(elements);
   return *result;
 }
 #endif

@@ -1371,12 +1371,12 @@ class JSObject: public HeapObject {
   MUST_USE_RESULT MaybeObject* SetProperty(String* key,
                                            Object* value,
                                            PropertyAttributes attributes,
-                                           StrictModeFlag strict);
+                                           StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetProperty(LookupResult* result,
                                            String* key,
                                            Object* value,
                                            PropertyAttributes attributes,
-                                           StrictModeFlag strict);
+                                           StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetPropertyWithFailedAccessCheck(
       LookupResult* result,
       String* name,
@@ -1392,12 +1392,12 @@ class JSObject: public HeapObject {
       String* name,
       Object* value,
       PropertyAttributes attributes,
-      StrictModeFlag strict);
+      StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetPropertyPostInterceptor(
       String* name,
       Object* value,
       PropertyAttributes attributes,
-      StrictModeFlag strict);
+      StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
       String* key,
       Object* value,
@@ -1523,6 +1523,12 @@ class JSObject: public HeapObject {
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
   bool HasElementWithReceiver(JSObject* receiver, uint32_t index);
+
+  // Computes the new capacity when expanding the elements of a JSObject.
+  static int NewElementsCapacity(int old_capacity) {
+    // (old_capacity + 50%) + 16
+    return old_capacity + (old_capacity >> 1) + 16;
+  }
 
   // Tells whether the index'th element is present and how it is stored.
   enum LocalElementType {

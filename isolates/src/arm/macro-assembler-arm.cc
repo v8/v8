@@ -1539,6 +1539,14 @@ void MacroAssembler::CompareInstanceType(Register map,
 }
 
 
+void MacroAssembler::CompareRoot(Register obj,
+                                 Heap::RootListIndex index) {
+  ASSERT(!obj.is(ip));
+  LoadRoot(ip, index);
+  cmp(obj, ip);
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,
@@ -2345,9 +2353,7 @@ void MacroAssembler::AbortIfNotString(Register object) {
 void MacroAssembler::AbortIfNotRootValue(Register src,
                                          Heap::RootListIndex root_value_index,
                                          const char* message) {
-  ASSERT(!src.is(ip));
-  LoadRoot(ip, root_value_index);
-  cmp(src, ip);
+  CompareRoot(src, root_value_index);
   Assert(eq, message);
 }
 

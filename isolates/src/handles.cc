@@ -262,9 +262,9 @@ Handle<Object> SetProperty(Handle<JSObject> object,
                            Handle<String> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
-                           StrictModeFlag strict) {
+                           StrictModeFlag strict_mode) {
   CALL_HEAP_FUNCTION(object->GetHeap()->isolate(),
-                     object->SetProperty(*key, *value, attributes, strict),
+                     object->SetProperty(*key, *value, attributes, strict_mode),
                      Object);
 }
 
@@ -273,12 +273,12 @@ Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
-                           StrictModeFlag strict) {
+                           StrictModeFlag strict_mode) {
   Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(
       isolate,
       Runtime::SetObjectProperty(
-          isolate, object, key, value, attributes, strict),
+          isolate, object, key, value, attributes, strict_mode),
       Object);
 }
 
@@ -341,12 +341,12 @@ Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
-                                          StrictModeFlag strict) {
+                                          StrictModeFlag strict_mode) {
   CALL_HEAP_FUNCTION(object->GetIsolate(),
                      object->SetPropertyWithInterceptor(*key,
                                                         *value,
                                                         attributes,
-                                                        strict),
+                                                        strict_mode),
                      Object);
 }
 

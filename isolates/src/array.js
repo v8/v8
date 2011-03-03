@@ -33,7 +33,7 @@
 
 // Global list of arrays visited during toString, toLocaleString and
 // join invocations.
-var visited_arrays = new $Array();
+var visited_arrays = new InternalArray();
 
 
 // Gets a sorted array of array keys.  Useful for operations on sparse
@@ -73,7 +73,7 @@ function SparseJoin(array, len, convert) {
   var last_key = -1;
   var keys_length = keys.length;
 
-  var elements = new $Array(keys_length);
+  var elements = new InternalArray(keys_length);
   var elements_length = 0;
 
   for (var i = 0; i < keys_length; i++) {
@@ -122,7 +122,7 @@ function Join(array, length, separator, convert) {
     }
 
     // Construct an array for the elements.
-    var elements = new $Array(length);
+    var elements = new InternalArray(length);
 
     // We pull the empty separator check outside the loop for speed!
     if (separator.length == 0) {
@@ -140,7 +140,7 @@ function Join(array, length, separator, convert) {
       return %StringBuilderConcat(elements, elements_length, '');
     }
     // Non-empty separator case.
-    // If the first element is a number then use the heuristic that the 
+    // If the first element is a number then use the heuristic that the
     // remaining elements are also likely to be numbers.
     if (!IS_NUMBER(array[0])) {
       for (var i = 0; i < length; i++) {
@@ -148,7 +148,7 @@ function Join(array, length, separator, convert) {
         if (!IS_STRING(e)) e = convert(e);
         elements[i] = e;
       }
-    } else { 
+    } else {
       for (var i = 0; i < length; i++) {
         var e = array[i];
         if (IS_NUMBER(e)) elements[i] = %_NumberToString(e);
@@ -157,9 +157,9 @@ function Join(array, length, separator, convert) {
           elements[i] = e;
         }
       }
-    }   
+    }
     var result = %_FastAsciiArrayJoin(elements, separator);
-    if (!IS_UNDEFINED(result)) return result;   
+    if (!IS_UNDEFINED(result)) return result;
 
     return %StringBuilderJoin(elements, length, separator);
   } finally {
@@ -171,7 +171,7 @@ function Join(array, length, separator, convert) {
 
 
 function ConvertToString(x) {
-  // Assumes x is a non-string. 
+  // Assumes x is a non-string.
   if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   return (IS_NULL_OR_UNDEFINED(x)) ? '' : %ToString(%DefaultString(x));
@@ -241,7 +241,7 @@ function SmartSlice(array, start_i, del_count, len, deleted_elements) {
 // special array operations to handle sparse arrays in a sensible fashion.
 function SmartMove(array, start_i, del_count, len, num_additional_args) {
   // Move data to new array.
-  var new_array = new $Array(len - del_count + num_additional_args);
+  var new_array = new InternalArray(len - del_count + num_additional_args);
   var intervals = %GetArrayKeys(array, len);
   var length = intervals.length;
   for (var k = 0; k < length; k++) {
@@ -419,7 +419,7 @@ function ArrayPush() {
 
 function ArrayConcat(arg1) {  // length == 1
   var arg_count = %_ArgumentsLength();
-  var arrays = new $Array(1 + arg_count);
+  var arrays = new InternalArray(1 + arg_count);
   arrays[0] = this;
   for (var i = 0; i < arg_count; i++) {
     arrays[i + 1] = %_Arguments(i);
@@ -925,7 +925,9 @@ function ArrayFilter(f, receiver) {
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
-      if (f.call(receiver, current, i, this)) result[result_length++] = current;
+      if (f.call(receiver, current, i, this)) {
+        result[result_length++] = current;
+      }
     }
   }
   return result;
@@ -990,13 +992,15 @@ function ArrayMap(f, receiver) {
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
   var length = TO_UINT32(this.length);
-  var result = new $Array(length);
+  var result = new $Array();
+  var accumulator = new InternalArray(length);
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
-      result[i] = f.call(receiver, current, i, this);
+      accumulator[i] = f.call(receiver, current, i, this);
     }
   }
+  %MoveArrayContents(accumulator, result);
   return result;
 }
 
@@ -1225,6 +1229,20 @@ function SetupArray() {
   ));
 
   %FinishArrayPrototypeSetup($Array.prototype);
+
+  // The internal Array prototype doesn't need to be fancy, since it's never
+  // exposed to user code, so no hidden prototypes or DONT_ENUM attributes
+  // are necessary.
+  // The null __proto__ ensures that we never inherit any user created
+  // getters or setters from, e.g., Object.prototype.
+  InternalArray.prototype.__proto__ = null;
+  // Adding only the functions that are actually used, and a toString.
+  InternalArray.prototype.join = getFunction("join", ArrayJoin);
+  InternalArray.prototype.pop = getFunction("pop", ArrayPop);
+  InternalArray.prototype.push = getFunction("push", ArrayPush);
+  InternalArray.prototype.toString = function() {
+    return "Internal Array, length " + this.length;
+  };
 }
 
 

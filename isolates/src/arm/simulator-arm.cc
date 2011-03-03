@@ -1535,7 +1535,8 @@ typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0,
                                         int32_t arg1,
                                         int32_t arg2,
                                         int32_t arg3,
-                                        int32_t arg4);
+                                        int32_t arg4,
+                                        int32_t arg5);
 typedef double (*SimulatorRuntimeFPCall)(int32_t arg0,
                                          int32_t arg1,
                                          int32_t arg2,
@@ -1566,7 +1567,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       int32_t arg2 = get_register(r2);
       int32_t arg3 = get_register(r3);
       int32_t* stack_pointer = reinterpret_cast<int32_t*>(get_register(sp));
-      int32_t arg4 = *stack_pointer;
+      int32_t arg4 = stack_pointer[0];
+      int32_t arg5 = stack_pointer[1];
       // This is dodgy but it works because the C entry stubs are never moved.
       // See comment in codegen-arm.cc and bug 1242173.
       int32_t saved_lr = get_register(lr);
@@ -1629,20 +1631,22 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             reinterpret_cast<SimulatorRuntimeCall>(external);
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF(
-              "Call to host function at %p args %08x, %08x, %08x, %08x, %0xc",
+              "Call to host function at %p"
+              "args %08x, %08x, %08x, %08x, %08x, %08x",
               FUNCTION_ADDR(target),
               arg0,
               arg1,
               arg2,
               arg3,
-              arg4);
+              arg4,
+              arg5);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        int64_t result = target(arg0, arg1, arg2, arg3, arg4);
+        int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
         if (::v8::internal::FLAG_trace_sim) {

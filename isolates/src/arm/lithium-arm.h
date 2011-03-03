@@ -728,17 +728,6 @@ class LHasInstanceTypeAndBranch: public LControlInstruction<1, 0> {
 };
 
 
-class LHasCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LHasCachedArrayIndex(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(HasCachedArrayIndex, "has-cached-array-index")
-  DECLARE_HYDROGEN_ACCESSOR(HasCachedArrayIndex)
-};
-
-
 class LGetCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LGetCachedArrayIndex(LOperand* value) {
@@ -747,6 +736,17 @@ class LGetCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(GetCachedArrayIndex, "get-cached-array-index")
   DECLARE_HYDROGEN_ACCESSOR(GetCachedArrayIndex)
+};
+
+
+class LHasCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LHasCachedArrayIndex(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(HasCachedArrayIndex, "has-cached-array-index")
+  DECLARE_HYDROGEN_ACCESSOR(HasCachedArrayIndex)
 };
 
 

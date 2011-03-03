@@ -1522,8 +1522,10 @@ LInstruction* LChunkBuilder::DoHasInstanceType(HHasInstanceType* instr) {
 
 LInstruction* LChunkBuilder::DoGetCachedArrayIndex(
     HGetCachedArrayIndex* instr)  {
-  Abort("Unimplemented: %s", "DoGetCachedArrayIndex");
-  return NULL;
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegisterAtStart(instr->value());
+
+  return DefineAsRegister(new LGetCachedArrayIndex(value));
 }
 
 

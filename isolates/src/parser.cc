@@ -809,12 +809,14 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
   MessageLocation location(script_,
                            source_location.beg_pos,
                            source_location.end_pos);
-  Handle<JSArray> array = isolate()->factory()->NewJSArray(args.length());
+  Factory* factory = isolate()->factory();
+  Handle<FixedArray> elements = factory->NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
-    SetElement(array, i,
-               isolate()->factory()->NewStringFromUtf8(CStrVector(args[i])));
+    Handle<String> arg_string = factory->NewStringFromUtf8(CStrVector(args[i]));
+    elements->set(i, *arg_string);
   }
-  Handle<Object> result = isolate()->factory()->NewSyntaxError(type, array);
+  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
+  Handle<Object> result = factory->NewSyntaxError(type, array);
   isolate()->Throw(*result, &location);
 }
 
@@ -825,11 +827,13 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
   MessageLocation location(script_,
                            source_location.beg_pos,
                            source_location.end_pos);
-  Handle<JSArray> array = FACTORY->NewJSArray(args.length());
+  Factory* factory = isolate()->factory();
+  Handle<FixedArray> elements = factory->NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
-    SetElement(array, i, args[i]);
+    elements->set(i, *args[i]);
   }
-  Handle<Object> result = FACTORY->NewSyntaxError(type, array);
+  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
+  Handle<Object> result = factory->NewSyntaxError(type, array);
   isolate()->Throw(*result, &location);
 }
 
@@ -4051,19 +4055,20 @@ Handle<Object> JsonParser::ParseJson(Handle<String> script,
       }
 
       Scanner::Location source_location = scanner_.location();
-      MessageLocation location(isolate()->factory()->NewScript(script),
+      Factory* factory = isolate()->factory();
+      MessageLocation location(factory->NewScript(script),
                                source_location.beg_pos,
                                source_location.end_pos);
-      int argc = (name_opt == NULL) ? 0 : 1;
-      Handle<JSArray> array = isolate()->factory()->NewJSArray(argc);
-      if (name_opt != NULL) {
-        SetElement(
-            array,
-            0,
-            isolate()->factory()->NewStringFromUtf8(CStrVector(name_opt)));
+      Handle<JSArray> array;
+      if (name_opt == NULL) {
+        array = factory->NewJSArray(0);
+      } else {
+        Handle<String> name = factory->NewStringFromUtf8(CStrVector(name_opt));
+        Handle<FixedArray> element = factory->NewFixedArray(1);
+        element->set(0, *name);
+        array = factory->NewJSArrayWithElements(element);
       }
-      Handle<Object> result =
-          isolate()->factory()->NewSyntaxError(message, array);
+      Handle<Object> result = factory->NewSyntaxError(message, array);
       isolate()->Throw(*result, &location);
       return Handle<Object>::null();
     }

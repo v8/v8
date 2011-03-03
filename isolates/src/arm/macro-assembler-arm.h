@@ -577,6 +577,11 @@ class MacroAssembler: public Assembler {
                 bool is_heap_object);
 
 
+  // Compare the object in a register to a value from the root list.
+  // Uses the ip register as scratch.
+  void CompareRoot(Register obj, Heap::RootListIndex index);
+
+
   // Load and check the instance type of an object for being a string.
   // Loads the type into the second argument register.
   // Returns a condition that will be enabled if the object was a string.

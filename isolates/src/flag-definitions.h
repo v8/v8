@@ -97,11 +97,7 @@ private:
 #define FLAG FLAG_FULL
 
 // Flags for Crankshaft.
-#ifdef V8_TARGET_ARCH_IA32
 DEFINE_bool(crankshaft, true, "use crankshaft")
-#else
-DEFINE_bool(crankshaft, false, "use crankshaft")
-#endif
 DEFINE_string(hydrogen_filter, "", "hydrogen use/trace filter")
 DEFINE_bool(use_hydrogen, true, "use generated hydrogen for compilation")
 DEFINE_bool(build_lithium, true, "use lithium chunk builder")

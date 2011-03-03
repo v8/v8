@@ -1663,8 +1663,7 @@ void HGraph::PropagateMinusZeroChecks(HValue* value, BitVector* visited) {
 
 void HGraph::InsertRepresentationChangeForUse(HValue* value,
                                               HValue* use,
-                                              Representation to,
-                                              bool is_truncating) {
+                                              Representation to) {
   // Insert the representation change right before its use. For phi-uses we
   // insert at the end of the corresponding predecessor.
   HInstruction* next = NULL;
@@ -1681,6 +1680,7 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   // information we treat constants like normal instructions and insert the
   // change instructions for them.
   HInstruction* new_value = NULL;
+  bool is_truncating = use->CheckFlag(HValue::kTruncatingToInt32);
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     // Try to create a new copy of the constant with the new representation.
@@ -1690,7 +1690,7 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   }
 
   if (new_value == NULL) {
-    new_value = new HChange(value, value->representation(), to);
+    new_value = new HChange(value, value->representation(), to, is_truncating);
   }
 
   new_value->InsertBefore(next);
@@ -1765,8 +1765,7 @@ void HGraph::InsertRepresentationChanges(HValue* current) {
   for (int i = 0; i < to_convert.length(); ++i) {
     HValue* use = to_convert[i];
     Representation r_to = to_convert_reps[i];
-    bool is_truncating = use->CheckFlag(HValue::kTruncatingToInt32);
-    InsertRepresentationChangeForUse(current, use, r_to, is_truncating);
+    InsertRepresentationChangeForUse(current, use, r_to);
   }
 
   if (current->uses()->is_empty()) {
@@ -4915,28 +4914,23 @@ void HGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
       VISIT_FOR_VALUE(expr->left());
       ASSERT(current_block() != NULL);
 
-      HValue* left = Top();
-      HEnvironment* environment_copy = environment()->Copy();
-      environment_copy->Pop();
-      HSubgraph* right_subgraph;
-      right_subgraph = CreateBranchSubgraph(environment_copy);
-      ADD_TO_SUBGRAPH(right_subgraph, expr->right());
-
-      ASSERT(current_block() != NULL &&
-             right_subgraph->exit_block() != NULL);
       // We need an extra block to maintain edge-split form.
       HBasicBlock* empty_block = graph()->CreateBasicBlock();
-      HBasicBlock* join_block = graph()->CreateBasicBlock();
-
+      HBasicBlock* eval_right = graph()->CreateBasicBlock();
       HTest* test = is_logical_and
-          ? new HTest(left, right_subgraph->entry_block(), empty_block)
-          : new HTest(left, empty_block, right_subgraph->entry_block());
+          ? new HTest(Top(), eval_right, empty_block)
+          : new HTest(Top(), empty_block, eval_right);
       current_block()->Finish(test);
-      empty_block->Goto(join_block);
-      right_subgraph->exit_block()->Goto(join_block);
-      join_block->SetJoinId(expr->id());
+
+      set_current_block(eval_right);
+      Drop(1);  // Value of the left subexpression.
+      VISIT_FOR_VALUE(expr->right());
+
+      HBasicBlock* join_block =
+          CreateJoin(empty_block, current_block(), expr->id());
       set_current_block(join_block);
       ast_context()->ReturnValue(Pop());
+
     } else {
       ASSERT(ast_context()->IsEffect());
       // In an effect context, we don't need the value of the left

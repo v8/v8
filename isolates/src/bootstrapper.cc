@@ -1030,22 +1030,24 @@ void Genesis::InstallNativeFunctions() {
 
 bool Genesis::InstallNatives() {
   HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
 
   // Create a function for the builtins object. Allocate space for the
   // JavaScript builtins, a reference to the builtins object
   // (itself) and a reference to the global_context directly in the object.
   Handle<Code> code = Handle<Code>(
-      Isolate::Current()->builtins()->builtin(Builtins::Illegal));
+      isolate->builtins()->builtin(Builtins::Illegal));
   Handle<JSFunction> builtins_fun =
-      FACTORY->NewFunction(FACTORY->empty_symbol(), JS_BUILTINS_OBJECT_TYPE,
+      factory->NewFunction(factory->empty_symbol(), JS_BUILTINS_OBJECT_TYPE,
                            JSBuiltinsObject::kSize, code, true);
 
-  Handle<String> name = FACTORY->LookupAsciiSymbol("builtins");
+  Handle<String> name = factory->LookupAsciiSymbol("builtins");
   builtins_fun->shared()->set_instance_class_name(*name);
 
   // Allocate the builtins object.
   Handle<JSBuiltinsObject> builtins =
-      Handle<JSBuiltinsObject>::cast(FACTORY->NewGlobalObject(builtins_fun));
+      Handle<JSBuiltinsObject>::cast(factory->NewGlobalObject(builtins_fun));
   builtins->set_builtins(*builtins);
   builtins->set_global_context(*global_context());
   builtins->set_global_receiver(*builtins);
@@ -1056,7 +1058,7 @@ bool Genesis::InstallNatives() {
   // global object.
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-  Handle<String> global_symbol = FACTORY->LookupAsciiSymbol("global");
+  Handle<String> global_symbol = factory->LookupAsciiSymbol("global");
   Handle<Object> global_obj(global_context()->global());
   SetLocalPropertyNoThrow(builtins, global_symbol, global_obj, attributes);
 
@@ -1065,12 +1067,12 @@ bool Genesis::InstallNatives() {
 
   // Create a bridge function that has context in the global context.
   Handle<JSFunction> bridge =
-      FACTORY->NewFunction(FACTORY->empty_symbol(), FACTORY->undefined_value());
-  ASSERT(bridge->context() == *Isolate::Current()->global_context());
+      factory->NewFunction(factory->empty_symbol(), factory->undefined_value());
+  ASSERT(bridge->context() == *isolate->global_context());
 
   // Allocate the builtins context.
   Handle<Context> context =
-    FACTORY->NewFunctionContext(Context::MIN_CONTEXT_SLOTS, bridge);
+    factory->NewFunctionContext(Context::MIN_CONTEXT_SLOTS, bridge);
   context->set_global(*builtins);  // override builtins global object
 
   global_context()->set_runtime_context(*context);
@@ -1079,113 +1081,113 @@ bool Genesis::InstallNatives() {
     // Builtin functions for Script.
     Handle<JSFunction> script_fun =
         InstallFunction(builtins, "Script", JS_VALUE_TYPE, JSValue::kSize,
-                        Isolate::Current()->initial_object_prototype(),
+                        isolate->initial_object_prototype(),
                         Builtins::Illegal, false);
     Handle<JSObject> prototype =
-        FACTORY->NewJSObject(Isolate::Current()->object_function(), TENURED);
+        factory->NewJSObject(isolate->object_function(), TENURED);
     SetPrototype(script_fun, prototype);
     global_context()->set_script_function(*script_fun);
 
     // Add 'source' and 'data' property to scripts.
     PropertyAttributes common_attributes =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-    Handle<Proxy> proxy_source = FACTORY->NewProxy(&Accessors::ScriptSource);
+    Handle<Proxy> proxy_source = factory->NewProxy(&Accessors::ScriptSource);
     Handle<DescriptorArray> script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
-            FACTORY->empty_descriptor_array(),
-            FACTORY->LookupAsciiSymbol("source"),
+        factory->CopyAppendProxyDescriptor(
+            factory->empty_descriptor_array(),
+            factory->LookupAsciiSymbol("source"),
             proxy_source,
             common_attributes);
-    Handle<Proxy> proxy_name = FACTORY->NewProxy(&Accessors::ScriptName);
+    Handle<Proxy> proxy_name = factory->NewProxy(&Accessors::ScriptName);
     script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
+        factory->CopyAppendProxyDescriptor(
             script_descriptors,
-            FACTORY->LookupAsciiSymbol("name"),
+            factory->LookupAsciiSymbol("name"),
             proxy_name,
             common_attributes);
-    Handle<Proxy> proxy_id = FACTORY->NewProxy(&Accessors::ScriptId);
+    Handle<Proxy> proxy_id = factory->NewProxy(&Accessors::ScriptId);
     script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
+        factory->CopyAppendProxyDescriptor(
             script_descriptors,
-            FACTORY->LookupAsciiSymbol("id"),
+            factory->LookupAsciiSymbol("id"),
             proxy_id,
             common_attributes);
     Handle<Proxy> proxy_line_offset =
-        FACTORY->NewProxy(&Accessors::ScriptLineOffset);
+        factory->NewProxy(&Accessors::ScriptLineOffset);
     script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
+        factory->CopyAppendProxyDescriptor(
             script_descriptors,
-            FACTORY->LookupAsciiSymbol("line_offset"),
+            factory->LookupAsciiSymbol("line_offset"),
             proxy_line_offset,
             common_attributes);
     Handle<Proxy> proxy_column_offset =
-        FACTORY->NewProxy(&Accessors::ScriptColumnOffset);
+        factory->NewProxy(&Accessors::ScriptColumnOffset);
     script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
+        factory->CopyAppendProxyDescriptor(
             script_descriptors,
-            FACTORY->LookupAsciiSymbol("column_offset"),
+            factory->LookupAsciiSymbol("column_offset"),
             proxy_column_offset,
             common_attributes);
-    Handle<Proxy> proxy_data = FACTORY->NewProxy(&Accessors::ScriptData);
+    Handle<Proxy> proxy_data = factory->NewProxy(&Accessors::ScriptData);
     script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
+        factory->CopyAppendProxyDescriptor(
             script_descriptors,
-            FACTORY->LookupAsciiSymbol("data"),
+            factory->LookupAsciiSymbol("data"),
             proxy_data,
             common_attributes);
-    Handle<Proxy> proxy_type = FACTORY->NewProxy(&Accessors::ScriptType);
+    Handle<Proxy> proxy_type = factory->NewProxy(&Accessors::ScriptType);
     script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
+        factory->CopyAppendProxyDescriptor(
             script_descriptors,
-            FACTORY->LookupAsciiSymbol("type"),
+            factory->LookupAsciiSymbol("type"),
             proxy_type,
             common_attributes);
     Handle<Proxy> proxy_compilation_type =
-        FACTORY->NewProxy(&Accessors::ScriptCompilationType);
+        factory->NewProxy(&Accessors::ScriptCompilationType);
     script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
+        factory->CopyAppendProxyDescriptor(
             script_descriptors,
-            FACTORY->LookupAsciiSymbol("compilation_type"),
+            factory->LookupAsciiSymbol("compilation_type"),
             proxy_compilation_type,
             common_attributes);
     Handle<Proxy> proxy_line_ends =
-        FACTORY->NewProxy(&Accessors::ScriptLineEnds);
+        factory->NewProxy(&Accessors::ScriptLineEnds);
     script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
+        factory->CopyAppendProxyDescriptor(
             script_descriptors,
-            FACTORY->LookupAsciiSymbol("line_ends"),
+            factory->LookupAsciiSymbol("line_ends"),
             proxy_line_ends,
             common_attributes);
     Handle<Proxy> proxy_context_data =
-        FACTORY->NewProxy(&Accessors::ScriptContextData);
+        factory->NewProxy(&Accessors::ScriptContextData);
     script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
+        factory->CopyAppendProxyDescriptor(
             script_descriptors,
-            FACTORY->LookupAsciiSymbol("context_data"),
+            factory->LookupAsciiSymbol("context_data"),
             proxy_context_data,
             common_attributes);
     Handle<Proxy> proxy_eval_from_script =
-        FACTORY->NewProxy(&Accessors::ScriptEvalFromScript);
+        factory->NewProxy(&Accessors::ScriptEvalFromScript);
     script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
+        factory->CopyAppendProxyDescriptor(
             script_descriptors,
-            FACTORY->LookupAsciiSymbol("eval_from_script"),
+            factory->LookupAsciiSymbol("eval_from_script"),
             proxy_eval_from_script,
             common_attributes);
     Handle<Proxy> proxy_eval_from_script_position =
-        FACTORY->NewProxy(&Accessors::ScriptEvalFromScriptPosition);
+        factory->NewProxy(&Accessors::ScriptEvalFromScriptPosition);
     script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
+        factory->CopyAppendProxyDescriptor(
             script_descriptors,
-            FACTORY->LookupAsciiSymbol("eval_from_script_position"),
+            factory->LookupAsciiSymbol("eval_from_script_position"),
             proxy_eval_from_script_position,
             common_attributes);
     Handle<Proxy> proxy_eval_from_function_name =
-        FACTORY->NewProxy(&Accessors::ScriptEvalFromFunctionName);
+        factory->NewProxy(&Accessors::ScriptEvalFromFunctionName);
     script_descriptors =
-        FACTORY->CopyAppendProxyDescriptor(
+        factory->CopyAppendProxyDescriptor(
             script_descriptors,
-            FACTORY->LookupAsciiSymbol("eval_from_function_name"),
+            factory->LookupAsciiSymbol("eval_from_function_name"),
             proxy_eval_from_function_name,
             common_attributes);
 
@@ -1193,7 +1195,7 @@ bool Genesis::InstallNatives() {
     script_map->set_instance_descriptors(*script_descriptors);
 
     // Allocate the empty script.
-    Handle<Script> script = FACTORY->NewScript(FACTORY->empty_string());
+    Handle<Script> script = factory->NewScript(factory->empty_string());
     script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
     HEAP->public_set_empty_script(*script);
   }
@@ -1204,12 +1206,49 @@ bool Genesis::InstallNatives() {
     Handle<JSFunction> opaque_reference_fun =
         InstallFunction(builtins, "OpaqueReference", JS_VALUE_TYPE,
                         JSValue::kSize,
-                        Isolate::Current()->initial_object_prototype(),
+                        isolate->initial_object_prototype(),
                         Builtins::Illegal, false);
     Handle<JSObject> prototype =
-        FACTORY->NewJSObject(Isolate::Current()->object_function(), TENURED);
+        factory->NewJSObject(isolate->object_function(), TENURED);
     SetPrototype(opaque_reference_fun, prototype);
     global_context()->set_opaque_reference_function(*opaque_reference_fun);
+  }
+
+  {  // --- I n t e r n a l   A r r a y ---
+    // An array constructor on the builtins object that works like
+    // the public Array constructor, except that its prototype
+    // doesn't inherit from Object.prototype.
+    // To be used only for internal work by builtins. Instances
+    // must not be leaked to user code.
+    // Only works correctly when called as a constructor. The normal
+    // Array code uses Array.prototype as prototype when called as
+    // a function.
+    Handle<JSFunction> array_function =
+        InstallFunction(builtins,
+                        "InternalArray",
+                        JS_ARRAY_TYPE,
+                        JSArray::kSize,
+                        isolate->initial_object_prototype(),
+                        Builtins::ArrayCode,
+                        true);
+    Handle<JSObject> prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    SetPrototype(array_function, prototype);
+
+    array_function->shared()->set_construct_stub(
+        isolate->builtins()->builtin(Builtins::ArrayConstructCode));
+    array_function->shared()->DontAdaptArguments();
+
+    // Make "length" magic on instances.
+    Handle<DescriptorArray> array_descriptors =
+        factory->CopyAppendProxyDescriptor(
+            factory->empty_descriptor_array(),
+            factory->length_symbol(),
+            factory->NewProxy(&Accessors::ArrayLength),
+            static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE));
+
+    array_function->initial_map()->set_instance_descriptors(
+        *array_descriptors);
   }
 
   if (FLAG_disable_native_files) {
@@ -1242,10 +1281,9 @@ bool Genesis::InstallNatives() {
   InstallBuiltinFunctionIds();
 
   // Install Function.prototype.call and apply.
-  { Handle<String> key = FACTORY->function_class_symbol();
+  { Handle<String> key = factory->function_class_symbol();
     Handle<JSFunction> function =
-        Handle<JSFunction>::cast(
-            GetProperty(Isolate::Current()->global(), key));
+        Handle<JSFunction>::cast(GetProperty(isolate->global(), key));
     Handle<JSObject> proto =
         Handle<JSObject>(JSObject::cast(function->instance_prototype()));
 
@@ -1287,7 +1325,7 @@ bool Genesis::InstallNatives() {
 
     // Add initial map.
     Handle<Map> initial_map =
-        FACTORY->NewMap(JS_ARRAY_TYPE, JSRegExpResult::kSize);
+        factory->NewMap(JS_ARRAY_TYPE, JSRegExpResult::kSize);
     initial_map->set_constructor(*array_constructor);
 
     // Set prototype on map.
@@ -1301,7 +1339,7 @@ bool Genesis::InstallNatives() {
     ASSERT_EQ(1, array_descriptors->number_of_descriptors());
 
     Handle<DescriptorArray> reresult_descriptors =
-        FACTORY->NewDescriptorArray(3);
+        factory->NewDescriptorArray(3);
 
     reresult_descriptors->CopyFrom(0, *array_descriptors, 0);
 
@@ -1330,6 +1368,7 @@ bool Genesis::InstallNatives() {
 
     global_context()->set_regexp_result_map(*initial_map);
   }
+
 
 #ifdef DEBUG
   builtins->Verify();
