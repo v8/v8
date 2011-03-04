@@ -3147,65 +3147,70 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
                                                      HValue* value,
                                                      ZoneMapList* types,
                                                      Handle<String> name) {
-  int number_of_types = Min(types->length(), kMaxStorePolymorphism);
-  ZoneMapList maps(number_of_types);
-  ZoneList<HSubgraph*> subgraphs(number_of_types);
-  bool needs_generic = (types->length() > kMaxStorePolymorphism);
-
-  // Build subgraphs for each of the specific maps.
-  //
-  // TODO(ager): We should recognize when the prototype chains for
-  // different maps are identical. In that case we can avoid
-  // repeatedly generating the same prototype map checks.
-  for (int i = 0; i < number_of_types; ++i) {
+  int count = 0;
+  HBasicBlock* join = NULL;
+  for (int i = 0; i < types->length() && count < kMaxStorePolymorphism; ++i) {
     Handle<Map> map = types->at(i);
     LookupResult lookup;
     if (ComputeStoredField(map, name, &lookup)) {
-      HSubgraph* subgraph = CreateBranchSubgraph(environment());
-      SubgraphScope scope(this, subgraph);
+      ++count;
+      if (join == NULL) {
+        AddInstruction(new HCheckNonSmi(object));  // Only needed once.
+        join = graph()->CreateBasicBlock();
+      }
+      HBasicBlock* if_true = graph()->CreateBasicBlock();
+      HBasicBlock* if_false = graph()->CreateBasicBlock();
+      HCompareMap* compare = new HCompareMap(object, map, if_true, if_false);
+      current_block()->Finish(compare);
+
+      set_current_block(if_true);
       HInstruction* instr =
           BuildStoreNamedField(object, name, value, map, &lookup, false);
-      Push(value);
       instr->set_position(expr->position());
+      // Goto will add the HSimulate for the store.
       AddInstruction(instr);
-      maps.Add(map);
-      subgraphs.Add(subgraph);
-    } else {
-      needs_generic = true;
+      if (!ast_context()->IsEffect()) Push(value);
+      current_block()->Goto(join);
+
+      set_current_block(if_false);
     }
   }
 
-  // If none of the properties were named fields we generate a
-  // generic store.
-  if (maps.length() == 0) {
+  // Finish up.  We need a generic IC if there were types we couldn't
+  // resolve statically or if we want to handle maps we've never seen.
+  if (count < types->length() || !FLAG_deoptimize_uncommon_cases) {
     HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
-    Push(value);
     instr->set_position(expr->position());
     AddInstruction(instr);
-    if (instr->HasSideEffects()) AddSimulate(expr->AssignmentId());
-    ast_context()->ReturnValue(Pop());
-  } else {
-    // Build subgraph for generic store through IC.
-    HSubgraph* default_graph = CreateBranchSubgraph(environment());
-    { SubgraphScope scope(this, default_graph);
-      if (!needs_generic && FLAG_deoptimize_uncommon_cases) {
-        default_graph->exit_block()->FinishExit(new HDeoptimize());
-        default_graph->set_exit_block(NULL);
-      } else {
-        HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
-        Push(value);
-        instr->set_position(expr->position());
-        AddInstruction(instr);
+
+    if (join == NULL) {
+      // The HSimulate for the store should not see the stored value in
+      // effect contexts (it is not materialized at expr->id() in the
+      // unoptimized code).
+      if (instr->HasSideEffects()) {
+        if (ast_context()->IsEffect()) {
+          AddSimulate(expr->id());
+        } else {
+          Push(value);
+          AddSimulate(expr->id());
+          Drop(1);
+        }
       }
+      ast_context()->ReturnValue(value);
+    } else {
+      if (!ast_context()->IsEffect()) Push(value);
+      current_block()->Goto(join);
+      join->SetJoinId(expr->id());
+      set_current_block(join);
+      if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
     }
 
-    HBasicBlock* new_exit_block =
-        BuildTypeSwitch(object, &maps, &subgraphs, default_graph, expr->id());
-    set_current_block(new_exit_block);
-    // In an effect context, we did not materialized the value in the
-    // predecessor environments so there's no need to handle it here.
-    if (current_block() != NULL && !ast_context()->IsEffect()) {
-      ast_context()->ReturnValue(Pop());
+  } else {
+    current_block()->FinishExit(new HDeoptimize);
+    set_current_block(join);
+    if (join != NULL) {
+      join->SetJoinId(expr->id());
+      if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
     }
   }
 }
