@@ -1397,8 +1397,16 @@ MaybeObject* StoreIC::Store(State state,
     return TypeError("non_object_property_store", object, name);
   }
 
-  // Ignore stores where the receiver is not a JSObject.
-  if (!object->IsJSObject()) return *value;
+  if (!object->IsJSObject()) {
+    // The length property of string values is read-only. Throw in strict mode.
+    if (strict_mode == kStrictMode && object->IsString() &&
+        name->Equals(Heap::length_symbol())) {
+      return TypeError("strict_read_only_property", object, name);
+    }
+    // Ignore stores where the receiver is not a JSObject.
+    return *value;
+  }
+
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
   // Check if the given name is an array index.

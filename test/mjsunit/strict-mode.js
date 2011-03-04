@@ -944,3 +944,16 @@ repeat(10, function() { testAssignToUndefined(false); });
 
   assertEquals(o[7], 17);
 })();
+
+
+(function TestAssignmentToStringLength() {
+  "use strict";
+
+  var str_val = "string";
+  var str_obj = new String(str_val);
+  var str_cat = str_val + str_val + str_obj;
+
+  assertThrows(function() { str_val.length = 1; }, TypeError);
+  assertThrows(function() { str_obj.length = 1; }, TypeError);
+  assertThrows(function() { str_cat.length = 1; }, TypeError);
+})();
