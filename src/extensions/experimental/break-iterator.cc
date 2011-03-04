@@ -46,6 +46,23 @@ icu::BreakIterator* BreakIterator::UnpackBreakIterator(
   return NULL;
 }
 
+UnicodeString* BreakIterator::ResetAdoptedText(
+    v8::Handle<v8::Object> obj, v8::Handle<v8::Value> value) {
+  // Get the previous value from the internal field.
+  UnicodeString* text = static_cast<UnicodeString*>(
+      obj->GetPointerFromInternalField(1));
+  delete text;
+
+  // Assign new value to the internal pointer.
+  v8::String::Value text_value(value);
+  text = new UnicodeString(
+      reinterpret_cast<const UChar*>(*text_value), text_value.length());
+  obj->SetPointerInInternalField(1, text);
+
+  // Return new unicode string pointer.
+  return text;
+}
+
 void BreakIterator::DeleteBreakIterator(v8::Persistent<v8::Value> object,
                                         void* param) {
   v8::Persistent<v8::Object> persistent_object =
@@ -56,6 +73,9 @@ void BreakIterator::DeleteBreakIterator(v8::Persistent<v8::Value> object,
   // this method is used as the weak callback for persistent handles not
   // pointing to a break iterator.
   delete UnpackBreakIterator(persistent_object);
+
+  delete static_cast<UnicodeString*>(
+      persistent_object->GetPointerFromInternalField(1));
 
   // Then dispose of the persistent handle to JS object.
   persistent_object.Dispose();
@@ -81,11 +101,7 @@ v8::Handle<v8::Value> BreakIterator::BreakIteratorAdoptText(
     return ThrowUnexpectedObjectError();
   }
 
-  v8::String::Value text_value(args[0]);
-  UnicodeString text(
-      reinterpret_cast<const UChar*>(*text_value), text_value.length());
-
-  break_iterator->setText(text);
+  break_iterator->setText(*ResetAdoptedText(args.Holder(), args[0]));
 
   return v8::Undefined();
 }
@@ -192,7 +208,9 @@ v8::Handle<v8::Value> BreakIterator::JSBreakIterator(
     // Define internal field count on instance template.
     v8::Local<v8::ObjectTemplate> object_template =
         raw_template->InstanceTemplate();
-    object_template->SetInternalFieldCount(1);
+
+    // Set aside internal fields for icu break iterator and adopted text.
+    object_template->SetInternalFieldCount(2);
 
     // Define all of the prototype methods on prototype template.
     v8::Local<v8::ObjectTemplate> proto = raw_template->PrototypeTemplate();
@@ -219,6 +237,8 @@ v8::Handle<v8::Value> BreakIterator::JSBreakIterator(
 
   // Set break iterator as internal field of the resulting JS object.
   wrapper->SetPointerInInternalField(0, break_iterator);
+  // Make sure that the pointer to adopted text is NULL.
+  wrapper->SetPointerInInternalField(1, NULL);
 
   // Make object handle weak so we can delete iterator once GC kicks in.
   wrapper.MakeWeak(NULL, DeleteBreakIterator);
