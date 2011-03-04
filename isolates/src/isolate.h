@@ -918,7 +918,7 @@ class Isolate {
   // not entered by any thread and can be Disposed.
   // If the same thread enters the Isolate more then once, the entry_count_
   // is incremented rather then a new item pushed to the stack.
-  struct EntryStackItem {
+  class EntryStackItem {
    public:
     EntryStackItem(PerIsolateThreadData* previous_thread_data,
                    Isolate* previous_isolate,
