@@ -872,12 +872,11 @@ void FloatingPointHelper::DoubleIs32BitInteger(MacroAssembler* masm,
   // Exponent greater than 31 cannot yield 32-bit integers.
   // Also, a positive value with an exponent equal to 31 is outside of the
   // signed 32-bit integer range.
-  __ tst(src1, Operand(HeapNumber::kSignMask));
-  __ cmp(scratch, Operand(30), eq);  // Executed for positive. If exponent is 30
-                                     // the gt condition will be "correct" and
-                                     // the next instruction will be skipped.
-  __ cmp(scratch, Operand(31), ne);  // Executed for negative and positive where
-                                     // exponent is not 30.
+  // Another way to put it is that if (exponent - signbit) > 30 then the
+  // number cannot be represented as an int32.
+  Register tmp = dst;
+  __ sub(tmp, scratch, Operand(src1, LSR, 31));
+  __ cmp(tmp, Operand(30));
   __ b(gt, not_int32);
   // - Bits [21:0] in the mantissa are not null.
   __ tst(src2, Operand(0x3fffff));
