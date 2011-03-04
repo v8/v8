@@ -867,8 +867,8 @@ void HRangeAnalysis::InferControlFlowRange(HTest* test, HBasicBlock* dest) {
 void HRangeAnalysis::InferControlFlowRange(Token::Value op,
                                            HValue* value,
                                            HValue* other) {
-  Range* range = other->range();
-  if (range == NULL) range = new Range();
+  Range temp_range;
+  Range* range = other->range() != NULL ? other->range() : &temp_range;
   Range* new_range = NULL;
 
   TraceRange("Control flow range infer %d %s %d\n",
