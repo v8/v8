@@ -1478,7 +1478,8 @@ static MaybeObject* Runtime_InitializeConstContextSlot(Arguments args) {
       // The holder is an arguments object.
       ASSERT((attributes & READ_ONLY) == 0);
       Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
-      RETURN_IF_EMPTY_HANDLE(SetElement(arguments, index, value, kNonStrictMode));
+      RETURN_IF_EMPTY_HANDLE(
+          SetElement(arguments, index, value, kNonStrictMode));
     }
     return *value;
   }
