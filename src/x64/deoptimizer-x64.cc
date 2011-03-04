@@ -640,7 +640,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // On windows put the argument on the stack (PrepareCallCFunction have
   // created space for this). On linux pass the argument in r8.
 #ifdef _WIN64
-  __ movq(Operand(rsp, 0 * kPointerSize), arg5);
+  __ movq(Operand(rsp, 4 * kPointerSize), arg5);
 #else
   __ movq(r8, arg5);
 #endif
