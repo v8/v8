@@ -4117,7 +4117,7 @@ Handle<Object> JsonParser::ParseJsonObject() {
       if (value.is_null()) return Handle<Object>::null();
       uint32_t index;
       if (key->AsArrayIndex(&index)) {
-        SetOwnElement(json_object, index, value);
+        SetOwnElement(json_object, index, value, kNonStrictMode);
       } else if (key->Equals(Heap::Proto_symbol())) {
         // We can't remove the __proto__ accessor since it's hardcoded
         // in several places. Instead go along and add the value as

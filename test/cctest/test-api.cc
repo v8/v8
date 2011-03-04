@@ -10617,14 +10617,14 @@ THREADED_TEST(PixelArray) {
   CHECK_EQ(28, result->Int32Value());
 
   i::Handle<i::Smi> value(i::Smi::FromInt(2));
-  i::SetElement(jsobj, 1, value);
+  i::SetElement(jsobj, 1, value, i::kNonStrictMode);
   CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   *value.location() = i::Smi::FromInt(256);
-  i::SetElement(jsobj, 1, value);
+  i::SetElement(jsobj, 1, value, i::kNonStrictMode);
   CHECK_EQ(255,
            i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   *value.location() = i::Smi::FromInt(-1);
-  i::SetElement(jsobj, 1, value);
+  i::SetElement(jsobj, 1, value, i::kNonStrictMode);
   CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"

@@ -266,11 +266,13 @@ Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
 
 Handle<Object> SetElement(Handle<JSObject> object,
                           uint32_t index,
-                          Handle<Object> value);
+                          Handle<Object> value,
+                          StrictModeFlag strict_mode);
 
 Handle<Object> SetOwnElement(Handle<JSObject> object,
                              uint32_t index,
-                             Handle<Object> value);
+                             Handle<Object> value,
+                             StrictModeFlag strict_mode);
 
 Handle<Object> GetProperty(Handle<JSObject> obj,
                            const char* name);

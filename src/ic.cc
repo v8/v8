@@ -1405,7 +1405,7 @@ MaybeObject* StoreIC::Store(State state,
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
     HandleScope scope;
-    Handle<Object> result = SetElement(receiver, index, value);
+    Handle<Object> result = SetElement(receiver, index, value, strict_mode);
     if (result.is_null()) return Failure::Exception();
     return *value;
   }
@@ -1631,7 +1631,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
     uint32_t index;
     if (name->AsArrayIndex(&index)) {
       HandleScope scope;
-      Handle<Object> result = SetElement(receiver, index, value);
+      Handle<Object> result = SetElement(receiver, index, value, strict_mode);
       if (result.is_null()) return Failure::Exception();
       return *value;
     }

@@ -2304,7 +2304,8 @@ bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
   i::Handle<i::Object> obj = i::SetElement(
       self,
       index,
-      value_obj);
+      value_obj,
+      i::kNonStrictMode);
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(false);
   return true;

@@ -337,26 +337,27 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
       // position by making sure that we have position information
       // recorded for all binary ICs.
       if (GetElement(map_, position)->IsUndefined()) {
-        SetElement(map_, position, target);
+        SetElement(map_, position, target, kNonStrictMode);
       }
     } else if (state == MONOMORPHIC) {
       if (target->kind() != Code::CALL_IC ||
           target->check_type() == RECEIVER_MAP_CHECK) {
         Handle<Map> map = Handle<Map>(target->FindFirstMap());
         if (*map == NULL) {
-          SetElement(map_, position, target);
+          SetElement(map_, position, target, kNonStrictMode);
         } else {
-          SetElement(map_, position, map);
+          SetElement(map_, position, map, kNonStrictMode);
         }
       } else {
         ASSERT(target->kind() == Code::CALL_IC);
         CheckType check = target->check_type();
         ASSERT(check != RECEIVER_MAP_CHECK);
-        SetElement(map_, position, Handle<Object>(Smi::FromInt(check)));
+        SetElement(map_, position,
+                   Handle<Object>(Smi::FromInt(check)), kNonStrictMode);
         ASSERT(Smi::cast(*GetElement(map_, position))->value() == check);
       }
     } else if (state == MEGAMORPHIC) {
-      SetElement(map_, position, target);
+      SetElement(map_, position, target, kNonStrictMode);
     }
   }
 }
