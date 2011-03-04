@@ -2645,7 +2645,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movq(arg2, rbx);
 
   // Argument 1: Subject string.
-#ifdef WIN64_
+#ifdef _WIN64
   __ movq(arg1, rdi);
 #else
   // Already there in AMD64 calling convention.
