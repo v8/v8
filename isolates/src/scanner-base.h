@@ -246,6 +246,8 @@ class LiteralBuffer {
   bool is_ascii_;
   int position_;
   Vector<byte> backing_store_;
+
+  DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
 };
 
 

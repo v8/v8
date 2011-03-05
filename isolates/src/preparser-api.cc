@@ -26,6 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../include/v8-preparser.h"
+
+#include "v8.h"
+
 #include "globals.h"
 #include "checks.h"
 #include "allocation.h"

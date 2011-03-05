@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#include "v8.h"
+
 #include "d8.h"
 #include "d8-debug.h"
 #include "debug.h"
