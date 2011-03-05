@@ -801,4 +801,13 @@ void Isolate::ResetEagerOptimizingData() {
   compilation_cache_->ResetEagerOptimizingData();
 }
 
+
+#ifdef DEBUG
+#define ISOLATE_FIELD_OFFSET(type, name, ignored)                       \
+const intptr_t Isolate::name##_debug_offset_ = OFFSET_OF(Isolate, name##_);
+ISOLATE_INIT_LIST(ISOLATE_FIELD_OFFSET)
+ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
+#undef ISOLATE_FIELD_OFFSET
+#endif
+
 } }  // namespace v8::internal

@@ -669,14 +669,23 @@ class Isolate {
   static const int kBMMaxShift = 250;        // See StringSearchBase.
 
   // Accessors.
-#define GLOBAL_ACCESSOR(type, name, initialvalue)                              \
-  type name() const { return name##_; }                                        \
-  void set_##name(type value) { name##_ = value; }
+#define GLOBAL_ACCESSOR(type, name, initialvalue)                       \
+  inline type name() const {                                            \
+    ASSERT(OFFSET_OF(Isolate, name##_) == name##_debug_offset_);        \
+    return name##_;                                                     \
+  }                                                                     \
+  inline void set_##name(type value) {                                  \
+    ASSERT(OFFSET_OF(Isolate, name##_) == name##_debug_offset_);        \
+    name##_ = value;                                                    \
+  }
   ISOLATE_INIT_LIST(GLOBAL_ACCESSOR)
 #undef GLOBAL_ACCESSOR
 
-#define GLOBAL_ARRAY_ACCESSOR(type, name, length)                              \
-  type* name() { return &(name##_[0]); }
+#define GLOBAL_ARRAY_ACCESSOR(type, name, length)                       \
+  inline type* name() {                                                 \
+    ASSERT(OFFSET_OF(Isolate, name##_) == name##_debug_offset_);        \
+    return &(name##_)[0];                                               \
+  }
   ISOLATE_INIT_ARRAY_LIST(GLOBAL_ARRAY_ACCESSOR)
 #undef GLOBAL_ARRAY_ACCESSOR
 
@@ -1089,6 +1098,17 @@ class Isolate {
   type name##_[length];
   ISOLATE_INIT_ARRAY_LIST(GLOBAL_ARRAY_BACKING_STORE)
 #undef GLOBAL_ARRAY_BACKING_STORE
+
+#ifdef DEBUG
+  // This class is huge and has a number of fields controlled by
+  // preprocessor defines. Make sure the offsets of these fields agree
+  // between compilation units.
+#define ISOLATE_FIELD_OFFSET(type, name, ignored)                              \
+  static const intptr_t name##_debug_offset_;
+  ISOLATE_INIT_LIST(ISOLATE_FIELD_OFFSET)
+  ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
+#undef ISOLATE_FIELD_OFFSET
+#endif
 
   friend class ExecutionAccess;
   friend class IsolateInitializer;
