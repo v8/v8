@@ -749,11 +749,8 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Set up the roots register.
   ExternalReference roots_address = ExternalReference::roots_address();
-  __ movq(r13, roots_address);
-
-  __ movq(kSmiConstantRegister,
-          reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
-          RelocInfo::NONE);
+  __ InitializeRootRegister();
+  __ InitializeSmiConstantRegister();
 
   // Return to the continuation point.
   __ ret(0);

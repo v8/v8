@@ -1432,7 +1432,7 @@ void LCodeGen::DoIsNull(LIsNull* instr) {
     __ j(equal, &load);
     __ movl(result, Immediate(Heap::kFalseValueRootIndex));
     __ bind(&load);
-    __ movq(result, Operand(kRootRegister, result, times_pointer_size, 0));
+    __ LoadRootIndexed(result, result, 0);
   } else {
     NearLabel true_value, false_value, done;
     __ j(equal, &true_value);
@@ -1563,8 +1563,7 @@ void LCodeGen::DoIsSmi(LIsSmi* instr) {
   }
   // result is zero if input is a smi, and one otherwise.
   ASSERT(Heap::kFalseValueRootIndex == Heap::kTrueValueRootIndex + 1);
-  __ movq(result, Operand(kRootRegister, result, times_pointer_size,
-                          Heap::kTrueValueRootIndex * kPointerSize));
+  __ LoadRootIndexed(result, result, Heap::kTrueValueRootIndex);
 }
 
 

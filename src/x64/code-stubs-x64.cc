@@ -3561,8 +3561,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Set up the roots and smi constant registers.
   // Needs to be done before any further smi loads.
-  ExternalReference roots_address = ExternalReference::roots_address();
-  __ movq(kRootRegister, roots_address);
+  __ InitializeRootRegister();
   __ InitializeSmiConstantRegister();
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
