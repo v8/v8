@@ -1274,7 +1274,7 @@ void LAllocator::BuildLiveRanges() {
         found = true;
         int operand_index = iterator.Current();
         PrintF("Function: %s\n",
-               *graph_->info()->function()->debug_name()->ToCString());
+               *chunk_->info()->function()->debug_name()->ToCString());
         PrintF("Value %d used before first definition!\n", operand_index);
         LiveRange* range = LiveRangeFor(operand_index);
         PrintF("First use is at %d\n", range->first_pos()->pos().Value());
