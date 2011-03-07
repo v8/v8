@@ -302,6 +302,13 @@ void HBasicBlock::Verify() {
   // Check that every block is finished.
   ASSERT(IsFinished());
   ASSERT(block_id() >= 0);
+
+  // Check that the incoming edges are in edge split form.
+  if (predecessors_.length() > 1) {
+    for (int i = 0; i < predecessors_.length(); ++i) {
+      ASSERT(predecessors_[i]->end()->SecondSuccessor() == NULL);
+    }
+  }
 }
 #endif
 
@@ -2827,18 +2834,22 @@ void HGraphBuilder::VisitConditional(Conditional* expr) {
   cond_true->SetJoinId(expr->ThenId());
   cond_false->SetJoinId(expr->ElseId());
 
-  // TOOD(kmillikin): Visit the subexpressions in the same AST context as
-  // the whole expression.
+  // Visit the true and false subexpressions in the same AST context as the
+  // whole expression.
   set_current_block(cond_true);
-  VISIT_FOR_VALUE(expr->then_expression());
+  Visit(expr->then_expression());
+  CHECK_BAILOUT;
   HBasicBlock* other = current_block();
 
   set_current_block(cond_false);
-  VISIT_FOR_VALUE(expr->else_expression());
+  Visit(expr->else_expression());
+  CHECK_BAILOUT;
 
-  HBasicBlock* join = CreateJoin(other, current_block(), expr->id());
-  set_current_block(join);
-  ast_context()->ReturnValue(Pop());
+  if (!ast_context()->IsTest()) {
+    HBasicBlock* join = CreateJoin(other, current_block(), expr->id());
+    set_current_block(join);
+    if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
+  }
 }
 
 
