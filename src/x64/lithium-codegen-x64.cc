@@ -48,23 +48,39 @@ class SafepointGenerator : public PostCallGenerator {
       : codegen_(codegen),
         pointers_(pointers),
         deoptimization_index_(deoptimization_index),
-        ensure_reloc_space_(ensure_reloc_space) { }
+        ensure_reloc_space_(ensure_reloc_space),
+        previous_safepoint_position_(-kMinSafepointSize) { }
   virtual ~SafepointGenerator() { }
 
   virtual void Generate() {
+    // Ensure that we have enough space after the previous safepoint position
+    // for the generated code there.
+    int position = codegen_->masm()->pc_offset();
+    ASSERT(position > previous_safepoint_position_);
+    if (position < previous_safepoint_position_ + kMinSafepointSize) {
+      int padding_size =
+          previous_safepoint_position_ + kMinSafepointSize - position;
+      STATIC_ASSERT(kMinSafepointSize <= 9);  // One multibyte nop is enough.
+      codegen_->masm()->nop(padding_size);
+      position += padding_size;
+    }
     // Ensure that we have enough space in the reloc info to patch
     // this with calls when doing deoptimization.
     if (ensure_reloc_space_) {
       codegen_->masm()->RecordComment(RelocInfo::kFillerCommentString, true);
     }
     codegen_->RecordSafepoint(pointers_, deoptimization_index_);
+    previous_safepoint_position_ = position;
   }
 
  private:
+  static const int kMinSafepointSize =
+      MacroAssembler::kShortCallInstructionLength;
   LCodeGen* codegen_;
   LPointerMap* pointers_;
   int deoptimization_index_;
   bool ensure_reloc_space_;
+  int previous_safepoint_position_;
 };
 
 
