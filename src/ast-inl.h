@@ -102,6 +102,11 @@ ForInStatement::ForInStatement(ZoneStringList* labels)
 }
 
 
+bool FunctionLiteral::strict_mode() const {
+  return scope()->is_strict_mode();
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_AST_INL_H_

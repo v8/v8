@@ -239,11 +239,6 @@ chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-2: FAIL_OK
 # Incorrect test - need double escape in eval.
 chapter07/7.8/7.8.4/7.8.4-1-s: FAIL
 
-# arguments[i] remains same after changing actual parameters in strict mode
-chapter10/10.6/10.6-10-c-ii-1-s: FAIL
-# arguments[i] doesn't map to actual parameters in strict mode
-chapter10/10.6/10.6-10-c-ii-2-s: FAIL
-
 # Accessing caller property of Arguments object throws TypeError in strict mode
 chapter10/10.6/10.6-13-b-1-s: FAIL
 # arguments.caller exists in strict mode

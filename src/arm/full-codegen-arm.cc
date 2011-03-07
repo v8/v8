@@ -212,11 +212,14 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     // stack frame was an arguments adapter frame.
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
     __ CallStub(&stub);
-    // Duplicate the value; move-to-slot operation might clobber registers.
-    __ mov(r3, r0);
+
+    Variable* arguments_shadow = scope()->arguments_shadow();
+    if (arguments_shadow != NULL) {
+      // Duplicate the value; move-to-slot operation might clobber registers.
+      __ mov(r3, r0);
+      Move(arguments_shadow->AsSlot(), r3, r1, r2);
+    }
     Move(arguments->AsSlot(), r0, r1, r2);
-    Slot* dot_arguments_slot = scope()->arguments_shadow()->AsSlot();
-    Move(dot_arguments_slot, r3, r1, r2);
   }
 
   if (FLAG_trace) {

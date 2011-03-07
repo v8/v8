@@ -1673,8 +1673,7 @@ class FunctionLiteral: public Expression {
                   int start_position,
                   int end_position,
                   bool is_expression,
-                  bool contains_loops,
-                  bool strict_mode)
+                  bool contains_loops)
       : name_(name),
         scope_(scope),
         body_(body),
@@ -1688,7 +1687,6 @@ class FunctionLiteral: public Expression {
         end_position_(end_position),
         is_expression_(is_expression),
         contains_loops_(contains_loops),
-        strict_mode_(strict_mode),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(Heap::empty_string()),
         try_full_codegen_(false),
@@ -1705,7 +1703,7 @@ class FunctionLiteral: public Expression {
   int end_position() const { return end_position_; }
   bool is_expression() const { return is_expression_; }
   bool contains_loops() const { return contains_loops_; }
-  bool strict_mode() const { return strict_mode_; }
+  bool strict_mode() const;
 
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }

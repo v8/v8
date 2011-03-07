@@ -957,3 +957,22 @@ repeat(10, function() { testAssignToUndefined(false); });
   assertThrows(function() { str_obj.length = 1; }, TypeError);
   assertThrows(function() { str_cat.length = 1; }, TypeError);
 })();
+
+
+(function TestArgumentsAliasing() {
+  function strict(a, b) {
+    "use strict";
+    a = "c";
+    b = "d";
+    return [a, b, arguments[0], arguments[1]];
+  }
+
+  function nonstrict(a, b) {
+    a = "c";
+    b = "d";
+    return [a, b, arguments[0], arguments[1]];
+  }
+
+  assertEquals(["c", "d", "a", "b"], strict("a", "b"));
+  assertEquals(["c", "d", "c", "d"], nonstrict("a", "b"));
+})();

@@ -878,6 +878,11 @@ void Scope::AllocateParameterLocals() {
   ASSERT(is_function_scope());
   Variable* arguments = LocalLookup(Factory::arguments_symbol());
   ASSERT(arguments != NULL);  // functions have 'arguments' declared implicitly
+
+  // Parameters are rewritten to arguments[i] if 'arguments' is used in
+  // a non-strict mode function. Strict mode code doesn't alias arguments.
+  bool rewrite_parameters = false;
+
   if (MustAllocate(arguments) && !HasArgumentsParameter()) {
     // 'arguments' is used. Unless there is also a parameter called
     // 'arguments', we must be conservative and access all parameters via
@@ -909,6 +914,13 @@ void Scope::AllocateParameterLocals() {
     // allocate the arguments object by setting 'arguments_'.
     arguments_ = arguments;
 
+    // In strict mode 'arguments' does not alias formal parameters.
+    // Therefore in strict mode we allocate parameters as if 'arguments'
+    // were not used.
+    rewrite_parameters = !is_strict_mode();
+  }
+
+  if (rewrite_parameters) {
     // We also need the '.arguments' shadow variable. Declare it and create
     // and bind the corresponding proxy. It's ok to declare it only now
     // because it's a local variable that is allocated after the parameters
