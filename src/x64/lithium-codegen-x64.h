@@ -56,7 +56,7 @@ class LCodeGen BASE_EMBEDDED {
         jump_table_(4),
         deoptimization_literals_(8),
         inlined_function_count_(0),
-        scope_(chunk->graph()->info()->scope()),
+        scope_(info->scope()),
         status_(UNUSED),
         deferred_(8),
         osr_pc_offset_(-1),
@@ -66,6 +66,7 @@ class LCodeGen BASE_EMBEDDED {
 
   // Simple accessors.
   MacroAssembler* masm() const { return masm_; }
+  CompilationInfo* info() const { return info_; }
 
   // Support for converting LOperands to assembler types.
   Register ToRegister(LOperand* op) const;
@@ -119,7 +120,7 @@ class LCodeGen BASE_EMBEDDED {
   bool is_aborted() const { return status_ == ABORTED; }
 
   int strict_mode_flag() const {
-    return info_->is_strict() ? kStrictMode : kNonStrictMode;
+    return info()->is_strict() ? kStrictMode : kNonStrictMode;
   }
 
   LChunk* chunk() const { return chunk_; }

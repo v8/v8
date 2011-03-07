@@ -190,81 +190,48 @@ class LChunkBuilder;
 
 class Range: public ZoneObject {
  public:
-  Range() : lower_(kMinInt),
-            upper_(kMaxInt),
-            next_(NULL),
-            can_be_minus_zero_(false) { }
+  Range()
+      : lower_(kMinInt),
+        upper_(kMaxInt),
+        next_(NULL),
+        can_be_minus_zero_(false) { }
 
   Range(int32_t lower, int32_t upper)
-      : lower_(lower), upper_(upper), next_(NULL), can_be_minus_zero_(false) { }
+      : lower_(lower),
+        upper_(upper),
+        next_(NULL),
+        can_be_minus_zero_(false) { }
 
-  bool IsInSmiRange() const {
-    return lower_ >= Smi::kMinValue && upper_ <= Smi::kMaxValue;
-  }
-  void KeepOrder();
-  void Verify() const;
   int32_t upper() const { return upper_; }
   int32_t lower() const { return lower_; }
   Range* next() const { return next_; }
   Range* CopyClearLower() const { return new Range(kMinInt, upper_); }
   Range* CopyClearUpper() const { return new Range(lower_, kMaxInt); }
-  void ClearLower() { lower_ = kMinInt; }
-  void ClearUpper() { upper_ = kMaxInt; }
   Range* Copy() const { return new Range(lower_, upper_); }
-  bool IsMostGeneric() const { return lower_ == kMinInt && upper_ == kMaxInt; }
   int32_t Mask() const;
   void set_can_be_minus_zero(bool b) { can_be_minus_zero_ = b; }
   bool CanBeMinusZero() const { return CanBeZero() && can_be_minus_zero_; }
   bool CanBeZero() const { return upper_ >= 0 && lower_ <= 0; }
   bool CanBeNegative() const { return lower_ < 0; }
-  bool Includes(int value) const {
-    return lower_ <= value && upper_ >= value;
+  bool Includes(int value) const { return lower_ <= value && upper_ >= value; }
+  bool IsMostGeneric() const { return lower_ == kMinInt && upper_ == kMaxInt; }
+  bool IsInSmiRange() const {
+    return lower_ >= Smi::kMinValue && upper_ <= Smi::kMaxValue;
   }
-
-  void Sar(int32_t value) {
-    int32_t bits = value & 0x1F;
-    lower_ = lower_ >> bits;
-    upper_ = upper_ >> bits;
-    set_can_be_minus_zero(false);
-  }
-
-  void Shl(int32_t value) {
-    int32_t bits = value & 0x1F;
-    int old_lower = lower_;
-    int old_upper = upper_;
-    lower_ = lower_ << bits;
-    upper_ = upper_ << bits;
-    if (old_lower != lower_ >> bits || old_upper != upper_ >> bits) {
-      upper_ = kMaxInt;
-      lower_ = kMinInt;
-    }
-    set_can_be_minus_zero(false);
-  }
-
-  // Adds a constant to the lower and upper bound of the range.
-  void AddConstant(int32_t value);
+  void KeepOrder();
+  void Verify() const;
 
   void StackUpon(Range* other) {
     Intersect(other);
     next_ = other;
   }
 
-  void Intersect(Range* other) {
-    upper_ = Min(upper_, other->upper_);
-    lower_ = Max(lower_, other->lower_);
-    bool b = CanBeMinusZero() && other->CanBeMinusZero();
-    set_can_be_minus_zero(b);
-  }
+  void Intersect(Range* other);
+  void Union(Range* other);
 
-  void Union(Range* other) {
-    upper_ = Max(upper_, other->upper_);
-    lower_ = Min(lower_, other->lower_);
-    bool b = CanBeMinusZero() || other->CanBeMinusZero();
-    set_can_be_minus_zero(b);
-  }
-
-  // Compute a new result range and return true, if the operation
-  // can overflow.
+  void AddConstant(int32_t value);
+  void Sar(int32_t value);
+  void Shl(int32_t value);
   bool AddAndCheckOverflow(Range* other);
   bool SubAndCheckOverflow(Range* other);
   bool MulAndCheckOverflow(Range* other);
@@ -940,13 +907,14 @@ class HChange: public HUnaryOperation {
  public:
   HChange(HValue* value,
           Representation from,
-          Representation to)
+          Representation to,
+          bool is_truncating)
       : HUnaryOperation(value), from_(from), to_(to) {
     ASSERT(!from.IsNone() && !to.IsNone());
     ASSERT(!from.Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
-
+    if (is_truncating) SetFlag(kTruncatingToInt32);
     if (from.IsInteger32() && to.IsTagged() && value->range() != NULL &&
         value->range()->IsInSmiRange()) {
       set_type(HType::Smi());
@@ -961,12 +929,7 @@ class HChange: public HUnaryOperation {
     return from_;
   }
 
-  bool CanTruncateToInt32() const {
-    for (int i = 0; i < uses()->length(); ++i) {
-      if (!uses()->at(i)->CheckFlag(HValue::kTruncatingToInt32)) return false;
-    }
-    return true;
-  }
+  bool CanTruncateToInt32() const { return CheckFlag(kTruncatingToInt32); }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -978,8 +941,7 @@ class HChange: public HUnaryOperation {
     if (!other->IsChange()) return false;
     HChange* change = HChange::cast(other);
     return value() == change->value()
-        && to().Equals(change->to())
-        && CanTruncateToInt32() == change->CanTruncateToInt32();
+        && to().Equals(change->to());
   }
 
  private:

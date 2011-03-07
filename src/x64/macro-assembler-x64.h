@@ -52,6 +52,9 @@ static const Register kSmiConstantRegister = { 15 };  // r15 (callee save).
 static const Register kRootRegister = { 13 };         // r13 (callee save).
 // Value of smi in kSmiConstantRegister.
 static const int kSmiConstantRegisterValue = 1;
+// Actual value of root register is offset from the root array's start
+// to take advantage of negitive 8-bit displacement values.
+static const int kRootRegisterBias = 128;
 
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;
@@ -74,6 +77,12 @@ class MacroAssembler: public Assembler {
   MacroAssembler(void* buffer, int size);
 
   void LoadRoot(Register destination, Heap::RootListIndex index);
+  // Load a root value where the index (or part of it) is variable.
+  // The variable_offset register is added to the fixed_offset value
+  // to get the index into the root-array.
+  void LoadRootIndexed(Register destination,
+                       Register variable_offset,
+                       int fixed_offset);
   void CompareRoot(Register with, Heap::RootListIndex index);
   void CompareRoot(const Operand& with, Heap::RootListIndex index);
   void PushRoot(Heap::RootListIndex index);
@@ -175,6 +184,12 @@ class MacroAssembler: public Assembler {
   // slot for register dst.
   void StoreToSafepointRegisterSlot(Register dst, Register src);
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
+
+  void InitializeRootRegister() {
+    ExternalReference roots_address = ExternalReference::roots_address();
+    movq(kRootRegister, roots_address);
+    addq(kRootRegister, Immediate(kRootRegisterBias));
+  }
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes

@@ -243,8 +243,8 @@ Handle<Object> SetProperty(Handle<JSObject> object,
                            Handle<String> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
-                           StrictModeFlag strict) {
-  CALL_HEAP_FUNCTION(object->SetProperty(*key, *value, attributes, strict),
+                           StrictModeFlag strict_mode) {
+  CALL_HEAP_FUNCTION(object->SetProperty(*key, *value, attributes, strict_mode),
                      Object);
 }
 
@@ -253,9 +253,9 @@ Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
-                           StrictModeFlag strict) {
+                           StrictModeFlag strict_mode) {
   CALL_HEAP_FUNCTION(
-      Runtime::SetObjectProperty(object, key, value, attributes, strict),
+      Runtime::SetObjectProperty(object, key, value, attributes, strict_mode),
       Object);
 }
 
@@ -265,7 +265,9 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> value,
                                 PropertyAttributes attributes) {
   CALL_HEAP_FUNCTION(
-      Runtime::ForceSetObjectProperty(object, key, value, attributes), Object);
+      Runtime::ForceSetObjectProperty(
+          object, key, value, attributes),
+      Object);
 }
 
 
@@ -309,11 +311,11 @@ Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
-                                          StrictModeFlag strict) {
+                                          StrictModeFlag strict_mode) {
   CALL_HEAP_FUNCTION(object->SetPropertyWithInterceptor(*key,
                                                         *value,
                                                         attributes,
-                                                        strict),
+                                                        strict_mode),
                      Object);
 }
 
@@ -426,7 +428,8 @@ Handle<String> SubString(Handle<String> str,
 
 Handle<Object> SetElement(Handle<JSObject> object,
                           uint32_t index,
-                          Handle<Object> value) {
+                          Handle<Object> value,
+                          StrictModeFlag strict_mode) {
   if (object->HasPixelElements() || object->HasExternalArrayElements()) {
     if (!value->IsSmi() && !value->IsHeapNumber() && !value->IsUndefined()) {
       bool has_exception;
@@ -435,16 +438,18 @@ Handle<Object> SetElement(Handle<JSObject> object,
       value = number;
     }
   }
-  CALL_HEAP_FUNCTION(object->SetElement(index, *value), Object);
+  CALL_HEAP_FUNCTION(object->SetElement(index, *value, strict_mode), Object);
 }
 
 
 Handle<Object> SetOwnElement(Handle<JSObject> object,
                              uint32_t index,
-                             Handle<Object> value) {
+                             Handle<Object> value,
+                             StrictModeFlag strict_mode) {
   ASSERT(!object->HasPixelElements());
   ASSERT(!object->HasExternalArrayElements());
-  CALL_HEAP_FUNCTION(object->SetElement(index, *value, false), Object);
+  CALL_HEAP_FUNCTION(object->SetElement(index, *value, strict_mode, false),
+                     Object);
 }
 
 

@@ -3936,21 +3936,18 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
 
   if (check->Equals(Heap::number_symbol())) {
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, if_true);
+    __ JumpIfSmi(eax, if_true);
     __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
            Factory::heap_number_map());
     Split(equal, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::string_symbol())) {
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, if_false);
+    __ JumpIfSmi(eax, if_false);
+    __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, edx);
+    __ j(above_equal, if_false);
     // Check for undetectable objects => false.
-    __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
-    __ movzx_b(ecx, FieldOperand(edx, Map::kBitFieldOffset));
-    __ test(ecx, Immediate(1 << Map::kIsUndetectable));
-    __ j(not_zero, if_false);
-    __ CmpInstanceType(edx, FIRST_NONSTRING_TYPE);
-    Split(below, if_true, if_false, fall_through);
+    __ test_b(FieldOperand(edx, Map::kBitFieldOffset),
+              1 << Map::kIsUndetectable);
+    Split(zero, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::boolean_symbol())) {
     __ cmp(eax, Factory::true_value());
     __ j(equal, if_true);
@@ -3959,39 +3956,28 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
   } else if (check->Equals(Heap::undefined_symbol())) {
     __ cmp(eax, Factory::undefined_value());
     __ j(equal, if_true);
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, if_false);
+    __ JumpIfSmi(eax, if_false);
     // Check for undetectable objects => true.
     __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
     __ movzx_b(ecx, FieldOperand(edx, Map::kBitFieldOffset));
     __ test(ecx, Immediate(1 << Map::kIsUndetectable));
     Split(not_zero, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::function_symbol())) {
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, if_false);
-    __ CmpObjectType(eax, JS_FUNCTION_TYPE, edx);
-    __ j(equal, if_true);
-    // Regular expressions => 'function' (they are callable).
-    __ CmpInstanceType(edx, JS_REGEXP_TYPE);
-    Split(equal, if_true, if_false, fall_through);
+    __ JumpIfSmi(eax, if_false);
+    __ CmpObjectType(eax, FIRST_FUNCTION_CLASS_TYPE, edx);
+    Split(above_equal, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::object_symbol())) {
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, if_false);
+    __ JumpIfSmi(eax, if_false);
     __ cmp(eax, Factory::null_value());
     __ j(equal, if_true);
-    // Regular expressions => 'function', not 'object'.
-    __ CmpObjectType(eax, JS_REGEXP_TYPE, edx);
-    __ j(equal, if_false);
+    __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, edx);
+    __ j(below, if_false);
+    __ CmpInstanceType(edx, FIRST_FUNCTION_CLASS_TYPE);
+    __ j(above_equal, if_false);
     // Check for undetectable objects => false.
-    __ movzx_b(ecx, FieldOperand(edx, Map::kBitFieldOffset));
-    __ test(ecx, Immediate(1 << Map::kIsUndetectable));
-    __ j(not_zero, if_false);
-    // Check for JS objects => true.
-    __ movzx_b(ecx, FieldOperand(edx, Map::kInstanceTypeOffset));
-    __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-    __ j(less, if_false);
-    __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-    Split(less_equal, if_true, if_false, fall_through);
+    __ test_b(FieldOperand(edx, Map::kBitFieldOffset),
+              1 << Map::kIsUndetectable);
+    Split(zero, if_true, if_false, fall_through);
   } else {
     if (if_false != fall_through) __ jmp(if_false);
   }

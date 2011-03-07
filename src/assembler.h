@@ -591,6 +591,10 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_minus_zero();
   static ExternalReference address_of_negative_infinity();
 
+  static ExternalReference math_sin_double_function();
+  static ExternalReference math_cos_double_function();
+  static ExternalReference math_log_double_function();
+
   Address address() const {return reinterpret_cast<Address>(address_);}
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

@@ -38,13 +38,22 @@ namespace internal {
 // TranscendentalCache runtime function.
 class TranscendentalCacheStub: public CodeStub {
  public:
-  explicit TranscendentalCacheStub(TranscendentalCache::Type type)
-      : type_(type) {}
+  enum ArgumentType {
+    TAGGED = 0 << TranscendentalCache::kTranscendentalTypeBits,
+    UNTAGGED = 1 << TranscendentalCache::kTranscendentalTypeBits
+  };
+
+  TranscendentalCacheStub(TranscendentalCache::Type type,
+                          ArgumentType argument_type)
+      : type_(type), argument_type_(argument_type) { }
   void Generate(MacroAssembler* masm);
  private:
   TranscendentalCache::Type type_;
+  ArgumentType argument_type_;
+  void GenerateCallCFunction(MacroAssembler* masm, Register scratch);
+
   Major MajorKey() { return TranscendentalCache; }
-  int MinorKey() { return type_; }
+  int MinorKey() { return type_ | argument_type_; }
   Runtime::FunctionId RuntimeFunction();
 };
 

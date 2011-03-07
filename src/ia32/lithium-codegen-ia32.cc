@@ -93,8 +93,8 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 
 void LCodeGen::Abort(const char* format, ...) {
   if (FLAG_trace_bailout) {
-    SmartPointer<char> debug_name = graph()->debug_name()->ToCString();
-    PrintF("Aborting LCodeGen in @\"%s\": ", *debug_name);
+    SmartPointer<char> name(info()->shared_info()->DebugName()->ToCString());
+    PrintF("Aborting LCodeGen in @\"%s\": ", *name);
     va_list arguments;
     va_start(arguments, format);
     OS::VPrint(format, arguments);
@@ -1148,35 +1148,36 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
 
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
-  LOperand* left = instr->InputAt(0);
-  LOperand* right = instr->InputAt(1);
+  XMMRegister left = ToDoubleRegister(instr->InputAt(0));
+  XMMRegister right = ToDoubleRegister(instr->InputAt(1));
+  XMMRegister result = ToDoubleRegister(instr->result());
   // Modulo uses a fixed result register.
-  ASSERT(instr->op() == Token::MOD || left->Equals(instr->result()));
+  ASSERT(instr->op() == Token::MOD || left.is(result));
   switch (instr->op()) {
     case Token::ADD:
-      __ addsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ addsd(left, right);
       break;
     case Token::SUB:
-       __ subsd(ToDoubleRegister(left), ToDoubleRegister(right));
+       __ subsd(left, right);
        break;
     case Token::MUL:
-      __ mulsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ mulsd(left, right);
       break;
     case Token::DIV:
-      __ divsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ divsd(left, right);
       break;
     case Token::MOD: {
       // Pass two doubles as arguments on the stack.
       __ PrepareCallCFunction(4, eax);
-      __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
-      __ movdbl(Operand(esp, 1 * kDoubleSize), ToDoubleRegister(right));
+      __ movdbl(Operand(esp, 0 * kDoubleSize), left);
+      __ movdbl(Operand(esp, 1 * kDoubleSize), right);
       __ CallCFunction(ExternalReference::double_fp_operation(Token::MOD), 4);
 
       // Return value is in st(0) on ia32.
       // Store it into the (fixed) result register.
       __ sub(Operand(esp), Immediate(kDoubleSize));
       __ fstp_d(Operand(esp, 0));
-      __ movdbl(ToDoubleRegister(instr->result()), Operand(esp, 0));
+      __ movdbl(result, Operand(esp, 0));
       __ add(Operand(esp), Immediate(kDoubleSize));
       break;
     }
@@ -1653,6 +1654,19 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
 }
 
 
+void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(input);
+  }
+
+  __ mov(result, FieldOperand(input, String::kHashFieldOffset));
+  __ IndexFromHash(result, result);
+}
+
+
 void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
@@ -1662,7 +1676,7 @@ void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
   __ test(FieldOperand(input, String::kHashFieldOffset),
           Immediate(String::kContainsCachedArrayIndexMask));
   NearLabel done;
-  __ j(not_zero, &done);
+  __ j(zero, &done);
   __ mov(result, Factory::false_value());
   __ bind(&done);
 }
@@ -1677,7 +1691,7 @@ void LCodeGen::DoHasCachedArrayIndexAndBranch(
 
   __ test(FieldOperand(input, String::kHashFieldOffset),
           Immediate(String::kContainsCachedArrayIndexMask));
-  EmitBranch(true_block, false_block, not_equal);
+  EmitBranch(true_block, false_block, equal);
 }
 
 
@@ -1909,8 +1923,6 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   __ mov(InstanceofStub::right(), Immediate(instr->function()));
   static const int kAdditionalDelta = 16;
   int delta = masm_->SizeOfCodeGeneratedSince(map_check) + kAdditionalDelta;
-  Label before_push_delta;
-  __ bind(&before_push_delta);
   __ mov(temp, Immediate(delta));
   __ StoreToSafepointRegisterSlot(temp, temp);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr, false);
@@ -2349,7 +2361,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  LInstruction* instr) {
   // Change context if needed.
   bool change_context =
-      (graph()->info()->closure()->context() != function->context()) ||
+      (info()->closure()->context() != function->context()) ||
       scope()->contains_with() ||
       (scope()->num_heap_slots() > 0);
   if (change_context) {
@@ -2368,7 +2380,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   RecordPosition(pointers->position());
 
   // Invoke function.
-  if (*function == *graph()->info()->closure()) {
+  if (*function == *info()->closure()) {
     __ CallSelf();
   } else {
     __ call(FieldOperand(edi, JSFunction::kCodeEntryOffset));
@@ -3688,21 +3700,18 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
                                  Handle<String> type_name) {
   Condition final_branch_condition = no_condition;
   if (type_name->Equals(Heap::number_symbol())) {
-    __ test(input, Immediate(kSmiTagMask));
-    __ j(zero, true_label);
+    __ JumpIfSmi(input, true_label);
     __ cmp(FieldOperand(input, HeapObject::kMapOffset),
            Factory::heap_number_map());
     final_branch_condition = equal;
 
   } else if (type_name->Equals(Heap::string_symbol())) {
-    __ test(input, Immediate(kSmiTagMask));
-    __ j(zero, false_label);
-    __ mov(input, FieldOperand(input, HeapObject::kMapOffset));
+    __ JumpIfSmi(input, false_label);
+    __ CmpObjectType(input, FIRST_NONSTRING_TYPE, input);
+    __ j(above_equal, false_label);
     __ test_b(FieldOperand(input, Map::kBitFieldOffset),
               1 << Map::kIsUndetectable);
-    __ j(not_zero, false_label);
-    __ CmpInstanceType(input, FIRST_NONSTRING_TYPE);
-    final_branch_condition = below;
+    final_branch_condition = zero;
 
   } else if (type_name->Equals(Heap::boolean_symbol())) {
     __ cmp(input, Factory::true_value());
@@ -3713,8 +3722,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   } else if (type_name->Equals(Heap::undefined_symbol())) {
     __ cmp(input, Factory::undefined_value());
     __ j(equal, true_label);
-    __ test(input, Immediate(kSmiTagMask));
-    __ j(zero, false_label);
+    __ JumpIfSmi(input, false_label);
     // Check for undetectable objects => true.
     __ mov(input, FieldOperand(input, HeapObject::kMapOffset));
     __ test_b(FieldOperand(input, Map::kBitFieldOffset),
@@ -3722,8 +3730,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     final_branch_condition = not_zero;
 
   } else if (type_name->Equals(Heap::function_symbol())) {
-    __ test(input, Immediate(kSmiTagMask));
-    __ j(zero, false_label);
+    __ JumpIfSmi(input, false_label);
     __ CmpObjectType(input, JS_FUNCTION_TYPE, input);
     __ j(equal, true_label);
     // Regular expressions => 'function' (they are callable).
@@ -3731,22 +3738,18 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     final_branch_condition = equal;
 
   } else if (type_name->Equals(Heap::object_symbol())) {
-    __ test(input, Immediate(kSmiTagMask));
-    __ j(zero, false_label);
+    __ JumpIfSmi(input, false_label);
     __ cmp(input, Factory::null_value());
     __ j(equal, true_label);
     // Regular expressions => 'function', not 'object'.
-    __ CmpObjectType(input, JS_REGEXP_TYPE, input);
-    __ j(equal, false_label);
+    __ CmpObjectType(input, FIRST_JS_OBJECT_TYPE, input);
+    __ j(below, false_label);
+    __ CmpInstanceType(input, FIRST_FUNCTION_CLASS_TYPE);
+    __ j(above_equal, false_label);
     // Check for undetectable objects => false.
     __ test_b(FieldOperand(input, Map::kBitFieldOffset),
               1 << Map::kIsUndetectable);
-    __ j(not_zero, false_label);
-    // Check for JS objects => true.
-    __ CmpInstanceType(input, FIRST_JS_OBJECT_TYPE);
-    __ j(below, false_label);
-    __ CmpInstanceType(input, LAST_JS_OBJECT_TYPE);
-    final_branch_condition = below_equal;
+    final_branch_condition = zero;
 
   } else {
     final_branch_condition = not_equal;

@@ -1362,12 +1362,12 @@ class JSObject: public HeapObject {
   MUST_USE_RESULT MaybeObject* SetProperty(String* key,
                                            Object* value,
                                            PropertyAttributes attributes,
-                                           StrictModeFlag strict);
+                                           StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetProperty(LookupResult* result,
                                            String* key,
                                            Object* value,
                                            PropertyAttributes attributes,
-                                           StrictModeFlag strict);
+                                           StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetPropertyWithFailedAccessCheck(
       LookupResult* result,
       String* name,
@@ -1383,12 +1383,12 @@ class JSObject: public HeapObject {
       String* name,
       Object* value,
       PropertyAttributes attributes,
-      StrictModeFlag strict);
+      StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetPropertyPostInterceptor(
       String* name,
       Object* value,
       PropertyAttributes attributes,
-      StrictModeFlag strict);
+      StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
       String* key,
       Object* value,
@@ -1515,6 +1515,12 @@ class JSObject: public HeapObject {
   inline bool HasElement(uint32_t index);
   bool HasElementWithReceiver(JSObject* receiver, uint32_t index);
 
+  // Computes the new capacity when expanding the elements of a JSObject.
+  static int NewElementsCapacity(int old_capacity) {
+    // (old_capacity + 50%) + 16
+    return old_capacity + (old_capacity >> 1) + 16;
+  }
+
   // Tells whether the index'th element is present and how it is stored.
   enum LocalElementType {
     // There is no element with given index.
@@ -1540,12 +1546,14 @@ class JSObject: public HeapObject {
 
   MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
                                               Object* value,
+                                              StrictModeFlag strict_mode,
                                               bool check_prototype = true);
 
   // Set the index'th array element.
   // A Failure object is returned if GC is needed.
   MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
                                           Object* value,
+                                          StrictModeFlag strict_mode,
                                           bool check_prototype = true);
 
   // Returns the index'th element.
@@ -1805,12 +1813,15 @@ class JSObject: public HeapObject {
                                       uint32_t index,
                                       Object* value,
                                       JSObject* holder);
-  MUST_USE_RESULT MaybeObject* SetElementWithInterceptor(uint32_t index,
-                                                         Object* value,
-                                                         bool check_prototype);
+  MUST_USE_RESULT MaybeObject* SetElementWithInterceptor(
+      uint32_t index,
+      Object* value,
+      StrictModeFlag strict_mode,
+      bool check_prototype);
   MUST_USE_RESULT MaybeObject* SetElementWithoutInterceptor(
       uint32_t index,
       Object* value,
+      StrictModeFlag strict_mode,
       bool check_prototype);
 
   MaybeObject* GetElementPostInterceptor(Object* receiver, uint32_t index);
@@ -2447,13 +2458,18 @@ class Dictionary: public HashTable<Shape, Key> {
   }
 
   // Set the value for entry.
-  void ValueAtPut(int entry, Object* value) {
+  // Returns false if the put wasn't performed due to property being read only.
+  // Returns true on successful put.
+  bool ValueAtPut(int entry, Object* value) {
     // Check that this value can actually be written.
     PropertyDetails details = DetailsAt(entry);
     // If a value has not been initilized we allow writing to it even if
     // it is read only (a declared const that has not been initialized).
-    if (details.IsReadOnly() && !ValueAt(entry)->IsTheHole()) return;
-    this->set(HashTable<Shape, Key>::EntryToIndex(entry)+1, value);
+    if (details.IsReadOnly() && !ValueAt(entry)->IsTheHole()) {
+      return false;
+    }
+    this->set(HashTable<Shape, Key>::EntryToIndex(entry) + 1, value);
+    return true;
   }
 
   // Returns the property details for the property at entry.

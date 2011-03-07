@@ -872,12 +872,11 @@ void FloatingPointHelper::DoubleIs32BitInteger(MacroAssembler* masm,
   // Exponent greater than 31 cannot yield 32-bit integers.
   // Also, a positive value with an exponent equal to 31 is outside of the
   // signed 32-bit integer range.
-  __ tst(src1, Operand(HeapNumber::kSignMask));
-  __ cmp(scratch, Operand(30), eq);  // Executed for positive. If exponent is 30
-                                     // the gt condition will be "correct" and
-                                     // the next instruction will be skipped.
-  __ cmp(scratch, Operand(31), ne);  // Executed for negative and positive where
-                                     // exponent is not 30.
+  // Another way to put it is that if (exponent - signbit) > 30 then the
+  // number cannot be represented as an int32.
+  Register tmp = dst;
+  __ sub(tmp, scratch, Operand(src1, LSR, 31));
+  __ cmp(tmp, Operand(30));
   __ b(gt, not_int32);
   // - Bits [21:0] in the mantissa are not null.
   __ tst(src2, Operand(0x3fffff));
@@ -3716,32 +3715,47 @@ void TypeRecordingBinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
 
 
 void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
-  // Argument is a number and is on stack and in r0.
-  Label runtime_call;
+  // Untagged case: double input in d2, double result goes
+  //   into d2.
+  // Tagged case: tagged input on top of stack and in r0,
+  //   tagged result (heap number) goes into r0.
+
   Label input_not_smi;
   Label loaded;
+  Label calculate;
+  Label invalid_cache;
+  const Register scratch0 = r9;
+  const Register scratch1 = r7;
+  const Register cache_entry = r0;
+  const bool tagged = (argument_type_ == TAGGED);
 
   if (CpuFeatures::IsSupported(VFP3)) {
-    // Load argument and check if it is a smi.
-    __ JumpIfNotSmi(r0, &input_not_smi);
-
     CpuFeatures::Scope scope(VFP3);
-    // Input is a smi. Convert to double and load the low and high words
-    // of the double into r2, r3.
-    __ IntegerToDoubleConversionWithVFP3(r0, r3, r2);
-    __ b(&loaded);
+    if (tagged) {
+      // Argument is a number and is on stack and in r0.
+      // Load argument and check if it is a smi.
+      __ JumpIfNotSmi(r0, &input_not_smi);
 
-    __ bind(&input_not_smi);
-    // Check if input is a HeapNumber.
-    __ CheckMap(r0,
-                r1,
-                Heap::kHeapNumberMapRootIndex,
-                &runtime_call,
-                true);
-    // Input is a HeapNumber. Load it to a double register and store the
-    // low and high words into r2, r3.
-    __ Ldrd(r2, r3, FieldMemOperand(r0, HeapNumber::kValueOffset));
+      // Input is a smi. Convert to double and load the low and high words
+      // of the double into r2, r3.
+      __ IntegerToDoubleConversionWithVFP3(r0, r3, r2);
+      __ b(&loaded);
 
+      __ bind(&input_not_smi);
+      // Check if input is a HeapNumber.
+      __ CheckMap(r0,
+                  r1,
+                  Heap::kHeapNumberMapRootIndex,
+                  &calculate,
+                  true);
+      // Input is a HeapNumber. Load it to a double register and store the
+      // low and high words into r2, r3.
+      __ vldr(d0, FieldMemOperand(r0, HeapNumber::kValueOffset));
+      __ vmov(r2, r3, d0);
+    } else {
+      // Input is untagged double in d2. Output goes to d2.
+      __ vmov(r2, r3, d2);
+    }
     __ bind(&loaded);
     // r2 = low 32 bits of double value
     // r3 = high 32 bits of double value
@@ -3756,14 +3770,15 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     // r2 = low 32 bits of double value.
     // r3 = high 32 bits of double value.
     // r1 = TranscendentalCache::hash(double value).
-    __ mov(r0,
+    __ mov(cache_entry,
            Operand(ExternalReference::transcendental_cache_array_address()));
     // r0 points to cache array.
-    __ ldr(r0, MemOperand(r0, type_ * sizeof(TranscendentalCache::caches_[0])));
+    __ ldr(cache_entry, MemOperand(cache_entry,
+        type_ * sizeof(TranscendentalCache::caches_[0])));
     // r0 points to the cache for the type type_.
     // If NULL, the cache hasn't been initialized yet, so go through runtime.
-    __ cmp(r0, Operand(0, RelocInfo::NONE));
-    __ b(eq, &runtime_call);
+    __ cmp(cache_entry, Operand(0, RelocInfo::NONE));
+    __ b(eq, &invalid_cache);
 
 #ifdef DEBUG
     // Check that the layout of cache elements match expectations.
@@ -3782,21 +3797,109 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     // Find the address of the r1'st entry in the cache, i.e., &r0[r1*12].
     __ add(r1, r1, Operand(r1, LSL, 1));
-    __ add(r0, r0, Operand(r1, LSL, 2));
+    __ add(cache_entry, cache_entry, Operand(r1, LSL, 2));
     // Check if cache matches: Double value is stored in uint32_t[2] array.
-    __ ldm(ia, r0, r4.bit()| r5.bit() | r6.bit());
+    __ ldm(ia, cache_entry, r4.bit() | r5.bit() | r6.bit());
     __ cmp(r2, r4);
-    __ b(ne, &runtime_call);
+    __ b(ne, &calculate);
     __ cmp(r3, r5);
-    __ b(ne, &runtime_call);
-    // Cache hit. Load result, pop argument and return.
-    __ mov(r0, Operand(r6));
-    __ pop();
+    __ b(ne, &calculate);
+    // Cache hit. Load result, cleanup and return.
+    if (tagged) {
+      // Pop input value from stack and load result into r0.
+      __ pop();
+      __ mov(r0, Operand(r6));
+    } else {
+      // Load result into d2.
+       __ vldr(d2, FieldMemOperand(r6, HeapNumber::kValueOffset));
+    }
+    __ Ret();
+  }  // if (CpuFeatures::IsSupported(VFP3))
+
+  __ bind(&calculate);
+  if (tagged) {
+    __ bind(&invalid_cache);
+    __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
+  } else {
+    if (!CpuFeatures::IsSupported(VFP3)) UNREACHABLE();
+    CpuFeatures::Scope scope(VFP3);
+
+    Label no_update;
+    Label skip_cache;
+    const Register heap_number_map = r5;
+
+    // Call C function to calculate the result and update the cache.
+    // Register r0 holds precalculated cache entry address; preserve
+    // it on the stack and pop it into register cache_entry after the
+    // call.
+    __ push(cache_entry);
+    GenerateCallCFunction(masm, scratch0);
+    __ GetCFunctionDoubleResult(d2);
+
+    // Try to update the cache. If we cannot allocate a
+    // heap number, we return the result without updating.
+    __ pop(cache_entry);
+    __ LoadRoot(r5, Heap::kHeapNumberMapRootIndex);
+    __ AllocateHeapNumber(r6, scratch0, scratch1, r5, &no_update);
+    __ vstr(d2, FieldMemOperand(r6, HeapNumber::kValueOffset));
+    __ stm(ia, cache_entry, r2.bit() | r3.bit() | r6.bit());
+    __ Ret();
+
+    __ bind(&invalid_cache);
+    // The cache is invalid. Call runtime which will recreate the
+    // cache.
+    __ LoadRoot(r5, Heap::kHeapNumberMapRootIndex);
+    __ AllocateHeapNumber(r0, scratch0, scratch1, r5, &skip_cache);
+    __ vstr(d2, FieldMemOperand(r0, HeapNumber::kValueOffset));
+    __ EnterInternalFrame();
+    __ push(r0);
+    __ CallRuntime(RuntimeFunction(), 1);
+    __ LeaveInternalFrame();
+    __ vldr(d2, FieldMemOperand(r0, HeapNumber::kValueOffset));
+    __ Ret();
+
+    __ bind(&skip_cache);
+    // Call C function to calculate the result and answer directly
+    // without updating the cache.
+    GenerateCallCFunction(masm, scratch0);
+    __ GetCFunctionDoubleResult(d2);
+    __ bind(&no_update);
+
+    // We return the value in d2 without adding it to the cache, but
+    // we cause a scavenging GC so that future allocations will succeed.
+    __ EnterInternalFrame();
+
+    // Allocate an aligned object larger than a HeapNumber.
+    ASSERT(4 * kPointerSize >= HeapNumber::kSize);
+    __ mov(scratch0, Operand(4 * kPointerSize));
+    __ push(scratch0);
+    __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
+    __ LeaveInternalFrame();
     __ Ret();
   }
+}
 
-  __ bind(&runtime_call);
-  __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
+
+void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
+                                                    Register scratch) {
+  __ push(lr);
+  __ PrepareCallCFunction(2, scratch);
+  __ vmov(r0, r1, d2);
+  switch (type_) {
+    case TranscendentalCache::SIN:
+      __ CallCFunction(ExternalReference::math_sin_double_function(), 2);
+      break;
+    case TranscendentalCache::COS:
+      __ CallCFunction(ExternalReference::math_cos_double_function(), 2);
+      break;
+    case TranscendentalCache::LOG:
+      __ CallCFunction(ExternalReference::math_log_double_function(), 2);
+      break;
+    default:
+      UNIMPLEMENTED();
+      break;
+  }
+  __ pop(lr);
 }
 
 

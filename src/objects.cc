@@ -1445,14 +1445,14 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
     String* name,
     Object* value,
     PropertyAttributes attributes,
-    StrictModeFlag strict) {
+    StrictModeFlag strict_mode) {
   // Check local property, ignore interceptor.
   LookupResult result;
   LocalLookupRealNamedProperty(name, &result);
   if (result.IsFound()) {
     // An existing property, a map transition or a null descriptor was
     // found.  Use set property to handle all these cases.
-    return SetProperty(&result, name, value, attributes, strict);
+    return SetProperty(&result, name, value, attributes, strict_mode);
   }
   // Add a new real property.
   return AddProperty(name, value, attributes);
@@ -1578,7 +1578,7 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
     String* name,
     Object* value,
     PropertyAttributes attributes,
-    StrictModeFlag strict) {
+    StrictModeFlag strict_mode) {
   HandleScope scope;
   Handle<JSObject> this_handle(this);
   Handle<String> name_handle(name);
@@ -1608,7 +1608,7 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
       this_handle->SetPropertyPostInterceptor(*name_handle,
                                               *value_handle,
                                               attributes,
-                                              strict);
+                                              strict_mode);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
 }
@@ -1617,10 +1617,10 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
 MaybeObject* JSObject::SetProperty(String* name,
                                    Object* value,
                                    PropertyAttributes attributes,
-                                   StrictModeFlag strict) {
+                                   StrictModeFlag strict_mode) {
   LookupResult result;
   LocalLookup(name, &result);
-  return SetProperty(&result, name, value, attributes, strict);
+  return SetProperty(&result, name, value, attributes, strict_mode);
 }
 
 
@@ -1901,7 +1901,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
                                    String* name,
                                    Object* value,
                                    PropertyAttributes attributes,
-                                   StrictModeFlag strict) {
+                                   StrictModeFlag strict_mode) {
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
@@ -1929,7 +1929,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
     return JSObject::cast(proto)->SetProperty(
-        result, name, value, attributes, strict);
+        result, name, value, attributes, strict_mode);
   }
 
   if (!result->IsProperty() && !IsJSContextExtensionObject()) {
@@ -1949,14 +1949,13 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
     return AddProperty(name, value, attributes);
   }
   if (result->IsReadOnly() && result->IsProperty()) {
-    if (strict == kStrictMode) {
+    if (strict_mode == kStrictMode) {
       HandleScope scope;
       Handle<String> key(name);
       Handle<Object> holder(this);
       Handle<Object> args[2] = { key, holder };
       return Top::Throw(*Factory::NewTypeError("strict_read_only_property",
                                                 HandleVector(args, 2)));
-
     } else {
       return value;
     }
@@ -1988,7 +1987,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
                                      value,
                                      result->holder());
     case INTERCEPTOR:
-      return SetPropertyWithInterceptor(name, value, attributes, strict);
+      return SetPropertyWithInterceptor(name, value, attributes, strict_mode);
     case CONSTANT_TRANSITION: {
       // If the same constant function is being added we can simply
       // transition to the target map.
@@ -5552,6 +5551,10 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
 
 
 Object* JSFunction::RemovePrototype() {
+  if (map() == context()->global_context()->function_without_prototype_map()) {
+    // Be idempotent.
+    return this;
+  }
   ASSERT(map() == context()->global_context()->function_map());
   set_map(context()->global_context()->function_without_prototype_map());
   set_prototype_or_initial_map(Heap::the_hole_value());
@@ -6522,13 +6525,6 @@ void JSArray::Expand(int required_size) {
 }
 
 
-// Computes the new capacity when expanding the elements of a JSObject.
-static int NewElementsCapacity(int old_capacity) {
-  // (old_capacity + 50%) + 16
-  return old_capacity + (old_capacity >> 1) + 16;
-}
-
-
 static Failure* ArrayLengthRangeError() {
   HandleScope scope;
   return Top::Throw(*Factory::NewRangeError("invalid_array_length",
@@ -6903,6 +6899,7 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
 
 MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
                                                  Object* value,
+                                                 StrictModeFlag strict_mode,
                                                  bool check_prototype) {
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
@@ -6929,6 +6926,7 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
   MaybeObject* raw_result =
       this_handle->SetElementWithoutInterceptor(index,
                                                 *value_handle,
+                                                strict_mode,
                                                 check_prototype);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
@@ -7042,6 +7040,7 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
 // elements.
 MaybeObject* JSObject::SetFastElement(uint32_t index,
                                       Object* value,
+                                      StrictModeFlag strict_mode,
                                       bool check_prototype) {
   ASSERT(HasFastElements());
 
@@ -7098,12 +7097,13 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   ASSERT(HasDictionaryElements());
-  return SetElement(index, value, check_prototype);
+  return SetElement(index, value, strict_mode, check_prototype);
 }
 
 
 MaybeObject* JSObject::SetElement(uint32_t index,
                                   Object* value,
+                                  StrictModeFlag strict_mode,
                                   bool check_prototype) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
@@ -7118,25 +7118,35 @@ MaybeObject* JSObject::SetElement(uint32_t index,
     Object* proto = GetPrototype();
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->SetElement(index, value, check_prototype);
+    return JSObject::cast(proto)->SetElement(index,
+                                             value,
+                                             strict_mode,
+                                             check_prototype);
   }
 
   // Check for lookup interceptor
   if (HasIndexedInterceptor()) {
-    return SetElementWithInterceptor(index, value, check_prototype);
+    return SetElementWithInterceptor(index,
+                                     value,
+                                     strict_mode,
+                                     check_prototype);
   }
 
-  return SetElementWithoutInterceptor(index, value, check_prototype);
+  return SetElementWithoutInterceptor(index,
+                                      value,
+                                      strict_mode,
+                                      check_prototype);
 }
 
 
 MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
                                                     Object* value,
+                                                    StrictModeFlag strict_mode,
                                                     bool check_prototype) {
   switch (GetElementsKind()) {
     case FAST_ELEMENTS:
       // Fast case.
-      return SetFastElement(index, value, check_prototype);
+      return SetFastElement(index, value, strict_mode, check_prototype);
     case PIXEL_ELEMENTS: {
       PixelArray* pixels = PixelArray::cast(elements());
       return pixels->SetValue(index, value);
@@ -7185,13 +7195,23 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
           return SetElementWithCallback(element, index, value, this);
         } else {
           dictionary->UpdateMaxNumberKey(index);
-          dictionary->ValueAtPut(entry, value);
+          // If put fails instrict mode, throw exception.
+          if (!dictionary->ValueAtPut(entry, value) &&
+              strict_mode == kStrictMode) {
+            Handle<Object> number(Factory::NewNumberFromUint(index));
+            Handle<Object> holder(this);
+            Handle<Object> args[2] = { number, holder };
+            return Top::Throw(
+                *Factory::NewTypeError("strict_read_only_property",
+                                       HandleVector(args, 2)));
+          }
         }
       } else {
         // Index not already used. Look for an accessor in the prototype chain.
         if (check_prototype) {
           bool found;
           MaybeObject* result =
+              // Strict mode not needed. No-setter case already handled.
               SetElementWithCallbackSetterInPrototypes(index, value, &found);
           if (found) return result;
         }

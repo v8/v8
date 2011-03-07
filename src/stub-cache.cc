@@ -1429,13 +1429,13 @@ MaybeObject* StoreInterceptorProperty(Arguments args) {
   JSObject* recv = JSObject::cast(args[0]);
   String* name = String::cast(args[1]);
   Object* value = args[2];
-  StrictModeFlag strict =
+  StrictModeFlag strict_mode =
       static_cast<StrictModeFlag>(Smi::cast(args[3])->value());
-  ASSERT(strict == kStrictMode || strict == kNonStrictMode);
+  ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
   ASSERT(recv->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
   MaybeObject* result = recv->SetPropertyWithInterceptor(
-      name, value, attr, strict);
+      name, value, attr, strict_mode);
   return result;
 }
 

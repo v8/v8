@@ -640,7 +640,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // On windows put the argument on the stack (PrepareCallCFunction have
   // created space for this). On linux pass the argument in r8.
 #ifdef _WIN64
-  __ movq(Operand(rsp, 0 * kPointerSize), arg5);
+  __ movq(Operand(rsp, 4 * kPointerSize), arg5);
 #else
   __ movq(r8, arg5);
 #endif
@@ -749,11 +749,8 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Set up the roots register.
   ExternalReference roots_address = ExternalReference::roots_address();
-  __ movq(r13, roots_address);
-
-  __ movq(kSmiConstantRegister,
-          reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
-          RelocInfo::NONE);
+  __ InitializeRootRegister();
+  __ InitializeSmiConstantRegister();
 
   // Return to the continuation point.
   __ ret(0);

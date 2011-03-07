@@ -8217,7 +8217,8 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     // This is the map check instruction that will be patched (so we can't
     // use the double underscore macro that may insert instructions).
     // Initially use an invalid map to force a failure.
-    masm()->Move(kScratchRegister, Factory::null_value());
+    masm()->movq(kScratchRegister, Factory::null_value(),
+                 RelocInfo::EMBEDDED_OBJECT);
     masm()->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
                  kScratchRegister);
     // This branch is always a forwards branch so it's always a fixed
@@ -8293,7 +8294,8 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     // the __ macro for the following two instructions because it
     // might introduce extra instructions.
     __ bind(&patch_site);
-    masm()->Move(kScratchRegister, Factory::null_value());
+    masm()->movq(kScratchRegister, Factory::null_value(),
+                 RelocInfo::EMBEDDED_OBJECT);
     masm()->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
                  kScratchRegister);
     // This branch is always a forwards branch so it's always a fixed size

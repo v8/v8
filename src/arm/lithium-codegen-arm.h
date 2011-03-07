@@ -53,7 +53,7 @@ class LCodeGen BASE_EMBEDDED {
         deoptimizations_(4),
         deoptimization_literals_(8),
         inlined_function_count_(0),
-        scope_(chunk->graph()->info()->scope()),
+        scope_(info->scope()),
         status_(UNUSED),
         deferred_(8),
         osr_pc_offset_(-1),
@@ -64,6 +64,7 @@ class LCodeGen BASE_EMBEDDED {
 
   // Simple accessors.
   MacroAssembler* masm() const { return masm_; }
+  CompilationInfo* info() const { return info_; }
 
   // Support for converting LOperands to assembler types.
   // LOperand must be a register.
@@ -132,7 +133,7 @@ class LCodeGen BASE_EMBEDDED {
   bool is_aborted() const { return status_ == ABORTED; }
 
   int strict_mode_flag() const {
-    return info_->is_strict() ? kStrictMode : kNonStrictMode;
+    return info()->is_strict() ? kStrictMode : kNonStrictMode;
   }
 
   LChunk* chunk() const { return chunk_; }
@@ -209,6 +210,9 @@ class LCodeGen BASE_EMBEDDED {
   void DoMathFloor(LUnaryMathOperation* instr);
   void DoMathRound(LUnaryMathOperation* instr);
   void DoMathSqrt(LUnaryMathOperation* instr);
+  void DoMathLog(LUnaryMathOperation* instr);
+  void DoMathCos(LUnaryMathOperation* instr);
+  void DoMathSin(LUnaryMathOperation* instr);
 
   // Support for recording safepoint and position information.
   void RecordSafepoint(LPointerMap* pointers,

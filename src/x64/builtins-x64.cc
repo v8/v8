@@ -1248,7 +1248,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rdi);
 
   if (FLAG_debug_code) {
-    // Initial map for the builtin Array function shoud be a map.
+    // Initial map for the builtin Array functions should be maps.
     __ movq(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
     ASSERT(kSmiTag == 0);
@@ -1280,11 +1280,8 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
   Label generic_constructor;
 
   if (FLAG_debug_code) {
-    // The array construct code is only set for the builtin Array function which
-    // does always have a map.
-    __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rbx);
-    __ cmpq(rdi, rbx);
-    __ Check(equal, "Unexpected Array function");
+    // The array construct code is only set for the builtin and internal
+    // Array functions which always have a map.
     // Initial map for the builtin Array function should be a map.
     __ movq(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.

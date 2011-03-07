@@ -728,17 +728,6 @@ class LHasInstanceTypeAndBranch: public LControlInstruction<1, 0> {
 };
 
 
-class LHasCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LHasCachedArrayIndex(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(HasCachedArrayIndex, "has-cached-array-index")
-  DECLARE_HYDROGEN_ACCESSOR(HasCachedArrayIndex)
-};
-
-
 class LGetCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LGetCachedArrayIndex(LOperand* value) {
@@ -747,6 +736,17 @@ class LGetCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(GetCachedArrayIndex, "get-cached-array-index")
   DECLARE_HYDROGEN_ACCESSOR(GetCachedArrayIndex)
+};
+
+
+class LHasCachedArrayIndex: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LHasCachedArrayIndex(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(HasCachedArrayIndex, "has-cached-array-index")
+  DECLARE_HYDROGEN_ACCESSOR(HasCachedArrayIndex)
 };
 
 
@@ -1829,7 +1829,7 @@ class LStackCheck: public LTemplateInstruction<0, 0, 0> {
 class LChunkBuilder;
 class LChunk: public ZoneObject {
  public:
-  explicit LChunk(HGraph* graph);
+  explicit LChunk(CompilationInfo* info, HGraph* graph);
 
   void AddInstruction(LInstruction* instruction, HBasicBlock* block);
   LConstantOperand* DefineConstantOperand(HConstant* constant);
@@ -1842,6 +1842,7 @@ class LChunk: public ZoneObject {
   int ParameterAt(int index);
   int GetParameterStackSlot(int index) const;
   int spill_slot_count() const { return spill_slot_count_; }
+  CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
   const ZoneList<LInstruction*>* instructions() const { return &instructions_; }
   void AddGapMove(int index, LOperand* from, LOperand* to);
@@ -1878,6 +1879,7 @@ class LChunk: public ZoneObject {
 
  private:
   int spill_slot_count_;
+  CompilationInfo* info_;
   HGraph* const graph_;
   ZoneList<LInstruction*> instructions_;
   ZoneList<LPointerMap*> pointer_maps_;
@@ -1887,8 +1889,9 @@ class LChunk: public ZoneObject {
 
 class LChunkBuilder BASE_EMBEDDED {
  public:
-  LChunkBuilder(HGraph* graph, LAllocator* allocator)
+  LChunkBuilder(CompilationInfo* info, HGraph* graph, LAllocator* allocator)
       : chunk_(NULL),
+        info_(info),
         graph_(graph),
         status_(UNUSED),
         current_instruction_(NULL),
@@ -1917,6 +1920,7 @@ class LChunkBuilder BASE_EMBEDDED {
   };
 
   LChunk* chunk() const { return chunk_; }
+  CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
 
   bool is_unused() const { return status_ == UNUSED; }
@@ -2023,6 +2027,7 @@ class LChunkBuilder BASE_EMBEDDED {
                               HArithmeticBinaryOperation* instr);
 
   LChunk* chunk_;
+  CompilationInfo* info_;
   HGraph* const graph_;
   Status status_;
   HInstruction* current_instruction_;

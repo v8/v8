@@ -48,23 +48,39 @@ class SafepointGenerator : public PostCallGenerator {
       : codegen_(codegen),
         pointers_(pointers),
         deoptimization_index_(deoptimization_index),
-        ensure_reloc_space_(ensure_reloc_space) { }
+        ensure_reloc_space_(ensure_reloc_space),
+        previous_safepoint_position_(-kMinSafepointSize) { }
   virtual ~SafepointGenerator() { }
 
   virtual void Generate() {
+    // Ensure that we have enough space after the previous safepoint position
+    // for the generated code there.
+    int position = codegen_->masm()->pc_offset();
+    ASSERT(position > previous_safepoint_position_);
+    if (position < previous_safepoint_position_ + kMinSafepointSize) {
+      int padding_size =
+          previous_safepoint_position_ + kMinSafepointSize - position;
+      STATIC_ASSERT(kMinSafepointSize <= 9);  // One multibyte nop is enough.
+      codegen_->masm()->nop(padding_size);
+      position += padding_size;
+    }
     // Ensure that we have enough space in the reloc info to patch
     // this with calls when doing deoptimization.
     if (ensure_reloc_space_) {
       codegen_->masm()->RecordComment(RelocInfo::kFillerCommentString, true);
     }
     codegen_->RecordSafepoint(pointers_, deoptimization_index_);
+    previous_safepoint_position_ = position;
   }
 
  private:
+  static const int kMinSafepointSize =
+      MacroAssembler::kShortCallInstructionLength;
   LCodeGen* codegen_;
   LPointerMap* pointers_;
   int deoptimization_index_;
   bool ensure_reloc_space_;
+  int previous_safepoint_position_;
 };
 
 
@@ -92,8 +108,8 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 
 void LCodeGen::Abort(const char* format, ...) {
   if (FLAG_trace_bailout) {
-    SmartPointer<char> debug_name = graph()->debug_name()->ToCString();
-    PrintF("Aborting LCodeGen in @\"%s\": ", *debug_name);
+    SmartPointer<char> name(info()->shared_info()->DebugName()->ToCString());
+    PrintF("Aborting LCodeGen in @\"%s\": ", *name);
     va_list arguments;
     va_start(arguments, format);
     OS::VPrint(format, arguments);
@@ -1114,25 +1130,31 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
 
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
-  LOperand* left = instr->InputAt(0);
-  LOperand* right = instr->InputAt(1);
+  XMMRegister left = ToDoubleRegister(instr->InputAt(0));
+  XMMRegister right = ToDoubleRegister(instr->InputAt(1));
+  XMMRegister result = ToDoubleRegister(instr->result());
   // All operations except MOD are computed in-place.
-  ASSERT(instr->op() == Token::MOD || left->Equals(instr->result()));
+  ASSERT(instr->op() == Token::MOD || left.is(result));
   switch (instr->op()) {
     case Token::ADD:
-      __ addsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ addsd(left, right);
       break;
     case Token::SUB:
-       __ subsd(ToDoubleRegister(left), ToDoubleRegister(right));
+       __ subsd(left, right);
        break;
     case Token::MUL:
-      __ mulsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ mulsd(left, right);
       break;
     case Token::DIV:
-      __ divsd(ToDoubleRegister(left), ToDoubleRegister(right));
+      __ divsd(left, right);
       break;
     case Token::MOD:
-      Abort("Unimplemented: %s", "DoArithmeticD MOD");
+      __ PrepareCallCFunction(2);
+      __ movsd(xmm0, left);
+      ASSERT(right.is(xmm1));
+      __ CallCFunction(ExternalReference::double_fp_operation(Token::MOD), 2);
+      __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+      __ movsd(result, xmm0);
       break;
     default:
       UNREACHABLE();
@@ -1426,7 +1448,7 @@ void LCodeGen::DoIsNull(LIsNull* instr) {
     __ j(equal, &load);
     __ movl(result, Immediate(Heap::kFalseValueRootIndex));
     __ bind(&load);
-    __ movq(result, Operand(kRootRegister, result, times_pointer_size, 0));
+    __ LoadRootIndexed(result, result, 0);
   } else {
     NearLabel true_value, false_value, done;
     __ j(equal, &true_value);
@@ -1557,8 +1579,7 @@ void LCodeGen::DoIsSmi(LIsSmi* instr) {
   }
   // result is zero if input is a smi, and one otherwise.
   ASSERT(Heap::kFalseValueRootIndex == Heap::kTrueValueRootIndex + 1);
-  __ movq(result, Operand(kRootRegister, result, times_pointer_size,
-                          Heap::kTrueValueRootIndex * kPointerSize));
+  __ LoadRootIndexed(result, result, Heap::kTrueValueRootIndex);
 }
 
 
@@ -1631,6 +1652,20 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
 }
 
 
+void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(input);
+  }
+
+  __ movl(result, FieldOperand(input, String::kHashFieldOffset));
+  ASSERT(String::kHashShift >= kSmiTagSize);
+  __ IndexFromHash(result, result);
+}
+
+
 void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
@@ -1640,7 +1675,7 @@ void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
   __ testl(FieldOperand(input, String::kHashFieldOffset),
            Immediate(String::kContainsCachedArrayIndexMask));
   NearLabel done;
-  __ j(not_zero, &done);
+  __ j(zero, &done);
   __ LoadRoot(result, Heap::kFalseValueRootIndex);
   __ bind(&done);
 }
@@ -1655,7 +1690,7 @@ void LCodeGen::DoHasCachedArrayIndexAndBranch(
 
   __ testl(FieldOperand(input, String::kHashFieldOffset),
            Immediate(String::kContainsCachedArrayIndexMask));
-  EmitBranch(true_block, false_block, not_equal);
+  EmitBranch(true_block, false_block, equal);
 }
 
 
@@ -1958,7 +1993,8 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   __ movq(ContextOperand(context, instr->slot_index()), value);
   if (instr->needs_write_barrier()) {
     int offset = Context::SlotOffset(instr->slot_index());
-    __ RecordWrite(context, offset, value, kScratchRegister);
+    Register scratch = ToRegister(instr->TempAt(0));
+    __ RecordWrite(context, offset, value, scratch);
   }
 }
 
@@ -2273,7 +2309,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  LInstruction* instr) {
   // Change context if needed.
   bool change_context =
-      (graph()->info()->closure()->context() != function->context()) ||
+      (info()->closure()->context() != function->context()) ||
       scope()->contains_with() ||
       (scope()->num_heap_slots() > 0);
   if (change_context) {
@@ -2290,7 +2326,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   RecordPosition(pointers->position());
 
   // Invoke function.
-  if (*function == *graph()->info()->closure()) {
+  if (*function == *info()->closure()) {
     __ CallSelf();
   } else {
     __ call(FieldOperand(rdi, JSFunction::kCodeEntryOffset));
@@ -3460,12 +3496,11 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 
   } else if (type_name->Equals(Heap::string_symbol())) {
     __ JumpIfSmi(input, false_label);
-    __ movq(input, FieldOperand(input, HeapObject::kMapOffset));
+    __ CmpObjectType(input, FIRST_NONSTRING_TYPE, input);
+    __ j(above_equal, false_label);
     __ testb(FieldOperand(input, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
-    __ j(not_zero, false_label);
-    __ CmpInstanceType(input, FIRST_NONSTRING_TYPE);
-    final_branch_condition = below;
+    final_branch_condition = zero;
 
   } else if (type_name->Equals(Heap::boolean_symbol())) {
     __ CompareRoot(input, Heap::kTrueValueRootIndex);
@@ -3490,17 +3525,16 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 
   } else if (type_name->Equals(Heap::object_symbol())) {
     __ JumpIfSmi(input, false_label);
-    __ Cmp(input, Factory::null_value());
+    __ CompareRoot(input, Heap::kNullValueRootIndex);
     __ j(equal, true_label);
+    __ CmpObjectType(input, FIRST_JS_OBJECT_TYPE, input);
+    __ j(below, false_label);
+    __ CmpInstanceType(input, FIRST_FUNCTION_CLASS_TYPE);
+    __ j(above_equal, false_label);
     // Check for undetectable objects => false.
     __ testb(FieldOperand(input, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
-    __ j(not_zero, false_label);
-    // Check for JS objects that are not RegExp or Function => true.
-    __ CmpInstanceType(input, FIRST_JS_OBJECT_TYPE);
-    __ j(below, false_label);
-    __ CmpInstanceType(input, FIRST_FUNCTION_CLASS_TYPE);
-    final_branch_condition = below_equal;
+    final_branch_condition = zero;
 
   } else {
     final_branch_condition = never;

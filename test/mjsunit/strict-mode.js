@@ -828,3 +828,132 @@ repeat(10, function() { testAssignToUndefined(false); });
     assertEquals(o[100000], 31);
   }
 })();
+
+
+(function TestSetElementWithoutSetter() {
+  "use strict";
+
+  var o = { };
+  Object.defineProperty(o, 0, { get : function() { } });
+
+  var zero_smi = 0;
+  var zero_number = new Number(0);
+  var zero_symbol = "0";
+  var zero_string = "-0-".substring(1,2);
+
+  assertThrows(function() { o[zero_smi] = "new value"; }, TypeError);
+  assertThrows(function() { o[zero_number] = "new value"; }, TypeError);
+  assertThrows(function() { o[zero_symbol] = "new value"; }, TypeError);
+  assertThrows(function() { o[zero_string] = "new value"; }, TypeError);
+})();
+
+
+(function TestSetElementNonConfigurable() {
+  "use strict";
+  var frozen = Object.freeze({});
+  var sealed = Object.seal({});
+
+  var zero_number = 0;
+  var zero_symbol = "0";
+  var zero_string = "-0-".substring(1,2);
+
+  assertThrows(function() { frozen[zero_number] = "value"; }, TypeError);
+  assertThrows(function() { sealed[zero_number] = "value"; }, TypeError);
+  assertThrows(function() { frozen[zero_symbol] = "value"; }, TypeError);
+  assertThrows(function() { sealed[zero_symbol] = "value"; }, TypeError);
+  assertThrows(function() { frozen[zero_string] = "value"; }, TypeError);
+  assertThrows(function() { sealed[zero_string] = "value"; }, TypeError);
+})();
+
+
+(function TestAssignmentToReadOnlyElement() {
+  "use strict";
+
+  var o = {};
+  Object.defineProperty(o, 7, { value: 17 });
+
+  var seven_smi = 7;
+  var seven_number = new Number(7);
+  var seven_symbol = "7";
+  var seven_string = "-7-".substring(1,2);
+
+  // Index with number.
+  assertThrows(function() { o[seven_smi] = "value"; }, TypeError);
+  assertThrows(function() { o[seven_smi] += 10; }, TypeError);
+  assertThrows(function() { o[seven_smi] -= 10; }, TypeError);
+  assertThrows(function() { o[seven_smi] *= 10; }, TypeError);
+  assertThrows(function() { o[seven_smi] /= 10; }, TypeError);
+  assertThrows(function() { o[seven_smi]++; }, TypeError);
+  assertThrows(function() { o[seven_smi]--; }, TypeError);
+  assertThrows(function() { ++o[seven_smi]; }, TypeError);
+  assertThrows(function() { --o[seven_smi]; }, TypeError);
+
+  assertThrows(function() { o[seven_number] = "value"; }, TypeError);
+  assertThrows(function() { o[seven_number] += 10; }, TypeError);
+  assertThrows(function() { o[seven_number] -= 10; }, TypeError);
+  assertThrows(function() { o[seven_number] *= 10; }, TypeError);
+  assertThrows(function() { o[seven_number] /= 10; }, TypeError);
+  assertThrows(function() { o[seven_number]++; }, TypeError);
+  assertThrows(function() { o[seven_number]--; }, TypeError);
+  assertThrows(function() { ++o[seven_number]; }, TypeError);
+  assertThrows(function() { --o[seven_number]; }, TypeError);
+
+  assertThrows(function() { o[seven_symbol] = "value"; }, TypeError);
+  assertThrows(function() { o[seven_symbol] += 10; }, TypeError);
+  assertThrows(function() { o[seven_symbol] -= 10; }, TypeError);
+  assertThrows(function() { o[seven_symbol] *= 10; }, TypeError);
+  assertThrows(function() { o[seven_symbol] /= 10; }, TypeError);
+  assertThrows(function() { o[seven_symbol]++; }, TypeError);
+  assertThrows(function() { o[seven_symbol]--; }, TypeError);
+  assertThrows(function() { ++o[seven_symbol]; }, TypeError);
+  assertThrows(function() { --o[seven_symbol]; }, TypeError);
+
+  assertThrows(function() { o[seven_string] = "value"; }, TypeError);
+  assertThrows(function() { o[seven_string] += 10; }, TypeError);
+  assertThrows(function() { o[seven_string] -= 10; }, TypeError);
+  assertThrows(function() { o[seven_string] *= 10; }, TypeError);
+  assertThrows(function() { o[seven_string] /= 10; }, TypeError);
+  assertThrows(function() { o[seven_string]++; }, TypeError);
+  assertThrows(function() { o[seven_string]--; }, TypeError);
+  assertThrows(function() { ++o[seven_string]; }, TypeError);
+  assertThrows(function() { --o[seven_string]; }, TypeError);
+
+  assertEquals(o[seven_number], 17);
+  assertEquals(o[seven_symbol], 17);
+  assertEquals(o[seven_string], 17);
+})();
+
+
+(function TestAssignmentToReadOnlyLoop() {
+  "use strict";
+
+  var o = {};
+  Object.defineProperty(o, 7, { value: 17 });
+
+  var seven_smi = 7;
+  var seven_number = new Number(7);
+  var seven_symbol = "7";
+  var seven_string = "-7-".substring(1,2);
+
+  for (var i = 0; i < 10; i ++) {
+    assertThrows(function() { o[seven_smi] = "value" }, TypeError);
+    assertThrows(function() { o[seven_number] = "value" }, TypeError);
+    assertThrows(function() { o[seven_symbol] = "value" }, TypeError);
+    assertThrows(function() { o[seven_string] = "value" }, TypeError);
+  }
+
+  assertEquals(o[7], 17);
+})();
+
+
+(function TestAssignmentToStringLength() {
+  "use strict";
+
+  var str_val = "string";
+  var str_obj = new String(str_val);
+  var str_cat = str_val + str_val + str_obj;
+
+  assertThrows(function() { str_val.length = 1; }, TypeError);
+  assertThrows(function() { str_obj.length = 1; }, TypeError);
+  assertThrows(function() { str_cat.length = 1; }, TypeError);
+})();

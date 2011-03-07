@@ -120,6 +120,44 @@ void Range::AddConstant(int32_t value) {
 }
 
 
+void Range::Intersect(Range* other) {
+  upper_ = Min(upper_, other->upper_);
+  lower_ = Max(lower_, other->lower_);
+  bool b = CanBeMinusZero() && other->CanBeMinusZero();
+  set_can_be_minus_zero(b);
+}
+
+
+void Range::Union(Range* other) {
+  upper_ = Max(upper_, other->upper_);
+  lower_ = Min(lower_, other->lower_);
+  bool b = CanBeMinusZero() || other->CanBeMinusZero();
+  set_can_be_minus_zero(b);
+}
+
+
+void Range::Sar(int32_t value) {
+  int32_t bits = value & 0x1F;
+  lower_ = lower_ >> bits;
+  upper_ = upper_ >> bits;
+  set_can_be_minus_zero(false);
+}
+
+
+void Range::Shl(int32_t value) {
+  int32_t bits = value & 0x1F;
+  int old_lower = lower_;
+  int old_upper = upper_;
+  lower_ = lower_ << bits;
+  upper_ = upper_ << bits;
+  if (old_lower != lower_ >> bits || old_upper != upper_ >> bits) {
+    upper_ = kMaxInt;
+    lower_ = kMinInt;
+  }
+  set_can_be_minus_zero(false);
+}
+
+
 bool Range::AddAndCheckOverflow(Range* other) {
   bool may_overflow = false;
   lower_ = AddWithoutOverflow(lower_, other->lower(), &may_overflow);
@@ -285,24 +323,19 @@ void HValue::SetOperandAt(int index, HValue* value) {
 
 
 void HValue::ReplaceAndDelete(HValue* other) {
-  ReplaceValue(other);
+  if (other != NULL) ReplaceValue(other);
   Delete();
 }
 
 
 void HValue::ReplaceValue(HValue* other) {
-  ZoneList<HValue*> start_uses(2);
   for (int i = 0; i < uses_.length(); ++i) {
-    HValue* use = uses_.at(i);
-    if (!use->block()->IsStartBlock()) {
-      InternalReplaceAtUse(use, other);
-      other->uses_.Add(use);
-    } else {
-      start_uses.Add(use);
-    }
+    HValue* use = uses_[i];
+    ASSERT(!use->block()->IsStartBlock());
+    InternalReplaceAtUse(use, other);
+    other->uses_.Add(use);
   }
-  uses_.Clear();
-  uses_.AddAll(start_uses);
+  uses_.Rewind(0);
 }
 
 
@@ -420,7 +453,9 @@ void HInstruction::PrintTo(StringStream* stream) {
   stream->Add(" ");
   PrintDataTo(stream);
 
-  if (range() != NULL) {
+  if (range() != NULL &&
+      !range()->IsMostGeneric() &&
+      !range()->CanBeMinusZero()) {
     stream->Add(" range[%d,%d,m0=%d]",
                 range()->lower(),
                 range()->upper(),
@@ -744,6 +779,8 @@ Range* HValue::InferRange() {
   } else if (representation().IsNone()) {
     return NULL;
   } else {
+    // Untagged integer32 cannot be -0 and we don't compute ranges for
+    // untagged doubles.
     return new Range();
   }
 }
@@ -755,7 +792,7 @@ Range* HConstant::InferRange() {
     result->set_can_be_minus_zero(false);
     return result;
   }
-  return HInstruction::InferRange();
+  return HValue::InferRange();
 }
 
 
@@ -789,7 +826,7 @@ Range* HAdd::InferRange() {
     res->set_can_be_minus_zero(m0);
     return res;
   } else {
-    return HArithmeticBinaryOperation::InferRange();
+    return HValue::InferRange();
   }
 }
 
@@ -805,7 +842,7 @@ Range* HSub::InferRange() {
     res->set_can_be_minus_zero(a->CanBeMinusZero() && b->CanBeZero());
     return res;
   } else {
-    return HArithmeticBinaryOperation::InferRange();
+    return HValue::InferRange();
   }
 }
 
@@ -823,7 +860,7 @@ Range* HMul::InferRange() {
     res->set_can_be_minus_zero(m0);
     return res;
   } else {
-    return HArithmeticBinaryOperation::InferRange();
+    return HValue::InferRange();
   }
 }
 
@@ -848,7 +885,7 @@ Range* HDiv::InferRange() {
     }
     return result;
   } else {
-    return HArithmeticBinaryOperation::InferRange();
+    return HValue::InferRange();
   }
 }
 
@@ -865,7 +902,7 @@ Range* HMod::InferRange() {
     }
     return result;
   } else {
-    return HArithmeticBinaryOperation::InferRange();
+    return HValue::InferRange();
   }
 }
 
@@ -1026,34 +1063,30 @@ void HBinaryOperation::PrintDataTo(StringStream* stream) {
 
 
 Range* HBitAnd::InferRange() {
-  Range* a = left()->range();
-  Range* b = right()->range();
-  int32_t a_mask = 0xffffffff;
-  int32_t b_mask = 0xffffffff;
-  if (a != NULL) a_mask = a->Mask();
-  if (b != NULL) b_mask = b->Mask();
-  int32_t result_mask = a_mask & b_mask;
-  if (result_mask >= 0) {
-    return new Range(0, result_mask);
-  } else {
-    return HBinaryOperation::InferRange();
-  }
+  int32_t left_mask = (left()->range() != NULL)
+      ? left()->range()->Mask()
+      : 0xffffffff;
+  int32_t right_mask = (right()->range() != NULL)
+      ? right()->range()->Mask()
+      : 0xffffffff;
+  int32_t result_mask = left_mask & right_mask;
+  return (result_mask >= 0)
+      ? new Range(0, result_mask)
+      : HValue::InferRange();
 }
 
 
 Range* HBitOr::InferRange() {
-  Range* a = left()->range();
-  Range* b = right()->range();
-  int32_t a_mask = 0xffffffff;
-  int32_t b_mask = 0xffffffff;
-  if (a != NULL) a_mask = a->Mask();
-  if (b != NULL) b_mask = b->Mask();
-  int32_t result_mask = a_mask | b_mask;
-  if (result_mask >= 0) {
-    return new Range(0, result_mask);
-  } else {
-    return HBinaryOperation::InferRange();
-  }
+  int32_t left_mask = (left()->range() != NULL)
+      ? left()->range()->Mask()
+      : 0xffffffff;
+  int32_t right_mask = (right()->range() != NULL)
+      ? right()->range()->Mask()
+      : 0xffffffff;
+  int32_t result_mask = left_mask | right_mask;
+  return (result_mask >= 0)
+      ? new Range(0, result_mask)
+      : HValue::InferRange();
 }
 
 
@@ -1061,20 +1094,14 @@ Range* HSar::InferRange() {
   if (right()->IsConstant()) {
     HConstant* c = HConstant::cast(right());
     if (c->HasInteger32Value()) {
-      int32_t val = c->Integer32Value();
-      Range* result = NULL;
-      Range* left_range = left()->range();
-      if (left_range == NULL) {
-        result = new Range();
-      } else {
-        result = left_range->Copy();
-      }
-      result->Sar(val);
+      Range* result = (left()->range() != NULL)
+          ? left()->range()->Copy()
+          : new Range();
+      result->Sar(c->Integer32Value());
       return result;
     }
   }
-
-  return HBinaryOperation::InferRange();
+  return HValue::InferRange();
 }
 
 
@@ -1082,20 +1109,14 @@ Range* HShl::InferRange() {
   if (right()->IsConstant()) {
     HConstant* c = HConstant::cast(right());
     if (c->HasInteger32Value()) {
-      int32_t val = c->Integer32Value();
-      Range* result = NULL;
-      Range* left_range = left()->range();
-      if (left_range == NULL) {
-        result = new Range();
-      } else {
-        result = left_range->Copy();
-      }
-      result->Shl(val);
+      Range* result = (left()->range() != NULL)
+          ? left()->range()->Copy()
+          : new Range();
+      result->Shl(c->Integer32Value());
       return result;
     }
   }
-
-  return HBinaryOperation::InferRange();
+  return HValue::InferRange();
 }
 
 

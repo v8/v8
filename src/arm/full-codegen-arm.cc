@@ -3038,7 +3038,8 @@ void FullCodeGenerator::EmitStringCompare(ZoneList<Expression*>* args) {
 
 void FullCodeGenerator::EmitMathSin(ZoneList<Expression*>* args) {
   // Load the argument on the stack and call the stub.
-  TranscendentalCacheStub stub(TranscendentalCache::SIN);
+  TranscendentalCacheStub stub(TranscendentalCache::SIN,
+                               TranscendentalCacheStub::TAGGED);
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
   __ CallStub(&stub);
@@ -3048,7 +3049,8 @@ void FullCodeGenerator::EmitMathSin(ZoneList<Expression*>* args) {
 
 void FullCodeGenerator::EmitMathCos(ZoneList<Expression*>* args) {
   // Load the argument on the stack and call the stub.
-  TranscendentalCacheStub stub(TranscendentalCache::COS);
+  TranscendentalCacheStub stub(TranscendentalCache::COS,
+                               TranscendentalCacheStub::TAGGED);
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
   __ CallStub(&stub);
@@ -3058,7 +3060,8 @@ void FullCodeGenerator::EmitMathCos(ZoneList<Expression*>* args) {
 
 void FullCodeGenerator::EmitMathLog(ZoneList<Expression*>* args) {
   // Load the argument on the stack and call the stub.
-  TranscendentalCacheStub stub(TranscendentalCache::LOG);
+  TranscendentalCacheStub stub(TranscendentalCache::LOG,
+                               TranscendentalCacheStub::TAGGED);
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
   __ CallStub(&stub);
@@ -3110,7 +3113,79 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
   VisitForStackValue(args->at(2));
+  Label done;
+  Label slow_case;
+  Register object = r0;
+  Register index1 = r1;
+  Register index2 = r2;
+  Register elements = r3;
+  Register scratch1 = r4;
+  Register scratch2 = r5;
+
+  __ ldr(object, MemOperand(sp, 2 * kPointerSize));
+  // Fetch the map and check if array is in fast case.
+  // Check that object doesn't require security checks and
+  // has no indexed interceptor.
+  __ CompareObjectType(object, scratch1, scratch2, FIRST_JS_OBJECT_TYPE);
+  __ b(lt, &slow_case);
+  // Map is now in scratch1.
+
+  __ ldrb(scratch2, FieldMemOperand(scratch1, Map::kBitFieldOffset));
+  __ tst(scratch2, Operand(KeyedLoadIC::kSlowCaseBitFieldMask));
+  __ b(ne, &slow_case);
+
+  // Check the object's elements are in fast case and writable.
+  __ ldr(elements, FieldMemOperand(object, JSObject::kElementsOffset));
+  __ ldr(scratch1, FieldMemOperand(elements, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+  __ cmp(scratch1, ip);
+  __ b(ne, &slow_case);
+
+  // Check that both indices are smis.
+  __ ldr(index1, MemOperand(sp, 1 * kPointerSize));
+  __ ldr(index2, MemOperand(sp, 0));
+  __ JumpIfNotBothSmi(index1, index2, &slow_case);
+
+  // Check that both indices are valid.
+  __ ldr(scratch1, FieldMemOperand(object, JSArray::kLengthOffset));
+  __ cmp(scratch1, index1);
+  __ cmp(scratch1, index2, hi);
+  __ b(ls, &slow_case);
+
+  // Bring the address of the elements into index1 and index2.
+  __ add(scratch1, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(index1,
+         scratch1,
+         Operand(index1, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(index2,
+         scratch1,
+         Operand(index2, LSL, kPointerSizeLog2 - kSmiTagSize));
+
+  // Swap elements.
+  __ ldr(scratch1, MemOperand(index1, 0));
+  __ ldr(scratch2, MemOperand(index2, 0));
+  __ str(scratch1, MemOperand(index2, 0));
+  __ str(scratch2, MemOperand(index1, 0));
+
+  Label new_space;
+  __ InNewSpace(elements, scratch1, eq, &new_space);
+  // Possible optimization: do a check that both values are Smis
+  // (or them and test against Smi mask.)
+
+  __ mov(scratch1, elements);
+  __ RecordWriteHelper(elements, index1, scratch2);
+  __ RecordWriteHelper(scratch1, index2, scratch2);  // scratch1 holds elements.
+
+  __ bind(&new_space);
+  // We are done. Drop elements from the stack, and return undefined.
+  __ Drop(3);
+  __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+  __ jmp(&done);
+
+  __ bind(&slow_case);
   __ CallRuntime(Runtime::kSwapElements, 3);
+
+  __ bind(&done);
   context()->Plug(r0);
 }
 
@@ -3902,71 +3977,52 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
 
   if (check->Equals(Heap::number_symbol())) {
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, if_true);
+    __ JumpIfSmi(r0, if_true);
     __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
     __ cmp(r0, ip);
     Split(eq, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::string_symbol())) {
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, if_false);
+    __ JumpIfSmi(r0, if_false);
     // Check for undetectable objects => false.
-    __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ CompareObjectType(r0, r0, r1, FIRST_NONSTRING_TYPE);
+    __ b(ge, if_false);
     __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
-    __ and_(r1, r1, Operand(1 << Map::kIsUndetectable));
-    __ cmp(r1, Operand(1 << Map::kIsUndetectable));
-    __ b(eq, if_false);
-    __ ldrb(r1, FieldMemOperand(r0, Map::kInstanceTypeOffset));
-    __ cmp(r1, Operand(FIRST_NONSTRING_TYPE));
-    Split(lt, if_true, if_false, fall_through);
+    __ tst(r1, Operand(1 << Map::kIsUndetectable));
+    Split(eq, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::boolean_symbol())) {
-    __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-    __ cmp(r0, ip);
+    __ CompareRoot(r0, Heap::kTrueValueRootIndex);
     __ b(eq, if_true);
-    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-    __ cmp(r0, ip);
+    __ CompareRoot(r0, Heap::kFalseValueRootIndex);
     Split(eq, if_true, if_false, fall_through);
   } else if (check->Equals(Heap::undefined_symbol())) {
-    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-    __ cmp(r0, ip);
+    __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
     __ b(eq, if_true);
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, if_false);
+    __ JumpIfSmi(r0, if_false);
     // Check for undetectable objects => true.
     __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
-    __ and_(r1, r1, Operand(1 << Map::kIsUndetectable));
-    __ cmp(r1, Operand(1 << Map::kIsUndetectable));
-    Split(eq, if_true, if_false, fall_through);
+    __ tst(r1, Operand(1 << Map::kIsUndetectable));
+    Split(ne, if_true, if_false, fall_through);
+
   } else if (check->Equals(Heap::function_symbol())) {
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, if_false);
-    __ CompareObjectType(r0, r1, r0, JS_FUNCTION_TYPE);
-    __ b(eq, if_true);
-    // Regular expressions => 'function' (they are callable).
-    __ CompareInstanceType(r1, r0, JS_REGEXP_TYPE);
-    Split(eq, if_true, if_false, fall_through);
+    __ JumpIfSmi(r0, if_false);
+    __ CompareObjectType(r0, r1, r0, FIRST_FUNCTION_CLASS_TYPE);
+    Split(ge, if_true, if_false, fall_through);
+
   } else if (check->Equals(Heap::object_symbol())) {
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, if_false);
-    __ LoadRoot(ip, Heap::kNullValueRootIndex);
-    __ cmp(r0, ip);
+    __ JumpIfSmi(r0, if_false);
+    __ CompareRoot(r0, Heap::kNullValueRootIndex);
     __ b(eq, if_true);
-    // Regular expressions => 'function', not 'object'.
-    __ CompareObjectType(r0, r1, r0, JS_REGEXP_TYPE);
-    __ b(eq, if_false);
-    // Check for undetectable objects => false.
-    __ ldrb(r0, FieldMemOperand(r1, Map::kBitFieldOffset));
-    __ and_(r0, r0, Operand(1 << Map::kIsUndetectable));
-    __ cmp(r0, Operand(1 << Map::kIsUndetectable));
-    __ b(eq, if_false);
     // Check for JS objects => true.
-    __ ldrb(r0, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-    __ cmp(r0, Operand(FIRST_JS_OBJECT_TYPE));
-    __ b(lt, if_false);
-    __ cmp(r0, Operand(LAST_JS_OBJECT_TYPE));
-    Split(le, if_true, if_false, fall_through);
+    __ CompareObjectType(r0, r0, r1, FIRST_JS_OBJECT_TYPE);
+    __ b(lo, if_false);
+    __ CompareInstanceType(r0, r1, FIRST_FUNCTION_CLASS_TYPE);
+    __ b(hs, if_false);
+    // Check for undetectable objects => false.
+    __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
+    __ tst(r1, Operand(1 << Map::kIsUndetectable));
+    Split(eq, if_true, if_false, fall_through);
   } else {
     if (if_false != fall_through) __ jmp(if_false);
   }

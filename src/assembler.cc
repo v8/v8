@@ -816,6 +816,39 @@ static double mod_two_doubles(double x, double y) {
 }
 
 
+static double math_sin_double(double x) {
+  return sin(x);
+}
+
+
+static double math_cos_double(double x) {
+  return cos(x);
+}
+
+
+static double math_log_double(double x) {
+  return log(x);
+}
+
+
+ExternalReference ExternalReference::math_sin_double_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(math_sin_double),
+                                    FP_RETURN_CALL));
+}
+
+
+ExternalReference ExternalReference::math_cos_double_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(math_cos_double),
+                                    FP_RETURN_CALL));
+}
+
+
+ExternalReference ExternalReference::math_log_double_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(math_log_double),
+                                    FP_RETURN_CALL));
+}
+
+
 // Helper function to compute x^y, where y is known to be an
 // integer. Uses binary decomposition to limit the number of
 // multiplications; see the discussion in "Hacker's Delight" by Henry

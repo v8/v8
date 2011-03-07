@@ -49,7 +49,6 @@ namespace internal {
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   /* Cluster the most popular ones in a few cache lines here at the top.    */ \
-  V(Smi, stack_limit, StackLimit)                                              \
   V(Object, undefined_value, UndefinedValue)                                   \
   V(Object, the_hole_value, TheHoleValue)                                      \
   V(Object, null_value, NullValue)                                             \
@@ -62,21 +61,29 @@ namespace internal {
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
   V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
   V(Map, meta_map, MetaMap)                                                    \
-  V(Object, termination_exception, TerminationException)                       \
   V(Map, hash_table_map, HashTableMap)                                         \
+  V(Smi, stack_limit, StackLimit)                                              \
+  V(FixedArray, number_string_cache, NumberStringCache)                        \
+  V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
+  V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
+  V(Object, instanceof_cache_answer, InstanceofCacheAnswer)                    \
+  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
+  V(Object, termination_exception, TerminationException)                       \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
+  V(String, empty_string, EmptyString)                                         \
+  V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Map, string_map, StringMap)                                                \
   V(Map, ascii_string_map, AsciiStringMap)                                     \
   V(Map, symbol_map, SymbolMap)                                                \
+  V(Map, cons_string_map, ConsStringMap)                                       \
+  V(Map, cons_ascii_string_map, ConsAsciiStringMap)                            \
   V(Map, ascii_symbol_map, AsciiSymbolMap)                                     \
   V(Map, cons_symbol_map, ConsSymbolMap)                                       \
   V(Map, cons_ascii_symbol_map, ConsAsciiSymbolMap)                            \
   V(Map, external_symbol_map, ExternalSymbolMap)                               \
   V(Map, external_symbol_with_ascii_data_map, ExternalSymbolWithAsciiDataMap)  \
   V(Map, external_ascii_symbol_map, ExternalAsciiSymbolMap)                    \
-  V(Map, cons_string_map, ConsStringMap)                                       \
-  V(Map, cons_ascii_string_map, ConsAsciiStringMap)                            \
   V(Map, external_string_map, ExternalStringMap)                               \
   V(Map, external_string_with_ascii_data_map, ExternalStringWithAsciiDataMap)  \
   V(Map, external_ascii_string_map, ExternalAsciiStringMap)                    \
@@ -100,11 +107,6 @@ namespace internal {
   V(Map, proxy_map, ProxyMap)                                                  \
   V(Object, nan_value, NanValue)                                               \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
-  V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
-  V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
-  V(Object, instanceof_cache_answer, InstanceofCacheAnswer)                    \
-  V(String, empty_string, EmptyString)                                         \
-  V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
   V(Proxy, prototype_accessors, PrototypeAccessors)                            \
@@ -113,8 +115,6 @@ namespace internal {
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   V(Code, c_entry_code, CEntryCode)                                            \
-  V(FixedArray, number_string_cache, NumberStringCache)                        \
-  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
   V(Object, last_script_id, LastScriptId)                                      \
   V(Script, empty_script, EmptyScript)                                         \
@@ -217,7 +217,6 @@ namespace internal {
   V(use_strict, "use strict")                                            \
   V(KeyedLoadExternalArray_symbol, "KeyedLoadExternalArray")             \
   V(KeyedStoreExternalArray_symbol, "KeyedStoreExternalArray")
-
 
 // Forward declarations.
 class GCTracer;

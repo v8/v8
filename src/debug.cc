@@ -1013,14 +1013,18 @@ Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
     for (int i = 0; i < array->length(); i++) {
       Handle<Object> o(array->get(i));
       if (CheckBreakPoint(o)) {
-        SetElement(break_points_hit, break_points_hit_count++, o);
+        SetElement(break_points_hit,
+                   break_points_hit_count++,
+                   o,
+                   kNonStrictMode);
       }
     }
   } else {
     if (CheckBreakPoint(break_point_objects)) {
       SetElement(break_points_hit,
                  break_points_hit_count++,
-                 break_point_objects);
+                 break_point_objects,
+                 kNonStrictMode);
     }
   }
 

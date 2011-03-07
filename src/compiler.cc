@@ -281,18 +281,18 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
     HTracer::Instance()->TraceCompilation(info->function());
   }
 
-  TypeFeedbackOracle oracle(
-      code, Handle<Context>(info->closure()->context()->global_context()));
-  HGraphBuilder builder(&oracle);
+  Handle<Context> global_context(info->closure()->context()->global_context());
+  TypeFeedbackOracle oracle(code, global_context);
+  HGraphBuilder builder(info, &oracle);
   HPhase phase(HPhase::kTotal);
-  HGraph* graph = builder.CreateGraph(info);
+  HGraph* graph = builder.CreateGraph();
   if (Top::has_pending_exception()) {
     info->SetCode(Handle<Code>::null());
     return false;
   }
 
   if (graph != NULL && FLAG_build_lithium) {
-    Handle<Code> optimized_code = graph->Compile();
+    Handle<Code> optimized_code = graph->Compile(info);
     if (!optimized_code.is_null()) {
       info->SetCode(optimized_code);
       FinishOptimization(info->closure(), start);

@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <string>
 
+#include "break-iterator.h"
 #include "unicode/locid.h"
 #include "unicode/uloc.h"
 
@@ -87,6 +88,23 @@ const char* const I18NExtension::kSource =
   "  var displayLocale = this.displayLocale_(optDisplayLocale);"
   "  native function NativeJSDisplayName();"
   "  return NativeJSDisplayName(this.locale, displayLocale);"
+  "};"
+  "v8Locale.v8BreakIterator = function(locale, type) {"
+  "  native function NativeJSBreakIterator();"
+  "  var iterator = NativeJSBreakIterator(locale, type);"
+  "  iterator.type = type;"
+  "  return iterator;"
+  "};"
+  "v8Locale.v8BreakIterator.BreakType = {"
+  "  'unknown': -1,"
+  "  'none': 0,"
+  "  'number': 100,"
+  "  'word': 200,"
+  "  'kana': 300,"
+  "  'ideo': 400"
+  "};"
+  "v8Locale.prototype.v8CreateBreakIterator = function(type) {"
+  "  return new v8Locale.v8BreakIterator(this.locale, type);"
   "};";
 
 v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
@@ -107,6 +125,8 @@ v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
     return v8::FunctionTemplate::New(JSDisplayRegion);
   } else if (name->Equals(v8::String::New("NativeJSDisplayName"))) {
     return v8::FunctionTemplate::New(JSDisplayName);
+  } else if (name->Equals(v8::String::New("NativeJSBreakIterator"))) {
+    return v8::FunctionTemplate::New(BreakIterator::JSBreakIterator);
   }
 
   return v8::Handle<v8::FunctionTemplate>();
