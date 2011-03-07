@@ -1728,14 +1728,17 @@ LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
 LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
   LOperand* context;
   LOperand* value;
+  LOperand* temp;
   if (instr->NeedsWriteBarrier()) {
     context = UseTempRegister(instr->context());
     value = UseTempRegister(instr->value());
+    temp = TempRegister();
   } else {
     context = UseRegister(instr->context());
     value = UseRegister(instr->value());
+    temp = NULL;
   }
-  return new LStoreContextSlot(context, value);
+  return new LStoreContextSlot(context, value, temp);
 }
 
 

@@ -1993,7 +1993,8 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   __ movq(ContextOperand(context, instr->slot_index()), value);
   if (instr->needs_write_barrier()) {
     int offset = Context::SlotOffset(instr->slot_index());
-    __ RecordWrite(context, offset, value, kScratchRegister);
+    Register scratch = ToRegister(instr->TempAt(0));
+    __ RecordWrite(context, offset, value, scratch);
   }
 }
 

@@ -1258,11 +1258,12 @@ class LLoadContextSlot: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LStoreContextSlot: public LTemplateInstruction<0, 2, 0> {
+class LStoreContextSlot: public LTemplateInstruction<0, 2, 1> {
  public:
-  LStoreContextSlot(LOperand* context, LOperand* value) {
+  LStoreContextSlot(LOperand* context, LOperand* value, LOperand* temp) {
     inputs_[0] = context;
     inputs_[1] = value;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreContextSlot, "store-context-slot")

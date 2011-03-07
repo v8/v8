@@ -95,13 +95,7 @@ void MacroAssembler::RecordWriteHelper(Register object,
   if (FLAG_debug_code) {
     // Check that the object is not in new space.
     NearLabel not_in_new_space;
-    if (addr.is(kScratchRegister)) {
-      push(kScratchRegister);
-      InNewSpace(object, scratch, not_equal, &not_in_new_space);
-      pop(kScratchRegister);
-    } else {
-      InNewSpace(object, scratch, not_equal, &not_in_new_space);
-    }
+    InNewSpace(object, scratch, not_equal, &not_in_new_space);
     Abort("new-space object passed to RecordWriteHelper");
     bind(&not_in_new_space);
   }
