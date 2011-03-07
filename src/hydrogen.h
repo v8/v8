@@ -792,11 +792,7 @@ class HGraphBuilder: public AstVisitor {
 
   HBasicBlock* CreateBasicBlock(HEnvironment* env);
   HSubgraph* CreateEmptySubgraph();
-  HSubgraph* CreateBranchSubgraph(HEnvironment* env);
   HBasicBlock* CreateLoopHeaderBlock();
-  HSubgraph* CreateInlinedSubgraph(HEnvironment* outer,
-                                   Handle<JSFunction> target,
-                                   FunctionLiteral* function);
 
   // Helpers for flow graph construction.
   void LookupGlobalPropertyCell(Variable* var,
@@ -899,12 +895,6 @@ class HGraphBuilder: public AstVisitor {
                                 Handle<Map> receiver_map,
                                 bool smi_and_map_check);
 
-
-  HBasicBlock* BuildTypeSwitch(HValue* receiver,
-                               ZoneMapList* maps,
-                               ZoneList<HSubgraph*>* body_graphs,
-                               HSubgraph* default_graph,
-                               int join_id);
 
   // The translation state of the currently-being-translated function.
   FunctionState* function_state_;

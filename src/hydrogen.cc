@@ -150,9 +150,25 @@ void HBasicBlock::Finish(HControlInstruction* end) {
 
 
 void HBasicBlock::Goto(HBasicBlock* block, bool include_stack_check) {
+  if (block->IsInlineReturnTarget()) {
+    AddInstruction(new HLeaveInlined);
+    last_environment_ = last_environment()->outer();
+  }
   AddSimulate(AstNode::kNoNumber);
   HGoto* instr = new HGoto(block);
   instr->set_include_stack_check(include_stack_check);
+  Finish(instr);
+}
+
+
+void HBasicBlock::AddLeaveInlined(HValue* return_value, HBasicBlock* target) {
+  ASSERT(target->IsInlineReturnTarget());
+  ASSERT(return_value != NULL);
+  AddInstruction(new HLeaveInlined);
+  last_environment_ = last_environment()->outer();
+  last_environment()->Push(return_value);
+  AddSimulate(AstNode::kNoNumber);
+  HGoto* instr = new HGoto(target);
   Finish(instr);
 }
 
@@ -1979,20 +1995,8 @@ void TestContext::BuildBranch(HValue* value) {
   HTest* test = new HTest(value, empty_true, empty_false);
   builder->current_block()->Finish(test);
 
-  HValue* const no_return_value = NULL;
-  HBasicBlock* true_target = if_true();
-  if (true_target->IsInlineReturnTarget()) {
-    empty_true->AddLeaveInlined(no_return_value, true_target);
-  } else {
-    empty_true->Goto(true_target);
-  }
-
-  HBasicBlock* false_target = if_false();
-  if (false_target->IsInlineReturnTarget()) {
-    empty_false->AddLeaveInlined(no_return_value, false_target);
-  } else {
-    empty_false->Goto(false_target);
-  }
+  empty_true->Goto(if_true(), false);
+  empty_false->Goto(if_false(), false);
   builder->set_current_block(NULL);
 }
 
@@ -2308,29 +2312,9 @@ HBasicBlock* HGraphBuilder::CreateBasicBlock(HEnvironment* env) {
 }
 
 
-HSubgraph* HGraphBuilder::CreateInlinedSubgraph(HEnvironment* outer,
-                                                Handle<JSFunction> target,
-                                                FunctionLiteral* function) {
-  HConstant* undefined = graph()->GetConstantUndefined();
-  HEnvironment* inner =
-      outer->CopyForInlining(target, function, true, undefined);
-  HSubgraph* subgraph = new HSubgraph(graph());
-  subgraph->Initialize(CreateBasicBlock(inner));
-  return subgraph;
-}
-
-
 HSubgraph* HGraphBuilder::CreateEmptySubgraph() {
   HSubgraph* subgraph = new HSubgraph(graph());
   subgraph->Initialize(graph()->CreateBasicBlock());
-  return subgraph;
-}
-
-
-HSubgraph* HGraphBuilder::CreateBranchSubgraph(HEnvironment* env) {
-  HSubgraph* subgraph = new HSubgraph(graph());
-  HEnvironment* new_env = env->Copy();
-  subgraph->Initialize(CreateBasicBlock(new_env));
   return subgraph;
 }
 
@@ -2458,20 +2442,16 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
       VisitForControl(stmt->expression(),
                       test->if_true(),
                       test->if_false());
+    } else if (context->IsEffect()) {
+      VISIT_FOR_EFFECT(stmt->expression());
+      current_block()->Goto(function_return(), false);
     } else {
-      HValue* return_value = NULL;
-      if (context->IsEffect()) {
-        VISIT_FOR_EFFECT(stmt->expression());
-        return_value = graph()->GetConstantUndefined();
-      } else {
-        ASSERT(context->IsValue());
-        VISIT_FOR_VALUE(stmt->expression());
-        return_value = environment()->Pop();
-      }
-      current_block()->AddLeaveInlined(return_value,
-                                       function_return());
-      set_current_block(NULL);
+      ASSERT(context->IsValue());
+      VISIT_FOR_VALUE(stmt->expression());
+      HValue* return_value = environment()->Pop();
+      current_block()->AddLeaveInlined(return_value, function_return());
     }
+    set_current_block(NULL);
   }
 }
 
@@ -3046,55 +3026,6 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
 void HGraphBuilder::VisitCatchExtensionObject(CatchExtensionObject* expr) {
   BAILOUT("CatchExtensionObject");
-}
-
-
-HBasicBlock* HGraphBuilder::BuildTypeSwitch(HValue* receiver,
-                                            ZoneMapList* maps,
-                                            ZoneList<HSubgraph*>* body_graphs,
-                                            HSubgraph* default_graph,
-                                            int join_id) {
-  ASSERT(maps->length() == body_graphs->length());
-  HBasicBlock* join_block = graph()->CreateBasicBlock();
-  AddInstruction(new HCheckNonSmi(receiver));
-
-  for (int i = 0; i < maps->length(); ++i) {
-    // Build the branches, connect all the target subgraphs to the join
-    // block.  Use the default as a target of the last branch.
-    HSubgraph* if_true = body_graphs->at(i);
-    HSubgraph* if_false = (i == maps->length() - 1)
-        ? default_graph
-        : CreateBranchSubgraph(environment());
-    HCompareMap* compare =
-        new HCompareMap(receiver,
-                        maps->at(i),
-                        if_true->entry_block(),
-                        if_false->entry_block());
-    current_block()->Finish(compare);
-
-    if (if_true->exit_block() != NULL) {
-      // In an effect context the value of the type switch is not needed.
-      // There is no need to merge it at the join block only to discard it.
-      if (ast_context()->IsEffect()) {
-        if_true->exit_block()->last_environment()->Drop(1);
-      }
-      if_true->exit_block()->Goto(join_block);
-    }
-
-    set_current_block(if_false->exit_block());
-  }
-
-  // Connect the default if necessary.
-  if (current_block() != NULL) {
-    if (ast_context()->IsEffect()) {
-      environment()->Drop(1);
-    }
-    current_block()->Goto(join_block);
-  }
-
-  if (join_block->predecessors()->is_empty()) return NULL;
-  join_block->SetJoinId(join_id);
-  return join_block;
 }
 
 
@@ -3885,22 +3816,26 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
                                                HValue* receiver,
                                                ZoneMapList* types,
                                                Handle<String> name) {
-  int argument_count = expr->arguments()->length() + 1;  // Plus receiver.
-  int number_of_types = Min(types->length(), kMaxCallPolymorphism);
-  ZoneMapList maps(number_of_types);
-  ZoneList<HSubgraph*> subgraphs(number_of_types);
-  bool needs_generic = (types->length() > kMaxCallPolymorphism);
-
-  // Build subgraphs for each of the specific maps.
-  //
   // TODO(ager): We should recognize when the prototype chains for different
   // maps are identical. In that case we can avoid repeatedly generating the
   // same prototype map checks.
-  for (int i = 0; i < number_of_types; ++i) {
+  int argument_count = expr->arguments()->length() + 1;  // Includes receiver.
+  int count = 0;
+  HBasicBlock* join = NULL;
+  for (int i = 0; i < types->length() && count < kMaxCallPolymorphism; ++i) {
     Handle<Map> map = types->at(i);
     if (expr->ComputeTarget(map, name)) {
-      HSubgraph* subgraph = CreateBranchSubgraph(environment());
-      SubgraphScope scope(this, subgraph);
+      if (count == 0) {
+        AddInstruction(new HCheckNonSmi(receiver));  // Only needed once.
+        join = graph()->CreateBasicBlock();
+      }
+      ++count;
+      HBasicBlock* if_true = graph()->CreateBasicBlock();
+      HBasicBlock* if_false = graph()->CreateBasicBlock();
+      HCompareMap* compare = new HCompareMap(receiver, map, if_true, if_false);
+      current_block()->Finish(compare);
+
+      set_current_block(if_true);
       AddCheckConstantFunction(expr, receiver, map, false);
       if (FLAG_trace_inlining && FLAG_polymorphic_inlining) {
         PrintF("Trying to inline the polymorphic call to %s\n",
@@ -3911,52 +3846,48 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
         // during hydrogen processing.
         CHECK_BAILOUT;
         HCallConstantFunction* call =
-          new HCallConstantFunction(expr->target(), argument_count);
+            new HCallConstantFunction(expr->target(), argument_count);
         call->set_position(expr->position());
         PreProcessCall(call);
-        PushAndAdd(call);
+        AddInstruction(call);
+        if (!ast_context()->IsEffect()) Push(call);
       }
-      maps.Add(map);
-      subgraphs.Add(subgraph);
-    } else {
-      needs_generic = true;
+
+      if (current_block() != NULL) current_block()->Goto(join);
+      set_current_block(if_false);
     }
   }
 
-  // If we couldn't compute the target for any of the maps just perform an
-  // IC call.
-  if (maps.length() == 0) {
+  // Finish up.  Unconditionally deoptimize if we've handled all the maps we
+  // know about and do not want to handle ones we've never seen.  Otherwise
+  // use a generic IC.
+  if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
+    current_block()->FinishExit(new HDeoptimize);
+  } else {
     HContext* context = new HContext;
     AddInstruction(context);
     HCallNamed* call = new HCallNamed(context, name, argument_count);
     call->set_position(expr->position());
     PreProcessCall(call);
-    ast_context()->ReturnInstruction(call, expr->id());
-  } else {
-    // Build subgraph for generic call through IC.
-    HSubgraph* default_graph = CreateBranchSubgraph(environment());
-    { SubgraphScope scope(this, default_graph);
-      if (!needs_generic && FLAG_deoptimize_uncommon_cases) {
-        default_graph->exit_block()->FinishExit(new HDeoptimize());
-        default_graph->set_exit_block(NULL);
-      } else {
-        HContext* context = new HContext;
-        AddInstruction(context);
-        HCallNamed* call = new HCallNamed(context, name, argument_count);
-        call->set_position(expr->position());
-        PreProcessCall(call);
-        PushAndAdd(call);
-      }
-    }
 
-    HBasicBlock* new_exit_block =
-        BuildTypeSwitch(receiver, &maps, &subgraphs, default_graph, expr->id());
-    set_current_block(new_exit_block);
-    // In an effect context, we did not materialized the value in the
-    // predecessor environments so there's no need to handle it here.
-    if (new_exit_block != NULL && !ast_context()->IsEffect()) {
-      ast_context()->ReturnValue(Pop());
+    if (join != NULL) {
+      AddInstruction(call);
+      if (!ast_context()->IsEffect()) Push(call);
+      current_block()->Goto(join);
+    } else {
+      ast_context()->ReturnInstruction(call, expr->id());
+      return;
     }
+  }
+
+  // We assume that control flow is always live after an expression.  So
+  // even without predecessors to the join block, we set it as the exit
+  // block and continue by adding instructions there.
+  ASSERT(join != NULL);
+  set_current_block(join);
+  if (join->HasPredecessor()) {
+    join->SetJoinId(expr->id());
+    if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
   }
 }
 
@@ -4103,9 +4034,16 @@ bool HGraphBuilder::TryInline(Call* expr) {
       Handle<Context>(target->context()->global_context()));
   FunctionState target_state(this, &target_info, &target_oracle);
 
-  HSubgraph* body = CreateInlinedSubgraph(env, target, function);
-  body->exit_block()->AddInstruction(new HEnterInlined(target, function));
-  AddToSubgraph(body, function->body());
+  HConstant* undefined = graph()->GetConstantUndefined();
+  HEnvironment* inner_env =
+      environment()->CopyForInlining(target, function, true, undefined);
+  HBasicBlock* body_entry = CreateBasicBlock(inner_env);
+  current_block()->Goto(body_entry);
+
+  body_entry->SetJoinId(expr->ReturnId());
+  set_current_block(body_entry);
+  AddInstruction(new HEnterInlined(target, function));
+  VisitStatements(function->body());
   if (HasStackOverflow()) {
     // Bail out if the inline function did, as we cannot residualize a call
     // instead.
@@ -4118,13 +4056,17 @@ bool HGraphBuilder::TryInline(Call* expr) {
 
   TraceInline(target, NULL);
 
-  if (body->exit_block() != NULL) {
+  if (current_block() != NULL) {
     // Add a return of undefined if control can fall off the body.  In a
     // test context, undefined is false.
-    HValue* return_value = graph()->GetConstantUndefined();
     if (inlined_test_context() == NULL) {
       ASSERT(function_return() != NULL);
-      body->exit_block()->AddLeaveInlined(return_value, function_return());
+      ASSERT(call_context()->IsEffect() || call_context()->IsValue());
+      if (call_context()->IsEffect()) {
+        current_block()->Goto(function_return(), false);
+      } else {
+        current_block()->AddLeaveInlined(undefined, function_return());
+      }
     } else {
       // The graph builder assumes control can reach both branches of a
       // test, so we materialize the undefined value and test it rather than
@@ -4133,23 +4075,13 @@ bool HGraphBuilder::TryInline(Call* expr) {
       // TODO(3168478): refactor to avoid this.
       HBasicBlock* empty_true = graph()->CreateBasicBlock();
       HBasicBlock* empty_false = graph()->CreateBasicBlock();
-      HTest* test = new HTest(return_value, empty_true, empty_false);
-      body->exit_block()->Finish(test);
+      HTest* test = new HTest(undefined, empty_true, empty_false);
+      current_block()->Finish(test);
 
-      HValue* const no_return_value = NULL;
-      empty_true->AddLeaveInlined(no_return_value,
-                                  inlined_test_context()->if_true());
-      empty_false->AddLeaveInlined(no_return_value,
-                                   inlined_test_context()->if_false());
+      empty_true->Goto(inlined_test_context()->if_true(), false);
+      empty_false->Goto(inlined_test_context()->if_false(), false);
     }
-    body->set_exit_block(NULL);
   }
-
-  // Record the environment at the inlined function call.
-  AddSimulate(expr->ReturnId());
-
-  // Jump to the function entry (without re-recording the environment).
-  current_block()->Finish(new HGoto(body->entry_block()));
 
   // Fix up the function exits.
   if (inlined_test_context() != NULL) {
@@ -4162,20 +4094,10 @@ bool HGraphBuilder::TryInline(Call* expr) {
     ClearInlinedTestContext();
 
     // Forward to the real test context.
-    HValue* const no_return_value = NULL;
     HBasicBlock* true_target = TestContext::cast(ast_context())->if_true();
-    if (true_target->IsInlineReturnTarget()) {
-      if_true->AddLeaveInlined(no_return_value, true_target);
-    } else {
-      if_true->Goto(true_target);
-    }
-
     HBasicBlock* false_target = TestContext::cast(ast_context())->if_false();
-    if (false_target->IsInlineReturnTarget()) {
-      if_false->AddLeaveInlined(no_return_value, false_target);
-    } else {
-      if_false->Goto(false_target);
-    }
+    if_true->Goto(true_target, false);
+    if_false->Goto(false_target, false);
 
     // TODO(kmillikin): Come up with a better way to handle this. It is too
     // subtle. NULL here indicates that the enclosing context has no control
@@ -4188,16 +4110,6 @@ bool HGraphBuilder::TryInline(Call* expr) {
   }
 
   return true;
-}
-
-
-void HBasicBlock::AddLeaveInlined(HValue* return_value, HBasicBlock* target) {
-  ASSERT(target->IsInlineReturnTarget());
-  AddInstruction(new HLeaveInlined);
-  HEnvironment* outer = last_environment()->outer();
-  if (return_value != NULL) outer->Push(return_value);
-  UpdateEnvironment(outer);
-  Goto(target);
 }
 
 
@@ -4407,16 +4319,6 @@ void HGraphBuilder::VisitCall(Call* expr) {
         AddCheckConstantFunction(expr, receiver, receiver_map, true);
 
         if (TryInline(expr)) {
-          if (current_block() != NULL) {
-            HValue* return_value = Pop();
-            // If we inlined a function in a test context then we need to emit
-            // a simulate here to shadow the ones at the end of the
-            // predecessor blocks.  Those environments contain the return
-            // value on top and do not correspond to any actual state of the
-            // unoptimized code.
-            if (ast_context()->IsEffect()) AddSimulate(expr->id());
-            ast_context()->ReturnValue(return_value);
-          }
           return;
         } else {
           // Check for bailout, as the TryInline call in the if condition above
@@ -4480,16 +4382,6 @@ void HGraphBuilder::VisitCall(Call* expr) {
         environment()->SetExpressionStackAt(receiver_index, global_receiver);
 
         if (TryInline(expr)) {
-          if (current_block() != NULL) {
-            HValue* return_value = Pop();
-            // If we inlined a function in a test context then we need to
-            // emit a simulate here to shadow the ones at the end of the
-            // predecessor blocks.  Those environments contain the return
-            // value on top and do not correspond to any actual state of the
-            // unoptimized code.
-            if (ast_context()->IsEffect()) AddSimulate(expr->id());
-            ast_context()->ReturnValue(return_value);
-          }
           return;
         }
         // Check for bailout, as trying to inline might fail due to bailout
