@@ -92,7 +92,7 @@ void HBasicBlock::AddPhi(HPhi* phi) {
 void HBasicBlock::RemovePhi(HPhi* phi) {
   ASSERT(phi->block() == this);
   ASSERT(phis_.Contains(phi));
-  ASSERT(phi->HasNoUses());
+  ASSERT(phi->HasNoUses() || !phi->is_live());
   phi->ClearOperands();
   phis_.RemoveElement(phi);
   phi->SetBlock(NULL);
@@ -703,8 +703,7 @@ void HGraph::AssignDominators() {
 
 
 void HGraph::EliminateRedundantPhis() {
-  HPhase phase("Phi elimination", this);
-  ZoneList<HValue*> uses_to_replace(2);
+  HPhase phase("Redundant phi elimination", this);
 
   // Worklist of phis that can potentially be eliminated. Initialized
   // with all phi nodes. When elimination of a phi node modifies
@@ -727,26 +726,57 @@ void HGraph::EliminateRedundantPhis() {
     if (value != NULL) {
       // Iterate through uses finding the ones that should be
       // replaced.
-      const ZoneList<HValue*>* uses = phi->uses();
-      for (int i = 0; i < uses->length(); ++i) {
-        HValue* use = uses->at(i);
-        if (!use->block()->IsStartBlock()) {
-          uses_to_replace.Add(use);
+      ZoneList<HValue*>* uses = phi->uses();
+      while (!uses->is_empty()) {
+        HValue* use = uses->RemoveLast();
+        if (use != NULL) {
+          phi->ReplaceAtUse(use, value);
+          if (use->IsPhi()) worklist.Add(HPhi::cast(use));
         }
       }
-      // Replace the uses and add phis modified to the work list.
-      for (int i = 0; i < uses_to_replace.length(); ++i) {
-        HValue* use = uses_to_replace[i];
-        phi->ReplaceAtUse(use, value);
-        if (use->IsPhi()) worklist.Add(HPhi::cast(use));
-      }
-      uses_to_replace.Rewind(0);
       block->RemovePhi(phi);
-    } else if (FLAG_eliminate_dead_phis && phi->HasNoUses() &&
-               !phi->IsReceiver()) {
+    }
+  }
+}
+
+
+void HGraph::EliminateUnreachablePhis() {
+  HPhase phase("Unreachable phi elimination", this);
+
+  // Initialize worklist.
+  ZoneList<HPhi*> phi_list(blocks_.length());
+  ZoneList<HPhi*> worklist(blocks_.length());
+  for (int i = 0; i < blocks_.length(); ++i) {
+    for (int j = 0; j < blocks_[i]->phis()->length(); j++) {
+      HPhi* phi = blocks_[i]->phis()->at(j);
+      phi_list.Add(phi);
       // We can't eliminate phis in the receiver position in the environment
       // because in case of throwing an error we need this value to
       // construct a stack trace.
+      if (phi->HasRealUses() || phi->IsReceiver())  {
+        phi->set_is_live(true);
+        worklist.Add(phi);
+      }
+    }
+  }
+
+  // Iteratively mark live phis.
+  while (!worklist.is_empty()) {
+    HPhi* phi = worklist.RemoveLast();
+    for (int i = 0; i < phi->OperandCount(); i++) {
+      HValue* operand = phi->OperandAt(i);
+      if (operand->IsPhi() && !HPhi::cast(operand)->is_live()) {
+        HPhi::cast(operand)->set_is_live(true);
+        worklist.Add(HPhi::cast(operand));
+      }
+    }
+  }
+
+  // Remove unreachable phis.
+  for (int i = 0; i < phi_list.length(); i++) {
+    HPhi* phi = phi_list[i];
+    if (!phi->is_live()) {
+      HBasicBlock* block = phi->block();
       block->RemovePhi(phi);
       block->RecordDeletedPhi(phi->merged_index());
     }
@@ -2174,6 +2204,7 @@ HGraph* HGraphBuilder::CreateGraph() {
   graph()->OrderBlocks();
   graph()->AssignDominators();
   graph()->EliminateRedundantPhis();
+  if (FLAG_eliminate_dead_phis) graph()->EliminateUnreachablePhis();
   if (!graph()->CollectPhis()) {
     Bailout("Phi-use of arguments object");
     return NULL;

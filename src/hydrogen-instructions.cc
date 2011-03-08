@@ -933,6 +933,14 @@ void HPhi::AddInput(HValue* value) {
 }
 
 
+bool HPhi::HasRealUses() {
+  for (int i = 0; i < uses()->length(); i++) {
+    if (!uses()->at(i)->IsPhi()) return true;
+  }
+  return false;
+}
+
+
 HValue* HPhi::GetRedundantReplacement() {
   HValue* candidate = NULL;
   int count = OperandCount();
