@@ -630,11 +630,6 @@ Code* JavaScriptFrame::unchecked_code() const {
 }
 
 
-int JavaScriptFrame::GetProvidedParametersCount() const {
-  return ComputeParametersCount();
-}
-
-
 Address JavaScriptFrame::GetCallerStackPointer() const {
   int arguments;
   if (Heap::gc_state() != Heap::NOT_IN_GC ||
