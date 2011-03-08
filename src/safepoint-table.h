@@ -228,6 +228,14 @@ class SafepointTableBuilder BASE_EMBEDDED {
     deoptimization_info_[index].pc_after_gap = pc;
   }
 
+  // Get the end pc offset of the last safepoint, including the code generated
+  // until the end of the gap following it.
+  unsigned GetPcAfterGap() {
+    int index = deoptimization_info_.length();
+    if (index == 0) return 0;
+    return deoptimization_info_[index - 1].pc_after_gap;
+  }
+
   // Emit the safepoint table after the body. The number of bits per
   // entry must be enough to hold all the pointer indexes.
   void Emit(Assembler* assembler, int bits_per_entry);

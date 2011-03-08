@@ -210,6 +210,9 @@ class LCodeGen BASE_EMBEDDED {
                                     int arguments,
                                     int deoptimization_index);
   void RecordPosition(int position);
+  int LastSafepointEnd() {
+    return static_cast<int>(safepoints_.GetPcAfterGap());
+  }
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block, LDeferredCode* deferred_stack_check = NULL);
