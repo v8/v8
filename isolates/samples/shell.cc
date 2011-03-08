@@ -41,7 +41,16 @@
 //   o Do not assume not WIN32 implies pthreads.
 #ifndef WIN32
 #include <pthread.h>  // NOLINT
+#include <unistd.h>  // NOLINT
 #endif
+
+static void ExitShell(int exit_code) {
+  // Use _exit instead of exit to avoid races between isolate
+  // threads and static destructors.
+  fflush(stdout);
+  fflush(stderr);
+  _exit(exit_code);
+}
 
 v8::Persistent<v8::Context> CreateShellContext();
 void RunShell(v8::Handle<v8::Context> context);
@@ -94,7 +103,7 @@ class SourceGroup {
         v8::Handle<v8::String> file_name = v8::String::New("unnamed");
         v8::Handle<v8::String> source = v8::String::New(argv_[i + 1]);
         if (!ExecuteString(source, file_name, false, true)) {
-          exit(1);
+          ExitShell(1);
           return;
         }
         ++i;
@@ -109,7 +118,7 @@ class SourceGroup {
           printf("Error reading '%s'\n", arg);
         }
         if (!ExecuteString(source, file_name, false, true)) {
-          exit(1);
+          ExitShell(1);
           return;
         }
       }
@@ -133,8 +142,8 @@ class SourceGroup {
       pthread_attr_setstacksize(&attr, stacksize);
       int error = pthread_create(&thread_, &attr, &IsolateThreadEntry, this);
       if (error != 0) {
-        printf("Error creating isolate thread.\n");
-        exit(1);
+        fprintf(stderr, "Error creating isolate thread.\n");
+        ExitShell(1);
       }
     }
     next_semaphore_->Signal();
@@ -382,7 +391,7 @@ v8::Handle<v8::Value> Quit(const v8::Arguments& args) {
   // If not arguments are given args[0] will yield undefined which
   // converts to the integer value 0.
   int exit_code = args[0]->Int32Value();
-  exit(exit_code);
+  ExitShell(exit_code);
   return v8::Undefined();
 }
 
