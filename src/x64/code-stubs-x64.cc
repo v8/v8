@@ -2423,7 +2423,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   static const int kJSRegExpOffset = 4 * kPointerSize;
 
   Label runtime;
-
   // Ensure that a RegExp stack is allocated.
   ExternalReference address_of_regexp_stack_memory_address =
       ExternalReference::address_of_regexp_stack_memory_address();
@@ -2441,32 +2440,32 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ CmpObjectType(rax, JS_REGEXP_TYPE, kScratchRegister);
   __ j(not_equal, &runtime);
   // Check that the RegExp has been compiled (data contains a fixed array).
-  __ movq(rcx, FieldOperand(rax, JSRegExp::kDataOffset));
+  __ movq(rax, FieldOperand(rax, JSRegExp::kDataOffset));
   if (FLAG_debug_code) {
-    Condition is_smi = masm->CheckSmi(rcx);
+    Condition is_smi = masm->CheckSmi(rax);
     __ Check(NegateCondition(is_smi),
         "Unexpected type for RegExp data, FixedArray expected");
-    __ CmpObjectType(rcx, FIXED_ARRAY_TYPE, kScratchRegister);
+    __ CmpObjectType(rax, FIXED_ARRAY_TYPE, kScratchRegister);
     __ Check(equal, "Unexpected type for RegExp data, FixedArray expected");
   }
 
-  // rcx: RegExp data (FixedArray)
+  // rax: RegExp data (FixedArray)
   // Check the type of the RegExp. Only continue if type is JSRegExp::IRREGEXP.
-  __ SmiToInteger32(rbx, FieldOperand(rcx, JSRegExp::kDataTagOffset));
+  __ SmiToInteger32(rbx, FieldOperand(rax, JSRegExp::kDataTagOffset));
   __ cmpl(rbx, Immediate(JSRegExp::IRREGEXP));
   __ j(not_equal, &runtime);
 
-  // rcx: RegExp data (FixedArray)
+  // rax: RegExp data (FixedArray)
   // Check that the number of captures fit in the static offsets vector buffer.
   __ SmiToInteger32(rdx,
-                    FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
+                    FieldOperand(rax, JSRegExp::kIrregexpCaptureCountOffset));
   // Calculate number of capture registers (number_of_captures + 1) * 2.
   __ leal(rdx, Operand(rdx, rdx, times_1, 2));
   // Check that the static offsets vector buffer is large enough.
   __ cmpl(rdx, Immediate(OffsetsVector::kStaticOffsetsVectorSize));
   __ j(above, &runtime);
 
-  // rcx: RegExp data (FixedArray)
+  // rax: RegExp data (FixedArray)
   // rdx: Number of capture registers
   // Check that the second argument is a string.
   __ movq(rdi, Operand(rsp, kSubjectOffset));
@@ -2584,7 +2583,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   static const int kRegExpExecuteArguments = 7;
   int argument_slots_on_stack =
       masm->ArgumentStackSlotsForCFunctionCall(kRegExpExecuteArguments);
-  __ EnterApiExitFrame(argument_slots_on_stack);  // Clobbers rax!
+  __ EnterApiExitFrame(argument_slots_on_stack);
 
   // Argument 7: Indicate that this is a direct call from JavaScript.
   __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kPointerSize),
