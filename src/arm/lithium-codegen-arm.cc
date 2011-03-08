@@ -745,10 +745,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::MathPow: {
-      Abort("MathPowStub unimplemented.");
-      break;
-    }
     case CodeStub::NumberToString: {
       NumberToStringStub stub;
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
@@ -2646,6 +2642,22 @@ void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
 }
 
 
+void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
+  Register scratch = scratch0();
+  SwVfpRegister single_scratch = double_scratch0().low();
+  DoubleRegister double_scratch = double_scratch0();
+  ASSERT(ToDoubleRegister(instr->result()).is(input));
+
+  // Add +0 to convert -0 to +0.
+  __ mov(scratch, Operand(0));
+  __ vmov(single_scratch, scratch);
+  __ vcvt_f64_s32(double_scratch, single_scratch);
+  __ vadd(input, input, double_scratch);
+  __ vsqrt(input, input);
+}
+
+
 void LCodeGen::DoPower(LPower* instr) {
   LOperand* left = instr->InputAt(0);
   LOperand* right = instr->InputAt(1);
@@ -2741,6 +2753,9 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
       break;
     case kMathSqrt:
       DoMathSqrt(instr);
+      break;
+    case kMathPowHalf:
+      DoMathPowHalf(instr);
       break;
     case kMathCos:
       DoMathCos(instr);

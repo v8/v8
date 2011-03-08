@@ -1230,8 +1230,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       case kMathRound:
         return AssignEnvironment(DefineAsRegister(result));
       case kMathPowHalf:
-        Abort("MathPowHalf LUnaryMathOperation not implemented");
-        return NULL;
+        return DefineSameAsFirst(result);
       default:
         UNREACHABLE();
         return NULL;
