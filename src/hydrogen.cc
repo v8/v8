@@ -1775,15 +1775,18 @@ int CompareConversionUses(HValue* a,
 }
 
 
-void HGraph::InsertRepresentationChanges(HValue* current) {
+void HGraph::InsertRepresentationChangesForValue(
+    HValue* current,
+    ZoneList<HValue*>* to_convert,
+    ZoneList<Representation>* to_convert_reps) {
   Representation r = current->representation();
   if (r.IsNone()) return;
   if (current->uses()->length() == 0) return;
 
   // Collect the representation changes in a sorted list.  This allows
   // us to avoid duplicate changes without searching the list.
-  ZoneList<HValue*> to_convert(2);
-  ZoneList<Representation> to_convert_reps(2);
+  ASSERT(to_convert->is_empty());
+  ASSERT(to_convert_reps->is_empty());
   for (int i = 0; i < current->uses()->length(); ++i) {
     HValue* use = current->uses()->at(i);
     // The occurrences index means the index within the operand array of "use"
@@ -1803,10 +1806,10 @@ void HGraph::InsertRepresentationChanges(HValue* current) {
     Representation req = use->RequiredInputRepresentation(operand_index);
     if (req.IsNone() || req.Equals(r)) continue;
     int index = 0;
-    while (to_convert.length() > index &&
-           CompareConversionUses(to_convert[index],
+    while (index < to_convert->length() &&
+           CompareConversionUses(to_convert->at(index),
                                  use,
-                                 to_convert_reps[index],
+                                 to_convert_reps->at(index),
                                  req) < 0) {
       ++index;
     }
@@ -1816,13 +1819,13 @@ void HGraph::InsertRepresentationChanges(HValue* current) {
              current->id(),
              use->id());
     }
-    to_convert.InsertAt(index, use);
-    to_convert_reps.InsertAt(index, req);
+    to_convert->InsertAt(index, use);
+    to_convert_reps->InsertAt(index, req);
   }
 
-  for (int i = 0; i < to_convert.length(); ++i) {
-    HValue* use = to_convert[i];
-    Representation r_to = to_convert_reps[i];
+  for (int i = 0; i < to_convert->length(); ++i) {
+    HValue* use = to_convert->at(i);
+    Representation r_to = to_convert_reps->at(i);
     InsertRepresentationChangeForUse(current, use, r_to);
   }
 
@@ -1830,6 +1833,8 @@ void HGraph::InsertRepresentationChanges(HValue* current) {
     ASSERT(current->IsConstant());
     current->Delete();
   }
+  to_convert->Rewind(0);
+  to_convert_reps->Rewind(0);
 }
 
 
@@ -1865,17 +1870,19 @@ void HGraph::InsertRepresentationChanges() {
     }
   }
 
+  ZoneList<HValue*> value_list(4);
+  ZoneList<Representation> rep_list(4);
   for (int i = 0; i < blocks_.length(); ++i) {
     // Process phi instructions first.
     for (int j = 0; j < blocks_[i]->phis()->length(); j++) {
       HPhi* phi = blocks_[i]->phis()->at(j);
-      InsertRepresentationChanges(phi);
+      InsertRepresentationChangesForValue(phi, &value_list, &rep_list);
     }
 
     // Process normal instructions.
     HInstruction* current = blocks_[i]->first();
     while (current != NULL) {
-      InsertRepresentationChanges(current);
+      InsertRepresentationChangesForValue(current, &value_list, &rep_list);
       current = current->next();
     }
   }

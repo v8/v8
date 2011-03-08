@@ -296,7 +296,9 @@ class HGraph: public HSubgraph {
   void InsertRepresentationChangeForUse(HValue* value,
                                         HValue* use,
                                         Representation to);
-  void InsertRepresentationChanges(HValue* current);
+  void InsertRepresentationChangesForValue(HValue* current,
+                                           ZoneList<HValue*>* value_list,
+                                           ZoneList<Representation>* rep_list);
   void InferTypes(ZoneList<HValue*>* worklist);
   void InitializeInferredTypes(int from_inclusive, int to_inclusive);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
