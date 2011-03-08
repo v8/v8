@@ -283,11 +283,6 @@ class TemporaryScope BASE_EMBEDDED {
   void AddLoop() { loop_count_++; }
   bool ContainsLoops() const { return loop_count_ > 0; }
 
-  bool StrictMode() { return strict_mode_; }
-  void EnableStrictMode() {
-    strict_mode_ = FLAG_strict_mode;
-  }
-
  private:
   // Captures the number of literals that need materialization in the
   // function.  Includes regexp literals, and boilerplate for object
@@ -305,9 +300,6 @@ class TemporaryScope BASE_EMBEDDED {
   // Captures the number of loops inside the scope.
   int loop_count_;
 
-  // Parsing strict mode code.
-  bool strict_mode_;
-
   // Bookkeeping
   TemporaryScope** variable_;
   TemporaryScope* parent_;
@@ -323,8 +315,6 @@ TemporaryScope::TemporaryScope(TemporaryScope** variable)
     loop_count_(0),
     variable_(variable),
     parent_(*variable) {
-  // Inherit the strict mode from the parent scope.
-  strict_mode_ = (parent_ != NULL) && parent_->strict_mode_;
   *variable = this;
 }
 
@@ -671,13 +661,13 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
                                scope);
     TemporaryScope temp_scope(&this->temp_scope_);
     if (strict_mode == kStrictMode) {
-      temp_scope.EnableStrictMode();
+      top_scope_->EnableStrictMode();
     }
     ZoneList<Statement*>* body = new ZoneList<Statement*>(16);
     bool ok = true;
     int beg_loc = scanner().location().beg_pos;
     ParseSourceElements(body, Token::EOS, &ok);
-    if (ok && temp_scope_->StrictMode()) {
+    if (ok && top_scope_->is_strict_mode()) {
       CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
     }
     if (ok) {
@@ -693,8 +683,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
           0,
           source->length(),
           false,
-          temp_scope.ContainsLoops(),
-          temp_scope.StrictMode());
+          temp_scope.ContainsLoops());
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
     }
@@ -759,7 +748,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info,
     TemporaryScope temp_scope(&this->temp_scope_);
 
     if (info->strict_mode()) {
-      temp_scope.EnableStrictMode();
+      top_scope_->EnableStrictMode();
     }
 
     FunctionLiteralType type =
@@ -1148,11 +1137,11 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
         Handle<String> directive = Handle<String>::cast(literal->handle());
 
         // Check "use strict" directive (ES5 14.1).
-        if (!temp_scope_->StrictMode() &&
+        if (!top_scope_->is_strict_mode() &&
             directive->Equals(isolate()->heap()->use_strict()) &&
             token_loc.end_pos - token_loc.beg_pos ==
               isolate()->heap()->use_strict()->length() + 2) {
-          temp_scope_->EnableStrictMode();
+          top_scope_->EnableStrictMode();
           // "use strict" is the only directive for now.
           directive_prologue = false;
         }
@@ -1290,7 +1279,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
     case Token::FUNCTION: {
       // In strict mode, FunctionDeclaration is only allowed in the context
       // of SourceElements.
-      if (temp_scope_->StrictMode()) {
+      if (top_scope_->is_strict_mode()) {
         ReportMessageAt(scanner().peek_location(), "strict_function",
                         Vector<const char*>::empty());
         *ok = false;
@@ -1548,7 +1537,7 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
     Consume(Token::CONST);
-    if (temp_scope_->StrictMode()) {
+    if (top_scope_->is_strict_mode()) {
       ReportMessage("strict_const", Vector<const char*>::empty());
       *ok = false;
       return NULL;
@@ -1584,7 +1573,7 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     if (fni_ != NULL) fni_->PushVariableName(name);
 
     // Strict mode variables may not be named eval or arguments
-    if (temp_scope_->StrictMode() && IsEvalOrArguments(name)) {
+    if (top_scope_->is_strict_mode() && IsEvalOrArguments(name)) {
       ReportMessage("strict_var_name", Vector<const char*>::empty());
       *ok = false;
       return NULL;
@@ -1693,7 +1682,7 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
         // Add strict mode.
         // We may want to pass singleton to avoid Literal allocations.
         arguments->Add(NewNumberLiteral(
-            temp_scope_->StrictMode() ? kStrictMode : kNonStrictMode));
+            top_scope_->is_strict_mode() ? kStrictMode : kNonStrictMode));
 
         // Be careful not to assign a value to the global variable if
         // we're in a with. The initialization value should not
@@ -1966,7 +1955,7 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
 
   Expect(Token::WITH, CHECK_OK);
 
-  if (temp_scope_->StrictMode()) {
+  if (top_scope_->is_strict_mode()) {
     ReportMessage("strict_mode_with", Vector<const char*>::empty());
     *ok = false;
     return NULL;
@@ -2105,7 +2094,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     Expect(Token::LPAREN, CHECK_OK);
     Handle<String> name = ParseIdentifier(CHECK_OK);
 
-    if (temp_scope_->StrictMode() && IsEvalOrArguments(name)) {
+    if (top_scope_->is_strict_mode() && IsEvalOrArguments(name)) {
       ReportMessage("strict_catch_variable", Vector<const char*>::empty());
       *ok = false;
       return NULL;
@@ -2359,7 +2348,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     expression = NewThrowReferenceError(type);
   }
 
-  if (temp_scope_->StrictMode()) {
+  if (top_scope_->is_strict_mode()) {
     // Assignment to eval or arguments is disallowed in strict mode.
     CheckStrictModeLValue(expression, "strict_lhs_assignment", CHECK_OK);
   }
@@ -2578,7 +2567,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     }
 
     // "delete identifier" is a syntax error in strict mode.
-    if (op == Token::DELETE && temp_scope_->StrictMode()) {
+    if (op == Token::DELETE && top_scope_->is_strict_mode()) {
       VariableProxy* operand = expression->AsVariableProxy();
       if (operand != NULL && !operand->is_this()) {
         ReportMessage("strict_delete", Vector<const char*>::empty());
@@ -2602,7 +2591,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       expression = NewThrowReferenceError(type);
     }
 
-    if (temp_scope_->StrictMode()) {
+    if (top_scope_->is_strict_mode()) {
       // Prefix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
     }
@@ -2634,7 +2623,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
       expression = NewThrowReferenceError(type);
     }
 
-    if (temp_scope_->StrictMode()) {
+    if (top_scope_->is_strict_mode()) {
       // Postfix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
     }
@@ -2843,7 +2832,7 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
       return ReportMessage("unexpected_token_identifier",
                            Vector<const char*>::empty());
     case Token::FUTURE_RESERVED_WORD:
-      return ReportMessage(temp_scope_->StrictMode() ?
+      return ReportMessage(top_scope_->is_strict_mode() ?
                                "unexpected_strict_reserved" :
                                "unexpected_token_identifier",
                            Vector<const char*>::empty());
@@ -3348,7 +3337,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       new ZoneList<ObjectLiteral::Property*>(4);
   int number_of_boilerplate_properties = 0;
 
-  ObjectLiteralPropertyChecker checker(this, temp_scope_->StrictMode());
+  ObjectLiteralPropertyChecker checker(this, top_scope_->is_strict_mode());
 
   Expect(Token::LBRACE, CHECK_OK);
   Scanner::Location loc = scanner().location();
@@ -3647,7 +3636,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     }
 
     // Validate strict mode.
-    if (temp_scope_->StrictMode()) {
+    if (top_scope_->is_strict_mode()) {
       if (IsEvalOrArguments(name)) {
         int position = function_token_position != RelocInfo::kNoPosition
             ? function_token_position
@@ -3701,8 +3690,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
                             start_pos,
                             end_pos,
                             function_name->length() > 0,
-                            temp_scope.ContainsLoops(),
-                            temp_scope.StrictMode());
+                            temp_scope.ContainsLoops());
     function_literal->set_function_token_position(function_token_position);
 
     if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);
@@ -3831,7 +3819,7 @@ Handle<String> Parser::ParseIdentifier(bool* ok) {
 Handle<String> Parser::ParseIdentifierOrReservedWord(bool* is_reserved,
                                                      bool* ok) {
   *is_reserved = false;
-  if (temp_scope_->StrictMode()) {
+  if (top_scope_->is_strict_mode()) {
     Expect(Token::IDENTIFIER, ok);
   } else {
     if (!Check(Token::IDENTIFIER)) {
@@ -3862,7 +3850,7 @@ Handle<String> Parser::ParseIdentifierName(bool* ok) {
 void Parser::CheckStrictModeLValue(Expression* expression,
                                    const char* error,
                                    bool* ok) {
-  ASSERT(temp_scope_->StrictMode());
+  ASSERT(top_scope_->is_strict_mode());
   VariableProxy* lhs = expression != NULL
       ? expression->AsVariableProxy()
       : NULL;
@@ -4141,7 +4129,7 @@ Handle<Object> JsonParser::ParseJsonObject() {
       if (value.is_null()) return Handle<Object>::null();
       uint32_t index;
       if (key->AsArrayIndex(&index)) {
-        SetOwnElement(json_object, index, value);
+        SetOwnElement(json_object, index, value, kNonStrictMode);
       } else if (key->Equals(isolate()->heap()->Proto_symbol())) {
         // We can't remove the __proto__ accessor since it's hardcoded
         // in several places. Instead go along and add the value as

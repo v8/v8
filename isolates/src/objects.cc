@@ -1998,7 +1998,6 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
       Handle<Object> args[2] = { key, holder };
       return heap->isolate()->Throw(*heap->isolate()->factory()->NewTypeError(
           "strict_read_only_property", HandleVector(args, 2)));
-
     } else {
       return value;
     }
@@ -7021,6 +7020,7 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
 
 MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
                                                  Object* value,
+                                                 StrictModeFlag strict_mode,
                                                  bool check_prototype) {
   Isolate* isolate = GetIsolate();
   // Make sure that the top context does not change when doing
@@ -7048,6 +7048,7 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
   MaybeObject* raw_result =
       this_handle->SetElementWithoutInterceptor(index,
                                                 *value_handle,
+                                                strict_mode,
                                                 check_prototype);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return raw_result;
@@ -7164,6 +7165,7 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
 // elements.
 MaybeObject* JSObject::SetFastElement(uint32_t index,
                                       Object* value,
+                                      StrictModeFlag strict_mode,
                                       bool check_prototype) {
   ASSERT(HasFastElements());
 
@@ -7220,12 +7222,13 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   ASSERT(HasDictionaryElements());
-  return SetElement(index, value, check_prototype);
+  return SetElement(index, value, strict_mode, check_prototype);
 }
 
 
 MaybeObject* JSObject::SetElement(uint32_t index,
                                   Object* value,
+                                  StrictModeFlag strict_mode,
                                   bool check_prototype) {
   Heap* heap = GetHeap();
   // Check access rights if needed.
@@ -7241,26 +7244,36 @@ MaybeObject* JSObject::SetElement(uint32_t index,
     Object* proto = GetPrototype();
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->SetElement(index, value, check_prototype);
+    return JSObject::cast(proto)->SetElement(index,
+                                             value,
+                                             strict_mode,
+                                             check_prototype);
   }
 
   // Check for lookup interceptor
   if (HasIndexedInterceptor()) {
-    return SetElementWithInterceptor(index, value, check_prototype);
+    return SetElementWithInterceptor(index,
+                                     value,
+                                     strict_mode,
+                                     check_prototype);
   }
 
-  return SetElementWithoutInterceptor(index, value, check_prototype);
+  return SetElementWithoutInterceptor(index,
+                                      value,
+                                      strict_mode,
+                                      check_prototype);
 }
 
 
 MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
                                                     Object* value,
+                                                    StrictModeFlag strict_mode,
                                                     bool check_prototype) {
-  Heap* heap = GetHeap();
+  Isolate* isolate = GetIsolate();
   switch (GetElementsKind()) {
     case FAST_ELEMENTS:
       // Fast case.
-      return SetFastElement(index, value, check_prototype);
+      return SetFastElement(index, value, strict_mode, check_prototype);
     case PIXEL_ELEMENTS: {
       PixelArray* pixels = PixelArray::cast(elements());
       return pixels->SetValue(index, value);
@@ -7309,25 +7322,36 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
           return SetElementWithCallback(element, index, value, this);
         } else {
           dictionary->UpdateMaxNumberKey(index);
-          dictionary->ValueAtPut(entry, value);
+          // If put fails instrict mode, throw exception.
+          if (!dictionary->ValueAtPut(entry, value) &&
+              strict_mode == kStrictMode) {
+            Handle<Object> number(isolate->factory()->NewNumberFromUint(index));
+            Handle<Object> holder(this);
+            Handle<Object> args[2] = { number, holder };
+            return isolate->Throw(
+                *isolate->factory()->NewTypeError("strict_read_only_property",
+                                                  HandleVector(args, 2)));
+          }
         }
       } else {
         // Index not already used. Look for an accessor in the prototype chain.
         if (check_prototype) {
           bool found;
           MaybeObject* result =
+              // Strict mode not needed. No-setter case already handled.
               SetElementWithCallbackSetterInPrototypes(index, value, &found);
           if (found) return result;
         }
         // When we set the is_extensible flag to false we always force
         // the element into dictionary mode (and force them to stay there).
         if (!map()->is_extensible()) {
-          Handle<Object> number(FACTORY->NewNumberFromUint(index));
-          Handle<String> index_string(FACTORY->NumberToString(number));
+          Handle<Object> number(isolate->factory()->NewNumberFromUint(index));
+          Handle<String> index_string(
+              isolate->factory()->NumberToString(number));
           Handle<Object> args[1] = { index_string };
-          return heap->isolate()->Throw(
-              *FACTORY->NewTypeError("object_not_extensible",
-                                     HandleVector(args, 1)));
+          return isolate->Throw(
+              *isolate->factory()->NewTypeError("object_not_extensible",
+                                                HandleVector(args, 1)));
         }
         Object* result;
         { MaybeObject* maybe_result = dictionary->AtNumberPut(index, value);
@@ -7380,7 +7404,7 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
   // All possible cases have been handled above. Add a return to avoid the
   // complaints from the compiler.
   UNREACHABLE();
-  return heap->null_value();
+  return isolate->heap()->null_value();
 }
 
 

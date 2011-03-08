@@ -49,22 +49,35 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 
 
 void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
-  movq(destination, Operand(kRootRegister, index << kPointerSizeLog2));
+  movq(destination, Operand(kRootRegister,
+                            (index << kPointerSizeLog2) - kRootRegisterBias));
+}
+
+
+void MacroAssembler::LoadRootIndexed(Register destination,
+                                     Register variable_offset,
+                                     int fixed_offset) {
+  movq(destination,
+       Operand(kRootRegister,
+               variable_offset, times_pointer_size,
+               (fixed_offset << kPointerSizeLog2) - kRootRegisterBias));
 }
 
 
 void MacroAssembler::StoreRoot(Register source, Heap::RootListIndex index) {
-  movq(Operand(kRootRegister, index << kPointerSizeLog2), source);
+  movq(Operand(kRootRegister, (index << kPointerSizeLog2) - kRootRegisterBias),
+       source);
 }
 
 
 void MacroAssembler::PushRoot(Heap::RootListIndex index) {
-  push(Operand(kRootRegister, index << kPointerSizeLog2));
+  push(Operand(kRootRegister, (index << kPointerSizeLog2) - kRootRegisterBias));
 }
 
 
 void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
-  cmpq(with, Operand(kRootRegister, index << kPointerSizeLog2));
+  cmpq(with, Operand(kRootRegister,
+                     (index << kPointerSizeLog2) - kRootRegisterBias));
 }
 
 

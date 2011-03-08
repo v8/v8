@@ -34,6 +34,7 @@
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
+class UnicodeString;
 }
 
 namespace v8 {
@@ -47,6 +48,11 @@ class BreakIterator {
 
   // Unpacks break iterator object from corresponding JavaScript object.
   static icu::BreakIterator* UnpackBreakIterator(v8::Handle<v8::Object> obj);
+
+  // Deletes the old value and sets the adopted text in
+  // corresponding JavaScript object.
+  static UnicodeString* ResetAdoptedText(v8::Handle<v8::Object> obj,
+                                         v8::Handle<v8::Value> text_value);
 
   // Release memory we allocated for the BreakIterator once the JS object that
   // holds the pointer gets garbage collected.

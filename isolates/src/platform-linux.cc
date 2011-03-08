@@ -594,7 +594,9 @@ static void* ThreadEntry(void* arg) {
   // This is also initialized by the first argument to pthread_create() but we
   // don't know which thread will run first (the original thread or the new
   // one) so we initialize it here too.
-  prctl(PR_SET_NAME, thread->name(), 0, 0, 0);
+  prctl(PR_SET_NAME,
+        reinterpret_cast<unsigned long>(thread->name()),  // NOLINT
+        0, 0, 0);
   thread->thread_handle_data()->thread_ = pthread_self();
   ASSERT(thread->IsValid());
   Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
@@ -958,6 +960,7 @@ class SignalSender : public Thread {
   }
 
   void SendProfilingSignal(int tid) {
+    if (!signal_handler_installed_) return;
     // Glibc doesn't provide a wrapper for tgkill(2).
     syscall(SYS_tgkill, vm_tgid_, tid, SIGPROF);
   }

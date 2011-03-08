@@ -93,8 +93,8 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 
 void LCodeGen::Abort(const char* format, ...) {
   if (FLAG_trace_bailout) {
-    SmartPointer<char> debug_name = graph()->debug_name()->ToCString();
-    PrintF("Aborting LCodeGen in @\"%s\": ", *debug_name);
+    SmartPointer<char> name(info()->shared_info()->DebugName()->ToCString());
+    PrintF("Aborting LCodeGen in @\"%s\": ", *name);
     va_list arguments;
     va_start(arguments, format);
     OS::VPrint(format, arguments);
@@ -1923,8 +1923,6 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   __ mov(InstanceofStub::right(), Immediate(instr->function()));
   static const int kAdditionalDelta = 16;
   int delta = masm_->SizeOfCodeGeneratedSince(map_check) + kAdditionalDelta;
-  Label before_push_delta;
-  __ bind(&before_push_delta);
   __ mov(temp, Immediate(delta));
   __ StoreToSafepointRegisterSlot(temp, temp);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr, false);
@@ -2365,7 +2363,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  LInstruction* instr) {
   // Change context if needed.
   bool change_context =
-      (graph()->info()->closure()->context() != function->context()) ||
+      (info()->closure()->context() != function->context()) ||
       scope()->contains_with() ||
       (scope()->num_heap_slots() > 0);
   if (change_context) {
@@ -2384,7 +2382,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   RecordPosition(pointers->position());
 
   // Invoke function.
-  if (*function == *graph()->info()->closure()) {
+  if (*function == *info()->closure()) {
     __ CallSelf();
   } else {
     __ call(FieldOperand(edi, JSFunction::kCodeEntryOffset));

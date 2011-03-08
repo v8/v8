@@ -611,11 +611,13 @@ void CodeGenerator::LoadTypeofExpression(Expression* expr) {
 
 ArgumentsAllocationMode CodeGenerator::ArgumentsMode() {
   if (scope()->arguments() == NULL) return NO_ARGUMENTS_ALLOCATION;
-  ASSERT(scope()->arguments_shadow() != NULL);
+
+  // In strict mode there is no need for shadow arguments.
+  ASSERT(scope()->arguments_shadow() != NULL || scope()->is_strict_mode());
   // We don't want to do lazy arguments allocation for functions that
   // have heap-allocated contexts, because it interfers with the
   // uninitialized const tracking in the context objects.
-  return (scope()->num_heap_slots() > 0)
+  return (scope()->num_heap_slots() > 0 || scope()->is_strict_mode())
       ? EAGER_ARGUMENTS_ALLOCATION
       : LAZY_ARGUMENTS_ALLOCATION;
 }
@@ -643,7 +645,9 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
   Variable* arguments = scope()->arguments();
   Variable* shadow = scope()->arguments_shadow();
   ASSERT(arguments != NULL && arguments->AsSlot() != NULL);
-  ASSERT(shadow != NULL && shadow->AsSlot() != NULL);
+  ASSERT((shadow != NULL && shadow->AsSlot() != NULL) ||
+         scope()->is_strict_mode());
+
   JumpTarget done;
   bool skip_arguments = false;
   if (mode == LAZY_ARGUMENTS_ALLOCATION && !initial) {
@@ -666,7 +670,9 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     StoreToSlot(arguments->AsSlot(), NOT_CONST_INIT);
     if (mode == LAZY_ARGUMENTS_ALLOCATION) done.Bind();
   }
-  StoreToSlot(shadow->AsSlot(), NOT_CONST_INIT);
+  if (shadow != NULL) {
+    StoreToSlot(shadow->AsSlot(), NOT_CONST_INIT);
+  }
   return frame_->Pop();
 }
 
@@ -8220,7 +8226,8 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     // This is the map check instruction that will be patched (so we can't
     // use the double underscore macro that may insert instructions).
     // Initially use an invalid map to force a failure.
-    masm()->Move(kScratchRegister, FACTORY->null_value());
+    masm()->movq(kScratchRegister, FACTORY->null_value(),
+                 RelocInfo::EMBEDDED_OBJECT);
     masm()->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
                  kScratchRegister);
     // This branch is always a forwards branch so it's always a fixed
@@ -8296,7 +8303,8 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     // the __ macro for the following two instructions because it
     // might introduce extra instructions.
     __ bind(&patch_site);
-    masm()->Move(kScratchRegister, FACTORY->null_value());
+    masm()->movq(kScratchRegister, FACTORY->null_value(),
+                 RelocInfo::EMBEDDED_OBJECT);
     masm()->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
                  kScratchRegister);
     // This branch is always a forwards branch so it's always a fixed size

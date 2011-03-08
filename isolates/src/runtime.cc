@@ -344,7 +344,10 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
       if (key->IsSymbol()) {
         if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
           // Array index as string (uint32).
-          result = SetOwnElement(boilerplate, element_index, value);
+          result = SetOwnElement(boilerplate,
+                                 element_index,
+                                 value,
+                                 kNonStrictMode);
         } else {
           Handle<String> name(String::cast(*key));
           ASSERT(!name->AsArrayIndex(&element_index));
@@ -353,7 +356,10 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
         }
       } else if (key->ToArrayIndex(&element_index)) {
         // Array index (uint32).
-        result = SetOwnElement(boilerplate, element_index, value);
+        result = SetOwnElement(boilerplate,
+                               element_index,
+                               value,
+                               kNonStrictMode);
       } else {
         // Non-uint32 number.
         ASSERT(key->IsNumber());
@@ -1239,7 +1245,8 @@ static MaybeObject* Runtime_DeclareContextSlot(RUNTIME_CALLING_CONVENTION) {
         } else {
           // The holder is an arguments object.
           Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
-          Handle<Object> result = SetElement(arguments, index, initial_value);
+          Handle<Object> result = SetElement(arguments, index, initial_value,
+                                             kNonStrictMode);
           if (result.is_null()) return Failure::Exception();
         }
       } else {
@@ -1532,7 +1539,9 @@ static MaybeObject* Runtime_InitializeConstContextSlot(
       // The holder is an arguments object.
       ASSERT((attributes & READ_ONLY) == 0);
       Handle<JSObject> arguments(Handle<JSObject>::cast(holder));
-      RETURN_IF_EMPTY_HANDLE(isolate, SetElement(arguments, index, value));
+      RETURN_IF_EMPTY_HANDLE(
+          isolate,
+          SetElement(arguments, index, value, kNonStrictMode));
     }
     return *value;
   }
@@ -3987,8 +3996,7 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
       return *value;
     }
 
-    // TODO(1220): Implement SetElement strict mode.
-    Handle<Object> result = SetElement(js_object, index, value);
+    Handle<Object> result = SetElement(js_object, index, value, strict_mode);
     if (result.is_null()) return Failure::Exception();
     return *value;
   }
@@ -3996,7 +4004,7 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
   if (key->IsString()) {
     Handle<Object> result;
     if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
-      result = SetElement(js_object, index, value);
+      result = SetElement(js_object, index, value, strict_mode);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
       key_string->TryFlatten();
@@ -4013,8 +4021,7 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    // TODO(1220): Implement SetElement strict mode.
-    return js_object->SetElement(index, *value);
+    return js_object->SetElement(index, *value, strict_mode);
   } else {
     return js_object->SetProperty(*name, *value, attr, strict_mode);
   }
@@ -4042,12 +4049,12 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
       return *value;
     }
 
-    return js_object->SetElement(index, *value);
+    return js_object->SetElement(index, *value, kNonStrictMode);
   }
 
   if (key->IsString()) {
     if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
-      return js_object->SetElement(index, *value);
+      return js_object->SetElement(index, *value, kNonStrictMode);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
       key_string->TryFlatten();
@@ -4064,7 +4071,7 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return js_object->SetElement(index, *value);
+    return js_object->SetElement(index, *value, kNonStrictMode);
   } else {
     return js_object->SetLocalPropertyIgnoreAttributes(*name, *value, attr);
   }
@@ -7893,11 +7900,17 @@ static MaybeObject* Runtime_StoreContextSlot(RUNTIME_CALLING_CONVENTION) {
       if ((attributes & READ_ONLY) == 0) {
         // Context is a fixed array and set cannot fail.
         Context::cast(*holder)->set(index, *value);
+      } else if (strict_mode == kStrictMode) {
+        // Setting read only property in strict mode.
+        Handle<Object> error =
+            isolate->factory()->NewTypeError("strict_cannot_assign",
+                                             HandleVector(&name, 1));
+        return isolate->Throw(*error);
       }
     } else {
       ASSERT((attributes & READ_ONLY) == 0);
       Handle<Object> result =
-          SetElement(Handle<JSObject>::cast(holder), index, value);
+          SetElement(Handle<JSObject>::cast(holder), index, value, strict_mode);
       if (result.is_null()) {
         ASSERT(isolate->has_pending_exception());
         return Failure::Exception();
@@ -8435,7 +8448,9 @@ static MaybeObject* Runtime_PushIfAbsent(RUNTIME_CALLING_CONVENTION) {
     if (elements->get(i) == element) return isolate->heap()->false_value();
   }
   Object* obj;
-  { MaybeObject* maybe_obj = array->SetFastElement(length, element);
+  // Strict not needed. Used for cycle detection in Array join implementation.
+  { MaybeObject* maybe_obj = array->SetFastElement(length, element,
+                                                   kNonStrictMode);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   return isolate->heap()->true_value();
@@ -9054,8 +9069,10 @@ static MaybeObject* Runtime_SwapElements(RUNTIME_CALLING_CONVENTION) {
   Handle<Object> tmp2 = GetElement(jsobject, index2);
   RETURN_IF_EMPTY_HANDLE(isolate, tmp2);
 
-  RETURN_IF_EMPTY_HANDLE(isolate, SetElement(jsobject, index1, tmp2));
-  RETURN_IF_EMPTY_HANDLE(isolate, SetElement(jsobject, index2, tmp1));
+  RETURN_IF_EMPTY_HANDLE(isolate,
+                         SetElement(jsobject, index1, tmp2, kStrictMode));
+  RETURN_IF_EMPTY_HANDLE(isolate,
+                         SetElement(jsobject, index2, tmp1, kStrictMode));
 
   return isolate->heap()->undefined_value();
 }

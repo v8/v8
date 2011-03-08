@@ -290,7 +290,8 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
   CALL_HEAP_FUNCTION(
       isolate,
-      Runtime::ForceSetObjectProperty(isolate, object, key, value, attributes),
+      Runtime::ForceSetObjectProperty(
+          isolate, object, key, value, attributes),
       Object);
 }
 
@@ -475,7 +476,8 @@ Handle<String> SubString(Handle<String> str,
 
 Handle<Object> SetElement(Handle<JSObject> object,
                           uint32_t index,
-                          Handle<Object> value) {
+                          Handle<Object> value,
+                          StrictModeFlag strict_mode) {
   if (object->HasPixelElements() || object->HasExternalArrayElements()) {
     if (!value->IsSmi() && !value->IsHeapNumber() && !value->IsUndefined()) {
       bool has_exception;
@@ -485,17 +487,18 @@ Handle<Object> SetElement(Handle<JSObject> object,
     }
   }
   CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->SetElement(index, *value), Object);
+                     object->SetElement(index, *value, strict_mode), Object);
 }
 
 
 Handle<Object> SetOwnElement(Handle<JSObject> object,
                              uint32_t index,
-                             Handle<Object> value) {
+                             Handle<Object> value,
+                             StrictModeFlag strict_mode) {
   ASSERT(!object->HasPixelElements());
   ASSERT(!object->HasExternalArrayElements());
   CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->SetElement(index, *value, false),
+                     object->SetElement(index, *value, strict_mode, false),
                      Object);
 }
 
