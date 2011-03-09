@@ -77,7 +77,6 @@ class LCodeGen BASE_EMBEDDED {
   Handle<Object> ToHandle(LConstantOperand* op) const;
   Operand ToOperand(LOperand* op) const;
 
-
   // Try to generate code for the entire chunk, but it may fail if the
   // chunk contains constructs we cannot handle. Returns true if the
   // code generation attempt succeeded.
