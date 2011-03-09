@@ -1156,7 +1156,8 @@ LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
 LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
     HInstanceOfKnownGlobal* instr) {
   LInstanceOfKnownGlobal* result =
-      new LInstanceOfKnownGlobal(UseFixed(instr->value(), rax));
+      new LInstanceOfKnownGlobal(UseFixed(instr->value(), rax),
+                                 FixedTemp(rdi));
   return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
