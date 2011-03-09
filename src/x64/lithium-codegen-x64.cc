@@ -2563,6 +2563,8 @@ void LCodeGen::DoPower(LPower* instr) {
   }
   // Return value is in xmm0.
   __ movsd(result_reg, xmm0);
+  // Restore context register.
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 
