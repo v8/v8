@@ -252,7 +252,8 @@ class Factory : public AllStatic {
 
   static Handle<Code> NewCode(const CodeDesc& desc,
                               Code::Flags flags,
-                              Handle<Object> self_reference);
+                              Handle<Object> self_reference,
+                              bool immovable = false);
 
   static Handle<Code> CopyCode(Handle<Code> code);
 

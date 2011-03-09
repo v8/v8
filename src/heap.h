@@ -41,7 +41,7 @@ namespace internal {
 
 
 // Defines all the roots in Heap.
-#define UNCONDITIONAL_STRONG_ROOT_LIST(V)                                      \
+#define STRONG_ROOT_LIST(V)                                      \
   /* Put the byte array map early.  We need it to be in place by the time   */ \
   /* the deserializer hits the next page, since it wants to put a byte      */ \
   /* array in the unused space at the end of the page.                      */ \
@@ -114,25 +114,11 @@ namespace internal {
   V(NumberDictionary, non_monomorphic_cache, NonMonomorphicCache)              \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
-  V(Code, c_entry_code, CEntryCode)                                            \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
   V(Object, last_script_id, LastScriptId)                                      \
   V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(StringDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
-
-#if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
-#define STRONG_ROOT_LIST(V)                                                    \
-  UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
-  V(Code, re_c_entry_code, RegExpCEntryCode)                                   \
-  V(Code, direct_c_entry_code, DirectCEntryCode)
-#elif V8_TARGET_ARCH_ARM
-#define STRONG_ROOT_LIST(V)                                                    \
-  UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
-  V(Code, direct_c_entry_code, DirectCEntryCode)
-#else
-#define STRONG_ROOT_LIST(V) UNCONDITIONAL_STRONG_ROOT_LIST(V)
-#endif
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -705,7 +691,8 @@ class Heap : public AllStatic {
   // Please note this function does not perform a garbage collection.
   MUST_USE_RESULT static MaybeObject* CreateCode(const CodeDesc& desc,
                                                  Code::Flags flags,
-                                                 Handle<Object> self_reference);
+                                                 Handle<Object> self_reference,
+                                                 bool immovable = false);
 
   MUST_USE_RESULT static MaybeObject* CopyCode(Code* code);
 
@@ -1327,13 +1314,10 @@ class Heap : public AllStatic {
   static bool CreateInitialMaps();
   static bool CreateInitialObjects();
 
-  // These five Create*EntryStub functions are here and forced to not be inlined
+  // These two Create*EntryStub functions are here and forced to not be inlined
   // because of a gcc-4.4 bug that assigns wrong vtable entries.
-  NO_INLINE(static void CreateCEntryStub());
   NO_INLINE(static void CreateJSEntryStub());
   NO_INLINE(static void CreateJSConstructEntryStub());
-  NO_INLINE(static void CreateRegExpCEntryStub());
-  NO_INLINE(static void CreateDirectCEntryStub());
 
   static void CreateFixedStubs();
 

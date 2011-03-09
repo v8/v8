@@ -3299,6 +3299,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 }
 
 
+bool CEntryStub::NeedsImmovableCode() {
+  return false;
+}
+
+
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Throw exception in eax.
   __ Throw(rax);

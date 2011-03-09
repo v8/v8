@@ -605,8 +605,9 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
 
 Handle<Code> Factory::NewCode(const CodeDesc& desc,
                               Code::Flags flags,
-                              Handle<Object> self_ref) {
-  CALL_HEAP_FUNCTION(Heap::CreateCode(desc, flags, self_ref), Code);
+                              Handle<Object> self_ref,
+                              bool immovable) {
+  CALL_HEAP_FUNCTION(Heap::CreateCode(desc, flags, self_ref, immovable), Code);
 }
 
 
