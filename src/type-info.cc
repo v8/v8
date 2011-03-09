@@ -78,12 +78,26 @@ Handle<Object> TypeFeedbackOracle::GetInfo(int pos) {
 
 
 bool TypeFeedbackOracle::LoadIsMonomorphic(Property* expr) {
-  return GetInfo(expr->position())->IsMap();
+  Handle<Object> map_or_code(GetInfo(expr->position()));
+  if (map_or_code->IsMap()) return true;
+  if (map_or_code->IsCode()) {
+    Handle<Code> code(Code::cast(*map_or_code));
+    return code->kind() == Code::KEYED_EXTERNAL_ARRAY_LOAD_IC &&
+        code->FindFirstMap() != NULL;
+  }
+  return false;
 }
 
 
-bool TypeFeedbackOracle:: StoreIsMonomorphic(Assignment* expr) {
-  return GetInfo(expr->position())->IsMap();
+bool TypeFeedbackOracle::StoreIsMonomorphic(Assignment* expr) {
+  Handle<Object> map_or_code(GetInfo(expr->position()));
+  if (map_or_code->IsMap()) return true;
+  if (map_or_code->IsCode()) {
+    Handle<Code> code(Code::cast(*map_or_code));
+    return code->kind() == Code::KEYED_EXTERNAL_ARRAY_STORE_IC &&
+        code->FindFirstMap() != NULL;
+  }
+  return false;
 }
 
 
@@ -95,13 +109,25 @@ bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
 
 Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
   ASSERT(LoadIsMonomorphic(expr));
-  return Handle<Map>::cast(GetInfo(expr->position()));
+  Handle<Object> map_or_code(
+      Handle<HeapObject>::cast(GetInfo(expr->position())));
+  if (map_or_code->IsCode()) {
+    Handle<Code> code(Code::cast(*map_or_code));
+    return Handle<Map>(code->FindFirstMap());
+  }
+  return Handle<Map>(Map::cast(*map_or_code));
 }
 
 
 Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Assignment* expr) {
   ASSERT(StoreIsMonomorphic(expr));
-  return Handle<Map>::cast(GetInfo(expr->position()));
+  Handle<HeapObject> map_or_code(
+      Handle<HeapObject>::cast(GetInfo(expr->position())));
+  if (map_or_code->IsCode()) {
+    Handle<Code> code(Code::cast(*map_or_code));
+    return Handle<Map>(code->FindFirstMap());
+  }
+  return Handle<Map>(Map::cast(*map_or_code));
 }
 
 
@@ -144,6 +170,19 @@ CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
   return check;
 }
 
+ExternalArrayType TypeFeedbackOracle::GetKeyedLoadExternalArrayType(
+    Property* expr) {
+  Handle<Object> stub = GetInfo(expr->position());
+  ASSERT(stub->IsCode());
+  return Code::cast(*stub)->external_array_type();
+}
+
+ExternalArrayType TypeFeedbackOracle::GetKeyedStoreExternalArrayType(
+    Assignment* expr) {
+  Handle<Object> stub = GetInfo(expr->position());
+  ASSERT(stub->IsCode());
+  return Code::cast(*stub)->external_array_type();
+}
 
 Handle<JSObject> TypeFeedbackOracle::GetPrototypeForPrimitiveCheck(
     CheckType check) {
@@ -347,8 +386,11 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
         value = target;
       }
     } else if (state == MONOMORPHIC) {
-      if (target->kind() != Code::CALL_IC ||
-          target->check_type() == RECEIVER_MAP_CHECK) {
+      if (kind == Code::KEYED_EXTERNAL_ARRAY_LOAD_IC ||
+          kind == Code::KEYED_EXTERNAL_ARRAY_STORE_IC) {
+        value = target;
+      } else if (kind != Code::CALL_IC ||
+                 target->check_type() == RECEIVER_MAP_CHECK) {
         Handle<Map> map = Handle<Map>(target->FindFirstMap());
         if (*map == NULL) {
           value = target;

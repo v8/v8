@@ -117,7 +117,9 @@ class LogMessageBuilder;
   V(EVAL_TAG,                       "Eval")                     \
   V(FUNCTION_TAG,                   "Function")                 \
   V(KEYED_LOAD_IC_TAG,              "KeyedLoadIC")              \
+  V(KEYED_EXTERNAL_ARRAY_LOAD_IC_TAG, "KeyedExternalArrayLoadIC") \
   V(KEYED_STORE_IC_TAG,             "KeyedStoreIC")             \
+  V(KEYED_EXTERNAL_ARRAY_STORE_IC_TAG, "KeyedExternalArrayStoreIC")\
   V(LAZY_COMPILE_TAG,               "LazyCompile")              \
   V(LOAD_IC_TAG,                    "LoadIC")                   \
   V(REG_EXP_TAG,                    "RegExp")                   \

@@ -1133,10 +1133,10 @@ void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
 }
 
 
-void LCodeGen::DoPixelArrayLength(LPixelArrayLength* instr) {
+void LCodeGen::DoExternalArrayLength(LExternalArrayLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->InputAt(0));
-  __ ldr(result, FieldMemOperand(array, PixelArray::kLengthOffset));
+  __ ldr(result, FieldMemOperand(array, ExternalArray::kLengthOffset));
 }
 
 
@@ -2203,7 +2203,7 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
     __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
     __ cmp(scratch, ip);
     __ b(eq, &done);
-    __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
+    __ LoadRoot(ip, Heap::kExternalPixelArrayMapRootIndex);
     __ cmp(scratch, ip);
     __ b(eq, &done);
     __ LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
@@ -2214,11 +2214,12 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
 }
 
 
-void LCodeGen::DoLoadPixelArrayExternalPointer(
-    LLoadPixelArrayExternalPointer* instr) {
+void LCodeGen::DoLoadExternalArrayPointer(
+    LLoadExternalArrayPointer* instr) {
   Register to_reg = ToRegister(instr->result());
   Register from_reg  = ToRegister(instr->InputAt(0));
-  __ ldr(to_reg, FieldMemOperand(from_reg, PixelArray::kExternalPointerOffset));
+  __ ldr(to_reg, FieldMemOperand(from_reg,
+                                 ExternalArray::kExternalPointerOffset));
 }
 
 
@@ -2259,12 +2260,12 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 
 
 void LCodeGen::DoLoadPixelArrayElement(LLoadPixelArrayElement* instr) {
-  Register external_elements = ToRegister(instr->external_pointer());
+  Register external_pointer = ToRegister(instr->external_pointer());
   Register key = ToRegister(instr->key());
   Register result = ToRegister(instr->result());
 
   // Load the result.
-  __ ldrb(result, MemOperand(external_elements, key));
+  __ ldrb(result, MemOperand(external_pointer, key));
 }
 
 
@@ -2913,6 +2914,17 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
     __ add(key, scratch, Operand(FixedArray::kHeaderSize));
     __ RecordWrite(elements, key, value);
   }
+}
+
+
+void LCodeGen::DoStorePixelArrayElement(LStorePixelArrayElement* instr) {
+  Register external_pointer = ToRegister(instr->external_pointer());
+  Register key = ToRegister(instr->key());
+  Register value = ToRegister(instr->value());
+
+  // Clamp the value to [0..255].
+  __ Usat(value, 8, Operand(value));
+  __ strb(value, MemOperand(external_pointer, key, LSL, 0));
 }
 
 

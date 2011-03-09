@@ -91,6 +91,7 @@ class LChunkBuilder;
   V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
   V(CheckSmi)                                  \
+  V(ClassOfTest)                               \
   V(Compare)                                   \
   V(CompareJSObjectEq)                         \
   V(CompareMap)                                \
@@ -100,25 +101,26 @@ class LChunkBuilder;
   V(Deoptimize)                                \
   V(Div)                                       \
   V(EnterInlined)                              \
+  V(ExternalArrayLength)                       \
   V(FixedArrayLength)                          \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
   V(GlobalObject)                              \
   V(GlobalReceiver)                            \
   V(Goto)                                      \
+  V(HasInstanceType)                           \
+  V(HasCachedArrayIndex)                       \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
   V(IsNull)                                    \
   V(IsObject)                                  \
   V(IsSmi)                                     \
   V(IsConstructCall)                           \
-  V(HasInstanceType)                           \
-  V(HasCachedArrayIndex)                       \
   V(JSArrayLength)                             \
-  V(ClassOfTest)                               \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
   V(LoadElements)                              \
+  V(LoadExternalArrayPointer)                  \
   V(LoadFunctionPrototype)                     \
   V(LoadGlobal)                                \
   V(LoadKeyedFastElement)                      \
@@ -126,14 +128,12 @@ class LChunkBuilder;
   V(LoadNamedField)                            \
   V(LoadNamedGeneric)                          \
   V(LoadPixelArrayElement)                     \
-  V(LoadPixelArrayExternalPointer)             \
   V(Mod)                                       \
   V(Mul)                                       \
   V(ObjectLiteral)                             \
   V(OsrEntry)                                  \
   V(OuterContext)                              \
   V(Parameter)                                 \
-  V(PixelArrayLength)                          \
   V(Power)                                     \
   V(PushArgument)                              \
   V(RegExpLiteral)                             \
@@ -1419,9 +1419,9 @@ class HFixedArrayLength: public HUnaryOperation {
 };
 
 
-class HPixelArrayLength: public HUnaryOperation {
+class HExternalArrayLength: public HUnaryOperation {
  public:
-  explicit HPixelArrayLength(HValue* value) : HUnaryOperation(value) {
+  explicit HExternalArrayLength(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Integer32());
     // The result of this instruction is idempotent as long as its inputs don't
     // change.  The length of a pixel array cannot change once set, so it's not
@@ -1433,7 +1433,7 @@ class HPixelArrayLength: public HUnaryOperation {
     return Representation::Tagged();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(PixelArrayLength, "pixel_array_length")
+  DECLARE_CONCRETE_INSTRUCTION(ExternalArrayLength, "external_array_length")
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
@@ -1557,9 +1557,9 @@ class HLoadElements: public HUnaryOperation {
 };
 
 
-class HLoadPixelArrayExternalPointer: public HUnaryOperation {
+class HLoadExternalArrayPointer: public HUnaryOperation {
  public:
-  explicit HLoadPixelArrayExternalPointer(HValue* value)
+  explicit HLoadExternalArrayPointer(HValue* value)
       : HUnaryOperation(value) {
     set_representation(Representation::External());
     // The result of this instruction is idempotent as long as its inputs don't
@@ -1573,8 +1573,8 @@ class HLoadPixelArrayExternalPointer: public HUnaryOperation {
     return Representation::Tagged();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayExternalPointer,
-                               "load-pixel-array-external-pointer")
+  DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer,
+                               "load-external-array-pointer")
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }

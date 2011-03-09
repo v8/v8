@@ -89,7 +89,7 @@ namespace internal {
   V(Map, external_ascii_string_map, ExternalAsciiStringMap)                    \
   V(Map, undetectable_string_map, UndetectableStringMap)                       \
   V(Map, undetectable_ascii_string_map, UndetectableAsciiStringMap)            \
-  V(Map, pixel_array_map, PixelArrayMap)                                       \
+  V(Map, external_pixel_array_map, ExternalPixelArrayMap)                      \
   V(Map, external_byte_array_map, ExternalByteArrayMap)                        \
   V(Map, external_unsigned_byte_array_map, ExternalUnsignedByteArrayMap)       \
   V(Map, external_short_array_map, ExternalShortArrayMap)                      \
@@ -171,8 +171,6 @@ namespace internal {
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
   V(KeyedLoadSpecialized_symbol, "KeyedLoadSpecialized")                 \
   V(KeyedStoreSpecialized_symbol, "KeyedStoreSpecialized")               \
-  V(KeyedLoadPixelArray_symbol, "KeyedLoadPixelArray")                   \
-  V(KeyedStorePixelArray_symbol, "KeyedStorePixelArray")                 \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
   V(illegal_access_symbol, "illegal access")                             \
   V(out_of_memory_symbol, "out-of-memory")                               \
@@ -201,8 +199,29 @@ namespace internal {
   V(identity_hash_symbol, "v8::IdentityHash")                            \
   V(closure_symbol, "(closure)")                                         \
   V(use_strict, "use strict")                                            \
-  V(KeyedLoadExternalArray_symbol, "KeyedLoadExternalArray")             \
-  V(KeyedStoreExternalArray_symbol, "KeyedStoreExternalArray")
+  V(KeyedLoadExternalByteArray_symbol, "KeyedLoadExternalByteArray")     \
+  V(KeyedLoadExternalUnsignedByteArray_symbol,                           \
+      "KeyedLoadExternalUnsignedByteArray")                              \
+  V(KeyedLoadExternalShortArray_symbol,                                  \
+      "KeyedLoadExternalShortArray")                                     \
+  V(KeyedLoadExternalUnsignedShortArray_symbol,                          \
+      "KeyedLoadExternalUnsignedShortArray")                             \
+  V(KeyedLoadExternalIntArray_symbol, "KeyedLoadExternalIntArray")       \
+  V(KeyedLoadExternalUnsignedIntArray_symbol,                            \
+       "KeyedLoadExternalUnsignedIntArray")                              \
+  V(KeyedLoadExternalFloatArray_symbol, "KeyedLoadExternalFloatArray")   \
+  V(KeyedLoadExternalPixelArray_symbol, "KeyedLoadExternalPixelArray")   \
+  V(KeyedStoreExternalByteArray_symbol, "KeyedStoreExternalByteArray")   \
+  V(KeyedStoreExternalUnsignedByteArray_symbol,                          \
+        "KeyedStoreExternalUnsignedByteArray")                           \
+  V(KeyedStoreExternalShortArray_symbol, "KeyedStoreExternalShortArray") \
+  V(KeyedStoreExternalUnsignedShortArray_symbol,                         \
+        "KeyedStoreExternalUnsignedShortArray")                          \
+  V(KeyedStoreExternalIntArray_symbol, "KeyedStoreExternalIntArray")     \
+  V(KeyedStoreExternalUnsignedIntArray_symbol,                           \
+        "KeyedStoreExternalUnsignedIntArray")                            \
+  V(KeyedStoreExternalFloatArray_symbol, "KeyedStoreExternalFloatArray") \
+  V(KeyedStoreExternalPixelArray_symbol, "KeyedStoreExternalPixelArray")
 
 // Forward declarations.
 class GCTracer;
@@ -479,14 +498,6 @@ class Heap : public AllStatic {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT static MaybeObject* AllocateByteArray(int length);
-
-  // Allocate a pixel array of the specified length
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT static MaybeObject* AllocatePixelArray(int length,
-                                                    uint8_t* external_pointer,
-                                                    PretenureFlag pretenure);
 
   // Allocates an external array of the specified length and type.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

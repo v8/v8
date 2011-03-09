@@ -467,33 +467,6 @@ MaybeObject* StubCache::ComputeKeyedLoadSpecialized(JSObject* receiver) {
 }
 
 
-MaybeObject* StubCache::ComputeKeyedLoadPixelArray(JSObject* receiver) {
-  // Using NORMAL as the PropertyType for array element loads is a misuse. The
-  // generated stub always accesses fast elements, not slow-mode fields, but
-  // some property type is required for the stub lookup. Note that overloading
-  // the NORMAL PropertyType is only safe as long as no stubs are generated for
-  // other keyed field loads. This is guaranteed to be the case since all field
-  // keyed loads that are not array elements go through a generic builtin stub.
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, NORMAL);
-  String* name = Heap::KeyedLoadPixelArray_symbol();
-  Object* code = receiver->map()->FindInCodeCache(name, flags);
-  if (code->IsUndefined()) {
-    KeyedLoadStubCompiler compiler;
-    { MaybeObject* maybe_code = compiler.CompileLoadPixelArray(receiver);
-      if (!maybe_code->ToObject(&code)) return maybe_code;
-    }
-    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), 0));
-    Object* result;
-    { MaybeObject* maybe_result =
-          receiver->UpdateMapCodeCache(name, Code::cast(code));
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-  }
-  return code;
-}
-
-
 MaybeObject* StubCache::ComputeStoreField(String* name,
                                           JSObject* receiver,
                                           int field_index,
@@ -544,35 +517,6 @@ MaybeObject* StubCache::ComputeKeyedStoreSpecialized(
 }
 
 
-MaybeObject* StubCache::ComputeKeyedStorePixelArray(
-    JSObject* receiver,
-    StrictModeFlag strict_mode) {
-  // Using NORMAL as the PropertyType for array element stores is a misuse. The
-  // generated stub always accesses fast elements, not slow-mode fields, but
-  // some property type is required for the stub lookup. Note that overloading
-  // the NORMAL PropertyType is only safe as long as no stubs are generated for
-  // other keyed field stores. This is guaranteed to be the case since all field
-  // keyed stores that are not array elements go through a generic builtin stub.
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, NORMAL, strict_mode);
-  String* name = Heap::KeyedStorePixelArray_symbol();
-  Object* code = receiver->map()->FindInCodeCache(name, flags);
-  if (code->IsUndefined()) {
-    KeyedStoreStubCompiler compiler(strict_mode);
-    { MaybeObject* maybe_code = compiler.CompileStorePixelArray(receiver);
-      if (!maybe_code->ToObject(&code)) return maybe_code;
-    }
-    PROFILE(CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(code), 0));
-    Object* result;
-    { MaybeObject* maybe_result =
-          receiver->UpdateMapCodeCache(name, Code::cast(code));
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-  }
-  return code;
-}
-
-
 namespace {
 
 ExternalArrayType ElementsKindToExternalArrayType(JSObject::ElementsKind kind) {
@@ -591,9 +535,60 @@ ExternalArrayType ElementsKindToExternalArrayType(JSObject::ElementsKind kind) {
       return kExternalUnsignedIntArray;
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
       return kExternalFloatArray;
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+      return kExternalPixelArray;
     default:
       UNREACHABLE();
       return static_cast<ExternalArrayType>(0);
+  }
+}
+
+String* ExternalArrayTypeToStubName(ExternalArrayType array_type,
+                                    bool is_store) {
+  if (is_store) {
+    switch (array_type) {
+      case kExternalByteArray:
+        return Heap::KeyedStoreExternalByteArray_symbol();
+      case kExternalUnsignedByteArray:
+        return Heap::KeyedStoreExternalUnsignedByteArray_symbol();
+      case kExternalShortArray:
+        return Heap::KeyedStoreExternalShortArray_symbol();
+      case kExternalUnsignedShortArray:
+        return Heap::KeyedStoreExternalUnsignedShortArray_symbol();
+      case kExternalIntArray:
+        return Heap::KeyedStoreExternalIntArray_symbol();
+      case kExternalUnsignedIntArray:
+        return Heap::KeyedStoreExternalUnsignedIntArray_symbol();
+      case kExternalFloatArray:
+        return Heap::KeyedStoreExternalFloatArray_symbol();
+      case kExternalPixelArray:
+        return Heap::KeyedStoreExternalPixelArray_symbol();
+      default:
+        UNREACHABLE();
+        return NULL;
+    }
+  } else {
+    switch (array_type) {
+      case kExternalByteArray:
+        return Heap::KeyedLoadExternalByteArray_symbol();
+      case kExternalUnsignedByteArray:
+        return Heap::KeyedLoadExternalUnsignedByteArray_symbol();
+      case kExternalShortArray:
+        return Heap::KeyedLoadExternalShortArray_symbol();
+      case kExternalUnsignedShortArray:
+        return Heap::KeyedLoadExternalUnsignedShortArray_symbol();
+      case kExternalIntArray:
+        return Heap::KeyedLoadExternalIntArray_symbol();
+      case kExternalUnsignedIntArray:
+        return Heap::KeyedLoadExternalUnsignedIntArray_symbol();
+      case kExternalFloatArray:
+        return Heap::KeyedLoadExternalFloatArray_symbol();
+      case kExternalPixelArray:
+        return Heap::KeyedLoadExternalPixelArray_symbol();
+      default:
+        UNREACHABLE();
+        return NULL;
+    }
   }
 }
 
@@ -606,36 +601,35 @@ MaybeObject* StubCache::ComputeKeyedLoadOrStoreExternalArray(
     StrictModeFlag strict_mode) {
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(
-          is_store ? Code::KEYED_STORE_IC : Code::KEYED_LOAD_IC,
+          is_store ? Code::KEYED_EXTERNAL_ARRAY_STORE_IC :
+                     Code::KEYED_EXTERNAL_ARRAY_LOAD_IC,
           NORMAL,
           strict_mode);
   ExternalArrayType array_type =
       ElementsKindToExternalArrayType(receiver->GetElementsKind());
-  String* name =
-      is_store ? Heap::KeyedStoreExternalArray_symbol()
-          : Heap::KeyedLoadExternalArray_symbol();
-  // Use the global maps for the particular external array types,
-  // rather than the receiver's map, when looking up the cached code,
-  // so that we actually canonicalize these stubs.
-  Map* map = Heap::MapForExternalArrayType(array_type);
-  Object* code = map->FindInCodeCache(name, flags);
+  String* name = ExternalArrayTypeToStubName(array_type, is_store);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     ExternalArrayStubCompiler compiler;
-    { MaybeObject* maybe_code = is_store
-          ? compiler.CompileKeyedStoreStub(array_type, flags)
-          : compiler.CompileKeyedLoadStub(array_type, flags);
+    { MaybeObject* maybe_code =
+          is_store ?
+              compiler.CompileKeyedStoreStub(receiver, array_type, flags) :
+              compiler.CompileKeyedLoadStub(receiver, array_type, flags);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
+    Code::cast(code)->set_external_array_type(array_type);
     if (is_store) {
       PROFILE(
-          CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(code), 0));
+          CodeCreateEvent(Logger::KEYED_EXTERNAL_ARRAY_STORE_IC_TAG,
+                          Code::cast(code), 0));
     } else {
       PROFILE(
-          CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), 0));
+          CodeCreateEvent(Logger::KEYED_EXTERNAL_ARRAY_LOAD_IC_TAG,
+                          Code::cast(code), 0));
     }
     Object* result;
     { MaybeObject* maybe_result =
-          map->UpdateCodeCache(name, Code::cast(code));
+          receiver->map()->UpdateCodeCache(name, Code::cast(code));
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
   }

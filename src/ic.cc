@@ -268,9 +268,13 @@ void IC::Clear(Address address) {
 
   switch (target->kind()) {
     case Code::LOAD_IC: return LoadIC::Clear(address, target);
-    case Code::KEYED_LOAD_IC: return KeyedLoadIC::Clear(address, target);
+    case Code::KEYED_LOAD_IC:
+    case Code::KEYED_EXTERNAL_ARRAY_LOAD_IC:
+      return KeyedLoadIC::Clear(address, target);
     case Code::STORE_IC: return StoreIC::Clear(address, target);
-    case Code::KEYED_STORE_IC: return KeyedStoreIC::Clear(address, target);
+    case Code::KEYED_STORE_IC:
+    case Code::KEYED_EXTERNAL_ARRAY_STORE_IC:
+      return KeyedStoreIC::Clear(address, target);
     case Code::CALL_IC: return CallIC::Clear(address, target);
     case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
     case Code::BINARY_OP_IC:
@@ -1236,11 +1240,6 @@ MaybeObject* KeyedLoadIC::Load(State state,
               NULL : Code::cast(probe->ToObjectUnchecked());
         } else if (receiver->HasIndexedInterceptor()) {
           stub = indexed_interceptor_stub();
-        } else if (receiver->HasPixelElements()) {
-          MaybeObject* probe =
-              StubCache::ComputeKeyedLoadPixelArray(*receiver);
-          stub = probe->IsFailure() ?
-              NULL : Code::cast(probe->ToObjectUnchecked());
         } else if (key->IsSmi() &&
                    receiver->map()->has_fast_elements()) {
           MaybeObject* probe =
@@ -1672,11 +1671,6 @@ MaybeObject* KeyedStoreIC::Store(State state,
           MaybeObject* probe =
               StubCache::ComputeKeyedLoadOrStoreExternalArray(
                   *receiver, true, strict_mode);
-          stub = probe->IsFailure() ?
-              NULL : Code::cast(probe->ToObjectUnchecked());
-        } else if (receiver->HasPixelElements()) {
-          MaybeObject* probe =
-              StubCache::ComputeKeyedStorePixelArray(*receiver, strict_mode);
           stub = probe->IsFailure() ?
               NULL : Code::cast(probe->ToObjectUnchecked());
         } else if (key->IsSmi() && receiver->map()->has_fast_elements()) {

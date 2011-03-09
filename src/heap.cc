@@ -1707,10 +1707,10 @@ bool Heap::CreateInitialMaps() {
   set_empty_byte_array(ByteArray::cast(obj));
 
   { MaybeObject* maybe_obj =
-        AllocateMap(PIXEL_ARRAY_TYPE, PixelArray::kAlignedSize);
+        AllocateMap(EXTERNAL_PIXEL_ARRAY_TYPE, ExternalArray::kAlignedSize);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_pixel_array_map(Map::cast(obj));
+  set_external_pixel_array_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_BYTE_ARRAY_TYPE,
                                          ExternalArray::kAlignedSize);
@@ -2228,6 +2228,8 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
       return kExternalUnsignedIntArrayMapRootIndex;
     case kExternalFloatArray:
       return kExternalFloatArrayMapRootIndex;
+    case kExternalPixelArray:
+      return kExternalPixelArrayMapRootIndex;
     default:
       UNREACHABLE();
       return kUndefinedValueRootIndex;
@@ -2659,24 +2661,6 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
     filler->set_map(byte_array_map());
     ByteArray::cast(filler)->set_length(ByteArray::LengthFor(size));
   }
-}
-
-
-MaybeObject* Heap::AllocatePixelArray(int length,
-                                 uint8_t* external_pointer,
-                                 PretenureFlag pretenure) {
-  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  Object* result;
-  { MaybeObject* maybe_result =
-        AllocateRaw(PixelArray::kAlignedSize, space, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  reinterpret_cast<PixelArray*>(result)->set_map(pixel_array_map());
-  reinterpret_cast<PixelArray*>(result)->set_length(length);
-  reinterpret_cast<PixelArray*>(result)->set_external_pointer(external_pointer);
-
-  return result;
 }
 
 

@@ -2563,43 +2563,6 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStorePixelArray(
-    JSObject* receiver) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  // Check that the map matches.
-  __ CheckMap(rdx, Handle<Map>(receiver->map()), &miss, false);
-
-  // Do the load.
-  GenerateFastPixelArrayStore(masm(),
-                              rdx,
-                              rcx,
-                              rax,
-                              rdi,
-                              rbx,
-                              true,
-                              false,
-                              &miss,
-                              &miss,
-                              NULL,
-                              &miss);
-
-  // Handle store cache miss.
-  __ bind(&miss);
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
-  __ jmp(ic, RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode(NORMAL, NULL);
-}
-
-
 MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
                                                       JSObject* object,
                                                       JSObject* last) {
@@ -3039,35 +3002,6 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadPixelArray(JSObject* receiver) {
-  // ----------- S t a t e -------------
-  //  -- rax    : key
-  //  -- rdx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  // Check that the map matches.
-  __ CheckMap(rdx, Handle<Map>(receiver->map()), &miss, false);
-
-  GenerateFastPixelArrayLoad(masm(),
-                             rdx,
-                             rax,
-                             rbx,
-                             rcx,
-                             rax,
-                             &miss,
-                             &miss,
-                             &miss);
-
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(NORMAL, NULL);
-}
-
-
 // Specialized stub for constructing objects from functions which only have only
 // simple assignments of the form this.x = ...; in their body.
 MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
@@ -3200,7 +3134,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
 
 
 MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
-    ExternalArrayType array_type, Code::Flags flags) {
+    JSObject* receiver, ExternalArrayType array_type, Code::Flags flags) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
@@ -3214,24 +3148,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
   // Check that the key is a smi.
   __ JumpIfNotSmi(rax, &slow);
 
-  // Check that the object is a JS object.
-  __ CmpObjectType(rdx, JS_OBJECT_TYPE, rcx);
-  __ j(not_equal, &slow);
-  // Check that the receiver does not require access checks.  We need
-  // to check this explicitly since this generic stub does not perform
-  // map checks.  The map is already in rdx.
-  __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsAccessCheckNeeded));
-  __ j(not_zero, &slow);
-
-  // Check that the elements array is the appropriate type of
-  // ExternalArray.
-  // rax: index (as a smi)
-  // rdx: JSObject
+  // Check that the map matches.
+  __ CheckMap(rdx, Handle<Map>(receiver->map()), &slow, false);
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
-                 Heap::RootIndexForExternalArrayType(array_type));
-  __ j(not_equal, &slow);
 
   // Check that the index is in range.
   __ SmiToInteger32(rcx, rax);
@@ -3249,6 +3168,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     case kExternalByteArray:
       __ movsxbq(rcx, Operand(rbx, rcx, times_1, 0));
       break;
+    case kExternalPixelArray:
     case kExternalUnsignedByteArray:
       __ movzxbq(rcx, Operand(rbx, rcx, times_1, 0));
       break;
@@ -3341,7 +3261,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
 
 
 MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
-    ExternalArrayType array_type, Code::Flags flags) {
+    JSObject* receiver, ExternalArrayType array_type, Code::Flags flags) {
   // ----------- S t a t e -------------
   //  -- rax     : value
   //  -- rcx     : key
@@ -3352,29 +3272,13 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
 
   // Check that the object isn't a smi.
   __ JumpIfSmi(rdx, &slow);
-  // Get the map from the receiver.
-  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
-  // Check that the receiver does not require access checks.  We need
-  // to do this because this generic stub does not perform map checks.
-  __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsAccessCheckNeeded));
-  __ j(not_zero, &slow);
+
+  // Check that the map matches.
+  __ CheckMap(rdx, Handle<Map>(receiver->map()), &slow, false);
+  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
+
   // Check that the key is a smi.
   __ JumpIfNotSmi(rcx, &slow);
-
-  // Check that the object is a JS object.
-  __ CmpInstanceType(rbx, JS_OBJECT_TYPE);
-  __ j(not_equal, &slow);
-
-  // Check that the elements array is the appropriate type of
-  // ExternalArray.
-  // rax: value
-  // rcx: key (a smi)
-  // rdx: receiver (a JSObject)
-  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
-                 Heap::RootIndexForExternalArrayType(array_type));
-  __ j(not_equal, &slow);
 
   // Check that the index is in range.
   __ SmiToInteger32(rdi, rcx);  // Untag the index.
@@ -3390,12 +3294,28 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   // rbx: elements array
   // rdi: untagged key
   NearLabel check_heap_number;
-  __ JumpIfNotSmi(rax, &check_heap_number);
+  if (array_type == kExternalPixelArray) {
+    // Float to pixel conversion is only implemented in the runtime for now.
+    __ JumpIfNotSmi(rax, &slow);
+  } else {
+    __ JumpIfNotSmi(rax, &check_heap_number);
+  }
   // No more branches to slow case on this path.  Key and receiver not needed.
   __ SmiToInteger32(rdx, rax);
   __ movq(rbx, FieldOperand(rbx, ExternalArray::kExternalPointerOffset));
   // rbx: base pointer of external storage
   switch (array_type) {
+    case kExternalPixelArray:
+      {  // Clamp the value to [0..255].
+        NearLabel done;
+        __ testl(rdx, Immediate(0xFFFFFF00));
+        __ j(zero, &done);
+        __ setcc(negative, rdx);  // 1 if negative, 0 if positive.
+        __ decb(rdx);  // 0 if negative, 255 if positive.
+        __ bind(&done);
+      }
+      __ movb(Operand(rbx, rdi, times_1, 0), rdx);
+      break;
     case kExternalByteArray:
     case kExternalUnsignedByteArray:
       __ movb(Operand(rbx, rdi, times_1, 0), rdx);
@@ -3419,62 +3339,65 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   }
   __ ret(0);
 
-  __ bind(&check_heap_number);
-  // rax: value
-  // rcx: key (a smi)
-  // rdx: receiver (a JSObject)
-  // rbx: elements array
-  // rdi: untagged key
-  __ CmpObjectType(rax, HEAP_NUMBER_TYPE, kScratchRegister);
-  __ j(not_equal, &slow);
-  // No more branches to slow case on this path.
+  // TODO(danno): handle heap number -> pixel array conversion
+  if (array_type != kExternalPixelArray) {
+    __ bind(&check_heap_number);
+    // rax: value
+    // rcx: key (a smi)
+    // rdx: receiver (a JSObject)
+    // rbx: elements array
+    // rdi: untagged key
+    __ CmpObjectType(rax, HEAP_NUMBER_TYPE, kScratchRegister);
+    __ j(not_equal, &slow);
+    // No more branches to slow case on this path.
 
-  // The WebGL specification leaves the behavior of storing NaN and
-  // +/-Infinity into integer arrays basically undefined. For more
-  // reproducible behavior, convert these to zero.
-  __ movsd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ movq(rbx, FieldOperand(rbx, ExternalArray::kExternalPointerOffset));
-  // rdi: untagged index
-  // rbx: base pointer of external storage
-  // top of FPU stack: value
-  if (array_type == kExternalFloatArray) {
-    __ cvtsd2ss(xmm0, xmm0);
-    __ movss(Operand(rbx, rdi, times_4, 0), xmm0);
-    __ ret(0);
-  } else {
-    // Perform float-to-int conversion with truncation (round-to-zero)
-    // behavior.
-
-    // Convert to int32 and store the low byte/word.
-    // If the value is NaN or +/-infinity, the result is 0x80000000,
-    // which is automatically zero when taken mod 2^n, n < 32.
-    // rdx: value (converted to an untagged integer)
+    // The WebGL specification leaves the behavior of storing NaN and
+    // +/-Infinity into integer arrays basically undefined. For more
+    // reproducible behavior, convert these to zero.
+    __ movsd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ movq(rbx, FieldOperand(rbx, ExternalArray::kExternalPointerOffset));
     // rdi: untagged index
     // rbx: base pointer of external storage
-    switch (array_type) {
-      case kExternalByteArray:
-      case kExternalUnsignedByteArray:
-        __ cvttsd2si(rdx, xmm0);
-        __ movb(Operand(rbx, rdi, times_1, 0), rdx);
-        break;
-      case kExternalShortArray:
-      case kExternalUnsignedShortArray:
-        __ cvttsd2si(rdx, xmm0);
-        __ movw(Operand(rbx, rdi, times_2, 0), rdx);
-        break;
-      case kExternalIntArray:
-      case kExternalUnsignedIntArray: {
-        // Convert to int64, so that NaN and infinities become
-        // 0x8000000000000000, which is zero mod 2^32.
-        __ cvttsd2siq(rdx, xmm0);
-        __ movl(Operand(rbx, rdi, times_4, 0), rdx);
-        break;
+    // top of FPU stack: value
+    if (array_type == kExternalFloatArray) {
+      __ cvtsd2ss(xmm0, xmm0);
+      __ movss(Operand(rbx, rdi, times_4, 0), xmm0);
+      __ ret(0);
+    } else {
+      // Perform float-to-int conversion with truncation (round-to-zero)
+      // behavior.
+
+      // Convert to int32 and store the low byte/word.
+      // If the value is NaN or +/-infinity, the result is 0x80000000,
+      // which is automatically zero when taken mod 2^n, n < 32.
+      // rdx: value (converted to an untagged integer)
+      // rdi: untagged index
+      // rbx: base pointer of external storage
+      switch (array_type) {
+        case kExternalByteArray:
+        case kExternalUnsignedByteArray:
+          __ cvttsd2si(rdx, xmm0);
+          __ movb(Operand(rbx, rdi, times_1, 0), rdx);
+          break;
+        case kExternalShortArray:
+        case kExternalUnsignedShortArray:
+          __ cvttsd2si(rdx, xmm0);
+          __ movw(Operand(rbx, rdi, times_2, 0), rdx);
+          break;
+        case kExternalIntArray:
+        case kExternalUnsignedIntArray: {
+          // Convert to int64, so that NaN and infinities become
+          // 0x8000000000000000, which is zero mod 2^32.
+          __ cvttsd2siq(rdx, xmm0);
+          __ movl(Operand(rbx, rdi, times_4, 0), rdx);
+          break;
+        }
+        default:
+          UNREACHABLE();
+          break;
       }
-      default:
-        UNREACHABLE();
-        break;
+      __ ret(0);
     }
-    __ ret(0);
   }
 
   // Slow case: call runtime.

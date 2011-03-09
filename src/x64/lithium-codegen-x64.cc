@@ -1056,10 +1056,10 @@ void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
 }
 
 
-void LCodeGen::DoPixelArrayLength(LPixelArrayLength* instr) {
+void LCodeGen::DoExternalArrayLength(LExternalArrayLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->InputAt(0));
-  __ movq(result, FieldOperand(array, PixelArray::kLengthOffset));
+  __ movq(result, FieldOperand(array, ExternalPixelArray::kLengthOffset));
 }
 
 
@@ -2061,7 +2061,7 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
            Factory::fixed_array_map());
     __ j(equal, &done);
     __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
-           Factory::pixel_array_map());
+           Factory::external_pixel_array_map());
     __ j(equal, &done);
     __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
            Factory::fixed_cow_array_map());
@@ -2071,11 +2071,12 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
 }
 
 
-void LCodeGen::DoLoadPixelArrayExternalPointer(
-    LLoadPixelArrayExternalPointer* instr) {
+void LCodeGen::DoLoadExternalArrayPointer(
+    LLoadExternalArrayPointer* instr) {
   Register result = ToRegister(instr->result());
   Register input = ToRegister(instr->InputAt(0));
-  __ movq(result, FieldOperand(input, PixelArray::kExternalPointerOffset));
+  __ movq(result, FieldOperand(input,
+                               ExternalPixelArray::kExternalPointerOffset));
 }
 
 

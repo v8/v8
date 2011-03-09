@@ -1297,6 +1297,10 @@ void Logger::LogCodeObject(Object* object) {
         description = "A keyed load IC from the snapshot";
         tag = Logger::KEYED_LOAD_IC_TAG;
         break;
+      case Code::KEYED_EXTERNAL_ARRAY_LOAD_IC:
+        description = "A keyed external array load IC from the snapshot";
+        tag = Logger::KEYED_EXTERNAL_ARRAY_LOAD_IC_TAG;
+        break;
       case Code::LOAD_IC:
         description = "A load IC from the snapshot";
         tag = Logger::LOAD_IC_TAG;
@@ -1308,6 +1312,10 @@ void Logger::LogCodeObject(Object* object) {
       case Code::KEYED_STORE_IC:
         description = "A keyed store IC from the snapshot";
         tag = Logger::KEYED_STORE_IC_TAG;
+        break;
+      case Code::KEYED_EXTERNAL_ARRAY_STORE_IC:
+        description = "A keyed external array store IC from the snapshot";
+        tag = Logger::KEYED_EXTERNAL_ARRAY_STORE_IC_TAG;
         break;
       case Code::CALL_IC:
         description = "A call IC from the snapshot";

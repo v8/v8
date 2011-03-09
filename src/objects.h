@@ -57,8 +57,8 @@
 //         - JSValue
 //         - JSMessageObject
 //       - ByteArray
-//       - PixelArray
 //       - ExternalArray
+//         - ExternalPixelArray
 //         - ExternalByteArray
 //         - ExternalUnsignedByteArray
 //         - ExternalShortArray
@@ -262,7 +262,6 @@ static const int kVariableSizeSentinel = 0;
   V(HEAP_NUMBER_TYPE)                                                          \
   V(PROXY_TYPE)                                                                \
   V(BYTE_ARRAY_TYPE)                                                           \
-  V(PIXEL_ARRAY_TYPE)                                                          \
   /* Note: the order of these external array */                                \
   /* types is relied upon in */                                                \
   /* Object::IsExternalArray(). */                                             \
@@ -273,6 +272,7 @@ static const int kVariableSizeSentinel = 0;
   V(EXTERNAL_INT_ARRAY_TYPE)                                                   \
   V(EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)                                          \
   V(EXTERNAL_FLOAT_ARRAY_TYPE)                                                 \
+  V(EXTERNAL_PIXEL_ARRAY_TYPE)                                                 \
   V(FILLER_TYPE)                                                               \
                                                                                \
   V(ACCESSOR_INFO_TYPE)                                                        \
@@ -490,14 +490,14 @@ enum InstanceType {
   HEAP_NUMBER_TYPE,
   PROXY_TYPE,
   BYTE_ARRAY_TYPE,
-  PIXEL_ARRAY_TYPE,
   EXTERNAL_BYTE_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
   EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE,
   EXTERNAL_SHORT_ARRAY_TYPE,
   EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE,
   EXTERNAL_INT_ARRAY_TYPE,
   EXTERNAL_UNSIGNED_INT_ARRAY_TYPE,
-  EXTERNAL_FLOAT_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
+  EXTERNAL_FLOAT_ARRAY_TYPE,
+  EXTERNAL_PIXEL_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
   FILLER_TYPE,  // LAST_DATA_TYPE
 
   // Structs.
@@ -544,7 +544,7 @@ enum InstanceType {
   LAST_STRING_TYPE = FIRST_NONSTRING_TYPE - 1,
   // Boundaries for testing for an external array.
   FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_BYTE_ARRAY_TYPE,
-  LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_FLOAT_ARRAY_TYPE,
+  LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_PIXEL_ARRAY_TYPE,
   // Boundary for promotion to old data space/old pointer space.
   LAST_DATA_TYPE = FILLER_TYPE,
   // Boundaries for testing the type is a JavaScript "object".  Note that
@@ -655,7 +655,6 @@ class MaybeObject BASE_EMBEDDED {
   V(SeqTwoByteString)                          \
   V(SeqAsciiString)                            \
                                                \
-  V(PixelArray)                                \
   V(ExternalArray)                             \
   V(ExternalByteArray)                         \
   V(ExternalUnsignedByteArray)                 \
@@ -664,6 +663,7 @@ class MaybeObject BASE_EMBEDDED {
   V(ExternalIntArray)                          \
   V(ExternalUnsignedIntArray)                  \
   V(ExternalFloatArray)                        \
+  V(ExternalPixelArray)                        \
   V(ByteArray)                                 \
   V(JSObject)                                  \
   V(JSContextExtensionObject)                  \
@@ -1297,14 +1297,14 @@ class JSObject: public HeapObject {
     FAST_ELEMENTS,
     // All the kinds below are "slow".
     DICTIONARY_ELEMENTS,
-    PIXEL_ELEMENTS,
     EXTERNAL_BYTE_ELEMENTS,
     EXTERNAL_UNSIGNED_BYTE_ELEMENTS,
     EXTERNAL_SHORT_ELEMENTS,
     EXTERNAL_UNSIGNED_SHORT_ELEMENTS,
     EXTERNAL_INT_ELEMENTS,
     EXTERNAL_UNSIGNED_INT_ELEMENTS,
-    EXTERNAL_FLOAT_ELEMENTS
+    EXTERNAL_FLOAT_ELEMENTS,
+    EXTERNAL_PIXEL_ELEMENTS
   };
 
   // [properties]: Backing storage for properties.
@@ -1329,15 +1329,14 @@ class JSObject: public HeapObject {
   // few objects and so before writing to any element the array must
   // be copied. Use EnsureWritableFastElements in this case.
   //
-  // In the slow mode elements is either a NumberDictionary or a
-  // PixelArray or an ExternalArray.
+  // In the slow mode elements is either a NumberDictionary or an ExternalArray.
   DECL_ACCESSORS(elements, HeapObject)
   inline void initialize_elements();
   MUST_USE_RESULT inline MaybeObject* ResetElements();
   inline ElementsKind GetElementsKind();
   inline bool HasFastElements();
   inline bool HasDictionaryElements();
-  inline bool HasPixelElements();
+  inline bool HasExternalPixelElements();
   inline bool HasExternalArrayElements();
   inline bool HasExternalByteElements();
   inline bool HasExternalUnsignedByteElements();
@@ -2775,59 +2774,6 @@ class ByteArray: public HeapObject {
 };
 
 
-// A PixelArray represents a fixed-size byte array with special semantics
-// used for implementing the CanvasPixelArray object. Please see the
-// specification at:
-// http://www.whatwg.org/specs/web-apps/current-work/
-//                      multipage/the-canvas-element.html#canvaspixelarray
-// In particular, write access clamps the value written to 0 or 255 if the
-// value written is outside this range.
-class PixelArray: public HeapObject {
- public:
-  // [length]: length of the array.
-  inline int length();
-  inline void set_length(int value);
-
-  // [external_pointer]: The pointer to the external memory area backing this
-  // pixel array.
-  DECL_ACCESSORS(external_pointer, uint8_t)  // Pointer to the data store.
-
-  // Setter and getter.
-  inline uint8_t get(int index);
-  inline void set(int index, uint8_t value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber and
-  // undefined and clamps the converted value between 0 and 255.
-  Object* SetValue(uint32_t index, Object* value);
-
-  // Casting.
-  static inline PixelArray* cast(Object* obj);
-
-#ifdef OBJECT_PRINT
-  inline void PixelArrayPrint() {
-    PixelArrayPrint(stdout);
-  }
-  void PixelArrayPrint(FILE* out);
-#endif
-#ifdef DEBUG
-  void PixelArrayVerify();
-#endif  // DEBUG
-
-  // Maximal acceptable length for a pixel array.
-  static const int kMaxLength = 0x3fffffff;
-
-  // PixelArray headers are not quadword aligned.
-  static const int kLengthOffset = HeapObject::kHeaderSize;
-  static const int kExternalPointerOffset =
-      POINTER_SIZE_ALIGN(kLengthOffset + kIntSize);
-  static const int kHeaderSize = kExternalPointerOffset + kPointerSize;
-  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PixelArray);
-};
-
-
 // An ExternalArray represents a fixed-size array of primitive values
 // which live outside the JavaScript heap. Its subclasses are used to
 // implement the CanvasArray types being defined in the WebGL
@@ -2864,6 +2810,44 @@ class ExternalArray: public HeapObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalArray);
+};
+
+
+// A ExternalPixelArray represents a fixed-size byte array with special
+// semantics used for implementing the CanvasPixelArray object. Please see the
+// specification at:
+
+// http://www.whatwg.org/specs/web-apps/current-work/
+//                      multipage/the-canvas-element.html#canvaspixelarray
+// In particular, write access clamps the value written to 0 or 255 if the
+// value written is outside this range.
+class ExternalPixelArray: public ExternalArray {
+ public:
+  inline uint8_t* external_pixel_pointer();
+
+  // Setter and getter.
+  inline uint8_t get(int index);
+  inline void set(int index, uint8_t value);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber and
+  // undefined and clamps the converted value between 0 and 255.
+  Object* SetValue(uint32_t index, Object* value);
+
+  // Casting.
+  static inline ExternalPixelArray* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  inline void ExternalPixelArrayPrint() {
+    ExternalPixelArrayPrint(stdout);
+  }
+  void ExternalPixelArrayPrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void ExternalPixelArrayVerify();
+#endif  // DEBUG
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalPixelArray);
 };
 
 
@@ -3201,10 +3185,12 @@ class Code: public HeapObject {
     BUILTIN,
     LOAD_IC,
     KEYED_LOAD_IC,
+    KEYED_EXTERNAL_ARRAY_LOAD_IC,
     CALL_IC,
     KEYED_CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
+    KEYED_EXTERNAL_ARRAY_STORE_IC,
     BINARY_OP_IC,
     TYPE_RECORDING_BINARY_OP_IC,
     COMPARE_IC,
@@ -3279,6 +3265,12 @@ class Code: public HeapObject {
     return kind() == TYPE_RECORDING_BINARY_OP_IC;
   }
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
+  inline bool is_external_array_load_stub() {
+    return kind() == KEYED_EXTERNAL_ARRAY_LOAD_IC;
+  }
+  inline bool is_external_array_store_stub() {
+    return kind() == KEYED_EXTERNAL_ARRAY_STORE_IC;
+  }
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline int major_key();
@@ -3319,6 +3311,12 @@ class Code: public HeapObject {
   // receiver is valid for the given call.
   inline CheckType check_type();
   inline void set_check_type(CheckType value);
+
+  // [external array type]: For kind KEYED_EXTERNAL_ARRAY_LOAD_IC and
+  // KEYED_EXTERNAL_ARRAY_STORE_IC, identifies the type of external
+  // array that the code stub is specialized for.
+  inline ExternalArrayType external_array_type();
+  inline void set_external_array_type(ExternalArrayType value);
 
   // [binary op type]: For all BINARY_OP_IC.
   inline byte binary_op_type();
@@ -3468,6 +3466,7 @@ class Code: public HeapObject {
   static const int kOptimizableOffset = kKindSpecificFlagsOffset;
   static const int kStackSlotsOffset = kKindSpecificFlagsOffset;
   static const int kCheckTypeOffset = kKindSpecificFlagsOffset;
+  static const int kExternalArrayTypeOffset = kKindSpecificFlagsOffset;
 
   static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
   static const int kBinaryOpTypeOffset = kStubMajorKeyOffset + 1;
@@ -3625,16 +3624,16 @@ class Map: public HeapObject {
   }
 
   // Tells whether an instance has pixel array elements.
-  inline void set_has_pixel_array_elements(bool value) {
+  inline void set_has_external_array_elements(bool value) {
     if (value) {
-      set_bit_field2(bit_field2() | (1 << kHasPixelArrayElements));
+      set_bit_field2(bit_field2() | (1 << kHasExternalArrayElements));
     } else {
-      set_bit_field2(bit_field2() & ~(1 << kHasPixelArrayElements));
+      set_bit_field2(bit_field2() & ~(1 << kHasExternalArrayElements));
     }
   }
 
-  inline bool has_pixel_array_elements() {
-    return ((1 << kHasPixelArrayElements) & bit_field2()) != 0;
+  inline bool has_external_array_elements() {
+    return ((1 << kHasExternalArrayElements) & bit_field2()) != 0;
   }
 
   // Tells whether the map is attached to SharedFunctionInfo
@@ -3695,10 +3694,9 @@ class Map: public HeapObject {
   // from the descriptors and the fast elements bit cleared.
   MUST_USE_RESULT inline MaybeObject* GetSlowElementsMap();
 
-  // Returns this map if it has the pixel array elements bit is set, otherwise
-  // returns a copy of the map, with all transitions dropped from the
-  // descriptors and the pixel array elements bit set.
-  MUST_USE_RESULT inline MaybeObject* GetPixelArrayElementsMap();
+  // Returns a new map with all transitions dropped from the descriptors and the
+  // external array elements bit set.
+  MUST_USE_RESULT inline MaybeObject* NewExternalArrayElementsMap();
 
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);
@@ -3818,7 +3816,7 @@ class Map: public HeapObject {
   static const int kStringWrapperSafeForDefaultValueOf = 3;
   static const int kAttachedToSharedFunctionInfo = 4;
   static const int kIsShared = 5;
-  static const int kHasPixelArrayElements = 6;
+  static const int kHasExternalArrayElements = 6;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;

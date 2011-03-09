@@ -72,6 +72,8 @@ class LCodeGen;
   V(CheckMap)                                   \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
+  V(ClassOfTest)                                \
+  V(ClassOfTestAndBranch)                       \
   V(CmpID)                                      \
   V(CmpIDAndBranch)                             \
   V(CmpJSObjectEq)                              \
@@ -87,13 +89,18 @@ class LCodeGen;
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
+  V(ExternalArrayLength)                        \
+  V(FixedArrayLength)                           \
   V(FunctionLiteral)                            \
   V(Gap)                                        \
   V(GetCachedArrayIndex)                        \
   V(GlobalObject)                               \
   V(GlobalReceiver)                             \
   V(Goto)                                       \
-  V(FixedArrayLength)                           \
+  V(HasInstanceType)                            \
+  V(HasInstanceTypeAndBranch)                   \
+  V(HasCachedArrayIndex)                        \
+  V(HasCachedArrayIndexAndBranch)               \
   V(InstanceOf)                                 \
   V(InstanceOfAndBranch)                        \
   V(InstanceOfKnownGlobal)                      \
@@ -105,16 +112,11 @@ class LCodeGen;
   V(IsSmi)                                      \
   V(IsSmiAndBranch)                             \
   V(JSArrayLength)                              \
-  V(HasInstanceType)                            \
-  V(HasInstanceTypeAndBranch)                   \
-  V(HasCachedArrayIndex)                        \
-  V(HasCachedArrayIndexAndBranch)               \
-  V(ClassOfTest)                                \
-  V(ClassOfTestAndBranch)                       \
   V(Label)                                      \
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
   V(LoadElements)                               \
+  V(LoadExternalArrayPointer)                   \
   V(LoadGlobal)                                 \
   V(LoadKeyedFastElement)                       \
   V(LoadKeyedGeneric)                           \
@@ -122,7 +124,6 @@ class LCodeGen;
   V(LoadNamedGeneric)                           \
   V(LoadFunctionPrototype)                      \
   V(LoadPixelArrayElement)                      \
-  V(LoadPixelArrayExternalPointer)              \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -132,7 +133,6 @@ class LCodeGen;
   V(OsrEntry)                                   \
   V(OuterContext)                               \
   V(Parameter)                                  \
-  V(PixelArrayLength)                           \
   V(Power)                                      \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
@@ -996,14 +996,14 @@ class LJSArrayLength: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LPixelArrayLength: public LTemplateInstruction<1, 1, 0> {
+class LExternalArrayLength: public LTemplateInstruction<1, 1, 0> {
  public:
-  explicit LPixelArrayLength(LOperand* value) {
+  explicit LExternalArrayLength(LOperand* value) {
     inputs_[0] = value;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(PixelArrayLength, "pixel-array-length")
-  DECLARE_HYDROGEN_ACCESSOR(PixelArrayLength)
+  DECLARE_CONCRETE_INSTRUCTION(ExternalArrayLength, "external-array-length")
+  DECLARE_HYDROGEN_ACCESSOR(ExternalArrayLength)
 };
 
 
@@ -1167,14 +1167,14 @@ class LLoadElements: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LLoadPixelArrayExternalPointer: public LTemplateInstruction<1, 1, 0> {
+class LLoadExternalArrayPointer: public LTemplateInstruction<1, 1, 0> {
  public:
-  explicit LLoadPixelArrayExternalPointer(LOperand* object) {
+  explicit LLoadExternalArrayPointer(LOperand* object) {
     inputs_[0] = object;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayExternalPointer,
-                               "load-pixel-array-external-pointer")
+  DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer,
+                               "load-external-array-pointer")
 };
 
 

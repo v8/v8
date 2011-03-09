@@ -172,7 +172,7 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(JSObject* boilerplate) {
 
   // Deep copy local elements.
   // Pixel elements cannot be created using an object literal.
-  ASSERT(!copy->HasPixelElements() && !copy->HasExternalArrayElements());
+  ASSERT(!copy->HasExternalArrayElements());
   switch (copy->GetElementsKind()) {
     case JSObject::FAST_ELEMENTS: {
       FixedArray* elements = FixedArray::cast(copy->elements());
@@ -8327,9 +8327,9 @@ static void CollectElementIndices(Handle<JSObject> object,
     default: {
       int dense_elements_length;
       switch (kind) {
-        case JSObject::PIXEL_ELEMENTS: {
+        case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
         dense_elements_length =
-            PixelArray::cast(object->elements())->length();
+            ExternalPixelArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_BYTE_ELEMENTS: {
@@ -8453,8 +8453,9 @@ static bool IterateElements(Handle<JSArray> receiver,
       }
       break;
     }
-    case JSObject::PIXEL_ELEMENTS: {
-      Handle<PixelArray> pixels(PixelArray::cast(receiver->elements()));
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
+      Handle<ExternalPixelArray> pixels(ExternalPixelArray::cast(
+          receiver->elements()));
       for (uint32_t j = 0; j < length; j++) {
         Handle<Smi> e(Smi::FromInt(pixels->get(j)));
         visitor->visit(j, e);

@@ -249,6 +249,9 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   ZoneMapList* StoreReceiverTypes(Assignment* expr, Handle<String> name);
   ZoneMapList* CallReceiverTypes(Call* expr, Handle<String> name);
 
+  ExternalArrayType GetKeyedLoadExternalArrayType(Property* expr);
+  ExternalArrayType GetKeyedStoreExternalArrayType(Assignment* expr);
+
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
 
