@@ -794,7 +794,6 @@ class HGraphBuilder: public AstVisitor {
 #undef DECLARE_VISIT
 
   HBasicBlock* CreateBasicBlock(HEnvironment* env);
-  HSubgraph* CreateEmptySubgraph();
   HBasicBlock* CreateLoopHeaderBlock();
 
   // Helpers for flow graph construction.
@@ -886,10 +885,6 @@ class HGraphBuilder: public AstVisitor {
                                                  HValue* key,
                                                  HValue* val,
                                                  Expression* expr);
-
-  HCompare* BuildSwitchCompare(HSubgraph* subgraph,
-                               HValue* switch_value,
-                               CaseClause* clause);
 
   HValue* BuildContextChainWalk(Variable* var);
 

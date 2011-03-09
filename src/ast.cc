@@ -1062,6 +1062,8 @@ CaseClause::CaseClause(Expression* label,
     : label_(label),
       statements_(statements),
       position_(pos),
-      compare_type_(NONE) {}
+      compare_type_(NONE),
+      entry_id_(AstNode::GetNextId()) {
+}
 
 } }  // namespace v8::internal

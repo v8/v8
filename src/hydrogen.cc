@@ -2360,13 +2360,6 @@ HBasicBlock* HGraphBuilder::CreateBasicBlock(HEnvironment* env) {
 }
 
 
-HSubgraph* HGraphBuilder::CreateEmptySubgraph() {
-  HSubgraph* subgraph = new HSubgraph(graph());
-  subgraph->Initialize(graph()->CreateBasicBlock());
-  return subgraph;
-}
-
-
 HBasicBlock* HGraphBuilder::CreateLoopHeaderBlock() {
   HBasicBlock* header = graph()->CreateBasicBlock();
   HEnvironment* entry_env = environment()->CopyAsLoopHeader(header);
@@ -2514,172 +2507,128 @@ void HGraphBuilder::VisitWithExitStatement(WithExitStatement* stmt) {
 }
 
 
-HCompare* HGraphBuilder::BuildSwitchCompare(HSubgraph* subgraph,
-                                            HValue* switch_value,
-                                            CaseClause* clause) {
-  AddToSubgraph(subgraph, clause->label());
-  if (HasStackOverflow()) return NULL;
-  HValue* clause_value = subgraph->exit_block()->last_environment()->Pop();
-  HCompare* compare = new HCompare(switch_value,
-                                   clause_value,
-                                   Token::EQ_STRICT);
-  compare->SetInputRepresentation(Representation::Integer32());
-  subgraph->exit_block()->AddInstruction(compare);
-  return compare;
-}
-
-
 void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
-  VISIT_FOR_VALUE(stmt->tag());
-  // TODO(3168478): simulate added for tag should be enough.
-  AddSimulate(stmt->EntryId());
-  HValue* switch_value = Pop();
-
+  // We only optimize switch statements with smi-literal smi comparisons,
+  // with a bounded number of clauses.
+  const int kCaseClauseLimit = 128;
   ZoneList<CaseClause*>* clauses = stmt->cases();
-  int num_clauses = clauses->length();
-  if (num_clauses == 0) return;
-  if (num_clauses > 128) BAILOUT("SwitchStatement: too many clauses");
+  int clause_count = clauses->length();
+  if (clause_count > kCaseClauseLimit) {
+    BAILOUT("SwitchStatement: too many clauses");
+  }
 
-  int num_smi_clauses = num_clauses;
-  for (int i = 0; i < num_clauses; i++) {
+  VISIT_FOR_VALUE(stmt->tag());
+  HValue* tag_value = Pop();
+  HBasicBlock* first_test_block = current_block();
+
+  // 1. Build all the tests, with dangling true branches.  Unconditionally
+  // deoptimize if we encounter a non-smi comparison.
+  for (int i = 0; i < clause_count; ++i) {
     CaseClause* clause = clauses->at(i);
     if (clause->is_default()) continue;
-    clause->RecordTypeFeedback(oracle());
-    if (!clause->IsSmiCompare()) {
-      if (i == 0) BAILOUT("SwitchStatement: no smi compares");
-      // We will deoptimize if the first non-smi compare is reached.
-      num_smi_clauses = i;
-      break;
-    }
     if (!clause->label()->IsSmiLiteral()) {
       BAILOUT("SwitchStatement: non-literal switch label");
     }
-  }
 
-  // The single exit block of the whole switch statement.
-  HBasicBlock* single_exit_block = graph_->CreateBasicBlock();
-
-  // Build a series of empty subgraphs for the comparisons.
-  // The default clause does not have a comparison subgraph.
-  ZoneList<HSubgraph*> compare_graphs(num_smi_clauses);
-  for (int i = 0; i < num_smi_clauses; i++) {
-    if (clauses->at(i)->is_default()) {
-      compare_graphs.Add(NULL);
-    } else {
-      compare_graphs.Add(CreateEmptySubgraph());
-    }
-  }
-
-  HSubgraph* prev_graph = current_subgraph_;
-  HCompare* prev_compare_inst = NULL;
-  for (int i = 0; i < num_smi_clauses; i++) {
-    CaseClause* clause = clauses->at(i);
-    if (clause->is_default()) continue;
-
-    // Finish the previous graph by connecting it to the current.
-    HSubgraph* subgraph = compare_graphs.at(i);
-    if (prev_compare_inst == NULL) {
-      ASSERT(prev_graph == current_subgraph_);
-      prev_graph->exit_block()->Finish(new HGoto(subgraph->entry_block()));
-    } else {
-      HBasicBlock* empty = graph()->CreateBasicBlock();
-      prev_graph->exit_block()->Finish(new HTest(prev_compare_inst,
-                                                 empty,
-                                                 subgraph->entry_block()));
+    // Unconditionally deoptimize on the first non-smi compare.
+    clause->RecordTypeFeedback(oracle());
+    if (!clause->IsSmiCompare()) {
+      if (current_block() == first_test_block) {
+        // If the first test is the one that deopts and if the tag value is
+        // a phi, we need to have some use of that phi to prevent phi
+        // elimination from removing it.  This HSimulate is such a use.
+        Push(tag_value);
+        AddSimulate(stmt->EntryId());
+        Drop(1);
+      }
+      current_block()->Finish(new HDeoptimize());
+      set_current_block(NULL);
+      break;
     }
 
-    // Build instructions for current subgraph.
-    ASSERT(clause->IsSmiCompare());
-    prev_compare_inst = BuildSwitchCompare(subgraph, switch_value, clause);
-    if (HasStackOverflow()) return;
-
-    prev_graph = subgraph;
+    // Otherwise generate a compare and branch.
+    VISIT_FOR_VALUE(clause->label());
+    HValue* label_value = Pop();
+    HCompare* compare = new HCompare(tag_value, label_value, Token::EQ_STRICT);
+    compare->SetInputRepresentation(Representation::Integer32());
+    ASSERT(!compare->HasSideEffects());
+    AddInstruction(compare);
+    HBasicBlock* body_block = graph()->CreateBasicBlock();
+    HBasicBlock* next_test_block = graph()->CreateBasicBlock();
+    HTest* branch = new HTest(compare, body_block, next_test_block);
+    current_block()->Finish(branch);
+    set_current_block(next_test_block);
   }
 
-  // Finish last comparison if there was at least one comparison.
-  // last_false_block is the (empty) false-block of the last comparison. If
-  // there are no comparisons at all (a single default clause), it is just
-  // the last block of the current subgraph.
-  HBasicBlock* last_false_block = current_block();
-  if (prev_graph != current_subgraph_) {
-    last_false_block = graph()->CreateBasicBlock();
-    HBasicBlock* empty = graph()->CreateBasicBlock();
-    prev_graph->exit_block()->Finish(new HTest(prev_compare_inst,
-                                               empty,
-                                               last_false_block));
-  }
+  // Save the current block to use for the default or to join with the
+  // exit.  This block is NULL if we deoptimized.
+  HBasicBlock* last_block = current_block();
 
-  // If we have a non-smi compare clause, we deoptimize after trying
-  // all the previous compares.
-  if (num_smi_clauses < num_clauses) {
-    last_false_block->Finish(new HDeoptimize);
-  }
+  // 2. Loop over the clauses and the linked list of tests in lockstep,
+  // translating the clause bodies.
+  HBasicBlock* curr_test_block = first_test_block;
+  HBasicBlock* fall_through_block = NULL;
+  BreakAndContinueInfo break_info(stmt);
+  { BreakAndContinueScope push(&break_info, this);
+    for (int i = 0; i < clause_count; ++i) {
+      CaseClause* clause = clauses->at(i);
 
-  // Build statement blocks, connect them to their comparison block and
-  // to the previous statement block, if there is a fall-through.
-  HSubgraph* previous_subgraph = NULL;
-  for (int i = 0; i < num_clauses; i++) {
-    CaseClause* clause = clauses->at(i);
-    // Subgraph for the statements of the clause is only created when
-    // it's reachable either from the corresponding compare or as a
-    // fall-through from previous statements.
-    HSubgraph* subgraph = NULL;
+      // Identify the block where normal (non-fall-through) control flow
+      // goes to.
+      HBasicBlock* normal_block = NULL;
+      if (clause->is_default() && last_block != NULL) {
+        normal_block = last_block;
+        last_block = NULL;  // Cleared to indicate we've handled it.
+      } else if (!curr_test_block->end()->IsDeoptimize()) {
+        normal_block = curr_test_block->end()->FirstSuccessor();
+        curr_test_block = curr_test_block->end()->SecondSuccessor();
+      }
 
-    if (i < num_smi_clauses) {
-      if (clause->is_default()) {
-        if (!last_false_block->IsFinished()) {
-          // Default clause: Connect it to the last false block.
-          subgraph = CreateEmptySubgraph();
-          last_false_block->Finish(new HGoto(subgraph->entry_block()));
+      // Identify a block to emit the body into.
+      if (normal_block == NULL) {
+        if (fall_through_block == NULL) {
+          // (a) Unreachable.
+          if (clause->is_default()) {
+            continue;  // Might still be reachable clause bodies.
+          } else {
+            break;
+          }
+        } else {
+          // (b) Reachable only as fall through.
+          set_current_block(fall_through_block);
         }
+      } else if (fall_through_block == NULL) {
+        // (c) Reachable only normally.
+        set_current_block(normal_block);
       } else {
-        ASSERT(clause->IsSmiCompare());
-        // Connect with the corresponding comparison.
-        subgraph = CreateEmptySubgraph();
-        HBasicBlock* empty =
-            compare_graphs.at(i)->exit_block()->end()->FirstSuccessor();
-        empty->Finish(new HGoto(subgraph->entry_block()));
+        // (d) Reachable both ways.
+        HBasicBlock* join = CreateJoin(fall_through_block,
+                                       normal_block,
+                                       clause->EntryId());
+        set_current_block(join);
       }
-    }
 
-    // Check for fall-through from previous statement block.
-    if (previous_subgraph != NULL && previous_subgraph->exit_block() != NULL) {
-      if (subgraph == NULL) subgraph = CreateEmptySubgraph();
-      previous_subgraph->exit_block()->
-          Finish(new HGoto(subgraph->entry_block()));
+      VisitStatements(clause->statements());
+      CHECK_BAILOUT;
+      fall_through_block = current_block();
     }
-
-    if (subgraph != NULL) {
-      BreakAndContinueInfo break_info(stmt);
-      { BreakAndContinueScope push(&break_info, this);
-        ADD_TO_SUBGRAPH(subgraph, clause->statements());
-      }
-      if (break_info.break_block() != NULL) {
-        break_info.break_block()->SetJoinId(stmt->ExitId());
-        break_info.break_block()->Finish(new HGoto(single_exit_block));
-      }
-    }
-
-    previous_subgraph = subgraph;
   }
 
-  // If the last statement block has a fall-through, connect it to the
-  // single exit block.
-  if (previous_subgraph != NULL && previous_subgraph->exit_block() != NULL) {
-    previous_subgraph->exit_block()->Finish(new HGoto(single_exit_block));
-  }
-
-  // If there is no default clause finish the last comparison's false target.
-  if (!last_false_block->IsFinished()) {
-    last_false_block->Finish(new HGoto(single_exit_block));
-  }
-
-  if (single_exit_block->HasPredecessor()) {
-    set_current_block(single_exit_block);
+  // Create an up-to-3-way join.  Use the break block if it exists since
+  // it's already a join block.
+  HBasicBlock* break_block = break_info.break_block();
+  if (break_block == NULL) {
+    set_current_block(CreateJoin(fall_through_block,
+                                 last_block,
+                                 stmt->ExitId()));
   } else {
-    set_current_block(NULL);
+    if (fall_through_block != NULL) fall_through_block->Goto(break_block);
+    if (last_block != NULL) last_block->Goto(break_block);
+    break_block->SetJoinId(stmt->ExitId());
+    set_current_block(break_block);
   }
 }
+
 
 bool HGraphBuilder::HasOsrEntryAt(IterationStatement* statement) {
   return statement->OsrEntryId() == info()->osr_ast_id();

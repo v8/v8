@@ -175,6 +175,8 @@ class AstNode: public ZoneObject {
   static unsigned current_id_;
   static unsigned count_;
   unsigned id_;
+
+  friend class CaseClause;  // Generates AST IDs.
 };
 
 
@@ -694,6 +696,8 @@ class CaseClause: public ZoneObject {
   int position() { return position_; }
   void set_position(int pos) { position_ = pos; }
 
+  int EntryId() { return entry_id_; }
+
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   bool IsSmiCompare() { return compare_type_ == SMI_ONLY; }
@@ -706,6 +710,7 @@ class CaseClause: public ZoneObject {
   int position_;
   enum CompareTypeFeedback { NONE, SMI_ONLY, OBJECT_ONLY };
   CompareTypeFeedback compare_type_;
+  int entry_id_;
 };
 
 
