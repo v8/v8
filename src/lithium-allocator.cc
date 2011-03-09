@@ -1436,7 +1436,7 @@ void LAllocator::AllocateDoubleRegisters() {
 
 void LAllocator::AllocateRegisters() {
   ASSERT(mode_ != NONE);
-  reusable_slots_.Clear();
+  ASSERT(unhandled_live_ranges_.is_empty());
 
   for (int i = 0; i < live_ranges_.length(); ++i) {
     if (live_ranges_[i] != NULL) {
@@ -1448,6 +1448,7 @@ void LAllocator::AllocateRegisters() {
   SortUnhandled();
   ASSERT(UnhandledIsSorted());
 
+  ASSERT(reusable_slots_.is_empty());
   ASSERT(active_live_ranges_.is_empty());
   ASSERT(inactive_live_ranges_.is_empty());
 
@@ -1532,8 +1533,9 @@ void LAllocator::AllocateRegisters() {
     }
   }
 
-  active_live_ranges_.Clear();
-  inactive_live_ranges_.Clear();
+  reusable_slots_.Rewind(0);
+  active_live_ranges_.Rewind(0);
+  inactive_live_ranges_.Rewind(0);
 }
 
 

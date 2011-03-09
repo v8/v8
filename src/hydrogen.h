@@ -379,7 +379,7 @@ class HEnvironment: public ZoneObject {
   void ClearHistory() {
     pop_count_ = 0;
     push_count_ = 0;
-    assigned_variables_.Clear();
+    assigned_variables_.Rewind(0);
   }
 
   void SetValueAt(int index, HValue* value) {
