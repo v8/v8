@@ -1424,7 +1424,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     Handle<Code> code_constant,
                                     const Operand& code_operand,
-                                    Label* done,
+                                    NearLabel* done,
                                     InvokeFlag flag,
                                     PostCallGenerator* post_call_generator) {
   bool definitely_matches = false;
@@ -1492,7 +1492,7 @@ void MacroAssembler::InvokeCode(const Operand& code,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
                                 PostCallGenerator* post_call_generator) {
-  Label done;
+  NearLabel done;
   InvokePrologue(expected, actual, Handle<Code>::null(), code,
                  &done, flag, post_call_generator);
   if (flag == CALL_FUNCTION) {
@@ -1512,7 +1512,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 RelocInfo::Mode rmode,
                                 InvokeFlag flag,
                                 PostCallGenerator* post_call_generator) {
-  Label done;
+  NearLabel done;
   Operand dummy(eax);
   InvokePrologue(expected, actual, code, dummy, &done,
                  flag, post_call_generator);

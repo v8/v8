@@ -61,7 +61,7 @@ typedef Operand MemOperand;
 
 // Forward declaration.
 class JumpTarget;
-class PostCallGenerator;
+class CallWrapper;
 
 struct SmiIndex {
   SmiIndex(Register index_register, ScaleFactor scale)
@@ -199,32 +199,32 @@ class MacroAssembler: public Assembler {
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  PostCallGenerator* post_call_generator = NULL);
+                  CallWrapper* call_wrapper = NULL);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
                   InvokeFlag flag,
-                  PostCallGenerator* post_call_generator = NULL);
+                  CallWrapper* call_wrapper = NULL);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      CallWrapper* call_wrapper = NULL);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      CallWrapper* call_wrapper = NULL);
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id,
                      InvokeFlag flag,
-                     PostCallGenerator* post_call_generator = NULL);
+                     CallWrapper* call_wrapper = NULL);
 
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, Builtins::JavaScript id);
@@ -626,6 +626,26 @@ class MacroAssembler: public Assembler {
   void Call(ExternalReference ext);
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
 
+  // The size of the code generated for different call instructions.
+  int CallSize(Address destination, RelocInfo::Mode rmode) {
+    return kCallInstructionLength;
+  }
+  int CallSize(ExternalReference ext) {
+    return kCallInstructionLength;
+  }
+  int CallSize(Handle<Code> code_object) {
+    // Code calls use 32-bit relative addressing.
+    return kShortCallInstructionLength;
+  }
+  int CallSize(Register target) {
+    // Opcode: REX_opt FF /2 m64
+    return (target.high_bit() != 0) ? 3 : 2;
+  }
+  int CallSize(const Operand& target) {
+    // Opcode: REX_opt FF /2 m64
+    return (target.requires_rex() ? 2 : 1) + target.operand_size();
+  }
+
   // Emit call to the code we are currently generating.
   void CallSelf() {
     Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));
@@ -1018,7 +1038,7 @@ class MacroAssembler: public Assembler {
                       Register code_register,
                       LabelType* done,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator);
+                      CallWrapper* call_wrapper);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -1084,13 +1104,17 @@ class CodePatcher {
 
 
 // Helper class for generating code or data associated with the code
-// right after a call instruction. As an example this can be used to
+// right before or after a call instruction. As an example this can be used to
 // generate safepoint data after calls for crankshaft.
-class PostCallGenerator {
+class CallWrapper {
  public:
-  PostCallGenerator() { }
-  virtual ~PostCallGenerator() { }
-  virtual void Generate() = 0;
+  CallWrapper() { }
+  virtual ~CallWrapper() { }
+  // Called just before emitting a call. Argument is the size of the generated
+  // call code.
+  virtual void BeforeCall(int call_size) = 0;
+  // Called just after emitting a call, i.e., at the return site for the call.
+  virtual void AfterCall() = 0;
 };
 
 
@@ -1801,7 +1825,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Register code_register,
                                     LabelType* done,
                                     InvokeFlag flag,
-                                    PostCallGenerator* post_call_generator) {
+                                    CallWrapper* call_wrapper) {
   bool definitely_matches = false;
   NearLabel invoke;
   if (expected.is_immediate()) {
@@ -1851,8 +1875,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     }
 
     if (flag == CALL_FUNCTION) {
+      if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(adaptor));
       Call(adaptor, RelocInfo::CODE_TARGET);
-      if (post_call_generator != NULL) post_call_generator->Generate();
+      if (call_wrapper != NULL) call_wrapper->AfterCall();
       jmp(done);
     } else {
       Jump(adaptor, RelocInfo::CODE_TARGET);

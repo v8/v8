@@ -210,6 +210,9 @@ class LCodeGen BASE_EMBEDDED {
                                     int arguments,
                                     int deoptimization_index);
   void RecordPosition(int position);
+  int LastSafepointEnd() {
+    return static_cast<int>(safepoints_.GetPcAfterGap());
+  }
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block, LDeferredCode* deferred_stack_check = NULL);
@@ -238,11 +241,11 @@ class LCodeGen BASE_EMBEDDED {
   void EmitPushConstantOperand(LOperand* operand);
 
   struct JumpTableEntry {
-    inline JumpTableEntry(Address address)
-        : label_(),
-          address_(address) { }
-    Label label_;
-    Address address_;
+    inline JumpTableEntry(Address entry)
+        : label(),
+          address(entry) { }
+    Label label;
+    Address address;
   };
 
   LChunk* const chunk_;
@@ -253,7 +256,7 @@ class LCodeGen BASE_EMBEDDED {
   int current_instruction_;
   const ZoneList<LInstruction*>* instructions_;
   ZoneList<LEnvironment*> deoptimizations_;
-  ZoneList<JumpTableEntry*> jump_table_;
+  ZoneList<JumpTableEntry> jump_table_;
   ZoneList<Handle<Object> > deoptimization_literals_;
   int inlined_function_count_;
   Scope* const scope_;

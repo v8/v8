@@ -646,7 +646,7 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& actual,
                       Handle<Code> code_constant,
                       const Operand& code_operand,
-                      Label* done,
+                      NearLabel* done,
                       InvokeFlag flag,
                       PostCallGenerator* post_call_generator = NULL);
 
