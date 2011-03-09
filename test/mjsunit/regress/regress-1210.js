@@ -25,48 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Deoptimization after a logical not in an effect context should not see a
-// value for the logical not expression.
-function test0(n) {
-  var a = new Array(n);
-  for (var i = 0; i < n; ++i) {
-    // ~ of a non-numeric value is used to trigger deoptimization.
-    a[i] = void(!(delete 'object')) % ~(delete 4);
-  }
-}
+// Deoptimization of the key expression in an arguments access should see
+// the arguments object as the value of the receiver.
 
-// OSR (after deoptimization) is used to observe the stack height mismatch.
-for (var i = 0; i < 5; ++i) {
-  for (var j = 1; j < 12; ++j) {
-    test0(j * 1000);
-  }
-}
+var a = 0;
 
-
-// Similar test with a different subexpression of unary !.
-function test1(n) {
-  var a = new Array(n);
-  for (var i = 0; i < n; ++i) {
-    a[i] = void(!(- 'object')) % ~(delete 4);
-  }
-}
-
-for (i = 0; i < 5; ++i) {
-  for (j = 1; j < 12; ++j) {
-    test1(j * 1000);
-  }
-}
-
-
-// A similar issue, different subexpression of unary ! (e0 !== e1 is
-// translated into !(e0 == e1)) and different effect context.
-function side_effect() { }
 function observe(x, y) { return x; }
-function test2(x) {
-  return observe(this,
-                 (((side_effect.observe <= side_effect.side_effect) !== false),
-                  x + 1));
+
+function side_effect(x) { a = x; }
+
+function test() {
+  // We will trigger deoptimization of 'a + 0' which should bail out to
+  // immediately after the call to 'side_effect' (i.e., still in the key
+  // subexpression of the arguments access).
+  return observe(a, arguments[side_effect(a), a + 0]);
 }
 
-for (var i = 0; i < 1000000; ++i) test2(0);
-test2(test2);
+// Run enough to optimize assuming global 'a' is a smi.
+for (var i = 0; i < 1000000; ++i) test(0);
+
+a = "hello";
+test(0);

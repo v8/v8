@@ -307,6 +307,13 @@ void HBasicBlock::Verify() {
       ASSERT(a == b);
     }
   }
+
+  // Check that the incoming edges are in edge split form.
+  if (predecessors_.length() > 1) {
+    for (int i = 0; i < predecessors_.length(); ++i) {
+      ASSERT(predecessors_[i]->end()->SecondSuccessor() == NULL);
+    }
+  }
 }
 #endif
 
@@ -2900,14 +2907,23 @@ void HGraphBuilder::VisitConditional(Conditional* expr) {
                     then_graph->entry_block(),
                     else_graph->entry_block());
 
+  // Visit the true and false subexpressions in the same AST context as the
+  // whole expression.
   then_graph->entry_block()->SetJoinId(expr->ThenId());
-  ADD_TO_SUBGRAPH(then_graph, expr->then_expression());
+  { SubgraphScope scope(this, then_graph);
+    Visit(expr->then_expression());
+    CHECK_BAILOUT;
+  }
 
   else_graph->entry_block()->SetJoinId(expr->ElseId());
-  ADD_TO_SUBGRAPH(else_graph, expr->else_expression());
+  { SubgraphScope scope(this, else_graph);
+    Visit(expr->else_expression());
+    CHECK_BAILOUT;
+  }
 
-  current_subgraph_->AppendJoin(then_graph, else_graph, expr);
-  ast_context()->ReturnValue(Pop());
+  if (!ast_context()->IsTest()) {
+    subgraph()->AppendJoin(then_graph, else_graph, expr);
+  }
 }
 
 
@@ -3742,9 +3758,11 @@ bool HGraphBuilder::TryArgumentsAccess(Property* expr) {
     HInstruction* elements = AddInstruction(new HArgumentsElements);
     result = new HArgumentsLength(elements);
   } else {
+    Push(graph()->GetArgumentsObject());
     VisitForValue(expr->key());
     if (HasStackOverflow()) return false;
     HValue* key = Pop();
+    Drop(1);  // Arguments object.
     HInstruction* elements = AddInstruction(new HArgumentsElements);
     HInstruction* length = AddInstruction(new HArgumentsLength(elements));
     AddInstruction(new HBoundsCheck(key, length));
