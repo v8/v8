@@ -258,9 +258,8 @@ LInstruction* LCodeGen::GetNextInstruction() {
 
 bool LCodeGen::GenerateJumpTable() {
   for (int i = 0; i < jump_table_.length(); i++) {
-    JumpTableEntry* info = &jump_table_[i];
     __ bind(&jump_table_[i].label);
-    __ Jump(info->address, RelocInfo::RUNTIME_ENTRY);
+    __ Jump(jump_table_[i].address, RelocInfo::RUNTIME_ENTRY);
   }
   return !is_aborted();
 }
