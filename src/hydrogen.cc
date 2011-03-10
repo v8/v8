@@ -900,13 +900,15 @@ void HRangeAnalysis::InferControlFlowRange(HTest* test, HBasicBlock* dest) {
   ASSERT((test->FirstSuccessor() == dest) == (test->SecondSuccessor() != dest));
   if (test->value()->IsCompare()) {
     HCompare* compare = HCompare::cast(test->value());
-    Token::Value op = compare->token();
-    if (test->SecondSuccessor() == dest) {
-      op = Token::NegateCompareOp(op);
+    if (compare->GetInputRepresentation().IsInteger32()) {
+      Token::Value op = compare->token();
+      if (test->SecondSuccessor() == dest) {
+        op = Token::NegateCompareOp(op);
+      }
+      Token::Value inverted_op = Token::InvertCompareOp(op);
+      InferControlFlowRange(op, compare->left(), compare->right());
+      InferControlFlowRange(inverted_op, compare->right(), compare->left());
     }
-    Token::Value inverted_op = Token::InvertCompareOp(op);
-    InferControlFlowRange(op, compare->left(), compare->right());
-    InferControlFlowRange(inverted_op, compare->right(), compare->left());
   }
 }
 
