@@ -33,7 +33,7 @@ function sinTest() {
 }
 
 function cosTest() {
-  assertEquals(0, Math.cos(1));
+  assertEquals(1, Math.cos(0));
   assertEquals(-1, Math.cos(Math.PI));
 }
 
