@@ -264,10 +264,10 @@ Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           PropertyAttributes attributes,
                                           StrictModeFlag strict_mode);
 
-Handle<Object> SetElement(Handle<JSObject> object,
-                          uint32_t index,
-                          Handle<Object> value,
-                          StrictModeFlag strict_mode);
+MUST_USE_RESULT Handle<Object> SetElement(Handle<JSObject> object,
+                                          uint32_t index,
+                                          Handle<Object> value,
+                                          StrictModeFlag strict_mode);
 
 Handle<Object> SetOwnElement(Handle<JSObject> object,
                              uint32_t index,

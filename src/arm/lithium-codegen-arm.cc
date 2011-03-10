@@ -745,10 +745,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::MathPow: {
-      Abort("MathPowStub unimplemented.");
-      break;
-    }
     case CodeStub::NumberToString: {
       NumberToStringStub stub;
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
@@ -1137,10 +1133,10 @@ void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
 }
 
 
-void LCodeGen::DoPixelArrayLength(LPixelArrayLength* instr) {
+void LCodeGen::DoExternalArrayLength(LExternalArrayLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->InputAt(0));
-  __ ldr(result, FieldMemOperand(array, PixelArray::kLengthOffset));
+  __ ldr(result, FieldMemOperand(array, ExternalArray::kLengthOffset));
 }
 
 
@@ -2207,7 +2203,7 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
     __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
     __ cmp(scratch, ip);
     __ b(eq, &done);
-    __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
+    __ LoadRoot(ip, Heap::kExternalPixelArrayMapRootIndex);
     __ cmp(scratch, ip);
     __ b(eq, &done);
     __ LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
@@ -2218,11 +2214,12 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
 }
 
 
-void LCodeGen::DoLoadPixelArrayExternalPointer(
-    LLoadPixelArrayExternalPointer* instr) {
+void LCodeGen::DoLoadExternalArrayPointer(
+    LLoadExternalArrayPointer* instr) {
   Register to_reg = ToRegister(instr->result());
   Register from_reg  = ToRegister(instr->InputAt(0));
-  __ ldr(to_reg, FieldMemOperand(from_reg, PixelArray::kExternalPointerOffset));
+  __ ldr(to_reg, FieldMemOperand(from_reg,
+                                 ExternalArray::kExternalPointerOffset));
 }
 
 
@@ -2263,12 +2260,12 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 
 
 void LCodeGen::DoLoadPixelArrayElement(LLoadPixelArrayElement* instr) {
-  Register external_elements = ToRegister(instr->external_pointer());
+  Register external_pointer = ToRegister(instr->external_pointer());
   Register key = ToRegister(instr->key());
   Register result = ToRegister(instr->result());
 
   // Load the result.
-  __ ldrb(result, MemOperand(external_elements, key));
+  __ ldrb(result, MemOperand(external_pointer, key));
 }
 
 
@@ -2646,6 +2643,22 @@ void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
 }
 
 
+void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
+  Register scratch = scratch0();
+  SwVfpRegister single_scratch = double_scratch0().low();
+  DoubleRegister double_scratch = double_scratch0();
+  ASSERT(ToDoubleRegister(instr->result()).is(input));
+
+  // Add +0 to convert -0 to +0.
+  __ mov(scratch, Operand(0));
+  __ vmov(single_scratch, scratch);
+  __ vcvt_f64_s32(double_scratch, single_scratch);
+  __ vadd(input, input, double_scratch);
+  __ vsqrt(input, input);
+}
+
+
 void LCodeGen::DoPower(LPower* instr) {
   LOperand* left = instr->InputAt(0);
   LOperand* right = instr->InputAt(1);
@@ -2741,6 +2754,9 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
       break;
     case kMathSqrt:
       DoMathSqrt(instr);
+      break;
+    case kMathPowHalf:
+      DoMathPowHalf(instr);
       break;
     case kMathCos:
       DoMathCos(instr);
@@ -2898,6 +2914,17 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
     __ add(key, scratch, Operand(FixedArray::kHeaderSize));
     __ RecordWrite(elements, key, value);
   }
+}
+
+
+void LCodeGen::DoStorePixelArrayElement(LStorePixelArrayElement* instr) {
+  Register external_pointer = ToRegister(instr->external_pointer());
+  Register key = ToRegister(instr->key());
+  Register value = ToRegister(instr->value());
+
+  // Clamp the value to [0..255].
+  __ Usat(value, 8, Operand(value));
+  __ strb(value, MemOperand(external_pointer, key, LSL, 0));
 }
 
 

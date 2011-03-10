@@ -430,7 +430,7 @@ Handle<Object> SetElement(Handle<JSObject> object,
                           uint32_t index,
                           Handle<Object> value,
                           StrictModeFlag strict_mode) {
-  if (object->HasPixelElements() || object->HasExternalArrayElements()) {
+  if (object->HasExternalArrayElements()) {
     if (!value->IsSmi() && !value->IsHeapNumber() && !value->IsUndefined()) {
       bool has_exception;
       Handle<Object> number = Execution::ToNumber(value, &has_exception);
@@ -446,7 +446,6 @@ Handle<Object> SetOwnElement(Handle<JSObject> object,
                              uint32_t index,
                              Handle<Object> value,
                              StrictModeFlag strict_mode) {
-  ASSERT(!object->HasPixelElements());
   ASSERT(!object->HasExternalArrayElements());
   CALL_HEAP_FUNCTION(object->SetElement(index, *value, strict_mode, false),
                      Object);

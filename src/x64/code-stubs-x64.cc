@@ -2423,7 +2423,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   static const int kJSRegExpOffset = 4 * kPointerSize;
 
   Label runtime;
-
   // Ensure that a RegExp stack is allocated.
   ExternalReference address_of_regexp_stack_memory_address =
       ExternalReference::address_of_regexp_stack_memory_address();
@@ -2441,32 +2440,32 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ CmpObjectType(rax, JS_REGEXP_TYPE, kScratchRegister);
   __ j(not_equal, &runtime);
   // Check that the RegExp has been compiled (data contains a fixed array).
-  __ movq(rcx, FieldOperand(rax, JSRegExp::kDataOffset));
+  __ movq(rax, FieldOperand(rax, JSRegExp::kDataOffset));
   if (FLAG_debug_code) {
-    Condition is_smi = masm->CheckSmi(rcx);
+    Condition is_smi = masm->CheckSmi(rax);
     __ Check(NegateCondition(is_smi),
         "Unexpected type for RegExp data, FixedArray expected");
-    __ CmpObjectType(rcx, FIXED_ARRAY_TYPE, kScratchRegister);
+    __ CmpObjectType(rax, FIXED_ARRAY_TYPE, kScratchRegister);
     __ Check(equal, "Unexpected type for RegExp data, FixedArray expected");
   }
 
-  // rcx: RegExp data (FixedArray)
+  // rax: RegExp data (FixedArray)
   // Check the type of the RegExp. Only continue if type is JSRegExp::IRREGEXP.
-  __ SmiToInteger32(rbx, FieldOperand(rcx, JSRegExp::kDataTagOffset));
+  __ SmiToInteger32(rbx, FieldOperand(rax, JSRegExp::kDataTagOffset));
   __ cmpl(rbx, Immediate(JSRegExp::IRREGEXP));
   __ j(not_equal, &runtime);
 
-  // rcx: RegExp data (FixedArray)
+  // rax: RegExp data (FixedArray)
   // Check that the number of captures fit in the static offsets vector buffer.
   __ SmiToInteger32(rdx,
-                    FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
+                    FieldOperand(rax, JSRegExp::kIrregexpCaptureCountOffset));
   // Calculate number of capture registers (number_of_captures + 1) * 2.
   __ leal(rdx, Operand(rdx, rdx, times_1, 2));
   // Check that the static offsets vector buffer is large enough.
   __ cmpl(rdx, Immediate(OffsetsVector::kStaticOffsetsVectorSize));
   __ j(above, &runtime);
 
-  // rcx: RegExp data (FixedArray)
+  // rax: RegExp data (FixedArray)
   // rdx: Number of capture registers
   // Check that the second argument is a string.
   __ movq(rdi, Operand(rsp, kSubjectOffset));
@@ -2584,7 +2583,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   static const int kRegExpExecuteArguments = 7;
   int argument_slots_on_stack =
       masm->ArgumentStackSlotsForCFunctionCall(kRegExpExecuteArguments);
-  __ EnterApiExitFrame(argument_slots_on_stack);  // Clobbers rax!
+  __ EnterApiExitFrame(argument_slots_on_stack);
 
   // Argument 7: Indicate that this is a direct call from JavaScript.
   __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kPointerSize),
@@ -3300,6 +3299,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 }
 
 
+bool CEntryStub::NeedsImmovableCode() {
+  return false;
+}
+
+
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Throw exception in eax.
   __ Throw(rax);
@@ -3653,20 +3657,39 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
 void InstanceofStub::Generate(MacroAssembler* masm) {
   // Implements "value instanceof function" operator.
-  // Expected input state:
+  // Expected input state with no inline cache:
   //   rsp[0] : return address
   //   rsp[1] : function pointer
   //   rsp[2] : value
+  // Expected input state with an inline one-element cache:
+  //   rsp[0] : return address
+  //   rsp[1] : offset from return address to location of inline cache
+  //   rsp[2] : function pointer
+  //   rsp[3] : value
   // Returns a bitwise zero to indicate that the value
   // is and instance of the function and anything else to
   // indicate that the value is not an instance.
 
-  // None of the flags are supported on X64.
-  ASSERT(flags_ == kNoFlags);
+  static const int kOffsetToMapCheckValue = 5;
+  static const int kOffsetToResultValue = 21;
+  // The last 4 bytes of the instruction sequence
+  //   movq(rax, FieldOperand(rdi, HeapObject::kMapOffset)
+  //   Move(kScratchRegister, Factory::the_hole_value)
+  // in front of the hole value address.
+  static const unsigned int kWordBeforeMapCheckValue = 0xBA49FF78;
+  // The last 4 bytes of the instruction sequence
+  //   __ j(not_equal, &cache_miss);
+  //   __ LoadRoot(ToRegister(instr->result()), Heap::kTheHoleValueRootIndex);
+  // before the offset of the hole value in the root array.
+  static const unsigned int kWordBeforeResultValue = 0x458B4909;
+  // Only the inline check flag is supported on X64.
+  ASSERT(flags_ == kNoFlags || HasCallSiteInlineCheck());
+  int extra_stack_space = HasCallSiteInlineCheck() ? kPointerSize : 0;
 
   // Get the object - go slow case if it's a smi.
   Label slow;
-  __ movq(rax, Operand(rsp, 2 * kPointerSize));
+
+  __ movq(rax, Operand(rsp, 2 * kPointerSize + extra_stack_space));
   __ JumpIfSmi(rax, &slow);
 
   // Check that the left hand is a JS object. Leave its map in rax.
@@ -3676,19 +3699,23 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ j(above, &slow);
 
   // Get the prototype of the function.
-  __ movq(rdx, Operand(rsp, 1 * kPointerSize));
+  __ movq(rdx, Operand(rsp, 1 * kPointerSize + extra_stack_space));
   // rdx is function, rax is map.
 
-  // Look up the function and the map in the instanceof cache.
-  NearLabel miss;
-  __ CompareRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
-  __ j(not_equal, &miss);
-  __ CompareRoot(rax, Heap::kInstanceofCacheMapRootIndex);
-  __ j(not_equal, &miss);
-  __ LoadRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
-  __ ret(2 * kPointerSize);
+  // If there is a call site cache don't look in the global cache, but do the
+  // real lookup and update the call site cache.
+  if (!HasCallSiteInlineCheck()) {
+    // Look up the function and the map in the instanceof cache.
+    NearLabel miss;
+    __ CompareRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
+    __ j(not_equal, &miss);
+    __ CompareRoot(rax, Heap::kInstanceofCacheMapRootIndex);
+    __ j(not_equal, &miss);
+    __ LoadRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
+    __ ret(2 * kPointerSize);
+    __ bind(&miss);
+  }
 
-  __ bind(&miss);
   __ TryGetFunctionPrototype(rdx, rbx, &slow);
 
   // Check that the function prototype is a JS object.
@@ -3702,8 +3729,19 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   //   rax is object map.
   //   rdx is function.
   //   rbx is function prototype.
-  __ StoreRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
-  __ StoreRoot(rax, Heap::kInstanceofCacheMapRootIndex);
+  if (!HasCallSiteInlineCheck()) {
+    __ StoreRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
+    __ StoreRoot(rax, Heap::kInstanceofCacheMapRootIndex);
+  } else {
+    __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
+    __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
+    __ movq(Operand(kScratchRegister, kOffsetToMapCheckValue), rax);
+    if (FLAG_debug_code) {
+      __ movl(rdi, Immediate(kWordBeforeMapCheckValue));
+      __ cmpl(Operand(kScratchRegister, kOffsetToMapCheckValue - 4), rdi);
+      __ Assert(equal, "InstanceofStub unexpected call site cache.");
+    }
+  }
 
   __ movq(rcx, FieldOperand(rax, Map::kPrototypeOffset));
 
@@ -3722,19 +3760,56 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ jmp(&loop);
 
   __ bind(&is_instance);
-  __ xorl(rax, rax);
-  // Store bitwise zero in the cache.  This is a Smi in GC terms.
-  STATIC_ASSERT(kSmiTag == 0);
-  __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
-  __ ret(2 * kPointerSize);
+  if (!HasCallSiteInlineCheck()) {
+    __ xorl(rax, rax);
+    // Store bitwise zero in the cache.  This is a Smi in GC terms.
+    STATIC_ASSERT(kSmiTag == 0);
+    __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
+  } else {
+    // Store offset of true in the root array at the inline check site.
+    ASSERT((Heap::kTrueValueRootIndex << kPointerSizeLog2) - kRootRegisterBias
+        == 0xB0 - 0x100);
+    __ movl(rax, Immediate(0xB0));  // TrueValue is at -10 * kPointerSize.
+    __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
+    __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
+    __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
+    if (FLAG_debug_code) {
+      __ movl(rax, Immediate(kWordBeforeResultValue));
+      __ cmpl(Operand(kScratchRegister, kOffsetToResultValue - 4), rax);
+      __ Assert(equal, "InstanceofStub unexpected call site cache.");
+    }
+    __ xorl(rax, rax);
+  }
+  __ ret(2 * kPointerSize + extra_stack_space);
 
   __ bind(&is_not_instance);
-  // We have to store a non-zero value in the cache.
-  __ StoreRoot(kScratchRegister, Heap::kInstanceofCacheAnswerRootIndex);
-  __ ret(2 * kPointerSize);
+  if (!HasCallSiteInlineCheck()) {
+    // We have to store a non-zero value in the cache.
+    __ StoreRoot(kScratchRegister, Heap::kInstanceofCacheAnswerRootIndex);
+  } else {
+    // Store offset of false in the root array at the inline check site.
+    ASSERT((Heap::kFalseValueRootIndex << kPointerSizeLog2) - kRootRegisterBias
+        == 0xB8 - 0x100);
+    __ movl(rax, Immediate(0xB8));  // FalseValue is at -9 * kPointerSize.
+    __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
+    __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
+    __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
+    if (FLAG_debug_code) {
+      __ movl(rax, Immediate(kWordBeforeResultValue));
+      __ cmpl(Operand(kScratchRegister, kOffsetToResultValue - 4), rax);
+      __ Assert(equal, "InstanceofStub unexpected call site cache (mov)");
+    }
+  }
+  __ ret(2 * kPointerSize + extra_stack_space);
 
   // Slow-case: Go through the JavaScript implementation.
   __ bind(&slow);
+  if (HasCallSiteInlineCheck()) {
+    // Remove extra value from the stack.
+    __ pop(rcx);
+    __ pop(rax);
+    __ push(rcx);
+  }
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
 }
 
@@ -5003,144 +5078,6 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   __ jmp(rdi);
 }
 
-
-void GenerateFastPixelArrayLoad(MacroAssembler* masm,
-                                Register receiver,
-                                Register key,
-                                Register elements,
-                                Register untagged_key,
-                                Register result,
-                                Label* not_pixel_array,
-                                Label* key_not_smi,
-                                Label* out_of_range) {
-  // Register use:
-  //   receiver - holds the receiver and is unchanged.
-  //   key - holds the key and is unchanged (must be a smi).
-  //   elements - is set to the the receiver's element if
-  //       the receiver doesn't have a pixel array or the
-  //       key is not a smi, otherwise it's the elements'
-  //       external pointer.
-  //   untagged_key - is set to the untagged key
-
-  // Some callers already have verified that the key is a smi.  key_not_smi is
-  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
-  // to ensure the key is a smi must be added.
-  if (key_not_smi != NULL) {
-    __ JumpIfNotSmi(key, key_not_smi);
-  } else {
-    if (FLAG_debug_code) {
-      __ AbortIfNotSmi(key);
-    }
-  }
-  __ SmiToInteger32(untagged_key, key);
-
-  __ movq(elements, FieldOperand(receiver, JSObject::kElementsOffset));
-  // By passing NULL as not_pixel_array, callers signal that they have already
-  // verified that the receiver has pixel array elements.
-  if (not_pixel_array != NULL) {
-    __ CheckMap(elements, Factory::pixel_array_map(), not_pixel_array, true);
-  } else {
-    if (FLAG_debug_code) {
-      // Map check should have already made sure that elements is a pixel array.
-      __  Cmp(FieldOperand(elements, HeapObject::kMapOffset),
-              Factory::pixel_array_map());
-      __ Assert(equal, "Elements isn't a pixel array");
-    }
-  }
-
-  // Check that the smi is in range.
-  __ cmpl(untagged_key, FieldOperand(elements, PixelArray::kLengthOffset));
-  __ j(above_equal, out_of_range);  // unsigned check handles negative keys.
-
-  // Load and tag the element as a smi.
-  __ movq(elements, FieldOperand(elements, PixelArray::kExternalPointerOffset));
-  __ movzxbq(result, Operand(elements, untagged_key, times_1, 0));
-  __ Integer32ToSmi(result, result);
-  __ ret(0);
-}
-
-
-// Stores an indexed element into a pixel array, clamping the stored value.
-void GenerateFastPixelArrayStore(MacroAssembler* masm,
-                                 Register receiver,
-                                 Register key,
-                                 Register value,
-                                 Register elements,
-                                 Register scratch1,
-                                 bool load_elements_from_receiver,
-                                 bool key_is_untagged,
-                                 Label* key_not_smi,
-                                 Label* value_not_smi,
-                                 Label* not_pixel_array,
-                                 Label* out_of_range) {
-  // Register use:
-  //   receiver - holds the receiver and is unchanged.
-  //   key - holds the key (must be a smi) and is unchanged.
-  //   value - holds the value (must be a smi) and is unchanged.
-  //   elements - holds the element object of the receiver on entry if
-  //              load_elements_from_receiver is false, otherwise used
-  //              internally to store the pixel arrays elements and
-  //              external array pointer.
-  //
-  Register external_pointer = elements;
-  Register untagged_key = scratch1;
-  Register untagged_value = receiver;  // Only set once success guaranteed.
-
-  // Fetch the receiver's elements if the caller hasn't already done so.
-  if (load_elements_from_receiver) {
-    __ movq(elements, FieldOperand(receiver, JSObject::kElementsOffset));
-  }
-
-  // By passing NULL as not_pixel_array, callers signal that they have already
-  // verified that the receiver has pixel array elements.
-  if (not_pixel_array != NULL) {
-    __ CheckMap(elements, Factory::pixel_array_map(), not_pixel_array, true);
-  } else {
-    if (FLAG_debug_code) {
-      // Map check should have already made sure that elements is a pixel array.
-      __  Cmp(FieldOperand(elements, HeapObject::kMapOffset),
-              Factory::pixel_array_map());
-      __ Assert(equal, "Elements isn't a pixel array");
-    }
-  }
-
-  // Key must be a smi and it must be in range.
-  if (key_is_untagged) {
-    untagged_key = key;
-  } else {
-    // Some callers already have verified that the key is a smi.  key_not_smi is
-    // set to NULL as a sentinel for that case.  Otherwise, add an explicit
-    // check to ensure the key is a smi.
-    if (key_not_smi != NULL) {
-      __ JumpIfNotSmi(key, key_not_smi);
-    } else {
-      if (FLAG_debug_code) {
-        __ AbortIfNotSmi(key);
-      }
-    }
-    __ SmiToInteger32(untagged_key, key);
-  }
-  __ cmpl(untagged_key, FieldOperand(elements, PixelArray::kLengthOffset));
-  __ j(above_equal, out_of_range);  // unsigned check handles negative keys.
-
-  // Value must be a smi.
-  __ JumpIfNotSmi(value, value_not_smi);
-  __ SmiToInteger32(untagged_value, value);
-
-  {  // Clamp the value to [0..255].
-    NearLabel done;
-    __ testl(untagged_value, Immediate(0xFFFFFF00));
-    __ j(zero, &done);
-    __ setcc(negative, untagged_value);  // 1 if negative, 0 if positive.
-    __ decb(untagged_value);  // 0 if negative, 255 if positive.
-    __ bind(&done);
-  }
-
-  __ movq(external_pointer,
-          FieldOperand(elements, PixelArray::kExternalPointerOffset));
-  __ movb(Operand(external_pointer, untagged_key, times_1, 0), untagged_value);
-  __ ret(0);  // Return value in eax.
-}
 
 #undef __
 

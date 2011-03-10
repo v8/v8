@@ -414,10 +414,7 @@ bool HValue::UpdateInferredType() {
 void HValue::RegisterUse(int index, HValue* new_value) {
   HValue* old_value = OperandAt(index);
   if (old_value == new_value) return;
-  if (old_value != NULL) {
-    ASSERT(old_value->uses_.Contains(this));
-    old_value->uses_.RemoveElement(this);
-  }
+  if (old_value != NULL) old_value->uses_.RemoveElement(this);
   if (new_value != NULL) {
     new_value->uses_.Add(this);
   }
@@ -930,6 +927,14 @@ void HPhi::AddInput(HValue* value) {
   if (!CheckFlag(kIsArguments) && value->CheckFlag(kIsArguments)) {
     SetFlag(kIsArguments);
   }
+}
+
+
+bool HPhi::HasRealUses() {
+  for (int i = 0; i < uses()->length(); i++) {
+    if (!uses()->at(i)->IsPhi()) return true;
+  }
+  return false;
 }
 
 

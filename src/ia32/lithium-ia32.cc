@@ -1577,9 +1577,10 @@ LInstruction* LChunkBuilder::DoFixedArrayLength(HFixedArrayLength* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoPixelArrayLength(HPixelArrayLength* instr) {
+LInstruction* LChunkBuilder::DoExternalArrayLength(
+    HExternalArrayLength* instr) {
   LOperand* array = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LPixelArrayLength(array));
+  return DefineAsRegister(new LExternalArrayLength(array));
 }
 
 
@@ -1800,10 +1801,10 @@ LInstruction* LChunkBuilder::DoLoadElements(HLoadElements* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoLoadPixelArrayExternalPointer(
-    HLoadPixelArrayExternalPointer* instr) {
+LInstruction* LChunkBuilder::DoLoadExternalArrayPointer(
+    HLoadExternalArrayPointer* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LLoadPixelArrayExternalPointer(input));
+  return DefineAsRegister(new LLoadExternalArrayPointer(input));
 }
 
 

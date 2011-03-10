@@ -88,8 +88,8 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayPrint(out);
       break;
-    case PIXEL_ARRAY_TYPE:
-      PixelArray::cast(this)->PixelArrayPrint(out);
+    case EXTERNAL_PIXEL_ARRAY_TYPE:
+      ExternalPixelArray::cast(this)->ExternalPixelArrayPrint(out);
       break;
     case EXTERNAL_BYTE_ARRAY_TYPE:
       ExternalByteArray::cast(this)->ExternalByteArrayPrint(out);
@@ -177,8 +177,8 @@ void ByteArray::ByteArrayPrint(FILE* out) {
 }
 
 
-void PixelArray::PixelArrayPrint(FILE* out) {
-  PrintF(out, "pixel array");
+void ExternalPixelArray::ExternalPixelArrayPrint(FILE* out) {
+  PrintF(out, "external pixel array");
 }
 
 
@@ -271,8 +271,8 @@ void JSObject::PrintElements(FILE* out) {
       }
       break;
     }
-    case PIXEL_ELEMENTS: {
-      PixelArray* p = PixelArray::cast(elements());
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* p = ExternalPixelArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
         PrintF(out, "   %d: %d\n", i, p->get(i));
       }
@@ -372,7 +372,7 @@ static const char* TypeToString(InstanceType type) {
     case EXTERNAL_STRING_TYPE: return "EXTERNAL_STRING";
     case FIXED_ARRAY_TYPE: return "FIXED_ARRAY";
     case BYTE_ARRAY_TYPE: return "BYTE_ARRAY";
-    case PIXEL_ARRAY_TYPE: return "PIXEL_ARRAY";
+    case EXTERNAL_PIXEL_ARRAY_TYPE: return "EXTERNAL_PIXEL_ARRAY";
     case EXTERNAL_BYTE_ARRAY_TYPE: return "EXTERNAL_BYTE_ARRAY";
     case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
       return "EXTERNAL_UNSIGNED_BYTE_ARRAY";

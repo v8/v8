@@ -860,9 +860,11 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
   if (reg_exp_too_big_) return IrregexpRegExpTooBig();
 
   Handle<Object> code = macro_assembler_->GetCode(pattern);
-
   work_list_ = NULL;
 #ifdef DEBUG
+  if (FLAG_print_code) {
+    Handle<Code>::cast(code)->Disassemble(*pattern->ToCString());
+  }
   if (FLAG_trace_regexp_assembler) {
     delete macro_assembler_;
   }

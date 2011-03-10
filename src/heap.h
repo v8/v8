@@ -41,7 +41,7 @@ namespace internal {
 
 
 // Defines all the roots in Heap.
-#define UNCONDITIONAL_STRONG_ROOT_LIST(V)                                      \
+#define STRONG_ROOT_LIST(V)                                      \
   /* Put the byte array map early.  We need it to be in place by the time   */ \
   /* the deserializer hits the next page, since it wants to put a byte      */ \
   /* array in the unused space at the end of the page.                      */ \
@@ -89,7 +89,7 @@ namespace internal {
   V(Map, external_ascii_string_map, ExternalAsciiStringMap)                    \
   V(Map, undetectable_string_map, UndetectableStringMap)                       \
   V(Map, undetectable_ascii_string_map, UndetectableAsciiStringMap)            \
-  V(Map, pixel_array_map, PixelArrayMap)                                       \
+  V(Map, external_pixel_array_map, ExternalPixelArrayMap)                      \
   V(Map, external_byte_array_map, ExternalByteArrayMap)                        \
   V(Map, external_unsigned_byte_array_map, ExternalUnsignedByteArrayMap)       \
   V(Map, external_short_array_map, ExternalShortArrayMap)                      \
@@ -114,25 +114,11 @@ namespace internal {
   V(NumberDictionary, non_monomorphic_cache, NonMonomorphicCache)              \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
-  V(Code, c_entry_code, CEntryCode)                                            \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
   V(Object, last_script_id, LastScriptId)                                      \
   V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(StringDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
-
-#if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
-#define STRONG_ROOT_LIST(V)                                                    \
-  UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
-  V(Code, re_c_entry_code, RegExpCEntryCode)                                   \
-  V(Code, direct_c_entry_code, DirectCEntryCode)
-#elif V8_TARGET_ARCH_ARM
-#define STRONG_ROOT_LIST(V)                                                    \
-  UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
-  V(Code, direct_c_entry_code, DirectCEntryCode)
-#else
-#define STRONG_ROOT_LIST(V) UNCONDITIONAL_STRONG_ROOT_LIST(V)
-#endif
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -185,8 +171,6 @@ namespace internal {
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
   V(KeyedLoadSpecialized_symbol, "KeyedLoadSpecialized")                 \
   V(KeyedStoreSpecialized_symbol, "KeyedStoreSpecialized")               \
-  V(KeyedLoadPixelArray_symbol, "KeyedLoadPixelArray")                   \
-  V(KeyedStorePixelArray_symbol, "KeyedStorePixelArray")                 \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
   V(illegal_access_symbol, "illegal access")                             \
   V(out_of_memory_symbol, "out-of-memory")                               \
@@ -215,8 +199,29 @@ namespace internal {
   V(identity_hash_symbol, "v8::IdentityHash")                            \
   V(closure_symbol, "(closure)")                                         \
   V(use_strict, "use strict")                                            \
-  V(KeyedLoadExternalArray_symbol, "KeyedLoadExternalArray")             \
-  V(KeyedStoreExternalArray_symbol, "KeyedStoreExternalArray")
+  V(KeyedLoadExternalByteArray_symbol, "KeyedLoadExternalByteArray")     \
+  V(KeyedLoadExternalUnsignedByteArray_symbol,                           \
+      "KeyedLoadExternalUnsignedByteArray")                              \
+  V(KeyedLoadExternalShortArray_symbol,                                  \
+      "KeyedLoadExternalShortArray")                                     \
+  V(KeyedLoadExternalUnsignedShortArray_symbol,                          \
+      "KeyedLoadExternalUnsignedShortArray")                             \
+  V(KeyedLoadExternalIntArray_symbol, "KeyedLoadExternalIntArray")       \
+  V(KeyedLoadExternalUnsignedIntArray_symbol,                            \
+       "KeyedLoadExternalUnsignedIntArray")                              \
+  V(KeyedLoadExternalFloatArray_symbol, "KeyedLoadExternalFloatArray")   \
+  V(KeyedLoadExternalPixelArray_symbol, "KeyedLoadExternalPixelArray")   \
+  V(KeyedStoreExternalByteArray_symbol, "KeyedStoreExternalByteArray")   \
+  V(KeyedStoreExternalUnsignedByteArray_symbol,                          \
+        "KeyedStoreExternalUnsignedByteArray")                           \
+  V(KeyedStoreExternalShortArray_symbol, "KeyedStoreExternalShortArray") \
+  V(KeyedStoreExternalUnsignedShortArray_symbol,                         \
+        "KeyedStoreExternalUnsignedShortArray")                          \
+  V(KeyedStoreExternalIntArray_symbol, "KeyedStoreExternalIntArray")     \
+  V(KeyedStoreExternalUnsignedIntArray_symbol,                           \
+        "KeyedStoreExternalUnsignedIntArray")                            \
+  V(KeyedStoreExternalFloatArray_symbol, "KeyedStoreExternalFloatArray") \
+  V(KeyedStoreExternalPixelArray_symbol, "KeyedStoreExternalPixelArray")
 
 // Forward declarations.
 class GCTracer;
@@ -494,14 +499,6 @@ class Heap : public AllStatic {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT static MaybeObject* AllocateByteArray(int length);
 
-  // Allocate a pixel array of the specified length
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT static MaybeObject* AllocatePixelArray(int length,
-                                                    uint8_t* external_pointer,
-                                                    PretenureFlag pretenure);
-
   // Allocates an external array of the specified length and type.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -705,7 +702,8 @@ class Heap : public AllStatic {
   // Please note this function does not perform a garbage collection.
   MUST_USE_RESULT static MaybeObject* CreateCode(const CodeDesc& desc,
                                                  Code::Flags flags,
-                                                 Handle<Object> self_reference);
+                                                 Handle<Object> self_reference,
+                                                 bool immovable = false);
 
   MUST_USE_RESULT static MaybeObject* CopyCode(Code* code);
 
@@ -1327,13 +1325,10 @@ class Heap : public AllStatic {
   static bool CreateInitialMaps();
   static bool CreateInitialObjects();
 
-  // These five Create*EntryStub functions are here and forced to not be inlined
+  // These two Create*EntryStub functions are here and forced to not be inlined
   // because of a gcc-4.4 bug that assigns wrong vtable entries.
-  NO_INLINE(static void CreateCEntryStub());
   NO_INLINE(static void CreateJSEntryStub());
   NO_INLINE(static void CreateJSConstructEntryStub());
-  NO_INLINE(static void CreateRegExpCEntryStub());
-  NO_INLINE(static void CreateDirectCEntryStub());
 
   static void CreateFixedStubs();
 

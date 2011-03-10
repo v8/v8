@@ -791,7 +791,7 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
 
       // Get the number of arguments and construct an arguments object
       // mirror for the right frame.
-      const int length = frame->GetProvidedParametersCount();
+      const int length = frame->ComputeParametersCount();
       Handle<JSObject> arguments = Factory::NewArgumentsObject(function,
                                                                length);
       Handle<FixedArray> array = Factory::NewFixedArray(length);

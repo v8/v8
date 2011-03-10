@@ -10549,8 +10549,11 @@ THREADED_TEST(PixelArray) {
   LocalContext context;
   const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
-  i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(kElementCount,
-                                                              pixel_data);
+  i::Handle<i::ExternalPixelArray> pixels =
+      i::Handle<i::ExternalPixelArray>::cast(
+          i::Factory::NewExternalArray(kElementCount,
+                                       v8::kExternalPixelArray,
+                                       pixel_data));
   i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
     pixels->set(i, i % 256);
@@ -10890,7 +10893,7 @@ THREADED_TEST(PixelArray) {
                       "  return sum; "
                       "}"
                       "for (var i = 0; i < 256; ++i) { pixels[i] = i; }"
-                      "for (var i = 0; i < 10000; ++i) {"
+                      "for (var i = 0; i < 5000; ++i) {"
                       "  result = pa_load(pixels);"
                       "}"
                       "result");
@@ -10907,7 +10910,7 @@ THREADED_TEST(PixelArray) {
                       "  }"
                       "  return sum; "
                       "}"
-                      "for (var i = 0; i < 100000; ++i) {"
+                      "for (var i = 0; i < 5000; ++i) {"
                       "  pa_init(pixels);"
                       "}"
                       "result = pa_load(pixels);"
@@ -10955,8 +10958,11 @@ THREADED_TEST(PixelArrayWithInterceptor) {
   LocalContext context;
   const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
-  i::Handle<i::PixelArray> pixels =
-      i::Factory::NewPixelArray(kElementCount, pixel_data);
+  i::Handle<i::ExternalPixelArray> pixels =
+      i::Handle<i::ExternalPixelArray>::cast(
+          i::Factory::NewExternalArray(kElementCount,
+                                       v8::kExternalPixelArray,
+                                       pixel_data));
   for (int i = 0; i < kElementCount; i++) {
     pixels->set(i, i % 256);
   }
@@ -10984,6 +10990,7 @@ static int ExternalArrayElementSize(v8::ExternalArrayType array_type) {
   switch (array_type) {
     case v8::kExternalByteArray:
     case v8::kExternalUnsignedByteArray:
+    case v8::kExternalPixelArray:
       return 1;
       break;
     case v8::kExternalShortArray:
@@ -11205,8 +11212,10 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                         "  ext_array[i] = Infinity;"
                         "}"
                         "ext_array[5];");
-    CHECK_EQ(0, result->Int32Value());
-    CHECK_EQ(0,
+    int expected_value =
+        (array_type == v8::kExternalPixelArray) ? 255 : 0;
+    CHECK_EQ(expected_value, result->Int32Value());
+    CHECK_EQ(expected_value,
              i::Smi::cast(jsobj->GetElement(5)->ToObjectChecked())->value());
 
     result = CompileRun("for (var i = 0; i < 8; i++) {"
@@ -11227,10 +11236,14 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
     const char* signed_data =
         "var source_data = [0.6, 10.6, -0.6, -10.6];"
         "var expected_results = [0, 10, 0, -10];";
+    const char* pixel_data =
+        "var source_data = [0.6, 10.6];"
+        "var expected_results = [1, 11];";
     bool is_unsigned =
         (array_type == v8::kExternalUnsignedByteArray ||
          array_type == v8::kExternalUnsignedShortArray ||
          array_type == v8::kExternalUnsignedIntArray);
+    bool is_pixel_data = array_type == v8::kExternalPixelArray;
 
     i::OS::SNPrintF(test_buf,
                     "%s"
@@ -11243,7 +11256,9 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                     "               (ext_array[5] == expected_results[i]);"
                     "}"
                     "all_passed;",
-                    (is_unsigned ? unsigned_data : signed_data));
+                    (is_unsigned ?
+                         unsigned_data :
+                         (is_pixel_data ? pixel_data : signed_data)));
     result = CompileRun(test_buf.start());
     CHECK_EQ(true, result->BooleanValue());
   }
@@ -11374,6 +11389,14 @@ THREADED_TEST(ExternalUnsignedByteArray) {
 }
 
 
+THREADED_TEST(ExternalPixelArray) {
+  ExternalArrayTestHelper<i::ExternalPixelArray, uint8_t>(
+      v8::kExternalPixelArray,
+      0,
+      255);
+}
+
+
 THREADED_TEST(ExternalShortArray) {
   ExternalArrayTestHelper<i::ExternalShortArray, int16_t>(
       v8::kExternalShortArray,
@@ -11451,6 +11474,7 @@ THREADED_TEST(ExternalArrayInfo) {
   ExternalArrayInfoTestHelper(v8::kExternalIntArray);
   ExternalArrayInfoTestHelper(v8::kExternalUnsignedIntArray);
   ExternalArrayInfoTestHelper(v8::kExternalFloatArray);
+  ExternalArrayInfoTestHelper(v8::kExternalPixelArray);
 }
 
 

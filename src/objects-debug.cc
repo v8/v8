@@ -91,8 +91,8 @@ void HeapObject::HeapObjectVerify() {
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
       break;
-    case PIXEL_ARRAY_TYPE:
-      PixelArray::cast(this)->PixelArrayVerify();
+    case EXTERNAL_PIXEL_ARRAY_TYPE:
+      ExternalPixelArray::cast(this)->ExternalPixelArrayVerify();
       break;
     case EXTERNAL_BYTE_ARRAY_TYPE:
       ExternalByteArray::cast(this)->ExternalByteArrayVerify();
@@ -192,8 +192,8 @@ void ByteArray::ByteArrayVerify() {
 }
 
 
-void PixelArray::PixelArrayVerify() {
-  ASSERT(IsPixelArray());
+void ExternalPixelArray::ExternalPixelArrayVerify() {
+  ASSERT(IsExternalPixelArray());
 }
 
 
@@ -262,7 +262,6 @@ void Map::SharedMapVerify() {
   MapVerify();
   ASSERT(is_shared());
   ASSERT_EQ(Heap::empty_descriptor_array(), instance_descriptors());
-  ASSERT_EQ(Heap::empty_fixed_array(), code_cache());
   ASSERT_EQ(0, pre_allocated_property_fields());
   ASSERT_EQ(0, unused_property_fields());
   ASSERT_EQ(StaticVisitorBase::GetVisitorId(instance_type(), instance_size()),
@@ -598,9 +597,9 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
       info->number_of_fast_unused_elements_ += holes;
       break;
     }
-    case PIXEL_ELEMENTS: {
+    case EXTERNAL_PIXEL_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
-      PixelArray* e = PixelArray::cast(elements());
+      ExternalPixelArray* e = ExternalPixelArray::cast(elements());
       info->number_of_fast_used_elements_ += e->length();
       break;
     }

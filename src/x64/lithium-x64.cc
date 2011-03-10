@@ -1156,7 +1156,8 @@ LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
 LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
     HInstanceOfKnownGlobal* instr) {
   LInstanceOfKnownGlobal* result =
-      new LInstanceOfKnownGlobal(UseFixed(instr->value(), rax));
+      new LInstanceOfKnownGlobal(UseFixed(instr->value(), rax),
+                                 FixedTemp(rdi));
   return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
@@ -1555,9 +1556,10 @@ LInstruction* LChunkBuilder::DoFixedArrayLength(HFixedArrayLength* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoPixelArrayLength(HPixelArrayLength* instr) {
+LInstruction* LChunkBuilder::DoExternalArrayLength(
+    HExternalArrayLength* instr) {
   LOperand* array = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LPixelArrayLength(array));
+  return DefineAsRegister(new LExternalArrayLength(array));
 }
 
 
@@ -1769,10 +1771,10 @@ LInstruction* LChunkBuilder::DoLoadElements(HLoadElements* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoLoadPixelArrayExternalPointer(
-    HLoadPixelArrayExternalPointer* instr) {
+LInstruction* LChunkBuilder::DoLoadExternalArrayPointer(
+    HLoadExternalArrayPointer* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LLoadPixelArrayExternalPointer(input));
+  return DefineAsRegister(new LLoadExternalArrayPointer(input));
 }
 
 
@@ -1789,6 +1791,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
 
 LInstruction* LChunkBuilder::DoLoadPixelArrayElement(
     HLoadPixelArrayElement* instr) {
+  Abort("Pixel array loads in generated code cause segfaults (danno)");
   ASSERT(instr->representation().IsInteger32());
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* external_pointer =
@@ -1830,6 +1833,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
 
 LInstruction* LChunkBuilder::DoStorePixelArrayElement(
     HStorePixelArrayElement* instr) {
+  Abort("Pixel array stores in generated code sometimes segfaults (danno)");
   ASSERT(instr->value()->representation().IsInteger32());
   ASSERT(instr->external_pointer()->representation().IsExternal());
   ASSERT(instr->key()->representation().IsInteger32());

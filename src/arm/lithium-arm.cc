@@ -1230,8 +1230,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       case kMathRound:
         return AssignEnvironment(DefineAsRegister(result));
       case kMathPowHalf:
-        Abort("MathPowHalf LUnaryMathOperation not implemented");
-        return NULL;
+        return DefineSameAsFirst(result);
       default:
         UNREACHABLE();
         return NULL;
@@ -1548,9 +1547,10 @@ LInstruction* LChunkBuilder::DoJSArrayLength(HJSArrayLength* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoPixelArrayLength(HPixelArrayLength* instr) {
+LInstruction* LChunkBuilder::DoExternalArrayLength(
+    HExternalArrayLength* instr) {
   LOperand* array = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LPixelArrayLength(array));
+  return DefineAsRegister(new LExternalArrayLength(array));
 }
 
 
@@ -1774,10 +1774,10 @@ LInstruction* LChunkBuilder::DoLoadElements(HLoadElements* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoLoadPixelArrayExternalPointer(
-    HLoadPixelArrayExternalPointer* instr) {
+LInstruction* LChunkBuilder::DoLoadExternalArrayPointer(
+    HLoadExternalArrayPointer* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LLoadPixelArrayExternalPointer(input));
+  return DefineAsRegister(new LLoadExternalArrayPointer(input));
 }
 
 
@@ -1836,8 +1836,15 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
 
 LInstruction* LChunkBuilder::DoStorePixelArrayElement(
     HStorePixelArrayElement* instr) {
-  Abort("DoStorePixelArrayElement not implemented");
-  return NULL;
+  ASSERT(instr->value()->representation().IsInteger32());
+  ASSERT(instr->external_pointer()->representation().IsExternal());
+  ASSERT(instr->key()->representation().IsInteger32());
+
+  LOperand* external_pointer = UseRegister(instr->external_pointer());
+  LOperand* value = UseTempRegister(instr->value());  // changed by clamp.
+  LOperand* key = UseRegister(instr->key());
+
+  return new LStorePixelArrayElement(external_pointer, key, value);
 }
 
 

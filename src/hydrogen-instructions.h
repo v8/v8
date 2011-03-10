@@ -91,6 +91,7 @@ class LChunkBuilder;
   V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
   V(CheckSmi)                                  \
+  V(ClassOfTest)                               \
   V(Compare)                                   \
   V(CompareJSObjectEq)                         \
   V(CompareMap)                                \
@@ -100,25 +101,26 @@ class LChunkBuilder;
   V(Deoptimize)                                \
   V(Div)                                       \
   V(EnterInlined)                              \
+  V(ExternalArrayLength)                       \
   V(FixedArrayLength)                          \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
   V(GlobalObject)                              \
   V(GlobalReceiver)                            \
   V(Goto)                                      \
+  V(HasInstanceType)                           \
+  V(HasCachedArrayIndex)                       \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
   V(IsNull)                                    \
   V(IsObject)                                  \
   V(IsSmi)                                     \
   V(IsConstructCall)                           \
-  V(HasInstanceType)                           \
-  V(HasCachedArrayIndex)                       \
   V(JSArrayLength)                             \
-  V(ClassOfTest)                               \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
   V(LoadElements)                              \
+  V(LoadExternalArrayPointer)                  \
   V(LoadFunctionPrototype)                     \
   V(LoadGlobal)                                \
   V(LoadKeyedFastElement)                      \
@@ -126,14 +128,12 @@ class LChunkBuilder;
   V(LoadNamedField)                            \
   V(LoadNamedGeneric)                          \
   V(LoadPixelArrayElement)                     \
-  V(LoadPixelArrayExternalPointer)             \
   V(Mod)                                       \
   V(Mul)                                       \
   V(ObjectLiteral)                             \
   V(OsrEntry)                                  \
   V(OuterContext)                              \
   V(Parameter)                                 \
-  V(PixelArrayLength)                          \
   V(Power)                                     \
   V(PushArgument)                              \
   V(RegExpLiteral)                             \
@@ -461,9 +461,9 @@ class HValue: public ZoneObject {
   int id() const { return id_; }
   void set_id(int id) { id_ = id; }
 
-  const ZoneList<HValue*>* uses() const { return &uses_; }
+  ZoneList<HValue*>* uses() { return &uses_; }
 
-  virtual bool EmitAtUses() const { return false; }
+  virtual bool EmitAtUses() { return false; }
   Representation representation() const { return representation_; }
   void ChangeRepresentation(Representation r) {
     // Representation was already set and is allowed to be changed.
@@ -1419,9 +1419,9 @@ class HFixedArrayLength: public HUnaryOperation {
 };
 
 
-class HPixelArrayLength: public HUnaryOperation {
+class HExternalArrayLength: public HUnaryOperation {
  public:
-  explicit HPixelArrayLength(HValue* value) : HUnaryOperation(value) {
+  explicit HExternalArrayLength(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Integer32());
     // The result of this instruction is idempotent as long as its inputs don't
     // change.  The length of a pixel array cannot change once set, so it's not
@@ -1433,7 +1433,7 @@ class HPixelArrayLength: public HUnaryOperation {
     return Representation::Tagged();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(PixelArrayLength, "pixel_array_length")
+  DECLARE_CONCRETE_INSTRUCTION(ExternalArrayLength, "external_array_length")
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
@@ -1557,9 +1557,9 @@ class HLoadElements: public HUnaryOperation {
 };
 
 
-class HLoadPixelArrayExternalPointer: public HUnaryOperation {
+class HLoadExternalArrayPointer: public HUnaryOperation {
  public:
-  explicit HLoadPixelArrayExternalPointer(HValue* value)
+  explicit HLoadExternalArrayPointer(HValue* value)
       : HUnaryOperation(value) {
     set_representation(Representation::External());
     // The result of this instruction is idempotent as long as its inputs don't
@@ -1573,8 +1573,8 @@ class HLoadPixelArrayExternalPointer: public HUnaryOperation {
     return Representation::Tagged();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayExternalPointer,
-                               "load-pixel-array-external-pointer")
+  DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer,
+                               "load-external-array-pointer")
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
@@ -1800,7 +1800,8 @@ class HPhi: public HValue {
   explicit HPhi(int merged_index)
       : inputs_(2),
         merged_index_(merged_index),
-        phi_id_(-1) {
+        phi_id_(-1),
+        is_live_(false) {
     for (int i = 0; i < Representation::kNumRepresentations; i++) {
       non_phi_uses_[i] = 0;
       indirect_uses_[i] = 0;
@@ -1834,6 +1835,7 @@ class HPhi: public HValue {
   virtual HValue* OperandAt(int index) { return inputs_[index]; }
   HValue* GetRedundantReplacement();
   void AddInput(HValue* value);
+  bool HasRealUses();
 
   bool IsReceiver() { return merged_index_ == 0; }
 
@@ -1872,6 +1874,8 @@ class HPhi: public HValue {
     return indirect_uses_[Representation::kDouble];
   }
   int phi_id() { return phi_id_; }
+  bool is_live() { return is_live_; }
+  void set_is_live(bool b) { is_live_ = b; }
 
  protected:
   virtual void DeleteFromGraph();
@@ -1886,6 +1890,7 @@ class HPhi: public HValue {
   int non_phi_uses_[Representation::kNumRepresentations];
   int indirect_uses_[Representation::kNumRepresentations];
   int phi_id_;
+  bool is_live_;
 };
 
 
@@ -1916,7 +1921,7 @@ class HConstant: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  virtual bool EmitAtUses() const { return !representation().IsDouble(); }
+  virtual bool EmitAtUses() { return !representation().IsDouble(); }
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
   bool IsInteger() const { return handle_->IsSmi(); }
@@ -2191,7 +2196,7 @@ class HCompare: public HBinaryOperation {
 
   void SetInputRepresentation(Representation r);
 
-  virtual bool EmitAtUses() const {
+  virtual bool EmitAtUses() {
     return !HasSideEffects() && (uses()->length() <= 1);
   }
 
@@ -2232,7 +2237,7 @@ class HCompareJSObjectEq: public HBinaryOperation {
     SetFlag(kUseGVN);
   }
 
-  virtual bool EmitAtUses() const {
+  virtual bool EmitAtUses() {
     return !HasSideEffects() && (uses()->length() <= 1);
   }
 
@@ -2255,7 +2260,7 @@ class HUnaryPredicate: public HUnaryOperation {
     SetFlag(kUseGVN);
   }
 
-  virtual bool EmitAtUses() const {
+  virtual bool EmitAtUses() {
     return !HasSideEffects() && (uses()->length() <= 1);
   }
 
@@ -2315,7 +2320,7 @@ class HIsConstructCall: public HTemplateInstruction<0> {
     SetFlag(kUseGVN);
   }
 
-  virtual bool EmitAtUses() const {
+  virtual bool EmitAtUses() {
     return !HasSideEffects() && (uses()->length() <= 1);
   }
 
@@ -2437,7 +2442,7 @@ class HInstanceOf: public HTemplateInstruction<3> {
   HValue* left() { return OperandAt(1); }
   HValue* right() { return OperandAt(2); }
 
-  virtual bool EmitAtUses() const {
+  virtual bool EmitAtUses() {
     return !HasSideEffects() && (uses()->length() <= 1);
   }
 

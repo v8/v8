@@ -601,7 +601,6 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
     high_water_[space_index] = address + size;
   } else {
     ASSERT(SpaceIsLarge(space_index));
-    ASSERT(size > Page::kPageSize - Page::kObjectStartOffset);
     LargeObjectSpace* lo_space = reinterpret_cast<LargeObjectSpace*>(space);
     Object* new_allocation;
     if (space_index == kLargeData) {

@@ -47,6 +47,18 @@ namespace internal {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 
+void SetElementNonStrict(Handle<JSObject> object,
+                         uint32_t index,
+                         Handle<Object> value) {
+  // Ignore return value from SetElement. It can only be a failure if there
+  // are element setters causing exceptions and the debugger context has none
+  // of these.
+  Handle<Object> no_failure;
+  no_failure = SetElement(object, index, value, kNonStrictMode);
+  ASSERT(!no_failure.is_null());
+  USE(no_failure);
+}
+
 // A simple implementation of dynamic programming algorithm. It solves
 // the problem of finding the difference of 2 arrays. It uses a table of results
 // of subproblems. Each cell contains a number together with 2-bit flag
@@ -286,18 +298,15 @@ class CompareOutputArrayWriter {
   }
 
   void WriteChunk(int char_pos1, int char_pos2, int char_len1, int char_len2) {
-    SetElement(array_,
-               current_size_,
-               Handle<Object>(Smi::FromInt(char_pos1)),
-               kNonStrictMode);
-    SetElement(array_,
-               current_size_ + 1,
-               Handle<Object>(Smi::FromInt(char_pos1 + char_len1)),
-               kNonStrictMode);
-    SetElement(array_,
-               current_size_ + 2,
-               Handle<Object>(Smi::FromInt(char_pos2 + char_len2)),
-               kNonStrictMode);
+    SetElementNonStrict(array_,
+                       current_size_,
+                       Handle<Object>(Smi::FromInt(char_pos1)));
+    SetElementNonStrict(array_,
+                        current_size_ + 1,
+                        Handle<Object>(Smi::FromInt(char_pos1 + char_len1)));
+    SetElementNonStrict(array_,
+                        current_size_ + 2,
+                        Handle<Object>(Smi::FromInt(char_pos2 + char_len2)));
     current_size_ += 3;
   }
 
@@ -552,13 +561,12 @@ class JSArrayBasedStruct {
 
  protected:
   void SetField(int field_position, Handle<Object> value) {
-    SetElement(array_, field_position, value, kNonStrictMode);
+    SetElementNonStrict(array_, field_position, value);
   }
   void SetSmiValueField(int field_position, int value) {
-    SetElement(array_,
-               field_position,
-               Handle<Smi>(Smi::FromInt(value)),
-               kNonStrictMode);
+    SetElementNonStrict(array_,
+                        field_position,
+                        Handle<Smi>(Smi::FromInt(value)));
   }
   Object* GetField(int field_position) {
     return array_->GetElementNoExceptionThrown(field_position);
@@ -697,7 +705,7 @@ class FunctionInfoListener {
                               fun->end_position(), fun->num_parameters(),
                               current_parent_index_);
     current_parent_index_ = len_;
-    SetElement(result_, len_, info.GetJSArray(), kNonStrictMode);
+    SetElementNonStrict(result_, len_, info.GetJSArray());
     len_++;
   }
 
@@ -777,16 +785,19 @@ class FunctionInfoListener {
         list[k] = list[l];
       }
       for (int i = 0; i < j; i++) {
-        SetElement(scope_info_list, scope_info_length,
-                   list[i]->name(), kNonStrictMode);
+        SetElementNonStrict(scope_info_list,
+                            scope_info_length,
+                            list[i]->name());
         scope_info_length++;
-        SetElement(scope_info_list, scope_info_length,
-                   Handle<Smi>(Smi::FromInt(list[i]->AsSlot()->index())),
-                   kNonStrictMode);
+        SetElementNonStrict(
+            scope_info_list,
+            scope_info_length,
+            Handle<Smi>(Smi::FromInt(list[i]->AsSlot()->index())));
         scope_info_length++;
       }
-      SetElement(scope_info_list, scope_info_length,
-                 Handle<Object>(Heap::null_value()), kNonStrictMode);
+      SetElementNonStrict(scope_info_list,
+                          scope_info_length,
+                          Handle<Object>(Heap::null_value()));
       scope_info_length++;
 
       outer_scope = outer_scope->outer_scope();
@@ -829,7 +840,7 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
     Handle<String> name_handle(String::cast(info->name()));
     info_wrapper.SetProperties(name_handle, info->start_position(),
                                info->end_position(), info);
-    SetElement(array, i, info_wrapper.GetJSArray(), kNonStrictMode);
+    SetElementNonStrict(array, i, info_wrapper.GetJSArray());
   }
 }
 
@@ -1327,7 +1338,7 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
         SharedFunctionInfo::cast(wrapper->value()));
 
     if (function->shared() == *shared || IsInlined(*function, *shared)) {
-      SetElement(result, i, Handle<Smi>(Smi::FromInt(status)), kNonStrictMode);
+      SetElementNonStrict(result, i, Handle<Smi>(Smi::FromInt(status)));
       return true;
     }
   }
@@ -1532,7 +1543,7 @@ static const char* DropActivationsInActiveThread(
         Smi::FromInt(LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
       Handle<Object> replaced(
           Smi::FromInt(LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK));
-      SetElement(result, i, replaced, kNonStrictMode);
+      SetElementNonStrict(result, i, replaced);
     }
   }
   return NULL;
@@ -1572,9 +1583,10 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
 
   // Fill the default values.
   for (int i = 0; i < len; i++) {
-    SetElement(result, i,
-               Handle<Smi>(Smi::FromInt(FUNCTION_AVAILABLE_FOR_PATCH)),
-               kNonStrictMode);
+    SetElementNonStrict(
+        result,
+        i,
+        Handle<Smi>(Smi::FromInt(FUNCTION_AVAILABLE_FOR_PATCH)));
   }
 
 
@@ -1593,7 +1605,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
     // Add error message as an array extra element.
     Vector<const char> vector_message(error_message, StrLength(error_message));
     Handle<String> str = Factory::NewStringFromAscii(vector_message);
-    SetElement(result, len, str, kNonStrictMode);
+    SetElementNonStrict(result, len, str);
   }
   return result;
 }

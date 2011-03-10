@@ -104,6 +104,9 @@ class Scope: public ZoneObject {
   // doesn't re-allocate variables repeatedly.
   static bool Analyze(CompilationInfo* info);
 
+  static Scope* DeserializeScopeChain(CompilationInfo* info,
+                                      Scope* innermost_scope);
+
   // The scope name is only used for printing/debugging.
   void SetScopeName(Handle<String> scope_name) { scope_name_ = scope_name; }
 
@@ -193,6 +196,10 @@ class Scope: public ZoneObject {
   // Inform the scope that the corresponding code contains an eval call.
   void RecordEvalCall() { scope_calls_eval_ = true; }
 
+  // Enable strict mode for the scope (unless disabled by a global flag).
+  void EnableStrictMode() {
+    strict_mode_ = FLAG_strict_mode;
+  }
 
   // ---------------------------------------------------------------------------
   // Predicates.
@@ -201,6 +208,7 @@ class Scope: public ZoneObject {
   bool is_eval_scope() const { return type_ == EVAL_SCOPE; }
   bool is_function_scope() const { return type_ == FUNCTION_SCOPE; }
   bool is_global_scope() const { return type_ == GLOBAL_SCOPE; }
+  bool is_strict_mode() const { return strict_mode_; }
 
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
@@ -313,14 +321,6 @@ class Scope: public ZoneObject {
 
   explicit Scope(Type type);
 
-  void InsertAfterScope(Scope* scope) {
-    inner_scopes_.Add(scope);
-    outer_scope_ = scope->outer_scope_;
-    outer_scope_->inner_scopes_.RemoveElement(scope);
-    outer_scope_->inner_scopes_.Add(this);
-    scope->outer_scope_ = this;
-  }
-
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or NULL
   ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes
@@ -363,6 +363,7 @@ class Scope: public ZoneObject {
   bool scope_inside_with_;  // this scope is inside a 'with' of some outer scope
   bool scope_contains_with_;  // this scope contains a 'with' statement
   bool scope_calls_eval_;  // this scope contains an 'eval' call
+  bool strict_mode_;  // this scope is a strict mode scope
 
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_eval_;
@@ -413,6 +414,13 @@ class Scope: public ZoneObject {
  private:
   Scope(Scope* inner_scope, SerializedScopeInfo* scope_info);
 
+  void AddInnerScope(Scope* inner_scope) {
+    if (inner_scope != NULL) {
+      inner_scopes_.Add(inner_scope);
+      inner_scope->outer_scope_ = this;
+    }
+  }
+
   void SetDefaults(Type type,
                    Scope* outer_scope,
                    SerializedScopeInfo* scope_info) {
@@ -428,6 +436,8 @@ class Scope: public ZoneObject {
     scope_inside_with_ = false;
     scope_contains_with_ = false;
     scope_calls_eval_ = false;
+    // Inherit the strict mode from the parent scope.
+    strict_mode_ = (outer_scope != NULL) && outer_scope->strict_mode_;
     outer_scope_calls_eval_ = false;
     inner_scope_calls_eval_ = false;
     outer_scope_is_eval_scope_ = false;

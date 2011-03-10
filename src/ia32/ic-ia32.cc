@@ -530,7 +530,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- esp[0] : return address
   // -----------------------------------
   Label slow, check_string, index_smi, index_string, property_array_property;
-  Label check_pixel_array, probe_dictionary, check_number_dictionary;
+  Label probe_dictionary, check_number_dictionary;
 
   // Check that the key is a smi.
   __ test(eax, Immediate(kSmiTagMask));
@@ -546,7 +546,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // now in ecx.
   __ test_b(FieldOperand(ecx, Map::kBitField2Offset),
             1 << Map::kHasFastElements);
-  __ j(zero, &check_pixel_array, not_taken);
+  __ j(zero, &check_number_dictionary, not_taken);
 
   GenerateFastArrayLoad(masm,
                         edx,
@@ -558,18 +558,11 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ IncrementCounter(&Counters::keyed_load_generic_smi, 1);
   __ ret(0);
 
-  __ bind(&check_pixel_array);
-  GenerateFastPixelArrayLoad(masm,
-                             edx,
-                             eax,
-                             ecx,
-                             ebx,
-                             eax,
-                             &check_number_dictionary,
-                             NULL,
-                             &slow);
-
   __ bind(&check_number_dictionary);
+  __ mov(ebx, eax);
+  __ SmiUntag(ebx);
+  __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
+
   // Check whether the elements is a number dictionary.
   // edx: receiver
   // ebx: untagged index
@@ -769,7 +762,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label slow, fast, array, extra, check_pixel_array;
+  Label slow, fast, array, extra;
 
   // Check that the object isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
@@ -796,31 +789,13 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // ecx: key (a smi)
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
   // Check that the object is in fast mode and writable.
-  __ CheckMap(edi, Factory::fixed_array_map(), &check_pixel_array, true);
+  __ CheckMap(edi, Factory::fixed_array_map(), &slow, true);
   __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
   __ j(below, &fast, taken);
 
   // Slow case: call runtime.
   __ bind(&slow);
   GenerateRuntimeSetProperty(masm, strict_mode);
-
-  // Check whether the elements is a pixel array.
-  __ bind(&check_pixel_array);
-  // eax: value
-  // ecx: key (a smi)
-  // edx: receiver
-  // edi: elements array
-  GenerateFastPixelArrayStore(masm,
-                              edx,
-                              ecx,
-                              eax,
-                              edi,
-                              ebx,
-                              false,
-                              NULL,
-                              &slow,
-                              &slow,
-                              &slow);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -847,7 +822,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // edx: receiver, a JSArray
   // ecx: key, a smi.
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-  __ CheckMap(edi, Factory::fixed_array_map(), &check_pixel_array, true);
+  __ CheckMap(edi, Factory::fixed_array_map(), &slow, true);
 
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.
@@ -1543,9 +1518,8 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   // -----------------------------------
   //
   // This accepts as a receiver anything JSObject::SetElementsLength accepts
-  // (currently anything except for external and pixel arrays which means
-  // anything with elements of FixedArray type.), but currently is restricted
-  // to JSArray.
+  // (currently anything except for external arrays which means anything with
+  // elements of FixedArray type.), but currently is restricted to JSArray.
   // Value must be a number, but only smis are accepted as the most common case.
 
   Label miss;

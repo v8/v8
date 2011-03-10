@@ -960,8 +960,9 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case BYTE_ARRAY_TYPE:
       accumulator->Add("<ByteArray[%u]>", ByteArray::cast(this)->length());
       break;
-    case PIXEL_ARRAY_TYPE:
-      accumulator->Add("<PixelArray[%u]>", PixelArray::cast(this)->length());
+    case EXTERNAL_PIXEL_ARRAY_TYPE:
+      accumulator->Add("<ExternalPixelArray[%u]>",
+                       ExternalPixelArray::cast(this)->length());
       break;
     case EXTERNAL_BYTE_ARRAY_TYPE:
       accumulator->Add("<ExternalByteArray[%u]>",
@@ -1112,7 +1113,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
-    case PIXEL_ARRAY_TYPE:
+    case EXTERNAL_PIXEL_ARRAY_TYPE:
     case EXTERNAL_BYTE_ARRAY_TYPE:
     case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
     case EXTERNAL_SHORT_ARRAY_TYPE:
@@ -2436,7 +2437,7 @@ MaybeObject* JSObject::TransformToFastProperties(int unused_property_fields) {
 
 
 MaybeObject* JSObject::NormalizeElements() {
-  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
+  ASSERT(!HasExternalArrayElements());
   if (HasDictionaryElements()) return this;
   ASSERT(map()->has_fast_elements());
 
@@ -2538,7 +2539,7 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(String* name) {
 
 MaybeObject* JSObject::DeleteElementPostInterceptor(uint32_t index,
                                                     DeleteMode mode) {
-  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
+  ASSERT(!HasExternalArrayElements());
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
       Object* obj;
@@ -2637,7 +2638,7 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       }
       break;
     }
-    case PIXEL_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_SHORT_ELEMENTS:
@@ -2752,7 +2753,7 @@ bool JSObject::ReferencesObject(Object* obj) {
 
   // Check if the object is among the indexed properties.
   switch (GetElementsKind()) {
-    case PIXEL_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_SHORT_ELEMENTS:
@@ -3012,7 +3013,7 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
     switch (GetElementsKind()) {
       case FAST_ELEMENTS:
         break;
-      case PIXEL_ELEMENTS:
+      case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_BYTE_ELEMENTS:
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       case EXTERNAL_SHORT_ELEMENTS:
@@ -3236,7 +3237,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
     switch (GetElementsKind()) {
       case FAST_ELEMENTS:
         break;
-      case PIXEL_ELEMENTS:
+      case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_BYTE_ELEMENTS:
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       case EXTERNAL_SHORT_ELEMENTS:
@@ -3817,7 +3818,7 @@ static bool HasKey(FixedArray* array, Object* key) {
 
 
 MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
-  ASSERT(!array->HasPixelElements() && !array->HasExternalArrayElements());
+  ASSERT(!array->HasExternalArrayElements());
   switch (array->GetElementsKind()) {
     case JSObject::FAST_ELEMENTS:
       return UnionOfKeys(FixedArray::cast(array->elements()));
@@ -6255,8 +6256,10 @@ const char* Code::Kind2String(Kind kind) {
     case BUILTIN: return "BUILTIN";
     case LOAD_IC: return "LOAD_IC";
     case KEYED_LOAD_IC: return "KEYED_LOAD_IC";
+    case KEYED_EXTERNAL_ARRAY_LOAD_IC: return "KEYED_EXTERNAL_ARRAY_LOAD_IC";
     case STORE_IC: return "STORE_IC";
     case KEYED_STORE_IC: return "KEYED_STORE_IC";
+    case KEYED_EXTERNAL_ARRAY_STORE_IC: return "KEYED_EXTERNAL_ARRAY_STORE_IC";
     case CALL_IC: return "CALL_IC";
     case KEYED_CALL_IC: return "KEYED_CALL_IC";
     case BINARY_OP_IC: return "BINARY_OP_IC";
@@ -6406,7 +6409,7 @@ void Code::Disassemble(const char* name, FILE* out) {
 MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
                                                         int length) {
   // We should never end in here with a pixel or external array.
-  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
+  ASSERT(!HasExternalArrayElements());
 
   Object* obj;
   { MaybeObject* maybe_obj = Heap::AllocateFixedArrayWithHoles(capacity);
@@ -6460,7 +6463,7 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
 
 MaybeObject* JSObject::SetSlowElements(Object* len) {
   // We should never end in here with a pixel or external array.
-  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
+  ASSERT(!HasExternalArrayElements());
 
   uint32_t new_length = static_cast<uint32_t>(len->Number());
 
@@ -6682,8 +6685,8 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
       }
       break;
     }
-    case PIXEL_ELEMENTS: {
-      PixelArray* pixels = PixelArray::cast(elements());
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       if (index < static_cast<uint32_t>(pixels->length())) {
         return true;
       }
@@ -6801,8 +6804,8 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
       }
       break;
     }
-    case PIXEL_ELEMENTS: {
-      PixelArray* pixels = PixelArray::cast(elements());
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       if (index < static_cast<uint32_t>(pixels->length())) return FAST_ELEMENT;
       break;
     }
@@ -6856,8 +6859,8 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
           !FixedArray::cast(elements())->get(index)->IsTheHole()) return true;
       break;
     }
-    case PIXEL_ELEMENTS: {
-      PixelArray* pixels = PixelArray::cast(elements());
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       if (index < static_cast<uint32_t>(pixels->length())) {
         return true;
       }
@@ -7147,8 +7150,8 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
     case FAST_ELEMENTS:
       // Fast case.
       return SetFastElement(index, value, strict_mode, check_prototype);
-    case PIXEL_ELEMENTS: {
-      PixelArray* pixels = PixelArray::cast(elements());
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       return pixels->SetValue(index, value);
     }
     case EXTERNAL_BYTE_ELEMENTS: {
@@ -7310,7 +7313,7 @@ MaybeObject* JSObject::GetElementPostInterceptor(Object* receiver,
       }
       break;
     }
-    case PIXEL_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_SHORT_ELEMENTS:
@@ -7409,7 +7412,7 @@ MaybeObject* JSObject::GetElementWithReceiver(Object* receiver,
       }
       break;
     }
-    case PIXEL_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_SHORT_ELEMENTS:
@@ -7451,8 +7454,8 @@ MaybeObject* JSObject::GetExternalElement(uint32_t index) {
   // Get element works for both JSObject and JSArray since
   // JSArray::length cannot change.
   switch (GetElementsKind()) {
-    case PIXEL_ELEMENTS: {
-      PixelArray* pixels = PixelArray::cast(elements());
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       if (index < static_cast<uint32_t>(pixels->length())) {
         uint8_t value = pixels->get(index);
         return Smi::FromInt(value);
@@ -7540,7 +7543,7 @@ bool JSObject::HasDenseElements() {
       }
       break;
     }
-    case PIXEL_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_SHORT_ELEMENTS:
@@ -7768,8 +7771,8 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
       return (index < length) &&
           !FixedArray::cast(elements())->get(index)->IsTheHole();
     }
-    case PIXEL_ELEMENTS: {
-      PixelArray* pixels = PixelArray::cast(elements());
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       return index < static_cast<uint32_t>(pixels->length());
     }
     case EXTERNAL_BYTE_ELEMENTS:
@@ -8000,8 +8003,8 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       ASSERT(!storage || storage->length() >= counter);
       break;
     }
-    case PIXEL_ELEMENTS: {
-      int length = PixelArray::cast(elements())->length();
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      int length = ExternalPixelArray::cast(elements())->length();
       while (counter < length) {
         if (storage != NULL) {
           storage->set(counter, Smi::FromInt(counter));
@@ -8742,7 +8745,7 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 // If the object is in dictionary mode, it is converted to fast elements
 // mode.
 MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
-  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
+  ASSERT(!HasExternalArrayElements());
 
   if (HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
@@ -8854,7 +8857,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
 }
 
 
-Object* PixelArray::SetValue(uint32_t index, Object* value) {
+Object* ExternalPixelArray::SetValue(uint32_t index, Object* value) {
   uint8_t clamped_value = 0;
   if (index < static_cast<uint32_t>(length())) {
     if (value->IsSmi()) {

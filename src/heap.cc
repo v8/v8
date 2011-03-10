@@ -1707,10 +1707,10 @@ bool Heap::CreateInitialMaps() {
   set_empty_byte_array(ByteArray::cast(obj));
 
   { MaybeObject* maybe_obj =
-        AllocateMap(PIXEL_ARRAY_TYPE, PixelArray::kAlignedSize);
+        AllocateMap(EXTERNAL_PIXEL_ARRAY_TYPE, ExternalArray::kAlignedSize);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_pixel_array_map(Map::cast(obj));
+  set_external_pixel_array_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_BYTE_ARRAY_TYPE,
                                          ExternalArray::kAlignedSize);
@@ -1906,20 +1906,6 @@ bool Heap::CreateApiObjects() {
 }
 
 
-void Heap::CreateCEntryStub() {
-  CEntryStub stub(1);
-  set_c_entry_code(*stub.GetCode());
-}
-
-
-#if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
-void Heap::CreateRegExpCEntryStub() {
-  RegExpCEntryStub stub;
-  set_re_c_entry_code(*stub.GetCode());
-}
-#endif
-
-
 void Heap::CreateJSEntryStub() {
   JSEntryStub stub;
   set_js_entry_code(*stub.GetCode());
@@ -1932,14 +1918,6 @@ void Heap::CreateJSConstructEntryStub() {
 }
 
 
-#if V8_TARGET_ARCH_ARM
-void Heap::CreateDirectCEntryStub() {
-  DirectCEntryStub stub;
-  set_direct_c_entry_code(*stub.GetCode());
-}
-#endif
-
-
 void Heap::CreateFixedStubs() {
   // Here we create roots for fixed stubs. They are needed at GC
   // for cooking and uncooking (check out frames.cc).
@@ -1947,22 +1925,15 @@ void Heap::CreateFixedStubs() {
   // stub cache for these stubs.
   HandleScope scope;
   // gcc-4.4 has problem generating correct code of following snippet:
-  // {  CEntryStub stub;
-  //    c_entry_code_ = *stub.GetCode();
+  // {  JSEntryStub stub;
+  //    js_entry_code_ = *stub.GetCode();
   // }
-  // {  DebuggerStatementStub stub;
-  //    debugger_statement_code_ = *stub.GetCode();
+  // {  JSConstructEntryStub stub;
+  //    js_construct_entry_code_ = *stub.GetCode();
   // }
   // To workaround the problem, make separate functions without inlining.
-  Heap::CreateCEntryStub();
   Heap::CreateJSEntryStub();
   Heap::CreateJSConstructEntryStub();
-#if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
-  Heap::CreateRegExpCEntryStub();
-#endif
-#if V8_TARGET_ARCH_ARM
-  Heap::CreateDirectCEntryStub();
-#endif
 }
 
 
@@ -2257,6 +2228,8 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
       return kExternalUnsignedIntArrayMapRootIndex;
     case kExternalFloatArray:
       return kExternalFloatArrayMapRootIndex;
+    case kExternalPixelArray:
+      return kExternalPixelArrayMapRootIndex;
     default:
       UNREACHABLE();
       return kUndefinedValueRootIndex;
@@ -2691,24 +2664,6 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
 }
 
 
-MaybeObject* Heap::AllocatePixelArray(int length,
-                                 uint8_t* external_pointer,
-                                 PretenureFlag pretenure) {
-  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  Object* result;
-  { MaybeObject* maybe_result =
-        AllocateRaw(PixelArray::kAlignedSize, space, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  reinterpret_cast<PixelArray*>(result)->set_map(pixel_array_map());
-  reinterpret_cast<PixelArray*>(result)->set_length(length);
-  reinterpret_cast<PixelArray*>(result)->set_external_pointer(external_pointer);
-
-  return result;
-}
-
-
 MaybeObject* Heap::AllocateExternalArray(int length,
                                          ExternalArrayType array_type,
                                          void* external_pointer,
@@ -2733,7 +2688,8 @@ MaybeObject* Heap::AllocateExternalArray(int length,
 
 MaybeObject* Heap::CreateCode(const CodeDesc& desc,
                               Code::Flags flags,
-                              Handle<Object> self_reference) {
+                              Handle<Object> self_reference,
+                              bool immovable) {
   // Allocate ByteArray before the Code object, so that we do not risk
   // leaving uninitialized Code object (and breaking the heap).
   Object* reloc_info;
@@ -2741,12 +2697,14 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
     if (!maybe_reloc_info->ToObject(&reloc_info)) return maybe_reloc_info;
   }
 
-  // Compute size
+  // Compute size.
   int body_size = RoundUp(desc.instr_size, kObjectAlignment);
   int obj_size = Code::SizeFor(body_size);
   ASSERT(IsAligned(static_cast<intptr_t>(obj_size), kCodeAlignment));
   MaybeObject* maybe_result;
-  if (obj_size > MaxObjectSizeInPagedSpace()) {
+  // Large code objects and code objects which should stay at a fixed address
+  // are allocated in large object space.
+  if (obj_size > MaxObjectSizeInPagedSpace() || immovable) {
     maybe_result = lo_space_->AllocateRawCode(obj_size);
   } else {
     maybe_result = code_space_->AllocateRaw(obj_size);

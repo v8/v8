@@ -4647,6 +4647,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 }
 
 
+bool CEntryStub::NeedsImmovableCode() {
+  return false;
+}
+
+
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   __ Throw(eax);
 }
@@ -6472,148 +6477,6 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 
   // Do a tail call to the rewritten stub.
   __ jmp(Operand(edi));
-}
-
-
-// Loads a indexed element from a pixel array.
-void GenerateFastPixelArrayLoad(MacroAssembler* masm,
-                                Register receiver,
-                                Register key,
-                                Register elements,
-                                Register untagged_key,
-                                Register result,
-                                Label* not_pixel_array,
-                                Label* key_not_smi,
-                                Label* out_of_range) {
-  // Register use:
-  //   receiver - holds the receiver and is unchanged.
-  //   key - holds the key and is unchanged (must be a smi).
-  //   elements - is set to the the receiver's element if
-  //       the receiver doesn't have a pixel array or the
-  //       key is not a smi, otherwise it's the elements'
-  //       external pointer.
-  //   untagged_key - is set to the untagged key
-
-  // Some callers already have verified that the key is a smi.  key_not_smi is
-  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
-  // to ensure the key is a smi must be added.
-  if (key_not_smi != NULL) {
-    __ JumpIfNotSmi(key, key_not_smi);
-  } else {
-    if (FLAG_debug_code) {
-      __ AbortIfNotSmi(key);
-    }
-  }
-  __ mov(untagged_key, key);
-  __ SmiUntag(untagged_key);
-
-  __ mov(elements, FieldOperand(receiver, JSObject::kElementsOffset));
-  // By passing NULL as not_pixel_array, callers signal that they have already
-  // verified that the receiver has pixel array elements.
-  if (not_pixel_array != NULL) {
-    __ CheckMap(elements, Factory::pixel_array_map(), not_pixel_array, true);
-  } else {
-    if (FLAG_debug_code) {
-      // Map check should have already made sure that elements is a pixel array.
-      __ cmp(FieldOperand(elements, HeapObject::kMapOffset),
-             Immediate(Factory::pixel_array_map()));
-      __ Assert(equal, "Elements isn't a pixel array");
-    }
-  }
-
-  // Key must be in range.
-  __ cmp(untagged_key, FieldOperand(elements, PixelArray::kLengthOffset));
-  __ j(above_equal, out_of_range);  // unsigned check handles negative keys.
-
-  // Perform the indexed load and tag the result as a smi.
-  __ mov(elements, FieldOperand(elements, PixelArray::kExternalPointerOffset));
-  __ movzx_b(result, Operand(elements, untagged_key, times_1, 0));
-  __ SmiTag(result);
-  __ ret(0);
-}
-
-
-// Stores an indexed element into a pixel array, clamping the stored value.
-void GenerateFastPixelArrayStore(MacroAssembler* masm,
-                                 Register receiver,
-                                 Register key,
-                                 Register value,
-                                 Register elements,
-                                 Register scratch1,
-                                 bool load_elements_from_receiver,
-                                 Label* key_not_smi,
-                                 Label* value_not_smi,
-                                 Label* not_pixel_array,
-                                 Label* out_of_range) {
-  // Register use:
-  //   receiver - holds the receiver and is unchanged unless the
-  //              store succeeds.
-  //   key - holds the key (must be a smi) and is unchanged.
-  //   value - holds the value (must be a smi) and is unchanged.
-  //   elements - holds the element object of the receiver on entry if
-  //              load_elements_from_receiver is false, otherwise used
-  //              internally to store the pixel arrays elements and
-  //              external array pointer.
-  //
-  // receiver, key and value remain unmodified until it's guaranteed that the
-  // store will succeed.
-  Register external_pointer = elements;
-  Register untagged_key = scratch1;
-  Register untagged_value = receiver;  // Only set once success guaranteed.
-
-  // Fetch the receiver's elements if the caller hasn't already done so.
-  if (load_elements_from_receiver) {
-    __ mov(elements, FieldOperand(receiver, JSObject::kElementsOffset));
-  }
-
-  // By passing NULL as not_pixel_array, callers signal that they have already
-  // verified that the receiver has pixel array elements.
-  if (not_pixel_array != NULL) {
-    __ CheckMap(elements, Factory::pixel_array_map(), not_pixel_array, true);
-  } else {
-    if (FLAG_debug_code) {
-      // Map check should have already made sure that elements is a pixel array.
-      __ cmp(FieldOperand(elements, HeapObject::kMapOffset),
-             Immediate(Factory::pixel_array_map()));
-      __ Assert(equal, "Elements isn't a pixel array");
-    }
-  }
-
-  // Some callers already have verified that the key is a smi.  key_not_smi is
-  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
-  // to ensure the key is a smi must be added.
-  if (key_not_smi != NULL) {
-    __ JumpIfNotSmi(key, key_not_smi);
-  } else {
-    if (FLAG_debug_code) {
-      __ AbortIfNotSmi(key);
-    }
-  }
-
-  // Key must be a smi and it must be in range.
-  __ mov(untagged_key, key);
-  __ SmiUntag(untagged_key);
-  __ cmp(untagged_key, FieldOperand(elements, PixelArray::kLengthOffset));
-  __ j(above_equal, out_of_range);  // unsigned check handles negative keys.
-
-  // Value must be a smi.
-  __ JumpIfNotSmi(value, value_not_smi);
-  __ mov(untagged_value, value);
-  __ SmiUntag(untagged_value);
-
-  {  // Clamp the value to [0..255].
-    NearLabel done;
-    __ test(untagged_value, Immediate(0xFFFFFF00));
-    __ j(zero, &done);
-    __ setcc(negative, untagged_value);  // 1 if negative, 0 if positive.
-    __ dec_b(untagged_value);  // 0 if negative, 255 if positive.
-    __ bind(&done);
-  }
-
-  __ mov(external_pointer,
-         FieldOperand(elements, PixelArray::kExternalPointerOffset));
-  __ mov_b(Operand(external_pointer, untagged_key, times_1, 0), untagged_value);
-  __ ret(0);  // Return value in eax.
 }
 
 

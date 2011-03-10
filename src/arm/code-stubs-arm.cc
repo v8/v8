@@ -4056,6 +4056,111 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 }
 
 
+void MathPowStub::Generate(MacroAssembler* masm) {
+  Label call_runtime;
+
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+
+    Label base_not_smi;
+    Label exponent_not_smi;
+    Label convert_exponent;
+
+    const Register base = r0;
+    const Register exponent = r1;
+    const Register heapnumbermap = r5;
+    const Register heapnumber = r6;
+    const DoubleRegister double_base = d0;
+    const DoubleRegister double_exponent = d1;
+    const DoubleRegister double_result = d2;
+    const SwVfpRegister single_scratch = s0;
+    const Register scratch = r9;
+    const Register scratch2 = r7;
+
+    __ LoadRoot(heapnumbermap, Heap::kHeapNumberMapRootIndex);
+    __ ldr(base, MemOperand(sp, 1 * kPointerSize));
+    __ ldr(exponent, MemOperand(sp, 0 * kPointerSize));
+
+    // Convert base to double value and store it in d0.
+    __ JumpIfNotSmi(base, &base_not_smi);
+    // Base is a Smi. Untag and convert it.
+    __ SmiUntag(base);
+    __ vmov(single_scratch, base);
+    __ vcvt_f64_s32(double_base, single_scratch);
+    __ b(&convert_exponent);
+
+    __ bind(&base_not_smi);
+    __ ldr(scratch, FieldMemOperand(base, JSObject::kMapOffset));
+    __ cmp(scratch, heapnumbermap);
+    __ b(ne, &call_runtime);
+    // Base is a heapnumber. Load it into double register.
+    __ vldr(double_base, FieldMemOperand(base, HeapNumber::kValueOffset));
+
+    __ bind(&convert_exponent);
+    __ JumpIfNotSmi(exponent, &exponent_not_smi);
+    __ SmiUntag(exponent);
+
+    // The base is in a double register and the exponent is
+    // an untagged smi. Allocate a heap number and call a
+    // C function for integer exponents. The register containing
+    // the heap number is callee-saved.
+    __ AllocateHeapNumber(heapnumber,
+                          scratch,
+                          scratch2,
+                          heapnumbermap,
+                          &call_runtime);
+    __ push(lr);
+    __ PrepareCallCFunction(3, scratch);
+    __ mov(r2, exponent);
+    __ vmov(r0, r1, double_base);
+    __ CallCFunction(ExternalReference::power_double_int_function(), 3);
+    __ pop(lr);
+    __ GetCFunctionDoubleResult(double_result);
+    __ vstr(double_result,
+            FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
+    __ mov(r0, heapnumber);
+    __ Ret(2 * kPointerSize);
+
+    __ bind(&exponent_not_smi);
+    __ ldr(scratch, FieldMemOperand(exponent, JSObject::kMapOffset));
+    __ cmp(scratch, heapnumbermap);
+    __ b(ne, &call_runtime);
+    // Exponent is a heapnumber. Load it into double register.
+    __ vldr(double_exponent,
+            FieldMemOperand(exponent, HeapNumber::kValueOffset));
+
+    // The base and the exponent are in double registers.
+    // Allocate a heap number and call a C function for
+    // double exponents. The register containing
+    // the heap number is callee-saved.
+    __ AllocateHeapNumber(heapnumber,
+                          scratch,
+                          scratch2,
+                          heapnumbermap,
+                          &call_runtime);
+    __ push(lr);
+    __ PrepareCallCFunction(4, scratch);
+    __ vmov(r0, r1, double_base);
+    __ vmov(r2, r3, double_exponent);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+    __ pop(lr);
+    __ GetCFunctionDoubleResult(double_result);
+    __ vstr(double_result,
+            FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
+    __ mov(r0, heapnumber);
+    __ Ret(2 * kPointerSize);
+  }
+
+  __ bind(&call_runtime);
+  __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+}
+
+
+bool CEntryStub::NeedsImmovableCode() {
+  return true;
+}
+
+
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   __ Throw(r0);
 }
@@ -6724,158 +6829,6 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   // Push return address (accessible to GC through exit frame pc).
   __ str(pc, MemOperand(sp, 0));
   __ Jump(target);  // Call the C++ function.
-}
-
-
-void GenerateFastPixelArrayLoad(MacroAssembler* masm,
-                                Register receiver,
-                                Register key,
-                                Register elements_map,
-                                Register elements,
-                                Register scratch1,
-                                Register scratch2,
-                                Register result,
-                                Label* not_pixel_array,
-                                Label* key_not_smi,
-                                Label* out_of_range) {
-  // Register use:
-  //
-  // receiver - holds the receiver on entry.
-  //            Unchanged unless 'result' is the same register.
-  //
-  // key      - holds the smi key on entry.
-  //            Unchanged unless 'result' is the same register.
-  //
-  // elements - set to be the receiver's elements on exit.
-  //
-  // elements_map - set to be the map of the receiver's elements
-  //            on exit.
-  //
-  // result   - holds the result of the pixel array load on exit,
-  //            tagged as a smi if successful.
-  //
-  // Scratch registers:
-  //
-  // scratch1 - used a scratch register in map check, if map
-  //            check is successful, contains the length of the
-  //            pixel array, the pointer to external elements and
-  //            the untagged result.
-  //
-  // scratch2 - holds the untaged key.
-
-  // Some callers already have verified that the key is a smi.  key_not_smi is
-  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
-  // to ensure the key is a smi must be added.
-  if (key_not_smi != NULL) {
-    __ JumpIfNotSmi(key, key_not_smi);
-  } else {
-    if (FLAG_debug_code) {
-      __ AbortIfNotSmi(key);
-    }
-  }
-  __ SmiUntag(scratch2, key);
-
-  // Verify that the receiver has pixel array elements.
-  __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  __ CheckMap(elements, scratch1, Heap::kPixelArrayMapRootIndex,
-              not_pixel_array, true);
-
-  // Key must be in range of the pixel array.
-  __ ldr(scratch1, FieldMemOperand(elements, PixelArray::kLengthOffset));
-  __ cmp(scratch2, scratch1);
-  __ b(hs, out_of_range);  // unsigned check handles negative keys.
-
-  // Perform the indexed load and tag the result as a smi.
-  __ ldr(scratch1,
-         FieldMemOperand(elements, PixelArray::kExternalPointerOffset));
-  __ ldrb(scratch1, MemOperand(scratch1, scratch2));
-  __ SmiTag(r0, scratch1);
-  __ Ret();
-}
-
-
-void GenerateFastPixelArrayStore(MacroAssembler* masm,
-                                 Register receiver,
-                                 Register key,
-                                 Register value,
-                                 Register elements,
-                                 Register elements_map,
-                                 Register scratch1,
-                                 Register scratch2,
-                                 bool load_elements_from_receiver,
-                                 bool load_elements_map_from_elements,
-                                 Label* key_not_smi,
-                                 Label* value_not_smi,
-                                 Label* not_pixel_array,
-                                 Label* out_of_range) {
-  // Register use:
-  //   receiver - holds the receiver and is unchanged unless the
-  //              store succeeds.
-  //   key - holds the key (must be a smi) and is unchanged.
-  //   value - holds the value (must be a smi) and is unchanged.
-  //   elements - holds the element object of the receiver on entry if
-  //              load_elements_from_receiver is false, otherwise used
-  //              internally to store the pixel arrays elements and
-  //              external array pointer.
-  //   elements_map - holds the map of the element object if
-  //              load_elements_map_from_elements is false, otherwise
-  //              loaded with the element map.
-  //
-  Register external_pointer = elements;
-  Register untagged_key = scratch1;
-  Register untagged_value = scratch2;
-
-  if (load_elements_from_receiver) {
-    __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  }
-
-  // By passing NULL as not_pixel_array, callers signal that they have already
-  // verified that the receiver has pixel array elements.
-  if (not_pixel_array != NULL) {
-    if (load_elements_map_from_elements) {
-      __ ldr(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
-    }
-    __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
-    __ cmp(elements_map, ip);
-    __ b(ne, not_pixel_array);
-  } else {
-    if (FLAG_debug_code) {
-      // Map check should have already made sure that elements is a pixel array.
-      __ ldr(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
-      __ LoadRoot(ip, Heap::kPixelArrayMapRootIndex);
-      __ cmp(elements_map, ip);
-      __ Assert(eq, "Elements isn't a pixel array");
-    }
-  }
-
-  // Some callers already have verified that the key is a smi.  key_not_smi is
-  // set to NULL as a sentinel for that case.  Otherwise, add an explicit check
-  // to ensure the key is a smi must be added.
-  if (key_not_smi != NULL) {
-    __ JumpIfNotSmi(key, key_not_smi);
-  } else {
-    if (FLAG_debug_code) {
-      __ AbortIfNotSmi(key);
-    }
-  }
-
-  __ SmiUntag(untagged_key, key);
-
-  // Perform bounds check.
-  __ ldr(scratch2, FieldMemOperand(elements, PixelArray::kLengthOffset));
-  __ cmp(untagged_key, scratch2);
-  __ b(hs, out_of_range);  // unsigned check handles negative keys.
-
-  __ JumpIfNotSmi(value, value_not_smi);
-  __ SmiUntag(untagged_value, value);
-
-  // Clamp the value to [0..255].
-  __ Usat(untagged_value, 8, Operand(untagged_value));
-  // Get the pointer to the external array. This clobbers elements.
-  __ ldr(external_pointer,
-         FieldMemOperand(elements, PixelArray::kExternalPointerOffset));
-  __ strb(untagged_value, MemOperand(external_pointer, untagged_key));
-  __ Ret();
 }
 
 

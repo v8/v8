@@ -2028,16 +2028,15 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
   push(kScratchRegister);  // Accessed from EditFrame::code_slot.
 
   // Save the frame pointer and the context in top.
-  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
-  ExternalReference context_address(Top::k_context_address);
   if (save_rax) {
-    movq(r14, rax);  // Backup rax before we use it.
+    movq(r14, rax);  // Backup rax in callee-save register.
   }
 
-  movq(rax, rbp);
-  store_rax(c_entry_fp_address);
-  movq(rax, rsi);
-  store_rax(context_address);
+  movq(kScratchRegister, ExternalReference(Top::k_c_entry_fp_address));
+  movq(Operand(kScratchRegister, 0), rbp);
+
+  movq(kScratchRegister, ExternalReference(Top::k_context_address));
+  movq(Operand(kScratchRegister, 0), rsi);
 }
 
 

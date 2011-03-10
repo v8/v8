@@ -200,11 +200,14 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     // stack frame was an arguments adapter frame.
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
     __ CallStub(&stub);
-    // Store new arguments object in both "arguments" and ".arguments" slots.
-    __ movq(rcx, rax);
+
+    Variable* arguments_shadow = scope()->arguments_shadow();
+    if (arguments_shadow != NULL) {
+      // Store new arguments object in both "arguments" and ".arguments" slots.
+      __ movq(rcx, rax);
+      Move(arguments_shadow->AsSlot(), rcx, rbx, rdx);
+    }
     Move(arguments->AsSlot(), rax, rbx, rdx);
-    Slot* dot_arguments_slot = scope()->arguments_shadow()->AsSlot();
-    Move(dot_arguments_slot, rcx, rbx, rdx);
   }
 
   if (FLAG_trace) {
@@ -834,6 +837,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     Comment cmnt(masm_, "[ Case body");
     CaseClause* clause = clauses->at(i);
     __ bind(clause->body_target()->entry_label());
+    PrepareForBailoutForId(clause->EntryId(), NO_REGISTERS);
     VisitStatements(clause->statements());
   }
 

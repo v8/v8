@@ -172,7 +172,7 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(JSObject* boilerplate) {
 
   // Deep copy local elements.
   // Pixel elements cannot be created using an object literal.
-  ASSERT(!copy->HasPixelElements() && !copy->HasExternalArrayElements());
+  ASSERT(!copy->HasExternalArrayElements());
   switch (copy->GetElementsKind()) {
     case JSObject::FAST_ELEMENTS: {
       FixedArray* elements = FixedArray::cast(copy->elements());
@@ -4344,7 +4344,7 @@ static MaybeObject* Runtime_GetArgumentsProperty(Arguments args) {
   JavaScriptFrame* frame = it.frame();
 
   // Get the actual number of provided arguments.
-  const uint32_t n = frame->GetProvidedParametersCount();
+  const uint32_t n = frame->ComputeParametersCount();
 
   // Try to convert the key to an index. If successful and within
   // index return the the argument from the frame.
@@ -6899,7 +6899,7 @@ static MaybeObject* Runtime_NewObjectFromBound(Arguments args) {
   ASSERT(!frame->is_optimized());
   it.AdvanceToArgumentsFrame();
   frame = it.frame();
-  int argc = frame->GetProvidedParametersCount();
+  int argc = frame->ComputeParametersCount();
 
   // Prepend bound arguments to caller's arguments.
   int total_argc = bound_argc + argc;
@@ -7738,7 +7738,7 @@ static void PrintTransition(Object* result) {
     // supplied parameters, not all parameters required)
     PrintF("(this=");
     PrintObject(frame->receiver());
-    const int length = frame->GetProvidedParametersCount();
+    const int length = frame->ComputeParametersCount();
     for (int i = 0; i < length; i++) {
       PrintF(", ");
       PrintObject(frame->GetParameter(i));
@@ -8327,9 +8327,9 @@ static void CollectElementIndices(Handle<JSObject> object,
     default: {
       int dense_elements_length;
       switch (kind) {
-        case JSObject::PIXEL_ELEMENTS: {
+        case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
         dense_elements_length =
-            PixelArray::cast(object->elements())->length();
+            ExternalPixelArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_BYTE_ELEMENTS: {
@@ -8453,8 +8453,9 @@ static bool IterateElements(Handle<JSArray> receiver,
       }
       break;
     }
-    case JSObject::PIXEL_ELEMENTS: {
-      Handle<PixelArray> pixels(PixelArray::cast(receiver->elements()));
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
+      Handle<ExternalPixelArray> pixels(ExternalPixelArray::cast(
+          receiver->elements()));
       for (uint32_t j = 0; j < length; j++) {
         Handle<Smi> e(Smi::FromInt(pixels->get(j)));
         visitor->visit(j, e);
@@ -9251,8 +9252,8 @@ static MaybeObject* Runtime_GetFrameDetails(Arguments args) {
   // Find the number of arguments to fill. At least fill the number of
   // parameters for the function and fill more if more parameters are provided.
   int argument_count = info.number_of_parameters();
-  if (argument_count < it.frame()->GetProvidedParametersCount()) {
-    argument_count = it.frame()->GetProvidedParametersCount();
+  if (argument_count < it.frame()->ComputeParametersCount()) {
+    argument_count = it.frame()->ComputeParametersCount();
   }
 
   // Calculate the size of the result.
@@ -9309,7 +9310,7 @@ static MaybeObject* Runtime_GetFrameDetails(Arguments args) {
     // TODO(3141533): We should be able to get the actual parameter
     // value for optimized frames.
     if (!is_optimized_frame &&
-        (i < it.frame()->GetProvidedParametersCount())) {
+        (i < it.frame()->ComputeParametersCount())) {
       details->set(details_index++, it.frame()->GetParameter(i));
     } else {
       details->set(details_index++, Heap::undefined_value());
@@ -10189,7 +10190,7 @@ static Handle<Object> GetArgumentsObject(JavaScriptFrame* frame,
     }
   }
 
-  const int length = frame->GetProvidedParametersCount();
+  const int length = frame->ComputeParametersCount();
   Handle<JSObject> arguments = Factory::NewArgumentsObject(function, length);
   Handle<FixedArray> array = Factory::NewFixedArray(length);
 

@@ -175,6 +175,8 @@ class AstNode: public ZoneObject {
   static unsigned current_id_;
   static unsigned count_;
   unsigned id_;
+
+  friend class CaseClause;  // Generates AST IDs.
 };
 
 
@@ -694,6 +696,8 @@ class CaseClause: public ZoneObject {
   int position() { return position_; }
   void set_position(int pos) { position_ = pos; }
 
+  int EntryId() { return entry_id_; }
+
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   bool IsSmiCompare() { return compare_type_ == SMI_ONLY; }
@@ -706,6 +710,7 @@ class CaseClause: public ZoneObject {
   int position_;
   enum CompareTypeFeedback { NONE, SMI_ONLY, OBJECT_ONLY };
   CompareTypeFeedback compare_type_;
+  int entry_id_;
 };
 
 
@@ -1232,6 +1237,11 @@ class Property: public Expression {
   }
   bool is_arguments_access() const { return is_arguments_access_; }
 
+  ExternalArrayType GetExternalArrayType() const { return array_type_; }
+  void SetExternalArrayType(ExternalArrayType array_type) {
+    array_type_ = array_type;
+  }
+
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
@@ -1258,6 +1268,7 @@ class Property: public Expression {
   bool is_function_prototype_ : 1;
   bool is_arguments_access_ : 1;
   Handle<Map> monomorphic_receiver_type_;
+  ExternalArrayType array_type_;
 
   // Dummy property used during preparsing.
   static Property this_property_;
@@ -1621,6 +1632,10 @@ class Assignment: public Expression {
   virtual Handle<Map> GetMonomorphicReceiverType() {
     return monomorphic_receiver_type_;
   }
+  ExternalArrayType GetExternalArrayType() const { return array_type_; }
+  void SetExternalArrayType(ExternalArrayType array_type) {
+    array_type_ = array_type;
+  }
 
   // Bailout support.
   int CompoundLoadId() const { return compound_load_id_; }
@@ -1641,6 +1656,7 @@ class Assignment: public Expression {
   bool is_monomorphic_;
   ZoneMapList* receiver_types_;
   Handle<Map> monomorphic_receiver_type_;
+  ExternalArrayType array_type_;
 };
 
 
@@ -1673,8 +1689,7 @@ class FunctionLiteral: public Expression {
                   int start_position,
                   int end_position,
                   bool is_expression,
-                  bool contains_loops,
-                  bool strict_mode)
+                  bool contains_loops)
       : name_(name),
         scope_(scope),
         body_(body),
@@ -1688,7 +1703,6 @@ class FunctionLiteral: public Expression {
         end_position_(end_position),
         is_expression_(is_expression),
         contains_loops_(contains_loops),
-        strict_mode_(strict_mode),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(Heap::empty_string()),
         try_full_codegen_(false),
@@ -1705,7 +1719,7 @@ class FunctionLiteral: public Expression {
   int end_position() const { return end_position_; }
   bool is_expression() const { return is_expression_; }
   bool contains_loops() const { return contains_loops_; }
-  bool strict_mode() const { return strict_mode_; }
+  bool strict_mode() const;
 
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }

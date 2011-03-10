@@ -554,7 +554,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- rsp[0] : return address
   // -----------------------------------
   Label slow, check_string, index_smi, index_string, property_array_property;
-  Label check_pixel_array, probe_dictionary, check_number_dictionary;
+  Label probe_dictionary, check_number_dictionary;
 
   // Check that the key is a smi.
   __ JumpIfNotSmi(rax, &check_string);
@@ -569,7 +569,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // now in rcx.
   __ testb(FieldOperand(rcx, Map::kBitField2Offset),
            Immediate(1 << Map::kHasFastElements));
-  __ j(zero, &check_pixel_array);
+  __ j(zero, &check_number_dictionary);
 
   GenerateFastArrayLoad(masm,
                         rdx,
@@ -582,18 +582,10 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ IncrementCounter(&Counters::keyed_load_generic_smi, 1);
   __ ret(0);
 
-  __ bind(&check_pixel_array);
-  GenerateFastPixelArrayLoad(masm,
-                             rdx,
-                             rax,
-                             rcx,
-                             rbx,
-                             rax,
-                             &check_number_dictionary,
-                             NULL,
-                             &slow);
-
   __ bind(&check_number_dictionary);
+  __ SmiToInteger32(rbx, rax);
+  __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
+
   // Check whether the elements is a number dictionary.
   // rdx: receiver
   // rax: key
@@ -774,7 +766,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   //  -- rdx     : receiver
   //  -- rsp[0]  : return address
   // -----------------------------------
-  Label slow, slow_with_tagged_index, fast, array, extra, check_pixel_array;
+  Label slow, slow_with_tagged_index, fast, array, extra;
 
   // Check that the object isn't a smi.
   __ JumpIfSmi(rdx, &slow_with_tagged_index);
@@ -803,7 +795,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Check that the object is in fast mode and writable.
   __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
                  Heap::kFixedArrayMapRootIndex);
-  __ j(not_equal, &check_pixel_array);
+  __ j(not_equal, &slow);
   __ SmiCompareInteger32(FieldOperand(rbx, FixedArray::kLengthOffset), rcx);
   // rax: value
   // rbx: FixedArray
@@ -816,25 +808,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ bind(&slow_with_tagged_index);
   GenerateRuntimeSetProperty(masm, strict_mode);
   // Never returns to here.
-
-  // Check whether the elements is a pixel array.
-  // rax: value
-  // rdx: receiver
-  // rbx: receiver's elements array
-  // rcx: index, zero-extended.
-  __ bind(&check_pixel_array);
-  GenerateFastPixelArrayStore(masm,
-                              rdx,
-                              rcx,
-                              rax,
-                              rbx,
-                              rdi,
-                              false,
-                              true,
-                              NULL,
-                              &slow,
-                              &slow,
-                              &slow);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one

@@ -748,11 +748,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::MathPow: {
-      MathPowStub stub;
-      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::NumberToString: {
       NumberToStringStub stub;
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
@@ -1086,10 +1081,10 @@ void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
 }
 
 
-void LCodeGen::DoPixelArrayLength(LPixelArrayLength* instr) {
+void LCodeGen::DoExternalArrayLength(LExternalArrayLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->InputAt(0));
-  __ mov(result, FieldOperand(array, PixelArray::kLengthOffset));
+  __ mov(result, FieldOperand(array, ExternalArray::kLengthOffset));
 }
 
 
@@ -2130,7 +2125,7 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
            Immediate(Factory::fixed_array_map()));
     __ j(equal, &done);
     __ cmp(FieldOperand(result, HeapObject::kMapOffset),
-           Immediate(Factory::pixel_array_map()));
+           Immediate(Factory::external_pixel_array_map()));
     __ j(equal, &done);
     __ cmp(FieldOperand(result, HeapObject::kMapOffset),
            Immediate(Factory::fixed_cow_array_map()));
@@ -2140,11 +2135,12 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
 }
 
 
-void LCodeGen::DoLoadPixelArrayExternalPointer(
-    LLoadPixelArrayExternalPointer* instr) {
+void LCodeGen::DoLoadExternalArrayPointer(
+    LLoadExternalArrayPointer* instr) {
   Register result = ToRegister(instr->result());
   Register input = ToRegister(instr->InputAt(0));
-  __ mov(result, FieldOperand(input, PixelArray::kExternalPointerOffset));
+  __ mov(result, FieldOperand(input,
+                              ExternalArray::kExternalPointerOffset));
 }
 
 

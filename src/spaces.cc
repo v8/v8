@@ -1694,8 +1694,10 @@ static void ReportCodeKindStatistics() {
       CASE(BUILTIN);
       CASE(LOAD_IC);
       CASE(KEYED_LOAD_IC);
+      CASE(KEYED_EXTERNAL_ARRAY_LOAD_IC);
       CASE(STORE_IC);
       CASE(KEYED_STORE_IC);
+      CASE(KEYED_EXTERNAL_ARRAY_STORE_IC);
       CASE(CALL_IC);
       CASE(KEYED_CALL_IC);
       CASE(BINARY_OP_IC);

@@ -199,10 +199,13 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     // stack frame was an arguments adapter frame.
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
     __ CallStub(&stub);
-    __ mov(ecx, eax);  // Duplicate result.
+
+    Variable* arguments_shadow = scope()->arguments_shadow();
+    if (arguments_shadow != NULL) {
+      __ mov(ecx, eax);  // Duplicate result.
+      Move(arguments_shadow->AsSlot(), ecx, ebx, edx);
+    }
     Move(arguments->AsSlot(), eax, ebx, edx);
-    Slot* dot_arguments_slot = scope()->arguments_shadow()->AsSlot();
-    Move(dot_arguments_slot, ecx, ebx, edx);
   }
 
   if (FLAG_trace) {
@@ -822,6 +825,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     Comment cmnt(masm_, "[ Case body");
     CaseClause* clause = clauses->at(i);
     __ bind(clause->body_target()->entry_label());
+    PrepareForBailoutForId(clause->EntryId(), NO_REGISTERS);
     VisitStatements(clause->statements());
   }
 
