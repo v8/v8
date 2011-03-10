@@ -69,7 +69,7 @@ void ProfilerEventsProcessor::CallbackCreateEvent(Logger::LogEventsAndTags tag,
   rec->start = start;
   rec->entry = generator_->NewCodeEntry(tag, prefix, name);
   rec->size = 1;
-  rec->shared = NULL;
+  rec->sfi_address = NULL;
   events_buffer_.Enqueue(evt_rec);
 }
 
@@ -80,7 +80,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                               int line_number,
                                               Address start,
                                               unsigned size,
-                                              Address shared) {
+                                              Address sfi_address) {
   if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec;
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -89,7 +89,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->start = start;
   rec->entry = generator_->NewCodeEntry(tag, name, resource_name, line_number);
   rec->size = size;
-  rec->shared = shared;
+  rec->sfi_address = sfi_address;
   events_buffer_.Enqueue(evt_rec);
 }
 
@@ -106,7 +106,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->start = start;
   rec->entry = generator_->NewCodeEntry(tag, name);
   rec->size = size;
-  rec->shared = NULL;
+  rec->sfi_address = NULL;
   events_buffer_.Enqueue(evt_rec);
 }
 
@@ -123,7 +123,7 @@ void ProfilerEventsProcessor::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->start = start;
   rec->entry = generator_->NewCodeEntry(tag, args_count);
   rec->size = size;
-  rec->shared = NULL;
+  rec->sfi_address = NULL;
   events_buffer_.Enqueue(evt_rec);
 }
 
@@ -149,12 +149,10 @@ void ProfilerEventsProcessor::CodeDeleteEvent(Address from) {
 }
 
 
-void ProfilerEventsProcessor::SharedFunctionInfoMoveEvent(Address from,
-                                                          Address to) {
+void ProfilerEventsProcessor::SFIMoveEvent(Address from, Address to) {
   CodeEventsContainer evt_rec;
-  SharedFunctionInfoMoveEventRecord* rec =
-      &evt_rec.SharedFunctionInfoMoveEventRecord_;
-  rec->type = CodeEventRecord::SHARED_FUNC_MOVE;
+  SFIMoveEventRecord* rec = &evt_rec.SFIMoveEventRecord_;
+  rec->type = CodeEventRecord::SFI_MOVE;
   rec->order = ++enqueue_order_;
   rec->from = from;
   rec->to = to;
@@ -405,8 +403,8 @@ void CpuProfiler::CodeDeleteEvent(Address from) {
 }
 
 
-void CpuProfiler::SharedFunctionInfoMoveEvent(Address from, Address to) {
-  singleton_->processor_->SharedFunctionInfoMoveEvent(from, to);
+void CpuProfiler::SFIMoveEvent(Address from, Address to) {
+  singleton_->processor_->SFIMoveEvent(from, to);
 }
 
 

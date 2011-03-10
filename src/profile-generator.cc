@@ -465,7 +465,7 @@ void CpuProfile::Print() {
 }
 
 
-CodeEntry* const CodeMap::kSharedFunctionCodeEntry = NULL;
+CodeEntry* const CodeMap::kSfiCodeEntry = NULL;
 const CodeMap::CodeTreeConfig::Key CodeMap::CodeTreeConfig::kNoKey = NULL;
 const CodeMap::CodeTreeConfig::Value CodeMap::CodeTreeConfig::kNoValue =
     CodeMap::CodeEntryInfo(NULL, 0);
@@ -483,18 +483,18 @@ CodeEntry* CodeMap::FindEntry(Address addr) {
 }
 
 
-int CodeMap::GetSharedId(Address addr) {
+int CodeMap::GetSFITag(Address addr) {
   CodeTree::Locator locator;
-  // For shared function entries, 'size' field is used to store their IDs.
+  // For SFI entries, 'size' field is used to store their IDs.
   if (tree_.Find(addr, &locator)) {
     const CodeEntryInfo& entry = locator.value();
-    ASSERT(entry.entry == kSharedFunctionCodeEntry);
+    ASSERT(entry.entry == kSfiCodeEntry);
     return entry.size;
   } else {
     tree_.Insert(addr, &locator);
-    int id = next_shared_id_++;
-    locator.set_value(CodeEntryInfo(kSharedFunctionCodeEntry, id));
-    return id;
+    int tag = next_sfi_tag_++;
+    locator.set_value(CodeEntryInfo(kSfiCodeEntry, tag));
+    return tag;
   }
 }
 
