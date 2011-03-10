@@ -91,7 +91,7 @@ class LogMessageBuilder;
   V(CODE_MOVE_EVENT,                "code-move")                \
   V(CODE_DELETE_EVENT,              "code-delete")              \
   V(CODE_MOVING_GC,                 "code-moving-gc")           \
-  V(SFI_MOVE_EVENT,                 "sfi-move")                 \
+  V(SHARED_FUNC_MOVE_EVENT,         "sfi-move")                 \
   V(SNAPSHOT_POSITION_EVENT,        "snapshot-pos")             \
   V(TICK_EVENT,                     "tick")                     \
   V(REPEAT_META_EVENT,              "repeat")                   \
@@ -224,7 +224,7 @@ class Logger {
   // Emits a code delete event.
   static void CodeDeleteEvent(Address from);
 
-  static void SFIMoveEvent(Address from, Address to);
+  static void SharedFunctionInfoMoveEvent(Address from, Address to);
 
   static void SnapshotPositionEvent(Address addr, int pos);
 

@@ -236,12 +236,12 @@ class CpuProfile {
 
 class CodeMap {
  public:
-  CodeMap() : next_sfi_tag_(1) { }
+  CodeMap() : next_shared_id_(1) { }
   INLINE(void AddCode(Address addr, CodeEntry* entry, unsigned size));
   INLINE(void MoveCode(Address from, Address to));
   INLINE(void DeleteCode(Address addr));
   CodeEntry* FindEntry(Address addr);
-  int GetSFITag(Address addr);
+  int GetSharedId(Address addr);
 
   void Print();
 
@@ -269,11 +269,11 @@ class CodeMap {
     void Call(const Address& key, const CodeEntryInfo& value);
   };
 
-  // Fake CodeEntry pointer to distinguish SFI entries.
-  static CodeEntry* const kSfiCodeEntry;
+  // Fake CodeEntry pointer to distinguish shared function entries.
+  static CodeEntry* const kSharedFunctionCodeEntry;
 
   CodeTree tree_;
-  int next_sfi_tag_;
+  int next_shared_id_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeMap);
 };
