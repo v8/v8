@@ -502,11 +502,19 @@ def PrintError(str):
 
 
 def CheckedUnlink(name):
-  try:
-    os.unlink(name)
-  except OSError, e:
-    PrintError("os.unlink() " + str(e))
-
+  # On Windows, when run with -jN in parallel processes,
+  # OS often fails to unlink the temp file. Not sure why.
+  # Need to retry.
+  # Idea from https://bugs.webkit.org/attachment.cgi?id=75982&action=prettypatch
+  retry_count = 0
+  while retry_count < 30:
+    try:
+      os.unlink(name)
+      return
+    except OSError, e:
+      retry_count += 1;
+      time.sleep(retry_count * 0.1)
+  PrintError("os.unlink() " + str(e))
 
 def Execute(args, context, timeout=None):
   (fd_out, outname) = tempfile.mkstemp()
