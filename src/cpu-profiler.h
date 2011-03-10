@@ -46,11 +46,11 @@ class HashMap;
 class ProfileGenerator;
 class TokenEnumerator;
 
-#define CODE_EVENTS_TYPE_LIST(V)                                \
-  V(CODE_CREATION, CodeCreateEventRecord)                       \
-  V(CODE_MOVE,     CodeMoveEventRecord)                         \
-  V(CODE_DELETE,   CodeDeleteEventRecord)                       \
-  V(SHARED_FUNC_MOVE,      SharedFunctionMoveEventRecord)
+#define CODE_EVENTS_TYPE_LIST(V)                                   \
+  V(CODE_CREATION,    CodeCreateEventRecord)                       \
+  V(CODE_MOVE,        CodeMoveEventRecord)                         \
+  V(CODE_DELETE,      CodeDeleteEventRecord)                       \
+  V(SHARED_FUNC_MOVE, SharedFunctionInfoMoveEventRecord)
 
 
 class CodeEventRecord {
@@ -96,7 +96,7 @@ class CodeDeleteEventRecord : public CodeEventRecord {
 };
 
 
-class SharedFunctionMoveEventRecord : public CodeEventRecord {
+class SharedFunctionInfoMoveEventRecord : public CodeEventRecord {
  public:
   Address from;
   Address to;
@@ -158,7 +158,7 @@ class ProfilerEventsProcessor : public Thread {
                        Address start, unsigned size);
   void CodeMoveEvent(Address from, Address to);
   void CodeDeleteEvent(Address from);
-  void SharedFunctionMoveEvent(Address from, Address to);
+  void SharedFunctionInfoMoveEvent(Address from, Address to);
   void RegExpCodeCreateEvent(Logger::LogEventsAndTags tag,
                              const char* prefix, String* name,
                              Address start, unsigned size);
@@ -251,7 +251,7 @@ class CpuProfiler {
   static void GetterCallbackEvent(String* name, Address entry_point);
   static void RegExpCodeCreateEvent(Code* code, String* source);
   static void SetterCallbackEvent(String* name, Address entry_point);
-  static void SharedFunctionMoveEvent(Address from, Address to);
+  static void SharedFunctionInfoMoveEvent(Address from, Address to);
 
   static INLINE(bool is_profiling()) {
     return NoBarrier_Load(&is_profiling_);

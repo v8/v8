@@ -881,7 +881,7 @@ void Logger::SnapshotPositionEvent(Address addr, int pos) {
 }
 
 
-void Logger::SharedFunctionMoveEvent(Address from, Address to) {
+void Logger::SharedFunctionInfoMoveEvent(Address from, Address to) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   MoveEventInternal(SHARED_FUNC_MOVE_EVENT, from, to);
 #endif

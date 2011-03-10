@@ -224,7 +224,7 @@ class Logger {
   // Emits a code delete event.
   static void CodeDeleteEvent(Address from);
 
-  static void SharedFunctionMoveEvent(Address from, Address to);
+  static void SharedFunctionInfoMoveEvent(Address from, Address to);
 
   static void SnapshotPositionEvent(Address addr, int pos);
 
