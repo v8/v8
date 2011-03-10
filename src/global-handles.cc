@@ -210,7 +210,7 @@ class GlobalHandles::Node : public Malloced {
     NEAR_DEATH,  // Callback has informed the handle is near death.
     DESTROYED
   };
-  State state_ : 3;
+  State state_;
 
  private:
   // Handle specific callback.
