@@ -555,7 +555,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   // Allocate HandleScope in callee-save registers.
   Register prev_next_address_reg = r14;
   Register prev_limit_reg = rbx;
-  Register base_reg = r12;
+  Register base_reg = r15;
   movq(base_reg, next_address);
   movq(prev_next_address_reg, Operand(base_reg, kNextOffset));
   movq(prev_limit_reg, Operand(base_reg, kLimitOffset));
@@ -721,11 +721,11 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
       bind(&ok);
     }
   }
-  if (source->value() == 0) {
+  int value = source->value();
+  if (value == 0) {
     xorl(dst, dst);
     return;
   }
-  int value = source->value();
   bool negative = value < 0;
   unsigned int uvalue = negative ? -value : value;
 
@@ -1474,10 +1474,10 @@ void MacroAssembler::Pushad() {
   push(r9);
   // r10 is kScratchRegister.
   push(r11);
-  push(r12);
+  // r12 is kSmiConstantRegister.
   // r13 is kRootRegister.
   push(r14);
-  // r15 is kSmiConstantRegister
+  push(r15);
   STATIC_ASSERT(11 == kNumSafepointSavedRegisters);
   // Use lea for symmetry with Popad.
   int sp_delta =
@@ -1491,8 +1491,8 @@ void MacroAssembler::Popad() {
   int sp_delta =
       (kNumSafepointRegisters - kNumSafepointSavedRegisters) * kPointerSize;
   lea(rsp, Operand(rsp, sp_delta));
+  pop(r15);
   pop(r14);
-  pop(r12);
   pop(r11);
   pop(r9);
   pop(r8);
@@ -1511,7 +1511,7 @@ void MacroAssembler::Dropad() {
 
 
 // Order general registers are pushed by Pushad:
-// rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14.
+// rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.
 int MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
     0,
     1,
@@ -1525,10 +1525,10 @@ int MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
     7,
     -1,
     8,
-    9,
     -1,
-    10,
-    -1
+    -1,
+    9,
+    10
 };
 
 
@@ -2077,10 +2077,10 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
 void MacroAssembler::EnterExitFrame(int arg_stack_space, bool save_doubles) {
   EnterExitFramePrologue(true);
 
-  // Setup argv in callee-saved register r12. It is reused in LeaveExitFrame,
+  // Setup argv in callee-saved register r15. It is reused in LeaveExitFrame,
   // so it must be retained across the C-call.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  lea(r12, Operand(rbp, r14, times_pointer_size, offset));
+  lea(r15, Operand(rbp, r14, times_pointer_size, offset));
 
   EnterExitFrameEpilogue(arg_stack_space, save_doubles);
 }
@@ -2094,7 +2094,7 @@ void MacroAssembler::EnterApiExitFrame(int arg_stack_space) {
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   // Registers:
-  // r12 : argv
+  // r15 : argv
   if (save_doubles) {
     int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; i++) {
@@ -2108,7 +2108,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
 
   // Drop everything up to and including the arguments and the receiver
   // from the caller stack.
-  lea(rsp, Operand(r12, 1 * kPointerSize));
+  lea(rsp, Operand(r15, 1 * kPointerSize));
 
   // Push the return address to get ready to return.
   push(rcx);

@@ -3321,7 +3321,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // rbp: frame pointer  (restored after C call).
   // rsp: stack pointer  (restored after C call).
   // r14: number of arguments including receiver (C callee-saved).
-  // r12: pointer to the first argument (C callee-saved).
+  // r15: pointer to the first argument (C callee-saved).
   //      This pointer is reused in LeaveExitFrame(), so it is stored in a
   //      callee-saved register.
 
@@ -3362,7 +3362,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9
   // Store Arguments object on stack, below the 4 WIN64 ABI parameter slots.
   __ movq(StackSpaceOperand(0), r14);  // argc.
-  __ movq(StackSpaceOperand(1), r12);  // argv.
+  __ movq(StackSpaceOperand(1), r15);  // argv.
   if (result_size_ < 2) {
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax).
@@ -3378,7 +3378,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 #else  // _WIN64
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
   __ movq(rdi, r14);  // argc.
-  __ movq(rsi, r12);  // argv.
+  __ movq(rsi, r15);  // argv.
 #endif
   __ call(rbx);
   // Result is in rax - do not destroy this register!
@@ -3482,7 +3482,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // rbp: frame pointer of exit frame  (restored after C call).
   // rsp: stack pointer (restored after C call).
   // r14: number of arguments including receiver (C callee-saved).
-  // r12: argv pointer (C callee-saved).
+  // r15: argv pointer (C callee-saved).
 
   Label throw_normal_exception;
   Label throw_termination_exception;
@@ -4173,7 +4173,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // just allocate a new one.
   Label make_two_character_string, make_flat_ascii_string;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, rbx, rcx, r14, r11, rdi, r12, &make_two_character_string);
+      masm, rbx, rcx, r14, r11, rdi, r15, &make_two_character_string);
   __ IncrementCounter(&Counters::string_add_native, 1);
   __ ret(2 * kPointerSize);
 

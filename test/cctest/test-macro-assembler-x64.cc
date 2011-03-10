@@ -57,9 +57,9 @@ using v8::internal::rsp;
 using v8::internal::r8;
 using v8::internal::r9;
 using v8::internal::r11;
-using v8::internal::r12;
 using v8::internal::r13;
 using v8::internal::r14;
+using v8::internal::r15;
 using v8::internal::times_pointer_size;
 using v8::internal::FUNCTION_CAST;
 using v8::internal::CodeDesc;
@@ -1120,30 +1120,30 @@ void TestSmiDiv(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   if (!fraction && !overflow && !negative_zero && !division_by_zero) {
     // Division succeeds
     __ movq(rcx, r11);
-    __ movq(r12, Immediate(id));
+    __ movq(r15, Immediate(id));
     int result = x / y;
     __ Move(r8, Smi::FromInt(result));
     __ SmiDiv(r9, rcx, r14, exit);
     // Might have destroyed rcx and r14.
-    __ incq(r12);
+    __ incq(r15);
     __ SmiCompare(r9, r8);
     __ j(not_equal, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ movq(rcx, r11);
     __ Move(r14, Smi::FromInt(y));
     __ SmiCompare(rcx, r11);
     __ j(not_equal, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiDiv(rcx, rcx, r14, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiCompare(rcx, r8);
     __ j(not_equal, exit);
   } else {
     // Division fails.
-    __ movq(r12, Immediate(id + 8));
+    __ movq(r15, Immediate(id + 8));
 
     Label fail_ok, fail_ok2;
     __ movq(rcx, r11);
@@ -1151,16 +1151,16 @@ void TestSmiDiv(MacroAssembler* masm, Label* exit, int id, int x, int y) {
     __ jmp(exit);
     __ bind(&fail_ok);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiCompare(rcx, r11);
     __ j(not_equal, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiDiv(rcx, rcx, r14, &fail_ok2);
     __ jmp(exit);
     __ bind(&fail_ok2);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiCompare(rcx, r11);
     __ j(not_equal, exit);
   }
@@ -1184,7 +1184,7 @@ TEST(SmiDiv) {
   Label exit;
 
   __ push(r14);
-  __ push(r12);
+  __ push(r15);
   TestSmiDiv(masm, &exit, 0x10, 1, 1);
   TestSmiDiv(masm, &exit, 0x20, 1, 0);
   TestSmiDiv(masm, &exit, 0x30, -1, 0);
@@ -1206,10 +1206,10 @@ TEST(SmiDiv) {
   TestSmiDiv(masm, &exit, 0x130, Smi::kMinValue, Smi::kMinValue);
   TestSmiDiv(masm, &exit, 0x140, Smi::kMinValue, -1);
 
-  __ xor_(r12, r12);  // Success.
+  __ xor_(r15, r15);  // Success.
   __ bind(&exit);
-  __ movq(rax, r12);
-  __ pop(r12);
+  __ movq(rax, r15);
+  __ pop(r15);
   __ pop(r14);
   ExitCode(masm);
   __ ret(0);
@@ -1232,44 +1232,44 @@ void TestSmiMod(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   __ Move(r14, Smi::FromInt(y));
   if (!division_overflow && !negative_zero && !division_by_zero) {
     // Modulo succeeds
-    __ movq(r12, Immediate(id));
+    __ movq(r15, Immediate(id));
     int result = x % y;
     __ Move(r8, Smi::FromInt(result));
     __ SmiMod(r9, rcx, r14, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiCompare(r9, r8);
     __ j(not_equal, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiCompare(rcx, r11);
     __ j(not_equal, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiMod(rcx, rcx, r14, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiCompare(rcx, r8);
     __ j(not_equal, exit);
   } else {
     // Modulo fails.
-    __ movq(r12, Immediate(id + 8));
+    __ movq(r15, Immediate(id + 8));
 
     Label fail_ok, fail_ok2;
     __ SmiMod(r9, rcx, r14, &fail_ok);
     __ jmp(exit);
     __ bind(&fail_ok);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiCompare(rcx, r11);
     __ j(not_equal, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiMod(rcx, rcx, r14, &fail_ok2);
     __ jmp(exit);
     __ bind(&fail_ok2);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiCompare(rcx, r11);
     __ j(not_equal, exit);
   }
@@ -1293,7 +1293,7 @@ TEST(SmiMod) {
   Label exit;
 
   __ push(r14);
-  __ push(r12);
+  __ push(r15);
   TestSmiMod(masm, &exit, 0x10, 1, 1);
   TestSmiMod(masm, &exit, 0x20, 1, 0);
   TestSmiMod(masm, &exit, 0x30, -1, 0);
@@ -1315,10 +1315,10 @@ TEST(SmiMod) {
   TestSmiMod(masm, &exit, 0x130, Smi::kMinValue, Smi::kMinValue);
   TestSmiMod(masm, &exit, 0x140, Smi::kMinValue, -1);
 
-  __ xor_(r12, r12);  // Success.
+  __ xor_(r15, r15);  // Success.
   __ bind(&exit);
-  __ movq(rax, r12);
-  __ pop(r12);
+  __ movq(rax, r15);
+  __ pop(r15);
   __ pop(r14);
   ExitCode(masm);
   __ ret(0);
@@ -2150,7 +2150,7 @@ TEST(OperandOffset) {
   __ push(Immediate(0x108));
   __ push(Immediate(0x109));  // <-- rsp
   // rbp = rsp[9]
-  // r12 = rsp[3]
+  // r15 = rsp[3]
   // rbx = rsp[5]
   // r13 = rsp[7]
   __ lea(r14, Operand(rsp, 3 * kPointerSize));

@@ -60,10 +60,10 @@ int RegisterAllocator::ToNumber(Register reg) {
     6,   // r9
     -1,  // r10  Scratch register.
     8,   // r11
-    9,   // r12
+    -1,  // r12  Smi constant.
     -1,  // r13  Roots array.  This is callee saved.
     7,   // r14
-    -1   // r15  Smi constant register.
+    9    // r15
   };
   return kNumbers[reg.code()];
 }
@@ -72,7 +72,7 @@ int RegisterAllocator::ToNumber(Register reg) {
 Register RegisterAllocator::ToRegister(int num) {
   ASSERT(num >= 0 && num < kNumRegisters);
   const Register kRegisters[] =
-      { rax, rbx, rcx, rdx, rdi, r8, r9, r14, r11, r12 };
+      { rax, rbx, rcx, rdx, rdi, r8, r9, r14, r11, r15 };
   return kRegisters[num];
 }
 
