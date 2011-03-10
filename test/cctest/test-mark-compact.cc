@@ -339,8 +339,8 @@ TEST(ObjectGroups) {
   {
     Object** g1_objects[] = { g1s1.location(), g1s2.location() };
     Object** g2_objects[] = { g2s1.location(), g2s2.location() };
-    GlobalHandles::AddGroup(g1_objects, 2);
-    GlobalHandles::AddGroup(g2_objects, 2);
+    GlobalHandles::AddGroup(g1_objects, 2, NULL);
+    GlobalHandles::AddGroup(g2_objects, 2, NULL);
   }
   // Do a full GC
   Heap::CollectGarbage(OLD_POINTER_SPACE);
@@ -357,8 +357,8 @@ TEST(ObjectGroups) {
   {
     Object** g1_objects[] = { g1s1.location(), g1s2.location() };
     Object** g2_objects[] = { g2s1.location(), g2s2.location() };
-    GlobalHandles::AddGroup(g1_objects, 2);
-    GlobalHandles::AddGroup(g2_objects, 2);
+    GlobalHandles::AddGroup(g1_objects, 2, NULL);
+    GlobalHandles::AddGroup(g2_objects, 2, NULL);
   }
 
   Heap::CollectGarbage(OLD_POINTER_SPACE);

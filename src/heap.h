@@ -1138,6 +1138,14 @@ class Heap : public AllStatic {
 
   static GCTracer* tracer() { return tracer_; }
 
+  static void CallGlobalGCPrologueCallback() {
+    if (global_gc_prologue_callback_ != NULL) global_gc_prologue_callback_();
+  }
+
+  static void CallGlobalGCEpilogueCallback() {
+    if (global_gc_epilogue_callback_ != NULL) global_gc_epilogue_callback_();
+  }
+
  private:
   static int reserved_semispace_size_;
   static int max_semispace_size_;

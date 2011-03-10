@@ -396,6 +396,12 @@ template <class T> class Persistent : public Handle<T> {
    */
   inline bool IsWeak() const;
 
+  /**
+   * Assigns a wrapper class ID to the handle. See RetainedObjectInfo
+   * interface description in v8-profiler.h for details.
+   */
+  inline void SetWrapperClassId(uint16_t class_id);
+
  private:
   friend class ImplementationUtilities;
   friend class ObjectTemplate;
@@ -2534,6 +2540,8 @@ class V8EXPORT HeapStatistics {
 };
 
 
+class RetainedObjectInfo;
+
 /**
  * Container class for static utility functions.
  */
@@ -2703,8 +2711,11 @@ class V8EXPORT V8 {
    * intended to be used in the before-garbage-collection callback
    * function, for instance to simulate DOM tree connections among JS
    * wrapper objects.
+   * See v8-profiler.h for RetainedObjectInfo interface description.
    */
-  static void AddObjectGroup(Persistent<Value>* objects, size_t length);
+  static void AddObjectGroup(Persistent<Value>* objects,
+                             size_t length,
+                             RetainedObjectInfo* info = NULL);
 
   /**
    * Initializes from snapshot if possible. Otherwise, attempts to
@@ -2913,6 +2924,8 @@ class V8EXPORT V8 {
   static void ClearWeak(internal::Object** global_handle);
   static bool IsGlobalNearDeath(internal::Object** global_handle);
   static bool IsGlobalWeak(internal::Object** global_handle);
+  static void SetWrapperClassId(internal::Object** global_handle,
+                                uint16_t class_id);
 
   template <class T> friend class Handle;
   template <class T> friend class Local;
@@ -3561,6 +3574,10 @@ void Persistent<T>::ClearWeak() {
   V8::ClearWeak(reinterpret_cast<internal::Object**>(**this));
 }
 
+template <class T>
+void Persistent<T>::SetWrapperClassId(uint16_t class_id) {
+  V8::SetWrapperClassId(reinterpret_cast<internal::Object**>(**this), class_id);
+}
 
 Arguments::Arguments(internal::Object** implicit_args,
                      internal::Object** values, int length,
