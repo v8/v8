@@ -2134,6 +2134,8 @@ void HGraphBuilder::VisitExpressions(ZoneList<Expression*>* exprs) {
 
 HGraph* HGraphBuilder::CreateGraph() {
   graph_ = new HGraph(info());
+  if (FLAG_hydrogen_stats) HStatistics::Instance()->Initialize(info());
+
   {
     HPhase phase("Block building");
     current_block_ = graph()->entry_block();
@@ -5810,6 +5812,11 @@ void HTracer::FlushToFile() {
 }
 
 
+void HStatistics::Initialize(CompilationInfo* info) {
+  source_size_ += info->shared_info()->SourceSize();
+}
+
+
 void HStatistics::Print() {
   PrintF("Timing results:\n");
   int64_t sum = 0;
@@ -5827,9 +5834,10 @@ void HStatistics::Print() {
     double size_percent = static_cast<double>(size) * 100 / total_size_;
     PrintF(" %8u bytes / %4.1f %%\n", size, size_percent);
   }
-  PrintF("%30s - %7.3f ms           %8u bytes\n", "Sum",
-         static_cast<double>(sum) / 1000,
-         total_size_);
+  double source_size_in_kb = static_cast<double>(source_size_) / 1024;
+  PrintF("%30s - %7.3f ms           %7.3f bytes\n", "Sum",
+         (static_cast<double>(sum) / 1000) / source_size_in_kb,
+         total_size_ / source_size_in_kb);
   PrintF("---------------------------------------------------------------\n");
   PrintF("%30s - %7.3f ms (%.1f times slower than full code gen)\n",
          "Total",
@@ -5874,13 +5882,13 @@ void HPhase::Begin(const char* name,
   if (allocator != NULL && chunk_ == NULL) {
     chunk_ = allocator->chunk();
   }
-  if (FLAG_time_hydrogen) start_ = OS::Ticks();
+  if (FLAG_hydrogen_stats) start_ = OS::Ticks();
   start_allocation_size_ = Zone::allocation_size_;
 }
 
 
 void HPhase::End() const {
-  if (FLAG_time_hydrogen) {
+  if (FLAG_hydrogen_stats) {
     int64_t end = OS::Ticks();
     unsigned size = Zone::allocation_size_ - start_allocation_size_;
     HStatistics::Instance()->SaveTiming(name_, end - start_, size);

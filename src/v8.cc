@@ -158,7 +158,7 @@ void V8::SetFatalError() {
 void V8::TearDown() {
   if (!has_been_setup_ || has_been_disposed_) return;
 
-  if (FLAG_time_hydrogen) HStatistics::Instance()->Print();
+  if (FLAG_hydrogen_stats) HStatistics::Instance()->Print();
 
   // We must stop the logger before we tear down other components.
   Logger::EnsureTickerStopped();
