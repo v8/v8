@@ -36,7 +36,7 @@
 #define MINOR_VERSION     2
 #define BUILD_NUMBER      1
 #define PATCH_LEVEL       0
-#define CANDIDATE_VERSION true
+#define CANDIDATE_VERSION false
 
 // Define SONAME to have the SCons build the put a specific SONAME into the
 // shared library instead the generic SONAME generated from the V8 version
