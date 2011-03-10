@@ -103,19 +103,54 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
 }
 
 
-void MacroAssembler::Call(Register target, Condition cond) {
+int MacroAssembler::CallSize(Register target, Condition cond) {
 #if USE_BLX
-  blx(target, cond);
+  return kInstrSize;
 #else
-  // set lr for return at current pc + 8
-  mov(lr, Operand(pc), LeaveCC, cond);
-  mov(pc, Operand(target), LeaveCC, cond);
+  return 2 * kInstrSize;
 #endif
 }
 
 
-void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
-                          Condition cond) {
+void MacroAssembler::Call(Register target, Condition cond) {
+#ifdef DEBUG
+  int pre_position = pc_offset();
+#endif
+
+#if USE_BLX
+  blx(target, cond);
+#else
+  // set lr for return at current pc + 8
+  { BlockConstPoolScope block_const_pool(this);
+    mov(lr, Operand(pc), LeaveCC, cond);
+    mov(pc, Operand(target), LeaveCC, cond);
+  }
+#endif
+
+#ifdef DEBUG
+  int post_position = pc_offset();
+  CHECK_EQ(pre_position + CallSize(target, cond), post_position);
+#endif
+}
+
+
+int MacroAssembler::CallSize(
+    intptr_t target, RelocInfo::Mode rmode, Condition cond) {
+  int size = 2 * kInstrSize;
+  Instr mov_instr = cond | MOV | LeaveCC;
+  if (!Operand(target, rmode).is_single_instruction(mov_instr)) {
+    size += kInstrSize;
+  }
+  return size;
+}
+
+
+void MacroAssembler::Call(
+    intptr_t target, RelocInfo::Mode rmode, Condition cond) {
+#ifdef DEBUG
+  int pre_position = pc_offset();
+#endif
+
 #if USE_BLX
   // On ARMv5 and after the recommended call sequence is:
   //  ldr ip, [pc, #...]
@@ -137,28 +172,64 @@ void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
 
   ASSERT(kCallTargetAddressOffset == 2 * kInstrSize);
 #else
-  // Set lr for return at current pc + 8.
-  mov(lr, Operand(pc), LeaveCC, cond);
-  // Emit a ldr<cond> pc, [pc + offset of target in constant pool].
-  mov(pc, Operand(target, rmode), LeaveCC, cond);
-
+  { BlockConstPoolScope block_const_pool(this);
+    // Set lr for return at current pc + 8.
+    mov(lr, Operand(pc), LeaveCC, cond);
+    // Emit a ldr<cond> pc, [pc + offset of target in constant pool].
+    mov(pc, Operand(target, rmode), LeaveCC, cond);
+  }
   ASSERT(kCallTargetAddressOffset == kInstrSize);
+#endif
+
+#ifdef DEBUG
+  int post_position = pc_offset();
+  CHECK_EQ(pre_position + CallSize(target, rmode, cond), post_position);
 #endif
 }
 
 
-void MacroAssembler::Call(byte* target, RelocInfo::Mode rmode,
-                          Condition cond) {
-  ASSERT(!RelocInfo::IsCodeTarget(rmode));
-  Call(reinterpret_cast<intptr_t>(target), rmode, cond);
+int MacroAssembler::CallSize(
+    byte* target, RelocInfo::Mode rmode, Condition cond) {
+  return CallSize(reinterpret_cast<intptr_t>(target), rmode);
 }
 
 
-void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
-                          Condition cond) {
+void MacroAssembler::Call(
+    byte* target, RelocInfo::Mode rmode, Condition cond) {
+#ifdef DEBUG
+  int pre_position = pc_offset();
+#endif
+
+  ASSERT(!RelocInfo::IsCodeTarget(rmode));
+  Call(reinterpret_cast<intptr_t>(target), rmode, cond);
+
+#ifdef DEBUG
+  int post_position = pc_offset();
+  CHECK_EQ(pre_position + CallSize(target, rmode, cond), post_position);
+#endif
+}
+
+
+int MacroAssembler::CallSize(
+    Handle<Code> code, RelocInfo::Mode rmode, Condition cond) {
+  return CallSize(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
+}
+
+
+void MacroAssembler::Call(
+    Handle<Code> code, RelocInfo::Mode rmode, Condition cond) {
+#ifdef DEBUG
+  int pre_position = pc_offset();
+#endif
+
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ARM code, never THUMB code
   Call(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
+
+#ifdef DEBUG
+  int post_position = pc_offset();
+  CHECK_EQ(pre_position + CallSize(code, rmode, cond), post_position);
+#endif
 }
 
 
@@ -784,7 +855,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Register code_reg,
                                     Label* done,
                                     InvokeFlag flag,
-                                    PostCallGenerator* post_call_generator) {
+                                    CallWrapper* call_wrapper) {
   bool definitely_matches = false;
   Label regular_invoke;
 
@@ -839,8 +910,11 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     Handle<Code> adaptor =
         Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
     if (flag == CALL_FUNCTION) {
+      if (call_wrapper != NULL) {
+        call_wrapper->BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
+      }
       Call(adaptor, RelocInfo::CODE_TARGET);
-      if (post_call_generator != NULL) post_call_generator->Generate();
+      if (call_wrapper != NULL) call_wrapper->AfterCall();
       b(done);
     } else {
       Jump(adaptor, RelocInfo::CODE_TARGET);
@@ -854,14 +928,15 @@ void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
-                                PostCallGenerator* post_call_generator) {
+                                CallWrapper* call_wrapper) {
   Label done;
 
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
-                 post_call_generator);
+                 call_wrapper);
   if (flag == CALL_FUNCTION) {
+    if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(code));
     Call(code);
-    if (post_call_generator != NULL) post_call_generator->Generate();
+    if (call_wrapper != NULL) call_wrapper->AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     Jump(code);
@@ -896,7 +971,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 void MacroAssembler::InvokeFunction(Register fun,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    PostCallGenerator* post_call_generator) {
+                                    CallWrapper* call_wrapper) {
   // Contract with called JS functions requires that function is passed in r1.
   ASSERT(fun.is(r1));
 
@@ -913,7 +988,7 @@ void MacroAssembler::InvokeFunction(Register fun,
       FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(expected_reg);
-  InvokeCode(code_reg, expected, actual, flag, post_call_generator);
+  InvokeCode(code_reg, expected, actual, flag, call_wrapper);
 }
 
 
@@ -2083,11 +2158,12 @@ MaybeObject* MacroAssembler::TryJumpToExternalReference(
 
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeJSFlags flags,
-                                   PostCallGenerator* post_call_generator) {
+                                   CallWrapper* call_wrapper) {
   GetBuiltinEntry(r2, id);
   if (flags == CALL_JS) {
+    if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(r2));
     Call(r2);
-    if (post_call_generator != NULL) post_call_generator->Generate();
+    if (call_wrapper != NULL) call_wrapper->AfterCall();
   } else {
     ASSERT(flags == JUMP_JS);
     Jump(r2);

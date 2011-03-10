@@ -34,7 +34,7 @@ namespace v8 {
 namespace internal {
 
 
-class SafepointGenerator : public PostCallGenerator {
+class SafepointGenerator : public CallWrapper {
  public:
   SafepointGenerator(LCodeGen* codegen,
                      LPointerMap* pointers,
@@ -44,7 +44,24 @@ class SafepointGenerator : public PostCallGenerator {
         deoptimization_index_(deoptimization_index) { }
   virtual ~SafepointGenerator() { }
 
-  virtual void Generate() {
+  virtual void BeforeCall(int call_size) {
+    ASSERT(call_size >= 0);
+    // Ensure that we have enough space after the previous safepoint position
+    // for the generated code there.
+    int call_end = codegen_->masm()->pc_offset() + call_size;
+    int prev_jump_end =
+        codegen_->LastSafepointEnd() + Deoptimizer::patch_size();
+    if (call_end < prev_jump_end) {
+      int padding_size = prev_jump_end - call_end;
+      ASSERT_EQ(0, padding_size % Assembler::kInstrSize);
+      while (padding_size > 0) {
+        codegen_->masm()->nop();
+        padding_size -= Assembler::kInstrSize;
+      }
+    }
+  }
+
+  virtual void AfterCall() {
     codegen_->RecordSafepoint(pointers_, deoptimization_index_);
   }
 

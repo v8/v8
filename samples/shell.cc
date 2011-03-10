@@ -65,6 +65,11 @@ int RunMain(int argc, char* argv[]) {
   // Create a new execution environment containing the built-in
   // functions
   v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
+  if (context.IsEmpty()) {
+    printf("Error creating context\n");
+    return 1;
+  }
+
   bool run_shell = (argc == 1);
   for (int i = 1; i < argc; i++) {
     // Enter the execution environment before evaluating any code.
@@ -139,6 +144,8 @@ int main(int argc, char* argv[]) {
       v8::Testing::PrepareStressRun(i);
       result = RunMain(argc, argv);
     }
+    printf("======== Full Deoptimization =======\n");
+    v8::Testing::DeoptimizeAll();
   } else {
     result = RunMain(argc, argv);
   }

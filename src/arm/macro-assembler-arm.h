@@ -34,7 +34,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declaration.
-class PostCallGenerator;
+class CallWrapper;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -96,8 +96,11 @@ class MacroAssembler: public Assembler {
   void Jump(Register target, Condition cond = al);
   void Jump(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
+  int CallSize(Register target, Condition cond = al);
   void Call(Register target, Condition cond = al);
+  int CallSize(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(byte* target, RelocInfo::Mode rmode, Condition cond = al);
+  int CallSize(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Call(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Ret(Condition cond = al);
 
@@ -343,7 +346,7 @@ class MacroAssembler: public Assembler {
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  PostCallGenerator* post_call_generator = NULL);
+                  CallWrapper* call_wrapper = NULL);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
@@ -356,7 +359,7 @@ class MacroAssembler: public Assembler {
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      CallWrapper* call_wrapper = NULL);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
@@ -748,7 +751,7 @@ class MacroAssembler: public Assembler {
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id,
                      InvokeJSFlags flags,
-                     PostCallGenerator* post_call_generator = NULL);
+                     CallWrapper* call_wrapper = NULL);
 
   // Store the code object for the given builtin in the target register and
   // setup the function in r1.
@@ -911,6 +914,7 @@ class MacroAssembler: public Assembler {
 
  private:
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
+  int CallSize(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
 
   // Helper functions for generating invokes.
@@ -920,7 +924,7 @@ class MacroAssembler: public Assembler {
                       Register code_reg,
                       Label* done,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      CallWrapper* call_wrapper = NULL);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -984,11 +988,15 @@ class CodePatcher {
 // Helper class for generating code or data associated with the code
 // right after a call instruction. As an example this can be used to
 // generate safepoint data after calls for crankshaft.
-class PostCallGenerator {
+class CallWrapper {
  public:
-  PostCallGenerator() { }
-  virtual ~PostCallGenerator() { }
-  virtual void Generate() = 0;
+  CallWrapper() { }
+  virtual ~CallWrapper() { }
+  // Called just before emitting a call. Argument is the size of the generated
+  // call code.
+  virtual void BeforeCall(int call_size) = 0;
+  // Called just after emitting a call, i.e., at the return site for the call.
+  virtual void AfterCall() = 0;
 };
 
 

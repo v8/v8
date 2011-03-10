@@ -5143,6 +5143,11 @@ void Testing::PrepareStressRun(int run) {
 }
 
 
+void Testing::DeoptimizeAll() {
+  internal::Deoptimizer::DeoptimizeAll();
+}
+
+
 namespace internal {
 
 
