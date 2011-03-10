@@ -149,9 +149,11 @@ void ProfilerEventsProcessor::CodeDeleteEvent(Address from) {
 }
 
 
-void ProfilerEventsProcessor::SharedFunctionInfoMoveEvent(Address from, Address to) {
+void ProfilerEventsProcessor::SharedFunctionInfoMoveEvent(Address from,
+                                                          Address to) {
   CodeEventsContainer evt_rec;
-  SharedFunctionInfoMoveEventRecord* rec = &evt_rec.SharedFunctionInfoMoveEventRecord_;
+  SharedFunctionInfoMoveEventRecord* rec =
+      &evt_rec.SharedFunctionInfoMoveEventRecord_;
   rec->type = CodeEventRecord::SHARED_FUNC_MOVE;
   rec->order = ++enqueue_order_;
   rec->from = from;
