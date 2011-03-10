@@ -5734,12 +5734,12 @@ void HTracer::TraceLiveRanges(const char* name, LAllocator* allocator) {
   Tag tag(this, "intervals");
   PrintStringProperty("name", name);
 
-  const ZoneList<LiveRange*>* fixed_d = allocator->fixed_double_live_ranges();
+  const Vector<LiveRange*>* fixed_d = allocator->fixed_double_live_ranges();
   for (int i = 0; i < fixed_d->length(); ++i) {
     TraceLiveRange(fixed_d->at(i), "fixed");
   }
 
-  const ZoneList<LiveRange*>* fixed = allocator->fixed_live_ranges();
+  const Vector<LiveRange*>* fixed = allocator->fixed_live_ranges();
   for (int i = 0; i < fixed->length(); ++i) {
     TraceLiveRange(fixed->at(i), "fixed");
   }
