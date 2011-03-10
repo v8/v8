@@ -105,7 +105,7 @@ StringsStorage::~StringsStorage() {
 
 
 const char* StringsStorage::GetCopy(const char* src) {
-  int len = strlen(src);
+  int len = static_cast<int>(strlen(src));
   Vector<char> dst = Vector<char>::New(len + 1);
   OS::StrNCpy(dst, src, len);
   dst[len] = '\0';
@@ -1510,7 +1510,7 @@ void HeapObjectsMap::RemoveDeadEntries() {
 uint64_t HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
   uint64_t id = static_cast<uint64_t>(info->GetHash());
   const char* label = info->GetLabel();
-  id ^= HashSequentialString(label, strlen(label));
+  id ^= HashSequentialString(label, static_cast<int>(strlen(label)));
   intptr_t element_count = info->GetElementCount();
   if (element_count != -1)
     id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count));
