@@ -182,6 +182,8 @@ class AstNode: public ZoneObject {
 
  private:
   unsigned id_;
+
+  friend class CaseClause;  // Generates AST IDs.
 };
 
 
@@ -697,6 +699,8 @@ class CaseClause: public ZoneObject {
   int position() { return position_; }
   void set_position(int pos) { position_ = pos; }
 
+  int EntryId() { return entry_id_; }
+
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   bool IsSmiCompare() { return compare_type_ == SMI_ONLY; }
@@ -709,6 +713,7 @@ class CaseClause: public ZoneObject {
   int position_;
   enum CompareTypeFeedback { NONE, SMI_ONLY, OBJECT_ONLY };
   CompareTypeFeedback compare_type_;
+  int entry_id_;
 };
 
 
@@ -1238,6 +1243,11 @@ class Property: public Expression {
   }
   bool is_arguments_access() const { return is_arguments_access_; }
 
+  ExternalArrayType GetExternalArrayType() const { return array_type_; }
+  void SetExternalArrayType(ExternalArrayType array_type) {
+    array_type_ = array_type;
+  }
+
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
@@ -1260,6 +1270,7 @@ class Property: public Expression {
   bool is_function_prototype_ : 1;
   bool is_arguments_access_ : 1;
   Handle<Map> monomorphic_receiver_type_;
+  ExternalArrayType array_type_;
 };
 
 
@@ -1646,6 +1657,10 @@ class Assignment: public Expression {
   virtual Handle<Map> GetMonomorphicReceiverType() {
     return monomorphic_receiver_type_;
   }
+  ExternalArrayType GetExternalArrayType() const { return array_type_; }
+  void SetExternalArrayType(ExternalArrayType array_type) {
+    array_type_ = array_type;
+  }
 
   // Bailout support.
   int CompoundLoadId() const { return compound_load_id_; }
@@ -1666,6 +1681,7 @@ class Assignment: public Expression {
   bool is_monomorphic_;
   ZoneMapList* receiver_types_;
   Handle<Map> monomorphic_receiver_type_;
+  ExternalArrayType array_type_;
 };
 
 

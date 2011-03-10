@@ -89,6 +89,7 @@ class LCodeGen;
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
+  V(ExternalArrayLength)                        \
   V(FixedArrayLength)                           \
   V(FunctionLiteral)                            \
   V(Gap)                                        \
@@ -117,6 +118,7 @@ class LCodeGen;
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
   V(LoadElements)                               \
+  V(LoadExternalArrayPointer)                   \
   V(LoadFunctionPrototype)                      \
   V(LoadGlobal)                                 \
   V(LoadKeyedFastElement)                       \
@@ -124,7 +126,6 @@ class LCodeGen;
   V(LoadNamedField)                             \
   V(LoadNamedGeneric)                           \
   V(LoadPixelArrayElement)                      \
-  V(LoadPixelArrayExternalPointer)              \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -134,7 +135,6 @@ class LCodeGen;
   V(OsrEntry)                                   \
   V(OuterContext)                               \
   V(Parameter)                                  \
-  V(PixelArrayLength)                           \
   V(Power)                                      \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
@@ -1036,14 +1036,14 @@ class LJSArrayLength: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LPixelArrayLength: public LTemplateInstruction<1, 1, 0> {
+class LExternalArrayLength: public LTemplateInstruction<1, 1, 0> {
  public:
-  explicit LPixelArrayLength(LOperand* value) {
+  explicit LExternalArrayLength(LOperand* value) {
     inputs_[0] = value;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(PixelArrayLength, "pixel-array-length")
-  DECLARE_HYDROGEN_ACCESSOR(PixelArrayLength)
+  DECLARE_CONCRETE_INSTRUCTION(ExternalArrayLength, "external-array-length")
+  DECLARE_HYDROGEN_ACCESSOR(ExternalArrayLength)
 };
 
 
@@ -1211,14 +1211,14 @@ class LLoadElements: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LLoadPixelArrayExternalPointer: public LTemplateInstruction<1, 1, 0> {
+class LLoadExternalArrayPointer: public LTemplateInstruction<1, 1, 0> {
  public:
-  explicit LLoadPixelArrayExternalPointer(LOperand* object) {
+  explicit LLoadExternalArrayPointer(LOperand* object) {
     inputs_[0] = object;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayExternalPointer,
-                               "load-pixel-array-external-pointer")
+  DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer,
+                               "load-external-array-pointer")
 };
 
 

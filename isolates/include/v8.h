@@ -1438,7 +1438,8 @@ enum ExternalArrayType {
   kExternalUnsignedShortArray,
   kExternalIntArray,
   kExternalUnsignedIntArray,
-  kExternalFloatArray
+  kExternalFloatArray,
+  kExternalPixelArray
 };
 
 /**

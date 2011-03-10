@@ -638,11 +638,6 @@ Code* JavaScriptFrame::unchecked_code() const {
 }
 
 
-int JavaScriptFrame::GetProvidedParametersCount() const {
-  return ComputeParametersCount();
-}
-
-
 Address JavaScriptFrame::GetCallerStackPointer() const {
   int arguments;
   if (SafeStackFrameIterator::is_active() ||

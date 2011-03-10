@@ -878,6 +878,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     Comment cmnt(masm_, "[ Case body");
     CaseClause* clause = clauses->at(i);
     __ bind(clause->body_target()->entry_label());
+    PrepareForBailoutForId(clause->EntryId(), NO_REGISTERS);
     VisitStatements(clause->statements());
   }
 
@@ -2871,7 +2872,8 @@ void FullCodeGenerator::EmitMathPow(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
-  __ CallRuntime(Runtime::kMath_pow, 2);
+  MathPowStub stub;
+  __ CallStub(&stub);
   context()->Plug(r0);
 }
 

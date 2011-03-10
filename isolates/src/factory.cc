@@ -307,19 +307,6 @@ Handle<ByteArray> Factory::NewByteArray(int length, PretenureFlag pretenure) {
 }
 
 
-Handle<PixelArray> Factory::NewPixelArray(int length,
-                                          uint8_t* external_pointer,
-                                          PretenureFlag pretenure) {
-  ASSERT(0 <= length);
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocatePixelArray(length,
-                                            external_pointer,
-                                            pretenure),
-      PixelArray);
-}
-
-
 Handle<ExternalArray> Factory::NewExternalArray(int length,
                                                 ExternalArrayType array_type,
                                                 void* external_pointer,
@@ -405,8 +392,8 @@ Handle<Map> Factory::GetSlowElementsMap(Handle<Map> src) {
 }
 
 
-Handle<Map> Factory::GetPixelArrayElementsMap(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->GetPixelArrayElementsMap(), Map);
+Handle<Map> Factory::NewExternalArrayElementsMap(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(isolate(), src->NewExternalArrayElementsMap(), Map);
 }
 
 
@@ -678,9 +665,11 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
 
 Handle<Code> Factory::NewCode(const CodeDesc& desc,
                               Code::Flags flags,
-                              Handle<Object> self_ref) {
+                              Handle<Object> self_ref,
+                              bool immovable) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->CreateCode(desc, flags, self_ref),
+                     isolate()->heap()->CreateCode(
+                         desc, flags, self_ref, immovable),
                      Code);
 }
 

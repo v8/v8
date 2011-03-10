@@ -558,13 +558,15 @@ void HBasicBlock::FinishExit(HControlInstruction* instruction) {
 
 
 HGraph::HGraph(CompilationInfo* info)
-    : HSubgraph(this),
-      next_block_id_(0),
+    : next_block_id_(0),
+      entry_block_(NULL),
       blocks_(8),
       values_(16),
       phi_list_(NULL) {
   start_environment_ = new HEnvironment(NULL, info->scope(), info->closure());
   start_environment_->set_ast_id(info->function()->id());
+  entry_block_ = CreateBasicBlock();
+  entry_block_->SetInitialEnvironment(start_environment_);
 }
 
 
@@ -639,7 +641,7 @@ void HGraph::OrderBlocks() {
   HBasicBlock* start = blocks_[0];
   Postorder(start, &visited, &reverse_result, NULL);
 
-  blocks_.Clear();
+  blocks_.Rewind(0);
   int index = 0;
   for (int i = reverse_result.length() - 1; i >= 0; --i) {
     HBasicBlock* b = reverse_result[i];
@@ -756,11 +758,11 @@ void HGraph::EliminateRedundantPhis() {
 
 
 bool HGraph::CollectPhis() {
-  const ZoneList<HBasicBlock*>* blocks = graph_->blocks();
-  phi_list_ = new ZoneList<HPhi*>(blocks->length());
-  for (int i = 0; i < blocks->length(); ++i) {
-    for (int j = 0; j < blocks->at(i)->phis()->length(); j++) {
-      HPhi* phi = blocks->at(i)->phis()->at(j);
+  int block_count = blocks_.length();
+  phi_list_ = new ZoneList<HPhi*>(block_count);
+  for (int i = 0; i < block_count; ++i) {
+    for (int j = 0; j < blocks_[i]->phis()->length(); ++j) {
+      HPhi* phi = blocks_[i]->phis()->at(j);
       phi_list_->Add(phi);
       // We don't support phi uses of arguments for now.
       if (phi->CheckFlag(HValue::kIsArguments)) return false;
@@ -1746,15 +1748,18 @@ int CompareConversionUses(HValue* a,
 }
 
 
-void HGraph::InsertRepresentationChanges(HValue* current) {
+void HGraph::InsertRepresentationChangesForValue(
+    HValue* current,
+    ZoneList<HValue*>* to_convert,
+    ZoneList<Representation>* to_convert_reps) {
   Representation r = current->representation();
   if (r.IsNone()) return;
   if (current->uses()->length() == 0) return;
 
   // Collect the representation changes in a sorted list.  This allows
   // us to avoid duplicate changes without searching the list.
-  ZoneList<HValue*> to_convert(2);
-  ZoneList<Representation> to_convert_reps(2);
+  ASSERT(to_convert->is_empty());
+  ASSERT(to_convert_reps->is_empty());
   for (int i = 0; i < current->uses()->length(); ++i) {
     HValue* use = current->uses()->at(i);
     // The occurrences index means the index within the operand array of "use"
@@ -1774,10 +1779,10 @@ void HGraph::InsertRepresentationChanges(HValue* current) {
     Representation req = use->RequiredInputRepresentation(operand_index);
     if (req.IsNone() || req.Equals(r)) continue;
     int index = 0;
-    while (to_convert.length() > index &&
-           CompareConversionUses(to_convert[index],
+    while (index < to_convert->length() &&
+           CompareConversionUses(to_convert->at(index),
                                  use,
-                                 to_convert_reps[index],
+                                 to_convert_reps->at(index),
                                  req) < 0) {
       ++index;
     }
@@ -1787,13 +1792,13 @@ void HGraph::InsertRepresentationChanges(HValue* current) {
              current->id(),
              use->id());
     }
-    to_convert.InsertAt(index, use);
-    to_convert_reps.InsertAt(index, req);
+    to_convert->InsertAt(index, use);
+    to_convert_reps->InsertAt(index, req);
   }
 
-  for (int i = 0; i < to_convert.length(); ++i) {
-    HValue* use = to_convert[i];
-    Representation r_to = to_convert_reps[i];
+  for (int i = 0; i < to_convert->length(); ++i) {
+    HValue* use = to_convert->at(i);
+    Representation r_to = to_convert_reps->at(i);
     InsertRepresentationChangeForUse(current, use, r_to);
   }
 
@@ -1801,6 +1806,8 @@ void HGraph::InsertRepresentationChanges(HValue* current) {
     ASSERT(current->IsConstant());
     current->Delete();
   }
+  to_convert->Rewind(0);
+  to_convert_reps->Rewind(0);
 }
 
 
@@ -1836,17 +1843,19 @@ void HGraph::InsertRepresentationChanges() {
     }
   }
 
+  ZoneList<HValue*> value_list(4);
+  ZoneList<Representation> rep_list(4);
   for (int i = 0; i < blocks_.length(); ++i) {
     // Process phi instructions first.
     for (int j = 0; j < blocks_[i]->phis()->length(); j++) {
       HPhi* phi = blocks_[i]->phis()->at(j);
-      InsertRepresentationChanges(phi);
+      InsertRepresentationChangesForValue(phi, &value_list, &rep_list);
     }
 
     // Process normal instructions.
     HInstruction* current = blocks_[i]->first();
     while (current != NULL) {
-      InsertRepresentationChanges(current);
+      InsertRepresentationChangesForValue(current, &value_list, &rep_list);
       current = current->next();
     }
   }
@@ -2044,36 +2053,6 @@ void TestContext::BuildBranch(HValue* value) {
   } while (false)
 
 
-// 'thing' could be an expression, statement, or list of statements.
-#define ADD_TO_SUBGRAPH(graph, thing)       \
-  do {                                      \
-    AddToSubgraph(graph, thing);            \
-    if (HasStackOverflow()) return;         \
-  } while (false)
-
-
-class HGraphBuilder::SubgraphScope BASE_EMBEDDED {
- public:
-  SubgraphScope(HGraphBuilder* builder, HSubgraph* new_subgraph)
-      : builder_(builder) {
-    old_subgraph_ = builder_->current_subgraph_;
-    subgraph_ = new_subgraph;
-    builder_->current_subgraph_ = subgraph_;
-  }
-
-  ~SubgraphScope() {
-    builder_->current_subgraph_ = old_subgraph_;
-  }
-
-  HSubgraph* subgraph() const { return subgraph_; }
-
- private:
-  HGraphBuilder* builder_;
-  HSubgraph* old_subgraph_;
-  HSubgraph* subgraph_;
-};
-
-
 void HGraphBuilder::Bailout(const char* reason) {
   if (FLAG_trace_bailout) {
     SmartPointer<char> name(info()->shared_info()->DebugName()->ToCString());
@@ -2125,13 +2104,10 @@ void HGraphBuilder::VisitExpressions(ZoneList<Expression*>* exprs) {
 
 
 HGraph* HGraphBuilder::CreateGraph() {
-  ASSERT(subgraph() == NULL);
   graph_ = new HGraph(info());
-
   {
     HPhase phase("Block building");
-    graph()->Initialize(CreateBasicBlock(graph()->start_environment()));
-    current_subgraph_ = graph();
+    current_block_ = graph()->entry_block();
 
     Scope* scope = info()->scope();
     if (scope->HasIllegalRedeclaration()) {
@@ -2205,25 +2181,6 @@ HGraph* HGraphBuilder::CreateGraph() {
   }
 
   return graph();
-}
-
-
-void HGraphBuilder::AddToSubgraph(HSubgraph* graph, Statement* stmt) {
-  SubgraphScope scope(this, graph);
-  Visit(stmt);
-}
-
-
-void HGraphBuilder::AddToSubgraph(HSubgraph* graph, Expression* expr) {
-  SubgraphScope scope(this, graph);
-  VisitForValue(expr);
-}
-
-
-void HGraphBuilder::AddToSubgraph(HSubgraph* graph,
-                                  ZoneList<Statement*>* stmts) {
-  SubgraphScope scope(this, graph);
-  VisitStatements(stmts);
 }
 
 
@@ -2320,13 +2277,6 @@ HBasicBlock* HGraphBuilder::CreateBasicBlock(HEnvironment* env) {
   HBasicBlock* b = graph()->CreateBasicBlock();
   b->SetInitialEnvironment(env);
   return b;
-}
-
-
-HSubgraph* HGraphBuilder::CreateEmptySubgraph() {
-  HSubgraph* subgraph = new HSubgraph(graph());
-  subgraph->Initialize(graph()->CreateBasicBlock());
-  return subgraph;
 }
 
 
@@ -2477,172 +2427,128 @@ void HGraphBuilder::VisitWithExitStatement(WithExitStatement* stmt) {
 }
 
 
-HCompare* HGraphBuilder::BuildSwitchCompare(HSubgraph* subgraph,
-                                            HValue* switch_value,
-                                            CaseClause* clause) {
-  AddToSubgraph(subgraph, clause->label());
-  if (HasStackOverflow()) return NULL;
-  HValue* clause_value = subgraph->exit_block()->last_environment()->Pop();
-  HCompare* compare = new HCompare(switch_value,
-                                   clause_value,
-                                   Token::EQ_STRICT);
-  compare->SetInputRepresentation(Representation::Integer32());
-  subgraph->exit_block()->AddInstruction(compare);
-  return compare;
-}
-
-
 void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
-  VISIT_FOR_VALUE(stmt->tag());
-  // TODO(3168478): simulate added for tag should be enough.
-  AddSimulate(stmt->EntryId());
-  HValue* switch_value = Pop();
-
+  // We only optimize switch statements with smi-literal smi comparisons,
+  // with a bounded number of clauses.
+  const int kCaseClauseLimit = 128;
   ZoneList<CaseClause*>* clauses = stmt->cases();
-  int num_clauses = clauses->length();
-  if (num_clauses == 0) return;
-  if (num_clauses > 128) BAILOUT("SwitchStatement: too many clauses");
+  int clause_count = clauses->length();
+  if (clause_count > kCaseClauseLimit) {
+    BAILOUT("SwitchStatement: too many clauses");
+  }
 
-  int num_smi_clauses = num_clauses;
-  for (int i = 0; i < num_clauses; i++) {
+  VISIT_FOR_VALUE(stmt->tag());
+  HValue* tag_value = Pop();
+  HBasicBlock* first_test_block = current_block();
+
+  // 1. Build all the tests, with dangling true branches.  Unconditionally
+  // deoptimize if we encounter a non-smi comparison.
+  for (int i = 0; i < clause_count; ++i) {
     CaseClause* clause = clauses->at(i);
     if (clause->is_default()) continue;
-    clause->RecordTypeFeedback(oracle());
-    if (!clause->IsSmiCompare()) {
-      if (i == 0) BAILOUT("SwitchStatement: no smi compares");
-      // We will deoptimize if the first non-smi compare is reached.
-      num_smi_clauses = i;
-      break;
-    }
     if (!clause->label()->IsSmiLiteral()) {
       BAILOUT("SwitchStatement: non-literal switch label");
     }
-  }
 
-  // The single exit block of the whole switch statement.
-  HBasicBlock* single_exit_block = graph_->CreateBasicBlock();
-
-  // Build a series of empty subgraphs for the comparisons.
-  // The default clause does not have a comparison subgraph.
-  ZoneList<HSubgraph*> compare_graphs(num_smi_clauses);
-  for (int i = 0; i < num_smi_clauses; i++) {
-    if (clauses->at(i)->is_default()) {
-      compare_graphs.Add(NULL);
-    } else {
-      compare_graphs.Add(CreateEmptySubgraph());
-    }
-  }
-
-  HSubgraph* prev_graph = current_subgraph_;
-  HCompare* prev_compare_inst = NULL;
-  for (int i = 0; i < num_smi_clauses; i++) {
-    CaseClause* clause = clauses->at(i);
-    if (clause->is_default()) continue;
-
-    // Finish the previous graph by connecting it to the current.
-    HSubgraph* subgraph = compare_graphs.at(i);
-    if (prev_compare_inst == NULL) {
-      ASSERT(prev_graph == current_subgraph_);
-      prev_graph->exit_block()->Finish(new HGoto(subgraph->entry_block()));
-    } else {
-      HBasicBlock* empty = graph()->CreateBasicBlock();
-      prev_graph->exit_block()->Finish(new HTest(prev_compare_inst,
-                                                 empty,
-                                                 subgraph->entry_block()));
+    // Unconditionally deoptimize on the first non-smi compare.
+    clause->RecordTypeFeedback(oracle());
+    if (!clause->IsSmiCompare()) {
+      if (current_block() == first_test_block) {
+        // If the first test is the one that deopts and if the tag value is
+        // a phi, we need to have some use of that phi to prevent phi
+        // elimination from removing it.  This HSimulate is such a use.
+        Push(tag_value);
+        AddSimulate(stmt->EntryId());
+        Drop(1);
+      }
+      current_block()->Finish(new HDeoptimize());
+      set_current_block(NULL);
+      break;
     }
 
-    // Build instructions for current subgraph.
-    ASSERT(clause->IsSmiCompare());
-    prev_compare_inst = BuildSwitchCompare(subgraph, switch_value, clause);
-    if (HasStackOverflow()) return;
-
-    prev_graph = subgraph;
+    // Otherwise generate a compare and branch.
+    VISIT_FOR_VALUE(clause->label());
+    HValue* label_value = Pop();
+    HCompare* compare = new HCompare(tag_value, label_value, Token::EQ_STRICT);
+    compare->SetInputRepresentation(Representation::Integer32());
+    ASSERT(!compare->HasSideEffects());
+    AddInstruction(compare);
+    HBasicBlock* body_block = graph()->CreateBasicBlock();
+    HBasicBlock* next_test_block = graph()->CreateBasicBlock();
+    HTest* branch = new HTest(compare, body_block, next_test_block);
+    current_block()->Finish(branch);
+    set_current_block(next_test_block);
   }
 
-  // Finish last comparison if there was at least one comparison.
-  // last_false_block is the (empty) false-block of the last comparison. If
-  // there are no comparisons at all (a single default clause), it is just
-  // the last block of the current subgraph.
-  HBasicBlock* last_false_block = current_block();
-  if (prev_graph != current_subgraph_) {
-    last_false_block = graph()->CreateBasicBlock();
-    HBasicBlock* empty = graph()->CreateBasicBlock();
-    prev_graph->exit_block()->Finish(new HTest(prev_compare_inst,
-                                               empty,
-                                               last_false_block));
-  }
+  // Save the current block to use for the default or to join with the
+  // exit.  This block is NULL if we deoptimized.
+  HBasicBlock* last_block = current_block();
 
-  // If we have a non-smi compare clause, we deoptimize after trying
-  // all the previous compares.
-  if (num_smi_clauses < num_clauses) {
-    last_false_block->Finish(new HDeoptimize);
-  }
+  // 2. Loop over the clauses and the linked list of tests in lockstep,
+  // translating the clause bodies.
+  HBasicBlock* curr_test_block = first_test_block;
+  HBasicBlock* fall_through_block = NULL;
+  BreakAndContinueInfo break_info(stmt);
+  { BreakAndContinueScope push(&break_info, this);
+    for (int i = 0; i < clause_count; ++i) {
+      CaseClause* clause = clauses->at(i);
 
-  // Build statement blocks, connect them to their comparison block and
-  // to the previous statement block, if there is a fall-through.
-  HSubgraph* previous_subgraph = NULL;
-  for (int i = 0; i < num_clauses; i++) {
-    CaseClause* clause = clauses->at(i);
-    // Subgraph for the statements of the clause is only created when
-    // it's reachable either from the corresponding compare or as a
-    // fall-through from previous statements.
-    HSubgraph* subgraph = NULL;
+      // Identify the block where normal (non-fall-through) control flow
+      // goes to.
+      HBasicBlock* normal_block = NULL;
+      if (clause->is_default() && last_block != NULL) {
+        normal_block = last_block;
+        last_block = NULL;  // Cleared to indicate we've handled it.
+      } else if (!curr_test_block->end()->IsDeoptimize()) {
+        normal_block = curr_test_block->end()->FirstSuccessor();
+        curr_test_block = curr_test_block->end()->SecondSuccessor();
+      }
 
-    if (i < num_smi_clauses) {
-      if (clause->is_default()) {
-        if (!last_false_block->IsFinished()) {
-          // Default clause: Connect it to the last false block.
-          subgraph = CreateEmptySubgraph();
-          last_false_block->Finish(new HGoto(subgraph->entry_block()));
+      // Identify a block to emit the body into.
+      if (normal_block == NULL) {
+        if (fall_through_block == NULL) {
+          // (a) Unreachable.
+          if (clause->is_default()) {
+            continue;  // Might still be reachable clause bodies.
+          } else {
+            break;
+          }
+        } else {
+          // (b) Reachable only as fall through.
+          set_current_block(fall_through_block);
         }
+      } else if (fall_through_block == NULL) {
+        // (c) Reachable only normally.
+        set_current_block(normal_block);
       } else {
-        ASSERT(clause->IsSmiCompare());
-        // Connect with the corresponding comparison.
-        subgraph = CreateEmptySubgraph();
-        HBasicBlock* empty =
-            compare_graphs.at(i)->exit_block()->end()->FirstSuccessor();
-        empty->Finish(new HGoto(subgraph->entry_block()));
+        // (d) Reachable both ways.
+        HBasicBlock* join = CreateJoin(fall_through_block,
+                                       normal_block,
+                                       clause->EntryId());
+        set_current_block(join);
       }
-    }
 
-    // Check for fall-through from previous statement block.
-    if (previous_subgraph != NULL && previous_subgraph->exit_block() != NULL) {
-      if (subgraph == NULL) subgraph = CreateEmptySubgraph();
-      previous_subgraph->exit_block()->
-          Finish(new HGoto(subgraph->entry_block()));
+      VisitStatements(clause->statements());
+      CHECK_BAILOUT;
+      fall_through_block = current_block();
     }
-
-    if (subgraph != NULL) {
-      BreakAndContinueInfo break_info(stmt);
-      { BreakAndContinueScope push(&break_info, this);
-        ADD_TO_SUBGRAPH(subgraph, clause->statements());
-      }
-      if (break_info.break_block() != NULL) {
-        break_info.break_block()->SetJoinId(stmt->ExitId());
-        break_info.break_block()->Finish(new HGoto(single_exit_block));
-      }
-    }
-
-    previous_subgraph = subgraph;
   }
 
-  // If the last statement block has a fall-through, connect it to the
-  // single exit block.
-  if (previous_subgraph != NULL && previous_subgraph->exit_block() != NULL) {
-    previous_subgraph->exit_block()->Finish(new HGoto(single_exit_block));
-  }
-
-  // If there is no default clause finish the last comparison's false target.
-  if (!last_false_block->IsFinished()) {
-    last_false_block->Finish(new HGoto(single_exit_block));
-  }
-
-  if (single_exit_block->HasPredecessor()) {
-    set_current_block(single_exit_block);
+  // Create an up-to-3-way join.  Use the break block if it exists since
+  // it's already a join block.
+  HBasicBlock* break_block = break_info.break_block();
+  if (break_block == NULL) {
+    set_current_block(CreateJoin(fall_through_block,
+                                 last_block,
+                                 stmt->ExitId()));
   } else {
-    set_current_block(NULL);
+    if (fall_through_block != NULL) fall_through_block->Goto(break_block);
+    if (last_block != NULL) last_block->Goto(break_block);
+    break_block->SetJoinId(stmt->ExitId());
+    set_current_block(break_block);
   }
 }
+
 
 bool HGraphBuilder::HasOsrEntryAt(IterationStatement* statement) {
   return statement->OsrEntryId() == info()->osr_ast_id();
@@ -3252,11 +3158,13 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
 
     if (expr->IsMonomorphic()) {
       Handle<Map> receiver_type(expr->GetMonomorphicReceiverType());
-      // An object has either fast elements or pixel array elements, but never
-      // both. Pixel array maps that are assigned to pixel array elements are
-      // always created with the fast elements flag cleared.
-      if (receiver_type->has_pixel_array_elements()) {
-        instr = BuildStoreKeyedPixelArrayElement(object, key, value, expr);
+      // An object has either fast elements or external array elements, but
+      // never both. Pixel array maps that are assigned to pixel array elements
+      // are always created with the fast elements flag cleared.
+      if (receiver_type->has_external_array_elements()) {
+        if (expr->GetExternalArrayType() == kExternalPixelArray) {
+          instr = BuildStoreKeyedPixelArrayElement(object, key, value, expr);
+        }
       } else if (receiver_type->has_fast_elements()) {
         instr = BuildStoreKeyedFastElement(object, key, value, expr);
       }
@@ -3639,15 +3547,15 @@ HInstruction* HGraphBuilder::BuildLoadKeyedPixelArrayElement(HValue* object,
   AddInstruction(new HCheckNonSmi(object));
   Handle<Map> map = expr->GetMonomorphicReceiverType();
   ASSERT(!map->has_fast_elements());
-  ASSERT(map->has_pixel_array_elements());
+  ASSERT(map->has_external_array_elements());
   AddInstruction(new HCheckMap(object, map));
   HLoadElements* elements = new HLoadElements(object);
   AddInstruction(elements);
-  HInstruction* length = new HPixelArrayLength(elements);
+  HInstruction* length = new HExternalArrayLength(elements);
   AddInstruction(length);
   AddInstruction(new HBoundsCheck(key, length));
-  HLoadPixelArrayExternalPointer* external_elements =
-      new HLoadPixelArrayExternalPointer(elements);
+  HLoadExternalArrayPointer* external_elements =
+      new HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
   HLoadPixelArrayElement* pixel_array_value =
       new HLoadPixelArrayElement(external_elements, key);
@@ -3696,14 +3604,14 @@ HInstruction* HGraphBuilder::BuildStoreKeyedPixelArrayElement(
   AddInstruction(new HCheckNonSmi(object));
   Handle<Map> map = expr->GetMonomorphicReceiverType();
   ASSERT(!map->has_fast_elements());
-  ASSERT(map->has_pixel_array_elements());
+  ASSERT(map->has_external_array_elements());
   AddInstruction(new HCheckMap(object, map));
   HLoadElements* elements = new HLoadElements(object);
   AddInstruction(elements);
-  HInstruction* length = AddInstruction(new HPixelArrayLength(elements));
+  HInstruction* length = AddInstruction(new HExternalArrayLength(elements));
   AddInstruction(new HBoundsCheck(key, length));
-  HLoadPixelArrayExternalPointer* external_elements =
-      new HLoadPixelArrayExternalPointer(elements);
+  HLoadExternalArrayPointer* external_elements =
+      new HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
   return new HStorePixelArrayElement(external_elements, key, val);
 }
@@ -3793,8 +3701,10 @@ void HGraphBuilder::VisitProperty(Property* expr) {
       // An object has either fast elements or pixel array elements, but never
       // both. Pixel array maps that are assigned to pixel array elements are
       // always created with the fast elements flag cleared.
-      if (receiver_type->has_pixel_array_elements()) {
-        instr = BuildLoadKeyedPixelArrayElement(obj, key, expr);
+      if (receiver_type->has_external_array_elements()) {
+        if (expr->GetExternalArrayType() == kExternalPixelArray) {
+          instr = BuildLoadKeyedPixelArrayElement(obj, key, expr);
+        }
       } else if (receiver_type->has_fast_elements()) {
         instr = BuildLoadKeyedFastElement(obj, key, expr);
       }

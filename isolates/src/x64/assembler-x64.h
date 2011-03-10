@@ -395,6 +395,13 @@ class Operand BASE_EMBEDDED {
   // Does not check the "reg" part of the Operand.
   bool AddressUsesRegister(Register reg) const;
 
+  // Queries related to the size of the generated instruction.
+  // Whether the generated instruction will have a REX prefix.
+  bool requires_rex() const { return rex_ != 0; }
+  // Size of the ModR/M, SIB and displacement parts of the generated
+  // instruction.
+  int operand_size() const { return len_; }
+
  private:
   byte rex_;
   byte buf_[6];

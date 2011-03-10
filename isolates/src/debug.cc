@@ -1034,28 +1034,24 @@ Object* Debug::Break(RUNTIME_CALLING_CONVENTION) {
 // triggered. This function returns a JSArray with the break point objects
 // which is triggered.
 Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
+  // Count the number of break points hit. If there are multiple break points
+  // they are in a FixedArray.
+  Handle<FixedArray> break_points_hit;
   int break_points_hit_count = 0;
-  Handle<JSArray> break_points_hit = FACTORY->NewJSArray(1);
-
-  // If there are multiple break points they are in a FixedArray.
   ASSERT(!break_point_objects->IsUndefined());
   if (break_point_objects->IsFixedArray()) {
     Handle<FixedArray> array(FixedArray::cast(*break_point_objects));
+    break_points_hit = FACTORY->NewFixedArray(array->length());
     for (int i = 0; i < array->length(); i++) {
       Handle<Object> o(array->get(i));
       if (CheckBreakPoint(o)) {
-        SetElement(break_points_hit,
-                   break_points_hit_count++,
-                   o,
-                   kNonStrictMode);
+        break_points_hit->set(break_points_hit_count++, *o);
       }
     }
   } else {
+    break_points_hit = FACTORY->NewFixedArray(1);
     if (CheckBreakPoint(break_point_objects)) {
-      SetElement(break_points_hit,
-                 break_points_hit_count++,
-                 break_point_objects,
-                 kNonStrictMode);
+      break_points_hit->set(break_points_hit_count++, *break_point_objects);
     }
   }
 
@@ -1063,7 +1059,10 @@ Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
   if (break_points_hit_count == 0) {
     return FACTORY->undefined_value();
   }
-  return break_points_hit;
+  // Return break points hit as a JSArray.
+  Handle<JSArray> result = FACTORY->NewJSArrayWithElements(break_points_hit);
+  result->set_length(Smi::FromInt(break_points_hit_count));
+  return result;
 }
 
 
@@ -1074,7 +1073,7 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   // Ignore check if break point object is not a JSObject.
   if (!break_point_object->IsJSObject()) return true;
 
-  // Get the function CheckBreakPoint (defined in debug.js).
+  // Get the function IsBreakPointTriggered (defined in debug-debugger.js).
   Handle<String> is_break_point_triggered_symbol =
       FACTORY->LookupAsciiSymbol("IsBreakPointTriggered");
   Handle<JSFunction> check_break_point =

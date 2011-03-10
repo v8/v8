@@ -543,6 +543,9 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     }
   } else if (is_monomorphic_) {
     monomorphic_receiver_type_ = oracle->LoadMonomorphicReceiverType(this);
+    if (monomorphic_receiver_type_->has_external_array_elements()) {
+      SetExternalArrayType(oracle->GetKeyedLoadExternalArrayType(this));
+    }
   }
 }
 
@@ -560,6 +563,9 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   } else if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed loads.
     monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
+    if (monomorphic_receiver_type_->has_external_array_elements()) {
+      SetExternalArrayType(oracle->GetKeyedStoreExternalArrayType(this));
+    }
   }
 }
 
@@ -1063,6 +1069,8 @@ CaseClause::CaseClause(Expression* label,
     : label_(label),
       statements_(statements),
       position_(pos),
-      compare_type_(NONE) {}
+      compare_type_(NONE),
+      entry_id_(AstNode::GetNextId()) {
+}
 
 } }  // namespace v8::internal

@@ -644,7 +644,7 @@ MaybeObject* MacroAssembler::TryJumpToExternalReference(
 
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
-                                   PostCallGenerator* post_call_generator) {
+                                   CallWrapper* call_wrapper) {
   // Calls are not allowed in some stubs.
   ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
 
@@ -653,7 +653,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
   GetBuiltinEntry(rdx, id);
-  InvokeCode(rdx, expected, expected, flag, post_call_generator);
+  InvokeCode(rdx, expected, expected, flag, call_wrapper);
 }
 
 
@@ -1430,20 +1430,41 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
 
 
 void MacroAssembler::Call(ExternalReference ext) {
+#ifdef DEBUG
+  int pre_position = pc_offset();
+#endif
   movq(kScratchRegister, ext);
   call(kScratchRegister);
+#ifdef DEBUG
+  int post_position = pc_offset();
+  CHECK_EQ(pre_position + CallSize(ext), post_position);
+#endif
 }
 
 
 void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
+#ifdef DEBUG
+  int pre_position = pc_offset();
+#endif
   movq(kScratchRegister, destination, rmode);
   call(kScratchRegister);
+#ifdef DEBUG
+  int post_position = pc_offset();
+  CHECK_EQ(pre_position + CallSize(destination, rmode), post_position);
+#endif
 }
 
 
 void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
+#ifdef DEBUG
+  int pre_position = pc_offset();
+#endif
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   call(code_object, rmode);
+#ifdef DEBUG
+  int post_position = pc_offset();
+  CHECK_EQ(pre_position + CallSize(code_object), post_position);
+#endif
 }
 
 
@@ -1875,7 +1896,7 @@ void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
-                                PostCallGenerator* post_call_generator) {
+                                CallWrapper* call_wrapper) {
   NearLabel done;
   InvokePrologue(expected,
                  actual,
@@ -1883,10 +1904,11 @@ void MacroAssembler::InvokeCode(Register code,
                  code,
                  &done,
                  flag,
-                 post_call_generator);
+                 call_wrapper);
   if (flag == CALL_FUNCTION) {
+    if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(code));
     call(code);
-    if (post_call_generator != NULL) post_call_generator->Generate();
+    if (call_wrapper != NULL) call_wrapper->AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     jmp(code);
@@ -1900,7 +1922,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& actual,
                                 RelocInfo::Mode rmode,
                                 InvokeFlag flag,
-                                PostCallGenerator* post_call_generator) {
+                                CallWrapper* call_wrapper) {
   NearLabel done;
   Register dummy = rax;
   InvokePrologue(expected,
@@ -1909,10 +1931,11 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                  dummy,
                  &done,
                  flag,
-                 post_call_generator);
+                 call_wrapper);
   if (flag == CALL_FUNCTION) {
+    if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(code));
     Call(code, rmode);
-    if (post_call_generator != NULL) post_call_generator->Generate();
+    if (call_wrapper != NULL) call_wrapper->AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     Jump(code, rmode);
@@ -1924,7 +1947,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    PostCallGenerator* post_call_generator) {
+                                    CallWrapper* call_wrapper) {
   ASSERT(function.is(rdi));
   movq(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
@@ -1935,14 +1958,14 @@ void MacroAssembler::InvokeFunction(Register function,
   movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(rbx);
-  InvokeCode(rdx, expected, actual, flag, post_call_generator);
+  InvokeCode(rdx, expected, actual, flag, call_wrapper);
 }
 
 
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    PostCallGenerator* post_call_generator) {
+                                    CallWrapper* call_wrapper) {
   ASSERT(function->is_compiled());
   // Get the function and setup the context.
   Move(rdi, Handle<JSFunction>(function));
@@ -1953,7 +1976,7 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
     // the Code object every time we call the function.
     movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
     ParameterCount expected(function->shared()->formal_parameter_count());
-    InvokeCode(rdx, expected, actual, flag, post_call_generator);
+    InvokeCode(rdx, expected, actual, flag, call_wrapper);
   } else {
     // Invoke the cached code.
     Handle<Code> code(function->code());
@@ -1963,7 +1986,7 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
                actual,
                RelocInfo::CODE_TARGET,
                flag,
-               post_call_generator);
+               call_wrapper);
   }
 }
 
@@ -2012,16 +2035,15 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
   push(kScratchRegister);  // Accessed from EditFrame::code_slot.
 
   // Save the frame pointer and the context in top.
-  ExternalReference c_entry_fp_address(Isolate::k_c_entry_fp_address);
-  ExternalReference context_address(Isolate::k_context_address);
   if (save_rax) {
-    movq(r14, rax);  // Backup rax before we use it.
+    movq(r14, rax);  // Backup rax in callee-save register.
   }
 
-  movq(rax, rbp);
-  store_rax(c_entry_fp_address);
-  movq(rax, rsi);
-  store_rax(context_address);
+  movq(kScratchRegister, ExternalReference(Isolate::k_c_entry_fp_address));
+  movq(Operand(kScratchRegister, 0), rbp);
+
+  movq(kScratchRegister, ExternalReference(Isolate::k_context_address));
+  movq(Operand(kScratchRegister, 0), rsi);
 }
 
 

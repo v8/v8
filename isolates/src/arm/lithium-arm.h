@@ -89,6 +89,7 @@ class LCodeGen;
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
+  V(ExternalArrayLength)                        \
   V(FixedArrayLength)                           \
   V(FunctionLiteral)                            \
   V(Gap)                                        \
@@ -115,6 +116,7 @@ class LCodeGen;
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
   V(LoadElements)                               \
+  V(LoadExternalArrayPointer)                   \
   V(LoadFunctionPrototype)                      \
   V(LoadGlobal)                                 \
   V(LoadKeyedFastElement)                       \
@@ -122,7 +124,6 @@ class LCodeGen;
   V(LoadNamedField)                             \
   V(LoadNamedGeneric)                           \
   V(LoadPixelArrayElement)                      \
-  V(LoadPixelArrayExternalPointer)              \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -132,7 +133,6 @@ class LCodeGen;
   V(OsrEntry)                                   \
   V(OuterContext)                               \
   V(Parameter)                                  \
-  V(PixelArrayLength)                           \
   V(Power)                                      \
   V(PushArgument)                               \
   V(RegExpLiteral)                              \
@@ -147,6 +147,7 @@ class LCodeGen;
   V(StoreKeyedGeneric)                          \
   V(StoreNamedField)                            \
   V(StoreNamedGeneric)                          \
+  V(StorePixelArrayElement)                     \
   V(StringCharCodeAt)                           \
   V(StringLength)                               \
   V(SubI)                                       \
@@ -991,14 +992,14 @@ class LJSArrayLength: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LPixelArrayLength: public LTemplateInstruction<1, 1, 0> {
+class LExternalArrayLength: public LTemplateInstruction<1, 1, 0> {
  public:
-  explicit LPixelArrayLength(LOperand* value) {
+  explicit LExternalArrayLength(LOperand* value) {
     inputs_[0] = value;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(PixelArrayLength, "pixel-array-length")
-  DECLARE_HYDROGEN_ACCESSOR(PixelArrayLength)
+  DECLARE_CONCRETE_INSTRUCTION(ExternalArrayLength, "external-array-length")
+  DECLARE_HYDROGEN_ACCESSOR(ExternalArrayLength)
 };
 
 
@@ -1163,14 +1164,14 @@ class LLoadElements: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LLoadPixelArrayExternalPointer: public LTemplateInstruction<1, 1, 0> {
+class LLoadExternalArrayPointer: public LTemplateInstruction<1, 1, 0> {
  public:
-  explicit LLoadPixelArrayExternalPointer(LOperand* object) {
+  explicit LLoadExternalArrayPointer(LOperand* object) {
     inputs_[0] = object;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayExternalPointer,
-                               "load-pixel-array-external-pointer")
+  DECLARE_CONCRETE_INSTRUCTION(LoadExternalArrayPointer,
+                               "load-external-array-pointer")
 };
 
 
@@ -1591,6 +1592,7 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 3, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store-keyed-generic")
+  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedGeneric)
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -1599,6 +1601,24 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 3, 0> {
   LOperand* value() { return inputs_[2]; }
 };
 
+class LStorePixelArrayElement: public LTemplateInstruction<0, 3, 0> {
+ public:
+  LStorePixelArrayElement(LOperand* external_pointer,
+                          LOperand* key,
+                          LOperand* val) {
+    inputs_[0] = external_pointer;
+    inputs_[1] = key;
+    inputs_[2] = val;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StorePixelArrayElement,
+                               "store-pixel-array-element")
+  DECLARE_HYDROGEN_ACCESSOR(StorePixelArrayElement)
+
+  LOperand* external_pointer() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+  LOperand* value() { return inputs_[2]; }
+};
 
 class LStringCharCodeAt: public LTemplateInstruction<1, 2, 0> {
  public:
