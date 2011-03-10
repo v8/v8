@@ -367,6 +367,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(String* name,
 void HeapProfiler::DefineWrapperClass(
     uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback) {
   ASSERT(singleton_ != NULL);
+  ASSERT(class_id != v8::HeapProfiler::kPersistentHandleNoClassId);
   if (singleton_->wrapper_callbacks_.length() <= class_id) {
     singleton_->wrapper_callbacks_.AddBlock(
         NULL, class_id - singleton_->wrapper_callbacks_.length() + 1);

@@ -1226,7 +1226,7 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       uid_(uid),
       root_entry_(NULL),
       gc_roots_entry_(NULL),
-      dom_subtrees_root_entry_(NULL),
+      natives_root_entry_(NULL),
       raw_entries_(NULL),
       entries_sorted_(false),
       retaining_paths_(HeapEntry::Match) {
@@ -1303,8 +1303,8 @@ HeapEntry* HeapSnapshot::AddGcRootsEntry(int children_count,
 
 HeapEntry* HeapSnapshot::AddNativesRootEntry(int children_count,
                                                  int retainers_count) {
-  ASSERT(dom_subtrees_root_entry_ == NULL);
-  return (dom_subtrees_root_entry_ = AddEntry(
+  ASSERT(natives_root_entry_ == NULL);
+  return (natives_root_entry_ = AddEntry(
       HeapEntry::kObject,
       "(Native objects)",
       HeapObjectsMap::kNativesRootObjectId,
@@ -2338,7 +2338,7 @@ void NativeObjectsExplorer::SetNativeRootReference(
   ASSERT(child_entry != NULL);
   filler_->SetIndexedAutoIndexReference(
       HeapGraphEdge::kElement,
-      kNativesRootObject, snapshot_->dom_subtrees_root(),
+      kNativesRootObject, snapshot_->natives_root(),
       info, child_entry);
 }
 
@@ -2363,7 +2363,7 @@ void NativeObjectsExplorer::SetRootNativesRootReference() {
   filler_->SetIndexedAutoIndexReference(
       HeapGraphEdge::kElement,
       V8HeapExplorer::kInternalRootObject, snapshot_->root(),
-      kNativesRootObject, snapshot_->dom_subtrees_root());
+      kNativesRootObject, snapshot_->natives_root());
 }
 
 

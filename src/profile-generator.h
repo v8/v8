@@ -680,7 +680,7 @@ class HeapSnapshot {
   unsigned uid() { return uid_; }
   HeapEntry* root() { return root_entry_; }
   HeapEntry* gc_roots() { return gc_roots_entry_; }
-  HeapEntry* dom_subtrees_root() { return dom_subtrees_root_entry_; }
+  HeapEntry* natives_root() { return natives_root_entry_; }
   List<HeapEntry*>* entries() { return &entries_; }
 
   void AllocateEntries(
@@ -715,7 +715,7 @@ class HeapSnapshot {
   unsigned uid_;
   HeapEntry* root_entry_;
   HeapEntry* gc_roots_entry_;
-  HeapEntry* dom_subtrees_root_entry_;
+  HeapEntry* natives_root_entry_;
   char* raw_entries_;
   List<HeapEntry*> entries_;
   bool entries_sorted_;
