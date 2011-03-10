@@ -210,7 +210,7 @@ class GlobalHandles::Node : public Malloced {
     NEAR_DEATH,  // Callback has informed the handle is near death.
     DESTROYED
   };
-  State state_;
+  State state_ : 4;  // Need one more bit for MSVC as it treats enums as signed.
 
  private:
   // Handle specific callback.
