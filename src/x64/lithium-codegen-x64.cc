@@ -1059,7 +1059,7 @@ void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
 void LCodeGen::DoExternalArrayLength(LExternalArrayLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->InputAt(0));
-  __ movq(result, FieldOperand(array, ExternalPixelArray::kLengthOffset));
+  __ movl(result, FieldOperand(array, ExternalPixelArray::kLengthOffset));
 }
 
 

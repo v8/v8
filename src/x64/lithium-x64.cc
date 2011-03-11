@@ -1791,7 +1791,6 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
 
 LInstruction* LChunkBuilder::DoLoadPixelArrayElement(
     HLoadPixelArrayElement* instr) {
-  Abort("Pixel array loads in generated code cause segfaults (danno)");
   ASSERT(instr->representation().IsInteger32());
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* external_pointer =
@@ -1833,7 +1832,6 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
 
 LInstruction* LChunkBuilder::DoStorePixelArrayElement(
     HStorePixelArrayElement* instr) {
-  Abort("Pixel array stores in generated code sometimes segfaults (danno)");
   ASSERT(instr->value()->representation().IsInteger32());
   ASSERT(instr->external_pointer()->representation().IsExternal());
   ASSERT(instr->key()->representation().IsInteger32());
