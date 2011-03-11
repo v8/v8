@@ -1934,6 +1934,7 @@ class SamplerThread : public Thread {
   }
 
   static void DoCpuProfile(Sampler* sampler, void* raw_sampler_thread) {
+    if (!sampler->isolate()->IsInitialized()) return;
     if (!sampler->IsProfiling()) return;
     SamplerThread* sampler_thread =
         reinterpret_cast<SamplerThread*>(raw_sampler_thread);

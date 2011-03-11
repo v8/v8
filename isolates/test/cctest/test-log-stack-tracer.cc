@@ -398,6 +398,7 @@ static int CFunc(int depth) {
 TEST(PureCStackTrace) {
   TickSample sample;
   InitTraceEnv(&sample);
+  InitializeVM();
   // Check that sampler doesn't crash
   CHECK_EQ(10, CFunc(10));
 }

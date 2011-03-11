@@ -344,6 +344,13 @@ static void PrintFrames(StringStream* accumulator,
 
 
 void Isolate::PrintStack(StringStream* accumulator) {
+  if (!IsInitialized()) {
+    accumulator->Add(
+        "\n==== Stack trace is not available ==========================\n\n");
+    accumulator->Add(
+        "\n==== Isolate for the thread is not initialized =============\n\n");
+    return;
+  }
   // The MentionedObjectCache is not GC-proof at the moment.
   AssertNoAllocation nogc;
   ASSERT(StringStream::IsMentionedObjectCacheClear());

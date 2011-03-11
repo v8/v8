@@ -145,6 +145,8 @@ class Profiler: public Thread {
 // StackTracer implementation
 //
 void StackTracer::Trace(Isolate* isolate, TickSample* sample) {
+  ASSERT(isolate->IsInitialized());
+
   sample->tos = NULL;
   sample->frames_count = 0;
 
