@@ -251,7 +251,11 @@ function ObjectDefineGetter(name, fun) {
   if (!IS_FUNCTION(fun)) {
     throw new $TypeError('Object.prototype.__defineGetter__: Expecting function');
   }
-  return %DefineAccessor(ToObject(this), ToString(name), GETTER, fun);
+  var desc = new PropertyDescriptor();
+  desc.setGet(fun);
+  desc.setEnumerable(true);
+  desc.setConfigurable(true);
+  DefineOwnProperty(ToObject(this), ToString(name), desc, true);
 }
 
 
@@ -271,7 +275,11 @@ function ObjectDefineSetter(name, fun) {
     throw new $TypeError(
         'Object.prototype.__defineSetter__: Expecting function');
   }
-  return %DefineAccessor(ToObject(this), ToString(name), SETTER, fun);
+  var desc = new PropertyDescriptor();
+  desc.setSet(fun);
+  desc.setEnumerable(true);
+  desc.setConfigurable(true);
+  DefineOwnProperty(ToObject(this), ToString(name), desc, true);
 }
 
 
@@ -394,6 +402,10 @@ function PropertyDescriptor() {
   this.hasSetter_ = false;
 }
 
+PropertyDescriptor.prototype.__proto__ = null;
+PropertyDescriptor.prototype.toString = function() {
+  return "[object PropertyDescriptor]";
+};
 
 PropertyDescriptor.prototype.setValue = function(value) {
   this.value_ = value;
@@ -495,7 +507,7 @@ PropertyDescriptor.prototype.hasSetter = function() {
 // property descriptor. For a description of the array layout please
 // see the runtime.cc file.
 function ConvertDescriptorArrayToDescriptor(desc_array) {
-  if (desc_array == false) {
+  if (desc_array === false) {
     throw 'Internal error: invalid desc_array';
   }
 
@@ -554,7 +566,7 @@ function GetOwnProperty(obj, p) {
 function DefineOwnProperty(obj, p, desc, should_throw) {
   var current_or_access = %GetOwnProperty(ToObject(obj), ToString(p));
   // A false value here means that access checks failed.
-  if (current_or_access == false) return void 0;
+  if (current_or_access === false) return void 0;
 
   var current = ConvertDescriptorArrayToDescriptor(current_or_access);
   var extensible = %IsExtensible(ToObject(obj));
