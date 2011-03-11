@@ -495,7 +495,7 @@ PropertyDescriptor.prototype.hasSetter = function() {
 // property descriptor. For a description of the array layout please
 // see the runtime.cc file.
 function ConvertDescriptorArrayToDescriptor(desc_array) {
-  if (desc_array == false) {
+  if (desc_array === false) {
     throw 'Internal error: invalid desc_array';
   }
 
@@ -544,7 +544,7 @@ function GetOwnProperty(obj, p) {
   var props = %GetOwnProperty(ToObject(obj), ToString(p));
 
   // A false value here means that access checks failed.
-  if (props == false) return void 0;
+  if (props === false) return void 0;
 
   return ConvertDescriptorArrayToDescriptor(props);
 }
@@ -554,7 +554,7 @@ function GetOwnProperty(obj, p) {
 function DefineOwnProperty(obj, p, desc, should_throw) {
   var current_or_access = %GetOwnProperty(ToObject(obj), ToString(p));
   // A false value here means that access checks failed.
-  if (current_or_access == false) return void 0;
+  if (current_or_access === false) return void 0;
 
   var current = ConvertDescriptorArrayToDescriptor(current_or_access);
   var extensible = %IsExtensible(ToObject(obj));
