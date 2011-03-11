@@ -673,11 +673,7 @@ class Sampler::PlatformData : public Malloced {
 
   void SendProfilingSignal() {
     if (!signal_handler_installed_) return;
-    // There doesn't seem to be a robust way to deliver a signal to a
-    // particular thread that may have terminated already. We send the
-    // signal to the whole process hoping the right thread will get
-    // it.
-    kill(vm_tgid_, SIGPROF);
+    pthread_kill(vm_tid_, SIGPROF);
   }
 
   void Sleep(SleepInterval full_or_half) {
