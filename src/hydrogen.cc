@@ -4267,10 +4267,12 @@ void HGraphBuilder::VisitCall(Call* expr) {
       }
 
       if (HasCustomCallGenerator(expr->target()) ||
+          CallOptimization(*expr->target()).is_simple_api_call() ||
           expr->check_type() != RECEIVER_MAP_CHECK) {
         // When the target has a custom call IC generator, use the IC,
-        // because it is likely to generate better code. Also use the
-        // IC when a primitive receiver check is required.
+        // because it is likely to generate better code.  Similarly, we
+        // generate better call stubs for some API functions.
+        // Also use the IC when a primitive receiver check is required.
         HContext* context = new HContext;
         AddInstruction(context);
         call = PreProcessCall(new HCallNamed(context, name, argument_count));
