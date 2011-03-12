@@ -411,7 +411,7 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
     Isolate* isolate,
     const char* name,
     BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {
-  HandleScope handleScope;
+  HandleScope handleScope(isolate);
 
   Handle<Object> js_builtin =
       GetProperty(Handle<JSObject>(
@@ -1038,7 +1038,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
   ASSERT(is_construct == CalledAsConstructor(isolate));
   Heap* heap = isolate->heap();
 
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<JSFunction> function = args.called_function();
   ASSERT(function->shared()->IsApiFunction());
 
@@ -1212,7 +1212,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
   // Get the data for the call and perform the callback.
   Object* result;
   {
-    HandleScope scope;
+    HandleScope scope(isolate);
 
     LOG(ApiObjectAccess("call non-function", obj));
 
