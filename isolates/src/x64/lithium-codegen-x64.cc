@@ -1059,7 +1059,7 @@ void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
 void LCodeGen::DoExternalArrayLength(LExternalArrayLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->InputAt(0));
-  __ movq(result, FieldOperand(array, ExternalPixelArray::kLengthOffset));
+  __ movl(result, FieldOperand(array, ExternalPixelArray::kLengthOffset));
 }
 
 
@@ -1210,7 +1210,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
     Register reg = ToRegister(instr->InputAt(0));
     HType type = instr->hydrogen()->type();
     if (type.IsBoolean()) {
-      __ Cmp(reg, FACTORY->true_value());
+      __ CompareRoot(reg, Heap::kTrueValueRootIndex);
       EmitBranch(true_block, false_block, equal);
     } else if (type.IsSmi()) {
       __ SmiCompare(reg, Smi::FromInt(0));
@@ -1477,14 +1477,14 @@ void LCodeGen::DoIsNullAndBranch(LIsNullAndBranch* instr) {
 
   int true_block = chunk_->LookupDestination(instr->true_block_id());
 
-  __ Cmp(reg, FACTORY->null_value());
+  __ CompareRoot(reg, Heap::kNullValueRootIndex);
   if (instr->is_strict()) {
     EmitBranch(true_block, false_block, equal);
   } else {
     Label* true_label = chunk_->GetAssemblyLabel(true_block);
     Label* false_label = chunk_->GetAssemblyLabel(false_block);
     __ j(equal, true_label);
-    __ Cmp(reg, FACTORY->undefined_value());
+    __ CompareRoot(reg, Heap::kUndefinedValueRootIndex);
     __ j(equal, true_label);
     __ JumpIfSmi(reg, false_label);
     // Check for undetectable objects by looking in the bit field in
@@ -2092,14 +2092,14 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
   __ movq(result, FieldOperand(input, JSObject::kElementsOffset));
   if (FLAG_debug_code) {
     NearLabel done;
-    __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
-           FACTORY->fixed_array_map());
+    __ CompareRoot(FieldOperand(result, HeapObject::kMapOffset),
+                   Heap::kFixedArrayMapRootIndex);
     __ j(equal, &done);
-    __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
-           FACTORY->external_pixel_array_map());
+    __ CompareRoot(FieldOperand(result, HeapObject::kMapOffset),
+                   Heap::kExternalPixelArrayMapRootIndex);
     __ j(equal, &done);
-    __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
-           FACTORY->fixed_cow_array_map());
+    __ CompareRoot(FieldOperand(result, HeapObject::kMapOffset),
+                   Heap::kFixedCOWArrayMapRootIndex);
     __ Check(equal, "Check for fast elements failed.");
     __ bind(&done);
   }
@@ -2146,7 +2146,7 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
                                FixedArray::kHeaderSize));
 
   // Check for the hole value.
-  __ Cmp(result, FACTORY->the_hole_value());
+  __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
   DeoptimizeIf(equal, instr->environment());
 }
 
@@ -2614,7 +2614,7 @@ void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
 
 void LCodeGen::DoMathCos(LUnaryMathOperation* instr) {
   ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
-  TranscendentalCacheStub stub(TranscendentalCache::LOG,
+  TranscendentalCacheStub stub(TranscendentalCache::COS,
                                TranscendentalCacheStub::UNTAGGED);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
@@ -2622,7 +2622,7 @@ void LCodeGen::DoMathCos(LUnaryMathOperation* instr) {
 
 void LCodeGen::DoMathSin(LUnaryMathOperation* instr) {
   ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
-  TranscendentalCacheStub stub(TranscendentalCache::LOG,
+  TranscendentalCacheStub stub(TranscendentalCache::SIN,
                                TranscendentalCacheStub::UNTAGGED);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
@@ -3439,7 +3439,9 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   } else {
     __ push(rsi);
     __ Push(shared_info);
-    __ Push(pretenure ? FACTORY->true_value() : FACTORY->false_value());
+    __ PushRoot(pretenure ?
+                Heap::kTrueValueRootIndex :
+                Heap::kFalseValueRootIndex);
     CallRuntime(Runtime::kNewClosure, 3, instr);
   }
 }
@@ -3522,8 +3524,9 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   Condition final_branch_condition = no_condition;
   if (type_name->Equals(HEAP->number_symbol())) {
     __ JumpIfSmi(input, true_label);
-    __ Cmp(FieldOperand(input, HeapObject::kMapOffset),
-           FACTORY->heap_number_map());
+    __ CompareRoot(FieldOperand(input, HeapObject::kMapOffset),
+                   Heap::kHeapNumberMapRootIndex);
+
     final_branch_condition = equal;
 
   } else if (type_name->Equals(HEAP->string_symbol())) {

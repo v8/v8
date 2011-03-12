@@ -25,26 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test Math.sin and Math.cos.
+// Test that Object.freeze and Object.getOwnPropertyDescriptor do not
+// call toString or valueOf on members of the object.
 
-function sinTest() {
-  assertEquals(0, Math.sin(0));
-  assertEquals(1, Math.sin(Math.PI / 2));
-}
+// See http://code.google.com/p/v8/issues/detail?id=1233.
 
-function cosTest() {
-  assertEquals(1, Math.cos(0));
-  assertEquals(-1, Math.cos(Math.PI));
-}
 
-sinTest();
-cosTest();
+var delicate = new Object();
+delicate.toString = function(){ throw Error("toString"); };
+delicate.valueOf = function(){ throw Error("valueOf"); };
 
-// By accident, the slow case for sine and cosine were both sine at
-// some point.  This is a regression test for that issue.
-var x = Math.pow(2, 70);
-assertTrue(Math.sin(x) != Math.cos(x));
+var x = { foo: delicate };
 
-// Ensure that sine and log are not the same.
-x = 0.5;
-assertTrue(Math.sin(x) != Math.log(x));
+var status = "fail";
+try {
+  Object.getOwnPropertyDescriptor(x, "foo");
+  Object.freeze(x);
+  status = "succeed";
+} catch (e) {}
+
+assertEquals("succeed", status);

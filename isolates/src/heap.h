@@ -1224,6 +1224,14 @@ class Heap {
   inline Isolate* isolate();
   bool is_safe_to_read_maps() { return is_safe_to_read_maps_; }
 
+  void CallGlobalGCPrologueCallback() {
+    if (global_gc_prologue_callback_ != NULL) global_gc_prologue_callback_();
+  }
+
+  void CallGlobalGCEpilogueCallback() {
+    if (global_gc_epilogue_callback_ != NULL) global_gc_epilogue_callback_();
+  }
+
  private:
   Heap();
 

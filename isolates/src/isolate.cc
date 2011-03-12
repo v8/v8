@@ -431,7 +431,7 @@ void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
 
-    if (FLAG_time_hydrogen) HStatistics::Instance()->Print();
+    if (FLAG_hydrogen_stats) HStatistics::Instance()->Print();
 
     // We must stop the logger before we tear down other components.
     logger_->EnsureTickerStopped();

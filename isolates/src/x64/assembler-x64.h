@@ -93,8 +93,8 @@ struct Register {
   //  rbp - frame pointer
   //  rsi - context register
   //  r10 - fixed scratch register
+  //  r12 - smi constant register
   //  r13 - root register
-  //  r15 - smi constant register
   static const int kNumRegisters = 16;
   static const int kNumAllocatableRegisters = 10;
 
@@ -120,7 +120,7 @@ struct Register {
       "r9",
       "r11",
       "r14",
-      "r12"
+      "r15"
     };
     return names[index];
   }

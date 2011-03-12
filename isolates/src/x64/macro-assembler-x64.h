@@ -48,7 +48,7 @@ enum AllocationFlags {
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
 static const Register kScratchRegister = { 10 };      // r10.
-static const Register kSmiConstantRegister = { 15 };  // r15 (callee save).
+static const Register kSmiConstantRegister = { 12 };  // r12 (callee save).
 static const Register kRootRegister = { 13 };         // r13 (callee save).
 // Value of smi in kSmiConstantRegister.
 static const int kSmiConstantRegisterValue = 1;
@@ -941,7 +941,7 @@ class MacroAssembler: public Assembler {
 
   // Calls an API function. Allocates HandleScope, extracts
   // returned value from handle and propagates exceptions.
-  // Clobbers r12, r14, rbx and caller-save registers. Restores context.
+  // Clobbers r14, r15, rbx and caller-save registers. Restores context.
   // On return removes stack_space * kPointerSize (GCed).
   MUST_USE_RESULT MaybeObject* TryCallApiFunctionAndReturn(
       ApiFunction* function, int stack_space);
@@ -1013,7 +1013,7 @@ class MacroAssembler: public Assembler {
 
  private:
   // Order general registers are pushed by Pushad.
-  // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14.
+  // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.
   static int kSafepointPushRegisterIndices[Register::kNumRegisters];
   static const int kNumSafepointSavedRegisters = 11;
 

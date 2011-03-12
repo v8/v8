@@ -46,8 +46,8 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ Ret();
 
   __ bind(&check_heap_number);
-  __ Move(rbx, FACTORY->heap_number_map());
-  __ cmpq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &call_builtin);
   __ Ret();
 
@@ -104,7 +104,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ pop(rdx);
   __ push(rsi);
   __ push(rdx);
-  __ Push(FACTORY->false_value());
+  __ PushRoot(Heap::kFalseValueRootIndex);
   __ push(rcx);  // Restore return address.
   __ TailCallRuntime(Runtime::kNewClosure, 3, 1);
 }
@@ -2496,7 +2496,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the JSArray is in fast case.
   __ movq(rbx, FieldOperand(rdi, JSArray::kElementsOffset));
   __ movq(rdi, FieldOperand(rbx, HeapObject::kMapOffset));
-  __ Cmp(rdi, FACTORY->fixed_array_map());
+  __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
+                 Heap::kFixedArrayMapRootIndex);
   __ j(not_equal, &runtime);
   // Check that the last match info has space for the capture registers and the
   // additional information. Ensure no overflow in add.
@@ -2531,8 +2532,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ testb(rbx, Immediate(kIsNotStringMask | kExternalStringTag));
   __ j(not_zero, &runtime);
   // String is a cons string.
-  __ movq(rdx, FieldOperand(rdi, ConsString::kSecondOffset));
-  __ Cmp(rdx, FACTORY->empty_string());
+  __ CompareRoot(FieldOperand(rdi, ConsString::kSecondOffset),
+                 Heap::kEmptyStringRootIndex);
   __ j(not_equal, &runtime);
   __ movq(rdi, FieldOperand(rdi, ConsString::kFirstOffset));
   __ movq(rbx, FieldOperand(rdi, HeapObject::kMapOffset));
@@ -2805,8 +2806,8 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   __ movq(FieldOperand(rax, HeapObject::kMapOffset), rdx);
 
   // Set empty properties FixedArray.
-  __ Move(FieldOperand(rax, JSObject::kPropertiesOffset),
-          FACTORY->empty_fixed_array());
+  __ LoadRoot(kScratchRegister, Heap::kEmptyFixedArrayRootIndex);
+  __ movq(FieldOperand(rax, JSObject::kPropertiesOffset), kScratchRegister);
 
   // Set elements to point to FixedArray allocated right after the JSArray.
   __ lea(rcx, Operand(rax, JSRegExpResult::kSize));
@@ -2826,13 +2827,13 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // rbx: Number of elements in array as int32.
 
   // Set map.
-  __ Move(FieldOperand(rcx, HeapObject::kMapOffset),
-          FACTORY->fixed_array_map());
+  __ LoadRoot(kScratchRegister, Heap::kFixedArrayMapRootIndex);
+  __ movq(FieldOperand(rcx, HeapObject::kMapOffset), kScratchRegister);
   // Set length.
   __ Integer32ToSmi(rdx, rbx);
   __ movq(FieldOperand(rcx, FixedArray::kLengthOffset), rdx);
   // Fill contents of fixed-array with the-hole.
-  __ Move(rdx, FACTORY->the_hole_value());
+  __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
   __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
   // Fill fixed array elements with hole.
   // rax: JSArray.
@@ -3334,7 +3335,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // rbp: frame pointer  (restored after C call).
   // rsp: stack pointer  (restored after C call).
   // r14: number of arguments including receiver (C callee-saved).
-  // r12: pointer to the first argument (C callee-saved).
+  // r15: pointer to the first argument (C callee-saved).
   //      This pointer is reused in LeaveExitFrame(), so it is stored in a
   //      callee-saved register.
 
@@ -3375,7 +3376,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9
   // Store Arguments object on stack, below the 4 WIN64 ABI parameter slots.
   __ movq(StackSpaceOperand(0), r14);  // argc.
-  __ movq(StackSpaceOperand(1), r12);  // argv.
+  __ movq(StackSpaceOperand(1), r15);  // argv.
   if (result_size_ < 2) {
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax).
@@ -3393,7 +3394,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 #else  // _WIN64
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
   __ movq(rdi, r14);  // argc.
-  __ movq(rsi, r12);  // argv.
+  __ movq(rsi, r15);  // argv.
   __ movq(rdx, ExternalReference::isolate_address());
 #endif
   __ call(rbx);
@@ -3499,7 +3500,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // rbp: frame pointer of exit frame  (restored after C call).
   // rsp: stack pointer (restored after C call).
   // r14: number of arguments including receiver (C callee-saved).
-  // r12: argv pointer (C callee-saved).
+  // r15: argv pointer (C callee-saved).
 
   Label throw_normal_exception;
   Label throw_termination_exception;
@@ -4191,7 +4192,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // just allocate a new one.
   Label make_two_character_string, make_flat_ascii_string;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, rbx, rcx, r14, r11, rdi, r12, &make_two_character_string);
+      masm, rbx, rcx, r14, r11, rdi, r15, &make_two_character_string);
   __ IncrementCounter(COUNTERS->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
@@ -4963,7 +4964,7 @@ void StringCharAtStub::Generate(MacroAssembler* masm) {
   __ bind(&index_out_of_range);
   // When the index is out of range, the spec requires us to return
   // the empty string.
-  __ Move(result, FACTORY->empty_string());
+  __ LoadRoot(result, Heap::kEmptyStringRootIndex);
   __ jmp(&done);
 
   __ bind(&need_conversion);

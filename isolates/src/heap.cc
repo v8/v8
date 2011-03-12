@@ -1319,7 +1319,8 @@ class ScavengingVisitor : public StaticVisitorBase {
     if (isolate->logger()->is_logging() ||
         isolate->cpu_profiler()->is_profiling()) {
       if (target->IsSharedFunctionInfo()) {
-        PROFILE(SFIMoveEvent(source->address(), target->address()));
+        PROFILE(SharedFunctionInfoMoveEvent(
+            source->address(), target->address()));
       }
     }
 #endif

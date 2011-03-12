@@ -3559,6 +3559,11 @@ void Context::ReattachGlobal(Handle<Object> global_object) {
 }
 
 
+void V8::SetWrapperClassId(i::Object** global_handle, uint16_t class_id) {
+  i::GlobalHandles::SetWrapperClassId(global_handle, class_id);
+}
+
+
 Local<v8::Object> ObjectTemplate::NewInstance() {
   ON_BAILOUT("v8::ObjectTemplate::NewInstance()", return Local<v8::Object>());
   LOG_API("ObjectTemplate::NewInstance");
@@ -4106,11 +4111,13 @@ void V8::SetFailedAccessCheckCallbackFunction(
 }
 
 
-void V8::AddObjectGroup(Persistent<Value>* objects, size_t length) {
+void V8::AddObjectGroup(Persistent<Value>* objects,
+                        size_t length,
+                        RetainedObjectInfo* info) {
   if (IsDeadCheck("v8::V8::AddObjectGroup()")) return;
   STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
   i::Isolate::Current()->global_handles()->AddGroup(
-      reinterpret_cast<i::Object***>(objects), length);
+      reinterpret_cast<i::Object***>(objects), length, info);
 }
 
 
@@ -5101,6 +5108,13 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
           *Utils::OpenHandle(*title), internal_type, control));
 }
 
+
+void HeapProfiler::DefineWrapperClass(uint16_t class_id,
+                                      WrapperInfoCallback callback) {
+  i::Isolate::Current()->heap_profiler()->DefineWrapperClass(class_id,
+                                                             callback);
+}
+
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 
@@ -5162,6 +5176,11 @@ void Testing::PrepareStressRun(int run) {
     SetFlagsFromString(kLazyOptimizations);
   }
 #endif
+}
+
+
+void Testing::DeoptimizeAll() {
+  internal::Deoptimizer::DeoptimizeAll();
 }
 
 

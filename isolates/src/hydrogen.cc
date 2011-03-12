@@ -871,13 +871,15 @@ void HRangeAnalysis::InferControlFlowRange(HTest* test, HBasicBlock* dest) {
   ASSERT((test->FirstSuccessor() == dest) == (test->SecondSuccessor() != dest));
   if (test->value()->IsCompare()) {
     HCompare* compare = HCompare::cast(test->value());
-    Token::Value op = compare->token();
-    if (test->SecondSuccessor() == dest) {
-      op = Token::NegateCompareOp(op);
+    if (compare->GetInputRepresentation().IsInteger32()) {
+      Token::Value op = compare->token();
+      if (test->SecondSuccessor() == dest) {
+        op = Token::NegateCompareOp(op);
+      }
+      Token::Value inverted_op = Token::InvertCompareOp(op);
+      InferControlFlowRange(op, compare->left(), compare->right());
+      InferControlFlowRange(inverted_op, compare->right(), compare->left());
     }
-    Token::Value inverted_op = Token::InvertCompareOp(op);
-    InferControlFlowRange(op, compare->left(), compare->right());
-    InferControlFlowRange(inverted_op, compare->right(), compare->left());
   }
 }
 
@@ -2105,6 +2107,8 @@ void HGraphBuilder::VisitExpressions(ZoneList<Expression*>* exprs) {
 
 HGraph* HGraphBuilder::CreateGraph() {
   graph_ = new HGraph(info());
+  if (FLAG_hydrogen_stats) HStatistics::Instance()->Initialize(info());
+
   {
     HPhase phase("Block building");
     current_block_ = graph()->entry_block();
@@ -4233,10 +4237,12 @@ void HGraphBuilder::VisitCall(Call* expr) {
       }
 
       if (HasCustomCallGenerator(expr->target()) ||
+          CallOptimization(*expr->target()).is_simple_api_call() ||
           expr->check_type() != RECEIVER_MAP_CHECK) {
         // When the target has a custom call IC generator, use the IC,
-        // because it is likely to generate better code. Also use the
-        // IC when a primitive receiver check is required.
+        // because it is likely to generate better code.  Similarly, we
+        // generate better call stubs for some API functions.
+        // Also use the IC when a primitive receiver check is required.
         HContext* context = new HContext;
         AddInstruction(context);
         call = PreProcessCall(new HCallNamed(context, name, argument_count));
@@ -5704,12 +5710,12 @@ void HTracer::TraceLiveRanges(const char* name, LAllocator* allocator) {
   Tag tag(this, "intervals");
   PrintStringProperty("name", name);
 
-  const ZoneList<LiveRange*>* fixed_d = allocator->fixed_double_live_ranges();
+  const Vector<LiveRange*>* fixed_d = allocator->fixed_double_live_ranges();
   for (int i = 0; i < fixed_d->length(); ++i) {
     TraceLiveRange(fixed_d->at(i), "fixed");
   }
 
-  const ZoneList<LiveRange*>* fixed = allocator->fixed_live_ranges();
+  const Vector<LiveRange*>* fixed = allocator->fixed_live_ranges();
   for (int i = 0; i < fixed->length(); ++i) {
     TraceLiveRange(fixed->at(i), "fixed");
   }
@@ -5780,6 +5786,11 @@ void HTracer::FlushToFile() {
 }
 
 
+void HStatistics::Initialize(CompilationInfo* info) {
+  source_size_ += info->shared_info()->SourceSize();
+}
+
+
 void HStatistics::Print() {
   PrintF("Timing results:\n");
   int64_t sum = 0;
@@ -5797,9 +5808,10 @@ void HStatistics::Print() {
     double size_percent = static_cast<double>(size) * 100 / total_size_;
     PrintF(" %8u bytes / %4.1f %%\n", size, size_percent);
   }
-  PrintF("%30s - %7.3f ms           %8u bytes\n", "Sum",
-         static_cast<double>(sum) / 1000,
-         total_size_);
+  double source_size_in_kb = static_cast<double>(source_size_) / 1024;
+  PrintF("%30s - %7.3f ms           %7.3f bytes\n", "Sum",
+         (static_cast<double>(sum) / 1000) / source_size_in_kb,
+         total_size_ / source_size_in_kb);
   PrintF("---------------------------------------------------------------\n");
   PrintF("%30s - %7.3f ms (%.1f times slower than full code gen)\n",
          "Total",
@@ -5844,13 +5856,13 @@ void HPhase::Begin(const char* name,
   if (allocator != NULL && chunk_ == NULL) {
     chunk_ = allocator->chunk();
   }
-  if (FLAG_time_hydrogen) start_ = OS::Ticks();
+  if (FLAG_hydrogen_stats) start_ = OS::Ticks();
   start_allocation_size_ = Zone::allocation_size_;
 }
 
 
 void HPhase::End() const {
-  if (FLAG_time_hydrogen) {
+  if (FLAG_hydrogen_stats) {
     int64_t end = OS::Ticks();
     unsigned size = Zone::allocation_size_ - start_allocation_size_;
     HStatistics::Instance()->SaveTiming(name_, end - start_, size);

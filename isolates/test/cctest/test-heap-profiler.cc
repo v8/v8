@@ -1258,4 +1258,141 @@ TEST(TakeHeapSnapshotAborting) {
   CHECK_GT(control.total(), 0);
 }
 
+
+namespace {
+
+class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
+ public:
+  TestRetainedObjectInfo(int hash,
+                         const char* label,
+                         intptr_t element_count = -1,
+                         intptr_t size = -1)
+      : disposed_(false),
+        hash_(hash),
+        label_(label),
+        element_count_(element_count),
+        size_(size) {
+    instances.Add(this);
+  }
+  virtual ~TestRetainedObjectInfo() {}
+  virtual void Dispose() {
+    CHECK(!disposed_);
+    disposed_ = true;
+  }
+  virtual bool IsEquivalent(RetainedObjectInfo* other) {
+    return GetHash() == other->GetHash();
+  }
+  virtual intptr_t GetHash() { return hash_; }
+  virtual const char* GetLabel() { return label_; }
+  virtual intptr_t GetElementCount() { return element_count_; }
+  virtual intptr_t GetSizeInBytes() { return size_; }
+  bool disposed() { return disposed_; }
+
+  static v8::RetainedObjectInfo* WrapperInfoCallback(
+      uint16_t class_id, v8::Handle<v8::Value> wrapper) {
+    if (class_id == 1) {
+      if (wrapper->IsString()) {
+        v8::String::AsciiValue ascii(wrapper);
+        if (strcmp(*ascii, "AAA") == 0)
+          return new TestRetainedObjectInfo(1, "aaa", 100);
+        else if (strcmp(*ascii, "BBB") == 0)
+          return new TestRetainedObjectInfo(1, "aaa", 100);
+      }
+    } else if (class_id == 2) {
+      if (wrapper->IsString()) {
+        v8::String::AsciiValue ascii(wrapper);
+        if (strcmp(*ascii, "CCC") == 0)
+          return new TestRetainedObjectInfo(2, "ccc");
+      }
+    }
+    CHECK(false);
+    return NULL;
+  }
+
+  static i::List<TestRetainedObjectInfo*> instances;
+
+ private:
+  bool disposed_;
+  int category_;
+  int hash_;
+  const char* label_;
+  intptr_t element_count_;
+  intptr_t size_;
+};
+
+
+i::List<TestRetainedObjectInfo*> TestRetainedObjectInfo::instances;
+}
+
+
+static const v8::HeapGraphNode* GetNode(const v8::HeapGraphNode* parent,
+                                        v8::HeapGraphNode::Type type,
+                                        const char* name) {
+  for (int i = 0, count = parent->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphNode* node = parent->GetChild(i)->GetToNode();
+    if (node->GetType() == type && strcmp(name,
+               const_cast<i::HeapEntry*>(
+                   reinterpret_cast<const i::HeapEntry*>(node))->name()) == 0) {
+      return node;
+    }
+  }
+  return NULL;
+}
+
+
+TEST(HeapSnapshotRetainedObjectInfo) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  v8::HeapProfiler::DefineWrapperClass(
+      1, TestRetainedObjectInfo::WrapperInfoCallback);
+  v8::HeapProfiler::DefineWrapperClass(
+      2, TestRetainedObjectInfo::WrapperInfoCallback);
+  v8::Persistent<v8::String> p_AAA =
+      v8::Persistent<v8::String>::New(v8_str("AAA"));
+  p_AAA.SetWrapperClassId(1);
+  v8::Persistent<v8::String> p_BBB =
+      v8::Persistent<v8::String>::New(v8_str("BBB"));
+  p_BBB.SetWrapperClassId(1);
+  v8::Persistent<v8::String> p_CCC =
+      v8::Persistent<v8::String>::New(v8_str("CCC"));
+  p_CCC.SetWrapperClassId(2);
+  CHECK_EQ(0, TestRetainedObjectInfo::instances.length());
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("retained"));
+
+  CHECK_EQ(3, TestRetainedObjectInfo::instances.length());
+  for (int i = 0; i < TestRetainedObjectInfo::instances.length(); ++i) {
+    CHECK(TestRetainedObjectInfo::instances[i]->disposed());
+    delete TestRetainedObjectInfo::instances[i];
+  }
+
+  const v8::HeapGraphNode* natives = GetNode(
+      snapshot->GetRoot(), v8::HeapGraphNode::kObject, "(Native objects)");
+  CHECK_NE(NULL, natives);
+  CHECK_EQ(2, natives->GetChildrenCount());
+  const v8::HeapGraphNode* aaa = GetNode(
+      natives, v8::HeapGraphNode::kNative, "aaa / 100 entries");
+  CHECK_NE(NULL, aaa);
+  const v8::HeapGraphNode* ccc = GetNode(
+      natives, v8::HeapGraphNode::kNative, "ccc");
+  CHECK_NE(NULL, ccc);
+
+  CHECK_EQ(2, aaa->GetChildrenCount());
+  const v8::HeapGraphNode* n_AAA = GetNode(
+      aaa, v8::HeapGraphNode::kString, "AAA");
+  CHECK_NE(NULL, n_AAA);
+  const v8::HeapGraphNode* n_BBB = GetNode(
+      aaa, v8::HeapGraphNode::kString, "BBB");
+  CHECK_NE(NULL, n_BBB);
+  CHECK_EQ(1, ccc->GetChildrenCount());
+  const v8::HeapGraphNode* n_CCC = GetNode(
+      ccc, v8::HeapGraphNode::kString, "CCC");
+  CHECK_NE(NULL, n_CCC);
+
+  CHECK_EQ(aaa, GetProperty(n_AAA, v8::HeapGraphEdge::kInternal, "Native"));
+  CHECK_EQ(aaa, GetProperty(n_BBB, v8::HeapGraphEdge::kInternal, "Native"));
+  CHECK_EQ(ccc, GetProperty(n_CCC, v8::HeapGraphEdge::kInternal, "Native"));
+}
+
 #endif  // ENABLE_LOGGING_AND_PROFILING

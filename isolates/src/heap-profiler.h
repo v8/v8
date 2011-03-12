@@ -70,6 +70,11 @@ class HeapProfiler {
 
   void ObjectMoveEvent(Address from, Address to);
 
+  void DefineWrapperClass(
+      uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback);
+
+  v8::RetainedObjectInfo* ExecuteWrapperClassCallback(uint16_t class_id,
+                                                      Object** wrapper);
   INLINE(bool is_profiling()) {
     return snapshots_->is_tracking_objects();
   }
@@ -90,6 +95,7 @@ class HeapProfiler {
 
   HeapSnapshotsCollection* snapshots_;
   unsigned next_snapshot_uid_;
+  List<v8::HeapProfiler::WrapperInfoCallback> wrapper_callbacks_;
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 };
@@ -342,7 +348,6 @@ class AggregatedHeapSnapshot {
 
 class HeapEntriesMap;
 class HeapEntriesAllocator;
-class HeapSnapshot;
 
 class AggregatedHeapSnapshotGenerator {
  public:

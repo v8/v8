@@ -1,3 +1,12 @@
+2011-03-10: Version 3.2.1
+
+        Fixed a number of crash bugs.
+
+        Improved Crankshaft for x64 and ARM.
+
+        Implemented more of EcmaScript 5 strict mode.
+
+
 2011-03-07: Version 3.2.0
 
         Fixed a number of crash bugs.

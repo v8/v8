@@ -209,6 +209,11 @@ int RunMain(int argc, char* argv[]) {
   v8::Persistent<v8::Context> context = CreateShellContext();
   // Enter the newly created execution environment.
   context->Enter();
+  if (context.IsEmpty()) {
+    printf("Error creating context\n");
+    return 1;
+  }
+
   bool run_shell = (argc == 1);
   int num_isolates = 1;
   for (int i = 1; i < argc; i++) {
@@ -289,6 +294,8 @@ int main(int argc, char* argv[]) {
       last_run = (i == stress_runs - 1);
       result = RunMain(argc, argv);
     }
+    printf("======== Full Deoptimization =======\n");
+    v8::Testing::DeoptimizeAll();
   } else {
     result = RunMain(argc, argv);
   }
