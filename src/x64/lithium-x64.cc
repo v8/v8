@@ -1347,13 +1347,23 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    // The temporary operand is necessary to ensure that right is not allocated
-    // into edx.
-    LOperand* temp = FixedTemp(rdx);
-    LOperand* value = UseFixed(instr->left(), rax);
-    LOperand* divisor = UseRegister(instr->right());
-    LModI* mod = new LModI(value, divisor, temp);
-    LInstruction* result = DefineFixed(mod, rdx);
+
+    LInstruction* result;
+    if (instr->HasPowerOf2Divisor()) {
+      ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
+      LOperand* value = UseRegisterAtStart(instr->left());
+      LModI* mod = new LModI(value, UseOrConstant(instr->right()), NULL);
+      result = DefineSameAsFirst(mod);
+    } else {
+      // The temporary operand is necessary to ensure that right is not allocated
+      // into edx.
+      LOperand* temp = FixedTemp(rdx);
+      LOperand* value = UseFixed(instr->left(), rax);
+      LOperand* divisor = UseRegister(instr->right());
+      LModI* mod = new LModI(value, divisor, temp);
+      result = DefineFixed(mod, rdx);
+    }
+
     return (instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
             instr->CheckFlag(HValue::kCanBeDivByZero))
         ? AssignEnvironment(result)

@@ -2567,6 +2567,16 @@ class HMod: public HArithmeticBinaryOperation {
     SetFlag(kCanBeDivByZero);
   }
 
+  bool HasPowerOf2Divisor() {
+    if (right()->IsConstant() &&
+        HConstant::cast(right())->HasInteger32Value()) {
+      int32_t value = HConstant::cast(right())->Integer32Value();
+      return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
+    }
+
+    return false;
+  }
+
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
   DECLARE_CONCRETE_INSTRUCTION(Mod, "mod")
