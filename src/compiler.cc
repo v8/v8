@@ -172,6 +172,7 @@ static void AbortAndDisable(CompilationInfo* info) {
   ASSERT(code->kind() == Code::FUNCTION);
   code->set_optimizable(false);
   info->SetCode(code);
+  CompilationCache::MarkForLazyOptimizing(info->closure());
   if (FLAG_trace_opt) {
     PrintF("[disabled optimization for: ");
     info->closure()->PrintName();
