@@ -230,6 +230,8 @@ function FormatMessage(message) {
       strict_function:              ["In strict mode code, functions can only be declared at top level or immediately within another function." ],
       strict_read_only_property:    ["Cannot assign to read only property '", "%0", "' of ", "%1"],
       strict_cannot_assign:         ["Cannot assign to read only '", "%0", "' in strict mode"],
+      strict_function_caller:       ["Cannot access property 'caller' of a strict mode function"],
+      strict_function_arguments:    ["Cannot access property 'arguments' of a strict mode function"],
     };
   }
   var message_type = %MessageGetType(message);

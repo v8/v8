@@ -207,6 +207,10 @@ class Genesis BASE_EMBEDDED {
   void CreateRoots();
   // Creates the empty function.  Used for creating a context from scratch.
   Handle<JSFunction> CreateEmptyFunction();
+  void CreateThrowTypeErrorCallbacks(
+      Handle<FixedArray> callbacks,
+      Builtins::Name builtin);
+  void CreateThrowTypeError(Handle<JSFunction> empty);
   // Creates the global objects using the global and the template passed in
   // through the API.  We call this regardless of whether we are building a
   // context from scratch or using a deserialized one from the partial snapshot
@@ -263,6 +267,10 @@ class Genesis BASE_EMBEDDED {
   Handle<DescriptorArray> ComputeFunctionInstanceDescriptor(
       PrototypePropertyMode prototypeMode);
   void MakeFunctionInstancePrototypeWritable();
+  Handle<DescriptorArray> ComputeStrictFunctionDescriptor(
+      PrototypePropertyMode propertyMode,
+      Handle<FixedArray> arguments,
+      Handle<FixedArray> caller);
 
   static bool CompileBuiltin(int index);
   static bool CompileNative(Vector<const char> name, Handle<String> source);
@@ -496,6 +504,113 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   empty_fm->set_prototype(global_context()->object_function()->prototype());
   empty_function->set_map(*empty_fm);
   return empty_function;
+}
+
+
+Handle<DescriptorArray> Genesis::ComputeStrictFunctionDescriptor(
+    PrototypePropertyMode prototypeMode,
+    Handle<FixedArray> arguments,
+    Handle<FixedArray> caller) {
+  Handle<DescriptorArray> descriptors =
+      Factory::NewDescriptorArray(prototypeMode == DONT_ADD_PROTOTYPE ? 4 : 5);
+  PropertyAttributes attributes = static_cast<PropertyAttributes>(
+      DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+  {  // length
+    Handle<Proxy> proxy = Factory::NewProxy(&Accessors::FunctionLength);
+    CallbacksDescriptor d(*Factory::length_symbol(), *proxy, attributes);
+    descriptors->Set(0, &d);
+  }
+  {  // name
+    Handle<Proxy> proxy = Factory::NewProxy(&Accessors::FunctionName);
+    CallbacksDescriptor d(*Factory::name_symbol(), *proxy, attributes);
+    descriptors->Set(1, &d);
+  }
+  {  // arguments
+    CallbacksDescriptor d(*Factory::arguments_symbol(), *arguments, attributes);
+    descriptors->Set(2, &d);
+  }
+  {  // caller
+    CallbacksDescriptor d(*Factory::caller_symbol(), *caller, attributes);
+    descriptors->Set(3, &d);
+  }
+
+  // prototype
+  if (prototypeMode != DONT_ADD_PROTOTYPE) {
+    if (prototypeMode == ADD_WRITEABLE_PROTOTYPE) {
+      attributes = static_cast<PropertyAttributes>(attributes & ~READ_ONLY);
+    }
+    CallbacksDescriptor d(
+        *Factory::prototype_symbol(),
+        *Factory::NewProxy(&Accessors::FunctionPrototype),
+        attributes);
+    descriptors->Set(4, &d);
+  }
+
+  descriptors->Sort();
+  return descriptors;
+}
+
+
+void Genesis::CreateThrowTypeErrorCallbacks(
+    Handle<FixedArray> callbacks,
+    Builtins::Name builtin) {
+  // Create the ThrowTypeError function.
+  Handle<String> name = Factory::LookupAsciiSymbol("ThrowTypeError");
+  Handle<JSFunction> pill = Factory::NewFunctionWithoutPrototypeStrict(name);
+  Handle<Code> code = Handle<Code>(Builtins::builtin(builtin));
+  pill->set_map(global_context()->function_map_strict());
+  pill->set_code(*code);
+  pill->shared()->set_code(*code);
+  pill->shared()->DontAdaptArguments();
+
+  // Install the poison pills into the calbacks array.
+  callbacks->set(0, *pill);
+  callbacks->set(1, *pill);
+
+  PreventExtensions(pill);
+}
+
+
+// ECMAScript 5th Edition, 13.2.3
+void Genesis::CreateThrowTypeError(Handle<JSFunction> empty) {
+  // Create the pill callbacks arrays. The get/set callacks are installed
+  // after the maps get created below.
+  Handle<FixedArray> arguments = Factory::NewFixedArray(2, TENURED);
+  Handle<FixedArray> caller = Factory::NewFixedArray(2, TENURED);
+
+  {  // Allocate map for the strict mode function instances.
+    Handle<Map> map = Factory::NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
+    global_context()->set_function_instance_map_strict(*map);
+    Handle<DescriptorArray> descriptors = ComputeStrictFunctionDescriptor(
+        ADD_WRITEABLE_PROTOTYPE, arguments, caller);
+    map->set_instance_descriptors(*descriptors);
+    map->set_function_with_prototype(true);
+    map->set_prototype(*empty);
+  }
+
+  {  // Allocate map for the prototype-less strict mode instances.
+    Handle<Map> map = Factory::NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
+    global_context()->set_function_without_prototype_map_strict(*map);
+    Handle<DescriptorArray> descriptors = ComputeStrictFunctionDescriptor(
+        DONT_ADD_PROTOTYPE, arguments, caller);
+    map->set_instance_descriptors(*descriptors);
+    map->set_function_with_prototype(false);
+    map->set_prototype(*empty);
+  }
+
+  {  // Allocate map for the strict mode functions.
+    Handle<Map> map = Factory::NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
+    global_context()->set_function_map_strict(*map);
+    Handle<DescriptorArray> descriptors = ComputeStrictFunctionDescriptor(
+        ADD_READONLY_PROTOTYPE, arguments, caller);
+    map->set_instance_descriptors(*descriptors);
+    map->set_function_with_prototype(true);
+    map->set_prototype(*empty);
+  }
+
+  CreateThrowTypeErrorCallbacks(arguments, Builtins::StrictFunctionArguments);
+  CreateThrowTypeErrorCallbacks(caller, Builtins::StrictFunctionCaller);
 }
 
 
@@ -1858,6 +1973,7 @@ Genesis::Genesis(Handle<Object> global_object,
     // We get here if there was no context snapshot.
     CreateRoots();
     Handle<JSFunction> empty_function = CreateEmptyFunction();
+    CreateThrowTypeError(empty_function);
     Handle<GlobalObject> inner_global;
     Handle<JSGlobalProxy> global_proxy =
         CreateNewGlobals(global_template, global_object, &inner_global);

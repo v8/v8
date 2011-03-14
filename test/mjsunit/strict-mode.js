@@ -976,3 +976,47 @@ repeat(10, function() { testAssignToUndefined(false); });
   assertEquals(["c", "d", "a", "b"], strict("a", "b"));
   assertEquals(["c", "d", "c", "d"], nonstrict("a", "b"));
 })();
+
+
+(function TestStrictFunctionPills() {
+  function strict() {
+    "use strict";
+  }
+  assertThrows(function() { strict.caller; }, TypeError);
+  assertThrows(function() { strict.arguments; }, TypeError);
+
+  var another = new Function("'use strict'");
+  assertThrows(function() { another.caller; }, TypeError);
+  assertThrows(function() { another.arguments; }, TypeError);
+
+  var third = (function() { "use strict"; return function() {}; })();
+  assertThrows(function() { third.caller; }, TypeError);
+  assertThrows(function() { third.arguments; }, TypeError);
+
+  function CheckPill(pill) {
+    assertEquals("function", typeof pill);
+    assertInstanceof(pill, Function);
+    assertThrows(function() { pill.property = "value"; }, TypeError);
+    assertThrows(pill, TypeError);
+    assertEquals(pill.prototype, (function(){}).prototype);
+    var d = Object.getOwnPropertyDescriptor(pill, "prototype");
+    assertFalse(d.writable);
+    assertFalse(d.configurable);
+    assertFalse(d.enumerable);
+  }
+
+  function CheckPillDescriptor(func, name) {
+    var descriptor = Object.getOwnPropertyDescriptor(func, name);
+    CheckPill(descriptor.get)
+    CheckPill(descriptor.set);
+    assertFalse(descriptor.enumerable);
+    assertFalse(descriptor.configurable);
+  }
+
+  CheckPillDescriptor(strict, "caller");
+  CheckPillDescriptor(strict, "arguments");
+  CheckPillDescriptor(another, "caller");
+  CheckPillDescriptor(another, "arguments");
+  CheckPillDescriptor(third, "caller");
+  CheckPillDescriptor(third, "arguments");
+})();
