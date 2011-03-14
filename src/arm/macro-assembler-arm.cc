@@ -113,6 +113,8 @@ int MacroAssembler::CallSize(Register target, Condition cond) {
 
 
 void MacroAssembler::Call(Register target, Condition cond) {
+  // Block constant pool for the call instruction sequence.
+  BlockConstPoolScope block_const_pool(this);
 #ifdef DEBUG
   int pre_position = pc_offset();
 #endif
@@ -121,10 +123,8 @@ void MacroAssembler::Call(Register target, Condition cond) {
   blx(target, cond);
 #else
   // set lr for return at current pc + 8
-  { BlockConstPoolScope block_const_pool(this);
-    mov(lr, Operand(pc), LeaveCC, cond);
-    mov(pc, Operand(target), LeaveCC, cond);
-  }
+  mov(lr, Operand(pc), LeaveCC, cond);
+  mov(pc, Operand(target), LeaveCC, cond);
 #endif
 
 #ifdef DEBUG
@@ -147,6 +147,8 @@ int MacroAssembler::CallSize(
 
 void MacroAssembler::Call(
     intptr_t target, RelocInfo::Mode rmode, Condition cond) {
+  // Block constant pool for the call instruction sequence.
+  BlockConstPoolScope block_const_pool(this);
 #ifdef DEBUG
   int pre_position = pc_offset();
 #endif
@@ -156,28 +158,21 @@ void MacroAssembler::Call(
   //  ldr ip, [pc, #...]
   //  blx ip
 
-  // The two instructions (ldr and blx) could be separated by a constant
-  // pool and the code would still work. The issue comes from the
-  // patching code which expect the ldr to be just above the blx.
-  { BlockConstPoolScope block_const_pool(this);
-    // Statement positions are expected to be recorded when the target
-    // address is loaded. The mov method will automatically record
-    // positions when pc is the target, since this is not the case here
-    // we have to do it explicitly.
-    positions_recorder()->WriteRecordedPositions();
+  // Statement positions are expected to be recorded when the target
+  // address is loaded. The mov method will automatically record
+  // positions when pc is the target, since this is not the case here
+  // we have to do it explicitly.
+  positions_recorder()->WriteRecordedPositions();
 
-    mov(ip, Operand(target, rmode), LeaveCC, cond);
-    blx(ip, cond);
-  }
+  mov(ip, Operand(target, rmode), LeaveCC, cond);
+  blx(ip, cond);
 
   ASSERT(kCallTargetAddressOffset == 2 * kInstrSize);
 #else
-  { BlockConstPoolScope block_const_pool(this);
-    // Set lr for return at current pc + 8.
-    mov(lr, Operand(pc), LeaveCC, cond);
-    // Emit a ldr<cond> pc, [pc + offset of target in constant pool].
-    mov(pc, Operand(target, rmode), LeaveCC, cond);
-  }
+  // Set lr for return at current pc + 8.
+  mov(lr, Operand(pc), LeaveCC, cond);
+  // Emit a ldr<cond> pc, [pc + offset of target in constant pool].
+  mov(pc, Operand(target, rmode), LeaveCC, cond);
   ASSERT(kCallTargetAddressOffset == kInstrSize);
 #endif
 
