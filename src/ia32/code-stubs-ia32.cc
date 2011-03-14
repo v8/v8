@@ -6295,59 +6295,6 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StringCharAtStub::Generate(MacroAssembler* masm) {
-  // Expects two arguments (object, index) on the stack:
-
-  // Stack frame on entry.
-  //  esp[0]: return address
-  //  esp[4]: index
-  //  esp[8]: object
-
-  Register object = ebx;
-  Register index = eax;
-  Register scratch1 = ecx;
-  Register scratch2 = edx;
-  Register result = eax;
-
-  __ pop(scratch1);  // Return address.
-  __ pop(index);
-  __ pop(object);
-  __ push(scratch1);
-
-  Label need_conversion;
-  Label index_out_of_range;
-  Label done;
-  StringCharAtGenerator generator(object,
-                                  index,
-                                  scratch1,
-                                  scratch2,
-                                  result,
-                                  &need_conversion,
-                                  &need_conversion,
-                                  &index_out_of_range,
-                                  STRING_INDEX_IS_NUMBER);
-  generator.GenerateFast(masm);
-  __ jmp(&done);
-
-  __ bind(&index_out_of_range);
-  // When the index is out of range, the spec requires us to return
-  // the empty string.
-  __ Set(result, Immediate(Factory::empty_string()));
-  __ jmp(&done);
-
-  __ bind(&need_conversion);
-  // Move smi zero into the result register, which will trigger
-  // conversion.
-  __ Set(result, Immediate(Smi::FromInt(0)));
-  __ jmp(&done);
-
-  StubRuntimeCallHelper call_helper;
-  generator.GenerateSlow(masm, call_helper);
-
-  __ bind(&done);
-  __ ret(0);
-}
-
 void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::SMIS);
   NearLabel miss;

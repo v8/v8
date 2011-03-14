@@ -40,7 +40,6 @@ namespace internal {
   V(GenericBinaryOp)                     \
   V(TypeRecordingBinaryOp)               \
   V(StringAdd)                           \
-  V(StringCharAt)                        \
   V(SubString)                           \
   V(StringCompare)                       \
   V(SmiOp)                               \
@@ -435,18 +434,6 @@ class MathPowStub: public CodeStub {
   virtual int MinorKey() { return 0; }
 
   const char* GetName() { return "MathPowStub"; }
-};
-
-
-class StringCharAtStub: public CodeStub {
- public:
-  StringCharAtStub() {}
-
- private:
-  Major MajorKey() { return StringCharAt; }
-  int MinorKey() { return 0; }
-
-  void Generate(MacroAssembler* masm);
 };
 
 
