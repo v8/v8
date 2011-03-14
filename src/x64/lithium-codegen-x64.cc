@@ -788,7 +788,8 @@ void LCodeGen::DoModI(LModI* instr) {
       DeoptimizeIf(zero, instr->environment());
     }
 
-    // Sign extend eax to edx. (We are using only the low 32 bits of the values.)
+    // Sign extend eax to edx.
+    // (We are using only the low 32 bits of the values.)
     __ cdq();
 
     // Check for (0 % -x) that will produce negative zero.

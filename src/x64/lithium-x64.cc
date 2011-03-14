@@ -1355,8 +1355,8 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
       LModI* mod = new LModI(value, UseOrConstant(instr->right()), NULL);
       result = DefineSameAsFirst(mod);
     } else {
-      // The temporary operand is necessary to ensure that right is not allocated
-      // into edx.
+      // The temporary operand is necessary to ensure that right is not
+      // allocated into edx.
       LOperand* temp = FixedTemp(rdx);
       LOperand* value = UseFixed(instr->left(), rax);
       LOperand* divisor = UseRegister(instr->right());
