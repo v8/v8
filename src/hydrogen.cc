@@ -3703,6 +3703,13 @@ void HGraphBuilder::VisitProperty(Property* expr) {
                                           FIRST_STRING_TYPE,
                                           LAST_STRING_TYPE));
     instr = new HStringLength(string);
+  } else if (expr->IsStringAccess()) {
+    VISIT_FOR_VALUE(expr->key());
+    HValue* index = Pop();
+    HValue* string = Pop();
+    HStringCharCodeAt* char_code = BuildStringCharCodeAt(string, index);
+    AddInstruction(char_code);
+    instr = new HStringCharFromCode(char_code);
 
   } else if (expr->IsFunctionPrototype()) {
     HValue* function = Pop();
@@ -4083,6 +4090,7 @@ bool HGraphBuilder::TryInlineBuiltinFunction(Call* expr,
   int argument_count = expr->arguments()->length() + 1;  // Plus receiver.
   switch (id) {
     case kStringCharCodeAt:
+    case kStringCharAt:
       if (argument_count == 2 && check_type == STRING_CHECK) {
         HValue* index = Pop();
         HValue* string = Pop();
@@ -4090,7 +4098,13 @@ bool HGraphBuilder::TryInlineBuiltinFunction(Call* expr,
         AddInstruction(new HCheckPrototypeMaps(
             oracle()->GetPrototypeForPrimitiveCheck(STRING_CHECK),
             expr->holder()));
-        HStringCharCodeAt* result = BuildStringCharCodeAt(string, index);
+        HStringCharCodeAt* char_code = BuildStringCharCodeAt(string, index);
+        if (id == kStringCharCodeAt) {
+          ast_context()->ReturnInstruction(char_code, expr->id());
+          return true;
+        }
+        AddInstruction(char_code);
+        HStringCharFromCode* result = new HStringCharFromCode(char_code);
         ast_context()->ReturnInstruction(result, expr->id());
         return true;
       }
@@ -5178,19 +5192,24 @@ void HGraphBuilder::GenerateStringCharCodeAt(CallRuntime* call) {
 
 // Fast support for string.charAt(n) and string[n].
 void HGraphBuilder::GenerateStringCharFromCode(CallRuntime* call) {
-  BAILOUT("inlined runtime function: StringCharFromCode");
+  ASSERT(call->arguments()->length() == 1);
+  VISIT_FOR_VALUE(call->arguments()->at(0));
+  HValue* char_code = Pop();
+  HStringCharFromCode* result = new HStringCharFromCode(char_code);
+  ast_context()->ReturnInstruction(result, call->id());
 }
 
 
 // Fast support for string.charAt(n) and string[n].
 void HGraphBuilder::GenerateStringCharAt(CallRuntime* call) {
-  ASSERT_EQ(2, call->arguments()->length());
-  VisitArgumentList(call->arguments());
-  CHECK_BAILOUT;
-  HContext* context = new HContext;
-  AddInstruction(context);
-  HCallStub* result = new HCallStub(context, CodeStub::StringCharAt, 2);
-  Drop(2);
+  ASSERT(call->arguments()->length() == 2);
+  VISIT_FOR_VALUE(call->arguments()->at(0));
+  VISIT_FOR_VALUE(call->arguments()->at(1));
+  HValue* index = Pop();
+  HValue* string = Pop();
+  HStringCharCodeAt* char_code = BuildStringCharCodeAt(string, index);
+  AddInstruction(char_code);
+  HStringCharFromCode* result = new HStringCharFromCode(char_code);
   ast_context()->ReturnInstruction(result, call->id());
 }
 

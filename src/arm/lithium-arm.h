@@ -149,6 +149,7 @@ class LCodeGen;
   V(StoreNamedGeneric)                          \
   V(StorePixelArrayElement)                     \
   V(StringCharCodeAt)                           \
+  V(StringCharFromCode)                         \
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
@@ -1632,6 +1633,19 @@ class LStringCharCodeAt: public LTemplateInstruction<1, 2, 0> {
 
   LOperand* string() { return inputs_[0]; }
   LOperand* index() { return inputs_[1]; }
+};
+
+
+class LStringCharFromCode: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LStringCharFromCode(LOperand* char_code) {
+    inputs_[0] = char_code;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringCharFromCode, "string-char-from-code")
+  DECLARE_HYDROGEN_ACCESSOR(StringCharFromCode)
+
+  LOperand* char_code() { return inputs_[0]; }
 };
 
 

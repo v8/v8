@@ -151,6 +151,7 @@ class LChunkBuilder;
   V(StoreNamedField)                           \
   V(StoreNamedGeneric)                         \
   V(StringCharCodeAt)                          \
+  V(StringCharFromCode)                        \
   V(StringLength)                              \
   V(Sub)                                       \
   V(Test)                                      \
@@ -3265,6 +3266,23 @@ class HStringCharCodeAt: public HBinaryOperation {
   virtual Range* InferRange() {
     return new Range(0, String::kMaxUC16CharCode);
   }
+};
+
+
+class HStringCharFromCode: public HUnaryOperation {
+ public:
+  explicit HStringCharFromCode(HValue* char_code) : HUnaryOperation(char_code) {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Integer32();
+  }
+
+  virtual bool DataEquals(HValue* other) { return true; }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringCharFromCode, "string_char_from_code")
 };
 
 
