@@ -2827,7 +2827,7 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsSharedFunctionInfo()) {
-    PROFILE(SFIMoveEvent(old_addr, new_addr));
+    PROFILE(SharedFunctionInfoMoveEvent(old_addr, new_addr));
   }
   HEAP_PROFILE(ObjectMoveEvent(old_addr, new_addr));
 
@@ -2919,7 +2919,7 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsSharedFunctionInfo()) {
-    PROFILE(SFIMoveEvent(old_addr, new_addr));
+    PROFILE(SharedFunctionInfoMoveEvent(old_addr, new_addr));
   }
   HEAP_PROFILE(ObjectMoveEvent(old_addr, new_addr));
 

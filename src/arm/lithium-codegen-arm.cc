@@ -34,7 +34,7 @@ namespace v8 {
 namespace internal {
 
 
-class SafepointGenerator : public PostCallGenerator {
+class SafepointGenerator : public CallWrapper {
  public:
   SafepointGenerator(LCodeGen* codegen,
                      LPointerMap* pointers,
@@ -44,7 +44,24 @@ class SafepointGenerator : public PostCallGenerator {
         deoptimization_index_(deoptimization_index) { }
   virtual ~SafepointGenerator() { }
 
-  virtual void Generate() {
+  virtual void BeforeCall(int call_size) {
+    ASSERT(call_size >= 0);
+    // Ensure that we have enough space after the previous safepoint position
+    // for the generated code there.
+    int call_end = codegen_->masm()->pc_offset() + call_size;
+    int prev_jump_end =
+        codegen_->LastSafepointEnd() + Deoptimizer::patch_size();
+    if (call_end < prev_jump_end) {
+      int padding_size = prev_jump_end - call_end;
+      ASSERT_EQ(0, padding_size % Assembler::kInstrSize);
+      while (padding_size > 0) {
+        codegen_->masm()->nop();
+        padding_size -= Assembler::kInstrSize;
+      }
+    }
+  }
+
+  virtual void AfterCall() {
     codegen_->RecordSafepoint(pointers_, deoptimization_index_);
   }
 
@@ -779,6 +796,30 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 
 
 void LCodeGen::DoModI(LModI* instr) {
+  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+    Register dividend = ToRegister(instr->InputAt(0));
+
+    int32_t divisor =
+        HConstant::cast(instr->hydrogen()->right())->Integer32Value();
+
+    if (divisor < 0) divisor = -divisor;
+
+    Label positive_dividend, done;
+    __ tst(dividend, Operand(dividend));
+    __ b(pl, &positive_dividend);
+    __ rsb(dividend, dividend, Operand(0));
+    __ and_(dividend, dividend, Operand(divisor - 1));
+    __ rsb(dividend, dividend, Operand(0), SetCC);
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ b(ne, &done);
+      DeoptimizeIf(al, instr->environment());
+    }
+    __ bind(&positive_dividend);
+    __ and_(dividend, dividend, Operand(divisor - 1));
+    __ bind(&done);
+    return;
+  }
+
   class DeferredModI: public LDeferredCode {
    public:
     DeferredModI(LCodeGen* codegen, LModI* instr)
@@ -839,6 +880,7 @@ void LCodeGen::DoModI(LModI* instr) {
   __ JumpIfNotPowerOfTwoOrZero(right, scratch, &call_stub);
   // Perform modulo operation (scratch contains right - 1).
   __ and_(result, scratch, Operand(left));
+  __ b(&done);
 
   __ bind(&call_stub);
   // Call the stub. The numbers in r0 and r1 have
@@ -3076,6 +3118,56 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
     __ AbortIfNotSmi(r0);
   }
   __ SmiUntag(r0);
+  __ StoreToSafepointRegisterSlot(r0, result);
+  __ PopSafepointRegisters();
+}
+
+
+void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
+  class DeferredStringCharFromCode: public LDeferredCode {
+   public:
+    DeferredStringCharFromCode(LCodeGen* codegen, LStringCharFromCode* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredStringCharFromCode(instr_); }
+   private:
+    LStringCharFromCode* instr_;
+  };
+
+  DeferredStringCharFromCode* deferred =
+      new DeferredStringCharFromCode(this, instr);
+
+  ASSERT(instr->hydrogen()->value()->representation().IsInteger32());
+  Register char_code = ToRegister(instr->char_code());
+  Register result = ToRegister(instr->result());
+  ASSERT(!char_code.is(result));
+
+  __ cmp(char_code, Operand(String::kMaxAsciiCharCode));
+  __ b(hi, deferred->entry());
+  __ LoadRoot(result, Heap::kSingleCharacterStringCacheRootIndex);
+  __ add(result, result, Operand(char_code, LSL, kPointerSizeLog2));
+  __ ldr(result, FieldMemOperand(result, FixedArray::kHeaderSize));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(result, ip);
+  __ b(eq, deferred->entry());
+  __ bind(deferred->exit());
+}
+
+
+void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
+  Register char_code = ToRegister(instr->char_code());
+  Register result = ToRegister(instr->result());
+
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  __ mov(result, Operand(0));
+
+  __ PushSafepointRegisters();
+  __ SmiTag(char_code);
+  __ push(char_code);
+  __ CallRuntimeSaveDoubles(Runtime::kCharFromCode);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 1, Safepoint::kNoDeoptimizationIndex);
   __ StoreToSafepointRegisterSlot(r0, result);
   __ PopSafepointRegisters();
 }

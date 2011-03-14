@@ -781,41 +781,64 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 
 
 void LCodeGen::DoModI(LModI* instr) {
-  LOperand* right = instr->InputAt(1);
-  ASSERT(ToRegister(instr->result()).is(edx));
-  ASSERT(ToRegister(instr->InputAt(0)).is(eax));
-  ASSERT(!ToRegister(instr->InputAt(1)).is(eax));
-  ASSERT(!ToRegister(instr->InputAt(1)).is(edx));
+  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+    Register dividend = ToRegister(instr->InputAt(0));
 
-  Register right_reg = ToRegister(right);
+    int32_t divisor =
+        HConstant::cast(instr->hydrogen()->right())->Integer32Value();
 
-  // Check for x % 0.
-  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
-    __ test(right_reg, ToOperand(right));
-    DeoptimizeIf(zero, instr->environment());
-  }
+    if (divisor < 0) divisor = -divisor;
 
-  // Sign extend to edx.
-  __ cdq();
-
-  // Check for (0 % -x) that will produce negative zero.
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    NearLabel positive_left;
-    NearLabel done;
-    __ test(eax, Operand(eax));
-    __ j(not_sign, &positive_left);
-    __ idiv(right_reg);
-
-    // Test the remainder for 0, because then the result would be -0.
-    __ test(edx, Operand(edx));
-    __ j(not_zero, &done);
-
-    DeoptimizeIf(no_condition, instr->environment());
-    __ bind(&positive_left);
-    __ idiv(right_reg);
+    NearLabel positive_dividend, done;
+    __ test(dividend, Operand(dividend));
+    __ j(not_sign, &positive_dividend);
+    __ neg(dividend);
+    __ and_(dividend, divisor - 1);
+    __ neg(dividend);
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ j(not_zero, &done);
+      DeoptimizeIf(no_condition, instr->environment());
+    }
+    __ bind(&positive_dividend);
+    __ and_(dividend, divisor - 1);
     __ bind(&done);
   } else {
-    __ idiv(right_reg);
+    LOperand* right = instr->InputAt(1);
+    ASSERT(ToRegister(instr->InputAt(0)).is(eax));
+    ASSERT(ToRegister(instr->result()).is(edx));
+
+    Register right_reg = ToRegister(right);
+    ASSERT(!right_reg.is(eax));
+    ASSERT(!right_reg.is(edx));
+
+    // Check for x % 0.
+    if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+      __ test(right_reg, ToOperand(right));
+      DeoptimizeIf(zero, instr->environment());
+    }
+
+    // Sign extend to edx.
+    __ cdq();
+
+    // Check for (0 % -x) that will produce negative zero.
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      NearLabel positive_left;
+      NearLabel done;
+      __ test(eax, Operand(eax));
+      __ j(not_sign, &positive_left);
+      __ idiv(right_reg);
+
+      // Test the remainder for 0, because then the result would be -0.
+      __ test(edx, Operand(edx));
+      __ j(not_zero, &done);
+
+      DeoptimizeIf(no_condition, instr->environment());
+      __ bind(&positive_left);
+      __ idiv(right_reg);
+      __ bind(&done);
+    } else {
+      __ idiv(right_reg);
+    }
   }
 }
 
@@ -3002,6 +3025,56 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
     __ AbortIfNotSmi(eax);
   }
   __ SmiUntag(eax);
+  __ StoreToSafepointRegisterSlot(result, eax);
+  __ PopSafepointRegisters();
+}
+
+
+void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
+  class DeferredStringCharFromCode: public LDeferredCode {
+   public:
+    DeferredStringCharFromCode(LCodeGen* codegen, LStringCharFromCode* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredStringCharFromCode(instr_); }
+   private:
+    LStringCharFromCode* instr_;
+  };
+
+  DeferredStringCharFromCode* deferred =
+      new DeferredStringCharFromCode(this, instr);
+
+  ASSERT(instr->hydrogen()->value()->representation().IsInteger32());
+  Register char_code = ToRegister(instr->char_code());
+  Register result = ToRegister(instr->result());
+  ASSERT(!char_code.is(result));
+
+  __ cmp(char_code, String::kMaxAsciiCharCode);
+  __ j(above, deferred->entry());
+  __ Set(result, Immediate(Factory::single_character_string_cache()));
+  __ mov(result, FieldOperand(result,
+                              char_code, times_pointer_size,
+                              FixedArray::kHeaderSize));
+  __ cmp(result, Factory::undefined_value());
+  __ j(equal, deferred->entry());
+  __ bind(deferred->exit());
+}
+
+
+void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
+  Register char_code = ToRegister(instr->char_code());
+  Register result = ToRegister(instr->result());
+
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  __ Set(result, Immediate(0));
+
+  __ PushSafepointRegisters();
+  __ SmiTag(char_code);
+  __ push(char_code);
+  __ CallRuntimeSaveDoubles(Runtime::kCharFromCode);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 1, Safepoint::kNoDeoptimizationIndex);
   __ StoreToSafepointRegisterSlot(result, eax);
   __ PopSafepointRegisters();
 }

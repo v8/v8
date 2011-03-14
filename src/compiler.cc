@@ -172,6 +172,7 @@ static void AbortAndDisable(CompilationInfo* info) {
   ASSERT(code->kind() == Code::FUNCTION);
   code->set_optimizable(false);
   info->SetCode(code);
+  CompilationCache::MarkForLazyOptimizing(info->closure());
   if (FLAG_trace_opt) {
     PrintF("[disabled optimization for: ");
     info->closure()->PrintName();
@@ -248,7 +249,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   // performance of the hydrogen-based compiler.
   int64_t start = OS::Ticks();
   bool should_recompile = !info->shared_info()->has_deoptimization_support();
-  if (should_recompile || FLAG_time_hydrogen) {
+  if (should_recompile || FLAG_hydrogen_stats) {
     HPhase phase(HPhase::kFullCodeGen);
     CompilationInfo unoptimized(info->shared_info());
     // Note that we use the same AST that we will use for generating the

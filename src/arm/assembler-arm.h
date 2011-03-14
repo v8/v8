@@ -389,8 +389,11 @@ class Operand BASE_EMBEDDED {
   INLINE(bool is_reg() const);
 
   // Return true if this operand fits in one instruction so that no
-  // 2-instruction solution with a load into the ip register is necessary.
-  bool is_single_instruction() const;
+  // 2-instruction solution with a load into the ip register is necessary. If
+  // the instruction this operand is used for is a MOV or MVN instruction the
+  // actual instruction to use is required for this calculation. For other
+  // instructions instr is ignored.
+  bool is_single_instruction(Instr instr = 0) const;
   bool must_use_constant_pool() const;
 
   inline int32_t immediate() const {

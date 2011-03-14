@@ -1366,13 +1366,23 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    // The temporary operand is necessary to ensure that right is not allocated
-    // into edx.
-    LOperand* temp = FixedTemp(edx);
-    LOperand* value = UseFixed(instr->left(), eax);
-    LOperand* divisor = UseRegister(instr->right());
-    LModI* mod = new LModI(value, divisor, temp);
-    LInstruction* result = DefineFixed(mod, edx);
+
+    LInstruction* result;
+    if (instr->HasPowerOf2Divisor()) {
+      ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
+      LOperand* value = UseRegisterAtStart(instr->left());
+      LModI* mod = new LModI(value, UseOrConstant(instr->right()), NULL);
+      result = DefineSameAsFirst(mod);
+    } else {
+      // The temporary operand is necessary to ensure that right is
+      // not allocated into edx.
+      LOperand* temp = FixedTemp(edx);
+      LOperand* value = UseFixed(instr->left(), eax);
+      LOperand* divisor = UseRegister(instr->right());
+      LModI* mod = new LModI(value, divisor, temp);
+      result = DefineFixed(mod, edx);
+    }
+
     return (instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
             instr->CheckFlag(HValue::kCanBeDivByZero))
         ? AssignEnvironment(result)
@@ -1930,6 +1940,13 @@ LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
   LOperand* index = UseRegisterOrConstant(instr->index());
   LStringCharCodeAt* result = new LStringCharCodeAt(string, index);
   return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+}
+
+
+LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
+  LOperand* char_code = UseRegister(instr->value());
+  LStringCharFromCode* result = new LStringCharFromCode(char_code);
+  return AssignPointerMap(DefineAsRegister(result));
 }
 
 

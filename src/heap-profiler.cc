@@ -364,6 +364,27 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(String* name,
 }
 
 
+void HeapProfiler::DefineWrapperClass(
+    uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback) {
+  ASSERT(singleton_ != NULL);
+  ASSERT(class_id != v8::HeapProfiler::kPersistentHandleNoClassId);
+  if (singleton_->wrapper_callbacks_.length() <= class_id) {
+    singleton_->wrapper_callbacks_.AddBlock(
+        NULL, class_id - singleton_->wrapper_callbacks_.length() + 1);
+  }
+  singleton_->wrapper_callbacks_[class_id] = callback;
+}
+
+
+v8::RetainedObjectInfo* HeapProfiler::ExecuteWrapperClassCallback(
+    uint16_t class_id, Object** wrapper) {
+  ASSERT(singleton_ != NULL);
+  if (singleton_->wrapper_callbacks_.length() <= class_id) return NULL;
+  return singleton_->wrapper_callbacks_[class_id](
+      class_id, Utils::ToLocal(Handle<Object>(wrapper)));
+}
+
+
 HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name,
                                              int type,
                                              v8::ActivityControl* control) {
@@ -401,7 +422,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name,
 HeapSnapshot* HeapProfiler::TakeSnapshotImpl(String* name,
                                              int type,
                                              v8::ActivityControl* control) {
-  return TakeSnapshotImpl(snapshots_->GetName(name), type, control);
+  return TakeSnapshotImpl(snapshots_->names()->GetName(name), type, control);
 }
 
 
@@ -872,7 +893,8 @@ class AllocatingConstructorHeapProfileIterator {
             const NumberAndSizeInfo& number_and_size) {
     const char* name = cluster.GetSpecialCaseName();
     if (name == NULL) {
-      name = snapshot_->collection()->GetFunctionName(cluster.constructor());
+      name = snapshot_->collection()->names()->GetFunctionName(
+          cluster.constructor());
     }
     AddEntryFromAggregatedSnapshot(snapshot_,
                                    root_child_index_,
@@ -1013,7 +1035,8 @@ class AggregatedRetainerTreeAllocator : public HeapEntriesAllocator {
     JSObjectsCluster cluster = HeapObjectAsCluster(obj);
     const char* name = cluster.GetSpecialCaseName();
     if (name == NULL) {
-      name = snapshot_->collection()->GetFunctionName(cluster.constructor());
+      name = snapshot_->collection()->names()->GetFunctionName(
+          cluster.constructor());
     }
     return AddEntryFromAggregatedSnapshot(
         snapshot_, root_child_index_, HeapEntry::kObject, name,

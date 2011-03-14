@@ -1214,6 +1214,7 @@ class Property: public Expression {
         is_monomorphic_(false),
         is_array_length_(false),
         is_string_length_(false),
+        is_string_access_(false),
         is_function_prototype_(false),
         is_arguments_access_(false) { }
 
@@ -1228,6 +1229,7 @@ class Property: public Expression {
   bool is_synthetic() const { return type_ == SYNTHETIC; }
 
   bool IsStringLength() const { return is_string_length_; }
+  bool IsStringAccess() const { return is_string_access_; }
   bool IsFunctionPrototype() const { return is_function_prototype_; }
 
   // Marks that this is actually an argument rewritten to a keyed property
@@ -1265,6 +1267,7 @@ class Property: public Expression {
   bool is_monomorphic_ : 1;
   bool is_array_length_ : 1;
   bool is_string_length_ : 1;
+  bool is_string_access_ : 1;
   bool is_function_prototype_ : 1;
   bool is_arguments_access_ : 1;
   Handle<Map> monomorphic_receiver_type_;

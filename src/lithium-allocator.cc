@@ -525,6 +525,24 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
 }
 
 
+LAllocator::LAllocator(int num_values, HGraph* graph)
+    : chunk_(NULL),
+      live_in_sets_(graph->blocks()->length()),
+      live_ranges_(num_values * 2),
+      fixed_live_ranges_(NULL),
+      fixed_double_live_ranges_(NULL),
+      unhandled_live_ranges_(num_values * 2),
+      active_live_ranges_(8),
+      inactive_live_ranges_(8),
+      reusable_slots_(8),
+      next_virtual_register_(num_values),
+      first_artificial_register_(num_values),
+      mode_(NONE),
+      num_registers_(-1),
+      graph_(graph),
+      has_osr_entry_(false) {}
+
+
 void LAllocator::InitializeLivenessAnalysis() {
   // Initialize the live_in sets for each block to NULL.
   int block_count = graph_->blocks()->length();
@@ -618,11 +636,7 @@ LOperand* LAllocator::AllocateFixed(LUnallocated* operand,
 
 
 LiveRange* LAllocator::FixedLiveRangeFor(int index) {
-  if (index >= fixed_live_ranges_.length()) {
-    fixed_live_ranges_.AddBlock(NULL,
-                                index - fixed_live_ranges_.length() + 1);
-  }
-
+  ASSERT(index < Register::kNumAllocatableRegisters);
   LiveRange* result = fixed_live_ranges_[index];
   if (result == NULL) {
     result = new LiveRange(FixedLiveRangeID(index));
@@ -635,11 +649,7 @@ LiveRange* LAllocator::FixedLiveRangeFor(int index) {
 
 
 LiveRange* LAllocator::FixedDoubleLiveRangeFor(int index) {
-  if (index >= fixed_double_live_ranges_.length()) {
-    fixed_double_live_ranges_.AddBlock(NULL,
-                                index - fixed_double_live_ranges_.length() + 1);
-  }
-
+  ASSERT(index < DoubleRegister::kNumAllocatableRegisters);
   LiveRange* result = fixed_double_live_ranges_[index];
   if (result == NULL) {
     result = new LiveRange(FixedDoubleLiveRangeID(index));
@@ -649,6 +659,7 @@ LiveRange* LAllocator::FixedDoubleLiveRangeFor(int index) {
   }
   return result;
 }
+
 
 LiveRange* LAllocator::LiveRangeFor(int index) {
   if (index >= live_ranges_.length()) {

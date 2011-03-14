@@ -1347,13 +1347,23 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    // The temporary operand is necessary to ensure that right is not allocated
-    // into edx.
-    LOperand* temp = FixedTemp(rdx);
-    LOperand* value = UseFixed(instr->left(), rax);
-    LOperand* divisor = UseRegister(instr->right());
-    LModI* mod = new LModI(value, divisor, temp);
-    LInstruction* result = DefineFixed(mod, rdx);
+
+    LInstruction* result;
+    if (instr->HasPowerOf2Divisor()) {
+      ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
+      LOperand* value = UseRegisterAtStart(instr->left());
+      LModI* mod = new LModI(value, UseOrConstant(instr->right()), NULL);
+      result = DefineSameAsFirst(mod);
+    } else {
+      // The temporary operand is necessary to ensure that right is not
+      // allocated into edx.
+      LOperand* temp = FixedTemp(rdx);
+      LOperand* value = UseFixed(instr->left(), rax);
+      LOperand* divisor = UseRegister(instr->right());
+      LModI* mod = new LModI(value, divisor, temp);
+      result = DefineFixed(mod, rdx);
+    }
+
     return (instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
             instr->CheckFlag(HValue::kCanBeDivByZero))
         ? AssignEnvironment(result)
@@ -1791,7 +1801,6 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
 
 LInstruction* LChunkBuilder::DoLoadPixelArrayElement(
     HLoadPixelArrayElement* instr) {
-  Abort("Pixel array loads in generated code cause segfaults (danno)");
   ASSERT(instr->representation().IsInteger32());
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* external_pointer =
@@ -1833,7 +1842,6 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
 
 LInstruction* LChunkBuilder::DoStorePixelArrayElement(
     HStorePixelArrayElement* instr) {
-  Abort("Pixel array stores in generated code sometimes segfaults (danno)");
   ASSERT(instr->value()->representation().IsInteger32());
   ASSERT(instr->external_pointer()->representation().IsExternal());
   ASSERT(instr->key()->representation().IsInteger32());
@@ -1894,6 +1902,13 @@ LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
   LOperand* index = UseRegisterOrConstant(instr->index());
   LStringCharCodeAt* result = new LStringCharCodeAt(string, index);
   return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+}
+
+
+LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
+  LOperand* char_code = UseRegister(instr->value());
+  LStringCharFromCode* result = new LStringCharFromCode(char_code);
+  return AssignPointerMap(DefineAsRegister(result));
 }
 
 

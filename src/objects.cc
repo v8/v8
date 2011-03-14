@@ -5238,22 +5238,6 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
 }
 
 
-template <typename schar>
-static inline uint32_t HashSequentialString(const schar* chars, int length) {
-  StringHasher hasher(length);
-  if (!hasher.has_trivial_hash()) {
-    int i;
-    for (i = 0; hasher.is_array_index() && (i < length); i++) {
-      hasher.AddCharacter(chars[i]);
-    }
-    for (; i < length; i++) {
-      hasher.AddCharacterNoIndex(chars[i]);
-    }
-  }
-  return hasher.GetHashField();
-}
-
-
 uint32_t String::ComputeAndSetHash() {
   // Should only be called if hash code has not yet been computed.
   ASSERT(!HasHashCode());

@@ -939,6 +939,7 @@ class HValueMap: public ZoneObject {
 
 class HStatistics: public Malloced {
  public:
+  void Initialize(CompilationInfo* info);
   void Print();
   void SaveTiming(const char* name, int64_t ticks, unsigned size);
   static HStatistics* Instance() {
@@ -957,7 +958,8 @@ class HStatistics: public Malloced {
         sizes_(5),
         total_(0),
         total_size_(0),
-        full_code_gen_(0) { }
+        full_code_gen_(0),
+        source_size_(0) { }
 
   List<int64_t> timing_;
   List<const char*> names_;
@@ -965,6 +967,7 @@ class HStatistics: public Malloced {
   int64_t total_;
   unsigned total_size_;
   int64_t full_code_gen_;
+  double source_size_;
 };
 
 

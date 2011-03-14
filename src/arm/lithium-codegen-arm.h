@@ -105,6 +105,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LGoto* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
+  void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                         Label* map_check);
 
@@ -229,6 +230,9 @@ class LCodeGen BASE_EMBEDDED {
                                               int arguments,
                                               int deoptimization_index);
   void RecordPosition(int position);
+  int LastSafepointEnd() {
+    return static_cast<int>(safepoints_.GetPcAfterGap());
+  }
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block, LDeferredCode* deferred_stack_check = NULL);

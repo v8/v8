@@ -50,8 +50,8 @@ using v8::internal::rbp;
 using v8::internal::rsp;
 using v8::internal::r8;
 using v8::internal::r9;
-using v8::internal::r12;
 using v8::internal::r13;
+using v8::internal::r15;
 using v8::internal::times_1;
 
 using v8::internal::FUNCTION_CAST;
@@ -317,7 +317,7 @@ TEST(OperandRegisterDependency) {
 
     CHECK(Operand(rsp, offset).AddressUsesRegister(rsp));
     CHECK(!Operand(rsp, offset).AddressUsesRegister(rax));
-    CHECK(!Operand(rsp, offset).AddressUsesRegister(r12));
+    CHECK(!Operand(rsp, offset).AddressUsesRegister(r15));
 
     CHECK(Operand(rbp, offset).AddressUsesRegister(rbp));
     CHECK(!Operand(rbp, offset).AddressUsesRegister(rax));
@@ -333,7 +333,7 @@ TEST(OperandRegisterDependency) {
     CHECK(Operand(rsp, rbp, times_1, offset).AddressUsesRegister(rsp));
     CHECK(Operand(rsp, rbp, times_1, offset).AddressUsesRegister(rbp));
     CHECK(!Operand(rsp, rbp, times_1, offset).AddressUsesRegister(rax));
-    CHECK(!Operand(rsp, rbp, times_1, offset).AddressUsesRegister(r12));
+    CHECK(!Operand(rsp, rbp, times_1, offset).AddressUsesRegister(r15));
     CHECK(!Operand(rsp, rbp, times_1, offset).AddressUsesRegister(r13));
   }
 }

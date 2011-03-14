@@ -5154,6 +5154,11 @@ class StringHasher {
 };
 
 
+// Calculates string hash.
+template <typename schar>
+inline uint32_t HashSequentialString(const schar* chars, int length);
+
+
 // The characteristics of a string are stored in its map.  Retrieving these
 // few bits of information is moderately expensive, involving two memory
 // loads where the second is dependent on the first.  To improve efficiency
@@ -6534,6 +6539,9 @@ class ObjectVisitor BASE_EMBEDDED {
   inline void VisitExternalReference(Address* p) {
     VisitExternalReferences(p, p + 1);
   }
+
+  // Visits a handle that has an embedder-assigned class ID.
+  virtual void VisitEmbedderReference(Object** p, uint16_t class_id) {}
 
 #ifdef DEBUG
   // Intended for serialization/deserialization checking: insert, or

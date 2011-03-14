@@ -3668,6 +3668,22 @@ uint32_t StringHasher::GetHash() {
 }
 
 
+template <typename schar>
+uint32_t HashSequentialString(const schar* chars, int length) {
+  StringHasher hasher(length);
+  if (!hasher.has_trivial_hash()) {
+    int i;
+    for (i = 0; hasher.is_array_index() && (i < length); i++) {
+      hasher.AddCharacter(chars[i]);
+    }
+    for (; i < length; i++) {
+      hasher.AddCharacterNoIndex(chars[i]);
+    }
+  }
+  return hasher.GetHashField();
+}
+
+
 bool String::AsArrayIndex(uint32_t* index) {
   uint32_t field = hash_field();
   if (IsHashFieldComputed(field) && (field & kIsNotArrayIndexMask)) {

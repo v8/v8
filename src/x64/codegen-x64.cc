@@ -7961,7 +7961,7 @@ bool CodeGenerator::HasValidEntryRegisters() {
       && (allocator()->count(r9) == (frame()->is_used(r9) ? 1 : 0))
       && (allocator()->count(r11) == (frame()->is_used(r11) ? 1 : 0))
       && (allocator()->count(r14) == (frame()->is_used(r14) ? 1 : 0))
-      && (allocator()->count(r12) == (frame()->is_used(r12) ? 1 : 0));
+      && (allocator()->count(r15) == (frame()->is_used(r15) ? 1 : 0));
 }
 #endif
 

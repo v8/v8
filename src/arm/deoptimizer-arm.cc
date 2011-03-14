@@ -46,6 +46,7 @@ int Deoptimizer::patch_size() {
 
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
+  HandleScope scope;
   AssertNoAllocation no_allocation;
 
   if (!function->IsOptimized()) return;
@@ -69,8 +70,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     int deoptimization_index = safepoint_entry.deoptimization_index();
     int gap_code_size = safepoint_entry.gap_code_size();
     // Check that we did not shoot past next safepoint.
-    // TODO(srdjan): How do we guarantee that safepoint code does not
-    // overlap other safepoint patching code?
     CHECK(pc_offset >= last_pc_offset);
 #ifdef DEBUG
     // Destroy the code which is not supposed to be run again.
@@ -117,6 +116,11 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     PrintF("[forced deoptimization: ");
     function->PrintName();
     PrintF(" / %x]\n", reinterpret_cast<uint32_t>(function));
+#ifdef DEBUG
+    if (FLAG_print_code) {
+      code->PrintLn();
+    }
+#endif
   }
 }
 

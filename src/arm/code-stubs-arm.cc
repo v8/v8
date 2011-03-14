@@ -397,20 +397,18 @@ class FloatingPointHelper : public AllStatic {
                            Register scratch2,
                            Label* not_number);
 
-  // Loads the number from object into dst as a 32-bit integer if possible. If
-  // the object cannot be converted to a 32-bit integer control continues at
-  // the label not_int32. If VFP is supported double_scratch is used
-  // but not scratch2.
-  // Floating point value in the 32-bit integer range will be rounded
-  // to an integer.
-  static void LoadNumberAsInteger(MacroAssembler* masm,
-                                  Register object,
-                                  Register dst,
-                                  Register heap_number_map,
-                                  Register scratch1,
-                                  Register scratch2,
-                                  DwVfpRegister double_scratch,
-                                  Label* not_int32);
+  // Convert the smi or heap number in object to an int32 using the rules
+  // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
+  // and brought into the range -2^31 .. +2^31 - 1.
+  static void ConvertNumberToInt32(MacroAssembler* masm,
+                                   Register object,
+                                   Register dst,
+                                   Register heap_number_map,
+                                   Register scratch1,
+                                   Register scratch2,
+                                   Register scratch3,
+                                   DwVfpRegister double_scratch,
+                                   Label* not_int32);
 
   // Load the number from object into double_dst in the double format.
   // Control will jump to not_int32 if the value cannot be exactly represented
@@ -606,27 +604,97 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
 }
 
 
-void FloatingPointHelper::LoadNumberAsInteger(MacroAssembler* masm,
-                                              Register object,
-                                              Register dst,
-                                              Register heap_number_map,
-                                              Register scratch1,
-                                              Register scratch2,
-                                              DwVfpRegister double_scratch,
-                                              Label* not_int32) {
+void FloatingPointHelper::ConvertNumberToInt32(MacroAssembler* masm,
+                                               Register object,
+                                               Register dst,
+                                               Register heap_number_map,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Register scratch3,
+                                               DwVfpRegister double_scratch,
+                                               Label* not_number) {
   if (FLAG_debug_code) {
     __ AbortIfNotRootValue(heap_number_map,
                            Heap::kHeapNumberMapRootIndex,
                            "HeapNumberMap register clobbered.");
   }
-  Label is_smi, done;
+  Label is_smi;
+  Label done;
+  Label not_in_int32_range;
+
   __ JumpIfSmi(object, &is_smi);
   __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kMapOffset));
   __ cmp(scratch1, heap_number_map);
-  __ b(ne, not_int32);
-  __ ConvertToInt32(
-      object, dst, scratch1, scratch2, double_scratch, not_int32);
+  __ b(ne, not_number);
+  __ ConvertToInt32(object,
+                    dst,
+                    scratch1,
+                    scratch2,
+                    double_scratch,
+                    &not_in_int32_range);
   __ jmp(&done);
+
+  __ bind(&not_in_int32_range);
+  __ ldr(scratch2, FieldMemOperand(object, HeapNumber::kExponentOffset));
+  __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+
+  // Register scratch1 contains mantissa word, scratch2 contains
+  // sign, exponent and mantissa. Extract biased exponent into dst.
+  __ Ubfx(dst,
+          scratch2,
+          HeapNumber::kExponentShift,
+          HeapNumber::kExponentBits);
+
+  // Express exponent as delta to 31.
+  __ sub(dst, dst, Operand(HeapNumber::kExponentBias + 31));
+
+  Label normal_exponent;
+  // If the delta is larger than kMantissaBits plus one, all bits
+  // would be shifted away, which means that we can return 0.
+  __ cmp(dst, Operand(HeapNumber::kMantissaBits + 1));
+  __ b(&normal_exponent, lt);
+  __ mov(dst, Operand(0));
+  __ jmp(&done);
+
+  __ bind(&normal_exponent);
+  const int kShiftBase = HeapNumber::kNonMantissaBitsInTopWord - 1;
+  // Calculate shift.
+  __ add(scratch3, dst, Operand(kShiftBase));
+
+  // Put implicit 1 before the mantissa part in scratch2.
+  __ orr(scratch2,
+         scratch2,
+         Operand(1 << HeapNumber::kMantissaBitsInTopWord));
+
+  // Save sign.
+  Register sign = dst;
+  __ and_(sign, scratch2, Operand(HeapNumber::kSignMask));
+
+  // Shift mantisssa bits the correct position in high word.
+  __ mov(scratch2, Operand(scratch2, LSL, scratch3));
+
+  // Replace the shifted bits with bits from the lower mantissa word.
+  Label pos_shift, shift_done;
+  __ rsb(scratch3, scratch3, Operand(32), SetCC);
+  __ b(&pos_shift, ge);
+
+  // Negate scratch3.
+  __ rsb(scratch3, scratch3, Operand(0));
+  __ mov(scratch1, Operand(scratch1, LSL, scratch3));
+  __ jmp(&shift_done);
+
+  __ bind(&pos_shift);
+  __ mov(scratch1, Operand(scratch1, LSR, scratch3));
+
+  __ bind(&shift_done);
+  __ orr(scratch2, scratch2, Operand(scratch1));
+
+  // Restore sign if necessary.
+  __ cmp(sign, Operand(0));
+  __ rsb(dst, scratch2, Operand(0), LeaveCC, ne);
+  __ mov(dst, scratch2, LeaveCC, eq);
+  __ jmp(&done);
+
   __ bind(&is_smi);
   __ SmiUntag(dst, object);
   __ bind(&done);
@@ -3024,6 +3092,7 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
   Register right = r0;
   Register scratch1 = r7;
   Register scratch2 = r9;
+  Register scratch3 = r4;
 
   ASSERT(smi_operands || (not_numbers != NULL));
   if (smi_operands && FLAG_debug_code) {
@@ -3111,22 +3180,24 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
         __ SmiUntag(r2, right);
       } else {
         // Convert operands to 32-bit integers. Right in r2 and left in r3.
-        FloatingPointHelper::LoadNumberAsInteger(masm,
-                                                 left,
-                                                 r3,
-                                                 heap_number_map,
-                                                 scratch1,
-                                                 scratch2,
-                                                 d0,
-                                                 not_numbers);
-        FloatingPointHelper::LoadNumberAsInteger(masm,
-                                                 right,
-                                                 r2,
-                                                 heap_number_map,
-                                                 scratch1,
-                                                 scratch2,
-                                                 d0,
-                                                 not_numbers);
+        FloatingPointHelper::ConvertNumberToInt32(masm,
+                                                  left,
+                                                  r3,
+                                                  heap_number_map,
+                                                  scratch1,
+                                                  scratch2,
+                                                  scratch3,
+                                                  d0,
+                                                  not_numbers);
+        FloatingPointHelper::ConvertNumberToInt32(masm,
+                                                  right,
+                                                  r2,
+                                                  heap_number_map,
+                                                  scratch1,
+                                                  scratch2,
+                                                  scratch3,
+                                                  d0,
+                                                  not_numbers);
       }
 
       Label result_not_a_smi;
@@ -3572,13 +3643,10 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
-  Label not_numbers, call_runtime;
+  Label call_runtime;
   ASSERT(operands_type_ == TRBinaryOpIC::HEAP_NUMBER);
 
-  GenerateFPOperation(masm, false, &not_numbers, &call_runtime);
-
-  __ bind(&not_numbers);
-  GenerateTypeTransition(masm);
+  GenerateFPOperation(masm, false, &call_runtime, &call_runtime);
 
   __ bind(&call_runtime);
   GenerateCallRuntime(masm);

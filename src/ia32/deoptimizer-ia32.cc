@@ -56,6 +56,7 @@ static void ZapCodeRange(Address start, Address end) {
 
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
+  HandleScope scope;
   AssertNoAllocation no_allocation;
 
   if (!function->IsOptimized()) return;
@@ -132,6 +133,11 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     PrintF("[forced deoptimization: ");
     function->PrintName();
     PrintF(" / %x]\n", reinterpret_cast<uint32_t>(function));
+#ifdef DEBUG
+    if (FLAG_print_code) {
+      code->PrintLn();
+    }
+#endif
   }
 }
 

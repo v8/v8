@@ -102,6 +102,7 @@ class SafepointTableDeoptimiztionEntryIterator {
 
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
+  HandleScope scope;
   AssertNoAllocation no_allocation;
 
   if (!function->IsOptimized()) return;
@@ -196,6 +197,11 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     PrintF("[forced deoptimization: ");
     function->PrintName();
     PrintF(" / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
+#ifdef DEBUG
+    if (FLAG_print_code) {
+      code->PrintLn();
+    }
+#endif
   }
 }
 
