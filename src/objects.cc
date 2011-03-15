@@ -5536,21 +5536,12 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
 
 
 Object* JSFunction::RemovePrototype() {
-  Map* no_prototype_map = shared()->strict_mode()
-      ? context()->global_context()->function_without_prototype_map_strict()
-      : context()->global_context()->function_without_prototype_map();
-
-  if (map() == no_prototype_map) {
+  if (map() == context()->global_context()->function_without_prototype_map()) {
     // Be idempotent.
     return this;
   }
-
-  ASSERT(!shared()->strict_mode() ||
-         map() == context()->global_context()->function_map_strict());
-  ASSERT(shared()->strict_mode() ||
-         map() == context()->global_context()->function_map());
-
-  set_map(no_prototype_map);
+  ASSERT(map() == context()->global_context()->function_map());
+  set_map(context()->global_context()->function_without_prototype_map());
   set_prototype_or_initial_map(Heap::the_hole_value());
   return this;
 }

@@ -1084,10 +1084,9 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
   // doesn't just get a copy of the existing unoptimized code.
   if (!FLAG_always_opt &&
       !FLAG_prepare_always_opt &&
-      !pretenure &&
       scope()->is_function_scope() &&
       info->num_literals() == 0 &&
-      !info->strict_mode()) {  // Strict mode functions use slow path.
+      !pretenure) {
     FastNewClosureStub stub;
     __ mov(r0, Operand(info));
     __ push(r0);

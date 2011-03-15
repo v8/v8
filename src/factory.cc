@@ -351,12 +351,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Context> context,
     PretenureFlag pretenure) {
   Handle<JSFunction> result = BaseNewFunctionFromSharedFunctionInfo(
-      function_info,
-      function_info->strict_mode()
-          ? Top::function_map_strict()
-          : Top::function_map(),
-      pretenure);
-
+      function_info, Top::function_map(), pretenure);
   result->set_context(*context);
   int number_of_literals = function_info->num_literals();
   Handle<FixedArray> literals =
@@ -830,24 +825,6 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name) {
   return fun;
 }
 
-
-Handle<JSFunction> Factory::NewFunctionWithoutPrototypeStrictHelper(
-    Handle<String> name) {
-  Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
-  CALL_HEAP_FUNCTION(Heap::AllocateFunction(
-                         *Top::function_without_prototype_map_strict(),
-                         *function_share,
-                         *the_hole_value()),
-                     JSFunction);
-}
-
-
-Handle<JSFunction> Factory::NewFunctionWithoutPrototypeStrict(
-    Handle<String> name) {
-  Handle<JSFunction> fun = NewFunctionWithoutPrototypeStrictHelper(name);
-  fun->set_context(Top::context()->global_context());
-  return fun;
-}
 
 Handle<Object> Factory::ToObject(Handle<Object> object) {
   CALL_HEAP_FUNCTION(object->ToObject(), Object);

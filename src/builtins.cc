@@ -959,24 +959,6 @@ BUILTIN(ArrayConcat) {
 
 
 // -----------------------------------------------------------------------------
-// Strict mode poison pills
-
-
-BUILTIN(StrictFunctionCaller) {
-  HandleScope scope;
-  return Top::Throw(*Factory::NewTypeError("strict_function_caller",
-                                            HandleVector<Object>(NULL, 0)));
-}
-
-
-BUILTIN(StrictFunctionArguments) {
-  HandleScope scope;
-  return Top::Throw(*Factory::NewTypeError("strict_function_arguments",
-                                            HandleVector<Object>(NULL, 0)));
-}
-
-
-// -----------------------------------------------------------------------------
 //
 
 

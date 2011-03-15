@@ -232,8 +232,6 @@ class Factory : public AllStatic {
                                         Handle<Object> prototype);
 
   static Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name);
-  static Handle<JSFunction> NewFunctionWithoutPrototypeStrict(
-      Handle<String> name);
 
   static Handle<JSFunction> NewFunction(Handle<Object> super, bool is_global);
 
@@ -409,8 +407,6 @@ class Factory : public AllStatic {
                                               Handle<Object> prototype);
 
   static Handle<JSFunction> NewFunctionWithoutPrototypeHelper(
-      Handle<String> name);
-  static Handle<JSFunction> NewFunctionWithoutPrototypeStrictHelper(
       Handle<String> name);
 
   static Handle<DescriptorArray> CopyAppendCallbackDescriptors(

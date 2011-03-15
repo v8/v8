@@ -3717,8 +3717,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   // space for nested functions that don't need literals cloning.
   Handle<SharedFunctionInfo> shared_info = instr->shared_info();
   bool pretenure = instr->hydrogen()->pretenure();
-  if (!pretenure && shared_info->num_literals() == 0 &&
-      !shared_info->strict_mode()) {  // Strict mode functions use slow path.
+  if (shared_info->num_literals() == 0 && !pretenure) {
     FastNewClosureStub stub;
     __ mov(r1, Operand(shared_info));
     __ push(r1);
