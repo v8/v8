@@ -764,15 +764,12 @@ bool Debug::CompileDebuggerScript(int index) {
   Handle<String> script_name = Factory::NewStringFromAscii(name);
 
   // Compile the script.
-  bool allow_natives_syntax = FLAG_allow_natives_syntax;
-  FLAG_allow_natives_syntax = true;
   Handle<SharedFunctionInfo> function_info;
   function_info = Compiler::Compile(source_code,
                                     script_name,
                                     0, 0, NULL, NULL,
                                     Handle<String>::null(),
                                     NATIVES_CODE);
-  FLAG_allow_natives_syntax = allow_natives_syntax;
 
   // Silently ignore stack overflows during compilation.
   if (function_info.is_null()) {
