@@ -656,7 +656,7 @@ class Assembler : public Malloced {
 
   // Move sign extended immediate to memory location.
   void movq(const Operand& dst, Immediate value);
-  // New x64 instructions to load a 64-bit immediate into a register.
+  // Instructions to load a 64-bit immediate into a register.
   // All 64-bit immediates must have a relocation mode.
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
   void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
@@ -681,7 +681,7 @@ class Assembler : public Malloced {
   void repmovsl();
   void repmovsq();
 
-  // New x64 instruction to load from an immediate 64-bit pointer into RAX.
+  // Instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(void* ptr, RelocInfo::Mode rmode);
   void load_rax(ExternalReference ext);
 

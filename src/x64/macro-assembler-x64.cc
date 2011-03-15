@@ -124,7 +124,7 @@ void MacroAssembler::RecordWrite(Register object,
   ASSERT(!object.is(rsi) && !value.is(rsi) && !index.is(rsi));
 
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of Smis and stores into young gen.
+  // catch stores of smis and stores into the young generation.
   Label done;
   JumpIfSmi(value, &done);
 
@@ -153,7 +153,7 @@ void MacroAssembler::RecordWrite(Register object,
   ASSERT(!object.is(rsi) && !value.is(rsi) && !address.is(rsi));
 
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of Smis and stores into young gen.
+  // catch stores of smis and stores into the young generation.
   Label done;
   JumpIfSmi(value, &done);
 
@@ -837,12 +837,24 @@ void MacroAssembler::SmiTest(Register src) {
 }
 
 
-void MacroAssembler::SmiCompare(Register dst, Register src) {
-  cmpq(dst, src);
+void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
+  if (FLAG_debug_code) {
+    AbortIfNotSmi(smi1);
+    AbortIfNotSmi(smi2);
+  }
+  cmpq(smi1, smi2);
 }
 
 
 void MacroAssembler::SmiCompare(Register dst, Smi* src) {
+  if (FLAG_debug_code) {
+    AbortIfNotSmi(dst);
+  }
+  Cmp(dst, src);
+}
+
+
+void MacroAssembler::Cmp(Register dst, Smi* src) {
   ASSERT(!dst.is(kScratchRegister));
   if (src->value() == 0) {
     testq(dst, dst);
@@ -854,17 +866,36 @@ void MacroAssembler::SmiCompare(Register dst, Smi* src) {
 
 
 void MacroAssembler::SmiCompare(Register dst, const Operand& src) {
+  if (FLAG_debug_code) {
+    AbortIfNotSmi(dst);
+    AbortIfNotSmi(src);
+  }
   cmpq(dst, src);
 }
 
 
 void MacroAssembler::SmiCompare(const Operand& dst, Register src) {
+  if (FLAG_debug_code) {
+    AbortIfNotSmi(dst);
+    AbortIfNotSmi(src);
+  }
   cmpq(dst, src);
 }
 
 
 void MacroAssembler::SmiCompare(const Operand& dst, Smi* src) {
+  if (FLAG_debug_code) {
+    AbortIfNotSmi(dst);
+  }
   cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
+}
+
+
+void MacroAssembler::Cmp(const Operand& dst, Smi* src) {
+  // The Operand cannot use the smi register.
+  Register smi_reg = GetSmiConstant(src);
+  ASSERT(!dst.AddressUsesRegister(smi_reg));
+  cmpq(dst, smi_reg);
 }
 
 
@@ -1352,7 +1383,7 @@ void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
 
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
-    SmiCompare(dst, Smi::cast(*source));
+    Cmp(dst, Smi::cast(*source));
   } else {
     Move(kScratchRegister, source);
     cmpq(dst, kScratchRegister);
@@ -1362,7 +1393,7 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
 
 void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
   if (source->IsSmi()) {
-    SmiCompare(dst, Smi::cast(*source));
+    Cmp(dst, Smi::cast(*source));
   } else {
     ASSERT(source->IsHeapObject());
     movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
@@ -1753,7 +1784,12 @@ void MacroAssembler::AbortIfSmi(Register object) {
 
 
 void MacroAssembler::AbortIfNotSmi(Register object) {
-  NearLabel ok;
+  Condition is_smi = CheckSmi(object);
+  Assert(is_smi, "Operand is not a smi");
+}
+
+
+void MacroAssembler::AbortIfNotSmi(const Operand& object) {
   Condition is_smi = CheckSmi(object);
   Assert(is_smi, "Operand is not a smi");
 }

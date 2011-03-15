@@ -3050,8 +3050,8 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   // Fetch the map and check if array is in fast case.
   // Check that object doesn't require security checks and
   // has no indexed interceptor.
-  __ CmpObjectType(object, FIRST_JS_OBJECT_TYPE, temp);
-  __ j(below, &slow_case);
+  __ CmpObjectType(object, JS_ARRAY_TYPE, temp);
+  __ j(not_equal, &slow_case);
   __ test_b(FieldOperand(temp, Map::kBitFieldOffset),
             KeyedLoadIC::kSlowCaseBitFieldMask);
   __ j(not_zero, &slow_case);

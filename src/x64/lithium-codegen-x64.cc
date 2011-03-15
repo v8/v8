@@ -1244,7 +1244,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ j(equal, true_label);
       __ CompareRoot(reg, Heap::kFalseValueRootIndex);
       __ j(equal, false_label);
-      __ SmiCompare(reg, Smi::FromInt(0));
+      __ Cmp(reg, Smi::FromInt(0));
       __ j(equal, false_label);
       __ JumpIfSmi(reg, true_label);
 
@@ -2196,8 +2196,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   // Check for arguments adapter frame.
   NearLabel done, adapted;
   __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ SmiCompare(Operand(result, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Cmp(Operand(result, StandardFrameConstants::kContextOffset),
+         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(equal, &adapted);
 
   // No arguments adaptor frame.
@@ -3681,15 +3681,15 @@ void LCodeGen::EmitIsConstructCall(Register temp) {
 
   // Skip the arguments adaptor frame if it exists.
   NearLabel check_frame_marker;
-  __ SmiCompare(Operand(temp, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Cmp(Operand(temp, StandardFrameConstants::kContextOffset),
+         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(not_equal, &check_frame_marker);
   __ movq(temp, Operand(rax, StandardFrameConstants::kCallerFPOffset));
 
   // Check the marker in the calling frame.
   __ bind(&check_frame_marker);
-  __ SmiCompare(Operand(temp, StandardFrameConstants::kMarkerOffset),
-                Smi::FromInt(StackFrame::CONSTRUCT));
+  __ Cmp(Operand(temp, StandardFrameConstants::kMarkerOffset),
+         Smi::FromInt(StackFrame::CONSTRUCT));
 }
 
 

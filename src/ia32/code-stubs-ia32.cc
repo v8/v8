@@ -5509,8 +5509,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(Smi::kMaxValue == String::kMaxLength);
   // Handle exceptionally long strings in the runtime system.
   __ j(overflow, &string_add_runtime);
-  // Use the runtime system when adding two one character strings, as it
-  // contains optimizations for this specific case using the symbol table.
+  // Use the symbol table when adding two one character strings, as it
+  // helps later optimizations to return a symbol here.
   __ cmp(Operand(ebx), Immediate(Smi::FromInt(2)));
   __ j(not_equal, &longer_than_two);
 
@@ -5927,6 +5927,8 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     // If entry is undefined no string with this hash can be found.
     __ cmp(candidate, Factory::undefined_value());
     __ j(equal, not_found);
+    __ cmp(candidate, Factory::null_value());
+    __ j(equal, &next_probe[i]);
 
     // If length is not 2 the string is not a candidate.
     __ cmp(FieldOperand(candidate, String::kLengthOffset),

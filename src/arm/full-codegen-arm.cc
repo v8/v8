@@ -3132,8 +3132,8 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   // Fetch the map and check if array is in fast case.
   // Check that object doesn't require security checks and
   // has no indexed interceptor.
-  __ CompareObjectType(object, scratch1, scratch2, FIRST_JS_OBJECT_TYPE);
-  __ b(lt, &slow_case);
+  __ CompareObjectType(object, scratch1, scratch2, JS_ARRAY_TYPE);
+  __ b(ne, &slow_case);
   // Map is now in scratch1.
 
   __ ldrb(scratch2, FieldMemOperand(scratch1, Map::kBitFieldOffset));

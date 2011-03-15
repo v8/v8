@@ -549,7 +549,7 @@ void FullCodeGenerator::DoTest(Label* if_true,
   __ CompareRoot(result_register(), Heap::kFalseValueRootIndex);
   __ j(equal, if_false);
   STATIC_ASSERT(kSmiTag == 0);
-  __ SmiCompare(result_register(), Smi::FromInt(0));
+  __ Cmp(result_register(), Smi::FromInt(0));
   __ j(equal, if_false);
   Condition is_smi = masm_->CheckSmi(result_register());
   __ j(is_smi, if_true);
@@ -995,7 +995,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(rcx);  // Enumerable.
   __ push(rbx);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
-  __ SmiCompare(rax, Smi::FromInt(0));
+  __ Cmp(rax, Smi::FromInt(0));
   __ j(equal, loop_statement.continue_target());
   __ movq(rbx, rax);
 
@@ -2503,15 +2503,15 @@ void FullCodeGenerator::EmitIsConstructCall(ZoneList<Expression*>* args) {
 
   // Skip the arguments adaptor frame if it exists.
   Label check_frame_marker;
-  __ SmiCompare(Operand(rax, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Cmp(Operand(rax, StandardFrameConstants::kContextOffset),
+         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(not_equal, &check_frame_marker);
   __ movq(rax, Operand(rax, StandardFrameConstants::kCallerFPOffset));
 
   // Check the marker in the calling frame.
   __ bind(&check_frame_marker);
-  __ SmiCompare(Operand(rax, StandardFrameConstants::kMarkerOffset),
-                Smi::FromInt(StackFrame::CONSTRUCT));
+  __ Cmp(Operand(rax, StandardFrameConstants::kMarkerOffset),
+         Smi::FromInt(StackFrame::CONSTRUCT));
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(equal, if_true, if_false, fall_through);
 
@@ -2565,8 +2565,8 @@ void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
 
   // Check if the calling frame is an arguments adaptor frame.
   __ movq(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ SmiCompare(Operand(rbx, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Cmp(Operand(rbx, StandardFrameConstants::kContextOffset),
+         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(not_equal, &exit);
 
   // Arguments adaptor case: Read the arguments length from the
@@ -3011,8 +3011,8 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   // Fetch the map and check if array is in fast case.
   // Check that object doesn't require security checks and
   // has no indexed interceptor.
-  __ CmpObjectType(object, FIRST_JS_OBJECT_TYPE, temp);
-  __ j(below, &slow_case);
+  __ CmpObjectType(object, JS_ARRAY_TYPE, temp);
+  __ j(not_equal, &slow_case);
   __ testb(FieldOperand(temp, Map::kBitFieldOffset),
            Immediate(KeyedLoadIC::kSlowCaseBitFieldMask));
   __ j(not_zero, &slow_case);
