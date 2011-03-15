@@ -738,9 +738,9 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
              prop->key()->AsLiteral()->handle()->IsSmi());
       __ Move(rcx, prop->key()->AsLiteral()->handle());
 
-      Handle<Code> ic(Builtins::builtin(is_strict()
-          ? Builtins::KeyedStoreIC_Initialize_Strict
-          : Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic(Builtins::builtin(
+          is_strict_mode() ? Builtins::KeyedStoreIC_Initialize_Strict
+                           : Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
     }
   }
@@ -1742,8 +1742,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       __ pop(rax);  // Restore value.
       __ Move(rcx, prop->key()->AsLiteral()->handle());
       Handle<Code> ic(Builtins::builtin(
-          is_strict() ? Builtins::StoreIC_Initialize_Strict
-                      : Builtins::StoreIC_Initialize));
+          is_strict_mode() ? Builtins::StoreIC_Initialize_Strict
+                           : Builtins::StoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
     }
@@ -1765,8 +1765,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       }
       __ pop(rax);  // Restore value.
       Handle<Code> ic(Builtins::builtin(
-          is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
-                      : Builtins::KeyedStoreIC_Initialize));
+          is_strict_mode() ? Builtins::KeyedStoreIC_Initialize_Strict
+                           : Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
     }
@@ -1790,9 +1790,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // rcx, and the global object on the stack.
     __ Move(rcx, var->name());
     __ movq(rdx, GlobalObjectOperand());
-    Handle<Code> ic(Builtins::builtin(is_strict()
-        ? Builtins::StoreIC_Initialize_Strict
-        : Builtins::StoreIC_Initialize));
+    Handle<Code> ic(Builtins::builtin(
+        is_strict_mode() ? Builtins::StoreIC_Initialize_Strict
+                         : Builtins::StoreIC_Initialize));
     EmitCallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
 
   } else if (op == Token::INIT_CONST) {
@@ -1894,8 +1894,8 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ pop(rdx);
   }
   Handle<Code> ic(Builtins::builtin(
-      is_strict() ? Builtins::StoreIC_Initialize_Strict
-                  : Builtins::StoreIC_Initialize));
+      is_strict_mode() ? Builtins::StoreIC_Initialize_Strict
+                       : Builtins::StoreIC_Initialize));
   EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -1934,8 +1934,8 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
   Handle<Code> ic(Builtins::builtin(
-      is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
-                  : Builtins::KeyedStoreIC_Initialize));
+      is_strict_mode() ? Builtins::KeyedStoreIC_Initialize_Strict
+                       : Builtins::KeyedStoreIC_Initialize));
   EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -3547,8 +3547,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ Move(rcx, prop->key()->AsLiteral()->handle());
       __ pop(rdx);
       Handle<Code> ic(Builtins::builtin(
-          is_strict() ? Builtins::StoreIC_Initialize_Strict
-                      : Builtins::StoreIC_Initialize));
+          is_strict_mode() ? Builtins::StoreIC_Initialize_Strict
+                           : Builtins::StoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
@@ -3564,8 +3564,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ pop(rcx);
       __ pop(rdx);
       Handle<Code> ic(Builtins::builtin(
-          is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
-                      : Builtins::KeyedStoreIC_Initialize));
+          is_strict_mode() ? Builtins::KeyedStoreIC_Initialize_Strict
+                           : Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {

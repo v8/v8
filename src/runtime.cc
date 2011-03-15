@@ -7929,14 +7929,14 @@ static MaybeObject* Runtime_CompileString(Arguments args) {
 
 static ObjectPair CompileGlobalEval(Handle<String> source,
                                     Handle<Object> receiver,
-                                    StrictModeFlag mode) {
+                                    StrictModeFlag strict_mode) {
   // Deal with a normal eval call with a string argument. Compile it
   // and return the compiled function bound in the local context.
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source,
       Handle<Context>(Top::context()),
       Top::context()->IsGlobalContext(),
-      mode);
+      strict_mode);
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
   Handle<JSFunction> compiled = Factory::NewFunctionFromSharedFunctionInfo(
       shared,
