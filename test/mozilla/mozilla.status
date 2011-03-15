@@ -745,6 +745,10 @@ js1_5/extensions/regress-342960: FAIL_OK || TIMEOUT if $mode == debug
 # error message in debug mode.
 js1_5/extensions/regress-336410-1: FAIL_OK || TIMEOUT if ($mode == debug && $arch == x64)
 
+# These tests also fails in firefox 4 beta and is disabled in the firefox
+# test manifest.
+js1_5/extensions/regress-313500: FAIL_OK
+js1_5/extensions/regress-325269: FAIL_OK
 
 
 ##################### DECOMPILATION TESTS #####################

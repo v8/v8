@@ -251,7 +251,11 @@ function ObjectDefineGetter(name, fun) {
   if (!IS_FUNCTION(fun)) {
     throw new $TypeError('Object.prototype.__defineGetter__: Expecting function');
   }
-  return %DefineAccessor(ToObject(this), ToString(name), GETTER, fun);
+  var desc = new PropertyDescriptor();
+  desc.setGet(fun);
+  desc.setEnumerable(true);
+  desc.setConfigurable(true);
+  DefineOwnProperty(ToObject(this), ToString(name), desc, true);
 }
 
 
@@ -271,7 +275,11 @@ function ObjectDefineSetter(name, fun) {
     throw new $TypeError(
         'Object.prototype.__defineSetter__: Expecting function');
   }
-  return %DefineAccessor(ToObject(this), ToString(name), SETTER, fun);
+  var desc = new PropertyDescriptor();
+  desc.setSet(fun);
+  desc.setEnumerable(true);
+  desc.setConfigurable(true);
+  DefineOwnProperty(ToObject(this), ToString(name), desc, true);
 }
 
 
@@ -394,6 +402,10 @@ function PropertyDescriptor() {
   this.hasSetter_ = false;
 }
 
+PropertyDescriptor.prototype.__proto__ = null;
+PropertyDescriptor.prototype.toString = function() {
+  return "[object PropertyDescriptor]";
+};
 
 PropertyDescriptor.prototype.setValue = function(value) {
   this.value_ = value;
