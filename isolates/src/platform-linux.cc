@@ -810,7 +810,10 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   USE(info);
   if (signal != SIGPROF) return;
   Isolate* isolate = Isolate::UncheckedCurrent();
-  if (isolate == NULL || !isolate->IsInUse()) return;
+  if (isolate == NULL || !isolate->IsInitialized() || !isolate->IsInUse()) {
+    // We require a fully initialized and entered isolate.
+    return;
+  }
   Sampler* sampler = isolate->logger()->sampler();
   if (sampler == NULL || !sampler->IsActive()) return;
 
@@ -882,7 +885,7 @@ class SignalSender : public Thread {
       sigemptyset(&sa.sa_mask);
       sa.sa_flags = SA_RESTART | SA_SIGINFO;
       signal_handler_installed_ =
-          (sigaction(SIGPROF, &sa, &old_signal_handler_) != 0);
+          (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
 
       // Start a thread that sends SIGPROF signal to VM threads.
       instance_ = new SignalSender(sampler->interval());
