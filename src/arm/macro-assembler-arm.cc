@@ -2032,6 +2032,121 @@ void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
 }
 
 
+void MacroAssembler::EmitOutOfInt32RangeTruncate(Register result,
+                                                 Register input_high,
+                                                 Register input_low,
+                                                 Register scratch) {
+  Label done, normal_exponent, restore_sign;
+
+  // Extract the biased exponent in result.
+  Ubfx(result,
+       input_high,
+       HeapNumber::kExponentShift,
+       HeapNumber::kExponentBits);
+
+  // Check for Infinity and NaNs, which should return 0.
+  cmp(result, Operand(HeapNumber::kExponentMask));
+  mov(result, Operand(0), LeaveCC, eq);
+  b(eq, &done);
+
+  // Express exponent as delta to (number of mantissa bits + 31).
+  sub(result,
+      result,
+      Operand(HeapNumber::kExponentBias + HeapNumber::kMantissaBits + 31),
+      SetCC);
+
+  // If the delta is strictly positive, all bits would be shifted away,
+  // which means that we can return 0.
+  b(le, &normal_exponent);
+  mov(result, Operand(0));
+  b(&done);
+
+  bind(&normal_exponent);
+  const int kShiftBase = HeapNumber::kNonMantissaBitsInTopWord - 1;
+  // Calculate shift.
+  add(scratch, result, Operand(kShiftBase + HeapNumber::kMantissaBits), SetCC);
+
+  // Save the sign.
+  Register sign = result;
+  result = no_reg;
+  and_(sign, input_high, Operand(HeapNumber::kSignMask));
+
+  // Set the implicit 1 before the mantissa part in input_high.
+  orr(input_high,
+      input_high,
+      Operand(1 << HeapNumber::kMantissaBitsInTopWord));
+  // Shift the mantissa bits to the correct position.
+  // We don't need to clear non-mantissa bits as they will be shifted away.
+  // If they weren't, it would mean that the answer is in the 32bit range.
+  mov(input_high, Operand(input_high, LSL, scratch));
+
+  // Replace the shifted bits with bits from the lower mantissa word.
+  Label pos_shift, shift_done;
+  rsb(scratch, scratch, Operand(32), SetCC);
+  b(&pos_shift, ge);
+
+  // Negate scratch.
+  rsb(scratch, scratch, Operand(0));
+  mov(input_low, Operand(input_low, LSL, scratch));
+  b(&shift_done);
+
+  bind(&pos_shift);
+  mov(input_low, Operand(input_low, LSR, scratch));
+
+  bind(&shift_done);
+  orr(input_high, input_high, Operand(input_low));
+  // Restore sign if necessary.
+  cmp(sign, Operand(0));
+  result = sign;
+  sign = no_reg;
+  rsb(result, input_high, Operand(0), LeaveCC, ne);
+  mov(result, input_high, LeaveCC, eq);
+  bind(&done);
+}
+
+
+void MacroAssembler::EmitECMATruncate(Register result,
+                                      DwVfpRegister double_input,
+                                      SwVfpRegister single_scratch,
+                                      Register scratch,
+                                      Register input_high,
+                                      Register input_low) {
+  CpuFeatures::Scope scope(VFP3);
+  ASSERT(!input_high.is(result));
+  ASSERT(!input_low.is(result));
+  ASSERT(!input_low.is(input_high));
+  ASSERT(!scratch.is(result) &&
+         !scratch.is(input_high) &&
+         !scratch.is(input_low));
+  ASSERT(!single_scratch.is(double_input.low()) &&
+         !single_scratch.is(double_input.high()));
+
+  Label done;
+
+  // Clear cumulative exception flags.
+  ClearFPSCRBits(kVFPExceptionMask, scratch);
+  // Try a conversion to a signed integer.
+  vcvt_s32_f64(single_scratch, double_input);
+  vmov(result, single_scratch);
+  // Retrieve he FPSCR.
+  vmrs(scratch);
+  // Check for overflow and NaNs.
+  tst(scratch, Operand(kVFPOverflowExceptionBit |
+                       kVFPUnderflowExceptionBit |
+                       kVFPInvalidOpExceptionBit));
+  // If we had no exceptions we are done.
+  b(eq, &done);
+
+  // Load the double value and perform a manual truncation.
+  vmov(input_low, input_high, double_input);
+  EmitOutOfInt32RangeTruncate(result,
+                              input_high,
+                              input_low,
+                              scratch);
+  bind(&done);
+}
+
+
 void MacroAssembler::GetLeastBitsFromSmi(Register dst,
                                          Register src,
                                          int num_least_bits) {

@@ -1610,12 +1610,15 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LOperand* value = UseRegister(instr->value());
       bool needs_check = !instr->value()->type().IsSmi();
       LInstruction* res = NULL;
-      if (needs_check) {
-        res = DefineSameAsFirst(new LTaggedToI(value, FixedTemp(d1)));
-      } else {
+      if (!needs_check) {
         res = DefineSameAsFirst(new LSmiUntag(value, needs_check));
-      }
-      if (needs_check) {
+      } else {
+        LOperand* temp1 = TempRegister();
+        LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister()
+                                                      : NULL;
+        LOperand* temp3 = instr->CanTruncateToInt32() ? FixedTemp(d3)
+                                                      : NULL;
+        res = DefineSameAsFirst(new LTaggedToI(value, temp1, temp2, temp3));
         res = AssignEnvironment(res);
       }
       return res;
@@ -1635,7 +1638,10 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsInteger32());
       LOperand* value = UseRegister(instr->value());
-      LDoubleToI* res = new LDoubleToI(value, TempRegister());
+      LDoubleToI* res =
+        new LDoubleToI(value,
+                       TempRegister(),
+                       instr->CanTruncateToInt32() ? TempRegister() : NULL);
       return AssignEnvironment(DefineAsRegister(res));
     }
   } else if (from.IsInteger32()) {

@@ -992,6 +992,9 @@ class Assembler : public Malloced {
                     VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
 
+  void vneg(const DwVfpRegister dst,
+            const DwVfpRegister src,
+            const Condition cond = al);
   void vabs(const DwVfpRegister dst,
             const DwVfpRegister src,
             const Condition cond = al);

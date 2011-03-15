@@ -1067,6 +1067,9 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
       } else if ((instr->Opc2Value() == 0x0) && (instr->Opc3Value() == 0x3)) {
         // vabs
         Format(instr, "vabs'cond 'Dd, 'Dm");
+      } else if ((instr->Opc2Value() == 0x1) && (instr->Opc3Value() == 0x1)) {
+        // vneg
+        Format(instr, "vneg'cond 'Dd, 'Dm");
       } else if ((instr->Opc2Value() == 0x7) && (instr->Opc3Value() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
       } else if ((instr->Opc2Value() == 0x8) && (instr->Opc3Value() & 0x1)) {

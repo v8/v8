@@ -2467,6 +2467,8 @@ void Simulator::DecodeType7(Instruction* instr) {
 // vmov :Rt = Sn
 // vcvt: Dd = Sm
 // vcvt: Sd = Dm
+// Dd = vabs(Dm)
+// Dd = vneg(Dm)
 // Dd = vadd(Dn, Dm)
 // Dd = vsub(Dn, Dm)
 // Dd = vmul(Dn, Dm)
@@ -2501,6 +2503,11 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         // vabs
         double dm_value = get_double_from_d_register(vm);
         double dd_value = fabs(dm_value);
+        set_d_register_from_double(vd, dd_value);
+      } else if ((instr->Opc2Value() == 0x1) && (instr->Opc3Value() == 0x1)) {
+        // vneg
+        double dm_value = get_double_from_d_register(vm);
+        double dd_value = -dm_value;
         set_d_register_from_double(vd, dd_value);
       } else if ((instr->Opc2Value() == 0x7) && (instr->Opc3Value() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);

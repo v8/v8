@@ -635,64 +635,13 @@ void FloatingPointHelper::ConvertNumberToInt32(MacroAssembler* masm,
   __ jmp(&done);
 
   __ bind(&not_in_int32_range);
-  __ ldr(scratch2, FieldMemOperand(object, HeapNumber::kExponentOffset));
-  __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+  __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
+  __ ldr(scratch2, FieldMemOperand(object, HeapNumber::kMantissaOffset));
 
-  // Register scratch1 contains mantissa word, scratch2 contains
-  // sign, exponent and mantissa. Extract biased exponent into dst.
-  __ Ubfx(dst,
-          scratch2,
-          HeapNumber::kExponentShift,
-          HeapNumber::kExponentBits);
-
-  // Express exponent as delta to 31.
-  __ sub(dst, dst, Operand(HeapNumber::kExponentBias + 31));
-
-  Label normal_exponent;
-  // If the delta is larger than kMantissaBits plus one, all bits
-  // would be shifted away, which means that we can return 0.
-  __ cmp(dst, Operand(HeapNumber::kMantissaBits + 1));
-  __ b(&normal_exponent, lt);
-  __ mov(dst, Operand(0));
-  __ jmp(&done);
-
-  __ bind(&normal_exponent);
-  const int kShiftBase = HeapNumber::kNonMantissaBitsInTopWord - 1;
-  // Calculate shift.
-  __ add(scratch3, dst, Operand(kShiftBase));
-
-  // Put implicit 1 before the mantissa part in scratch2.
-  __ orr(scratch2,
-         scratch2,
-         Operand(1 << HeapNumber::kMantissaBitsInTopWord));
-
-  // Save sign.
-  Register sign = dst;
-  __ and_(sign, scratch2, Operand(HeapNumber::kSignMask));
-
-  // Shift mantisssa bits the correct position in high word.
-  __ mov(scratch2, Operand(scratch2, LSL, scratch3));
-
-  // Replace the shifted bits with bits from the lower mantissa word.
-  Label pos_shift, shift_done;
-  __ rsb(scratch3, scratch3, Operand(32), SetCC);
-  __ b(&pos_shift, ge);
-
-  // Negate scratch3.
-  __ rsb(scratch3, scratch3, Operand(0));
-  __ mov(scratch1, Operand(scratch1, LSL, scratch3));
-  __ jmp(&shift_done);
-
-  __ bind(&pos_shift);
-  __ mov(scratch1, Operand(scratch1, LSR, scratch3));
-
-  __ bind(&shift_done);
-  __ orr(scratch2, scratch2, Operand(scratch1));
-
-  // Restore sign if necessary.
-  __ cmp(sign, Operand(0));
-  __ rsb(dst, scratch2, Operand(0), LeaveCC, ne);
-  __ mov(dst, scratch2, LeaveCC, eq);
+  __ EmitOutOfInt32RangeTruncate(dst,
+                                 scratch1,
+                                 scratch2,
+                                 scratch3);
   __ jmp(&done);
 
   __ bind(&is_smi);

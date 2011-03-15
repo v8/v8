@@ -2384,6 +2384,14 @@ void Assembler::vcvt_f32_f64(const SwVfpRegister dst,
 }
 
 
+void Assembler::vneg(const DwVfpRegister dst,
+                     const DwVfpRegister src,
+                     const Condition cond) {
+  emit(cond | 0xE*B24 | 0xB*B20 | B16 | dst.code()*B12 |
+       0x5*B9 | B8 | B6 | src.code());
+}
+
+
 void Assembler::vabs(const DwVfpRegister dst,
                      const DwVfpRegister src,
                      const Condition cond) {
