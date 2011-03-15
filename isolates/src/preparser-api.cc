@@ -161,6 +161,9 @@ class InputStreamUTF16Buffer : public UC16CharacterStream {
 
 class StandAloneJavaScriptScanner : public JavaScriptScanner {
  public:
+  StandAloneJavaScriptScanner()
+    : JavaScriptScanner(Isolate::Current()) { }
+
   void Initialize(UC16CharacterStream* source) {
     source_ = source;
     Init();
