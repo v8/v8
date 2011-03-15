@@ -433,7 +433,7 @@ void MacroAssembler::StoreRoot(Register source,
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register address,
                                        Register scratch) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     // Check that the object is not in new space.
     Label not_in_new_space;
     InNewSpace(object, scratch, ne, &not_in_new_space);
@@ -495,7 +495,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     mov(object, Operand(BitCast<int32_t>(kZapValue)));
     mov(scratch0, Operand(BitCast<int32_t>(kZapValue)));
     mov(scratch1, Operand(BitCast<int32_t>(kZapValue)));
@@ -527,7 +527,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     mov(object, Operand(BitCast<int32_t>(kZapValue)));
     mov(address, Operand(BitCast<int32_t>(kZapValue)));
     mov(scratch, Operand(BitCast<int32_t>(kZapValue)));
@@ -731,7 +731,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   mov(fp, Operand(sp));  // Setup new frame pointer.
   // Reserve room for saved entry sp and code object.
   sub(sp, sp, Operand(2 * kPointerSize));
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     mov(ip, Operand(0));
     str(ip, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
@@ -1137,7 +1137,7 @@ void MacroAssembler::Throw(Register value) {
   // Restore cp otherwise.
   ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
 #ifdef DEBUG
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     mov(lr, Operand(pc));
   }
 #endif
@@ -1210,7 +1210,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   // Restore cp otherwise.
   ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
 #ifdef DEBUG
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     mov(lr, Operand(pc));
   }
 #endif
@@ -1242,7 +1242,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   ldr(scratch, FieldMemOperand(scratch, GlobalObject::kGlobalContextOffset));
 
   // Check the context is a global context.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     // TODO(119): avoid push(holder_reg)/pop(holder_reg)
     // Cannot use ip as a temporary in this verification code. Due to the fact
     // that ip is clobbered as part of cmp with an object Operand.
@@ -1261,7 +1261,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   b(eq, &same_contexts);
 
   // Check the context is a global context.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     // TODO(119): avoid push(holder_reg)/pop(holder_reg)
     // Cannot use ip as a temporary in this verification code. Due to the fact
     // that ip is clobbered as part of cmp with an object Operand.
@@ -1303,7 +1303,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
                                         Label* gc_required,
                                         AllocationFlags flags) {
   if (!FLAG_inline_new) {
-    if (FLAG_debug_code) {
+    if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       mov(result, Operand(0x7091));
       mov(scratch1, Operand(0x7191));
@@ -1352,7 +1352,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
     // Load allocation top into result and allocation limit into ip.
     ldm(ia, topaddr, result.bit() | ip.bit());
   } else {
-    if (FLAG_debug_code) {
+    if (emit_debug_code()) {
       // Assert that result actually contains top on entry. ip is used
       // immediately below so this use of ip does not cause difference with
       // respect to register content between debug and release mode.
@@ -1386,7 +1386,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
                                         Label* gc_required,
                                         AllocationFlags flags) {
   if (!FLAG_inline_new) {
-    if (FLAG_debug_code) {
+    if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       mov(result, Operand(0x7091));
       mov(scratch1, Operand(0x7191));
@@ -1430,7 +1430,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
     // Load allocation top into result and allocation limit into ip.
     ldm(ia, topaddr, result.bit() | ip.bit());
   } else {
-    if (FLAG_debug_code) {
+    if (emit_debug_code()) {
       // Assert that result actually contains top on entry. ip is used
       // immediately below so this use of ip does not cause difference with
       // respect to register content between debug and release mode.
@@ -1455,7 +1455,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   b(hi, gc_required);
 
   // Update allocation top. result temporarily holds the new top.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     tst(scratch2, Operand(kObjectAlignmentMask));
     Check(eq, "Unaligned allocation in new space");
   }
@@ -1759,7 +1759,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   str(r4, MemOperand(r7, kNextOffset));
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     ldr(r1, MemOperand(r7, kLevelOffset));
     cmp(r1, r6);
     Check(eq, "Unexpected level after return from api call");
@@ -2335,14 +2335,14 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 
 
 void MacroAssembler::Assert(Condition cond, const char* msg) {
-  if (FLAG_debug_code)
+  if (emit_debug_code())
     Check(cond, msg);
 }
 
 
 void MacroAssembler::AssertRegisterIsRoot(Register reg,
                                           Heap::RootListIndex index) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     LoadRoot(ip, index);
     cmp(reg, ip);
     Check(eq, "Register did not match expected root");
@@ -2351,7 +2351,7 @@ void MacroAssembler::AssertRegisterIsRoot(Register reg,
 
 
 void MacroAssembler::AssertFastElements(Register elements) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     ASSERT(!elements.is(ip));
     Label ok;
     push(elements);
@@ -2439,7 +2439,7 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   // (i.e., the static scope chain and runtime context chain do not agree).
   // A variable occurring in such a scope should have slot type LOOKUP and
   // not CONTEXT.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     ldr(ip, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
     cmp(dst, ip);
     Check(eq, "Yo dawg, I heard you liked function contexts "
@@ -2464,7 +2464,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
                                                   Register scratch) {
   // Load the initial map. The global functions all have initial maps.
   ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Label ok, fail;
     CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, false);
     b(&ok);
@@ -2672,7 +2672,7 @@ void MacroAssembler::CopyBytes(Register src,
 
   // Copy bytes in word size chunks.
   bind(&word_loop);
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     tst(src, Operand(kPointerSize - 1));
     Assert(eq, "Expecting alignment for CopyBytes");
   }
@@ -2802,7 +2802,7 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
 #if defined(V8_HOST_ARCH_ARM)
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     int frame_alignment = OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;
     if (frame_alignment > kPointerSize) {
@@ -2836,7 +2836,7 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
   const uint32_t kLdrOffsetMask = (1 << 12) - 1;
   const int32_t kPCRegOffset = 2 * kPointerSize;
   ldr(result, MemOperand(ldr_location));
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     // Check that the instruction is a ldr reg, [pc + offset] .
     and_(result, result, Operand(kLdrPCPattern));
     cmp(result, Operand(kLdrPCPattern));

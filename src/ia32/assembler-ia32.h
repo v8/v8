@@ -522,6 +522,9 @@ class Assembler : public Malloced {
   Assembler(void* buffer, int buffer_size);
   ~Assembler();
 
+  // Overrides the default provided by FLAG_debug_code.
+  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
+
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
@@ -982,6 +985,8 @@ class Assembler : public Malloced {
   static const int kMinimalBufferSize = 4*KB;
 
  protected:
+  bool emit_debug_code() const { return emit_debug_code_; }
+
   void movsd(XMMRegister dst, const Operand& src);
   void movsd(const Operand& dst, XMMRegister src);
 
@@ -1056,6 +1061,8 @@ class Assembler : public Malloced {
   byte* last_pc_;
 
   PositionsRecorder positions_recorder_;
+
+  bool emit_debug_code_;
 
   friend class PositionsRecorder;
 };
