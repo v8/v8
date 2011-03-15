@@ -532,10 +532,25 @@ MaybeObject* Object::GetProperty(Object* receiver,
 
 
 MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
-  // Non-JS objects do not have integer indexed properties.
-  if (!IsJSObject()) return Heap::undefined_value();
-  return JSObject::cast(this)->GetElementWithReceiver(JSObject::cast(receiver),
-                                                      index);
+  if (IsJSObject()) {
+    return JSObject::cast(this)->GetElementWithReceiver(receiver, index);
+  }
+
+  Object* holder = NULL;
+  Context* global_context = Top::context()->global_context();
+  if (IsString()) {
+    holder = global_context->string_function()->instance_prototype();
+  } else if (IsNumber()) {
+    holder = global_context->number_function()->instance_prototype();
+  } else if (IsBoolean()) {
+    holder = global_context->boolean_function()->instance_prototype();
+  } else {
+    // Undefined and null have no indexed properties.
+    ASSERT(IsUndefined() || IsNull());
+    return Heap::undefined_value();
+  }
+
+  return JSObject::cast(holder)->GetElementWithReceiver(receiver, index);
 }
 
 
@@ -946,8 +961,9 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case BYTE_ARRAY_TYPE:
       accumulator->Add("<ByteArray[%u]>", ByteArray::cast(this)->length());
       break;
-    case PIXEL_ARRAY_TYPE:
-      accumulator->Add("<PixelArray[%u]>", PixelArray::cast(this)->length());
+    case EXTERNAL_PIXEL_ARRAY_TYPE:
+      accumulator->Add("<ExternalPixelArray[%u]>",
+                       ExternalPixelArray::cast(this)->length());
       break;
     case EXTERNAL_BYTE_ARRAY_TYPE:
       accumulator->Add("<ExternalByteArray[%u]>",
@@ -1098,7 +1114,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
-    case PIXEL_ARRAY_TYPE:
+    case EXTERNAL_PIXEL_ARRAY_TYPE:
     case EXTERNAL_BYTE_ARRAY_TYPE:
     case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
     case EXTERNAL_SHORT_ARRAY_TYPE:
@@ -1430,14 +1446,15 @@ MaybeObject* JSObject::AddProperty(String* name,
 MaybeObject* JSObject::SetPropertyPostInterceptor(
     String* name,
     Object* value,
-    PropertyAttributes attributes) {
+    PropertyAttributes attributes,
+    StrictModeFlag strict_mode) {
   // Check local property, ignore interceptor.
   LookupResult result;
   LocalLookupRealNamedProperty(name, &result);
   if (result.IsFound()) {
     // An existing property, a map transition or a null descriptor was
     // found.  Use set property to handle all these cases.
-    return SetProperty(&result, name, value, attributes);
+    return SetProperty(&result, name, value, attributes, strict_mode);
   }
   // Add a new real property.
   return AddProperty(name, value, attributes);
@@ -1562,7 +1579,8 @@ MaybeObject* JSObject::ConvertDescriptorToField(String* name,
 MaybeObject* JSObject::SetPropertyWithInterceptor(
     String* name,
     Object* value,
-    PropertyAttributes attributes) {
+    PropertyAttributes attributes,
+    StrictModeFlag strict_mode) {
   HandleScope scope;
   Handle<JSObject> this_handle(this);
   Handle<String> name_handle(name);
@@ -1591,7 +1609,8 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
   MaybeObject* raw_result =
       this_handle->SetPropertyPostInterceptor(*name_handle,
                                               *value_handle,
-                                              attributes);
+                                              attributes,
+                                              strict_mode);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
 }
@@ -1599,10 +1618,11 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
 
 MaybeObject* JSObject::SetProperty(String* name,
                                    Object* value,
-                                   PropertyAttributes attributes) {
+                                   PropertyAttributes attributes,
+                                   StrictModeFlag strict_mode) {
   LookupResult result;
   LocalLookup(name, &result);
-  return SetProperty(&result, name, value, attributes);
+  return SetProperty(&result, name, value, attributes, strict_mode);
 }
 
 
@@ -1882,7 +1902,8 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
 MaybeObject* JSObject::SetProperty(LookupResult* result,
                                    String* name,
                                    Object* value,
-                                   PropertyAttributes attributes) {
+                                   PropertyAttributes attributes,
+                                   StrictModeFlag strict_mode) {
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
@@ -1909,7 +1930,8 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
     Object* proto = GetPrototype();
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->SetProperty(result, name, value, attributes);
+    return JSObject::cast(proto)->SetProperty(
+        result, name, value, attributes, strict_mode);
   }
 
   if (!result->IsProperty() && !IsJSContextExtensionObject()) {
@@ -1928,7 +1950,18 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
     // Neither properties nor transitions found.
     return AddProperty(name, value, attributes);
   }
-  if (result->IsReadOnly() && result->IsProperty()) return value;
+  if (result->IsReadOnly() && result->IsProperty()) {
+    if (strict_mode == kStrictMode) {
+      HandleScope scope;
+      Handle<String> key(name);
+      Handle<Object> holder(this);
+      Handle<Object> args[2] = { key, holder };
+      return Top::Throw(*Factory::NewTypeError("strict_read_only_property",
+                                                HandleVector(args, 2)));
+    } else {
+      return value;
+    }
+  }
   // This is a real property that is not read-only, or it is a
   // transition or null descriptor and there are no setters in the prototypes.
   switch (result->type()) {
@@ -1956,7 +1989,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
                                      value,
                                      result->holder());
     case INTERCEPTOR:
-      return SetPropertyWithInterceptor(name, value, attributes);
+      return SetPropertyWithInterceptor(name, value, attributes, strict_mode);
     case CONSTANT_TRANSITION: {
       // If the same constant function is being added we can simply
       // transition to the target map.
@@ -2405,7 +2438,7 @@ MaybeObject* JSObject::TransformToFastProperties(int unused_property_fields) {
 
 
 MaybeObject* JSObject::NormalizeElements() {
-  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
+  ASSERT(!HasExternalArrayElements());
   if (HasDictionaryElements()) return this;
   ASSERT(map()->has_fast_elements());
 
@@ -2507,7 +2540,7 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(String* name) {
 
 MaybeObject* JSObject::DeleteElementPostInterceptor(uint32_t index,
                                                     DeleteMode mode) {
-  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
+  ASSERT(!HasExternalArrayElements());
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
       Object* obj;
@@ -2606,7 +2639,7 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       }
       break;
     }
-    case PIXEL_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_SHORT_ELEMENTS:
@@ -2721,7 +2754,7 @@ bool JSObject::ReferencesObject(Object* obj) {
 
   // Check if the object is among the indexed properties.
   switch (GetElementsKind()) {
-    case PIXEL_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_SHORT_ELEMENTS:
@@ -2799,6 +2832,12 @@ bool JSObject::ReferencesObject(Object* obj) {
 
 
 MaybeObject* JSObject::PreventExtensions() {
+  if (IsAccessCheckNeeded() &&
+      !Top::MayNamedAccess(this, Heap::undefined_value(), v8::ACCESS_KEYS)) {
+    Top::ReportFailedAccessCheck(this, v8::ACCESS_KEYS);
+    return Heap::false_value();
+  }
+
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return this;
@@ -2975,7 +3014,7 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
     switch (GetElementsKind()) {
       case FAST_ELEMENTS:
         break;
-      case PIXEL_ELEMENTS:
+      case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_BYTE_ELEMENTS:
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       case EXTERNAL_SHORT_ELEMENTS:
@@ -3199,7 +3238,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
     switch (GetElementsKind()) {
       case FAST_ELEMENTS:
         break;
-      case PIXEL_ELEMENTS:
+      case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_BYTE_ELEMENTS:
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       case EXTERNAL_SHORT_ELEMENTS:
@@ -3780,7 +3819,7 @@ static bool HasKey(FixedArray* array, Object* key) {
 
 
 MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
-  ASSERT(!array->HasPixelElements() && !array->HasExternalArrayElements());
+  ASSERT(!array->HasExternalArrayElements());
   switch (array->GetElementsKind()) {
     case JSObject::FAST_ELEMENTS:
       return UnionOfKeys(FixedArray::cast(array->elements()));
@@ -5200,22 +5239,6 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
 }
 
 
-template <typename schar>
-static inline uint32_t HashSequentialString(const schar* chars, int length) {
-  StringHasher hasher(length);
-  if (!hasher.has_trivial_hash()) {
-    int i;
-    for (i = 0; hasher.is_array_index() && (i < length); i++) {
-      hasher.AddCharacter(chars[i]);
-    }
-    for (; i < length; i++) {
-      hasher.AddCharacterNoIndex(chars[i]);
-    }
-  }
-  return hasher.GetHashField();
-}
-
-
 uint32_t String::ComputeAndSetHash() {
   // Should only be called if hash code has not yet been computed.
   ASSERT(!HasHashCode());
@@ -5456,9 +5479,11 @@ uint32_t JSFunction::SourceHash() {
 
 bool JSFunction::IsInlineable() {
   if (IsBuiltin()) return false;
+  SharedFunctionInfo* shared_info = shared();
   // Check that the function has a script associated with it.
-  if (!shared()->script()->IsScript()) return false;
-  Code* code = shared()->code();
+  if (!shared_info->script()->IsScript()) return false;
+  if (shared_info->optimization_disabled()) return false;
+  Code* code = shared_info->code();
   if (code->kind() == Code::OPTIMIZED_FUNCTION) return true;
   // If we never ran this (unlikely) then lets try to optimize it.
   if (code->kind() != Code::FUNCTION) return true;
@@ -5512,6 +5537,10 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
 
 
 Object* JSFunction::RemovePrototype() {
+  if (map() == context()->global_context()->function_without_prototype_map()) {
+    // Be idempotent.
+    return this;
+  }
   ASSERT(map() == context()->global_context()->function_map());
   set_map(context()->global_context()->function_without_prototype_map());
   set_prototype_or_initial_map(Heap::the_hole_value());
@@ -6212,8 +6241,10 @@ const char* Code::Kind2String(Kind kind) {
     case BUILTIN: return "BUILTIN";
     case LOAD_IC: return "LOAD_IC";
     case KEYED_LOAD_IC: return "KEYED_LOAD_IC";
+    case KEYED_EXTERNAL_ARRAY_LOAD_IC: return "KEYED_EXTERNAL_ARRAY_LOAD_IC";
     case STORE_IC: return "STORE_IC";
     case KEYED_STORE_IC: return "KEYED_STORE_IC";
+    case KEYED_EXTERNAL_ARRAY_STORE_IC: return "KEYED_EXTERNAL_ARRAY_STORE_IC";
     case CALL_IC: return "CALL_IC";
     case KEYED_CALL_IC: return "KEYED_CALL_IC";
     case BINARY_OP_IC: return "BINARY_OP_IC";
@@ -6265,7 +6296,8 @@ void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
       }
       break;
     case STORE_IC:
-      if (extra == StoreIC::kStoreICStrict) {
+    case KEYED_STORE_IC:
+      if (extra == kStrictMode) {
         name = "STRICT";
       }
       break;
@@ -6362,7 +6394,7 @@ void Code::Disassemble(const char* name, FILE* out) {
 MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
                                                         int length) {
   // We should never end in here with a pixel or external array.
-  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
+  ASSERT(!HasExternalArrayElements());
 
   Object* obj;
   { MaybeObject* maybe_obj = Heap::AllocateFixedArrayWithHoles(capacity);
@@ -6416,7 +6448,7 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
 
 MaybeObject* JSObject::SetSlowElements(Object* len) {
   // We should never end in here with a pixel or external array.
-  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
+  ASSERT(!HasExternalArrayElements());
 
   uint32_t new_length = static_cast<uint32_t>(len->Number());
 
@@ -6478,13 +6510,6 @@ void JSArray::Expand(int required_size) {
   // Can't use this any more now because we may have had a GC!
   for (int i = 0; i < old_size; i++) new_backing->set(i, old_backing->get(i));
   self->SetContent(*new_backing);
-}
-
-
-// Computes the new capacity when expanding the elements of a JSObject.
-static int NewElementsCapacity(int old_capacity) {
-  // (old_capacity + 50%) + 16
-  return old_capacity + (old_capacity >> 1) + 16;
 }
 
 
@@ -6645,9 +6670,8 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
       }
       break;
     }
-    case PIXEL_ELEMENTS: {
-      // TODO(iposva): Add testcase.
-      PixelArray* pixels = PixelArray::cast(elements());
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       if (index < static_cast<uint32_t>(pixels->length())) {
         return true;
       }
@@ -6660,7 +6684,6 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS: {
-      // TODO(kbr): Add testcase.
       ExternalArray* array = ExternalArray::cast(elements());
       if (index < static_cast<uint32_t>(array->length())) {
         return true;
@@ -6766,8 +6789,8 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
       }
       break;
     }
-    case PIXEL_ELEMENTS: {
-      PixelArray* pixels = PixelArray::cast(elements());
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       if (index < static_cast<uint32_t>(pixels->length())) return FAST_ELEMENT;
       break;
     }
@@ -6821,8 +6844,8 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
           !FixedArray::cast(elements())->get(index)->IsTheHole()) return true;
       break;
     }
-    case PIXEL_ELEMENTS: {
-      PixelArray* pixels = PixelArray::cast(elements());
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       if (index < static_cast<uint32_t>(pixels->length())) {
         return true;
       }
@@ -6864,6 +6887,7 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
 
 MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
                                                  Object* value,
+                                                 StrictModeFlag strict_mode,
                                                  bool check_prototype) {
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
@@ -6890,6 +6914,7 @@ MaybeObject* JSObject::SetElementWithInterceptor(uint32_t index,
   MaybeObject* raw_result =
       this_handle->SetElementWithoutInterceptor(index,
                                                 *value_handle,
+                                                strict_mode,
                                                 check_prototype);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
@@ -7003,6 +7028,7 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
 // elements.
 MaybeObject* JSObject::SetFastElement(uint32_t index,
                                       Object* value,
+                                      StrictModeFlag strict_mode,
                                       bool check_prototype) {
   ASSERT(HasFastElements());
 
@@ -7059,12 +7085,13 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   ASSERT(HasDictionaryElements());
-  return SetElement(index, value, check_prototype);
+  return SetElement(index, value, strict_mode, check_prototype);
 }
 
 
 MaybeObject* JSObject::SetElement(uint32_t index,
                                   Object* value,
+                                  StrictModeFlag strict_mode,
                                   bool check_prototype) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
@@ -7079,27 +7106,37 @@ MaybeObject* JSObject::SetElement(uint32_t index,
     Object* proto = GetPrototype();
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->SetElement(index, value, check_prototype);
+    return JSObject::cast(proto)->SetElement(index,
+                                             value,
+                                             strict_mode,
+                                             check_prototype);
   }
 
   // Check for lookup interceptor
   if (HasIndexedInterceptor()) {
-    return SetElementWithInterceptor(index, value, check_prototype);
+    return SetElementWithInterceptor(index,
+                                     value,
+                                     strict_mode,
+                                     check_prototype);
   }
 
-  return SetElementWithoutInterceptor(index, value, check_prototype);
+  return SetElementWithoutInterceptor(index,
+                                      value,
+                                      strict_mode,
+                                      check_prototype);
 }
 
 
 MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
                                                     Object* value,
+                                                    StrictModeFlag strict_mode,
                                                     bool check_prototype) {
   switch (GetElementsKind()) {
     case FAST_ELEMENTS:
       // Fast case.
-      return SetFastElement(index, value, check_prototype);
-    case PIXEL_ELEMENTS: {
-      PixelArray* pixels = PixelArray::cast(elements());
+      return SetFastElement(index, value, strict_mode, check_prototype);
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       return pixels->SetValue(index, value);
     }
     case EXTERNAL_BYTE_ELEMENTS: {
@@ -7146,13 +7183,23 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
           return SetElementWithCallback(element, index, value, this);
         } else {
           dictionary->UpdateMaxNumberKey(index);
-          dictionary->ValueAtPut(entry, value);
+          // If put fails instrict mode, throw exception.
+          if (!dictionary->ValueAtPut(entry, value) &&
+              strict_mode == kStrictMode) {
+            Handle<Object> number(Factory::NewNumberFromUint(index));
+            Handle<Object> holder(this);
+            Handle<Object> args[2] = { number, holder };
+            return Top::Throw(
+                *Factory::NewTypeError("strict_read_only_property",
+                                       HandleVector(args, 2)));
+          }
         }
       } else {
         // Index not already used. Look for an accessor in the prototype chain.
         if (check_prototype) {
           bool found;
           MaybeObject* result =
+              // Strict mode not needed. No-setter case already handled.
               SetElementWithCallbackSetterInPrototypes(index, value, &found);
           if (found) return result;
         }
@@ -7238,7 +7285,7 @@ MaybeObject* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index,
 }
 
 
-MaybeObject* JSObject::GetElementPostInterceptor(JSObject* receiver,
+MaybeObject* JSObject::GetElementPostInterceptor(Object* receiver,
                                                  uint32_t index) {
   // Get element works for both JSObject and JSArray since
   // JSArray::length cannot change.
@@ -7251,11 +7298,7 @@ MaybeObject* JSObject::GetElementPostInterceptor(JSObject* receiver,
       }
       break;
     }
-    case PIXEL_ELEMENTS: {
-      // TODO(iposva): Add testcase and implement.
-      UNIMPLEMENTED();
-      break;
-    }
+    case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_SHORT_ELEMENTS:
@@ -7263,8 +7306,10 @@ MaybeObject* JSObject::GetElementPostInterceptor(JSObject* receiver,
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS: {
-      // TODO(kbr): Add testcase and implement.
-      UNIMPLEMENTED();
+      MaybeObject* maybe_value = GetExternalElement(index);
+      Object* value;
+      if (!maybe_value->ToObject(&value)) return maybe_value;
+      if (!value->IsUndefined()) return value;
       break;
     }
     case DICTIONARY_ELEMENTS: {
@@ -7295,14 +7340,14 @@ MaybeObject* JSObject::GetElementPostInterceptor(JSObject* receiver,
 }
 
 
-MaybeObject* JSObject::GetElementWithInterceptor(JSObject* receiver,
+MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
                                                  uint32_t index) {
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
   HandleScope scope;
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
-  Handle<JSObject> this_handle(receiver);
+  Handle<Object> this_handle(receiver);
   Handle<JSObject> holder_handle(this);
 
   if (!interceptor->getter()->IsUndefined()) {
@@ -7328,7 +7373,7 @@ MaybeObject* JSObject::GetElementWithInterceptor(JSObject* receiver,
 }
 
 
-MaybeObject* JSObject::GetElementWithReceiver(JSObject* receiver,
+MaybeObject* JSObject::GetElementWithReceiver(Object* receiver,
                                               uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
@@ -7352,8 +7397,50 @@ MaybeObject* JSObject::GetElementWithReceiver(JSObject* receiver,
       }
       break;
     }
-    case PIXEL_ELEMENTS: {
-      PixelArray* pixels = PixelArray::cast(elements());
+    case EXTERNAL_PIXEL_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS: {
+      MaybeObject* maybe_value = GetExternalElement(index);
+      Object* value;
+      if (!maybe_value->ToObject(&value)) return maybe_value;
+      if (!value->IsUndefined()) return value;
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      NumberDictionary* dictionary = element_dictionary();
+      int entry = dictionary->FindEntry(index);
+      if (entry != NumberDictionary::kNotFound) {
+        Object* element = dictionary->ValueAt(entry);
+        PropertyDetails details = dictionary->DetailsAt(entry);
+        if (details.type() == CALLBACKS) {
+          return GetElementWithCallback(receiver,
+                                        element,
+                                        index,
+                                        this);
+        }
+        return element;
+      }
+      break;
+    }
+  }
+
+  Object* pt = GetPrototype();
+  if (pt == Heap::null_value()) return Heap::undefined_value();
+  return pt->GetElementWithReceiver(receiver, index);
+}
+
+
+MaybeObject* JSObject::GetExternalElement(uint32_t index) {
+  // Get element works for both JSObject and JSArray since
+  // JSArray::length cannot change.
+  switch (GetElementsKind()) {
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       if (index < static_cast<uint32_t>(pixels->length())) {
         uint8_t value = pixels->get(index);
         return Smi::FromInt(value);
@@ -7419,27 +7506,12 @@ MaybeObject* JSObject::GetElementWithReceiver(JSObject* receiver,
       }
       break;
     }
-    case DICTIONARY_ELEMENTS: {
-      NumberDictionary* dictionary = element_dictionary();
-      int entry = dictionary->FindEntry(index);
-      if (entry != NumberDictionary::kNotFound) {
-        Object* element = dictionary->ValueAt(entry);
-        PropertyDetails details = dictionary->DetailsAt(entry);
-        if (details.type() == CALLBACKS) {
-          return GetElementWithCallback(receiver,
-                                        element,
-                                        index,
-                                        this);
-        }
-        return element;
-      }
+    case FAST_ELEMENTS:
+    case DICTIONARY_ELEMENTS:
+      UNREACHABLE();
       break;
-    }
   }
-
-  Object* pt = GetPrototype();
-  if (pt == Heap::null_value()) return Heap::undefined_value();
-  return pt->GetElementWithReceiver(receiver, index);
+  return Heap::undefined_value();
 }
 
 
@@ -7456,7 +7528,7 @@ bool JSObject::HasDenseElements() {
       }
       break;
     }
-    case PIXEL_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_SHORT_ELEMENTS:
@@ -7684,8 +7756,8 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
       return (index < length) &&
           !FixedArray::cast(elements())->get(index)->IsTheHole();
     }
-    case PIXEL_ELEMENTS: {
-      PixelArray* pixels = PixelArray::cast(elements());
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       return index < static_cast<uint32_t>(pixels->length());
     }
     case EXTERNAL_BYTE_ELEMENTS:
@@ -7916,8 +7988,8 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       ASSERT(!storage || storage->length() >= counter);
       break;
     }
-    case PIXEL_ELEMENTS: {
-      int length = PixelArray::cast(elements())->length();
+    case EXTERNAL_PIXEL_ELEMENTS: {
+      int length = ExternalPixelArray::cast(elements())->length();
       while (counter < length) {
         if (storage != NULL) {
           storage->set(counter, Smi::FromInt(counter));
@@ -8658,7 +8730,7 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 // If the object is in dictionary mode, it is converted to fast elements
 // mode.
 MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
-  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
+  ASSERT(!HasExternalArrayElements());
 
   if (HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
@@ -8770,7 +8842,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
 }
 
 
-Object* PixelArray::SetValue(uint32_t index, Object* value) {
+Object* ExternalPixelArray::SetValue(uint32_t index, Object* value) {
   uint8_t clamped_value = 0;
   if (index < static_cast<uint32_t>(length())) {
     if (value->IsSmi()) {

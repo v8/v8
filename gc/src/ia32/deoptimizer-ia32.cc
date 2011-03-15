@@ -56,6 +56,7 @@ static void ZapCodeRange(Address start, Address end) {
 
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
+  HandleScope scope;
   AssertNoAllocation no_allocation;
 
   if (!function->IsOptimized()) return;
@@ -132,6 +133,11 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     PrintF("[forced deoptimization: ");
     function->PrintName();
     PrintF(" / %x]\n", reinterpret_cast<uint32_t>(function));
+#ifdef DEBUG
+    if (FLAG_print_code) {
+      code->PrintLn();
+    }
+#endif
   }
 }
 
@@ -435,14 +441,16 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
            fp_value, output_offset, value);
   }
 
-  // The context can be gotten from the function so long as we don't
-  // optimize functions that need local contexts.
+  // For the bottommost output frame the context can be gotten from the input
+  // frame. For all subsequent output frames it can be gotten from the function
+  // so long as we don't inline functions that need local contexts.
   output_offset -= kPointerSize;
   input_offset -= kPointerSize;
-  value = reinterpret_cast<uint32_t>(function->context());
-  // The context for the bottommost output frame should also agree with the
-  // input frame.
-  ASSERT(!is_bottommost || input_->GetFrameSlot(input_offset) == value);
+  if (is_bottommost) {
+    value = input_->GetFrameSlot(input_offset);
+  } else {
+    value = reinterpret_cast<uint32_t>(function->context());
+  }
   output_frame->SetFrameSlot(output_offset, value);
   if (is_topmost) output_frame->SetRegister(esi.code(), value);
   if (FLAG_trace_deopt) {

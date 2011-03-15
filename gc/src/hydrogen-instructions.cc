@@ -57,10 +57,13 @@ const char* Representation::Mnemonic() const {
     case kTagged: return "t";
     case kDouble: return "d";
     case kInteger32: return "i";
-    default:
+    case kExternal: return "x";
+    case kNumRepresentations:
       UNREACHABLE();
       return NULL;
   }
+  UNREACHABLE();
+  return NULL;
 }
 
 
@@ -114,6 +117,44 @@ void Range::AddConstant(int32_t value) {
   lower_ = AddWithoutOverflow(lower_, value, &may_overflow);
   upper_ = AddWithoutOverflow(upper_, value, &may_overflow);
   Verify();
+}
+
+
+void Range::Intersect(Range* other) {
+  upper_ = Min(upper_, other->upper_);
+  lower_ = Max(lower_, other->lower_);
+  bool b = CanBeMinusZero() && other->CanBeMinusZero();
+  set_can_be_minus_zero(b);
+}
+
+
+void Range::Union(Range* other) {
+  upper_ = Max(upper_, other->upper_);
+  lower_ = Min(lower_, other->lower_);
+  bool b = CanBeMinusZero() || other->CanBeMinusZero();
+  set_can_be_minus_zero(b);
+}
+
+
+void Range::Sar(int32_t value) {
+  int32_t bits = value & 0x1F;
+  lower_ = lower_ >> bits;
+  upper_ = upper_ >> bits;
+  set_can_be_minus_zero(false);
+}
+
+
+void Range::Shl(int32_t value) {
+  int32_t bits = value & 0x1F;
+  int old_lower = lower_;
+  int old_upper = upper_;
+  lower_ = lower_ << bits;
+  upper_ = upper_ << bits;
+  if (old_lower != lower_ >> bits || old_upper != upper_ >> bits) {
+    upper_ = kMaxInt;
+    lower_ = kMinInt;
+  }
+  set_can_be_minus_zero(false);
 }
 
 
@@ -221,7 +262,7 @@ HType HType::TypeFromValue(Handle<Object> value) {
 }
 
 
-int HValue::LookupOperandIndex(int occurrence_index, HValue* op) const {
+int HValue::LookupOperandIndex(int occurrence_index, HValue* op) {
   for (int i = 0; i < OperandCount(); ++i) {
     if (OperandAt(i) == op) {
       if (occurrence_index == 0) return i;
@@ -237,7 +278,7 @@ bool HValue::IsDefinedAfter(HBasicBlock* other) const {
 }
 
 
-bool HValue::UsesMultipleTimes(HValue* op) const {
+bool HValue::UsesMultipleTimes(HValue* op) {
   bool seen = false;
   for (int i = 0; i < OperandCount(); ++i) {
     if (OperandAt(i) == op) {
@@ -249,7 +290,7 @@ bool HValue::UsesMultipleTimes(HValue* op) const {
 }
 
 
-bool HValue::Equals(HValue* other) const {
+bool HValue::Equals(HValue* other) {
   if (other->opcode() != opcode()) return false;
   if (!other->representation().Equals(representation())) return false;
   if (!other->type_.Equals(type_)) return false;
@@ -264,7 +305,7 @@ bool HValue::Equals(HValue* other) const {
 }
 
 
-intptr_t HValue::Hashcode() const {
+intptr_t HValue::Hashcode() {
   intptr_t result = opcode();
   int count = OperandCount();
   for (int i = 0; i < count; ++i) {
@@ -281,52 +322,20 @@ void HValue::SetOperandAt(int index, HValue* value) {
 }
 
 
-void HLoadKeyedGeneric::InternalSetOperandAt(int index, HValue* value) {
-  if (index < 2) {
-    operands_[index] = value;
-  } else {
-    context_ = value;
-  }
-}
-
-
-void HStoreKeyedGeneric::InternalSetOperandAt(int index, HValue* value) {
-  if (index < 3) {
-    operands_[index] = value;
-  } else {
-    context_ = value;
-  }
-}
-
-
-void HStoreNamedGeneric::InternalSetOperandAt(int index, HValue* value) {
-  if (index < 2) {
-    operands_[index] = value;
-  } else {
-    context_ = value;
-  }
-}
-
-
 void HValue::ReplaceAndDelete(HValue* other) {
-  ReplaceValue(other);
+  if (other != NULL) ReplaceValue(other);
   Delete();
 }
 
 
 void HValue::ReplaceValue(HValue* other) {
-  ZoneList<HValue*> start_uses(2);
   for (int i = 0; i < uses_.length(); ++i) {
-    HValue* use = uses_.at(i);
-    if (!use->block()->IsStartBlock()) {
-      InternalReplaceAtUse(use, other);
-      other->uses_.Add(use);
-    } else {
-      start_uses.Add(use);
-    }
+    HValue* use = uses_[i];
+    ASSERT(!use->block()->IsStartBlock());
+    InternalReplaceAtUse(use, other);
+    other->uses_.Add(use);
   }
-  uses_.Clear();
-  uses_.AddAll(start_uses);
+  uses_.Rewind(0);
 }
 
 
@@ -405,10 +414,7 @@ bool HValue::UpdateInferredType() {
 void HValue::RegisterUse(int index, HValue* new_value) {
   HValue* old_value = OperandAt(index);
   if (old_value == new_value) return;
-  if (old_value != NULL) {
-    ASSERT(old_value->uses_.Contains(this));
-    old_value->uses_.RemoveElement(this);
-  }
+  if (old_value != NULL) old_value->uses_.RemoveElement(this);
   if (new_value != NULL) {
     new_value->uses_.Add(this);
   }
@@ -438,13 +444,15 @@ void HValue::ComputeInitialRange() {
 }
 
 
-void HInstruction::PrintTo(StringStream* stream) const {
+void HInstruction::PrintTo(StringStream* stream) {
   stream->Add("%s", Mnemonic());
   if (HasSideEffects()) stream->Add("*");
   stream->Add(" ");
   PrintDataTo(stream);
 
-  if (range() != NULL) {
+  if (range() != NULL &&
+      !range()->IsMostGeneric() &&
+      !range()->CanBeMinusZero()) {
     stream->Add(" range[%d,%d,m0=%d]",
                 range()->lower(),
                 range()->upper(),
@@ -561,69 +569,64 @@ void HInstruction::Verify() {
 #endif
 
 
-void HCall::PrintDataTo(StringStream* stream) const {
+void HUnaryCall::PrintDataTo(StringStream* stream) {
+  value()->PrintNameTo(stream);
+  stream->Add(" ");
   stream->Add("#%d", argument_count());
 }
 
 
-void HUnaryCall::PrintDataTo(StringStream* stream) const {
-  value()->PrintNameTo(stream);
-  stream->Add(" ");
-  HCall::PrintDataTo(stream);
-}
-
-
-void HBinaryCall::PrintDataTo(StringStream* stream) const {
+void HBinaryCall::PrintDataTo(StringStream* stream) {
   first()->PrintNameTo(stream);
   stream->Add(" ");
   second()->PrintNameTo(stream);
   stream->Add(" ");
-  HCall::PrintDataTo(stream);
+  stream->Add("#%d", argument_count());
 }
 
 
-void HCallConstantFunction::PrintDataTo(StringStream* stream) const {
+void HCallConstantFunction::PrintDataTo(StringStream* stream) {
   if (IsApplyFunction()) {
     stream->Add("optimized apply ");
   } else {
     stream->Add("%o ", function()->shared()->DebugName());
   }
-  HCall::PrintDataTo(stream);
+  stream->Add("#%d", argument_count());
 }
 
 
-void HCallNamed::PrintDataTo(StringStream* stream) const {
+void HCallNamed::PrintDataTo(StringStream* stream) {
   stream->Add("%o ", *name());
   HUnaryCall::PrintDataTo(stream);
 }
 
 
-void HCallGlobal::PrintDataTo(StringStream* stream) const {
+void HCallGlobal::PrintDataTo(StringStream* stream) {
   stream->Add("%o ", *name());
   HUnaryCall::PrintDataTo(stream);
 }
 
 
-void HCallKnownGlobal::PrintDataTo(StringStream* stream) const {
+void HCallKnownGlobal::PrintDataTo(StringStream* stream) {
   stream->Add("o ", target()->shared()->DebugName());
-  HCall::PrintDataTo(stream);
+  stream->Add("#%d", argument_count());
 }
 
 
-void HCallRuntime::PrintDataTo(StringStream* stream) const {
+void HCallRuntime::PrintDataTo(StringStream* stream) {
   stream->Add("%o ", *name());
-  HCall::PrintDataTo(stream);
+  stream->Add("#%d", argument_count());
 }
 
 
-void HClassOfTest::PrintDataTo(StringStream* stream) const {
+void HClassOfTest::PrintDataTo(StringStream* stream) {
   stream->Add("class_of_test(");
   value()->PrintNameTo(stream);
   stream->Add(", \"%o\")", *class_name());
 }
 
 
-void HAccessArgumentsAt::PrintDataTo(StringStream* stream) const {
+void HAccessArgumentsAt::PrintDataTo(StringStream* stream) {
   arguments()->PrintNameTo(stream);
   stream->Add("[");
   index()->PrintNameTo(stream);
@@ -632,7 +635,7 @@ void HAccessArgumentsAt::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HControlInstruction::PrintDataTo(StringStream* stream) const {
+void HControlInstruction::PrintDataTo(StringStream* stream) {
   if (FirstSuccessor() != NULL) {
     int first_id = FirstSuccessor()->block_id();
     if (SecondSuccessor() == NULL) {
@@ -645,13 +648,13 @@ void HControlInstruction::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HUnaryControlInstruction::PrintDataTo(StringStream* stream) const {
+void HUnaryControlInstruction::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   HControlInstruction::PrintDataTo(stream);
 }
 
 
-void HCompareMap::PrintDataTo(StringStream* stream) const {
+void HCompareMap::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" (%p)", *map());
   HControlInstruction::PrintDataTo(stream);
@@ -679,19 +682,19 @@ const char* HUnaryMathOperation::OpName() const {
 }
 
 
-void HUnaryMathOperation::PrintDataTo(StringStream* stream) const {
+void HUnaryMathOperation::PrintDataTo(StringStream* stream) {
   const char* name = OpName();
   stream->Add("%s ", name);
   value()->PrintNameTo(stream);
 }
 
 
-void HUnaryOperation::PrintDataTo(StringStream* stream) const {
+void HUnaryOperation::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
 }
 
 
-void HHasInstanceType::PrintDataTo(StringStream* stream) const {
+void HHasInstanceType::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   switch (from_) {
     case FIRST_JS_OBJECT_TYPE:
@@ -712,14 +715,14 @@ void HHasInstanceType::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HTypeofIs::PrintDataTo(StringStream* stream) const {
+void HTypeofIs::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" == ");
   stream->Add(type_literal_->ToAsciiVector());
 }
 
 
-void HChange::PrintDataTo(StringStream* stream) const {
+void HChange::PrintDataTo(StringStream* stream) {
   HUnaryOperation::PrintDataTo(stream);
   stream->Add(" %s to %s", from_.Mnemonic(), to_.Mnemonic());
 
@@ -735,26 +738,26 @@ HCheckInstanceType* HCheckInstanceType::NewIsJSObjectOrJSFunction(
 }
 
 
-void HCheckMap::PrintDataTo(StringStream* stream) const {
+void HCheckMap::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" %p", *map());
 }
 
 
-void HCheckFunction::PrintDataTo(StringStream* stream) const {
+void HCheckFunction::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" %p", *target());
 }
 
 
-void HCallStub::PrintDataTo(StringStream* stream) const {
+void HCallStub::PrintDataTo(StringStream* stream) {
   stream->Add("%s ",
               CodeStub::MajorName(major_key_, false));
   HUnaryCall::PrintDataTo(stream);
 }
 
 
-void HInstanceOf::PrintDataTo(StringStream* stream) const {
+void HInstanceOf::PrintDataTo(StringStream* stream) {
   left()->PrintNameTo(stream);
   stream->Add(" ");
   right()->PrintNameTo(stream);
@@ -773,6 +776,8 @@ Range* HValue::InferRange() {
   } else if (representation().IsNone()) {
     return NULL;
   } else {
+    // Untagged integer32 cannot be -0 and we don't compute ranges for
+    // untagged doubles.
     return new Range();
   }
 }
@@ -784,7 +789,7 @@ Range* HConstant::InferRange() {
     result->set_can_be_minus_zero(false);
     return result;
   }
-  return HInstruction::InferRange();
+  return HValue::InferRange();
 }
 
 
@@ -818,7 +823,7 @@ Range* HAdd::InferRange() {
     res->set_can_be_minus_zero(m0);
     return res;
   } else {
-    return HArithmeticBinaryOperation::InferRange();
+    return HValue::InferRange();
   }
 }
 
@@ -834,7 +839,7 @@ Range* HSub::InferRange() {
     res->set_can_be_minus_zero(a->CanBeMinusZero() && b->CanBeZero());
     return res;
   } else {
-    return HArithmeticBinaryOperation::InferRange();
+    return HValue::InferRange();
   }
 }
 
@@ -852,7 +857,7 @@ Range* HMul::InferRange() {
     res->set_can_be_minus_zero(m0);
     return res;
   } else {
-    return HArithmeticBinaryOperation::InferRange();
+    return HValue::InferRange();
   }
 }
 
@@ -877,7 +882,7 @@ Range* HDiv::InferRange() {
     }
     return result;
   } else {
-    return HArithmeticBinaryOperation::InferRange();
+    return HValue::InferRange();
   }
 }
 
@@ -894,12 +899,12 @@ Range* HMod::InferRange() {
     }
     return result;
   } else {
-    return HArithmeticBinaryOperation::InferRange();
+    return HValue::InferRange();
   }
 }
 
 
-void HPhi::PrintTo(StringStream* stream) const {
+void HPhi::PrintTo(StringStream* stream) {
   stream->Add("[");
   for (int i = 0; i < OperandCount(); ++i) {
     HValue* value = OperandAt(i);
@@ -925,7 +930,15 @@ void HPhi::AddInput(HValue* value) {
 }
 
 
-HValue* HPhi::GetRedundantReplacement() const {
+bool HPhi::HasRealUses() {
+  for (int i = 0; i < uses()->length(); i++) {
+    if (!uses()->at(i)->IsPhi()) return true;
+  }
+  return false;
+}
+
+
+HValue* HPhi::GetRedundantReplacement() {
   HValue* candidate = NULL;
   int count = OperandCount();
   int position = 0;
@@ -977,7 +990,7 @@ void HPhi::AddIndirectUsesTo(int* dest) {
 }
 
 
-void HSimulate::PrintDataTo(StringStream* stream) const {
+void HSimulate::PrintDataTo(StringStream* stream) {
   stream->Add("id=%d ", ast_id());
   if (pop_count_ > 0) stream->Add("pop %d", pop_count_);
   if (values_.length() > 0) {
@@ -994,7 +1007,7 @@ void HSimulate::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HEnterInlined::PrintDataTo(StringStream* stream) const {
+void HEnterInlined::PrintDataTo(StringStream* stream) {
   SmartPointer<char> name = function()->debug_name()->ToCString();
   stream->Add("%s, id=%d", *name, function()->id());
 }
@@ -1035,7 +1048,7 @@ HConstant* HConstant::CopyToTruncatedInt32() const {
 }
 
 
-void HConstant::PrintDataTo(StringStream* stream) const {
+void HConstant::PrintDataTo(StringStream* stream) {
   handle()->ShortPrint(stream);
 }
 
@@ -1045,7 +1058,7 @@ bool HArrayLiteral::IsCopyOnWrite() const {
 }
 
 
-void HBinaryOperation::PrintDataTo(StringStream* stream) const {
+void HBinaryOperation::PrintDataTo(StringStream* stream) {
   left()->PrintNameTo(stream);
   stream->Add(" ");
   right()->PrintNameTo(stream);
@@ -1055,34 +1068,30 @@ void HBinaryOperation::PrintDataTo(StringStream* stream) const {
 
 
 Range* HBitAnd::InferRange() {
-  Range* a = left()->range();
-  Range* b = right()->range();
-  int32_t a_mask = 0xffffffff;
-  int32_t b_mask = 0xffffffff;
-  if (a != NULL) a_mask = a->Mask();
-  if (b != NULL) b_mask = b->Mask();
-  int32_t result_mask = a_mask & b_mask;
-  if (result_mask >= 0) {
-    return new Range(0, result_mask);
-  } else {
-    return HBinaryOperation::InferRange();
-  }
+  int32_t left_mask = (left()->range() != NULL)
+      ? left()->range()->Mask()
+      : 0xffffffff;
+  int32_t right_mask = (right()->range() != NULL)
+      ? right()->range()->Mask()
+      : 0xffffffff;
+  int32_t result_mask = left_mask & right_mask;
+  return (result_mask >= 0)
+      ? new Range(0, result_mask)
+      : HValue::InferRange();
 }
 
 
 Range* HBitOr::InferRange() {
-  Range* a = left()->range();
-  Range* b = right()->range();
-  int32_t a_mask = 0xffffffff;
-  int32_t b_mask = 0xffffffff;
-  if (a != NULL) a_mask = a->Mask();
-  if (b != NULL) b_mask = b->Mask();
-  int32_t result_mask = a_mask | b_mask;
-  if (result_mask >= 0) {
-    return new Range(0, result_mask);
-  } else {
-    return HBinaryOperation::InferRange();
-  }
+  int32_t left_mask = (left()->range() != NULL)
+      ? left()->range()->Mask()
+      : 0xffffffff;
+  int32_t right_mask = (right()->range() != NULL)
+      ? right()->range()->Mask()
+      : 0xffffffff;
+  int32_t result_mask = left_mask | right_mask;
+  return (result_mask >= 0)
+      ? new Range(0, result_mask)
+      : HValue::InferRange();
 }
 
 
@@ -1090,20 +1099,14 @@ Range* HSar::InferRange() {
   if (right()->IsConstant()) {
     HConstant* c = HConstant::cast(right());
     if (c->HasInteger32Value()) {
-      int32_t val = c->Integer32Value();
-      Range* result = NULL;
-      Range* left_range = left()->range();
-      if (left_range == NULL) {
-        result = new Range();
-      } else {
-        result = left_range->Copy();
-      }
-      result->Sar(val);
+      Range* result = (left()->range() != NULL)
+          ? left()->range()->Copy()
+          : new Range();
+      result->Sar(c->Integer32Value());
       return result;
     }
   }
-
-  return HBinaryOperation::InferRange();
+  return HValue::InferRange();
 }
 
 
@@ -1111,25 +1114,19 @@ Range* HShl::InferRange() {
   if (right()->IsConstant()) {
     HConstant* c = HConstant::cast(right());
     if (c->HasInteger32Value()) {
-      int32_t val = c->Integer32Value();
-      Range* result = NULL;
-      Range* left_range = left()->range();
-      if (left_range == NULL) {
-        result = new Range();
-      } else {
-        result = left_range->Copy();
-      }
-      result->Shl(val);
+      Range* result = (left()->range() != NULL)
+          ? left()->range()->Copy()
+          : new Range();
+      result->Shl(c->Integer32Value());
       return result;
     }
   }
-
-  return HBinaryOperation::InferRange();
+  return HValue::InferRange();
 }
 
 
 
-void HCompare::PrintDataTo(StringStream* stream) const {
+void HCompare::PrintDataTo(StringStream* stream) {
   stream->Add(Token::Name(token()));
   stream->Add(" ");
   HBinaryOperation::PrintDataTo(stream);
@@ -1148,18 +1145,18 @@ void HCompare::SetInputRepresentation(Representation r) {
 }
 
 
-void HParameter::PrintDataTo(StringStream* stream) const {
+void HParameter::PrintDataTo(StringStream* stream) {
   stream->Add("%u", index());
 }
 
 
-void HLoadNamedField::PrintDataTo(StringStream* stream) const {
+void HLoadNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(" @%d%s", offset(), is_in_object() ? "[in-object]" : "");
 }
 
 
-void HLoadKeyed::PrintDataTo(StringStream* stream) const {
+void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);
@@ -1167,7 +1164,15 @@ void HLoadKeyed::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HLoadPixelArrayElement::PrintDataTo(StringStream* stream) const {
+void HLoadKeyedGeneric::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("]");
+}
+
+
+void HLoadPixelArrayElement::PrintDataTo(StringStream* stream) {
   external_pointer()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);
@@ -1175,7 +1180,7 @@ void HLoadPixelArrayElement::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HStoreNamed::PrintDataTo(StringStream* stream) const {
+void HStoreNamedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(".");
   ASSERT(name()->IsString());
@@ -1185,15 +1190,20 @@ void HStoreNamed::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HStoreNamedField::PrintDataTo(StringStream* stream) const {
-  HStoreNamed::PrintDataTo(stream);
+void HStoreNamedField::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add(".");
+  ASSERT(name()->IsString());
+  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(" = ");
+  value()->PrintNameTo(stream);
   if (!transition().is_null()) {
     stream->Add(" (transition map %p)", *transition());
   }
 }
 
 
-void HStoreKeyed::PrintDataTo(StringStream* stream) const {
+void HStoreKeyedFastElement::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);
@@ -1202,25 +1212,43 @@ void HStoreKeyed::PrintDataTo(StringStream* stream) const {
 }
 
 
-void HLoadGlobal::PrintDataTo(StringStream* stream) const {
+void HStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("] = ");
+  value()->PrintNameTo(stream);
+}
+
+
+void HStorePixelArrayElement::PrintDataTo(StringStream* stream) {
+  external_pointer()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("] = ");
+  value()->PrintNameTo(stream);
+}
+
+
+void HLoadGlobal::PrintDataTo(StringStream* stream) {
   stream->Add("[%p]", *cell());
   if (check_hole_value()) stream->Add(" (deleteable/read-only)");
 }
 
 
-void HStoreGlobal::PrintDataTo(StringStream* stream) const {
+void HStoreGlobal::PrintDataTo(StringStream* stream) {
   stream->Add("[%p] = ", *cell());
   value()->PrintNameTo(stream);
 }
 
 
-void HLoadContextSlot::PrintDataTo(StringStream* stream) const {
+void HLoadContextSlot::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add("[%d]", slot_index());
 }
 
 
-void HStoreContextSlot::PrintDataTo(StringStream* stream) const {
+void HStoreContextSlot::PrintDataTo(StringStream* stream) {
   context()->PrintNameTo(stream);
   stream->Add("[%d] = ", slot_index());
   value()->PrintNameTo(stream);
@@ -1230,33 +1258,33 @@ void HStoreContextSlot::PrintDataTo(StringStream* stream) const {
 // Implementation of type inference and type conversions. Calculates
 // the inferred type of this instruction based on the input operands.
 
-HType HValue::CalculateInferredType() const {
+HType HValue::CalculateInferredType() {
   return type_;
 }
 
 
-HType HCheckMap::CalculateInferredType() const {
+HType HCheckMap::CalculateInferredType() {
   return value()->type();
 }
 
 
-HType HCheckFunction::CalculateInferredType() const {
+HType HCheckFunction::CalculateInferredType() {
   return value()->type();
 }
 
 
-HType HCheckNonSmi::CalculateInferredType() const {
+HType HCheckNonSmi::CalculateInferredType() {
   // TODO(kasperl): Is there any way to signal that this isn't a smi?
   return HType::Tagged();
 }
 
 
-HType HCheckSmi::CalculateInferredType() const {
+HType HCheckSmi::CalculateInferredType() {
   return HType::Smi();
 }
 
 
-HType HPhi::CalculateInferredType() const {
+HType HPhi::CalculateInferredType() {
   HType result = HType::Uninitialized();
   for (int i = 0; i < OperandCount(); ++i) {
     HType current = OperandAt(i)->type();
@@ -1266,77 +1294,77 @@ HType HPhi::CalculateInferredType() const {
 }
 
 
-HType HConstant::CalculateInferredType() const {
+HType HConstant::CalculateInferredType() {
   return constant_type_;
 }
 
 
-HType HCompare::CalculateInferredType() const {
+HType HCompare::CalculateInferredType() {
   return HType::Boolean();
 }
 
 
-HType HCompareJSObjectEq::CalculateInferredType() const {
+HType HCompareJSObjectEq::CalculateInferredType() {
   return HType::Boolean();
 }
 
 
-HType HUnaryPredicate::CalculateInferredType() const {
+HType HUnaryPredicate::CalculateInferredType() {
   return HType::Boolean();
 }
 
 
-HType HBitwiseBinaryOperation::CalculateInferredType() const {
+HType HBitwiseBinaryOperation::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 
 
-HType HArithmeticBinaryOperation::CalculateInferredType() const {
+HType HArithmeticBinaryOperation::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 
 
-HType HAdd::CalculateInferredType() const {
+HType HAdd::CalculateInferredType() {
   return HType::Tagged();
 }
 
 
-HType HBitAnd::CalculateInferredType() const {
+HType HBitAnd::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 
 
-HType HBitXor::CalculateInferredType() const {
+HType HBitXor::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 
 
-HType HBitOr::CalculateInferredType() const {
+HType HBitOr::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 
 
-HType HBitNot::CalculateInferredType() const {
+HType HBitNot::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 
 
-HType HUnaryMathOperation::CalculateInferredType() const {
+HType HUnaryMathOperation::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 
 
-HType HShl::CalculateInferredType() const {
+HType HShl::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 
 
-HType HShr::CalculateInferredType() const {
+HType HShr::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 
 
-HType HSar::CalculateInferredType() const {
+HType HSar::CalculateInferredType() {
   return HType::TaggedNumber();
 }
 

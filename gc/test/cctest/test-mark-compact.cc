@@ -191,7 +191,8 @@ TEST(MarkCompactCollector) {
   function->set_initial_map(initial_map);
   Top::context()->global()->SetProperty(func_name,
                                         function,
-                                        NONE)->ToObjectChecked();
+                                        NONE,
+                                        kNonStrictMode)->ToObjectChecked();
 
   JSObject* obj =
       JSObject::cast(Heap::AllocateJSObject(function)->ToObjectChecked());
@@ -210,10 +211,14 @@ TEST(MarkCompactCollector) {
       String::cast(Heap::LookupAsciiSymbol("theObject")->ToObjectChecked());
   Top::context()->global()->SetProperty(obj_name,
                                         obj,
-                                        NONE)->ToObjectChecked();
+                                        NONE,
+                                        kNonStrictMode)->ToObjectChecked();
   String* prop_name =
       String::cast(Heap::LookupAsciiSymbol("theSlot")->ToObjectChecked());
-  obj->SetProperty(prop_name, Smi::FromInt(23), NONE)->ToObjectChecked();
+  obj->SetProperty(prop_name,
+                   Smi::FromInt(23),
+                   NONE,
+                   kNonStrictMode)->ToObjectChecked();
 
   Heap::CollectGarbage(OLD_POINTER_SPACE);
 
@@ -338,8 +343,8 @@ TEST(ObjectGroups) {
   {
     Object** g1_objects[] = { g1s1.location(), g1s2.location() };
     Object** g2_objects[] = { g2s1.location(), g2s2.location() };
-    GlobalHandles::AddGroup(g1_objects, 2);
-    GlobalHandles::AddGroup(g2_objects, 2);
+    GlobalHandles::AddGroup(g1_objects, 2, NULL);
+    GlobalHandles::AddGroup(g2_objects, 2, NULL);
   }
   // Do a full GC
   Heap::CollectGarbage(OLD_POINTER_SPACE);
@@ -356,8 +361,8 @@ TEST(ObjectGroups) {
   {
     Object** g1_objects[] = { g1s1.location(), g1s2.location() };
     Object** g2_objects[] = { g2s1.location(), g2s2.location() };
-    GlobalHandles::AddGroup(g1_objects, 2);
-    GlobalHandles::AddGroup(g2_objects, 2);
+    GlobalHandles::AddGroup(g1_objects, 2, NULL);
+    GlobalHandles::AddGroup(g2_objects, 2, NULL);
   }
 
   Heap::CollectGarbage(OLD_POINTER_SPACE);

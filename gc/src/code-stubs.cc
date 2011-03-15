@@ -101,7 +101,8 @@ Handle<Code> CodeStub::GetCode() {
         static_cast<Code::Kind>(GetCodeKind()),
         InLoop(),
         GetICState());
-    Handle<Code> new_object = Factory::NewCode(desc, flags, masm.CodeObject());
+    Handle<Code> new_object = Factory::NewCode(
+        desc, flags, masm.CodeObject(), NeedsImmovableCode());
     RecordCodeGeneration(*new_object, &masm);
     FinishCode(*new_object);
 
@@ -116,6 +117,7 @@ Handle<Code> CodeStub::GetCode() {
     code = *new_object;
   }
 
+  ASSERT(!NeedsImmovableCode() || Heap::lo_space()->Contains(code));
   return Handle<Code>(code);
 }
 

@@ -27,6 +27,7 @@
 
 #include <v8.h>
 #include <v8-testing.h>
+#include <assert.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
@@ -64,6 +65,11 @@ int RunMain(int argc, char* argv[]) {
   // Create a new execution environment containing the built-in
   // functions
   v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
+  if (context.IsEmpty()) {
+    printf("Error creating context\n");
+    return 1;
+  }
+
   bool run_shell = (argc == 1);
   for (int i = 1; i < argc; i++) {
     // Enter the execution environment before evaluating any code.
@@ -138,6 +144,8 @@ int main(int argc, char* argv[]) {
       v8::Testing::PrepareStressRun(i);
       result = RunMain(argc, argv);
     }
+    printf("======== Full Deoptimization =======\n");
+    v8::Testing::DeoptimizeAll();
   } else {
     result = RunMain(argc, argv);
   }
@@ -290,11 +298,13 @@ bool ExecuteString(v8::Handle<v8::String> source,
   } else {
     v8::Handle<v8::Value> result = script->Run();
     if (result.IsEmpty()) {
+      assert(try_catch.HasCaught());
       // Print errors that happened during execution.
       if (report_exceptions)
         ReportException(&try_catch);
       return false;
     } else {
+      assert(!try_catch.HasCaught());
       if (print_result && !result->IsUndefined()) {
         // If all went well and the result wasn't undefined then print
         // the returned value.

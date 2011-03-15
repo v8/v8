@@ -1240,6 +1240,43 @@ bool Genesis::InstallNatives() {
     global_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
 
+  {  // --- I n t e r n a l   A r r a y ---
+    // An array constructor on the builtins object that works like
+    // the public Array constructor, except that its prototype
+    // doesn't inherit from Object.prototype.
+    // To be used only for internal work by builtins. Instances
+    // must not be leaked to user code.
+    // Only works correctly when called as a constructor. The normal
+    // Array code uses Array.prototype as prototype when called as
+    // a function.
+    Handle<JSFunction> array_function =
+        InstallFunction(builtins,
+                        "InternalArray",
+                        JS_ARRAY_TYPE,
+                        JSArray::kSize,
+                        Top::initial_object_prototype(),
+                        Builtins::ArrayCode,
+                        true);
+    Handle<JSObject> prototype =
+        Factory::NewJSObject(Top::object_function(), TENURED);
+    SetPrototype(array_function, prototype);
+
+    array_function->shared()->set_construct_stub(
+        Builtins::builtin(Builtins::ArrayConstructCode));
+    array_function->shared()->DontAdaptArguments();
+
+    // Make "length" magic on instances.
+    Handle<DescriptorArray> array_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            Factory::empty_descriptor_array(),
+            Factory::length_symbol(),
+            Factory::NewProxy(&Accessors::ArrayLength),
+            static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE));
+
+    array_function->initial_map()->set_instance_descriptors(
+        *array_descriptors);
+  }
+
   if (FLAG_disable_native_files) {
     PrintF("Warning: Running without installed natives!\n");
     return true;
@@ -1357,6 +1394,7 @@ bool Genesis::InstallNatives() {
 
     global_context()->set_regexp_result_map(*initial_map);
   }
+
 
 #ifdef DEBUG
   builtins->Verify();

@@ -1517,6 +1517,9 @@ void MarkCompactCollector::AfterMarking() {
   if (FLAG_flush_code) {
     FlushCode::ProcessCandidates();
   }
+
+  // Clean up dead objects from the runtime profiler.
+  RuntimeProfiler::RemoveDeadSamples();
 }
 
 
@@ -1851,6 +1854,9 @@ void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
   // All pointers were updated. Update auxiliary allocation info.
   Heap::IncrementYoungSurvivorsCounter(survivors_size);
   space->set_age_mark(space->top());
+
+  // Update JSFunction pointers from the runtime profiler.
+  RuntimeProfiler::UpdateSamplesAfterScavenge();
 }
 
 
@@ -2243,12 +2249,6 @@ void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (obj->IsCode()) {
     PROFILE(CodeDeleteEvent(obj->address()));
-  } else if (obj->IsJSFunction()) {
-    // TODO(gc): we are sweeping old pointer space conservatively thus
-    // we can't notify attached profiler about death of functions.
-    // Consider disabling conservative sweeping when profiler
-    // is enabled.
-    PROFILE(FunctionDeleteEvent(obj->address()));
   }
 #endif
 }

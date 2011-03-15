@@ -663,8 +663,8 @@ def GuessToolchain(os):
 
 
 def GuessVisibility(os, toolchain):
-  if os == 'win32' and toolchain == 'gcc':
-    # MinGW can't do it.
+  if (os == 'win32' or os == 'cygwin') and toolchain == 'gcc':
+    # MinGW / Cygwin can't do it.
     return 'default'
   elif os == 'solaris':
     return 'default'
@@ -685,7 +685,7 @@ SIMPLE_OPTIONS = {
     'help': 'the toolchain to use (%s)' % TOOLCHAIN_GUESS
   },
   'os': {
-    'values': ['freebsd', 'linux', 'macos', 'win32', 'android', 'openbsd', 'solaris'],
+    'values': ['freebsd', 'linux', 'macos', 'win32', 'android', 'openbsd', 'solaris', 'cygwin'],
     'default': OS_GUESS,
     'help': 'the os to build for (%s)' % OS_GUESS
   },
@@ -890,7 +890,7 @@ def VerifyOptions(env):
     return False
   if env['os'] == 'win32' and env['library'] == 'shared' and env['prof'] == 'on':
     Abort("Profiling on windows only supported for static library.")
-  if env['gdbjit'] == 'on' and (env['os'] != 'linux' or (env['arch'] != 'ia32' and env['arch'] != 'x64')):
+  if env['gdbjit'] == 'on' and (env['os'] != 'linux' or (env['arch'] != 'ia32' and env['arch'] != 'x64' and env['arch'] != 'arm')):
     Abort("GDBJIT interface is supported only for Intel-compatible (ia32 or x64) Linux target.")
   if env['os'] == 'win32' and env['soname'] == 'on':
     Abort("Shared Object soname not applicable for Windows.")

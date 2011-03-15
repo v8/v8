@@ -404,7 +404,7 @@ void LChunk::MarkEmptyBlocks() {
 }
 
 
-void LStoreNamed::PrintDataTo(StringStream* stream) {
+void LStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add(".");
   stream->Add(*String::cast(*name())->ToCString());
@@ -413,7 +413,25 @@ void LStoreNamed::PrintDataTo(StringStream* stream) {
 }
 
 
-void LStoreKeyed::PrintDataTo(StringStream* stream) {
+void LStoreNamedGeneric::PrintDataTo(StringStream* stream) {
+  object()->PrintTo(stream);
+  stream->Add(".");
+  stream->Add(*String::cast(*name())->ToCString());
+  stream->Add(" <- ");
+  value()->PrintTo(stream);
+}
+
+
+void LStoreKeyedFastElement::PrintDataTo(StringStream* stream) {
+  object()->PrintTo(stream);
+  stream->Add("[");
+  key()->PrintTo(stream);
+  stream->Add("] <- ");
+  value()->PrintTo(stream);
+}
+
+
+void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add("[");
   key()->PrintTo(stream);
@@ -451,7 +469,7 @@ int LChunk::GetParameterStackSlot(int index) const {
   // shift all parameter indexes down by the number of parameters, and
   // make sure they end up negative so they are distinguishable from
   // spill slots.
-  int result = index - graph()->info()->scope()->num_parameters() - 1;
+  int result = index - info()->scope()->num_parameters() - 1;
   ASSERT(result < 0);
   return result;
 }
@@ -459,7 +477,7 @@ int LChunk::GetParameterStackSlot(int index) const {
 // A parameter relative to ebp in the arguments stub.
 int LChunk::ParameterAt(int index) {
   ASSERT(-1 <= index);  // -1 is the receiver.
-  return (1 + graph()->info()->scope()->num_parameters() - index) *
+  return (1 + info()->scope()->num_parameters() - index) *
       kPointerSize;
 }
 
@@ -498,7 +516,7 @@ Representation LChunk::LookupLiteralRepresentation(
 
 LChunk* LChunkBuilder::Build() {
   ASSERT(is_unused());
-  chunk_ = new LChunk(graph());
+  chunk_ = new LChunk(info(), graph());
   HPhase phase("Building chunk", chunk_);
   status_ = BUILDING;
   const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
@@ -515,8 +533,8 @@ LChunk* LChunkBuilder::Build() {
 
 void LChunkBuilder::Abort(const char* format, ...) {
   if (FLAG_trace_bailout) {
-    SmartPointer<char> debug_name = graph()->debug_name()->ToCString();
-    PrintF("Aborting LChunk building in @\"%s\": ", *debug_name);
+    SmartPointer<char> name(info()->shared_info()->DebugName()->ToCString());
+    PrintF("Aborting LChunk building in @\"%s\": ", *name);
     va_list arguments;
     va_start(arguments, format);
     OS::VPrint(format, arguments);
@@ -852,6 +870,7 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
   ASSERT(instr->representation().IsDouble());
   ASSERT(instr->left()->representation().IsDouble());
   ASSERT(instr->right()->representation().IsDouble());
+  ASSERT(op != Token::MOD);
   LOperand* left = UseRegisterAtStart(instr->left());
   LOperand* right = UseRegisterAtStart(instr->right());
   LArithmeticD* result = new LArithmeticD(op, left, right);
@@ -1147,8 +1166,7 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
       new LInstanceOfKnownGlobal(
           UseFixed(instr->value(), InstanceofStub::left()),
           FixedTemp(edi));
-  MarkAsSaveDoubles(result);
-  return AssignEnvironment(AssignPointerMap(DefineFixed(result, eax)));
+  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
@@ -1223,7 +1241,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       case kMathSqrt:
         return DefineSameAsFirst(result);
       case kMathPowHalf:
-        return AssignEnvironment(DefineSameAsFirst(result));
+        return DefineSameAsFirst(result);
       default:
         UNREACHABLE();
         return NULL;
@@ -1348,13 +1366,23 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    // The temporary operand is necessary to ensure that right is not allocated
-    // into edx.
-    LOperand* temp = FixedTemp(edx);
-    LOperand* value = UseFixed(instr->left(), eax);
-    LOperand* divisor = UseRegister(instr->right());
-    LModI* mod = new LModI(value, divisor, temp);
-    LInstruction* result = DefineFixed(mod, edx);
+
+    LInstruction* result;
+    if (instr->HasPowerOf2Divisor()) {
+      ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
+      LOperand* value = UseRegisterAtStart(instr->left());
+      LModI* mod = new LModI(value, UseOrConstant(instr->right()), NULL);
+      result = DefineSameAsFirst(mod);
+    } else {
+      // The temporary operand is necessary to ensure that right is
+      // not allocated into edx.
+      LOperand* temp = FixedTemp(edx);
+      LOperand* value = UseFixed(instr->left(), eax);
+      LOperand* divisor = UseRegister(instr->right());
+      LModI* mod = new LModI(value, divisor, temp);
+      result = DefineFixed(mod, edx);
+    }
+
     return (instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
             instr->CheckFlag(HValue::kCanBeDivByZero))
         ? AssignEnvironment(result)
@@ -1366,8 +1394,8 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
     // We call a C function for double modulo. It can't trigger a GC.
     // We need to use fixed result register for the call.
     // TODO(fschneider): Allow any register as input registers.
-    LOperand* left = UseFixedDouble(instr->left(), xmm1);
-    LOperand* right = UseFixedDouble(instr->right(), xmm2);
+    LOperand* left = UseFixedDouble(instr->left(), xmm2);
+    LOperand* right = UseFixedDouble(instr->right(), xmm1);
     LArithmeticD* result = new LArithmeticD(Token::MOD, left, right);
     return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
   }
@@ -1521,6 +1549,15 @@ LInstruction* LChunkBuilder::DoHasInstanceType(HHasInstanceType* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoGetCachedArrayIndex(
+    HGetCachedArrayIndex* instr)  {
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegisterAtStart(instr->value());
+
+  return DefineAsRegister(new LGetCachedArrayIndex(value));
+}
+
+
 LInstruction* LChunkBuilder::DoHasCachedArrayIndex(
     HHasCachedArrayIndex* instr) {
   ASSERT(instr->value()->representation().IsTagged());
@@ -1550,9 +1587,10 @@ LInstruction* LChunkBuilder::DoFixedArrayLength(HFixedArrayLength* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoPixelArrayLength(HPixelArrayLength* instr) {
+LInstruction* LChunkBuilder::DoExternalArrayLength(
+    HExternalArrayLength* instr) {
   LOperand* array = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LPixelArrayLength(array));
+  return DefineAsRegister(new LExternalArrayLength(array));
 }
 
 
@@ -1775,10 +1813,10 @@ LInstruction* LChunkBuilder::DoLoadElements(HLoadElements* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoLoadPixelArrayExternalPointer(
-    HLoadPixelArrayExternalPointer* instr) {
+LInstruction* LChunkBuilder::DoLoadExternalArrayPointer(
+    HLoadExternalArrayPointer* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LLoadPixelArrayExternalPointer(input));
+  return DefineAsRegister(new LLoadExternalArrayPointer(input));
 }
 
 
@@ -1832,6 +1870,23 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
       : UseRegisterOrConstantAtStart(instr->key());
 
   return AssignEnvironment(new LStoreKeyedFastElement(obj, key, val));
+}
+
+
+LInstruction* LChunkBuilder::DoStorePixelArrayElement(
+    HStorePixelArrayElement* instr) {
+  ASSERT(instr->value()->representation().IsInteger32());
+  ASSERT(instr->external_pointer()->representation().IsExternal());
+  ASSERT(instr->key()->representation().IsInteger32());
+
+  LOperand* external_pointer = UseRegister(instr->external_pointer());
+  LOperand* val = UseRegister(instr->value());
+  LOperand* key = UseRegister(instr->key());
+  // The generated code requires that the clamped value is in a byte
+  // register. eax is an arbitrary choice to satisfy this requirement.
+  LOperand* clamped = FixedTemp(eax);
+
+  return new LStorePixelArrayElement(external_pointer, key, val, clamped);
 }
 
 
@@ -1890,6 +1945,13 @@ LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
+  LOperand* char_code = UseRegister(instr->value());
+  LStringCharFromCode* result = new LStringCharFromCode(char_code);
+  return AssignPointerMap(DefineAsRegister(result));
+}
+
+
 LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
   LOperand* string = UseRegisterAtStart(instr->value());
   return DefineAsRegister(new LStringLength(string));
@@ -1918,8 +1980,8 @@ LInstruction* LChunkBuilder::DoFunctionLiteral(HFunctionLiteral* instr) {
 
 
 LInstruction* LChunkBuilder::DoDeleteProperty(HDeleteProperty* instr) {
-  LDeleteProperty* result = new LDeleteProperty(Use(instr->object()),
-                                                UseOrConstant(instr->key()));
+  LDeleteProperty* result =
+      new LDeleteProperty(Use(instr->object()), UseOrConstant(instr->key()));
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -1952,8 +2014,10 @@ LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
 
 
 LInstruction* LChunkBuilder::DoArgumentsObject(HArgumentsObject* instr) {
-  // There are no real uses of the arguments object (we bail out in all other
-  // cases).
+  // There are no real uses of the arguments object.
+  // arguments.length and element access are supported directly on
+  // stack arguments, and any real arguments object use causes a bailout.
+  // So this value is never used.
   return NULL;
 }
 

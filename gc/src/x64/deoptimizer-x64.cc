@@ -102,6 +102,7 @@ class SafepointTableDeoptimiztionEntryIterator {
 
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
+  HandleScope scope;
   AssertNoAllocation no_allocation;
 
   if (!function->IsOptimized()) return;
@@ -196,6 +197,11 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     PrintF("[forced deoptimization: ");
     function->PrintName();
     PrintF(" / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
+#ifdef DEBUG
+    if (FLAG_print_code) {
+      code->PrintLn();
+    }
+#endif
   }
 }
 
@@ -225,7 +231,7 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   // ok:
   //
   ASSERT(*(call_target_address - 3) == 0x73 &&  // jae
-         *(call_target_address - 2) == 0x05 &&  // offset
+         *(call_target_address - 2) == 0x07 &&  // offset
          *(call_target_address - 1) == 0xe8);   // call
   *(call_target_address - 3) = 0x90;  // nop
   *(call_target_address - 2) = 0x90;  // nop
@@ -246,14 +252,154 @@ void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
          *(call_target_address - 2) == 0x90 &&  // nop
          *(call_target_address - 1) == 0xe8);   // call
   *(call_target_address - 3) = 0x73;  // jae
-  *(call_target_address - 2) = 0x05;  // offset
+  *(call_target_address - 2) = 0x07;  // offset
   Assembler::set_target_address_at(call_target_address,
                                    check_code->entry());
 }
 
 
+static int LookupBailoutId(DeoptimizationInputData* data, unsigned ast_id) {
+  ByteArray* translations = data->TranslationByteArray();
+  int length = data->DeoptCount();
+  for (int i = 0; i < length; i++) {
+    if (static_cast<unsigned>(data->AstId(i)->value()) == ast_id) {
+      TranslationIterator it(translations,  data->TranslationIndex(i)->value());
+      int value = it.Next();
+      ASSERT(Translation::BEGIN == static_cast<Translation::Opcode>(value));
+      // Read the number of frames.
+      value = it.Next();
+      if (value == 1) return i;
+    }
+  }
+  UNREACHABLE();
+  return -1;
+}
+
+
 void Deoptimizer::DoComputeOsrOutputFrame() {
-  UNIMPLEMENTED();
+  DeoptimizationInputData* data = DeoptimizationInputData::cast(
+      optimized_code_->deoptimization_data());
+  unsigned ast_id = data->OsrAstId()->value();
+  // TODO(kasperl): This should not be the bailout_id_. It should be
+  // the ast id. Confusing.
+  ASSERT(bailout_id_ == ast_id);
+
+  int bailout_id = LookupBailoutId(data, ast_id);
+  unsigned translation_index = data->TranslationIndex(bailout_id)->value();
+  ByteArray* translations = data->TranslationByteArray();
+
+  TranslationIterator iterator(translations, translation_index);
+  Translation::Opcode opcode =
+      static_cast<Translation::Opcode>(iterator.Next());
+  ASSERT(Translation::BEGIN == opcode);
+  USE(opcode);
+  int count = iterator.Next();
+  ASSERT(count == 1);
+  USE(count);
+
+  opcode = static_cast<Translation::Opcode>(iterator.Next());
+  USE(opcode);
+  ASSERT(Translation::FRAME == opcode);
+  unsigned node_id = iterator.Next();
+  USE(node_id);
+  ASSERT(node_id == ast_id);
+  JSFunction* function = JSFunction::cast(ComputeLiteral(iterator.Next()));
+  USE(function);
+  ASSERT(function == function_);
+  unsigned height = iterator.Next();
+  unsigned height_in_bytes = height * kPointerSize;
+  USE(height_in_bytes);
+
+  unsigned fixed_size = ComputeFixedSize(function_);
+  unsigned input_frame_size = static_cast<unsigned>(input_->GetFrameSize());
+  ASSERT(fixed_size + height_in_bytes == input_frame_size);
+
+  unsigned stack_slot_size = optimized_code_->stack_slots() * kPointerSize;
+  unsigned outgoing_height = data->ArgumentsStackHeight(bailout_id)->value();
+  unsigned outgoing_size = outgoing_height * kPointerSize;
+  unsigned output_frame_size = fixed_size + stack_slot_size + outgoing_size;
+  ASSERT(outgoing_size == 0);  // OSR does not happen in the middle of a call.
+
+  if (FLAG_trace_osr) {
+    PrintF("[on-stack replacement: begin 0x%08" V8PRIxPTR " ",
+           reinterpret_cast<intptr_t>(function_));
+    function_->PrintName();
+    PrintF(" => node=%u, frame=%d->%d]\n",
+           ast_id,
+           input_frame_size,
+           output_frame_size);
+  }
+
+  // There's only one output frame in the OSR case.
+  output_count_ = 1;
+  output_ = new FrameDescription*[1];
+  output_[0] = new(output_frame_size) FrameDescription(
+      output_frame_size, function_);
+
+  // Clear the incoming parameters in the optimized frame to avoid
+  // confusing the garbage collector.
+  unsigned output_offset = output_frame_size - kPointerSize;
+  int parameter_count = function_->shared()->formal_parameter_count() + 1;
+  for (int i = 0; i < parameter_count; ++i) {
+    output_[0]->SetFrameSlot(output_offset, 0);
+    output_offset -= kPointerSize;
+  }
+
+  // Translate the incoming parameters. This may overwrite some of the
+  // incoming argument slots we've just cleared.
+  int input_offset = input_frame_size - kPointerSize;
+  bool ok = true;
+  int limit = input_offset - (parameter_count * kPointerSize);
+  while (ok && input_offset > limit) {
+    ok = DoOsrTranslateCommand(&iterator, &input_offset);
+  }
+
+  // There are no translation commands for the caller's pc and fp, the
+  // context, and the function.  Set them up explicitly.
+  for (int i = 0; ok && i < 4; i++) {
+    intptr_t input_value = input_->GetFrameSlot(input_offset);
+    if (FLAG_trace_osr) {
+      PrintF("    [esp + %d] <- 0x%08" V8PRIxPTR " ; [esp + %d] (fixed part)\n",
+             output_offset,
+             input_value,
+             input_offset);
+    }
+    output_[0]->SetFrameSlot(output_offset, input_->GetFrameSlot(input_offset));
+    input_offset -= kPointerSize;
+    output_offset -= kPointerSize;
+  }
+
+  // Translate the rest of the frame.
+  while (ok && input_offset >= 0) {
+    ok = DoOsrTranslateCommand(&iterator, &input_offset);
+  }
+
+  // If translation of any command failed, continue using the input frame.
+  if (!ok) {
+    delete output_[0];
+    output_[0] = input_;
+    output_[0]->SetPc(reinterpret_cast<intptr_t>(from_));
+  } else {
+    // Setup the frame pointer and the context pointer.
+    output_[0]->SetRegister(rbp.code(), input_->GetRegister(rbp.code()));
+    output_[0]->SetRegister(rsi.code(), input_->GetRegister(rsi.code()));
+
+    unsigned pc_offset = data->OsrPcOffset()->value();
+    intptr_t pc = reinterpret_cast<intptr_t>(
+        optimized_code_->entry() + pc_offset);
+    output_[0]->SetPc(pc);
+  }
+  Code* continuation = Builtins::builtin(Builtins::NotifyOSR);
+  output_[0]->SetContinuation(
+      reinterpret_cast<intptr_t>(continuation->entry()));
+
+  if (FLAG_trace_osr) {
+    PrintF("[on-stack replacement translation %s: 0x%08" V8PRIxPTR " ",
+           ok ? "finished" : "aborted",
+           reinterpret_cast<intptr_t>(function));
+    function->PrintName();
+    PrintF(" => pc=0x%0" V8PRIxPTR "]\n", output_[0]->GetPc());
+  }
 }
 
 
@@ -359,14 +505,16 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
            fp_value, output_offset, value);
   }
 
-  // The context can be gotten from the function so long as we don't
-  // optimize functions that need local contexts.
+  // For the bottommost output frame the context can be gotten from the input
+  // frame. For all subsequent output frames it can be gotten from the function
+  // so long as we don't inline functions that need local contexts.
   output_offset -= kPointerSize;
   input_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(function->context());
-  // The context for the bottommost output frame should also agree with the
-  // input frame.
-  ASSERT(!is_bottommost || input_->GetFrameSlot(input_offset) == value);
+  if (is_bottommost) {
+    value = input_->GetFrameSlot(input_offset);
+  } else {
+    value = reinterpret_cast<intptr_t>(function->context());
+  }
   output_frame->SetFrameSlot(output_offset, value);
   if (is_topmost) output_frame->SetRegister(rsi.code(), value);
   if (FLAG_trace_deopt) {
@@ -499,7 +647,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // On windows put the argument on the stack (PrepareCallCFunction have
   // created space for this). On linux pass the argument in r8.
 #ifdef _WIN64
-  __ movq(Operand(rsp, 0 * kPointerSize), arg5);
+  __ movq(Operand(rsp, 4 * kPointerSize), arg5);
 #else
   __ movq(r8, arg5);
 #endif
@@ -608,11 +756,8 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Set up the roots register.
   ExternalReference roots_address = ExternalReference::roots_address();
-  __ movq(r13, roots_address);
-
-  __ movq(kSmiConstantRegister,
-          reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
-          RelocInfo::NONE);
+  __ InitializeRootRegister();
+  __ InitializeSmiConstantRegister();
 
   // Return to the continuation point.
   __ ret(0);

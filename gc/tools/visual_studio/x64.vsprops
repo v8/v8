@@ -12,6 +12,7 @@
 	/>
 	<Tool
 		Name="VCLinkerTool"
+                StackReserveSize="2091752"
 		TargetMachine="17"
 	/>
 </VisualStudioPropertySheet>

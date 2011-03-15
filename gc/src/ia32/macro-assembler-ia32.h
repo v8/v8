@@ -168,7 +168,11 @@ class MacroAssembler: public Assembler {
   // Push and pop the registers that can hold pointers.
   void PushSafepointRegisters() { pushad(); }
   void PopSafepointRegisters() { popad(); }
-  static int SafepointRegisterStackIndex(int reg_code);
+  // Store the value in register/immediate src in the safepoint
+  // register stack slot for register dst.
+  void StoreToSafepointRegisterSlot(Register dst, Register src);
+  void StoreToSafepointRegisterSlot(Register dst, Immediate src);
+  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -667,7 +671,7 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& actual,
                       Handle<Code> code_constant,
                       const Operand& code_operand,
-                      Label* done,
+                      NearLabel* done,
                       InvokeFlag flag,
                       PostCallGenerator* post_call_generator = NULL);
 
@@ -692,6 +696,15 @@ class MacroAssembler: public Assembler {
   MUST_USE_RESULT MaybeObject* PopHandleScopeHelper(Register saved,
                                                     Register scratch,
                                                     bool gc_allowed);
+
+
+  // Compute memory operands for safepoint stack slots.
+  Operand SafepointRegisterSlot(Register reg);
+  static int SafepointRegisterStackIndex(int reg_code);
+
+  // Needs access to SafepointRegisterStackIndex for optimized frame
+  // traversal.
+  friend class OptimizedFrame;
 };
 
 

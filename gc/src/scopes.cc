@@ -148,12 +148,13 @@ Scope::Scope(Scope* inner_scope, SerializedScopeInfo* scope_info)
     unresolved_(16),
     decls_(4) {
   ASSERT(scope_info != NULL);
-  SetDefaults(FUNCTION_SCOPE, inner_scope->outer_scope(), scope_info);
+  SetDefaults(FUNCTION_SCOPE, NULL, scope_info);
   ASSERT(resolved());
-  InsertAfterScope(inner_scope);
   if (scope_info->HasHeapAllocatedLocals()) {
     num_heap_slots_ = scope_info_->NumberOfContextSlots();
   }
+
+  AddInnerScope(inner_scope);
 
   // This scope's arguments shadow (if present) is context-allocated if an inner
   // scope accesses this one's parameters.  Allocate the arguments_shadow_
@@ -175,28 +176,38 @@ Scope::Scope(Scope* inner_scope, SerializedScopeInfo* scope_info)
 }
 
 
+Scope* Scope::DeserializeScopeChain(CompilationInfo* info,
+                                    Scope* global_scope) {
+  ASSERT(!info->closure().is_null());
+  // If we have a serialized scope info, reuse it.
+  Scope* innermost_scope = NULL;
+  Scope* scope = NULL;
+
+  SerializedScopeInfo* scope_info = info->closure()->shared()->scope_info();
+  if (scope_info != SerializedScopeInfo::Empty()) {
+    JSFunction* current = *info->closure();
+    do {
+      current = current->context()->closure();
+      SerializedScopeInfo* scope_info = current->shared()->scope_info();
+      if (scope_info != SerializedScopeInfo::Empty()) {
+        scope = new Scope(scope, scope_info);
+        if (innermost_scope == NULL) innermost_scope = scope;
+      } else {
+        ASSERT(current->context()->IsGlobalContext());
+      }
+    } while (!current->context()->IsGlobalContext());
+  }
+
+  global_scope->AddInnerScope(scope);
+  if (innermost_scope == NULL) innermost_scope = global_scope;
+
+  return innermost_scope;
+}
+
 
 bool Scope::Analyze(CompilationInfo* info) {
   ASSERT(info->function() != NULL);
   Scope* top = info->function()->scope();
-
-  // If we have a serialized scope info, reuse it.
-  if (!info->closure().is_null()) {
-    SerializedScopeInfo* scope_info = info->closure()->shared()->scope_info();
-    if (scope_info != SerializedScopeInfo::Empty()) {
-      Scope* scope = top;
-      JSFunction* current = *info->closure();
-      do {
-        current = current->context()->closure();
-        SerializedScopeInfo* scope_info = current->shared()->scope_info();
-        if (scope_info != SerializedScopeInfo::Empty()) {
-          scope = new Scope(scope, scope_info);
-        } else {
-          ASSERT(current->context()->IsGlobalContext());
-        }
-      } while (!current->context()->IsGlobalContext());
-    }
-  }
 
   while (top->outer_scope() != NULL) top = top->outer_scope();
   top->AllocateVariables(info->calling_context());
@@ -878,6 +889,11 @@ void Scope::AllocateParameterLocals() {
   ASSERT(is_function_scope());
   Variable* arguments = LocalLookup(Factory::arguments_symbol());
   ASSERT(arguments != NULL);  // functions have 'arguments' declared implicitly
+
+  // Parameters are rewritten to arguments[i] if 'arguments' is used in
+  // a non-strict mode function. Strict mode code doesn't alias arguments.
+  bool rewrite_parameters = false;
+
   if (MustAllocate(arguments) && !HasArgumentsParameter()) {
     // 'arguments' is used. Unless there is also a parameter called
     // 'arguments', we must be conservative and access all parameters via
@@ -909,6 +925,13 @@ void Scope::AllocateParameterLocals() {
     // allocate the arguments object by setting 'arguments_'.
     arguments_ = arguments;
 
+    // In strict mode 'arguments' does not alias formal parameters.
+    // Therefore in strict mode we allocate parameters as if 'arguments'
+    // were not used.
+    rewrite_parameters = !is_strict_mode();
+  }
+
+  if (rewrite_parameters) {
     // We also need the '.arguments' shadow variable. Declare it and create
     // and bind the corresponding proxy. It's ok to declare it only now
     // because it's a local variable that is allocated after the parameters

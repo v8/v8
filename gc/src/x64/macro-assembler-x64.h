@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -48,16 +48,20 @@ enum AllocationFlags {
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
 static const Register kScratchRegister = { 10 };      // r10.
-static const Register kSmiConstantRegister = { 15 };  // r15 (callee save).
+static const Register kSmiConstantRegister = { 12 };  // r12 (callee save).
 static const Register kRootRegister = { 13 };         // r13 (callee save).
 // Value of smi in kSmiConstantRegister.
 static const int kSmiConstantRegisterValue = 1;
+// Actual value of root register is offset from the root array's start
+// to take advantage of negitive 8-bit displacement values.
+static const int kRootRegisterBias = 128;
 
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;
 
 // Forward declaration.
 class JumpTarget;
+class CallWrapper;
 
 struct SmiIndex {
   SmiIndex(Register index_register, ScaleFactor scale)
@@ -73,6 +77,12 @@ class MacroAssembler: public Assembler {
   MacroAssembler(void* buffer, int size);
 
   void LoadRoot(Register destination, Heap::RootListIndex index);
+  // Load a root value where the index (or part of it) is variable.
+  // The variable_offset register is added to the fixed_offset value
+  // to get the index into the root-array.
+  void LoadRootIndexed(Register destination,
+                       Register variable_offset,
+                       int fixed_offset);
   void CompareRoot(Register with, Heap::RootListIndex index);
   void CompareRoot(const Operand& with, Heap::RootListIndex index);
   void PushRoot(Heap::RootListIndex index);
@@ -174,11 +184,16 @@ class MacroAssembler: public Assembler {
   // Push and pop the registers that can hold pointers.
   void PushSafepointRegisters() { Pushad(); }
   void PopSafepointRegisters() { Popad(); }
-  static int SafepointRegisterStackIndex(int reg_code) {
-    return kNumSafepointRegisters - 1 -
-        kSafepointPushRegisterIndices[reg_code];
-  }
+  // Store the value in register src in the safepoint register stack
+  // slot for register dst.
+  void StoreToSafepointRegisterSlot(Register dst, Register src);
+  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
+  void InitializeRootRegister() {
+    ExternalReference roots_address = ExternalReference::roots_address();
+    movq(kRootRegister, roots_address);
+    addq(kRootRegister, Immediate(kRootRegisterBias));
+  }
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -187,27 +202,33 @@ class MacroAssembler: public Assembler {
   void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
-                  InvokeFlag flag);
+                  InvokeFlag flag,
+                  CallWrapper* call_wrapper = NULL);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
-                  InvokeFlag flag);
+                  InvokeFlag flag,
+                  CallWrapper* call_wrapper = NULL);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      CallWrapper* call_wrapper = NULL);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      CallWrapper* call_wrapper = NULL);
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
-  void InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag);
+  void InvokeBuiltin(Builtins::JavaScript id,
+                     InvokeFlag flag,
+                     CallWrapper* call_wrapper = NULL);
 
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, Builtins::JavaScript id);
@@ -261,8 +282,9 @@ class MacroAssembler: public Assembler {
                                            int power);
 
 
-  // Simple comparison of smis.
-  void SmiCompare(Register dst, Register src);
+  // Simple comparison of smis.  Both sides must be known smis to use these,
+  // otherwise use Cmp.
+  void SmiCompare(Register smi1, Register smi2);
   void SmiCompare(Register dst, Smi* src);
   void SmiCompare(Register dst, const Operand& src);
   void SmiCompare(const Operand& dst, Register src);
@@ -592,6 +614,8 @@ class MacroAssembler: public Assembler {
   void Move(const Operand& dst, Handle<Object> source);
   void Cmp(Register dst, Handle<Object> source);
   void Cmp(const Operand& dst, Handle<Object> source);
+  void Cmp(Register dst, Smi* src);
+  void Cmp(const Operand& dst, Smi* src);
   void Push(Handle<Object> source);
 
   // Emit code to discard a non-negative number of pointer-sized elements
@@ -608,6 +632,26 @@ class MacroAssembler: public Assembler {
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
+
+  // The size of the code generated for different call instructions.
+  int CallSize(Address destination, RelocInfo::Mode rmode) {
+    return kCallInstructionLength;
+  }
+  int CallSize(ExternalReference ext) {
+    return kCallInstructionLength;
+  }
+  int CallSize(Handle<Code> code_object) {
+    // Code calls use 32-bit relative addressing.
+    return kShortCallInstructionLength;
+  }
+  int CallSize(Register target) {
+    // Opcode: REX_opt FF /2 m64
+    return (target.high_bit() != 0) ? 3 : 2;
+  }
+  int CallSize(const Operand& target) {
+    // Opcode: REX_opt FF /2 m64
+    return (target.requires_rex() ? 2 : 1) + target.operand_size();
+  }
 
   // Emit call to the code we are currently generating.
   void CallSelf() {
@@ -665,6 +709,7 @@ class MacroAssembler: public Assembler {
 
   // Abort execution if argument is not a smi. Used in debug code.
   void AbortIfNotSmi(Register object);
+  void AbortIfNotSmi(const Operand& object);
 
   // Abort execution if argument is a string. Used in debug code.
   void AbortIfNotString(Register object);
@@ -904,7 +949,7 @@ class MacroAssembler: public Assembler {
 
   // Calls an API function. Allocates HandleScope, extracts
   // returned value from handle and propagates exceptions.
-  // Clobbers r12, r14, rbx and caller-save registers. Restores context.
+  // Clobbers r14, r15, rbx and caller-save registers. Restores context.
   // On return removes stack_space * kPointerSize (GCed).
   MUST_USE_RESULT MaybeObject* TryCallApiFunctionAndReturn(
       ApiFunction* function, int stack_space);
@@ -976,7 +1021,7 @@ class MacroAssembler: public Assembler {
 
  private:
   // Order general registers are pushed by Pushad.
-  // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14.
+  // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.
   static int kSafepointPushRegisterIndices[Register::kNumRegisters];
   static const int kNumSafepointSavedRegisters = 11;
 
@@ -1000,7 +1045,8 @@ class MacroAssembler: public Assembler {
                       Handle<Code> code_constant,
                       Register code_register,
                       LabelType* done,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      CallWrapper* call_wrapper);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -1031,6 +1077,17 @@ class MacroAssembler: public Assembler {
   Object* PopHandleScopeHelper(Register saved,
                                Register scratch,
                                bool gc_allowed);
+
+
+  // Compute memory operands for safepoint stack slots.
+  Operand SafepointRegisterSlot(Register reg);
+  static int SafepointRegisterStackIndex(int reg_code) {
+    return kNumSafepointRegisters - kSafepointPushRegisterIndices[reg_code] - 1;
+  }
+
+  // Needs access to SafepointRegisterStackIndex for optimized frame
+  // traversal.
+  friend class OptimizedFrame;
 };
 
 
@@ -1051,6 +1108,21 @@ class CodePatcher {
   byte* address_;  // The address of the code being patched.
   int size_;  // Number of bytes of the expected patch size.
   MacroAssembler masm_;  // Macro assembler used to generate the code.
+};
+
+
+// Helper class for generating code or data associated with the code
+// right before or after a call instruction. As an example this can be used to
+// generate safepoint data after calls for crankshaft.
+class CallWrapper {
+ public:
+  CallWrapper() { }
+  virtual ~CallWrapper() { }
+  // Called just before emitting a call. Argument is the size of the generated
+  // call code.
+  virtual void BeforeCall(int call_size) = 0;
+  // Called just after emitting a call, i.e., at the return site for the call.
+  virtual void AfterCall() = 0;
 };
 
 
@@ -1760,7 +1832,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Handle<Code> code_constant,
                                     Register code_register,
                                     LabelType* done,
-                                    InvokeFlag flag) {
+                                    InvokeFlag flag,
+                                    CallWrapper* call_wrapper) {
   bool definitely_matches = false;
   NearLabel invoke;
   if (expected.is_immediate()) {
@@ -1810,7 +1883,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     }
 
     if (flag == CALL_FUNCTION) {
+      if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(adaptor));
       Call(adaptor, RelocInfo::CODE_TARGET);
+      if (call_wrapper != NULL) call_wrapper->AfterCall();
       jmp(done);
     } else {
       Jump(adaptor, RelocInfo::CODE_TARGET);

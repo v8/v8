@@ -30,6 +30,8 @@
 
 #include <math.h>
 
+#include "globals.h"
+#include "list.h"
 #include "spaces.h"
 #include "splay-tree-inl.h"
 #include "v8-counters.h"
@@ -39,7 +41,7 @@ namespace internal {
 
 
 // Defines all the roots in Heap.
-#define UNCONDITIONAL_STRONG_ROOT_LIST(V)                                      \
+#define STRONG_ROOT_LIST(V)                                      \
   /* Put the byte array map early.  We need it to be in place by the time   */ \
   /* the deserializer hits the next page, since it wants to put a byte      */ \
   /* array in the unused space at the end of the page.                      */ \
@@ -47,7 +49,6 @@ namespace internal {
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   /* Cluster the most popular ones in a few cache lines here at the top.    */ \
-  V(Smi, stack_limit, StackLimit)                                              \
   V(Smi, store_buffer_top, StoreBufferTop)                                     \
   V(Object, undefined_value, UndefinedValue)                                   \
   V(Object, the_hole_value, TheHoleValue)                                      \
@@ -61,27 +62,35 @@ namespace internal {
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
   V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
   V(Map, meta_map, MetaMap)                                                    \
-  V(Object, termination_exception, TerminationException)                       \
   V(Map, hash_table_map, HashTableMap)                                         \
+  V(Smi, stack_limit, StackLimit)                                              \
+  V(FixedArray, number_string_cache, NumberStringCache)                        \
+  V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
+  V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
+  V(Object, instanceof_cache_answer, InstanceofCacheAnswer)                    \
+  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
+  V(Object, termination_exception, TerminationException)                       \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
+  V(String, empty_string, EmptyString)                                         \
+  V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Map, string_map, StringMap)                                                \
   V(Map, ascii_string_map, AsciiStringMap)                                     \
   V(Map, symbol_map, SymbolMap)                                                \
+  V(Map, cons_string_map, ConsStringMap)                                       \
+  V(Map, cons_ascii_string_map, ConsAsciiStringMap)                            \
   V(Map, ascii_symbol_map, AsciiSymbolMap)                                     \
   V(Map, cons_symbol_map, ConsSymbolMap)                                       \
   V(Map, cons_ascii_symbol_map, ConsAsciiSymbolMap)                            \
   V(Map, external_symbol_map, ExternalSymbolMap)                               \
   V(Map, external_symbol_with_ascii_data_map, ExternalSymbolWithAsciiDataMap)  \
   V(Map, external_ascii_symbol_map, ExternalAsciiSymbolMap)                    \
-  V(Map, cons_string_map, ConsStringMap)                                       \
-  V(Map, cons_ascii_string_map, ConsAsciiStringMap)                            \
   V(Map, external_string_map, ExternalStringMap)                               \
   V(Map, external_string_with_ascii_data_map, ExternalStringWithAsciiDataMap)  \
   V(Map, external_ascii_string_map, ExternalAsciiStringMap)                    \
   V(Map, undetectable_string_map, UndetectableStringMap)                       \
   V(Map, undetectable_ascii_string_map, UndetectableAsciiStringMap)            \
-  V(Map, pixel_array_map, PixelArrayMap)                                       \
+  V(Map, external_pixel_array_map, ExternalPixelArrayMap)                      \
   V(Map, external_byte_array_map, ExternalByteArrayMap)                        \
   V(Map, external_unsigned_byte_array_map, ExternalUnsignedByteArrayMap)       \
   V(Map, external_short_array_map, ExternalShortArrayMap)                      \
@@ -99,11 +108,6 @@ namespace internal {
   V(Map, proxy_map, ProxyMap)                                                  \
   V(Object, nan_value, NanValue)                                               \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
-  V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
-  V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
-  V(Object, instanceof_cache_answer, InstanceofCacheAnswer)                    \
-  V(String, empty_string, EmptyString)                                         \
-  V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
   V(Proxy, prototype_accessors, PrototypeAccessors)                            \
@@ -111,27 +115,11 @@ namespace internal {
   V(NumberDictionary, non_monomorphic_cache, NonMonomorphicCache)              \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
-  V(Code, c_entry_code, CEntryCode)                                            \
-  V(FixedArray, number_string_cache, NumberStringCache)                        \
-  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
   V(Object, last_script_id, LastScriptId)                                      \
   V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(StringDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
-
-#if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
-#define STRONG_ROOT_LIST(V)                                                    \
-  UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
-  V(Code, re_c_entry_code, RegExpCEntryCode)                                   \
-  V(Code, direct_c_entry_code, DirectCEntryCode)
-#elif V8_TARGET_ARCH_ARM
-#define STRONG_ROOT_LIST(V)                                                    \
-  UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
-  V(Code, direct_c_entry_code, DirectCEntryCode)
-#else
-#define STRONG_ROOT_LIST(V) UNCONDITIONAL_STRONG_ROOT_LIST(V)
-#endif
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -184,8 +172,6 @@ namespace internal {
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
   V(KeyedLoadSpecialized_symbol, "KeyedLoadSpecialized")                 \
   V(KeyedStoreSpecialized_symbol, "KeyedStoreSpecialized")               \
-  V(KeyedLoadPixelArray_symbol, "KeyedLoadPixelArray")                   \
-  V(KeyedStorePixelArray_symbol, "KeyedStorePixelArray")                 \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
   V(illegal_access_symbol, "illegal access")                             \
   V(out_of_memory_symbol, "out-of-memory")                               \
@@ -214,9 +200,29 @@ namespace internal {
   V(identity_hash_symbol, "v8::IdentityHash")                            \
   V(closure_symbol, "(closure)")                                         \
   V(use_strict, "use strict")                                            \
-  V(KeyedLoadExternalArray_symbol, "KeyedLoadExternalArray")             \
-  V(KeyedStoreExternalArray_symbol, "KeyedStoreExternalArray")
-
+  V(KeyedLoadExternalByteArray_symbol, "KeyedLoadExternalByteArray")     \
+  V(KeyedLoadExternalUnsignedByteArray_symbol,                           \
+      "KeyedLoadExternalUnsignedByteArray")                              \
+  V(KeyedLoadExternalShortArray_symbol,                                  \
+      "KeyedLoadExternalShortArray")                                     \
+  V(KeyedLoadExternalUnsignedShortArray_symbol,                          \
+      "KeyedLoadExternalUnsignedShortArray")                             \
+  V(KeyedLoadExternalIntArray_symbol, "KeyedLoadExternalIntArray")       \
+  V(KeyedLoadExternalUnsignedIntArray_symbol,                            \
+       "KeyedLoadExternalUnsignedIntArray")                              \
+  V(KeyedLoadExternalFloatArray_symbol, "KeyedLoadExternalFloatArray")   \
+  V(KeyedLoadExternalPixelArray_symbol, "KeyedLoadExternalPixelArray")   \
+  V(KeyedStoreExternalByteArray_symbol, "KeyedStoreExternalByteArray")   \
+  V(KeyedStoreExternalUnsignedByteArray_symbol,                          \
+        "KeyedStoreExternalUnsignedByteArray")                           \
+  V(KeyedStoreExternalShortArray_symbol, "KeyedStoreExternalShortArray") \
+  V(KeyedStoreExternalUnsignedShortArray_symbol,                         \
+        "KeyedStoreExternalUnsignedShortArray")                          \
+  V(KeyedStoreExternalIntArray_symbol, "KeyedStoreExternalIntArray")     \
+  V(KeyedStoreExternalUnsignedIntArray_symbol,                           \
+        "KeyedStoreExternalUnsignedIntArray")                            \
+  V(KeyedStoreExternalFloatArray_symbol, "KeyedStoreExternalFloatArray") \
+  V(KeyedStoreExternalPixelArray_symbol, "KeyedStoreExternalPixelArray")
 
 // Forward declarations.
 class GCTracer;
@@ -494,14 +500,6 @@ class Heap : public AllStatic {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT static MaybeObject* AllocateByteArray(int length);
 
-  // Allocate a pixel array of the specified length
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT static MaybeObject* AllocatePixelArray(int length,
-                                                    uint8_t* external_pointer,
-                                                    PretenureFlag pretenure);
-
   // Allocates an external array of the specified length and type.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -705,7 +703,8 @@ class Heap : public AllStatic {
   // Please note this function does not perform a garbage collection.
   MUST_USE_RESULT static MaybeObject* CreateCode(const CodeDesc& desc,
                                                  Code::Flags flags,
-                                                 Handle<Object> self_reference);
+                                                 Handle<Object> self_reference,
+                                                 bool immovable = false);
 
   MUST_USE_RESULT static MaybeObject* CopyCode(Code* code);
 
@@ -1159,6 +1158,14 @@ class Heap : public AllStatic {
   // Returns the size of objects residing in non new spaces.
   static intptr_t PromotedSpaceSize();
 
+  static void CallGlobalGCPrologueCallback() {
+    if (global_gc_prologue_callback_ != NULL) global_gc_prologue_callback_();
+  }
+
+  static void CallGlobalGCEpilogueCallback() {
+    if (global_gc_epilogue_callback_ != NULL) global_gc_epilogue_callback_();
+  }
+
  private:
   static int reserved_semispace_size_;
   static int max_semispace_size_;
@@ -1197,7 +1204,7 @@ class Heap : public AllStatic {
 
   static int mc_count_;  // how many mark-compact collections happened
   static int ms_count_;  // how many mark-sweep collections happened
-  static int gc_count_;  // how many gc happened
+  static unsigned int gc_count_;  // how many gc happened
 
   // Total length of the strings we failed to flatten since the last GC.
   static int unflattened_strings_length_;
@@ -1341,13 +1348,10 @@ class Heap : public AllStatic {
   static bool CreateInitialMaps();
   static bool CreateInitialObjects();
 
-  // These five Create*EntryStub functions are here and forced to not be inlined
+  // These two Create*EntryStub functions are here and forced to not be inlined
   // because of a gcc-4.4 bug that assigns wrong vtable entries.
-  NO_INLINE(static void CreateCEntryStub());
   NO_INLINE(static void CreateJSEntryStub());
   NO_INLINE(static void CreateJSConstructEntryStub());
-  NO_INLINE(static void CreateRegExpCEntryStub());
-  NO_INLINE(static void CreateDirectCEntryStub());
 
   static void CreateFixedStubs();
 
@@ -1899,7 +1903,7 @@ class GCTracer BASE_EMBEDDED {
   void set_collector(GarbageCollector collector) { collector_ = collector; }
 
   // Sets the GC count.
-  void set_gc_count(int count) { gc_count_ = count; }
+  void set_gc_count(unsigned int count) { gc_count_ = count; }
 
   // Sets the full GC count.
   void set_full_gc_count(int count) { full_gc_count_ = count; }
@@ -1942,7 +1946,7 @@ class GCTracer BASE_EMBEDDED {
 
   // A count (including this one, eg, the first collection is 1) of the
   // number of garbage collections.
-  int gc_count_;
+  unsigned int gc_count_;
 
   // A count (including this one) of the number of full garbage collections.
   int full_gc_count_;
@@ -2176,6 +2180,64 @@ class IntrusiveMarking {
   STATIC_ASSERT((kHeapObjectTag & kNotMarkedBit) != 0);
 };
 
+
+#if defined(DEBUG) || defined(LIVE_OBJECT_LIST)
+// Helper class for tracing paths to a search target Object from all roots.
+// The TracePathFrom() method can be used to trace paths from a specific
+// object to the search target object.
+class PathTracer : public ObjectVisitor {
+ public:
+  enum WhatToFind {
+    FIND_ALL,   // Will find all matches.
+    FIND_FIRST  // Will stop the search after first match.
+  };
+
+  // For the WhatToFind arg, if FIND_FIRST is specified, tracing will stop
+  // after the first match.  If FIND_ALL is specified, then tracing will be
+  // done for all matches.
+  PathTracer(Object* search_target,
+             WhatToFind what_to_find,
+             VisitMode visit_mode)
+      : search_target_(search_target),
+        found_target_(false),
+        found_target_in_trace_(false),
+        what_to_find_(what_to_find),
+        visit_mode_(visit_mode),
+        object_stack_(20),
+        no_alloc() {}
+
+  virtual void VisitPointers(Object** start, Object** end);
+
+  void Reset();
+  void TracePathFrom(Object** root);
+
+  bool found() const { return found_target_; }
+
+  static Object* const kAnyGlobalObject;
+
+ protected:
+  class MarkVisitor;
+  class UnmarkVisitor;
+
+  void MarkRecursively(Object** p, MarkVisitor* mark_visitor);
+  void UnmarkRecursively(Object** p, UnmarkVisitor* unmark_visitor);
+  virtual void ProcessResults();
+
+  // Tags 0, 1, and 3 are used. Use 2 for marking visited HeapObject.
+  static const int kMarkTag = 2;
+
+  Object* search_target_;
+  bool found_target_;
+  bool found_target_in_trace_;
+  WhatToFind what_to_find_;
+  VisitMode visit_mode_;
+  List<Object*> object_stack_;
+
+  AssertNoAllocation no_alloc;  // i.e. no gc allowed.
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PathTracer);
+};
+#endif  // DEBUG || LIVE_OBJECT_LIST
 
 } }  // namespace v8::internal
 

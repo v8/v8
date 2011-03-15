@@ -49,7 +49,7 @@ function Revive(holder, name, reviver) {
       }
     }
   }
-  return reviver.call(holder, name, val);
+  return %_CallFunction(holder, name, val, reviver);
 }
 
 function JSONParse(text, reviver) {
@@ -63,11 +63,11 @@ function JSONParse(text, reviver) {
 
 function SerializeArray(value, replacer, stack, indent, gap) {
   if (!%PushIfAbsent(stack, value)) {
-    throw MakeTypeError('circular_structure', []);
+    throw MakeTypeError('circular_structure', $Array());
   }
   var stepback = indent;
   indent += gap;
-  var partial = [];
+  var partial = new InternalArray();
   var len = value.length;
   for (var i = 0; i < len; i++) {
     var strP = JSONSerialize($String(i), value, replacer, stack,
@@ -93,11 +93,11 @@ function SerializeArray(value, replacer, stack, indent, gap) {
 
 function SerializeObject(value, replacer, stack, indent, gap) {
   if (!%PushIfAbsent(stack, value)) {
-    throw MakeTypeError('circular_structure', []);
+    throw MakeTypeError('circular_structure', $Array());
   }
   var stepback = indent;
   indent += gap;
-  var partial = [];
+  var partial = new InternalArray();
   if (IS_ARRAY(replacer)) {
     var length = replacer.length;
     for (var i = 0; i < length; i++) {
@@ -185,7 +185,7 @@ function BasicSerializeArray(value, stack, builder) {
     return;
   }
   if (!%PushIfAbsent(stack, value)) {
-    throw MakeTypeError('circular_structure', []);
+    throw MakeTypeError('circular_structure', $Array());
   }
   builder.push("[");
   var val = value[0];
@@ -238,7 +238,7 @@ function BasicSerializeArray(value, stack, builder) {
 
 function BasicSerializeObject(value, stack, builder) {
   if (!%PushIfAbsent(stack, value)) {
-    throw MakeTypeError('circular_structure', []);
+    throw MakeTypeError('circular_structure', $Array());
   }
   builder.push("{");
   var first = true;
@@ -301,8 +301,8 @@ function BasicJSONSerialize(key, value, stack, builder) {
 
 function JSONStringify(value, replacer, space) {
   if (%_ArgumentsLength() == 1) {
-    var builder = [];
-    BasicJSONSerialize('', value, [], builder);
+    var builder = new InternalArray();
+    BasicJSONSerialize('', value, new InternalArray(), builder);
     if (builder.length == 0) return;
     var result = %_FastAsciiArrayJoin(builder, "");
     if (!IS_UNDEFINED(result)) return result;
@@ -329,7 +329,7 @@ function JSONStringify(value, replacer, space) {
   } else {
     gap = "";
   }
-  return JSONSerialize('', {'': value}, replacer, [], "", gap);
+  return JSONSerialize('', {'': value}, replacer, new InternalArray(), "", gap);
 }
 
 function SetupJSON() {

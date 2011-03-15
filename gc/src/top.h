@@ -249,12 +249,7 @@ class Top {
     thread_local_.scheduled_exception_ = Heap::the_hole_value();
   }
 
-  static void setup_external_caught() {
-    thread_local_.external_caught_exception_ =
-        has_pending_exception() &&
-        (thread_local_.catcher_ != NULL) &&
-        (try_catch_handler() == thread_local_.catcher_);
-  }
+  static bool IsExternallyCaught();
 
   static void SetCaptureStackTraceForUncaughtExceptions(
       bool capture,
@@ -264,6 +259,11 @@ class Top {
   // Tells whether the current context has experienced an out of memory
   // exception.
   static bool is_out_of_memory();
+
+  static bool is_catchable_by_javascript(MaybeObject* exception) {
+    return (exception != Failure::OutOfMemoryException()) &&
+        (exception != Heap::termination_exception());
+  }
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {
@@ -397,7 +397,7 @@ class Top {
                       const char* message);
   // Checks if exception should be reported and finds out if it's
   // caught externally.
-  static bool ShouldReportException(bool* is_caught_externally,
+  static bool ShouldReportException(bool* can_be_caught_externally,
                                     bool catchable_by_javascript);
 
   // Attempts to compute the current source location, storing the

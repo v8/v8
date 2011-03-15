@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 // A lightweight X64 Assembler.
 
@@ -93,18 +93,18 @@ struct Register {
   //  rbp - frame pointer
   //  rsi - context register
   //  r10 - fixed scratch register
+  //  r12 - smi constant register
   //  r13 - root register
-  //  r15 - smi constant register
   static const int kNumRegisters = 16;
   static const int kNumAllocatableRegisters = 10;
 
   static int ToAllocationIndex(Register reg) {
-    return allocationIndexByRegisterCode[reg.code()];
+    return kAllocationIndexByRegisterCode[reg.code()];
   }
 
   static Register FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    Register result = { registerCodeByAllocationIndex[index] };
+    Register result = { kRegisterCodeByAllocationIndex[index] };
     return result;
   }
 
@@ -120,7 +120,7 @@ struct Register {
       "r9",
       "r11",
       "r14",
-      "r12"
+      "r15"
     };
     return names[index];
   }
@@ -155,8 +155,8 @@ struct Register {
   int code_;
 
  private:
-  static const int registerCodeByAllocationIndex[kNumAllocatableRegisters];
-  static const int allocationIndexByRegisterCode[kNumRegisters];
+  static const int kRegisterCodeByAllocationIndex[kNumAllocatableRegisters];
+  static const int kAllocationIndexByRegisterCode[kNumRegisters];
 };
 
 const Register rax = { 0 };
@@ -401,6 +401,13 @@ class Operand BASE_EMBEDDED {
   // Does not check the "reg" part of the Operand.
   bool AddressUsesRegister(Register reg) const;
 
+  // Queries related to the size of the generated instruction.
+  // Whether the generated instruction will have a REX prefix.
+  bool requires_rex() const { return rex_ != 0; }
+  // Size of the ModR/M, SIB and displacement parts of the generated
+  // instruction.
+  int operand_size() const { return len_; }
+
  private:
   byte rex_;
   byte buf_[6];
@@ -509,6 +516,9 @@ class Assembler : public Malloced {
   // upon destruction of the assembler.
   Assembler(void* buffer, int buffer_size);
   ~Assembler();
+
+  // Overrides the default provided by FLAG_debug_code.
+  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -655,7 +665,7 @@ class Assembler : public Malloced {
 
   // Move sign extended immediate to memory location.
   void movq(const Operand& dst, Immediate value);
-  // New x64 instructions to load a 64-bit immediate into a register.
+  // Instructions to load a 64-bit immediate into a register.
   // All 64-bit immediates must have a relocation mode.
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
   void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
@@ -680,7 +690,7 @@ class Assembler : public Malloced {
   void repmovsl();
   void repmovsq();
 
-  // New x64 instruction to load from an immediate 64-bit pointer into RAX.
+  // Instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(void* ptr, RelocInfo::Mode rmode);
   void load_rax(ExternalReference ext);
 
@@ -1290,6 +1300,8 @@ class Assembler : public Malloced {
   void mulsd(XMMRegister dst, XMMRegister src);
   void divsd(XMMRegister dst, XMMRegister src);
 
+  void andpd(XMMRegister dst, XMMRegister src);
+  void orpd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
@@ -1318,7 +1330,7 @@ class Assembler : public Malloced {
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
-  void RecordComment(const char* msg);
+  void RecordComment(const char* msg, bool force = false);
 
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
@@ -1346,6 +1358,9 @@ class Assembler : public Malloced {
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;
   static const int kMinimalBufferSize = 4*KB;
+
+ protected:
+  bool emit_debug_code() const { return emit_debug_code_; }
 
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }
@@ -1552,6 +1567,9 @@ class Assembler : public Malloced {
   byte* last_pc_;
 
   PositionsRecorder positions_recorder_;
+
+  bool emit_debug_code_;
+
   friend class PositionsRecorder;
 };
 

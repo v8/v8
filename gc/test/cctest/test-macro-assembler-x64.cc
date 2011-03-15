@@ -57,9 +57,9 @@ using v8::internal::rsp;
 using v8::internal::r8;
 using v8::internal::r9;
 using v8::internal::r11;
-using v8::internal::r12;
 using v8::internal::r13;
 using v8::internal::r14;
+using v8::internal::r15;
 using v8::internal::times_pointer_size;
 using v8::internal::FUNCTION_CAST;
 using v8::internal::CodeDesc;
@@ -220,7 +220,7 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
       __ j(less_equal, exit);
     }
   } else {
-    __ SmiCompare(rcx, rcx);
+    __ cmpq(rcx, rcx);
     __ movl(rax, Immediate(id + 11));
     __ j(not_equal, exit);
     __ incq(rax);
@@ -232,10 +232,11 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 
 // Test that we can compare smis for equality (and more).
 TEST(SmiCompare) {
+  v8::V8::Initialize();
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -300,35 +301,35 @@ TEST(Integer32ToSmi) {
   __ movl(rcx, Immediate(0));
   __ Integer32ToSmi(rcx, rcx);
   __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(0)));
-  __ SmiCompare(rcx, rdx);
+  __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(2));  // Test number.
   __ movl(rcx, Immediate(1024));
   __ Integer32ToSmi(rcx, rcx);
   __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(1024)));
-  __ SmiCompare(rcx, rdx);
+  __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(3));  // Test number.
   __ movl(rcx, Immediate(-1));
   __ Integer32ToSmi(rcx, rcx);
   __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(-1)));
-  __ SmiCompare(rcx, rdx);
+  __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(4));  // Test number.
   __ movl(rcx, Immediate(Smi::kMaxValue));
   __ Integer32ToSmi(rcx, rcx);
   __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(Smi::kMaxValue)));
-  __ SmiCompare(rcx, rdx);
+  __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(5));  // Test number.
   __ movl(rcx, Immediate(Smi::kMinValue));
   __ Integer32ToSmi(rcx, rcx);
   __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(Smi::kMinValue)));
-  __ SmiCompare(rcx, rdx);
+  __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   // Different target register.
@@ -337,35 +338,35 @@ TEST(Integer32ToSmi) {
   __ movl(rcx, Immediate(0));
   __ Integer32ToSmi(r8, rcx);
   __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(0)));
-  __ SmiCompare(r8, rdx);
+  __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(7));  // Test number.
   __ movl(rcx, Immediate(1024));
   __ Integer32ToSmi(r8, rcx);
   __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(1024)));
-  __ SmiCompare(r8, rdx);
+  __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(8));  // Test number.
   __ movl(rcx, Immediate(-1));
   __ Integer32ToSmi(r8, rcx);
   __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(-1)));
-  __ SmiCompare(r8, rdx);
+  __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(9));  // Test number.
   __ movl(rcx, Immediate(Smi::kMaxValue));
   __ Integer32ToSmi(r8, rcx);
   __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(Smi::kMaxValue)));
-  __ SmiCompare(r8, rdx);
+  __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(10));  // Test number.
   __ movl(rcx, Immediate(Smi::kMinValue));
   __ Integer32ToSmi(r8, rcx);
   __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(Smi::kMinValue)));
-  __ SmiCompare(r8, rdx);
+  __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
 
@@ -394,16 +395,16 @@ void TestI64PlusConstantToSmi(MacroAssembler* masm,
   __ movq(rcx, x, RelocInfo::NONE);
   __ movq(r11, rcx);
   __ Integer64PlusConstantToSmi(rdx, rcx, y);
-  __ SmiCompare(rdx, r8);
+  __ cmpq(rdx, r8);
   __ j(not_equal, exit);
 
   __ incq(rax);
-  __ SmiCompare(r11, rcx);
+  __ cmpq(r11, rcx);
   __ j(not_equal, exit);
 
   __ incq(rax);
   __ Integer64PlusConstantToSmi(rcx, rcx, y);
-  __ SmiCompare(rcx, r8);
+  __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 }
 
@@ -660,14 +661,14 @@ void TestSmiNeg(MacroAssembler* masm, Label* exit, int id, int x) {
     __ SmiNeg(r9, rcx, exit);
 
     __ incq(rax);
-    __ SmiCompare(r11, rcx);
+    __ cmpq(r11, rcx);
     __ j(not_equal, exit);
 
     __ incq(rax);
     __ SmiNeg(rcx, rcx, exit);
 
     __ incq(rax);
-    __ SmiCompare(r11, rcx);
+    __ cmpq(r11, rcx);
     __ j(not_equal, exit);
   } else {
     Label smi_ok, smi_ok2;
@@ -679,11 +680,11 @@ void TestSmiNeg(MacroAssembler* masm, Label* exit, int id, int x) {
     __ jmp(exit);
     __ bind(&smi_ok);
     __ incq(rax);
-    __ SmiCompare(r9, r8);
+    __ cmpq(r9, r8);
     __ j(not_equal, exit);
 
     __ incq(rax);
-    __ SmiCompare(r11, rcx);
+    __ cmpq(r11, rcx);
     __ j(not_equal, exit);
 
     __ incq(rax);
@@ -691,7 +692,7 @@ void TestSmiNeg(MacroAssembler* masm, Label* exit, int id, int x) {
     __ jmp(exit);
     __ bind(&smi_ok2);
     __ incq(rax);
-    __ SmiCompare(rcx, r8);
+    __ cmpq(rcx, r8);
     __ j(not_equal, exit);
   }
 }
@@ -751,12 +752,12 @@ static void SmiAddTest(MacroAssembler* masm,
 
   __ movl(rax, Immediate(id));  // Test number.
   __ SmiAdd(r9, rcx, rdx, exit);
-  __ SmiCompare(r9, r8);
+  __ cmpq(r9, r8);
   __ j(not_equal, exit);
 
   __ incq(rax);
   __ SmiAdd(rcx, rcx, rdx, exit);                              \
-  __ SmiCompare(rcx, r8);
+  __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 
   __ movl(rcx, Immediate(first));
@@ -764,11 +765,11 @@ static void SmiAddTest(MacroAssembler* masm,
 
   __ incq(rax);
   __ SmiAddConstant(r9, rcx, Smi::FromInt(second));
-  __ SmiCompare(r9, r8);
+  __ cmpq(r9, r8);
   __ j(not_equal, exit);
 
   __ SmiAddConstant(rcx, rcx, Smi::FromInt(second));
-  __ SmiCompare(rcx, r8);
+  __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 
   __ movl(rcx, Immediate(first));
@@ -776,12 +777,12 @@ static void SmiAddTest(MacroAssembler* masm,
 
   __ incq(rax);
   __ SmiAddConstant(r9, rcx, Smi::FromInt(second), exit);
-  __ SmiCompare(r9, r8);
+  __ cmpq(r9, r8);
   __ j(not_equal, exit);
 
   __ incq(rax);
   __ SmiAddConstant(rcx, rcx, Smi::FromInt(second), exit);
-  __ SmiCompare(rcx, r8);
+  __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 }
 
@@ -834,36 +835,36 @@ static void SmiSubTest(MacroAssembler* masm,
 
   __ movl(rax, Immediate(id));  // Test 0.
   __ SmiSub(r9, rcx, rdx, exit);
-  __ SmiCompare(r9, r8);
+  __ cmpq(r9, r8);
   __ j(not_equal, exit);
 
   __ incq(rax);  // Test 1.
   __ SmiSub(rcx, rcx, rdx, exit);
-  __ SmiCompare(rcx, r8);
+  __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 
   __ Move(rcx, Smi::FromInt(first));
 
   __ incq(rax);  // Test 2.
   __ SmiSubConstant(r9, rcx, Smi::FromInt(second));
-  __ SmiCompare(r9, r8);
+  __ cmpq(r9, r8);
   __ j(not_equal, exit);
 
   __ incq(rax);  // Test 3.
   __ SmiSubConstant(rcx, rcx, Smi::FromInt(second));
-  __ SmiCompare(rcx, r8);
+  __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 
   __ Move(rcx, Smi::FromInt(first));
 
   __ incq(rax);  // Test 4.
   __ SmiSubConstant(r9, rcx, Smi::FromInt(second), exit);
-  __ SmiCompare(r9, r8);
+  __ cmpq(r9, r8);
   __ j(not_equal, exit);
 
   __ incq(rax);  // Test 5.
   __ SmiSubConstant(rcx, rcx, Smi::FromInt(second), exit);
-  __ SmiCompare(rcx, r8);
+  __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 }
 
@@ -886,7 +887,7 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
-    __ SmiCompare(rcx, r11);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
   }
 
@@ -897,7 +898,7 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
-    __ SmiCompare(rcx, r11);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
   }
 
@@ -909,7 +910,7 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
-    __ SmiCompare(rcx, r11);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
   }
 
@@ -920,7 +921,7 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
-    __ SmiCompare(rcx, r11);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
   }
 
@@ -933,7 +934,7 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
-    __ SmiCompare(rcx, r11);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
   }
 
@@ -944,7 +945,7 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
-    __ SmiCompare(rcx, r11);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
   }
 
@@ -956,7 +957,7 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
-    __ SmiCompare(rcx, r11);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
   }
 
@@ -967,7 +968,7 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
-    __ SmiCompare(rcx, r11);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
   }
 }
@@ -1032,15 +1033,15 @@ void TestSmiMul(MacroAssembler* masm, Label* exit, int id, int x, int y) {
     __ Move(r8, Smi::FromIntptr(result));
     __ SmiMul(r9, rcx, rdx, exit);
     __ incq(rax);
-    __ SmiCompare(r11, rcx);
+    __ cmpq(r11, rcx);
     __ j(not_equal, exit);
     __ incq(rax);
-    __ SmiCompare(r9, r8);
+    __ cmpq(r9, r8);
     __ j(not_equal, exit);
 
     __ incq(rax);
     __ SmiMul(rcx, rcx, rdx, exit);
-    __ SmiCompare(rcx, r8);
+    __ cmpq(rcx, r8);
     __ j(not_equal, exit);
   } else {
     __ movl(rax, Immediate(id + 8));
@@ -1049,7 +1050,7 @@ void TestSmiMul(MacroAssembler* masm, Label* exit, int id, int x, int y) {
     __ jmp(exit);
     __ bind(&overflow_ok);
     __ incq(rax);
-    __ SmiCompare(r11, rcx);
+    __ cmpq(r11, rcx);
     __ j(not_equal, exit);
     __ incq(rax);
     __ SmiMul(rcx, rcx, rdx, &overflow_ok2);
@@ -1057,7 +1058,7 @@ void TestSmiMul(MacroAssembler* masm, Label* exit, int id, int x, int y) {
     __ bind(&overflow_ok2);
     // 31-bit version doesn't preserve rcx on failure.
     // __ incq(rax);
-    // __ SmiCompare(r11, rcx);
+    // __ cmpq(r11, rcx);
     // __ j(not_equal, exit);
   }
 }
@@ -1120,30 +1121,30 @@ void TestSmiDiv(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   if (!fraction && !overflow && !negative_zero && !division_by_zero) {
     // Division succeeds
     __ movq(rcx, r11);
-    __ movq(r12, Immediate(id));
+    __ movq(r15, Immediate(id));
     int result = x / y;
     __ Move(r8, Smi::FromInt(result));
     __ SmiDiv(r9, rcx, r14, exit);
     // Might have destroyed rcx and r14.
-    __ incq(r12);
-    __ SmiCompare(r9, r8);
+    __ incq(r15);
+    __ cmpq(r9, r8);
     __ j(not_equal, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ movq(rcx, r11);
     __ Move(r14, Smi::FromInt(y));
-    __ SmiCompare(rcx, r11);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiDiv(rcx, rcx, r14, exit);
 
-    __ incq(r12);
-    __ SmiCompare(rcx, r8);
+    __ incq(r15);
+    __ cmpq(rcx, r8);
     __ j(not_equal, exit);
   } else {
     // Division fails.
-    __ movq(r12, Immediate(id + 8));
+    __ movq(r15, Immediate(id + 8));
 
     Label fail_ok, fail_ok2;
     __ movq(rcx, r11);
@@ -1151,17 +1152,17 @@ void TestSmiDiv(MacroAssembler* masm, Label* exit, int id, int x, int y) {
     __ jmp(exit);
     __ bind(&fail_ok);
 
-    __ incq(r12);
-    __ SmiCompare(rcx, r11);
+    __ incq(r15);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiDiv(rcx, rcx, r14, &fail_ok2);
     __ jmp(exit);
     __ bind(&fail_ok2);
 
-    __ incq(r12);
-    __ SmiCompare(rcx, r11);
+    __ incq(r15);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
   }
 }
@@ -1184,7 +1185,7 @@ TEST(SmiDiv) {
   Label exit;
 
   __ push(r14);
-  __ push(r12);
+  __ push(r15);
   TestSmiDiv(masm, &exit, 0x10, 1, 1);
   TestSmiDiv(masm, &exit, 0x20, 1, 0);
   TestSmiDiv(masm, &exit, 0x30, -1, 0);
@@ -1206,10 +1207,10 @@ TEST(SmiDiv) {
   TestSmiDiv(masm, &exit, 0x130, Smi::kMinValue, Smi::kMinValue);
   TestSmiDiv(masm, &exit, 0x140, Smi::kMinValue, -1);
 
-  __ xor_(r12, r12);  // Success.
+  __ xor_(r15, r15);  // Success.
   __ bind(&exit);
-  __ movq(rax, r12);
-  __ pop(r12);
+  __ movq(rax, r15);
+  __ pop(r15);
   __ pop(r14);
   ExitCode(masm);
   __ ret(0);
@@ -1232,45 +1233,45 @@ void TestSmiMod(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   __ Move(r14, Smi::FromInt(y));
   if (!division_overflow && !negative_zero && !division_by_zero) {
     // Modulo succeeds
-    __ movq(r12, Immediate(id));
+    __ movq(r15, Immediate(id));
     int result = x % y;
     __ Move(r8, Smi::FromInt(result));
     __ SmiMod(r9, rcx, r14, exit);
 
-    __ incq(r12);
-    __ SmiCompare(r9, r8);
+    __ incq(r15);
+    __ cmpq(r9, r8);
     __ j(not_equal, exit);
 
-    __ incq(r12);
-    __ SmiCompare(rcx, r11);
+    __ incq(r15);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiMod(rcx, rcx, r14, exit);
 
-    __ incq(r12);
-    __ SmiCompare(rcx, r8);
+    __ incq(r15);
+    __ cmpq(rcx, r8);
     __ j(not_equal, exit);
   } else {
     // Modulo fails.
-    __ movq(r12, Immediate(id + 8));
+    __ movq(r15, Immediate(id + 8));
 
     Label fail_ok, fail_ok2;
     __ SmiMod(r9, rcx, r14, &fail_ok);
     __ jmp(exit);
     __ bind(&fail_ok);
 
-    __ incq(r12);
-    __ SmiCompare(rcx, r11);
+    __ incq(r15);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
 
-    __ incq(r12);
+    __ incq(r15);
     __ SmiMod(rcx, rcx, r14, &fail_ok2);
     __ jmp(exit);
     __ bind(&fail_ok2);
 
-    __ incq(r12);
-    __ SmiCompare(rcx, r11);
+    __ incq(r15);
+    __ cmpq(rcx, r11);
     __ j(not_equal, exit);
   }
 }
@@ -1293,7 +1294,7 @@ TEST(SmiMod) {
   Label exit;
 
   __ push(r14);
-  __ push(r12);
+  __ push(r15);
   TestSmiMod(masm, &exit, 0x10, 1, 1);
   TestSmiMod(masm, &exit, 0x20, 1, 0);
   TestSmiMod(masm, &exit, 0x30, -1, 0);
@@ -1315,10 +1316,10 @@ TEST(SmiMod) {
   TestSmiMod(masm, &exit, 0x130, Smi::kMinValue, Smi::kMinValue);
   TestSmiMod(masm, &exit, 0x140, Smi::kMinValue, -1);
 
-  __ xor_(r12, r12);  // Success.
+  __ xor_(r15, r15);  // Success.
   __ bind(&exit);
-  __ movq(rax, r12);
-  __ pop(r12);
+  __ movq(rax, r15);
+  __ pop(r15);
   __ pop(r14);
   ExitCode(masm);
   __ ret(0);
@@ -1340,7 +1341,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     ASSERT(index.reg.is(rcx) || index.reg.is(rdx));
     __ shl(index.reg, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(x) << i);
-    __ SmiCompare(index.reg, r8);
+    __ cmpq(index.reg, r8);
     __ j(not_equal, exit);
     __ incq(rax);
     __ Move(rcx, Smi::FromInt(x));
@@ -1348,7 +1349,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     ASSERT(index.reg.is(rcx));
     __ shl(rcx, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(x) << i);
-    __ SmiCompare(rcx, r8);
+    __ cmpq(rcx, r8);
     __ j(not_equal, exit);
     __ incq(rax);
 
@@ -1357,7 +1358,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     ASSERT(index.reg.is(rcx) || index.reg.is(rdx));
     __ shl(index.reg, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(-x) << i);
-    __ SmiCompare(index.reg, r8);
+    __ cmpq(index.reg, r8);
     __ j(not_equal, exit);
     __ incq(rax);
     __ Move(rcx, Smi::FromInt(x));
@@ -1365,7 +1366,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     ASSERT(index.reg.is(rcx));
     __ shl(rcx, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(-x) << i);
-    __ SmiCompare(rcx, r8);
+    __ cmpq(rcx, r8);
     __ j(not_equal, exit);
     __ incq(rax);
   }
@@ -1414,7 +1415,7 @@ void TestSelectNonSmi(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   __ SelectNonSmi(r9, rcx, rdx, exit);
 
   __ incq(rax);
-  __ SmiCompare(r9, rdx);
+  __ cmpq(r9, rdx);
   __ j(not_equal, exit);
 
   __ incq(rax);
@@ -1424,7 +1425,7 @@ void TestSelectNonSmi(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   __ SelectNonSmi(r9, rcx, rdx, exit);
 
   __ incq(rax);
-  __ SmiCompare(r9, rcx);
+  __ cmpq(r9, rcx);
   __ j(not_equal, exit);
 
   __ incq(rax);
@@ -1488,31 +1489,31 @@ void TestSmiAnd(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   __ Move(rdx, Smi::FromInt(y));
   __ Move(r8, Smi::FromInt(result));
   __ SmiAnd(r9, rcx, rdx);
-  __ SmiCompare(r8, r9);
+  __ cmpq(r8, r9);
   __ j(not_equal, exit);
 
   __ incq(rax);
-  __ SmiCompare(r11, rcx);
+  __ cmpq(r11, rcx);
   __ j(not_equal, exit);
 
   __ incq(rax);
   __ SmiAnd(rcx, rcx, rdx);
-  __ SmiCompare(r8, rcx);
+  __ cmpq(r8, rcx);
   __ j(not_equal, exit);
 
   __ movq(rcx, r11);
   __ incq(rax);
   __ SmiAndConstant(r9, rcx, Smi::FromInt(y));
-  __ SmiCompare(r8, r9);
+  __ cmpq(r8, r9);
   __ j(not_equal, exit);
 
   __ incq(rax);
-  __ SmiCompare(r11, rcx);
+  __ cmpq(r11, rcx);
   __ j(not_equal, exit);
 
   __ incq(rax);
   __ SmiAndConstant(rcx, rcx, Smi::FromInt(y));
-  __ SmiCompare(r8, rcx);
+  __ cmpq(r8, rcx);
   __ j(not_equal, exit);
 }
 
@@ -1568,31 +1569,31 @@ void TestSmiOr(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   __ Move(rdx, Smi::FromInt(y));
   __ Move(r8, Smi::FromInt(result));
   __ SmiOr(r9, rcx, rdx);
-  __ SmiCompare(r8, r9);
+  __ cmpq(r8, r9);
   __ j(not_equal, exit);
 
   __ incq(rax);
-  __ SmiCompare(r11, rcx);
+  __ cmpq(r11, rcx);
   __ j(not_equal, exit);
 
   __ incq(rax);
   __ SmiOr(rcx, rcx, rdx);
-  __ SmiCompare(r8, rcx);
+  __ cmpq(r8, rcx);
   __ j(not_equal, exit);
 
   __ movq(rcx, r11);
   __ incq(rax);
   __ SmiOrConstant(r9, rcx, Smi::FromInt(y));
-  __ SmiCompare(r8, r9);
+  __ cmpq(r8, r9);
   __ j(not_equal, exit);
 
   __ incq(rax);
-  __ SmiCompare(r11, rcx);
+  __ cmpq(r11, rcx);
   __ j(not_equal, exit);
 
   __ incq(rax);
   __ SmiOrConstant(rcx, rcx, Smi::FromInt(y));
-  __ SmiCompare(r8, rcx);
+  __ cmpq(r8, rcx);
   __ j(not_equal, exit);
 }
 
@@ -1650,31 +1651,31 @@ void TestSmiXor(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   __ Move(rdx, Smi::FromInt(y));
   __ Move(r8, Smi::FromInt(result));
   __ SmiXor(r9, rcx, rdx);
-  __ SmiCompare(r8, r9);
+  __ cmpq(r8, r9);
   __ j(not_equal, exit);
 
   __ incq(rax);
-  __ SmiCompare(r11, rcx);
+  __ cmpq(r11, rcx);
   __ j(not_equal, exit);
 
   __ incq(rax);
   __ SmiXor(rcx, rcx, rdx);
-  __ SmiCompare(r8, rcx);
+  __ cmpq(r8, rcx);
   __ j(not_equal, exit);
 
   __ movq(rcx, r11);
   __ incq(rax);
   __ SmiXorConstant(r9, rcx, Smi::FromInt(y));
-  __ SmiCompare(r8, r9);
+  __ cmpq(r8, r9);
   __ j(not_equal, exit);
 
   __ incq(rax);
-  __ SmiCompare(r11, rcx);
+  __ cmpq(r11, rcx);
   __ j(not_equal, exit);
 
   __ incq(rax);
   __ SmiXorConstant(rcx, rcx, Smi::FromInt(y));
-  __ SmiCompare(r8, rcx);
+  __ cmpq(r8, rcx);
   __ j(not_equal, exit);
 }
 
@@ -1731,16 +1732,16 @@ void TestSmiNot(MacroAssembler* masm, Label* exit, int id, int x) {
   __ movq(r11, rcx);
 
   __ SmiNot(r9, rcx);
-  __ SmiCompare(r9, r8);
+  __ cmpq(r9, r8);
   __ j(not_equal, exit);
 
   __ incq(rax);
-  __ SmiCompare(r11, rcx);
+  __ cmpq(r11, rcx);
   __ j(not_equal, exit);
 
   __ incq(rax);
   __ SmiNot(rcx, rcx);
-  __ SmiCompare(rcx, r8);
+  __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 }
 
@@ -1797,7 +1798,7 @@ void TestSmiShiftLeft(MacroAssembler* masm, Label* exit, int id, int x) {
     __ SmiShiftLeftConstant(r9, rcx, shift);
 
     __ incq(rax);
-    __ SmiCompare(r9, r8);
+    __ cmpq(r9, r8);
     __ j(not_equal, exit);
 
     __ incq(rax);
@@ -1805,7 +1806,7 @@ void TestSmiShiftLeft(MacroAssembler* masm, Label* exit, int id, int x) {
     __ SmiShiftLeftConstant(rcx, rcx, shift);
 
     __ incq(rax);
-    __ SmiCompare(rcx, r8);
+    __ cmpq(rcx, r8);
     __ j(not_equal, exit);
 
     __ incq(rax);
@@ -1814,7 +1815,7 @@ void TestSmiShiftLeft(MacroAssembler* masm, Label* exit, int id, int x) {
     __ SmiShiftLeft(r9, rdx, rcx);
 
     __ incq(rax);
-    __ SmiCompare(r9, r8);
+    __ cmpq(r9, r8);
     __ j(not_equal, exit);
 
     __ incq(rax);
@@ -1823,7 +1824,7 @@ void TestSmiShiftLeft(MacroAssembler* masm, Label* exit, int id, int x) {
     __ SmiShiftLeft(r9, rdx, r11);
 
     __ incq(rax);
-    __ SmiCompare(r9, r8);
+    __ cmpq(r9, r8);
     __ j(not_equal, exit);
 
     __ incq(rax);
@@ -1832,7 +1833,7 @@ void TestSmiShiftLeft(MacroAssembler* masm, Label* exit, int id, int x) {
     __ SmiShiftLeft(rdx, rdx, r11);
 
     __ incq(rax);
-    __ SmiCompare(rdx, r8);
+    __ cmpq(rdx, r8);
     __ j(not_equal, exit);
 
     __ incq(rax);
@@ -1893,7 +1894,7 @@ void TestSmiShiftLogicalRight(MacroAssembler* masm,
       __ SmiShiftLogicalRightConstant(r9, rcx, shift, exit);
 
       __ incq(rax);
-      __ SmiCompare(r9, r8);
+      __ cmpq(r9, r8);
       __ j(not_equal, exit);
 
       __ incq(rax);
@@ -1902,7 +1903,7 @@ void TestSmiShiftLogicalRight(MacroAssembler* masm,
       __ SmiShiftLogicalRight(r9, rdx, rcx, exit);
 
       __ incq(rax);
-      __ SmiCompare(r9, r8);
+      __ cmpq(r9, r8);
       __ j(not_equal, exit);
 
       __ incq(rax);
@@ -1911,7 +1912,7 @@ void TestSmiShiftLogicalRight(MacroAssembler* masm,
       __ SmiShiftLogicalRight(r9, rdx, r11, exit);
 
       __ incq(rax);
-      __ SmiCompare(r9, r8);
+      __ cmpq(r9, r8);
       __ j(not_equal, exit);
 
       __ incq(rax);
@@ -1925,7 +1926,7 @@ void TestSmiShiftLogicalRight(MacroAssembler* masm,
       __ bind(&fail_ok);
 
       __ incq(rax);
-      __ SmiCompare(rcx, r11);
+      __ cmpq(rcx, r11);
       __ j(not_equal, exit);
 
       __ incq(rax);
@@ -1936,7 +1937,7 @@ void TestSmiShiftLogicalRight(MacroAssembler* masm,
       __ bind(&fail_ok3);
 
       __ incq(rax);
-      __ SmiCompare(rcx, r11);
+      __ cmpq(rcx, r11);
       __ j(not_equal, exit);
 
       __ addq(rax, Immediate(3));
@@ -1997,7 +1998,7 @@ void TestSmiShiftArithmeticRight(MacroAssembler* masm,
     __ Move(rcx, Smi::FromInt(x));
     __ SmiShiftArithmeticRightConstant(rcx, rcx, shift);
 
-    __ SmiCompare(rcx, r8);
+    __ cmpq(rcx, r8);
     __ j(not_equal, exit);
 
     __ incq(rax);
@@ -2005,7 +2006,7 @@ void TestSmiShiftArithmeticRight(MacroAssembler* masm,
     __ Move(r11, Smi::FromInt(shift));
     __ SmiShiftArithmeticRight(rdx, rdx, r11);
 
-    __ SmiCompare(rdx, r8);
+    __ cmpq(rdx, r8);
     __ j(not_equal, exit);
 
     __ incq(rax);
@@ -2062,14 +2063,14 @@ void TestPositiveSmiPowerUp(MacroAssembler* masm, Label* exit, int id, int x) {
     __ Move(rcx, Smi::FromInt(x));
     __ movq(r11, rcx);
     __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rcx, power);
-    __ SmiCompare(rdx, r8);
+    __ cmpq(rdx, r8);
     __ j(not_equal, exit);
     __ incq(rax);
-    __ SmiCompare(r11, rcx);  // rcx unchanged.
+    __ cmpq(r11, rcx);  // rcx unchanged.
     __ j(not_equal, exit);
     __ incq(rax);
     __ PositiveSmiTimesPowerOfTwoToInteger64(rcx, rcx, power);
-    __ SmiCompare(rdx, r8);
+    __ cmpq(rdx, r8);
     __ j(not_equal, exit);
     __ incq(rax);
   }
@@ -2077,10 +2078,11 @@ void TestPositiveSmiPowerUp(MacroAssembler* masm, Label* exit, int id, int x) {
 
 
 TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
+  v8::V8::Initialize();
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer =
-      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 2,
+      static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize * 4,
                                       &actual_size,
                                       true));
   CHECK(buffer);
@@ -2150,7 +2152,7 @@ TEST(OperandOffset) {
   __ push(Immediate(0x108));
   __ push(Immediate(0x109));  // <-- rsp
   // rbp = rsp[9]
-  // r12 = rsp[3]
+  // r15 = rsp[3]
   // rbx = rsp[5]
   // r13 = rsp[7]
   __ lea(r14, Operand(rsp, 3 * kPointerSize));

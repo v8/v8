@@ -117,6 +117,7 @@ class HBasicBlock: public ZoneObject {
   void SetJoinId(int id);
 
   void Finish(HControlInstruction* last);
+  void FinishExit(HControlInstruction* instruction);
   void Goto(HBasicBlock* block, bool include_stack_check = false);
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
@@ -191,113 +192,13 @@ class HLoopInformation: public ZoneObject {
 };
 
 
-class HSubgraph: public ZoneObject {
- public:
-  explicit HSubgraph(HGraph* graph)
-      : graph_(graph),
-        entry_block_(NULL),
-        exit_block_(NULL),
-        break_continue_info_(4) {
-  }
-
-  HGraph* graph() const { return graph_; }
-  HEnvironment* environment() const {
-    ASSERT(HasExit());
-    return exit_block_->last_environment();
-  }
-
-  bool HasExit() const { return exit_block_ != NULL; }
-
-  void PreProcessOsrEntry(IterationStatement* statement);
-
-  void AppendOptional(HSubgraph* graph,
-                      bool on_true_branch,
-                      HValue* boolean_value);
-  void AppendJoin(HSubgraph* then_graph, HSubgraph* else_graph, AstNode* node);
-  void AppendWhile(HSubgraph* condition,
-                   HSubgraph* body,
-                   IterationStatement* statement,
-                   HSubgraph* continue_subgraph,
-                   HSubgraph* exit);
-  void AppendDoWhile(HSubgraph* body,
-                     IterationStatement* statement,
-                     HSubgraph* go_back,
-                     HSubgraph* exit);
-  void AppendEndless(HSubgraph* body, IterationStatement* statement);
-  void Append(HSubgraph* next, BreakableStatement* statement);
-  void ResolveContinue(IterationStatement* statement);
-  HBasicBlock* BundleBreak(BreakableStatement* statement);
-  HBasicBlock* BundleContinue(IterationStatement* statement);
-  HBasicBlock* BundleBreakContinue(BreakableStatement* statement,
-                                   bool is_continue,
-                                   int join_id);
-  HBasicBlock* JoinBlocks(HBasicBlock* a, HBasicBlock* b, int id);
-
-  void FinishExit(HControlInstruction* instruction);
-  void FinishBreakContinue(BreakableStatement* target, bool is_continue);
-  void Initialize(HBasicBlock* block) {
-    ASSERT(entry_block_ == NULL);
-    entry_block_ = block;
-    exit_block_ = block;
-  }
-  HBasicBlock* entry_block() const { return entry_block_; }
-  HBasicBlock* exit_block() const { return exit_block_; }
-  void set_exit_block(HBasicBlock* block) {
-    exit_block_ = block;
-  }
-
-  void ConnectExitTo(HBasicBlock* other, bool include_stack_check = false) {
-    if (HasExit()) {
-      exit_block()->Goto(other, include_stack_check);
-    }
-  }
-
-  void AddBreakContinueInfo(HSubgraph* other) {
-    break_continue_info_.AddAll(other->break_continue_info_);
-  }
-
- protected:
-  class BreakContinueInfo: public ZoneObject {
-   public:
-    BreakContinueInfo(BreakableStatement* target, HBasicBlock* block,
-                      bool is_continue)
-      : target_(target), block_(block), continue_(is_continue) {}
-    BreakableStatement* target() const { return target_; }
-    HBasicBlock* block() const { return block_; }
-    bool is_continue() const { return continue_; }
-    bool IsResolved() const { return block_ == NULL; }
-    void Resolve() { block_ = NULL; }
-
-   private:
-    BreakableStatement* target_;
-    HBasicBlock* block_;
-    bool continue_;
-  };
-
-  const ZoneList<BreakContinueInfo*>* break_continue_info() const {
-    return &break_continue_info_;
-  }
-
-  HGraph* graph_;  // The graph this is a subgraph of.
-  HBasicBlock* entry_block_;
-  HBasicBlock* exit_block_;
-
- private:
-  ZoneList<BreakContinueInfo*> break_continue_info_;
-};
-
-
-class HGraph: public HSubgraph {
+class HGraph: public ZoneObject {
  public:
   explicit HGraph(CompilationInfo* info);
 
-  CompilationInfo* info() const { return info_; }
-
-  bool AllowCodeMotion() const;
-
   const ZoneList<HBasicBlock*>* blocks() const { return &blocks_; }
   const ZoneList<HPhi*>* phi_list() const { return phi_list_; }
-  Handle<String> debug_name() const { return info_->function()->debug_name(); }
+  HBasicBlock* entry_block() const { return entry_block_; }
   HEnvironment* start_environment() const { return start_environment_; }
 
   void InitializeInferredTypes();
@@ -306,6 +207,7 @@ class HGraph: public HSubgraph {
   void ComputeMinusZeroChecks();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
+  void EliminateUnreachablePhis();
   void Canonicalize();
   void OrderBlocks();
   void AssignDominators();
@@ -314,7 +216,7 @@ class HGraph: public HSubgraph {
   // which are not supported by the optimizing compiler.
   bool CollectPhis();
 
-  Handle<Code> Compile();
+  Handle<Code> Compile(CompilationInfo* info);
 
   void set_undefined_constant(HConstant* constant) {
     undefined_constant_.set(constant);
@@ -334,9 +236,6 @@ class HGraph: public HSubgraph {
   void SetArgumentsObject(HArgumentsObject* object) {
     arguments_object_.set(object);
   }
-
-  // True iff. we are compiling for OSR and the statement is the entry.
-  bool HasOsrEntryAt(IterationStatement* statement);
 
   int GetMaximumValueID() const { return values_.length(); }
   int GetNextBlockID() { return next_block_id_++; }
@@ -369,15 +268,16 @@ class HGraph: public HSubgraph {
   void PropagateMinusZeroChecks(HValue* value, BitVector* visited);
   void InsertRepresentationChangeForUse(HValue* value,
                                         HValue* use,
-                                        Representation to,
-                                        bool truncating);
-  void InsertRepresentationChanges(HValue* current);
+                                        Representation to);
+  void InsertRepresentationChangesForValue(HValue* current,
+                                           ZoneList<HValue*>* value_list,
+                                           ZoneList<Representation>* rep_list);
   void InferTypes(ZoneList<HValue*>* worklist);
   void InitializeInferredTypes(int from_inclusive, int to_inclusive);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
 
   int next_block_id_;
-  CompilationInfo* info_;
+  HBasicBlock* entry_block_;
   HEnvironment* start_environment_;
   ZoneList<HBasicBlock*> blocks_;
   ZoneList<HValue*> values_;
@@ -388,8 +288,6 @@ class HGraph: public HSubgraph {
   SetOncePointer<HConstant> constant_true_;
   SetOncePointer<HConstant> constant_false_;
   SetOncePointer<HArgumentsObject> arguments_object_;
-
-  friend class HSubgraph;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
@@ -481,7 +379,7 @@ class HEnvironment: public ZoneObject {
   void ClearHistory() {
     pop_count_ = 0;
     push_count_ = 0;
-    assigned_variables_.Clear();
+    assigned_variables_.Rewind(0);
   }
 
   void SetValueAt(int index, HValue* value) {
@@ -528,6 +426,8 @@ class HEnvironment: public ZoneObject {
 
 class HGraphBuilder;
 
+// This class is not BASE_EMBEDDED because our inlining implementation uses
+// new and delete.
 class AstContext {
  public:
   bool IsEffect() const { return kind_ == Expression::kEffect; }
@@ -619,26 +519,122 @@ class TestContext: public AstContext {
 };
 
 
+class FunctionState BASE_EMBEDDED {
+ public:
+  FunctionState(HGraphBuilder* owner,
+                CompilationInfo* info,
+                TypeFeedbackOracle* oracle);
+  ~FunctionState();
+
+  CompilationInfo* compilation_info() { return compilation_info_; }
+  TypeFeedbackOracle* oracle() { return oracle_; }
+  AstContext* call_context() { return call_context_; }
+  HBasicBlock* function_return() { return function_return_; }
+  TestContext* test_context() { return test_context_; }
+  void ClearInlinedTestContext() {
+    delete test_context_;
+    test_context_ = NULL;
+  }
+
+ private:
+  HGraphBuilder* owner_;
+
+  CompilationInfo* compilation_info_;
+  TypeFeedbackOracle* oracle_;
+
+  // During function inlining, expression context of the call being
+  // inlined. NULL when not inlining.
+  AstContext* call_context_;
+
+  // When inlining in an effect of value context, this is the return block.
+  // It is NULL otherwise.  When inlining in a test context, there are a
+  // pair of return blocks in the context.  When not inlining, there is no
+  // local return point.
+  HBasicBlock* function_return_;
+
+  // When inlining a call in a test context, a context containing a pair of
+  // return blocks.  NULL in all other cases.
+  TestContext* test_context_;
+
+  FunctionState* outer_;
+};
+
+
 class HGraphBuilder: public AstVisitor {
  public:
-  explicit HGraphBuilder(TypeFeedbackOracle* oracle)
-      : oracle_(oracle),
-        graph_(NULL),
-        current_subgraph_(NULL),
-        peeled_statement_(NULL),
-        ast_context_(NULL),
-        call_context_(NULL),
-        function_return_(NULL),
-        inlined_count_(0) { }
+  enum BreakType { BREAK, CONTINUE };
 
-  HGraph* CreateGraph(CompilationInfo* info);
+  // A class encapsulating (lazily-allocated) break and continue blocks for
+  // a breakable statement.  Separated from BreakAndContinueScope so that it
+  // can have a separate lifetime.
+  class BreakAndContinueInfo BASE_EMBEDDED {
+   public:
+    explicit BreakAndContinueInfo(BreakableStatement* target)
+      : target_(target), break_block_(NULL), continue_block_(NULL) {
+    }
+
+    BreakableStatement* target() { return target_; }
+    HBasicBlock* break_block() { return break_block_; }
+    void set_break_block(HBasicBlock* block) { break_block_ = block; }
+    HBasicBlock* continue_block() { return continue_block_; }
+    void set_continue_block(HBasicBlock* block) { continue_block_ = block; }
+
+   private:
+    BreakableStatement* target_;
+    HBasicBlock* break_block_;
+    HBasicBlock* continue_block_;
+  };
+
+  // A helper class to maintain a stack of current BreakAndContinueInfo
+  // structures mirroring BreakableStatement nesting.
+  class BreakAndContinueScope BASE_EMBEDDED {
+   public:
+    BreakAndContinueScope(BreakAndContinueInfo* info, HGraphBuilder* owner)
+        : info_(info), owner_(owner), next_(owner->break_scope()) {
+      owner->set_break_scope(this);
+    }
+
+    ~BreakAndContinueScope() { owner_->set_break_scope(next_); }
+
+    BreakAndContinueInfo* info() { return info_; }
+    HGraphBuilder* owner() { return owner_; }
+    BreakAndContinueScope* next() { return next_; }
+
+    // Search the break stack for a break or continue target.
+    HBasicBlock* Get(BreakableStatement* stmt, BreakType type);
+
+   private:
+    BreakAndContinueInfo* info_;
+    HGraphBuilder* owner_;
+    BreakAndContinueScope* next_;
+  };
+
+  HGraphBuilder(CompilationInfo* info, TypeFeedbackOracle* oracle)
+      : function_state_(NULL),
+        initial_function_state_(this, info, oracle),
+        ast_context_(NULL),
+        break_scope_(NULL),
+        graph_(NULL),
+        current_block_(NULL),
+        inlined_count_(0) {
+    // This is not initialized in the initializer list because the
+    // constructor for the initial state relies on function_state_ == NULL
+    // to know it's the initial state.
+    function_state_= &initial_function_state_;
+  }
+
+  HGraph* CreateGraph();
 
   // Simple accessors.
   HGraph* graph() const { return graph_; }
-  HSubgraph* subgraph() const { return current_subgraph_; }
+  BreakAndContinueScope* break_scope() const { return break_scope_; }
+  void set_break_scope(BreakAndContinueScope* head) { break_scope_ = head; }
 
-  HEnvironment* environment() const { return subgraph()->environment(); }
-  HBasicBlock* CurrentBlock() const { return subgraph()->exit_block(); }
+  HBasicBlock* current_block() const { return current_block_; }
+  void set_current_block(HBasicBlock* block) { current_block_ = block; }
+  HEnvironment* environment() const {
+    return current_block()->last_environment();
+  }
 
   // Adding instructions.
   HInstruction* AddInstruction(HInstruction* instr);
@@ -650,8 +646,7 @@ class HGraphBuilder: public AstVisitor {
 
  private:
   // Type of a member function that generates inline code for a native function.
-  typedef void (HGraphBuilder::*InlineFunctionGenerator)(int argument_count,
-                                                         int ast_id);
+  typedef void (HGraphBuilder::*InlineFunctionGenerator)(CallRuntime* call);
 
   // Forward declarations for inner scope classes.
   class SubgraphScope;
@@ -667,15 +662,34 @@ class HGraphBuilder: public AstVisitor {
   static const int kMaxSourceSize = 600;
 
   // Simple accessors.
-  TypeFeedbackOracle* oracle() const { return oracle_; }
+  FunctionState* function_state() const { return function_state_; }
+  void set_function_state(FunctionState* state) { function_state_ = state; }
+
   AstContext* ast_context() const { return ast_context_; }
   void set_ast_context(AstContext* context) { ast_context_ = context; }
-  AstContext* call_context() const { return call_context_; }
-  HBasicBlock* function_return() const { return function_return_; }
+
+  // Accessors forwarded to the function state.
+  CompilationInfo* info() const {
+    return function_state()->compilation_info();
+  }
+  TypeFeedbackOracle* oracle() const { return function_state()->oracle(); }
+
+  AstContext* call_context() const {
+    return function_state()->call_context();
+  }
+  HBasicBlock* function_return() const {
+    return function_state()->function_return();
+  }
+  TestContext* inlined_test_context() const {
+    return function_state()->test_context();
+  }
+  void ClearInlinedTestContext() {
+    function_state()->ClearInlinedTestContext();
+  }
 
   // Generators for inline runtime functions.
 #define INLINE_FUNCTION_GENERATOR_DECLARATION(Name, argc, ressize)      \
-  void Generate##Name(int argument_count, int ast_id);
+  void Generate##Name(CallRuntime* call);
 
   INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
   INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
@@ -683,14 +697,30 @@ class HGraphBuilder: public AstVisitor {
 
   void Bailout(const char* reason);
 
-  void AppendPeeledWhile(IterationStatement* stmt,
-                         HSubgraph* cond_graph,
-                         HSubgraph* body_graph,
-                         HSubgraph* exit_graph);
+  void PreProcessOsrEntry(IterationStatement* statement);
+  // True iff. we are compiling for OSR and the statement is the entry.
+  bool HasOsrEntryAt(IterationStatement* statement);
 
-  void AddToSubgraph(HSubgraph* graph, ZoneList<Statement*>* stmts);
-  void AddToSubgraph(HSubgraph* graph, Statement* stmt);
-  void AddToSubgraph(HSubgraph* graph, Expression* expr);
+  HBasicBlock* CreateJoin(HBasicBlock* first,
+                          HBasicBlock* second,
+                          int join_id);
+
+  // Create a back edge in the flow graph.  body_exit is the predecessor
+  // block and loop_entry is the successor block.  loop_successor is the
+  // block where control flow exits the loop normally (e.g., via failure of
+  // the condition) and break_block is the block where control flow breaks
+  // from the loop.  All blocks except loop_entry can be NULL.  The return
+  // value is the new successor block which is the join of loop_successor
+  // and break_block, or NULL.
+  HBasicBlock* CreateLoop(IterationStatement* statement,
+                          HBasicBlock* loop_entry,
+                          HBasicBlock* body_exit,
+                          HBasicBlock* loop_successor,
+                          HBasicBlock* break_block);
+
+  HBasicBlock* JoinContinue(IterationStatement* statement,
+                            HBasicBlock* exit_block,
+                            HBasicBlock* continue_block);
 
   HValue* Top() const { return environment()->Top(); }
   void Drop(int n) { environment()->Drop(n); }
@@ -702,9 +732,13 @@ class HGraphBuilder: public AstVisitor {
                        HBasicBlock* true_block,
                        HBasicBlock* false_block);
 
-  // Visit an argument subexpression.
+  // Visit an argument subexpression and emit a push to the outgoing
+  // arguments.
   void VisitArgument(Expression* expr);
   void VisitArgumentList(ZoneList<Expression*>* arguments);
+
+  // Visit a list of expressions from left to right, each in a value context.
+  void VisitExpressions(ZoneList<Expression*>* exprs);
 
   void AddPhi(HPhi* phi);
 
@@ -712,7 +746,7 @@ class HGraphBuilder: public AstVisitor {
 
   // Remove the arguments from the bailout environment and emit instructions
   // to push them as outgoing parameters.
-  void PreProcessCall(HCall* call);
+  template <int V> HInstruction* PreProcessCall(HCall<V>* call);
 
   void AssumeRepresentation(HValue* value, Representation r);
   static Representation ToRepresentation(TypeInfo info);
@@ -724,16 +758,8 @@ class HGraphBuilder: public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  bool ShouldPeel(HSubgraph* cond, HSubgraph* body);
-
   HBasicBlock* CreateBasicBlock(HEnvironment* env);
-  HSubgraph* CreateEmptySubgraph();
-  HSubgraph* CreateGotoSubgraph(HEnvironment* env);
-  HSubgraph* CreateBranchSubgraph(HEnvironment* env);
-  HSubgraph* CreateLoopHeaderSubgraph(HEnvironment* env);
-  HSubgraph* CreateInlinedSubgraph(HEnvironment* outer,
-                                   Handle<JSFunction> target,
-                                   FunctionLiteral* function);
+  HBasicBlock* CreateLoopHeaderBlock();
 
   // Helpers for flow graph construction.
   void LookupGlobalPropertyCell(Variable* var,
@@ -747,7 +773,11 @@ class HGraphBuilder: public AstVisitor {
                                 HValue* receiver,
                                 Handle<Map> receiver_map,
                                 CheckType check_type);
-  void TraceInline(Handle<JSFunction> target, bool result);
+
+  // If --trace-inlining, print a line of the inlining trace.  Inlining
+  // succeeded if the reason string is NULL and failed if there is a
+  // non-NULL reason string.
+  void TraceInline(Handle<JSFunction> target, const char* failure_reason);
 
   void HandleGlobalVariableAssignment(Variable* var,
                                       HValue* value,
@@ -816,9 +846,10 @@ class HGraphBuilder: public AstVisitor {
                                            HValue* val,
                                            Expression* expr);
 
-  HCompare* BuildSwitchCompare(HSubgraph* subgraph,
-                               HValue* switch_value,
-                               CaseClause* clause);
+  HInstruction* BuildStoreKeyedPixelArrayElement(HValue* object,
+                                                 HValue* key,
+                                                 HValue* val,
+                                                 Expression* expr);
 
   HValue* BuildContextChainWalk(Variable* var);
 
@@ -828,31 +859,25 @@ class HGraphBuilder: public AstVisitor {
                                 bool smi_and_map_check);
 
 
-  HBasicBlock* BuildTypeSwitch(HValue* receiver,
-                               ZoneMapList* maps,
-                               ZoneList<HSubgraph*>* body_graphs,
-                               HSubgraph* default_graph,
-                               int join_id);
+  // The translation state of the currently-being-translated function.
+  FunctionState* function_state_;
 
-  TypeFeedbackOracle* oracle_;
-  HGraph* graph_;
-  HSubgraph* current_subgraph_;
-  IterationStatement* peeled_statement_;
+  // The base of the function state stack.
+  FunctionState initial_function_state_;
+
   // Expression context of the currently visited subexpression. NULL when
   // visiting statements.
   AstContext* ast_context_;
 
-  // During function inlining, expression context of the call being
-  // inlined. NULL when not inlining.
-  AstContext* call_context_;
+  // A stack of breakable statements entered.
+  BreakAndContinueScope* break_scope_;
 
-  // When inlining a call in an effect or value context, the return
-  // block. NULL otherwise. When inlining a call in a test context, there
-  // are a pair of target blocks in the call context.
-  HBasicBlock* function_return_;
+  HGraph* graph_;
+  HBasicBlock* current_block_;
 
   int inlined_count_;
 
+  friend class FunctionState;  // Pushes and pops the state stack.
   friend class AstContext;  // Pushes and pops the AST context stack.
 
   DISALLOW_COPY_AND_ASSIGN(HGraphBuilder);
@@ -914,6 +939,7 @@ class HValueMap: public ZoneObject {
 
 class HStatistics: public Malloced {
  public:
+  void Initialize(CompilationInfo* info);
   void Print();
   void SaveTiming(const char* name, int64_t ticks, unsigned size);
   static HStatistics* Instance() {
@@ -932,7 +958,8 @@ class HStatistics: public Malloced {
         sizes_(5),
         total_(0),
         total_size_(0),
-        full_code_gen_(0) { }
+        full_code_gen_(0),
+        source_size_(0) { }
 
   List<int64_t> timing_;
   List<const char*> names_;
@@ -940,6 +967,7 @@ class HStatistics: public Malloced {
   int64_t total_;
   unsigned total_size_;
   int64_t full_code_gen_;
+  double source_size_;
 };
 
 

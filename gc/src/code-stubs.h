@@ -40,7 +40,6 @@ namespace internal {
   V(GenericBinaryOp)                     \
   V(TypeRecordingBinaryOp)               \
   V(StringAdd)                           \
-  V(StringCharAt)                        \
   V(SubString)                           \
   V(StringCompare)                       \
   V(SmiOp)                               \
@@ -169,7 +168,11 @@ class CodeStub BASE_EMBEDDED {
   // Returns a name for logging/debugging purposes.
   virtual const char* GetName() { return MajorName(MajorKey(), false); }
 
-#ifdef DEBUG
+  // Returns whether the code generated for this stub needs to be allocated as
+  // a fixed (non-moveable) code object.
+  virtual bool NeedsImmovableCode() { return false; }
+
+  #ifdef DEBUG
   virtual void Print() { PrintF("%s\n", GetName()); }
 #endif
 
@@ -436,18 +439,6 @@ class MathPowStub: public CodeStub {
 };
 
 
-class StringCharAtStub: public CodeStub {
- public:
-  StringCharAtStub() {}
-
- private:
-  Major MajorKey() { return StringCharAt; }
-  int MinorKey() { return 0; }
-
-  void Generate(MacroAssembler* masm);
-};
-
-
 class ICCompareStub: public CodeStub {
  public:
   ICCompareStub(Token::Value op, CompareIC::State state)
@@ -624,6 +615,8 @@ class CEntryStub : public CodeStub {
 
   Major MajorKey() { return CEntry; }
   int MinorKey();
+
+  bool NeedsImmovableCode();
 
   const char* GetName() { return "CEntryStub"; }
 };

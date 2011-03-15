@@ -286,7 +286,6 @@ class LiveRange: public ZoneObject {
   LiveRange* TopLevel() { return (parent_ == NULL) ? this : parent_; }
   LiveRange* next() const { return next_; }
   bool IsChild() const { return parent() != NULL; }
-  bool IsParent() const { return parent() == NULL; }
   int id() const { return id_; }
   bool IsFixed() const { return id_ < 0; }
   bool IsEmpty() const { return first_interval() == NULL; }
@@ -360,7 +359,6 @@ class LiveRange: public ZoneObject {
   void EnsureInterval(LifetimePosition start, LifetimePosition end);
   void AddUseInterval(LifetimePosition start, LifetimePosition end);
   UsePosition* AddUsePosition(LifetimePosition pos, LOperand* operand);
-  UsePosition* AddUsePosition(LifetimePosition pos);
 
   // Shorten the most recently added interval by setting a new start.
   void ShortenTo(LifetimePosition start);
@@ -430,22 +428,7 @@ class GrowableBitVector BASE_EMBEDDED {
 
 class LAllocator BASE_EMBEDDED {
  public:
-  explicit LAllocator(int first_virtual_register, HGraph* graph)
-      : chunk_(NULL),
-        live_in_sets_(0),
-        live_ranges_(16),
-        fixed_live_ranges_(8),
-        fixed_double_live_ranges_(8),
-        unhandled_live_ranges_(8),
-        active_live_ranges_(8),
-        inactive_live_ranges_(8),
-        reusable_slots_(8),
-        next_virtual_register_(first_virtual_register),
-        first_artificial_register_(first_virtual_register),
-        mode_(NONE),
-        num_registers_(-1),
-        graph_(graph),
-        has_osr_entry_(false) {}
+  LAllocator(int first_virtual_register, HGraph* graph);
 
   static void Setup();
   static void TraceAlloc(const char* msg, ...);
@@ -470,10 +453,10 @@ class LAllocator BASE_EMBEDDED {
   void Allocate(LChunk* chunk);
 
   const ZoneList<LiveRange*>* live_ranges() const { return &live_ranges_; }
-  const ZoneList<LiveRange*>* fixed_live_ranges() const {
+  const Vector<LiveRange*>* fixed_live_ranges() const {
     return &fixed_live_ranges_;
   }
-  const ZoneList<LiveRange*>* fixed_double_live_ranges() const {
+  const Vector<LiveRange*>* fixed_double_live_ranges() const {
     return &fixed_double_live_ranges_;
   }
 
@@ -618,8 +601,10 @@ class LAllocator BASE_EMBEDDED {
   ZoneList<LiveRange*> live_ranges_;
 
   // Lists of live ranges
-  ZoneList<LiveRange*> fixed_live_ranges_;
-  ZoneList<LiveRange*> fixed_double_live_ranges_;
+  EmbeddedVector<LiveRange*, Register::kNumAllocatableRegisters>
+      fixed_live_ranges_;
+  EmbeddedVector<LiveRange*, DoubleRegister::kNumAllocatableRegisters>
+      fixed_double_live_ranges_;
   ZoneList<LiveRange*> unhandled_live_ranges_;
   ZoneList<LiveRange*> active_live_ranges_;
   ZoneList<LiveRange*> inactive_live_ranges_;

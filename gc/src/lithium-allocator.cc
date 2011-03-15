@@ -478,11 +478,6 @@ void LiveRange::ConvertOperands() {
 }
 
 
-UsePosition* LiveRange::AddUsePosition(LifetimePosition pos) {
-  return AddUsePosition(pos, CreateAssignedOperand());
-}
-
-
 bool LiveRange::CanCover(LifetimePosition position) const {
   if (IsEmpty()) return false;
   return Start().Value() <= position.Value() &&
@@ -528,6 +523,24 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
   }
   return LifetimePosition::Invalid();
 }
+
+
+LAllocator::LAllocator(int num_values, HGraph* graph)
+    : chunk_(NULL),
+      live_in_sets_(graph->blocks()->length()),
+      live_ranges_(num_values * 2),
+      fixed_live_ranges_(NULL),
+      fixed_double_live_ranges_(NULL),
+      unhandled_live_ranges_(num_values * 2),
+      active_live_ranges_(8),
+      inactive_live_ranges_(8),
+      reusable_slots_(8),
+      next_virtual_register_(num_values),
+      first_artificial_register_(num_values),
+      mode_(NONE),
+      num_registers_(-1),
+      graph_(graph),
+      has_osr_entry_(false) {}
 
 
 void LAllocator::InitializeLivenessAnalysis() {
@@ -623,11 +636,7 @@ LOperand* LAllocator::AllocateFixed(LUnallocated* operand,
 
 
 LiveRange* LAllocator::FixedLiveRangeFor(int index) {
-  if (index >= fixed_live_ranges_.length()) {
-    fixed_live_ranges_.AddBlock(NULL,
-                                index - fixed_live_ranges_.length() + 1);
-  }
-
+  ASSERT(index < Register::kNumAllocatableRegisters);
   LiveRange* result = fixed_live_ranges_[index];
   if (result == NULL) {
     result = new LiveRange(FixedLiveRangeID(index));
@@ -640,11 +649,7 @@ LiveRange* LAllocator::FixedLiveRangeFor(int index) {
 
 
 LiveRange* LAllocator::FixedDoubleLiveRangeFor(int index) {
-  if (index >= fixed_double_live_ranges_.length()) {
-    fixed_double_live_ranges_.AddBlock(NULL,
-                                index - fixed_double_live_ranges_.length() + 1);
-  }
-
+  ASSERT(index < DoubleRegister::kNumAllocatableRegisters);
   LiveRange* result = fixed_double_live_ranges_[index];
   if (result == NULL) {
     result = new LiveRange(FixedDoubleLiveRangeID(index));
@@ -654,6 +659,7 @@ LiveRange* LAllocator::FixedDoubleLiveRangeFor(int index) {
   }
   return result;
 }
+
 
 LiveRange* LAllocator::LiveRangeFor(int index) {
   if (index >= live_ranges_.length()) {
@@ -1099,6 +1105,14 @@ void LAllocator::ResolveControlFlow(LiveRange* range,
         ASSERT(pred->end()->SecondSuccessor() == NULL);
         gap = GetLastGap(pred);
 
+        // We are going to insert a move before the branch instruction.
+        // Some branch instructions (e.g. loops' back edges)
+        // can potentially cause a GC so they have a pointer map.
+        // By insterting a move we essentially create a copy of a
+        // value which is invisible to PopulatePointerMaps(), because we store
+        // it into a location different from the operand of a live range
+        // covering a branch instruction.
+        // Thus we need to manually record a pointer.
         if (HasTaggedValue(range->id())) {
           LInstruction* branch = InstructionAt(pred->last_instruction_index());
           if (branch->HasPointerMap()) {
@@ -1271,7 +1285,7 @@ void LAllocator::BuildLiveRanges() {
         found = true;
         int operand_index = iterator.Current();
         PrintF("Function: %s\n",
-               *graph_->info()->function()->debug_name()->ToCString());
+               *chunk_->info()->function()->debug_name()->ToCString());
         PrintF("Value %d used before first definition!\n", operand_index);
         LiveRange* range = LiveRangeFor(operand_index);
         PrintF("First use is at %d\n", range->first_pos()->pos().Value());
@@ -1433,7 +1447,7 @@ void LAllocator::AllocateDoubleRegisters() {
 
 void LAllocator::AllocateRegisters() {
   ASSERT(mode_ != NONE);
-  reusable_slots_.Clear();
+  ASSERT(unhandled_live_ranges_.is_empty());
 
   for (int i = 0; i < live_ranges_.length(); ++i) {
     if (live_ranges_[i] != NULL) {
@@ -1445,6 +1459,7 @@ void LAllocator::AllocateRegisters() {
   SortUnhandled();
   ASSERT(UnhandledIsSorted());
 
+  ASSERT(reusable_slots_.is_empty());
   ASSERT(active_live_ranges_.is_empty());
   ASSERT(inactive_live_ranges_.is_empty());
 
@@ -1529,8 +1544,9 @@ void LAllocator::AllocateRegisters() {
     }
   }
 
-  active_live_ranges_.Clear();
-  inactive_live_ranges_.Clear();
+  reusable_slots_.Rewind(0);
+  active_live_ranges_.Rewind(0);
+  inactive_live_ranges_.Rewind(0);
 }
 
 

@@ -467,44 +467,17 @@ MaybeObject* StubCache::ComputeKeyedLoadSpecialized(JSObject* receiver) {
 }
 
 
-MaybeObject* StubCache::ComputeKeyedLoadPixelArray(JSObject* receiver) {
-  // Using NORMAL as the PropertyType for array element loads is a misuse. The
-  // generated stub always accesses fast elements, not slow-mode fields, but
-  // some property type is required for the stub lookup. Note that overloading
-  // the NORMAL PropertyType is only safe as long as no stubs are generated for
-  // other keyed field loads. This is guaranteed to be the case since all field
-  // keyed loads that are not array elements go through a generic builtin stub.
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, NORMAL);
-  String* name = Heap::KeyedLoadPixelArray_symbol();
-  Object* code = receiver->map()->FindInCodeCache(name, flags);
-  if (code->IsUndefined()) {
-    KeyedLoadStubCompiler compiler;
-    { MaybeObject* maybe_code = compiler.CompileLoadPixelArray(receiver);
-      if (!maybe_code->ToObject(&code)) return maybe_code;
-    }
-    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), 0));
-    Object* result;
-    { MaybeObject* maybe_result =
-          receiver->UpdateMapCodeCache(name, Code::cast(code));
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-  }
-  return code;
-}
-
-
 MaybeObject* StubCache::ComputeStoreField(String* name,
                                           JSObject* receiver,
                                           int field_index,
                                           Map* transition,
-                                          Code::ExtraICState extra_ic_state) {
+                                          StrictModeFlag strict_mode) {
   PropertyType type = (transition == NULL) ? FIELD : MAP_TRANSITION;
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STORE_IC, type, extra_ic_state);
+      Code::STORE_IC, type, strict_mode);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    StoreStubCompiler compiler(extra_ic_state);
+    StoreStubCompiler compiler(strict_mode);
     { MaybeObject* maybe_code =
           compiler.CompileStoreField(receiver, field_index, transition, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -521,41 +494,16 @@ MaybeObject* StubCache::ComputeStoreField(String* name,
 }
 
 
-MaybeObject* StubCache::ComputeKeyedStoreSpecialized(JSObject* receiver) {
+MaybeObject* StubCache::ComputeKeyedStoreSpecialized(
+    JSObject* receiver,
+    StrictModeFlag strict_mode) {
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, NORMAL);
+      Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, NORMAL, strict_mode);
   String* name = Heap::KeyedStoreSpecialized_symbol();
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    KeyedStoreStubCompiler compiler;
+    KeyedStoreStubCompiler compiler(strict_mode);
     { MaybeObject* maybe_code = compiler.CompileStoreSpecialized(receiver);
-      if (!maybe_code->ToObject(&code)) return maybe_code;
-    }
-    PROFILE(CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(code), 0));
-    Object* result;
-    { MaybeObject* maybe_result =
-          receiver->UpdateMapCodeCache(name, Code::cast(code));
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-  }
-  return code;
-}
-
-
-MaybeObject* StubCache::ComputeKeyedStorePixelArray(JSObject* receiver) {
-  // Using NORMAL as the PropertyType for array element stores is a misuse. The
-  // generated stub always accesses fast elements, not slow-mode fields, but
-  // some property type is required for the stub lookup. Note that overloading
-  // the NORMAL PropertyType is only safe as long as no stubs are generated for
-  // other keyed field stores. This is guaranteed to be the case since all field
-  // keyed stores that are not array elements go through a generic builtin stub.
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, NORMAL);
-  String* name = Heap::KeyedStorePixelArray_symbol();
-  Object* code = receiver->map()->FindInCodeCache(name, flags);
-  if (code->IsUndefined()) {
-    KeyedStoreStubCompiler compiler;
-    { MaybeObject* maybe_code = compiler.CompileStorePixelArray(receiver);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     PROFILE(CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(code), 0));
@@ -587,9 +535,60 @@ ExternalArrayType ElementsKindToExternalArrayType(JSObject::ElementsKind kind) {
       return kExternalUnsignedIntArray;
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
       return kExternalFloatArray;
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+      return kExternalPixelArray;
     default:
       UNREACHABLE();
       return static_cast<ExternalArrayType>(0);
+  }
+}
+
+String* ExternalArrayTypeToStubName(ExternalArrayType array_type,
+                                    bool is_store) {
+  if (is_store) {
+    switch (array_type) {
+      case kExternalByteArray:
+        return Heap::KeyedStoreExternalByteArray_symbol();
+      case kExternalUnsignedByteArray:
+        return Heap::KeyedStoreExternalUnsignedByteArray_symbol();
+      case kExternalShortArray:
+        return Heap::KeyedStoreExternalShortArray_symbol();
+      case kExternalUnsignedShortArray:
+        return Heap::KeyedStoreExternalUnsignedShortArray_symbol();
+      case kExternalIntArray:
+        return Heap::KeyedStoreExternalIntArray_symbol();
+      case kExternalUnsignedIntArray:
+        return Heap::KeyedStoreExternalUnsignedIntArray_symbol();
+      case kExternalFloatArray:
+        return Heap::KeyedStoreExternalFloatArray_symbol();
+      case kExternalPixelArray:
+        return Heap::KeyedStoreExternalPixelArray_symbol();
+      default:
+        UNREACHABLE();
+        return NULL;
+    }
+  } else {
+    switch (array_type) {
+      case kExternalByteArray:
+        return Heap::KeyedLoadExternalByteArray_symbol();
+      case kExternalUnsignedByteArray:
+        return Heap::KeyedLoadExternalUnsignedByteArray_symbol();
+      case kExternalShortArray:
+        return Heap::KeyedLoadExternalShortArray_symbol();
+      case kExternalUnsignedShortArray:
+        return Heap::KeyedLoadExternalUnsignedShortArray_symbol();
+      case kExternalIntArray:
+        return Heap::KeyedLoadExternalIntArray_symbol();
+      case kExternalUnsignedIntArray:
+        return Heap::KeyedLoadExternalUnsignedIntArray_symbol();
+      case kExternalFloatArray:
+        return Heap::KeyedLoadExternalFloatArray_symbol();
+      case kExternalPixelArray:
+        return Heap::KeyedLoadExternalPixelArray_symbol();
+      default:
+        UNREACHABLE();
+        return NULL;
+    }
   }
 }
 
@@ -598,38 +597,39 @@ ExternalArrayType ElementsKindToExternalArrayType(JSObject::ElementsKind kind) {
 
 MaybeObject* StubCache::ComputeKeyedLoadOrStoreExternalArray(
     JSObject* receiver,
-    bool is_store) {
+    bool is_store,
+    StrictModeFlag strict_mode) {
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(
-          is_store ? Code::KEYED_STORE_IC : Code::KEYED_LOAD_IC,
-          NORMAL);
+          is_store ? Code::KEYED_EXTERNAL_ARRAY_STORE_IC :
+                     Code::KEYED_EXTERNAL_ARRAY_LOAD_IC,
+          NORMAL,
+          strict_mode);
   ExternalArrayType array_type =
       ElementsKindToExternalArrayType(receiver->GetElementsKind());
-  String* name =
-      is_store ? Heap::KeyedStoreExternalArray_symbol()
-          : Heap::KeyedLoadExternalArray_symbol();
-  // Use the global maps for the particular external array types,
-  // rather than the receiver's map, when looking up the cached code,
-  // so that we actually canonicalize these stubs.
-  Map* map = Heap::MapForExternalArrayType(array_type);
-  Object* code = map->FindInCodeCache(name, flags);
+  String* name = ExternalArrayTypeToStubName(array_type, is_store);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     ExternalArrayStubCompiler compiler;
     { MaybeObject* maybe_code =
-          is_store ? compiler.CompileKeyedStoreStub(array_type, flags) :
-          compiler.CompileKeyedLoadStub(array_type, flags);
+          is_store ?
+              compiler.CompileKeyedStoreStub(receiver, array_type, flags) :
+              compiler.CompileKeyedLoadStub(receiver, array_type, flags);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
+    Code::cast(code)->set_external_array_type(array_type);
     if (is_store) {
       PROFILE(
-          CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(code), 0));
+          CodeCreateEvent(Logger::KEYED_EXTERNAL_ARRAY_STORE_IC_TAG,
+                          Code::cast(code), 0));
     } else {
       PROFILE(
-          CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), 0));
+          CodeCreateEvent(Logger::KEYED_EXTERNAL_ARRAY_LOAD_IC_TAG,
+                          Code::cast(code), 0));
     }
     Object* result;
     { MaybeObject* maybe_result =
-          map->UpdateCodeCache(name, Code::cast(code));
+          receiver->map()->UpdateCodeCache(name, Code::cast(code));
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
   }
@@ -637,8 +637,8 @@ MaybeObject* StubCache::ComputeKeyedLoadOrStoreExternalArray(
 }
 
 
-MaybeObject* StubCache::ComputeStoreNormal(Code::ExtraICState extra_ic_state) {
-  return Builtins::builtin(extra_ic_state == StoreIC::kStoreICStrict
+MaybeObject* StubCache::ComputeStoreNormal(StrictModeFlag strict_mode) {
+  return Builtins::builtin((strict_mode == kStrictMode)
                             ? Builtins::StoreIC_Normal_Strict
                             : Builtins::StoreIC_Normal);
 }
@@ -647,12 +647,12 @@ MaybeObject* StubCache::ComputeStoreNormal(Code::ExtraICState extra_ic_state) {
 MaybeObject* StubCache::ComputeStoreGlobal(String* name,
                                            GlobalObject* receiver,
                                            JSGlobalPropertyCell* cell,
-                                           Code::ExtraICState extra_ic_state) {
+                                           StrictModeFlag strict_mode) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STORE_IC, NORMAL, extra_ic_state);
+      Code::STORE_IC, NORMAL, strict_mode);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    StoreStubCompiler compiler(extra_ic_state);
+    StoreStubCompiler compiler(strict_mode);
     { MaybeObject* maybe_code =
           compiler.CompileStoreGlobal(receiver, cell, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -673,13 +673,13 @@ MaybeObject* StubCache::ComputeStoreCallback(
     String* name,
     JSObject* receiver,
     AccessorInfo* callback,
-    Code::ExtraICState extra_ic_state) {
+    StrictModeFlag strict_mode) {
   ASSERT(v8::ToCData<Address>(callback->setter()) != 0);
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STORE_IC, CALLBACKS, extra_ic_state);
+      Code::STORE_IC, CALLBACKS, strict_mode);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    StoreStubCompiler compiler(extra_ic_state);
+    StoreStubCompiler compiler(strict_mode);
     { MaybeObject* maybe_code =
           compiler.CompileStoreCallback(receiver, callback, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -699,12 +699,12 @@ MaybeObject* StubCache::ComputeStoreCallback(
 MaybeObject* StubCache::ComputeStoreInterceptor(
     String* name,
     JSObject* receiver,
-    Code::ExtraICState extra_ic_state) {
+    StrictModeFlag strict_mode) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STORE_IC, INTERCEPTOR, extra_ic_state);
+      Code::STORE_IC, INTERCEPTOR, strict_mode);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    StoreStubCompiler compiler(extra_ic_state);
+    StoreStubCompiler compiler(strict_mode);
     { MaybeObject* maybe_code =
           compiler.CompileStoreInterceptor(receiver, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -724,12 +724,14 @@ MaybeObject* StubCache::ComputeStoreInterceptor(
 MaybeObject* StubCache::ComputeKeyedStoreField(String* name,
                                                JSObject* receiver,
                                                int field_index,
-                                               Map* transition) {
+                                               Map* transition,
+                                               StrictModeFlag strict_mode) {
   PropertyType type = (transition == NULL) ? FIELD : MAP_TRANSITION;
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, type);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(
+      Code::KEYED_STORE_IC, type, strict_mode);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    KeyedStoreStubCompiler compiler;
+    KeyedStoreStubCompiler compiler(strict_mode);
     { MaybeObject* maybe_code =
           compiler.CompileStoreField(receiver, field_index, transition, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -1417,12 +1419,17 @@ MaybeObject* LoadPropertyWithInterceptorForCall(Arguments args) {
 
 
 MaybeObject* StoreInterceptorProperty(Arguments args) {
+  ASSERT(args.length() == 4);
   JSObject* recv = JSObject::cast(args[0]);
   String* name = String::cast(args[1]);
   Object* value = args[2];
+  StrictModeFlag strict_mode =
+      static_cast<StrictModeFlag>(Smi::cast(args[3])->value());
+  ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
   ASSERT(recv->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
-  MaybeObject* result = recv->SetPropertyWithInterceptor(name, value, attr);
+  MaybeObject* result = recv->SetPropertyWithInterceptor(
+      name, value, attr, strict_mode);
   return result;
 }
 
@@ -1675,8 +1682,8 @@ MaybeObject* KeyedLoadStubCompiler::GetCode(PropertyType type, String* name) {
 
 
 MaybeObject* StoreStubCompiler::GetCode(PropertyType type, String* name) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, type,
-                                                    extra_ic_state_);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(
+      Code::STORE_IC, type, strict_mode_);
   MaybeObject* result = GetCodeWithFlags(flags, name);
   if (!result->IsFailure()) {
     PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG,
@@ -1691,7 +1698,8 @@ MaybeObject* StoreStubCompiler::GetCode(PropertyType type, String* name) {
 
 
 MaybeObject* KeyedStoreStubCompiler::GetCode(PropertyType type, String* name) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, type);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(
+      Code::KEYED_STORE_IC, type, strict_mode_);
   MaybeObject* result = GetCodeWithFlags(flags, name);
   if (!result->IsFailure()) {
     PROFILE(CodeCreateEvent(Logger::KEYED_STORE_IC_TAG,

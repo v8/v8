@@ -136,7 +136,7 @@ Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 
 int Heap::mc_count_ = 0;
 int Heap::ms_count_ = 0;
-int Heap::gc_count_ = 0;
+unsigned int Heap::gc_count_ = 0;
 
 GCTracer* Heap::tracer_ = NULL;
 
@@ -507,7 +507,6 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_gc) HeapProfiler::WriteSample();
-  if (CpuProfiler::is_profiling()) CpuProfiler::ProcessMovedFunctions();
 #endif
 
   return next_gc_likely_to_collect_more;
@@ -816,8 +815,6 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
   ContextSlotCache::Clear();
   DescriptorLookupCache::Clear();
 
-  RuntimeProfiler::MarkCompactPrologue(is_compacting);
-
   CompilationCache::MarkCompactPrologue();
 
   CompletelyClearInstanceofCache();
@@ -1020,20 +1017,13 @@ void Heap::Scavenge() {
   // Scavenge object reachable from the global contexts list directly.
   scavenge_visitor.VisitPointer(BitCast<Object**>(&global_contexts_list_));
 
-  // Scavenge objects reachable from the runtime-profiler sampler
-  // window directly.
-  Object** sampler_window_address = RuntimeProfiler::SamplerWindowAddress();
-  int sampler_window_size = RuntimeProfiler::SamplerWindowSize();
-  scavenge_visitor.VisitPointers(
-      sampler_window_address,
-      sampler_window_address + sampler_window_size);
-
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
 
   LiveObjectList::UpdateReferencesForScavengeGC();
+  RuntimeProfiler::UpdateSamplesAfterScavenge();
 
   ASSERT(new_space_front == new_space_.top());
 
@@ -1316,9 +1306,9 @@ class ScavengingVisitor : public StaticVisitorBase {
     HEAP_PROFILE(ObjectMoveEvent(source->address(), target->address()));
 #if defined(ENABLE_LOGGING_AND_PROFILING)
     if (Logger::is_logging() || CpuProfiler::is_profiling()) {
-      if (target->IsJSFunction()) {
-        PROFILE(FunctionMoveEvent(source->address(), target->address()));
-        PROFILE(FunctionCreateEventFromMove(JSFunction::cast(target)));
+      if (target->IsSharedFunctionInfo()) {
+        PROFILE(SharedFunctionInfoMoveEvent(
+            source->address(), target->address()));
       }
     }
 #endif
@@ -1688,10 +1678,10 @@ bool Heap::CreateInitialMaps() {
   set_empty_byte_array(ByteArray::cast(obj));
 
   { MaybeObject* maybe_obj =
-        AllocateMap(PIXEL_ARRAY_TYPE, PixelArray::kAlignedSize);
+        AllocateMap(EXTERNAL_PIXEL_ARRAY_TYPE, ExternalArray::kAlignedSize);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_pixel_array_map(Map::cast(obj));
+  set_external_pixel_array_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_BYTE_ARRAY_TYPE,
                                          ExternalArray::kAlignedSize);
@@ -1887,20 +1877,6 @@ bool Heap::CreateApiObjects() {
 }
 
 
-void Heap::CreateCEntryStub() {
-  CEntryStub stub(1);
-  set_c_entry_code(*stub.GetCode());
-}
-
-
-#if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
-void Heap::CreateRegExpCEntryStub() {
-  RegExpCEntryStub stub;
-  set_re_c_entry_code(*stub.GetCode());
-}
-#endif
-
-
 void Heap::CreateJSEntryStub() {
   JSEntryStub stub;
   set_js_entry_code(*stub.GetCode());
@@ -1913,14 +1889,6 @@ void Heap::CreateJSConstructEntryStub() {
 }
 
 
-#if V8_TARGET_ARCH_ARM
-void Heap::CreateDirectCEntryStub() {
-  DirectCEntryStub stub;
-  set_direct_c_entry_code(*stub.GetCode());
-}
-#endif
-
-
 void Heap::CreateFixedStubs() {
   // Here we create roots for fixed stubs. They are needed at GC
   // for cooking and uncooking (check out frames.cc).
@@ -1928,22 +1896,15 @@ void Heap::CreateFixedStubs() {
   // stub cache for these stubs.
   HandleScope scope;
   // gcc-4.4 has problem generating correct code of following snippet:
-  // {  CEntryStub stub;
-  //    c_entry_code_ = *stub.GetCode();
+  // {  JSEntryStub stub;
+  //    js_entry_code_ = *stub.GetCode();
   // }
-  // {  DebuggerStatementStub stub;
-  //    debugger_statement_code_ = *stub.GetCode();
+  // {  JSConstructEntryStub stub;
+  //    js_construct_entry_code_ = *stub.GetCode();
   // }
   // To workaround the problem, make separate functions without inlining.
-  Heap::CreateCEntryStub();
   Heap::CreateJSEntryStub();
   Heap::CreateJSConstructEntryStub();
-#if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
-  Heap::CreateRegExpCEntryStub();
-#endif
-#if V8_TARGET_ARCH_ARM
-  Heap::CreateDirectCEntryStub();
-#endif
 }
 
 
@@ -2238,6 +2199,8 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
       return kExternalUnsignedIntArrayMapRootIndex;
     case kExternalFloatArray:
       return kExternalFloatArrayMapRootIndex;
+    case kExternalPixelArray:
+      return kExternalPixelArrayMapRootIndex;
     default:
       UNREACHABLE();
       return kUndefinedValueRootIndex;
@@ -2672,24 +2635,6 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
 }
 
 
-MaybeObject* Heap::AllocatePixelArray(int length,
-                                 uint8_t* external_pointer,
-                                 PretenureFlag pretenure) {
-  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  Object* result;
-  { MaybeObject* maybe_result =
-        AllocateRaw(PixelArray::kAlignedSize, space, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  reinterpret_cast<PixelArray*>(result)->set_map(pixel_array_map());
-  reinterpret_cast<PixelArray*>(result)->set_length(length);
-  reinterpret_cast<PixelArray*>(result)->set_external_pointer(external_pointer);
-
-  return result;
-}
-
-
 MaybeObject* Heap::AllocateExternalArray(int length,
                                          ExternalArrayType array_type,
                                          void* external_pointer,
@@ -2714,7 +2659,8 @@ MaybeObject* Heap::AllocateExternalArray(int length,
 
 MaybeObject* Heap::CreateCode(const CodeDesc& desc,
                               Code::Flags flags,
-                              Handle<Object> self_reference) {
+                              Handle<Object> self_reference,
+                              bool immovable) {
   // Allocate ByteArray before the Code object, so that we do not risk
   // leaving uninitialized Code object (and breaking the heap).
   Object* reloc_info;
@@ -2722,12 +2668,14 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
     if (!maybe_reloc_info->ToObject(&reloc_info)) return maybe_reloc_info;
   }
 
-  // Compute size
+  // Compute size.
   int body_size = RoundUp(desc.instr_size, kObjectAlignment);
   int obj_size = Code::SizeFor(body_size);
   ASSERT(IsAligned(static_cast<intptr_t>(obj_size), kCodeAlignment));
   MaybeObject* maybe_result;
-  if (obj_size > MaxObjectSizeInPagedSpace()) {
+  // Large code objects and code objects which should stay at a fixed address
+  // are allocated in large object space.
+  if (obj_size > MaxObjectSizeInPagedSpace() || immovable) {
     maybe_result = lo_space_->AllocateRawCode(obj_size);
   } else {
     maybe_result = code_space_->AllocateRaw(obj_size);
@@ -2894,9 +2842,8 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
   // constructor to the function.
   Object* result;
   { MaybeObject* maybe_result =
-        JSObject::cast(prototype)->SetProperty(constructor_symbol(),
-                                               function,
-                                               DONT_ENUM);
+        JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
+            constructor_symbol(), function, DONT_ENUM);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   return prototype;
@@ -3767,9 +3714,9 @@ bool Heap::IdleNotification() {
   static const int kIdlesBeforeMarkSweep = 7;
   static const int kIdlesBeforeMarkCompact = 8;
   static const int kMaxIdleCount = kIdlesBeforeMarkCompact + 1;
-  static const int kGCsBetweenCleanup = 4;
+  static const unsigned int kGCsBetweenCleanup = 4;
   static int number_idle_notifications = 0;
-  static int last_gc_count = gc_count_;
+  static unsigned int last_gc_count = gc_count_;
 
   bool uncommit = true;
   bool finished = false;
@@ -3778,7 +3725,7 @@ bool Heap::IdleNotification() {
   // GCs have taken place. This allows another round of cleanup based
   // on idle notifications if enough work has been carried out to
   // provoke a number of garbage collections.
-  if (gc_count_ < last_gc_count + kGCsBetweenCleanup) {
+  if (gc_count_ - last_gc_count < kGCsBetweenCleanup) {
     number_idle_notifications =
         Min(number_idle_notifications + 1, kMaxIdleCount);
   } else {
@@ -5179,32 +5126,77 @@ void HeapIterator::reset() {
 }
 
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(LIVE_OBJECT_LIST)
 
-static bool search_for_any_global;
-static Object* search_target;
-static bool found_target;
-static List<Object*> object_stack(20);
+Object* const PathTracer::kAnyGlobalObject = reinterpret_cast<Object*>(NULL);
 
-
-// Tags 0, 1, and 3 are used. Use 2 for marking visited HeapObject.
-static const int kMarkTag = 2;
-
-static void MarkObjectRecursively(Object** p);
-class MarkObjectVisitor : public ObjectVisitor {
+class PathTracer::MarkVisitor: public ObjectVisitor {
  public:
+  explicit MarkVisitor(PathTracer* tracer) : tracer_(tracer) {}
   void VisitPointers(Object** start, Object** end) {
-    // Copy all HeapObject pointers in [start, end)
-    for (Object** p = start; p < end; p++) {
+    // Scan all HeapObject pointers in [start, end)
+    for (Object** p = start; !tracer_->found() && (p < end); p++) {
       if ((*p)->IsHeapObject())
-        MarkObjectRecursively(p);
+        tracer_->MarkRecursively(p, this);
     }
   }
+
+ private:
+  PathTracer* tracer_;
 };
 
-static MarkObjectVisitor mark_visitor;
 
-static void MarkObjectRecursively(Object** p) {
+class PathTracer::UnmarkVisitor: public ObjectVisitor {
+ public:
+  explicit UnmarkVisitor(PathTracer* tracer) : tracer_(tracer) {}
+  void VisitPointers(Object** start, Object** end) {
+    // Scan all HeapObject pointers in [start, end)
+    for (Object** p = start; p < end; p++) {
+      if ((*p)->IsHeapObject())
+        tracer_->UnmarkRecursively(p, this);
+    }
+  }
+
+ private:
+  PathTracer* tracer_;
+};
+
+
+void PathTracer::VisitPointers(Object** start, Object** end) {
+  bool done = ((what_to_find_ == FIND_FIRST) && found_target_);
+  // Visit all HeapObject pointers in [start, end)
+  for (Object** p = start; !done && (p < end); p++) {
+    if ((*p)->IsHeapObject()) {
+      TracePathFrom(p);
+      done = ((what_to_find_ == FIND_FIRST) && found_target_);
+    }
+  }
+}
+
+
+void PathTracer::Reset() {
+  found_target_ = false;
+  object_stack_.Clear();
+}
+
+
+void PathTracer::TracePathFrom(Object** root) {
+  ASSERT((search_target_ == kAnyGlobalObject) ||
+         search_target_->IsHeapObject());
+  found_target_in_trace_ = false;
+  object_stack_.Clear();
+
+  MarkVisitor mark_visitor(this);
+  MarkRecursively(root, &mark_visitor);
+
+  UnmarkVisitor unmark_visitor(this);
+  UnmarkRecursively(root, &unmark_visitor);
+
+  ProcessResults();
+}
+
+
+void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
   if (!(*p)->IsHeapObject()) return;
 
   HeapObject* obj = HeapObject::cast(*p);
@@ -5213,13 +5205,16 @@ static void MarkObjectRecursively(Object** p) {
 
   if (!map->IsHeapObject()) return;  // visited before
 
-  if (found_target) return;  // stop if target found
-  object_stack.Add(obj);
-  if ((search_for_any_global && obj->IsJSGlobalObject()) ||
-      (!search_for_any_global && (obj == search_target))) {
-    found_target = true;
+  if (found_target_in_trace_) return;  // stop if target found
+  object_stack_.Add(obj);
+  if (((search_target_ == kAnyGlobalObject) && obj->IsJSGlobalObject()) ||
+      (obj == search_target_)) {
+    found_target_in_trace_ = true;
+    found_target_ = true;
     return;
   }
+
+  bool is_global_context = obj->IsGlobalContext();
 
   // not visited yet
   Map* map_p = reinterpret_cast<Map*>(HeapObject::cast(map));
@@ -5228,31 +5223,30 @@ static void MarkObjectRecursively(Object** p) {
 
   obj->set_map(reinterpret_cast<Map*>(map_addr + kMarkTag));
 
-  MarkObjectRecursively(&map);
+  // Scan the object body.
+  if (is_global_context && (visit_mode_ == VISIT_ONLY_STRONG)) {
+    // This is specialized to scan Context's properly.
+    Object** start = reinterpret_cast<Object**>(obj->address() +
+                                                Context::kHeaderSize);
+    Object** end = reinterpret_cast<Object**>(obj->address() +
+        Context::kHeaderSize + Context::FIRST_WEAK_SLOT * kPointerSize);
+    mark_visitor->VisitPointers(start, end);
+  } else {
+    obj->IterateBody(map_p->instance_type(),
+                     obj->SizeFromMap(map_p),
+                     mark_visitor);
+  }
 
-  obj->IterateBody(map_p->instance_type(), obj->SizeFromMap(map_p),
-                   &mark_visitor);
+  // Scan the map after the body because the body is a lot more interesting
+  // when doing leak detection.
+  MarkRecursively(&map, mark_visitor);
 
-  if (!found_target)  // don't pop if found the target
-    object_stack.RemoveLast();
+  if (!found_target_in_trace_)  // don't pop if found the target
+    object_stack_.RemoveLast();
 }
 
 
-static void UnmarkObjectRecursively(Object** p);
-class UnmarkObjectVisitor : public ObjectVisitor {
- public:
-  void VisitPointers(Object** start, Object** end) {
-    // Copy all HeapObject pointers in [start, end)
-    for (Object** p = start; p < end; p++) {
-      if ((*p)->IsHeapObject())
-        UnmarkObjectRecursively(p);
-    }
-  }
-};
-
-static UnmarkObjectVisitor unmark_visitor;
-
-static void UnmarkObjectRecursively(Object** p) {
+void PathTracer::UnmarkRecursively(Object** p, UnmarkVisitor* unmark_visitor) {
   if (!(*p)->IsHeapObject()) return;
 
   HeapObject* obj = HeapObject::cast(*p);
@@ -5271,63 +5265,42 @@ static void UnmarkObjectRecursively(Object** p) {
 
   obj->set_map(reinterpret_cast<Map*>(map_p));
 
-  UnmarkObjectRecursively(reinterpret_cast<Object**>(&map_p));
+  UnmarkRecursively(reinterpret_cast<Object**>(&map_p), unmark_visitor);
 
   obj->IterateBody(Map::cast(map_p)->instance_type(),
                    obj->SizeFromMap(Map::cast(map_p)),
-                   &unmark_visitor);
+                   unmark_visitor);
 }
 
 
-static void MarkRootObjectRecursively(Object** root) {
-  if (search_for_any_global) {
-    ASSERT(search_target == NULL);
-  } else {
-    ASSERT(search_target->IsHeapObject());
-  }
-  found_target = false;
-  object_stack.Clear();
-
-  MarkObjectRecursively(root);
-  UnmarkObjectRecursively(root);
-
-  if (found_target) {
+void PathTracer::ProcessResults() {
+  if (found_target_) {
     PrintF("=====================================\n");
     PrintF("====        Path to object       ====\n");
     PrintF("=====================================\n\n");
 
-    ASSERT(!object_stack.is_empty());
-    for (int i = 0; i < object_stack.length(); i++) {
+    ASSERT(!object_stack_.is_empty());
+    for (int i = 0; i < object_stack_.length(); i++) {
       if (i > 0) PrintF("\n     |\n     |\n     V\n\n");
-      Object* obj = object_stack[i];
+      Object* obj = object_stack_[i];
+#ifdef OBJECT_PRINT
       obj->Print();
+#else
+      obj->ShortPrint();
+#endif
     }
     PrintF("=====================================\n");
   }
 }
+#endif  // DEBUG || LIVE_OBJECT_LIST
 
 
-// Helper class for visiting HeapObjects recursively.
-class MarkRootVisitor: public ObjectVisitor {
- public:
-  void VisitPointers(Object** start, Object** end) {
-    // Visit all HeapObject pointers in [start, end)
-    for (Object** p = start; p < end; p++) {
-      if ((*p)->IsHeapObject())
-        MarkRootObjectRecursively(p);
-    }
-  }
-};
-
-
+#ifdef DEBUG
 // Triggers a depth-first traversal of reachable objects from roots
 // and finds a path to a specific heap object and prints it.
 void Heap::TracePathToObject(Object* target) {
-  search_target = target;
-  search_for_any_global = false;
-
-  MarkRootVisitor root_visitor;
-  IterateRoots(&root_visitor, VISIT_ONLY_STRONG);
+  PathTracer tracer(target, PathTracer::FIND_ALL, VISIT_ALL);
+  IterateRoots(&tracer, VISIT_ONLY_STRONG);
 }
 
 
@@ -5335,11 +5308,10 @@ void Heap::TracePathToObject(Object* target) {
 // and finds a path to any global object and prints it. Useful for
 // determining the source for leaks of global objects.
 void Heap::TracePathToGlobal() {
-  search_target = NULL;
-  search_for_any_global = true;
-
-  MarkRootVisitor root_visitor;
-  IterateRoots(&root_visitor, VISIT_ONLY_STRONG);
+  PathTracer tracer(PathTracer::kAnyGlobalObject,
+                    PathTracer::FIND_ALL,
+                    VISIT_ALL);
+  IterateRoots(&tracer, VISIT_ONLY_STRONG);
 }
 #endif
 

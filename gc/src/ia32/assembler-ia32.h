@@ -185,13 +185,6 @@ const XMMRegister xmm7 = { 7 };
 typedef XMMRegister DoubleRegister;
 
 
-// Index of register used in pusha/popa.
-// Order of pushed registers: EAX, ECX, EDX, EBX, ESP, EBP, ESI, and EDI
-inline int EspIndexForPushAll(Register reg) {
-  return Register::kNumRegisters - 1 - reg.code();
-}
-
-
 enum Condition {
   // any value < 0 is considered no_condition
   no_condition  = -1,
@@ -530,6 +523,9 @@ class Assembler : public Malloced {
   // upon destruction of the assembler.
   Assembler(void* buffer, int buffer_size);
   ~Assembler();
+
+  // Overrides the default provided by FLAG_debug_code.
+  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -982,11 +978,17 @@ class Assembler : public Malloced {
 
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
+  int relocation_writer_size() {
+    return (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  }
+
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;
   static const int kMinimalBufferSize = 4*KB;
 
  protected:
+  bool emit_debug_code() const { return emit_debug_code_; }
+
   void movsd(XMMRegister dst, const Operand& src);
   void movsd(const Operand& dst, XMMRegister src);
 
@@ -1061,6 +1063,8 @@ class Assembler : public Malloced {
   byte* last_pc_;
 
   PositionsRecorder positions_recorder_;
+
+  bool emit_debug_code_;
 
   friend class PositionsRecorder;
 };

@@ -745,8 +745,6 @@ js1_5/extensions/regress-342960: FAIL_OK || TIMEOUT if $mode == debug
 # error message in debug mode.
 js1_5/extensions/regress-336410-1: FAIL_OK || TIMEOUT if ($mode == debug && $arch == x64)
 
-
-
 ##################### DECOMPILATION TESTS #####################
 
 # We don't really about the outcome of running the

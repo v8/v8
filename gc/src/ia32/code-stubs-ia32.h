@@ -45,8 +45,8 @@ class TranscendentalCacheStub: public CodeStub {
     UNTAGGED = 1 << TranscendentalCache::kTranscendentalTypeBits
   };
 
-  explicit TranscendentalCacheStub(TranscendentalCache::Type type,
-                                   ArgumentType argument_type)
+  TranscendentalCacheStub(TranscendentalCache::Type type,
+                          ArgumentType argument_type)
       : type_(type), argument_type_(argument_type) {}
   void Generate(MacroAssembler* masm);
  private:

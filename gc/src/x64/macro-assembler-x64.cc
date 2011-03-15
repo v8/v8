@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -49,22 +49,35 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 
 
 void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
-  movq(destination, Operand(kRootRegister, index << kPointerSizeLog2));
+  movq(destination, Operand(kRootRegister,
+                            (index << kPointerSizeLog2) - kRootRegisterBias));
+}
+
+
+void MacroAssembler::LoadRootIndexed(Register destination,
+                                     Register variable_offset,
+                                     int fixed_offset) {
+  movq(destination,
+       Operand(kRootRegister,
+               variable_offset, times_pointer_size,
+               (fixed_offset << kPointerSizeLog2) - kRootRegisterBias));
 }
 
 
 void MacroAssembler::StoreRoot(Register source, Heap::RootListIndex index) {
-  movq(Operand(kRootRegister, index << kPointerSizeLog2), source);
+  movq(Operand(kRootRegister, (index << kPointerSizeLog2) - kRootRegisterBias),
+       source);
 }
 
 
 void MacroAssembler::PushRoot(Heap::RootListIndex index) {
-  push(Operand(kRootRegister, index << kPointerSizeLog2));
+  push(Operand(kRootRegister, (index << kPointerSizeLog2) - kRootRegisterBias));
 }
 
 
 void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
-  cmpq(with, Operand(kRootRegister, index << kPointerSizeLog2));
+  cmpq(with, Operand(kRootRegister,
+                     (index << kPointerSizeLog2) - kRootRegisterBias));
 }
 
 
@@ -80,7 +93,7 @@ void MacroAssembler::RecordWriteHelper(Register object,
                                        Register addr,
                                        Register scratch,
                                        SaveFPRegsMode save_fp) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     // Check that the object is not in new space.
     NearLabel not_in_new_space;
     InNewSpace(object, scratch, not_equal, &not_in_new_space);
@@ -119,7 +132,7 @@ void MacroAssembler::RecordWrite(Register object,
   ASSERT(!object.is(rsi) && !value.is(rsi) && !index.is(rsi));
 
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of Smis and stores into young gen.
+  // catch stores of smis and stores into the young generation.
   Label done;
   JumpIfSmi(value, &done);
 
@@ -131,7 +144,7 @@ void MacroAssembler::RecordWrite(Register object,
   // clobbering done inside RecordWriteNonSmi but it's necessary to
   // avoid having the fast case for smis leave the registers
   // unchanged.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     movq(object, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
@@ -145,11 +158,11 @@ void MacroAssembler::RecordWrite(Register object,
                                  SaveFPRegsMode save_fp) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
-  // registers are esi.
+  // registers are rsi.
   ASSERT(!object.is(rsi) && !value.is(rsi) && !address.is(rsi));
 
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of Smis and stores into young gen.
+  // catch stores of smis and stores into the young generation.
   Label done;
   JumpIfSmi(value, &done);
 
@@ -161,7 +174,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     movq(object, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(address, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
@@ -176,7 +189,7 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
                                        SaveFPRegsMode save_fp) {
   Label done;
 
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     NearLabel okay;
     JumpIfNotSmi(object, &okay);
     Abort("MacroAssembler::RecordWriteNonSmi cannot deal with smis");
@@ -220,7 +233,7 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
 
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     movq(object, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(scratch, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
@@ -229,12 +242,12 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
 
 
 void MacroAssembler::Assert(Condition cc, const char* msg) {
-  if (FLAG_debug_code) Check(cc, msg);
+  if (emit_debug_code()) Check(cc, msg);
 }
 
 
 void MacroAssembler::AssertFastElements(Register elements) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     NearLabel ok;
     CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
                 Heap::kFixedArrayMapRootIndex);
@@ -553,7 +566,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   // Allocate HandleScope in callee-save registers.
   Register prev_next_address_reg = r14;
   Register prev_limit_reg = rbx;
-  Register base_reg = r12;
+  Register base_reg = r15;
   movq(base_reg, next_address);
   movq(prev_next_address_reg, Operand(base_reg, kNextOffset));
   movq(prev_limit_reg, Operand(base_reg, kLimitOffset));
@@ -634,7 +647,9 @@ MaybeObject* MacroAssembler::TryJumpToExternalReference(
 }
 
 
-void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
+void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
+                                   InvokeFlag flag,
+                                   CallWrapper* call_wrapper) {
   // Calls are not allowed in some stubs.
   ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
 
@@ -643,7 +658,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
   GetBuiltinEntry(rdx, id);
-  InvokeCode(rdx, expected, expected, flag);
+  InvokeCode(rdx, expected, expected, flag, call_wrapper);
 }
 
 
@@ -703,7 +718,7 @@ Register MacroAssembler::GetSmiConstant(Smi* source) {
 }
 
 void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     movq(dst,
          reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
          RelocInfo::NONE);
@@ -717,11 +732,11 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
       bind(&ok);
     }
   }
-  if (source->value() == 0) {
+  int value = source->value();
+  if (value == 0) {
     xorl(dst, dst);
     return;
   }
-  int value = source->value();
   bool negative = value < 0;
   unsigned int uvalue = negative ? -value : value;
 
@@ -772,7 +787,7 @@ void MacroAssembler::Integer32ToSmi(Register dst, Register src) {
 
 
 void MacroAssembler::Integer32ToSmiField(const Operand& dst, Register src) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     testb(dst, Immediate(0x01));
     NearLabel ok;
     j(zero, &ok);
@@ -833,12 +848,24 @@ void MacroAssembler::SmiTest(Register src) {
 }
 
 
-void MacroAssembler::SmiCompare(Register dst, Register src) {
-  cmpq(dst, src);
+void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
+  if (emit_debug_code()) {
+    AbortIfNotSmi(smi1);
+    AbortIfNotSmi(smi2);
+  }
+  cmpq(smi1, smi2);
 }
 
 
 void MacroAssembler::SmiCompare(Register dst, Smi* src) {
+  if (emit_debug_code()) {
+    AbortIfNotSmi(dst);
+  }
+  Cmp(dst, src);
+}
+
+
+void MacroAssembler::Cmp(Register dst, Smi* src) {
   ASSERT(!dst.is(kScratchRegister));
   if (src->value() == 0) {
     testq(dst, dst);
@@ -850,17 +877,36 @@ void MacroAssembler::SmiCompare(Register dst, Smi* src) {
 
 
 void MacroAssembler::SmiCompare(Register dst, const Operand& src) {
+  if (emit_debug_code()) {
+    AbortIfNotSmi(dst);
+    AbortIfNotSmi(src);
+  }
   cmpq(dst, src);
 }
 
 
 void MacroAssembler::SmiCompare(const Operand& dst, Register src) {
+  if (emit_debug_code()) {
+    AbortIfNotSmi(dst);
+    AbortIfNotSmi(src);
+  }
   cmpq(dst, src);
 }
 
 
 void MacroAssembler::SmiCompare(const Operand& dst, Smi* src) {
+  if (emit_debug_code()) {
+    AbortIfNotSmi(dst);
+  }
   cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
+}
+
+
+void MacroAssembler::Cmp(const Operand& dst, Smi* src) {
+  // The Operand cannot use the smi register.
+  Register smi_reg = GetSmiConstant(src);
+  ASSERT(!dst.AddressUsesRegister(smi_reg));
+  cmpq(dst, smi_reg);
 }
 
 
@@ -917,7 +963,7 @@ Condition MacroAssembler::CheckSmi(const Operand& src) {
 
 Condition MacroAssembler::CheckNonNegativeSmi(Register src) {
   ASSERT_EQ(0, kSmiTag);
-  // Make mask 0x8000000000000001 and test that both bits are zero.
+  // Test that both bits of the mask 0x8000000000000001 are zero.
   movq(kScratchRegister, src);
   rol(kScratchRegister, Immediate(1));
   testb(kScratchRegister, Immediate(3));
@@ -1348,7 +1394,7 @@ void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
 
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
-    SmiCompare(dst, Smi::cast(*source));
+    Cmp(dst, Smi::cast(*source));
   } else {
     Move(kScratchRegister, source);
     cmpq(dst, kScratchRegister);
@@ -1358,7 +1404,7 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
 
 void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
   if (source->IsSmi()) {
-    SmiCompare(dst, Smi::cast(*source));
+    Cmp(dst, Smi::cast(*source));
   } else {
     ASSERT(source->IsHeapObject());
     movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
@@ -1420,20 +1466,41 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
 
 
 void MacroAssembler::Call(ExternalReference ext) {
+#ifdef DEBUG
+  int pre_position = pc_offset();
+#endif
   movq(kScratchRegister, ext);
   call(kScratchRegister);
+#ifdef DEBUG
+  int post_position = pc_offset();
+  CHECK_EQ(pre_position + CallSize(ext), post_position);
+#endif
 }
 
 
 void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
+#ifdef DEBUG
+  int pre_position = pc_offset();
+#endif
   movq(kScratchRegister, destination, rmode);
   call(kScratchRegister);
+#ifdef DEBUG
+  int post_position = pc_offset();
+  CHECK_EQ(pre_position + CallSize(destination, rmode), post_position);
+#endif
 }
 
 
 void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
+#ifdef DEBUG
+  int pre_position = pc_offset();
+#endif
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   call(code_object, rmode);
+#ifdef DEBUG
+  int post_position = pc_offset();
+  CHECK_EQ(pre_position + CallSize(code_object), post_position);
+#endif
 }
 
 
@@ -1449,23 +1516,25 @@ void MacroAssembler::Pushad() {
   push(r9);
   // r10 is kScratchRegister.
   push(r11);
-  push(r12);
+  // r12 is kSmiConstantRegister.
   // r13 is kRootRegister.
   push(r14);
-  // r15 is kSmiConstantRegister
+  push(r15);
   STATIC_ASSERT(11 == kNumSafepointSavedRegisters);
   // Use lea for symmetry with Popad.
-  lea(rsp, Operand(rsp,
-      -(kNumSafepointRegisters-kNumSafepointSavedRegisters) * kPointerSize));
+  int sp_delta =
+      (kNumSafepointRegisters - kNumSafepointSavedRegisters) * kPointerSize;
+  lea(rsp, Operand(rsp, -sp_delta));
 }
 
 
 void MacroAssembler::Popad() {
   // Popad must not change the flags, so use lea instead of addq.
-  lea(rsp, Operand(rsp,
-      (kNumSafepointRegisters-kNumSafepointSavedRegisters) * kPointerSize));
+  int sp_delta =
+      (kNumSafepointRegisters - kNumSafepointSavedRegisters) * kPointerSize;
+  lea(rsp, Operand(rsp, sp_delta));
+  pop(r15);
   pop(r14);
-  pop(r12);
   pop(r11);
   pop(r9);
   pop(r8);
@@ -1484,7 +1553,7 @@ void MacroAssembler::Dropad() {
 
 
 // Order general registers are pushed by Pushad:
-// rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14.
+// rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.
 int MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
     0,
     1,
@@ -1498,11 +1567,26 @@ int MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
     7,
     -1,
     8,
-    9,
     -1,
-    10,
-    -1
+    -1,
+    9,
+    10
 };
+
+
+void MacroAssembler::StoreToSafepointRegisterSlot(Register dst, Register src) {
+  movq(SafepointRegisterSlot(dst), src);
+}
+
+
+void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
+  movq(dst, SafepointRegisterSlot(src));
+}
+
+
+Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
+  return Operand(rsp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
+}
 
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
@@ -1711,7 +1795,12 @@ void MacroAssembler::AbortIfSmi(Register object) {
 
 
 void MacroAssembler::AbortIfNotSmi(Register object) {
-  NearLabel ok;
+  Condition is_smi = CheckSmi(object);
+  Assert(is_smi, "Operand is not a smi");
+}
+
+
+void MacroAssembler::AbortIfNotSmi(const Operand& object) {
   Condition is_smi = CheckSmi(object);
   Assert(is_smi, "Operand is not a smi");
 }
@@ -1846,11 +1935,20 @@ void MacroAssembler::DebugBreak() {
 void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
-                                InvokeFlag flag) {
+                                InvokeFlag flag,
+                                CallWrapper* call_wrapper) {
   NearLabel done;
-  InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag);
+  InvokePrologue(expected,
+                 actual,
+                 Handle<Code>::null(),
+                 code,
+                 &done,
+                 flag,
+                 call_wrapper);
   if (flag == CALL_FUNCTION) {
+    if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(code));
     call(code);
+    if (call_wrapper != NULL) call_wrapper->AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     jmp(code);
@@ -1863,12 +1961,21 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 RelocInfo::Mode rmode,
-                                InvokeFlag flag) {
+                                InvokeFlag flag,
+                                CallWrapper* call_wrapper) {
   NearLabel done;
   Register dummy = rax;
-  InvokePrologue(expected, actual, code, dummy, &done, flag);
+  InvokePrologue(expected,
+                 actual,
+                 code,
+                 dummy,
+                 &done,
+                 flag,
+                 call_wrapper);
   if (flag == CALL_FUNCTION) {
+    if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(code));
     Call(code, rmode);
+    if (call_wrapper != NULL) call_wrapper->AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     Jump(code, rmode);
@@ -1879,7 +1986,8 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 
 void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& actual,
-                                    InvokeFlag flag) {
+                                    InvokeFlag flag,
+                                    CallWrapper* call_wrapper) {
   ASSERT(function.is(rdi));
   movq(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
@@ -1890,13 +1998,14 @@ void MacroAssembler::InvokeFunction(Register function,
   movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(rbx);
-  InvokeCode(rdx, expected, actual, flag);
+  InvokeCode(rdx, expected, actual, flag, call_wrapper);
 }
 
 
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
-                                    InvokeFlag flag) {
+                                    InvokeFlag flag,
+                                    CallWrapper* call_wrapper) {
   ASSERT(function->is_compiled());
   // Get the function and setup the context.
   Move(rdi, Handle<JSFunction>(function));
@@ -1907,12 +2016,17 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
     // the Code object every time we call the function.
     movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
     ParameterCount expected(function->shared()->formal_parameter_count());
-    InvokeCode(rdx, expected, actual, flag);
+    InvokeCode(rdx, expected, actual, flag, call_wrapper);
   } else {
     // Invoke the cached code.
     Handle<Code> code(function->code());
     ParameterCount expected(function->shared()->formal_parameter_count());
-    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+    InvokeCode(code,
+               expected,
+               actual,
+               RelocInfo::CODE_TARGET,
+               flag,
+               call_wrapper);
   }
 }
 
@@ -1924,7 +2038,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   Push(Smi::FromInt(type));
   movq(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
   push(kScratchRegister);
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     movq(kScratchRegister,
          Factory::undefined_value(),
          RelocInfo::EMBEDDED_OBJECT);
@@ -1935,7 +2049,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Move(kScratchRegister, Smi::FromInt(type));
     cmpq(Operand(rbp, StandardFrameConstants::kMarkerOffset), kScratchRegister);
     Check(equal, "stack frame types must match");
@@ -1961,16 +2075,15 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
   push(kScratchRegister);  // Accessed from EditFrame::code_slot.
 
   // Save the frame pointer and the context in top.
-  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
-  ExternalReference context_address(Top::k_context_address);
   if (save_rax) {
-    movq(r14, rax);  // Backup rax before we use it.
+    movq(r14, rax);  // Backup rax in callee-save register.
   }
 
-  movq(rax, rbp);
-  store_rax(c_entry_fp_address);
-  movq(rax, rsi);
-  store_rax(context_address);
+  movq(kScratchRegister, ExternalReference(Top::k_c_entry_fp_address));
+  movq(Operand(kScratchRegister, 0), rbp);
+
+  movq(kScratchRegister, ExternalReference(Top::k_context_address));
+  movq(Operand(kScratchRegister, 0), rsi);
 }
 
 
@@ -2011,10 +2124,10 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
 void MacroAssembler::EnterExitFrame(int arg_stack_space, bool save_doubles) {
   EnterExitFramePrologue(true);
 
-  // Setup argv in callee-saved register r12. It is reused in LeaveExitFrame,
+  // Setup argv in callee-saved register r15. It is reused in LeaveExitFrame,
   // so it must be retained across the C-call.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  lea(r12, Operand(rbp, r14, times_pointer_size, offset));
+  lea(r15, Operand(rbp, r14, times_pointer_size, offset));
 
   EnterExitFrameEpilogue(arg_stack_space, save_doubles);
 }
@@ -2028,7 +2141,7 @@ void MacroAssembler::EnterApiExitFrame(int arg_stack_space) {
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   // Registers:
-  // r12 : argv
+  // r15 : argv
   if (save_doubles) {
     int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; i++) {
@@ -2042,7 +2155,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
 
   // Drop everything up to and including the arguments and the receiver
   // from the caller stack.
-  lea(rsp, Operand(r12, 1 * kPointerSize));
+  lea(rsp, Operand(r15, 1 * kPointerSize));
 
   // Push the return address to get ready to return.
   push(rcx);
@@ -2086,7 +2199,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   movq(scratch, Operand(rbp, StandardFrameConstants::kContextOffset));
 
   // When generating debug code, make sure the lexical context is set.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     cmpq(scratch, Immediate(0));
     Check(not_equal, "we should not have an empty lexical context");
   }
@@ -2096,7 +2209,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   movq(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
 
   // Check the context is a global context.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Cmp(FieldOperand(scratch, HeapObject::kMapOffset),
         Factory::global_context_map());
     Check(equal, "JSGlobalObject::global_context should be a global context.");
@@ -2112,7 +2225,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // object.
 
   // Check the context is a global context.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     // Preserve original value of holder_reg.
     push(holder_reg);
     movq(holder_reg, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
@@ -2173,7 +2286,7 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
 
 void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
                                                Register scratch) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     testq(result_end, Immediate(kObjectAlignmentMask));
     Check(zero, "Unaligned allocation in new space");
   }
@@ -2204,7 +2317,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
                                         Label* gc_required,
                                         AllocationFlags flags) {
   if (!FLAG_inline_new) {
-    if (FLAG_debug_code) {
+    if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));
       if (result_end.is_valid()) {
@@ -2262,7 +2375,7 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
                                         Label* gc_required,
                                         AllocationFlags flags) {
   if (!FLAG_inline_new) {
-    if (FLAG_debug_code) {
+    if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));
       movl(result_end, Immediate(0x7191));
@@ -2309,7 +2422,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
                                         Label* gc_required,
                                         AllocationFlags flags) {
   if (!FLAG_inline_new) {
-    if (FLAG_debug_code) {
+    if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       movl(result, Immediate(0x7091));
       movl(result_end, Immediate(0x7191));
@@ -2505,9 +2618,21 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     }
     // The context may be an intermediate context, not a function context.
     movq(dst, Operand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-  } else {  // context is the current function context.
-    // The context may be an intermediate context, not a function context.
-    movq(dst, Operand(rsi, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  } else {
+    // Slot is in the current function context.  Move it into the
+    // destination register in case we store into it (the write barrier
+    // cannot be allowed to destroy the context in rsi).
+    movq(dst, rsi);
+  }
+
+  // We should not have found a 'with' context by walking the context chain
+  // (i.e., the static scope chain and runtime context chain do not agree).
+  // A variable occurring in such a scope should have slot type LOOKUP and
+  // not CONTEXT.
+  if (emit_debug_code()) {
+    cmpq(dst, Operand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+    Check(equal, "Yo dawg, I heard you liked function contexts "
+                 "so I put function contexts in all your contexts");
   }
 }
 
@@ -2526,7 +2651,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
                                                   Register map) {
   // Load the initial map.  The global functions all have initial maps.
   movq(map, FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Label ok, fail;
     CheckMap(map, Factory::meta_map(), &fail, false);
     jmp(&ok);
@@ -2581,7 +2706,7 @@ void MacroAssembler::CallCFunction(ExternalReference function,
 
 void MacroAssembler::CallCFunction(Register function, int num_arguments) {
   // Check stack alignment.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     CheckStackAlignment();
   }
 

@@ -133,9 +133,6 @@ class StubCache : public AllStatic {
   MUST_USE_RESULT static MaybeObject* ComputeKeyedLoadSpecialized(
       JSObject* receiver);
 
-  MUST_USE_RESULT static MaybeObject* ComputeKeyedLoadPixelArray(
-      JSObject* receiver);
-
   // ---
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreField(
@@ -143,27 +140,27 @@ class StubCache : public AllStatic {
       JSObject* receiver,
       int field_index,
       Map* transition,
-      Code::ExtraICState extra_ic_state);
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreNormal(
-      Code::ExtraICState extra_ic_state);
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreGlobal(
       String* name,
       GlobalObject* receiver,
       JSGlobalPropertyCell* cell,
-      Code::ExtraICState extra_ic_state);
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreCallback(
       String* name,
       JSObject* receiver,
       AccessorInfo* callback,
-      Code::ExtraICState extra_ic_state);
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT static MaybeObject* ComputeStoreInterceptor(
       String* name,
       JSObject* receiver,
-      Code::ExtraICState extra_ic_state);
+      StrictModeFlag strict_mode);
 
   // ---
 
@@ -171,17 +168,17 @@ class StubCache : public AllStatic {
       String* name,
       JSObject* receiver,
       int field_index,
-      Map* transition = NULL);
+      Map* transition,
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT static MaybeObject* ComputeKeyedStoreSpecialized(
-      JSObject* receiver);
-
-  MUST_USE_RESULT static MaybeObject* ComputeKeyedStorePixelArray(
-      JSObject* receiver);
+      JSObject* receiver,
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT static MaybeObject* ComputeKeyedLoadOrStoreExternalArray(
       JSObject* receiver,
-      bool is_store);
+      bool is_store,
+      StrictModeFlag strict_mode);
 
   // ---
 
@@ -619,7 +616,6 @@ class KeyedLoadStubCompiler: public StubCompiler {
   MUST_USE_RESULT MaybeObject* CompileLoadFunctionPrototype(String* name);
 
   MUST_USE_RESULT MaybeObject* CompileLoadSpecialized(JSObject* receiver);
-  MUST_USE_RESULT MaybeObject* CompileLoadPixelArray(JSObject* receiver);
 
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
@@ -628,8 +624,8 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
 class StoreStubCompiler: public StubCompiler {
  public:
-  explicit StoreStubCompiler(Code::ExtraICState extra_ic_state)
-    : extra_ic_state_(extra_ic_state) { }
+  explicit StoreStubCompiler(StrictModeFlag strict_mode)
+    : strict_mode_(strict_mode) { }
 
   MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
                                                  int index,
@@ -649,12 +645,15 @@ class StoreStubCompiler: public StubCompiler {
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
 
-  Code::ExtraICState extra_ic_state_;
+  StrictModeFlag strict_mode_;
 };
 
 
 class KeyedStoreStubCompiler: public StubCompiler {
  public:
+  explicit KeyedStoreStubCompiler(StrictModeFlag strict_mode)
+    : strict_mode_(strict_mode) { }
+
   MUST_USE_RESULT MaybeObject* CompileStoreField(JSObject* object,
                                                  int index,
                                                  Map* transition,
@@ -662,10 +661,10 @@ class KeyedStoreStubCompiler: public StubCompiler {
 
   MUST_USE_RESULT MaybeObject* CompileStoreSpecialized(JSObject* receiver);
 
-  MUST_USE_RESULT MaybeObject* CompileStorePixelArray(JSObject* receiver);
-
  private:
   MaybeObject* GetCode(PropertyType type, String* name);
+
+  StrictModeFlag strict_mode_;
 };
 
 
@@ -826,10 +825,10 @@ class ExternalArrayStubCompiler: public StubCompiler {
   explicit ExternalArrayStubCompiler() {}
 
   MUST_USE_RESULT MaybeObject* CompileKeyedLoadStub(
-      ExternalArrayType array_type, Code::Flags flags);
+      JSObject* receiver, ExternalArrayType array_type, Code::Flags flags);
 
   MUST_USE_RESULT MaybeObject* CompileKeyedStoreStub(
-      ExternalArrayType array_type, Code::Flags flags);
+      JSObject* receiver, ExternalArrayType array_type, Code::Flags flags);
 
  private:
   MaybeObject* GetCode(Code::Flags flags);

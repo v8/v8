@@ -327,7 +327,7 @@ class PosixMemoryMappedFile : public OS::MemoryMappedFile {
 
 
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
-  FILE* file = fopen(name, "w+");
+  FILE* file = fopen(name, "r+");
   if (file == NULL) return NULL;
 
   fseek(file, 0, SEEK_END);
@@ -617,7 +617,9 @@ static void* ThreadEntry(void* arg) {
   // This is also initialized by the first argument to pthread_create() but we
   // don't know which thread will run first (the original thread or the new
   // one) so we initialize it here too.
-  prctl(PR_SET_NAME, thread->name(), 0, 0, 0);
+  prctl(PR_SET_NAME,
+        reinterpret_cast<unsigned long>(thread->name()),  // NOLINT
+        0, 0, 0);
   thread->thread_handle_data()->thread_ = pthread_self();
   ASSERT(thread->IsValid());
   thread->Run();
@@ -904,6 +906,7 @@ class Sampler::PlatformData : public Malloced {
   }
 
   void SendProfilingSignal() {
+    if (!signal_handler_installed_) return;
     // Glibc doesn't provide a wrapper for tgkill(2).
     syscall(SYS_tgkill, vm_tgid_, vm_tid_, SIGPROF);
   }
@@ -970,8 +973,8 @@ void Sampler::Start() {
   sa.sa_sigaction = ProfilerSignalHandler;
   sigemptyset(&sa.sa_mask);
   sa.sa_flags = SA_RESTART | SA_SIGINFO;
-  if (sigaction(SIGPROF, &sa, &data_->old_signal_handler_) != 0) return;
-  data_->signal_handler_installed_ = true;
+  data_->signal_handler_installed_ =
+      sigaction(SIGPROF, &sa, &data_->old_signal_handler_) == 0;
 
   // Start a thread that sends SIGPROF signal to VM thread.
   // Sending the signal ourselves instead of relying on itimer provides

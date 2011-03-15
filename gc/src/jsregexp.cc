@@ -97,9 +97,10 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
                                         Handle<String> pattern,
                                         Handle<String> error_text,
                                         const char* message) {
-  Handle<JSArray> array = Factory::NewJSArray(2);
-  SetElement(array, 0, pattern);
-  SetElement(array, 1, error_text);
+  Handle<FixedArray> elements = Factory::NewFixedArray(2);
+  elements->set(0, *pattern);
+  elements->set(1, *error_text);
+  Handle<JSArray> array = Factory::NewJSArrayWithElements(elements);
   Handle<Object> regexp_err = Factory::NewSyntaxError(message, array);
   Top::Throw(*regexp_err);
 }
@@ -325,11 +326,12 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
                             is_ascii);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
-    Handle<JSArray> array = Factory::NewJSArray(2);
-    SetElement(array, 0, pattern);
-    SetElement(array,
-               1,
-               Factory::NewStringFromUtf8(CStrVector(result.error_message)));
+    Handle<FixedArray> elements = Factory::NewFixedArray(2);
+    elements->set(0, *pattern);
+    Handle<String> error_message =
+        Factory::NewStringFromUtf8(CStrVector(result.error_message));
+    elements->set(1, *error_message);
+    Handle<JSArray> array = Factory::NewJSArrayWithElements(elements);
     Handle<Object> regexp_err =
         Factory::NewSyntaxError("malformed_regexp", array);
     Top::Throw(*regexp_err);
@@ -858,9 +860,11 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
   if (reg_exp_too_big_) return IrregexpRegExpTooBig();
 
   Handle<Object> code = macro_assembler_->GetCode(pattern);
-
   work_list_ = NULL;
 #ifdef DEBUG
+  if (FLAG_print_code) {
+    Handle<Code>::cast(code)->Disassemble(*pattern->ToCString());
+  }
   if (FLAG_trace_regexp_assembler) {
     delete macro_assembler_;
   }

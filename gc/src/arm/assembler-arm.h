@@ -284,6 +284,7 @@ const SwVfpRegister s29 = { 29 };
 const SwVfpRegister s30 = { 30 };
 const SwVfpRegister s31 = { 31 };
 
+const DwVfpRegister no_dreg = { -1 };
 const DwVfpRegister d0  = {  0 };
 const DwVfpRegister d1  = {  1 };
 const DwVfpRegister d2  = {  2 };
@@ -387,9 +388,12 @@ class Operand BASE_EMBEDDED {
   // Return true if this is a register operand.
   INLINE(bool is_reg() const);
 
-  // Return true of this operand fits in one instruction so that no
-  // 2-instruction solution with a load into the ip register is necessary.
-  bool is_single_instruction() const;
+  // Return true if this operand fits in one instruction so that no
+  // 2-instruction solution with a load into the ip register is necessary. If
+  // the instruction this operand is used for is a MOV or MVN instruction the
+  // actual instruction to use is required for this calculation. For other
+  // instructions instr is ignored.
+  bool is_single_instruction(Instr instr = 0) const;
   bool must_use_constant_pool() const;
 
   inline int32_t immediate() const {
@@ -439,13 +443,17 @@ class MemOperand BASE_EMBEDDED {
       offset_ = offset;
   }
 
-  uint32_t offset() {
+  uint32_t offset() const {
       ASSERT(rm_.is(no_reg));
       return offset_;
   }
 
   Register rn() const { return rn_; }
   Register rm() const { return rm_; }
+
+  bool OffsetIsUint12Encodable() const {
+    return offset_ >= 0 ? is_uint12(offset_) : is_uint12(-offset_);
+  }
 
  private:
   Register rn_;  // base
@@ -545,6 +553,9 @@ class Assembler : public Malloced {
   // upon destruction of the assembler.
   Assembler(void* buffer, int buffer_size);
   ~Assembler();
+
+  // Overrides the default provided by FLAG_debug_code.
+  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -902,22 +913,34 @@ class Assembler : public Malloced {
 
   void vldr(const DwVfpRegister dst,
             const Register base,
-            int offset,  // Offset must be a multiple of 4.
+            int offset,
+            const Condition cond = al);
+  void vldr(const DwVfpRegister dst,
+            const MemOperand& src,
             const Condition cond = al);
 
   void vldr(const SwVfpRegister dst,
             const Register base,
-            int offset,  // Offset must be a multiple of 4.
+            int offset,
+            const Condition cond = al);
+  void vldr(const SwVfpRegister dst,
+            const MemOperand& src,
             const Condition cond = al);
 
   void vstr(const DwVfpRegister src,
             const Register base,
-            int offset,  // Offset must be a multiple of 4.
+            int offset,
+            const Condition cond = al);
+  void vstr(const DwVfpRegister src,
+            const MemOperand& dst,
             const Condition cond = al);
 
   void vstr(const SwVfpRegister src,
             const Register base,
-            int offset,  // Offset must be a multiple of 4.
+            int offset,
+            const Condition cond = al);
+  void vstr(const SwVfpRegister src,
+            const MemOperand& dst,
             const Condition cond = al);
 
   void vmov(const DwVfpRegister dst,
@@ -972,6 +995,9 @@ class Assembler : public Malloced {
                     VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
 
+  void vneg(const DwVfpRegister dst,
+            const DwVfpRegister src,
+            const Condition cond = al);
   void vabs(const DwVfpRegister dst,
             const DwVfpRegister src,
             const Condition cond = al);
@@ -1131,6 +1157,8 @@ class Assembler : public Malloced {
   void CheckConstPool(bool force_emit, bool require_jump);
 
  protected:
+  bool emit_debug_code() const { return emit_debug_code_; }
+
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Read/patch instructions
@@ -1259,6 +1287,7 @@ class Assembler : public Malloced {
 
   PositionsRecorder positions_recorder_;
   bool allow_peephole_optimization_;
+  bool emit_debug_code_;
   friend class PositionsRecorder;
   friend class EnsureSpace;
 };

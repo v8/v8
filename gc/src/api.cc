@@ -2286,7 +2286,8 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
       self,
       key_obj,
       value_obj,
-      static_cast<PropertyAttributes>(attribs));
+      static_cast<PropertyAttributes>(attribs),
+      i::kNonStrictMode);
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(false);
   return true;
@@ -2303,7 +2304,8 @@ bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
   i::Handle<i::Object> obj = i::SetElement(
       self,
       index,
-      value_obj);
+      value_obj,
+      i::kNonStrictMode);
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(false);
   return true;
@@ -2711,7 +2713,8 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
       hidden_props,
       key_obj,
       value_obj,
-      static_cast<PropertyAttributes>(None));
+      static_cast<PropertyAttributes>(None),
+      i::kNonStrictMode);
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(false);
   return true;
@@ -2753,11 +2756,40 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
 }
 
 
+namespace {
+
+void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
+                                  void* data,
+                                  ExternalArrayType array_type,
+                                  int length) {
+  i::Handle<i::ExternalArray> array =
+      i::Factory::NewExternalArray(length, array_type, data);
+
+  // If the object already has external elements, create a new, unique
+  // map if the element type is now changing, because assumptions about
+  // generated code based on the receiver's map will be invalid.
+  i::Handle<i::HeapObject> elements(object->elements());
+  bool force_unique_map =
+      elements->map()->IsUndefined() ||
+      !elements->map()->has_external_array_elements() ||
+      elements->map() != i::Heap::MapForExternalArrayType(array_type);
+  if (force_unique_map) {
+    i::Handle<i::Map> external_array_map =
+        i::Factory::NewExternalArrayElementsMap(
+            i::Handle<i::Map>(object->map()));
+    object->set_map(*external_array_map);
+  }
+  object->set_elements(*array);
+}
+
+}  // namespace
+
+
 void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
   ON_BAILOUT("v8::SetElementsToPixelData()", return);
   ENTER_V8;
   HandleScope scope;
-  if (!ApiCheck(length <= i::PixelArray::kMaxLength,
+  if (!ApiCheck(length <= i::ExternalPixelArray::kMaxLength,
                 "v8::Object::SetIndexedPropertiesToPixelData()",
                 "length exceeds max acceptable value")) {
     return;
@@ -2768,26 +2800,23 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
                 "JSArray is not supported")) {
     return;
   }
-  i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(length, data);
-  i::Handle<i::Map> pixel_array_map =
-      i::Factory::GetPixelArrayElementsMap(i::Handle<i::Map>(self->map()));
-  self->set_map(*pixel_array_map);
-  self->set_elements(*pixels);
+  PrepareExternalArrayElements(self, data, kExternalPixelArray, length);
 }
 
 
 bool v8::Object::HasIndexedPropertiesInPixelData() {
   ON_BAILOUT("v8::HasIndexedPropertiesInPixelData()", return false);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return self->HasPixelElements();
+  return self->HasExternalPixelElements();
 }
 
 
 uint8_t* v8::Object::GetIndexedPropertiesPixelData() {
   ON_BAILOUT("v8::GetIndexedPropertiesPixelData()", return NULL);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  if (self->HasPixelElements()) {
-    return i::PixelArray::cast(self->elements())->external_pointer();
+  if (self->HasExternalPixelElements()) {
+    return i::ExternalPixelArray::cast(self->elements())->
+        external_pixel_pointer();
   } else {
     return NULL;
   }
@@ -2797,13 +2826,12 @@ uint8_t* v8::Object::GetIndexedPropertiesPixelData() {
 int v8::Object::GetIndexedPropertiesPixelDataLength() {
   ON_BAILOUT("v8::GetIndexedPropertiesPixelDataLength()", return -1);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  if (self->HasPixelElements()) {
-    return i::PixelArray::cast(self->elements())->length();
+  if (self->HasExternalPixelElements()) {
+    return i::ExternalPixelArray::cast(self->elements())->length();
   } else {
     return -1;
   }
 }
-
 
 void v8::Object::SetIndexedPropertiesToExternalArrayData(
     void* data,
@@ -2823,12 +2851,7 @@ void v8::Object::SetIndexedPropertiesToExternalArrayData(
                 "JSArray is not supported")) {
     return;
   }
-  i::Handle<i::ExternalArray> array =
-      i::Factory::NewExternalArray(length, array_type, data);
-  i::Handle<i::Map> slow_map =
-      i::Factory::GetSlowElementsMap(i::Handle<i::Map>(self->map()));
-  self->set_map(*slow_map);
-  self->set_elements(*array);
+  PrepareExternalArrayElements(self, data, array_type, length);
 }
 
 
@@ -2869,6 +2892,8 @@ ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
       return kExternalUnsignedIntArray;
     case i::EXTERNAL_FLOAT_ARRAY_TYPE:
       return kExternalFloatArray;
+    case i::EXTERNAL_PIXEL_ARRAY_TYPE:
+      return kExternalPixelArray;
     default:
       return static_cast<ExternalArrayType>(-1);
   }
@@ -3555,6 +3580,11 @@ void Context::ReattachGlobal(Handle<Object> global_object) {
 }
 
 
+void V8::SetWrapperClassId(i::Object** global_handle, uint16_t class_id) {
+  i::GlobalHandles::SetWrapperClassId(global_handle, class_id);
+}
+
+
 Local<v8::Object> ObjectTemplate::NewInstance() {
   ON_BAILOUT("v8::ObjectTemplate::NewInstance()", return Local<v8::Object>());
   LOG_API("ObjectTemplate::NewInstance");
@@ -4091,10 +4121,13 @@ void V8::SetFailedAccessCheckCallbackFunction(
 }
 
 
-void V8::AddObjectGroup(Persistent<Value>* objects, size_t length) {
+void V8::AddObjectGroup(Persistent<Value>* objects,
+                        size_t length,
+                        RetainedObjectInfo* info) {
   if (IsDeadCheck("v8::V8::AddObjectGroup()")) return;
   STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
-  i::GlobalHandles::AddGroup(reinterpret_cast<i::Object***>(objects), length);
+  i::GlobalHandles::AddGroup(
+      reinterpret_cast<i::Object***>(objects), length, info);
 }
 
 
@@ -5040,6 +5073,12 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
           *Utils::OpenHandle(*title), internal_type, control));
 }
 
+
+void HeapProfiler::DefineWrapperClass(uint16_t class_id,
+                                      WrapperInfoCallback callback) {
+  i::HeapProfiler::DefineWrapperClass(class_id, callback);
+}
+
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 
@@ -5101,6 +5140,11 @@ void Testing::PrepareStressRun(int run) {
     SetFlagsFromString(kLazyOptimizations);
   }
 #endif
+}
+
+
+void Testing::DeoptimizeAll() {
+  internal::Deoptimizer::DeoptimizeAll();
 }
 
 

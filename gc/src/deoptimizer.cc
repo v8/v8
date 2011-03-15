@@ -926,10 +926,9 @@ MemoryChunk* Deoptimizer::CreateCode(BailoutType type) {
   // references. This is fine because the deoptimizer's code section
   // isn't meant to be serialized at all.
   ASSERT(!Serializer::enabled());
-  bool old_debug_code = FLAG_debug_code;
-  FLAG_debug_code = false;
 
   MacroAssembler masm(NULL, 16 * KB);
+  masm.set_emit_debug_code(false);
   GenerateDeoptimizationEntries(&masm, kNumberOfEntries, type);
   CodeDesc desc;
   masm.GetCode(&desc);
@@ -939,7 +938,6 @@ MemoryChunk* Deoptimizer::CreateCode(BailoutType type) {
       MemoryAllocator::AllocateChunk(desc.instr_size, EXECUTABLE, NULL);
   memcpy(chunk->body(), desc.buffer, desc.instr_size);
   CPU::FlushICache(chunk->body(), desc.instr_size);
-  FLAG_debug_code = old_debug_code;
   return chunk;
 }
 

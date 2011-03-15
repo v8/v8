@@ -659,12 +659,10 @@ static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
   // already generated). Do not allow the assembler to perform a
   // garbage collection but instead return the allocation failure
   // object.
-  MaybeObject* result = masm->TryCallApiFunctionAndReturn(
-      &fun, argc + kFastApiCallArguments + 1);
-  if (result->IsFailure()) {
-    return result;
-  }
-  return Heap::undefined_value();
+  const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
+  ExternalReference ref =
+      ExternalReference(&fun, ExternalReference::DIRECT_API_CALL);
+  return masm->TryCallApiFunctionAndReturn(ref, kStackUnwindSpace);
 }
 
 class CallInterceptorCompiler BASE_EMBEDDED {
@@ -1249,18 +1247,38 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
       CheckPrototypes(object, receiver, holder, scratch1, scratch2, scratch3,
                       name, miss);
 
-  // Push the arguments on the JS stack of the caller.
-  __ push(receiver);  // Receiver.
-  __ mov(scratch3, Operand(Handle<AccessorInfo>(callback)));  // callback data
-  __ ldr(ip, FieldMemOperand(scratch3, AccessorInfo::kDataOffset));
-  __ Push(reg, ip, scratch3, name_reg);
+  // Build AccessorInfo::args_ list on the stack and push property name below
+  // the exit frame to make GC aware of them and store pointers to them.
+  __ push(receiver);
+  __ mov(scratch2, sp);  // scratch2 = AccessorInfo::args_
+  Handle<AccessorInfo> callback_handle(callback);
+  if (Heap::InNewSpace(callback_handle->data())) {
+    __ Move(scratch3, callback_handle);
+    __ ldr(scratch3, FieldMemOperand(scratch3, AccessorInfo::kDataOffset));
+  } else {
+    __ Move(scratch3, Handle<Object>(callback_handle->data()));
+  }
+  __ Push(reg, scratch3, name_reg);
+  __ mov(r0, sp);  // r0 = Handle<String>
 
-  // Do tail-call to the runtime system.
-  ExternalReference load_callback_property =
-      ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-  __ TailCallExternalReference(load_callback_property, 5, 1);
+  Address getter_address = v8::ToCData<Address>(callback->getter());
+  ApiFunction fun(getter_address);
 
-  return Heap::undefined_value();  // Success.
+  const int kApiStackSpace = 1;
+  __ EnterExitFrame(false, kApiStackSpace);
+  // Create AccessorInfo instance on the stack above the exit frame with
+  // scratch2 (internal::Object **args_) as the data.
+  __ str(scratch2, MemOperand(sp, 1 * kPointerSize));
+  __ add(r1, sp, Operand(1 * kPointerSize));  // r1 = AccessorInfo&
+
+  // Emitting a stub call may try to allocate (if the code is not
+  // already generated).  Do not allow the assembler to perform a
+  // garbage collection but instead return the allocation failure
+  // object.
+  const int kStackUnwindSpace = 4;
+  ExternalReference ref =
+      ExternalReference(&fun, ExternalReference::DIRECT_GETTER_CALL);
+  return masm()->TryCallApiFunctionAndReturn(ref, kStackUnwindSpace);
 }
 
 
@@ -2343,8 +2361,9 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       break;
 
     case STRING_CHECK:
-      if (!function->IsBuiltin()) {
-        // Calling non-builtins with a value as receiver requires boxing.
+      if (!function->IsBuiltin() && !function_info->strict_mode()) {
+        // Calling non-strict non-builtins with a value as the receiver
+        // requires boxing.
         __ jmp(&miss);
       } else {
         // Check that the object is a two-byte string or a symbol.
@@ -2359,8 +2378,9 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       break;
 
     case NUMBER_CHECK: {
-      if (!function->IsBuiltin()) {
-        // Calling non-builtins with a value as receiver requires boxing.
+      if (!function->IsBuiltin() && !function_info->strict_mode()) {
+        // Calling non-strict non-builtins with a value as the receiver
+        // requires boxing.
         __ jmp(&miss);
       } else {
         Label fast;
@@ -2380,8 +2400,9 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
     }
 
     case BOOLEAN_CHECK: {
-      if (!function->IsBuiltin()) {
-        // Calling non-builtins with a value as receiver requires boxing.
+      if (!function->IsBuiltin() && !function_info->strict_mode()) {
+        // Calling non-strict non-builtins with a value as the receiver
+        // requires boxing.
         __ jmp(&miss);
       } else {
         Label fast;
@@ -2661,10 +2682,13 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 
   __ Push(r1, r2, r0);  // Receiver, name, value.
 
+  __ mov(r0, Operand(Smi::FromInt(strict_mode_)));
+  __ push(r0);  // strict mode
+
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty));
-  __ TailCallExternalReference(store_ic_property, 3, 1);
+  __ TailCallExternalReference(store_ic_property, 4, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -3130,38 +3154,6 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadPixelArray(JSObject* receiver) {
-  // ----------- S t a t e -------------
-  //  -- lr    : return address
-  //  -- r0    : key
-  //  -- r1    : receiver
-  // -----------------------------------
-  Label miss;
-
-  // Check that the map matches.
-  __ CheckMap(r1, r2, Handle<Map>(receiver->map()), &miss, false);
-
-  GenerateFastPixelArrayLoad(masm(),
-                             r1,
-                             r0,
-                             r2,
-                             r3,
-                             r4,
-                             r5,
-                             r0,
-                             &miss,
-                             &miss,
-                             &miss);
-
-  __ bind(&miss);
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Miss));
-  __ Jump(ic, RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode(NORMAL, NULL);
-}
-
-
 MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
                                                        int index,
                                                        Map* transition,
@@ -3262,47 +3254,6 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
   // value_reg (r0) is preserved.
   // Done.
   __ Ret();
-
-  __ bind(&miss);
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
-  __ Jump(ic, RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode(NORMAL, NULL);
-}
-
-
-MaybeObject* KeyedStoreStubCompiler::CompileStorePixelArray(
-    JSObject* receiver) {
-  // ----------- S t a t e -------------
-  //  -- r0    : value
-  //  -- r1    : key
-  //  -- r2    : receiver
-  //  -- r3    : scratch
-  //  -- r4    : scratch
-  //  -- r5    : scratch
-  //  -- r6    : scratch
-  //  -- lr    : return address
-  // -----------------------------------
-  Label miss;
-
-  // Check that the map matches.
-  __ CheckMap(r2, r6, Handle<Map>(receiver->map()), &miss, false);
-
-  GenerateFastPixelArrayStore(masm(),
-                              r2,
-                              r1,
-                              r0,
-                              r3,
-                              r4,
-                              r5,
-                              r6,
-                              true,
-                              true,
-                              &miss,
-                              &miss,
-                              NULL,
-                              &miss);
 
   __ bind(&miss);
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
@@ -3477,7 +3428,9 @@ static bool IsElementTypeSigned(ExternalArrayType array_type) {
 
 
 MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
-    ExternalArrayType array_type, Code::Flags flags) {
+    JSObject* receiver_object,
+    ExternalArrayType array_type,
+    Code::Flags flags) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- r0     : key
@@ -3494,24 +3447,13 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
   // Check that the key is a smi.
   __ JumpIfNotSmi(key, &slow);
 
-  // Check that the object is a JS object. Load map into r2.
-  __ CompareObjectType(receiver, r2, r3, FIRST_JS_OBJECT_TYPE);
-  __ b(lt, &slow);
-
-  // Check that the receiver does not require access checks.  We need
-  // to check this explicitly since this generic stub does not perform
-  // map checks.
-  __ ldrb(r3, FieldMemOperand(r2, Map::kBitFieldOffset));
-  __ tst(r3, Operand(1 << Map::kIsAccessCheckNeeded));
+  // Make sure that we've got the right map.
+  __ ldr(r2, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ cmp(r2, Operand(Handle<Map>(receiver_object->map())));
   __ b(ne, &slow);
 
-  // Check that the elements array is the appropriate type of
-  // ExternalArray.
   __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::RootIndexForExternalArrayType(array_type));
-  __ cmp(r2, ip);
-  __ b(ne, &slow);
+  // r3: elements array
 
   // Check that the index is in range.
   __ ldr(ip, FieldMemOperand(r3, ExternalArray::kLengthOffset));
@@ -3519,7 +3461,6 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
   // Unsigned comparison catches both negative and too-large values.
   __ b(lo, &slow);
 
-  // r3: elements array
   __ ldr(r3, FieldMemOperand(r3, ExternalArray::kExternalPointerOffset));
   // r3: base pointer of external storage
 
@@ -3532,6 +3473,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     case kExternalByteArray:
       __ ldrsb(value, MemOperand(r3, key, LSR, 1));
       break;
+    case kExternalPixelArray:
     case kExternalUnsignedByteArray:
       __ ldrb(value, MemOperand(r3, key, LSR, 1));
       break;
@@ -3757,7 +3699,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
 
 
 MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
-    ExternalArrayType array_type, Code::Flags flags) {
+    JSObject* receiver_object,
+    ExternalArrayType array_type,
+    Code::Flags flags) {
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r1     : key
@@ -3775,28 +3719,18 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   // Check that the object isn't a smi.
   __ JumpIfSmi(receiver, &slow);
 
-  // Check that the object is a JS object. Load map into r3.
-  __ CompareObjectType(receiver, r3, r4, FIRST_JS_OBJECT_TYPE);
-  __ b(le, &slow);
-
-  // Check that the receiver does not require access checks.  We need
-  // to do this because this generic stub does not perform map checks.
-  __ ldrb(ip, FieldMemOperand(r3, Map::kBitFieldOffset));
-  __ tst(ip, Operand(1 << Map::kIsAccessCheckNeeded));
+  // Make sure that we've got the right map.
+  __ ldr(r3, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ cmp(r3, Operand(Handle<Map>(receiver_object->map())));
   __ b(ne, &slow);
+
+  __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
 
   // Check that the key is a smi.
   __ JumpIfNotSmi(key, &slow);
 
-  // Check that the elements array is the appropriate type of ExternalArray.
-  __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  __ ldr(r4, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::RootIndexForExternalArrayType(array_type));
-  __ cmp(r4, ip);
-  __ b(ne, &slow);
-
-  // Check that the index is in range.
-  __ mov(r4, Operand(key, ASR, kSmiTagSize));  // Untag the index.
+  // Check that the index is in range
+  __ SmiUntag(r4, key);
   __ ldr(ip, FieldMemOperand(r3, ExternalArray::kLengthOffset));
   __ cmp(r4, ip);
   // Unsigned comparison catches both negative and too-large values.
@@ -3806,14 +3740,24 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   // runtime for all other kinds of values.
   // r3: external array.
   // r4: key (integer).
-  __ JumpIfNotSmi(value, &check_heap_number);
-  __ mov(r5, Operand(value, ASR, kSmiTagSize));  // Untag the value.
+  if (array_type == kExternalPixelArray) {
+    // Double to pixel conversion is only implemented in the runtime for now.
+    __ JumpIfNotSmi(value, &slow);
+  } else {
+    __ JumpIfNotSmi(value, &check_heap_number);
+  }
+  __ SmiUntag(r5, value);
   __ ldr(r3, FieldMemOperand(r3, ExternalArray::kExternalPointerOffset));
 
   // r3: base pointer of external storage.
   // r4: key (integer).
   // r5: value (integer).
   switch (array_type) {
+    case kExternalPixelArray:
+      // Clamp the value to [0..255].
+      __ Usat(r5, 8, Operand(r5));
+      __ strb(r5, MemOperand(r3, r4, LSL, 0));
+      break;
     case kExternalByteArray:
     case kExternalUnsignedByteArray:
       __ strb(r5, MemOperand(r3, r4, LSL, 0));
@@ -3838,198 +3782,200 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   // Entry registers are intact, r0 holds the value which is the return value.
   __ Ret();
 
+  if (array_type != kExternalPixelArray) {
+    // r3: external array.
+    // r4: index (integer).
+    __ bind(&check_heap_number);
+    __ CompareObjectType(value, r5, r6, HEAP_NUMBER_TYPE);
+    __ b(ne, &slow);
 
-  // r3: external array.
-  // r4: index (integer).
-  __ bind(&check_heap_number);
-  __ CompareObjectType(value, r5, r6, HEAP_NUMBER_TYPE);
-  __ b(ne, &slow);
+    __ ldr(r3, FieldMemOperand(r3, ExternalArray::kExternalPointerOffset));
 
-  __ ldr(r3, FieldMemOperand(r3, ExternalArray::kExternalPointerOffset));
+    // r3: base pointer of external storage.
+    // r4: key (integer).
 
-  // r3: base pointer of external storage.
-  // r4: key (integer).
-
-  // The WebGL specification leaves the behavior of storing NaN and
-  // +/-Infinity into integer arrays basically undefined. For more
-  // reproducible behavior, convert these to zero.
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
+    // The WebGL specification leaves the behavior of storing NaN and
+    // +/-Infinity into integer arrays basically undefined. For more
+    // reproducible behavior, convert these to zero.
+    if (CpuFeatures::IsSupported(VFP3)) {
+      CpuFeatures::Scope scope(VFP3);
 
 
-    if (array_type == kExternalFloatArray) {
-      // vldr requires offset to be a multiple of 4 so we can not
-      // include -kHeapObjectTag into it.
-      __ sub(r5, r0, Operand(kHeapObjectTag));
-      __ vldr(d0, r5, HeapNumber::kValueOffset);
-      __ add(r5, r3, Operand(r4, LSL, 2));
-      __ vcvt_f32_f64(s0, d0);
-      __ vstr(s0, r5, 0);
-    } else {
-      // Need to perform float-to-int conversion.
-      // Test for NaN or infinity (both give zero).
-      __ ldr(r6, FieldMemOperand(value, HeapNumber::kExponentOffset));
-
-      // Hoisted load.  vldr requires offset to be a multiple of 4 so we can not
-      // include -kHeapObjectTag into it.
-      __ sub(r5, value, Operand(kHeapObjectTag));
-      __ vldr(d0, r5, HeapNumber::kValueOffset);
-
-      __ Sbfx(r6, r6, HeapNumber::kExponentShift, HeapNumber::kExponentBits);
-      // NaNs and Infinities have all-one exponents so they sign extend to -1.
-      __ cmp(r6, Operand(-1));
-      __ mov(r5, Operand(0), LeaveCC, eq);
-
-      // Not infinity or NaN simply convert to int.
-      if (IsElementTypeSigned(array_type)) {
-        __ vcvt_s32_f64(s0, d0, kDefaultRoundToZero, ne);
+      if (array_type == kExternalFloatArray) {
+        // vldr requires offset to be a multiple of 4 so we can not
+        // include -kHeapObjectTag into it.
+        __ sub(r5, r0, Operand(kHeapObjectTag));
+        __ vldr(d0, r5, HeapNumber::kValueOffset);
+        __ add(r5, r3, Operand(r4, LSL, 2));
+        __ vcvt_f32_f64(s0, d0);
+        __ vstr(s0, r5, 0);
       } else {
-        __ vcvt_u32_f64(s0, d0, kDefaultRoundToZero, ne);
+        // Need to perform float-to-int conversion.
+        // Test for NaN or infinity (both give zero).
+        __ ldr(r6, FieldMemOperand(value, HeapNumber::kExponentOffset));
+
+        // Hoisted load.  vldr requires offset to be a multiple of 4 so we can
+        // not include -kHeapObjectTag into it.
+        __ sub(r5, value, Operand(kHeapObjectTag));
+        __ vldr(d0, r5, HeapNumber::kValueOffset);
+
+        __ Sbfx(r6, r6, HeapNumber::kExponentShift, HeapNumber::kExponentBits);
+        // NaNs and Infinities have all-one exponents so they sign extend to -1.
+        __ cmp(r6, Operand(-1));
+        __ mov(r5, Operand(0), LeaveCC, eq);
+
+        // Not infinity or NaN simply convert to int.
+        if (IsElementTypeSigned(array_type)) {
+          __ vcvt_s32_f64(s0, d0, kDefaultRoundToZero, ne);
+        } else {
+          __ vcvt_u32_f64(s0, d0, kDefaultRoundToZero, ne);
+        }
+        __ vmov(r5, s0, ne);
+
+        switch (array_type) {
+          case kExternalByteArray:
+          case kExternalUnsignedByteArray:
+            __ strb(r5, MemOperand(r3, r4, LSL, 0));
+            break;
+          case kExternalShortArray:
+          case kExternalUnsignedShortArray:
+            __ strh(r5, MemOperand(r3, r4, LSL, 1));
+            break;
+          case kExternalIntArray:
+          case kExternalUnsignedIntArray:
+            __ str(r5, MemOperand(r3, r4, LSL, 2));
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
       }
-      __ vmov(r5, s0, ne);
 
-      switch (array_type) {
-        case kExternalByteArray:
-        case kExternalUnsignedByteArray:
-          __ strb(r5, MemOperand(r3, r4, LSL, 0));
-          break;
-        case kExternalShortArray:
-        case kExternalUnsignedShortArray:
-          __ strh(r5, MemOperand(r3, r4, LSL, 1));
-          break;
-        case kExternalIntArray:
-        case kExternalUnsignedIntArray:
-          __ str(r5, MemOperand(r3, r4, LSL, 2));
-          break;
-        default:
-          UNREACHABLE();
-          break;
-      }
-    }
-
-    // Entry registers are intact, r0 holds the value which is the return value.
-    __ Ret();
-  } else {
-    // VFP3 is not available do manual conversions.
-    __ ldr(r5, FieldMemOperand(value, HeapNumber::kExponentOffset));
-    __ ldr(r6, FieldMemOperand(value, HeapNumber::kMantissaOffset));
-
-    if (array_type == kExternalFloatArray) {
-      Label done, nan_or_infinity_or_zero;
-      static const int kMantissaInHiWordShift =
-          kBinary32MantissaBits - HeapNumber::kMantissaBitsInTopWord;
-
-      static const int kMantissaInLoWordShift =
-          kBitsPerInt - kMantissaInHiWordShift;
-
-      // Test for all special exponent values: zeros, subnormal numbers, NaNs
-      // and infinities. All these should be converted to 0.
-      __ mov(r7, Operand(HeapNumber::kExponentMask));
-      __ and_(r9, r5, Operand(r7), SetCC);
-      __ b(eq, &nan_or_infinity_or_zero);
-
-      __ teq(r9, Operand(r7));
-      __ mov(r9, Operand(kBinary32ExponentMask), LeaveCC, eq);
-      __ b(eq, &nan_or_infinity_or_zero);
-
-      // Rebias exponent.
-      __ mov(r9, Operand(r9, LSR, HeapNumber::kExponentShift));
-      __ add(r9,
-             r9,
-             Operand(kBinary32ExponentBias - HeapNumber::kExponentBias));
-
-      __ cmp(r9, Operand(kBinary32MaxExponent));
-      __ and_(r5, r5, Operand(HeapNumber::kSignMask), LeaveCC, gt);
-      __ orr(r5, r5, Operand(kBinary32ExponentMask), LeaveCC, gt);
-      __ b(gt, &done);
-
-      __ cmp(r9, Operand(kBinary32MinExponent));
-      __ and_(r5, r5, Operand(HeapNumber::kSignMask), LeaveCC, lt);
-      __ b(lt, &done);
-
-      __ and_(r7, r5, Operand(HeapNumber::kSignMask));
-      __ and_(r5, r5, Operand(HeapNumber::kMantissaMask));
-      __ orr(r7, r7, Operand(r5, LSL, kMantissaInHiWordShift));
-      __ orr(r7, r7, Operand(r6, LSR, kMantissaInLoWordShift));
-      __ orr(r5, r7, Operand(r9, LSL, kBinary32ExponentShift));
-
-      __ bind(&done);
-      __ str(r5, MemOperand(r3, r4, LSL, 2));
       // Entry registers are intact, r0 holds the value which is the return
       // value.
       __ Ret();
-
-      __ bind(&nan_or_infinity_or_zero);
-      __ and_(r7, r5, Operand(HeapNumber::kSignMask));
-      __ and_(r5, r5, Operand(HeapNumber::kMantissaMask));
-      __ orr(r9, r9, r7);
-      __ orr(r9, r9, Operand(r5, LSL, kMantissaInHiWordShift));
-      __ orr(r5, r9, Operand(r6, LSR, kMantissaInLoWordShift));
-      __ b(&done);
     } else {
-      bool is_signed_type = IsElementTypeSigned(array_type);
-      int meaningfull_bits = is_signed_type ? (kBitsPerInt - 1) : kBitsPerInt;
-      int32_t min_value = is_signed_type ? 0x80000000 : 0x00000000;
+      // VFP3 is not available do manual conversions.
+      __ ldr(r5, FieldMemOperand(value, HeapNumber::kExponentOffset));
+      __ ldr(r6, FieldMemOperand(value, HeapNumber::kMantissaOffset));
 
-      Label done, sign;
+      if (array_type == kExternalFloatArray) {
+        Label done, nan_or_infinity_or_zero;
+        static const int kMantissaInHiWordShift =
+            kBinary32MantissaBits - HeapNumber::kMantissaBitsInTopWord;
 
-      // Test for all special exponent values: zeros, subnormal numbers, NaNs
-      // and infinities. All these should be converted to 0.
-      __ mov(r7, Operand(HeapNumber::kExponentMask));
-      __ and_(r9, r5, Operand(r7), SetCC);
-      __ mov(r5, Operand(0, RelocInfo::NONE), LeaveCC, eq);
-      __ b(eq, &done);
+        static const int kMantissaInLoWordShift =
+            kBitsPerInt - kMantissaInHiWordShift;
 
-      __ teq(r9, Operand(r7));
-      __ mov(r5, Operand(0, RelocInfo::NONE), LeaveCC, eq);
-      __ b(eq, &done);
+        // Test for all special exponent values: zeros, subnormal numbers, NaNs
+        // and infinities. All these should be converted to 0.
+        __ mov(r7, Operand(HeapNumber::kExponentMask));
+        __ and_(r9, r5, Operand(r7), SetCC);
+        __ b(eq, &nan_or_infinity_or_zero);
 
-      // Unbias exponent.
-      __ mov(r9, Operand(r9, LSR, HeapNumber::kExponentShift));
-      __ sub(r9, r9, Operand(HeapNumber::kExponentBias), SetCC);
-      // If exponent is negative then result is 0.
-      __ mov(r5, Operand(0, RelocInfo::NONE), LeaveCC, mi);
-      __ b(mi, &done);
+        __ teq(r9, Operand(r7));
+        __ mov(r9, Operand(kBinary32ExponentMask), LeaveCC, eq);
+        __ b(eq, &nan_or_infinity_or_zero);
 
-      // If exponent is too big then result is minimal value.
-      __ cmp(r9, Operand(meaningfull_bits - 1));
-      __ mov(r5, Operand(min_value), LeaveCC, ge);
-      __ b(ge, &done);
+        // Rebias exponent.
+        __ mov(r9, Operand(r9, LSR, HeapNumber::kExponentShift));
+        __ add(r9,
+               r9,
+               Operand(kBinary32ExponentBias - HeapNumber::kExponentBias));
 
-      __ and_(r7, r5, Operand(HeapNumber::kSignMask), SetCC);
-      __ and_(r5, r5, Operand(HeapNumber::kMantissaMask));
-      __ orr(r5, r5, Operand(1u << HeapNumber::kMantissaBitsInTopWord));
+        __ cmp(r9, Operand(kBinary32MaxExponent));
+        __ and_(r5, r5, Operand(HeapNumber::kSignMask), LeaveCC, gt);
+        __ orr(r5, r5, Operand(kBinary32ExponentMask), LeaveCC, gt);
+        __ b(gt, &done);
 
-      __ rsb(r9, r9, Operand(HeapNumber::kMantissaBitsInTopWord), SetCC);
-      __ mov(r5, Operand(r5, LSR, r9), LeaveCC, pl);
-      __ b(pl, &sign);
+        __ cmp(r9, Operand(kBinary32MinExponent));
+        __ and_(r5, r5, Operand(HeapNumber::kSignMask), LeaveCC, lt);
+        __ b(lt, &done);
 
-      __ rsb(r9, r9, Operand(0, RelocInfo::NONE));
-      __ mov(r5, Operand(r5, LSL, r9));
-      __ rsb(r9, r9, Operand(meaningfull_bits));
-      __ orr(r5, r5, Operand(r6, LSR, r9));
+        __ and_(r7, r5, Operand(HeapNumber::kSignMask));
+        __ and_(r5, r5, Operand(HeapNumber::kMantissaMask));
+        __ orr(r7, r7, Operand(r5, LSL, kMantissaInHiWordShift));
+        __ orr(r7, r7, Operand(r6, LSR, kMantissaInLoWordShift));
+        __ orr(r5, r7, Operand(r9, LSL, kBinary32ExponentShift));
 
-      __ bind(&sign);
-      __ teq(r7, Operand(0, RelocInfo::NONE));
-      __ rsb(r5, r5, Operand(0, RelocInfo::NONE), LeaveCC, ne);
+        __ bind(&done);
+        __ str(r5, MemOperand(r3, r4, LSL, 2));
+        // Entry registers are intact, r0 holds the value which is the return
+        // value.
+        __ Ret();
 
-      __ bind(&done);
-      switch (array_type) {
-        case kExternalByteArray:
-        case kExternalUnsignedByteArray:
-          __ strb(r5, MemOperand(r3, r4, LSL, 0));
-          break;
-        case kExternalShortArray:
-        case kExternalUnsignedShortArray:
-          __ strh(r5, MemOperand(r3, r4, LSL, 1));
-          break;
-        case kExternalIntArray:
-        case kExternalUnsignedIntArray:
-          __ str(r5, MemOperand(r3, r4, LSL, 2));
-          break;
-        default:
-          UNREACHABLE();
-          break;
+        __ bind(&nan_or_infinity_or_zero);
+        __ and_(r7, r5, Operand(HeapNumber::kSignMask));
+        __ and_(r5, r5, Operand(HeapNumber::kMantissaMask));
+        __ orr(r9, r9, r7);
+        __ orr(r9, r9, Operand(r5, LSL, kMantissaInHiWordShift));
+        __ orr(r5, r9, Operand(r6, LSR, kMantissaInLoWordShift));
+        __ b(&done);
+      } else {
+        bool is_signed_type = IsElementTypeSigned(array_type);
+        int meaningfull_bits = is_signed_type ? (kBitsPerInt - 1) : kBitsPerInt;
+        int32_t min_value = is_signed_type ? 0x80000000 : 0x00000000;
+
+        Label done, sign;
+
+        // Test for all special exponent values: zeros, subnormal numbers, NaNs
+        // and infinities. All these should be converted to 0.
+        __ mov(r7, Operand(HeapNumber::kExponentMask));
+        __ and_(r9, r5, Operand(r7), SetCC);
+        __ mov(r5, Operand(0, RelocInfo::NONE), LeaveCC, eq);
+        __ b(eq, &done);
+
+        __ teq(r9, Operand(r7));
+        __ mov(r5, Operand(0, RelocInfo::NONE), LeaveCC, eq);
+        __ b(eq, &done);
+
+        // Unbias exponent.
+        __ mov(r9, Operand(r9, LSR, HeapNumber::kExponentShift));
+        __ sub(r9, r9, Operand(HeapNumber::kExponentBias), SetCC);
+        // If exponent is negative then result is 0.
+        __ mov(r5, Operand(0, RelocInfo::NONE), LeaveCC, mi);
+        __ b(mi, &done);
+
+        // If exponent is too big then result is minimal value.
+        __ cmp(r9, Operand(meaningfull_bits - 1));
+        __ mov(r5, Operand(min_value), LeaveCC, ge);
+        __ b(ge, &done);
+
+        __ and_(r7, r5, Operand(HeapNumber::kSignMask), SetCC);
+        __ and_(r5, r5, Operand(HeapNumber::kMantissaMask));
+        __ orr(r5, r5, Operand(1u << HeapNumber::kMantissaBitsInTopWord));
+
+        __ rsb(r9, r9, Operand(HeapNumber::kMantissaBitsInTopWord), SetCC);
+        __ mov(r5, Operand(r5, LSR, r9), LeaveCC, pl);
+        __ b(pl, &sign);
+
+        __ rsb(r9, r9, Operand(0, RelocInfo::NONE));
+        __ mov(r5, Operand(r5, LSL, r9));
+        __ rsb(r9, r9, Operand(meaningfull_bits));
+        __ orr(r5, r5, Operand(r6, LSR, r9));
+
+        __ bind(&sign);
+        __ teq(r7, Operand(0, RelocInfo::NONE));
+        __ rsb(r5, r5, Operand(0, RelocInfo::NONE), LeaveCC, ne);
+
+        __ bind(&done);
+        switch (array_type) {
+          case kExternalByteArray:
+          case kExternalUnsignedByteArray:
+            __ strb(r5, MemOperand(r3, r4, LSL, 0));
+            break;
+          case kExternalShortArray:
+          case kExternalUnsignedShortArray:
+            __ strh(r5, MemOperand(r3, r4, LSL, 1));
+            break;
+          case kExternalIntArray:
+          case kExternalUnsignedIntArray:
+            __ str(r5, MemOperand(r3, r4, LSL, 2));
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
       }
     }
   }
@@ -4048,7 +3994,12 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   // Push receiver, key and value for runtime call.
   __ Push(r2, r1, r0);
 
-  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+  __ mov(r1, Operand(Smi::FromInt(NONE)));  // PropertyAttributes
+  __ mov(r0, Operand(Smi::FromInt(
+      Code::ExtractExtraICStateFromFlags(flags) & kStrictMode)));
+  __ Push(r1, r0);
+
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 
   return GetCode(flags);
 }

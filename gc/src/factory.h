@@ -166,11 +166,6 @@ class Factory : public AllStatic {
   static Handle<ByteArray> NewByteArray(int length,
                                         PretenureFlag pretenure = NOT_TENURED);
 
-  static Handle<PixelArray> NewPixelArray(
-      int length,
-      uint8_t* external_pointer,
-      PretenureFlag pretenure = NOT_TENURED);
-
   static Handle<ExternalArray> NewExternalArray(
       int length,
       ExternalArrayType array_type,
@@ -196,7 +191,7 @@ class Factory : public AllStatic {
 
   static Handle<Map> GetSlowElementsMap(Handle<Map> map);
 
-  static Handle<Map> GetPixelArrayElementsMap(Handle<Map> map);
+  static Handle<Map> NewExternalArrayElementsMap(Handle<Map> map);
 
   static Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
@@ -252,7 +247,8 @@ class Factory : public AllStatic {
 
   static Handle<Code> NewCode(const CodeDesc& desc,
                               Code::Flags flags,
-                              Handle<Object> self_reference);
+                              Handle<Object> self_reference,
+                              bool immovable = false);
 
   static Handle<Code> CopyCode(Handle<Code> code);
 

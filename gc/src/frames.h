@@ -452,12 +452,6 @@ class JavaScriptFrame: public StandardFrame {
   Object* GetParameter(int index) const;
   int ComputeParametersCount() const;
 
-  // Temporary way of getting access to the number of parameters
-  // passed on the stack by the caller. Once argument adaptor frames
-  // has been introduced on ARM, this number will always match the
-  // computed parameters count.
-  int GetProvidedParametersCount() const;
-
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const;
 

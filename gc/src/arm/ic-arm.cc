@@ -1174,7 +1174,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- r1     : receiver
   // -----------------------------------
   Label slow, check_string, index_smi, index_string, property_array_property;
-  Label check_pixel_array, probe_dictionary, check_number_dictionary;
+  Label probe_dictionary, check_number_dictionary;
 
   Register key = r0;
   Register receiver = r1;
@@ -1192,31 +1192,17 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // now in r2.
   __ ldrb(r3, FieldMemOperand(r2, Map::kBitField2Offset));
   __ tst(r3, Operand(1 << Map::kHasFastElements));
-  __ b(eq, &check_pixel_array);
+  __ b(eq, &check_number_dictionary);
 
   GenerateFastArrayLoad(
       masm, receiver, key, r4, r3, r2, r0, NULL, &slow);
   __ IncrementCounter(&Counters::keyed_load_generic_smi, 1, r2, r3);
   __ Ret();
 
-  // Check whether the elements is a pixel array.
-  // r0: key
-  // r1: receiver
-  __ bind(&check_pixel_array);
-
-  GenerateFastPixelArrayLoad(masm,
-                             r1,
-                             r0,
-                             r3,
-                             r4,
-                             r2,
-                             r5,
-                             r0,
-                             &check_number_dictionary,
-                             NULL,
-                             &slow);
-
   __ bind(&check_number_dictionary);
+  __ ldr(r4, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ ldr(r3, FieldMemOperand(r4, JSObject::kMapOffset));
+
   // Check whether the elements is a number dictionary.
   // r0: key
   // r3: elements map
@@ -1404,7 +1390,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                              StrictModeFlag strict_mode) {
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r1     : key
@@ -1415,18 +1402,23 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
   // Push receiver, key and value for runtime call.
   __ Push(r2, r1, r0);
 
-  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+  __ mov(r1, Operand(Smi::FromInt(NONE)));          // PropertyAttributes
+  __ mov(r0, Operand(Smi::FromInt(strict_mode)));   // Strict mode.
+  __ Push(r1, r0);
+
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 }
 
 
-void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
+                                   StrictModeFlag strict_mode) {
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r1     : key
   //  -- r2     : receiver
   //  -- lr     : return address
   // -----------------------------------
-  Label slow, fast, array, extra, check_pixel_array;
+  Label slow, fast, array, extra;
 
   // Register usage.
   Register value = r0;
@@ -1462,7 +1454,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldr(r4, FieldMemOperand(elements, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
   __ cmp(r4, ip);
-  __ b(ne, &check_pixel_array);
+  __ b(ne, &slow);
   // Check array bounds. Both the key and the length of FixedArray are smis.
   __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
   __ cmp(key, Operand(ip));
@@ -1474,25 +1466,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // r0: value.
   // r1: key.
   // r2: receiver.
-  GenerateRuntimeSetProperty(masm);
-
-  // Check whether the elements is a pixel array.
-  // r4: elements map.
-  __ bind(&check_pixel_array);
-  GenerateFastPixelArrayStore(masm,
-                              r2,
-                              r1,
-                              r0,
-                              elements,
-                              r4,
-                              r5,
-                              r6,
-                              false,
-                              false,
-                              NULL,
-                              &slow,
-                              &slow,
-                              &slow);
+  GenerateRuntimeSetProperty(masm, strict_mode);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -1547,7 +1521,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
-                                  Code::ExtraICState extra_ic_state) {
+                                  StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -1559,7 +1533,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC,
-                                         extra_ic_state);
+                                         strict_mode);
   StubCache::GenerateProbe(masm, flags, r1, r2, r3, r4, r5);
 
   // Cache miss: Jump to runtime.
@@ -1653,7 +1627,8 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateGlobalProxy(MacroAssembler* masm) {
+void StoreIC::GenerateGlobalProxy(MacroAssembler* masm,
+                                  StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -1663,8 +1638,12 @@ void StoreIC::GenerateGlobalProxy(MacroAssembler* masm) {
 
   __ Push(r1, r2, r0);
 
+  __ mov(r1, Operand(Smi::FromInt(NONE)));  // PropertyAttributes
+  __ mov(r0, Operand(Smi::FromInt(strict_mode)));
+  __ Push(r1, r0);
+
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 }
 
 

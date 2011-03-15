@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -554,7 +554,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- rsp[0] : return address
   // -----------------------------------
   Label slow, check_string, index_smi, index_string, property_array_property;
-  Label check_pixel_array, probe_dictionary, check_number_dictionary;
+  Label probe_dictionary, check_number_dictionary;
 
   // Check that the key is a smi.
   __ JumpIfNotSmi(rax, &check_string);
@@ -569,7 +569,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // now in rcx.
   __ testb(FieldOperand(rcx, Map::kBitField2Offset),
            Immediate(1 << Map::kHasFastElements));
-  __ j(zero, &check_pixel_array);
+  __ j(zero, &check_number_dictionary);
 
   GenerateFastArrayLoad(masm,
                         rdx,
@@ -582,18 +582,10 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ IncrementCounter(&Counters::keyed_load_generic_smi, 1);
   __ ret(0);
 
-  __ bind(&check_pixel_array);
-  GenerateFastPixelArrayLoad(masm,
-                             rdx,
-                             rax,
-                             rcx,
-                             rbx,
-                             rax,
-                             &check_number_dictionary,
-                             NULL,
-                             &slow);
-
   __ bind(&check_number_dictionary);
+  __ SmiToInteger32(rbx, rax);
+  __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
+
   // Check whether the elements is a number dictionary.
   // rdx: receiver
   // rax: key
@@ -766,14 +758,15 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
+                                   StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- rax     : value
   //  -- rcx     : key
   //  -- rdx     : receiver
   //  -- rsp[0]  : return address
   // -----------------------------------
-  Label slow, slow_with_tagged_index, fast, array, extra, check_pixel_array;
+  Label slow, slow_with_tagged_index, fast, array, extra;
 
   // Check that the object isn't a smi.
   __ JumpIfSmi(rdx, &slow_with_tagged_index);
@@ -802,7 +795,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Check that the object is in fast mode and writable.
   __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
                  Heap::kFixedArrayMapRootIndex);
-  __ j(not_equal, &check_pixel_array);
+  __ j(not_equal, &slow);
   __ SmiCompareInteger32(FieldOperand(rbx, FixedArray::kLengthOffset), rcx);
   // rax: value
   // rbx: FixedArray
@@ -813,27 +806,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&slow);
   __ Integer32ToSmi(rcx, rcx);
   __ bind(&slow_with_tagged_index);
-  GenerateRuntimeSetProperty(masm);
+  GenerateRuntimeSetProperty(masm, strict_mode);
   // Never returns to here.
-
-  // Check whether the elements is a pixel array.
-  // rax: value
-  // rdx: receiver
-  // rbx: receiver's elements array
-  // rcx: index, zero-extended.
-  __ bind(&check_pixel_array);
-  GenerateFastPixelArrayStore(masm,
-                              rdx,
-                              rcx,
-                              rax,
-                              rbx,
-                              rdi,
-                              false,
-                              true,
-                              NULL,
-                              &slow,
-                              &slow,
-                              &slow);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -1474,7 +1448,7 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
-                                  Code::ExtraICState extra_ic_state) {
+                                  StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
@@ -1486,7 +1460,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC,
-                                         extra_ic_state);
+                                         strict_mode);
   StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, no_reg);
 
   // Cache miss: Jump to runtime.
@@ -1593,7 +1567,8 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateGlobalProxy(MacroAssembler* masm) {
+void StoreIC::GenerateGlobalProxy(MacroAssembler* masm,
+                                  StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
@@ -1604,14 +1579,17 @@ void StoreIC::GenerateGlobalProxy(MacroAssembler* masm) {
   __ push(rdx);
   __ push(rcx);
   __ push(rax);
-  __ push(rbx);
+  __ Push(Smi::FromInt(NONE));  // PropertyAttributes
+  __ Push(Smi::FromInt(strict_mode));
+  __ push(rbx);  // return address
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 }
 
 
-void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                              StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- rax     : value
   //  -- rcx     : key
@@ -1623,10 +1601,12 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
   __ push(rdx);  // receiver
   __ push(rcx);  // key
   __ push(rax);  // value
+  __ Push(Smi::FromInt(NONE));          // PropertyAttributes
+  __ Push(Smi::FromInt(strict_mode));   // Strict mode.
   __ push(rbx);  // return address
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 }
 
 
