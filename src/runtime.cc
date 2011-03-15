@@ -3762,6 +3762,14 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   LookupResult result;
   js_object->LookupRealNamedProperty(*name, &result);
 
+  // To be compatible with safari we do not change the value on API objects
+  // in defineProperty. Firefox disagrees here, and actually changes the value.
+  if (result.IsProperty() &&
+      (result.type() == CALLBACKS) &&
+      result.GetCallbackObject()->IsAccessorInfo()) {
+    return Heap::undefined_value();
+  }
+
   // Take special care when attributes are different and there is already
   // a property. For simplicity we normalize the property which enables us
   // to not worry about changing the instance_descriptor and creating a new
