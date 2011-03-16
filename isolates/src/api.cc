@@ -203,12 +203,6 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
 }
 
 
-void V8::SetFatalErrorHandler(FatalErrorCallback that) {
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->set_exception_behavior(that);
-}
-
-
 bool Utils::ReportApiFailure(const char* location, const char* message) {
   FatalErrorCallback callback = GetFatalErrorHandler();
   callback(location, message);
@@ -292,6 +286,30 @@ static inline bool EnsureInitialized(const char* location) {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   return EnsureInitializedForIsolate(isolate, location);
 }
+
+// Some initializing API functions are called early and may be
+// called on a thread different from static initializer thread.
+// If Isolate API is used, Isolate::Enter() will initialize TLS so
+// Isolate::Current() works. If it's a legacy case, then the thread
+// may not have TLS initialized yet. However, in initializing APIs it
+// may be too early to call EnsureInitialized() - some pre-init
+// parameters still have to be configured.
+static inline i::Isolate* EnterIsolateIfNeeded() {
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  if (isolate != NULL)
+    return isolate;
+
+  i::Isolate::EnterDefaultIsolate();
+  isolate = i::Isolate::Current();
+  return isolate;
+}
+
+
+void V8::SetFatalErrorHandler(FatalErrorCallback that) {
+  i::Isolate* isolate = EnterIsolateIfNeeded();
+  isolate->set_exception_behavior(that);
+}
+
 
 #ifdef DEBUG
 void ImplementationUtilities::ZapHandleRange(i::Object** begin,
@@ -414,12 +432,14 @@ ResourceConstraints::ResourceConstraints()
 
 
 bool SetResourceConstraints(ResourceConstraints* constraints) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = EnterIsolateIfNeeded();
 
   int young_space_size = constraints->max_young_space_size();
   int old_gen_size = constraints->max_old_space_size();
   int max_executable_size = constraints->max_executable_size();
   if (young_space_size != 0 || old_gen_size != 0 || max_executable_size != 0) {
+    // After initialization it's too late to change Heap constraints.
+    ASSERT(!isolate->IsInitialized());
     bool result = isolate->heap()->ConfigureHeap(young_space_size / 2,
                                                  old_gen_size,
                                                  max_executable_size);
@@ -4032,7 +4052,7 @@ Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
 
 
 void V8::IgnoreOutOfMemoryException() {
-  i::Isolate::Current()->handle_scope_implementer()->set_ignore_out_of_memory(
+  EnterIsolateIfNeeded()->handle_scope_implementer()->set_ignore_out_of_memory(
       true);
 }
 

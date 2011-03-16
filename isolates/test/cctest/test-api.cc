@@ -2081,8 +2081,6 @@ TEST(OutOfMemoryNested) {
 TEST(HugeConsStringOutOfMemory) {
   // It's not possible to read a snapshot into a heap with different dimensions.
   if (i::Snapshot::IsEnabled()) return;
-  v8::HandleScope scope;
-  LocalContext context;
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
@@ -2092,6 +2090,9 @@ TEST(HugeConsStringOutOfMemory) {
 
   // Execute a script that causes out of memory.
   v8::V8::IgnoreOutOfMemoryException();
+
+  v8::HandleScope scope;
+  LocalContext context;
 
   // Build huge string. This should fail with out of memory exception.
   Local<Value> result = CompileRun(
@@ -12884,6 +12885,66 @@ TEST(MultipleIsolatesOnIndividualThreads) {
 
   isolate1->Dispose();
   isolate2->Dispose();
+}
+
+
+class InitDefaultIsolateThread : public v8::internal::Thread {
+ public:
+  enum TestCase { IgnoreOOM, SetResourceConstraints, SetFatalHandler };
+
+  explicit InitDefaultIsolateThread(TestCase testCase)
+    : Thread(NULL),
+      testCase_(testCase),
+      result_(false) { }
+
+  void Run() {
+    switch (testCase_) {
+    case IgnoreOOM:
+      v8::V8::IgnoreOutOfMemoryException();
+      break;
+    
+    case SetResourceConstraints: {
+      static const int K = 1024;
+      v8::ResourceConstraints constraints;
+      constraints.set_max_young_space_size(256 * K);
+      constraints.set_max_old_space_size(4 * K * K);
+      v8::SetResourceConstraints(&constraints);
+      break;
+    }
+
+    case SetFatalHandler:
+      v8::V8::SetFatalErrorHandler(NULL);
+      break;
+    
+    }
+    result_ = true;
+  }
+
+  bool result() { return result_; }
+
+ private:
+  TestCase testCase_;
+  bool result_;
+};
+
+
+static void InitializeTestHelper(InitDefaultIsolateThread::TestCase testCase) {
+  InitDefaultIsolateThread thread(testCase);
+  thread.Start();
+  thread.Join();
+  CHECK_EQ(thread.result(), true);
+}  
+
+TEST(InitializeDefaultIsolateOnSecondaryThread1) {
+  InitializeTestHelper(InitDefaultIsolateThread::IgnoreOOM);
+}
+
+TEST(InitializeDefaultIsolateOnSecondaryThread2) {
+  InitializeTestHelper(InitDefaultIsolateThread::SetResourceConstraints);
+}
+
+TEST(InitializeDefaultIsolateOnSecondaryThread3) {
+  InitializeTestHelper(InitDefaultIsolateThread::SetFatalHandler);
 }
 
 
