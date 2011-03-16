@@ -714,11 +714,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::StringCharAt: {
-      StringCharAtStub stub;
-      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::NumberToString: {
       NumberToStringStub stub;
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
@@ -752,41 +747,65 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 
 
 void LCodeGen::DoModI(LModI* instr) {
-  LOperand* right = instr->InputAt(1);
-  ASSERT(ToRegister(instr->result()).is(rdx));
-  ASSERT(ToRegister(instr->InputAt(0)).is(rax));
-  ASSERT(!ToRegister(instr->InputAt(1)).is(rax));
-  ASSERT(!ToRegister(instr->InputAt(1)).is(rdx));
+  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+    Register dividend = ToRegister(instr->InputAt(0));
 
-  Register right_reg = ToRegister(right);
+    int32_t divisor =
+        HConstant::cast(instr->hydrogen()->right())->Integer32Value();
 
-  // Check for x % 0.
-  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
-    __ testl(right_reg, right_reg);
-    DeoptimizeIf(zero, instr->environment());
-  }
+    if (divisor < 0) divisor = -divisor;
 
-  // Sign extend eax to edx. (We are using only the low 32 bits of the values.)
-  __ cdq();
-
-  // Check for (0 % -x) that will produce negative zero.
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    NearLabel positive_left;
-    NearLabel done;
-    __ testl(rax, rax);
-    __ j(not_sign, &positive_left);
-    __ idivl(right_reg);
-
-    // Test the remainder for 0, because then the result would be -0.
-    __ testl(rdx, rdx);
-    __ j(not_zero, &done);
-
-    DeoptimizeIf(no_condition, instr->environment());
-    __ bind(&positive_left);
-    __ idivl(right_reg);
+    NearLabel positive_dividend, done;
+    __ testl(dividend, dividend);
+    __ j(not_sign, &positive_dividend);
+    __ negl(dividend);
+    __ andl(dividend, Immediate(divisor - 1));
+    __ negl(dividend);
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ j(not_zero, &done);
+      DeoptimizeIf(no_condition, instr->environment());
+    }
+    __ bind(&positive_dividend);
+    __ andl(dividend, Immediate(divisor - 1));
     __ bind(&done);
   } else {
-    __ idivl(right_reg);
+    LOperand* right = instr->InputAt(1);
+    Register right_reg = ToRegister(right);
+
+    ASSERT(ToRegister(instr->result()).is(rdx));
+    ASSERT(ToRegister(instr->InputAt(0)).is(rax));
+    ASSERT(!right_reg.is(rax));
+    ASSERT(!right_reg.is(rdx));
+
+    // Check for x % 0.
+    if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+      __ testl(right_reg, right_reg);
+      DeoptimizeIf(zero, instr->environment());
+    }
+
+    // Sign extend eax to edx.
+    // (We are using only the low 32 bits of the values.)
+    __ cdq();
+
+    // Check for (0 % -x) that will produce negative zero.
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      NearLabel positive_left;
+      NearLabel done;
+      __ testl(rax, rax);
+      __ j(not_sign, &positive_left);
+      __ idivl(right_reg);
+
+      // Test the remainder for 0, because then the result would be -0.
+      __ testl(rdx, rdx);
+      __ j(not_zero, &done);
+
+      DeoptimizeIf(no_condition, instr->environment());
+      __ bind(&positive_left);
+      __ idivl(right_reg);
+      __ bind(&done);
+    } else {
+      __ idivl(right_reg);
+    }
   }
 }
 
@@ -1225,7 +1244,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ j(equal, true_label);
       __ CompareRoot(reg, Heap::kFalseValueRootIndex);
       __ j(equal, false_label);
-      __ SmiCompare(reg, Smi::FromInt(0));
+      __ Cmp(reg, Smi::FromInt(0));
       __ j(equal, false_label);
       __ JumpIfSmi(reg, true_label);
 
@@ -2178,8 +2197,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   // Check for arguments adapter frame.
   NearLabel done, adapted;
   __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ SmiCompare(Operand(result, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Cmp(Operand(result, StandardFrameConstants::kContextOffset),
+         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(equal, &adapted);
 
   // No arguments adaptor frame.
@@ -2983,6 +3002,56 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
 }
 
 
+void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
+  class DeferredStringCharFromCode: public LDeferredCode {
+   public:
+    DeferredStringCharFromCode(LCodeGen* codegen, LStringCharFromCode* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredStringCharFromCode(instr_); }
+   private:
+    LStringCharFromCode* instr_;
+  };
+
+  DeferredStringCharFromCode* deferred =
+      new DeferredStringCharFromCode(this, instr);
+
+  ASSERT(instr->hydrogen()->value()->representation().IsInteger32());
+  Register char_code = ToRegister(instr->char_code());
+  Register result = ToRegister(instr->result());
+  ASSERT(!char_code.is(result));
+
+  __ cmpl(char_code, Immediate(String::kMaxAsciiCharCode));
+  __ j(above, deferred->entry());
+  __ LoadRoot(result, Heap::kSingleCharacterStringCacheRootIndex);
+  __ movq(result, FieldOperand(result,
+                               char_code, times_pointer_size,
+                               FixedArray::kHeaderSize));
+  __ CompareRoot(result, Heap::kUndefinedValueRootIndex);
+  __ j(equal, deferred->entry());
+  __ bind(deferred->exit());
+}
+
+
+void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
+  Register char_code = ToRegister(instr->char_code());
+  Register result = ToRegister(instr->result());
+
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  __ Set(result, 0);
+
+  __ PushSafepointRegisters();
+  __ Integer32ToSmi(char_code, char_code);
+  __ push(char_code);
+  __ CallRuntimeSaveDoubles(Runtime::kCharFromCode);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 1, Safepoint::kNoDeoptimizationIndex);
+  __ StoreToSafepointRegisterSlot(result, rax);
+  __ PopSafepointRegisters();
+}
+
+
 void LCodeGen::DoStringLength(LStringLength* instr) {
   Register string = ToRegister(instr->string());
   Register result = ToRegister(instr->result());
@@ -3616,15 +3685,15 @@ void LCodeGen::EmitIsConstructCall(Register temp) {
 
   // Skip the arguments adaptor frame if it exists.
   NearLabel check_frame_marker;
-  __ SmiCompare(Operand(temp, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Cmp(Operand(temp, StandardFrameConstants::kContextOffset),
+         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(not_equal, &check_frame_marker);
   __ movq(temp, Operand(rax, StandardFrameConstants::kCallerFPOffset));
 
   // Check the marker in the calling frame.
   __ bind(&check_frame_marker);
-  __ SmiCompare(Operand(temp, StandardFrameConstants::kMarkerOffset),
-                Smi::FromInt(StackFrame::CONSTRUCT));
+  __ Cmp(Operand(temp, StandardFrameConstants::kMarkerOffset),
+         Smi::FromInt(StackFrame::CONSTRUCT));
 }
 
 

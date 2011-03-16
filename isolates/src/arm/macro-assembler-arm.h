@@ -649,11 +649,11 @@ class MacroAssembler: public Assembler {
                       DwVfpRegister double_scratch,
                       Label *not_int32);
 
-// Truncates a double using a specific rounding mode.
-// Clears the z flag (ne condition) if an overflow occurs.
-// If exact_conversion is true, the z flag is also cleared if the conversion
-// was inexact, ie. if the double value could not be converted exactly
-// to a 32bit integer.
+  // Truncates a double using a specific rounding mode.
+  // Clears the z flag (ne condition) if an overflow occurs.
+  // If exact_conversion is true, the z flag is also cleared if the conversion
+  // was inexact, ie. if the double value could not be converted exactly
+  // to a 32bit integer.
   void EmitVFPTruncate(VFPRoundingMode rounding_mode,
                        SwVfpRegister result,
                        DwVfpRegister double_input,
@@ -661,6 +661,27 @@ class MacroAssembler: public Assembler {
                        Register scratch2,
                        CheckForInexactConversion check
                            = kDontCheckForInexactConversion);
+
+  // Helper for EmitECMATruncate.
+  // This will truncate a floating-point value outside of the singed 32bit
+  // integer range to a 32bit signed integer.
+  // Expects the double value loaded in input_high and input_low.
+  // Exits with the answer in 'result'.
+  // Note that this code does not work for values in the 32bit range!
+  void EmitOutOfInt32RangeTruncate(Register result,
+                                   Register input_high,
+                                   Register input_low,
+                                   Register scratch);
+
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
+  // Exits with 'result' holding the answer and all other registers clobbered.
+  void EmitECMATruncate(Register result,
+                        DwVfpRegister double_input,
+                        SwVfpRegister single_scratch,
+                        Register scratch,
+                        Register scratch2,
+                        Register scratch3);
 
   // Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
   // instruction.  On pre-ARM5 hardware this routine gives the wrong answer

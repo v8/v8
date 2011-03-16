@@ -296,7 +296,8 @@ static void InitCoverageLog();
 #endif
 
 Assembler::Assembler(void* buffer, int buffer_size)
-    : positions_recorder_(this) {
+    : positions_recorder_(this),
+      emit_debug_code_(FLAG_debug_code) {
   Isolate* isolate = Isolate::Current();
   if (buffer == NULL) {
     // Do our own buffer management.
@@ -2763,7 +2764,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       Serializer::TooLateToEnableNow();
     }
 #endif
-    if (!Serializer::enabled() && !FLAG_debug_code) {
+    if (!Serializer::enabled() && !emit_debug_code()) {
       return;
     }
   }

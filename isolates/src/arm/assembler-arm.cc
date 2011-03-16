@@ -270,7 +270,8 @@ static const int kMinimalBufferSize = 4*KB;
 
 Assembler::Assembler(void* buffer, int buffer_size)
     : positions_recorder_(this),
-      allow_peephole_optimization_(false) {
+      allow_peephole_optimization_(false),
+      emit_debug_code_(FLAG_debug_code) {
   Isolate* isolate = Isolate::Current();
   allow_peephole_optimization_ = FLAG_peephole_optimization;
   if (buffer == NULL) {
@@ -2388,6 +2389,14 @@ void Assembler::vcvt_f32_f64(const SwVfpRegister dst,
 }
 
 
+void Assembler::vneg(const DwVfpRegister dst,
+                     const DwVfpRegister src,
+                     const Condition cond) {
+  emit(cond | 0xE*B24 | 0xB*B20 | B16 | dst.code()*B12 |
+       0x5*B9 | B8 | B6 | src.code());
+}
+
+
 void Assembler::vabs(const DwVfpRegister dst,
                      const DwVfpRegister src,
                      const Condition cond) {
@@ -2661,7 +2670,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
         Serializer::TooLateToEnableNow();
       }
 #endif
-      if (!Serializer::enabled() && !FLAG_debug_code) {
+      if (!Serializer::enabled() && !emit_debug_code()) {
         return;
       }
     }

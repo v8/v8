@@ -759,11 +759,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::StringCharAt: {
-      StringCharAtStub stub;
-      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::NumberToString: {
       NumberToStringStub stub;
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
@@ -798,6 +793,30 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 
 
 void LCodeGen::DoModI(LModI* instr) {
+  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+    Register dividend = ToRegister(instr->InputAt(0));
+
+    int32_t divisor =
+        HConstant::cast(instr->hydrogen()->right())->Integer32Value();
+
+    if (divisor < 0) divisor = -divisor;
+
+    Label positive_dividend, done;
+    __ tst(dividend, Operand(dividend));
+    __ b(pl, &positive_dividend);
+    __ rsb(dividend, dividend, Operand(0));
+    __ and_(dividend, dividend, Operand(divisor - 1));
+    __ rsb(dividend, dividend, Operand(0), SetCC);
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ b(ne, &done);
+      DeoptimizeIf(al, instr->environment());
+    }
+    __ bind(&positive_dividend);
+    __ and_(dividend, dividend, Operand(divisor - 1));
+    __ bind(&done);
+    return;
+  }
+
   class DeferredModI: public LDeferredCode {
    public:
     DeferredModI(LCodeGen* codegen, LModI* instr)
@@ -858,6 +877,7 @@ void LCodeGen::DoModI(LModI* instr) {
   __ JumpIfNotPowerOfTwoOrZero(right, scratch, &call_stub);
   // Perform modulo operation (scratch contains right - 1).
   __ and_(result, scratch, Operand(left));
+  __ b(&done);
 
   __ bind(&call_stub);
   // Call the stub. The numbers in r0 and r1 have
@@ -3108,6 +3128,56 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
 }
 
 
+void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
+  class DeferredStringCharFromCode: public LDeferredCode {
+   public:
+    DeferredStringCharFromCode(LCodeGen* codegen, LStringCharFromCode* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredStringCharFromCode(instr_); }
+   private:
+    LStringCharFromCode* instr_;
+  };
+
+  DeferredStringCharFromCode* deferred =
+      new DeferredStringCharFromCode(this, instr);
+
+  ASSERT(instr->hydrogen()->value()->representation().IsInteger32());
+  Register char_code = ToRegister(instr->char_code());
+  Register result = ToRegister(instr->result());
+  ASSERT(!char_code.is(result));
+
+  __ cmp(char_code, Operand(String::kMaxAsciiCharCode));
+  __ b(hi, deferred->entry());
+  __ LoadRoot(result, Heap::kSingleCharacterStringCacheRootIndex);
+  __ add(result, result, Operand(char_code, LSL, kPointerSizeLog2));
+  __ ldr(result, FieldMemOperand(result, FixedArray::kHeaderSize));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(result, ip);
+  __ b(eq, deferred->entry());
+  __ bind(deferred->exit());
+}
+
+
+void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
+  Register char_code = ToRegister(instr->char_code());
+  Register result = ToRegister(instr->result());
+
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  __ mov(result, Operand(0));
+
+  __ PushSafepointRegisters();
+  __ SmiTag(char_code);
+  __ push(char_code);
+  __ CallRuntimeSaveDoubles(Runtime::kCharFromCode);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 1, Safepoint::kNoDeoptimizationIndex);
+  __ StoreToSafepointRegisterSlot(r0, result);
+  __ PopSafepointRegisters();
+}
+
+
 void LCodeGen::DoStringLength(LStringLength* instr) {
   Register string = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
@@ -3320,19 +3390,30 @@ class DeferredTaggedToI: public LDeferredCode {
 
 
 void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
-  Label done;
   Register input_reg = ToRegister(instr->InputAt(0));
-  Register scratch = scratch0();
-  DoubleRegister dbl_scratch = d0;
-  SwVfpRegister flt_scratch = s0;
-  DoubleRegister dbl_tmp = ToDoubleRegister(instr->TempAt(0));
+  Register scratch1 = scratch0();
+  Register scratch2 = ToRegister(instr->TempAt(0));
+  DwVfpRegister double_scratch = double_scratch0();
+  SwVfpRegister single_scratch = double_scratch.low();
+
+  ASSERT(!scratch1.is(input_reg) && !scratch1.is(scratch2));
+  ASSERT(!scratch2.is(input_reg) && !scratch2.is(scratch1));
+
+  Label done;
 
   // Heap number map check.
-  __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
+  __ ldr(scratch1, FieldMemOperand(input_reg, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-  __ cmp(scratch, Operand(ip));
+  __ cmp(scratch1, Operand(ip));
 
   if (instr->truncating()) {
+    Register scratch3 = ToRegister(instr->TempAt(1));
+    DwVfpRegister double_scratch2 = ToDoubleRegister(instr->TempAt(2));
+    ASSERT(!scratch3.is(input_reg) &&
+           !scratch3.is(scratch1) &&
+           !scratch3.is(scratch2));
+    // Performs a truncating conversion of a floating point number as used by
+    // the JS bitwise operations.
     Label heap_number;
     __ b(eq, &heap_number);
     // Check for undefined. Undefined is converted to zero for truncating
@@ -3344,36 +3425,38 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     __ b(&done);
 
     __ bind(&heap_number);
-    __ sub(ip, input_reg, Operand(kHeapObjectTag));
-    __ vldr(dbl_tmp, ip, HeapNumber::kValueOffset);
-    __ vcmp(dbl_tmp, 0.0);  // Sets overflow bit in FPSCR flags if NaN.
-    __ vcvt_s32_f64(flt_scratch, dbl_tmp);
-    __ vmov(input_reg, flt_scratch);  // 32-bit result of conversion.
-    __ vmrs(pc);  // Move vector status bits to normal status bits.
-    // Overflow bit is set if dbl_tmp is Nan.
-    __ cmn(input_reg, Operand(1), vc);  // 0x7fffffff + 1 -> overflow.
-    __ cmp(input_reg, Operand(1), vc);  // 0x80000000 - 1 -> overflow.
-    DeoptimizeIf(vs, instr->environment());  // Saturation may have occured.
+    __ sub(scratch1, input_reg, Operand(kHeapObjectTag));
+    __ vldr(double_scratch2, scratch1, HeapNumber::kValueOffset);
+
+    __ EmitECMATruncate(input_reg,
+                        double_scratch2,
+                        single_scratch,
+                        scratch1,
+                        scratch2,
+                        scratch3);
 
   } else {
+    CpuFeatures::Scope scope(VFP3);
     // Deoptimize if we don't have a heap number.
     DeoptimizeIf(ne, instr->environment());
 
     __ sub(ip, input_reg, Operand(kHeapObjectTag));
-    __ vldr(dbl_tmp, ip, HeapNumber::kValueOffset);
-    __ vcvt_s32_f64(flt_scratch, dbl_tmp);
-    __ vmov(input_reg, flt_scratch);  // 32-bit result of conversion.
-    // Non-truncating conversion means that we cannot lose bits, so we convert
-    // back to check; note that using non-overlapping s and d regs would be
-    // slightly faster.
-    __ vcvt_f64_s32(dbl_scratch, flt_scratch);
-    __ VFPCompareAndSetFlags(dbl_scratch, dbl_tmp);
-    DeoptimizeIf(ne, instr->environment());  // Not equal or unordered.
+    __ vldr(double_scratch, ip, HeapNumber::kValueOffset);
+    __ EmitVFPTruncate(kRoundToZero,
+                       single_scratch,
+                       double_scratch,
+                       scratch1,
+                       scratch2,
+                       kCheckForInexactConversion);
+    DeoptimizeIf(ne, instr->environment());
+    // Load the result.
+    __ vmov(input_reg, single_scratch);
+
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ tst(input_reg, Operand(input_reg));
+      __ cmp(input_reg, Operand(0));
       __ b(ne, &done);
-      __ vmov(lr, ip, dbl_tmp);
-      __ tst(ip, Operand(1 << 31));  // Test sign bit.
+      __ vmov(scratch1, double_scratch.high());
+      __ tst(scratch1, Operand(HeapNumber::kSignMask));
       DeoptimizeIf(ne, instr->environment());
     }
   }
@@ -3415,48 +3498,38 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
 
 
 void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
-  LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsDoubleRegister());
-  LOperand* result = instr->result();
-  ASSERT(result->IsRegister());
-
-  DoubleRegister double_input = ToDoubleRegister(input);
-  Register result_reg = ToRegister(result);
-  SwVfpRegister single_scratch = double_scratch0().low();
+  Register result_reg = ToRegister(instr->result());
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->TempAt(0));
+  DwVfpRegister double_input = ToDoubleRegister(instr->InputAt(0));
+  DwVfpRegister double_scratch = double_scratch0();
+  SwVfpRegister single_scratch = double_scratch0().low();
 
-  __ EmitVFPTruncate(kRoundToZero,
-                     single_scratch,
-                     double_input,
-                     scratch1,
-                     scratch2);
+  Label done;
 
-  // Deoptimize if we had a vfp invalid exception.
-  DeoptimizeIf(ne, instr->environment());
-
-  // Retrieve the result.
-  __ vmov(result_reg, single_scratch);
-
-  if (!instr->truncating()) {
-    // Convert result back to double and compare with input
-    // to check if the conversion was exact.
-    __ vmov(single_scratch, result_reg);
-    __ vcvt_f64_s32(double_scratch0(), single_scratch);
-    __ VFPCompareAndSetFlags(double_scratch0(), double_input);
+  if (instr->truncating()) {
+    Register scratch3 = ToRegister(instr->TempAt(1));
+    __ EmitECMATruncate(result_reg,
+                        double_input,
+                        single_scratch,
+                        scratch1,
+                        scratch2,
+                        scratch3);
+  } else {
+    VFPRoundingMode rounding_mode = kRoundToMinusInf;
+    __ EmitVFPTruncate(rounding_mode,
+                       single_scratch,
+                       double_input,
+                       scratch1,
+                       scratch2,
+                       kCheckForInexactConversion);
+    // Deoptimize if we had a vfp invalid exception,
+    // including inexact operation.
     DeoptimizeIf(ne, instr->environment());
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      Label done;
-      __ cmp(result_reg, Operand(0));
-      __ b(ne, &done);
-      // Check for -0.
-      __ vmov(scratch1, double_input.high());
-      __ tst(scratch1, Operand(HeapNumber::kSignMask));
-      DeoptimizeIf(ne, instr->environment());
-
-      __ bind(&done);
-    }
+    // Retrieve the result.
+    __ vmov(result_reg, single_scratch);
   }
+    __ bind(&done);
 }
 
 

@@ -1352,10 +1352,21 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
     // when we provide a native implementation.
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    LOperand* value = UseFixed(instr->left(), r0);
-    LOperand* divisor = UseFixed(instr->right(), r1);
-    LInstruction* result = DefineFixed(new LModI(value, divisor), r0);
-    result = AssignEnvironment(AssignPointerMap(result));
+
+    LInstruction* result;
+    if (instr->HasPowerOf2Divisor()) {
+      ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
+      LOperand* value = UseRegisterAtStart(instr->left());
+      LModI* mod = new LModI(value, UseOrConstant(instr->right()));
+      result = DefineSameAsFirst(mod);
+      result = AssignEnvironment(result);
+    } else {
+      LOperand* value = UseFixed(instr->left(), r0);
+      LOperand* divisor = UseFixed(instr->right(), r1);
+      result = DefineFixed(new LModI(value, divisor), r0);
+      result = AssignEnvironment(AssignPointerMap(result));
+    }
+
     return result;
   } else if (instr->representation().IsTagged()) {
     return DoArithmeticT(Token::MOD, instr);
@@ -1601,12 +1612,15 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LOperand* value = UseRegister(instr->value());
       bool needs_check = !instr->value()->type().IsSmi();
       LInstruction* res = NULL;
-      if (needs_check) {
-        res = DefineSameAsFirst(new LTaggedToI(value, FixedTemp(d1)));
-      } else {
+      if (!needs_check) {
         res = DefineSameAsFirst(new LSmiUntag(value, needs_check));
-      }
-      if (needs_check) {
+      } else {
+        LOperand* temp1 = TempRegister();
+        LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister()
+                                                      : NULL;
+        LOperand* temp3 = instr->CanTruncateToInt32() ? FixedTemp(d3)
+                                                      : NULL;
+        res = DefineSameAsFirst(new LTaggedToI(value, temp1, temp2, temp3));
         res = AssignEnvironment(res);
       }
       return res;
@@ -1626,7 +1640,10 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsInteger32());
       LOperand* value = UseRegister(instr->value());
-      LDoubleToI* res = new LDoubleToI(value, TempRegister());
+      LDoubleToI* res =
+        new LDoubleToI(value,
+                       TempRegister(),
+                       instr->CanTruncateToInt32() ? TempRegister() : NULL);
       return AssignEnvironment(DefineAsRegister(res));
     }
   } else if (from.IsInteger32()) {
@@ -1892,6 +1909,13 @@ LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
   LOperand* index = UseRegisterOrConstant(instr->index());
   LStringCharCodeAt* result = new LStringCharCodeAt(string, index);
   return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+}
+
+
+LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
+  LOperand* char_code = UseRegister(instr->value());
+  LStringCharFromCode* result = new LStringCharFromCode(char_code);
+  return AssignPointerMap(DefineAsRegister(result));
 }
 
 

@@ -3931,6 +3931,14 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(
   LookupResult result;
   js_object->LookupRealNamedProperty(*name, &result);
 
+  // To be compatible with safari we do not change the value on API objects
+  // in defineProperty. Firefox disagrees here, and actually changes the value.
+  if (result.IsProperty() &&
+      (result.type() == CALLBACKS) &&
+      result.GetCallbackObject()->IsAccessorInfo()) {
+    return isolate->heap()->undefined_value();
+  }
+
   // Take special care when attributes are different and there is already
   // a property. For simplicity we normalize the property which enables us
   // to not worry about changing the instance_descriptor and creating a new
@@ -8272,14 +8280,14 @@ static MaybeObject* Runtime_CompileString(RUNTIME_CALLING_CONVENTION) {
 static ObjectPair CompileGlobalEval(Isolate* isolate,
                                     Handle<String> source,
                                     Handle<Object> receiver,
-                                    StrictModeFlag mode) {
+                                    StrictModeFlag strict_mode) {
   // Deal with a normal eval call with a string argument. Compile it
   // and return the compiled function bound in the local context.
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source,
       Handle<Context>(isolate->context()),
       isolate->context()->IsGlobalContext(),
-      mode);
+      strict_mode);
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
   Handle<JSFunction> compiled =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(

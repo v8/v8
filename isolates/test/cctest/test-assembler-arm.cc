@@ -232,6 +232,8 @@ TEST(4) {
     double g;
     double h;
     int i;
+    double m;
+    double n;
     float x;
     float y;
   } T;
@@ -297,6 +299,14 @@ TEST(4) {
     __ vabs(d0, d2);
     __ vstr(d0, r4, OFFSET_OF(T, h));
 
+    // Test vneg.
+    __ vldr(d1, r4, OFFSET_OF(T, m));
+    __ vneg(d0, d1);
+    __ vstr(d0, r4, OFFSET_OF(T, m));
+    __ vldr(d1, r4, OFFSET_OF(T, n));
+    __ vneg(d0, d1);
+    __ vstr(d0, r4, OFFSET_OF(T, n));
+
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
     CodeDesc desc;
@@ -319,12 +329,16 @@ TEST(4) {
     t.g = -2718.2818;
     t.h = 31415926.5;
     t.i = 0;
+    t.m = -2718.2818;
+    t.n = 123.456;
     t.x = 4.5;
     t.y = 9.0;
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
     USE(dummy);
     CHECK_EQ(4.5, t.y);
     CHECK_EQ(9.0, t.x);
+    CHECK_EQ(-123.456, t.n);
+    CHECK_EQ(2718.2818, t.m);
     CHECK_EQ(2, t.i);
     CHECK_EQ(2718.2818, t.g);
     CHECK_EQ(31415926.5, t.h);

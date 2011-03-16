@@ -84,6 +84,12 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(is_lazy());
     flags_ |= IsInLoop::encode(true);
   }
+  void MarkAsAllowingNativesSyntax() {
+    flags_ |= IsNativesSyntaxAllowed::encode(true);
+  }
+  bool allows_natives_syntax() const {
+    return IsNativesSyntaxAllowed::decode(flags_);
+  }
   void SetFunction(FunctionLiteral* literal) {
     ASSERT(function_ == NULL);
     function_ = literal;
@@ -180,6 +186,8 @@ class CompilationInfo BASE_EMBEDDED {
   class IsInLoop: public BitField<bool, 3, 1> {};
   // Strict mode - used in eager compilation.
   class IsStrict: public BitField<bool, 4, 1> {};
+  // Native syntax (%-stuff) allowed?
+  class IsNativesSyntaxAllowed: public BitField<bool, 5, 1> {};
 
   unsigned flags_;
 

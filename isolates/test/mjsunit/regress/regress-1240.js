@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,48 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that installing a getter on the global object instead of a
-// normal property works.
+// This regression tests that we are not allowed to overwrite an existing
+// non-configurable getter with a new getter. In addition, we should not
+// be able to change the configurable flag from false to true.
 
-x = 0;
-
-function getX() { return x; }
-
-for (var i = 0; i < 10; i++) {
-  assertEquals(i < 5 ? 0 : 42, getX());
-  if (i == 4) __defineGetter__("x", function() { return 42; });
-}
-
-
-// Test that installing a setter on the global object instead of a
-// normal property works.
-
-y = 0;
-var setter_y;
-
-function setY(value) { y = value; }
-
-for (var i = 0; i < 10; i++) {
-  setY(i);
-  assertEquals(i < 5 ? i : 2 * i, y);
-  if (i == 4) {
-    __defineSetter__("y", function(value) { setter_y = 2 * value; });
-    __defineGetter__("y", function() { return setter_y; });
-  }
-}
-
-
-// Test that replacing a getter with a normal property works as
-// expected.
-
-__defineGetter__("z", function() { return 42; });
-
-function getZ() { return z; }
-
-for (var i = 0; i < 10; i++) {
-  assertEquals(i < 5 ? 42 : 0, getZ());
-  if (i == 4) {
-    delete z;
-    z = 0;
-  }
-}
+var a = {};
+Object.defineProperty(a, 'b',
+                      { get: function () { return 42; }, configurable: false });
+// Do not allow us to redefine b on a.
+a.__defineGetter__('b', function _b(){ return 'foo'; });
+assertEquals(42, a.b);
+var desc = Object.getOwnPropertyDescriptor(a, 'b');
+assertFalse(desc.configurable);

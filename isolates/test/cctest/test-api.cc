@@ -5659,6 +5659,14 @@ TEST(AccessControlES5) {
   global_template->SetAccessCheckCallbacks(NamedAccessBlocker,
                                            IndexedAccessBlocker);
 
+  // Add accessible accessor.
+  global_template->SetAccessor(
+      v8_str("accessible_prop"),
+      EchoGetter, EchoSetter,
+      v8::Handle<Value>(),
+      v8::AccessControl(v8::ALL_CAN_READ | v8::ALL_CAN_WRITE));
+
+
   // Add an accessor that is not accessible by cross-domain JS code.
   global_template->SetAccessor(v8_str("blocked_prop"),
                                UnreachableGetter, UnreachableSetter,
@@ -5699,6 +5707,18 @@ TEST(AccessControlES5) {
 
   CompileRun("Object.seal(other)");
   ExpectTrue("Object.isExtensible(other)");
+
+  // Regression test for issue 1250.
+  // Make sure that we can set the accessible accessors value using normal
+  // assignment.
+  CompileRun("other.accessible_prop = 42");
+  CHECK_EQ(42, g_echo_value);
+
+  v8::Handle<Value> value;
+  // We follow Safari in ignoring assignments to host object accessors.
+  CompileRun("Object.defineProperty(other, 'accessible_prop', {value: -1})");
+  value = CompileRun("other.accessible_prop == 42");
+  CHECK(value->IsTrue());
 }
 
 
@@ -12902,7 +12922,7 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
     case IgnoreOOM:
       v8::V8::IgnoreOutOfMemoryException();
       break;
-    
+
     case SetResourceConstraints: {
       static const int K = 1024;
       v8::ResourceConstraints constraints;
@@ -12915,7 +12935,6 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
     case SetFatalHandler:
       v8::V8::SetFatalErrorHandler(NULL);
       break;
-    
     }
     result_ = true;
   }
@@ -12933,7 +12952,7 @@ static void InitializeTestHelper(InitDefaultIsolateThread::TestCase testCase) {
   thread.Start();
   thread.Join();
   CHECK_EQ(thread.result(), true);
-}  
+}
 
 TEST(InitializeDefaultIsolateOnSecondaryThread1) {
   InitializeTestHelper(InitDefaultIsolateThread::IgnoreOOM);

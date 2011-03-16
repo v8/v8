@@ -251,7 +251,11 @@ function ObjectDefineGetter(name, fun) {
   if (!IS_FUNCTION(fun)) {
     throw new $TypeError('Object.prototype.__defineGetter__: Expecting function');
   }
-  return %DefineAccessor(ToObject(this), ToString(name), GETTER, fun);
+  var desc = new PropertyDescriptor();
+  desc.setGet(fun);
+  desc.setEnumerable(true);
+  desc.setConfigurable(true);
+  DefineOwnProperty(ToObject(this), ToString(name), desc, false);
 }
 
 
@@ -271,7 +275,11 @@ function ObjectDefineSetter(name, fun) {
     throw new $TypeError(
         'Object.prototype.__defineSetter__: Expecting function');
   }
-  return %DefineAccessor(ToObject(this), ToString(name), SETTER, fun);
+  var desc = new PropertyDescriptor();
+  desc.setSet(fun);
+  desc.setEnumerable(true);
+  desc.setConfigurable(true);
+  DefineOwnProperty(ToObject(this), ToString(name), desc, false);
 }
 
 
@@ -394,6 +402,10 @@ function PropertyDescriptor() {
   this.hasSetter_ = false;
 }
 
+PropertyDescriptor.prototype.__proto__ = null;
+PropertyDescriptor.prototype.toString = function() {
+  return "[object PropertyDescriptor]";
+};
 
 PropertyDescriptor.prototype.setValue = function(value) {
   this.value_ = value;
@@ -561,8 +573,13 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
 
   // Error handling according to spec.
   // Step 3
-  if (IS_UNDEFINED(current) && !extensible)
-    throw MakeTypeError("define_disallowed", ["defineProperty"]);
+  if (IS_UNDEFINED(current) && !extensible) {
+    if (should_throw) {
+      throw MakeTypeError("define_disallowed", ["defineProperty"]);
+    } else {
+      return;
+    }
+  }
 
   if (!IS_UNDEFINED(current)) {
     // Step 5 and 6
@@ -587,31 +604,55 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
       if (desc.isConfigurable() ||
           (desc.hasEnumerable() &&
            desc.isEnumerable() != current.isEnumerable())) {
-        throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+        if (should_throw) {
+          throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+        } else {
+          return;
+        }
       }
       // Step 8
       if (!IsGenericDescriptor(desc)) {
         // Step 9a
         if (IsDataDescriptor(current) != IsDataDescriptor(desc)) {
-          throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+          if (should_throw) {
+            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+          } else {
+            return;
+          }
         }
         // Step 10a
         if (IsDataDescriptor(current) && IsDataDescriptor(desc)) {
           if (!current.isWritable() && desc.isWritable()) {
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            if (should_throw) {
+              throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            } else {
+              return;
+            }
           }
           if (!current.isWritable() && desc.hasValue() &&
               !SameValue(desc.getValue(), current.getValue())) {
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            if (should_throw) {
+              throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            } else {
+              return;
+            }
           }
         }
         // Step 11
         if (IsAccessorDescriptor(desc) && IsAccessorDescriptor(current)) {
           if (desc.hasSetter() && !SameValue(desc.getSet(), current.getSet())) {
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            if (should_throw) {
+              throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            } else {
+              return;
+            }
           }
           if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet())) {
-            throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            if (should_throw) {
+              throw MakeTypeError("redefine_disallowed", ["defineProperty"]);
+            } else {
+              return;
+            }
           }
         }
       }

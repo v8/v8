@@ -149,6 +149,7 @@ class LCodeGen;
   V(StoreNamedGeneric)                          \
   V(StorePixelArrayElement)                     \
   V(StringCharCodeAt)                           \
+  V(StringCharFromCode)                         \
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
@@ -1457,11 +1458,12 @@ class LNumberTagD: public LTemplateInstruction<1, 1, 2> {
 
 
 // Sometimes truncating conversion from a tagged value to an int32.
-class LDoubleToI: public LTemplateInstruction<1, 1, 1> {
+class LDoubleToI: public LTemplateInstruction<1, 1, 2> {
  public:
-  explicit LDoubleToI(LOperand* value, LOperand* temp1) {
+  LDoubleToI(LOperand* value, LOperand* temp1, LOperand* temp2) {
     inputs_[0] = value;
     temps_[0] = temp1;
+    temps_[1] = temp2;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(DoubleToI, "double-to-i")
@@ -1472,11 +1474,16 @@ class LDoubleToI: public LTemplateInstruction<1, 1, 1> {
 
 
 // Truncating conversion from a tagged value to an int32.
-class LTaggedToI: public LTemplateInstruction<1, 1, 1> {
+class LTaggedToI: public LTemplateInstruction<1, 1, 3> {
  public:
-  LTaggedToI(LOperand* value, LOperand* temp) {
+  LTaggedToI(LOperand* value,
+             LOperand* temp1,
+             LOperand* temp2,
+             LOperand* temp3) {
     inputs_[0] = value;
-    temps_[0] = temp;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+    temps_[2] = temp3;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(TaggedToI, "tagged-to-i")
@@ -1632,6 +1639,19 @@ class LStringCharCodeAt: public LTemplateInstruction<1, 2, 0> {
 
   LOperand* string() { return inputs_[0]; }
   LOperand* index() { return inputs_[1]; }
+};
+
+
+class LStringCharFromCode: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LStringCharFromCode(LOperand* char_code) {
+    inputs_[0] = char_code;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringCharFromCode, "string-char-from-code")
+  DECLARE_HYDROGEN_ACCESSOR(StringCharFromCode)
+
+  LOperand* char_code() { return inputs_[0]; }
 };
 
 

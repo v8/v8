@@ -52,7 +52,7 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register addr,
                                        Register scratch) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     // Check that the object is not in new space.
     Label not_in_new_space;
     InNewSpace(object, scratch, not_equal, &not_in_new_space);
@@ -113,7 +113,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     mov(object, Immediate(BitCast<int32_t>(kZapValue)));
     mov(value, Immediate(BitCast<int32_t>(kZapValue)));
     mov(scratch, Immediate(BitCast<int32_t>(kZapValue)));
@@ -141,7 +141,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     mov(object, Immediate(BitCast<int32_t>(kZapValue)));
     mov(address, Immediate(BitCast<int32_t>(kZapValue)));
     mov(value, Immediate(BitCast<int32_t>(kZapValue)));
@@ -285,7 +285,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(esi);
   push(Immediate(Smi::FromInt(type)));
   push(Immediate(CodeObject()));
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     cmp(Operand(esp, 0), Immediate(FACTORY->undefined_value()));
     Check(not_equal, "code object not properly patched");
   }
@@ -293,7 +293,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     cmp(Operand(ebp, StandardFrameConstants::kMarkerOffset),
         Immediate(Smi::FromInt(type)));
     Check(equal, "stack frame types must match");
@@ -553,7 +553,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   mov(scratch, Operand(ebp, StandardFrameConstants::kContextOffset));
 
   // When generating debug code, make sure the lexical context is set.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     cmp(Operand(scratch), Immediate(0));
     Check(not_equal, "we should not have an empty lexical context");
   }
@@ -563,7 +563,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   mov(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
 
   // Check the context is a global context.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     push(scratch);
     // Read the first word and compare to global_context_map.
     mov(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
@@ -587,7 +587,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   mov(holder_reg, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
 
   // Check the context is a global context.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     cmp(holder_reg, FACTORY->null_value());
     Check(not_equal, "JSGlobalProxy::context() should not be null.");
 
@@ -640,7 +640,7 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
 
 void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
                                                Register scratch) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     test(result_end, Immediate(kObjectAlignmentMask));
     Check(zero, "Unaligned allocation in new space");
   }
@@ -664,7 +664,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
                                         Label* gc_required,
                                         AllocationFlags flags) {
   if (!FLAG_inline_new) {
-    if (FLAG_debug_code) {
+    if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       mov(result, Immediate(0x7091));
       if (result_end.is_valid()) {
@@ -721,7 +721,7 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
                                         Label* gc_required,
                                         AllocationFlags flags) {
   if (!FLAG_inline_new) {
-    if (FLAG_debug_code) {
+    if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       mov(result, Immediate(0x7091));
       mov(result_end, Immediate(0x7191));
@@ -767,7 +767,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
                                         Label* gc_required,
                                         AllocationFlags flags) {
   if (!FLAG_inline_new) {
-    if (FLAG_debug_code) {
+    if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
       mov(result, Immediate(0x7091));
       mov(result_end, Immediate(0x7191));
@@ -1324,7 +1324,7 @@ void MacroAssembler::PrepareCallApiFunction(int argc, Register scratch) {
     // pointer to out cell.
     lea(scratch, Operand(esp, (argc + 1) * kPointerSize));
     mov(Operand(esp, 0 * kPointerSize), scratch);  // output.
-    if (FLAG_debug_code) {
+    if (emit_debug_code()) {
       mov(Operand(esp, (argc + 1) * kPointerSize), Immediate(0));  // out cell.
     }
   }
@@ -1627,7 +1627,7 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   // (i.e., the static scope chain and runtime context chain do not agree).
   // A variable occurring in such a scope should have slot type LOOKUP and
   // not CONTEXT.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     cmp(dst, Operand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
     Check(equal, "Yo dawg, I heard you liked function contexts "
                  "so I put function contexts in all your contexts");
@@ -1649,7 +1649,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
                                                   Register map) {
   // Load the initial map.  The global functions all have initial maps.
   mov(map, FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Label ok, fail;
     CheckMap(map, FACTORY->meta_map(), &fail, false);
     jmp(&ok);
@@ -1793,12 +1793,12 @@ void MacroAssembler::DecrementCounter(Condition cc,
 
 
 void MacroAssembler::Assert(Condition cc, const char* msg) {
-  if (FLAG_debug_code) Check(cc, msg);
+  if (emit_debug_code()) Check(cc, msg);
 }
 
 
 void MacroAssembler::AssertFastElements(Register elements) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Label ok;
     cmp(FieldOperand(elements, HeapObject::kMapOffset),
         Immediate(FACTORY->fixed_array_map()));
@@ -1866,7 +1866,7 @@ void MacroAssembler::Abort(const char* msg) {
 void MacroAssembler::JumpIfNotNumber(Register reg,
                                      TypeInfo info,
                                      Label* on_not_number) {
-  if (FLAG_debug_code) AbortIfSmi(reg);
+  if (emit_debug_code()) AbortIfSmi(reg);
   if (!info.IsNumber()) {
     cmp(FieldOperand(reg, HeapObject::kMapOffset),
         FACTORY->heap_number_map());
@@ -1880,7 +1880,7 @@ void MacroAssembler::ConvertToInt32(Register dst,
                                     Register scratch,
                                     TypeInfo info,
                                     Label* on_not_int32) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     AbortIfSmi(source);
     AbortIfNotNumber(source);
   }
@@ -2008,7 +2008,7 @@ void MacroAssembler::CallCFunction(Register function,
   num_arguments += 1;
 
   // Check stack alignment.
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     CheckStackAlignment();
   }
 
