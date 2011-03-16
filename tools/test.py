@@ -1301,7 +1301,7 @@ def GetSpecialCommandProcessor(value):
     return ExpandCommand
 
 
-BUILT_IN_TESTS = ['benchmarks', 'mjsunit', 'cctest', 'message']
+BUILT_IN_TESTS = ['mjsunit', 'cctest', 'message']
 
 
 def GetSuites(test_root):
