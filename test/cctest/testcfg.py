@@ -49,6 +49,7 @@ class CcTestCase(test.TestCase):
   def BuildCommand(self, name):
     serialization_file = join('obj', 'test', self.mode, 'serdes')
     serialization_file += '_' + self.GetName()
+    serialization_file = join(self.context.buildspace, serialization_file)
     serialization_option = '--testing_serialization_file=' + serialization_file
     result = [ self.executable, name, serialization_option ]
     result += self.context.GetVmFlags(self, self.mode)
@@ -78,6 +79,7 @@ class CcTestConfiguration(test.TestConfiguration):
     executable = join('obj', 'test', mode, 'cctest')
     if utils.IsWindows():
       executable += '.exe'
+    executable = join(self.context.buildspace, executable)
     output = test.Execute([executable, '--list'], self.context)
     if output.exit_code != 0:
       print output.stdout

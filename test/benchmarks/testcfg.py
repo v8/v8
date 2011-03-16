@@ -41,8 +41,8 @@ def IsNumber(string):
 class BenchmarkTestCase(test.TestCase):
 
   def __init__(self, path, context, mode):
-    super(BenchmarkTestCase, self).__init__(context, path, mode)
-    self.root = '/'.join(self.path)
+    super(BenchmarkTestCase, self).__init__(context, split(path), mode)
+    self.root = path
 
   def GetLabel(self):
     return '%s benchmark %s' % (self.mode, self.GetName())
@@ -67,11 +67,10 @@ class BenchmarkTestCase(test.TestCase):
     return 'V8'
 
   def BeforeRun(self):
-    self.dir_before = os.getcwd()
     os.chdir(self.root)
 
   def AfterRun(self, result):
-    os.chdir(self.dir_before)
+    os.chdir(self.context.buildspace)
 
   def GetSource(self):
     return open(join(self.root, 'run.js')).read()
@@ -86,8 +85,8 @@ class BenchmarkTestConfiguration(test.TestConfiguration):
     super(BenchmarkTestConfiguration, self).__init__(context, root)
 
   def ListTests(self, current_path, path, mode):
-    path = self.root.split(os.path.sep)[:-2]
-    path.append('benchmarks')
+    path = self.context.workspace
+    path = join(path, 'benchmarks')
     test = BenchmarkTestCase(path, self.context, mode)
     return [test]
 
