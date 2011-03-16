@@ -1173,8 +1173,10 @@ void CodeGenerator::SmiOperation(Token::Value op,
           default: UNREACHABLE();
         }
         deferred->BindExit();
-        TypeInfo result_type =
-            (op == Token::BIT_AND) ? TypeInfo::Smi() : TypeInfo::Integer32();
+        TypeInfo result_type = TypeInfo::Integer32();
+        if (op == Token::BIT_AND && int_value >= 0) {
+          result_type = TypeInfo::Smi();
+        }
         frame_->EmitPush(tos, result_type);
       }
       break;
