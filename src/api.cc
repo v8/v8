@@ -3960,7 +3960,9 @@ Local<v8::Array> v8::Array::New(int length) {
   EnsureInitialized("v8::Array::New()");
   LOG_API("Array::New");
   ENTER_V8;
-  i::Handle<i::JSArray> obj = i::Factory::NewJSArray(length);
+  int real_length = length > 0 ? length : 0;
+  i::Handle<i::JSArray> obj = i::Factory::NewJSArray(real_length);
+  obj->set_length(*i::Factory::NewNumberFromInt(real_length));
   return Utils::ToLocal(obj);
 }
 

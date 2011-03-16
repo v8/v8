@@ -1706,7 +1706,12 @@ class Array : public Object {
    */
   V8EXPORT Local<Object> CloneElementAt(uint32_t index);
 
+  /**
+   * Creates a JavaScript array with the given length. If the length
+   * is negative the returned array will have length 0.
+   */
   V8EXPORT static Local<Array> New(int length = 0);
+
   static inline Array* Cast(Value* obj);
  private:
   V8EXPORT Array();

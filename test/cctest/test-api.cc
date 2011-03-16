@@ -2078,6 +2078,10 @@ THREADED_TEST(Array) {
   CHECK_EQ(1, arr->Get(0)->Int32Value());
   CHECK_EQ(2, arr->Get(1)->Int32Value());
   CHECK_EQ(3, arr->Get(2)->Int32Value());
+  array = v8::Array::New(27);
+  CHECK_EQ(27, array->Length());
+  array = v8::Array::New(-27);
+  CHECK_EQ(0, array->Length());
 }
 
 
