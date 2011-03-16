@@ -553,14 +553,14 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
   if (length == 0) return;
   ASSERT(FLAG_deopt);
   Handle<DeoptimizationInputData> data =
-      FACTORY->NewDeoptimizationInputData(length, TENURED);
+      factory()->NewDeoptimizationInputData(length, TENURED);
 
   Handle<ByteArray> translations = translations_.CreateByteArray();
   data->SetTranslationByteArray(*translations);
   data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
 
   Handle<FixedArray> literals =
-      FACTORY->NewFixedArray(deoptimization_literals_.length(), TENURED);
+      factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);
   for (int i = 0; i < deoptimization_literals_.length(); i++) {
     literals->set(i, *deoptimization_literals_[i]);
   }
@@ -1870,7 +1870,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   Register map = ToRegister(instr->TempAt(0));
   __ movq(map, FieldOperand(object, HeapObject::kMapOffset));
   __ bind(deferred->map_check());  // Label for calculating code patching.
-  __ Move(kScratchRegister, FACTORY->the_hole_value());
+  __ Move(kScratchRegister, factory()->the_hole_value());
   __ cmpq(map, kScratchRegister);  // Patched to cached map.
   __ j(not_equal, &cache_miss);
   // Patched to load either true or false.
@@ -3361,9 +3361,9 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
 
 
 void LCodeGen::LoadHeapObject(Register result, Handle<HeapObject> object) {
-  if (HEAP->InNewSpace(*object)) {
+  if (heap()->InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
-        FACTORY->NewJSGlobalPropertyCell(object);
+        factory()->NewJSGlobalPropertyCell(object);
     __ movq(result, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
     __ movq(result, Operand(result, 0));
   } else {
@@ -3591,14 +3591,14 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
                                  Register input,
                                  Handle<String> type_name) {
   Condition final_branch_condition = no_condition;
-  if (type_name->Equals(HEAP->number_symbol())) {
+  if (type_name->Equals(heap()->number_symbol())) {
     __ JumpIfSmi(input, true_label);
     __ CompareRoot(FieldOperand(input, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
 
     final_branch_condition = equal;
 
-  } else if (type_name->Equals(HEAP->string_symbol())) {
+  } else if (type_name->Equals(heap()->string_symbol())) {
     __ JumpIfSmi(input, false_label);
     __ CmpObjectType(input, FIRST_NONSTRING_TYPE, input);
     __ j(above_equal, false_label);
@@ -3606,13 +3606,13 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
              Immediate(1 << Map::kIsUndetectable));
     final_branch_condition = zero;
 
-  } else if (type_name->Equals(HEAP->boolean_symbol())) {
+  } else if (type_name->Equals(heap()->boolean_symbol())) {
     __ CompareRoot(input, Heap::kTrueValueRootIndex);
     __ j(equal, true_label);
     __ CompareRoot(input, Heap::kFalseValueRootIndex);
     final_branch_condition = equal;
 
-  } else if (type_name->Equals(HEAP->undefined_symbol())) {
+  } else if (type_name->Equals(heap()->undefined_symbol())) {
     __ CompareRoot(input, Heap::kUndefinedValueRootIndex);
     __ j(equal, true_label);
     __ JumpIfSmi(input, false_label);
@@ -3622,12 +3622,12 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
              Immediate(1 << Map::kIsUndetectable));
     final_branch_condition = not_zero;
 
-  } else if (type_name->Equals(HEAP->function_symbol())) {
+  } else if (type_name->Equals(heap()->function_symbol())) {
     __ JumpIfSmi(input, false_label);
     __ CmpObjectType(input, FIRST_FUNCTION_CLASS_TYPE, input);
     final_branch_condition = above_equal;
 
-  } else if (type_name->Equals(HEAP->object_symbol())) {
+  } else if (type_name->Equals(heap()->object_symbol())) {
     __ JumpIfSmi(input, false_label);
     __ CompareRoot(input, Heap::kNullValueRootIndex);
     __ j(equal, true_label);

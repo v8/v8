@@ -66,8 +66,10 @@ class LCodeGen BASE_EMBEDDED {
 
   // Simple accessors.
   MacroAssembler* masm() const { return masm_; }
-  Isolate* isolate() const { return info_->isolate(); }
   CompilationInfo* info() const { return info_; }
+  Isolate* isolate() const { return info_->isolate(); }
+  Factory* factory() const { return isolate()->factory(); }
+  Heap* heap() const { return isolate()->heap(); }
 
   // Support for converting LOperands to assembler types.
   Register ToRegister(LOperand* op) const;
