@@ -613,6 +613,7 @@ class Sampler {
   void ResetSamplesTaken() { samples_taken_ = 0; }
 
   class PlatformData;
+  PlatformData* data() { return data_; }
 
  protected:
   virtual void DoSampleStack(TickSample* sample) = 0;
