@@ -462,9 +462,9 @@ class HValue: public ZoneObject {
   int id() const { return id_; }
   void set_id(int id) { id_ = id; }
 
-  const ZoneList<HValue*>* uses() const { return &uses_; }
+  ZoneList<HValue*>* uses() { return &uses_; }
 
-  virtual bool EmitAtUses() const { return false; }
+  virtual bool EmitAtUses() { return false; }
   Representation representation() const { return representation_; }
   void ChangeRepresentation(Representation r) {
     // Representation was already set and is allowed to be changed.
@@ -1802,7 +1802,8 @@ class HPhi: public HValue {
   explicit HPhi(int merged_index)
       : inputs_(2),
         merged_index_(merged_index),
-        phi_id_(-1) {
+        phi_id_(-1),
+        is_live_(false) {
     for (int i = 0; i < Representation::kNumRepresentations; i++) {
       non_phi_uses_[i] = 0;
       indirect_uses_[i] = 0;
@@ -1836,6 +1837,7 @@ class HPhi: public HValue {
   virtual HValue* OperandAt(int index) { return inputs_[index]; }
   HValue* GetRedundantReplacement();
   void AddInput(HValue* value);
+  bool HasRealUses();
 
   bool IsReceiver() { return merged_index_ == 0; }
 
@@ -1874,6 +1876,8 @@ class HPhi: public HValue {
     return indirect_uses_[Representation::kDouble];
   }
   int phi_id() { return phi_id_; }
+  bool is_live() { return is_live_; }
+  void set_is_live(bool b) { is_live_ = b; }
 
  protected:
   virtual void DeleteFromGraph();
@@ -1888,6 +1892,7 @@ class HPhi: public HValue {
   int non_phi_uses_[Representation::kNumRepresentations];
   int indirect_uses_[Representation::kNumRepresentations];
   int phi_id_;
+  bool is_live_;
 };
 
 
@@ -1918,7 +1923,7 @@ class HConstant: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  virtual bool EmitAtUses() const { return !representation().IsDouble(); }
+  virtual bool EmitAtUses() { return !representation().IsDouble(); }
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
   bool IsInteger() const { return handle_->IsSmi(); }
@@ -2193,7 +2198,7 @@ class HCompare: public HBinaryOperation {
 
   void SetInputRepresentation(Representation r);
 
-  virtual bool EmitAtUses() const {
+  virtual bool EmitAtUses() {
     return !HasSideEffects() && (uses()->length() <= 1);
   }
 
@@ -2234,7 +2239,7 @@ class HCompareJSObjectEq: public HBinaryOperation {
     SetFlag(kUseGVN);
   }
 
-  virtual bool EmitAtUses() const {
+  virtual bool EmitAtUses() {
     return !HasSideEffects() && (uses()->length() <= 1);
   }
 
@@ -2257,7 +2262,7 @@ class HUnaryPredicate: public HUnaryOperation {
     SetFlag(kUseGVN);
   }
 
-  virtual bool EmitAtUses() const {
+  virtual bool EmitAtUses() {
     return !HasSideEffects() && (uses()->length() <= 1);
   }
 
@@ -2317,7 +2322,7 @@ class HIsConstructCall: public HTemplateInstruction<0> {
     SetFlag(kUseGVN);
   }
 
-  virtual bool EmitAtUses() const {
+  virtual bool EmitAtUses() {
     return !HasSideEffects() && (uses()->length() <= 1);
   }
 
@@ -2439,7 +2444,7 @@ class HInstanceOf: public HTemplateInstruction<3> {
   HValue* left() { return OperandAt(1); }
   HValue* right() { return OperandAt(2); }
 
-  virtual bool EmitAtUses() const {
+  virtual bool EmitAtUses() {
     return !HasSideEffects() && (uses()->length() <= 1);
   }
 

@@ -207,6 +207,7 @@ class HGraph: public ZoneObject {
   void ComputeMinusZeroChecks();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
+  void EliminateUnreachablePhis();
   void Canonicalize();
   void OrderBlocks();
   void AssignDominators();
