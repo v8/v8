@@ -4126,8 +4126,19 @@ void V8::AddObjectGroup(Persistent<Value>* objects,
                         RetainedObjectInfo* info) {
   if (IsDeadCheck("v8::V8::AddObjectGroup()")) return;
   STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
-  i::GlobalHandles::AddGroup(
+  i::GlobalHandles::AddObjectGroup(
       reinterpret_cast<i::Object***>(objects), length, info);
+}
+
+
+void V8::AddImplicitReferences(Persistent<Object> parent,
+                               Persistent<Value>* children,
+                               size_t length) {
+  if (IsDeadCheck("v8::V8::AddImplicitReferences()")) return;
+  STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
+  i::GlobalHandles::AddImplicitReferences(
+      *Utils::OpenHandle(*parent),
+      reinterpret_cast<i::Object***>(children), length);
 }
 
 

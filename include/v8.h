@@ -2718,6 +2718,17 @@ class V8EXPORT V8 {
                              RetainedObjectInfo* info = NULL);
 
   /**
+   * Allows the host application to declare implicit references between
+   * the objects: if |parent| is alive, all |children| are alive too.
+   * After each garbage collection, all implicit references
+   * are removed.  It is intended to be used in the before-garbage-collection
+   * callback function.
+   */
+  static void AddImplicitReferences(Persistent<Object> parent,
+                                    Persistent<Value>* children,
+                                    size_t length);
+
+  /**
    * Initializes from snapshot if possible. Otherwise, attempts to
    * initialize from scratch.  This function is called implicitly if
    * you use the API without calling it first.

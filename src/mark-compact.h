@@ -220,10 +220,13 @@ class MarkCompactCollector: public AllStatic {
   // group marked.
   static void MarkObjectGroups();
 
-  // Mark all objects in an object group with at least one marked
-  // object, then all objects reachable from marked objects in object
-  // groups, and repeat.
-  static void ProcessObjectGroups();
+  // Mark objects in implicit references groups if their parent object
+  // is marked.
+  static void MarkImplicitRefGroups();
+
+  // Mark all objects which are reachable due to host application
+  // logic like object groups or implicit references' groups.
+  static void ProcessExternalMarking();
 
   // Mark objects reachable (transitively) from objects in the marking stack
   // or overflowed in the heap.
