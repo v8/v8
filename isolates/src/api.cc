@@ -4291,9 +4291,13 @@ void V8::TerminateExecution(int thread_id) {
 }
 
 
-void V8::TerminateExecution() {
-  if (!i::Isolate::Current()->IsInitialized()) return;
-  i::Isolate::Current()->stack_guard()->TerminateExecution();
+void V8::TerminateExecution(Isolate* isolate) {
+  // If no isolate is supplied, use the default isolate.
+  if (isolate != NULL) {
+    reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->TerminateExecution();
+  } else {
+    i::Isolate::GetDefaultIsolateStackGuard()->TerminateExecution();
+  }
 }
 
 
@@ -4558,20 +4562,35 @@ bool Debug::SetDebugEventListener(v8::Handle<v8::Object> that,
 }
 
 
-void Debug::DebugBreak() {
-  if (!i::Isolate::Current()->IsInitialized()) return;
-  i::Isolate::Current()->stack_guard()->DebugBreak();
+void Debug::DebugBreak(Isolate* isolate) {
+  // If no isolate is supplied, use the default isolate.
+  if (isolate != NULL) {
+    reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->DebugBreak();
+  } else {
+    i::Isolate::GetDefaultIsolateStackGuard()->DebugBreak();
+  }
 }
 
 
-void Debug::CancelDebugBreak() {
-  i::Isolate::Current()->stack_guard()->Continue(i::DEBUGBREAK);
+void Debug::CancelDebugBreak(Isolate* isolate) {
+  // If no isolate is supplied, use the default isolate.
+  if (isolate != NULL) {
+    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    internal_isolate->stack_guard()->Continue(i::DEBUGBREAK);
+  } else {
+    i::Isolate::GetDefaultIsolateStackGuard()->Continue(i::DEBUGBREAK);
+  }
 }
 
 
-void Debug::DebugBreakForCommand(ClientData* data) {
-  if (!i::Isolate::Current()->IsInitialized()) return;
-  i::Isolate::Current()->debugger()->EnqueueDebugCommand(data);
+void Debug::DebugBreakForCommand(ClientData* data, Isolate* isolate) {
+  // If no isolate is supplied, use the default isolate.
+  if (isolate != NULL) {
+    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    internal_isolate->debugger()->EnqueueDebugCommand(data);
+  } else {
+    i::Isolate::GetDefaultIsolateDebugger()->EnqueueDebugCommand(data);
+  }
 }
 
 

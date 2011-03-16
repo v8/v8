@@ -2943,12 +2943,16 @@ class V8EXPORT V8 {
   static void TerminateExecution(int thread_id);
 
   /**
-   * Forcefully terminate the current thread of JavaScript execution.
+   * Forcefully terminate the current thread of JavaScript execution
+   * in the given isolate. If no isolate is provided, the default
+   * isolate is used.
    *
    * This method can be used by any thread even if that thread has not
    * acquired the V8 lock with a Locker object.
+   *
+   * \param isolate The isolate in which to terminate the current JS execution.
    */
-  static void TerminateExecution();
+  static void TerminateExecution(Isolate* isolate = NULL);
 
   /**
    * Is V8 terminating JavaScript execution.

@@ -431,6 +431,14 @@ class Isolate {
   // Safe to call multiple times.
   static void EnsureDefaultIsolate();
 
+  // Get the debugger from the default isolate. Preinitializes the
+  // default isolate if needed.
+  static Debugger* GetDefaultIsolateDebugger();
+
+  // Get the stack guard from the default isolate. Preinitializes the
+  // default isolate if needed.
+  static StackGuard* GetDefaultIsolateStackGuard();
+
   // Returns the key used to store the pointer to the current isolate.
   // Used internally for V8 threads that do not execute JavaScript but still
   // are part of the domain of an isolate (like the context switcher).

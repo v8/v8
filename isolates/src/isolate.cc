@@ -254,6 +254,18 @@ void Isolate::EnsureDefaultIsolate() {
 }
 
 
+Debugger* Isolate::GetDefaultIsolateDebugger() {
+  EnsureDefaultIsolate();
+  return default_isolate_->debugger();
+}
+
+
+StackGuard* Isolate::GetDefaultIsolateStackGuard() {
+  EnsureDefaultIsolate();
+  return default_isolate_->stack_guard();
+}
+
+
 void Isolate::EnterDefaultIsolate() {
   EnsureDefaultIsolate();
   ASSERT(default_isolate_ != NULL);
