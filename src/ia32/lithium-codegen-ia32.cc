@@ -3497,9 +3497,15 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsRegister());
   __ test(ToRegister(input), Immediate(kSmiTagMask));
-  DeoptimizeIf(instr->condition(), instr->environment());
+  DeoptimizeIf(not_zero, instr->environment());
+}
+
+
+void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
+  LOperand* input = instr->InputAt(0);
+  __ test(ToRegister(input), Immediate(kSmiTagMask));
+  DeoptimizeIf(zero, instr->environment());
 }
 
 

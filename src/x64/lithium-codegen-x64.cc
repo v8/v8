@@ -3297,11 +3297,14 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsRegister());
   Condition cc = masm()->CheckSmi(ToRegister(input));
-  if (instr->condition() != equal) {
-    cc = NegateCondition(cc);
-  }
+  DeoptimizeIf(NegateCondition(cc), instr->environment());
+}
+
+
+void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
+  LOperand* input = instr->InputAt(0);
+  Condition cc = masm()->CheckSmi(ToRegister(input));
   DeoptimizeIf(cc, instr->environment());
 }
 
