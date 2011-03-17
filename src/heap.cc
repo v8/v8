@@ -138,9 +138,6 @@ unsigned int Heap::gc_count_ = 0;
 
 GCTracer* Heap::tracer_ = NULL;
 
-const int Heap::kArgumentsObjectSize;
-const int Heap::kArgumentsObjectSizeStrict;
-
 int Heap::unflattened_strings_length_ = 0;
 
 int Heap::always_allocate_scope_depth_ = 0;

@@ -682,9 +682,10 @@ class ArgumentsAccessStub: public CodeStub {
   }
 
   int GetArgumentsObjectSize() const {
-    return (type_ == NEW_STRICT)
-        ? Heap::kArgumentsObjectSizeStrict
-        : Heap::kArgumentsObjectSize;
+    if (type_ == NEW_STRICT)
+      return Heap::kArgumentsObjectSizeStrict;
+    else
+      return Heap::kArgumentsObjectSize;
   }
 
   const char* GetName() { return "ArgumentsAccessStub"; }
