@@ -69,16 +69,20 @@ class IncrementalMarking : public AllStatic {
 
   static void Step(intptr_t allocated);
 
+  static inline void RestartIfNotMarking() {
+    if (state_ == COMPLETE) {
+      state_ = MARKING;
+      if (FLAG_trace_incremental_marking) {
+        PrintF("[IncrementalMarking] Restarting (new grey objects)\n");
+      }
+    }
+  }
+
   static inline void RecordWrite(HeapObject* obj, Object* value) {
     if (!IsStopped() && value->IsHeapObject()) {
       if (IsBlack(obj) && IsWhite(HeapObject::cast(value))) {
         BlackToGrey(obj);
-        if (state_ == COMPLETE) {
-          state_ = MARKING;
-          if (FLAG_trace_incremental_marking) {
-            PrintF("[IncrementalMarking] Restarting (new grey objects)\n");
-          }
-        }
+        RestartIfNotMarking();
       }
     }
   }
@@ -87,12 +91,7 @@ class IncrementalMarking : public AllStatic {
     if (state_ != STOPPED) {
       if (IsWhite(value)) {
         WhiteToGrey(value);
-        if (state_ == COMPLETE) {
-          state_ = MARKING;
-          if (FLAG_trace_incremental_marking) {
-            PrintF("[IncrementalMarking] Restarting (new grey objects)\n");
-          }
-        }
+        RestartIfNotMarking();
       }
     }
   }
@@ -102,12 +101,7 @@ class IncrementalMarking : public AllStatic {
     if (!IsStopped()) {
       if (IsBlack(obj)) {
         BlackToGrey(obj);
-        if (state_ == COMPLETE) {
-          state_ = MARKING;
-          if (FLAG_trace_incremental_marking) {
-            PrintF("[IncrementalMarking] Restarting (new grey objects)\n");
-          }
-        }
+        RestartIfNotMarking();
       }
     }
   }
@@ -130,6 +124,7 @@ class IncrementalMarking : public AllStatic {
   }
 
   static inline void BlackToGrey(HeapObject* obj) {
+    ASSERT(obj->Size() >= 2*kPointerSize);
     ASSERT(!IsStopped());
     ASSERT(IsBlack(obj));
     Marking::ClearMark(obj->address());
@@ -141,6 +136,7 @@ class IncrementalMarking : public AllStatic {
   }
 
   static inline void WhiteToGrey(HeapObject* obj) {
+    ASSERT(obj->Size() >= 2*kPointerSize);
     ASSERT(!IsStopped());
     ASSERT(IsWhite(obj));
     Marking::SetMark(obj->address() + kPointerSize);
@@ -151,6 +147,7 @@ class IncrementalMarking : public AllStatic {
   }
 
   static inline void MarkBlack(HeapObject* obj) {
+    ASSERT(obj->Size() >= 2*kPointerSize);
     Marking::SetMark(obj->address());
     Marking::ClearMark(obj->address() + kPointerSize);
     ASSERT(IsBlack(obj));

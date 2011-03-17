@@ -354,12 +354,13 @@ static FixedArray* LeftTrimFixedArray(FixedArray* elms, int to_trim) {
   // we still do it.
   Heap::CreateFillerObjectAt(elms->address(), to_trim * kPointerSize);
 
-  // Maintain marking consistency for HeapObjectIterator.
-  Marking::TransferMark(elms->address(),
-                        elms->address() + to_trim * kPointerSize);
-
   former_start[to_trim] = Heap::fixed_array_map();
   former_start[to_trim + 1] = Smi::FromInt(len - to_trim);
+
+  // Maintain marking consistency for HeapObjectIterator and
+  // IncrementalMarking.
+  Marking::TransferMark(elms->address(),
+                        elms->address() + to_trim * kPointerSize);
 
   return FixedArray::cast(HeapObject::FromAddress(
       elms->address() + to_trim * kPointerSize));

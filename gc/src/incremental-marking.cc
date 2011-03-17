@@ -168,6 +168,8 @@ void IncrementalMarking::Start() {
 
   PatchIncrementalMarkingRecordWriteStubs(true);
 
+  Heap::EnsureFromSpaceIsCommitted();
+
   // Initialize marking stack.
   marking_stack_.Initialize(Heap::new_space()->FromSpaceLow(),
                             Heap::new_space()->FromSpaceHigh());
@@ -203,10 +205,16 @@ void IncrementalMarking::Hurry() {
     }
     // TODO(gc) hurry can mark objects it encounters black as mutator
     // was stopped.
+    Map* filler_map = Heap::one_pointer_filler_map();
     while (!marking_stack_.is_empty()) {
       HeapObject* obj = marking_stack_.Pop();
-      obj->Iterate(&marking_visitor);
-      MarkBlack(obj);
+
+      // Explicitly skip one word fillers. Incremental markbit patterns are
+      // correct only for objects that occupy at least two words.
+      if (obj->map() != filler_map) {
+        obj->Iterate(&marking_visitor);
+        MarkBlack(obj);
+      }
     }
     state_ = COMPLETE;
     if (FLAG_trace_incremental_marking) {
@@ -246,15 +254,22 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
         PrintF("[IncrementalMarking] Marking %d bytes\n", bytes_to_process);
         start = OS::TimeCurrentMillis();
       }
+
+      Map* filler_map = Heap::one_pointer_filler_map();
       while (!marking_stack_.is_empty() && bytes_to_process > 0) {
         HeapObject* obj = marking_stack_.Pop();
-        ASSERT(IsGrey(obj));
-        Map* map = obj->map();
-        int size = obj->SizeFromMap(map);
-        bytes_to_process -= size;
-        if (IsWhite(map)) WhiteToGrey(map);
-        obj->IterateBody(map->instance_type(), size, &marking_visitor);
-        MarkBlack(obj);
+
+        // Explicitly skip one word fillers. Incremental markbit patterns are
+        // correct only for objects that occupy at least two words.
+        if (obj->map() != filler_map) {
+          ASSERT(IsGrey(obj));
+          Map* map = obj->map();
+          int size = obj->SizeFromMap(map);
+          bytes_to_process -= size;
+          if (IsWhite(map)) WhiteToGrey(map);
+          obj->IterateBody(map->instance_type(), size, &marking_visitor);
+          MarkBlack(obj);
+        }
         count++;
       }
       if (FLAG_trace_incremental_marking) {

@@ -227,11 +227,16 @@ static void ClearMarkbits() {
 
 
 void Marking::TransferMark(Address old_start, Address new_start) {
-  if (IncrementalMarking::state() == IncrementalMarking::MARKING) {
+  if (old_start == new_start) return;
+
+  if (!IncrementalMarking::IsStopped()) {
     if (IncrementalMarking::IsBlack(HeapObject::FromAddress(old_start))) {
       IncrementalMarking::MarkBlack(HeapObject::FromAddress(new_start));
+      ClearMark(old_start);
     } else if (IncrementalMarking::IsGrey(HeapObject::FromAddress(old_start))) {
+      ClearMark(old_start + kPointerSize);
       IncrementalMarking::WhiteToGrey(HeapObject::FromAddress(new_start));
+      IncrementalMarking::RestartIfNotMarking();
       // TODO(gc): if we shift huge array in the loop we might end up pushing
       // to much to marking stack. maybe we should check one or two elements
       // on top of it to see whether they are equal to old_start.

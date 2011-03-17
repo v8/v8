@@ -3784,7 +3784,7 @@ bool Heap::IdleNotification() {
   // Make sure that we have no pending context disposals and
   // conditionally uncommit from space.
   ASSERT(contexts_disposed_ == 0);
-  if (uncommit) Heap::UncommitFromSpace();
+  if (uncommit && IncrementalMarking::IsStopped()) Heap::UncommitFromSpace();
   return finished;
 }
 

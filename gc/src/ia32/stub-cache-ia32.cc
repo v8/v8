@@ -1547,6 +1547,14 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
                Immediate(Factory::the_hole_value()));
       }
 
+      __ IncrementalMarkingRecordWrite(ebx,
+                                       ecx,
+                                       edx,
+                                       INLINE_SMI_CHECK,
+                                       PRESERVE_OBJECT,
+                                       DESTROY_VALUE,
+                                       DESTROY_SCRATCH);
+
       // Restore receiver to edx as finish sequence assumes it's here.
       __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
 

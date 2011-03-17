@@ -219,6 +219,14 @@ void MacroAssembler::RecordWrite(Register object,
   test(value, Immediate(kSmiTagMask));
   j(zero, &done);
 
+  IncrementalMarkingRecordWrite(object,
+                                value,
+                                address,
+                                OMIT_SMI_CHECK,
+                                PRESERVE_OBJECT,
+                                DESTROY_VALUE,
+                                PRESERVE_SCRATCH);
+
   InNewSpace(object, value, equal, &done);
 
   RecordWriteHelper(object, address, value, save_fp);
