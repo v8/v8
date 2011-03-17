@@ -1041,9 +1041,8 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       !FLAG_prepare_always_opt &&
       !pretenure &&
       scope()->is_function_scope() &&
-      info->num_literals() == 0 &&
-      !info->strict_mode()) {  // Strict mode functions use slow path.
-    FastNewClosureStub stub;
+      info->num_literals() == 0) {
+    FastNewClosureStub stub(info->strict_mode() ? kStrictMode : kNonStrictMode);
     __ Push(info);
     __ CallStub(&stub);
   } else {

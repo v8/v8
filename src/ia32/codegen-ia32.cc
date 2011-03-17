@@ -4918,9 +4918,9 @@ Result CodeGenerator::InstantiateFunction(
   // space for nested functions that don't need literals cloning.
   if (!pretenure &&
       scope()->is_function_scope() &&
-      function_info->num_literals() == 0 &&
-      !function_info->strict_mode()) {  // Strict mode functions use slow path.
-    FastNewClosureStub stub;
+      function_info->num_literals() == 0) {
+    FastNewClosureStub stub(
+        function_info->strict_mode() ? kStrictMode : kNonStrictMode);
     frame()->EmitPush(Immediate(function_info));
     return frame()->CallStub(&stub, 1);
   } else {
