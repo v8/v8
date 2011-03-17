@@ -760,7 +760,7 @@ class HBlockEntry: public HTemplateInstruction<0> {
 
 class HDeoptimize: public HControlInstruction {
  public:
-  HDeoptimize(int environment_length)
+  explicit HDeoptimize(int environment_length)
       : HControlInstruction(NULL, NULL),
         values_(environment_length) { }
 
