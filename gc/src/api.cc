@@ -3388,7 +3388,7 @@ bool v8::V8::IdleNotification() {
 
 void v8::V8::LowMemoryNotification() {
   if (!i::V8::IsRunning()) return;
-  i::Heap::CollectAllGarbage(true);
+  i::Heap::CollectAllGarbage(i::Heap::kForceCompactionMask);
 }
 
 
@@ -4220,12 +4220,12 @@ void V8::ResumeProfilerEx(int flags, int tag) {
     // snapshot.
 
     // Make a GC prior to taking a snapshot.
-    i::Heap::CollectAllGarbage(false);
+    i::Heap::CollectAllGarbage(i::Heap::kNoGCFlags);
     // Reset snapshot flag and CPU module flags.
     flags &= ~(PROFILER_MODULE_HEAP_SNAPSHOT | PROFILER_MODULE_CPU);
     const int current_flags = i::Logger::GetActiveProfilerModules();
     i::Logger::ResumeProfiler(flags, tag);
-    i::Heap::CollectAllGarbage(false);
+    i::Heap::CollectAllGarbage(i::Heap::kNoGCFlags);
     i::Logger::PauseProfiler(~current_flags & flags, tag);
   } else {
     i::Logger::ResumeProfiler(flags, tag);

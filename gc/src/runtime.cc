@@ -9963,8 +9963,8 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
   Handle<SharedFunctionInfo> target;
   while (!done) {
     HeapIterator iterator;
-    for (HeapObject* obj = iterator.next();
-         obj != NULL; obj = iterator.next()) {
+    for (HeapObject* obj = iterator.Next();
+         obj != NULL; obj = iterator.Next()) {
       if (obj->IsSharedFunctionInfo()) {
         Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(obj));
         if (shared->script() == *script) {
@@ -10453,14 +10453,14 @@ static int DebugReferencedBy(JSObject* target,
                              FixedArray* instances, int instances_size,
                              JSFunction* arguments_function) {
   NoHandleAllocation ha;
+  HeapIterator iterator;
   AssertNoAllocation no_alloc;
 
   // Iterate the heap.
   int count = 0;
   JSObject* last = NULL;
-  HeapIterator iterator;
   HeapObject* heap_obj = NULL;
-  while (((heap_obj = iterator.next()) != NULL) &&
+  while (((heap_obj = iterator.Next()) != NULL) &&
          (max_references == 0 || count < max_references)) {
     // Only look at all JSObjects.
     if (heap_obj->IsJSObject()) {
@@ -10525,7 +10525,7 @@ static MaybeObject* Runtime_DebugReferencedBy(Arguments args) {
   ASSERT(args.length() == 3);
 
   // First perform a full GC in order to avoid references from dead objects.
-  Heap::CollectAllGarbage(false);
+  Heap::CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
   // Check parameters.
   CONVERT_CHECKED(JSObject, target, args[0]);
@@ -10571,13 +10571,13 @@ static MaybeObject* Runtime_DebugReferencedBy(Arguments args) {
 // Helper function used by Runtime_DebugConstructedBy below.
 static int DebugConstructedBy(JSFunction* constructor, int max_references,
                               FixedArray* instances, int instances_size) {
+  HeapIterator iterator;
   AssertNoAllocation no_alloc;
 
   // Iterate the heap.
   int count = 0;
-  HeapIterator iterator;
   HeapObject* heap_obj = NULL;
-  while (((heap_obj = iterator.next()) != NULL) &&
+  while (((heap_obj = iterator.Next()) != NULL) &&
          (max_references == 0 || count < max_references)) {
     // Only look at all JSObjects.
     if (heap_obj->IsJSObject()) {
@@ -10605,7 +10605,7 @@ static MaybeObject* Runtime_DebugConstructedBy(Arguments args) {
   ASSERT(args.length() == 2);
 
   // First perform a full GC in order to avoid dead objects.
-  Heap::CollectAllGarbage(false);
+  Heap::CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
   // Check parameters.
   CONVERT_CHECKED(JSFunction, constructor, args[0]);
@@ -10698,13 +10698,13 @@ static MaybeObject* Runtime_FunctionGetInferredName(Arguments args) {
 
 
 static int FindSharedFunctionInfosForScript(Script* script,
-                                     FixedArray* buffer) {
+                                            FixedArray* buffer) {
+  HeapIterator iterator;
   AssertNoAllocation no_allocations;
 
   int counter = 0;
   int buffer_size = buffer->length();
-  HeapIterator iterator;
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
     ASSERT(obj != NULL);
     if (!obj->IsSharedFunctionInfo()) {
       continue;
@@ -10729,6 +10729,7 @@ static MaybeObject* Runtime_LiveEditFindSharedFunctionInfosForScript(
   ASSERT(args.length() == 1);
   HandleScope scope;
   CONVERT_CHECKED(JSValue, script_value, args[0]);
+
 
   Handle<Script> script = Handle<Script>(Script::cast(script_value->value()));
 
@@ -10979,7 +10980,7 @@ static MaybeObject* Runtime_SetFlags(Arguments args) {
 // Performs a GC.
 // Presently, it only does a full GC.
 static MaybeObject* Runtime_CollectGarbage(Arguments args) {
-  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
   return Heap::undefined_value();
 }
 
@@ -11233,7 +11234,7 @@ static Handle<Object> Runtime_GetScriptFromScriptName(
   Handle<Script> script;
   HeapIterator iterator;
   HeapObject* obj = NULL;
-  while (script.is_null() && ((obj = iterator.next()) != NULL)) {
+  while (script.is_null() && ((obj = iterator.Next()) != NULL)) {
     // If a script is found check if it has the script data requested.
     if (obj->IsScript()) {
       if (Script::cast(obj)->name()->IsString()) {
@@ -11640,7 +11641,7 @@ void Runtime::PerformGC(Object* result) {
     // Handle last resort GC and make sure to allow future allocations
     // to grow the heap without causing GCs (if possible).
     Counters::gc_last_resort_from_js.Increment();
-    Heap::CollectAllGarbage(false);
+    Heap::CollectAllGarbage(Heap::kNoGCFlags);
   }
 }
 

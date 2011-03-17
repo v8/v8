@@ -49,6 +49,7 @@ class StaticVisitorBase : public AllStatic {
     kVisitSeqTwoByteString,
     kVisitShortcutCandidate,
     kVisitByteArray,
+    kVisitFreeSpace,
     kVisitFixedArray,
     kVisitGlobalContext,
 

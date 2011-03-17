@@ -1121,13 +1121,13 @@ Code* PcToCodeCache::GcSafeFindCodeForPc(Address pc) {
   LargePage* large_page = Heap::lo_space()->FindPageContainingPc(pc);
   if (large_page != NULL) return GcSafeCastToCode(large_page->GetObject(), pc);
 
-  // Iterate through the 8K page until we reach the end or find an
-  // object starting after the pc.
+  // Iterate through the page until we reach the end or find an object starting
+  // after the pc.
   Page* page = Page::FromAddress(pc);
   HeapObjectIterator iterator(page, Heap::GcSafeSizeOfOldObjectFunction());
   HeapObject* previous = NULL;
   while (true) {
-    HeapObject* next = iterator.next();
+    HeapObject* next = iterator.Next();
     if (next == NULL || next->address() >= pc) {
       return GcSafeCastToCode(previous, pc);
     }

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -72,7 +72,7 @@ class StoreBuffer : public AllStatic {
   static const int kStoreBufferOverflowBit = 1 << 16;
   static const int kStoreBufferSize = kStoreBufferOverflowBit;
   static const int kStoreBufferLength = kStoreBufferSize / sizeof(Address);
-  static const int kOldStoreBufferLength = kStoreBufferLength * 16;
+  static const int kOldStoreBufferLength = kStoreBufferLength * 64;
   static const int kHashMapLengthLog2 = 12;
   static const int kHashMapLength = 1 << kHashMapLengthLog2;
 

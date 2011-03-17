@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -42,10 +42,8 @@ namespace internal {
 
 // Defines all the roots in Heap.
 #define STRONG_ROOT_LIST(V)                                      \
-  /* Put the byte array map early.  We need it to be in place by the time   */ \
-  /* the deserializer hits the next page, since it wants to put a byte      */ \
-  /* array in the unused space at the end of the page.                      */ \
   V(Map, byte_array_map, ByteArrayMap)                                         \
+  V(Map, free_space_map, FreeSpaceMap)                                         \
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   /* Cluster the most popular ones in a few cache lines here at the top.    */ \
@@ -491,8 +489,9 @@ class Heap : public AllStatic {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT static MaybeObject* AllocateByteArray(int length,
-                                                   PretenureFlag pretenure);
+  MUST_USE_RESULT static MaybeObject* AllocateByteArray(
+      int length,
+      PretenureFlag pretenure);
 
   // Allocate a non-tenured byte array of the specified length
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -762,9 +761,19 @@ class Heap : public AllStatic {
   // collect more garbage.
   inline static bool CollectGarbage(AllocationSpace space);
 
-  // Performs a full garbage collection. Force compaction if the
-  // parameter is true.
-  static void CollectAllGarbage(bool force_compaction);
+  static const int kNoGCFlags = 0;
+  static const int kForceCompactionMask = 1;
+  static const int kMakeHeapIterableMask = 2;
+
+  // Performs a full garbage collection.  If (flags & kForceCompactionMask) is
+  // non-zero then force compaction.  If (flags & kMakeHeapIterableMask) is non-
+  // zero, then the slower precise sweeper is used, which leaves the heap in a
+  // state where we can iterate over the heap visiting all objects.
+  static void CollectAllGarbage(int flags);
+
+  // Ensure that we have swept all spaces in such a way that we can iterate
+  // over all objects.  May cause a GC.
+  static void EnsureHeapIsIterable();
 
   // Last hope GC, should try to squeeze as much as possible.
   static void CollectAllAvailableGarbage();
@@ -1614,7 +1623,8 @@ class SpaceIterator : public Malloced {
 
 // A HeapIterator provides iteration over the whole heap. It
 // aggregates the specific iterators for the different spaces as
-// these can only iterate over one space only.
+// these can only iterate over one space only.  It can only be guaranteed
+// to iterate over live objects.
 //
 // HeapIterator can skip free list nodes (that is, de-allocated heap
 // objects that still remain in the heap). As implementation of free
@@ -1625,28 +1635,18 @@ class HeapObjectsFilter;
 
 class HeapIterator BASE_EMBEDDED {
  public:
-  enum HeapObjectsFiltering {
-    kNoFiltering,
-    kFilterFreeListNodes,
-    kFilterUnreachable
-  };
-
   HeapIterator();
-  explicit HeapIterator(HeapObjectsFiltering filtering);
   ~HeapIterator();
 
-  HeapObject* next();
-  void reset();
+  HeapObject* Next();
+  void Reset();
 
  private:
   // Perform the initialization.
   void Init();
   // Perform all necessary shutdown (destruction) work.
   void Shutdown();
-  HeapObject* NextObject();
 
-  HeapObjectsFiltering filtering_;
-  HeapObjectsFilter* filter_;
   // Space iterator for iterating all the spaces.
   SpaceIterator* space_iterator_;
   // Object iterator for the space currently being iterated.

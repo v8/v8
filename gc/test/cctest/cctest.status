@@ -46,6 +46,9 @@ test-heap-profiler/HeapSnapshotsDiff: PASS || FAIL
 test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
 
+# Temporarily disabled in the GC branch.
+test-log/EquivalenceOfLoggingAndTraversal: PASS || FAIL
+
 ##############################################################################
 [ $arch == arm ]
 

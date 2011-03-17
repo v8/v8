@@ -1238,13 +1238,13 @@ class EnumerateOptimizedFunctionsVisitor: public OptimizedFunctionVisitor {
 
 static int EnumerateCompiledFunctions(Handle<SharedFunctionInfo>* sfis,
                                       Handle<Code>* code_objects) {
+  HeapIterator iterator;
   AssertNoAllocation no_alloc;
   int compiled_funcs_count = 0;
 
   // Iterate the heap to find shared function info objects and record
   // the unoptimized code for them.
-  HeapIterator iterator;
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
     if (!obj->IsSharedFunctionInfo()) continue;
     SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
     if (sfi->is_compiled()
@@ -1362,9 +1362,9 @@ void Logger::LowLevelCodeCreateEvent(Code* code, LogMessageBuilder* msg) {
 
 
 void Logger::LogCodeObjects() {
-  AssertNoAllocation no_alloc;
   HeapIterator iterator;
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+  AssertNoAllocation no_alloc;
+  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
     if (obj->IsCode()) LogCodeObject(obj);
   }
 }
@@ -1423,9 +1423,9 @@ void Logger::LogCompiledFunctions() {
 
 
 void Logger::LogAccessorCallbacks() {
-  AssertNoAllocation no_alloc;
   HeapIterator iterator;
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+  AssertNoAllocation no_alloc;
+  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
     if (!obj->IsAccessorInfo()) continue;
     AccessorInfo* ai = AccessorInfo::cast(obj);
     if (!ai->name()->IsString()) continue;

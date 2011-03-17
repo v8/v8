@@ -87,7 +87,7 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
 
 
 static void ClearMarkbits(PagedSpace* space) {
-  PageIterator it(space, PageIterator::PAGES_IN_USE);
+  PageIterator it(space);
 
   while (it.has_next()) {
     Page* p = it.next();
@@ -97,16 +97,18 @@ static void ClearMarkbits(PagedSpace* space) {
 
 
 static void ClearMarkbits() {
-  // We are sweeping code and map spaces precisely so clearing is not required.
+  // TODO(gc): Clear the mark bits in the sweeper.
   ClearMarkbits(Heap::old_pointer_space());
   ClearMarkbits(Heap::old_data_space());
   ClearMarkbits(Heap::cell_space());
+  ClearMarkbits(Heap::map_space());
+  ClearMarkbits(Heap::code_space());
 }
 
 
 #ifdef DEBUG
   static void VerifyMarkbitsAreClean(PagedSpace* space) {
-    PageIterator it(space, PageIterator::PAGES_IN_USE);
+    PageIterator it(space);
 
     while (it.has_next()) {
       Page* p = it.next();
@@ -200,8 +202,10 @@ void IncrementalMarking::Start() {
 
 void IncrementalMarking::Hurry() {
   if (state() == MARKING) {
+    double start = 0.0;
     if (FLAG_trace_incremental_marking) {
       PrintF("[IncrementalMarking] Hurry\n");
+      start = OS::TimeCurrentMillis();
     }
     // TODO(gc) hurry can mark objects it encounters black as mutator
     // was stopped.
@@ -213,12 +217,13 @@ void IncrementalMarking::Hurry() {
       // correct only for objects that occupy at least two words.
       if (obj->map() != filler_map) {
         obj->Iterate(&marking_visitor);
-        MarkBlack(obj);
-      }
+        MarkBlack(obj); }
     }
     state_ = COMPLETE;
     if (FLAG_trace_incremental_marking) {
-      PrintF("[IncrementalMarking] Complete (hurry)\n");
+      double end = OS::TimeCurrentMillis();
+      PrintF("[IncrementalMarking] Complete (hurry), spent %d ms\n",
+             static_cast<int>(end - start));
     }
   }
 }

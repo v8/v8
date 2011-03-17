@@ -88,6 +88,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayPrint(out);
       break;
+    case FREE_SPACE_TYPE:
+      FreeSpace::cast(this)->FreeSpacePrint(out);
+      break;
     case EXTERNAL_PIXEL_ARRAY_TYPE:
       ExternalPixelArray::cast(this)->ExternalPixelArrayPrint(out);
       break;
@@ -174,6 +177,11 @@ void HeapObject::HeapObjectPrint(FILE* out) {
 
 void ByteArray::ByteArrayPrint(FILE* out) {
   PrintF(out, "byte array, data starts at %p", GetDataStartAddress());
+}
+
+
+void FreeSpace::FreeSpacePrint(FILE* out) {
+  PrintF(out, "free space, size %d", Size());
 }
 
 
@@ -372,6 +380,7 @@ static const char* TypeToString(InstanceType type) {
     case EXTERNAL_STRING_TYPE: return "EXTERNAL_STRING";
     case FIXED_ARRAY_TYPE: return "FIXED_ARRAY";
     case BYTE_ARRAY_TYPE: return "BYTE_ARRAY";
+    case FREE_SPACE_TYPE: return "FREE_SPACE";
     case EXTERNAL_PIXEL_ARRAY_TYPE: return "EXTERNAL_PIXEL_ARRAY";
     case EXTERNAL_BYTE_ARRAY_TYPE: return "EXTERNAL_BYTE_ARRAY";
     case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:

@@ -333,6 +333,19 @@ bool Object::IsByteArray() {
 }
 
 
+bool Object::IsFreeSpace() {
+  return Object::IsHeapObject()
+    && HeapObject::cast(this)->map()->instance_type() == FREE_SPACE_TYPE;
+}
+
+
+bool Object::IsFiller() {
+  if (!Object::IsHeapObject()) return false;
+  InstanceType instance_type = HeapObject::cast(this)->map()->instance_type();
+  return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
+}
+
+
 bool Object::IsExternalPixelArray() {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map()->instance_type() ==
@@ -1626,6 +1639,7 @@ CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(Proxy)
 CAST_ACCESSOR(ByteArray)
+CAST_ACCESSOR(FreeSpace)
 CAST_ACCESSOR(ExternalArray)
 CAST_ACCESSOR(ExternalByteArray)
 CAST_ACCESSOR(ExternalUnsignedByteArray)
@@ -1652,6 +1666,7 @@ HashTable<Shape, Key>* HashTable<Shape, Key>::cast(Object* obj) {
 
 SMI_ACCESSORS(FixedArray, length, kLengthOffset)
 SMI_ACCESSORS(ByteArray, length, kLengthOffset)
+SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 INT_ACCESSORS(ExternalArray, length, kLengthOffset)
 
@@ -2090,6 +2105,9 @@ int HeapObject::SizeFromMap(Map* map) {
   }
   if (instance_type == BYTE_ARRAY_TYPE) {
     return reinterpret_cast<ByteArray*>(this)->ByteArraySize();
+  }
+  if (instance_type == FREE_SPACE_TYPE) {
+    return reinterpret_cast<FreeSpace*>(this)->size();
   }
   if (instance_type == STRING_TYPE) {
     return SeqTwoByteString::SizeFor(

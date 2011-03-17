@@ -909,6 +909,7 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
 static void ReplaceCodeObject(Code* original, Code* substitution) {
   ASSERT(!Heap::InNewSpace(substitution));
 
+  HeapIterator iterator;
   AssertNoAllocation no_allocations_please;
 
   // A zone scope for ReferenceCollectorVisitor.
@@ -925,8 +926,7 @@ static void ReplaceCodeObject(Code* original, Code* substitution) {
 
   // Now iterate over all pointers of all objects, including code_target
   // implicit pointers.
-  HeapIterator iterator;
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
     obj->Iterate(&visitor);
   }
 
@@ -1009,6 +1009,8 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
 
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
+
+  Heap::EnsureHeapIsIterable();
 
   if (IsJSFunctionCode(shared_info->code())) {
     ReplaceCodeObject(shared_info->code(),
@@ -1177,7 +1179,8 @@ class RelocInfoBuffer {
 
 // Patch positions in code (changes relocation info section) and possibly
 // returns new instance of code.
-static Handle<Code> PatchPositionsInCode(Handle<Code> code,
+static Handle<Code> PatchPositionsInCode(
+    Handle<Code> code,
     Handle<JSArray> position_change_array) {
 
   RelocInfoBuffer buffer_writer(code->relocation_size(),
@@ -1237,6 +1240,8 @@ MaybeObject* LiveEdit::PatchFunctionPositions(
   info->set_function_token_position(
       TranslatePosition(info->function_token_position(),
       position_change_array));
+
+  Heap::EnsureHeapIsIterable();
 
   if (IsJSFunctionCode(info->code())) {
     // Patch relocation info section of the code.

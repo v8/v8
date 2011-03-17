@@ -1,4 +1,4 @@
-// Copyright 2006-2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -437,7 +437,7 @@ int Heap::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
         amount_of_external_allocated_memory_ -
         amount_of_external_allocated_memory_at_last_global_gc_;
     if (amount_since_last_global_gc > external_allocation_limit_) {
-      CollectAllGarbage(false);
+      CollectAllGarbage(kNoGCFlags);
     }
   } else {
     // Avoid underflow.

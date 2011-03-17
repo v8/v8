@@ -717,9 +717,8 @@ void Deserializer::VisitPointers(Object** start, Object** end) {
 // This routine writes the new object into the pointer provided and then
 // returns true if the new object was in young space and false otherwise.
 // The reason for this strange interface is that otherwise the object is
-// written very late, which means the ByteArray map is not set up by the
-// time we need to use it to mark the space at the end of a page free (by
-// making it into a byte array).
+// written very late, which means the FreeSpace map is not set up by the
+// time we need to use it to mark the space at the end of a page free.
 void Deserializer::ReadObject(int space_number,
                               Space* space,
                               Object** write_back) {

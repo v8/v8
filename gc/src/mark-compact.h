@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -119,96 +119,6 @@ class Marking {
         Page::MarkbitsBitmap::CellToIndex(cell_index) + bit);
   }
 
-  INLINE(static Address FirstLiveObject(Address start,
-                                        Address limit)) {
-    ASSERT(!Heap::InNewSpace(start));
-    if (start >= limit) return start;
-
-    Page* page = Page::FromAddress(start);
-
-    // If start is above linearity boundary is continuous then
-    // it coincides with a start of the live object. Just
-    // return it.
-    if (start >= page->linearity_boundary()) return start;
-
-    Page::MarkbitsBitmap* bitmap = page->markbits();
-    uint32_t markbit = page->AddressToMarkbitIndex(start);
-
-    // If the start address is marked return it.
-    if (bitmap->Get(markbit)) return start;
-
-    uint32_t* cells = bitmap->cells();
-    uint32_t cell_index = Page::MarkbitsBitmap::IndexToCell(markbit);
-
-    // Round limit towards start of the next cell.
-    uint32_t last_cell_index =
-        Page::MarkbitsBitmap::IndexToCell(
-            Page::MarkbitsBitmap::CellAlignIndex(
-                page->AddressToMarkbitIndex(limit)));
-
-    ASSERT(cell_index < last_cell_index);
-
-    while (cell_index < last_cell_index && cells[cell_index] == 0) cell_index++;
-
-    if (cell_index == last_cell_index) return limit;
-
-    return FirstMarkedObject(page, cell_index, cells[cell_index]);
-  }
-
-  INLINE(static Address NextLiveObject(HeapObject* obj,
-                                       int size,
-                                       Address end)) {
-    ASSERT(!Heap::InNewSpace(obj));
-    Page* page = Page::FromAddress(obj->address());
-    Address watermark = page->linearity_boundary();
-    Address next_addr = obj->address() + size;
-
-    if (next_addr >= watermark) return next_addr;
-
-    Page::MarkbitsBitmap* bitmap = page->markbits();
-    uint32_t markbit = page->AddressToMarkbitIndex(next_addr);
-
-    if (bitmap->Get(markbit)) return next_addr;
-
-    uint32_t* cells = bitmap->cells();
-    uint32_t cell_index = Page::MarkbitsBitmap::IndexToCell(markbit);
-
-    ASSERT(IsMarked(obj));
-
-    uint32_t bit  = Page::MarkbitsBitmap::IndexToBit(markbit);
-    uint32_t mask = (~1) << bit;
-    if ((cells[cell_index] & mask) != 0) {
-      // There are more marked objects in this cell.
-      return FirstMarkedObject(page, cell_index, cells[cell_index] & mask);
-    }
-
-    Address limit = Min(watermark, end);
-
-    // Round limit towards start of the next cell.
-    uint32_t last_cell_index =
-      Page::MarkbitsBitmap::IndexToCell(
-          Page::MarkbitsBitmap::CellAlignIndex(
-              page->AddressToMarkbitIndex(limit)));
-
-    // We expect last_cell to be bigger than cell because
-    // we rounded limit towards start of the next cell
-    // and limit is bigger than address of the current.
-    ASSERT(cell_index < last_cell_index);
-
-    // We skip current cell because it contains no unvisited
-    // live objects.
-    do {
-      cell_index++;
-    } while (cell_index < last_cell_index && cells[cell_index] == 0);
-
-    // If we reached last_cell return limit
-    // not the start of the last_cell because
-    // limit can be in the middle of the previous cell.
-    if (cell_index == last_cell_index) return limit;
-
-    return FirstMarkedObject(page, cell_index, cells[cell_index]);
-  }
-
   static void TransferMark(Address old_start, Address new_start);
 
   static bool Setup();
@@ -295,8 +205,9 @@ class MarkCompactCollector: public AllStatic {
 
   // Set the global force_compaction flag, it must be called before Prepare
   // to take effect.
-  static void SetForceCompaction(bool value) {
-    force_compaction_ = value;
+  static void SetFlags(int flags) {
+    force_compaction_ = ((flags & Heap::kForceCompactionMask) != 0);
+    sweep_precisely_ = ((flags & Heap::kMakeHeapIterableMask) != 0);
   }
 
 
@@ -359,6 +270,10 @@ class MarkCompactCollector: public AllStatic {
 
   // Global flag that forces a compaction.
   static bool force_compaction_;
+
+  // Global flag that forces sweeping to be precise, so we can traverse the
+  // heap.
+  static bool sweep_precisely_;
 
   // Global flag indicating whether spaces were compacted on the last GC.
   static bool compacting_collection_;

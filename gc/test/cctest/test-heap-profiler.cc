@@ -59,9 +59,9 @@ TEST(ConstructorProfile) {
       "var f2 = new F();\n");
 
   ConstructorHeapProfileTestHelper cons_profile;
-  i::AssertNoAllocation no_alloc;
   i::HeapIterator iterator;
-  for (i::HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next())
+  i::AssertNoAllocation no_alloc;
+  for (i::HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next())
     cons_profile.CollectStats(obj);
   CHECK_EQ(0, cons_profile.f_count());
   cons_profile.PrintStats();
@@ -363,9 +363,9 @@ TEST(RetainerProfile) {
       "var c = new C(a);");
 
   RetainerHeapProfile ret_profile;
-  i::AssertNoAllocation no_alloc;
   i::HeapIterator iterator;
-  for (i::HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next())
+  i::AssertNoAllocation no_alloc;
+  for (i::HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next())
     ret_profile.CollectStats(obj);
   ret_profile.CoarseAndAggregate();
   RetainerProfilePrinter printer;
@@ -730,7 +730,7 @@ TEST(HeapEntryIdsAndGC) {
   const v8::HeapSnapshot* snapshot1 =
       v8::HeapProfiler::TakeSnapshot(v8::String::New("s1"));
 
-  i::Heap::CollectAllGarbage(true);  // Enforce compaction.
+  i::Heap::CollectAllGarbage(i::Heap::kForceCompactionMask);
 
   const v8::HeapSnapshot* snapshot2 =
       v8::HeapProfiler::TakeSnapshot(v8::String::New("s2"));

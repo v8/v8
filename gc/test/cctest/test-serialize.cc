@@ -364,8 +364,8 @@ TEST(PartialSerialization) {
       Bootstrapper::NativesSourceLookup(i);
     }
   }
-  Heap::CollectAllGarbage(true);
-  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
 
   Object* raw_foo;
   {
@@ -487,7 +487,7 @@ TEST(ContextSerialization) {
   }
   // If we don't do this then we end up with a stray root pointing at the
   // context even after we have disposed of env.
-  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
 
   int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
   Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
@@ -558,16 +558,19 @@ DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
 TEST(LinearAllocation) {
   v8::V8::Initialize();
   int new_space_max = 512 * KB;
+  int paged_space_max = Page::kMaxHeapObjectSize;
 
   for (int size = 1000; size < 5 * MB; size += size >> 1) {
+    size &= ~8;  // Round.
     int new_space_size = (size < new_space_max) ? size : new_space_max;
+    int paged_space_size = (size < paged_space_max) ? size : paged_space_max;
     Heap::ReserveSpace(
         new_space_size,
-        size,              // Old pointer space.
-        size,              // Old data space.
-        size,              // Code space.
-        size,              // Map space.
-        size,              // Cell space.
+        paged_space_size,  // Old pointer space.
+        paged_space_size,  // Old data space.
+        paged_space_size,  // Code space.
+        paged_space_size,  // Map space.
+        paged_space_size,  // Cell space.
         size);             // Large object space.
     LinearAllocationScope linear_allocation_scope;
     const int kSmallFixedArrayLength = 4;
@@ -594,7 +597,7 @@ TEST(LinearAllocation) {
 
     Object* pointer_last = NULL;
     for (int i = 0;
-         i + kSmallFixedArraySize <= size;
+         i + kSmallFixedArraySize <= paged_space_size;
          i += kSmallFixedArraySize) {
       Object* obj = Heap::AllocateFixedArray(kSmallFixedArrayLength,
                                              TENURED)->ToObjectChecked();
@@ -613,7 +616,9 @@ TEST(LinearAllocation) {
     }
 
     Object* data_last = NULL;
-    for (int i = 0; i + kSmallStringSize <= size; i += kSmallStringSize) {
+    for (int i = 0;
+         i + kSmallStringSize <= paged_space_size;
+         i += kSmallStringSize) {
       Object* obj = Heap::AllocateRawAsciiString(kSmallStringLength,
                                                  TENURED)->ToObjectChecked();
       int old_page_fullness = i % Page::kPageSize;
@@ -631,7 +636,7 @@ TEST(LinearAllocation) {
     }
 
     Object* map_last = NULL;
-    for (int i = 0; i + kMapSize <= size; i += kMapSize) {
+    for (int i = 0; i + kMapSize <= paged_space_size; i += kMapSize) {
       Object* obj = Heap::AllocateMap(JS_OBJECT_TYPE,
                                       42 * kPointerSize)->ToObjectChecked();
       int old_page_fullness = i % Page::kPageSize;

@@ -104,26 +104,23 @@ TEST(MemoryAllocator) {
   OldSpace faked_space(Heap::MaxReserved(), OLD_POINTER_SPACE, NOT_EXECUTABLE);
   Page* first_page =
       MemoryAllocator::AllocatePage(&faked_space, NOT_EXECUTABLE);
+  first_page->InsertAfter(faked_space.anchor()->prev_page());
   CHECK(first_page->is_valid());
-  CHECK(!first_page->next_page()->is_valid());
+  CHECK(first_page->next_page() == faked_space.anchor());
   total_pages++;
 
-  Page* last_page = first_page;
-  for (Page* p = first_page; p->is_valid(); p = p->next_page()) {
+  for (Page* p = first_page; p != faked_space.anchor(); p = p->next_page()) {
     CHECK(p->owner() == &faked_space);
-    last_page = p;
   }
-
-  CHECK(last_page == first_page);
 
   // Again, we should get n or n - 1 pages.
   Page* other =
       MemoryAllocator::AllocatePage(&faked_space, NOT_EXECUTABLE);
   CHECK(other->is_valid());
   total_pages++;
-  last_page->set_next_page(other);
+  other->InsertAfter(first_page);
   int page_count = 0;
-  for (Page* p = first_page; p->is_valid(); p = p->next_page()) {
+  for (Page* p = first_page; p != faked_space.anchor(); p = p->next_page()) {
     CHECK(p->owner() == &faked_space);
     page_count++;
   }

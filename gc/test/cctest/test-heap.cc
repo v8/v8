@@ -784,7 +784,7 @@ static int ObjectsFoundInHeap(Handle<Object> objs[], int size) {
   // Count the number of objects found in the heap.
   int found_count = 0;
   HeapIterator iterator;
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
     for (int i = 0; i < size; i++) {
       if (*objs[i] == obj) {
         found_count++;
@@ -857,8 +857,7 @@ TEST(Regression39128) {
   InitializeVM();
 
   // Increase the chance of 'bump-the-pointer' allocation in old space.
-  bool force_compaction = true;
-  Heap::CollectAllGarbage(force_compaction);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
 
   v8::HandleScope scope;
 
@@ -953,17 +952,17 @@ TEST(TestCodeFlushing) {
   Handle<JSFunction> function(JSFunction::cast(func_value));
   CHECK(function->shared()->is_compiled());
 
-  Heap::CollectAllGarbage(true);
-  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
 
   CHECK(function->shared()->is_compiled());
 
-  Heap::CollectAllGarbage(true);
-  Heap::CollectAllGarbage(true);
-  Heap::CollectAllGarbage(true);
-  Heap::CollectAllGarbage(true);
-  Heap::CollectAllGarbage(true);
-  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
 
   // foo should no longer be in the compilation cache
   CHECK(!function->shared()->is_compiled() || function->IsOptimized());
@@ -1050,7 +1049,7 @@ TEST(TestInternalWeakLists) {
     }
 
     // Mark compact handles the weak references.
-    Heap::CollectAllGarbage(true);
+    Heap::CollectAllGarbage(Heap::kForceCompactionMask);
     CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
 
     // Get rid of f3 and f5 in the same way.
@@ -1059,21 +1058,21 @@ TEST(TestInternalWeakLists) {
       Heap::PerformScavenge();
       CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
     }
-    Heap::CollectAllGarbage(true);
+    Heap::CollectAllGarbage(Heap::kForceCompactionMask);
     CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
     CompileRun("f5=null");
     for (int j = 0; j < 10; j++) {
       Heap::PerformScavenge();
       CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
     }
-    Heap::CollectAllGarbage(true);
+    Heap::CollectAllGarbage(Heap::kForceCompactionMask);
     CHECK_EQ(opt ? 2 : 0, CountOptimizedUserFunctions(ctx[i]));
 
     ctx[i]->Exit();
   }
 
   // Force compilation cache cleanup.
-  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
 
   // Dispose the global contexts one by one.
   for (int i = 0; i < kNumTestContexts; i++) {
@@ -1087,7 +1086,7 @@ TEST(TestInternalWeakLists) {
     }
 
     // Mark compact handles the weak references.
-    Heap::CollectAllGarbage(true);
+    Heap::CollectAllGarbage(Heap::kForceCompactionMask);
     CHECK_EQ(kNumTestContexts - i - 1, CountGlobalContexts());
   }
 
@@ -1102,7 +1101,7 @@ static int CountGlobalContextsWithGC(int n) {
   Handle<Object> object(Heap::global_contexts_list());
   while (!object->IsUndefined()) {
     count++;
-    if (count == n) Heap::CollectAllGarbage(true);
+    if (count == n) Heap::CollectAllGarbage(Heap::kForceCompactionMask);
     object =
         Handle<Object>(Context::cast(*object)->get(Context::NEXT_CONTEXT_LINK));
   }
@@ -1121,7 +1120,7 @@ static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
   while (object->IsJSFunction() &&
          !Handle<JSFunction>::cast(object)->IsBuiltin()) {
     count++;
-    if (count == n) Heap::CollectAllGarbage(true);
+    if (count == n) Heap::CollectAllGarbage(Heap::kForceCompactionMask);
     object = Handle<Object>(
         Object::cast(JSFunction::cast(*object)->next_function_link()));
   }
@@ -1179,29 +1178,33 @@ TEST(TestInternalWeakListsTraverseWithGC) {
 
 TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   InitializeVM();
+  Heap::EnsureHeapIsIterable();
   intptr_t size_of_objects_1 = Heap::SizeOfObjects();
-  HeapIterator iterator(HeapIterator::kFilterFreeListNodes);
+  HeapIterator iterator;
   intptr_t size_of_objects_2 = 0;
-  for (HeapObject* obj = iterator.next();
+  for (HeapObject* obj = iterator.Next();
        obj != NULL;
-       obj = iterator.next()) {
+       obj = iterator.Next()) {
     size_of_objects_2 += obj->Size();
   }
-  // Delta must be within 1% of the larger result.
+  // Delta must be within 5% of the larger result.
+  // TODO(gc): Tighten this up by distinguishing between byte
+  // arrays that are real and those that merely mark free space
+  // on the heap.
   if (size_of_objects_1 > size_of_objects_2) {
     intptr_t delta = size_of_objects_1 - size_of_objects_2;
     PrintF("Heap::SizeOfObjects: %" V8_PTR_PREFIX "d, "
            "Iterator: %" V8_PTR_PREFIX "d, "
            "delta: %" V8_PTR_PREFIX "d\n",
            size_of_objects_1, size_of_objects_2, delta);
-    CHECK_GT(size_of_objects_1 / 100, delta);
+    CHECK_GT(size_of_objects_1 / 20, delta);
   } else {
     intptr_t delta = size_of_objects_2 - size_of_objects_1;
     PrintF("Heap::SizeOfObjects: %" V8_PTR_PREFIX "d, "
            "Iterator: %" V8_PTR_PREFIX "d, "
            "delta: %" V8_PTR_PREFIX "d\n",
            size_of_objects_1, size_of_objects_2, delta);
-    CHECK_GT(size_of_objects_2 / 100, delta);
+    CHECK_GT(size_of_objects_2 / 20, delta);
   }
 }
 
@@ -1212,11 +1215,11 @@ class HeapIteratorTestHelper {
       : a_(a), b_(b), a_found_(false), b_found_(false) {}
   bool a_found() { return a_found_; }
   bool b_found() { return b_found_; }
-  void IterateHeap(HeapIterator::HeapObjectsFiltering mode) {
-    HeapIterator iterator(mode);
-    for (HeapObject* obj = iterator.next();
+  void IterateHeap() {
+    HeapIterator iterator;
+    for (HeapObject* obj = iterator.Next();
          obj != NULL;
-         obj = iterator.next()) {
+         obj = iterator.Next()) {
       if (obj == a_)
         a_found_ = true;
       else if (obj == b_)
@@ -1230,39 +1233,3 @@ class HeapIteratorTestHelper {
   bool b_found_;
 };
 
-TEST(HeapIteratorFilterUnreachable) {
-  InitializeVM();
-  v8::HandleScope scope;
-  CompileRun("a = {}; b = {};");
-  v8::Handle<Object> a(Top::context()->global()->GetProperty(
-      *Factory::LookupAsciiSymbol("a"))->ToObjectChecked());
-  v8::Handle<Object> b(Top::context()->global()->GetProperty(
-      *Factory::LookupAsciiSymbol("b"))->ToObjectChecked());
-  CHECK_NE(*a, *b);
-  {
-    HeapIteratorTestHelper helper(*a, *b);
-    helper.IterateHeap(HeapIterator::kFilterUnreachable);
-    CHECK(helper.a_found());
-    CHECK(helper.b_found());
-  }
-  CHECK(Top::context()->global()->DeleteProperty(
-      *Factory::LookupAsciiSymbol("a"), JSObject::FORCE_DELETION));
-  // We ensure that GC will not happen, so our raw pointer stays valid.
-  AssertNoAllocation no_alloc;
-  Object* a_saved = *a;
-  a.Clear();
-  // Verify that "a" object still resides in the heap...
-  {
-    HeapIteratorTestHelper helper(a_saved, *b);
-    helper.IterateHeap(HeapIterator::kNoFiltering);
-    CHECK(helper.a_found());
-    CHECK(helper.b_found());
-  }
-  // ...but is now unreachable.
-  {
-    HeapIteratorTestHelper helper(a_saved, *b);
-    helper.IterateHeap(HeapIterator::kFilterUnreachable);
-    CHECK(!helper.a_found());
-    CHECK(helper.b_found());
-  }
-}

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -423,13 +423,13 @@ void Heap::GarbageCollectionEpilogue() {
 }
 
 
-void Heap::CollectAllGarbage(bool force_compaction) {
+void Heap::CollectAllGarbage(int flags) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
-  MarkCompactCollector::SetForceCompaction(force_compaction);
+  MarkCompactCollector::SetFlags(flags);
   CollectGarbage(OLD_POINTER_SPACE);
-  MarkCompactCollector::SetForceCompaction(false);
+  MarkCompactCollector::SetFlags(kNoGCFlags);
 }
 
 
@@ -437,7 +437,7 @@ void Heap::CollectAllAvailableGarbage() {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
-  MarkCompactCollector::SetForceCompaction(true);
+  MarkCompactCollector::SetFlags(kMakeHeapIterableMask | kForceCompactionMask);
 
   // Major GC would invoke weak handle callbacks on weakly reachable
   // handles, but won't collect weakly reachable objects until next
@@ -453,7 +453,7 @@ void Heap::CollectAllAvailableGarbage() {
       break;
     }
   }
-  MarkCompactCollector::SetForceCompaction(false);
+  MarkCompactCollector::SetFlags(kNoGCFlags);
 }
 
 
@@ -912,14 +912,18 @@ static void VerifyNonPointerSpacePointers() {
   // do not expect them.
   VerifyNonPointerSpacePointersVisitor v;
   HeapObjectIterator code_it(Heap::code_space());
-  for (HeapObject* object = code_it.next();
-       object != NULL; object = code_it.next())
+  for (HeapObject* object = code_it.Next();
+       object != NULL; object = code_it.Next())
     object->Iterate(&v);
 
-  HeapObjectIterator data_it(Heap::old_data_space());
-  for (HeapObject* object = data_it.next();
-       object != NULL; object = data_it.next())
-    object->Iterate(&v);
+  // The old data space was normally swept conservatively so that the iterator
+  // doesn't work, so we normally skip the next bit.
+  if (!Heap::old_data_space()->was_swept_conservatively()) {
+    HeapObjectIterator data_it(Heap::old_data_space());
+    for (HeapObject* object = data_it.Next();
+         object != NULL; object = data_it.Next())
+      object->Iterate(&v);
+  }
 }
 #endif
 
@@ -941,16 +945,6 @@ void Heap::Scavenge() {
 #endif
 
   gc_state_ = SCAVENGE;
-
-  Page::FlipMeaningOfInvalidatedWatermarkFlag();
-
-  // We do not update an allocation watermark of the top page during linear
-  // allocation to avoid overhead. So to maintain the watermark invariant
-  // we have to manually cache the watermark and mark the top page as having an
-  // invalid watermark.  This guarantees that old space pointer iteration will
-  // use a correct watermark even if a linear allocation happens.
-  old_pointer_space_->FlushTopPageWatermark();
-  map_space_->FlushTopPageWatermark();
 
   // Implements Cheney's copying algorithm
   LOG(ResourceEvent("scavenge", "begin"));
@@ -1004,8 +998,8 @@ void Heap::Scavenge() {
 
   // Copy objects reachable from cells by scavenging cell values directly.
   HeapObjectIterator cell_iterator(cell_space_);
-  for (HeapObject* cell = cell_iterator.next();
-       cell != NULL; cell = cell_iterator.next()) {
+  for (HeapObject* cell = cell_iterator.Next();
+       cell != NULL; cell = cell_iterator.Next()) {
     if (cell->IsJSGlobalPropertyCell()) {
       Address value_address =
           reinterpret_cast<Address>(cell) +
@@ -1671,6 +1665,12 @@ bool Heap::CreateInitialMaps() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_byte_array_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateMap(FREE_SPACE_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_free_space_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateByteArray(0, TENURED);
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -2629,8 +2629,8 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
   } else if (size == 2 * kPointerSize) {
     filler->set_map(two_pointer_filler_map());
   } else {
-    filler->set_map(byte_array_map());
-    ByteArray::cast(filler)->set_length(ByteArray::LengthFor(size));
+    filler->set_map(free_space_map());
+    FreeSpace::cast(filler)->set_size(size);
   }
 }
 
@@ -3709,6 +3709,18 @@ STRUCT_LIST(MAKE_CASE)
 }
 
 
+void Heap::EnsureHeapIsIterable() {
+  ASSERT(IsAllocationAllowed());
+  if (IncrementalMarking::state() != IncrementalMarking::STOPPED ||
+      old_pointer_space()->was_swept_conservatively() ||
+      old_data_space()->was_swept_conservatively()) {
+    CollectAllGarbage(kMakeHeapIterableMask);
+  }
+  ASSERT(!old_pointer_space()->was_swept_conservatively());
+  ASSERT(!old_data_space()->was_swept_conservatively());
+}
+
+
 bool Heap::IdleNotification() {
   static const int kIdlesBeforeScavenge = 4;
   static const int kIdlesBeforeMarkSweep = 7;
@@ -3736,7 +3748,7 @@ bool Heap::IdleNotification() {
   if (number_idle_notifications == kIdlesBeforeScavenge) {
     if (contexts_disposed_ > 0) {
       HistogramTimerScope scope(&Counters::gc_context);
-      CollectAllGarbage(false);
+      CollectAllGarbage(kNoGCFlags);
     } else {
       CollectGarbage(NEW_SPACE);
     }
@@ -3748,12 +3760,12 @@ bool Heap::IdleNotification() {
     // generated code for cached functions.
     CompilationCache::Clear();
 
-    CollectAllGarbage(false);
+    CollectAllGarbage(kNoGCFlags);
     new_space_.Shrink();
     last_gc_count = gc_count_;
 
   } else if (number_idle_notifications == kIdlesBeforeMarkCompact) {
-    CollectAllGarbage(true);
+    CollectAllGarbage(kForceCompactionMask);
     new_space_.Shrink();
     last_gc_count = gc_count_;
     finished = true;
@@ -3763,7 +3775,7 @@ bool Heap::IdleNotification() {
       contexts_disposed_ = 0;
     } else {
       HistogramTimerScope scope(&Counters::gc_context);
-      CollectAllGarbage(false);
+      CollectAllGarbage(kNoGCFlags);
       last_gc_count = gc_count_;
     }
     // If this is the first idle notification, we reset the
@@ -3907,15 +3919,15 @@ static void DummyScavengePointer(HeapObject** p, HeapObject* o) {
 }
 
 
-static void VerifyPointersUnderWatermark(
+static void VerifyPointers(
     PagedSpace* space,
     PointerRegionCallback visit_pointer_region) {
-  PageIterator it(space, PageIterator::PAGES_IN_USE);
+  PageIterator it(space);
 
   while (it.has_next()) {
     Page* page = it.next();
     Address start = page->ObjectAreaStart();
-    Address end = page->AllocationWatermark();
+    Address end = page->ObjectAreaEnd();
 
     Heap::IteratePointersToNewSpace(start,
                                     end,
@@ -3924,7 +3936,7 @@ static void VerifyPointersUnderWatermark(
 }
 
 
-static void VerifyPointersUnderWatermark(LargeObjectSpace* space) {
+static void VerifyPointers(LargeObjectSpace* space) {
   LargeObjectIterator it(space);
   for (HeapObject* object = it.next(); object != NULL; object = it.next()) {
     if (object->IsFixedArray()) {
@@ -3957,11 +3969,9 @@ void Heap::Verify() {
   old_pointer_space_->Verify(&visitor);
   map_space_->Verify(&visitor);
 
-  VerifyPointersUnderWatermark(old_pointer_space_,
-                               &IteratePointersToNewSpace);
-  VerifyPointersUnderWatermark(map_space_,
-                               &IteratePointersFromMapsToNewSpace);
-  VerifyPointersUnderWatermark(lo_space_);
+  VerifyPointers(old_pointer_space_, &IteratePointersToNewSpace);
+  VerifyPointers(map_space_, &IteratePointersFromMapsToNewSpace);
+  VerifyPointers(lo_space_);
 
   VerifyPointersVisitor no_dirty_regions_visitor;
   old_data_space_->Verify(&no_dirty_regions_visitor);
@@ -4157,24 +4167,56 @@ void Heap::IterateAndMarkPointersToFromSpace(Address start,
 
 
 #ifdef DEBUG
+typedef bool (*CheckStoreBufferFilter)(Object** addr);
+
+
+bool IsAMapPointerAddress(Object** addr) {
+  uintptr_t a = reinterpret_cast<uintptr_t>(addr);
+  int mod = a % Map::kSize;
+  return mod >= Map::kPointerFieldsBeginOffset &&
+         mod < Map::kPointerFieldsEndOffset;
+}
+
+
+bool EverythingsAPointer(Object** addr) {
+  return true;
+}
+
+
 static void CheckStoreBuffer(Object** current,
                              Object** limit,
                              Object**** store_buffer_position,
-                             Object*** store_buffer_top) {
+                             Object*** store_buffer_top,
+                             CheckStoreBufferFilter filter,
+                             Address special_garbage_start,
+                             Address special_garbage_end) {
   for ( ; current < limit; current++) {
     Object* o = *current;
-    if (reinterpret_cast<uintptr_t>(o) == kFreeListZapValue) {
-      Object*** zap_checker = *store_buffer_position;
-      while (*zap_checker < current) {
-        zap_checker++;
-        if (zap_checker >= store_buffer_top) break;
-      }
-      if (zap_checker < store_buffer_top) {
-        // Objects in the free list shouldn't be in the store buffer.
-        ASSERT(*zap_checker != current);
-      }
+    Address current_address = reinterpret_cast<Address>(current);
+    // Skip free space.
+    if (o == Heap::free_space_map()) {
+      Address current_address = reinterpret_cast<Address>(current);
+      FreeSpace* free_space =
+          FreeSpace::cast(HeapObject::FromAddress(current_address));
+      int skip = free_space->Size();
+      ASSERT(current_address + skip <= reinterpret_cast<Address>(limit));
+      ASSERT(skip > 0);
+      current_address += skip - kPointerSize;
+      current = reinterpret_cast<Object**>(current_address);
       continue;
     }
+    // Skip the current linear allocation space between top and limit which is
+    // unmarked with the free space map, but can contain junk.
+    if (current_address == special_garbage_start &&
+        special_garbage_end != special_garbage_start) {
+      current_address = special_garbage_end - kPointerSize;
+      current = reinterpret_cast<Object**>(current_address);
+      continue;
+    }
+    if (!(*filter)(current)) continue;
+    ASSERT(current_address < special_garbage_start ||
+           current_address >= special_garbage_end);
+    ASSERT(reinterpret_cast<uintptr_t>(o) != kFreeListZapValue);
     // We have to check that the pointer does not point into new space
     // without trying to cast it to a heap object since the hash field of
     // a string can contain values like 1 and 3 which are tagged null
@@ -4200,9 +4242,7 @@ static void CheckStoreBuffer(Object** current,
 void Heap::OldPointerSpaceCheckStoreBuffer(
     ExpectedPageWatermarkState watermark_state) {
   OldSpace* space = old_pointer_space();
-  PageIterator pages(space, PageIterator::PAGES_IN_USE);
-
-  space->free_list()->Zap();
+  PageIterator pages(space);
 
   StoreBuffer::SortUniq();
 
@@ -4210,22 +4250,19 @@ void Heap::OldPointerSpaceCheckStoreBuffer(
     Page* page = pages.next();
     Object** current = reinterpret_cast<Object**>(page->ObjectAreaStart());
 
-    // Do not try to visit pointers beyond page allocation watermark.
-    // Page can contain garbage pointers there.
-    Address end;
-
-    if (watermark_state == WATERMARK_SHOULD_BE_VALID ||
-        page->IsWatermarkValid()) {
-      end = page->AllocationWatermark();
-    } else {
-      end = page->CachedAllocationWatermark();
-    }
+    Address end = page->ObjectAreaEnd();
 
     Object*** store_buffer_position = StoreBuffer::Start();
     Object*** store_buffer_top = StoreBuffer::Top();
 
     Object** limit = reinterpret_cast<Object**>(end);
-    CheckStoreBuffer(current, limit, &store_buffer_position, store_buffer_top);
+    CheckStoreBuffer(current,
+                     limit,
+                     &store_buffer_position,
+                     store_buffer_top,
+                     &EverythingsAPointer,
+                     space->top(),
+                     space->limit());
   }
 }
 
@@ -4233,48 +4270,27 @@ void Heap::OldPointerSpaceCheckStoreBuffer(
 void Heap::MapSpaceCheckStoreBuffer(
     ExpectedPageWatermarkState watermark_state) {
   MapSpace* space = map_space();
-  PageIterator pages(space, PageIterator::PAGES_IN_USE);
-
-  space->free_list()->Zap();
+  PageIterator pages(space);
 
   StoreBuffer::SortUniq();
 
   while (pages.has_next()) {
     Page* page = pages.next();
+    Object** current = reinterpret_cast<Object**>(page->ObjectAreaStart());
 
-    // Do not try to visit pointers beyond page allocation watermark.
-    // Page can contain garbage pointers there.
-    Address end;
-
-    if (watermark_state == WATERMARK_SHOULD_BE_VALID ||
-        page->IsWatermarkValid()) {
-      end = page->AllocationWatermark();
-    } else {
-      end = page->CachedAllocationWatermark();
-    }
-
-    Address map_aligned_current = page->ObjectAreaStart();
-
-    ASSERT(map_aligned_current == MapStartAlign(map_aligned_current));
-    ASSERT(end == MapEndAlign(end));
+    Address end = page->ObjectAreaEnd();
 
     Object*** store_buffer_position = StoreBuffer::Start();
     Object*** store_buffer_top = StoreBuffer::Top();
 
-    for ( ; map_aligned_current < end; map_aligned_current += Map::kSize) {
-      ASSERT(!Heap::InNewSpace(Memory::Object_at(map_aligned_current)));
-      ASSERT(Memory::Object_at(map_aligned_current)->IsMap());
-
-      Object** current = reinterpret_cast<Object**>(
-          map_aligned_current + Map::kPointerFieldsBeginOffset);
-      Object** limit = reinterpret_cast<Object**>(
-          map_aligned_current + Map::kPointerFieldsEndOffset);
-
-      CheckStoreBuffer(current,
-                       limit,
-                       &store_buffer_position,
-                       store_buffer_top);
-    }
+    Object** limit = reinterpret_cast<Object**>(end);
+    CheckStoreBuffer(current,
+                     limit,
+                     &store_buffer_position,
+                     store_buffer_top,
+                     &IsAMapPointerAddress,
+                     space->top(),
+                     space->limit());
   }
 }
 
@@ -4294,7 +4310,10 @@ void Heap::LargeObjectSpaceCheckStoreBuffer() {
       CheckStoreBuffer(current,
                        limit,
                        &store_buffer_position,
-                       store_buffer_top);
+                       store_buffer_top,
+                       &EverythingsAPointer,
+                       NULL,
+                       NULL);
     }
   }
 }
@@ -4303,38 +4322,77 @@ void Heap::LargeObjectSpaceCheckStoreBuffer() {
 #endif
 
 
+// This function iterates over all the pointers in a paged space in the heap,
+// looking for pointers into new space.  Within the pages there may be dead
+// objects that have not been overwritten by free spaces or fillers because of
+// lazy sweeping.  These dead objects may not contain pointers to new space.
+// The garbage areas that have been swept properly (these will normally be the
+// large ones) will be marked with free space and filler map words.  In
+// addition any area that has never been used at all for object allocation must
+// be marked with a free space or filler.  Because the free space and filler
+// maps do not move we can always recognize these even after a compaction.
+// Normal objects like FixedArrays and JSObjects should not contain references
+// to these maps.  The special garbage section (see comment in spaces.h) is
+// skipped since it can contain absolutely anything.  Any objects that are
+// allocated during iteration may or may not be visited by the iteration, but
+// they will not be partially visited.
 void Heap::IteratePointers(
     PagedSpace* space,
     PointerRegionCallback visit_pointer_region,
     ObjectSlotCallback copy_object_func,
     ExpectedPageWatermarkState expected_page_watermark_state) {
 
-  PageIterator pages(space, PageIterator::PAGES_IN_USE);
+  PageIterator pages(space);
 
   while (pages.has_next()) {
     Page* page = pages.next();
     Address start = page->ObjectAreaStart();
+    Address limit = page->ObjectAreaEnd();
 
-    // Do not try to visit pointers beyond page allocation watermark.
-    // Page can contain garbage pointers there.
-    Address end;
+    Address end = start;
 
-    if ((expected_page_watermark_state == WATERMARK_SHOULD_BE_VALID) ||
-        page->IsWatermarkValid()) {
-      end = page->AllocationWatermark();
-    } else {
-      end = page->CachedAllocationWatermark();
+    Object* free_space_map = Heap::free_space_map();
+    Object* two_pointer_filler_map = Heap::two_pointer_filler_map();
+
+    while (end < limit) {
+      Object* o = *reinterpret_cast<Object**>(end);
+      // Skip fillers but not things that look like fillers in the special
+      // garbage section which can contain anything.
+      if (o == free_space_map ||
+          o == two_pointer_filler_map ||
+          end == space->top()) {
+        if (start != end) {
+          // After calling this the special garbage section may have moved.
+          visit_pointer_region(start, end, copy_object_func);
+          if (end >= space->top() && end < space->limit()) {
+            end = space->limit();
+            start = end;
+            continue;
+          }
+        }
+        if (end == space->top()) {
+          start = end = space->limit();
+        } else {
+          // At this point we are either at the start of a filler or we are at
+          // the point where the space->top() used to be before the
+          // visit_pointer_region call above.  Either way we can skip the
+          // object at the current spot:  We don't promise to visit objects
+          // allocated during heap traversal, and if space->top() moved then it
+          // must be because an object was allocated at this point.
+          start = end + HeapObject::FromAddress(end)->Size();
+          end = start;
+        }
+      } else {
+        ASSERT(o != free_space_map);
+        ASSERT(o != two_pointer_filler_map);
+        ASSERT(end < space->top() || end >= space->limit());
+        end += kPointerSize;
+      }
     }
-
-    ASSERT(space == old_pointer_space_ ||
-           (space == map_space_ &&
-            ((page->ObjectAreaStart() - end) % Map::kSize == 0)));
-
-    visit_pointer_region(start, end, copy_object_func);
-
-    // Mark page watermark as invalid to maintain watermark validity invariant.
-    // See Page::FlipMeaningOfInvalidatedWatermarkFlag() for details.
-    page->InvalidateWatermark(true);
+    ASSERT(end == limit);
+    if (start != end) {
+      visit_pointer_region(start, end, copy_object_func);
+    }
   }
 }
 
@@ -4501,10 +4559,10 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
       MemoryAllocator::Size() + MemoryAllocator::Available();
   *stats->os_error = OS::GetLastError();
   if (take_snapshot) {
-    HeapIterator iterator(HeapIterator::kFilterFreeListNodes);
-    for (HeapObject* obj = iterator.next();
+    HeapIterator iterator;
+    for (HeapObject* obj = iterator.Next();
          obj != NULL;
-         obj = iterator.next()) {
+         obj = iterator.Next()) {
       InstanceType type = obj->map()->instance_type();
       ASSERT(0 <= type && type <= LAST_TYPE);
       stats->objects_per_type[type]++;
@@ -4935,46 +4993,6 @@ class HeapObjectsFilter {
 };
 
 
-class FreeListNodesFilter : public HeapObjectsFilter {
- public:
-  FreeListNodesFilter() {
-    MarkFreeListNodes();
-  }
-
-  bool SkipObject(HeapObject* object) {
-    if (IntrusiveMarking::IsMarked(object)) {
-      IntrusiveMarking::ClearMark(object);
-      return true;
-    } else {
-      return false;
-    }
-  }
-
- private:
-  void MarkFreeListNodes() {
-    Heap::old_pointer_space()->MarkFreeListNodes();
-    Heap::old_data_space()->MarkFreeListNodes();
-    MarkCodeSpaceFreeListNodes();
-    Heap::map_space()->MarkFreeListNodes();
-    Heap::cell_space()->MarkFreeListNodes();
-  }
-
-  void MarkCodeSpaceFreeListNodes() {
-    // For code space, using FreeListNode::IsFreeListNode is OK.
-    HeapObjectIterator iter(Heap::code_space());
-    for (HeapObject* obj = iter.next_object();
-         obj != NULL;
-         obj = iter.next_object()) {
-      if (FreeListNode::IsFreeListNode(obj)) {
-        IntrusiveMarking::SetMark(obj);
-      }
-    }
-  }
-
-  AssertNoAllocation no_alloc;
-};
-
-
 class UnreachableObjectsFilter : public HeapObjectsFilter {
  public:
   UnreachableObjectsFilter() {
@@ -5019,9 +5037,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   void MarkUnreachableObjects() {
     HeapIterator iterator;
-    for (HeapObject* obj = iterator.next();
+    for (HeapObject* obj = iterator.Next();
          obj != NULL;
-         obj = iterator.next()) {
+         obj = iterator.Next()) {
       IntrusiveMarking::SetMark(obj);
     }
     UnmarkingVisitor visitor;
@@ -5034,16 +5052,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 };
 
 
-HeapIterator::HeapIterator()
-    : filtering_(HeapIterator::kNoFiltering),
-      filter_(NULL) {
-  Init();
-}
-
-
-HeapIterator::HeapIterator(HeapIterator::HeapObjectsFiltering filtering)
-    : filtering_(filtering),
-      filter_(NULL) {
+HeapIterator::HeapIterator() {
   Init();
 }
 
@@ -5055,49 +5064,21 @@ HeapIterator::~HeapIterator() {
 
 void HeapIterator::Init() {
   // Start the iteration.
-  space_iterator_ = filtering_ == kNoFiltering ? new SpaceIterator :
-      new SpaceIterator(IntrusiveMarking::SizeOfMarkedObject);
-  switch (filtering_) {
-    case kFilterFreeListNodes:
-      filter_ = new FreeListNodesFilter;
-      break;
-    case kFilterUnreachable:
-      filter_ = new UnreachableObjectsFilter;
-      break;
-    default:
-      break;
-  }
+  Heap::EnsureHeapIsIterable();
+  space_iterator_ = new SpaceIterator();
   object_iterator_ = space_iterator_->next();
 }
 
 
 void HeapIterator::Shutdown() {
-#ifdef DEBUG
-  // Assert that in filtering mode we have iterated through all
-  // objects. Otherwise, heap will be left in an inconsistent state.
-  if (filtering_ != kNoFiltering) {
-    ASSERT(object_iterator_ == NULL);
-  }
-#endif
   // Make sure the last iterator is deallocated.
   delete space_iterator_;
   space_iterator_ = NULL;
   object_iterator_ = NULL;
-  delete filter_;
-  filter_ = NULL;
 }
 
 
-HeapObject* HeapIterator::next() {
-  if (filter_ == NULL) return NextObject();
-
-  HeapObject* obj = NextObject();
-  while (obj != NULL && filter_->SkipObject(obj)) obj = NextObject();
-  return obj;
-}
-
-
-HeapObject* HeapIterator::NextObject() {
+HeapObject* HeapIterator::Next() {
   // No iterator means we are done.
   if (object_iterator_ == NULL) return NULL;
 
@@ -5119,7 +5100,7 @@ HeapObject* HeapIterator::NextObject() {
 }
 
 
-void HeapIterator::reset() {
+void HeapIterator::Reset() {
   // Restart the iterator.
   Shutdown();
   Init();
@@ -5322,7 +5303,7 @@ static intptr_t CountTotalHolesSize() {
   for (OldSpace* space = spaces.next();
        space != NULL;
        space = spaces.next()) {
-    holes_size += space->Waste() + space->AvailableFree();
+    holes_size += space->Waste() + space->Available();
   }
   return holes_size;
 }

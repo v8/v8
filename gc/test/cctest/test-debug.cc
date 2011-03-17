@@ -415,12 +415,12 @@ void CheckDebuggerUnloaded(bool check_functions) {
   CHECK_EQ(NULL, Debug::debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
-  Heap::CollectAllGarbage(false);
-  Heap::CollectAllGarbage(false);
+  Heap::CollectAllGarbage(i::Heap::kNoGCFlags);
+  Heap::CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
 
   // Iterate the head and check that there are no debugger related objects left.
   HeapIterator iterator;
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+  for (HeapObject* obj = iterator.Next(); obj != NULL; obj = iterator.Next()) {
     CHECK(!obj->IsDebugInfo());
     CHECK(!obj->IsBreakPointInfo());
 
@@ -909,7 +909,7 @@ static void DebugEventBreakPointCollectGarbage(
       Heap::CollectGarbage(v8::internal::NEW_SPACE);
     } else {
       // Mark sweep compact.
-      Heap::CollectAllGarbage(true);
+      Heap::CollectAllGarbage(Heap::kForceCompactionMask);
     }
   }
 }
@@ -1358,7 +1358,7 @@ TEST(GCDuringBreakPointProcessing) {
 // and make sure that the break point survives.
 static void CallAndGC(v8::Local<v8::Object> recv,
                       v8::Local<v8::Function> f,
-                      bool force_compaction) {
+                      int gc_flags) {
   break_point_hit_count = 0;
 
   for (int i = 0; i < 3; i++) {
@@ -1372,14 +1372,14 @@ static void CallAndGC(v8::Local<v8::Object> recv,
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    Heap::CollectAllGarbage(force_compaction);
+    Heap::CollectAllGarbage(gc_flags);
     f->Call(recv, 0, NULL);
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }
 }
 
 
-static void TestBreakPointSurviveGC(bool force_compaction) {
+static void TestBreakPointSurviveGC(int gc_flags) {
   break_point_hit_count = 0;
   v8::HandleScope scope;
   DebugLocalContext env;
@@ -1395,7 +1395,7 @@ static void TestBreakPointSurviveGC(bool force_compaction) {
     foo = CompileFunction(&env, "function foo(){bar=0;}", "foo");
     SetBreakPoint(foo, 0);
   }
-  CallAndGC(env->Global(), foo, force_compaction);
+  CallAndGC(env->Global(), foo, gc_flags);
 
   // Test IC load break point with garbage collection.
   {
@@ -1404,7 +1404,7 @@ static void TestBreakPointSurviveGC(bool force_compaction) {
     foo = CompileFunction(&env, "bar=1;function foo(){var x=bar;}", "foo");
     SetBreakPoint(foo, 0);
   }
-  CallAndGC(env->Global(), foo, force_compaction);
+  CallAndGC(env->Global(), foo, gc_flags);
 
   // Test IC call break point with garbage collection.
   {
@@ -1415,7 +1415,7 @@ static void TestBreakPointSurviveGC(bool force_compaction) {
                           "foo");
     SetBreakPoint(foo, 0);
   }
-  CallAndGC(env->Global(), foo, force_compaction);
+  CallAndGC(env->Global(), foo, gc_flags);
 
   // Test return break point with garbage collection.
   {
@@ -1424,7 +1424,7 @@ static void TestBreakPointSurviveGC(bool force_compaction) {
     foo = CompileFunction(&env, "function foo(){}", "foo");
     SetBreakPoint(foo, 0);
   }
-  CallAndGC(env->Global(), foo, force_compaction);
+  CallAndGC(env->Global(), foo, gc_flags);
 
   // Test non IC break point with garbage collection.
   {
@@ -1433,7 +1433,7 @@ static void TestBreakPointSurviveGC(bool force_compaction) {
     foo = CompileFunction(&env, "function foo(){var bar=0;}", "foo");
     SetBreakPoint(foo, 0);
   }
-  CallAndGC(env->Global(), foo, force_compaction);
+  CallAndGC(env->Global(), foo, gc_flags);
 
 
   v8::Debug::SetDebugEventListener(NULL);
@@ -1443,8 +1443,8 @@ static void TestBreakPointSurviveGC(bool force_compaction) {
 
 // Test that a break point can be set at a return store location.
 TEST(BreakPointSurviveGC) {
-  TestBreakPointSurviveGC(false);
-  TestBreakPointSurviveGC(true);
+  TestBreakPointSurviveGC(Heap::kNoGCFlags);
+  TestBreakPointSurviveGC(Heap::kForceCompactionMask);
 }
 
 
@@ -2199,7 +2199,7 @@ TEST(ScriptBreakPointLineTopLevel) {
   }
   f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
 
-  Heap::CollectAllGarbage(false);
+  Heap::CollectAllGarbage(Heap::kNoGCFlags);
 
   SetScriptBreakPointByNameFromJS("test.html", 3, -1);
 
@@ -6386,7 +6386,7 @@ TEST(ScriptCollectedEvent) {
 
   // Do garbage collection to ensure that only the script in this test will be
   // collected afterwards.
-  Heap::CollectAllGarbage(false);
+  Heap::CollectAllGarbage(Heap::kNoGCFlags);
 
   script_collected_count = 0;
   v8::Debug::SetDebugEventListener(DebugEventScriptCollectedEvent,
@@ -6398,7 +6398,7 @@ TEST(ScriptCollectedEvent) {
 
   // Do garbage collection to collect the script above which is no longer
   // referenced.
-  Heap::CollectAllGarbage(false);
+  Heap::CollectAllGarbage(Heap::kNoGCFlags);
 
   CHECK_EQ(2, script_collected_count);
 
@@ -6433,7 +6433,7 @@ TEST(ScriptCollectedEventContext) {
 
     // Do garbage collection to ensure that only the script in this test will be
     // collected afterwards.
-    Heap::CollectAllGarbage(false);
+    Heap::CollectAllGarbage(Heap::kNoGCFlags);
 
     v8::Debug::SetMessageHandler2(ScriptCollectedMessageHandler);
     {
@@ -6444,7 +6444,7 @@ TEST(ScriptCollectedEventContext) {
 
   // Do garbage collection to collect the script above which is no longer
   // referenced.
-  Heap::CollectAllGarbage(false);
+  Heap::CollectAllGarbage(Heap::kNoGCFlags);
 
   CHECK_EQ(2, script_collected_message_count);
 

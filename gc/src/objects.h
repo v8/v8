@@ -57,6 +57,7 @@
 //         - JSValue
 //         - JSMessageObject
 //       - ByteArray
+//       - FreeSpace
 //       - ExternalArray
 //         - ExternalPixelArray
 //         - ExternalByteArray
@@ -262,6 +263,7 @@ static const int kVariableSizeSentinel = 0;
   V(HEAP_NUMBER_TYPE)                                                          \
   V(PROXY_TYPE)                                                                \
   V(BYTE_ARRAY_TYPE)                                                           \
+  V(FREE_SPACE_TYPE)                                                           \
   /* Note: the order of these external array */                                \
   /* types is relied upon in */                                                \
   /* Object::IsExternalArray(). */                                             \
@@ -490,6 +492,7 @@ enum InstanceType {
   HEAP_NUMBER_TYPE,
   PROXY_TYPE,
   BYTE_ARRAY_TYPE,
+  FREE_SPACE_TYPE,
   EXTERNAL_BYTE_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
   EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE,
   EXTERNAL_SHORT_ARRAY_TYPE,
@@ -665,6 +668,7 @@ class MaybeObject BASE_EMBEDDED {
   V(ExternalFloatArray)                        \
   V(ExternalPixelArray)                        \
   V(ByteArray)                                 \
+  V(FreeSpace)                                 \
   V(JSObject)                                  \
   V(JSContextExtensionObject)                  \
   V(Map)                                       \
@@ -732,6 +736,9 @@ class Object : public MaybeObject {
   INLINE(bool IsTrue());
   INLINE(bool IsFalse());
   inline bool IsArgumentsMarker();
+
+  // Filler objects (fillers and free space objects).
+  inline bool IsFiller();
 
   // Extract the number.
   inline double Number();
@@ -2606,14 +2613,15 @@ class NormalizedMapCache: public FixedArray {
 };
 
 
-// ByteArray represents fixed sized byte arrays.  Used by the outside world,
-// such as PCRE, and also by the memory allocator and garbage collector to
-// fill in free blocks in the heap.
+// ByteArray represents fixed sized byte arrays.  Used for the relocation info
+// that is attached to code objects.
 class ByteArray: public HeapObject {
  public:
   // [length]: length of the array.
   inline int length();
   inline void set_length(int value);
+
+  inline int Size() { return RoundUp(length() + kHeaderSize, kPointerSize); }
 
   // Setter and getter.
   inline byte get(int index);
@@ -2672,6 +2680,44 @@ class ByteArray: public HeapObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ByteArray);
+};
+
+
+// FreeSpace represents fixed sized areas of the heap that are not currently in
+// use.  Used by the heap and GC.
+class FreeSpace: public HeapObject {
+ public:
+  // [size]: size of the free space including the header.
+  inline int size();
+  inline void set_size(int value);
+
+  inline int Size() { return size(); }
+
+  // Casting.
+  static inline FreeSpace* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  inline void FreeSpacePrint() {
+    FreeSpacePrint(stdout);
+  }
+  void FreeSpacePrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void FreeSpaceVerify();
+#endif
+
+  // Layout description.
+  // Size is smi tagged when it is stored.
+  static const int kSizeOffset = HeapObject::kHeaderSize;
+  static const int kHeaderSize = kSizeOffset + kPointerSize;
+
+  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
+
+  // Maximal size of a single FreeSpace.
+  static const int kMaxSize = 512 * MB;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FreeSpace);
 };
 
 

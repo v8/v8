@@ -91,6 +91,9 @@ void HeapObject::HeapObjectVerify() {
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
       break;
+    case FREE_SPACE_TYPE:
+      FreeSpace::cast(this)->FreeSpaceVerify();
+      break;
     case EXTERNAL_PIXEL_ARRAY_TYPE:
       ExternalPixelArray::cast(this)->ExternalPixelArrayVerify();
       break;
@@ -189,6 +192,11 @@ void HeapNumber::HeapNumberVerify() {
 
 void ByteArray::ByteArrayVerify() {
   ASSERT(IsByteArray());
+}
+
+
+void FreeSpace::FreeSpaceVerify() {
+  ASSERT(IsFreeSpace());
 }
 
 

@@ -549,7 +549,10 @@ class HeapEntry BASE_EMBEDDED {
     return Vector<HeapGraphEdge*>(retainers_arr(), retainers_count_); }
   List<HeapGraphPath*>* GetRetainingPaths();
   HeapEntry* dominator() { return dominator_; }
-  void set_dominator(HeapEntry* entry) { dominator_ = entry; }
+  void set_dominator(HeapEntry* entry) {
+    ASSERT(entry != NULL);
+    dominator_ = entry;
+  }
 
   void clear_paint() { painted_ = kUnpainted; }
   bool painted_reachable() { return painted_ == kPainted; }
@@ -1001,8 +1004,9 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   virtual HeapEntry* AllocateEntry(
       HeapThing ptr, int children_count, int retainers_count);
   void AddRootEntries(SnapshotFillerInterface* filler);
-  int EstimateObjectsCount();
-  bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
+  int EstimateObjectsCount(HeapIterator* iterator);
+  bool IterateAndExtractReferences(HeapIterator* iterator,
+                                   SnapshotFillerInterface* filler);
 
   static HeapObject* const kInternalRootObject;
 
@@ -1128,13 +1132,13 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   bool ApproximateRetainedSizes();
   bool BuildDominatorTree(const Vector<HeapEntry*>& entries,
                           Vector<HeapEntry*>* dominators);
-  bool CountEntriesAndReferences();
-  bool FillReferences();
+  bool CountEntriesAndReferences(HeapIterator* iterator);
+  bool FillReferences(HeapIterator* iterator);
   void FillReversePostorderIndexes(Vector<HeapEntry*>* entries);
   void ProgressStep();
   bool ProgressReport(bool force = false);
   bool SetEntriesDominators();
-  void SetProgressTotal(int iterations_count);
+  void SetProgressTotal(HeapIterator* iterator, int iterations_count);
 
   HeapSnapshot* snapshot_;
   v8::ActivityControl* control_;

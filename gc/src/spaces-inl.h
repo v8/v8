@@ -1,4 +1,4 @@
-// Copyright 2006-2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -38,104 +38,44 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // PageIterator
 
+
+PageIterator::PageIterator(PagedSpace* space)
+    : space_(space),
+      prev_page_(&space->anchor_),
+      next_page_(prev_page_->next_page()) { }
+
+
 bool PageIterator::has_next() {
-  return prev_page_ != stop_page_;
+  return next_page_ != &space_->anchor_;
 }
 
 
 Page* PageIterator::next() {
   ASSERT(has_next());
-  prev_page_ = (prev_page_ == NULL)
-               ? space_->first_page_
-               : prev_page_->next_page();
+  prev_page_ = next_page_;
+  next_page_ = next_page_->next_page();
   return prev_page_;
 }
 
 
 // -----------------------------------------------------------------------------
-// Page
-
-
-Address Page::AllocationTop() {
-  return static_cast<PagedSpace*>(owner())->PageAllocationTop(this);
-}
-
-
-Address Page::AllocationWatermark() {
-  if (this == static_cast<PagedSpace*>(owner())->AllocationTopPage()) {
-    return static_cast<PagedSpace*>(owner())->top();
+// HeapObjectIterator
+HeapObject* HeapObjectIterator::FromCurrentPage() {
+  while (cur_addr_ != cur_end_) {
+    if (cur_addr_ == space_->top() && cur_addr_ != space_->limit()) {
+      cur_addr_ = space_->limit();
+      continue;
+    }
+    HeapObject* obj = HeapObject::FromAddress(cur_addr_);
+    int obj_size = (size_func_ == NULL) ? obj->Size() : size_func_(obj);
+    cur_addr_ += obj_size;
+    ASSERT(cur_addr_ <= cur_end_);
+    if (!obj->IsFiller()) {
+      ASSERT_OBJECT_SIZE(obj_size);
+      return obj;
+    }
   }
-  return address() + AllocationWatermarkOffset();
-}
-
-
-uint32_t Page::AllocationWatermarkOffset() {
-  return static_cast<uint32_t>((flags_ & kAllocationWatermarkOffsetMask) >>
-                               kAllocationWatermarkOffsetShift);
-}
-
-
-void Page::SetAllocationWatermark(Address allocation_watermark) {
-  if ((Heap::gc_state() == Heap::SCAVENGE) && IsWatermarkValid()) {
-    // When iterating intergenerational references during scavenge
-    // we might decide to promote an encountered young object.
-    // We will allocate a space for such an object and put it
-    // into the promotion queue to process it later.
-    // If space for object was allocated somewhere beyond allocation
-    // watermark this might cause garbage pointers to appear under allocation
-    // watermark. To avoid visiting them during pointer-to-newspace iteration
-    // which might be still in progress we store a valid allocation watermark
-    // value and mark this page as having an invalid watermark.
-    SetCachedAllocationWatermark(AllocationWatermark());
-    InvalidateWatermark(true);
-  }
-
-  flags_ = (flags_ & kFlagsMask) |
-           Offset(allocation_watermark) << kAllocationWatermarkOffsetShift;
-  ASSERT(AllocationWatermarkOffset()
-         == static_cast<uint32_t>(Offset(allocation_watermark)));
-}
-
-
-void Page::SetCachedAllocationWatermark(Address allocation_watermark) {
-  allocation_watermark_ = allocation_watermark;
-}
-
-
-Address Page::CachedAllocationWatermark() {
-  return allocation_watermark_;
-}
-
-
-void Page::FlipMeaningOfInvalidatedWatermarkFlag() {
-  watermark_invalidated_mark_ ^= 1 << WATERMARK_INVALIDATED;
-}
-
-
-bool Page::IsWatermarkValid() {
-  return (flags_ & (1 << WATERMARK_INVALIDATED)) != watermark_invalidated_mark_;
-}
-
-
-void Page::InvalidateWatermark(bool value) {
-  if (value) {
-    flags_ = (flags_ & ~(1 << WATERMARK_INVALIDATED)) |
-             watermark_invalidated_mark_;
-  } else {
-    flags_ = (flags_ & ~(1 << WATERMARK_INVALIDATED)) |
-             (watermark_invalidated_mark_ ^ (1 << WATERMARK_INVALIDATED));
-  }
-
-  ASSERT(IsWatermarkValid() == !value);
-}
-
-
-void Page::ClearGCFields() {
-  InvalidateWatermark(true);
-  SetAllocationWatermark(ObjectAreaStart());
-  if (Heap::gc_state() == Heap::SCAVENGE) {
-    SetCachedAllocationWatermark(ObjectAreaStart());
-  }
+  return NULL;
 }
 
 
@@ -181,6 +121,45 @@ bool PagedSpace::Contains(Address addr) {
 }
 
 
+Page* Page::Initialize(MemoryChunk* chunk,
+                       Executability executable,
+                       PagedSpace* owner) {
+  Page* page = reinterpret_cast<Page*>(chunk);
+  MemoryChunk::Initialize(reinterpret_cast<Address>(chunk),
+                          kPageSize,
+                          executable,
+                          owner);
+  owner->IncreaseCapacity(Page::kObjectAreaSize);
+  owner->Free(page->ObjectAreaStart(),
+              page->ObjectAreaEnd() - page->ObjectAreaStart());
+  return page;
+}
+
+
+Page* Page::next_page() {
+  ASSERT(next_chunk()->owner() == owner());
+  return static_cast<Page*>(next_chunk());
+}
+
+
+Page* Page::prev_page() {
+  ASSERT(prev_chunk()->owner() == owner());
+  return static_cast<Page*>(prev_chunk());
+}
+
+
+void Page::set_next_page(Page* page) {
+  ASSERT(page->owner() == owner());
+  set_next_chunk(page);
+}
+
+
+void Page::set_prev_page(Page* page) {
+  ASSERT(page->owner() == owner());
+  set_prev_chunk(page);
+}
+
+
 // Try linear allocation in the page of alloc_info's allocation top.  Does
 // not contain slow case logic (eg, move to the next page or try free list
 // allocation) so it can be used by all the allocation functions and for all
@@ -193,7 +172,7 @@ HeapObject* PagedSpace::AllocateLinearly(AllocationInfo* alloc_info,
 
   alloc_info->top = new_top;
   ASSERT(alloc_info->VerifyPagedAllocation());
-  accounting_stats_.AllocateBytes(size_in_bytes);
+  ASSERT(current_top != NULL);
   return HeapObject::FromAddress(current_top);
 }
 
@@ -202,16 +181,18 @@ HeapObject* PagedSpace::AllocateLinearly(AllocationInfo* alloc_info,
 MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
   ASSERT(HasBeenSetup());
   ASSERT_OBJECT_SIZE(size_in_bytes);
-
-  HeapObject* object = AllocateLinearly(&allocation_info_, size_in_bytes);
+  MaybeObject* object = AllocateLinearly(&allocation_info_, size_in_bytes);
   if (object != NULL) {
-    IncrementalMarking::Step(size_in_bytes);
+    return object;
+  }
+
+  object = free_list_.Allocate(size_in_bytes);
+  if (object != NULL) {
     return object;
   }
 
   object = SlowAllocateRaw(size_in_bytes);
   if (object != NULL) {
-    IncrementalMarking::Step(size_in_bytes);
     return object;
   }
 
@@ -256,7 +237,7 @@ void NewSpace::ShrinkStringAtAllocationBoundary(String* string, int length) {
 
 
 bool FreeListNode::IsFreeListNode(HeapObject* object) {
-  return object->map() == Heap::raw_unchecked_byte_array_map()
+  return object->map() == Heap::raw_unchecked_free_space_map()
       || object->map() == Heap::raw_unchecked_one_pointer_filler_map()
       || object->map() == Heap::raw_unchecked_two_pointer_filler_map();
 }

@@ -261,7 +261,7 @@ TEST(MapCompact) {
   // be able to trigger map compaction.
   // To give an additional chance to fail, try to force compaction which
   // should be impossible right now.
-  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(Heap::kForceCompactionMask);
   // And now map pointers should be encodable again.
   CHECK(Heap::map_space()->MapPointersEncodable());
 }

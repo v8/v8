@@ -961,6 +961,9 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case BYTE_ARRAY_TYPE:
       accumulator->Add("<ByteArray[%u]>", ByteArray::cast(this)->length());
       break;
+    case FREE_SPACE_TYPE:
+      accumulator->Add("<FreeSpace[%u]>", FreeSpace::cast(this)->Size());
+      break;
     case EXTERNAL_PIXEL_ARRAY_TYPE:
       accumulator->Add("<ExternalPixelArray[%u]>",
                        ExternalPixelArray::cast(this)->length());
@@ -1114,6 +1117,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
+    case FREE_SPACE_TYPE:
     case EXTERNAL_PIXEL_ARRAY_TYPE:
     case EXTERNAL_BYTE_ARRAY_TYPE:
     case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:

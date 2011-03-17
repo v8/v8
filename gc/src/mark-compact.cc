@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -45,6 +45,7 @@ namespace internal {
 // MarkCompactCollector
 
 bool MarkCompactCollector::force_compaction_ = false;
+bool MarkCompactCollector::sweep_precisely_ = false;
 bool MarkCompactCollector::compacting_collection_ = false;
 bool MarkCompactCollector::compact_on_next_gc_ = false;
 
@@ -107,18 +108,23 @@ class VerifyMarkingVisitor: public ObjectVisitor {
 static void VerifyMarking(Address bottom, Address top) {
   VerifyMarkingVisitor visitor;
   HeapObject* object;
+  Address next_object_must_be_here_or_later = bottom;
 
   for (Address current = bottom;
        current < top;
-       current += object->Size()) {
+       current += kPointerSize) {
     object = HeapObject::FromAddress(current);
-    if (Marking::IsMarked(object)) object->Iterate(&visitor);
+    if (Marking::IsMarked(object)) {
+      ASSERT(current >= next_object_must_be_here_or_later);
+      object->Iterate(&visitor);
+      next_object_must_be_here_or_later = current + object->Size();
+    }
   }
 }
 
 
 static void VerifyMarking(Page* p) {
-  VerifyMarking(p->ObjectAreaStart(), p->AllocationTop());
+  VerifyMarking(p->ObjectAreaStart(), p->ObjectAreaEnd());
 }
 
 
@@ -128,7 +134,7 @@ static void VerifyMarking(NewSpace* space) {
 
 
 static void VerifyMarking(PagedSpace* space) {
-  PageIterator it(space, PageIterator::PAGES_IN_USE);
+  PageIterator it(space);
 
   while (it.has_next()) {
     VerifyMarking(it.next());
@@ -191,7 +197,7 @@ void MarkCompactCollector::CollectGarbage() {
 
 #ifdef DEBUG
 static void VerifyMarkbitsAreClean(PagedSpace* space) {
-  PageIterator it(space, PageIterator::PAGES_IN_USE);
+  PageIterator it(space);
 
   while (it.has_next()) {
     Page* p = it.next();
@@ -210,7 +216,7 @@ static void VerifyMarkbitsAreClean() {
 
 
 static void ClearMarkbits(PagedSpace* space) {
-  PageIterator it(space, PageIterator::PAGES_IN_USE);
+  PageIterator it(space);
 
   while (it.has_next()) {
     Page* p = it.next();
@@ -218,8 +224,11 @@ static void ClearMarkbits(PagedSpace* space) {
   }
 }
 
+
 static void ClearMarkbits() {
-  // We are sweeping code and map spaces precisely so clearing is not required.
+  // TODO(gc): Clean the mark bits while sweeping.
+  ClearMarkbits(Heap::code_space());
+  ClearMarkbits(Heap::map_space());
   ClearMarkbits(Heap::old_pointer_space());
   ClearMarkbits(Heap::old_data_space());
   ClearMarkbits(Heap::cell_space());
@@ -242,9 +251,7 @@ void Marking::TransferMark(Address old_start, Address new_start) {
       // on top of it to see whether they are equal to old_start.
     }
   } else {
-    if (Heap::InNewSpace(old_start) ||
-        Page::FromAddress(old_start)->IsFlagSet(Page::IS_CONTINUOUS) ||
-        !IsMarked(old_start)) {
+    if (Heap::InNewSpace(old_start) || !IsMarked(old_start)) {
       return;
     }
     SetMark(new_start);
@@ -347,7 +354,7 @@ void MarkCompactCollector::Finish() {
 
   OldSpaces spaces;
   for (OldSpace* space = spaces.next(); space != NULL; space = spaces.next()) {
-    old_gen_recoverable += space->Waste() + space->AvailableFree();
+    old_gen_recoverable += space->Waste() + space->Available();
     old_gen_used += space->Size();
   }
 
@@ -582,6 +589,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                                       void>::Visit);
 
     table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
+    table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
     table_.Register(kVisitSeqAsciiString, &DataObjectVisitor::Visit);
     table_.Register(kVisitSeqTwoByteString, &DataObjectVisitor::Visit);
 
@@ -1248,9 +1256,9 @@ void MarkCompactCollector::MarkDescriptorArray(
 
 void MarkCompactCollector::CreateBackPointers() {
   HeapObjectIterator iterator(Heap::map_space());
-  for (HeapObject* next_object = iterator.next();
-       next_object != NULL; next_object = iterator.next()) {
-    if (next_object->IsMap()) {  // Could also be ByteArray on free list.
+  for (HeapObject* next_object = iterator.Next();
+       next_object != NULL; next_object = iterator.Next()) {
+    if (next_object->IsMap()) {  // Could also be FreeSpace object on free list.
       Map* map = Map::cast(next_object);
       if (map->instance_type() >= FIRST_JS_OBJECT_TYPE &&
           map->instance_type() <= JS_FUNCTION_TYPE) {
@@ -1572,10 +1580,10 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
   // scan the descriptor arrays of those maps, not all maps.
   // All of these actions are carried out only on maps of JSObjects
   // and related subtypes.
-  for (HeapObject* obj = map_iterator.next();
-       obj != NULL; obj = map_iterator.next()) {
+  for (HeapObject* obj = map_iterator.Next();
+       obj != NULL; obj = map_iterator.Next()) {
     Map* map = reinterpret_cast<Map*>(obj);
-    if (!Marking::IsMarked(map) && map->IsByteArray()) continue;
+    if (!Marking::IsMarked(map) && map->IsFreeSpace()) continue;
 
     ASSERT(SafeIsMap(map));
     // Only JSObject and subtypes have map transitions and back pointers.
@@ -1838,9 +1846,9 @@ void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
 
   // Update pointers from cells.
   HeapObjectIterator cell_iterator(Heap::cell_space());
-  for (HeapObject* cell = cell_iterator.next();
+  for (HeapObject* cell = cell_iterator.Next();
        cell != NULL;
-       cell = cell_iterator.next()) {
+       cell = cell_iterator.Next()) {
     if (cell->IsJSGlobalPropertyCell()) {
       Address value_address =
           reinterpret_cast<Address>(cell) +
@@ -1888,9 +1896,8 @@ static uint32_t SweepFree(PagedSpace* space,
   }
 
   uint32_t free_end = Page::MarkbitsBitmap::CellToIndex(free_cell_index);
-  space->DeallocateBlock(p->MarkbitIndexToAddress(free_start),
-                         (free_end - free_start) << kPointerSizeLog2,
-                         true);
+  space->Free(p->MarkbitIndexToAddress(free_start),
+              (free_end - free_start) << kPointerSizeLog2);
 
   return free_cell_index;
 }
@@ -1933,108 +1940,419 @@ static int SizeOfPreviousObject(Page* p,
 }
 
 
-static void SweepConservatively(PagedSpace* space,
-                                Page* p,
-                                Address* last_free_start) {
-  typedef Page::MarkbitsBitmap::CellType CellType;
-  Page::MarkbitsBitmap* markbits = p->markbits();
-  CellType* cells = markbits->cells();
+static const int kStartTableEntriesPerLine = 5;
+static const int kStartTableLines = 171;
+static const int kStartTableInvalidLine = 127;
+static const int kStartTableUnusedEntry = 126;
 
-  uint32_t last_cell_index =
+#define _ kStartTableUnusedEntry
+#define X kStartTableInvalidLine
+// Mark-bit to object start offset table.
+//
+// The line is indexed by the mark bits in a byte.  The first number on
+// the line describes the number of live object starts for the line and the
+// other numbers on the line describe the offsets (in words) of the object
+// starts.
+//
+// Since objects are at least 2 words large we don't have entries for two
+// consecutive 1 bits.  All entries after 170 have at least 2 consecutive bits.
+char kStartTable[kStartTableLines * kStartTableEntriesPerLine] = {
+  0, _, _, _, _,  // 0
+  1, 0, _, _, _,  // 1
+  1, 1, _, _, _,  // 2
+  X, _, _, _, _,  // 3
+  1, 2, _, _, _,  // 4
+  2, 0, 2, _, _,  // 5
+  X, _, _, _, _,  // 6
+  X, _, _, _, _,  // 7
+  1, 3, _, _, _,  // 8
+  2, 0, 3, _, _,  // 9
+  2, 1, 3, _, _,  // 10
+  X, _, _, _, _,  // 11
+  X, _, _, _, _,  // 12
+  X, _, _, _, _,  // 13
+  X, _, _, _, _,  // 14
+  X, _, _, _, _,  // 15
+  1, 4, _, _, _,  // 16
+  2, 0, 4, _, _,  // 17
+  2, 1, 4, _, _,  // 18
+  X, _, _, _, _,  // 19
+  2, 2, 4, _, _,  // 20
+  3, 0, 2, 4, _,  // 21
+  X, _, _, _, _,  // 22
+  X, _, _, _, _,  // 23
+  X, _, _, _, _,  // 24
+  X, _, _, _, _,  // 25
+  X, _, _, _, _,  // 26
+  X, _, _, _, _,  // 27
+  X, _, _, _, _,  // 28
+  X, _, _, _, _,  // 29
+  X, _, _, _, _,  // 30
+  X, _, _, _, _,  // 31
+  1, 5, _, _, _,  // 32
+  2, 0, 5, _, _,  // 33
+  2, 1, 5, _, _,  // 34
+  X, _, _, _, _,  // 35
+  2, 2, 5, _, _,  // 36
+  3, 0, 2, 5, _,  // 37
+  X, _, _, _, _,  // 38
+  X, _, _, _, _,  // 39
+  2, 3, 5, _, _,  // 40
+  3, 0, 3, 5, _,  // 41
+  3, 1, 3, 5, _,  // 42
+  X, _, _, _, _,  // 43
+  X, _, _, _, _,  // 44
+  X, _, _, _, _,  // 45
+  X, _, _, _, _,  // 46
+  X, _, _, _, _,  // 47
+  X, _, _, _, _,  // 48
+  X, _, _, _, _,  // 49
+  X, _, _, _, _,  // 50
+  X, _, _, _, _,  // 51
+  X, _, _, _, _,  // 52
+  X, _, _, _, _,  // 53
+  X, _, _, _, _,  // 54
+  X, _, _, _, _,  // 55
+  X, _, _, _, _,  // 56
+  X, _, _, _, _,  // 57
+  X, _, _, _, _,  // 58
+  X, _, _, _, _,  // 59
+  X, _, _, _, _,  // 60
+  X, _, _, _, _,  // 61
+  X, _, _, _, _,  // 62
+  X, _, _, _, _,  // 63
+  1, 6, _, _, _,  // 64
+  2, 0, 6, _, _,  // 65
+  2, 1, 6, _, _,  // 66
+  X, _, _, _, _,  // 67
+  2, 2, 6, _, _,  // 68
+  3, 0, 2, 6, _,  // 69
+  X, _, _, _, _,  // 70
+  X, _, _, _, _,  // 71
+  2, 3, 6, _, _,  // 72
+  3, 0, 3, 6, _,  // 73
+  3, 1, 3, 6, _,  // 74
+  X, _, _, _, _,  // 75
+  X, _, _, _, _,  // 76
+  X, _, _, _, _,  // 77
+  X, _, _, _, _,  // 78
+  X, _, _, _, _,  // 79
+  2, 4, 6, _, _,  // 80
+  3, 0, 4, 6, _,  // 81
+  3, 1, 4, 6, _,  // 82
+  X, _, _, _, _,  // 83
+  3, 2, 4, 6, _,  // 84
+  4, 0, 2, 4, 6,  // 85
+  X, _, _, _, _,  // 86
+  X, _, _, _, _,  // 87
+  X, _, _, _, _,  // 88
+  X, _, _, _, _,  // 89
+  X, _, _, _, _,  // 90
+  X, _, _, _, _,  // 91
+  X, _, _, _, _,  // 92
+  X, _, _, _, _,  // 93
+  X, _, _, _, _,  // 94
+  X, _, _, _, _,  // 95
+  X, _, _, _, _,  // 96
+  X, _, _, _, _,  // 97
+  X, _, _, _, _,  // 98
+  X, _, _, _, _,  // 99
+  X, _, _, _, _,  // 100
+  X, _, _, _, _,  // 101
+  X, _, _, _, _,  // 102
+  X, _, _, _, _,  // 103
+  X, _, _, _, _,  // 104
+  X, _, _, _, _,  // 105
+  X, _, _, _, _,  // 106
+  X, _, _, _, _,  // 107
+  X, _, _, _, _,  // 108
+  X, _, _, _, _,  // 109
+  X, _, _, _, _,  // 110
+  X, _, _, _, _,  // 111
+  X, _, _, _, _,  // 112
+  X, _, _, _, _,  // 113
+  X, _, _, _, _,  // 114
+  X, _, _, _, _,  // 115
+  X, _, _, _, _,  // 116
+  X, _, _, _, _,  // 117
+  X, _, _, _, _,  // 118
+  X, _, _, _, _,  // 119
+  X, _, _, _, _,  // 120
+  X, _, _, _, _,  // 121
+  X, _, _, _, _,  // 122
+  X, _, _, _, _,  // 123
+  X, _, _, _, _,  // 124
+  X, _, _, _, _,  // 125
+  X, _, _, _, _,  // 126
+  X, _, _, _, _,  // 127
+  1, 7, _, _, _,  // 128
+  2, 0, 7, _, _,  // 129
+  2, 1, 7, _, _,  // 130
+  X, _, _, _, _,  // 131
+  2, 2, 7, _, _,  // 132
+  3, 0, 2, 7, _,  // 133
+  X, _, _, _, _,  // 134
+  X, _, _, _, _,  // 135
+  2, 3, 7, _, _,  // 136
+  3, 0, 3, 7, _,  // 137
+  3, 1, 3, 7, _,  // 138
+  X, _, _, _, _,  // 139
+  X, _, _, _, _,  // 140
+  X, _, _, _, _,  // 141
+  X, _, _, _, _,  // 142
+  X, _, _, _, _,  // 143
+  2, 4, 7, _, _,  // 144
+  3, 0, 4, 7, _,  // 145
+  3, 1, 4, 7, _,  // 146
+  X, _, _, _, _,  // 147
+  3, 2, 4, 7, _,  // 148
+  4, 0, 2, 4, 7,  // 149
+  X, _, _, _, _,  // 150
+  X, _, _, _, _,  // 151
+  X, _, _, _, _,  // 152
+  X, _, _, _, _,  // 153
+  X, _, _, _, _,  // 154
+  X, _, _, _, _,  // 155
+  X, _, _, _, _,  // 156
+  X, _, _, _, _,  // 157
+  X, _, _, _, _,  // 158
+  X, _, _, _, _,  // 159
+  2, 5, 7, _, _,  // 160
+  3, 0, 5, 7, _,  // 161
+  3, 1, 5, 7, _,  // 162
+  X, _, _, _, _,  // 163
+  3, 2, 5, 7, _,  // 164
+  4, 0, 2, 5, 7,  // 165
+  X, _, _, _, _,  // 166
+  X, _, _, _, _,  // 167
+  3, 3, 5, 7, _,  // 168
+  4, 0, 3, 5, 7,  // 169
+  4, 1, 3, 5, 7   // 170
+};
+#undef _
+#undef X
+
+
+// Takes a word of mark bits.  Returns the number of objects that start in the
+// range.  Puts the offsets of the words in the supplied array.
+static inline int MarkWordToObjectStarts(uint32_t mark_bits, int* starts) {
+  int objects = 0;
+  int offset = 0;
+
+  // No consecutive 1 bits.
+  ASSERT((mark_bits & 0x180) != 0x180);
+  ASSERT((mark_bits & 0x18000) != 0x18000);
+  ASSERT((mark_bits & 0x1800000) != 0x1800000);
+
+  while (mark_bits != 0) {
+    int byte = (mark_bits & 0xff);
+    mark_bits >>= 8;
+    if (byte != 0) {
+      ASSERT(byte < kStartTableLines);  // No consecutive 1 bits.
+      char* table = kStartTable + byte * kStartTableEntriesPerLine;
+      int objects_in_these_8_words = table[0];
+      ASSERT(objects_in_these_8_words != kStartTableInvalidLine);
+      ASSERT(objects_in_these_8_words < kStartTableEntriesPerLine);
+      for (int i = 0; i < objects_in_these_8_words; i++) {
+        starts[objects++] = offset + table[1 + i];
+      }
+    }
+    offset += 8;
+  }
+  return objects;
+}
+
+
+static inline Address DigestFreeStart(Address approximate_free_start,
+                                      uint32_t free_start_cell) {
+  ASSERT(free_start_cell != 0);
+
+  int offsets[16];
+  uint32_t cell = free_start_cell;
+  int offset_of_last_live;
+  if ((cell & 0x80000000u) != 0) {
+    // This case would overflow below.
+    offset_of_last_live = 31;
+  } else {
+    // Remove all but one bit, the most significant.  This is an optimization
+    // that may or may not be worthwhile.
+    cell |= cell >> 16;
+    cell |= cell >> 8;
+    cell |= cell >> 4;
+    cell |= cell >> 2;
+    cell |= cell >> 1;
+    cell = (cell + 1) >> 1;
+    int live_objects = MarkWordToObjectStarts(cell, offsets);
+    ASSERT(live_objects == 1);
+    offset_of_last_live = offsets[live_objects - 1];
+  }
+  Address last_live_start =
+      approximate_free_start + offset_of_last_live * kPointerSize;
+  HeapObject* last_live = HeapObject::FromAddress(last_live_start);
+  Address free_start = last_live_start + last_live->Size();
+  return free_start;
+}
+
+
+static inline Address StartOfLiveObject(Address block_address, uint32_t cell) {
+  ASSERT(cell != 0);
+
+  int offsets[16];
+  if (cell == 0x80000000u) {  // Avoid overflow below.
+    return block_address + 31 * kPointerSize;
+  }
+  uint32_t first_set_bit = ((cell ^ (cell - 1)) + 1) >> 1;
+  ASSERT((first_set_bit & cell) == first_set_bit);
+  int live_objects = MarkWordToObjectStarts(first_set_bit, offsets);
+  ASSERT(live_objects == 1);
+  USE(live_objects);
+  return block_address + offsets[0] * kPointerSize;
+}
+
+
+// Sweeps a space conservatively.  After this has been done the larger free
+// spaces have been put on the free list and the smaller ones have been
+// ignored and left untouched.  A free space is always either ignored or put
+// on the free list, never split up into two parts.  This is important
+// because it means that any FreeSpace maps left actually describe a region of
+// memory that can be ignored when scanning.  Dead objects other than free
+// spaces will not contain the free space map.
+static void SweepConservatively(PagedSpace* space,
+                                Page* p) {
+  Page::MarkbitsBitmap* markbits = p->markbits();
+  Page::MarkbitsBitmap::CellType* cells = markbits->cells();
+
+  p->SetFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
+
+  // This is the start of the 32 word block that we are currently looking at.
+  Address block_address = p->ObjectAreaStart();
+
+  int last_cell_index =
       Page::MarkbitsBitmap::IndexToCell(
           Page::MarkbitsBitmap::CellAlignIndex(
-              p->AddressToMarkbitIndex(p->AllocationTop())));
+              p->AddressToMarkbitIndex(p->ObjectAreaEnd())));
 
-  uint32_t cell_index = Page::kFirstUsedCell;
-  uint32_t polluted_cell_index = Page::kFirstUsedCell;
-  if (cells[cell_index] == 0) {
-    polluted_cell_index =
-        SweepFree(space,
-                  p,
-                  p->AddressToMarkbitIndex(p->ObjectAreaStart()),
-                  last_cell_index,
-                  cells);
+  int cell_index = Page::kFirstUsedCell;
 
-    if (polluted_cell_index >= last_cell_index) {
-      // All cells are free.
-      *last_free_start = p->ObjectAreaStart();
-      return;
+  // Skip over all the dead objects at the start of the page and mark them free.
+  for (cell_index = Page::kFirstUsedCell;
+       cell_index < last_cell_index;
+       cell_index++, block_address += 32 * kPointerSize) {
+    if (cells[cell_index] != 0) break;
+  }
+  int size = block_address - p->ObjectAreaStart();
+  if (cell_index == last_cell_index) {
+    space->Free(p->ObjectAreaStart(), size);
+    return;
+  }
+  // Grow the size of the start-of-page free space a little to get up to the
+  // first live object.
+  Address free_end = StartOfLiveObject(block_address, cells[cell_index]);
+  // Free the first free space.
+  size = free_end - p->ObjectAreaStart();
+  space->Free(p->ObjectAreaStart(), size);
+  // The start of the current free area is represented in undigested form by
+  // the address of the last 32-word section that contained a live object and
+  // the marking bitmap for that cell, which describes where the live object
+  // started.  Unless we find a large free space in the bitmap we will not
+  // digest this pair into a real address.  We start the iteration here at the
+  // first word in the marking bit map that indicates a live object.
+  Address free_start = block_address;
+  uint32_t free_start_cell = cells[cell_index];
+
+  for ( ;
+       cell_index < last_cell_index;
+       cell_index++, block_address += 32 * kPointerSize) {
+    ASSERT((unsigned)cell_index ==
+        Page::MarkbitsBitmap::IndexToCell(
+            Page::MarkbitsBitmap::CellAlignIndex(
+                p->AddressToMarkbitIndex(block_address))));
+    uint32_t cell = cells[cell_index];
+    if (cell != 0) {
+      // We have a live object.  Check approximately whether it is more than 32
+      // words since the last live object.
+      if (block_address - free_start > 32 * kPointerSize) {
+        free_start = DigestFreeStart(free_start, free_start_cell);
+        if (block_address - free_start > 32 * kPointerSize) {
+          // Now that we know the exact start of the free space it still looks
+          // like we have a large enough free space to be worth bothering with.
+          // so now we need to find the start of the first live object at the
+          // end of the free space.
+          free_end = StartOfLiveObject(block_address, cell);
+          space->Free(free_start, free_end - free_start);
+        }
+      }
+      // Update our undigested record of where the current free area started.
+      free_start = block_address;
+      free_start_cell = cell;
     }
   }
 
-  p->ClearFlag(Page::IS_CONTINUOUS);
-
-  ASSERT(cells[polluted_cell_index] != 0);
-  for (cell_index = NextCandidate(polluted_cell_index, last_cell_index, cells);
-       cell_index < last_cell_index;
-       cell_index = NextCandidate(polluted_cell_index,
-                                  last_cell_index,
-                                  cells)) {
-    ASSERT(cells[cell_index] == 0);
-
-    int size = SizeOfPreviousObject(p, cell_index, cells);
-    if (size <= 0) {
-      polluted_cell_index =
-          SweepFree(space,
-                    p,
-                    Page::MarkbitsBitmap::CellToIndex(cell_index),
-                    last_cell_index,
-                    cells);
-      if (polluted_cell_index >= last_cell_index) {
-        // This free region is the last on the page.
-        *last_free_start = p->MarkbitIndexToAddress(
-            Page::MarkbitsBitmap::CellToIndex(cell_index));
-        return;
-      }
-    } else {
-      // Skip cells covered by this object.
-      polluted_cell_index = cell_index +
-          Page::MarkbitsBitmap::IndexToCell(size - 1);
-    }
+  // Handle the free space at the end of the page.
+  if (block_address - free_start > 32 * kPointerSize) {
+    free_start = DigestFreeStart(free_start, free_start_cell);
+    space->Free(free_start, block_address - free_start);
   }
 }
 
 
+// Sweep a space precisely.  After this has been done the space can
+// be iterated precisely, hitting only the live objects.  Code space
+// is always swept precisely because we want to be able to iterate
+// over it.  Map space is swept precisely, because it is not compacted.
 static void SweepPrecisely(PagedSpace* space,
-                           Page* p,
-                           Address* last_free_start) {
-  bool is_previous_alive = true;
-  Address free_start = NULL;
-  HeapObject* object;
+                           Page* p) {
+  Page::MarkbitsBitmap* markbits = p->markbits();
+  Page::MarkbitsBitmap::CellType* cells = markbits->cells();
 
-  for (Address current = p->ObjectAreaStart();
-       current < p->AllocationTop();
-       current += object->Size()) {
-    object = HeapObject::FromAddress(current);
-    if (Marking::IsMarked(object)) {
-      Marking::ClearMark(object);
-      MarkCompactCollector::tracer()->decrement_marked_count();
+  p->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
 
-      if (!is_previous_alive) {  // Transition from free to live.
-        space->DeallocateBlock(free_start,
-                               static_cast<int>(current - free_start),
-                               true);
-        is_previous_alive = true;
+  int last_cell_index =
+      Page::MarkbitsBitmap::IndexToCell(
+          Page::MarkbitsBitmap::CellAlignIndex(
+              p->AddressToMarkbitIndex(p->ObjectAreaEnd())));
+
+  int cell_index = Page::kFirstUsedCell;
+  Address free_start = p->ObjectAreaStart();
+  ASSERT(reinterpret_cast<uint32_t>(free_start) % (32 * kPointerSize) == 0);
+  Address object_address = p->ObjectAreaStart();
+  int offsets[16];
+
+  for (cell_index = Page::kFirstUsedCell;
+       cell_index < last_cell_index;
+       cell_index++, object_address += 32 * kPointerSize) {
+    ASSERT((unsigned)cell_index ==
+        Page::MarkbitsBitmap::IndexToCell(
+            Page::MarkbitsBitmap::CellAlignIndex(
+                p->AddressToMarkbitIndex(object_address))));
+    int live_objects = MarkWordToObjectStarts(cells[cell_index], offsets);
+    int live_index = 0;
+    for ( ; live_objects != 0; live_objects--) {
+      Address free_end = object_address + offsets[live_index++] * kPointerSize;
+      if (free_end != free_start) {
+        space->Free(free_start, free_end - free_start);
       }
-    } else {
-      ASSERT((current + kPointerSize) >= p->AllocationTop() ||
-             object->Size() == kPointerSize ||
-             IncrementalMarking::IsWhite(object));
-      MarkCompactCollector::ReportDeleteIfNeeded(object);
-      if (is_previous_alive) {  // Transition from live to free.
-        free_start = current;
-        is_previous_alive = false;
-      }
+      HeapObject* live_object = HeapObject::FromAddress(free_end);
+      free_start = free_end + live_object->Size();
     }
   }
-
-  if (!is_previous_alive) *last_free_start = free_start;
+  if (free_start != p->ObjectAreaEnd()) {
+    space->Free(free_start, p->ObjectAreaEnd() - free_start);
+  }
 }
 
 
 void MarkCompactCollector::SweepSpace(PagedSpace* space,
                                       SweeperType sweeper) {
-  PageIterator it(space, PageIterator::PAGES_IN_USE);
+  space->set_was_swept_conservatively(sweeper == CONSERVATIVE);
+
+  // We don't have a linear allocation area while sweeping.  It will be restored
+  // on the first allocation after the sweep.
+  space->SetTop(NULL, NULL);
+
+  space->ClearStats();
+
+  PageIterator it(space);
 
   // During sweeping of paged space we are trying to find longest sequences
   // of pages without live objects and free them (instead of putting them on
@@ -2043,117 +2361,19 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space,
   // Page preceding current.
   Page* prev = Page::FromAddress(NULL);
 
-  // First empty page in a sequence.
-  Page* first_empty_page = Page::FromAddress(NULL);
-
-  // Page preceding first empty page.
-  Page* prec_first_empty_page = Page::FromAddress(NULL);
-
-  // If last used page of space ends with a sequence of dead objects
-  // we can adjust allocation top instead of puting this free area into
-  // the free list. Thus during sweeping we keep track of such areas
-  // and defer their deallocation until the sweeping of the next page
-  // is done: if one of the next pages contains live objects we have
-  // to put such area into the free list.
-  Address last_free_start = NULL;
-  int last_free_size = 0;
-
   while (it.has_next()) {
     Page* p = it.next();
-
-    Address free_start = p->AllocationTop();
+    space->IncreaseCapacity(p->ObjectAreaEnd() - p->ObjectAreaStart());
 
     if (sweeper == CONSERVATIVE) {
-      SweepConservatively(space, p, &free_start);
-      p->set_linearity_boundary(free_start);
+      SweepConservatively(space, p);
     } else {
       ASSERT(sweeper == PRECISE);
-      SweepPrecisely(space, p, &free_start);
+      SweepPrecisely(space, p);
     }
-
-    bool page_is_empty = (p->ObjectAreaStart() == free_start);
-    bool is_previous_alive = (free_start == p->AllocationTop());
-
-    ASSERT(free_start <= p->AllocationTop());
-
-    if (page_is_empty) {
-      // This page is empty. Check whether we are in the middle of
-      // sequence of empty pages and start one if not.
-      if (!first_empty_page->is_valid()) {
-        first_empty_page = p;
-        prec_first_empty_page = prev;
-      }
-
-      if (!is_previous_alive) {
-        // There are dead objects on this page. Update space accounting stats
-        // without putting anything into free list.
-        int size_in_bytes = static_cast<int>(p->AllocationTop() - free_start);
-        if (size_in_bytes > 0) {
-          space->DeallocateBlock(free_start, size_in_bytes, false);
-        }
-      }
-    } else {
-      // This page is not empty. Sequence of empty pages ended on the previous
-      // one.
-      if (first_empty_page->is_valid()) {
-        space->FreePages(prec_first_empty_page, prev);
-        prec_first_empty_page = first_empty_page = Page::FromAddress(NULL);
-      }
-
-      // If there is a free ending area on one of the previous pages we have
-      // deallocate that area and put it on the free list.
-      if (last_free_size > 0) {
-        Page::FromAddress(last_free_start)->
-            SetAllocationWatermark(last_free_start);
-        space->DeallocateBlock(last_free_start, last_free_size, true);
-        last_free_start = NULL;
-        last_free_size  = 0;
-      }
-
-      // If the last region of this page was not live we remember it.
-      if (!is_previous_alive) {
-        ASSERT(last_free_size == 0);
-        last_free_size = static_cast<int>(p->AllocationTop() - free_start);
-        last_free_start = free_start;
-      }
-    }
-
     prev = p;
   }
-
-  // We reached end of space. See if we need to adjust allocation top.
-  Address new_allocation_top = NULL;
-
-  if (first_empty_page->is_valid()) {
-    // Last used pages in space are empty. We can move allocation top backwards
-    // to the beginning of first empty page.
-    ASSERT(prev == space->AllocationTopPage());
-    space->FreePages(prec_first_empty_page, prev);
-    new_allocation_top = first_empty_page->ObjectAreaStart();
-  }
-
-  if (last_free_size > 0) {
-    // There was a free ending area on the previous page.
-    // Deallocate it without putting it into freelist and move allocation
-    // top to the beginning of this free area.
-    space->DeallocateBlock(last_free_start, last_free_size, false);
-    new_allocation_top = last_free_start;
-  }
-
-  if (new_allocation_top != NULL) {
-#ifdef DEBUG
-    Page* new_allocation_top_page = Page::FromAllocationTop(new_allocation_top);
-    if (!first_empty_page->is_valid()) {
-      ASSERT(new_allocation_top_page == space->AllocationTopPage());
-    } else if (last_free_size > 0) {
-      ASSERT(new_allocation_top_page == prec_first_empty_page);
-    } else {
-      ASSERT(new_allocation_top_page == first_empty_page);
-    }
-#endif
-
-    space->SetTop(new_allocation_top);
-  }
+  // TODO(gc): set up allocation top and limit using the free list.
 }
 
 
@@ -2163,23 +2383,19 @@ void MarkCompactCollector::SweepSpaces() {
   state_ = SWEEP_SPACES;
 #endif
 
-#ifndef DEBUG
-  SweeperType fast_sweeper = CONSERVATIVE;
-#else
-  SweeperType fast_sweeper = PRECISE;
-#endif
-
   ASSERT(!IsCompacting());
+  SweeperType how_to_sweep = CONSERVATIVE;
+  if (sweep_precisely_) how_to_sweep = PRECISE;
   // Noncompacting collections simply sweep the spaces to clear the mark
   // bits and free the nonlive blocks (for old and map spaces).  We sweep
   // the map space last because freeing non-live maps overwrites them and
   // the other spaces rely on possibly non-live maps to get the sizes for
   // non-live objects.
-  SweepSpace(Heap::old_pointer_space(), fast_sweeper);
-  SweepSpace(Heap::old_data_space(), fast_sweeper);
+  SweepSpace(Heap::old_pointer_space(), how_to_sweep);
+  SweepSpace(Heap::old_data_space(), how_to_sweep);
   SweepSpace(Heap::code_space(), PRECISE);
   // TODO(gc): implement specialized sweeper for cell space.
-  SweepSpace(Heap::cell_space(), fast_sweeper);
+  SweepSpace(Heap::cell_space(), PRECISE);
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP_NEWSPACE);
     SweepNewSpace(Heap::new_space());
   }
@@ -2233,12 +2449,13 @@ int MarkCompactCollector::IterateLiveObjects(NewSpace* space,
 int MarkCompactCollector::IterateLiveObjects(PagedSpace* space,
                                              HeapObjectCallback size_f) {
   ASSERT(MARK_LIVE_OBJECTS < state_ && state_ <= RELOCATE_OBJECTS);
+  // TODO(gc): Do a mark-sweep first with precise sweeping.
   int total = 0;
-  PageIterator it(space, PageIterator::PAGES_IN_USE);
+  PageIterator it(space);
   while (it.has_next()) {
     Page* p = it.next();
     total += IterateLiveObjectsInRange(p->ObjectAreaStart(),
-                                       p->AllocationTop(),
+                                       p->ObjectAreaEnd(),
                                        size_f);
   }
   return total;

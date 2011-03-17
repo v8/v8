@@ -243,7 +243,7 @@ static v8::Handle<Value> CheckAccessorArgsCorrect(Local<String> name,
   ApiTestFuzzer::Fuzz();
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()->Equals(v8::String::New("data")));
-  i::Heap::CollectAllGarbage(true);
+  i::Heap::CollectAllGarbage(i::Heap::kForceCompactionMask);
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()->Equals(v8::String::New("data")));
   return v8::Integer::New(17);
