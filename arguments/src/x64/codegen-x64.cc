@@ -612,8 +612,6 @@ void CodeGenerator::LoadTypeofExpression(Expression* expr) {
 ArgumentsAllocationMode CodeGenerator::ArgumentsMode() {
   if (scope()->arguments() == NULL) return NO_ARGUMENTS_ALLOCATION;
 
-  // In strict mode there is no need for shadow arguments.
-  ASSERT(scope()->arguments_shadow() != NULL || scope()->is_strict_mode());
   // We don't want to do lazy arguments allocation for functions that
   // have heap-allocated contexts, because it interfers with the
   // uninitialized const tracking in the context objects.
@@ -643,10 +641,7 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
   }
 
   Variable* arguments = scope()->arguments();
-  Variable* shadow = scope()->arguments_shadow();
   ASSERT(arguments != NULL && arguments->AsSlot() != NULL);
-  ASSERT((shadow != NULL && shadow->AsSlot() != NULL) ||
-         scope()->is_strict_mode());
 
   JumpTarget done;
   bool skip_arguments = false;
@@ -669,9 +664,6 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
   if (!skip_arguments) {
     StoreToSlot(arguments->AsSlot(), NOT_CONST_INIT);
     if (mode == LAZY_ARGUMENTS_ALLOCATION) done.Bind();
-  }
-  if (shadow != NULL) {
-    StoreToSlot(shadow->AsSlot(), NOT_CONST_INIT);
   }
   return frame_->Pop();
 }

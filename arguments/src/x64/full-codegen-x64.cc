@@ -201,12 +201,6 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
     __ CallStub(&stub);
 
-    Variable* arguments_shadow = scope()->arguments_shadow();
-    if (arguments_shadow != NULL) {
-      // Store new arguments object in both "arguments" and ".arguments" slots.
-      __ movq(rcx, rax);
-      Move(arguments_shadow->AsSlot(), rcx, rbx, rdx);
-    }
     Move(arguments->AsSlot(), rax, rbx, rdx);
   }
 

@@ -2294,18 +2294,13 @@ void HGraphBuilder::SetupScope(Scope* scope) {
   // Handle the arguments and arguments shadow variables specially (they do
   // not have declarations).
   if (scope->arguments() != NULL) {
-    if (!scope->arguments()->IsStackAllocated() ||
-        (scope->arguments_shadow() != NULL &&
-        !scope->arguments_shadow()->IsStackAllocated())) {
+    if (!scope->arguments()->IsStackAllocated()) {
       BAILOUT("context-allocated arguments");
     }
     HArgumentsObject* object = new HArgumentsObject;
     AddInstruction(object);
     graph()->SetArgumentsObject(object);
     environment()->Bind(scope->arguments(), object);
-    if (scope->arguments_shadow() != NULL) {
-      environment()->Bind(scope->arguments_shadow(), object);
-    }
   }
 }
 

@@ -213,12 +213,6 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
     __ CallStub(&stub);
 
-    Variable* arguments_shadow = scope()->arguments_shadow();
-    if (arguments_shadow != NULL) {
-      // Duplicate the value; move-to-slot operation might clobber registers.
-      __ mov(r3, r0);
-      Move(arguments_shadow->AsSlot(), r3, r1, r2);
-    }
     Move(arguments->AsSlot(), r0, r1, r2);
   }
 

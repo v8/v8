@@ -200,11 +200,6 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
     __ CallStub(&stub);
 
-    Variable* arguments_shadow = scope()->arguments_shadow();
-    if (arguments_shadow != NULL) {
-      __ mov(ecx, eax);  // Duplicate result.
-      Move(arguments_shadow->AsSlot(), ecx, ebx, edx);
-    }
     Move(arguments->AsSlot(), eax, ebx, edx);
   }
 

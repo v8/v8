@@ -178,8 +178,8 @@ class Variable: public ZoneObject {
     local_if_not_shadowed_ = local;
   }
 
-  Expression* rewrite() const { return rewrite_; }
-  void set_rewrite(Expression* expr) { rewrite_ = expr; }
+  Slot* rewrite() const { return rewrite_; }
+  void set_rewrite(Slot* expr) { rewrite_ = expr; }
 
   StaticType* type() { return &type_; }
 
@@ -195,8 +195,7 @@ class Variable: public ZoneObject {
   StaticType type_;
 
   // Code generation.
-  // rewrite_ is usually a Slot or a Property, but may be any expression.
-  Expression* rewrite_;
+  Slot* rewrite_;
 
   // Valid as a LHS? (const and this are not valid LHS, for example)
   bool is_valid_LHS_;

@@ -1079,16 +1079,7 @@ class VariableProxy: public Expression {
   DECLARE_NODE_TYPE(VariableProxy)
 
   // Type testing & conversion
-  virtual Property* AsProperty() {
-    return var_ == NULL ? NULL : var_->AsProperty();
-  }
-
-  Variable* AsVariable() {
-    if (this == NULL || var_ == NULL) return NULL;
-    Expression* rewrite = var_->rewrite();
-    if (rewrite == NULL || rewrite->AsSlot() != NULL) return var_;
-    return NULL;
-  }
+  Variable* AsVariable() { return (this == NULL) ? NULL : var_; }
 
   virtual bool IsValidLeftHandSide() {
     return var_ == NULL ? true : var_->IsValidLeftHandSide();

@@ -254,10 +254,6 @@ class Scope: public ZoneObject {
   // If arguments() exist, arguments_shadow() exists, too.
   Variable* arguments() const { return arguments_; }
 
-  // The '.arguments' shadow variable if we need to allocate it; NULL otherwise.
-  // If arguments_shadow() exist, arguments() exists, too.
-  Variable* arguments_shadow() const { return arguments_shadow_; }
-
   // Declarations list.
   ZoneList<Declaration*>* declarations() { return &decls_; }
 
@@ -353,8 +349,6 @@ class Scope: public ZoneObject {
   Variable* function_;
   // Convenience variable; function scopes only.
   Variable* arguments_;
-  // Convenience variable; function scopes only.
-  Variable* arguments_shadow_;
 
   // Illegal redeclaration.
   Expression* illegal_redecl_;
@@ -431,7 +425,6 @@ class Scope: public ZoneObject {
     receiver_ = NULL;
     function_ = NULL;
     arguments_ = NULL;
-    arguments_shadow_ = NULL;
     illegal_redecl_ = NULL;
     scope_inside_with_ = false;
     scope_contains_with_ = false;
