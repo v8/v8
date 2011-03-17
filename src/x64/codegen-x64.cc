@@ -634,7 +634,9 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     // allocated yet.
     frame_->Push(Factory::arguments_marker());
   } else {
-    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    ArgumentsAccessStub stub(is_strict_mode()
+        ? ArgumentsAccessStub::NEW_STRICT
+        : ArgumentsAccessStub::NEW_NON_STRICT);
     frame_->PushFunction();
     frame_->PushReceiverSlotAddress();
     frame_->Push(Smi::FromInt(scope()->num_parameters()));

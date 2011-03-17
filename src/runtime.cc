@@ -4380,7 +4380,15 @@ static MaybeObject* Runtime_GetArgumentsProperty(Arguments args) {
 
   // Handle special arguments properties.
   if (key->Equals(Heap::length_symbol())) return Smi::FromInt(n);
-  if (key->Equals(Heap::callee_symbol())) return frame->function();
+  if (key->Equals(Heap::callee_symbol())) {
+    Object* function = frame->function();
+    if (function->IsJSFunction() &&
+        JSFunction::cast(function)->shared()->strict_mode()) {
+      return Top::Throw(*Factory::NewTypeError("strict_arguments_callee",
+                                               HandleVector<Object>(NULL, 0)));
+    }
+    return function;
+  }
 
   // Lookup in the initial Object.prototype object.
   return Top::initial_object_prototype()->GetProperty(*key);

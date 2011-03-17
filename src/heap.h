@@ -583,11 +583,16 @@ class Heap : public AllStatic {
       Object* prototype,
       PretenureFlag pretenure = TENURED);
 
-  // Indicies for direct access into argument objects.
+  // Arguments object size.
   static const int kArgumentsObjectSize =
       JSObject::kHeaderSize + 2 * kPointerSize;
-  static const int arguments_callee_index = 0;
-  static const int arguments_length_index = 1;
+  // Strict mode arguments has no callee so it is smaller.
+  static const int kArgumentsObjectSizeStrict =
+      JSObject::kHeaderSize + 1 * kPointerSize;
+  // Indicies for direct access into argument objects.
+  static const int kArgumentsLengthIndex = 0;
+  // callee is only valid in non-strict mode.
+  static const int kArgumentsCalleeIndex = 1;
 
   // Allocates an arguments object - optionally with an elements array.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

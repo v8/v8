@@ -978,6 +978,28 @@ repeat(10, function() { testAssignToUndefined(false); });
 })();
 
 
+function CheckPillDescriptor(func, name) {
+
+  function CheckPill(pill) {
+    assertEquals("function", typeof pill);
+    assertInstanceof(pill, Function);
+    assertThrows(function() { pill.property = "value"; }, TypeError);
+    assertThrows(pill, TypeError);
+    assertEquals(pill.prototype, (function(){}).prototype);
+    var d = Object.getOwnPropertyDescriptor(pill, "prototype");
+    assertFalse(d.writable);
+    assertFalse(d.configurable);
+    assertFalse(d.enumerable);
+  }
+
+  var descriptor = Object.getOwnPropertyDescriptor(func, name);
+  CheckPill(descriptor.get)
+  CheckPill(descriptor.set);
+  assertFalse(descriptor.enumerable);
+  assertFalse(descriptor.configurable);
+}
+
+
 (function TestStrictFunctionPills() {
   function strict() {
     "use strict";
@@ -992,26 +1014,6 @@ repeat(10, function() { testAssignToUndefined(false); });
   var third = (function() { "use strict"; return function() {}; })();
   assertThrows(function() { third.caller; }, TypeError);
   assertThrows(function() { third.arguments; }, TypeError);
-
-  function CheckPill(pill) {
-    assertEquals("function", typeof pill);
-    assertInstanceof(pill, Function);
-    assertThrows(function() { pill.property = "value"; }, TypeError);
-    assertThrows(pill, TypeError);
-    assertEquals(pill.prototype, (function(){}).prototype);
-    var d = Object.getOwnPropertyDescriptor(pill, "prototype");
-    assertFalse(d.writable);
-    assertFalse(d.configurable);
-    assertFalse(d.enumerable);
-  }
-
-  function CheckPillDescriptor(func, name) {
-    var descriptor = Object.getOwnPropertyDescriptor(func, name);
-    CheckPill(descriptor.get)
-    CheckPill(descriptor.set);
-    assertFalse(descriptor.enumerable);
-    assertFalse(descriptor.configurable);
-  }
 
   CheckPillDescriptor(strict, "caller");
   CheckPillDescriptor(strict, "arguments");
@@ -1040,4 +1042,42 @@ repeat(10, function() { testAssignToUndefined(false); });
   assertEquals(o.func(), "func_value");
   assertEquals(o.accessor, "accessor_value");
   assertEquals(o.property, "property_value");
+})();
+
+
+(function TestStrictArgumentPills() {
+  function strict() {
+    "use strict";
+    return arguments;
+  }
+
+  var args = strict();
+  CheckPillDescriptor(args, "caller");
+  CheckPillDescriptor(args, "callee");
+
+  args = strict(17, "value", strict);
+  assertEquals(17, args[0])
+  assertEquals("value", args[1])
+  assertEquals(strict, args[2]);
+  CheckPillDescriptor(args, "caller");
+  CheckPillDescriptor(args, "callee");
+
+  function outer() {
+    "use strict";
+    function inner() {
+      return arguments;
+    }
+    return inner;
+  }
+
+  var args = outer()();
+  CheckPillDescriptor(args, "caller");
+  CheckPillDescriptor(args, "callee");
+
+  args = outer()(17, "value", strict);
+  assertEquals(17, args[0])
+  assertEquals("value", args[1])
+  assertEquals(strict, args[2]);
+  CheckPillDescriptor(args, "caller");
+  CheckPillDescriptor(args, "callee");
 })();

@@ -138,6 +138,9 @@ unsigned int Heap::gc_count_ = 0;
 
 GCTracer* Heap::tracer_ = NULL;
 
+const int Heap::kArgumentsObjectSize;
+const int Heap::kArgumentsObjectSizeStrict;
+
 int Heap::unflattened_strings_length_ = 0;
 
 int Heap::always_allocate_scope_depth_ = 0;
@@ -2898,22 +2901,32 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   // To get fast allocation and map sharing for arguments objects we
   // allocate them based on an arguments boilerplate.
 
+  JSObject* boilerplate;
+  int arguments_object_size;
+  bool strict_mode_callee = callee->IsJSFunction() &&
+                            JSFunction::cast(callee)->shared()->strict_mode();
+  if (strict_mode_callee) {
+    boilerplate =
+        Top::context()->global_context()->strict_mode_arguments_boilerplate();
+    arguments_object_size = kArgumentsObjectSizeStrict;
+  } else {
+    boilerplate = Top::context()->global_context()->arguments_boilerplate();
+    arguments_object_size = kArgumentsObjectSize;
+  }
+
   // This calls Copy directly rather than using Heap::AllocateRaw so we
   // duplicate the check here.
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
 
-  JSObject* boilerplate =
-      Top::context()->global_context()->arguments_boilerplate();
-
   // Check that the size of the boilerplate matches our
   // expectations. The ArgumentsAccessStub::GenerateNewObject relies
   // on the size being a known constant.
-  ASSERT(kArgumentsObjectSize == boilerplate->map()->instance_size());
+  ASSERT(arguments_object_size == boilerplate->map()->instance_size());
 
   // Do the allocation.
   Object* result;
   { MaybeObject* maybe_result =
-        AllocateRaw(kArgumentsObjectSize, NEW_SPACE, OLD_POINTER_SPACE);
+        AllocateRaw(arguments_object_size, NEW_SPACE, OLD_POINTER_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
@@ -2922,14 +2935,17 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   // barrier here.
   CopyBlock(HeapObject::cast(result)->address(),
             boilerplate->address(),
-            kArgumentsObjectSize);
+            JSObject::kHeaderSize);
 
-  // Set the two properties.
-  JSObject::cast(result)->InObjectPropertyAtPut(arguments_callee_index,
-                                                callee);
-  JSObject::cast(result)->InObjectPropertyAtPut(arguments_length_index,
+  // Set the length property.
+  JSObject::cast(result)->InObjectPropertyAtPut(kArgumentsLengthIndex,
                                                 Smi::FromInt(length),
                                                 SKIP_WRITE_BARRIER);
+  // Set the callee property for non-strict mode arguments object only.
+  if (!strict_mode_callee) {
+    JSObject::cast(result)->InObjectPropertyAtPut(kArgumentsCalleeIndex,
+                                                  callee);
+  }
 
   // Check the state of the object
   ASSERT(JSObject::cast(result)->HasFastProperties());

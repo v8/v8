@@ -60,6 +60,8 @@ enum BuiltinExtraArguments {
   V(HandleApiCallAsFunction, NO_EXTRA_ARGUMENTS)                    \
   V(HandleApiCallAsConstructor, NO_EXTRA_ARGUMENTS)                 \
                                                                     \
+  V(StrictArgumentsCallee, NO_EXTRA_ARGUMENTS)                      \
+  V(StrictArgumentsCaller, NO_EXTRA_ARGUMENTS)                      \
   V(StrictFunctionCaller, NO_EXTRA_ARGUMENTS)                       \
   V(StrictFunctionArguments, NO_EXTRA_ARGUMENTS)
 

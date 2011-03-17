@@ -475,8 +475,13 @@ const char* GenericUnaryOpStub::GetName() {
 
 void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
   switch (type_) {
-    case READ_ELEMENT: GenerateReadElement(masm); break;
-    case NEW_OBJECT: GenerateNewObject(masm); break;
+    case READ_ELEMENT:
+      GenerateReadElement(masm);
+      break;
+    case NEW_NON_STRICT:
+    case NEW_STRICT:
+      GenerateNewObject(masm);
+      break;
   }
 }
 

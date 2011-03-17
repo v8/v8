@@ -2338,16 +2338,16 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ j(zero, &add_arguments_object);
   __ leal(rcx, Operand(rcx, times_pointer_size, FixedArray::kHeaderSize));
   __ bind(&add_arguments_object);
-  __ addl(rcx, Immediate(Heap::kArgumentsObjectSize));
+  __ addl(rcx, Immediate(GetArgumentsObjectSize()));
 
   // Do the allocation of both objects in one go.
   __ AllocateInNewSpace(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
 
   // Get the arguments boilerplate from the current (global) context.
-  int offset = Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX);
   __ movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ movq(rdi, FieldOperand(rdi, GlobalObject::kGlobalContextOffset));
-  __ movq(rdi, Operand(rdi, offset));
+  __ movq(rdi, Operand(rdi,
+                       Context::SlotOffset(GetArgumentsBoilerplateIndex())));
 
   // Copy the JS object part.
   STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
@@ -2358,15 +2358,21 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ movq(FieldOperand(rax, 1 * kPointerSize), rdx);
   __ movq(FieldOperand(rax, 2 * kPointerSize), rbx);
 
-  // Setup the callee in-object property.
-  ASSERT(Heap::arguments_callee_index == 0);
-  __ movq(kScratchRegister, Operand(rsp, 3 * kPointerSize));
-  __ movq(FieldOperand(rax, JSObject::kHeaderSize), kScratchRegister);
+  if (type_ == NEW_NON_STRICT) {
+    // Setup the callee in-object property.
+    ASSERT(Heap::kArgumentsCalleeIndex == 1);
+    __ movq(kScratchRegister, Operand(rsp, 3 * kPointerSize));
+    __ movq(FieldOperand(rax, JSObject::kHeaderSize +
+                              Heap::kArgumentsCalleeIndex * kPointerSize),
+            kScratchRegister);
+  }
 
   // Get the length (smi tagged) and set that as an in-object property too.
-  ASSERT(Heap::arguments_length_index == 1);
+  ASSERT(Heap::kArgumentsLengthIndex == 0);
   __ movq(rcx, Operand(rsp, 1 * kPointerSize));
-  __ movq(FieldOperand(rax, JSObject::kHeaderSize + kPointerSize), rcx);
+  __ movq(FieldOperand(rax, JSObject::kHeaderSize +
+                            Heap::kArgumentsLengthIndex * kPointerSize),
+          rcx);
 
   // If there are no actual arguments, we're done.
   Label done;
@@ -2378,7 +2384,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
   // Setup the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
-  __ lea(rdi, Operand(rax, Heap::kArgumentsObjectSize));
+  __ lea(rdi, Operand(rax, GetArgumentsObjectSize()));
   __ movq(FieldOperand(rax, JSObject::kElementsOffset), rdi);
   __ LoadRoot(kScratchRegister, Heap::kFixedArrayMapRootIndex);
   __ movq(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);

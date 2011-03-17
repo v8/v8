@@ -239,15 +239,11 @@ chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-2: FAIL_OK
 # Incorrect test - need double escape in eval.
 chapter07/7.8/7.8.4/7.8.4-1-s: FAIL
 
-# Accessing caller property of Arguments object throws TypeError in strict mode
-chapter10/10.6/10.6-13-b-1-s: FAIL
-# arguments.caller exists in strict mode
-chapter10/10.6/10.6-13-b-2-s: FAIL
 # arguments.caller is non-configurable in strict mode
+# Invalid test case. Checks for "writable == true" and presence of "put"..
 chapter10/10.6/10.6-13-b-3-s: FAIL
-# Accessing callee property of Arguments object throws TypeError in strict mode
-chapter10/10.6/10.6-13-c-1-s: FAIL
 # arguments.callee is non-configurable in strict mode
+# Invalid test case. Checks for "put" property accessor.
 chapter10/10.6/10.6-13-c-3-s: FAIL
 
 # simple assignment throws TypeError if LeftHandSide is a property reference

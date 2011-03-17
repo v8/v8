@@ -1021,12 +1021,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSObject> result = Factory::NewJSObject(function);
 
     global_context()->set_arguments_boilerplate(*result);
-    // Note: callee must be added as the first property and
-    //       length must be added as the second property.
-    SetLocalPropertyNoThrow(result, Factory::callee_symbol(),
+    // Note: length must be added as the first property and
+    //       callee must be added as the second property.
+    SetLocalPropertyNoThrow(result, Factory::length_symbol(),
                             Factory::undefined_value(),
                             DONT_ENUM);
-    SetLocalPropertyNoThrow(result, Factory::length_symbol(),
+    SetLocalPropertyNoThrow(result, Factory::callee_symbol(),
                             Factory::undefined_value(),
                             DONT_ENUM);
 
@@ -1034,14 +1034,85 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     LookupResult lookup;
     result->LocalLookup(Heap::callee_symbol(), &lookup);
     ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
-    ASSERT(lookup.GetFieldIndex() == Heap::arguments_callee_index);
+    ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsCalleeIndex);
 
     result->LocalLookup(Heap::length_symbol(), &lookup);
     ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
-    ASSERT(lookup.GetFieldIndex() == Heap::arguments_length_index);
+    ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsLengthIndex);
 
-    ASSERT(result->map()->inobject_properties() > Heap::arguments_callee_index);
-    ASSERT(result->map()->inobject_properties() > Heap::arguments_length_index);
+    ASSERT(result->map()->inobject_properties() > Heap::kArgumentsCalleeIndex);
+    ASSERT(result->map()->inobject_properties() > Heap::kArgumentsLengthIndex);
+
+    // Check the state of the object.
+    ASSERT(result->HasFastProperties());
+    ASSERT(result->HasFastElements());
+#endif
+  }
+
+  {  // --- strict mode arguments boilerplate
+    const PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+    // Create the ThrowTypeError functions.
+    Handle<FixedArray> callee = Factory::NewFixedArray(2, TENURED);
+    Handle<FixedArray> caller = Factory::NewFixedArray(2, TENURED);
+
+    Handle<JSFunction> callee_throw =
+        CreateThrowTypeErrorFunction(Builtins::StrictArgumentsCallee);
+    Handle<JSFunction> caller_throw =
+        CreateThrowTypeErrorFunction(Builtins::StrictArgumentsCaller);
+
+    // Install the ThrowTypeError functions.
+    callee->set(0, *callee_throw);
+    callee->set(1, *callee_throw);
+    caller->set(0, *caller_throw);
+    caller->set(1, *caller_throw);
+
+    // Create the descriptor array for the arguments object.
+    Handle<DescriptorArray> descriptors = Factory::NewDescriptorArray(3);
+    {  // length
+      FieldDescriptor d(*Factory::length_symbol(), 0, DONT_ENUM);
+      descriptors->Set(0, &d);
+    }
+    {  // callee
+      CallbacksDescriptor d(*Factory::callee_symbol(), *callee, attributes);
+      descriptors->Set(1, &d);
+    }
+    {  // caller
+      CallbacksDescriptor d(*Factory::caller_symbol(), *caller, attributes);
+      descriptors->Set(2, &d);
+    }
+    descriptors->Sort();
+
+    // Create the map. Allocate one in-object field for length.
+    Handle<Map> map = Factory::NewMap(JS_OBJECT_TYPE,
+                                      Heap::kArgumentsObjectSizeStrict);
+    map->set_instance_descriptors(*descriptors);
+    map->set_function_with_prototype(true);
+    map->set_prototype(global_context()->object_function()->prototype());
+    map->set_pre_allocated_property_fields(1);
+    map->set_inobject_properties(1);
+
+    // Copy constructor from the non-strict arguments boilerplate.
+    map->set_constructor(
+      global_context()->arguments_boilerplate()->map()->constructor());
+
+    // Allocate the arguments boilerplate object.
+    Handle<JSObject> result = Factory::NewJSObjectFromMap(map);
+    global_context()->set_strict_mode_arguments_boilerplate(*result);
+
+    // Add length property only for strict mode boilerplate.
+    SetLocalPropertyNoThrow(result, Factory::length_symbol(),
+                            Factory::undefined_value(),
+                            DONT_ENUM);
+
+#ifdef DEBUG
+    LookupResult lookup;
+    result->LocalLookup(Heap::length_symbol(), &lookup);
+    ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
+    ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsLengthIndex);
+
+    ASSERT(result->map()->inobject_properties() > Heap::kArgumentsLengthIndex);
 
     // Check the state of the object.
     ASSERT(result->HasFastProperties());
