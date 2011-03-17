@@ -25,48 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that installing a getter on the global object instead of a
-// normal property works.
+// This test tests that no bailouts are missing by not hitting asserts in debug
+// mode. 
 
-x = 0;
+test_count_operation()
+test_compound_assignment()
 
-function getX() { return x; }
-
-for (var i = 0; i < 10; i++) {
-  assertEquals(i < 5 ? 0 : 42, getX());
-  if (i == 4) __defineGetter__("x", function() { return 42; });
+function f() {}
+function test_count_operation()
+{
+  this.__defineSetter__('x', f);
+  this.__defineGetter__('x', f);
+  x = x++;
 }
 
-
-// Test that installing a setter on the global object instead of a
-// normal property works.
-
-y = 0;
-var setter_y;
-
-function setY(value) { y = value; }
-
-for (var i = 0; i < 10; i++) {
-  setY(i);
-  assertEquals(i < 5 ? i : 2 * i, y);
-  if (i == 4) {
-    __defineSetter__("y", function(value) { setter_y = 2 * value; });
-    __defineGetter__("y", function() { return setter_y; });
-  }
-}
-
-
-// Test that replacing a getter with a normal property works as
-// expected.
-
-__defineGetter__("z", function() { return 42; });
-
-function getZ() { return z; }
-
-for (var i = 0; i < 10; i++) {
-  assertEquals(i < 5 ? 42 : 0, getZ());
-  if (i == 4) {
-    delete z;
-    z = 0;
-  }
+function test_compound_assignment()
+{
+  this.__defineSetter__('y', f);
+  this.__defineGetter__('y', f);
+  y += y;
 }

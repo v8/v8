@@ -39,9 +39,6 @@ namespace internal {
 // At GC the destroyed global handles are removed from the free list
 // and deallocated.
 
-// Callback function on handling weak global handles.
-// typedef bool (*WeakSlotCallback)(Object** pointer);
-
 // An object group is treated like a single JS object: if one of object in
 // the group is alive, all objects in the same group are considered alive.
 // An object group is used to simulate object relationship in a DOM tree.
@@ -58,6 +55,24 @@ class ObjectGroup : public Malloced {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ObjectGroup);
+};
+
+
+// An implicit references group consists of two parts: a parent object and
+// a list of children objects.  If the parent is alive, all the children
+// are alive too.
+class ImplicitRefGroup : public Malloced {
+ public:
+  ImplicitRefGroup() : children_(4) {}
+  ImplicitRefGroup(HeapObject* parent, size_t capacity)
+      : parent_(parent),
+        children_(static_cast<int>(capacity)) { }
+
+  HeapObject* parent_;
+  List<Object**> children_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ImplicitRefGroup);
 };
 
 
@@ -128,17 +143,28 @@ class GlobalHandles : public AllStatic {
   static void IdentifyWeakHandles(WeakSlotCallback f);
 
   // Add an object group.
-  // Should only used in GC callback function before a collection.
+  // Should be only used in GC callback function before a collection.
   // All groups are destroyed after a mark-compact collection.
-  static void AddGroup(Object*** handles,
-                       size_t length,
-                       v8::RetainedObjectInfo* info);
+  static void AddObjectGroup(Object*** handles,
+                             size_t length,
+                             v8::RetainedObjectInfo* info);
+
+  // Add an implicit references' group.
+  // Should be only used in GC callback function before a collection.
+  // All groups are destroyed after a mark-compact collection.
+  static void AddImplicitReferences(HeapObject* parent,
+                                    Object*** children,
+                                    size_t length);
 
   // Returns the object groups.
   static List<ObjectGroup*>* ObjectGroups();
 
+  // Returns the implicit references' groups.
+  static List<ImplicitRefGroup*>* ImplicitRefGroups();
+
   // Remove bags, this should only happen after GC.
   static void RemoveObjectGroups();
+  static void RemoveImplicitRefGroups();
 
   // Tear down the global handle structure.
   static void TearDown();

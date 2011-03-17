@@ -221,7 +221,7 @@ class Factory : public AllStatic {
   static Handle<JSObject> NewJSObjectFromMap(Handle<Map> map);
 
   // JS arrays are pretenured when allocated by the parser.
-  static Handle<JSArray> NewJSArray(int init_length,
+  static Handle<JSArray> NewJSArray(int capacity,
                                     PretenureFlag pretenure = NOT_TENURED);
 
   static Handle<JSArray> NewJSArrayWithElements(

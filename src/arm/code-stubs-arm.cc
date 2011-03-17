@@ -635,64 +635,13 @@ void FloatingPointHelper::ConvertNumberToInt32(MacroAssembler* masm,
   __ jmp(&done);
 
   __ bind(&not_in_int32_range);
-  __ ldr(scratch2, FieldMemOperand(object, HeapNumber::kExponentOffset));
-  __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+  __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
+  __ ldr(scratch2, FieldMemOperand(object, HeapNumber::kMantissaOffset));
 
-  // Register scratch1 contains mantissa word, scratch2 contains
-  // sign, exponent and mantissa. Extract biased exponent into dst.
-  __ Ubfx(dst,
-          scratch2,
-          HeapNumber::kExponentShift,
-          HeapNumber::kExponentBits);
-
-  // Express exponent as delta to 31.
-  __ sub(dst, dst, Operand(HeapNumber::kExponentBias + 31));
-
-  Label normal_exponent;
-  // If the delta is larger than kMantissaBits plus one, all bits
-  // would be shifted away, which means that we can return 0.
-  __ cmp(dst, Operand(HeapNumber::kMantissaBits + 1));
-  __ b(&normal_exponent, lt);
-  __ mov(dst, Operand(0));
-  __ jmp(&done);
-
-  __ bind(&normal_exponent);
-  const int kShiftBase = HeapNumber::kNonMantissaBitsInTopWord - 1;
-  // Calculate shift.
-  __ add(scratch3, dst, Operand(kShiftBase));
-
-  // Put implicit 1 before the mantissa part in scratch2.
-  __ orr(scratch2,
-         scratch2,
-         Operand(1 << HeapNumber::kMantissaBitsInTopWord));
-
-  // Save sign.
-  Register sign = dst;
-  __ and_(sign, scratch2, Operand(HeapNumber::kSignMask));
-
-  // Shift mantisssa bits the correct position in high word.
-  __ mov(scratch2, Operand(scratch2, LSL, scratch3));
-
-  // Replace the shifted bits with bits from the lower mantissa word.
-  Label pos_shift, shift_done;
-  __ rsb(scratch3, scratch3, Operand(32), SetCC);
-  __ b(&pos_shift, ge);
-
-  // Negate scratch3.
-  __ rsb(scratch3, scratch3, Operand(0));
-  __ mov(scratch1, Operand(scratch1, LSL, scratch3));
-  __ jmp(&shift_done);
-
-  __ bind(&pos_shift);
-  __ mov(scratch1, Operand(scratch1, LSR, scratch3));
-
-  __ bind(&shift_done);
-  __ orr(scratch2, scratch2, Operand(scratch1));
-
-  // Restore sign if necessary.
-  __ cmp(sign, Operand(0));
-  __ rsb(dst, scratch2, Operand(0), LeaveCC, ne);
-  __ mov(dst, scratch2, LeaveCC, eq);
+  __ EmitOutOfInt32RangeTruncate(dst,
+                                 scratch1,
+                                 scratch2,
+                                 scratch3);
   __ jmp(&done);
 
   __ bind(&is_smi);
@@ -5086,7 +5035,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ CompareObjectType(r7, r0, r0, CODE_TYPE);
   __ b(ne, &runtime);
 
-  // r3: encoding of subject string (1 if ascii, 0 if two_byte);
+  // r3: encoding of subject string (1 if ASCII, 0 if two_byte);
   // r7: code
   // subject: Subject string
   // regexp_data: RegExp data (FixedArray)
@@ -5096,7 +5045,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(r1, Operand(r1, ASR, kSmiTagSize));
 
   // r1: previous index
-  // r3: encoding of subject string (1 if ascii, 0 if two_byte);
+  // r3: encoding of subject string (1 if ASCII, 0 if two_byte);
   // r7: code
   // subject: Subject string
   // regexp_data: RegExp data (FixedArray)
@@ -5628,7 +5577,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   __ b(ne, &slow_case_);
 
   __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);
-  // At this point code register contains smi tagged ascii char code.
+  // At this point code register contains smi tagged ASCII char code.
   STATIC_ASSERT(kSmiTag == 0);
   __ add(result_, result_, Operand(code_, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ ldr(result_, FieldMemOperand(result_, FixedArray::kHeaderSize));
@@ -5960,7 +5909,6 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   Register symbol_table = c2;
   __ LoadRoot(symbol_table, Heap::kSymbolTableRootIndex);
 
-  // Load undefined value
   Register undefined = scratch4;
   __ LoadRoot(undefined, Heap::kUndefinedValueRootIndex);
 
@@ -5981,6 +5929,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   // mask:  capacity mask
   // first_symbol_table_element: address of the first element of
   //                             the symbol table
+  // undefined: the undefined object
   // scratch: -
 
   // Perform a number of probes in the symbol table.
@@ -6008,19 +5957,31 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
                       kPointerSizeLog2));
 
     // If entry is undefined no string with this hash can be found.
-    __ cmp(candidate, undefined);
+    Label is_string;
+    __ CompareObjectType(candidate, scratch, scratch, ODDBALL_TYPE);
+    __ b(ne, &is_string);
+
+    __ cmp(undefined, candidate);
     __ b(eq, not_found);
+    // Must be null (deleted entry).
+    if (FLAG_debug_code) {
+      __ LoadRoot(ip, Heap::kNullValueRootIndex);
+      __ cmp(ip, candidate);
+      __ Assert(eq, "oddball in symbol table is not undefined or null");
+    }
+    __ jmp(&next_probe[i]);
+
+    __ bind(&is_string);
+
+    // Check that the candidate is a non-external ASCII string.  The instance
+    // type is still in the scratch register from the CompareObjectType
+    // operation.
+    __ JumpIfInstanceTypeIsNotSequentialAscii(scratch, scratch, &next_probe[i]);
 
     // If length is not 2 the string is not a candidate.
     __ ldr(scratch, FieldMemOperand(candidate, String::kLengthOffset));
     __ cmp(scratch, Operand(Smi::FromInt(2)));
     __ b(ne, &next_probe[i]);
-
-    // Check that the candidate is a non-external ascii string.
-    __ ldr(scratch, FieldMemOperand(candidate, HeapObject::kMapOffset));
-    __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-    __ JumpIfInstanceTypeIsNotSequentialAscii(scratch, scratch,
-                                              &next_probe[i]);
 
     // Check if the two characters match.
     // Assumes that word load is little endian.
@@ -6177,7 +6138,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r3: from index (untaged smi)
   // r5: string.
   // r7 (a.k.a. from): from offset (smi)
-  // Check for flat ascii string.
+  // Check for flat ASCII string.
   Label non_ascii_flat;
   __ tst(r1, Operand(kStringEncodingMask));
   STATIC_ASSERT(kTwoByteStringTag == 0);
@@ -6353,10 +6314,10 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
   __ bind(&not_same);
 
-  // Check that both objects are sequential ascii strings.
+  // Check that both objects are sequential ASCII strings.
   __ JumpIfNotBothSequentialAsciiStrings(r1, r0, r2, r3, &runtime);
 
-  // Compare flat ascii strings natively. Remove arguments from stack first.
+  // Compare flat ASCII strings natively. Remove arguments from stack first.
   __ IncrementCounter(&Counters::string_compare_native, 1, r2, r3);
   __ add(sp, sp, Operand(2 * kPointerSize));
   GenerateCompareFlatAsciiStrings(masm, r1, r0, r2, r3, r4, r5);
@@ -6448,12 +6409,12 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Adding two lengths can't overflow.
   STATIC_ASSERT(String::kMaxLength < String::kMaxLength * 2);
   __ add(r6, r2, Operand(r3));
-  // Use the runtime system when adding two one character strings, as it
-  // contains optimizations for this specific case using the symbol table.
+  // Use the symbol table when adding two one character strings, as it
+  // helps later optimizations to return a symbol here.
   __ cmp(r6, Operand(2));
   __ b(ne, &longer_than_two);
 
-  // Check that both strings are non-external ascii strings.
+  // Check that both strings are non-external ASCII strings.
   if (flags_ != NO_STRING_ADD_FLAGS) {
     __ ldr(r4, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ ldr(r5, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -6501,7 +6462,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ b(hs, &string_add_runtime);
 
   // If result is not supposed to be flat, allocate a cons string object.
-  // If both strings are ascii the result is an ascii cons string.
+  // If both strings are ASCII the result is an ASCII cons string.
   if (flags_ != NO_STRING_ADD_FLAGS) {
     __ ldr(r4, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ ldr(r5, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -6528,7 +6489,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   __ bind(&non_ascii);
   // At least one of the strings is two-byte. Check whether it happens
-  // to contain only ascii characters.
+  // to contain only ASCII characters.
   // r4: first instance type.
   // r5: second instance type.
   __ tst(r4, Operand(kAsciiDataHintMask));
@@ -6706,56 +6667,6 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
   __ str(arg, MemOperand(sp, stack_offset));
 
   __ bind(&done);
-}
-
-
-void StringCharAtStub::Generate(MacroAssembler* masm) {
-  // Expects two arguments (object, index) on the stack:
-  //  lr: return address
-  //  sp[0]: index
-  //  sp[4]: object
-  Register object = r1;
-  Register index = r0;
-  Register scratch1 = r2;
-  Register scratch2 = r3;
-  Register result = r0;
-
-  // Get object and index from the stack.
-  __ pop(index);
-  __ pop(object);
-
-  Label need_conversion;
-  Label index_out_of_range;
-  Label done;
-  StringCharAtGenerator generator(object,
-                                  index,
-                                  scratch1,
-                                  scratch2,
-                                  result,
-                                  &need_conversion,
-                                  &need_conversion,
-                                  &index_out_of_range,
-                                  STRING_INDEX_IS_NUMBER);
-  generator.GenerateFast(masm);
-  __ b(&done);
-
-  __ bind(&index_out_of_range);
-  // When the index is out of range, the spec requires us to return
-  // the empty string.
-  __ LoadRoot(result, Heap::kEmptyStringRootIndex);
-  __ jmp(&done);
-
-  __ bind(&need_conversion);
-  // Move smi zero into the result register, which will trigger
-  // conversion.
-  __ mov(result, Operand(Smi::FromInt(0)));
-  __ b(&done);
-
-  StubRuntimeCallHelper call_helper;
-  generator.GenerateSlow(masm, call_helper);
-
-  __ bind(&done);
-  __ Ret();
 }
 
 

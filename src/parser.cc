@@ -5133,7 +5133,7 @@ bool ParserApi::Parse(CompilationInfo* info) {
     result = parser.ParseLazy(info);
   } else {
     bool allow_natives_syntax =
-        FLAG_allow_natives_syntax || Bootstrapper::IsActive();
+        info->allows_natives_syntax() || FLAG_allow_natives_syntax;
     ScriptDataImpl* pre_data = info->pre_parse_data();
     Parser parser(script, allow_natives_syntax, info->extension(), pre_data);
     if (pre_data != NULL && pre_data->has_error()) {

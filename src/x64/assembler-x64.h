@@ -511,6 +511,9 @@ class Assembler : public Malloced {
   Assembler(void* buffer, int buffer_size);
   ~Assembler();
 
+  // Overrides the default provided by FLAG_debug_code.
+  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
+
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
@@ -656,7 +659,7 @@ class Assembler : public Malloced {
 
   // Move sign extended immediate to memory location.
   void movq(const Operand& dst, Immediate value);
-  // New x64 instructions to load a 64-bit immediate into a register.
+  // Instructions to load a 64-bit immediate into a register.
   // All 64-bit immediates must have a relocation mode.
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
   void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
@@ -681,7 +684,7 @@ class Assembler : public Malloced {
   void repmovsl();
   void repmovsq();
 
-  // New x64 instruction to load from an immediate 64-bit pointer into RAX.
+  // Instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(void* ptr, RelocInfo::Mode rmode);
   void load_rax(ExternalReference ext);
 
@@ -1350,6 +1353,9 @@ class Assembler : public Malloced {
   static const int kMaximalBufferSize = 512*MB;
   static const int kMinimalBufferSize = 4*KB;
 
+ protected:
+  bool emit_debug_code() const { return emit_debug_code_; }
+
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }
   byte byte_at(int pos)  { return buffer_[pos]; }
@@ -1555,6 +1561,9 @@ class Assembler : public Malloced {
   byte* last_pc_;
 
   PositionsRecorder positions_recorder_;
+
+  bool emit_debug_code_;
+
   friend class PositionsRecorder;
 };
 

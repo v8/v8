@@ -9943,12 +9943,6 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     __ CmpObjectType(receiver.reg(), JS_ARRAY_TYPE, tmp.reg());
     deferred->Branch(not_equal);
 
-    // Check that the key is within bounds.  Both the key and the length of
-    // the JSArray are smis. Use unsigned comparison to handle negative keys.
-    __ cmp(key.reg(),
-           FieldOperand(receiver.reg(), JSArray::kLengthOffset));
-    deferred->Branch(above_equal);
-
     // Get the elements array from the receiver and check that it is not a
     // dictionary.
     __ mov(tmp.reg(),
@@ -9973,6 +9967,14 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     __ cmp(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
            Immediate(Factory::fixed_array_map()));
     deferred->Branch(not_equal);
+
+    // Check that the key is within bounds.  Both the key and the length of
+    // the JSArray are smis (because the fixed array check above ensures the
+    // elements are in fast case). Use unsigned comparison to handle negative
+    // keys.
+    __ cmp(key.reg(),
+           FieldOperand(receiver.reg(), JSArray::kLengthOffset));
+    deferred->Branch(above_equal);
 
     // Store the value.
     __ mov(FixedArrayElementOperand(tmp.reg(), key.reg()), result.reg());

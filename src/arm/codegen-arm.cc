@@ -1159,7 +1159,7 @@ void DeferredInlineSmiOperation::GenerateNonSmiInput() {
   }
   // Check that the *signed* result fits in a smi. Not necessary for AND, SAR
   // if the shift if more than 0 or SHR if the shit is more than 1.
-  if (!( (op_ == Token::AND) ||
+  if (!( (op_ == Token::AND && value_ >= 0) ||
         ((op_ == Token::SAR) && (shift_value > 0)) ||
         ((op_ == Token::SHR) && (shift_value > 1)))) {
     __ add(r3, int32, Operand(0x40000000), SetCC);
@@ -1420,8 +1420,10 @@ void CodeGenerator::SmiOperation(Token::Value op,
           default: UNREACHABLE();
         }
         deferred->BindExit();
-        TypeInfo result_type =
-            (op == Token::BIT_AND) ? TypeInfo::Smi() : TypeInfo::Integer32();
+        TypeInfo result_type = TypeInfo::Integer32();
+        if (op == Token::BIT_AND && int_value >= 0) {
+          result_type = TypeInfo::Smi();
+        }
         frame_->EmitPush(tos, result_type);
       }
       break;
@@ -5584,8 +5586,8 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   // Fetch the map and check if array is in fast case.
   // Check that object doesn't require security checks and
   // has no indexed interceptor.
-  __ CompareObjectType(object, tmp1, tmp2, FIRST_JS_OBJECT_TYPE);
-  deferred->Branch(lt);
+  __ CompareObjectType(object, tmp1, tmp2, JS_ARRAY_TYPE);
+  deferred->Branch(ne);
   __ ldrb(tmp2, FieldMemOperand(tmp1, Map::kBitFieldOffset));
   __ tst(tmp2, Operand(KeyedLoadIC::kSlowCaseBitFieldMask));
   deferred->Branch(ne);
@@ -7139,7 +7141,6 @@ void CodeGenerator::EmitKeyedStore(StaticType* key_type,
                         scratch1, scratch2);
 
 
-
     // Load the value, key and receiver from the stack.
     bool value_is_harmless = frame_->KnownSmiAt(0);
     if (wb_info == NEVER_NEWSPACE) value_is_harmless = true;
@@ -7187,12 +7188,6 @@ void CodeGenerator::EmitKeyedStore(StaticType* key_type,
     __ CompareObjectType(receiver, scratch1, scratch1, JS_ARRAY_TYPE);
     deferred->Branch(ne);
 
-    // Check that the key is within bounds. Both the key and the length of
-    // the JSArray are smis. Use unsigned comparison to handle negative keys.
-    __ ldr(scratch1, FieldMemOperand(receiver, JSArray::kLengthOffset));
-    __ cmp(scratch1, key);
-    deferred->Branch(ls);  // Unsigned less equal.
-
     // Get the elements array from the receiver.
     __ ldr(scratch1, FieldMemOperand(receiver, JSObject::kElementsOffset));
     if (!value_is_harmless && wb_info != LIKELY_SMI) {
@@ -7207,6 +7202,7 @@ void CodeGenerator::EmitKeyedStore(StaticType* key_type,
     }
     // Check that the elements array is not a dictionary.
     __ ldr(scratch2, FieldMemOperand(scratch1, JSObject::kMapOffset));
+
     // The following instructions are the part of the inlined store keyed
     // property code which can be patched. Therefore the exact number of
     // instructions generated need to be fixed, so the constant pool is blocked
@@ -7225,6 +7221,14 @@ void CodeGenerator::EmitKeyedStore(StaticType* key_type,
       __ mov(scratch3, Operand(Factory::fixed_array_map()));
       __ cmp(scratch2, scratch3);
       deferred->Branch(ne);
+
+      // Check that the key is within bounds.  Both the key and the length of
+      // the JSArray are smis (because the fixed array check above ensures the
+      // elements are in fast case). Use unsigned comparison to handle negative
+      // keys.
+      __ ldr(scratch3, FieldMemOperand(receiver, JSArray::kLengthOffset));
+      __ cmp(scratch3, key);
+      deferred->Branch(ls);  // Unsigned less equal.
 
       // Store the value.
       __ add(scratch1, scratch1,

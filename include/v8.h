@@ -1706,7 +1706,12 @@ class Array : public Object {
    */
   V8EXPORT Local<Object> CloneElementAt(uint32_t index);
 
+  /**
+   * Creates a JavaScript array with the given length. If the length
+   * is negative the returned array will have length 0.
+   */
   V8EXPORT static Local<Array> New(int length = 0);
+
   static inline Array* Cast(Value* obj);
  private:
   V8EXPORT Array();
@@ -2716,6 +2721,17 @@ class V8EXPORT V8 {
   static void AddObjectGroup(Persistent<Value>* objects,
                              size_t length,
                              RetainedObjectInfo* info = NULL);
+
+  /**
+   * Allows the host application to declare implicit references between
+   * the objects: if |parent| is alive, all |children| are alive too.
+   * After each garbage collection, all implicit references
+   * are removed.  It is intended to be used in the before-garbage-collection
+   * callback function.
+   */
+  static void AddImplicitReferences(Persistent<Object> parent,
+                                    Persistent<Value>* children,
+                                    size_t length);
 
   /**
    * Initializes from snapshot if possible. Otherwise, attempts to

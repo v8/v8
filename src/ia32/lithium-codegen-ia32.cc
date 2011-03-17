@@ -743,11 +743,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::StringCharAt: {
-      StringCharAtStub stub;
-      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::NumberToString: {
       NumberToStringStub stub;
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
@@ -898,7 +893,49 @@ void LCodeGen::DoMulI(LMulI* instr) {
   }
 
   if (right->IsConstantOperand()) {
-    __ imul(left, left, ToInteger32(LConstantOperand::cast(right)));
+    // Try strength reductions on the multiplication.
+    // All replacement instructions are at most as long as the imul
+    // and have better latency.
+    int constant = ToInteger32(LConstantOperand::cast(right));
+    if (constant == -1) {
+      __ neg(left);
+    } else if (constant == 0) {
+      __ xor_(left, Operand(left));
+    } else if (constant == 2) {
+      __ add(left, Operand(left));
+    } else if (!instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+      // If we know that the multiplication can't overflow, it's safe to
+      // use instructions that don't set the overflow flag for the
+      // multiplication.
+      switch (constant) {
+        case 1:
+          // Do nothing.
+          break;
+        case 3:
+          __ lea(left, Operand(left, left, times_2, 0));
+          break;
+        case 4:
+          __ shl(left, 2);
+          break;
+        case 5:
+          __ lea(left, Operand(left, left, times_4, 0));
+          break;
+        case 8:
+          __ shl(left, 3);
+          break;
+        case 9:
+          __ lea(left, Operand(left, left, times_8, 0));
+          break;
+       case 16:
+         __ shl(left, 4);
+         break;
+        default:
+          __ imul(left, left, constant);
+          break;
+      }
+    } else {
+      __ imul(left, left, constant);
+    }
   } else {
     __ imul(left, ToOperand(right));
   }
@@ -2026,13 +2063,26 @@ void LCodeGen::DoReturn(LReturn* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
+void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
   __ mov(result, Operand::Cell(instr->hydrogen()->cell()));
   if (instr->hydrogen()->check_hole_value()) {
     __ cmp(result, Factory::the_hole_value());
     DeoptimizeIf(equal, instr->environment());
   }
+}
+
+
+void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
+  ASSERT(ToRegister(instr->context()).is(esi));
+  ASSERT(ToRegister(instr->global_object()).is(eax));
+  ASSERT(ToRegister(instr->result()).is(eax));
+
+  __ mov(ecx, instr->name());
+  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET :
+                                               RelocInfo::CODE_TARGET_CONTEXT;
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  CallCode(ic, mode, instr);
 }
 
 
@@ -3502,9 +3552,15 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsRegister());
   __ test(ToRegister(input), Immediate(kSmiTagMask));
-  DeoptimizeIf(instr->condition(), instr->environment());
+  DeoptimizeIf(not_zero, instr->environment());
+}
+
+
+void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
+  LOperand* input = instr->InputAt(0);
+  __ test(ToRegister(input), Immediate(kSmiTagMask));
+  DeoptimizeIf(zero, instr->environment());
 }
 
 

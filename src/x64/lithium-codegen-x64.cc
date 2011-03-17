@@ -714,11 +714,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::StringCharAt: {
-      StringCharAtStub stub;
-      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::NumberToString: {
       NumberToStringStub stub;
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
@@ -1249,7 +1244,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ j(equal, true_label);
       __ CompareRoot(reg, Heap::kFalseValueRootIndex);
       __ j(equal, false_label);
-      __ SmiCompare(reg, Smi::FromInt(0));
+      __ Cmp(reg, Smi::FromInt(0));
       __ j(equal, false_label);
       __ JumpIfSmi(reg, true_label);
 
@@ -1989,7 +1984,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
+void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
   if (result.is(rax)) {
     __ load_rax(instr->hydrogen()->cell().location(),
@@ -2002,6 +1997,18 @@ void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
     __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(equal, instr->environment());
   }
+}
+
+
+void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
+  ASSERT(ToRegister(instr->global_object()).is(rax));
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  __ Move(rcx, instr->name());
+  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET :
+                                               RelocInfo::CODE_TARGET_CONTEXT;
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  CallCode(ic, mode, instr);
 }
 
 
@@ -2201,8 +2208,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   // Check for arguments adapter frame.
   NearLabel done, adapted;
   __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ SmiCompare(Operand(result, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Cmp(Operand(result, StandardFrameConstants::kContextOffset),
+         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(equal, &adapted);
 
   // No arguments adaptor frame.
@@ -3302,11 +3309,14 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsRegister());
   Condition cc = masm()->CheckSmi(ToRegister(input));
-  if (instr->condition() != equal) {
-    cc = NegateCondition(cc);
-  }
+  DeoptimizeIf(NegateCondition(cc), instr->environment());
+}
+
+
+void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
+  LOperand* input = instr->InputAt(0);
+  Condition cc = masm()->CheckSmi(ToRegister(input));
   DeoptimizeIf(cc, instr->environment());
 }
 
@@ -3685,15 +3695,15 @@ void LCodeGen::EmitIsConstructCall(Register temp) {
 
   // Skip the arguments adaptor frame if it exists.
   NearLabel check_frame_marker;
-  __ SmiCompare(Operand(temp, StandardFrameConstants::kContextOffset),
-                Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Cmp(Operand(temp, StandardFrameConstants::kContextOffset),
+         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(not_equal, &check_frame_marker);
   __ movq(temp, Operand(rax, StandardFrameConstants::kCallerFPOffset));
 
   // Check the marker in the calling frame.
   __ bind(&check_frame_marker);
-  __ SmiCompare(Operand(temp, StandardFrameConstants::kMarkerOffset),
-                Smi::FromInt(StackFrame::CONSTRUCT));
+  __ Cmp(Operand(temp, StandardFrameConstants::kMarkerOffset),
+         Smi::FromInt(StackFrame::CONSTRUCT));
 }
 
 

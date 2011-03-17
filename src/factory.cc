@@ -717,10 +717,10 @@ Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map) {
 }
 
 
-Handle<JSArray> Factory::NewJSArray(int length,
+Handle<JSArray> Factory::NewJSArray(int capacity,
                                     PretenureFlag pretenure) {
   Handle<JSObject> obj = NewJSObject(Top::array_function(), pretenure);
-  CALL_HEAP_FUNCTION(Handle<JSArray>::cast(obj)->Initialize(length), JSArray);
+  CALL_HEAP_FUNCTION(Handle<JSArray>::cast(obj)->Initialize(capacity), JSArray);
 }
 
 

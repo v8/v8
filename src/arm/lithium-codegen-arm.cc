@@ -757,11 +757,6 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
-    case CodeStub::StringCharAt: {
-      StringCharAtStub stub;
-      CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-      break;
-    }
     case CodeStub::NumberToString: {
       NumberToStringStub stub;
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
@@ -2111,7 +2106,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
+void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
   __ mov(ip, Operand(Handle<Object>(instr->hydrogen()->cell())));
   __ ldr(result, FieldMemOperand(ip, JSGlobalPropertyCell::kValueOffset));
@@ -2120,6 +2115,18 @@ void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
     __ cmp(result, ip);
     DeoptimizeIf(eq, instr->environment());
   }
+}
+
+
+void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
+  ASSERT(ToRegister(instr->global_object()).is(r0));
+  ASSERT(ToRegister(instr->result()).is(r0));
+
+  __ mov(r2, Operand(instr->name()));
+  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET :
+                                               RelocInfo::CODE_TARGET_CONTEXT;
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  CallCode(ic, mode, instr);
 }
 
 
@@ -3385,19 +3392,30 @@ class DeferredTaggedToI: public LDeferredCode {
 
 
 void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
-  Label done;
   Register input_reg = ToRegister(instr->InputAt(0));
-  Register scratch = scratch0();
-  DoubleRegister dbl_scratch = d0;
-  SwVfpRegister flt_scratch = s0;
-  DoubleRegister dbl_tmp = ToDoubleRegister(instr->TempAt(0));
+  Register scratch1 = scratch0();
+  Register scratch2 = ToRegister(instr->TempAt(0));
+  DwVfpRegister double_scratch = double_scratch0();
+  SwVfpRegister single_scratch = double_scratch.low();
+
+  ASSERT(!scratch1.is(input_reg) && !scratch1.is(scratch2));
+  ASSERT(!scratch2.is(input_reg) && !scratch2.is(scratch1));
+
+  Label done;
 
   // Heap number map check.
-  __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
+  __ ldr(scratch1, FieldMemOperand(input_reg, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-  __ cmp(scratch, Operand(ip));
+  __ cmp(scratch1, Operand(ip));
 
   if (instr->truncating()) {
+    Register scratch3 = ToRegister(instr->TempAt(1));
+    DwVfpRegister double_scratch2 = ToDoubleRegister(instr->TempAt(2));
+    ASSERT(!scratch3.is(input_reg) &&
+           !scratch3.is(scratch1) &&
+           !scratch3.is(scratch2));
+    // Performs a truncating conversion of a floating point number as used by
+    // the JS bitwise operations.
     Label heap_number;
     __ b(eq, &heap_number);
     // Check for undefined. Undefined is converted to zero for truncating
@@ -3409,36 +3427,38 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     __ b(&done);
 
     __ bind(&heap_number);
-    __ sub(ip, input_reg, Operand(kHeapObjectTag));
-    __ vldr(dbl_tmp, ip, HeapNumber::kValueOffset);
-    __ vcmp(dbl_tmp, 0.0);  // Sets overflow bit in FPSCR flags if NaN.
-    __ vcvt_s32_f64(flt_scratch, dbl_tmp);
-    __ vmov(input_reg, flt_scratch);  // 32-bit result of conversion.
-    __ vmrs(pc);  // Move vector status bits to normal status bits.
-    // Overflow bit is set if dbl_tmp is Nan.
-    __ cmn(input_reg, Operand(1), vc);  // 0x7fffffff + 1 -> overflow.
-    __ cmp(input_reg, Operand(1), vc);  // 0x80000000 - 1 -> overflow.
-    DeoptimizeIf(vs, instr->environment());  // Saturation may have occured.
+    __ sub(scratch1, input_reg, Operand(kHeapObjectTag));
+    __ vldr(double_scratch2, scratch1, HeapNumber::kValueOffset);
+
+    __ EmitECMATruncate(input_reg,
+                        double_scratch2,
+                        single_scratch,
+                        scratch1,
+                        scratch2,
+                        scratch3);
 
   } else {
+    CpuFeatures::Scope scope(VFP3);
     // Deoptimize if we don't have a heap number.
     DeoptimizeIf(ne, instr->environment());
 
     __ sub(ip, input_reg, Operand(kHeapObjectTag));
-    __ vldr(dbl_tmp, ip, HeapNumber::kValueOffset);
-    __ vcvt_s32_f64(flt_scratch, dbl_tmp);
-    __ vmov(input_reg, flt_scratch);  // 32-bit result of conversion.
-    // Non-truncating conversion means that we cannot lose bits, so we convert
-    // back to check; note that using non-overlapping s and d regs would be
-    // slightly faster.
-    __ vcvt_f64_s32(dbl_scratch, flt_scratch);
-    __ VFPCompareAndSetFlags(dbl_scratch, dbl_tmp);
-    DeoptimizeIf(ne, instr->environment());  // Not equal or unordered.
+    __ vldr(double_scratch, ip, HeapNumber::kValueOffset);
+    __ EmitVFPTruncate(kRoundToZero,
+                       single_scratch,
+                       double_scratch,
+                       scratch1,
+                       scratch2,
+                       kCheckForInexactConversion);
+    DeoptimizeIf(ne, instr->environment());
+    // Load the result.
+    __ vmov(input_reg, single_scratch);
+
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ tst(input_reg, Operand(input_reg));
+      __ cmp(input_reg, Operand(0));
       __ b(ne, &done);
-      __ vmov(lr, ip, dbl_tmp);
-      __ tst(ip, Operand(1 << 31));  // Test sign bit.
+      __ vmov(scratch1, double_scratch.high());
+      __ tst(scratch1, Operand(HeapNumber::kSignMask));
       DeoptimizeIf(ne, instr->environment());
     }
   }
@@ -3480,56 +3500,52 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
 
 
 void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
-  LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsDoubleRegister());
-  LOperand* result = instr->result();
-  ASSERT(result->IsRegister());
-
-  DoubleRegister double_input = ToDoubleRegister(input);
-  Register result_reg = ToRegister(result);
-  SwVfpRegister single_scratch = double_scratch0().low();
+  Register result_reg = ToRegister(instr->result());
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->TempAt(0));
+  DwVfpRegister double_input = ToDoubleRegister(instr->InputAt(0));
+  DwVfpRegister double_scratch = double_scratch0();
+  SwVfpRegister single_scratch = double_scratch0().low();
 
-  __ EmitVFPTruncate(kRoundToZero,
-                     single_scratch,
-                     double_input,
-                     scratch1,
-                     scratch2);
+  Label done;
 
-  // Deoptimize if we had a vfp invalid exception.
-  DeoptimizeIf(ne, instr->environment());
-
-  // Retrieve the result.
-  __ vmov(result_reg, single_scratch);
-
-  if (!instr->truncating()) {
-    // Convert result back to double and compare with input
-    // to check if the conversion was exact.
-    __ vmov(single_scratch, result_reg);
-    __ vcvt_f64_s32(double_scratch0(), single_scratch);
-    __ VFPCompareAndSetFlags(double_scratch0(), double_input);
+  if (instr->truncating()) {
+    Register scratch3 = ToRegister(instr->TempAt(1));
+    __ EmitECMATruncate(result_reg,
+                        double_input,
+                        single_scratch,
+                        scratch1,
+                        scratch2,
+                        scratch3);
+  } else {
+    VFPRoundingMode rounding_mode = kRoundToMinusInf;
+    __ EmitVFPTruncate(rounding_mode,
+                       single_scratch,
+                       double_input,
+                       scratch1,
+                       scratch2,
+                       kCheckForInexactConversion);
+    // Deoptimize if we had a vfp invalid exception,
+    // including inexact operation.
     DeoptimizeIf(ne, instr->environment());
-    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      Label done;
-      __ cmp(result_reg, Operand(0));
-      __ b(ne, &done);
-      // Check for -0.
-      __ vmov(scratch1, double_input.high());
-      __ tst(scratch1, Operand(HeapNumber::kSignMask));
-      DeoptimizeIf(ne, instr->environment());
-
-      __ bind(&done);
-    }
+    // Retrieve the result.
+    __ vmov(result_reg, single_scratch);
   }
+    __ bind(&done);
 }
 
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsRegister());
   __ tst(ToRegister(input), Operand(kSmiTagMask));
-  DeoptimizeIf(instr->condition(), instr->environment());
+  DeoptimizeIf(ne, instr->environment());
+}
+
+
+void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
+  LOperand* input = instr->InputAt(0);
+  __ tst(ToRegister(input), Operand(kSmiTagMask));
+  DeoptimizeIf(eq, instr->environment());
 }
 
 

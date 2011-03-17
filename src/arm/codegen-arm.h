@@ -268,7 +268,7 @@ class CodeGenerator: public AstVisitor {
   static int GetInlinedKeyedLoadInstructionsAfterPatch() {
     return FLAG_debug_code ? 32 : 13;
   }
-  static const int kInlinedKeyedStoreInstructionsAfterPatch = 5;
+  static const int kInlinedKeyedStoreInstructionsAfterPatch = 8;
   static int GetInlinedNamedStoreInstructionsAfterPatch() {
     ASSERT(inlined_write_barrier_size_ != -1);
     return inlined_write_barrier_size_ + 4;

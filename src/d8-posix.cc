@@ -375,7 +375,9 @@ static Handle<Value> GetStdout(int child_fd,
 // a parent process hangs on waiting while a child process is already a zombie.
 // See http://code.google.com/p/v8/issues/detail?id=401.
 #if defined(WNOWAIT) && !defined(ANDROID) && !defined(__APPLE__)
+#if !defined(__FreeBSD__)
 #define HAS_WAITID 1
+#endif
 #endif
 
 

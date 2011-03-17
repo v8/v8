@@ -727,9 +727,9 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
              prop->key()->AsLiteral()->handle()->IsSmi());
       __ Set(ecx, Immediate(prop->key()->AsLiteral()->handle()));
 
-      Handle<Code> ic(Builtins::builtin(is_strict()
-          ? Builtins::KeyedStoreIC_Initialize_Strict
-          : Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic(Builtins::builtin(
+          is_strict_mode() ? Builtins::KeyedStoreIC_Initialize_Strict
+                           : Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
     }
   }
@@ -1371,8 +1371,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             __ mov(ecx, Immediate(key->handle()));
             __ mov(edx, Operand(esp, 0));
             Handle<Code> ic(Builtins::builtin(
-                is_strict() ? Builtins::StoreIC_Initialize_Strict
-                            : Builtins::StoreIC_Initialize));
+                is_strict_mode() ? Builtins::StoreIC_Initialize_Strict
+                                 : Builtins::StoreIC_Initialize));
             EmitCallIC(ic, RelocInfo::CODE_TARGET);
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
           } else {
@@ -1543,25 +1543,24 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     }
   }
 
+  // For compound assignments we need another deoptimization point after the
+  // variable/property load.
   if (expr->is_compound()) {
     { AccumulatorValueContext context(this);
       switch (assign_type) {
         case VARIABLE:
           EmitVariableLoad(expr->target()->AsVariableProxy()->var());
+          PrepareForBailout(expr->target(), TOS_REG);
           break;
         case NAMED_PROPERTY:
           EmitNamedPropertyLoad(property);
+          PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
           break;
         case KEYED_PROPERTY:
           EmitKeyedPropertyLoad(property);
+          PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
           break;
       }
-    }
-
-    // For property compound assignments we need another deoptimization
-    // point after the property load.
-    if (property != NULL) {
-      PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
     }
 
     Token::Value op = expr->binary_op();
@@ -1763,8 +1762,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       __ pop(eax);  // Restore value.
       __ mov(ecx, prop->key()->AsLiteral()->handle());
       Handle<Code> ic(Builtins::builtin(
-          is_strict() ? Builtins::StoreIC_Initialize_Strict
-                      : Builtins::StoreIC_Initialize));
+          is_strict_mode() ? Builtins::StoreIC_Initialize_Strict
+                           : Builtins::StoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
     }
@@ -1786,8 +1785,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       }
       __ pop(eax);  // Restore value.
       Handle<Code> ic(Builtins::builtin(
-          is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
-                      : Builtins::KeyedStoreIC_Initialize));
+          is_strict_mode() ? Builtins::KeyedStoreIC_Initialize_Strict
+                           : Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
     }
@@ -1812,8 +1811,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     __ mov(ecx, var->name());
     __ mov(edx, GlobalObjectOperand());
     Handle<Code> ic(Builtins::builtin(
-        is_strict() ? Builtins::StoreIC_Initialize_Strict
-                    : Builtins::StoreIC_Initialize));
+        is_strict_mode() ? Builtins::StoreIC_Initialize_Strict
+                         : Builtins::StoreIC_Initialize));
     EmitCallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
 
   } else if (op == Token::INIT_CONST) {
@@ -1915,8 +1914,8 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ pop(edx);
   }
   Handle<Code> ic(Builtins::builtin(
-      is_strict() ? Builtins::StoreIC_Initialize_Strict
-                  : Builtins::StoreIC_Initialize));
+      is_strict_mode() ? Builtins::StoreIC_Initialize_Strict
+                       : Builtins::StoreIC_Initialize));
   EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -1955,8 +1954,8 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
   Handle<Code> ic(Builtins::builtin(
-      is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
-                  : Builtins::KeyedStoreIC_Initialize));
+      is_strict_mode() ? Builtins::KeyedStoreIC_Initialize_Strict
+                       : Builtins::KeyedStoreIC_Initialize));
   EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -3049,8 +3048,8 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   // Fetch the map and check if array is in fast case.
   // Check that object doesn't require security checks and
   // has no indexed interceptor.
-  __ CmpObjectType(object, FIRST_JS_OBJECT_TYPE, temp);
-  __ j(below, &slow_case);
+  __ CmpObjectType(object, JS_ARRAY_TYPE, temp);
+  __ j(not_equal, &slow_case);
   __ test_b(FieldOperand(temp, Map::kBitFieldOffset),
             KeyedLoadIC::kSlowCaseBitFieldMask);
   __ j(not_zero, &slow_case);
@@ -3748,7 +3747,11 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // We need a second deoptimization point after loading the value
   // in case evaluating the property load my have a side effect.
-  PrepareForBailout(expr->increment(), TOS_REG);
+  if (assign_type == VARIABLE) {
+    PrepareForBailout(expr->expression(), TOS_REG);
+  } else {
+    PrepareForBailout(expr->increment(), TOS_REG);
+  }
 
   // Call ToNumber only if operand is not a smi.
   NearLabel no_conversion;
@@ -3842,8 +3845,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ mov(ecx, prop->key()->AsLiteral()->handle());
       __ pop(edx);
       Handle<Code> ic(Builtins::builtin(
-          is_strict() ? Builtins::StoreIC_Initialize_Strict
-                      : Builtins::StoreIC_Initialize));
+          is_strict_mode() ? Builtins::StoreIC_Initialize_Strict
+                           : Builtins::StoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
@@ -3859,8 +3862,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ pop(ecx);
       __ pop(edx);
       Handle<Code> ic(Builtins::builtin(
-          is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
-                      : Builtins::KeyedStoreIC_Initialize));
+          is_strict_mode() ? Builtins::KeyedStoreIC_Initialize_Strict
+                           : Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {

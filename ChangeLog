@@ -1,3 +1,18 @@
+2011-03-17: Version 3.2.3
+
+        Fixed a number of crash bugs.
+
+        Fixed Array::New(length) to return an array with a length (issue 1256).
+
+        Fixed FreeBSD build.
+
+        Changed __defineGetter__ to not throw (matching the behavior of Safari).
+
+        Implemented more of EcmaScript 5 strict mode.
+
+        Improved Crankshaft performance on all platforms.
+
+
 2011-03-14: Version 3.2.2
 
         Fixed a number of crash and correctness bugs.

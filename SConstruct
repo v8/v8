@@ -174,6 +174,7 @@ LIBRARY_FLAGS = {
       'CPPPATH' : ['/usr/local/include'],
       'LIBPATH' : ['/usr/local/lib'],
       'CCFLAGS':      ['-ansi'],
+      'LIBS': ['execinfo']
     },
     'os:openbsd': {
       'CPPPATH' : ['/usr/local/include'],

@@ -371,6 +371,9 @@ class TestCase(object):
   def AfterRun(self, result):
     pass
 
+  def GetCustomFlags(self, mode):
+    return None
+
   def Run(self):
     self.BeforeRun()
     try:
@@ -671,7 +674,10 @@ class Context(object):
     return [self.GetVm(mode)] + self.GetVmFlags(testcase, mode)
 
   def GetVmFlags(self, testcase, mode):
-    return testcase.variant_flags + FLAGS[mode]
+    flags = testcase.GetCustomFlags(mode)
+    if flags is None:
+      flags = FLAGS[mode]
+    return testcase.variant_flags + flags
 
   def GetTimeout(self, testcase, mode):
     result = self.timeout * TIMEOUT_SCALEFACTOR[mode]

@@ -722,6 +722,11 @@ void Deserializer::ReadObject(int space_number,
     LOG(SnapshotPositionEvent(address, source_->position()));
   }
   ReadChunk(current, limit, space_number, address);
+#ifdef DEBUG
+  bool is_codespace = (space == Heap::code_space()) ||
+      ((space == Heap::lo_space()) && (space_number == kLargeCode));
+  ASSERT(HeapObject::FromAddress(address)->IsCode() == is_codespace);
+#endif
 }
 
 
@@ -877,7 +882,7 @@ void Deserializer::ReadChunk(Object** current,
   CASE_STATEMENT(where, how, within, CODE_SPACE)                               \
   CASE_BODY(where, how, within, CODE_SPACE, kUnknownOffsetFromStart)           \
   CASE_STATEMENT(where, how, within, kLargeCode)                               \
-  CASE_BODY(where, how, within, LO_SPACE, kUnknownOffsetFromStart)
+  CASE_BODY(where, how, within, kLargeCode, kUnknownOffsetFromStart)
 
 #define EMIT_COMMON_REFERENCE_PATTERNS(pseudo_space_number,                    \
                                        space_number,                           \
