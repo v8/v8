@@ -4569,7 +4569,7 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
     }
     ast_context()->ReturnInstruction(instr, expr->id());
   } else if (op == Token::TYPEOF) {
-    VisitForTypeOf(expr);
+    VisitForTypeOf(expr->expression());
     if (HasStackOverflow()) return;
     HValue* value = Pop();
     ast_context()->ReturnInstruction(new HTypeof(value), expr->id());
@@ -4955,7 +4955,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   if ((expr->op() == Token::EQ || expr->op() == Token::EQ_STRICT) &&
       left_unary != NULL && left_unary->op() == Token::TYPEOF &&
       right_literal != NULL && right_literal->handle()->IsString()) {
-    VisitForTypeOf(expr);
+    VisitForTypeOf(left_unary->expression());
     if (HasStackOverflow()) return;
     HValue* left = Pop();
     HInstruction* instr = new HTypeofIs(left,
