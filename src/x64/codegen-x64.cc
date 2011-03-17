@@ -4260,9 +4260,10 @@ void CodeGenerator::InstantiateFunction(
 
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() &&
+  if (!pretenure &&
+      scope()->is_function_scope() &&
       function_info->num_literals() == 0 &&
-      !pretenure) {
+      !function_info->strict_mode()) {  // Strict mode functions use slow path.
     FastNewClosureStub stub;
     frame_->Push(function_info);
     Result answer = frame_->CallStub(&stub, 1);

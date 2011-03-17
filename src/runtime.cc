@@ -8045,11 +8045,14 @@ static MaybeObject* Runtime_SetNewFunctionAttributes(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, func, 0);
-  ASSERT(func->map()->instance_type() ==
-         Top::function_instance_map()->instance_type());
-  ASSERT(func->map()->instance_size() ==
-         Top::function_instance_map()->instance_size());
-  func->set_map(*Top::function_instance_map());
+
+  Handle<Map> map = func->shared()->strict_mode()
+                        ? Top::strict_mode_function_instance_map()
+                        : Top::function_instance_map();
+
+  ASSERT(func->map()->instance_type() == map->instance_type());
+  ASSERT(func->map()->instance_size() == map->instance_size());
+  func->set_map(*map);
   return *func;
 }
 

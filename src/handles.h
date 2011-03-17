@@ -370,6 +370,7 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
 Handle<Object> SetPrototype(Handle<JSFunction> function,
                             Handle<Object> prototype);
 
+Handle<Object> PreventExtensions(Handle<JSObject> object);
 
 // Does lazy compilation of the given function. Returns true on success and
 // false if the compilation resulted in a stack overflow.
