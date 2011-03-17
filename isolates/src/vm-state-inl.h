@@ -63,8 +63,8 @@ VMState::VMState(Isolate* isolate, StateTag tag)
     : isolate_(isolate), previous_tag_(isolate->current_vm_state()) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
-    LOG(UncheckedStringEvent("Entering", StateToString(tag)));
-    LOG(UncheckedStringEvent("From", StateToString(previous_tag_)));
+    LOG(isolate, UncheckedStringEvent("Entering", StateToString(tag)));
+    LOG(isolate, UncheckedStringEvent("From", StateToString(previous_tag_)));
   }
 #endif
 
@@ -88,9 +88,11 @@ VMState::VMState(Isolate* isolate, StateTag tag)
 VMState::~VMState() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
-    LOG(UncheckedStringEvent("Leaving",
-                             StateToString(isolate_->current_vm_state())));
-    LOG(UncheckedStringEvent("To", StateToString(previous_tag_)));
+    LOG(isolate_,
+        UncheckedStringEvent("Leaving",
+                              StateToString(isolate_->current_vm_state())));
+    LOG(isolate_,
+        UncheckedStringEvent("To", StateToString(previous_tag_)));
   }
 #endif  // ENABLE_LOGGING_AND_PROFILING
 

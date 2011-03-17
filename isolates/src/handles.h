@@ -134,6 +134,8 @@ class HandleScope {
   template <typename T>
   Handle<T> CloseAndEscape(Handle<T> handle_value);
 
+  Isolate* isolate() { return isolate_; }
+
  private:
   // Prevent heap allocation or illegal handle scopes.
   HandleScope(const HandleScope&);

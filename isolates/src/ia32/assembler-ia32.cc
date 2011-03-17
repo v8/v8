@@ -129,7 +129,8 @@ void CpuFeatures::Probe(bool portable) {
   }
   if (!code->IsCode()) return;
 
-  PROFILE(CodeCreateEvent(Logger::BUILTIN_TAG,
+  PROFILE(ISOLATE,
+          CodeCreateEvent(Logger::BUILTIN_TAG,
                           Code::cast(code), "CpuFeatures::Probe"));
   typedef uint64_t (*F0)();
   F0 probe = FUNCTION_CAST<F0>(Code::cast(code)->entry());

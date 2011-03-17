@@ -558,6 +558,8 @@ class StubCompiler BASE_EMBEDDED {
                                     String* name,
                                     LookupResult* lookup);
 
+  Isolate* isolate() { return scope_.isolate(); }
+
  private:
   HandleScope scope_;
   MacroAssembler masm_;

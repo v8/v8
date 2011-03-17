@@ -110,7 +110,8 @@ class GlobalHandles::Node : public Malloced {
   // Make this handle weak.
   void MakeWeak(GlobalHandles* global_handles, void* parameter,
                 WeakReferenceCallback callback) {
-    LOG(HandleEvent("GlobalHandle::MakeWeak", handle().location()));
+    LOG(global_handles->isolate(),
+        HandleEvent("GlobalHandle::MakeWeak", handle().location()));
     ASSERT(state_ != DESTROYED);
     if (state_ != WEAK && !IsNearDeath()) {
       global_handles->number_of_weak_handles_++;
@@ -124,7 +125,8 @@ class GlobalHandles::Node : public Malloced {
   }
 
   void ClearWeakness(GlobalHandles* global_handles) {
-    LOG(HandleEvent("GlobalHandle::ClearWeakness", handle().location()));
+    LOG(global_handles->isolate(),
+        HandleEvent("GlobalHandle::ClearWeakness", handle().location()));
     ASSERT(state_ != DESTROYED);
     if (state_ == WEAK || IsNearDeath()) {
       global_handles->number_of_weak_handles_--;
@@ -169,7 +171,7 @@ class GlobalHandles::Node : public Malloced {
   bool PostGarbageCollectionProcessing(Isolate* isolate,
                                        GlobalHandles* global_handles) {
     if (state_ != Node::PENDING) return false;
-    LOG(HandleEvent("GlobalHandle::Processing", handle().location()));
+    LOG(isolate, HandleEvent("GlobalHandle::Processing", handle().location()));
     WeakReferenceCallback func = callback();
     if (func == NULL) {
       Destroy(global_handles);
@@ -405,7 +407,8 @@ void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback f) {
     if (current->state_ == Node::WEAK) {
       if (f(&current->object_)) {
         current->state_ = Node::PENDING;
-        LOG(HandleEvent("GlobalHandle::Pending", current->handle().location()));
+        LOG(isolate_,
+            HandleEvent("GlobalHandle::Pending", current->handle().location()));
       }
     }
   }

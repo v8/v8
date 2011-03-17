@@ -174,7 +174,8 @@ class RetainersPrinter : public RetainerHeapProfile::Printer {
     HeapStringAllocator allocator;
     StringStream stream(&allocator);
     cluster.Print(&stream);
-    LOG(HeapSampleJSRetainersEvent(
+    LOG(ISOLATE,
+        HeapSampleJSRetainersEvent(
         *(stream.ToCString()), *(retainers.ToCString())));
   }
 };
@@ -468,7 +469,8 @@ void ConstructorHeapProfile::Call(const JSObjectsCluster& cluster,
   HeapStringAllocator allocator;
   StringStream stream(&allocator);
   cluster.Print(&stream);
-  LOG(HeapSampleJSConstructorEvent(*(stream.ToCString()),
+  LOG(ISOLATE,
+      HeapSampleJSConstructorEvent(*(stream.ToCString()),
                                    number_and_size.number(),
                                    number_and_size.bytes()));
 }
@@ -757,16 +759,18 @@ static void PrintProducerStackTrace(Object* obj, void* trace) {
   String* constructor = GetConstructorNameForHeapProfile(JSObject::cast(obj));
   SmartPointer<char> s_name(
       constructor->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL));
-  LOG(HeapSampleJSProducerEvent(GetConstructorName(*s_name),
+  LOG(ISOLATE,
+      HeapSampleJSProducerEvent(GetConstructorName(*s_name),
                                 reinterpret_cast<Address*>(trace)));
 }
 
 
 void HeapProfiler::WriteSample() {
   Isolate* isolate = Isolate::Current();
-  LOG(HeapSampleBeginEvent("Heap", "allocated"));
-  LOG(HeapSampleStats(
-      "Heap", "allocated", HEAP->CommittedMemory(), HEAP->SizeOfObjects()));
+  LOG(isolate, HeapSampleBeginEvent("Heap", "allocated"));
+  LOG(isolate,
+      HeapSampleStats(
+          "Heap", "allocated", HEAP->CommittedMemory(), HEAP->SizeOfObjects()));
 
   AggregatedHeapSnapshot snapshot;
   AggregatedHeapSnapshotGenerator generator(&snapshot);
@@ -777,7 +781,8 @@ void HeapProfiler::WriteSample() {
        i <= AggregatedHeapSnapshotGenerator::kAllStringsType;
        ++i) {
     if (info[i].bytes() > 0) {
-      LOG(HeapSampleItemEvent(info[i].name(), info[i].number(),
+      LOG(isolate,
+          HeapSampleItemEvent(info[i].name(), info[i].number(),
                               info[i].bytes()));
     }
   }
@@ -788,7 +793,7 @@ void HeapProfiler::WriteSample() {
   isolate->global_handles()->IterateWeakRoots(PrintProducerStackTrace,
                                               StackWeakReferenceCallback);
 
-  LOG(HeapSampleEndEvent("Heap", "allocated"));
+  LOG(isolate, HeapSampleEndEvent("Heap", "allocated"));
 }
 
 

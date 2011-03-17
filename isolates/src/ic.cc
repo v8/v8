@@ -946,7 +946,7 @@ MaybeObject* LoadIC::Load(State state,
     if (FLAG_strict || IsContextual(object)) {
       return ReferenceError("not_defined", name);
     }
-    LOG(SuspectReadEvent(*name, *object));
+    LOG(isolate(), SuspectReadEvent(*name, *object));
   }
 
   bool can_be_inlined_precheck =

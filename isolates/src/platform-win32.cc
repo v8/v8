@@ -856,7 +856,7 @@ void* OS::Allocate(const size_t requested,
     mbase = VirtualAlloc(NULL, msize, MEM_COMMIT | MEM_RESERVE, prot);
 
   if (mbase == NULL) {
-    LOG(StringEvent("OS::Allocate", "VirtualAlloc failed"));
+    LOG(ISOLATE, StringEvent("OS::Allocate", "VirtualAlloc failed"));
     return NULL;
   }
 
@@ -1199,7 +1199,8 @@ static bool LoadSymbols(HANDLE process_handle) {
       if (err != ERROR_MOD_NOT_FOUND &&
           err != ERROR_INVALID_HANDLE) return false;
     }
-    LOG(SharedLibraryEvent(
+    LOG(i::Isolate::Current(),
+        SharedLibraryEvent(
             module_entry.szExePath,
             reinterpret_cast<unsigned int>(module_entry.modBaseAddr),
             reinterpret_cast<unsigned int>(module_entry.modBaseAddr +

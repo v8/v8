@@ -259,7 +259,7 @@ SmartPointer<const char> StringStream::ToCString() const {
 
 
 void StringStream::Log() {
-  LOG(StringEvent("StackDump", buffer_));
+  LOG(ISOLATE, StringEvent("StackDump", buffer_));
 }
 
 

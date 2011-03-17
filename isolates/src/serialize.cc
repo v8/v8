@@ -729,7 +729,7 @@ void Deserializer::ReadObject(int space_number,
   Object** current = reinterpret_cast<Object**>(address);
   Object** limit = current + (size >> kPointerSizeLog2);
   if (FLAG_log_snapshot_positions) {
-    LOG(SnapshotPositionEvent(address, source_->position()));
+    LOG(isolate_, SnapshotPositionEvent(address, source_->position()));
   }
   ReadChunk(current, limit, space_number, address);
 }
@@ -1340,7 +1340,8 @@ void Serializer::ObjectSerializer::Serialize() {
              "ObjectSerialization");
   sink_->PutInt(size >> kObjectAlignmentBits, "Size in words");
 
-  LOG(SnapshotPositionEvent(object_->address(), sink_->Position()));
+  LOG(i::Isolate::Current(),
+      SnapshotPositionEvent(object_->address(), sink_->Position()));
 
   // Mark this object as already serialized.
   bool start_new_page;

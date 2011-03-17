@@ -117,7 +117,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   CompilationCache* compilation_cache = isolate->compilation_cache();
   Handle<FixedArray> cached = compilation_cache->LookupRegExp(pattern, flags);
   bool in_cache = !cached.is_null();
-  LOG(RegExpCompileEvent(re, in_cache));
+  LOG(isolate, RegExpCompileEvent(re, in_cache));
 
   Handle<Object> result;
   if (in_cache) {

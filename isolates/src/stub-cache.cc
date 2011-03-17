@@ -126,7 +126,8 @@ MaybeObject* StubCache::ComputeLoadNonexistent(String* name,
           compiler.CompileLoadNonexistent(cache_name, receiver, last);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), cache_name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), cache_name));
     GDBJIT(AddCode(GDBJITInterface::LOAD_IC, cache_name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -151,7 +152,8 @@ MaybeObject* StubCache::ComputeLoadField(String* name,
           compiler.CompileLoadField(receiver, holder, field_index, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -177,7 +179,8 @@ MaybeObject* StubCache::ComputeLoadCallback(String* name,
           compiler.CompileLoadCallback(name, receiver, holder, callback);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -203,7 +206,8 @@ MaybeObject* StubCache::ComputeLoadConstant(String* name,
           compiler.CompileLoadConstant(receiver, holder, value, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -227,7 +231,8 @@ MaybeObject* StubCache::ComputeLoadInterceptor(String* name,
           compiler.CompileLoadInterceptor(receiver, holder, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -261,7 +266,8 @@ MaybeObject* StubCache::ComputeLoadGlobal(String* name,
                                                            is_dont_delete);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -286,7 +292,8 @@ MaybeObject* StubCache::ComputeKeyedLoadField(String* name,
           compiler.CompileLoadField(name, receiver, holder, field_index);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -312,7 +319,8 @@ MaybeObject* StubCache::ComputeKeyedLoadConstant(String* name,
           compiler.CompileLoadConstant(name, receiver, holder, value);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -337,7 +345,8 @@ MaybeObject* StubCache::ComputeKeyedLoadInterceptor(String* name,
           compiler.CompileLoadInterceptor(receiver, holder, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -363,7 +372,8 @@ MaybeObject* StubCache::ComputeKeyedLoadCallback(String* name,
           compiler.CompileLoadCallback(name, receiver, holder, callback);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -387,7 +397,8 @@ MaybeObject* StubCache::ComputeKeyedLoadArrayLength(String* name,
     { MaybeObject* maybe_code = compiler.CompileLoadArrayLength(name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -410,7 +421,8 @@ MaybeObject* StubCache::ComputeKeyedLoadStringLength(String* name,
     { MaybeObject* maybe_code = compiler.CompileLoadStringLength(name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result = map->UpdateCodeCache(name, Code::cast(code));
@@ -432,7 +444,8 @@ MaybeObject* StubCache::ComputeKeyedLoadFunctionPrototype(
     { MaybeObject* maybe_code = compiler.CompileLoadFunctionPrototype(name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -460,7 +473,8 @@ MaybeObject* StubCache::ComputeKeyedLoadSpecialized(JSObject* receiver) {
     { MaybeObject* maybe_code = compiler.CompileLoadSpecialized(receiver);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), 0));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, Code::cast(code), 0));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -486,7 +500,8 @@ MaybeObject* StubCache::ComputeStoreField(String* name,
           compiler.CompileStoreField(receiver, field_index, transition, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::STORE_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -510,7 +525,8 @@ MaybeObject* StubCache::ComputeKeyedStoreSpecialized(
     { MaybeObject* maybe_code = compiler.CompileStoreSpecialized(receiver);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(code), 0));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, Code::cast(code), 0));
     Object* result;
     { MaybeObject* maybe_result =
           receiver->UpdateMapCodeCache(name, Code::cast(code));
@@ -623,11 +639,11 @@ MaybeObject* StubCache::ComputeKeyedLoadOrStoreExternalArray(
     }
     Code::cast(code)->set_external_array_type(array_type);
     if (is_store) {
-      PROFILE(
+      PROFILE(isolate_,
           CodeCreateEvent(Logger::KEYED_EXTERNAL_ARRAY_STORE_IC_TAG,
                           Code::cast(code), 0));
     } else {
-      PROFILE(
+      PROFILE(isolate_,
           CodeCreateEvent(Logger::KEYED_EXTERNAL_ARRAY_LOAD_IC_TAG,
                           Code::cast(code), 0));
     }
@@ -661,7 +677,8 @@ MaybeObject* StubCache::ComputeStoreGlobal(String* name,
           compiler.CompileStoreGlobal(receiver, cell, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::STORE_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -688,7 +705,8 @@ MaybeObject* StubCache::ComputeStoreCallback(
           compiler.CompileStoreCallback(receiver, callback, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::STORE_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -713,7 +731,8 @@ MaybeObject* StubCache::ComputeStoreInterceptor(
           compiler.CompileStoreInterceptor(receiver, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::STORE_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -740,8 +759,9 @@ MaybeObject* StubCache::ComputeKeyedStoreField(String* name,
           compiler.CompileStoreField(receiver, field_index, transition, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(CodeCreateEvent(
-        Logger::KEYED_STORE_IC_TAG, Code::cast(code), name));
+    PROFILE(isolate_,
+            CodeCreateEvent(Logger::KEYED_STORE_IC_TAG,
+                            Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC, name, Code::cast(code)));
     Object* result;
     { MaybeObject* maybe_result =
@@ -800,7 +820,8 @@ MaybeObject* StubCache::ComputeCallConstant(int argc,
     }
     Code::cast(code)->set_check_type(check);
     ASSERT_EQ(flags, Code::cast(code)->flags());
-    PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
+    PROFILE(isolate_,
+            CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::CALL_IC, name, Code::cast(code)));
     Object* result;
@@ -850,7 +871,8 @@ MaybeObject* StubCache::ComputeCallField(int argc,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     ASSERT_EQ(flags, Code::cast(code)->flags());
-    PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
+    PROFILE(isolate_,
+            CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::CALL_IC, name, Code::cast(code)));
     Object* result;
@@ -895,7 +917,8 @@ MaybeObject* StubCache::ComputeCallInterceptor(int argc,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     ASSERT_EQ(flags, Code::cast(code)->flags());
-    PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
+    PROFILE(isolate_,
+            CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::CALL_IC, name, Code::cast(code)));
     Object* result;
@@ -952,7 +975,8 @@ MaybeObject* StubCache::ComputeCallGlobal(int argc,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     ASSERT_EQ(flags, Code::cast(code)->flags());
-    PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
+    PROFILE(isolate_,
+            CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::CALL_IC, name, Code::cast(code)));
     Object* result;
@@ -1286,7 +1310,7 @@ MaybeObject* StoreCallbackProperty(RUNTIME_CALLING_CONVENTION) {
   Handle<String> name = args.at<String>(2);
   Handle<Object> value = args.at<Object>(3);
   HandleScope scope(isolate);
-  LOG(ApiNamedPropertyAccess("store", recv, *name));
+  LOG(isolate, ApiNamedPropertyAccess("store", recv, *name));
   CustomArguments custom_args(isolate, callback->data(), recv, recv);
   v8::AccessorInfo info(custom_args.end());
   {
@@ -1463,7 +1487,7 @@ MaybeObject* KeyedLoadPropertyWithInterceptor(RUNTIME_CALLING_CONVENTION) {
 
 
 MaybeObject* StubCompiler::CompileCallInitialize(Code::Flags flags) {
-  HandleScope scope;
+  HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
   if (kind == Code::CALL_IC) {
@@ -1479,7 +1503,8 @@ MaybeObject* StubCompiler::CompileCallInitialize(Code::Flags flags) {
   COUNTERS->call_initialize_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
-  PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_INITIALIZE_TAG),
+  PROFILE(isolate(),
+          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_INITIALIZE_TAG),
                           code, code->arguments_count()));
   GDBJIT(AddCode(GDBJITInterface::CALL_INITIALIZE, Code::cast(code)));
   return result;
@@ -1487,7 +1512,7 @@ MaybeObject* StubCompiler::CompileCallInitialize(Code::Flags flags) {
 
 
 MaybeObject* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
-  HandleScope scope;
+  HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   // The code of the PreMonomorphic stub is the same as the code
   // of the Initialized stub.  They just differ on the code object flags.
@@ -1505,7 +1530,8 @@ MaybeObject* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
   COUNTERS->call_premonomorphic_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
-  PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_PRE_MONOMORPHIC_TAG),
+  PROFILE(isolate(),
+          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_PRE_MONOMORPHIC_TAG),
                           code, code->arguments_count()));
   GDBJIT(AddCode(GDBJITInterface::CALL_PRE_MONOMORPHIC, Code::cast(code)));
   return result;
@@ -1513,7 +1539,7 @@ MaybeObject* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
 
 
 MaybeObject* StubCompiler::CompileCallNormal(Code::Flags flags) {
-  HandleScope scope;
+  HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
   if (kind == Code::CALL_IC) {
@@ -1528,7 +1554,8 @@ MaybeObject* StubCompiler::CompileCallNormal(Code::Flags flags) {
   COUNTERS->call_normal_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
-  PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_NORMAL_TAG),
+  PROFILE(isolate(),
+          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_NORMAL_TAG),
                           code, code->arguments_count()));
   GDBJIT(AddCode(GDBJITInterface::CALL_NORMAL, Code::cast(code)));
   return result;
@@ -1536,7 +1563,7 @@ MaybeObject* StubCompiler::CompileCallNormal(Code::Flags flags) {
 
 
 MaybeObject* StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
-  HandleScope scope;
+  HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
   if (kind == Code::CALL_IC) {
@@ -1552,7 +1579,8 @@ MaybeObject* StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
   COUNTERS->call_megamorphic_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
-  PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MEGAMORPHIC_TAG),
+  PROFILE(isolate(),
+          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MEGAMORPHIC_TAG),
                           code, code->arguments_count()));
   GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, Code::cast(code)));
   return result;
@@ -1560,7 +1588,7 @@ MaybeObject* StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
 
 
 MaybeObject* StubCompiler::CompileCallMiss(Code::Flags flags) {
-  HandleScope scope;
+  HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
   if (kind == Code::CALL_IC) {
@@ -1575,7 +1603,8 @@ MaybeObject* StubCompiler::CompileCallMiss(Code::Flags flags) {
   COUNTERS->call_megamorphic_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
-  PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MISS_TAG),
+  PROFILE(isolate(),
+          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MISS_TAG),
                           code, code->arguments_count()));
   GDBJIT(AddCode(GDBJITInterface::CALL_MISS, Code::cast(code)));
   return result;
@@ -1584,7 +1613,7 @@ MaybeObject* StubCompiler::CompileCallMiss(Code::Flags flags) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 MaybeObject* StubCompiler::CompileCallDebugBreak(Code::Flags flags) {
-  HandleScope scope;
+  HandleScope scope(isolate());
   Debug::GenerateCallICDebugBreak(masm());
   Object* result;
   { MaybeObject* maybe_result =
@@ -1595,14 +1624,15 @@ MaybeObject* StubCompiler::CompileCallDebugBreak(Code::Flags flags) {
   USE(code);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
   USE(kind);
-  PROFILE(CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_DEBUG_BREAK_TAG),
+  PROFILE(isolate(),
+          CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_DEBUG_BREAK_TAG),
                           code, code->arguments_count()));
   return result;
 }
 
 
 MaybeObject* StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
-  HandleScope scope;
+  HandleScope scope(isolate());
   // Use the same code for the the step in preparations as we do for
   // the miss case.
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
@@ -1619,10 +1649,11 @@ MaybeObject* StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
   }
   Code* code = Code::cast(result);
   USE(code);
-  PROFILE(CodeCreateEvent(
-      CALL_LOGGER_TAG(kind, CALL_DEBUG_PREPARE_STEP_IN_TAG),
-      code,
-      code->arguments_count()));
+  PROFILE(isolate(),
+          CodeCreateEvent(
+              CALL_LOGGER_TAG(kind, CALL_DEBUG_PREPARE_STEP_IN_TAG),
+              code,
+              code->arguments_count()));
   return result;
 }
 #endif
@@ -1674,7 +1705,8 @@ MaybeObject* LoadStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, type);
   MaybeObject* result = GetCodeWithFlags(flags, name);
   if (!result->IsFailure()) {
-    PROFILE(CodeCreateEvent(Logger::LOAD_IC_TAG,
+    PROFILE(isolate(),
+            CodeCreateEvent(Logger::LOAD_IC_TAG,
                             Code::cast(result->ToObjectUnchecked()),
                             name));
     GDBJIT(AddCode(GDBJITInterface::LOAD_IC,
@@ -1689,7 +1721,8 @@ MaybeObject* KeyedLoadStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, type);
   MaybeObject* result = GetCodeWithFlags(flags, name);
   if (!result->IsFailure()) {
-    PROFILE(CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG,
+    PROFILE(isolate(),
+            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG,
                             Code::cast(result->ToObjectUnchecked()),
                             name));
     GDBJIT(AddCode(GDBJITInterface::LOAD_IC,
@@ -1705,7 +1738,8 @@ MaybeObject* StoreStubCompiler::GetCode(PropertyType type, String* name) {
       Code::STORE_IC, type, strict_mode_);
   MaybeObject* result = GetCodeWithFlags(flags, name);
   if (!result->IsFailure()) {
-    PROFILE(CodeCreateEvent(Logger::STORE_IC_TAG,
+    PROFILE(isolate(),
+            CodeCreateEvent(Logger::STORE_IC_TAG,
                             Code::cast(result->ToObjectUnchecked()),
                             name));
     GDBJIT(AddCode(GDBJITInterface::STORE_IC,
@@ -1721,7 +1755,8 @@ MaybeObject* KeyedStoreStubCompiler::GetCode(PropertyType type, String* name) {
       Code::KEYED_STORE_IC, type, strict_mode_);
   MaybeObject* result = GetCodeWithFlags(flags, name);
   if (!result->IsFailure()) {
-    PROFILE(CodeCreateEvent(Logger::KEYED_STORE_IC_TAG,
+    PROFILE(isolate(),
+            CodeCreateEvent(Logger::KEYED_STORE_IC_TAG,
                             Code::cast(result->ToObjectUnchecked()),
                             name));
     GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC,
@@ -1803,7 +1838,7 @@ MaybeObject* ConstructStubCompiler::GetCode() {
   }
   Code* code = Code::cast(result);
   USE(code);
-  PROFILE(CodeCreateEvent(Logger::STUB_TAG, code, "ConstructStub"));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, code, "ConstructStub"));
   GDBJIT(AddCode(GDBJITInterface::STUB, "ConstructStub", Code::cast(code)));
   return result;
 }
@@ -1883,7 +1918,8 @@ MaybeObject* ExternalArrayStubCompiler::GetCode(Code::Flags flags) {
   }
   Code* code = Code::cast(result);
   USE(code);
-  PROFILE(CodeCreateEvent(Logger::STUB_TAG, code, "ExternalArrayStub"));
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::STUB_TAG, code, "ExternalArrayStub"));
   return result;
 }
 

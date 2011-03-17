@@ -145,6 +145,8 @@ class GlobalHandles {
   // Tear down the global handle structure.
   void TearDown();
 
+  Isolate* isolate() { return isolate_; }
+
 #ifdef DEBUG
   void PrintStats();
   void Print();

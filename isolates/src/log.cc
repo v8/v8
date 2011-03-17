@@ -317,15 +317,16 @@ void Profiler::Disengage() {
   Insert(&sample);
   Join();
 
-  LOG(UncheckedStringEvent("profiler", "end"));
+  LOG(ISOLATE, UncheckedStringEvent("profiler", "end"));
 }
 
 
 void Profiler::Run() {
   TickSample sample;
   bool overflow = Remove(&sample);
+  i::Isolate* isolate = ISOLATE;
   while (running_) {
-    LOG(TickEvent(&sample, overflow));
+    LOG(isolate, TickEvent(&sample, overflow));
     overflow = Remove(&sample);
   }
 }
@@ -1171,7 +1172,7 @@ void Logger::PauseProfiler(int flags, int tag) {
         }
         FLAG_log_code = false;
         // Must be the same message as Log::kDynamicBufferSeal.
-        LOG(UncheckedStringEvent("profiler", "pause"));
+        LOG(ISOLATE, UncheckedStringEvent("profiler", "pause"));
       }
       --logging_nesting_;
     }
@@ -1199,7 +1200,7 @@ void Logger::ResumeProfiler(int flags, int tag) {
       ++logging_nesting_;
       if (FLAG_prof_lazy) {
         profiler_->Engage();
-        LOG(UncheckedStringEvent("profiler", "resume"));
+        LOG(ISOLATE, UncheckedStringEvent("profiler", "resume"));
         FLAG_log_code = true;
         LogCompiledFunctions();
         LogAccessorCallbacks();
@@ -1355,7 +1356,7 @@ void Logger::LogCodeObject(Object* object) {
         tag = Logger::KEYED_CALL_IC_TAG;
         break;
     }
-    PROFILE(CodeCreateEvent(tag, code_object, description));
+    PROFILE(ISOLATE, CodeCreateEvent(tag, code_object, description));
   }
 }
 
@@ -1420,20 +1421,23 @@ void Logger::LogCompiledFunctions() {
         Handle<String> script_name(String::cast(script->name()));
         int line_num = GetScriptLineNumber(script, shared->start_position());
         if (line_num > 0) {
-          PROFILE(CodeCreateEvent(
-              Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
-              *code_objects[i], *shared,
-              *script_name, line_num + 1));
+          PROFILE(ISOLATE,
+                  CodeCreateEvent(
+                    Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
+                    *code_objects[i], *shared,
+                    *script_name, line_num + 1));
         } else {
           // Can't distinguish eval and script here, so always use Script.
-          PROFILE(CodeCreateEvent(
-              Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
-              *code_objects[i], *shared, *script_name));
+          PROFILE(ISOLATE,
+                  CodeCreateEvent(
+                      Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
+                      *code_objects[i], *shared, *script_name));
         }
       } else {
-        PROFILE(CodeCreateEvent(
-            Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
-            *code_objects[i], *shared, *func_name));
+        PROFILE(ISOLATE,
+                CodeCreateEvent(
+                    Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
+                    *code_objects[i], *shared, *func_name));
       }
     } else if (shared->IsApiFunction()) {
       // API function.
@@ -1443,11 +1447,13 @@ void Logger::LogCompiledFunctions() {
         CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
         Object* callback_obj = call_data->callback();
         Address entry_point = v8::ToCData<Address>(callback_obj);
-        PROFILE(CallbackEvent(*func_name, entry_point));
+        PROFILE(ISOLATE, CallbackEvent(*func_name, entry_point));
       }
     } else {
-      PROFILE(CodeCreateEvent(
-          Logger::LAZY_COMPILE_TAG, *code_objects[i], *shared, *func_name));
+      PROFILE(ISOLATE,
+              CodeCreateEvent(
+                  Logger::LAZY_COMPILE_TAG, *code_objects[i],
+                  *shared, *func_name));
     }
   }
 }
@@ -1456,6 +1462,7 @@ void Logger::LogCompiledFunctions() {
 void Logger::LogAccessorCallbacks() {
   AssertNoAllocation no_alloc;
   HeapIterator iterator;
+  i::Isolate* isolate = ISOLATE;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (!obj->IsAccessorInfo()) continue;
     AccessorInfo* ai = AccessorInfo::cast(obj);
@@ -1463,11 +1470,11 @@ void Logger::LogAccessorCallbacks() {
     String* name = String::cast(ai->name());
     Address getter_entry = v8::ToCData<Address>(ai->getter());
     if (getter_entry != 0) {
-      PROFILE(GetterCallbackEvent(name, getter_entry));
+      PROFILE(isolate, GetterCallbackEvent(name, getter_entry));
     }
     Address setter_entry = v8::ToCData<Address>(ai->setter());
     if (setter_entry != 0) {
-      PROFILE(SetterCallbackEvent(name, setter_entry));
+      PROFILE(isolate, SetterCallbackEvent(name, setter_entry));
     }
   }
 }

@@ -711,7 +711,7 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
   if (!interceptor->enumerator()->IsUndefined()) {
     v8::NamedPropertyEnumerator enum_fun =
         v8::ToCData<v8::NamedPropertyEnumerator>(interceptor->enumerator());
-    LOG(ApiObjectAccess("interceptor-named-enum", *object));
+    LOG(isolate, ApiObjectAccess("interceptor-named-enum", *object));
     {
       // Leaving JavaScript.
       VMState state(isolate, EXTERNAL);
@@ -733,7 +733,7 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
   if (!interceptor->enumerator()->IsUndefined()) {
     v8::IndexedPropertyEnumerator enum_fun =
         v8::ToCData<v8::IndexedPropertyEnumerator>(interceptor->enumerator());
-    LOG(ApiObjectAccess("interceptor-indexed-enum", *object));
+    LOG(isolate, ApiObjectAccess("interceptor-indexed-enum", *object));
     {
       // Leaving JavaScript.
       VMState state(isolate, EXTERNAL);

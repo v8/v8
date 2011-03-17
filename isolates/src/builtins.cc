@@ -1044,7 +1044,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
 
   FunctionTemplateInfo* fun_data = function->shared()->get_api_func_data();
   if (is_construct) {
-    Handle<FunctionTemplateInfo> desc(fun_data);
+    Handle<FunctionTemplateInfo> desc(fun_data, isolate);
     bool pending_exception = false;
     isolate->factory()->ConfigureInstance(
         desc, Handle<JSObject>::cast(args.receiver()), &pending_exception);
@@ -1072,7 +1072,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
     Object* data_obj = call_data->data();
     Object* result;
 
-    LOG(ApiObjectAccess("call", JSObject::cast(*args.receiver())));
+    LOG(isolate, ApiObjectAccess("call", JSObject::cast(*args.receiver())));
     ASSERT(raw_holder->IsJSObject());
 
     CustomArguments custom(isolate);
@@ -1213,8 +1213,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
   Object* result;
   {
     HandleScope scope(isolate);
-
-    LOG(ApiObjectAccess("call non-function", obj));
+    LOG(isolate, ApiObjectAccess("call non-function", obj));
 
     CustomArguments custom(isolate);
     v8::ImplementationUtilities::PrepareArgumentsData(custom.end(),
@@ -1603,7 +1602,8 @@ void Builtins::Setup(bool create_heap_objects) {
         }
       }
       // Log the event and add the code to the builtins array.
-      PROFILE(CodeCreateEvent(Logger::BUILTIN_TAG,
+      PROFILE(ISOLATE,
+              CodeCreateEvent(Logger::BUILTIN_TAG,
                               Code::cast(code),
                               functions[i].s_name));
       GDBJIT(AddCode(GDBJITInterface::BUILTIN,

@@ -1000,7 +1000,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
   ASSERT(current == holder);
 
   // Log the check depth.
-  LOG(IntEvent("check-maps-depth", depth + 1));
+  LOG(isolate(), IntEvent("check-maps-depth", depth + 1));
 
   // Check the holder map.
   __ cmp(FieldOperand(reg, HeapObject::kMapOffset),

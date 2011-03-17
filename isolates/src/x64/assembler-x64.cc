@@ -119,13 +119,16 @@ void CpuFeatures::Probe(bool portable)  {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  MaybeObject* maybe_code = HEAP->CreateCode(desc,
-                                             Code::ComputeFlags(Code::STUB),
-                                             Handle<Object>());
+  Isolate* isolate = Isolate::Current();
+  MaybeObject* maybe_code =
+      isolate->heap()->CreateCode(desc,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>());
   Object* code;
   if (!maybe_code->ToObject(&code)) return;
   if (!code->IsCode()) return;
-  PROFILE(CodeCreateEvent(Logger::BUILTIN_TAG,
+  PROFILE(isolate,
+          CodeCreateEvent(Logger::BUILTIN_TAG,
                           Code::cast(code), "CpuFeatures::Probe"));
   typedef uint64_t (*F0)();
   F0 probe = FUNCTION_CAST<F0>(Code::cast(code)->entry());

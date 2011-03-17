@@ -170,7 +170,7 @@ bool CodeRange::Setup(const size_t requested) {
 
   // We are sure that we have mapped a block of requested addresses.
   ASSERT(code_range_->size() == requested);
-  LOG(NewEvent("CodeRange", code_range_->address(), requested));
+  LOG(isolate_, NewEvent("CodeRange", code_range_->address(), requested));
   allocation_list_.Add(FreeBlock(code_range_->address(), code_range_->size()));
   current_allocation_block_index_ = 0;
   return true;
@@ -344,7 +344,7 @@ void MemoryAllocator::TearDown() {
   free_chunk_ids_.Clear();
 
   if (initial_chunk_ != NULL) {
-    LOG(DeleteEvent("InitialChunk", initial_chunk_->address()));
+    LOG(isolate_, DeleteEvent("InitialChunk", initial_chunk_->address()));
     delete initial_chunk_;
     initial_chunk_ = NULL;
   }
@@ -370,7 +370,8 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
     // Check executable memory limit.
     if (size_executable_ + requested >
         static_cast<size_t>(capacity_executable_)) {
-      LOG(StringEvent("MemoryAllocator::AllocateRawMemory",
+      LOG(isolate_,
+          StringEvent("MemoryAllocator::AllocateRawMemory",
                       "V8 Executable Allocation capacity exceeded"));
       return NULL;
     }
@@ -475,7 +476,8 @@ void* MemoryAllocator::ReserveInitialChunk(const size_t requested) {
 
   // We are sure that we have mapped a block of requested addresses.
   ASSERT(initial_chunk_->size() == requested);
-  LOG(NewEvent("InitialChunk", initial_chunk_->address(), requested));
+  LOG(isolate_,
+      NewEvent("InitialChunk", initial_chunk_->address(), requested));
   size_ += static_cast<int>(requested);
   return initial_chunk_->address();
 }
@@ -499,14 +501,14 @@ Page* MemoryAllocator::AllocatePages(int requested_pages,
 
   void* chunk = AllocateRawMemory(chunk_size, &chunk_size, owner->executable());
   if (chunk == NULL) return Page::FromAddress(NULL);
-  LOG(NewEvent("PagedChunk", chunk, chunk_size));
+  LOG(isolate_, NewEvent("PagedChunk", chunk, chunk_size));
 
   *allocated_pages = PagesInChunk(static_cast<Address>(chunk), chunk_size);
   // We may 'lose' a page due to alignment.
   ASSERT(*allocated_pages >= kPagesPerChunk - 1);
   if (*allocated_pages == 0) {
     FreeRawMemory(chunk, chunk_size, owner->executable());
-    LOG(DeleteEvent("PagedChunk", chunk));
+    LOG(isolate_, DeleteEvent("PagedChunk", chunk));
     return Page::FromAddress(NULL);
   }
 
@@ -675,7 +677,7 @@ void MemoryAllocator::DeleteChunk(int chunk_id) {
     initial_chunk_->Uncommit(c.address(), c.size());
     COUNTERS->memory_allocated()->Decrement(static_cast<int>(c.size()));
   } else {
-    LOG(DeleteEvent("PagedChunk", c.address()));
+    LOG(isolate_, DeleteEvent("PagedChunk", c.address()));
     ObjectSpace space = static_cast<ObjectSpace>(1 << c.owner_identity());
     size_t size = c.size();
     FreeRawMemory(c.address(), size, c.executable());
@@ -1659,8 +1661,9 @@ void NewSpace::CollectStatistics() {
 
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
-static void DoReportStatistics(HistogramInfo* info, const char* description) {
-  LOG(HeapSampleBeginEvent("NewSpace", description));
+static void DoReportStatistics(Isolate* isolate,
+                               HistogramInfo* info, const char* description) {
+  LOG(isolate, HeapSampleBeginEvent("NewSpace", description));
   // Lump all the string types together.
   int string_number = 0;
   int string_bytes = 0;
@@ -1670,17 +1673,19 @@ static void DoReportStatistics(HistogramInfo* info, const char* description) {
   STRING_TYPE_LIST(INCREMENT)
 #undef INCREMENT
   if (string_number > 0) {
-    LOG(HeapSampleItemEvent("STRING_TYPE", string_number, string_bytes));
+    LOG(isolate,
+        HeapSampleItemEvent("STRING_TYPE", string_number, string_bytes));
   }
 
   // Then do the other types.
   for (int i = FIRST_NONSTRING_TYPE; i <= LAST_TYPE; ++i) {
     if (info[i].number() > 0) {
-      LOG(HeapSampleItemEvent(info[i].name(), info[i].number(),
+      LOG(isolate,
+          HeapSampleItemEvent(info[i].name(), info[i].number(),
                               info[i].bytes()));
     }
   }
-  LOG(HeapSampleEndEvent("NewSpace", description));
+  LOG(isolate, HeapSampleEndEvent("NewSpace", description));
 }
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
@@ -1707,8 +1712,9 @@ void NewSpace::ReportStatistics() {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_gc) {
-    DoReportStatistics(allocated_histogram_, "allocated");
-    DoReportStatistics(promoted_histogram_, "promoted");
+    Isolate* isolate = ISOLATE;
+    DoReportStatistics(isolate, allocated_histogram_, "allocated");
+    DoReportStatistics(isolate, promoted_histogram_, "promoted");
   }
 #endif  // ENABLE_LOGGING_AND_PROFILING
 }
@@ -2716,7 +2722,8 @@ LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
                                         Executability executable) {
   size_t requested = ChunkSizeFor(size_in_bytes);
   size_t size;
-  void* mem = Isolate::Current()->memory_allocator()->AllocateRawMemory(
+  Isolate* isolate = Isolate::Current();
+  void* mem = isolate->memory_allocator()->AllocateRawMemory(
       requested, &size, executable);
   if (mem == NULL) return NULL;
 
@@ -2724,18 +2731,18 @@ LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
   // make sure that the page flags fit in the size field.
   ASSERT((size & Page::kPageFlagMask) == 0);
 
-  LOG(NewEvent("LargeObjectChunk", mem, size));
+  LOG(isolate, NewEvent("LargeObjectChunk", mem, size));
   if (size < requested) {
-    Isolate::Current()->memory_allocator()->FreeRawMemory(
+    isolate->memory_allocator()->FreeRawMemory(
         mem, size, executable);
-    LOG(DeleteEvent("LargeObjectChunk", mem));
+    LOG(isolate, DeleteEvent("LargeObjectChunk", mem));
     return NULL;
   }
 
   ObjectSpace space = (executable == EXECUTABLE)
       ? kObjectSpaceCodeSpace
       : kObjectSpaceLoSpace;
-  Isolate::Current()->memory_allocator()->PerformAllocationCallback(
+  isolate->memory_allocator()->PerformAllocationCallback(
       space, kAllocationActionAllocate, size);
 
   LargeObjectChunk* chunk = reinterpret_cast<LargeObjectChunk*>(mem);
@@ -2778,7 +2785,7 @@ void LargeObjectSpace::TearDown() {
   while (first_chunk_ != NULL) {
     LargeObjectChunk* chunk = first_chunk_;
     first_chunk_ = first_chunk_->next();
-    LOG(DeleteEvent("LargeObjectChunk", chunk->address()));
+    LOG(heap()->isolate(), DeleteEvent("LargeObjectChunk", chunk->address()));
     Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
     Executability executable =
         page->IsPageExecutable() ? EXECUTABLE : NOT_EXECUTABLE;
@@ -3014,7 +3021,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
                                                            executable);
       heap()->isolate()->memory_allocator()->PerformAllocationCallback(
           space, kAllocationActionFree, size_);
-      LOG(DeleteEvent("LargeObjectChunk", chunk_address));
+      LOG(heap()->isolate(), DeleteEvent("LargeObjectChunk", chunk_address));
     }
   }
 }

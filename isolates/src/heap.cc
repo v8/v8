@@ -705,7 +705,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   bool next_gc_likely_to_collect_more = false;
 
   if (collector != SCAVENGER) {
-    PROFILE(CodeMovingGCEvent());
+    PROFILE(isolate_, CodeMovingGCEvent());
   }
 
   VerifySymbolTable();
@@ -804,7 +804,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
 void Heap::MarkCompact(GCTracer* tracer) {
   gc_state_ = MARK_COMPACT;
-  LOG(ResourceEvent("markcompact", "begin"));
+  LOG(isolate_, ResourceEvent("markcompact", "begin"));
 
   mark_compact_collector_.Prepare(tracer);
 
@@ -823,7 +823,7 @@ void Heap::MarkCompact(GCTracer* tracer) {
   mark_compact_collector_.CollectGarbage();
   is_safe_to_read_maps_ = true;
 
-  LOG(ResourceEvent("markcompact", "end"));
+  LOG(isolate_, ResourceEvent("markcompact", "end"));
 
   gc_state_ = NOT_IN_GC;
 
@@ -952,7 +952,7 @@ void Heap::Scavenge() {
   map_space_->FlushTopPageWatermark();
 
   // Implements Cheney's copying algorithm
-  LOG(ResourceEvent("scavenge", "begin"));
+  LOG(isolate_, ResourceEvent("scavenge", "begin"));
 
   // Clear descriptor cache.
   isolate_->descriptor_lookup_cache()->Clear();
@@ -1040,7 +1040,7 @@ void Heap::Scavenge() {
   IncrementYoungSurvivorsCounter(static_cast<int>(
       (PromotedSpaceSize() - survived_watermark) + new_space_.Size()));
 
-  LOG(ResourceEvent("scavenge", "end"));
+  LOG(isolate_, ResourceEvent("scavenge", "end"));
 
   gc_state_ = NOT_IN_GC;
 }
@@ -1319,7 +1319,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     if (isolate->logger()->is_logging() ||
         isolate->cpu_profiler()->is_profiling()) {
       if (target->IsSharedFunctionInfo()) {
-        PROFILE(SharedFunctionInfoMoveEvent(
+        PROFILE(isolate, SharedFunctionInfoMoveEvent(
             source->address(), target->address()));
       }
     }
@@ -4831,8 +4831,8 @@ bool Heap::Setup(bool create_heap_objects) {
     global_contexts_list_ = undefined_value();
   }
 
-  LOG(IntPtrTEvent("heap-capacity", Capacity()));
-  LOG(IntPtrTEvent("heap-available", Available()));
+  LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
+  LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // This should be called only after initial objects have been created.

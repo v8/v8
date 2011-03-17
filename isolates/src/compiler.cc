@@ -434,7 +434,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   Compiler::SetFunctionInfo(result, lit, true, script);
 
   if (script->name()->IsString()) {
-    PROFILE(CodeCreateEvent(
+    PROFILE(isolate, CodeCreateEvent(
         info->is_eval()
             ? Logger::EVAL_TAG
             : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
@@ -445,7 +445,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
                    script,
                    info->code()));
   } else {
-    PROFILE(CodeCreateEvent(
+    PROFILE(isolate, CodeCreateEvent(
         info->is_eval()
             ? Logger::EVAL_TAG
             : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
@@ -806,13 +806,15 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     if (script->name()->IsString()) {
       int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
       USE(line_num);
-      PROFILE(CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
+      PROFILE(info->isolate(),
+              CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
                               *shared,
                               String::cast(script->name()),
                               line_num));
     } else {
-      PROFILE(CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
+      PROFILE(info->isolate(),
+              CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
                               *shared,
                               shared->DebugName()));

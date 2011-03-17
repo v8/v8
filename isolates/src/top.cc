@@ -465,7 +465,7 @@ bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
   Handle<JSObject> receiver_handle(receiver, this);
   Handle<Object> key_handle(key, this);
   Handle<Object> data(AccessCheckInfo::cast(data_obj)->data(), this);
-  LOG(ApiNamedSecurityCheck(key));
+  LOG(this, ApiNamedSecurityCheck(key));
   bool result = false;
   {
     // Leaving JavaScript.
@@ -507,7 +507,7 @@ bool Isolate::MayIndexedAccess(JSObject* receiver,
   HandleScope scope(this);
   Handle<JSObject> receiver_handle(receiver, this);
   Handle<Object> data(AccessCheckInfo::cast(data_obj)->data(), this);
-  LOG(ApiIndexedSecurityCheck(index));
+  LOG(this, ApiIndexedSecurityCheck(index));
   bool result = false;
   {
     // Leaving JavaScript.

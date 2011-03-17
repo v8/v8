@@ -959,7 +959,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
   __ j(not_equal, miss);
 
   // Log the check depth.
-  LOG(IntEvent("check-maps-depth", depth + 1));
+  LOG(isolate(), IntEvent("check-maps-depth", depth + 1));
 
   // Perform security check for access to the global object and return
   // the holder register.

@@ -2902,7 +2902,8 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsSharedFunctionInfo()) {
-    PROFILE(SharedFunctionInfoMoveEvent(old_addr, new_addr));
+    PROFILE(heap_->isolate(),
+            SharedFunctionInfoMoveEvent(old_addr, new_addr));
   }
   HEAP_PROFILE(heap_, ObjectMoveEvent(old_addr, new_addr));
 
@@ -2949,7 +2950,7 @@ int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
     // May also update inline cache target.
     Code::cast(copied_to)->Relocate(new_addr - old_addr);
     // Notify the logger that compiled code has moved.
-    PROFILE(CodeMoveEvent(old_addr, new_addr));
+    PROFILE(heap_->isolate(), CodeMoveEvent(old_addr, new_addr));
   }
   HEAP_PROFILE(heap_, ObjectMoveEvent(old_addr, new_addr));
 
@@ -2994,7 +2995,8 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsSharedFunctionInfo()) {
-    PROFILE(SharedFunctionInfoMoveEvent(old_addr, new_addr));
+    PROFILE(heap_->isolate(),
+            SharedFunctionInfoMoveEvent(old_addr, new_addr));
   }
   HEAP_PROFILE(heap_, ObjectMoveEvent(old_addr, new_addr));
 
@@ -3022,7 +3024,7 @@ void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
 #endif
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (obj->IsCode()) {
-    PROFILE(CodeDeleteEvent(obj->address()));
+    PROFILE(ISOLATE, CodeDeleteEvent(obj->address()));
   }
 #endif
 }

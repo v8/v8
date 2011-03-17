@@ -76,17 +76,16 @@ class SlidingStateWindow;
 class LogMessageBuilder;
 
 #undef LOG
-// TODO(isolates): pass isolate pointer here.
 #ifdef ENABLE_LOGGING_AND_PROFILING
-#define LOG(Call)                                   \
+#define LOG(isolate, Call)                          \
   do {                                              \
     v8::internal::Logger* logger =                  \
-        v8::internal::Isolate::Current()->logger(); \
+        (isolate)->logger();                        \
     if (logger->is_logging())                       \
       logger->Call;                                 \
   } while (false)
 #else
-#define LOG(Call) ((void) 0)
+#define LOG(isolate, Call) ((void) 0)
 #endif
 
 #define LOG_EVENTS_AND_TAGS_LIST(V) \

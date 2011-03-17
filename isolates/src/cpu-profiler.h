@@ -197,15 +197,15 @@ class ProfilerEventsProcessor : public Thread {
 } }  // namespace v8::internal
 
 
-#define PROFILE(Call)                                  \
-  LOG(Call);                                           \
+#define PROFILE(isolate, Call)                         \
+  LOG(isolate, Call);                                  \
   do {                                                 \
     if (v8::internal::CpuProfiler::is_profiling()) {   \
       v8::internal::CpuProfiler::Call;                 \
     }                                                  \
   } while (false)
 #else
-#define PROFILE(Call) LOG(Call)
+#define PROFILE(isolate, Call) LOG(isolate, Call)
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 

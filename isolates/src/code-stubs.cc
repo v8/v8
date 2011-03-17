@@ -62,7 +62,7 @@ void CodeStub::GenerateCode(MacroAssembler* masm) {
 void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
   code->set_major_key(MajorKey());
 
-  PROFILE(CodeCreateEvent(Logger::STUB_TAG, code, GetName()));
+  PROFILE(ISOLATE, CodeCreateEvent(Logger::STUB_TAG, code, GetName()));
   GDBJIT(AddCode(GDBJITInterface::STUB, GetName(), code));
   COUNTERS->total_stubs_code_size()->Increment(code->instruction_size());
 
