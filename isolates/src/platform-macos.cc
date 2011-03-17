@@ -150,7 +150,7 @@ void* OS::Allocate(const size_t requested,
                      MAP_PRIVATE | MAP_ANON,
                      kMmapFd, kMmapFdOffset);
   if (mbase == MAP_FAILED) {
-    LOG(ISOLATE, StringEvent("OS::Allocate", "mmap failed"));
+    LOG(Isolate::Current(), StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
   }
   *allocated = msize;
@@ -265,7 +265,8 @@ void OS::LogSharedLibraryAddresses() {
     if (code_ptr == NULL) continue;
     const uintptr_t slide = _dyld_get_image_vmaddr_slide(i);
     const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
-    LOG(SharedLibraryEvent(_dyld_get_image_name(i), start, start + size));
+    LOG(Isolate::Current(),
+        SharedLibraryEvent(_dyld_get_image_name(i), start, start + size));
   }
 #endif  // ENABLE_LOGGING_AND_PROFILING
 }
