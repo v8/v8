@@ -4552,7 +4552,13 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
       VisitForEffect(expr->expression());
     }
 
-  } else if (op == Token::BIT_NOT || op == Token::SUB) {
+  } else if (op == Token::TYPEOF) {
+    VisitForTypeOf(expr->expression());
+    if (HasStackOverflow()) return;
+    HValue* value = Pop();
+    ast_context()->ReturnInstruction(new HTypeof(value), expr->id());
+
+  } else {
     VISIT_FOR_VALUE(expr->expression());
     HValue* value = Pop();
     HInstruction* instr = NULL;
@@ -4561,20 +4567,16 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
         instr = new HBitNot(value);
         break;
       case Token::SUB:
-        instr = new HMul(graph_->GetConstantMinus1(), value);
+        instr = new HMul(value, graph_->GetConstantMinus1());
+        break;
+      case Token::ADD:
+        instr = new HMul(value, graph_->GetConstant1());
         break;
       default:
-        UNREACHABLE();
+        BAILOUT("Value: unsupported unary operation");
         break;
     }
     ast_context()->ReturnInstruction(instr, expr->id());
-  } else if (op == Token::TYPEOF) {
-    VisitForTypeOf(expr->expression());
-    if (HasStackOverflow()) return;
-    HValue* value = Pop();
-    ast_context()->ReturnInstruction(new HTypeof(value), expr->id());
-  } else {
-    BAILOUT("Value: unsupported unary operation");
   }
 }
 
