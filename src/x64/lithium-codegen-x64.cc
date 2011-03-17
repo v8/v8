@@ -864,16 +864,56 @@ void LCodeGen::DoMulI(LMulI* instr) {
     __ movl(kScratchRegister, left);
   }
 
+  bool can_overflow =
+      instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   if (right->IsConstantOperand()) {
     int right_value = ToInteger32(LConstantOperand::cast(right));
-    __ imull(left, left, Immediate(right_value));
+    if (right_value == -1) {
+      __ negl(left);
+    } else if (right_value == 0) {
+      __ xorl(left, left);
+    } else if (right_value == 2) {
+      __ addl(left, left);
+    } else if (!can_overflow) {
+      // If the multiplication is known to not overflow, we
+      // can use operations that don't set the overflow flag
+      // correctly.
+      switch (right_value) {
+        case 1:
+          // Do nothing.
+          break;
+        case 3:
+          __ leal(left, Operand(left, left, times_2, 0));
+          break;
+        case 4:
+          __ shll(left, Immediate(2));
+          break;
+        case 5:
+          __ leal(left, Operand(left, left, times_4, 0));
+          break;
+        case 8:
+          __ shll(left, Immediate(3));
+          break;
+        case 9:
+          __ leal(left, Operand(left, left, times_8, 0));
+          break;
+        case 16:
+          __ shll(left, Immediate(4));
+          break;
+        default:
+          __ imull(left, left, Immediate(right_value));
+          break;
+      }
+    } else {
+      __ imull(left, left, Immediate(right_value));
+    }
   } else if (right->IsStackSlot()) {
     __ imull(left, ToOperand(right));
   } else {
     __ imull(left, ToRegister(right));
   }
 
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+  if (can_overflow) {
     DeoptimizeIf(overflow, instr->environment());
   }
 
