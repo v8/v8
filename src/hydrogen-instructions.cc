@@ -1230,14 +1230,9 @@ void HStorePixelArrayElement::PrintDataTo(StringStream* stream) {
 }
 
 
-void HLoadGlobalCell::PrintDataTo(StringStream* stream) {
+void HLoadGlobal::PrintDataTo(StringStream* stream) {
   stream->Add("[%p]", *cell());
   if (check_hole_value()) stream->Add(" (deleteable/read-only)");
-}
-
-
-void HLoadGlobalGeneric::PrintDataTo(StringStream* stream) {
-  stream->Add("%o ", *name());
 }
 
 

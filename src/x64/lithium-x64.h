@@ -118,8 +118,7 @@ class LCodeGen;
   V(LoadContextSlot)                            \
   V(LoadElements)                               \
   V(LoadExternalArrayPointer)                   \
-  V(LoadGlobalCell)                             \
-  V(LoadGlobalGeneric)                          \
+  V(LoadGlobal)                                 \
   V(LoadKeyedFastElement)                       \
   V(LoadKeyedGeneric)                           \
   V(LoadNamedField)                             \
@@ -1227,25 +1226,10 @@ class LLoadKeyedGeneric: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LLoadGlobalCell: public LTemplateInstruction<1, 0, 0> {
+class LLoadGlobal: public LTemplateInstruction<1, 0, 0> {
  public:
-  DECLARE_CONCRETE_INSTRUCTION(LoadGlobalCell, "load-global-cell")
-  DECLARE_HYDROGEN_ACCESSOR(LoadGlobalCell)
-};
-
-
-class LLoadGlobalGeneric: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LLoadGlobalGeneric(LOperand* global_object) {
-    inputs_[0] = global_object;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadGlobalGeneric, "load-global-generic")
-  DECLARE_HYDROGEN_ACCESSOR(LoadGlobalGeneric)
-
-  LOperand* global_object() { return inputs_[0]; }
-  Handle<Object> name() const { return hydrogen()->name(); }
-  bool for_typeof() const { return hydrogen()->for_typeof(); }
+  DECLARE_CONCRETE_INSTRUCTION(LoadGlobal, "load-global")
+  DECLARE_HYDROGEN_ACCESSOR(LoadGlobal)
 };
 
 
