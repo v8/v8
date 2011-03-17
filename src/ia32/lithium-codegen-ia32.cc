@@ -2063,26 +2063,13 @@ void LCodeGen::DoReturn(LReturn* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
+void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
   Register result = ToRegister(instr->result());
   __ mov(result, Operand::Cell(instr->hydrogen()->cell()));
   if (instr->hydrogen()->check_hole_value()) {
     __ cmp(result, Factory::the_hole_value());
     DeoptimizeIf(equal, instr->environment());
   }
-}
-
-
-void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
-  ASSERT(ToRegister(instr->context()).is(esi));
-  ASSERT(ToRegister(instr->global_object()).is(eax));
-  ASSERT(ToRegister(instr->result()).is(eax));
-
-  __ mov(ecx, instr->name());
-  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET :
-                                               RelocInfo::CODE_TARGET_CONTEXT;
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  CallCode(ic, mode, instr);
 }
 
 

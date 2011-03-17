@@ -1307,7 +1307,7 @@ class Call: public Expression {
   Handle<JSGlobalPropertyCell> cell() { return cell_; }
 
   bool ComputeTarget(Handle<Map> type, Handle<String> name);
-  bool ComputeGlobalTarget(Handle<GlobalObject> global, LookupResult* lookup);
+  bool ComputeGlobalTarget(Handle<GlobalObject> global, Handle<String> name);
 
   // Bailout support.
   int ReturnId() const { return return_id_; }
