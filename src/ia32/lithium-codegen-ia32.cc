@@ -3276,10 +3276,8 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   DeoptimizeIf(not_equal, env);
 
   // Convert undefined to NaN.
-  __ push(input_reg);
-  __ mov(input_reg, Factory::nan_value());
-  __ movdbl(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  __ pop(input_reg);
+  ExternalReference nan = ExternalReference::address_of_nan();
+  __ movdbl(result_reg, Operand::StaticVariable(nan));
   __ jmp(&done);
 
   // Heap number to XMM conversion.
