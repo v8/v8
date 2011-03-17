@@ -621,24 +621,21 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
 
 
 bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
-                               Handle<String> name) {
+                               LookupResult* lookup) {
   target_ = Handle<JSFunction>::null();
   cell_ = Handle<JSGlobalPropertyCell>::null();
-  LookupResult lookup;
-  global->Lookup(*name, &lookup);
-  if (lookup.IsProperty() &&
-      lookup.type() == NORMAL &&
-      lookup.holder() == *global) {
-    cell_ = Handle<JSGlobalPropertyCell>(global->GetPropertyCell(&lookup));
-    if (cell_->value()->IsJSFunction()) {
-      Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
-      // If the function is in new space we assume it's more likely to
-      // change and thus prefer the general IC code.
-      if (!Heap::InNewSpace(*candidate) &&
-          CanCallWithoutIC(candidate, arguments()->length())) {
-        target_ = candidate;
-        return true;
-      }
+  ASSERT(lookup->IsProperty() &&
+         lookup->type() == NORMAL &&
+         lookup->holder() == *global);
+  cell_ = Handle<JSGlobalPropertyCell>(global->GetPropertyCell(lookup));
+  if (cell_->value()->IsJSFunction()) {
+    Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
+    // If the function is in new space we assume it's more likely to
+    // change and thus prefer the general IC code.
+    if (!Heap::InNewSpace(*candidate) &&
+        CanCallWithoutIC(candidate, arguments()->length())) {
+      target_ = candidate;
+      return true;
     }
   }
   return false;

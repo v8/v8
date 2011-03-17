@@ -1745,11 +1745,19 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
-  LLoadGlobal* result = new LLoadGlobal;
+LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
+  LLoadGlobalCell* result = new LLoadGlobalCell;
   return instr->check_hole_value()
       ? AssignEnvironment(DefineAsRegister(result))
       : DefineAsRegister(result);
+}
+
+
+LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
+  LOperand* context = UseFixed(instr->context(), esi);
+  LOperand* global_object = UseFixed(instr->global_object(), eax);
+  LLoadGlobalGeneric* result = new LLoadGlobalGeneric(context, global_object);
+  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 
