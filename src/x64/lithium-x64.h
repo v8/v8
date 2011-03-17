@@ -1331,9 +1331,15 @@ class LGlobalObject: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LGlobalReceiver: public LTemplateInstruction<1, 0, 0> {
+class LGlobalReceiver: public LTemplateInstruction<1, 1, 0> {
  public:
+  explicit LGlobalReceiver(LOperand* global_object) {
+    inputs_[0] = global_object;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(GlobalReceiver, "global-receiver")
+
+  LOperand* global() { return InputAt(0); }
 };
 
 

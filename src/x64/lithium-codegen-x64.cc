@@ -2354,9 +2354,9 @@ void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
 
 
 void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
+  Register global = ToRegister(instr->global());
   Register result = ToRegister(instr->result());
-  __ movq(result, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ movq(result, FieldOperand(result, GlobalObject::kGlobalReceiverOffset));
+  __ movq(result, FieldOperand(global, GlobalObject::kGlobalReceiverOffset));
 }
 
 

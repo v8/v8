@@ -1199,7 +1199,8 @@ LInstruction* LChunkBuilder::DoGlobalObject(HGlobalObject* instr) {
 
 
 LInstruction* LChunkBuilder::DoGlobalReceiver(HGlobalReceiver* instr) {
-  return DefineAsRegister(new LGlobalReceiver);
+  LOperand* global_object = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LGlobalReceiver(global_object));
 }
 
 
