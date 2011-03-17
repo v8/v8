@@ -1180,7 +1180,8 @@ class AssertNoContextChange BASE_EMBEDDED {
 #ifdef DEBUG
  public:
   AssertNoContextChange() :
-      context_(Isolate::Current()->context()) {
+      scope_(Isolate::Current()),
+      context_(Isolate::Current()->context(), Isolate::Current()) {
   }
 
   ~AssertNoContextChange() {
