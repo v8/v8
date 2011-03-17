@@ -113,6 +113,21 @@ void HBasicBlock::AddInstruction(HInstruction* instr) {
 }
 
 
+HDeoptimize* HBasicBlock::CreateDeoptimize() {
+  ASSERT(HasEnvironment());
+  HEnvironment* environment = last_environment();
+
+  HDeoptimize* instr = new HDeoptimize(environment->length());
+
+  for (int i = 0; i < environment->length(); i++) {
+    HValue* val = environment->values()->at(i);
+    instr->AddEnvironmentValue(val);
+  }
+
+  return instr;
+}
+
+
 HSimulate* HBasicBlock::CreateSimulate(int id) {
   ASSERT(HasEnvironment());
   HEnvironment* environment = last_environment();
@@ -2483,6 +2498,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   }
 
   VISIT_FOR_VALUE(stmt->tag());
+  AddSimulate(stmt->EntryId());
   HValue* tag_value = Pop();
   HBasicBlock* first_test_block = current_block();
 
@@ -2498,15 +2514,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     // Unconditionally deoptimize on the first non-smi compare.
     clause->RecordTypeFeedback(oracle());
     if (!clause->IsSmiCompare()) {
-      if (current_block() == first_test_block) {
-        // If the first test is the one that deopts and if the tag value is
-        // a phi, we need to have some use of that phi to prevent phi
-        // elimination from removing it.  This HSimulate is such a use.
-        Push(tag_value);
-        AddSimulate(stmt->EntryId());
-        Drop(1);
-      }
-      current_block()->Finish(new HDeoptimize());
+      current_block()->FinishExitWithDeoptimization();
       set_current_block(NULL);
       break;
     }
@@ -3130,7 +3138,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExit(new HDeoptimize);
+    current_block()->FinishExitWithDeoptimization();
   } else {
     HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
     instr->set_position(expr->position());
@@ -3480,7 +3488,7 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExit(new HDeoptimize);
+    current_block()->FinishExitWithDeoptimization();
   } else {
     HInstruction* instr = BuildLoadNamedGeneric(object, expr);
     instr->set_position(expr->position());
@@ -3845,7 +3853,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExit(new HDeoptimize);
+    current_block()->FinishExitWithDeoptimization();
   } else {
     HContext* context = new HContext;
     AddInstruction(context);
