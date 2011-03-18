@@ -49,7 +49,7 @@ namespace internal {
   (entry(p0, p1, p2, p3, p4))
 
 typedef int (*arm_regexp_matcher)(String*, int, const byte*, const byte*,
-                                  void*, int*, Address, int);
+                                  void*, int*, Address, int, Isolate*);
 
 
 // Call the generated regexp code directly. The code at the entry address
