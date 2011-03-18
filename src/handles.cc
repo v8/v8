@@ -333,6 +333,15 @@ Handle<Object> GetProperty(Handle<Object> obj,
 }
 
 
+Handle<Object> GetProperty(Handle<JSObject> obj,
+                           Handle<String> name,
+                           LookupResult* result) {
+  PropertyAttributes attributes;
+  CALL_HEAP_FUNCTION(obj->GetProperty(*obj, result, *name, &attributes),
+                     Object);
+}
+
+
 Handle<Object> GetElement(Handle<Object> obj,
                           uint32_t index) {
   CALL_HEAP_FUNCTION(Runtime::GetElement(obj, index), Object);

@@ -971,41 +971,55 @@ bool Top::IsExternallyCaught() {
 }
 
 
+void Top::PropagatePendingExceptionToExternalTryCatch() {
+  ASSERT(has_pending_exception());
+
+  bool external_caught = IsExternallyCaught();
+  thread_local_.external_caught_exception_ = external_caught;
+
+  if (!external_caught) return;
+
+  if (thread_local_.pending_exception_ == Failure::OutOfMemoryException()) {
+    // Do not propagate OOM exception: we should kill VM asap.
+  } else if (thread_local_.pending_exception_ ==
+             Heap::termination_exception()) {
+    try_catch_handler()->can_continue_ = false;
+    try_catch_handler()->exception_ = Heap::null_value();
+  } else {
+    // At this point all non-object (failure) exceptions have
+    // been dealt with so this shouldn't fail.
+    ASSERT(!pending_exception()->IsFailure());
+    try_catch_handler()->can_continue_ = true;
+    try_catch_handler()->exception_ = pending_exception();
+    if (!thread_local_.pending_message_obj_->IsTheHole()) {
+      try_catch_handler()->message_ = thread_local_.pending_message_obj_;
+    }
+  }
+}
+
+
 void Top::ReportPendingMessages() {
   ASSERT(has_pending_exception());
+  PropagatePendingExceptionToExternalTryCatch();
+
   // If the pending exception is OutOfMemoryException set out_of_memory in
   // the global context.  Note: We have to mark the global context here
   // since the GenerateThrowOutOfMemory stub cannot make a RuntimeCall to
   // set it.
-  bool external_caught = IsExternallyCaught();
-  thread_local_.external_caught_exception_ = external_caught;
   HandleScope scope;
   if (thread_local_.pending_exception_ == Failure::OutOfMemoryException()) {
     context()->mark_out_of_memory();
   } else if (thread_local_.pending_exception_ ==
              Heap::termination_exception()) {
-    if (external_caught) {
-      try_catch_handler()->can_continue_ = false;
-      try_catch_handler()->exception_ = Heap::null_value();
-    }
+    // Do nothing: if needed, the exception has been already propagated to
+    // v8::TryCatch.
   } else {
-    // At this point all non-object (failure) exceptions have
-    // been dealt with so this shouldn't fail.
-    Object* pending_exception_object = pending_exception()->ToObjectUnchecked();
-    Handle<Object> exception(pending_exception_object);
-    thread_local_.external_caught_exception_ = false;
-    if (external_caught) {
-      try_catch_handler()->can_continue_ = true;
-      try_catch_handler()->exception_ = thread_local_.pending_exception_;
-      if (!thread_local_.pending_message_obj_->IsTheHole()) {
-        try_catch_handler()->message_ = thread_local_.pending_message_obj_;
-      }
-    }
     if (thread_local_.has_pending_message_) {
       thread_local_.has_pending_message_ = false;
       if (thread_local_.pending_message_ != NULL) {
         MessageHandler::ReportMessage(thread_local_.pending_message_);
       } else if (!thread_local_.pending_message_obj_->IsTheHole()) {
+        HandleScope scope;
         Handle<Object> message_obj(thread_local_.pending_message_obj_);
         if (thread_local_.pending_message_script_ != NULL) {
           Handle<Script> script(thread_local_.pending_message_script_);
@@ -1018,8 +1032,6 @@ void Top::ReportPendingMessages() {
         }
       }
     }
-    thread_local_.external_caught_exception_ = external_caught;
-    set_pending_exception(*exception);
   }
   clear_pending_message();
 }
@@ -1031,6 +1043,9 @@ void Top::TraceException(bool flag) {
 
 
 bool Top::OptionalRescheduleException(bool is_bottom_call) {
+  ASSERT(has_pending_exception());
+  PropagatePendingExceptionToExternalTryCatch();
+
   // Allways reschedule out of memory exceptions.
   if (!is_out_of_memory()) {
     bool is_termination_exception =

@@ -51,18 +51,26 @@ static bool IsNaN(double x) {
 }
 
 using ::v8::AccessorInfo;
+using ::v8::Arguments;
 using ::v8::Context;
 using ::v8::Extension;
 using ::v8::Function;
+using ::v8::FunctionTemplate;
+using ::v8::Handle;
 using ::v8::HandleScope;
 using ::v8::Local;
+using ::v8::Message;
+using ::v8::MessageCallback;
 using ::v8::Object;
 using ::v8::ObjectTemplate;
 using ::v8::Persistent;
 using ::v8::Script;
+using ::v8::StackTrace;
 using ::v8::String;
-using ::v8::Value;
+using ::v8::TryCatch;
+using ::v8::Undefined;
 using ::v8::V8;
+using ::v8::Value;
 
 namespace i = ::i;
 
@@ -8573,6 +8581,128 @@ THREADED_TEST(NamedPropertyHandlerGetterAttributes) {
                      templ->GetFunction()->NewInstance());
   ExpectTrue("obj.x === 42");
   ExpectTrue("!obj.propertyIsEnumerable('x')");
+}
+
+
+static Handle<Value> ThrowingGetter(Local<String> name,
+                                    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  ThrowException(Handle<Value>());
+  return Undefined();
+}
+
+
+THREADED_TEST(VariousGetPropertiesAndThrowingCallbacks) {
+  HandleScope scope;
+  LocalContext context;
+
+  Local<FunctionTemplate> templ = FunctionTemplate::New();
+  Local<ObjectTemplate> instance_templ = templ->InstanceTemplate();
+  instance_templ->SetAccessor(v8_str("f"), ThrowingGetter);
+
+  Local<Object> instance = templ->GetFunction()->NewInstance();
+
+  Local<Object> another = Object::New();
+  another->SetPrototype(instance);
+
+  Local<Object> with_js_getter = CompileRun(
+      "o = {};\n"
+      "o.__defineGetter__('f', function() { throw undefined; });\n"
+      "o\n").As<Object>();
+  CHECK(!with_js_getter.IsEmpty());
+
+  TryCatch try_catch;
+
+  Local<Value> result = instance->GetRealNamedProperty(v8_str("f"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(result.IsEmpty());
+
+  result = another->GetRealNamedProperty(v8_str("f"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(result.IsEmpty());
+
+  result = another->GetRealNamedPropertyInPrototypeChain(v8_str("f"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(result.IsEmpty());
+
+  result = another->Get(v8_str("f"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(result.IsEmpty());
+
+  result = with_js_getter->GetRealNamedProperty(v8_str("f"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(result.IsEmpty());
+
+  result = with_js_getter->Get(v8_str("f"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(result.IsEmpty());
+}
+
+
+static Handle<Value> ThrowingCallbackWithTryCatch(const Arguments& args) {
+  TryCatch try_catch;
+  // Verboseness is important: it triggers message delivery which can call into
+  // external code.
+  try_catch.SetVerbose(true);
+  CompileRun("throw 'from JS';");
+  CHECK(try_catch.HasCaught());
+  CHECK(!i::Top::has_pending_exception());
+  CHECK(!i::Top::has_scheduled_exception());
+  return Undefined();
+}
+
+
+static void WithTryCatch(Handle<Message> message, Handle<Value> data) {
+  TryCatch try_catch;
+}
+
+
+static void ThrowFromJS(Handle<Message> message, Handle<Value> data) {
+  CompileRun("throw 'ThrowInJS';");
+}
+
+
+static void ThrowViaApi(Handle<Message> message, Handle<Value> data) {
+  ThrowException(v8_str("ThrowViaApi"));
+}
+
+
+static void WebKitLike(Handle<Message> message, Handle<Value> data) {
+  Handle<String> errorMessageString = message->Get();
+  CHECK(!errorMessageString.IsEmpty());
+  message->GetStackTrace();
+  message->GetScriptResourceName();
+}
+
+THREADED_TEST(ExceptionsDoNotPropagatePastTryCatch) {
+  HandleScope scope;
+  LocalContext context;
+
+  Local<Function> func =
+      FunctionTemplate::New(ThrowingCallbackWithTryCatch)->GetFunction();
+  context->Global()->Set(v8_str("func"), func);
+
+  MessageCallback callbacks[] =
+      { NULL, WebKitLike, ThrowViaApi, ThrowFromJS, WithTryCatch };
+  for (unsigned i = 0; i < sizeof(callbacks)/sizeof(callbacks[0]); i++) {
+    MessageCallback callback = callbacks[i];
+    if (callback != NULL) {
+      V8::AddMessageListener(callback);
+    }
+    ExpectFalse(
+        "var thrown = false;\n"
+        "try { func(); } catch(e) { thrown = true; }\n"
+        "thrown\n");
+    if (callback != NULL) {
+      V8::RemoveMessageListeners(callback);
+    }
+  }
 }
 
 
