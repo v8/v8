@@ -1826,25 +1826,40 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   IndexedReferencesExtractor(V8HeapExplorer* generator,
                              HeapObject* parent_obj,
                              HeapEntry* parent_entry,
-                             HeapObjectsSet* known_references = NULL)
+                             bool process_field_marks = false)
       : generator_(generator),
         parent_obj_(parent_obj),
         parent_(parent_entry),
-        known_references_(known_references),
+        process_field_marks_(process_field_marks),
         next_index_(1) {
   }
   void VisitPointers(Object** start, Object** end) {
     for (Object** p = start; p < end; p++) {
-      if (!known_references_ || !known_references_->Contains(*p)) {
-        generator_->SetHiddenReference(parent_obj_, parent_, next_index_++, *p);
-      }
+      if (CheckVisitedAndUnmark(p)) continue;
+      generator_->SetHiddenReference(parent_obj_, parent_, next_index_++, *p);
     }
   }
+  static void MarkVisitedField(HeapObject* obj, int offset) {
+    if (offset < 0) return;
+    Address field = obj->address() + offset;
+    ASSERT(!Memory::Object_at(field)->IsFailure());
+    ASSERT(Memory::Object_at(field)->IsHeapObject());
+    *field |= kFailureTag;    
+  }
  private:
+  bool CheckVisitedAndUnmark(Object** field) {
+    if (process_field_marks_ && (*field)->IsFailure()) {
+      intptr_t untagged = reinterpret_cast<intptr_t>(*field) & ~kFailureTagMask;
+      *field = reinterpret_cast<Object*>(untagged | kHeapObjectTag);
+      ASSERT((*field)->IsHeapObject());
+      return true;
+    }
+    return false;
+  }
   V8HeapExplorer* generator_;
   HeapObject* parent_obj_;
   HeapEntry* parent_;
-  HeapObjectsSet* known_references_;
+  bool process_field_marks_;
   int next_index_;
 };
 
@@ -1853,7 +1868,6 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
   HeapEntry* entry = GetEntry(obj);
   if (entry == NULL) return;  // No interest in this object.
 
-  known_references_.Clear();
   if (obj->IsJSGlobalProxy()) {
     // We need to reference JS global objects from snapshot's root.
     // We use JSGlobalProxy because this is what embedder (e.g. browser)
@@ -1868,17 +1882,29 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     ExtractPropertyReferences(js_obj, entry);
     ExtractElementReferences(js_obj, entry);
     ExtractInternalReferences(js_obj, entry);
-    SetPropertyReference(
-        obj, entry, Heap::Proto_symbol(), js_obj->GetPrototype());
+    SetPropertyReference(obj, entry,
+                         Heap::Proto_symbol(), js_obj->GetPrototype());
     if (obj->IsJSFunction()) {
-      JSFunction* js_fun = JSFunction::cast(obj);
-      if (js_fun->has_prototype()) {
-        SetPropertyReference(
-            obj, entry, Heap::prototype_symbol(), js_fun->prototype());
+      JSFunction* js_fun = JSFunction::cast(js_obj);
+      SetInternalReference(
+          js_fun, entry,
+          "code", js_fun->shared(),
+          JSFunction::kSharedFunctionInfoOffset);
+      Object* proto_or_map = js_fun->prototype_or_initial_map();
+      if (!proto_or_map->IsTheHole()) {
+        if (!proto_or_map->IsMap()) {
+          SetPropertyReference(
+              obj, entry,
+              Heap::prototype_symbol(), proto_or_map,
+              JSFunction::kPrototypeOrInitialMapOffset);
+        } else {
+          SetPropertyReference(
+              obj, entry,
+              Heap::prototype_symbol(), js_fun->prototype());
+        }
       }
     }
-    IndexedReferencesExtractor refs_extractor(
-        this, obj, entry, &known_references_);
+    IndexedReferencesExtractor refs_extractor(this, obj, entry, true);
     obj->Iterate(&refs_extractor);
   } else if (obj->IsString()) {
     if (obj->IsConsString()) {
@@ -1911,7 +1937,6 @@ void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj,
         SetClosureReference(js_obj, entry, local_name, context->get(idx));
       }
     }
-    SetInternalReference(js_obj, entry, "code", func->shared());
   }
 }
 
@@ -1924,13 +1949,22 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj,
       switch (descs->GetType(i)) {
         case FIELD: {
           int index = descs->GetFieldIndex(i);
-          SetPropertyReference(
-              js_obj, entry, descs->GetKey(i), js_obj->FastPropertyAt(index));
+          if (index < js_obj->map()->inobject_properties()) {
+            SetPropertyReference(
+                js_obj, entry,
+                descs->GetKey(i), js_obj->InObjectPropertyAt(index),
+                js_obj->GetInObjectPropertyOffset(index));
+          } else {
+            SetPropertyReference(
+                js_obj, entry,
+                descs->GetKey(i), js_obj->FastPropertyAt(index));
+          }
           break;
         }
         case CONSTANT_FUNCTION:
           SetPropertyReference(
-              js_obj, entry, descs->GetKey(i), descs->GetConstantFunction(i));
+              js_obj, entry,
+              descs->GetKey(i), descs->GetConstantFunction(i));
           break;
         default: ;
       }
@@ -1990,7 +2024,8 @@ void V8HeapExplorer::ExtractInternalReferences(JSObject* js_obj,
   int length = js_obj->GetInternalFieldCount();
   for (int i = 0; i < length; ++i) {
     Object* o = js_obj->GetInternalField(i);
-    SetInternalReference(js_obj, entry, i, o);
+    SetInternalReference(
+        js_obj, entry, i, o, js_obj->GetInternalFieldOffset(i));
   }
 }
 
@@ -2052,7 +2087,6 @@ void V8HeapExplorer::SetClosureReference(HeapObject* parent_obj,
                                collection_->names()->GetName(reference_name),
                                child_obj,
                                child_entry);
-    known_references_.Insert(child_obj);
   }
 }
 
@@ -2069,7 +2103,6 @@ void V8HeapExplorer::SetElementReference(HeapObject* parent_obj,
                                  index,
                                  child_obj,
                                  child_entry);
-    known_references_.Insert(child_obj);
   }
 }
 
@@ -2077,7 +2110,8 @@ void V8HeapExplorer::SetElementReference(HeapObject* parent_obj,
 void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
                                           HeapEntry* parent_entry,
                                           const char* reference_name,
-                                          Object* child_obj) {
+                                          Object* child_obj,
+                                          int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry != NULL) {
     filler_->SetNamedReference(HeapGraphEdge::kInternal,
@@ -2086,7 +2120,7 @@ void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
                                reference_name,
                                child_obj,
                                child_entry);
-    known_references_.Insert(child_obj);
+    IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
   }
 }
 
@@ -2094,7 +2128,8 @@ void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
 void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
                                           HeapEntry* parent_entry,
                                           int index,
-                                          Object* child_obj) {
+                                          Object* child_obj,
+                                          int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry != NULL) {
     filler_->SetNamedReference(HeapGraphEdge::kInternal,
@@ -2103,7 +2138,7 @@ void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
                                collection_->names()->GetName(index),
                                child_obj,
                                child_entry);
-    known_references_.Insert(child_obj);
+    IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
   }
 }
 
@@ -2127,7 +2162,8 @@ void V8HeapExplorer::SetHiddenReference(HeapObject* parent_obj,
 void V8HeapExplorer::SetPropertyReference(HeapObject* parent_obj,
                                           HeapEntry* parent_entry,
                                           String* reference_name,
-                                          Object* child_obj) {
+                                          Object* child_obj,
+                                          int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry != NULL) {
     HeapGraphEdge::Type type = reference_name->length() > 0 ?
@@ -2138,16 +2174,15 @@ void V8HeapExplorer::SetPropertyReference(HeapObject* parent_obj,
                                collection_->names()->GetName(reference_name),
                                child_obj,
                                child_entry);
-    known_references_.Insert(child_obj);
+    IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
   }
 }
 
 
-void V8HeapExplorer::SetPropertyShortcutReference(
-    HeapObject* parent_obj,
-    HeapEntry* parent_entry,
-    String* reference_name,
-    Object* child_obj) {
+void V8HeapExplorer::SetPropertyShortcutReference(HeapObject* parent_obj,
+                                                  HeapEntry* parent_entry,
+                                                  String* reference_name,
+                                                  Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry != NULL) {
     filler_->SetNamedReference(HeapGraphEdge::kShortcut,

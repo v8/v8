@@ -1313,6 +1313,12 @@ int JSObject::GetInternalFieldCount() {
 }
 
 
+int JSObject::GetInternalFieldOffset(int index) {
+  ASSERT(index < GetInternalFieldCount() && index >= 0);
+  return GetHeaderSize() + (kPointerSize * index);
+}
+
+
 Object* JSObject::GetInternalField(int index) {
   ASSERT(index < GetInternalFieldCount() && index >= 0);
   // Internal objects do follow immediately after the header, whereas in-object
@@ -1361,6 +1367,14 @@ Object* JSObject::FastPropertyAtPut(int index, Object* value) {
     properties()->set(index, value);
   }
   return value;
+}
+
+
+int JSObject::GetInObjectPropertyOffset(int index) {
+  // Adjust for the number of properties stored in the object.
+  index -= map()->inobject_properties();
+  ASSERT(index < 0);
+  return map()->instance_size() + (index * kPointerSize);
 }
 
 
