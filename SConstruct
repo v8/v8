@@ -582,7 +582,7 @@ SAMPLE_FLAGS = {
       'LINKFLAGS': ['/MACHINE:X86']
     },
     'arch:x64': {
-      'CPPDEFINES': ['V8_TARGET_ARCH_X64'],
+      'CPPDEFINES': ['V8_TARGET_ARCH_X64', 'WIN32'],
       'LINKFLAGS': ['/MACHINE:X64', '/STACK:2091752']
     },
     'mode:debug': {
