@@ -51,7 +51,8 @@ namespace internal {
 
 
 CompilationInfo::CompilationInfo(Handle<Script> script)
-    : flags_(0),
+    : isolate_(script->GetIsolate()),
+      flags_(0),
       function_(NULL),
       scope_(NULL),
       script_(script),
@@ -64,7 +65,8 @@ CompilationInfo::CompilationInfo(Handle<Script> script)
 
 
 CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info)
-    : flags_(IsLazy::encode(true)),
+    : isolate_(shared_info->GetIsolate()),
+      flags_(IsLazy::encode(true)),
       function_(NULL),
       scope_(NULL),
       shared_info_(shared_info),
@@ -78,7 +80,8 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info)
 
 
 CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
-    : flags_(IsLazy::encode(true)),
+    : isolate_(closure->GetIsolate()),
+      flags_(IsLazy::encode(true)),
       function_(NULL),
       scope_(NULL),
       closure_(closure),
@@ -121,10 +124,11 @@ void CompilationInfo::DisableOptimization() {
 // break points has actually been set.
 static bool AlwaysFullCompiler() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
+  Isolate* isolate = Isolate::Current();
   if (V8::UseCrankshaft()) {
-    return FLAG_always_full_compiler || Debug::has_break_points();
+    return FLAG_always_full_compiler || isolate->debug()->has_break_points();
   } else {
-    return FLAG_always_full_compiler || Debugger::IsDebuggerActive();
+    return FLAG_always_full_compiler || isolate->debugger()->IsDebuggerActive();
   }
 #else
   return FLAG_always_full_compiler;
@@ -172,7 +176,8 @@ static void AbortAndDisable(CompilationInfo* info) {
   ASSERT(code->kind() == Code::FUNCTION);
   code->set_optimizable(false);
   info->SetCode(code);
-  CompilationCache::MarkForLazyOptimizing(info->closure());
+  Isolate* isolate = code->GetIsolate();
+  isolate->compilation_cache()->MarkForLazyOptimizing(info->closure());
   if (FLAG_trace_opt) {
     PrintF("[disabled optimization for: ");
     info->closure()->PrintName();
@@ -287,7 +292,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   HGraphBuilder builder(info, &oracle);
   HPhase phase(HPhase::kTotal);
   HGraph* graph = builder.CreateGraph();
-  if (Top::has_pending_exception()) {
+  if (info->isolate()->has_pending_exception()) {
     info->SetCode(Handle<Code>::null());
     return false;
   }
@@ -365,11 +370,12 @@ bool Compiler::MakeCodeForLiveEdit(CompilationInfo* info) {
 static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
-  PostponeInterruptsScope postpone;
+  Isolate* isolate = info->isolate();
+  PostponeInterruptsScope postpone(isolate);
 
-  ASSERT(!i::Top::global_context().is_null());
+  ASSERT(!isolate->global_context().is_null());
   Handle<Script> script = info->script();
-  script->set_context_data((*i::Top::global_context())->data());
+  script->set_context_data((*isolate->global_context())->data());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (info->is_eval()) {
@@ -382,15 +388,16 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
       if (!it.done()) {
         script->set_eval_from_shared(
             JSFunction::cast(it.frame()->function())->shared());
+        Code* code = it.frame()->LookupCode(isolate);
         int offset = static_cast<int>(
-            it.frame()->pc() - it.frame()->code()->instruction_start());
+            it.frame()->pc() - code->instruction_start());
         script->set_eval_from_instructions_offset(Smi::FromInt(offset));
       }
     }
   }
 
   // Notify debugger
-  Debugger::OnBeforeCompile(script);
+  isolate->debugger()->OnBeforeCompile(script);
 #endif
 
   // Only allow non-global compiles for eval.
@@ -402,22 +409,22 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // rest of the function into account to avoid overlap with the
   // parsing statistics.
   HistogramTimer* rate = info->is_eval()
-      ? &Counters::compile_eval
-      : &Counters::compile;
+      ? COUNTERS->compile_eval()
+      : COUNTERS->compile();
   HistogramTimerScope timer(rate);
 
   // Compile the code.
   FunctionLiteral* lit = info->function();
-  LiveEditFunctionTracker live_edit_tracker(lit);
+  LiveEditFunctionTracker live_edit_tracker(isolate, lit);
   if (!MakeCode(info)) {
-    Top::StackOverflow();
+    isolate->StackOverflow();
     return Handle<SharedFunctionInfo>::null();
   }
 
   // Allocate function.
   ASSERT(!info->code().is_null());
   Handle<SharedFunctionInfo> result =
-      Factory::NewSharedFunctionInfo(
+      isolate->factory()->NewSharedFunctionInfo(
           lit->name(),
           lit->materialized_literal_count(),
           info->code(),
@@ -427,7 +434,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   Compiler::SetFunctionInfo(result, lit, true, script);
 
   if (script->name()->IsString()) {
-    PROFILE(CodeCreateEvent(
+    PROFILE(isolate, CodeCreateEvent(
         info->is_eval()
             ? Logger::EVAL_TAG
             : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
@@ -438,13 +445,13 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
                    script,
                    info->code()));
   } else {
-    PROFILE(CodeCreateEvent(
+    PROFILE(isolate, CodeCreateEvent(
         info->is_eval()
             ? Logger::EVAL_TAG
             : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
         *info->code(),
         *result,
-        Heap::empty_string()));
+        isolate->heap()->empty_string()));
     GDBJIT(AddCode(Handle<String>(), script, info->code()));
   }
 
@@ -455,7 +462,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
-  Debugger::OnAfterCompile(script, Debugger::NO_AFTER_COMPILE_FLAGS);
+  isolate->debugger()->OnAfterCompile(
+      script, Debugger::NO_AFTER_COMPILE_FLAGS);
 #endif
 
   live_edit_tracker.RecordFunctionInfo(result, lit);
@@ -472,20 +480,23 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              ScriptDataImpl* input_pre_data,
                                              Handle<Object> script_data,
                                              NativesFlag natives) {
+  Isolate* isolate = Isolate::Current();
   int source_length = source->length();
-  Counters::total_load_size.Increment(source_length);
-  Counters::total_compile_size.Increment(source_length);
+  COUNTERS->total_load_size()->Increment(source_length);
+  COUNTERS->total_compile_size()->Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
-  VMState state(COMPILER);
+  VMState state(isolate, COMPILER);
+
+  CompilationCache* compilation_cache = isolate->compilation_cache();
 
   // Do a lookup in the compilation cache but not for extensions.
   Handle<SharedFunctionInfo> result;
   if (extension == NULL) {
-    result = CompilationCache::LookupScript(source,
-                                            script_name,
-                                            line_offset,
-                                            column_offset);
+    result = compilation_cache->LookupScript(source,
+                                             script_name,
+                                             line_offset,
+                                             column_offset);
   }
 
   if (result.is_null()) {
@@ -511,7 +522,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     }
 
     // Create a script object describing the script to be compiled.
-    Handle<Script> script = Factory::NewScript(source);
+    Handle<Script> script = FACTORY->NewScript(source);
     if (natives == NATIVES_CODE) {
       script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
     }
@@ -521,7 +532,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
       script->set_column_offset(Smi::FromInt(column_offset));
     }
 
-    script->set_data(script_data.is_null() ? Heap::undefined_value()
+    script->set_data(script_data.is_null() ? HEAP->undefined_value()
                                            : *script_data);
 
     // Compile the function and add it to the cache.
@@ -532,7 +543,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     if (natives == NATIVES_CODE) info.MarkAsAllowingNativesSyntax();
     result = MakeFunctionInfo(&info);
     if (extension == NULL && !result.is_null()) {
-      CompilationCache::PutScript(source, result);
+      compilation_cache->PutScript(source, result);
     }
 
     // Get rid of the pre-parsing data (if necessary).
@@ -541,7 +552,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     }
   }
 
-  if (result.is_null()) Top::ReportPendingMessages();
+  if (result.is_null()) isolate->ReportPendingMessages();
   return result;
 }
 
@@ -550,24 +561,26 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
                                                  Handle<Context> context,
                                                  bool is_global,
                                                  StrictModeFlag strict_mode) {
+  Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
-  Counters::total_eval_size.Increment(source_length);
-  Counters::total_compile_size.Increment(source_length);
+  isolate->counters()->total_eval_size()->Increment(source_length);
+  isolate->counters()->total_compile_size()->Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
-  VMState state(COMPILER);
+  VMState state(isolate, COMPILER);
 
   // Do a lookup in the compilation cache; if the entry is not there, invoke
   // the compiler and add the result to the cache.
   Handle<SharedFunctionInfo> result;
-  result = CompilationCache::LookupEval(source,
-                                        context,
-                                        is_global,
-                                        strict_mode);
+  CompilationCache* compilation_cache = isolate->compilation_cache();
+  result = compilation_cache->LookupEval(source,
+                                         context,
+                                         is_global,
+                                         strict_mode);
 
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
-    Handle<Script> script = Factory::NewScript(source);
+    Handle<Script> script = isolate->factory()->NewScript(source);
     CompilationInfo info(script);
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
@@ -575,11 +588,12 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     info.SetCallingContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
+      CompilationCache* compilation_cache = isolate->compilation_cache();
       // If caller is strict mode, the result must be strict as well,
       // but not the other way around. Consider:
       // eval("'use strict'; ...");
       ASSERT(strict_mode == kNonStrictMode || result->strict_mode());
-      CompilationCache::PutEval(source, context, is_global, result);
+      compilation_cache->PutEval(source, context, is_global, result);
     }
   }
 
@@ -591,25 +605,26 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
   // The VM is in the COMPILER state until exiting this function.
-  VMState state(COMPILER);
+  VMState state(info->isolate(), COMPILER);
 
-  PostponeInterruptsScope postpone;
+  Isolate* isolate = info->isolate();
+  PostponeInterruptsScope postpone(isolate);
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
   int compiled_size = shared->end_position() - shared->start_position();
-  Counters::total_compile_size.Increment(compiled_size);
+  isolate->counters()->total_compile_size()->Increment(compiled_size);
 
   // Generate the AST for the lazily compiled function.
   if (ParserApi::Parse(info)) {
     // Measure how long it takes to do the lazy compilation; only take the
     // rest of the function into account to avoid overlap with the lazy
     // parsing statistics.
-    HistogramTimerScope timer(&Counters::compile_lazy);
+    HistogramTimerScope timer(isolate->counters()->compile_lazy());
 
     // Compile the code.
     if (!MakeCode(info)) {
-      if (!Top::has_pending_exception()) {
-        Top::StackOverflow();
+      if (!isolate->has_pending_exception()) {
+        isolate->StackOverflow();
       }
     } else {
       ASSERT(!info->code().is_null());
@@ -654,12 +669,14 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
           // If we're asked to always optimize, we compile the optimized
           // version of the function right away - unless the debugger is
           // active as it makes no sense to compile optimized code then.
-          if (FLAG_always_opt && !Debug::has_break_points()) {
+          if (FLAG_always_opt &&
+              !Isolate::Current()->debug()->has_break_points()) {
             CompilationInfo optimized(function);
             optimized.SetOptimizing(AstNode::kNoNumber);
             return CompileLazy(&optimized);
-          } else if (CompilationCache::ShouldOptimizeEagerly(function)) {
-            RuntimeProfiler::OptimizeSoon(*function);
+          } else if (isolate->compilation_cache()->ShouldOptimizeEagerly(
+              function)) {
+            isolate->runtime_profiler()->OptimizeSoon(*function);
           }
         }
       }
@@ -680,20 +697,21 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   info.SetFunction(literal);
   info.SetScope(literal->scope());
 
-  LiveEditFunctionTracker live_edit_tracker(literal);
+  LiveEditFunctionTracker live_edit_tracker(info.isolate(), literal);
   // Determine if the function can be lazily compiled. This is necessary to
   // allow some of our builtin JS files to be lazily compiled. These
   // builtins cannot be handled lazily by the parser, since we have to know
   // if a function uses the special natives syntax, which is something the
   // parser records.
   bool allow_lazy = literal->AllowsLazyCompilation() &&
-      !LiveEditFunctionTracker::IsActive();
+      !LiveEditFunctionTracker::IsActive(info.isolate());
 
   Handle<SerializedScopeInfo> scope_info(SerializedScopeInfo::Empty());
 
   // Generate code
   if (FLAG_lazy && allow_lazy) {
-    Handle<Code> code(Builtins::builtin(Builtins::LazyCompile));
+    Handle<Code> code(
+        info.isolate()->builtins()->builtin(Builtins::LazyCompile));
     info.SetCode(code);
   } else {
     if (V8::UseCrankshaft()) {
@@ -728,7 +746,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
 
   // Create a shared function info object.
   Handle<SharedFunctionInfo> result =
-      Factory::NewSharedFunctionInfo(literal->name(),
+      FACTORY->NewSharedFunctionInfo(literal->name(),
                                      literal->materialized_literal_count(),
                                      info.code(),
                                      scope_info);
@@ -780,20 +798,23 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
-  if (Logger::is_logging() || CpuProfiler::is_profiling()) {
+  if (info->isolate()->logger()->is_logging() || CpuProfiler::is_profiling()) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
-    if (*code == Builtins::builtin(Builtins::LazyCompile)) return;
+    if (*code == info->isolate()->builtins()->builtin(Builtins::LazyCompile))
+      return;
     if (script->name()->IsString()) {
       int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
       USE(line_num);
-      PROFILE(CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
+      PROFILE(info->isolate(),
+              CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
                               *shared,
                               String::cast(script->name()),
                               line_num));
     } else {
-      PROFILE(CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
+      PROFILE(info->isolate(),
+              CodeCreateEvent(Logger::ToNativeByScript(tag, *script),
                               *code,
                               *shared,
                               shared->DebugName()));

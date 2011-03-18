@@ -31,7 +31,6 @@
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "scopeinfo.h"
-#include "top.h"
 #include "unicode.h"
 #include "zone-inl.h"
 
@@ -48,24 +47,27 @@ TokenEnumerator::TokenEnumerator()
 
 
 TokenEnumerator::~TokenEnumerator() {
+  Isolate* isolate = Isolate::Current();
   for (int i = 0; i < token_locations_.length(); ++i) {
     if (!token_removed_[i]) {
-      GlobalHandles::ClearWeakness(token_locations_[i]);
-      GlobalHandles::Destroy(token_locations_[i]);
+      isolate->global_handles()->ClearWeakness(token_locations_[i]);
+      isolate->global_handles()->Destroy(token_locations_[i]);
     }
   }
 }
 
 
 int TokenEnumerator::GetTokenId(Object* token) {
+  Isolate* isolate = Isolate::Current();
   if (token == NULL) return TokenEnumerator::kNoSecurityToken;
   for (int i = 0; i < token_locations_.length(); ++i) {
     if (*token_locations_[i] == token && !token_removed_[i]) return i;
   }
-  Handle<Object> handle = GlobalHandles::Create(token);
+  Handle<Object> handle = isolate->global_handles()->Create(token);
   // handle.location() points to a memory cell holding a pointer
   // to a token object in the V8's heap.
-  GlobalHandles::MakeWeak(handle.location(), this, TokenRemovedCallback);
+  isolate->global_handles()->MakeWeak(handle.location(), this,
+                                      TokenRemovedCallback);
   token_locations_.Add(handle.location());
   token_removed_.Add(false);
   return token_locations_.length() - 1;
@@ -162,7 +164,7 @@ const char* StringsStorage::GetName(int index) {
 }
 
 
-const char* CodeEntry::kEmptyNamePrefix = "";
+const char* const CodeEntry::kEmptyNamePrefix = "";
 
 
 void CodeEntry::CopyData(const CodeEntry& source) {
@@ -783,10 +785,12 @@ void SampleRateCalculator::UpdateMeasurements(double current_time) {
 }
 
 
-const char* ProfileGenerator::kAnonymousFunctionName = "(anonymous function)";
-const char* ProfileGenerator::kProgramEntryName = "(program)";
-const char* ProfileGenerator::kGarbageCollectorEntryName =
-  "(garbage collector)";
+const char* const ProfileGenerator::kAnonymousFunctionName =
+    "(anonymous function)";
+const char* const ProfileGenerator::kProgramEntryName =
+    "(program)";
+const char* const ProfileGenerator::kGarbageCollectorEntryName =
+    "(garbage collector)";
 
 
 ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
@@ -1882,8 +1886,8 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     ExtractPropertyReferences(js_obj, entry);
     ExtractElementReferences(js_obj, entry);
     ExtractInternalReferences(js_obj, entry);
-    SetPropertyReference(obj, entry,
-                         Heap::Proto_symbol(), js_obj->GetPrototype());
+    SetPropertyReference(
+        obj, entry, HEAP->Proto_symbol(), js_obj->GetPrototype());
     if (obj->IsJSFunction()) {
       JSFunction* js_fun = JSFunction::cast(js_obj);
       SetInternalReference(
@@ -1895,12 +1899,12 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
         if (!proto_or_map->IsMap()) {
           SetPropertyReference(
               obj, entry,
-              Heap::prototype_symbol(), proto_or_map,
+              HEAP->prototype_symbol(), proto_or_map,
               JSFunction::kPrototypeOrInitialMapOffset);
         } else {
           SetPropertyReference(
               obj, entry,
-              Heap::prototype_symbol(), js_fun->prototype());
+              HEAP->prototype_symbol(), js_fun->prototype());
         }
       }
     }
@@ -2069,7 +2073,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   }
   SetRootGcRootsReference();
   RootsReferencesExtractor extractor(this);
-  Heap::IterateRoots(&extractor, VISIT_ALL);
+  HEAP->IterateRoots(&extractor, VISIT_ALL);
   filler_ = NULL;
   return progress_->ProgressReport(false);
 }
@@ -2308,9 +2312,10 @@ int NativeObjectsExplorer::EstimateObjectsCount() {
 
 void NativeObjectsExplorer::FillRetainedObjects() {
   if (embedder_queried_) return;
+  Isolate* isolate = Isolate::Current();
   // Record objects that are joined into ObjectGroups.
-  Heap::CallGlobalGCPrologueCallback();
-  List<ObjectGroup*>* groups = GlobalHandles::ObjectGroups();
+  isolate->heap()->CallGlobalGCPrologueCallback();
+  List<ObjectGroup*>* groups = isolate->global_handles()->object_groups();
   for (int i = 0; i < groups->length(); ++i) {
     ObjectGroup* group = groups->at(i);
     if (group->info_ == NULL) continue;
@@ -2322,11 +2327,11 @@ void NativeObjectsExplorer::FillRetainedObjects() {
     }
     group->info_ = NULL;  // Acquire info object ownership.
   }
-  GlobalHandles::RemoveObjectGroups();
-  Heap::CallGlobalGCEpilogueCallback();
+  isolate->global_handles()->RemoveObjectGroups();
+  isolate->heap()->CallGlobalGCEpilogueCallback();
   // Record objects that are not in ObjectGroups, but have class ID.
   GlobalHandlesExtractor extractor(this);
-  GlobalHandles::IterateAllRootsWithClassIds(&extractor);
+  isolate->global_handles()->IterateAllRootsWithClassIds(&extractor);
   embedder_queried_ = true;
 }
 
@@ -2404,8 +2409,9 @@ void NativeObjectsExplorer::SetRootNativesRootReference() {
 
 void NativeObjectsExplorer::VisitSubtreeWrapper(Object** p, uint16_t class_id) {
   if (in_groups_.Contains(*p)) return;
+  Isolate* isolate = Isolate::Current();
   v8::RetainedObjectInfo* info =
-      HeapProfiler::ExecuteWrapperClassCallback(class_id, p);
+      isolate->heap_profiler()->ExecuteWrapperClassCallback(class_id, p);
   if (info == NULL) return;
   GetListMaybeDisposeInfo(info)->Add(HeapObject::cast(*p));
 }
@@ -3182,7 +3188,7 @@ void HeapSnapshotJSONSerializer::SortHashMap(
 
 
 String* GetConstructorNameForHeapProfile(JSObject* object) {
-  if (object->IsJSFunction()) return Heap::closure_symbol();
+  if (object->IsJSFunction()) return HEAP->closure_symbol();
   return object->constructor_name();
 }
 

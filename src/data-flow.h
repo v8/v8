@@ -90,7 +90,7 @@ class BitVector: public ZoneObject {
   explicit BitVector(int length)
       : length_(length),
         data_length_(SizeFor(length)),
-        data_(Zone::NewArray<uint32_t>(data_length_)) {
+        data_(ZONE->NewArray<uint32_t>(data_length_)) {
     ASSERT(length > 0);
     Clear();
   }
@@ -98,7 +98,7 @@ class BitVector: public ZoneObject {
   BitVector(const BitVector& other)
       : length_(other.length()),
         data_length_(SizeFor(length_)),
-        data_(Zone::NewArray<uint32_t>(data_length_)) {
+        data_(ZONE->NewArray<uint32_t>(data_length_)) {
     CopyFrom(other);
   }
 
@@ -237,7 +237,7 @@ class SparseSet: public ZoneObject {
 
   explicit SparseSet(int universe_size)
       : dense_(4),
-        sparse_(Zone::NewArray<int>(universe_size)) {
+        sparse_(ZONE->NewArray<int>(universe_size)) {
 #ifdef DEBUG
     size_ = universe_size;
     iterator_count_ = 0;

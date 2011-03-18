@@ -288,7 +288,7 @@ void VirtualFrame::CallJSFunction(int arg_count) {
 }
 
 
-void VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+void VirtualFrame::CallRuntime(const Runtime::Function* f, int arg_count) {
   SpillAll();
   Forget(arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
@@ -321,7 +321,8 @@ void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 
 
 void VirtualFrame::CallLoadIC(Handle<String> name, RelocInfo::Mode mode) {
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::LoadIC_Initialize));
   PopToR0();
   SpillAll();
   __ mov(r2, Operand(name));
@@ -332,7 +333,7 @@ void VirtualFrame::CallLoadIC(Handle<String> name, RelocInfo::Mode mode) {
 void VirtualFrame::CallStoreIC(Handle<String> name,
                                bool is_contextual,
                                StrictModeFlag strict_mode) {
-  Handle<Code> ic(Builtins::builtin(
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
       (strict_mode == kStrictMode) ? Builtins::StoreIC_Initialize_Strict
                                    : Builtins::StoreIC_Initialize));
   PopToR0();
@@ -352,7 +353,8 @@ void VirtualFrame::CallStoreIC(Handle<String> name,
 
 
 void VirtualFrame::CallKeyedLoadIC() {
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Initialize));
   PopToR1R0();
   SpillAll();
   CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
@@ -360,7 +362,7 @@ void VirtualFrame::CallKeyedLoadIC() {
 
 
 void VirtualFrame::CallKeyedStoreIC(StrictModeFlag strict_mode) {
-  Handle<Code> ic(Builtins::builtin(
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
       (strict_mode == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
                                    : Builtins::KeyedStoreIC_Initialize));
   PopToR1R0();
@@ -385,7 +387,8 @@ void VirtualFrame::CallCodeObject(Handle<Code> code,
       ASSERT(dropped_args == 0);
       break;
     case Code::BUILTIN:
-      ASSERT(*code == Builtins::builtin(Builtins::JSConstructCall));
+      ASSERT(*code == Isolate::Current()->builtins()->builtin(
+          Builtins::JSConstructCall));
       break;
     default:
       UNREACHABLE();
@@ -420,9 +423,6 @@ const VirtualFrame::TopOfStack VirtualFrame::kStateAfterPop[TOS_STATES] =
 // slots then one register must be physically pushed onto the stack.
 const VirtualFrame::TopOfStack VirtualFrame::kStateAfterPush[TOS_STATES] =
     { R0_TOS, R1_R0_TOS, R0_R1_TOS, R0_R1_TOS, R1_R0_TOS };
-
-
-bool VirtualFrame::SpilledScope::is_spilled_ = false;
 
 
 void VirtualFrame::Drop(int count) {

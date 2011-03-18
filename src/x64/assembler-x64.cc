@@ -38,14 +38,15 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
 
-// The required user mode extensions in X64 are (from AMD64 ABI Table A.1):
-//   fpu, tsc, cx8, cmov, mmx, sse, sse2, fxsr, syscall
-uint64_t CpuFeatures::supported_ = kDefaultCpuFeatures;
-uint64_t CpuFeatures::enabled_ = 0;
-uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
+CpuFeatures::CpuFeatures()
+    : supported_(kDefaultCpuFeatures),
+      enabled_(0),
+      found_by_runtime_probing_(0) {
+}
+
 
 void CpuFeatures::Probe(bool portable)  {
-  ASSERT(Heap::HasBeenSetup());
+  ASSERT(HEAP->HasBeenSetup());
   supported_ = kDefaultCpuFeatures;
   if (portable && Serializer::enabled()) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
@@ -118,13 +119,16 @@ void CpuFeatures::Probe(bool portable)  {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  MaybeObject* maybe_code = Heap::CreateCode(desc,
-                                             Code::ComputeFlags(Code::STUB),
-                                             Handle<Object>());
+  Isolate* isolate = Isolate::Current();
+  MaybeObject* maybe_code =
+      isolate->heap()->CreateCode(desc,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>());
   Object* code;
   if (!maybe_code->ToObject(&code)) return;
   if (!code->IsCode()) return;
-  PROFILE(CodeCreateEvent(Logger::BUILTIN_TAG,
+  PROFILE(isolate,
+          CodeCreateEvent(Logger::BUILTIN_TAG,
                           Code::cast(code), "CpuFeatures::Probe"));
   typedef uint64_t (*F0)();
   F0 probe = FUNCTION_CAST<F0>(Code::cast(code)->entry());
@@ -335,20 +339,19 @@ bool Operand::AddressUsesRegister(Register reg) const {
 static void InitCoverageLog();
 #endif
 
-byte* Assembler::spare_buffer_ = NULL;
-
 Assembler::Assembler(void* buffer, int buffer_size)
     : code_targets_(100),
       positions_recorder_(this),
       emit_debug_code_(FLAG_debug_code) {
+  Isolate* isolate = Isolate::Current();
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
       buffer_size = kMinimalBufferSize;
 
-      if (spare_buffer_ != NULL) {
-        buffer = spare_buffer_;
-        spare_buffer_ = NULL;
+      if (isolate->assembler_spare_buffer() != NULL) {
+        buffer = isolate->assembler_spare_buffer();
+        isolate->set_assembler_spare_buffer(NULL);
       }
     }
     if (buffer == NULL) {
@@ -389,9 +392,11 @@ Assembler::Assembler(void* buffer, int buffer_size)
 
 
 Assembler::~Assembler() {
+  Isolate* isolate = Isolate::Current();
   if (own_buffer_) {
-    if (spare_buffer_ == NULL && buffer_size_ == kMinimalBufferSize) {
-      spare_buffer_ = buffer_;
+    if (isolate->assembler_spare_buffer() == NULL &&
+        buffer_size_ == kMinimalBufferSize) {
+      isolate->set_assembler_spare_buffer(buffer_);
     } else {
       DeleteArray(buffer_);
     }
@@ -412,7 +417,7 @@ void Assembler::GetCode(CodeDesc* desc) {
       static_cast<int>((buffer_ + buffer_size_) - reloc_info_writer.pos());
   desc->origin = this;
 
-  Counters::reloc_info_size.Increment(desc->reloc_size);
+  COUNTERS->reloc_info_size()->Increment(desc->reloc_size);
 }
 
 
@@ -476,6 +481,7 @@ void Assembler::bind(NearLabel* L) {
 
 
 void Assembler::GrowBuffer() {
+  Isolate* isolate = Isolate::Current();
   ASSERT(buffer_overflow());
   if (!own_buffer_) FATAL("external code buffer is too small");
 
@@ -489,7 +495,7 @@ void Assembler::GrowBuffer() {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if ((desc.buffer_size > kMaximalBufferSize) ||
-      (desc.buffer_size > Heap::MaxOldGenerationSize())) {
+      (desc.buffer_size > HEAP->MaxOldGenerationSize())) {
     V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
   }
 
@@ -514,8 +520,9 @@ void Assembler::GrowBuffer() {
           reloc_info_writer.pos(), desc.reloc_size);
 
   // Switch buffers.
-  if (spare_buffer_ == NULL && buffer_size_ == kMinimalBufferSize) {
-    spare_buffer_ = buffer_;
+  if (isolate->assembler_spare_buffer() == NULL &&
+      buffer_size_ == kMinimalBufferSize) {
+    isolate->set_assembler_spare_buffer(buffer_);
   } else {
     DeleteArray(buffer_);
   }
@@ -1028,7 +1035,7 @@ void Assembler::cmpb_al(Immediate imm8) {
 
 
 void Assembler::cpuid() {
-  ASSERT(CpuFeatures::IsEnabled(CPUID));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(CPUID));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x0F);
@@ -1675,7 +1682,7 @@ void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
     EnsureSpace ensure_space(this);
     last_pc_ = pc_;
     ASSERT(value->IsHeapObject());
-    ASSERT(!Heap::InNewSpace(*value));
+    ASSERT(!HEAP->InNewSpace(*value));
     emit_rex_64(dst);
     emit(0xB8 | dst.low_bits());
     emitq(reinterpret_cast<uintptr_t>(value.location()), mode);
@@ -2379,7 +2386,7 @@ void Assembler::fistp_s(const Operand& adr) {
 
 
 void Assembler::fisttp_s(const Operand& adr) {
-  ASSERT(CpuFeatures::IsEnabled(SSE3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(adr);
@@ -2389,7 +2396,7 @@ void Assembler::fisttp_s(const Operand& adr) {
 
 
 void Assembler::fisttp_d(const Operand& adr) {
-  ASSERT(CpuFeatures::IsEnabled(SSE3));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(adr);
@@ -2707,7 +2714,7 @@ void Assembler::movq(Register dst, XMMRegister src) {
 
 
 void Assembler::movdqa(const Operand& dst, XMMRegister src) {
-  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x66);
@@ -2719,7 +2726,7 @@ void Assembler::movdqa(const Operand& dst, XMMRegister src) {
 
 
 void Assembler::movdqa(XMMRegister dst, const Operand& src) {
-  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x66);

@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef ENABLE_GDB_JIT_INTERFACE
+#include "v8.h"
 #include "gdb-jit.h"
 
 #include "bootstrapper.h"

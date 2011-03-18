@@ -277,9 +277,9 @@ class Token {
   }
 
  private:
-  static const char* name_[NUM_TOKENS];
-  static const char* string_[NUM_TOKENS];
-  static int8_t precedence_[NUM_TOKENS];
+  static const char* const name_[NUM_TOKENS];
+  static const char* const string_[NUM_TOKENS];
+  static const int8_t precedence_[NUM_TOKENS];
   static const char token_type[NUM_TOKENS];
 };
 

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,25 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// A simple interpreter for the Irregexp byte code.
+#ifndef V8_ALLOCATION_INL_H_
+#define V8_ALLOCATION_INL_H_
 
-#ifndef V8_INTERPRETER_IRREGEXP_H_
-#define V8_INTERPRETER_IRREGEXP_H_
+#include "allocation.h"
 
 namespace v8 {
 namespace internal {
 
 
-class IrregexpInterpreter {
- public:
-  static bool Match(Isolate* isolate,
-                    Handle<ByteArray> code,
-                    Handle<String> subject,
-                    int* captures,
-                    int start_position);
-};
+void* PreallocatedStorage::New(size_t size) {
+  return Isolate::Current()->PreallocatedStorageNew(size);
+}
+
+
+void PreallocatedStorage::Delete(void* p) {
+  return Isolate::Current()->PreallocatedStorageDelete(p);
+}
 
 
 } }  // namespace v8::internal
 
-#endif  // V8_INTERPRETER_IRREGEXP_H_
+#endif  // V8_ALLOCATION_INL_H_

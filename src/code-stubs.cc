@@ -37,9 +37,9 @@ namespace v8 {
 namespace internal {
 
 bool CodeStub::FindCodeInCache(Code** code_out) {
-  int index = Heap::code_stubs()->FindEntry(GetKey());
+  int index = HEAP->code_stubs()->FindEntry(GetKey());
   if (index != NumberDictionary::kNotFound) {
-    *code_out = Code::cast(Heap::code_stubs()->ValueAt(index));
+    *code_out = Code::cast(HEAP->code_stubs()->ValueAt(index));
     return true;
   }
   return false;
@@ -48,7 +48,7 @@ bool CodeStub::FindCodeInCache(Code** code_out) {
 
 void CodeStub::GenerateCode(MacroAssembler* masm) {
   // Update the static counter each time a new code stub is generated.
-  Counters::code_stubs.Increment();
+  COUNTERS->code_stubs()->Increment();
 
   // Nested stubs are not allowed for leafs.
   AllowStubCallsScope allow_scope(masm, AllowsStubCalls());
@@ -62,9 +62,9 @@ void CodeStub::GenerateCode(MacroAssembler* masm) {
 void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
   code->set_major_key(MajorKey());
 
-  PROFILE(CodeCreateEvent(Logger::STUB_TAG, code, GetName()));
+  PROFILE(ISOLATE, CodeCreateEvent(Logger::STUB_TAG, code, GetName()));
   GDBJIT(AddCode(GDBJITInterface::STUB, GetName(), code));
-  Counters::total_stubs_code_size.Increment(code->instruction_size());
+  COUNTERS->total_stubs_code_size()->Increment(code->instruction_size());
 
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code_stubs) {
@@ -101,23 +101,23 @@ Handle<Code> CodeStub::GetCode() {
         static_cast<Code::Kind>(GetCodeKind()),
         InLoop(),
         GetICState());
-    Handle<Code> new_object = Factory::NewCode(
+    Handle<Code> new_object = FACTORY->NewCode(
         desc, flags, masm.CodeObject(), NeedsImmovableCode());
     RecordCodeGeneration(*new_object, &masm);
     FinishCode(*new_object);
 
     // Update the dictionary and the root in Heap.
     Handle<NumberDictionary> dict =
-        Factory::DictionaryAtNumberPut(
-            Handle<NumberDictionary>(Heap::code_stubs()),
+        FACTORY->DictionaryAtNumberPut(
+            Handle<NumberDictionary>(HEAP->code_stubs()),
             GetKey(),
             new_object);
-    Heap::public_set_code_stubs(*dict);
+    HEAP->public_set_code_stubs(*dict);
 
     code = *new_object;
   }
 
-  ASSERT(!NeedsImmovableCode() || Heap::lo_space()->Contains(code));
+  ASSERT(!NeedsImmovableCode() || HEAP->lo_space()->Contains(code));
   return Handle<Code>(code);
 }
 
@@ -140,7 +140,7 @@ MaybeObject* CodeStub::TryGetCode() {
         GetICState());
     Object* new_object;
     { MaybeObject* maybe_new_object =
-          Heap::CreateCode(desc, flags, masm.CodeObject());
+          HEAP->CreateCode(desc, flags, masm.CodeObject());
       if (!maybe_new_object->ToObject(&new_object)) return maybe_new_object;
     }
     code = Code::cast(new_object);
@@ -149,9 +149,9 @@ MaybeObject* CodeStub::TryGetCode() {
 
     // Try to update the code cache but do not fail if unable.
     MaybeObject* maybe_new_object =
-        Heap::code_stubs()->AtNumberPut(GetKey(), code);
+        HEAP->code_stubs()->AtNumberPut(GetKey(), code);
     if (maybe_new_object->ToObject(&new_object)) {
-      Heap::public_set_code_stubs(NumberDictionary::cast(new_object));
+      HEAP->public_set_code_stubs(NumberDictionary::cast(new_object));
     }
   }
 
@@ -202,7 +202,8 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
 const char* InstanceofStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
-  name_ = Bootstrapper::AllocateAutoDeletedArray(kMaxNameLength);
+  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
+      kMaxNameLength);
   if (name_ == NULL) return "OOM";
 
   const char* args = "";

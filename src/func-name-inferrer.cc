@@ -38,21 +38,22 @@ void FuncNameInferrer::PushEnclosingName(Handle<String> name) {
   // Enclosing name is a name of a constructor function. To check
   // that it is really a constructor, we check that it is not empty
   // and starts with a capital letter.
-  if (name->length() > 0 && Runtime::IsUpperCaseChar(name->Get(0))) {
+  if (name->length() > 0 && Runtime::IsUpperCaseChar(
+      Isolate::Current()->runtime_state(), name->Get(0))) {
     names_stack_.Add(name);
   }
 }
 
 
 void FuncNameInferrer::PushLiteralName(Handle<String> name) {
-  if (IsOpen() && !Heap::prototype_symbol()->Equals(*name)) {
+  if (IsOpen() && !HEAP->prototype_symbol()->Equals(*name)) {
     names_stack_.Add(name);
   }
 }
 
 
 void FuncNameInferrer::PushVariableName(Handle<String> name) {
-  if (IsOpen() && !Heap::result_symbol()->Equals(*name)) {
+  if (IsOpen() && !HEAP->result_symbol()->Equals(*name)) {
     names_stack_.Add(name);
   }
 }
@@ -60,7 +61,7 @@ void FuncNameInferrer::PushVariableName(Handle<String> name) {
 
 Handle<String> FuncNameInferrer::MakeNameFromStack() {
   if (names_stack_.is_empty()) {
-    return Factory::empty_string();
+    return FACTORY->empty_string();
   } else {
     return MakeNameFromStackHelper(1, names_stack_.at(0));
   }
@@ -72,8 +73,8 @@ Handle<String> FuncNameInferrer::MakeNameFromStackHelper(int pos,
   if (pos >= names_stack_.length()) {
     return prev;
   } else {
-    Handle<String> curr = Factory::NewConsString(dot_, names_stack_.at(pos));
-    return MakeNameFromStackHelper(pos + 1, Factory::NewConsString(prev, curr));
+    Handle<String> curr = FACTORY->NewConsString(dot_, names_stack_.at(pos));
+    return MakeNameFromStackHelper(pos + 1, FACTORY->NewConsString(prev, curr));
   }
 }
 

@@ -1614,7 +1614,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       bool needs_check = !instr->value()->type().IsSmi();
       if (needs_check) {
         LOperand* xmm_temp =
-            (instr->CanTruncateToInt32() && CpuFeatures::IsSupported(SSE3))
+            (instr->CanTruncateToInt32() &&
+             Isolate::Current()->cpu_features()->IsSupported(SSE3))
             ? NULL
             : FixedTemp(xmm1);
         LTaggedToI* res = new LTaggedToI(value, xmm_temp);

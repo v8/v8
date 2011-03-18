@@ -328,8 +328,6 @@ void Scanner::LiteralScope::Complete() {
 // ----------------------------------------------------------------------------
 // V8JavaScriptScanner
 
-V8JavaScriptScanner::V8JavaScriptScanner() : JavaScriptScanner() { }
-
 
 void V8JavaScriptScanner::Initialize(UC16CharacterStream* source) {
   source_ = source;
@@ -347,7 +345,7 @@ void V8JavaScriptScanner::Initialize(UC16CharacterStream* source) {
 // ----------------------------------------------------------------------------
 // JsonScanner
 
-JsonScanner::JsonScanner() : Scanner() { }
+JsonScanner::JsonScanner(Isolate* isolate) : Scanner(isolate) { }
 
 
 void JsonScanner::Initialize(UC16CharacterStream* source) {
@@ -576,11 +574,10 @@ Token::Value JsonScanner::ScanJsonIdentifier(const char* text,
     Advance();
     text++;
   }
-  if (ScannerConstants::kIsIdentifierPart.get(c0_)) return Token::ILLEGAL;
+  if (scanner_constants_->IsIdentifierPart(c0_)) return Token::ILLEGAL;
   literal.Complete();
   return token;
 }
-
 
 
 } }  // namespace v8::internal

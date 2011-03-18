@@ -435,6 +435,8 @@
             '../../src/jump-target.h',
             '../../src/jsregexp.cc',
             '../../src/jsregexp.h',
+            '../../src/isolate.cc',
+            '../../src/isolate.h',
             '../../src/list-inl.h',
             '../../src/list.h',
             '../../src/lithium.cc',

@@ -28,6 +28,8 @@
 #ifndef V8_X64_FRAMES_X64_H_
 #define V8_X64_FRAMES_X64_H_
 
+#include "memory.h"
+
 namespace v8 {
 namespace internal {
 

@@ -177,7 +177,7 @@ class OS {
   static bool Remove(const char* path);
 
   // Log file open mode is platform-dependent due to line ends issues.
-  static const char* LogFileOpenMode;
+  static const char* const LogFileOpenMode;
 
   // Print output to console. This is mostly used for debugging output.
   // On platforms that has standard terminal output, the output
@@ -388,9 +388,9 @@ class Thread: public ThreadHandle {
     LOCAL_STORAGE_KEY_MAX_VALUE = kMaxInt
   };
 
-  // Create new thread.
-  Thread();
-  explicit Thread(const char* name);
+  // Create new thread (with a value for storing in the TLS isolate field).
+  explicit Thread(Isolate* isolate);
+  Thread(Isolate* isolate, const char* name);
   virtual ~Thread();
 
   // Start new thread by calling the Run() method in the new thread.
@@ -424,6 +424,8 @@ class Thread: public ThreadHandle {
   // A hint to the scheduler to let another thread run.
   static void YieldCPU();
 
+  Isolate* isolate() const { return isolate_; }
+
   // The thread name length is limited to 16 based on Linux's implementation of
   // prctl().
   static const int kMaxThreadNameLength = 16;
@@ -432,7 +434,7 @@ class Thread: public ThreadHandle {
 
   class PlatformData;
   PlatformData* data_;
-
+  Isolate* isolate_;
   char name_[kMaxThreadNameLength];
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
@@ -466,13 +468,14 @@ class Mutex {
 
 
 // ----------------------------------------------------------------------------
-// ScopedLock
+// ScopedLock/ScopedUnlock
 //
-// Stack-allocated ScopedLocks provide block-scoped locking and unlocking
-// of a mutex.
+// Stack-allocated ScopedLocks/ScopedUnlocks provide block-scoped
+// locking and unlocking of a mutex.
 class ScopedLock {
  public:
   explicit ScopedLock(Mutex* mutex): mutex_(mutex) {
+    ASSERT(mutex_ != NULL);
     mutex_->Lock();
   }
   ~ScopedLock() {
@@ -583,8 +586,10 @@ class TickSample {
 class Sampler {
  public:
   // Initialize sampler.
-  explicit Sampler(int interval);
+  Sampler(Isolate* isolate, int interval);
   virtual ~Sampler();
+
+  int interval() const { return interval_; }
 
   // Performs stack sampling.
   void SampleStack(TickSample* sample) {
@@ -608,12 +613,16 @@ class Sampler {
   // Whether the sampler is running (that is, consumes resources).
   bool IsActive() const { return NoBarrier_Load(&active_); }
 
+  Isolate* isolate() { return isolate_; }
+
   // Used in tests to make sure that stack sampling is performed.
   int samples_taken() const { return samples_taken_; }
   void ResetSamplesTaken() { samples_taken_ = 0; }
 
   class PlatformData;
   PlatformData* data() { return data_; }
+
+  PlatformData* platform_data() { return data_; }
 
  protected:
   virtual void DoSampleStack(TickSample* sample) = 0;
@@ -622,6 +631,7 @@ class Sampler {
   void SetActive(bool value) { NoBarrier_Store(&active_, value); }
   void IncSamplesTaken() { if (++samples_taken_ < 0) samples_taken_ = 0; }
 
+  Isolate* isolate_;
   const int interval_;
   Atomic32 profiling_;
   Atomic32 active_;
@@ -629,6 +639,7 @@ class Sampler {
   int samples_taken_;  // Counts stack samples taken.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
+
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 

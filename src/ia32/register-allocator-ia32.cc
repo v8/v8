@@ -42,12 +42,14 @@ namespace internal {
 void Result::ToRegister() {
   ASSERT(is_valid());
   if (is_constant()) {
-    Result fresh = CodeGeneratorScope::Current()->allocator()->Allocate();
+    CodeGenerator* code_generator =
+        CodeGeneratorScope::Current(Isolate::Current());
+    Result fresh = code_generator->allocator()->Allocate();
     ASSERT(fresh.is_valid());
     if (is_untagged_int32()) {
       fresh.set_untagged_int32(true);
       if (handle()->IsSmi()) {
-      CodeGeneratorScope::Current()->masm()->Set(
+      code_generator->masm()->Set(
           fresh.reg(),
           Immediate(Smi::cast(*handle())->value()));
       } else if (handle()->IsHeapNumber()) {
@@ -56,25 +58,23 @@ void Result::ToRegister() {
         if (double_value == 0 && signbit(double_value)) {
           // Negative zero must not be converted to an int32 unless
           // the context allows it.
-          CodeGeneratorScope::Current()->unsafe_bailout_->Branch(equal);
-          CodeGeneratorScope::Current()->unsafe_bailout_->Branch(not_equal);
+          code_generator->unsafe_bailout_->Branch(equal);
+          code_generator->unsafe_bailout_->Branch(not_equal);
         } else if (double_value == value) {
-          CodeGeneratorScope::Current()->masm()->Set(
-              fresh.reg(), Immediate(value));
+          code_generator->masm()->Set(fresh.reg(), Immediate(value));
         } else {
-          CodeGeneratorScope::Current()->unsafe_bailout_->Branch(equal);
-          CodeGeneratorScope::Current()->unsafe_bailout_->Branch(not_equal);
+          code_generator->unsafe_bailout_->Branch(equal);
+          code_generator->unsafe_bailout_->Branch(not_equal);
         }
       } else {
         // Constant is not a number.  This was not predicted by AST analysis.
-        CodeGeneratorScope::Current()->unsafe_bailout_->Branch(equal);
-        CodeGeneratorScope::Current()->unsafe_bailout_->Branch(not_equal);
+        code_generator->unsafe_bailout_->Branch(equal);
+        code_generator->unsafe_bailout_->Branch(not_equal);
       }
-    } else if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
-      CodeGeneratorScope::Current()->MoveUnsafeSmi(fresh.reg(), handle());
+    } else if (code_generator->IsUnsafeSmi(handle())) {
+      code_generator->MoveUnsafeSmi(fresh.reg(), handle());
     } else {
-      CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
-                                                 Immediate(handle()));
+      code_generator->masm()->Set(fresh.reg(), Immediate(handle()));
     }
     // This result becomes a copy of the fresh one.
     fresh.set_type_info(type_info());
@@ -85,17 +85,19 @@ void Result::ToRegister() {
 
 
 void Result::ToRegister(Register target) {
+  CodeGenerator* code_generator =
+      CodeGeneratorScope::Current(Isolate::Current());
   ASSERT(is_valid());
   if (!is_register() || !reg().is(target)) {
-    Result fresh = CodeGeneratorScope::Current()->allocator()->Allocate(target);
+    Result fresh = code_generator->allocator()->Allocate(target);
     ASSERT(fresh.is_valid());
     if (is_register()) {
-      CodeGeneratorScope::Current()->masm()->mov(fresh.reg(), reg());
+      code_generator->masm()->mov(fresh.reg(), reg());
     } else {
       ASSERT(is_constant());
       if (is_untagged_int32()) {
         if (handle()->IsSmi()) {
-          CodeGeneratorScope::Current()->masm()->Set(
+          code_generator->masm()->Set(
               fresh.reg(),
               Immediate(Smi::cast(*handle())->value()));
         } else {
@@ -105,22 +107,20 @@ void Result::ToRegister(Register target) {
           if (double_value == 0 && signbit(double_value)) {
             // Negative zero must not be converted to an int32 unless
             // the context allows it.
-            CodeGeneratorScope::Current()->unsafe_bailout_->Branch(equal);
-            CodeGeneratorScope::Current()->unsafe_bailout_->Branch(not_equal);
+            code_generator->unsafe_bailout_->Branch(equal);
+            code_generator->unsafe_bailout_->Branch(not_equal);
           } else if (double_value == value) {
-            CodeGeneratorScope::Current()->masm()->Set(
-                fresh.reg(), Immediate(value));
+            code_generator->masm()->Set(fresh.reg(), Immediate(value));
           } else {
-            CodeGeneratorScope::Current()->unsafe_bailout_->Branch(equal);
-            CodeGeneratorScope::Current()->unsafe_bailout_->Branch(not_equal);
+            code_generator->unsafe_bailout_->Branch(equal);
+            code_generator->unsafe_bailout_->Branch(not_equal);
           }
         }
       } else {
-        if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
-          CodeGeneratorScope::Current()->MoveUnsafeSmi(fresh.reg(), handle());
+        if (code_generator->IsUnsafeSmi(handle())) {
+          code_generator->MoveUnsafeSmi(fresh.reg(), handle());
         } else {
-          CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
-                                                     Immediate(handle()));
+          code_generator->masm()->Set(fresh.reg(), Immediate(handle()));
         }
       }
     }
@@ -128,9 +128,9 @@ void Result::ToRegister(Register target) {
     fresh.set_untagged_int32(is_untagged_int32());
     *this = fresh;
   } else if (is_register() && reg().is(target)) {
-    ASSERT(CodeGeneratorScope::Current()->has_valid_frame());
-    CodeGeneratorScope::Current()->frame()->Spill(target);
-    ASSERT(CodeGeneratorScope::Current()->allocator()->count(target) == 1);
+    ASSERT(code_generator->has_valid_frame());
+    code_generator->frame()->Spill(target);
+    ASSERT(code_generator->allocator()->count(target) == 1);
   }
   ASSERT(is_register());
   ASSERT(reg().is(target));
