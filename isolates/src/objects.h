@@ -1596,6 +1596,7 @@ class JSObject: public HeapObject {
   inline int GetHeaderSize();
 
   inline int GetInternalFieldCount();
+  inline int GetInternalFieldOffset(int index);
   inline Object* GetInternalField(int index);
   inline void SetInternalField(int index, Object* value);
 
@@ -1713,6 +1714,7 @@ class JSObject: public HeapObject {
   inline Object* FastPropertyAtPut(int index, Object* value);
 
   // Access to in object properties.
+  inline int GetInObjectPropertyOffset(int index);
   inline Object* InObjectPropertyAt(int index);
   inline Object* InObjectPropertyAtPut(int index,
                                        Object* value,
