@@ -162,11 +162,13 @@ class GlobalHandles {
   List<ObjectGroup*>* object_groups() { return &object_groups_; }
 
   // Returns the implicit references' groups.
-  static List<ImplicitRefGroup*>* ImplicitRefGroups();
+  List<ImplicitRefGroup*>* implicit_ref_groups() {
+    return &implicit_ref_groups_;
+  }
 
   // Remove bags, this should only happen after GC.
   void RemoveObjectGroups();
-  static void RemoveImplicitRefGroups();
+  void RemoveImplicitRefGroups();
 
   // Tear down the global handle structure.
   void TearDown();
@@ -224,6 +226,7 @@ class GlobalHandles {
   Pool* pool_;
   int post_gc_processing_count_;
   List<ObjectGroup*> object_groups_;
+  List<ImplicitRefGroup*> implicit_ref_groups_;
 
   friend class Isolate;
 

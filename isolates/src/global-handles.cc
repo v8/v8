@@ -566,13 +566,6 @@ void GlobalHandles::AddObjectGroup(Object*** handles,
 }
 
 
-List<ImplicitRefGroup*>* GlobalHandles::ImplicitRefGroups() {
-  // Lazily initialize the list to avoid startup time static constructors.
-  static List<ImplicitRefGroup*> groups(4);
-  return &groups;
-}
-
-
 void GlobalHandles::AddImplicitReferences(HeapObject* parent,
                                           Object*** children,
                                           size_t length) {
@@ -580,12 +573,12 @@ void GlobalHandles::AddImplicitReferences(HeapObject* parent,
   for (size_t i = 0; i < length; ++i) {
     new_entry->children_.Add(children[i]);
   }
-  ImplicitRefGroups()->Add(new_entry);
+  implicit_ref_groups_.Add(new_entry);
 }
 
 
 void GlobalHandles::RemoveObjectGroups() {
-  for (int i = 0; i< object_groups_.length(); i++) {
+  for (int i = 0; i < object_groups_.length(); i++) {
     delete object_groups_.at(i);
   }
   object_groups_.Clear();
@@ -593,11 +586,10 @@ void GlobalHandles::RemoveObjectGroups() {
 
 
 void GlobalHandles::RemoveImplicitRefGroups() {
-  List<ImplicitRefGroup*>* ref_groups = ImplicitRefGroups();
-  for (int i = 0; i< ref_groups->length(); i++) {
-    delete ref_groups->at(i);
+  for (int i = 0; i < implicit_ref_groups_.length(); i++) {
+    delete implicit_ref_groups_.at(i);
   }
-  ref_groups->Clear();
+  implicit_ref_groups_.Clear();
 }
 
 

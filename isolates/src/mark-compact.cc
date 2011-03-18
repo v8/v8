@@ -1244,7 +1244,8 @@ void MarkCompactCollector::MarkObjectGroups() {
 
 
 void MarkCompactCollector::MarkImplicitRefGroups() {
-  List<ImplicitRefGroup*>* ref_groups = GlobalHandles::ImplicitRefGroups();
+  List<ImplicitRefGroup*>* ref_groups =
+      heap_->isolate()->global_handles()->implicit_ref_groups();
 
   for (int i = 0; i < ref_groups->length(); i++) {
     ImplicitRefGroup* entry = ref_groups->at(i);
@@ -1422,7 +1423,7 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   // Remove object groups after marking phase.
   heap_->isolate()->global_handles()->RemoveObjectGroups();
-  GlobalHandles::RemoveImplicitRefGroups();
+  heap_->isolate()->global_handles()->RemoveImplicitRefGroups();
 
   // Flush code from collected candidates.
   if (is_code_flushing_enabled()) {

@@ -2902,7 +2902,7 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
             strict_mode_arguments_boilerplate();
     arguments_object_size = kArgumentsObjectSizeStrict;
   } else {
-    boilerplate = 
+    boilerplate =
         isolate()->context()->global_context()->arguments_boilerplate();
     arguments_object_size = kArgumentsObjectSize;
   }
