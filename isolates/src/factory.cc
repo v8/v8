@@ -421,7 +421,12 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Context> context,
     PretenureFlag pretenure) {
   Handle<JSFunction> result = BaseNewFunctionFromSharedFunctionInfo(
-      function_info, isolate()->function_map(), pretenure);
+      function_info,
+      function_info->strict_mode()
+          ? isolate()->strict_mode_function_map()
+          : isolate()->function_map(),
+      pretenure);
+
   result->set_context(*context);
   int number_of_literals = function_info->num_literals();
   Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
@@ -654,7 +659,8 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
                                                         Handle<Code> code) {
-  Handle<JSFunction> function = NewFunctionWithoutPrototype(name);
+  Handle<JSFunction> function = NewFunctionWithoutPrototype(name,
+                                                            kNonStrictMode);
   function->shared()->set_code(*code);
   function->set_code(*code);
   ASSERT(!function->has_initial_map());
@@ -801,12 +807,11 @@ Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map) {
 }
 
 
-Handle<JSArray> Factory::NewJSArray(int length,
+Handle<JSArray> Factory::NewJSArray(int capacity,
                                     PretenureFlag pretenure) {
-  Handle<JSObject> obj =
-      NewJSObject(isolate()->array_function(), pretenure);
+  Handle<JSObject> obj = NewJSObject(isolate()->array_function(), pretenure);
   CALL_HEAP_FUNCTION(isolate(),
-                     Handle<JSArray>::cast(obj)->Initialize(length),
+                     Handle<JSArray>::cast(obj)->Initialize(capacity),
                      JSArray);
 }
 
@@ -904,19 +909,25 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
 
 
 Handle<JSFunction> Factory::NewFunctionWithoutPrototypeHelper(
-    Handle<String> name) {
+    Handle<String> name,
+    StrictModeFlag strict_mode) {
   Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
+  Handle<Map> map = strict_mode == kStrictMode
+      ? isolate()->strict_mode_function_without_prototype_map()
+      : isolate()->function_without_prototype_map();
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateFunction(
-                         *isolate()->function_without_prototype_map(),
+                         *map,
                          *function_share,
                          *the_hole_value()),
                      JSFunction);
 }
 
 
-Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name) {
-  Handle<JSFunction> fun = NewFunctionWithoutPrototypeHelper(name);
+Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
+    Handle<String> name,
+    StrictModeFlag strict_mode) {
+  Handle<JSFunction> fun = NewFunctionWithoutPrototypeHelper(name, strict_mode);
   fun->set_context(isolate()->context()->global_context());
   return fun;
 }

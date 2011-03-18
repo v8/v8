@@ -401,6 +401,11 @@ Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value) {
 }
 
 
+Handle<Object> PreventExtensions(Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(), object->PreventExtensions(), Object);
+}
+
+
 Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
                                    bool create_if_needed) {
   Isolate* isolate = obj->GetIsolate();

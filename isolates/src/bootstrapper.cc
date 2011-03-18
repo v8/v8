@@ -161,6 +161,10 @@ class Genesis BASE_EMBEDDED {
   void CreateRoots();
   // Creates the empty function.  Used for creating a context from scratch.
   Handle<JSFunction> CreateEmptyFunction();
+  // Creates the ThrowTypeError function. ECMA 5th Ed. 13.2.3
+  Handle<JSFunction> CreateThrowTypeErrorFunction(Builtins::Name builtin);
+
+  void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
   // Creates the global objects using the global and the template passed in
   // through the API.  We call this regardless of whether we are building a
   // context from scratch or using a deserialized one from the partial snapshot
@@ -214,9 +218,23 @@ class Genesis BASE_EMBEDDED {
     ADD_READONLY_PROTOTYPE,
     ADD_WRITEABLE_PROTOTYPE
   };
+
+  Handle<Map> CreateFunctionMap(PrototypePropertyMode prototype_mode);
+
   Handle<DescriptorArray> ComputeFunctionInstanceDescriptor(
       PrototypePropertyMode prototypeMode);
   void MakeFunctionInstancePrototypeWritable();
+
+  Handle<Map> CreateStrictModeFunctionMap(
+      PrototypePropertyMode prototype_mode,
+      Handle<JSFunction> empty_function,
+      Handle<FixedArray> arguments_callbacks,
+      Handle<FixedArray> caller_callbacks);
+
+  Handle<DescriptorArray> ComputeStrictFunctionInstanceDescriptor(
+      PrototypePropertyMode propertyMode,
+      Handle<FixedArray> arguments,
+      Handle<FixedArray> caller);
 
   static bool CompileBuiltin(int index);
   static bool CompileNative(Vector<const char> name, Handle<String> source);
@@ -228,7 +246,14 @@ class Genesis BASE_EMBEDDED {
                                   bool use_runtime_context);
 
   Handle<Context> result_;
-  Handle<JSFunction> empty_function_;
+
+  // Function instance maps. Function literal maps are created initially with
+  // a read only prototype for the processing of JS builtins. Later the function
+  // instance maps are replaced in order to make prototype writable.
+  // These are the final, writable prototype, maps.
+  Handle<Map> function_instance_map_writable_prototype_;
+  Handle<Map> strict_mode_function_instance_map_writable_prototype_;
+
   BootstrapperActive active_;
   friend class Bootstrapper;
 };
@@ -314,89 +339,79 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
 
 Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
     PrototypePropertyMode prototypeMode) {
-  Handle<DescriptorArray> result = FACTORY->empty_descriptor_array();
-
-  if (prototypeMode != DONT_ADD_PROTOTYPE) {
-    PropertyAttributes attributes = static_cast<PropertyAttributes>(
-        DONT_ENUM |
-        DONT_DELETE |
-        (prototypeMode == ADD_READONLY_PROTOTYPE ? READ_ONLY : 0));
-    result =
-        FACTORY->CopyAppendProxyDescriptor(
-            result,
-            FACTORY->prototype_symbol(),
-            FACTORY->NewProxy(&Accessors::FunctionPrototype),
-            attributes);
-  }
-
+  Handle<DescriptorArray> descriptors =
+      FACTORY->NewDescriptorArray(prototypeMode == DONT_ADD_PROTOTYPE ? 4 : 5);
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-  // Add length.
-  result =
-      FACTORY->CopyAppendProxyDescriptor(
-          result,
-          FACTORY->length_symbol(),
-          FACTORY->NewProxy(&Accessors::FunctionLength),
-          attributes);
 
-  // Add name.
-  result =
-      FACTORY->CopyAppendProxyDescriptor(
-          result,
-          FACTORY->name_symbol(),
-          FACTORY->NewProxy(&Accessors::FunctionName),
-          attributes);
+  {  // Add length.
+    Handle<Proxy> proxy = FACTORY->NewProxy(&Accessors::FunctionLength);
+    CallbacksDescriptor d(*FACTORY->length_symbol(), *proxy, attributes);
+    descriptors->Set(0, &d);
+  }
+  {  // Add name.
+    Handle<Proxy> proxy = FACTORY->NewProxy(&Accessors::FunctionName);
+    CallbacksDescriptor d(*FACTORY->name_symbol(), *proxy, attributes);
+    descriptors->Set(1, &d);
+  }
+  {  // Add arguments.
+    Handle<Proxy> proxy = FACTORY->NewProxy(&Accessors::FunctionArguments);
+    CallbacksDescriptor d(*FACTORY->arguments_symbol(), *proxy, attributes);
+    descriptors->Set(2, &d);
+  }
+  {  // Add caller.
+    Handle<Proxy> proxy = FACTORY->NewProxy(&Accessors::FunctionCaller);
+    CallbacksDescriptor d(*FACTORY->caller_symbol(), *proxy, attributes);
+    descriptors->Set(3, &d);
+  }
+  if (prototypeMode != DONT_ADD_PROTOTYPE) {
+    // Add prototype.
+    if (prototypeMode == ADD_WRITEABLE_PROTOTYPE) {
+      attributes = static_cast<PropertyAttributes>(attributes & ~READ_ONLY);
+    }
+    Handle<Proxy> proxy = FACTORY->NewProxy(&Accessors::FunctionPrototype);
+    CallbacksDescriptor d(*FACTORY->prototype_symbol(), *proxy, attributes);
+    descriptors->Set(4, &d);
+  }
+  descriptors->Sort();
+  return descriptors;
+}
 
-  // Add arguments.
-  result =
-      FACTORY->CopyAppendProxyDescriptor(
-          result,
-          FACTORY->arguments_symbol(),
-          FACTORY->NewProxy(&Accessors::FunctionArguments),
-          attributes);
 
-  // Add caller.
-  result =
-      FACTORY->CopyAppendProxyDescriptor(
-          result,
-          FACTORY->caller_symbol(),
-          FACTORY->NewProxy(&Accessors::FunctionCaller),
-          attributes);
-
-  return result;
+Handle<Map> Genesis::CreateFunctionMap(PrototypePropertyMode prototype_mode) {
+  Handle<Map> map = FACTORY->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
+  Handle<DescriptorArray> descriptors =
+      ComputeFunctionInstanceDescriptor(prototype_mode);
+  map->set_instance_descriptors(*descriptors);
+  map->set_function_with_prototype(prototype_mode != DONT_ADD_PROTOTYPE);
+  return map;
 }
 
 
 Handle<JSFunction> Genesis::CreateEmptyFunction() {
-  // Allocate the map for function instances.
-  Handle<Map> fm = FACTORY->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
-  global_context()->set_function_instance_map(*fm);
+  // Allocate the map for function instances. Maps are allocated first and their
+  // prototypes patched later, once empty function is created.
+
   // Please note that the prototype property for function instances must be
   // writable.
-  Handle<DescriptorArray> function_map_descriptors =
-      ComputeFunctionInstanceDescriptor(ADD_WRITEABLE_PROTOTYPE);
-  fm->set_instance_descriptors(*function_map_descriptors);
-  fm->set_function_with_prototype(true);
+  global_context()->set_function_instance_map(
+      *CreateFunctionMap(ADD_WRITEABLE_PROTOTYPE));
 
   // Functions with this map will not have a 'prototype' property, and
   // can not be used as constructors.
-  Handle<Map> function_without_prototype_map =
-      FACTORY->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   global_context()->set_function_without_prototype_map(
-      *function_without_prototype_map);
-  Handle<DescriptorArray> function_without_prototype_map_descriptors =
-      ComputeFunctionInstanceDescriptor(DONT_ADD_PROTOTYPE);
-  function_without_prototype_map->set_instance_descriptors(
-      *function_without_prototype_map_descriptors);
-  function_without_prototype_map->set_function_with_prototype(false);
+      *CreateFunctionMap(DONT_ADD_PROTOTYPE));
 
-  // Allocate the function map first and then patch the prototype later
-  fm = FACTORY->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
-  global_context()->set_function_map(*fm);
-  function_map_descriptors =
-      ComputeFunctionInstanceDescriptor(ADD_READONLY_PROTOTYPE);
-  fm->set_instance_descriptors(*function_map_descriptors);
-  fm->set_function_with_prototype(true);
+  // Allocate the function map. This map is temporary, used only for processing
+  // of builtins.
+  // Later the map is replaced with writable prototype map, allocated below.
+  global_context()->set_function_map(
+      *CreateFunctionMap(ADD_READONLY_PROTOTYPE));
+
+  // The final map for functions. Writeable prototype.
+  // This map is installed in MakeFunctionInstancePrototypeWritable.
+  function_instance_map_writable_prototype_ =
+      CreateFunctionMap(ADD_WRITEABLE_PROTOTYPE);
 
   Handle<String> object_name = Handle<String>(HEAP->Object_symbol());
 
@@ -425,7 +440,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   // 262 15.3.4.
   Handle<String> symbol = FACTORY->LookupAsciiSymbol("Empty");
   Handle<JSFunction> empty_function =
-      FACTORY->NewFunctionWithoutPrototype(symbol);
+      FACTORY->NewFunctionWithoutPrototype(symbol, kNonStrictMode);
 
   // --- E m p t y ---
   Handle<Code> code =
@@ -440,19 +455,147 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   empty_function->shared()->set_start_position(0);
   empty_function->shared()->set_end_position(source->length());
   empty_function->shared()->DontAdaptArguments();
+
+  // Set prototypes for the function maps.
   global_context()->function_map()->set_prototype(*empty_function);
   global_context()->function_instance_map()->set_prototype(*empty_function);
   global_context()->function_without_prototype_map()->
       set_prototype(*empty_function);
+  function_instance_map_writable_prototype_->set_prototype(*empty_function);
 
   // Allocate the function map first and then patch the prototype later
+  Handle<Map> function_without_prototype_map(
+      global_context()->function_without_prototype_map());
   Handle<Map> empty_fm = FACTORY->CopyMapDropDescriptors(
       function_without_prototype_map);
   empty_fm->set_instance_descriptors(
-      *function_without_prototype_map_descriptors);
+      function_without_prototype_map->instance_descriptors());
   empty_fm->set_prototype(global_context()->object_function()->prototype());
   empty_function->set_map(*empty_fm);
   return empty_function;
+}
+
+
+Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
+    PrototypePropertyMode prototypeMode,
+    Handle<FixedArray> arguments,
+    Handle<FixedArray> caller) {
+  Handle<DescriptorArray> descriptors =
+      FACTORY->NewDescriptorArray(prototypeMode == DONT_ADD_PROTOTYPE ? 4 : 5);
+  PropertyAttributes attributes = static_cast<PropertyAttributes>(
+      DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+  {  // length
+    Handle<Proxy> proxy = FACTORY->NewProxy(&Accessors::FunctionLength);
+    CallbacksDescriptor d(*FACTORY->length_symbol(), *proxy, attributes);
+    descriptors->Set(0, &d);
+  }
+  {  // name
+    Handle<Proxy> proxy = FACTORY->NewProxy(&Accessors::FunctionName);
+    CallbacksDescriptor d(*FACTORY->name_symbol(), *proxy, attributes);
+    descriptors->Set(1, &d);
+  }
+  {  // arguments
+    CallbacksDescriptor d(*FACTORY->arguments_symbol(), *arguments, attributes);
+    descriptors->Set(2, &d);
+  }
+  {  // caller
+    CallbacksDescriptor d(*FACTORY->caller_symbol(), *caller, attributes);
+    descriptors->Set(3, &d);
+  }
+
+  // prototype
+  if (prototypeMode != DONT_ADD_PROTOTYPE) {
+    if (prototypeMode == ADD_WRITEABLE_PROTOTYPE) {
+      attributes = static_cast<PropertyAttributes>(attributes & ~READ_ONLY);
+    }
+    Handle<Proxy> proxy = FACTORY->NewProxy(&Accessors::FunctionPrototype);
+    CallbacksDescriptor d(*FACTORY->prototype_symbol(), *proxy, attributes);
+    descriptors->Set(4, &d);
+  }
+
+  descriptors->Sort();
+  return descriptors;
+}
+
+
+// ECMAScript 5th Edition, 13.2.3
+Handle<JSFunction> Genesis::CreateThrowTypeErrorFunction(
+    Builtins::Name builtin) {
+  Handle<String> name = FACTORY->LookupAsciiSymbol("ThrowTypeError");
+  Handle<JSFunction> throw_type_error =
+      FACTORY->NewFunctionWithoutPrototype(name, kStrictMode);
+  Handle<Code> code = Handle<Code>(
+      Isolate::Current()->builtins()->builtin(builtin));
+
+  throw_type_error->set_map(global_context()->strict_mode_function_map());
+  throw_type_error->set_code(*code);
+  throw_type_error->shared()->set_code(*code);
+  throw_type_error->shared()->DontAdaptArguments();
+
+  PreventExtensions(throw_type_error);
+
+  return throw_type_error;
+}
+
+
+Handle<Map> Genesis::CreateStrictModeFunctionMap(
+    PrototypePropertyMode prototype_mode,
+    Handle<JSFunction> empty_function,
+    Handle<FixedArray> arguments_callbacks,
+    Handle<FixedArray> caller_callbacks) {
+  Handle<Map> map = FACTORY->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
+  Handle<DescriptorArray> descriptors =
+      ComputeStrictFunctionInstanceDescriptor(prototype_mode,
+                                              arguments_callbacks,
+                                              caller_callbacks);
+  map->set_instance_descriptors(*descriptors);
+  map->set_function_with_prototype(prototype_mode != DONT_ADD_PROTOTYPE);
+  map->set_prototype(*empty_function);
+  return map;
+}
+
+
+void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
+  // Create the callbacks arrays for ThrowTypeError functions.
+  // The get/set callacks are filled in after the maps are created below.
+  Handle<FixedArray> arguments = FACTORY->NewFixedArray(2, TENURED);
+  Handle<FixedArray> caller = FACTORY->NewFixedArray(2, TENURED);
+
+  // Allocate map for the strict mode function instances.
+  global_context()->set_strict_mode_function_instance_map(
+      *CreateStrictModeFunctionMap(
+          ADD_WRITEABLE_PROTOTYPE, empty, arguments, caller));
+
+  // Allocate map for the prototype-less strict mode instances.
+  global_context()->set_strict_mode_function_without_prototype_map(
+      *CreateStrictModeFunctionMap(
+          DONT_ADD_PROTOTYPE, empty, arguments, caller));
+
+  // Allocate map for the strict mode functions. This map is temporary, used
+  // only for processing of builtins.
+  // Later the map is replaced with writable prototype map, allocated below.
+  global_context()->set_strict_mode_function_map(
+      *CreateStrictModeFunctionMap(
+          ADD_READONLY_PROTOTYPE, empty, arguments, caller));
+
+  // The final map for the strict mode functions. Writeable prototype.
+  // This map is installed in MakeFunctionInstancePrototypeWritable.
+  strict_mode_function_instance_map_writable_prototype_ =
+      CreateStrictModeFunctionMap(
+          ADD_WRITEABLE_PROTOTYPE, empty, arguments, caller);
+
+  // Create the ThrowTypeError function instances.
+  Handle<JSFunction> arguments_throw =
+      CreateThrowTypeErrorFunction(Builtins::StrictFunctionArguments);
+  Handle<JSFunction> caller_throw =
+      CreateThrowTypeErrorFunction(Builtins::StrictFunctionCaller);
+
+  // Complete the callback fixed arrays.
+  arguments->set(0, *arguments_throw);
+  arguments->set(1, *arguments_throw);
+  caller->set(0, *caller_throw);
+  caller->set(1, *caller_throw);
 }
 
 
@@ -843,12 +986,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSObject> result = FACTORY->NewJSObject(function);
 
     global_context()->set_arguments_boilerplate(*result);
-    // Note: callee must be added as the first property and
-    //       length must be added as the second property.
-    SetLocalPropertyNoThrow(result, FACTORY->callee_symbol(),
+    // Note: length must be added as the first property and
+    //       callee must be added as the second property.
+    SetLocalPropertyNoThrow(result, FACTORY->length_symbol(),
                             FACTORY->undefined_value(),
                             DONT_ENUM);
-    SetLocalPropertyNoThrow(result, FACTORY->length_symbol(),
+    SetLocalPropertyNoThrow(result, FACTORY->callee_symbol(),
                             FACTORY->undefined_value(),
                             DONT_ENUM);
 
@@ -856,14 +999,85 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     LookupResult lookup;
     result->LocalLookup(HEAP->callee_symbol(), &lookup);
     ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
-    ASSERT(lookup.GetFieldIndex() == Heap::arguments_callee_index);
+    ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsCalleeIndex);
 
     result->LocalLookup(HEAP->length_symbol(), &lookup);
     ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
-    ASSERT(lookup.GetFieldIndex() == Heap::arguments_length_index);
+    ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsLengthIndex);
 
-    ASSERT(result->map()->inobject_properties() > Heap::arguments_callee_index);
-    ASSERT(result->map()->inobject_properties() > Heap::arguments_length_index);
+    ASSERT(result->map()->inobject_properties() > Heap::kArgumentsCalleeIndex);
+    ASSERT(result->map()->inobject_properties() > Heap::kArgumentsLengthIndex);
+
+    // Check the state of the object.
+    ASSERT(result->HasFastProperties());
+    ASSERT(result->HasFastElements());
+#endif
+  }
+
+  {  // --- strict mode arguments boilerplate
+    const PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+    // Create the ThrowTypeError functions.
+    Handle<FixedArray> callee = FACTORY->NewFixedArray(2, TENURED);
+    Handle<FixedArray> caller = FACTORY->NewFixedArray(2, TENURED);
+
+    Handle<JSFunction> callee_throw =
+        CreateThrowTypeErrorFunction(Builtins::StrictArgumentsCallee);
+    Handle<JSFunction> caller_throw =
+        CreateThrowTypeErrorFunction(Builtins::StrictArgumentsCaller);
+
+    // Install the ThrowTypeError functions.
+    callee->set(0, *callee_throw);
+    callee->set(1, *callee_throw);
+    caller->set(0, *caller_throw);
+    caller->set(1, *caller_throw);
+
+    // Create the descriptor array for the arguments object.
+    Handle<DescriptorArray> descriptors = FACTORY->NewDescriptorArray(3);
+    {  // length
+      FieldDescriptor d(*FACTORY->length_symbol(), 0, DONT_ENUM);
+      descriptors->Set(0, &d);
+    }
+    {  // callee
+      CallbacksDescriptor d(*FACTORY->callee_symbol(), *callee, attributes);
+      descriptors->Set(1, &d);
+    }
+    {  // caller
+      CallbacksDescriptor d(*FACTORY->caller_symbol(), *caller, attributes);
+      descriptors->Set(2, &d);
+    }
+    descriptors->Sort();
+
+    // Create the map. Allocate one in-object field for length.
+    Handle<Map> map = FACTORY->NewMap(JS_OBJECT_TYPE,
+                                      Heap::kArgumentsObjectSizeStrict);
+    map->set_instance_descriptors(*descriptors);
+    map->set_function_with_prototype(true);
+    map->set_prototype(global_context()->object_function()->prototype());
+    map->set_pre_allocated_property_fields(1);
+    map->set_inobject_properties(1);
+
+    // Copy constructor from the non-strict arguments boilerplate.
+    map->set_constructor(
+      global_context()->arguments_boilerplate()->map()->constructor());
+
+    // Allocate the arguments boilerplate object.
+    Handle<JSObject> result = FACTORY->NewJSObjectFromMap(map);
+    global_context()->set_strict_mode_arguments_boilerplate(*result);
+
+    // Add length property only for strict mode boilerplate.
+    SetLocalPropertyNoThrow(result, FACTORY->length_symbol(),
+                            FACTORY->undefined_value(),
+                            DONT_ENUM);
+
+#ifdef DEBUG
+    LookupResult lookup;
+    result->LocalLookup(HEAP->length_symbol(), &lookup);
+    ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
+    ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsLengthIndex);
+
+    ASSERT(result->map()->inobject_properties() > Heap::kArgumentsLengthIndex);
 
     // Check the state of the object.
     ASSERT(result->HasFastProperties());
@@ -1788,17 +2002,17 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
 
 
 void Genesis::MakeFunctionInstancePrototypeWritable() {
-  // Make a new function map so all future functions
-  // will have settable and enumerable prototype properties.
-  HandleScope scope;
+  // The maps with writable prototype are created in CreateEmptyFunction
+  // and CreateStrictModeFunctionMaps respectively. Initially the maps are
+  // created with read-only prototype for JS builtins processing.
+  ASSERT(!function_instance_map_writable_prototype_.is_null());
+  ASSERT(!strict_mode_function_instance_map_writable_prototype_.is_null());
 
-  Handle<DescriptorArray> function_map_descriptors =
-      ComputeFunctionInstanceDescriptor(ADD_WRITEABLE_PROTOTYPE);
-  Handle<Map> fm = FACTORY->CopyMapDropDescriptors(
-      Isolate::Current()->function_map());
-  fm->set_instance_descriptors(*function_map_descriptors);
-  fm->set_function_with_prototype(true);
-  Isolate::Current()->context()->global_context()->set_function_map(*fm);
+  // Replace function instance maps to make prototype writable.
+  global_context()->set_function_map(
+    *function_instance_map_writable_prototype_);
+  global_context()->set_strict_mode_function_map(
+    *strict_mode_function_instance_map_writable_prototype_);
 }
 
 
@@ -1822,9 +2036,6 @@ Genesis::Genesis(Handle<Object> global_object,
     AddToWeakGlobalContextList(*global_context_);
     isolate->set_context(*global_context_);
     isolate->counters()->contexts_created_by_snapshot()->Increment();
-    JSFunction* empty_function =
-        JSFunction::cast(global_context_->function_map()->prototype());
-    empty_function_ = Handle<JSFunction>(empty_function);
     Handle<GlobalObject> inner_global;
     Handle<JSGlobalProxy> global_proxy =
         CreateNewGlobals(global_template,
@@ -1839,6 +2050,7 @@ Genesis::Genesis(Handle<Object> global_object,
     // We get here if there was no context snapshot.
     CreateRoots();
     Handle<JSFunction> empty_function = CreateEmptyFunction();
+    CreateStrictModeFunctionMaps(empty_function);
     Handle<GlobalObject> inner_global;
     Handle<JSGlobalProxy> global_proxy =
         CreateNewGlobals(global_template, global_object, &inner_global);

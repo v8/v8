@@ -139,7 +139,7 @@ void OS::Print(const char* format, ...) {
 
 
 void OS::VPrint(const char* format, va_list args) {
-#if defined(ANDROID)
+#if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
   LOG_PRI_VA(ANDROID_LOG_INFO, LOG_TAG, format, args);
 #else
   vprintf(format, args);
@@ -156,7 +156,7 @@ void OS::FPrint(FILE* out, const char* format, ...) {
 
 
 void OS::VFPrint(FILE* out, const char* format, va_list args) {
-#if defined(ANDROID)
+#if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
   LOG_PRI_VA(ANDROID_LOG_INFO, LOG_TAG, format, args);
 #else
   vfprintf(out, format, args);
@@ -173,7 +173,7 @@ void OS::PrintError(const char* format, ...) {
 
 
 void OS::VPrintError(const char* format, va_list args) {
-#if defined(ANDROID)
+#if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
   LOG_PRI_VA(ANDROID_LOG_ERROR, LOG_TAG, format, args);
 #else
   vfprintf(stderr, format, args);

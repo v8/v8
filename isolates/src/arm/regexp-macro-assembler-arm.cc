@@ -808,7 +808,7 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   Handle<Code> code = FACTORY->NewCode(code_desc,
                                        Code::ComputeFlags(Code::REGEXP),
                                        masm_->CodeObject());
-  PROFILE(RegExpCodeCreateEvent(*code, *source));
+  PROFILE(Isolate::Current(), RegExpCodeCreateEvent(*code, *source));
   return Handle<Object>::cast(code);
 }
 

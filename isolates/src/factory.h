@@ -222,7 +222,7 @@ class Factory {
   Handle<JSObject> NewJSObjectFromMap(Handle<Map> map);
 
   // JS arrays are pretenured when allocated by the parser.
-  Handle<JSArray> NewJSArray(int init_length,
+  Handle<JSArray> NewJSArray(int capacity,
                              PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArrayWithElements(
@@ -232,7 +232,9 @@ class Factory {
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Object> prototype);
 
-  Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name);
+  Handle<JSFunction> NewFunctionWithoutPrototype(
+      Handle<String> name,
+      StrictModeFlag strict_mode);
 
   Handle<JSFunction> NewFunction(Handle<Object> super, bool is_global);
 
@@ -410,7 +412,8 @@ class Factory {
                                        Handle<Object> prototype);
 
   Handle<JSFunction> NewFunctionWithoutPrototypeHelper(
-      Handle<String> name);
+      Handle<String> name,
+      StrictModeFlag strict_mode);
 
   Handle<DescriptorArray> CopyAppendCallbackDescriptors(
       Handle<DescriptorArray> array,

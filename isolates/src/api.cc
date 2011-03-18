@@ -4195,7 +4195,9 @@ Local<v8::Array> v8::Array::New(int length) {
   EnsureInitializedForIsolate(isolate, "v8::Array::New()");
   LOG_API(isolate, "Array::New");
   ENTER_V8;
-  i::Handle<i::JSArray> obj = FACTORY->NewJSArray(length);
+  int real_length = length > 0 ? length : 0;
+  i::Handle<i::JSArray> obj = isolate->factory()->NewJSArray(real_length);
+  obj->set_length(*isolate->factory()->NewNumberFromInt(real_length));
   return Utils::ToLocal(obj);
 }
 
@@ -4378,8 +4380,20 @@ void V8::AddObjectGroup(Persistent<Value>* objects,
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::AddObjectGroup()")) return;
   STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
-  isolate->global_handles()->AddGroup(
+  isolate->global_handles()->AddObjectGroup(
       reinterpret_cast<i::Object***>(objects), length, info);
+}
+
+
+void V8::AddImplicitReferences(Persistent<Object> parent,
+                               Persistent<Value>* children,
+                               size_t length) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::AddImplicitReferences()")) return;
+  STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
+  isolate->global_handles()->AddImplicitReferences(
+      *Utils::OpenHandle(*parent),
+      reinterpret_cast<i::Object***>(children), length);
 }
 
 

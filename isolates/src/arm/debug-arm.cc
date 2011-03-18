@@ -115,7 +115,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
   patcher.masm()->mov(v8::internal::lr, v8::internal::pc);
   patcher.masm()->ldr(v8::internal::pc, MemOperand(v8::internal::pc, -4));
 #endif
-  patcher.Emit(Isolate::Current()->debug()->debug_break_return()->entry());
+  patcher.Emit(Isolate::Current()->debug()->debug_break_slot()->entry());
 }
 
 

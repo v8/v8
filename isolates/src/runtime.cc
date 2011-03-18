@@ -4584,7 +4584,15 @@ static MaybeObject* Runtime_GetArgumentsProperty(RUNTIME_CALLING_CONVENTION) {
 
   // Handle special arguments properties.
   if (key->Equals(isolate->heap()->length_symbol())) return Smi::FromInt(n);
-  if (key->Equals(isolate->heap()->callee_symbol())) return frame->function();
+  if (key->Equals(isolate->heap()->callee_symbol())) {
+    Object* function = frame->function();
+    if (function->IsJSFunction() &&
+        JSFunction::cast(function)->shared()->strict_mode()) {
+      return isolate->Throw(*isolate->factory()->NewTypeError(
+          "strict_arguments_callee", HandleVector<Object>(NULL, 0)));
+    }
+    return function;
+  }
 
   // Lookup in the initial Object.prototype object.
   return isolate->initial_object_prototype()->GetProperty(*key);
@@ -8409,11 +8417,14 @@ static MaybeObject* Runtime_SetNewFunctionAttributes(
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, func, 0);
-  ASSERT(func->map()->instance_type() ==
-         isolate->function_instance_map()->instance_type());
-  ASSERT(func->map()->instance_size() ==
-         isolate->function_instance_map()->instance_size());
-  func->set_map(*isolate->function_instance_map());
+
+  Handle<Map> map = func->shared()->strict_mode()
+                        ? isolate->strict_mode_function_instance_map()
+                        : isolate->function_instance_map();
+
+  ASSERT(func->map()->instance_type() == map->instance_type());
+  ASSERT(func->map()->instance_size() == map->instance_size());
+  func->set_map(*map);
   return *func;
 }
 
