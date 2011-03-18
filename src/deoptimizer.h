@@ -93,31 +93,6 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
 };
 
 
-class Deoptimizer;
-
-
-class DeoptimizerData {
- public:
-  DeoptimizerData();
-  ~DeoptimizerData();
-
- private:
-  LargeObjectChunk* eager_deoptimization_entry_code_;
-  LargeObjectChunk* lazy_deoptimization_entry_code_;
-  Deoptimizer* current_;
-
-  // List of deoptimized code which still have references from active stack
-  // frames. These code objects are needed by the deoptimizer when deoptimizing
-  // a frame for which the code object for the function function has been
-  // changed from the code present when deoptimizing was done.
-  DeoptimizingCodeListNode* deoptimizing_code_list_;
-
-  friend class Deoptimizer;
-
-  DISALLOW_COPY_AND_ASSIGN(DeoptimizerData);
-};
-
-
 class Deoptimizer : public Malloced {
  public:
   enum BailoutType {
@@ -132,9 +107,8 @@ class Deoptimizer : public Malloced {
                           BailoutType type,
                           unsigned bailout_id,
                           Address from,
-                          int fp_to_sp_delta,
-                          Isolate* isolate);
-  static Deoptimizer* Grab(Isolate* isolate);
+                          int fp_to_sp_delta);
+  static Deoptimizer* Grab();
 
   // Deoptimize the function now. Its current optimized code will never be run
   // again and any activations of the optimized code will get deoptimized when
@@ -185,13 +159,16 @@ class Deoptimizer : public Malloced {
 
   void InsertHeapNumberValues(int index, JavaScriptFrame* frame);
 
-  static void ComputeOutputFrames(Deoptimizer* deoptimizer, Isolate* isolate);
+  static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
   static Address GetDeoptimizationEntry(int id, BailoutType type);
   static int GetDeoptimizationId(Address addr, BailoutType type);
   static int GetOutputInfo(DeoptimizationOutputData* data,
                            unsigned node_id,
                            SharedFunctionInfo* shared);
+
+  static void Setup();
+  static void TearDown();
 
   // Code generation support.
   static int input_offset() { return OFFSET_OF(Deoptimizer, input_); }
@@ -200,7 +177,7 @@ class Deoptimizer : public Malloced {
   }
   static int output_offset() { return OFFSET_OF(Deoptimizer, output_); }
 
-  static int GetDeoptimizedCodeCount(Isolate* isolate);
+  static int GetDeoptimizedCodeCount();
 
   static const int kNotDeoptimizationEntry = -1;
 
@@ -241,8 +218,7 @@ class Deoptimizer : public Malloced {
  private:
   static const int kNumberOfEntries = 4096;
 
-  Deoptimizer(Isolate* isolate,
-              JSFunction* function,
+  Deoptimizer(JSFunction* function,
               BailoutType type,
               unsigned bailout_id,
               Address from,
@@ -288,7 +264,16 @@ class Deoptimizer : public Malloced {
   static Code* FindDeoptimizingCodeFromAddress(Address addr);
   static void RemoveDeoptimizingCode(Code* code);
 
-  Isolate* isolate_;
+  static LargeObjectChunk* eager_deoptimization_entry_code_;
+  static LargeObjectChunk* lazy_deoptimization_entry_code_;
+  static Deoptimizer* current_;
+
+  // List of deoptimized code which still have references from active stack
+  // frames. These code objects are needed by the deoptimizer when deoptimizing
+  // a frame for which the code object for the function function has been
+  // changed from the code present when deoptimizing was done.
+  static DeoptimizingCodeListNode* deoptimizing_code_list_;
+
   JSFunction* function_;
   Code* optimized_code_;
   unsigned bailout_id_;

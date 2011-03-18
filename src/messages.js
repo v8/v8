@@ -1085,5 +1085,5 @@ function errorToString() {
 InstallFunctions($Error.prototype, DONT_ENUM, ['toString', errorToString]);
 
 // Boilerplate for exceptions for stack overflows. Used from
-// Isolate::StackOverflow().
+// Top::StackOverflow().
 const kStackOverflowBoilerplate = MakeRangeError('stack_overflow', []);

@@ -578,7 +578,7 @@ SAMPLE_FLAGS = {
       }
     },
     'arch:ia32': {
-      'CPPDEFINES': ['V8_TARGET_ARCH_IA32', 'WIN32'],
+      'CPPDEFINES': ['V8_TARGET_ARCH_IA32'],
       'LINKFLAGS': ['/MACHINE:X86']
     },
     'arch:x64': {

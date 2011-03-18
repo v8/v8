@@ -38,31 +38,24 @@ SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 
 class MjsunitTestCase(test.TestCase):
 
-  def __init__(self, path, file, mode, context, config, isolates):
+  def __init__(self, path, file, mode, context, config):
     super(MjsunitTestCase, self).__init__(context, path, mode)
     self.file = file
     self.config = config
     self.self_script = False
-    self.isolates = isolates
 
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
 
   def GetName(self):
-    return self.path[-1] + ["", "-isolates"][self.isolates]
+    return self.path[-1]
 
-  def TestsIsolates(self):
-    return self.isolates
-
-  def GetVmCommand(self, source):
+  def GetCommand(self):
     result = self.config.context.GetVmCommand(self, self.mode)
+    source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
       result += flags_match.group(1).strip().split()
-    return result
-
-  def GetVmArguments(self, source):
-    result = []
     additional_files = []
     files_match = FILES_PATTERN.search(source);
     # Accept several lines of 'Files:'
@@ -78,15 +71,6 @@ class MjsunitTestCase(test.TestCase):
     if SELF_SCRIPT_PATTERN.search(source):
       result.append(self.CreateSelfScript())
     result += [framework, self.file]
-    return result
-
-  def GetCommand(self):
-    source = open(self.file).read()
-    result = self.GetVmCommand(source)
-    result += self.GetVmArguments(source)
-    if self.isolates:
-      result.append("--isolate")
-      result += self.GetVmArguments(source)
     return result
 
   def GetSource(self):
@@ -138,8 +122,7 @@ class MjsunitTestConfiguration(test.TestConfiguration):
     for test in all_tests:
       if self.Contains(path, test):
         file_path = join(self.root, reduce(join, test[1:], "") + ".js")
-        result.append(MjsunitTestCase(test, file_path, mode, self.context, self, False))
-        result.append(MjsunitTestCase(test, file_path, mode, self.context, self, True))
+        result.append(MjsunitTestCase(test, file_path, mode, self.context, self))
     return result
 
   def GetBuildRequirements(self):

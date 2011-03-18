@@ -92,25 +92,25 @@ namespace internal {
 // of active code generators.
 class CodeGeneratorScope BASE_EMBEDDED {
  public:
-  explicit CodeGeneratorScope(Isolate* isolate, CodeGenerator* cgen)
-      : isolate_(isolate) {
-    previous_ = isolate->current_code_generator();
-    isolate->set_current_code_generator(cgen);
+  explicit CodeGeneratorScope(CodeGenerator* cgen) {
+    previous_ = top_;
+    top_ = cgen;
   }
 
   ~CodeGeneratorScope() {
-    isolate_->set_current_code_generator(previous_);
+    top_ = previous_;
   }
 
-  static CodeGenerator* Current(Isolate* isolate) {
-    ASSERT(isolate->current_code_generator() != NULL);
-    return isolate->current_code_generator();
+  static CodeGenerator* Current() {
+    ASSERT(top_ != NULL);
+    return top_;
   }
 
  private:
+  static CodeGenerator* top_;
   CodeGenerator* previous_;
-  Isolate* isolate_;
 };
+
 
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 

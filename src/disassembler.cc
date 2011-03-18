@@ -65,24 +65,24 @@ class V8NameConverter: public disasm::NameConverter {
   Code* code() const { return code_; }
  private:
   Code* code_;
-
-  EmbeddedVector<char, 128> v8_buffer_;
 };
 
 
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
-  const char* name = Isolate::Current()->builtins()->Lookup(pc);
+  static v8::internal::EmbeddedVector<char, 128> buffer;
+
+  const char* name = Builtins::Lookup(pc);
   if (name != NULL) {
-    OS::SNPrintF(v8_buffer_, "%s  (%p)", name, pc);
-    return v8_buffer_.start();
+    OS::SNPrintF(buffer, "%s  (%p)", name, pc);
+    return buffer.start();
   }
 
   if (code_ != NULL) {
     int offs = static_cast<int>(pc - code_->instruction_start());
     // print as code offset, if it seems reasonable
     if (0 <= offs && offs < code_->instruction_size()) {
-      OS::SNPrintF(v8_buffer_, "%d  (%p)", offs, pc);
-      return v8_buffer_.start();
+      OS::SNPrintF(buffer, "%d  (%p)", offs, pc);
+      return buffer.start();
     }
   }
 
@@ -115,7 +115,6 @@ static int DecodeIt(FILE* f,
   NoHandleAllocation ha;
   AssertNoAllocation no_alloc;
   ExternalReferenceEncoder ref_encoder;
-  Heap* heap = HEAP;
 
   v8::internal::EmbeddedVector<char, 128> decode_buffer;
   v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
@@ -257,8 +256,8 @@ static int DecodeIt(FILE* f,
         } else if (kind == Code::STUB) {
           // Reverse lookup required as the minor key cannot be retrieved
           // from the code object.
-          Object* obj = heap->code_stubs()->SlowReverseLookup(code);
-          if (obj != heap->undefined_value()) {
+          Object* obj = Heap::code_stubs()->SlowReverseLookup(code);
+          if (obj != Heap::undefined_value()) {
             ASSERT(obj->IsSmi());
             // Get the STUB key and extract major and minor key.
             uint32_t key = Smi::cast(obj)->value();

@@ -65,6 +65,7 @@ class Arguments BASE_EMBEDDED {
   int length() const { return length_; }
 
   Object** arguments() { return arguments_; }
+
  private:
   int length_;
   Object** arguments_;
@@ -76,16 +77,15 @@ class Arguments BASE_EMBEDDED {
 // can.
 class CustomArguments : public Relocatable {
  public:
-  inline CustomArguments(Isolate* isolate,
-                         Object* data,
+  inline CustomArguments(Object* data,
                          Object* self,
-                         JSObject* holder) : Relocatable(isolate) {
+                         JSObject* holder) {
     values_[2] = self;
     values_[1] = holder;
     values_[0] = data;
   }
 
-  inline explicit CustomArguments(Isolate* isolate) : Relocatable(isolate) {
+  inline CustomArguments() {
 #ifdef DEBUG
     for (size_t i = 0; i < ARRAY_SIZE(values_); i++) {
       values_[i] = reinterpret_cast<Object*>(kZapValue);
@@ -99,8 +99,6 @@ class CustomArguments : public Relocatable {
   Object* values_[3];
 };
 
-#define RUNTIME_CALLING_CONVENTION Arguments args, Isolate* isolate
-#define RUNTIME_GET_ISOLATE ASSERT(isolate == Isolate::Current())
 
 } }  // namespace v8::internal
 

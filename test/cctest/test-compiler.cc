@@ -34,6 +34,7 @@
 #include "execution.h"
 #include "factory.h"
 #include "platform.h"
+#include "top.h"
 #include "cctest.h"
 
 using namespace v8::internal;
@@ -98,21 +99,21 @@ static void InitializeVM() {
 
 
 static MaybeObject* GetGlobalProperty(const char* name) {
-  Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
-  return Isolate::Current()->context()->global()->GetProperty(*symbol);
+  Handle<String> symbol = Factory::LookupAsciiSymbol(name);
+  return Top::context()->global()->GetProperty(*symbol);
 }
 
 
 static void SetGlobalProperty(const char* name, Object* value) {
   Handle<Object> object(value);
-  Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<String> symbol = Factory::LookupAsciiSymbol(name);
+  Handle<JSObject> global(Top::context()->global());
   SetProperty(global, symbol, object, NONE, kNonStrictMode);
 }
 
 
 static Handle<JSFunction> Compile(const char* source) {
-  Handle<String> source_code(FACTORY->NewStringFromUtf8(CStrVector(source)));
+  Handle<String> source_code(Factory::NewStringFromUtf8(CStrVector(source)));
   Handle<SharedFunctionInfo> shared_function =
       Compiler::Compile(source_code,
                         Handle<String>(),
@@ -122,8 +123,8 @@ static Handle<JSFunction> Compile(const char* source) {
                         NULL,
                         Handle<String>::null(),
                         NOT_NATIVES_CODE);
-  return FACTORY->NewFunctionFromSharedFunctionInfo(shared_function,
-      Isolate::Current()->global_context());
+  return Factory::NewFunctionFromSharedFunctionInfo(shared_function,
+                                                    Top::global_context());
 }
 
 
@@ -136,7 +137,7 @@ static double Inc(int x) {
   if (fun.is_null()) return -1;
 
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Top::context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->ToObjectChecked()->Number();
@@ -157,7 +158,7 @@ static double Add(int x, int y) {
   SetGlobalProperty("x", Smi::FromInt(x));
   SetGlobalProperty("y", Smi::FromInt(y));
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Top::context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->ToObjectChecked()->Number();
@@ -177,7 +178,7 @@ static double Abs(int x) {
 
   SetGlobalProperty("x", Smi::FromInt(x));
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Top::context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->ToObjectChecked()->Number();
@@ -198,7 +199,7 @@ static double Sum(int n) {
 
   SetGlobalProperty("n", Smi::FromInt(n));
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Top::context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->ToObjectChecked()->Number();
@@ -219,7 +220,7 @@ TEST(Print) {
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Top::context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 }
@@ -252,7 +253,7 @@ TEST(Stuff) {
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Top::context()->global());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   CHECK_EQ(511.0, GetGlobalProperty("r")->ToObjectChecked()->Number());
@@ -267,12 +268,11 @@ TEST(UncaughtThrow) {
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Top::context()->global());
   Handle<Object> result =
       Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(has_pending_exception);
-  CHECK_EQ(42.0, Isolate::Current()->pending_exception()->
-           ToObjectChecked()->Number());
+  CHECK_EQ(42.0, Top::pending_exception()->ToObjectChecked()->Number());
 }
 
 
@@ -293,18 +293,18 @@ TEST(C2JSFrames) {
 
   // Run the generated code to populate the global object with 'foo'.
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Top::context()->global());
   Execution::Call(fun0, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 
-  Object* foo_symbol = FACTORY->LookupAsciiSymbol("foo")->ToObjectChecked();
-  MaybeObject* fun1_object = Isolate::Current()->context()->global()->
-      GetProperty(String::cast(foo_symbol));
+  Object* foo_symbol = Factory::LookupAsciiSymbol("foo")->ToObjectChecked();
+  MaybeObject* fun1_object =
+      Top::context()->global()->GetProperty(String::cast(foo_symbol));
   Handle<Object> fun1(fun1_object->ToObjectChecked());
   CHECK(fun1->IsJSFunction());
 
   Object** argv[1] = {
-    Handle<Object>::cast(FACTORY->LookupAsciiSymbol("hello")).location()
+    Handle<Object>::cast(Factory::LookupAsciiSymbol("hello")).location()
   };
   Execution::Call(Handle<JSFunction>::cast(fun1), global, 1, argv,
                   &has_pending_exception);
@@ -318,8 +318,8 @@ TEST(Regression236) {
   InitializeVM();
   v8::HandleScope scope;
 
-  Handle<Script> script = FACTORY->NewScript(FACTORY->empty_string());
-  script->set_source(HEAP->undefined_value());
+  Handle<Script> script = Factory::NewScript(Factory::empty_string());
+  script->set_source(Heap::undefined_value());
   CHECK_EQ(-1, GetScriptLineNumber(script, 0));
   CHECK_EQ(-1, GetScriptLineNumber(script, 100));
   CHECK_EQ(-1, GetScriptLineNumber(script, -1));

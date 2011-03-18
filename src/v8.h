@@ -86,7 +86,6 @@ class V8 : public AllStatic {
   static bool UseCrankshaft() { return use_crankshaft_; }
   static void DisableCrankshaft() { use_crankshaft_ = false; }
   // To be dead you have to have lived
-  // TODO(isolates): move IsDead to Isolate.
   static bool IsDead() { return has_fatal_error_ || has_been_disposed_; }
   static void SetFatalError();
 
@@ -95,12 +94,12 @@ class V8 : public AllStatic {
                                       bool take_snapshot = false);
 
   // Random number generation support. Not cryptographically safe.
-  static uint32_t Random(Isolate* isolate);
+  static uint32_t Random();
   // We use random numbers internally in memory allocation and in the
   // compilers for security. In order to prevent information leaks we
   // use a separate random state for internal random number
   // generation.
-  static uint32_t RandomPrivate(Isolate* isolate);
+  static uint32_t RandomPrivate();
   static Object* FillHeapNumberWithRandom(Object* heap_number);
 
   // Idle notification directly from the API.

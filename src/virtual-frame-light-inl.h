@@ -83,9 +83,8 @@ void VirtualFrame::PrepareForReturn() {
 VirtualFrame::RegisterAllocationScope::RegisterAllocationScope(
     CodeGenerator* cgen)
   : cgen_(cgen),
-    old_is_spilled_(
-        Isolate::Current()->is_virtual_frame_in_spilled_scope()) {
-  Isolate::Current()->set_is_virtual_frame_in_spilled_scope(false);
+    old_is_spilled_(SpilledScope::is_spilled_) {
+  SpilledScope::is_spilled_ = false;
   if (old_is_spilled_) {
     VirtualFrame* frame = cgen->frame();
     if (frame != NULL) {
@@ -96,7 +95,7 @@ VirtualFrame::RegisterAllocationScope::RegisterAllocationScope(
 
 
 VirtualFrame::RegisterAllocationScope::~RegisterAllocationScope() {
-  Isolate::Current()->set_is_virtual_frame_in_spilled_scope(old_is_spilled_);
+  SpilledScope::is_spilled_ = old_is_spilled_;
   if (old_is_spilled_) {
     VirtualFrame* frame = cgen_->frame();
     if (frame != NULL) {
@@ -107,7 +106,7 @@ VirtualFrame::RegisterAllocationScope::~RegisterAllocationScope() {
 
 
 CodeGenerator* VirtualFrame::cgen() const {
-  return CodeGeneratorScope::Current(Isolate::Current());
+  return CodeGeneratorScope::Current();
 }
 
 

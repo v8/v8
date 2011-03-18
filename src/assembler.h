@@ -37,6 +37,7 @@
 
 #include "gdb-jit.h"
 #include "runtime.h"
+#include "top.h"
 #include "token.h"
 
 namespace v8 {
@@ -317,7 +318,7 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(void set_call_object(Object* target));
   INLINE(Object** call_object_address());
 
-  template<typename StaticVisitor> inline void Visit(Heap* heap);
+  template<typename StaticVisitor> inline void Visit();
   inline void Visit(ObjectVisitor* v);
 
   // Patch the code with some other code.
@@ -509,7 +510,7 @@ class ExternalReference BASE_EMBEDDED {
 
   explicit ExternalReference(Runtime::FunctionId id);
 
-  explicit ExternalReference(const Runtime::Function* f);
+  explicit ExternalReference(Runtime::Function* f);
 
   explicit ExternalReference(const IC_Utility& ic_utility);
 
@@ -519,12 +520,9 @@ class ExternalReference BASE_EMBEDDED {
 
   explicit ExternalReference(StatsCounter* counter);
 
-  explicit ExternalReference(Isolate::AddressId id);
+  explicit ExternalReference(Top::AddressId id);
 
   explicit ExternalReference(const SCTableReference& table_ref);
-
-  // Isolate::Current() as an external reference.
-  static ExternalReference isolate_address();
 
   // One-of-a-kind references. These references are not part of a general
   // pattern. This means that they have to be added to the
@@ -629,35 +627,29 @@ class ExternalReference BASE_EMBEDDED {
   // This lets you register a function that rewrites all external references.
   // Used by the ARM simulator to catch calls to external references.
   static void set_redirector(ExternalReferenceRedirector* redirector) {
-    // We can't stack them.
-    ASSERT(Isolate::Current()->external_reference_redirector() == NULL);
-    Isolate::Current()->set_external_reference_redirector(
-        reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
+    ASSERT(redirector_ == NULL);  // We can't stack them.
+    redirector_ = redirector;
   }
 
  private:
   explicit ExternalReference(void* address)
       : address_(address) {}
 
+  static ExternalReferenceRedirector* redirector_;
+
   static void* Redirect(void* address,
                         Type type = ExternalReference::BUILTIN_CALL) {
-    ExternalReferenceRedirector* redirector =
-        reinterpret_cast<ExternalReferenceRedirector*>(
-            Isolate::Current()->external_reference_redirector());
-    if (redirector == NULL) return address;
-    void* answer = (*redirector)(address, type);
+    if (redirector_ == NULL) return address;
+    void* answer = (*redirector_)(address, type);
     return answer;
   }
 
   static void* Redirect(Address address_arg,
                         Type type = ExternalReference::BUILTIN_CALL) {
-    ExternalReferenceRedirector* redirector =
-        reinterpret_cast<ExternalReferenceRedirector*>(
-            Isolate::Current()->external_reference_redirector());
     void* address = reinterpret_cast<void*>(address_arg);
-    void* answer = (redirector == NULL) ?
+    void* answer = (redirector_ == NULL) ?
                    address :
-                   (*redirector)(address, type);
+                   (*redirector_)(address, type);
     return answer;
   }
 

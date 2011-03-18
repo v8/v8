@@ -114,7 +114,7 @@ class SerializedScopeInfo : public FixedArray {
 
   // Does this scope have an arguments shadow?
   bool HasArgumentsShadow() {
-    return StackSlotIndex(GetHeap()->arguments_shadow_symbol()) >= 0;
+    return StackSlotIndex(Heap::arguments_shadow_symbol()) >= 0;
   }
 
   // Return the number of stack slots for code.
@@ -173,36 +173,28 @@ class ContextSlotCache {
  public:
   // Lookup context slot index for (data, name).
   // If absent, kNotFound is returned.
-  int Lookup(Object* data,
-             String* name,
-             Variable::Mode* mode);
+  static int Lookup(Object* data,
+                    String* name,
+                    Variable::Mode* mode);
 
   // Update an element in the cache.
-  void Update(Object* data,
-              String* name,
-              Variable::Mode mode,
-              int slot_index);
-
-  // Clear the cache.
-  void Clear();
-
-  static const int kNotFound = -2;
- private:
-  ContextSlotCache() {
-    for (int i = 0; i < kLength; ++i) {
-      keys_[i].data = NULL;
-      keys_[i].name = NULL;
-      values_[i] = kNotFound;
-    }
-  }
-
-  inline static int Hash(Object* data, String* name);
-
-#ifdef DEBUG
-  void ValidateEntry(Object* data,
+  static void Update(Object* data,
                      String* name,
                      Variable::Mode mode,
                      int slot_index);
+
+  // Clear the cache.
+  static void Clear();
+
+  static const int kNotFound = -2;
+ private:
+  inline static int Hash(Object* data, String* name);
+
+#ifdef DEBUG
+  static void ValidateEntry(Object* data,
+                            String* name,
+                            Variable::Mode mode,
+                            int slot_index);
 #endif
 
   static const int kLength = 256;
@@ -236,11 +228,8 @@ class ContextSlotCache {
     uint32_t value_;
   };
 
-  Key keys_[kLength];
-  uint32_t values_[kLength];
-
-  friend class Isolate;
-  DISALLOW_COPY_AND_ASSIGN(ContextSlotCache);
+  static Key keys_[kLength];
+  static uint32_t values_[kLength];
 };
 
 

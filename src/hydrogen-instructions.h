@@ -1244,8 +1244,7 @@ class HCallConstantFunction: public HCall<0> {
   Handle<JSFunction> function() const { return function_; }
 
   bool IsApplyFunction() const {
-    return function_->code() ==
-        Isolate::Current()->builtins()->builtin(Builtins::FunctionApply);
+    return function_->code() == Builtins::builtin(Builtins::FunctionApply);
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -1378,12 +1377,12 @@ class HCallNew: public HBinaryCall {
 class HCallRuntime: public HCall<0> {
  public:
   HCallRuntime(Handle<String> name,
-               const Runtime::Function* c_function,
+               Runtime::Function* c_function,
                int argument_count)
       : HCall<0>(argument_count), c_function_(c_function), name_(name) { }
   virtual void PrintDataTo(StringStream* stream);
 
-  const Runtime::Function* function() const { return c_function_; }
+  Runtime::Function* function() const { return c_function_; }
   Handle<String> name() const { return name_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -1393,7 +1392,7 @@ class HCallRuntime: public HCall<0> {
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime, "call_runtime")
 
  private:
-  const Runtime::Function* c_function_;
+  Runtime::Function* c_function_;
   Handle<String> name_;
 };
 
@@ -1771,7 +1770,7 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
   }
 
   virtual intptr_t Hashcode() {
-    ASSERT(!HEAP->IsAllocationAllowed());
+    ASSERT(!Heap::IsAllocationAllowed());
     intptr_t hash = reinterpret_cast<intptr_t>(*prototype());
     hash = 17 * hash + reinterpret_cast<intptr_t>(*holder());
     return hash;
@@ -1935,7 +1934,7 @@ class HConstant: public HTemplateInstruction<0> {
 
   Handle<Object> handle() const { return handle_; }
 
-  bool InOldSpace() const { return !HEAP->InNewSpace(*handle_); }
+  bool InOldSpace() const { return !Heap::InNewSpace(*handle_); }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
@@ -1960,7 +1959,7 @@ class HConstant: public HTemplateInstruction<0> {
   bool HasStringValue() const { return handle_->IsString(); }
 
   virtual intptr_t Hashcode() {
-    ASSERT(!HEAP->allow_allocation(false));
+    ASSERT(!Heap::allow_allocation(false));
     return reinterpret_cast<intptr_t>(*handle());
   }
 
@@ -2819,7 +2818,7 @@ class HLoadGlobal: public HTemplateInstruction<0> {
   virtual void PrintDataTo(StringStream* stream);
 
   virtual intptr_t Hashcode() {
-    ASSERT(!HEAP->allow_allocation(false));
+    ASSERT(!Heap::allow_allocation(false));
     return reinterpret_cast<intptr_t>(*cell_);
   }
 

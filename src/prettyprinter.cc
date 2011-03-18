@@ -526,13 +526,13 @@ void PrettyPrinter::PrintLiteral(Handle<Object> value, bool quote) {
       Print("%c", string->Get(i));
     }
     if (quote) Print("\"");
-  } else if (object->IsNull()) {
+  } else if (object == Heap::null_value()) {
     Print("null");
-  } else if (object->IsTrue()) {
+  } else if (object == Heap::true_value()) {
     Print("true");
-  } else if (object->IsFalse()) {
+  } else if (object == Heap::false_value()) {
     Print("false");
-  } else if (object->IsUndefined()) {
+  } else if (object == Heap::undefined_value()) {
     Print("undefined");
   } else if (object->IsNumber()) {
     Print("%g", object->Number());
@@ -602,7 +602,7 @@ void PrettyPrinter::PrintCaseClause(CaseClause* clause) {
 
 class IndentedScope BASE_EMBEDDED {
  public:
-  explicit IndentedScope(AstPrinter* printer) : ast_printer_(printer) {
+  IndentedScope() {
     ast_printer_->inc_indent();
   }
 
@@ -626,20 +626,30 @@ class IndentedScope BASE_EMBEDDED {
     ast_printer_->dec_indent();
   }
 
+  static void SetAstPrinter(AstPrinter* a) { ast_printer_ = a; }
+
  private:
-  AstPrinter* ast_printer_;
+  static AstPrinter* ast_printer_;
 };
+
+
+AstPrinter* IndentedScope::ast_printer_ = NULL;
 
 
 //-----------------------------------------------------------------------------
 
+int AstPrinter::indent_ = 0;
 
-AstPrinter::AstPrinter() : indent_(0) {
+
+AstPrinter::AstPrinter() {
+  ASSERT(indent_ == 0);
+  IndentedScope::SetAstPrinter(this);
 }
 
 
 AstPrinter::~AstPrinter() {
   ASSERT(indent_ == 0);
+  IndentedScope::SetAstPrinter(NULL);
 }
 
 
@@ -999,7 +1009,7 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
                                node->type());
   Variable* var = node->var();
   if (var != NULL && var->rewrite() != NULL) {
-    IndentedScope indent(this);
+    IndentedScope indent;
     Visit(var->rewrite());
   }
 }
@@ -1045,7 +1055,7 @@ void AstPrinter::VisitCallNew(CallNew* node) {
 
 void AstPrinter::VisitCallRuntime(CallRuntime* node) {
   PrintLiteralIndented("CALL RUNTIME ", node->name(), false);
-  IndentedScope indent(this);
+  IndentedScope indent;
   PrintArguments(node->arguments());
 }
 

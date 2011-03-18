@@ -27,13 +27,7 @@
 
 // Features shared by parsing and pre-parsing scanners.
 
-#include "v8.h"
-
-/*
-TODO(isolates): I incldue v8.h instead of these because we need Isolate and 
-some classes (NativeAllocationChecker) are moved into isolate.h 
 #include "../include/v8stdint.h"
-*/
 #include "scanner-base.h"
 #include "char-predicates-inl.h"
 
@@ -41,6 +35,16 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
+// Character predicates
+
+unibrow::Predicate<IdentifierStart, 128> ScannerConstants::kIsIdentifierStart;
+unibrow::Predicate<IdentifierPart, 128> ScannerConstants::kIsIdentifierPart;
+unibrow::Predicate<unibrow::WhiteSpace, 128> ScannerConstants::kIsWhiteSpace;
+unibrow::Predicate<unibrow::LineTerminator, 128>
+  ScannerConstants::kIsLineTerminator;
+
+StaticResource<ScannerConstants::Utf8Decoder> ScannerConstants::utf8_decoder_;
+
 // Compound predicates.
 
 bool ScannerConstants::IsIdentifier(unibrow::CharacterStream* buffer) {
@@ -60,10 +64,8 @@ bool ScannerConstants::IsIdentifier(unibrow::CharacterStream* buffer) {
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(Isolate* isolate)
-    : scanner_constants_(isolate->scanner_constants()),
-      octal_pos_(kNoOctalLocation) {
-}
+Scanner::Scanner()
+  : octal_pos_(kNoOctalLocation) { }
 
 
 uc32 Scanner::ScanHexEscape(uc32 c, int length) {
@@ -120,7 +122,7 @@ uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
 // ----------------------------------------------------------------------------
 // JavaScriptScanner
 
-JavaScriptScanner::JavaScriptScanner(Isolate* isolate) : Scanner(isolate) {}
+JavaScriptScanner::JavaScriptScanner() : Scanner() {}
 
 
 Token::Value JavaScriptScanner::Next() {
@@ -149,9 +151,9 @@ bool JavaScriptScanner::SkipWhiteSpace() {
   while (true) {
     // We treat byte-order marks (BOMs) as whitespace for better
     // compatibility with Spidermonkey and other JavaScript engines.
-    while (scanner_constants_->IsWhiteSpace(c0_) || IsByteOrderMark(c0_)) {
+    while (ScannerConstants::kIsWhiteSpace.get(c0_) || IsByteOrderMark(c0_)) {
       // IsWhiteSpace() includes line terminators!
-      if (scanner_constants_->IsLineTerminator(c0_)) {
+      if (ScannerConstants::kIsLineTerminator.get(c0_)) {
         // Ignore line terminators, but remember them. This is necessary
         // for automatic semicolon insertion.
         has_line_terminator_before_next_ = true;
@@ -191,7 +193,7 @@ Token::Value JavaScriptScanner::SkipSingleLineComment() {
   // separately by the lexical grammar and becomes part of the
   // stream of input elements for the syntactic grammar (see
   // ECMA-262, section 7.4, page 12).
-  while (c0_ >= 0 && !scanner_constants_->IsLineTerminator(c0_)) {
+  while (c0_ >= 0 && !ScannerConstants::kIsLineTerminator.get(c0_)) {
     Advance();
   }
 
@@ -456,7 +458,7 @@ void JavaScriptScanner::Scan() {
         break;
 
       default:
-        if (scanner_constants_->IsIdentifierStart(c0_)) {
+        if (ScannerConstants::kIsIdentifierStart.get(c0_)) {
           token = ScanIdentifierOrKeyword();
         } else if (IsDecimalDigit(c0_)) {
           token = ScanNumber(false);
@@ -504,7 +506,7 @@ void JavaScriptScanner::ScanEscape() {
   Advance();
 
   // Skip escaped newlines.
-  if (scanner_constants_->IsLineTerminator(c)) {
+  if (ScannerConstants::kIsLineTerminator.get(c)) {
     // Allow CR+LF newlines in multiline string literals.
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance();
     // Allow LF+CR newlines in multiline string literals.
@@ -547,7 +549,7 @@ Token::Value JavaScriptScanner::ScanString() {
 
   LiteralScope literal(this);
   while (c0_ != quote && c0_ >= 0
-         && !scanner_constants_->IsLineTerminator(c0_)) {
+         && !ScannerConstants::kIsLineTerminator.get(c0_)) {
     uc32 c = c0_;
     Advance();
     if (c == '\\') {
@@ -646,7 +648,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
   // not be an identifier start or a decimal digit; see ECMA-262
   // section 7.8.3, page 17 (note that we read only one decimal digit
   // if the value is 0).
-  if (IsDecimalDigit(c0_) || scanner_constants_->IsIdentifierStart(c0_))
+  if (IsDecimalDigit(c0_) || ScannerConstants::kIsIdentifierStart.get(c0_))
     return Token::ILLEGAL;
 
   literal.Complete();
@@ -668,14 +670,14 @@ uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
 
 
 Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
-  ASSERT(scanner_constants_->IsIdentifierStart(c0_));
+  ASSERT(ScannerConstants::kIsIdentifierStart.get(c0_));
   LiteralScope literal(this);
   KeywordMatcher keyword_match;
   // Scan identifier start character.
   if (c0_ == '\\') {
     uc32 c = ScanIdentifierUnicodeEscape();
     // Only allow legal identifier start characters.
-    if (!scanner_constants_->IsIdentifierStart(c)) return Token::ILLEGAL;
+    if (!ScannerConstants::kIsIdentifierStart.get(c)) return Token::ILLEGAL;
     AddLiteralChar(c);
     return ScanIdentifierSuffix(&literal);
   }
@@ -688,7 +690,7 @@ Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
   }
 
   // Scan the rest of the identifier characters.
-  while (scanner_constants_->IsIdentifierPart(c0_)) {
+  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
     if (c0_ != '\\') {
       uc32 next_char = c0_;
       Advance();
@@ -706,11 +708,11 @@ Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
 
 Token::Value JavaScriptScanner::ScanIdentifierSuffix(LiteralScope* literal) {
   // Scan the rest of the identifier characters.
-  while (scanner_constants_->IsIdentifierPart(c0_)) {
+  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       // Only allow legal identifier part characters.
-      if (!scanner_constants_->IsIdentifierPart(c)) return Token::ILLEGAL;
+      if (!ScannerConstants::kIsIdentifierPart.get(c)) return Token::ILLEGAL;
       AddLiteralChar(c);
     } else {
       AddLiteralChar(c0_);
@@ -740,10 +742,10 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
     AddLiteralChar('=');
 
   while (c0_ != '/' || in_character_class) {
-    if (scanner_constants_->IsLineTerminator(c0_) || c0_ < 0) return false;
+    if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
     if (c0_ == '\\') {  // Escape sequence.
       AddLiteralCharAdvance();
-      if (scanner_constants_->IsLineTerminator(c0_) || c0_ < 0) return false;
+      if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
       AddLiteralCharAdvance();
       // If the escape allows more characters, i.e., \x??, \u????, or \c?,
       // only "safe" characters are allowed (letters, digits, underscore),
@@ -769,7 +771,7 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
 bool JavaScriptScanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   LiteralScope literal(this);
-  while (scanner_constants_->IsIdentifierPart(c0_)) {
+  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       if (c != static_cast<uc32>(unibrow::Utf8::kBadChar)) {

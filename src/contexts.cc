@@ -55,7 +55,7 @@ Context* Context::global_context() {
 
   // During bootstrapping, the global object might not be set and we
   // have to search the context chain to find the global context.
-  ASSERT(Isolate::Current()->bootstrapper()->IsActive());
+  ASSERT(Bootstrapper::IsActive());
   Context* current = this;
   while (!current->IsGlobalContext()) {
     JSFunction* closure = JSFunction::cast(current->closure());
@@ -76,8 +76,7 @@ void Context::set_global_proxy(JSObject* object) {
 
 Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
                                int* index_, PropertyAttributes* attributes) {
-  Isolate* isolate = GetIsolate();
-  Handle<Context> context(this, isolate);
+  Handle<Context> context(this);
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
   *index_ = -1;
@@ -98,8 +97,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
     // check extension/with object
     if (context->has_extension()) {
-      Handle<JSObject> extension = Handle<JSObject>(context->extension(),
-                                                    isolate);
+      Handle<JSObject> extension = Handle<JSObject>(context->extension());
       // Context extension objects needs to behave as if they have no
       // prototype.  So even if we want to follow prototype chains, we
       // need to only do a local lookup for context extension objects.
@@ -124,7 +122,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
       // check non-parameter locals in context
       Handle<SerializedScopeInfo> scope_info(
-          context->closure()->shared()->scope_info(), isolate);
+          context->closure()->shared()->scope_info());
       Variable::Mode mode;
       int index = scope_info->ContextSlotIndex(*name, &mode);
       ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
@@ -157,12 +155,11 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       int param_index = scope_info->ParameterIndex(*name);
       if (param_index >= 0) {
         // slot found.
-        int index = scope_info->ContextSlotIndex(
-            isolate->heap()->arguments_shadow_symbol(), NULL);
+        int index =
+            scope_info->ContextSlotIndex(Heap::arguments_shadow_symbol(), NULL);
         ASSERT(index >= 0);  // arguments must exist and be in the heap context
-        Handle<JSObject> arguments(JSObject::cast(context->get(index)),
-                                   isolate);
-        ASSERT(arguments->HasLocalProperty(isolate->heap()->length_symbol()));
+        Handle<JSObject> arguments(JSObject::cast(context->get(index)));
+        ASSERT(arguments->HasLocalProperty(Heap::length_symbol()));
         if (FLAG_trace_contexts) {
           PrintF("=> found parameter %d in arguments object\n", param_index);
         }
@@ -191,10 +188,9 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     if (context->IsGlobalContext()) {
       follow_context_chain = false;
     } else if (context->is_function_context()) {
-      context = Handle<Context>(Context::cast(context->closure()->context()),
-                                isolate);
+      context = Handle<Context>(Context::cast(context->closure()->context()));
     } else {
-      context = Handle<Context>(context->previous(), isolate);
+      context = Handle<Context>(context->previous());
     }
   } while (follow_context_chain);
 
@@ -256,7 +252,7 @@ void Context::AddOptimizedFunction(JSFunction* function) {
 
   // Check that the context belongs to the weak global contexts list.
   bool found = false;
-  Object* context = GetHeap()->global_contexts_list();
+  Object* context = Heap::global_contexts_list();
   while (!context->IsUndefined()) {
     if (context == this) {
       found = true;
@@ -285,7 +281,7 @@ void Context::RemoveOptimizedFunction(JSFunction* function) {
       } else {
         prev->set_next_function_link(element_function->next_function_link());
       }
-      element_function->set_next_function_link(GetHeap()->undefined_value());
+      element_function->set_next_function_link(Heap::undefined_value());
       return;
     }
     prev = element_function;
@@ -302,7 +298,7 @@ Object* Context::OptimizedFunctionsListHead() {
 
 
 void Context::ClearOptimizedFunctions() {
-  set(OPTIMIZED_FUNCTIONS_LIST, GetHeap()->undefined_value());
+  set(OPTIMIZED_FUNCTIONS_LIST, Heap::undefined_value());
 }
 
 
@@ -310,17 +306,14 @@ void Context::ClearOptimizedFunctions() {
 bool Context::IsBootstrappingOrContext(Object* object) {
   // During bootstrapping we allow all objects to pass as
   // contexts. This is necessary to fix circular dependencies.
-  return Isolate::Current()->bootstrapper()->IsActive() || object->IsContext();
+  return Bootstrapper::IsActive() || object->IsContext();
 }
 
 
 bool Context::IsBootstrappingOrGlobalObject(Object* object) {
   // During bootstrapping we allow all objects to pass as global
   // objects. This is necessary to fix circular dependencies.
-  Isolate* isolate = Isolate::Current();
-  return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
-      isolate->bootstrapper()->IsActive() ||
-      object->IsGlobalObject();
+  return Bootstrapper::IsActive() || object->IsGlobalObject();
 }
 #endif
 

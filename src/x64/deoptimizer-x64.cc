@@ -187,9 +187,8 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
-  DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
-  node->set_next(data->deoptimizing_code_list_);
-  data->deoptimizing_code_list_ = node;
+  node->set_next(deoptimizing_code_list_);
+  deoptimizing_code_list_ = node;
 
   // Set the code for the function to non-optimized version.
   function->ReplaceCode(function->shared()->code());
@@ -389,8 +388,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
         optimized_code_->entry() + pc_offset);
     output_[0]->SetPc(pc);
   }
-  Code* continuation = Isolate::Current()->builtins()->builtin(
-      Builtins::NotifyOSR);
+  Code* continuation = Builtins::builtin(Builtins::NotifyOSR);
   output_[0]->SetContinuation(
       reinterpret_cast<intptr_t>(continuation->entry()));
 
@@ -562,9 +560,8 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   // Set the continuation for the topmost frame.
   if (is_topmost) {
     Code* continuation = (bailout_type_ == EAGER)
-        ? Isolate::Current()->builtins()->builtin(Builtins::NotifyDeoptimized)
-        : Isolate::Current()->builtins()->builtin(
-              Builtins::NotifyLazyDeoptimized);
+        ? Builtins::builtin(Builtins::NotifyDeoptimized)
+        : Builtins::builtin(Builtins::NotifyLazyDeoptimized);
     output_frame->SetContinuation(
         reinterpret_cast<intptr_t>(continuation->entry()));
   }

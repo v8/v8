@@ -62,7 +62,7 @@ static bool CheckParse(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  FlatStringReader reader(Isolate::Current(), CStrVector(input));
+  FlatStringReader reader(CStrVector(input));
   RegExpCompileData result;
   return v8::internal::RegExpParser::ParseRegExp(&reader, false, &result);
 }
@@ -72,7 +72,7 @@ static SmartPointer<const char> Parse(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  FlatStringReader reader(Isolate::Current(), CStrVector(input));
+  FlatStringReader reader(CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
@@ -86,7 +86,7 @@ static bool CheckSimple(const char* input) {
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, StrLength(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  FlatStringReader reader(Isolate::Current(), CStrVector(input));
+  FlatStringReader reader(CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
@@ -104,7 +104,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, StrLength(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  FlatStringReader reader(Isolate::Current(), CStrVector(input));
+  FlatStringReader reader(CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
@@ -375,7 +375,7 @@ static void ExpectError(const char* input,
   V8::Initialize(NULL);
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  FlatStringReader reader(Isolate::Current(), CStrVector(input));
+  FlatStringReader reader(CStrVector(input));
   RegExpCompileData result;
   CHECK(!v8::internal::RegExpParser::ParseRegExp(&reader, false, &result));
   CHECK(result.tree == NULL);
@@ -471,7 +471,6 @@ static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
 
 
 TEST(CharacterClassEscapes) {
-  v8::internal::V8::Initialize(NULL);
   TestCharacterClassEscapes('.', IsRegExpNewline);
   TestCharacterClassEscapes('d', IsDigit);
   TestCharacterClassEscapes('D', NotDigit);
@@ -484,12 +483,12 @@ TEST(CharacterClassEscapes) {
 
 static RegExpNode* Compile(const char* input, bool multiline, bool is_ascii) {
   V8::Initialize(NULL);
-  FlatStringReader reader(Isolate::Current(), CStrVector(input));
+  FlatStringReader reader(CStrVector(input));
   RegExpCompileData compile_data;
   if (!v8::internal::RegExpParser::ParseRegExp(&reader, multiline,
                                                &compile_data))
     return NULL;
-  Handle<String> pattern = FACTORY->NewStringFromUtf8(CStrVector(input));
+  Handle<String> pattern = Factory::NewStringFromUtf8(CStrVector(input));
   RegExpEngine::Compile(&compile_data, false, multiline, pattern, is_ascii);
   return compile_data.node;
 }
@@ -539,7 +538,6 @@ static unsigned PseudoRandom(int i, int j) {
 
 
 TEST(SplayTreeSimple) {
-  v8::internal::V8::Initialize(NULL);
   static const unsigned kLimit = 1000;
   ZoneScope zone_scope(DELETE_ON_EXIT);
   ZoneSplayTree<TestConfig> tree;
@@ -592,7 +590,6 @@ TEST(SplayTreeSimple) {
 
 
 TEST(DispatchTableConstruction) {
-  v8::internal::V8::Initialize(NULL);
   // Initialize test data.
   static const int kLimit = 1000;
   static const int kRangeCount = 8;
@@ -676,7 +673,7 @@ typedef RegExpMacroAssembler ArchRegExpMacroAssembler;
 class ContextInitializer {
  public:
   ContextInitializer()
-      : env_(), scope_(), zone_(DELETE_ON_EXIT) {
+      : env_(), scope_(), zone_(DELETE_ON_EXIT), stack_guard_() {
     env_ = v8::Context::New();
     env_->Enter();
   }
@@ -688,6 +685,7 @@ class ContextInitializer {
   v8::Persistent<v8::Context> env_;
   v8::HandleScope scope_;
   v8::internal::ZoneScope zone_;
+  v8::internal::StackGuard stack_guard_;
 };
 
 
@@ -703,8 +701,7 @@ static ArchRegExpMacroAssembler::Result Execute(Code* code,
       start_offset,
       input_start,
       input_end,
-      captures,
-      Isolate::Current());
+      captures);
 }
 
 
@@ -716,12 +713,12 @@ TEST(MacroAssemblerNativeSuccess) {
 
   m.Succeed();
 
-  Handle<String> source = FACTORY->NewStringFromAscii(CStrVector(""));
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector(""));
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   int captures[4] = {42, 37, 87, 117};
-  Handle<String> input = FACTORY->NewStringFromAscii(CStrVector("foofoo"));
+  Handle<String> input = Factory::NewStringFromAscii(CStrVector("foofoo"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   const byte* start_adr =
       reinterpret_cast<const byte*>(seq_input->GetCharsAddress());
@@ -760,12 +757,12 @@ TEST(MacroAssemblerNativeSimple) {
   m.Bind(&fail);
   m.Fail();
 
-  Handle<String> source = FACTORY->NewStringFromAscii(CStrVector("^foo"));
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^foo"));
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   int captures[4] = {42, 37, 87, 117};
-  Handle<String> input = FACTORY->NewStringFromAscii(CStrVector("foofoo"));
+  Handle<String> input = Factory::NewStringFromAscii(CStrVector("foofoo"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -783,7 +780,7 @@ TEST(MacroAssemblerNativeSimple) {
   CHECK_EQ(-1, captures[2]);
   CHECK_EQ(-1, captures[3]);
 
-  input = FACTORY->NewStringFromAscii(CStrVector("barbarbar"));
+  input = Factory::NewStringFromAscii(CStrVector("barbarbar"));
   seq_input = Handle<SeqAsciiString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
 
@@ -816,14 +813,14 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   m.Bind(&fail);
   m.Fail();
 
-  Handle<String> source = FACTORY->NewStringFromAscii(CStrVector("^foo"));
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^foo"));
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   int captures[4] = {42, 37, 87, 117};
   const uc16 input_data[6] = {'f', 'o', 'o', 'f', 'o', '\xa0'};
   Handle<String> input =
-      FACTORY->NewStringFromTwoByte(Vector<const uc16>(input_data, 6));
+      Factory::NewStringFromTwoByte(Vector<const uc16>(input_data, 6));
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -842,7 +839,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   CHECK_EQ(-1, captures[3]);
 
   const uc16 input_data2[9] = {'b', 'a', 'r', 'b', 'a', 'r', 'b', 'a', '\xa0'};
-  input = FACTORY->NewStringFromTwoByte(Vector<const uc16>(input_data2, 9));
+  input = Factory::NewStringFromTwoByte(Vector<const uc16>(input_data2, 9));
   seq_input = Handle<SeqTwoByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
 
@@ -874,11 +871,11 @@ TEST(MacroAssemblerNativeBacktrack) {
   m.Bind(&backtrack);
   m.Fail();
 
-  Handle<String> source = FACTORY->NewStringFromAscii(CStrVector(".........."));
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector(".........."));
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
-  Handle<String> input = FACTORY->NewStringFromAscii(CStrVector("foofoo"));
+  Handle<String> input = Factory::NewStringFromAscii(CStrVector("foofoo"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -915,11 +912,11 @@ TEST(MacroAssemblerNativeBackReferenceASCII) {
   m.Bind(&missing_match);
   m.Fail();
 
-  Handle<String> source = FACTORY->NewStringFromAscii(CStrVector("^(..)..\1"));
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^(..)..\1"));
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
-  Handle<String> input = FACTORY->NewStringFromAscii(CStrVector("fooofo"));
+  Handle<String> input = Factory::NewStringFromAscii(CStrVector("fooofo"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -961,13 +958,13 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   m.Bind(&missing_match);
   m.Fail();
 
-  Handle<String> source = FACTORY->NewStringFromAscii(CStrVector("^(..)..\1"));
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^(..)..\1"));
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   const uc16 input_data[6] = {'f', 0x2028, 'o', 'o', 'f', 0x2028};
   Handle<String> input =
-      FACTORY->NewStringFromTwoByte(Vector<const uc16>(input_data, 6));
+      Factory::NewStringFromTwoByte(Vector<const uc16>(input_data, 6));
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -1016,11 +1013,11 @@ TEST(MacroAssemblernativeAtStart) {
   m.CheckNotCharacter('b', &fail);
   m.Succeed();
 
-  Handle<String> source = FACTORY->NewStringFromAscii(CStrVector("(^f|ob)"));
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("(^f|ob)"));
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
-  Handle<String> input = FACTORY->NewStringFromAscii(CStrVector("foobar"));
+  Handle<String> input = Factory::NewStringFromAscii(CStrVector("foobar"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -1074,12 +1071,12 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
   m.Succeed();
 
   Handle<String> source =
-      FACTORY->NewStringFromAscii(CStrVector("^(abc)\1\1(?!\1)...(?!\1)"));
+      Factory::NewStringFromAscii(CStrVector("^(abc)\1\1(?!\1)...(?!\1)"));
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   Handle<String> input =
-      FACTORY->NewStringFromAscii(CStrVector("aBcAbCABCxYzab"));
+      Factory::NewStringFromAscii(CStrVector("aBcAbCABCxYzab"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -1172,13 +1169,13 @@ TEST(MacroAssemblerNativeRegisters) {
   m.Fail();
 
   Handle<String> source =
-      FACTORY->NewStringFromAscii(CStrVector("<loop test>"));
+      Factory::NewStringFromAscii(CStrVector("<loop test>"));
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   // String long enough for test (content doesn't matter).
   Handle<String> input =
-      FACTORY->NewStringFromAscii(CStrVector("foofoofoofoofoo"));
+      Factory::NewStringFromAscii(CStrVector("foofoofoofoofoo"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -1213,13 +1210,13 @@ TEST(MacroAssemblerStackOverflow) {
   m.GoTo(&loop);
 
   Handle<String> source =
-      FACTORY->NewStringFromAscii(CStrVector("<stack overflow test>"));
+      Factory::NewStringFromAscii(CStrVector("<stack overflow test>"));
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   // String long enough for test (content doesn't matter).
   Handle<String> input =
-      FACTORY->NewStringFromAscii(CStrVector("dummy"));
+      Factory::NewStringFromAscii(CStrVector("dummy"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -1232,8 +1229,8 @@ TEST(MacroAssemblerStackOverflow) {
               NULL);
 
   CHECK_EQ(NativeRegExpMacroAssembler::EXCEPTION, result);
-  CHECK(Isolate::Current()->has_pending_exception());
-  Isolate::Current()->clear_pending_exception();
+  CHECK(Top::has_pending_exception());
+  Top::clear_pending_exception();
 }
 
 
@@ -1257,13 +1254,13 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
   m.Succeed();
 
   Handle<String> source =
-      FACTORY->NewStringFromAscii(CStrVector("<huge register space test>"));
+      Factory::NewStringFromAscii(CStrVector("<huge register space test>"));
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   // String long enough for test (content doesn't matter).
   Handle<String> input =
-      FACTORY->NewStringFromAscii(CStrVector("sample text"));
+      Factory::NewStringFromAscii(CStrVector("sample text"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -1280,7 +1277,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(42, captures[1]);
 
-  Isolate::Current()->clear_pending_exception();
+  Top::clear_pending_exception();
 }
 
 #else  // V8_INTERPRETED_REGEXP
@@ -1325,13 +1322,13 @@ TEST(MacroAssembler) {
 
   v8::HandleScope scope;
 
-  Handle<String> source = FACTORY->NewStringFromAscii(CStrVector("^f(o)o"));
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^f(o)o"));
   Handle<ByteArray> array = Handle<ByteArray>::cast(m.GetCode(source));
   int captures[5];
 
   const uc16 str1[] = {'f', 'o', 'o', 'b', 'a', 'r'};
   Handle<String> f1_16 =
-      FACTORY->NewStringFromTwoByte(Vector<const uc16>(str1, 6));
+      Factory::NewStringFromTwoByte(Vector<const uc16>(str1, 6));
 
   CHECK(IrregexpInterpreter::Match(array, f1_16, captures, 0));
   CHECK_EQ(0, captures[0]);
@@ -1342,7 +1339,7 @@ TEST(MacroAssembler) {
 
   const uc16 str2[] = {'b', 'a', 'r', 'f', 'o', 'o'};
   Handle<String> f2_16 =
-      FACTORY->NewStringFromTwoByte(Vector<const uc16>(str2, 6));
+      Factory::NewStringFromTwoByte(Vector<const uc16>(str2, 6));
 
   CHECK(!IrregexpInterpreter::Match(array, f2_16, captures, 0));
   CHECK_EQ(42, captures[0]);
@@ -1352,7 +1349,6 @@ TEST(MacroAssembler) {
 
 
 TEST(AddInverseToTable) {
-  v8::internal::V8::Initialize(NULL);
   static const int kLimit = 1000;
   static const int kRangeCount = 16;
   for (int t = 0; t < 10; t++) {
@@ -1511,7 +1507,6 @@ static void TestSimpleRangeCaseIndependence(CharacterRange input,
 
 
 TEST(CharacterRangeCaseIndependence) {
-  v8::internal::V8::Initialize(NULL);
   TestSimpleRangeCaseIndependence(CharacterRange::Singleton('a'),
                                   CharacterRange::Singleton('A'));
   TestSimpleRangeCaseIndependence(CharacterRange::Singleton('z'),
@@ -1553,7 +1548,6 @@ static bool InClass(uc16 c, ZoneList<CharacterRange>* ranges) {
 
 
 TEST(CharClassDifference) {
-  v8::internal::V8::Initialize(NULL);
   ZoneScope zone_scope(DELETE_ON_EXIT);
   ZoneList<CharacterRange>* base = new ZoneList<CharacterRange>(1);
   base->Add(CharacterRange::Everything());
@@ -1580,7 +1574,6 @@ TEST(CharClassDifference) {
 
 
 TEST(CanonicalizeCharacterSets) {
-  v8::internal::V8::Initialize(NULL);
   ZoneScope scope(DELETE_ON_EXIT);
   ZoneList<CharacterRange>* list = new ZoneList<CharacterRange>(4);
   CharacterSet set(list);
@@ -1651,7 +1644,6 @@ static bool CharacterInSet(ZoneList<CharacterRange>* set, uc16 value) {
 }
 
 TEST(CharacterRangeMerge) {
-  v8::internal::V8::Initialize(NULL);
   ZoneScope zone_scope(DELETE_ON_EXIT);
   ZoneList<CharacterRange> l1(4);
   ZoneList<CharacterRange> l2(4);

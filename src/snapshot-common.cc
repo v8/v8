@@ -64,7 +64,7 @@ Handle<Context> Snapshot::NewContextFromSnapshot() {
   if (context_size_ == 0) {
     return Handle<Context>();
   }
-  HEAP->ReserveSpace(new_space_used_,
+  Heap::ReserveSpace(new_space_used_,
                      pointer_space_used_,
                      data_space_used_,
                      code_space_used_,

@@ -65,9 +65,6 @@ class LCodeGen BASE_EMBEDDED {
   // Simple accessors.
   MacroAssembler* masm() const { return masm_; }
   CompilationInfo* info() const { return info_; }
-  Isolate* isolate() const { return info_->isolate(); }
-  Factory* factory() const { return isolate()->factory(); }
-  Heap* heap() const { return isolate()->heap(); }
 
   // Support for converting LOperands to assembler types.
   // LOperand must be a register.
@@ -175,13 +172,13 @@ class LCodeGen BASE_EMBEDDED {
   void CallCode(Handle<Code> code,
                 RelocInfo::Mode mode,
                 LInstruction* instr);
-  void CallRuntime(const Runtime::Function* function,
+  void CallRuntime(Runtime::Function* function,
                    int num_arguments,
                    LInstruction* instr);
   void CallRuntime(Runtime::FunctionId id,
                    int num_arguments,
                    LInstruction* instr) {
-    const Runtime::Function* function = Runtime::FunctionForId(id);
+    Runtime::Function* function = Runtime::FunctionForId(id);
     CallRuntime(function, num_arguments, instr);
   }
 

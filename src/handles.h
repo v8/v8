@@ -44,7 +44,6 @@ class Handle {
  public:
   INLINE(explicit Handle(T** location)) { location_ = location; }
   INLINE(explicit Handle(T* obj));
-  INLINE(Handle(T* obj, Isolate* isolate));
 
   INLINE(Handle()) : location_(NULL) {}
 
@@ -83,7 +82,7 @@ class Handle {
   }
 
   static Handle<T> null() { return Handle<T>(); }
-  bool is_null() const { return location_ == NULL; }
+  bool is_null() { return location_ == NULL; }
 
   // Closes the given scope, but lets this handle escape. See
   // implementation in api.h.
@@ -108,20 +107,34 @@ class Handle {
 // for which the handle scope has been deleted is undefined.
 class HandleScope {
  public:
-  inline HandleScope();
-  explicit inline HandleScope(Isolate* isolate);
+  HandleScope() : prev_next_(current_.next), prev_limit_(current_.limit) {
+    current_.level++;
+  }
 
-  inline ~HandleScope();
+  ~HandleScope() {
+    CloseScope();
+  }
 
   // Counts the number of allocated handles.
   static int NumberOfHandles();
 
   // Creates a new handle with the given value.
   template <typename T>
-  static inline T** CreateHandle(T* value, Isolate* isolate);
+  static inline T** CreateHandle(T* value) {
+    internal::Object** cur = current_.next;
+    if (cur == current_.limit) cur = Extend();
+    // Update the current next field, set the value in the created
+    // handle, and return the result.
+    ASSERT(cur < current_.limit);
+    current_.next = cur + 1;
+
+    T** result = reinterpret_cast<T**>(cur);
+    *result = value;
+    return result;
+  }
 
   // Deallocates any extensions used by the current scope.
-  static void DeleteExtensions(Isolate* isolate);
+  static void DeleteExtensions();
 
   static Address current_next_address();
   static Address current_limit_address();
@@ -132,9 +145,20 @@ class HandleScope {
   // a Handle backed by the parent scope holding the
   // value of the argument handle.
   template <typename T>
-  Handle<T> CloseAndEscape(Handle<T> handle_value);
-
-  Isolate* isolate() { return isolate_; }
+  Handle<T> CloseAndEscape(Handle<T> handle_value) {
+    T* value = *handle_value;
+    // Throw away all handles in the current scope.
+    CloseScope();
+    // Allocate one handle in the parent scope.
+    ASSERT(current_.level > 0);
+    Handle<T> result(CreateHandle<T>(value));
+    // Reinitialize the current scope (so that it's ready
+    // to be used or closed again).
+    prev_next_ = current_.next;
+    prev_limit_ = current_.limit;
+    current_.level++;
+    return result;
+  }
 
  private:
   // Prevent heap allocation or illegal handle scopes.
@@ -143,9 +167,21 @@ class HandleScope {
   void* operator new(size_t size);
   void operator delete(void* size_t);
 
-  inline void CloseScope();
+  inline void CloseScope() {
+    current_.next = prev_next_;
+    current_.level--;
+    if (current_.limit != prev_limit_) {
+      current_.limit = prev_limit_;
+      DeleteExtensions();
+    }
+#ifdef DEBUG
+    ZapRange(prev_next_, prev_limit_);
+#endif
+  }
 
-  Isolate* isolate_;
+  static v8::ImplementationUtilities::HandleScopeData current_;
+  // Holds values on entry. The prev_next_ value is never NULL
+  // on_entry, but is set to NULL when this scope is closed.
   Object** prev_next_;
   Object** prev_limit_;
 

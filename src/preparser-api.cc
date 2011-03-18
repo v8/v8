@@ -26,9 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../include/v8-preparser.h"
-
-#include "v8.h"
-
 #include "globals.h"
 #include "checks.h"
 #include "allocation.h"
@@ -161,9 +158,6 @@ class InputStreamUTF16Buffer : public UC16CharacterStream {
 
 class StandAloneJavaScriptScanner : public JavaScriptScanner {
  public:
-  StandAloneJavaScriptScanner()
-    : JavaScriptScanner(Isolate::Current()) { }
-
   void Initialize(UC16CharacterStream* source) {
     source_ = source;
     Init();

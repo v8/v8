@@ -73,7 +73,7 @@ Handle<Object> TypeFeedbackOracle::GetInfo(int pos) {
   int entry = dictionary_->FindEntry(pos);
   return entry != NumberDictionary::kNotFound
       ? Handle<Object>(dictionary_->ValueAt(entry))
-      : Isolate::Current()->factory()->undefined_value();
+      : Factory::undefined_value();
 }
 
 
@@ -207,8 +207,7 @@ Handle<JSObject> TypeFeedbackOracle::GetPrototypeForPrimitiveCheck(
 
 
 bool TypeFeedbackOracle::LoadIsBuiltin(Property* expr, Builtins::Name id) {
-  return *GetInfo(expr->position()) ==
-      Isolate::Current()->builtins()->builtin(id);
+  return *GetInfo(expr->position()) == Builtins::builtin(id);
 }
 
 
@@ -331,11 +330,10 @@ TypeInfo TypeFeedbackOracle::SwitchType(CaseClause* clause) {
 ZoneMapList* TypeFeedbackOracle::CollectReceiverTypes(int position,
                                                       Handle<String> name,
                                                       Code::Flags flags) {
-  Isolate* isolate = Isolate::Current();
   Handle<Object> object = GetInfo(position);
   if (object->IsUndefined() || object->IsSmi()) return NULL;
 
-  if (*object == isolate->builtins()->builtin(Builtins::StoreIC_GlobalProxy)) {
+  if (*object == Builtins::builtin(Builtins::StoreIC_GlobalProxy)) {
     // TODO(fschneider): We could collect the maps and signal that
     // we need a generic store (or load) here.
     ASSERT(Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC);
@@ -347,7 +345,7 @@ ZoneMapList* TypeFeedbackOracle::CollectReceiverTypes(int position,
   } else if (Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC) {
     ZoneMapList* types = new ZoneMapList(4);
     ASSERT(object->IsCode());
-    isolate->stub_cache()->CollectMatchingMaps(types, *name, flags);
+    StubCache::CollectMatchingMaps(types, *name, flags);
     return types->length() > 0 ? types : NULL;
   } else {
     return NULL;
@@ -356,8 +354,7 @@ ZoneMapList* TypeFeedbackOracle::CollectReceiverTypes(int position,
 
 
 void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
-  Isolate* isolate = Isolate::Current();
-  HandleScope scope(isolate);
+  HandleScope scope;
 
   const int kInitialCapacity = 16;
   List<int> code_positions(kInitialCapacity);
@@ -365,13 +362,12 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
   CollectPositions(*code, &code_positions, &source_positions);
 
   ASSERT(dictionary_.is_null());  // Only initialize once.
-  dictionary_ = isolate->factory()->NewNumberDictionary(
-      code_positions.length());
+  dictionary_ = Factory::NewNumberDictionary(code_positions.length());
 
   int length = code_positions.length();
   ASSERT(source_positions.length() == length);
   for (int i = 0; i < length; i++) {
-    HandleScope loop_scope(isolate);
+    HandleScope loop_scope;
     RelocInfo info(code->instruction_start() + code_positions[i],
                    RelocInfo::CODE_TARGET, 0);
     Handle<Code> target(Code::GetCodeFromTargetAddress(info.target_address()));
@@ -393,13 +389,13 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
       if (kind == Code::KEYED_EXTERNAL_ARRAY_LOAD_IC ||
           kind == Code::KEYED_EXTERNAL_ARRAY_STORE_IC) {
         value = target;
-      } else if (target->kind() != Code::CALL_IC ||
-          target->check_type() == RECEIVER_MAP_CHECK) {
-        Map* map = target->FindFirstMap();
-        if (map == NULL) {
+      } else if (kind != Code::CALL_IC ||
+                 target->check_type() == RECEIVER_MAP_CHECK) {
+        Handle<Map> map = Handle<Map>(target->FindFirstMap());
+        if (*map == NULL) {
           value = target;
         } else {
-          value = Handle<Map>(map);
+          value = map;
         }
       } else {
         ASSERT(target->kind() == Code::CALL_IC);
@@ -413,8 +409,7 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
 
     if (!value.is_null()) {
       Handle<NumberDictionary> new_dict =
-          isolate->factory()->DictionaryAtNumberPut(
-              dictionary_, position, value);
+          Factory::DictionaryAtNumberPut(dictionary_, position, value);
       dictionary_ = loop_scope.CloseAndEscape(new_dict);
     }
   }

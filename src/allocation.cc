@@ -25,55 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-#include "isolate.h"
-#include "allocation.h"
+#include <stdlib.h>
 
-/* TODO(isolates): this is what's included in bleeding_edge
-   including of v8.h was replaced with these in
-   http://codereview.chromium.org/5005001/
-   we need Isolate and Isolate needs a lot more so I'm including v8.h back.
 #include "../include/v8stdint.h"
 #include "globals.h"
 #include "checks.h"
 #include "allocation.h"
 #include "utils.h"
-*/
 
 namespace v8 {
 namespace internal {
-
-#ifdef DEBUG
-
-NativeAllocationChecker::NativeAllocationChecker(
-    NativeAllocationChecker::NativeAllocationAllowed allowed)
-    : allowed_(allowed) {
-  if (allowed == DISALLOW) {
-    Isolate* isolate = Isolate::Current();
-    isolate->set_allocation_disallowed(isolate->allocation_disallowed() + 1);
-  }
-}
-
-
-NativeAllocationChecker::~NativeAllocationChecker() {
-  Isolate* isolate = Isolate::Current();
-  if (allowed_ == DISALLOW) {
-    isolate->set_allocation_disallowed(isolate->allocation_disallowed() - 1);
-  }
-  ASSERT(isolate->allocation_disallowed() >= 0);
-}
-
-
-bool NativeAllocationChecker::allocation_allowed() {
-  // TODO(isolates): either find a way to make this work that doesn't
-  // require initializing an isolate before we can use malloc or drop
-  // it completely.
-  return true;
-  // return Isolate::Current()->allocation_disallowed() == 0;
-}
-
-#endif  // DEBUG
-
 
 void* Malloced::New(size_t size) {
   ASSERT(NativeAllocationChecker::allocation_allowed());
@@ -142,7 +103,15 @@ char* StrNDup(const char* str, int n) {
 }
 
 
-void Isolate::PreallocatedStorageInit(size_t size) {
+int NativeAllocationChecker::allocation_disallowed_ = 0;
+
+
+PreallocatedStorage PreallocatedStorage::in_use_list_(0);
+PreallocatedStorage PreallocatedStorage::free_list_(0);
+bool PreallocatedStorage::preallocated_ = false;
+
+
+void PreallocatedStorage::Init(size_t size) {
   ASSERT(free_list_.next_ == &free_list_);
   ASSERT(free_list_.previous_ == &free_list_);
   PreallocatedStorage* free_chunk =
@@ -150,12 +119,12 @@ void Isolate::PreallocatedStorageInit(size_t size) {
   free_list_.next_ = free_list_.previous_ = free_chunk;
   free_chunk->next_ = free_chunk->previous_ = &free_list_;
   free_chunk->size_ = size - sizeof(PreallocatedStorage);
-  preallocated_storage_preallocated_ = true;
+  preallocated_ = true;
 }
 
 
-void* Isolate::PreallocatedStorageNew(size_t size) {
-  if (!preallocated_storage_preallocated_) {
+void* PreallocatedStorage::New(size_t size) {
+  if (!preallocated_) {
     return FreeStoreAllocationPolicy::New(size);
   }
   ASSERT(free_list_.next_ != &free_list_);
@@ -197,11 +166,11 @@ void* Isolate::PreallocatedStorageNew(size_t size) {
 
 
 // We don't attempt to coalesce.
-void Isolate::PreallocatedStorageDelete(void* p) {
+void PreallocatedStorage::Delete(void* p) {
   if (p == NULL) {
     return;
   }
-  if (!preallocated_storage_preallocated_) {
+  if (!preallocated_) {
     FreeStoreAllocationPolicy::Delete(p);
     return;
   }

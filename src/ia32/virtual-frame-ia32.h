@@ -67,9 +67,7 @@ class VirtualFrame: public ZoneObject {
    private:
     bool previous_state_;
 
-    CodeGenerator* cgen() {
-      return CodeGeneratorScope::Current(Isolate::Current());
-    }
+    CodeGenerator* cgen() {return CodeGeneratorScope::Current();}
   };
 
   // An illegal index into the virtual frame.
@@ -81,9 +79,7 @@ class VirtualFrame: public ZoneObject {
   // Construct a virtual frame as a clone of an existing one.
   explicit inline VirtualFrame(VirtualFrame* original);
 
-  CodeGenerator* cgen() {
-    return CodeGeneratorScope::Current(Isolate::Current());
-  }
+  CodeGenerator* cgen() { return CodeGeneratorScope::Current(); }
 
   MacroAssembler* masm() { return cgen()->masm(); }
 
@@ -348,7 +344,7 @@ class VirtualFrame: public ZoneObject {
 
   // Call runtime given the number of arguments expected on (and
   // removed from) the stack.
-  Result CallRuntime(const Runtime::Function* f, int arg_count);
+  Result CallRuntime(Runtime::Function* f, int arg_count);
   Result CallRuntime(Runtime::FunctionId id, int arg_count);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

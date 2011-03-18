@@ -65,18 +65,13 @@ namespace internal {
 // also collects compiled function codes.
 class LiveEditFunctionTracker {
  public:
-  explicit LiveEditFunctionTracker(Isolate* isolate, FunctionLiteral* fun);
+  explicit LiveEditFunctionTracker(FunctionLiteral* fun);
   ~LiveEditFunctionTracker();
   void RecordFunctionInfo(Handle<SharedFunctionInfo> info,
                           FunctionLiteral* lit);
   void RecordRootFunctionInfo(Handle<Code> code);
 
-  static bool IsActive(Isolate* isolate);
-
- private:
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  Isolate* isolate_;
-#endif
+  static bool IsActive();
 };
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

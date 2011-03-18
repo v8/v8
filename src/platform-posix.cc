@@ -127,7 +127,7 @@ bool OS::Remove(const char* path) {
 }
 
 
-const char* const OS::LogFileOpenMode = "w";
+const char* OS::LogFileOpenMode = "w";
 
 
 void OS::Print(const char* format, ...) {

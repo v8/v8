@@ -29,8 +29,6 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include "v8.h"
-
 #include "d8.h"
 #include "d8-debug.h"
 #include "debug.h"
@@ -443,25 +441,24 @@ void Shell::Initialize() {
 
   i::JSArguments js_args = i::FLAG_js_arguments;
   i::Handle<i::FixedArray> arguments_array =
-      FACTORY->NewFixedArray(js_args.argc());
+      i::Factory::NewFixedArray(js_args.argc());
   for (int j = 0; j < js_args.argc(); j++) {
     i::Handle<i::String> arg =
-        FACTORY->NewStringFromUtf8(i::CStrVector(js_args[j]));
+        i::Factory::NewStringFromUtf8(i::CStrVector(js_args[j]));
     arguments_array->set(j, *arg);
   }
   i::Handle<i::JSArray> arguments_jsarray =
-      FACTORY->NewJSArrayWithElements(arguments_array);
+      i::Factory::NewJSArrayWithElements(arguments_array);
   global_template->Set(String::New("arguments"),
                        Utils::ToLocal(arguments_jsarray));
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Install the debugger object in the utility scope
-  i::Debug* debug = i::Isolate::Current()->debug();
-  debug->Load();
-  i::Handle<i::JSObject> js_debug
-      = i::Handle<i::JSObject>(debug->debug_context()->global());
+  i::Debug::Load();
+  i::Handle<i::JSObject> debug
+      = i::Handle<i::JSObject>(i::Debug::debug_context()->global());
   utility_context_->Global()->Set(String::New("$debug"),
-                                  Utils::ToLocal(js_debug));
+                                  Utils::ToLocal(debug));
 #endif
 
   // Run the d8 shell utility script in the utility context
@@ -493,7 +490,7 @@ void Shell::Initialize() {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Set the security token of the debug context to allow access.
-  debug->debug_context()->set_security_token(HEAP->undefined_value());
+  i::Debug::debug_context()->set_security_token(i::Heap::undefined_value());
 
   // Start the debugger agent if requested.
   if (i::FLAG_debugger_agent) {
@@ -609,8 +606,8 @@ void Shell::RunShell() {
 
 class ShellThread : public i::Thread {
  public:
-  ShellThread(i::Isolate* isolate, int no, i::Vector<const char> files)
-    : Thread(isolate, "d8:ShellThread"),
+  ShellThread(int no, i::Vector<const char> files)
+    : Thread("d8:ShellThread"),
       no_(no), files_(files) { }
   virtual void Run();
  private:
@@ -742,8 +739,7 @@ int Shell::Main(int argc, char* argv[]) {
         const char* files = ReadChars(argv[++i], &size);
         if (files == NULL) return 1;
         ShellThread* thread =
-            new ShellThread(i::Isolate::Current(),
-                            threads.length(),
+            new ShellThread(threads.length(),
                             i::Vector<const char>(files, size));
         thread->Start();
         threads.Add(thread);

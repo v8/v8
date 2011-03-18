@@ -55,26 +55,23 @@ class VirtualFrame : public ZoneObject {
   class SpilledScope BASE_EMBEDDED {
    public:
     explicit SpilledScope(VirtualFrame* frame)
-      : old_is_spilled_(
-          Isolate::Current()->is_virtual_frame_in_spilled_scope()) {
+      : old_is_spilled_(is_spilled_) {
       if (frame != NULL) {
-        if (!old_is_spilled_) {
+        if (!is_spilled_) {
           frame->SpillAll();
         } else {
           frame->AssertIsSpilled();
         }
       }
-      Isolate::Current()->set_is_virtual_frame_in_spilled_scope(true);
+      is_spilled_ = true;
     }
     ~SpilledScope() {
-      Isolate::Current()->set_is_virtual_frame_in_spilled_scope(
-          old_is_spilled_);
+      is_spilled_ = old_is_spilled_;
     }
-    static bool is_spilled() {
-      return Isolate::Current()->is_virtual_frame_in_spilled_scope();
-    }
+    static bool is_spilled() { return is_spilled_; }
 
    private:
+    static bool is_spilled_;
     int old_is_spilled_;
 
     SpilledScope() { }
@@ -277,7 +274,7 @@ class VirtualFrame : public ZoneObject {
 
   // Call runtime given the number of arguments expected on (and
   // removed from) the stack.
-  void CallRuntime(const Runtime::Function* f, int arg_count);
+  void CallRuntime(Runtime::Function* f, int arg_count);
   void CallRuntime(Runtime::FunctionId id, int arg_count);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

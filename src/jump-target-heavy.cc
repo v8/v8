@@ -35,6 +35,9 @@ namespace v8 {
 namespace internal {
 
 
+bool JumpTarget::compiling_deferred_code_ = false;
+
+
 void JumpTarget::Jump(Result* arg) {
   ASSERT(cgen()->has_valid_frame());
 
@@ -140,9 +143,9 @@ void JumpTarget::ComputeEntryFrame() {
   // the directionality of the block.  Compute: an entry frame for the
   // block.
 
-  COUNTERS->compute_entry_frame()->Increment();
+  Counters::compute_entry_frame.Increment();
 #ifdef DEBUG
-  if (Isolate::Current()->jump_target_compiling_deferred_code()) {
+  if (compiling_deferred_code_) {
     ASSERT(reaching_frames_.length() > 1);
     VirtualFrame* frame = reaching_frames_[0];
     bool all_identical = true;
@@ -410,15 +413,15 @@ void BreakTarget::Branch(Condition cc, Hint hint) {
 
 
 DeferredCode::DeferredCode()
-    : masm_(CodeGeneratorScope::Current(Isolate::Current())->masm()),
+    : masm_(CodeGeneratorScope::Current()->masm()),
       statement_position_(masm_->positions_recorder()->
                           current_statement_position()),
       position_(masm_->positions_recorder()->current_position()),
-      frame_state_(CodeGeneratorScope::Current(Isolate::Current())->frame()) {
+      frame_state_(CodeGeneratorScope::Current()->frame()) {
   ASSERT(statement_position_ != RelocInfo::kNoPosition);
   ASSERT(position_ != RelocInfo::kNoPosition);
 
-  CodeGeneratorScope::Current(Isolate::Current())->AddDeferred(this);
+  CodeGeneratorScope::Current()->AddDeferred(this);
 #ifdef DEBUG
   comment_ = "";
 #endif

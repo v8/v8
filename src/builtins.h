@@ -240,24 +240,21 @@ enum BuiltinExtraArguments {
   V(APPLY_OVERFLOW, 1)
 
 
-class BuiltinFunctionTable;
 class ObjectVisitor;
 
 
-class Builtins {
+class Builtins : public AllStatic {
  public:
-  ~Builtins();
-
   // Generate all builtin code objects. Should be called once during
-  // isolate initialization.
-  void Setup(bool create_heap_objects);
-  void TearDown();
+  // VM initialization.
+  static void Setup(bool create_heap_objects);
+  static void TearDown();
 
   // Garbage collection support.
-  void IterateBuiltins(ObjectVisitor* v);
+  static void IterateBuiltins(ObjectVisitor* v);
 
   // Disassembler support.
-  const char* Lookup(byte* pc);
+  static const char* Lookup(byte* pc);
 
   enum Name {
 #define DEF_ENUM_C(name, ignore) name,
@@ -284,13 +281,13 @@ class Builtins {
     id_count
   };
 
-  Code* builtin(Name name) {
+  static Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins
     // during the marking phase of mark sweep. See IC::Clear.
     return reinterpret_cast<Code*>(builtins_[name]);
   }
 
-  Address builtin_address(Name name) {
+  static Address builtin_address(Name name) {
     return reinterpret_cast<Address>(&builtins_[name]);
   }
 
@@ -300,24 +297,20 @@ class Builtins {
 
   static const char* GetName(JavaScript id) { return javascript_names_[id]; }
   static int GetArgumentsCount(JavaScript id) { return javascript_argc_[id]; }
-  Handle<Code> GetCode(JavaScript id, bool* resolved);
+  static Handle<Code> GetCode(JavaScript id, bool* resolved);
   static int NumberOfJavaScriptBuiltins() { return id_count; }
 
-  bool is_initialized() const { return initialized_; }
-
  private:
-  Builtins();
-
   // The external C++ functions called from the code.
-  static Address const c_functions_[cfunction_count];
+  static Address c_functions_[cfunction_count];
 
   // Note: These are always Code objects, but to conform with
   // IterateBuiltins() above which assumes Object**'s for the callback
   // function f, we use an Object* array here.
-  Object* builtins_[builtin_count];
-  const char* names_[builtin_count];
-  static const char* const javascript_names_[id_count];
-  static int const javascript_argc_[id_count];
+  static Object* builtins_[builtin_count];
+  static const char* names_[builtin_count];
+  static const char* javascript_names_[id_count];
+  static int javascript_argc_[id_count];
 
   static void Generate_Adaptor(MacroAssembler* masm,
                                CFunctionId id,
@@ -342,16 +335,8 @@ class Builtins {
   static void Generate_ArrayConstructCode(MacroAssembler* masm);
 
   static void Generate_StringConstructCode(MacroAssembler* masm);
+
   static void Generate_OnStackReplacement(MacroAssembler* masm);
-
-  static void InitBuiltinFunctionTable();
-
-  bool initialized_;
-
-  friend class BuiltinFunctionTable;
-  friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(Builtins);
 };
 
 } }  // namespace v8::internal

@@ -443,11 +443,11 @@ enum StateTag {
 #define TRACK_MEMORY(name) \
   void* operator new(size_t size) { \
     void* result = ::operator new(size); \
-    Logger::NewEventStatic(name, result, size); \
+    Logger::NewEvent(name, result, size); \
     return result; \
   } \
   void operator delete(void* object) { \
-    Logger::DeleteEventStatic(name, object); \
+    Logger::DeleteEvent(name, object); \
     ::operator delete(object); \
   }
 #else

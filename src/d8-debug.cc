@@ -159,7 +159,7 @@ void HandleDebugEvent(DebugEvent event,
 
 
 void RunRemoteDebugger(int port) {
-  RemoteDebugger debugger(i::Isolate::Current(), port);
+  RemoteDebugger debugger(port);
   debugger.Run();
 }
 
@@ -186,11 +186,11 @@ void RemoteDebugger::Run() {
   }
 
   // Start the receiver thread.
-  ReceiverThread receiver(isolate_, this);
+  ReceiverThread receiver(this);
   receiver.Start();
 
   // Start the keyboard thread.
-  KeyboardThread keyboard(isolate_, this);
+  KeyboardThread keyboard(this);
   keyboard.Start();
   PrintPrompt();
 

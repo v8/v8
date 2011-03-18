@@ -388,8 +388,6 @@ class RegExpParser {
     int disjunction_capture_index_;
   };
 
-  Isolate* isolate() { return isolate_; }
-
   uc32 current() { return current_; }
   bool has_more() { return has_more_; }
   bool has_next() { return next_pos_ < in()->length(); }
@@ -397,7 +395,6 @@ class RegExpParser {
   FlatStringReader* in() { return in_; }
   void ScanForCaptures();
 
-  Isolate* isolate_;
   Handle<String>* error_;
   ZoneList<RegExpCapture*>* captures_;
   FlatStringReader* in_;
@@ -451,8 +448,6 @@ class Parser {
     PARSE_LAZILY,
     PARSE_EAGERLY
   };
-
-  Isolate* isolate() { return isolate_; }
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(Handle<String> source,
@@ -579,7 +574,7 @@ class Parser {
     if (stack_overflow_) {
       return Token::ILLEGAL;
     }
-    if (StackLimitCheck(isolate()).HasOverflowed()) {
+    if (StackLimitCheck().HasOverflowed()) {
       // Any further calls to Next or peek will return the illegal token.
       // The current call must return the next token, which might already
       // have been peek'ed.
@@ -597,21 +592,21 @@ class Parser {
 
   Handle<String> LiteralString(PretenureFlag tenured) {
     if (scanner().is_literal_ascii()) {
-      return isolate_->factory()->NewStringFromAscii(
-          scanner().literal_ascii_string(), tenured);
+      return Factory::NewStringFromAscii(scanner().literal_ascii_string(),
+                                         tenured);
     } else {
-      return isolate_->factory()->NewStringFromTwoByte(
-            scanner().literal_uc16_string(), tenured);
+      return Factory::NewStringFromTwoByte(scanner().literal_uc16_string(),
+                                           tenured);
     }
   }
 
   Handle<String> NextLiteralString(PretenureFlag tenured) {
     if (scanner().is_next_literal_ascii()) {
-      return isolate_->factory()->NewStringFromAscii(
-          scanner().next_literal_ascii_string(), tenured);
+      return Factory::NewStringFromAscii(scanner().next_literal_ascii_string(),
+                                         tenured);
     } else {
-      return isolate_->factory()->NewStringFromTwoByte(
-          scanner().next_literal_uc16_string(), tenured);
+      return Factory::NewStringFromTwoByte(scanner().next_literal_uc16_string(),
+                                           tenured);
     }
   }
 
@@ -691,7 +686,6 @@ class Parser {
                             Handle<String> type,
                             Vector< Handle<Object> > arguments);
 
-  Isolate* isolate_;
   ZoneList<Handle<String> > symbol_cache_;
 
   Handle<Script> script_;
@@ -771,10 +765,8 @@ class JsonParser BASE_EMBEDDED {
   }
 
  private:
-  JsonParser() : isolate_(Isolate::Current()), scanner_(isolate_) { }
+  JsonParser() { }
   ~JsonParser() { }
-
-  Isolate* isolate() { return isolate_; }
 
   // Parse a string containing a single JSON value.
   Handle<Object> ParseJson(Handle<String> script, UC16CharacterStream* source);
@@ -802,7 +794,6 @@ class JsonParser BASE_EMBEDDED {
   // Converts the currently parsed literal to a JavaScript String.
   Handle<String> GetString();
 
-  Isolate* isolate_;
   JsonScanner scanner_;
   bool stack_overflow_;
 };

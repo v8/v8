@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
 #include "lithium-allocator-inl.h"
 
 #include "hydrogen.h"
@@ -45,18 +44,13 @@ namespace v8 {
 namespace internal {
 
 
-#define DEFINE_OPERAND_CACHE(name, type)                      \
-  name name::cache[name::kNumCachedOperands];                 \
-  void name::SetupCache() {                                   \
-    for (int i = 0; i < kNumCachedOperands; i++) {            \
-      cache[i].ConvertTo(type, i);                            \
-    }                                                         \
-  }                                                           \
-  static bool name##_initialize() {                           \
-    name::SetupCache();                                       \
-    return true;                                              \
-  }                                                           \
-  static bool name##_cache_initialized = name##_initialize();
+#define DEFINE_OPERAND_CACHE(name, type)            \
+  name name::cache[name::kNumCachedOperands];       \
+  void name::SetupCache() {                         \
+    for (int i = 0; i < kNumCachedOperands; i++) {  \
+      cache[i].ConvertTo(type, i);                  \
+    }                                               \
+  }
 
 DEFINE_OPERAND_CACHE(LConstantOperand, CONSTANT_OPERAND)
 DEFINE_OPERAND_CACHE(LStackSlot,       STACK_SLOT)
@@ -1553,6 +1547,15 @@ void LAllocator::AllocateRegisters() {
   reusable_slots_.Rewind(0);
   active_live_ranges_.Rewind(0);
   inactive_live_ranges_.Rewind(0);
+}
+
+
+void LAllocator::Setup() {
+  LConstantOperand::SetupCache();
+  LStackSlot::SetupCache();
+  LDoubleStackSlot::SetupCache();
+  LRegister::SetupCache();
+  LDoubleRegister::SetupCache();
 }
 
 

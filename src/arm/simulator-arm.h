@@ -56,12 +56,11 @@ typedef int (*arm_regexp_matcher)(String*, int, const byte*, const byte*,
 // should act as a function matching the type arm_regexp_matcher.
 // The fifth argument is a dummy that reserves the space used for
 // the return address added by the ExitFrame in native calls.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7) \
-  (FUNCTION_CAST<arm_regexp_matcher>(entry)(                              \
-      p0, p1, p2, p3, NULL, p4, p5, p6, p7))
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
+  (FUNCTION_CAST<arm_regexp_matcher>(entry)(p0, p1, p2, p3, NULL, p4, p5, p6))
 
 #define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  reinterpret_cast<TryCatch*>(try_catch_address)
+  (reinterpret_cast<TryCatch*>(try_catch_address))
 
 // The stack limit beyond which we will throw stack overflow errors in
 // generated code. Because generated code on arm uses the C stack, we
@@ -78,6 +77,8 @@ class SimulatorStack : public v8::internal::AllStatic {
 
   static inline void UnregisterCTryCatch() { }
 };
+
+} }  // namespace v8::internal
 
 #else  // !defined(USE_SIMULATOR)
 // Running with a simulator.
@@ -122,7 +123,7 @@ class CachePage {
 
 class Simulator {
  public:
-  friend class ArmDebugger;
+  friend class Debugger;
   enum Register {
     no_reg = -1,
     r0 = 0, r1, r2, r3, r4, r5, r6, r7,
@@ -146,7 +147,7 @@ class Simulator {
 
   // The currently executing Simulator instance. Potentially there can be one
   // for each native thread.
-  static Simulator* current(v8::internal::Isolate* isolate);
+  static Simulator* current();
 
   // Accessors for register state. Reading the pc value adheres to the ARM
   // architecture specification and is off by a 8 from the currently executing
@@ -190,8 +191,7 @@ class Simulator {
   uintptr_t PopAddress();
 
   // ICache checking.
-  static void FlushICache(v8::internal::HashMap* i_cache, void* start,
-                          size_t size);
+  static void FlushICache(void* start, size_t size);
 
   // Returns true if pc register contains one of the 'special_values' defined
   // below (bad_lr, end_sim_pc).
@@ -287,10 +287,9 @@ class Simulator {
   void InstructionDecode(Instruction* instr);
 
   // ICache.
-  static void CheckICache(v8::internal::HashMap* i_cache, Instruction* instr);
-  static void FlushOnePage(v8::internal::HashMap* i_cache, intptr_t start,
-                           int size);
-  static CachePage* GetCachePage(v8::internal::HashMap* i_cache, void* page);
+  static void CheckICache(Instruction* instr);
+  static void FlushOnePage(intptr_t start, int size);
+  static CachePage* GetCachePage(void* page);
 
   // Runtime call support.
   static void* RedirectExternalReference(
@@ -334,15 +333,14 @@ class Simulator {
   char* stack_;
   bool pc_modified_;
   int icount_;
+  static bool initialized_;
 
   // Icache simulation
-  v8::internal::HashMap* i_cache_;
+  static v8::internal::HashMap* i_cache_;
 
   // Registered breakpoints.
   Instruction* break_pc_;
   Instr break_instr_;
-
-  v8::internal::Isolate* isolate_;
 
   // A stop is watched if its code is less than kNumOfWatchedStops.
   // Only watched stops support enabling/disabling and the counter feature.
@@ -366,16 +364,15 @@ class Simulator {
 // When running with the simulator transition into simulated execution at this
 // point.
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  reinterpret_cast<Object*>(Simulator::current(Isolate::Current())->Call( \
+  reinterpret_cast<Object*>(Simulator::current()->Call( \
       FUNCTION_ADDR(entry), 5, p0, p1, p2, p3, p4))
 
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7) \
-  Simulator::current(Isolate::Current())->Call( \
-      entry, 9, p0, p1, p2, p3, NULL, p4, p5, p6, p7)
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
+  Simulator::current()->Call(entry, 8, p0, p1, p2, p3, NULL, p4, p5, p6)
 
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address)                              \
-  try_catch_address == NULL ?                                                  \
-      NULL : *(reinterpret_cast<TryCatch**>(try_catch_address))
+#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
+  try_catch_address == \
+      NULL ? NULL : *(reinterpret_cast<TryCatch**>(try_catch_address))
 
 
 // The simulator has its own stack. Thus it has a different stack limit from
@@ -386,16 +383,16 @@ class Simulator {
 class SimulatorStack : public v8::internal::AllStatic {
  public:
   static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
-    return Simulator::current(Isolate::Current())->StackLimit();
+    return Simulator::current()->StackLimit();
   }
 
   static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
-    Simulator* sim = Simulator::current(Isolate::Current());
+    Simulator* sim = Simulator::current();
     return sim->PushAddress(try_catch_address);
   }
 
   static inline void UnregisterCTryCatch() {
-    Simulator::current(Isolate::Current())->PopAddress();
+    Simulator::current()->PopAddress();
   }
 };
 

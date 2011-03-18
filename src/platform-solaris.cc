@@ -169,7 +169,7 @@ void* OS::Allocate(const size_t requested,
   void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
 
   if (mbase == MAP_FAILED) {
-    LOG(ISOLATE, StringEvent("OS::Allocate", "mmap failed"));
+    LOG(StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
   }
   *allocated = msize;
@@ -415,16 +415,12 @@ bool ThreadHandle::IsValid() const {
 }
 
 
-Thread::Thread(Isolate* isolate)
-    : ThreadHandle(ThreadHandle::INVALID),
-      isolate_(isolate) {
+Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
   set_name("v8:<unknown>");
 }
 
 
-Thread::Thread(Isolate* isolate, const char* name)
-    : ThreadHandle(ThreadHandle::INVALID),
-      isolate_(isolate) {
+Thread::Thread(const char* name) : ThreadHandle(ThreadHandle::INVALID) {
   set_name(name);
 }
 
@@ -440,7 +436,6 @@ static void* ThreadEntry(void* arg) {
   // one) so we initialize it here too.
   thread->thread_handle_data()->thread_ = pthread_self();
   ASSERT(thread->IsValid());
-  Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return NULL;
 }
@@ -717,9 +712,8 @@ static void* SenderEntry(void* arg) {
 }
 
 
-Sampler::Sampler(Isolate* isolate, int interval)
-    : isolate_(isolate),
-      interval_(interval),
+Sampler::Sampler(int interval)
+    : interval_(interval),
       profiling_(false),
       active_(false),
       samples_taken_(0) {

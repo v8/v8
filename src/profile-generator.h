@@ -114,7 +114,7 @@ class CodeEntry {
   uint32_t GetCallUid() const;
   bool IsSameAs(CodeEntry* entry) const;
 
-  static const char* const kEmptyNamePrefix;
+  static const char* kEmptyNamePrefix;
 
  private:
   Logger::LogEventsAndTags tag_;
@@ -422,9 +422,9 @@ class ProfileGenerator {
     return sample_rate_calc_.ticks_per_ms();
   }
 
-  static const char* const kAnonymousFunctionName;
-  static const char* const kProgramEntryName;
-  static const char* const kGarbageCollectorEntryName;
+  static const char* kAnonymousFunctionName;
+  static const char* kProgramEntryName;
+  static const char* kGarbageCollectorEntryName;
 
  private:
   INLINE(CodeEntry* EntryForVMState(StateTag tag));

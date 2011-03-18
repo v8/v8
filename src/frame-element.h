@@ -106,9 +106,20 @@ class FrameElement BASE_EMBEDDED {
     return result;
   }
 
+  // Static indirection table for handles to constants.  If a frame
+  // element represents a constant, the data contains an index into
+  // this table of handles to the actual constants.
+  typedef ZoneList<Handle<Object> > ZoneObjectList;
+
+  static ZoneObjectList* ConstantList();
+
   static bool ConstantPoolOverflowed() {
-    return !DataField::is_valid(
-        Isolate::Current()->frame_element_constant_list()->length());
+    return !DataField::is_valid(ConstantList()->length());
+  }
+
+  // Clear the constants indirection table.
+  static void ClearConstantList() {
+    ConstantList()->Clear();
   }
 
   bool is_synced() const { return SyncedField::decode(value_); }
@@ -153,8 +164,7 @@ class FrameElement BASE_EMBEDDED {
 
   Handle<Object> handle() const {
     ASSERT(is_constant());
-    return Isolate::Current()->frame_element_constant_list()->
-        at(DataField::decode(value_));
+    return ConstantList()->at(DataField::decode(value_));
   }
 
   int index() const {
@@ -222,14 +232,12 @@ class FrameElement BASE_EMBEDDED {
 
   // Used to construct constant elements.
   FrameElement(Handle<Object> value, SyncFlag is_synced, TypeInfo info) {
-    ZoneObjectList* constant_list =
-        Isolate::Current()->frame_element_constant_list();
     value_ = TypeField::encode(CONSTANT)
         | CopiedField::encode(false)
         | SyncedField::encode(is_synced != NOT_SYNCED)
         | TypeInfoField::encode(info.ToInt())
-        | DataField::encode(constant_list->length());
-    constant_list->Add(value);
+        | DataField::encode(ConstantList()->length());
+    ConstantList()->Add(value);
   }
 
   Type type() const { return TypeField::decode(value_); }

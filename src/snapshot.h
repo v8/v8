@@ -25,15 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "isolate.h"
-
 #ifndef V8_SNAPSHOT_H_
 #define V8_SNAPSHOT_H_
 
 namespace v8 {
 namespace internal {
 
-STATIC_CLASS Snapshot {
+class Snapshot {
  public:
   // Initialize the VM from the given snapshot file. If snapshot_file is
   // NULL, use the internal snapshot instead. Returns false if no snapshot

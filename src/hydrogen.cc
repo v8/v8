@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
 #include "hydrogen.h"
 
 #include "codegen.h"
@@ -512,12 +511,12 @@ HConstant* HGraph::GetConstantMinus1() {
 
 
 HConstant* HGraph::GetConstantTrue() {
-  return GetConstant(&constant_true_, HEAP->true_value());
+  return GetConstant(&constant_true_, Heap::true_value());
 }
 
 
 HConstant* HGraph::GetConstantFalse() {
-  return GetConstant(&constant_false_, HEAP->false_value());
+  return GetConstant(&constant_false_, Heap::false_value());
 }
 
 
@@ -1027,8 +1026,8 @@ HValueMap::HValueMap(const HValueMap* other)
       lists_size_(other->lists_size_),
       count_(other->count_),
       present_flags_(other->present_flags_),
-      array_(ZONE->NewArray<HValueMapListElement>(other->array_size_)),
-      lists_(ZONE->NewArray<HValueMapListElement>(other->lists_size_)),
+      array_(Zone::NewArray<HValueMapListElement>(other->array_size_)),
+      lists_(Zone::NewArray<HValueMapListElement>(other->lists_size_)),
       free_list_head_(other->free_list_head_) {
   memcpy(array_, other->array_, array_size_ * sizeof(HValueMapListElement));
   memcpy(lists_, other->lists_, lists_size_ * sizeof(HValueMapListElement));
@@ -1107,7 +1106,7 @@ void HValueMap::Resize(int new_size) {
   }
 
   HValueMapListElement* new_array =
-      ZONE->NewArray<HValueMapListElement>(new_size);
+      Zone::NewArray<HValueMapListElement>(new_size);
   memset(new_array, 0, sizeof(HValueMapListElement) * new_size);
 
   HValueMapListElement* old_array = array_;
@@ -1145,7 +1144,7 @@ void HValueMap::ResizeLists(int new_size) {
   ASSERT(new_size > lists_size_);
 
   HValueMapListElement* new_lists =
-      ZONE->NewArray<HValueMapListElement>(new_size);
+      Zone::NewArray<HValueMapListElement>(new_size);
   memset(new_lists, 0, sizeof(HValueMapListElement) * new_size);
 
   HValueMapListElement* old_lists = lists_;
@@ -1248,12 +1247,12 @@ class HGlobalValueNumberer BASE_EMBEDDED {
         info_(info),
         block_side_effects_(graph_->blocks()->length()),
         loop_side_effects_(graph_->blocks()->length()) {
-    ASSERT(HEAP->allow_allocation(false));
+    ASSERT(Heap::allow_allocation(false));
     block_side_effects_.AddBlock(0, graph_->blocks()->length());
     loop_side_effects_.AddBlock(0, graph_->blocks()->length());
   }
   ~HGlobalValueNumberer() {
-    ASSERT(!HEAP->allow_allocation(true));
+    ASSERT(!Heap::allow_allocation(true));
   }
 
   void Analyze();
@@ -2279,7 +2278,7 @@ void HGraphBuilder::SetupScope(Scope* scope) {
   if (scope->function() != NULL) BAILOUT("named function expression");
 
   HConstant* undefined_constant =
-      new HConstant(FACTORY->undefined_value(), Representation::Tagged());
+      new HConstant(Factory::undefined_value(), Representation::Tagged());
   AddInstruction(undefined_constant);
   graph_->set_undefined_constant(undefined_constant);
 
@@ -3625,7 +3624,7 @@ HInstruction* HGraphBuilder::BuildStoreKeyedFastElement(HValue* object,
   ASSERT(map->has_fast_elements());
   AddInstruction(new HCheckMap(object, map));
   HInstruction* elements = AddInstruction(new HLoadElements(object));
-  AddInstruction(new HCheckMap(elements, FACTORY->fixed_array_map()));
+  AddInstruction(new HCheckMap(elements, Factory::fixed_array_map()));
   bool is_array = (map->instance_type() == JS_ARRAY_TYPE);
   HInstruction* length = NULL;
   if (is_array) {
@@ -3936,7 +3935,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
   CompilationInfo target_info(target);
   if (!ParserApi::Parse(&target_info) ||
       !Scope::Analyze(&target_info)) {
-    if (target_info.isolate()->has_pending_exception()) {
+    if (Top::has_pending_exception()) {
       // Parse or scope error, never optimize this function.
       SetStackOverflow();
       target->shared()->set_optimization_disabled(true);
@@ -4436,7 +4435,7 @@ void HGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
     BAILOUT("call to a JavaScript runtime function");
   }
 
-  const Runtime::Function* function = expr->function();
+  Runtime::Function* function = expr->function();
   ASSERT(function != NULL);
   if (function->intrinsic_type == Runtime::INLINE) {
     ASSERT(expr->name()->length() > 0);
@@ -4975,7 +4974,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         Handle<JSFunction> candidate(JSFunction::cast(lookup.GetValue()));
         // If the function is in new space we assume it's more likely to
         // change and thus prefer the general IC code.
-        if (!Isolate::Current()->heap()->InNewSpace(*candidate)) {
+        if (!Heap::InNewSpace(*candidate)) {
           target = candidate;
         }
       }

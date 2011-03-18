@@ -40,10 +40,16 @@ namespace internal {
 
 Result::Result(Register reg, TypeInfo info) {
   ASSERT(reg.is_valid() && !RegisterAllocator::IsReserved(reg));
-  CodeGeneratorScope::Current(Isolate::Current())->allocator()->Use(reg);
+  CodeGeneratorScope::Current()->allocator()->Use(reg);
   value_ = TypeField::encode(REGISTER)
       | TypeInfoField::encode(info.ToInt())
       | DataField::encode(reg.code_);
+}
+
+
+Result::ZoneObjectList* Result::ConstantList() {
+  static ZoneObjectList list(10);
+  return &list;
 }
 
 

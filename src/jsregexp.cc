@@ -35,6 +35,7 @@
 #include "platform.h"
 #include "string-search.h"
 #include "runtime.h"
+#include "top.h"
 #include "compilation-cache.h"
 #include "string-stream.h"
 #include "parser.h"
@@ -60,6 +61,7 @@
 
 namespace v8 {
 namespace internal {
+
 
 Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,
                                                Handle<String> pattern,
@@ -95,14 +97,12 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
                                         Handle<String> pattern,
                                         Handle<String> error_text,
                                         const char* message) {
-  Isolate* isolate = re->GetIsolate();
-  Factory* factory = isolate->factory();
-  Handle<FixedArray> elements = factory->NewFixedArray(2);
+  Handle<FixedArray> elements = Factory::NewFixedArray(2);
   elements->set(0, *pattern);
   elements->set(1, *error_text);
-  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> regexp_err = factory->NewSyntaxError(message, array);
-  isolate->Throw(*regexp_err);
+  Handle<JSArray> array = Factory::NewJSArrayWithElements(elements);
+  Handle<Object> regexp_err = Factory::NewSyntaxError(message, array);
+  Top::Throw(*regexp_err);
 }
 
 
@@ -112,12 +112,10 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
 Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                    Handle<String> pattern,
                                    Handle<String> flag_str) {
-  Isolate* isolate = re->GetIsolate();
   JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
-  CompilationCache* compilation_cache = isolate->compilation_cache();
-  Handle<FixedArray> cached = compilation_cache->LookupRegExp(pattern, flags);
+  Handle<FixedArray> cached = CompilationCache::LookupRegExp(pattern, flags);
   bool in_cache = !cached.is_null();
-  LOG(isolate, RegExpCompileEvent(re, in_cache));
+  LOG(RegExpCompileEvent(re, in_cache));
 
   Handle<Object> result;
   if (in_cache) {
@@ -126,9 +124,9 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   }
   pattern = FlattenGetString(pattern);
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
-  PostponeInterruptsScope postpone(isolate);
+  PostponeInterruptsScope postpone;
   RegExpCompileData parse_result;
-  FlatStringReader reader(isolate, pattern);
+  FlatStringReader reader(pattern);
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
                                  &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
@@ -147,8 +145,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
       parse_result.capture_count == 0) {
     RegExpAtom* atom = parse_result.tree->AsAtom();
     Vector<const uc16> atom_pattern = atom->data();
-    Handle<String> atom_string =
-        isolate->factory()->NewStringFromTwoByte(atom_pattern);
+    Handle<String> atom_string = Factory::NewStringFromTwoByte(atom_pattern);
     AtomCompile(re, pattern, flags, atom_string);
   } else {
     IrregexpInitialize(re, pattern, flags, parse_result.capture_count);
@@ -157,7 +154,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   // Compilation succeeded so the data is set on the regexp
   // and we can store it in the cache.
   Handle<FixedArray> data(FixedArray::cast(re->data()));
-  compilation_cache->PutRegExp(pattern, flags, data);
+  CompilationCache::PutRegExp(pattern, flags, data);
 
   return re;
 }
@@ -173,7 +170,7 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
     case JSRegExp::IRREGEXP: {
       Handle<Object> result =
           IrregexpExec(regexp, subject, index, last_match_info);
-      ASSERT(!result.is_null() || Isolate::Current()->has_pending_exception());
+      ASSERT(!result.is_null() || Top::has_pending_exception());
       return result;
     }
     default:
@@ -190,11 +187,11 @@ void RegExpImpl::AtomCompile(Handle<JSRegExp> re,
                              Handle<String> pattern,
                              JSRegExp::Flags flags,
                              Handle<String> match_pattern) {
-  re->GetIsolate()->factory()->SetRegExpAtomData(re,
-                                                 JSRegExp::ATOM,
-                                                 pattern,
-                                                 flags,
-                                                 match_pattern);
+  Factory::SetRegExpAtomData(re,
+                             JSRegExp::ATOM,
+                             pattern,
+                             flags,
+                             match_pattern);
 }
 
 
@@ -227,8 +224,6 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                     Handle<String> subject,
                                     int index,
                                     Handle<JSArray> last_match_info) {
-  Isolate* isolate = re->GetIsolate();
-
   ASSERT(0 <= index);
   ASSERT(index <= subject->length());
 
@@ -242,30 +237,24 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
   int needle_len = needle->length();
 
   if (needle_len != 0) {
-    if (index + needle_len > subject->length())
-        return isolate->factory()->null_value();
-
+    if (index + needle_len > subject->length()) return Factory::null_value();
     // dispatch on type of strings
     index = (needle->IsAsciiRepresentation()
              ? (seq_sub->IsAsciiRepresentation()
-                ? SearchString(isolate,
-                               seq_sub->ToAsciiVector(),
+                ? SearchString(seq_sub->ToAsciiVector(),
                                needle->ToAsciiVector(),
                                index)
-                : SearchString(isolate,
-                               seq_sub->ToUC16Vector(),
+                : SearchString(seq_sub->ToUC16Vector(),
                                needle->ToAsciiVector(),
                                index))
              : (seq_sub->IsAsciiRepresentation()
-                ? SearchString(isolate,
-                               seq_sub->ToAsciiVector(),
+                ? SearchString(seq_sub->ToAsciiVector(),
                                needle->ToUC16Vector(),
                                index)
-                : SearchString(isolate,
-                               seq_sub->ToUC16Vector(),
+                : SearchString(seq_sub->ToUC16Vector(),
                                needle->ToUC16Vector(),
                                index)));
-    if (index == -1) return FACTORY->null_value();
+    if (index == -1) return Factory::null_value();
   }
   ASSERT(last_match_info->HasFastElements());
 
@@ -299,14 +288,13 @@ bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii) {
 
 bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   // Compile the RegExp.
-  Isolate* isolate = re->GetIsolate();
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
-  PostponeInterruptsScope postpone(isolate);
+  PostponeInterruptsScope postpone;
   Object* entry = re->DataAt(JSRegExp::code_index(is_ascii));
   if (entry->IsJSObject()) {
     // If it's a JSObject, a previous compilation failed and threw this object.
     // Re-throw the object without trying again.
-    isolate->Throw(entry);
+    Top::Throw(entry);
     return false;
   }
   ASSERT(entry->IsTheHole());
@@ -319,7 +307,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   }
 
   RegExpCompileData compile_data;
-  FlatStringReader reader(isolate, pattern);
+  FlatStringReader reader(pattern);
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
                                  &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
@@ -338,16 +326,15 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
                             is_ascii);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
-    Factory* factory = isolate->factory();
-    Handle<FixedArray> elements = factory->NewFixedArray(2);
+    Handle<FixedArray> elements = Factory::NewFixedArray(2);
     elements->set(0, *pattern);
     Handle<String> error_message =
-        factory->NewStringFromUtf8(CStrVector(result.error_message));
+        Factory::NewStringFromUtf8(CStrVector(result.error_message));
     elements->set(1, *error_message);
-    Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
+    Handle<JSArray> array = Factory::NewJSArrayWithElements(elements);
     Handle<Object> regexp_err =
-        factory->NewSyntaxError("malformed_regexp", array);
-    isolate->Throw(*regexp_err);
+        Factory::NewSyntaxError("malformed_regexp", array);
+    Top::Throw(*regexp_err);
     re->SetDataAt(JSRegExp::code_index(is_ascii), *regexp_err);
     return false;
   }
@@ -399,11 +386,11 @@ void RegExpImpl::IrregexpInitialize(Handle<JSRegExp> re,
                                     JSRegExp::Flags flags,
                                     int capture_count) {
   // Initialize compiled code entries to null.
-  re->GetIsolate()->factory()->SetRegExpIrregexpData(re,
-                                                     JSRegExp::IRREGEXP,
-                                                     pattern,
-                                                     flags,
-                                                     capture_count);
+  Factory::SetRegExpIrregexpData(re,
+                                 JSRegExp::IRREGEXP,
+                                 pattern,
+                                 flags,
+                                 capture_count);
 }
 
 
@@ -441,9 +428,7 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
     Handle<String> subject,
     int index,
     Vector<int> output) {
-  Isolate* isolate = regexp->GetIsolate();
-
-  Handle<FixedArray> irregexp(FixedArray::cast(regexp->data()), isolate);
+  Handle<FixedArray> irregexp(FixedArray::cast(regexp->data()));
 
   ASSERT(index >= 0);
   ASSERT(index <= subject->length());
@@ -451,24 +436,24 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
 
   // A flat ASCII string might have a two-byte first part.
   if (subject->IsConsString()) {
-    subject = Handle<String>(ConsString::cast(*subject)->first(), isolate);
+    subject = Handle<String>(ConsString::cast(*subject)->first());
   }
 
 #ifndef V8_INTERPRETED_REGEXP
-  ASSERT(output.length() >= (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
+  ASSERT(output.length() >=
+      (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
   do {
     bool is_ascii = subject->IsAsciiRepresentation();
-    Handle<Code> code(IrregexpNativeCode(*irregexp, is_ascii), isolate);
+    Handle<Code> code(IrregexpNativeCode(*irregexp, is_ascii));
     NativeRegExpMacroAssembler::Result res =
         NativeRegExpMacroAssembler::Match(code,
                                           subject,
                                           output.start(),
                                           output.length(),
-                                          index,
-                                          isolate);
+                                          index);
     if (res != NativeRegExpMacroAssembler::RETRY) {
       ASSERT(res != NativeRegExpMacroAssembler::EXCEPTION ||
-             isolate->has_pending_exception());
+             Top::has_pending_exception());
       STATIC_ASSERT(
           static_cast<int>(NativeRegExpMacroAssembler::SUCCESS) == RE_SUCCESS);
       STATIC_ASSERT(
@@ -499,7 +484,7 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
   for (int i = number_of_capture_registers - 1; i >= 0; i--) {
     register_vector[i] = -1;
   }
-  Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_ascii), isolate);
+  Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_ascii));
 
   if (IrregexpInterpreter::Match(byte_codes,
                                  subject,
@@ -531,7 +516,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
   int required_registers = RegExpImpl::IrregexpPrepare(jsregexp, subject);
   if (required_registers < 0) {
     // Compiling failed with an exception.
-    ASSERT(Isolate::Current()->has_pending_exception());
+    ASSERT(Top::has_pending_exception());
     return Handle<Object>::null();
   }
 
@@ -557,11 +542,11 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
     return last_match_info;
   }
   if (res == RE_EXCEPTION) {
-    ASSERT(Isolate::Current()->has_pending_exception());
+    ASSERT(Top::has_pending_exception());
     return Handle<Object>::null();
   }
   ASSERT(res == RE_FAILURE);
-  return Isolate::Current()->factory()->null_value();
+  return Factory::null_value();
 }
 
 
@@ -1321,14 +1306,16 @@ void ChoiceNode::GenerateGuard(RegExpMacroAssembler* macro_assembler,
 }
 
 
+static unibrow::Mapping<unibrow::Ecma262UnCanonicalize> uncanonicalize;
+static unibrow::Mapping<unibrow::CanonicalizationRange> canonrange;
+
+
 // Returns the number of characters in the equivalence class, omitting those
 // that cannot occur in the source string because it is ASCII.
-static int GetCaseIndependentLetters(Isolate* isolate,
-                                     uc16 character,
+static int GetCaseIndependentLetters(uc16 character,
                                      bool ascii_subject,
                                      unibrow::uchar* letters) {
-  int length =
-      isolate->jsregexp_uncanonicalize()->get(character, '\0', letters);
+  int length = uncanonicalize.get(character, '\0', letters);
   // Unibrow returns 0 or 1 for characters where case independence is
   // trivial.
   if (length == 0) {
@@ -1344,8 +1331,7 @@ static int GetCaseIndependentLetters(Isolate* isolate,
 }
 
 
-static inline bool EmitSimpleCharacter(Isolate* isolate,
-                                       RegExpCompiler* compiler,
+static inline bool EmitSimpleCharacter(RegExpCompiler* compiler,
                                        uc16 c,
                                        Label* on_failure,
                                        int cp_offset,
@@ -1367,8 +1353,7 @@ static inline bool EmitSimpleCharacter(Isolate* isolate,
 
 // Only emits non-letters (things that don't have case).  Only used for case
 // independent matches.
-static inline bool EmitAtomNonLetter(Isolate* isolate,
-                                     RegExpCompiler* compiler,
+static inline bool EmitAtomNonLetter(RegExpCompiler* compiler,
                                      uc16 c,
                                      Label* on_failure,
                                      int cp_offset,
@@ -1377,7 +1362,7 @@ static inline bool EmitAtomNonLetter(Isolate* isolate,
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   bool ascii = compiler->ascii();
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  int length = GetCaseIndependentLetters(isolate, c, ascii, chars);
+  int length = GetCaseIndependentLetters(c, ascii, chars);
   if (length < 1) {
     // This can't match.  Must be an ASCII subject and a non-ASCII character.
     // We do not need to do anything since the ASCII pass already handled this.
@@ -1439,8 +1424,7 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
 }
 
 
-typedef bool EmitCharacterFunction(Isolate* isolate,
-                                   RegExpCompiler* compiler,
+typedef bool EmitCharacterFunction(RegExpCompiler* compiler,
                                    uc16 c,
                                    Label* on_failure,
                                    int cp_offset,
@@ -1449,8 +1433,7 @@ typedef bool EmitCharacterFunction(Isolate* isolate,
 
 // Only emits letters (things that have case).  Only used for case independent
 // matches.
-static inline bool EmitAtomLetter(Isolate* isolate,
-                                  RegExpCompiler* compiler,
+static inline bool EmitAtomLetter(RegExpCompiler* compiler,
                                   uc16 c,
                                   Label* on_failure,
                                   int cp_offset,
@@ -1459,7 +1442,7 @@ static inline bool EmitAtomLetter(Isolate* isolate,
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   bool ascii = compiler->ascii();
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  int length = GetCaseIndependentLetters(isolate, c, ascii, chars);
+  int length = GetCaseIndependentLetters(c, ascii, chars);
   if (length <= 1) return false;
   // We may not need to check against the end of the input string
   // if this character lies before a character that matched.
@@ -1897,7 +1880,6 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start) {
-  Isolate* isolate = Isolate::Current();
   ASSERT(characters_filled_in < details->characters());
   int characters = details->characters();
   int char_mask;
@@ -1928,8 +1910,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         }
         if (compiler->ignore_case()) {
           unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-          int length = GetCaseIndependentLetters(isolate, c, compiler->ascii(),
-                                                 chars);
+          int length = GetCaseIndependentLetters(c, compiler->ascii(), chars);
           ASSERT(length != 0);  // Can only happen if c > char_mask (see above).
           if (length == 1) {
             // This letter has no case equivalents, so it's nice and simple
@@ -2429,7 +2410,6 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
                             Trace* trace,
                             bool first_element_checked,
                             int* checked_up_to) {
-  Isolate* isolate = Isolate::Current();
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   bool ascii = compiler->ascii();
   Label* backtrack = trace->backtrack();
@@ -2465,8 +2445,7 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
             break;
         }
         if (emit_function != NULL) {
-          bool bound_checked = emit_function(isolate,
-                                             compiler,
+          bool bound_checked = emit_function(compiler,
                                              quarks[j],
                                              backtrack,
                                              cp_offset + j,
@@ -4106,15 +4085,13 @@ void CharacterRange::Split(ZoneList<CharacterRange>* base,
 }
 
 
-static void AddUncanonicals(Isolate* isolate,
-                            ZoneList<CharacterRange>* ranges,
+static void AddUncanonicals(ZoneList<CharacterRange>* ranges,
                             int bottom,
                             int top);
 
 
 void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
                                         bool is_ascii) {
-  Isolate* isolate = Isolate::Current();
   uc16 bottom = from();
   uc16 top = to();
   if (is_ascii) {
@@ -4124,7 +4101,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
   if (top == bottom) {
     // If this is a singleton we just expand the one character.
-    int length = isolate->jsregexp_uncanonicalize()->get(bottom, '\0', chars);
+    int length = uncanonicalize.get(bottom, '\0', chars);
     for (int i = 0; i < length; i++) {
       uc32 chr = chars[i];
       if (chr != bottom) {
@@ -4153,7 +4130,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
     unibrow::uchar range[unibrow::Ecma262UnCanonicalize::kMaxWidth];
     int pos = bottom;
     while (pos < top) {
-      int length = isolate->jsregexp_canonrange()->get(pos, '\0', range);
+      int length = canonrange.get(pos, '\0', range);
       uc16 block_end;
       if (length == 0) {
         block_end = pos;
@@ -4162,7 +4139,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
         block_end = range[0];
       }
       int end = (block_end > top) ? top : block_end;
-      length = isolate->jsregexp_uncanonicalize()->get(block_end, '\0', range);
+      length = uncanonicalize.get(block_end, '\0', range);
       for (int i = 0; i < length; i++) {
         uc32 c = range[i];
         uc16 range_from = c - (block_end - pos);
@@ -4272,8 +4249,7 @@ SetRelation CharacterRange::WordCharacterRelation(
 }
 
 
-static void AddUncanonicals(Isolate* isolate,
-                            ZoneList<CharacterRange>* ranges,
+static void AddUncanonicals(ZoneList<CharacterRange>* ranges,
                             int bottom,
                             int top) {
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
@@ -4305,8 +4281,8 @@ static void AddUncanonicals(Isolate* isolate,
   // case mappings.
   for (int i = 0; i < boundary_count; i++) {
     if (bottom < boundaries[i] && top >= boundaries[i]) {
-      AddUncanonicals(isolate, ranges, bottom, boundaries[i] - 1);
-      AddUncanonicals(isolate, ranges, boundaries[i], top);
+      AddUncanonicals(ranges, bottom, boundaries[i] - 1);
+      AddUncanonicals(ranges, boundaries[i], top);
       return;
     }
   }
@@ -4317,8 +4293,7 @@ static void AddUncanonicals(Isolate* isolate,
 #ifdef DEBUG
       for (int j = bottom; j <= top; j++) {
         unsigned current_char = j;
-        int length = isolate->jsregexp_uncanonicalize()->get(current_char,
-                                                             '\0', chars);
+        int length = uncanonicalize.get(current_char, '\0', chars);
         for (int k = 0; k < length; k++) {
           ASSERT(chars[k] == current_char);
         }
@@ -4331,7 +4306,7 @@ static void AddUncanonicals(Isolate* isolate,
   // Step through the range finding equivalent characters.
   ZoneList<unibrow::uchar> *characters = new ZoneList<unibrow::uchar>(100);
   for (int i = bottom; i <= top; i++) {
-    int length = isolate->jsregexp_uncanonicalize()->get(i, '\0', chars);
+    int length = uncanonicalize.get(i, '\0', chars);
     for (int j = 0; j < length; j++) {
       uc32 chr = chars[j];
       if (chr != i && (chr < bottom || chr > top)) {
@@ -4853,7 +4828,7 @@ OutSet* DispatchTable::Get(uc16 value) {
 
 
 void Analysis::EnsureAnalyzed(RegExpNode* that) {
-  StackLimitCheck check(Isolate::Current());
+  StackLimitCheck check;
   if (check.HasOverflowed()) {
     fail("Stack overflow");
     return;
@@ -5362,5 +5337,8 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
                            pattern);
 }
 
+
+int OffsetsVector::static_offsets_vector_[
+    OffsetsVector::kStaticOffsetsVectorSize];
 
 }}  // namespace v8::internal

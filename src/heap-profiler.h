@@ -28,7 +28,6 @@
 #ifndef V8_HEAP_PROFILER_H_
 #define V8_HEAP_PROFILER_H_
 
-#include "isolate.h"
 #include "zone-inl.h"
 
 namespace v8 {
@@ -39,15 +38,14 @@ namespace internal {
 class HeapSnapshot;
 class HeapSnapshotsCollection;
 
-#define HEAP_PROFILE(heap, call)                                             \
-  do {                                                                       \
-    v8::internal::HeapProfiler* profiler = heap->isolate()->heap_profiler(); \
-    if (profiler != NULL && profiler->is_profiling()) {                      \
-      profiler->call;                                                        \
-    }                                                                        \
+#define HEAP_PROFILE(Call)                             \
+  do {                                                 \
+    if (v8::internal::HeapProfiler::is_profiling()) {  \
+      v8::internal::HeapProfiler::Call;                \
+    }                                                  \
   } while (false)
 #else
-#define HEAP_PROFILE(heap, call) ((void) 0)
+#define HEAP_PROFILE(Call) ((void) 0)
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 // The HeapProfiler writes data to the log files, which can be postprocessed
@@ -68,15 +66,15 @@ class HeapProfiler {
   static HeapSnapshot* GetSnapshot(int index);
   static HeapSnapshot* FindSnapshot(unsigned uid);
 
-  void ObjectMoveEvent(Address from, Address to);
+  static void ObjectMoveEvent(Address from, Address to);
 
-  void DefineWrapperClass(
+  static void DefineWrapperClass(
       uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback);
+  static v8::RetainedObjectInfo* ExecuteWrapperClassCallback(uint16_t class_id,
+                                                             Object** wrapper);
 
-  v8::RetainedObjectInfo* ExecuteWrapperClassCallback(uint16_t class_id,
-                                                      Object** wrapper);
-  INLINE(bool is_profiling()) {
-    return snapshots_->is_tracking_objects();
+  static INLINE(bool is_profiling()) {
+    return singleton_ != NULL && singleton_->snapshots_->is_tracking_objects();
   }
 
   // Obsolete interface.
@@ -97,6 +95,7 @@ class HeapProfiler {
   unsigned next_snapshot_uid_;
   List<v8::HeapProfiler::WrapperInfoCallback> wrapper_callbacks_;
 
+  static HeapProfiler* singleton_;
 #endif  // ENABLE_LOGGING_AND_PROFILING
 };
 
@@ -155,10 +154,10 @@ class JSObjectsCluster BASE_EMBEDDED {
     // We use symbols that are illegal JS identifiers to identify special cases.
     // Their actual value is irrelevant for us.
     switch (special) {
-      case ROOTS: return HEAP->result_symbol();
-      case GLOBAL_PROPERTY: return HEAP->code_symbol();
-      case CODE: return HEAP->arguments_shadow_symbol();
-      case SELF: return HEAP->catch_var_symbol();
+      case ROOTS: return Heap::result_symbol();
+      case GLOBAL_PROPERTY: return Heap::code_symbol();
+      case CODE: return Heap::arguments_shadow_symbol();
+      case SELF: return Heap::catch_var_symbol();
       default:
         UNREACHABLE();
         return NULL;
@@ -348,6 +347,7 @@ class AggregatedHeapSnapshot {
 
 class HeapEntriesMap;
 class HeapEntriesAllocator;
+class HeapSnapshot;
 
 class AggregatedHeapSnapshotGenerator {
  public:
@@ -368,23 +368,16 @@ class AggregatedHeapSnapshotGenerator {
 };
 
 
-class ProducerHeapProfile {
+class ProducerHeapProfile : public AllStatic {
  public:
-  void Setup();
-  void RecordJSObjectAllocation(Object* obj) {
+  static void Setup();
+  static void RecordJSObjectAllocation(Object* obj) {
     if (FLAG_log_producers) DoRecordJSObjectAllocation(obj);
   }
 
  private:
-  ProducerHeapProfile() : can_log_(false) { }
-
-  void DoRecordJSObjectAllocation(Object* obj);
-  Isolate* isolate_;
-  bool can_log_;
-
-  friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(ProducerHeapProfile);
+  static void DoRecordJSObjectAllocation(Object* obj);
+  static bool can_log_;
 };
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

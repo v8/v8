@@ -119,13 +119,12 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   // a non-live object in the extra space at the end of the former reloc info.
   Address junk_address = reloc_info->address() + reloc_info->Size();
   ASSERT(junk_address <= reloc_end_address);
-  HEAP->CreateFillerObjectAt(junk_address, reloc_end_address - junk_address);
+  Heap::CreateFillerObjectAt(junk_address, reloc_end_address - junk_address);
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
-  DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
-  node->set_next(data->deoptimizing_code_list_);
-  data->deoptimizing_code_list_ = node;
+  node->set_next(deoptimizing_code_list_);
+  deoptimizing_code_list_ = node;
 
   // Set the code for the function to non-optimized version.
   function->ReplaceCode(function->shared()->code());
@@ -324,8 +323,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
         optimized_code_->entry() + pc_offset);
     output_[0]->SetPc(pc);
   }
-  Code* continuation =
-      Isolate::Current()->builtins()->builtin(Builtins::NotifyOSR);
+  Code* continuation = Builtins::builtin(Builtins::NotifyOSR);
   output_[0]->SetContinuation(
       reinterpret_cast<uint32_t>(continuation->entry()));
 
@@ -492,10 +490,9 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
 
   // Set the continuation for the topmost frame.
   if (is_topmost) {
-    Builtins* builtins = isolate_->builtins();
     Code* continuation = (bailout_type_ == EAGER)
-        ? builtins->builtin(Builtins::NotifyDeoptimized)
-        : builtins->builtin(Builtins::NotifyLazyDeoptimized);
+        ? Builtins::builtin(Builtins::NotifyDeoptimized)
+        : Builtins::builtin(Builtins::NotifyLazyDeoptimized);
     output_frame->SetContinuation(
         reinterpret_cast<uint32_t>(continuation->entry()));
   }

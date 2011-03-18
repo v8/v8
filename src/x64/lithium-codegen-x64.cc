@@ -465,7 +465,7 @@ void LCodeGen::CallCode(Handle<Code> code,
 }
 
 
-void LCodeGen::CallRuntime(const Runtime::Function* function,
+void LCodeGen::CallRuntime(Runtime::Function* function,
                            int num_arguments,
                            LInstruction* instr) {
   ASSERT(instr != NULL);
@@ -553,14 +553,14 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
   if (length == 0) return;
   ASSERT(FLAG_deopt);
   Handle<DeoptimizationInputData> data =
-      factory()->NewDeoptimizationInputData(length, TENURED);
+      Factory::NewDeoptimizationInputData(length, TENURED);
 
   Handle<ByteArray> translations = translations_.CreateByteArray();
   data->SetTranslationByteArray(*translations);
   data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
 
   Handle<FixedArray> literals =
-      factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);
+      Factory::NewFixedArray(deoptimization_literals_.length(), TENURED);
   for (int i = 0; i < deoptimization_literals_.length(); i++) {
     literals->set(i, *deoptimization_literals_[i]);
   }
@@ -1910,7 +1910,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   Register map = ToRegister(instr->TempAt(0));
   __ movq(map, FieldOperand(object, HeapObject::kMapOffset));
   __ bind(deferred->map_check());  // Label for calculating code patching.
-  __ Move(kScratchRegister, factory()->the_hole_value());
+  __ Move(kScratchRegister, Factory::the_hole_value());
   __ cmpq(map, kScratchRegister);  // Patched to cached map.
   __ j(not_equal, &cache_miss);
   // Patched to load either true or false.
@@ -2099,7 +2099,7 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   __ Move(rcx, instr->name());
-  Handle<Code> ic(isolate()->builtins()->builtin(Builtins::LoadIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2225,8 +2225,7 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->object()).is(rdx));
   ASSERT(ToRegister(instr->key()).is(rax));
 
-  Handle<Code> ic(isolate()->builtins()->builtin(
-      Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2725,8 +2724,7 @@ void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
-  Handle<Code> ic = isolate()->stub_cache()->ComputeKeyedCallInitialize(
-    arity, NOT_IN_LOOP);
+  Handle<Code> ic = StubCache::ComputeKeyedCallInitialize(arity, NOT_IN_LOOP);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
@@ -2736,8 +2734,7 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
-  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(
-      arity, NOT_IN_LOOP);
+  Handle<Code> ic = StubCache::ComputeCallInitialize(arity, NOT_IN_LOOP);
   __ Move(rcx, instr->name());
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
@@ -2758,8 +2755,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(rax));
   int arity = instr->arity();
-  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(
-      arity, NOT_IN_LOOP);
+  Handle<Code> ic = StubCache::ComputeCallInitialize(arity, NOT_IN_LOOP);
   __ Move(rcx, instr->name());
   CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
@@ -2777,8 +2773,7 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
   ASSERT(ToRegister(instr->InputAt(0)).is(rdi));
   ASSERT(ToRegister(instr->result()).is(rax));
 
-  Handle<Code> builtin(isolate()->builtins()->builtin(
-      Builtins::JSConstructCall));
+  Handle<Code> builtin(Builtins::builtin(Builtins::JSConstructCall));
   __ Set(rax, instr->arity());
   CallCode(builtin, RelocInfo::CONSTRUCT_CALL, instr);
 }
@@ -2824,7 +2819,7 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   ASSERT(ToRegister(instr->value()).is(rax));
 
   __ Move(rcx, instr->hydrogen()->name());
-  Handle<Code> ic(isolate()->builtins()->builtin(
+  Handle<Code> ic(Builtins::builtin(
       info_->is_strict() ? Builtins::StoreIC_Initialize_Strict
                          : Builtins::StoreIC_Initialize));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -2895,7 +2890,7 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->key()).is(rcx));
   ASSERT(ToRegister(instr->value()).is(rax));
 
-  Handle<Code> ic(isolate()->builtins()->builtin(
+  Handle<Code> ic(Builtins::builtin(
       info_->is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
                          : Builtins::KeyedStoreIC_Initialize));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -3404,9 +3399,9 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
 
 
 void LCodeGen::LoadHeapObject(Register result, Handle<HeapObject> object) {
-  if (heap()->InNewSpace(*object)) {
+  if (Heap::InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
-        factory()->NewJSGlobalPropertyCell(object);
+        Factory::NewJSGlobalPropertyCell(object);
     __ movq(result, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
     __ movq(result, Operand(result, 0));
   } else {
@@ -3635,14 +3630,14 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
                                  Register input,
                                  Handle<String> type_name) {
   Condition final_branch_condition = no_condition;
-  if (type_name->Equals(heap()->number_symbol())) {
+  if (type_name->Equals(Heap::number_symbol())) {
     __ JumpIfSmi(input, true_label);
     __ CompareRoot(FieldOperand(input, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
 
     final_branch_condition = equal;
 
-  } else if (type_name->Equals(heap()->string_symbol())) {
+  } else if (type_name->Equals(Heap::string_symbol())) {
     __ JumpIfSmi(input, false_label);
     __ CmpObjectType(input, FIRST_NONSTRING_TYPE, input);
     __ j(above_equal, false_label);
@@ -3650,13 +3645,13 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
              Immediate(1 << Map::kIsUndetectable));
     final_branch_condition = zero;
 
-  } else if (type_name->Equals(heap()->boolean_symbol())) {
+  } else if (type_name->Equals(Heap::boolean_symbol())) {
     __ CompareRoot(input, Heap::kTrueValueRootIndex);
     __ j(equal, true_label);
     __ CompareRoot(input, Heap::kFalseValueRootIndex);
     final_branch_condition = equal;
 
-  } else if (type_name->Equals(heap()->undefined_symbol())) {
+  } else if (type_name->Equals(Heap::undefined_symbol())) {
     __ CompareRoot(input, Heap::kUndefinedValueRootIndex);
     __ j(equal, true_label);
     __ JumpIfSmi(input, false_label);
@@ -3666,12 +3661,12 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
              Immediate(1 << Map::kIsUndetectable));
     final_branch_condition = not_zero;
 
-  } else if (type_name->Equals(heap()->function_symbol())) {
+  } else if (type_name->Equals(Heap::function_symbol())) {
     __ JumpIfSmi(input, false_label);
     __ CmpObjectType(input, FIRST_FUNCTION_CLASS_TYPE, input);
     final_branch_condition = above_equal;
 
-  } else if (type_name->Equals(heap()->object_symbol())) {
+  } else if (type_name->Equals(Heap::object_symbol())) {
     __ JumpIfSmi(input, false_label);
     __ CompareRoot(input, Heap::kNullValueRootIndex);
     __ j(equal, true_label);

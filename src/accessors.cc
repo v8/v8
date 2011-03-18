@@ -34,6 +34,7 @@
 #include "factory.h"
 #include "safepoint-table.h"
 #include "scopeinfo.h"
+#include "top.h"
 
 namespace v8 {
 namespace internal {
@@ -42,9 +43,8 @@ namespace internal {
 template <class C>
 static C* FindInPrototypeChain(Object* obj, bool* found_it) {
   ASSERT(!*found_it);
-  Heap* heap = HEAP;
   while (!Is<C>(obj)) {
-    if (obj == heap->null_value()) return NULL;
+    if (obj == Heap::null_value()) return NULL;
     obj = obj->GetPrototype();
   }
   *found_it = true;
@@ -90,10 +90,10 @@ MaybeObject* Accessors::ArrayGetLength(Object* object, void*) {
 Object* Accessors::FlattenNumber(Object* value) {
   if (value->IsNumber() || !value->IsJSValue()) return value;
   JSValue* wrapper = JSValue::cast(value);
-  ASSERT(Isolate::Current()->context()->global_context()->number_function()->
-      has_initial_map());
-  Map* number_map = Isolate::Current()->context()->global_context()->
-      number_function()->initial_map();
+  ASSERT(
+      Top::context()->global_context()->number_function()->has_initial_map());
+  Map* number_map =
+      Top::context()->global_context()->number_function()->initial_map();
   if (wrapper->map() == number_map) return wrapper->value();
   return value;
 }
@@ -126,13 +126,12 @@ MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
       // This means one of the object's prototypes is a JSArray and
       // the object does not have a 'length' property.
       // Calling SetProperty causes an infinite loop.
-      return object->SetLocalPropertyIgnoreAttributes(HEAP->length_symbol(),
+      return object->SetLocalPropertyIgnoreAttributes(Heap::length_symbol(),
                                                       value, NONE);
     }
   }
-  return Isolate::Current()->Throw(
-      *FACTORY->NewRangeError("invalid_array_length",
-          HandleVector<Object>(NULL, 0)));
+  return Top::Throw(*Factory::NewRangeError("invalid_array_length",
+                                            HandleVector<Object>(NULL, 0)));
 }
 
 
@@ -321,9 +320,9 @@ MaybeObject* Accessors::ScriptGetLineEnds(Object* object, void*) {
   ASSERT(script->line_ends()->IsFixedArray());
   Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
   // We do not want anyone to modify this array from JS.
-  ASSERT(*line_ends == HEAP->empty_fixed_array() ||
-         line_ends->map() == HEAP->fixed_cow_array_map());
-  Handle<JSArray> js_array = FACTORY->NewJSArrayWithElements(line_ends);
+  ASSERT(*line_ends == Heap::empty_fixed_array() ||
+         line_ends->map() == Heap::fixed_cow_array_map());
+  Handle<JSArray> js_array = Factory::NewJSArrayWithElements(line_ends);
   return *js_array;
 }
 
@@ -369,7 +368,7 @@ MaybeObject* Accessors::ScriptGetEvalFromScript(Object* object, void*) {
       return *GetScriptWrapper(eval_from_script);
     }
   }
-  return HEAP->undefined_value();
+  return Heap::undefined_value();
 }
 
 
@@ -392,7 +391,7 @@ MaybeObject* Accessors::ScriptGetEvalFromScriptPosition(Object* object, void*) {
   // If this is not a script compiled through eval there is no eval position.
   int compilation_type = Smi::cast(script->compilation_type())->value();
   if (compilation_type != Script::COMPILATION_TYPE_EVAL) {
-    return HEAP->undefined_value();
+    return Heap::undefined_value();
   }
 
   // Get the function from where eval was called and find the source position
@@ -446,7 +445,7 @@ const AccessorDescriptor Accessors::ScriptEvalFromFunctionName = {
 MaybeObject* Accessors::FunctionGetPrototype(Object* object, void*) {
   bool found_it = false;
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
-  if (!found_it) return HEAP->undefined_value();
+  if (!found_it) return Heap::undefined_value();
   while (!function->should_have_prototype()) {
     found_it = false;
     function = FindInPrototypeChain<JSFunction>(object->GetPrototype(),
@@ -457,7 +456,7 @@ MaybeObject* Accessors::FunctionGetPrototype(Object* object, void*) {
 
   if (!function->has_prototype()) {
     Object* prototype;
-    { MaybeObject* maybe_prototype = HEAP->AllocateFunctionPrototype(function);
+    { MaybeObject* maybe_prototype = Heap::AllocateFunctionPrototype(function);
       if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
     }
     Object* result;
@@ -474,10 +473,10 @@ MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
                                              void*) {
   bool found_it = false;
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
-  if (!found_it) return HEAP->undefined_value();
+  if (!found_it) return Heap::undefined_value();
   if (!function->should_have_prototype()) {
     // Since we hit this accessor, object will have no prototype property.
-    return object->SetLocalPropertyIgnoreAttributes(HEAP->prototype_symbol(),
+    return object->SetLocalPropertyIgnoreAttributes(Heap::prototype_symbol(),
                                                     value,
                                                     NONE);
   }
@@ -546,7 +545,7 @@ const AccessorDescriptor Accessors::FunctionLength = {
 MaybeObject* Accessors::FunctionGetName(Object* object, void*) {
   bool found_it = false;
   JSFunction* holder = FindInPrototypeChain<JSFunction>(object, &found_it);
-  if (!found_it) return HEAP->undefined_value();
+  if (!found_it) return Heap::undefined_value();
   return holder->shared()->name();
 }
 
@@ -605,13 +604,13 @@ class SlotRef BASE_EMBEDDED {
         if (Smi::IsValid(value)) {
           return Handle<Object>(Smi::FromInt(value));
         } else {
-          return Isolate::Current()->factory()->NewNumberFromInt(value);
+          return Factory::NewNumberFromInt(value);
         }
       }
 
       case DOUBLE: {
         double value = Memory::double_at(addr_);
-        return Isolate::Current()->factory()->NewNumber(value);
+        return Factory::NewNumber(value);
       }
 
       case LITERAL:
@@ -733,13 +732,12 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
     JavaScriptFrame* frame,
     Handle<JSFunction> inlined_function,
     int inlined_frame_index) {
-  Factory* factory = Isolate::Current()->factory();
   int args_count = inlined_function->shared()->formal_parameter_count();
   ScopedVector<SlotRef> args_slots(args_count);
   ComputeSlotMappingForArguments(frame, inlined_frame_index, &args_slots);
   Handle<JSObject> arguments =
-      factory->NewArgumentsObject(inlined_function, args_count);
-  Handle<FixedArray> array = factory->NewFixedArray(args_count);
+      Factory::NewArgumentsObject(inlined_function, args_count);
+  Handle<FixedArray> array = Factory::NewFixedArray(args_count);
   for (int i = 0; i < args_count; ++i) {
     Handle<Object> value = args_slots[i].GetValue();
     array->set(i, *value);
@@ -752,12 +750,11 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
 
 
 MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
-  Isolate* isolate = Isolate::Current();
-  HandleScope scope(isolate);
+  HandleScope scope;
   bool found_it = false;
   JSFunction* holder = FindInPrototypeChain<JSFunction>(object, &found_it);
-  if (!found_it) return isolate->heap()->undefined_value();
-  Handle<JSFunction> function(holder, isolate);
+  if (!found_it) return Heap::undefined_value();
+  Handle<JSFunction> function(holder);
 
   // Find the top invocation of the function by traversing frames.
   List<JSFunction*> functions(2);
@@ -779,9 +776,9 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
       if (!frame->is_optimized()) {
         // If there is an arguments variable in the stack, we return that.
         Handle<SerializedScopeInfo> info(function->shared()->scope_info());
-        int index = info->StackSlotIndex(isolate->heap()->arguments_symbol());
+        int index = info->StackSlotIndex(Heap::arguments_symbol());
         if (index >= 0) {
-          Handle<Object> arguments(frame->GetExpression(index), isolate);
+          Handle<Object> arguments(frame->GetExpression(index));
           if (!arguments->IsArgumentsMarker()) return *arguments;
         }
       }
@@ -795,9 +792,9 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
       // Get the number of arguments and construct an arguments object
       // mirror for the right frame.
       const int length = frame->ComputeParametersCount();
-      Handle<JSObject> arguments = isolate->factory()->NewArgumentsObject(
-          function, length);
-      Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
+      Handle<JSObject> arguments = Factory::NewArgumentsObject(function,
+                                                               length);
+      Handle<FixedArray> array = Factory::NewFixedArray(length);
 
       // Copy the parameters to the arguments object.
       ASSERT(array->length() == length);
@@ -811,7 +808,7 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
   }
 
   // No frame corresponding to the given function found. Return null.
-  return isolate->heap()->null_value();
+  return Heap::null_value();
 }
 
 
@@ -828,13 +825,12 @@ const AccessorDescriptor Accessors::FunctionArguments = {
 
 
 MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
-  Isolate* isolate = Isolate::Current();
-  HandleScope scope(isolate);
+  HandleScope scope;
   AssertNoAllocation no_alloc;
   bool found_it = false;
   JSFunction* holder = FindInPrototypeChain<JSFunction>(object, &found_it);
-  if (!found_it) return isolate->heap()->undefined_value();
-  Handle<JSFunction> function(holder, isolate);
+  if (!found_it) return Heap::undefined_value();
+  Handle<JSFunction> function(holder);
 
   List<JSFunction*> functions(2);
   for (JavaScriptFrameIterator it; !it.done(); it.Advance()) {
@@ -858,7 +854,7 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
             }
             ASSERT(functions.length() == 1);
           }
-          if (it.done()) return isolate->heap()->null_value();
+          if (it.done()) return Heap::null_value();
           break;
         }
       }
@@ -867,7 +863,7 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
   }
 
   // No frame corresponding to the given function found. Return null.
-  return isolate->heap()->null_value();
+  return Heap::null_value();
 }
 
 

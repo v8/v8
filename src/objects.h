@@ -729,7 +729,6 @@ class Object : public MaybeObject {
   // Oddball testing.
   INLINE(bool IsUndefined());
   INLINE(bool IsNull());
-  INLINE(bool IsTheHole());  // Shadows MaybeObject's implementation.
   INLINE(bool IsTrue());
   INLINE(bool IsFalse());
   inline bool IsArgumentsMarker();
@@ -886,7 +885,7 @@ class Failure: public MaybeObject {
   enum Type {
     RETRY_AFTER_GC = 0,
     EXCEPTION = 1,       // Returning this marker tells the real exception
-                         // is in Isolate::pending_exception.
+                         // is in Top::pending_exception.
     INTERNAL_ERROR = 2,
     OUT_OF_MEMORY_EXCEPTION = 3
   };
@@ -1073,14 +1072,6 @@ class HeapObject: public Object {
   // necessarily contain a map pointer.
   inline MapWord map_word();
   inline void set_map_word(MapWord map_word);
-
-  // The Heap the object was allocated in. Used also to access Isolate.
-  // This method can not be used during GC, it ASSERTs this.
-  inline Heap* GetHeap();
-  // Convenience method to get current isolate. This method can be
-  // accessed only when its result is the same as
-  // Isolate::Current(), it ASSERTs this. See also comment for GetHeap.
-  inline Isolate* GetIsolate();
 
   // Converts an address to a HeapObject pointer.
   static inline HeapObject* FromAddress(Address address);
@@ -1901,18 +1892,13 @@ class FixedArray: public HeapObject {
 
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
-  // TODO(isolates): duplicate.
-  inline void set_undefined(Heap* heap, int index);
   inline void set_null(int index);
-  // TODO(isolates): duplicate.
-  inline void set_null(Heap* heap, int index);
   inline void set_the_hole(int index);
 
   // Setters with less debug checks for the GC to use.
   inline void set_unchecked(int index, Smi* value);
-  inline void set_null_unchecked(Heap* heap, int index);
-  inline void set_unchecked(Heap* heap, int index, Object* value,
-                            WriteBarrierMode mode);
+  inline void set_null_unchecked(int index);
+  inline void set_unchecked(int index, Object* value, WriteBarrierMode mode);
 
   // Gives access to raw memory which stores the array's data.
   inline Object** data_start();
@@ -2007,9 +1993,7 @@ class DescriptorArray: public FixedArray {
 
   // Returns the number of descriptors in the array.
   int number_of_descriptors() {
-    ASSERT(length() > kFirstIndex || IsEmpty());
-    int len = length();
-    return len <= kFirstIndex ? 0 : len - kFirstIndex;
+    return IsEmpty() ? 0 : length() - kFirstIndex;
   }
 
   int NextEnumerationIndex() {
@@ -2301,8 +2285,7 @@ class HashTable: public FixedArray {
       (FixedArray::kMaxLength - kElementsStartOffset) / kEntrySize;
 
   // Find entry for key otherwise return kNotFound.
-  inline int FindEntry(Key key);
-  int FindEntry(Isolate* isolate, Key key);
+  int FindEntry(Key key);
 
  protected:
 
@@ -2374,16 +2357,16 @@ class HashTableKey {
 
 class SymbolTableShape {
  public:
-  static inline bool IsMatch(HashTableKey* key, Object* value) {
+  static bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
   }
-  static inline uint32_t Hash(HashTableKey* key) {
+  static uint32_t Hash(HashTableKey* key) {
     return key->Hash();
   }
-  static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
+  static uint32_t HashForObject(HashTableKey* key, Object* object) {
     return key->HashForObject(object);
   }
-  MUST_USE_RESULT static inline MaybeObject* AsObject(HashTableKey* key) {
+  MUST_USE_RESULT static MaybeObject* AsObject(HashTableKey* key) {
     return key->AsObject();
   }
 
@@ -2426,18 +2409,18 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
 
 class MapCacheShape {
  public:
-  static inline bool IsMatch(HashTableKey* key, Object* value) {
+  static bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
   }
-  static inline uint32_t Hash(HashTableKey* key) {
+  static uint32_t Hash(HashTableKey* key) {
     return key->Hash();
   }
 
-  static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
+  static uint32_t HashForObject(HashTableKey* key, Object* object) {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static inline MaybeObject* AsObject(HashTableKey* key) {
+  MUST_USE_RESULT static MaybeObject* AsObject(HashTableKey* key) {
     return key->AsObject();
   }
 
@@ -3447,7 +3430,7 @@ class Code: public HeapObject {
   inline void CodeIterateBody(ObjectVisitor* v);
 
   template<typename StaticVisitor>
-  inline void CodeIterateBody(Heap* heap);
+  inline void CodeIterateBody();
 #ifdef OBJECT_PRINT
   inline void CodePrint() {
     CodePrint(stdout);
@@ -3735,7 +3718,7 @@ class Map: public HeapObject {
   // Code cache operations.
 
   // Clears the code cache.
-  inline void ClearCodeCache(Heap* heap);
+  inline void ClearCodeCache();
 
   // Update code cache.
   MUST_USE_RESULT MaybeObject* UpdateCodeCache(String* name, Code* code);
@@ -3759,7 +3742,7 @@ class Map: public HeapObject {
   // Also, restore the original prototype on the targets of these
   // transitions, so that we do not process this map again while
   // following back pointers.
-  void ClearNonLiveTransitions(Heap* heap, Object* real_prototype);
+  void ClearNonLiveTransitions(Object* real_prototype);
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
@@ -3775,9 +3758,6 @@ class Map: public HeapObject {
 
   inline int visitor_id();
   inline void set_visitor_id(int visitor_id);
-
-  // Returns the heap this map belongs to.
-  inline Heap* heap();
 
   typedef void (*TraverseCallback)(Map* map, void* data);
 
@@ -5824,8 +5804,11 @@ class ExternalTwoByteString: public ExternalString {
 // iterating or updating after gc.
 class Relocatable BASE_EMBEDDED {
  public:
-  explicit inline Relocatable(Isolate* isolate);
-  inline virtual ~Relocatable();
+  inline Relocatable() : prev_(top_) { top_ = this; }
+  virtual ~Relocatable() {
+    ASSERT_EQ(top_, this);
+    top_ = prev_;
+  }
   virtual void IterateInstance(ObjectVisitor* v) { }
   virtual void PostGarbageCollection() { }
 
@@ -5837,7 +5820,7 @@ class Relocatable BASE_EMBEDDED {
   static void Iterate(ObjectVisitor* v, Relocatable* top);
   static char* Iterate(ObjectVisitor* v, char* t);
  private:
-  Isolate* isolate_;
+  static Relocatable* top_;
   Relocatable* prev_;
 };
 
@@ -5847,8 +5830,8 @@ class Relocatable BASE_EMBEDDED {
 // must be valid as long as the reader is being used.
 class FlatStringReader : public Relocatable {
  public:
-  FlatStringReader(Isolate* isolate, Handle<String> str);
-  FlatStringReader(Isolate* isolate, Vector<const char> input);
+  explicit FlatStringReader(Handle<String> str);
+  explicit FlatStringReader(Vector<const char> input);
   void PostGarbageCollection();
   inline uc32 Get(int index);
   int length() { return length_; }
@@ -5911,9 +5894,6 @@ class Oddball: public HeapObject {
   // [to_number]: Cached to_number computed at startup.
   DECL_ACCESSORS(to_number, Object)
 
-  inline byte kind();
-  inline void set_kind(byte kind);
-
   // Casting.
   static inline Oddball* cast(Object* obj);
 
@@ -5924,23 +5904,12 @@ class Oddball: public HeapObject {
 
   // Initialize the fields.
   MUST_USE_RESULT MaybeObject* Initialize(const char* to_string,
-                                          Object* to_number,
-                                          byte kind);
+                                          Object* to_number);
 
   // Layout description.
   static const int kToStringOffset = HeapObject::kHeaderSize;
   static const int kToNumberOffset = kToStringOffset + kPointerSize;
-  static const int kKindOffset = kToNumberOffset + kPointerSize;
-  static const int kSize = kKindOffset + kPointerSize;
-
-  static const byte kFalse = 0;
-  static const byte kTrue = 1;
-  static const byte kNotBooleanMask = ~1;
-  static const byte kTheHole = 2;
-  static const byte kNull = 3;
-  static const byte kArgumentMarker = 4;
-  static const byte kUndefined = 5;
-  static const byte kOther = 6;
+  static const int kSize = kToNumberOffset + kPointerSize;
 
   typedef FixedBodyDescriptor<kToStringOffset,
                               kToNumberOffset + kPointerSize,

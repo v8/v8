@@ -447,8 +447,6 @@ DEFINE_bool(collect_heap_spill_statistics, false,
             "report heap spill statistics along with heap_stats "
             "(requires heap_stats)")
 
-DEFINE_bool(trace_isolates, false, "trace isolate state changes")
-
 // VM state
 DEFINE_bool(log_state_changes, false, "Log state changes.")
 
