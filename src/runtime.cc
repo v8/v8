@@ -5071,23 +5071,24 @@ static const byte JsonQuoteLengths[kQuoteTableLength] = {
 
 
 template <typename StringType>
-MaybeObject* AllocateRawString(int length);
+MaybeObject* AllocateRawString(Isolate* isolate, int length);
 
 
 template <>
-MaybeObject* AllocateRawString<SeqTwoByteString>(int length) {
-  return HEAP->AllocateRawTwoByteString(length);
+MaybeObject* AllocateRawString<SeqTwoByteString>(Isolate* isolate, int length) {
+  return isolate->heap()->AllocateRawTwoByteString(length);
 }
 
 
 template <>
-MaybeObject* AllocateRawString<SeqAsciiString>(int length) {
-  return HEAP->AllocateRawAsciiString(length);
+MaybeObject* AllocateRawString<SeqAsciiString>(Isolate* isolate, int length) {
+  return isolate->heap()->AllocateRawAsciiString(length);
 }
 
 
 template <typename Char, typename StringType, bool comma>
-static MaybeObject* SlowQuoteJsonString(Vector<const Char> characters) {
+static MaybeObject* SlowQuoteJsonString(Isolate* isolate,
+                                        Vector<const Char> characters) {
   int length = characters.length();
   const Char* read_cursor = characters.start();
   const Char* end = read_cursor + length;
@@ -5101,7 +5102,8 @@ static MaybeObject* SlowQuoteJsonString(Vector<const Char> characters) {
       quoted_length += JsonQuoteLengths[static_cast<unsigned>(c)];
     }
   }
-  MaybeObject* new_alloc = AllocateRawString<StringType>(quoted_length);
+  MaybeObject* new_alloc = AllocateRawString<StringType>(isolate,
+                                                         quoted_length);
   Object* new_object;
   if (!new_alloc->ToObject(&new_object)) {
     return new_alloc;
@@ -5133,29 +5135,31 @@ static MaybeObject* SlowQuoteJsonString(Vector<const Char> characters) {
 
 
 template <typename Char, typename StringType, bool comma>
-static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
+static MaybeObject* QuoteJsonString(Isolate* isolate,
+                                    Vector<const Char> characters) {
   int length = characters.length();
-  COUNTERS->quote_json_char_count()->Increment(length);
+  isolate->counters()->quote_json_char_count()->Increment(length);
   const int kSpaceForQuotes = 2 + (comma ? 1 :0);
   int worst_case_length = length * kJsonQuoteWorstCaseBlowup + kSpaceForQuotes;
   if (worst_case_length > kMaxGuaranteedNewSpaceString) {
-    return SlowQuoteJsonString<Char, StringType, comma>(characters);
+    return SlowQuoteJsonString<Char, StringType, comma>(isolate, characters);
   }
 
-  MaybeObject* new_alloc = AllocateRawString<StringType>(worst_case_length);
+  MaybeObject* new_alloc = AllocateRawString<StringType>(isolate,
+                                                         worst_case_length);
   Object* new_object;
   if (!new_alloc->ToObject(&new_object)) {
     return new_alloc;
   }
-  if (!HEAP->new_space()->Contains(new_object)) {
+  if (!isolate->heap()->new_space()->Contains(new_object)) {
     // Even if our string is small enough to fit in new space we still have to
     // handle it being allocated in old space as may happen in the third
     // attempt.  See CALL_AND_RETRY in heap-inl.h and similar code in
     // CEntryStub::GenerateCore.
-    return SlowQuoteJsonString<Char, StringType, comma>(characters);
+    return SlowQuoteJsonString<Char, StringType, comma>(isolate, characters);
   }
   StringType* new_string = StringType::cast(new_object);
-  ASSERT(HEAP->new_space()->Contains(new_string));
+  ASSERT(isolate->heap()->new_space()->Contains(new_string));
 
   STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
   Char* write_cursor = reinterpret_cast<Char*>(
@@ -5192,8 +5196,8 @@ static MaybeObject* QuoteJsonString(Vector<const Char> characters) {
   int final_length = static_cast<int>(
       write_cursor - reinterpret_cast<Char*>(
           new_string->address() + SeqAsciiString::kHeaderSize));
-  HEAP->new_space()->ShrinkStringAtAllocationBoundary<StringType>(new_string,
-                                                                  final_length);
+  isolate->heap()->new_space()->ShrinkStringAtAllocationBoundary<StringType>(
+      new_string, final_length);
   return new_string;
 }
 
@@ -5212,9 +5216,11 @@ static MaybeObject* Runtime_QuoteJSONString(RUNTIME_CALLING_CONVENTION) {
     ASSERT(str->IsFlat());
   }
   if (str->IsTwoByteRepresentation()) {
-    return QuoteJsonString<uc16, SeqTwoByteString, false>(str->ToUC16Vector());
+    return QuoteJsonString<uc16, SeqTwoByteString, false>(isolate,
+                                                          str->ToUC16Vector());
   } else {
-    return QuoteJsonString<char, SeqAsciiString, false>(str->ToAsciiVector());
+    return QuoteJsonString<char, SeqAsciiString, false>(isolate,
+                                                        str->ToAsciiVector());
   }
 }
 
@@ -5233,9 +5239,11 @@ static MaybeObject* Runtime_QuoteJSONStringComma(RUNTIME_CALLING_CONVENTION) {
     ASSERT(str->IsFlat());
   }
   if (str->IsTwoByteRepresentation()) {
-    return QuoteJsonString<uc16, SeqTwoByteString, true>(str->ToUC16Vector());
+    return QuoteJsonString<uc16, SeqTwoByteString, true>(isolate,
+                                                         str->ToUC16Vector());
   } else {
-    return QuoteJsonString<char, SeqAsciiString, true>(str->ToAsciiVector());
+    return QuoteJsonString<char, SeqAsciiString, true>(isolate,
+                                                       str->ToAsciiVector());
   }
 }
 
