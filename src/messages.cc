@@ -109,23 +109,12 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
 
 void MessageHandler::ReportMessage(MessageLocation* loc,
                                    Handle<Object> message) {
-  // We are calling into embedder's code which can throw exceptions.
-  // Thus we need to save current exception state, reset it to the clean one
-  // and ignore scheduled exceptions callbacks can throw.
-  Top::ExceptionScope exception_scope;
-  Top::clear_pending_exception();
-  Top::set_external_caught_exception(false);
-
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
 
   v8::NeanderArray global_listeners(Factory::message_listeners());
   int global_length = global_listeners.length();
   if (global_length == 0) {
     DefaultMessageReport(loc, message);
-    if (Top::has_scheduled_exception()) {
-      // Consider logging it somehow.
-      Top::clear_scheduled_exception();
-    }
   } else {
     for (int i = 0; i < global_length; i++) {
       HandleScope scope;
@@ -136,10 +125,6 @@ void MessageHandler::ReportMessage(MessageLocation* loc,
           FUNCTION_CAST<v8::MessageCallback>(callback_obj->proxy());
       Handle<Object> callback_data(listener.get(1));
       callback(api_message_obj, v8::Utils::ToLocal(callback_data));
-      if (Top::has_scheduled_exception()) {
-        // Consider logging it somehow.
-        Top::clear_scheduled_exception();
-      }
     }
   }
 }

@@ -195,26 +195,22 @@ class Top {
     ASSERT(has_pending_exception());
     return thread_local_.pending_exception_;
   }
+  static bool external_caught_exception() {
+    return thread_local_.external_caught_exception_;
+  }
   static void set_pending_exception(MaybeObject* exception) {
     thread_local_.pending_exception_ = exception;
   }
   static void clear_pending_exception() {
     thread_local_.pending_exception_ = Heap::the_hole_value();
   }
+
   static MaybeObject** pending_exception_address() {
     return &thread_local_.pending_exception_;
   }
   static bool has_pending_exception() {
     return !thread_local_.pending_exception_->IsTheHole();
   }
-
-  static bool external_caught_exception() {
-    return thread_local_.external_caught_exception_;
-  }
-  static void set_external_caught_exception(bool value) {
-    thread_local_.external_caught_exception_ = value;
-  }
-
   static void clear_pending_message() {
     thread_local_.has_pending_message_ = false;
     thread_local_.pending_message_ = NULL;
@@ -465,25 +461,6 @@ class Top {
   static const char* kStackOverflowMessage;
 
  private:
-
-  static v8::TryCatch* catcher() {
-    return thread_local_.catcher_;
-  }
-
-  static void set_catcher(v8::TryCatch* catcher) {
-    thread_local_.catcher_ = catcher;
-  }
-
-  static void setup_external_caught() {
-    thread_local_.external_caught_exception_ =
-        has_pending_exception() &&
-        (thread_local_.catcher_ != NULL) &&
-        (try_catch_handler() == thread_local_.catcher_);
-  }
-
-  // Attempts to propagate the pending exception to the proper v8::TryCatch.
-  static void PropagatePendingExceptionToExternalTryCatch();
-
 #ifdef ENABLE_VMSTATE_TRACKING
   // Set of states used when communicating with the runtime profiler.
   //
@@ -548,29 +525,6 @@ class Top {
   friend class ThreadLocalTop;
 
   static void FillCache();
-
- public:
-  class ExceptionScope {
-   public:
-    ExceptionScope() :
-      // Scope currently can only be used for regular exceptions, not
-      // failures like OOM or termination exception.
-      pending_exception_(Top::pending_exception()->ToObjectUnchecked()),
-      external_caught_exception_(Top::external_caught_exception()),
-      catcher_(Top::catcher())
-    { }
-
-    ~ExceptionScope() {
-      Top::set_catcher(catcher_);
-      Top::set_external_caught_exception(external_caught_exception_);
-      Top::set_pending_exception(*pending_exception_);
-    }
-
-   private:
-    Handle<Object> pending_exception_;
-    bool external_caught_exception_;
-    v8::TryCatch* catcher_;
-  };
 };
 
 
