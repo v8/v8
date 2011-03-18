@@ -562,7 +562,7 @@ class Top {
 
     ~ExceptionScope() {
       Top::set_catcher(catcher_);
-      Top::set_external_caught_exception(external_caught_exception);
+      Top::set_external_caught_exception(external_caught_exception_);
       Top::set_pending_exception(*pending_exception_);
     }
 
