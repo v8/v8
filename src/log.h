@@ -77,13 +77,15 @@ class LogMessageBuilder;
 
 #undef LOG
 #ifdef ENABLE_LOGGING_AND_PROFILING
-#define LOG(Call)                           \
-  do {                                      \
-    if (v8::internal::Logger::is_logging()) \
-      v8::internal::Logger::Call;           \
+#define LOG(isolate, Call)                          \
+  do {                                              \
+    v8::internal::Logger* logger =                  \
+        (isolate)->logger();                        \
+    if (logger->is_logging())                       \
+      logger->Call;                                 \
   } while (false)
 #else
-#define LOG(Call) ((void) 0)
+#define LOG(isolate, Call) ((void) 0)
 #endif
 
 #define LOG_EVENTS_AND_TAGS_LIST(V) \
@@ -133,6 +135,9 @@ class LogMessageBuilder;
 // original tags when writing to the log.
 
 
+class Sampler;
+
+
 class Logger {
  public:
 #define DECLARE_ENUM(enum_item, ignore) enum_item,
@@ -143,142 +148,147 @@ class Logger {
 #undef DECLARE_ENUM
 
   // Acquires resources for logging if the right flags are set.
-  static bool Setup();
+  bool Setup();
 
-  static void EnsureTickerStarted();
-  static void EnsureTickerStopped();
+  void EnsureTickerStarted();
+  void EnsureTickerStopped();
+
+  Sampler* sampler();
 
   // Frees resources acquired in Setup.
-  static void TearDown();
+  void TearDown();
 
   // Enable the computation of a sliding window of states.
-  static void EnableSlidingStateWindow();
+  void EnableSlidingStateWindow();
 
   // Emits an event with a string value -> (name, value).
-  static void StringEvent(const char* name, const char* value);
+  void StringEvent(const char* name, const char* value);
 
   // Emits an event with an int value -> (name, value).
-  static void IntEvent(const char* name, int value);
-  static void IntPtrTEvent(const char* name, intptr_t value);
+  void IntEvent(const char* name, int value);
+  void IntPtrTEvent(const char* name, intptr_t value);
 
   // Emits an event with an handle value -> (name, location).
-  static void HandleEvent(const char* name, Object** location);
+  void HandleEvent(const char* name, Object** location);
 
   // Emits memory management events for C allocated structures.
-  static void NewEvent(const char* name, void* object, size_t size);
-  static void DeleteEvent(const char* name, void* object);
+  void NewEvent(const char* name, void* object, size_t size);
+  void DeleteEvent(const char* name, void* object);
+
+  // Static versions of the above, operate on current isolate's logger.
+  // Used in TRACK_MEMORY(TypeName) defined in globals.h
+  static void NewEventStatic(const char* name, void* object, size_t size);
+  static void DeleteEventStatic(const char* name, void* object);
 
   // Emits an event with a tag, and some resource usage information.
   // -> (name, tag, <rusage information>).
   // Currently, the resource usage information is a process time stamp
   // and a real time timestamp.
-  static void ResourceEvent(const char* name, const char* tag);
+  void ResourceEvent(const char* name, const char* tag);
 
   // Emits an event that an undefined property was read from an
   // object.
-  static void SuspectReadEvent(String* name, Object* obj);
+  void SuspectReadEvent(String* name, Object* obj);
 
   // Emits an event when a message is put on or read from a debugging queue.
   // DebugTag lets us put a call-site specific label on the event.
-  static void DebugTag(const char* call_site_tag);
-  static void DebugEvent(const char* event_type, Vector<uint16_t> parameter);
+  void DebugTag(const char* call_site_tag);
+  void DebugEvent(const char* event_type, Vector<uint16_t> parameter);
 
 
   // ==== Events logged by --log-api. ====
-  static void ApiNamedSecurityCheck(Object* key);
-  static void ApiIndexedSecurityCheck(uint32_t index);
-  static void ApiNamedPropertyAccess(const char* tag,
-                                     JSObject* holder,
-                                     Object* name);
-  static void ApiIndexedPropertyAccess(const char* tag,
-                                       JSObject* holder,
-                                       uint32_t index);
-  static void ApiObjectAccess(const char* tag, JSObject* obj);
-  static void ApiEntryCall(const char* name);
+  void ApiNamedSecurityCheck(Object* key);
+  void ApiIndexedSecurityCheck(uint32_t index);
+  void ApiNamedPropertyAccess(const char* tag, JSObject* holder, Object* name);
+  void ApiIndexedPropertyAccess(const char* tag,
+                                JSObject* holder,
+                                uint32_t index);
+  void ApiObjectAccess(const char* tag, JSObject* obj);
+  void ApiEntryCall(const char* name);
 
 
   // ==== Events logged by --log-code. ====
   // Emits a code event for a callback function.
-  static void CallbackEvent(String* name, Address entry_point);
-  static void GetterCallbackEvent(String* name, Address entry_point);
-  static void SetterCallbackEvent(String* name, Address entry_point);
+  void CallbackEvent(String* name, Address entry_point);
+  void GetterCallbackEvent(String* name, Address entry_point);
+  void SetterCallbackEvent(String* name, Address entry_point);
   // Emits a code create event.
-  static void CodeCreateEvent(LogEventsAndTags tag,
-                              Code* code, const char* source);
-  static void CodeCreateEvent(LogEventsAndTags tag,
-                              Code* code, String* name);
-  static void CodeCreateEvent(LogEventsAndTags tag,
-                              Code* code,
-                              SharedFunctionInfo* shared,
-                              String* name);
-  static void CodeCreateEvent(LogEventsAndTags tag,
-                              Code* code,
-                              SharedFunctionInfo* shared,
-                              String* source, int line);
-  static void CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count);
-  static void CodeMovingGCEvent();
+  void CodeCreateEvent(LogEventsAndTags tag,
+                       Code* code, const char* source);
+  void CodeCreateEvent(LogEventsAndTags tag,
+                       Code* code, String* name);
+  void CodeCreateEvent(LogEventsAndTags tag,
+                       Code* code,
+                       SharedFunctionInfo* shared,
+                       String* name);
+  void CodeCreateEvent(LogEventsAndTags tag,
+                       Code* code,
+                       SharedFunctionInfo* shared,
+                       String* source, int line);
+  void CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count);
+  void CodeMovingGCEvent();
   // Emits a code create event for a RegExp.
-  static void RegExpCodeCreateEvent(Code* code, String* source);
+  void RegExpCodeCreateEvent(Code* code, String* source);
   // Emits a code move event.
-  static void CodeMoveEvent(Address from, Address to);
+  void CodeMoveEvent(Address from, Address to);
   // Emits a code delete event.
-  static void CodeDeleteEvent(Address from);
+  void CodeDeleteEvent(Address from);
 
-  static void SharedFunctionInfoMoveEvent(Address from, Address to);
+  void SharedFunctionInfoMoveEvent(Address from, Address to);
 
-  static void SnapshotPositionEvent(Address addr, int pos);
+  void SnapshotPositionEvent(Address addr, int pos);
 
   // ==== Events logged by --log-gc. ====
   // Heap sampling events: start, end, and individual types.
-  static void HeapSampleBeginEvent(const char* space, const char* kind);
-  static void HeapSampleEndEvent(const char* space, const char* kind);
-  static void HeapSampleItemEvent(const char* type, int number, int bytes);
-  static void HeapSampleJSConstructorEvent(const char* constructor,
-                                           int number, int bytes);
-  static void HeapSampleJSRetainersEvent(const char* constructor,
+  void HeapSampleBeginEvent(const char* space, const char* kind);
+  void HeapSampleEndEvent(const char* space, const char* kind);
+  void HeapSampleItemEvent(const char* type, int number, int bytes);
+  void HeapSampleJSConstructorEvent(const char* constructor,
+                                    int number, int bytes);
+  void HeapSampleJSRetainersEvent(const char* constructor,
                                          const char* event);
-  static void HeapSampleJSProducerEvent(const char* constructor,
-                                        Address* stack);
-  static void HeapSampleStats(const char* space, const char* kind,
-                              intptr_t capacity, intptr_t used);
+  void HeapSampleJSProducerEvent(const char* constructor,
+                                 Address* stack);
+  void HeapSampleStats(const char* space, const char* kind,
+                       intptr_t capacity, intptr_t used);
 
-  static void SharedLibraryEvent(const char* library_path,
-                                 uintptr_t start,
-                                 uintptr_t end);
-  static void SharedLibraryEvent(const wchar_t* library_path,
-                                 uintptr_t start,
-                                 uintptr_t end);
+  void SharedLibraryEvent(const char* library_path,
+                          uintptr_t start,
+                          uintptr_t end);
+  void SharedLibraryEvent(const wchar_t* library_path,
+                          uintptr_t start,
+                          uintptr_t end);
 
   // ==== Events logged by --log-regexp ====
   // Regexp compilation and execution events.
 
-  static void RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache);
+  void RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache);
 
   // Log an event reported from generated code
-  static void LogRuntime(Vector<const char> format, JSArray* args);
+  void LogRuntime(Vector<const char> format, JSArray* args);
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  static bool is_logging() {
+  bool is_logging() {
     return logging_nesting_ > 0;
   }
 
   // Pause/Resume collection of profiling data.
   // When data collection is paused, CPU Tick events are discarded until
   // data collection is Resumed.
-  static void PauseProfiler(int flags, int tag);
-  static void ResumeProfiler(int flags, int tag);
-  static int GetActiveProfilerModules();
+  void PauseProfiler(int flags, int tag);
+  void ResumeProfiler(int flags, int tag);
+  int GetActiveProfilerModules();
 
   // If logging is performed into a memory buffer, allows to
   // retrieve previously written messages. See v8.h.
-  static int GetLogLines(int from_pos, char* dest_buf, int max_size);
+  int GetLogLines(int from_pos, char* dest_buf, int max_size);
 
   // Logs all compiled functions found in the heap.
-  static void LogCompiledFunctions();
+  void LogCompiledFunctions();
   // Logs all accessor callbacks found in the heap.
-  static void LogAccessorCallbacks();
+  void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.
-  static void LogCodeObjects();
+  void LogCodeObjects();
 
   // Converts tag to a corresponding NATIVE_... if the script is native.
   INLINE(static LogEventsAndTags ToNativeByScript(LogEventsAndTags, Script*));
@@ -286,70 +296,74 @@ class Logger {
   // Profiler's sampling interval (in milliseconds).
   static const int kSamplingIntervalMs = 1;
 
+  // Callback from Log, stops profiling in case of insufficient resources.
+  void LogFailure();
+
  private:
+  Logger();
+  ~Logger();
 
   // Emits the profiler's first message.
-  static void ProfilerBeginEvent();
+  void ProfilerBeginEvent();
 
   // Emits callback event messages.
-  static void CallbackEventInternal(const char* prefix,
-                                    const char* name,
-                                    Address entry_point);
+  void CallbackEventInternal(const char* prefix,
+                             const char* name,
+                             Address entry_point);
 
   // Internal configurable move event.
-  static void MoveEventInternal(LogEventsAndTags event,
-                                Address from,
-                                Address to);
+  void MoveEventInternal(LogEventsAndTags event, Address from, Address to);
 
   // Internal configurable move event.
-  static void DeleteEventInternal(LogEventsAndTags event,
-                                  Address from);
+  void DeleteEventInternal(LogEventsAndTags event, Address from);
 
   // Emits the source code of a regexp. Used by regexp events.
-  static void LogRegExpSource(Handle<JSRegExp> regexp);
+  void LogRegExpSource(Handle<JSRegExp> regexp);
 
   // Used for logging stubs found in the snapshot.
-  static void LogCodeObject(Object* code_object);
+  void LogCodeObject(Object* code_object);
 
   // Emits general information about generated code.
-  static void LogCodeInfo();
+  void LogCodeInfo();
 
   // Handles code creation when low-level profiling is active.
-  static void LowLevelCodeCreateEvent(Code* code, LogMessageBuilder* msg);
+  void LowLevelCodeCreateEvent(Code* code, LogMessageBuilder* msg);
 
   // Emits a profiler tick event. Used by the profiler thread.
-  static void TickEvent(TickSample* sample, bool overflow);
+  void TickEvent(TickSample* sample, bool overflow);
 
-  static void ApiEvent(const char* name, ...);
+  void ApiEvent(const char* name, ...);
 
   // Logs a StringEvent regardless of whether FLAG_log is true.
-  static void UncheckedStringEvent(const char* name, const char* value);
+  void UncheckedStringEvent(const char* name, const char* value);
 
   // Logs an IntEvent regardless of whether FLAG_log is true.
-  static void UncheckedIntEvent(const char* name, int value);
-  static void UncheckedIntPtrTEvent(const char* name, intptr_t value);
-
-  // Stops logging and profiling in case of insufficient resources.
-  static void StopLoggingAndProfiling();
+  void UncheckedIntEvent(const char* name, int value);
+  void UncheckedIntPtrTEvent(const char* name, intptr_t value);
 
   // Returns whether profiler's sampler is active.
-  static bool IsProfilerSamplerActive();
+  bool IsProfilerSamplerActive();
 
   // The sampler used by the profiler and the sliding state window.
-  static Ticker* ticker_;
+  Ticker* ticker_;
 
   // When the statistical profile is active, profiler_
   // points to a Profiler, that handles collection
   // of samples.
-  static Profiler* profiler_;
+  Profiler* profiler_;
 
   // SlidingStateWindow instance keeping a sliding window of the most
   // recent VM states.
-  static SlidingStateWindow* sliding_state_window_;
+  SlidingStateWindow* sliding_state_window_;
+
+  // An array of log events names.
+  const char* const* log_events_;
 
   // Internal implementation classes with access to
   // private members.
   friend class EventLog;
+  friend class Isolate;
+  friend class LogMessageBuilder;
   friend class TimeLog;
   friend class Profiler;
   friend class SlidingStateWindow;
@@ -358,21 +372,72 @@ class Logger {
 
   friend class LoggerTestHelper;
 
-  static int logging_nesting_;
-  static int cpu_profiler_nesting_;
-  static int heap_profiler_nesting_;
+
+  int logging_nesting_;
+  int cpu_profiler_nesting_;
+  int heap_profiler_nesting_;
+
+  Log* log_;
+
+  // Guards against multiple calls to TearDown() that can happen in some tests.
+  // 'true' between Setup() and TearDown().
+  bool is_initialized_;
+
+  // Support for 'incremental addresses' in compressed logs:
+  //  LogMessageBuilder::AppendAddress(Address addr)
+  Address last_address_;
+  //  Logger::TickEvent(...)
+  Address prev_sp_;
+  Address prev_function_;
+  //  Logger::MoveEventInternal(...)
+  Address prev_to_;
+  //  Logger::FunctionCreateEvent(...)
+  Address prev_code_;
 
   friend class CpuProfiler;
 #else
-  static bool is_logging() { return false; }
+  bool is_logging() { return false; }
 #endif
+};
+
+
+// Process wide registry of samplers.
+class SamplerRegistry : public AllStatic {
+ public:
+  enum State {
+    HAS_NO_SAMPLERS,
+    HAS_SAMPLERS,
+    HAS_CPU_PROFILING_SAMPLERS
+  };
+
+  typedef void (*VisitSampler)(Sampler*, void*);
+
+  static State GetState();
+
+  // Iterates over all active samplers keeping the internal lock held.
+  // Returns whether there are any active samplers.
+  static bool IterateActiveSamplers(VisitSampler func, void* param);
+
+  // Adds/Removes an active sampler.
+  static void AddActiveSampler(Sampler* sampler);
+  static void RemoveActiveSampler(Sampler* sampler);
+
+ private:
+  static bool ActiveSamplersExist() {
+    return active_samplers_ != NULL && !active_samplers_->is_empty();
+  }
+
+  static Mutex* mutex_;  // Protects the state below.
+  static List<Sampler*>* active_samplers_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SamplerRegistry);
 };
 
 
 // Class that extracts stack trace, used for profiling.
 class StackTracer : public AllStatic {
  public:
-  static void Trace(TickSample* sample);
+  static void Trace(Isolate* isolate, TickSample* sample);
 };
 
 } }  // namespace v8::internal

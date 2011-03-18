@@ -1424,7 +1424,7 @@ class RegExpEngine: public AllStatic {
   struct CompilationResult {
     explicit CompilationResult(const char* error_message)
         : error_message(error_message),
-          code(Heap::the_hole_value()),
+          code(HEAP->the_hole_value()),
           num_registers(0) {}
     CompilationResult(Object* code, int registers)
       : error_message(NULL),
@@ -1449,14 +1449,14 @@ class OffsetsVector {
  public:
   inline OffsetsVector(int num_registers)
       : offsets_vector_length_(num_registers) {
-    if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
+    if (offsets_vector_length_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
       vector_ = NewArray<int>(offsets_vector_length_);
     } else {
-      vector_ = static_offsets_vector_;
+      vector_ = Isolate::Current()->jsregexp_static_offsets_vector();
     }
   }
   inline ~OffsetsVector() {
-    if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
+    if (offsets_vector_length_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
       DeleteArray(vector_);
       vector_ = NULL;
     }
@@ -1467,13 +1467,12 @@ class OffsetsVector {
   static const int kStaticOffsetsVectorSize = 50;
 
  private:
-  static Address static_offsets_vector_address() {
-    return reinterpret_cast<Address>(&static_offsets_vector_);
+  static Address static_offsets_vector_address(Isolate* isolate) {
+    return reinterpret_cast<Address>(isolate->jsregexp_static_offsets_vector());
   }
 
   int* vector_;
   int offsets_vector_length_;
-  static int static_offsets_vector_[kStaticOffsetsVectorSize];
 
   friend class ExternalReference;
 };

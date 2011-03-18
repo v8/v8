@@ -780,6 +780,7 @@ class CodeGenerator: public AstVisitor {
   int jit_cookie_;
 
   friend class VirtualFrame;
+  friend class Isolate;
   friend class JumpTarget;
   friend class Reference;
   friend class Result;
@@ -789,6 +790,7 @@ class CodeGenerator: public AstVisitor {
   friend class LCodeGen;
 
   friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
+  friend class InlineRuntimeFunctionsTable;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

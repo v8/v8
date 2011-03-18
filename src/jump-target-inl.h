@@ -40,7 +40,7 @@ namespace v8 {
 namespace internal {
 
 CodeGenerator* JumpTarget::cgen() {
-  return CodeGeneratorScope::Current();
+  return CodeGeneratorScope::Current(Isolate::Current());
 }
 
 } }  // namespace v8::internal

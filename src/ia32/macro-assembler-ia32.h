@@ -474,13 +474,13 @@ class MacroAssembler: public Assembler {
   void StubReturn(int argc);
 
   // Call a runtime routine.
-  void CallRuntime(Runtime::Function* f, int num_arguments);
+  void CallRuntime(const Runtime::Function* f, int num_arguments);
   void CallRuntimeSaveDoubles(Runtime::FunctionId id);
 
   // Call a runtime function, returning the CodeStub object called.
   // Try to generate the stub code if necessary.  Do not perform a GC
   // but instead return a retry after GC failure.
-  MUST_USE_RESULT MaybeObject* TryCallRuntime(Runtime::Function* f,
+  MUST_USE_RESULT MaybeObject* TryCallRuntime(const Runtime::Function* f,
                                               int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
@@ -702,7 +702,7 @@ void MacroAssembler::InNewSpace(Register object,
     int32_t new_space_start = reinterpret_cast<int32_t>(
         ExternalReference::new_space_start().address());
     lea(scratch, Operand(object, -new_space_start));
-    and_(scratch, Heap::NewSpaceMask());
+    and_(scratch, HEAP->NewSpaceMask());
     j(cc, branch);
   }
 }

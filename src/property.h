@@ -48,7 +48,7 @@ class Descriptor BASE_EMBEDDED {
   MUST_USE_RESULT MaybeObject* KeyToSymbol() {
     if (!StringShape(key_).IsSymbol()) {
       Object* result;
-      { MaybeObject* maybe_result = Heap::LookupSymbol(key_);
+      { MaybeObject* maybe_result = HEAP->LookupSymbol(key_);
         if (!maybe_result->ToObject(&result)) return maybe_result;
       }
       key_ = String::cast(result);
@@ -305,7 +305,7 @@ class LookupResult BASE_EMBEDDED {
   Object* GetCallbackObject() {
     if (lookup_type_ == CONSTANT_TYPE) {
       // For now we only have the __proto__ as constant type.
-      return Heap::prototype_accessors();
+      return HEAP->prototype_accessors();
     }
     return GetValue();
   }

@@ -25,6 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
+
+/*
+TODO(isolates): I incldue v8.h instead of these because we need Isolate and 
+some classes (NativeAllocationChecker) are moved into isolate.h 
 #include "../include/v8stdint.h"
 #include "unicode.h"
 #include "globals.h"
@@ -32,6 +37,8 @@
 #include "allocation.h"
 #include "utils.h"
 #include "list.h"
+*/
+
 #include "scanner-base.h"
 #include "preparse-data.h"
 #include "preparser.h"

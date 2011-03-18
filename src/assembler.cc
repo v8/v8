@@ -217,7 +217,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
 #ifdef DEBUG
   byte* begin_pos = pos_;
 #endif
-  Counters::reloc_info_count.Increment();
+  COUNTERS->reloc_info_count()->Increment();
   ASSERT(rinfo->pc() - last_pc_ >= 0);
   ASSERT(RelocInfo::NUMBER_OF_MODES <= kMaxRelocModes);
   // Use unsigned delta-encoding for pc.
@@ -526,7 +526,7 @@ void RelocInfo::Verify() {
       ASSERT(addr != NULL);
       // Check that we can find the right code object.
       Code* code = Code::GetCodeFromTargetAddress(addr);
-      Object* found = Heap::FindCodeObject(addr);
+      Object* found = HEAP->FindCodeObject(addr);
       ASSERT(found->IsCode());
       ASSERT(code->address() == HeapObject::cast(found)->address());
       break;
@@ -562,15 +562,20 @@ ExternalReference::ExternalReference(
 
 
 ExternalReference::ExternalReference(Builtins::Name name)
-  : address_(Builtins::builtin_address(name)) {}
+  : address_(Isolate::Current()->builtins()->builtin_address(name)) {}
 
 
 ExternalReference::ExternalReference(Runtime::FunctionId id)
   : address_(Redirect(Runtime::FunctionForId(id)->entry)) {}
 
 
-ExternalReference::ExternalReference(Runtime::Function* f)
+ExternalReference::ExternalReference(const Runtime::Function* f)
   : address_(Redirect(f->entry)) {}
+
+
+ExternalReference ExternalReference::isolate_address() {
+  return ExternalReference(Isolate::Current());
+}
 
 
 ExternalReference::ExternalReference(const IC_Utility& ic_utility)
@@ -578,15 +583,15 @@ ExternalReference::ExternalReference(const IC_Utility& ic_utility)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 ExternalReference::ExternalReference(const Debug_Address& debug_address)
-  : address_(debug_address.address()) {}
+  : address_(debug_address.address(Isolate::Current())) {}
 #endif
 
 ExternalReference::ExternalReference(StatsCounter* counter)
   : address_(reinterpret_cast<Address>(counter->GetInternalPointer())) {}
 
 
-ExternalReference::ExternalReference(Top::AddressId id)
-  : address_(Top::get_address_from_id(id)) {}
+ExternalReference::ExternalReference(Isolate::AddressId id)
+  : address_(Isolate::Current()->get_address_from_id(id)) {}
 
 
 ExternalReference::ExternalReference(const SCTableReference& table_ref)
@@ -616,7 +621,8 @@ ExternalReference ExternalReference::random_uint32_function() {
 
 
 ExternalReference ExternalReference::transcendental_cache_array_address() {
-  return ExternalReference(TranscendentalCache::cache_array_address());
+  return ExternalReference(Isolate::Current()->transcendental_cache()->
+      cache_array_address());
 }
 
 
@@ -633,72 +639,78 @@ ExternalReference ExternalReference::compute_output_frames_function() {
 
 
 ExternalReference ExternalReference::global_contexts_list() {
-  return ExternalReference(Heap::global_contexts_list_address());
+  return ExternalReference(Isolate::Current()->
+      heap()->global_contexts_list_address());
 }
 
 
 ExternalReference ExternalReference::keyed_lookup_cache_keys() {
-  return ExternalReference(KeyedLookupCache::keys_address());
+  return ExternalReference(Isolate::Current()->
+      keyed_lookup_cache()->keys_address());
 }
 
 
 ExternalReference ExternalReference::keyed_lookup_cache_field_offsets() {
-  return ExternalReference(KeyedLookupCache::field_offsets_address());
+  return ExternalReference(Isolate::Current()->
+      keyed_lookup_cache()->field_offsets_address());
 }
 
 
 ExternalReference ExternalReference::the_hole_value_location() {
-  return ExternalReference(Factory::the_hole_value().location());
+  return ExternalReference(FACTORY->the_hole_value().location());
 }
 
 
 ExternalReference ExternalReference::arguments_marker_location() {
-  return ExternalReference(Factory::arguments_marker().location());
+  return ExternalReference(FACTORY->arguments_marker().location());
 }
 
 
 ExternalReference ExternalReference::roots_address() {
-  return ExternalReference(Heap::roots_address());
+  return ExternalReference(HEAP->roots_address());
 }
 
 
 ExternalReference ExternalReference::address_of_stack_limit() {
-  return ExternalReference(StackGuard::address_of_jslimit());
+  return ExternalReference(
+      Isolate::Current()->stack_guard()->address_of_jslimit());
 }
 
 
 ExternalReference ExternalReference::address_of_real_stack_limit() {
-  return ExternalReference(StackGuard::address_of_real_jslimit());
+  return ExternalReference(
+      Isolate::Current()->stack_guard()->address_of_real_jslimit());
 }
 
 
 ExternalReference ExternalReference::address_of_regexp_stack_limit() {
-  return ExternalReference(RegExpStack::limit_address());
+  return ExternalReference(
+      Isolate::Current()->regexp_stack()->limit_address());
 }
 
 
 ExternalReference ExternalReference::new_space_start() {
-  return ExternalReference(Heap::NewSpaceStart());
+  return ExternalReference(HEAP->NewSpaceStart());
 }
 
 
 ExternalReference ExternalReference::new_space_mask() {
-  return ExternalReference(reinterpret_cast<Address>(Heap::NewSpaceMask()));
+  return ExternalReference(reinterpret_cast<Address>(HEAP->NewSpaceMask()));
 }
 
 
 ExternalReference ExternalReference::new_space_allocation_top_address() {
-  return ExternalReference(Heap::NewSpaceAllocationTopAddress());
+  return ExternalReference(HEAP->NewSpaceAllocationTopAddress());
 }
 
 
 ExternalReference ExternalReference::heap_always_allocate_scope_depth() {
-  return ExternalReference(Heap::always_allocate_scope_depth_address());
+  return ExternalReference(HEAP->always_allocate_scope_depth_address());
 }
 
 
 ExternalReference ExternalReference::new_space_allocation_limit_address() {
-  return ExternalReference(Heap::NewSpaceAllocationLimitAddress());
+  return ExternalReference(HEAP->NewSpaceAllocationLimitAddress());
 }
 
 
@@ -718,7 +730,7 @@ ExternalReference ExternalReference::handle_scope_limit_address() {
 
 
 ExternalReference ExternalReference::scheduled_exception_address() {
-  return ExternalReference(Top::scheduled_exception_address());
+  return ExternalReference(Isolate::Current()->scheduled_exception_address());
 }
 
 
@@ -784,15 +796,18 @@ ExternalReference ExternalReference::re_word_character_map() {
 }
 
 ExternalReference ExternalReference::address_of_static_offsets_vector() {
-  return ExternalReference(OffsetsVector::static_offsets_vector_address());
+  return ExternalReference(OffsetsVector::static_offsets_vector_address(
+      Isolate::Current()));
 }
 
 ExternalReference ExternalReference::address_of_regexp_stack_memory_address() {
-  return ExternalReference(RegExpStack::memory_address());
+  return ExternalReference(
+      Isolate::Current()->regexp_stack()->memory_address());
 }
 
 ExternalReference ExternalReference::address_of_regexp_stack_memory_size() {
-  return ExternalReference(RegExpStack::memory_size_address());
+  return ExternalReference(
+      Isolate::Current()->regexp_stack()->memory_size_address());
 }
 
 #endif  // V8_INTERPRETED_REGEXP
@@ -943,10 +958,6 @@ ExternalReference ExternalReference::compare_doubles() {
 }
 
 
-ExternalReference::ExternalReferenceRedirector*
-    ExternalReference::redirector_ = NULL;
-
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
 ExternalReference ExternalReference::debug_break() {
   return ExternalReference(Redirect(FUNCTION_ADDR(Debug::Break)));
@@ -954,7 +965,7 @@ ExternalReference ExternalReference::debug_break() {
 
 
 ExternalReference ExternalReference::debug_step_in_fp_address() {
-  return ExternalReference(Debug::step_in_fp_addr());
+  return ExternalReference(Isolate::Current()->debug()->step_in_fp_addr());
 }
 #endif
 

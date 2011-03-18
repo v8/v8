@@ -39,6 +39,7 @@ enum ZoneScopeMode {
   DONT_DELETE_ON_EXIT
 };
 
+class Segment;
 
 // The Zone supports very fast allocation of small chunks of
 // memory. The chunks cannot be deallocated individually, but instead
@@ -57,23 +58,25 @@ class Zone {
  public:
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
   // allocating new segments of memory on demand using malloc().
-  static inline void* New(int size);
+  inline void* New(int size);
 
   template <typename T>
-  static inline T* NewArray(int length);
+  inline T* NewArray(int length);
 
   // Delete all objects and free all memory allocated in the Zone.
-  static void DeleteAll();
+  void DeleteAll();
 
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
-  static inline bool excess_allocation();
+  inline bool excess_allocation();
 
-  static inline void adjust_segment_bytes_allocated(int delta);
+  inline void adjust_segment_bytes_allocated(int delta);
 
   static unsigned allocation_size_;
 
  private:
+  friend class Isolate;
+  friend class ZoneScope;
 
   // All pointers returned from New() have this alignment.
   static const int kAlignment = kPointerSize;
@@ -88,30 +91,39 @@ class Zone {
   static const int kMaximumKeptSegmentSize = 64 * KB;
 
   // Report zone excess when allocation exceeds this limit.
-  static int zone_excess_limit_;
+  int zone_excess_limit_;
 
   // The number of bytes allocated in segments.  Note that this number
   // includes memory allocated from the OS but not yet allocated from
   // the zone.
-  static int segment_bytes_allocated_;
+  int segment_bytes_allocated_;
 
-  // The Zone is intentionally a singleton; you should not try to
-  // allocate instances of the class.
-  Zone() { UNREACHABLE(); }
-
+  // Each isolate gets its own zone.
+  Zone();
 
   // Expand the Zone to hold at least 'size' more bytes and allocate
   // the bytes. Returns the address of the newly allocated chunk of
   // memory in the Zone. Should only be called if there isn't enough
   // room in the Zone already.
-  static Address NewExpand(int size);
+  Address NewExpand(int size);
 
+  // Creates a new segment, sets it size, and pushes it to the front
+  // of the segment chain. Returns the new segment.
+  Segment* NewSegment(int size);
+
+  // Deletes the given segment. Does not touch the segment chain.
+  void DeleteSegment(Segment* segment, int size);
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
   // is guaranteed to be aligned as dictated by kAlignment.
-  static Address position_;
-  static Address limit_;
+  Address position_;
+  Address limit_;
+
+  int scope_nesting_;
+
+  Segment* segment_head_;
+  Isolate* isolate_;
 };
 
 
@@ -120,7 +132,7 @@ class Zone {
 class ZoneObject {
  public:
   // Allocate a new ZoneObject of 'size' bytes in the Zone.
-  void* operator new(size_t size) { return Zone::New(static_cast<int>(size)); }
+  inline void* operator new(size_t size);
 
   // Ideally, the delete operator should be private instead of
   // public, but unfortunately the compiler sometimes synthesizes
@@ -136,14 +148,10 @@ class ZoneObject {
 
 class AssertNoZoneAllocation {
  public:
-  AssertNoZoneAllocation() : prev_(allow_allocation_) {
-    allow_allocation_ = false;
-  }
-  ~AssertNoZoneAllocation() { allow_allocation_ = prev_; }
-  static bool allow_allocation() { return allow_allocation_; }
+  inline AssertNoZoneAllocation();
+  inline ~AssertNoZoneAllocation();
  private:
   bool prev_;
-  static bool allow_allocation_;
 };
 
 
@@ -153,7 +161,7 @@ class AssertNoZoneAllocation {
 class ZoneListAllocationPolicy {
  public:
   // Allocate 'size' bytes of memory in the zone.
-  static void* New(int size) {  return Zone::New(size); }
+  static inline void* New(int size);
 
   // De-allocation attempts are silently ignored.
   static void Delete(void* p) { }
@@ -189,18 +197,12 @@ typedef ZoneList<Handle<Map> > ZoneMapList;
 // outer-most scope.
 class ZoneScope BASE_EMBEDDED {
  public:
-  explicit ZoneScope(ZoneScopeMode mode) : mode_(mode) {
-    nesting_++;
-  }
+  // TODO(isolates): pass isolate pointer here.
+  inline explicit ZoneScope(ZoneScopeMode mode);
 
-  virtual ~ZoneScope() {
-    if (ShouldDeleteOnExit()) Zone::DeleteAll();
-    --nesting_;
-  }
+  virtual ~ZoneScope();
 
-  bool ShouldDeleteOnExit() {
-    return nesting_ == 1 && mode_ == DELETE_ON_EXIT;
-  }
+  inline bool ShouldDeleteOnExit();
 
   // For ZoneScopes that do not delete on exit by default, call this
   // method to request deletion on exit.
@@ -208,11 +210,11 @@ class ZoneScope BASE_EMBEDDED {
     mode_ = DELETE_ON_EXIT;
   }
 
-  static int nesting() { return nesting_; }
+  inline static int nesting();
 
  private:
+  Isolate* isolate_;
   ZoneScopeMode mode_;
-  static int nesting_;
 };
 
 

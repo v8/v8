@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "isolate.h"
 #include "bootstrapper.h"
 #include "debug.h"
 #include "deoptimizer.h"
@@ -36,8 +37,6 @@
 #include "log.h"
 #include "runtime-profiler.h"
 #include "serialize.h"
-#include "simulator.h"
-#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -50,9 +49,24 @@ bool V8::use_crankshaft_ = true;
 
 
 bool V8::Initialize(Deserializer* des) {
-  bool create_heap_objects = des == NULL;
-  if (has_been_disposed_ || has_fatal_error_) return false;
-  if (IsRunning()) return true;
+  // The current thread may not yet had entered an isolate to run.
+  // Note the Isolate::Current() may be non-null because for various
+  // initialization purposes an initializing thread may be assigned an isolate
+  // but not actually enter it.
+  if (i::Isolate::CurrentPerIsolateThreadData() == NULL) {
+    i::Isolate::EnterDefaultIsolate();
+  }
+
+  ASSERT(i::Isolate::CurrentPerIsolateThreadData() != NULL);
+  ASSERT(i::Isolate::CurrentPerIsolateThreadData()->thread_id() ==
+         i::Thread::GetThreadLocalInt(i::Isolate::thread_id_key()));
+  ASSERT(i::Isolate::CurrentPerIsolateThreadData()->isolate() ==
+         i::Isolate::Current());
+
+  if (IsDead()) return false;
+
+  Isolate* isolate = Isolate::Current();
+  if (isolate->IsInitialized()) return true;
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(USE_ARM_EABI)
   use_crankshaft_ = false;
@@ -62,90 +76,13 @@ bool V8::Initialize(Deserializer* des) {
 
   // Peephole optimization might interfere with deoptimization.
   FLAG_peephole_optimization = !use_crankshaft_;
+
   is_running_ = true;
   has_been_setup_ = true;
   has_fatal_error_ = false;
   has_been_disposed_ = false;
-#ifdef DEBUG
-  // The initialization process does not handle memory exhaustion.
-  DisallowAllocationFailure disallow_allocation_failure;
-#endif
 
-  // Enable logging before setting up the heap
-  Logger::Setup();
-
-  CpuProfiler::Setup();
-  HeapProfiler::Setup();
-
-  // Setup the platform OS support.
-  OS::Setup();
-
-  // Initialize other runtime facilities
-#if defined(USE_SIMULATOR)
-#if defined(V8_TARGET_ARCH_ARM)
-  Simulator::Initialize();
-#elif defined(V8_TARGET_ARCH_MIPS)
-  ::assembler::mips::Simulator::Initialize();
-#endif
-#endif
-
-  { // NOLINT
-    // Ensure that the thread has a valid stack guard.  The v8::Locker object
-    // will ensure this too, but we don't have to use lockers if we are only
-    // using one thread.
-    ExecutionAccess lock;
-    StackGuard::InitThread(lock);
-  }
-
-  // Setup the object heap
-  ASSERT(!Heap::HasBeenSetup());
-  if (!Heap::Setup(create_heap_objects)) {
-    SetFatalError();
-    return false;
-  }
-
-  Bootstrapper::Initialize(create_heap_objects);
-  Builtins::Setup(create_heap_objects);
-  Top::Initialize();
-
-  if (FLAG_preemption) {
-    v8::Locker locker;
-    v8::Locker::StartPreemption(100);
-  }
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  Debug::Setup(create_heap_objects);
-#endif
-  StubCache::Initialize(create_heap_objects);
-
-  // If we are deserializing, read the state into the now-empty heap.
-  if (des != NULL) {
-    des->Deserialize();
-    StubCache::Clear();
-  }
-
-  // Deserializing may put strange things in the root array's copy of the
-  // stack guard.
-  Heap::SetStackLimits();
-
-  // Setup the CPU support. Must be done after heap setup and after
-  // any deserialization because we have to have the initial heap
-  // objects in place for creating the code object used for probing.
-  CPU::Setup();
-
-  Deoptimizer::Setup();
-  LAllocator::Setup();
-  RuntimeProfiler::Setup();
-
-  // If we are deserializing, log non-function code objects and compiled
-  // functions found in the snapshot.
-  if (des != NULL && FLAG_log_code) {
-    HandleScope scope;
-    LOG(LogCodeObjects());
-    LOG(LogCompiledFunctions());
-  }
-
-  return true;
+  return isolate->Init(des);
 }
 
 
@@ -156,31 +93,11 @@ void V8::SetFatalError() {
 
 
 void V8::TearDown() {
+  Isolate* isolate = Isolate::Current();
+  ASSERT(isolate->IsDefaultIsolate());
+
   if (!has_been_setup_ || has_been_disposed_) return;
-
-  if (FLAG_hydrogen_stats) HStatistics::Instance()->Print();
-
-  // We must stop the logger before we tear down other components.
-  Logger::EnsureTickerStopped();
-
-  Deoptimizer::TearDown();
-
-  if (FLAG_preemption) {
-    v8::Locker locker;
-    v8::Locker::StopPreemption();
-  }
-
-  Builtins::TearDown();
-  Bootstrapper::TearDown();
-
-  Top::TearDown();
-
-  HeapProfiler::TearDown();
-  CpuProfiler::TearDown();
-  RuntimeProfiler::TearDown();
-
-  Logger::TearDown();
-  Heap::TearDown();
+  isolate->TearDown();
 
   is_running_ = false;
   has_been_disposed_ = true;
@@ -218,7 +135,9 @@ static uint32_t random_base(random_state *state) {
 
 
 // Used by JavaScript APIs
-uint32_t V8::Random() {
+uint32_t V8::Random(Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
+  // TODO(isolates): move lo and hi to isolate
   static random_state state = {0, 0};
   return random_base(&state);
 }
@@ -227,7 +146,9 @@ uint32_t V8::Random() {
 // Used internally by the JIT and memory allocator for security
 // purposes. So, we keep a different state to prevent informations
 // leaks that could be used in an exploit.
-uint32_t V8::RandomPrivate() {
+uint32_t V8::RandomPrivate(Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
+  // TODO(isolates): move lo and hi to isolate
   static random_state state = {0, 0};
   return random_base(&state);
 }
@@ -239,7 +160,7 @@ bool V8::IdleNotification() {
   if (!FLAG_use_idle_notification) return true;
 
   // Tell the heap that it may want to adjust.
-  return Heap::IdleNotification();
+  return HEAP->IdleNotification();
 }
 
 
@@ -251,7 +172,7 @@ typedef union {
 
 
 Object* V8::FillHeapNumberWithRandom(Object* heap_number) {
-  uint64_t random_bits = Random();
+  uint64_t random_bits = Random(Isolate::Current());
   // Make a double* from address (heap_number + sizeof(double)).
   double_int_union* r = reinterpret_cast<double_int_union*>(
       reinterpret_cast<char*>(heap_number) +

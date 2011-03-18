@@ -56,6 +56,7 @@ namespace internal {
  *
  * Each call to a public method should retain this convention.
  * The stack will have the following structure:
+ *       - Isolate* isolate     (Address of the current isolate)
  *       - direct_call          (if 1, direct call from JavaScript code, if 0
  *                               call through the runtime system)
  *       - stack_area_base      (High end of the memory area to use as
@@ -866,10 +867,12 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(&code_desc);
-  Handle<Code> code = Factory::NewCode(code_desc,
-                                       Code::ComputeFlags(Code::REGEXP),
-                                       masm_->CodeObject());
-  PROFILE(RegExpCodeCreateEvent(*code, *source));
+  Isolate* isolate = ISOLATE;
+  Handle<Code> code =
+      isolate->factory()->NewCode(code_desc,
+                                  Code::ComputeFlags(Code::REGEXP),
+                                  masm_->CodeObject());
+  PROFILE(isolate, RegExpCodeCreateEvent(*code, *source));
   return Handle<Object>::cast(code);
 }
 
@@ -1039,8 +1042,10 @@ static T& frame_entry(Address re_frame, int frame_offset) {
 int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
                                                    Code* re_code,
                                                    Address re_frame) {
-  if (StackGuard::IsStackOverflow()) {
-    Top::StackOverflow();
+  Isolate* isolate = frame_entry<Isolate*>(re_frame, kIsolate);
+  ASSERT(isolate == Isolate::Current());
+  if (isolate->stack_guard()->IsStackOverflow()) {
+    isolate->StackOverflow();
     return EXCEPTION;
   }
 

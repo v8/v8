@@ -888,7 +888,7 @@ class MacroAssembler: public Assembler {
   void StubReturn(int argc);
 
   // Call a runtime routine.
-  void CallRuntime(Runtime::Function* f, int num_arguments);
+  void CallRuntime(const Runtime::Function* f, int num_arguments);
 
   // Call a runtime function and save the value of XMM registers.
   void CallRuntimeSaveDoubles(Runtime::FunctionId id);
@@ -896,7 +896,7 @@ class MacroAssembler: public Assembler {
   // Call a runtime function, returning the CodeStub object called.
   // Try to generate the stub code if necessary.  Do not perform a GC
   // but instead return a retry after GC failure.
-  MUST_USE_RESULT MaybeObject* TryCallRuntime(Runtime::Function* f,
+  MUST_USE_RESULT MaybeObject* TryCallRuntime(const Runtime::Function* f,
                                               int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
@@ -1807,16 +1807,16 @@ void MacroAssembler::InNewSpace(Register object,
     cmpq(scratch, kScratchRegister);
     j(cc, branch);
   } else {
-    ASSERT(is_int32(static_cast<int64_t>(Heap::NewSpaceMask())));
+    ASSERT(is_int32(static_cast<int64_t>(HEAP->NewSpaceMask())));
     intptr_t new_space_start =
-        reinterpret_cast<intptr_t>(Heap::NewSpaceStart());
+        reinterpret_cast<intptr_t>(HEAP->NewSpaceStart());
     movq(kScratchRegister, -new_space_start, RelocInfo::NONE);
     if (scratch.is(object)) {
       addq(scratch, kScratchRegister);
     } else {
       lea(scratch, Operand(object, kScratchRegister, times_1, 0));
     }
-    and_(scratch, Immediate(static_cast<int32_t>(Heap::NewSpaceMask())));
+    and_(scratch, Immediate(static_cast<int32_t>(HEAP->NewSpaceMask())));
     j(cc, branch);
   }
 }
@@ -1870,7 +1870,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 
   if (!definitely_matches) {
     Handle<Code> adaptor =
-        Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
+        Handle<Code>(Isolate::Current()->builtins()->builtin(
+            Builtins::ArgumentsAdaptorTrampoline));
     if (!code_constant.is_null()) {
       movq(rdx, code_constant, RelocInfo::EMBEDDED_OBJECT);
       addq(rdx, Immediate(Code::kHeaderSize - kHeapObjectTag));

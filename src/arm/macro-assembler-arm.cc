@@ -43,7 +43,7 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       generating_stub_(false),
       allow_stub_calls_(true),
-      code_object_(Heap::undefined_value()) {
+      code_object_(HEAP->undefined_value()) {
 }
 
 
@@ -292,7 +292,7 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
 
   } else if (!src2.is_single_instruction() &&
              !src2.must_use_constant_pool() &&
-             CpuFeatures::IsSupported(ARMv7) &&
+             Isolate::Current()->cpu_features()->IsSupported(ARMv7) &&
              IsPowerOf2(src2.immediate() + 1)) {
     ubfx(dst, src1, 0, WhichPowerOf2(src2.immediate() + 1), cond);
 
@@ -305,7 +305,7 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
 void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width,
                           Condition cond) {
   ASSERT(lsb < 32);
-  if (!CpuFeatures::IsSupported(ARMv7)) {
+  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
     and_(dst, src1, Operand(mask), LeaveCC, cond);
     if (lsb != 0) {
@@ -320,7 +320,7 @@ void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width,
 void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width,
                           Condition cond) {
   ASSERT(lsb < 32);
-  if (!CpuFeatures::IsSupported(ARMv7)) {
+  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
     and_(dst, src1, Operand(mask), LeaveCC, cond);
     int shift_up = 32 - lsb - width;
@@ -348,7 +348,7 @@ void MacroAssembler::Bfi(Register dst,
   ASSERT(lsb + width < 32);
   ASSERT(!scratch.is(dst));
   if (width == 0) return;
-  if (!CpuFeatures::IsSupported(ARMv7)) {
+  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
     bic(dst, dst, Operand(mask));
     and_(scratch, src, Operand((1 << width) - 1));
@@ -362,7 +362,7 @@ void MacroAssembler::Bfi(Register dst,
 
 void MacroAssembler::Bfc(Register dst, int lsb, int width, Condition cond) {
   ASSERT(lsb < 32);
-  if (!CpuFeatures::IsSupported(ARMv7)) {
+  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
     bic(dst, dst, Operand(mask));
   } else {
@@ -373,7 +373,7 @@ void MacroAssembler::Bfc(Register dst, int lsb, int width, Condition cond) {
 
 void MacroAssembler::Usat(Register dst, int satpos, const Operand& src,
                           Condition cond) {
-  if (!CpuFeatures::IsSupported(ARMv7)) {
+  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
     ASSERT(!dst.is(pc) && !src.rm().is(pc));
     ASSERT((satpos >= 0) && (satpos <= 31));
 
@@ -619,7 +619,7 @@ void MacroAssembler::Ldrd(Register dst1, Register dst2,
   ASSERT_EQ(dst1.code() + 1, dst2.code());
 
   // Generate two ldr instructions if ldrd is not available.
-  if (CpuFeatures::IsSupported(ARMv7)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
     CpuFeatures::Scope scope(ARMv7);
     ldrd(dst1, dst2, src, cond);
   } else {
@@ -644,7 +644,7 @@ void MacroAssembler::Strd(Register src1, Register src2,
   ASSERT_EQ(src1.code() + 1, src2.code());
 
   // Generate two str instructions if strd is not available.
-  if (CpuFeatures::IsSupported(ARMv7)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
     CpuFeatures::Scope scope(ARMv7);
     strd(src1, src2, dst, cond);
   } else {
@@ -739,9 +739,9 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   str(ip, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
-  mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  mov(ip, Operand(ExternalReference(Isolate::k_c_entry_fp_address)));
   str(fp, MemOperand(ip));
-  mov(ip, Operand(ExternalReference(Top::k_context_address)));
+  mov(ip, Operand(ExternalReference(Isolate::k_context_address)));
   str(cp, MemOperand(ip));
 
   // Optionally save all double registers.
@@ -817,11 +817,11 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
 
   // Clear top frame.
   mov(r3, Operand(0, RelocInfo::NONE));
-  mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  mov(ip, Operand(ExternalReference(Isolate::k_c_entry_fp_address)));
   str(r3, MemOperand(ip));
 
   // Restore current context from top and clear it in debug mode.
-  mov(ip, Operand(ExternalReference(Top::k_context_address)));
+  mov(ip, Operand(ExternalReference(Isolate::k_context_address)));
   ldr(cp, MemOperand(ip));
 #ifdef DEBUG
   str(r3, MemOperand(ip));
@@ -903,7 +903,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     }
 
     Handle<Code> adaptor =
-        Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
+        Handle<Code>(Isolate::Current()->builtins()->builtin(
+            Builtins::ArgumentsAdaptorTrampoline));
     if (flag == CALL_FUNCTION) {
       if (call_wrapper != NULL) {
         call_wrapper->BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
@@ -1070,7 +1071,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
            && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
     stm(db_w, sp, r3.bit() | fp.bit() | lr.bit());
     // Save the current handler as the next handler.
-    mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+    mov(r3, Operand(ExternalReference(Isolate::k_handler_address)));
     ldr(r1, MemOperand(r3));
     ASSERT(StackHandlerConstants::kNextOffset == 0);
     push(r1);
@@ -1089,7 +1090,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
            && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
     stm(db_w, sp, r6.bit() | ip.bit() | lr.bit());
     // Save the current handler as the next handler.
-    mov(r7, Operand(ExternalReference(Top::k_handler_address)));
+    mov(r7, Operand(ExternalReference(Isolate::k_handler_address)));
     ldr(r6, MemOperand(r7));
     ASSERT(StackHandlerConstants::kNextOffset == 0);
     push(r6);
@@ -1102,7 +1103,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 void MacroAssembler::PopTryHandler() {
   ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
   pop(r1);
-  mov(ip, Operand(ExternalReference(Top::k_handler_address)));
+  mov(ip, Operand(ExternalReference(Isolate::k_handler_address)));
   add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
   str(r1, MemOperand(ip));
 }
@@ -1118,7 +1119,7 @@ void MacroAssembler::Throw(Register value) {
   STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
 
   // Drop the sp to the top of the handler.
-  mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+  mov(r3, Operand(ExternalReference(Isolate::k_handler_address)));
   ldr(sp, MemOperand(r3));
 
   // Restore the next handler and frame pointer, discard handler state.
@@ -1157,7 +1158,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   }
 
   // Drop sp to the top stack handler.
-  mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+  mov(r3, Operand(ExternalReference(Isolate::k_handler_address)));
   ldr(sp, MemOperand(r3));
 
   // Unwind the handlers until the ENTRY handler is found.
@@ -1181,7 +1182,8 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
 
   if (type == OUT_OF_MEMORY) {
     // Set external caught exception to false.
-    ExternalReference external_caught(Top::k_external_caught_exception_address);
+    ExternalReference external_caught(
+        Isolate::k_external_caught_exception_address);
     mov(r0, Operand(false, RelocInfo::NONE));
     mov(r2, Operand(external_caught));
     str(r0, MemOperand(r2));
@@ -1189,7 +1191,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
     // Set pending exception and r0 to out of memory exception.
     Failure* out_of_memory = Failure::OutOfMemoryException();
     mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
-    mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
+    mov(r2, Operand(ExternalReference(Isolate::k_pending_exception_address)));
     str(r0, MemOperand(r2));
   }
 
@@ -1896,7 +1898,7 @@ void MacroAssembler::ConvertToInt32(Register source,
                                     Register scratch2,
                                     DwVfpRegister double_scratch,
                                     Label *not_int32) {
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     sub(scratch, source, Operand(kHeapObjectTag));
     vldr(double_scratch, scratch, HeapNumber::kValueOffset);
@@ -1992,7 +1994,7 @@ void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
                                      Register scratch1,
                                      Register scratch2,
                                      CheckForInexactConversion check_inexact) {
-  ASSERT(CpuFeatures::IsSupported(VFP3));
+  ASSERT(Isolate::Current()->cpu_features()->IsSupported(VFP3));
   CpuFeatures::Scope scope(VFP3);
   Register prev_fpscr = scratch1;
   Register scratch = scratch2;
@@ -2150,7 +2152,7 @@ void MacroAssembler::EmitECMATruncate(Register result,
 void MacroAssembler::GetLeastBitsFromSmi(Register dst,
                                          Register src,
                                          int num_least_bits) {
-  if (CpuFeatures::IsSupported(ARMv7)) {
+  if (Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
     ubfx(dst, src, kSmiTagSize, num_least_bits);
   } else {
     mov(dst, Operand(src, ASR, kSmiTagSize));
@@ -2166,7 +2168,8 @@ void MacroAssembler::GetLeastBitsFromInt32(Register dst,
 }
 
 
-void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f,
+                                 int num_arguments) {
   // All parameters are on the stack.  r0 has the return value after call.
 
   // If the expected number of arguments of the runtime function is
@@ -2194,7 +2197,7 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
 
 
 void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
-  Runtime::Function* function = Runtime::FunctionForId(id);
+  const Runtime::Function* function = Runtime::FunctionForId(id);
   mov(r0, Operand(function->nargs));
   mov(r1, Operand(ExternalReference(function)));
   CEntryStub stub(1);
@@ -2771,11 +2774,17 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
   b(ne, failure);
 }
 
+static const int kRegisterPassedArguments = 4;
 
 void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
   int frame_alignment = ActivationFrameAlignment();
+
+  // Reserve space for Isolate address which is always passed as last parameter
+  num_arguments += 1;
+
   // Up to four simple arguments are passed in registers r0..r3.
-  int stack_passed_arguments = (num_arguments <= 4) ? 0 : num_arguments - 4;
+  int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
+                               0 : num_arguments - kRegisterPassedArguments;
   if (frame_alignment > kPointerSize) {
     // Make stack end at alignment and make room for num_arguments - 4 words
     // and the original value of sp.
@@ -2792,12 +2801,36 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
 
 void MacroAssembler::CallCFunction(ExternalReference function,
                                    int num_arguments) {
-  mov(ip, Operand(function));
-  CallCFunction(ip, num_arguments);
+  CallCFunctionHelper(no_reg, function, ip, num_arguments);
+}
+
+void MacroAssembler::CallCFunction(Register function,
+                                   Register scratch,
+                                   int num_arguments) {
+  CallCFunctionHelper(function,
+                      ExternalReference::the_hole_value_location(),
+                      scratch,
+                      num_arguments);
 }
 
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments) {
+void MacroAssembler::CallCFunctionHelper(Register function,
+                                         ExternalReference function_reference,
+                                         Register scratch,
+                                         int num_arguments) {
+  // Push Isolate address as the last argument.
+  if (num_arguments < kRegisterPassedArguments) {
+    Register arg_to_reg[] = {r0, r1, r2, r3};
+    Register r = arg_to_reg[num_arguments];
+    mov(r, Operand(ExternalReference::isolate_address()));
+  } else {
+    int stack_passed_arguments = num_arguments - kRegisterPassedArguments;
+    // Push Isolate address on the stack after the arguments.
+    mov(scratch, Operand(ExternalReference::isolate_address()));
+    str(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
+  }
+  num_arguments += 1;
+
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
@@ -2821,8 +2854,13 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
+  if (function.is(no_reg)) {
+    mov(scratch, Operand(function_reference));
+    function = scratch;
+  }
   Call(function);
-  int stack_passed_arguments = (num_arguments <= 4) ? 0 : num_arguments - 4;
+  int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
+                               0 : num_arguments - kRegisterPassedArguments;
   if (OS::ActivationFrameAlignment() > kPointerSize) {
     ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {

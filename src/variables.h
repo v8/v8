@@ -165,7 +165,7 @@ class Variable: public ZoneObject {
 
   // True if the variable is named eval and not known to be shadowed.
   bool is_possibly_eval() const {
-    return IsVariable(Factory::eval_symbol()) &&
+    return IsVariable(FACTORY->eval_symbol()) &&
         (mode_ == DYNAMIC || mode_ == DYNAMIC_GLOBAL);
   }
 

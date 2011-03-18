@@ -1043,7 +1043,7 @@ HConstant* HConstant::CopyToRepresentation(Representation r) const {
 HConstant* HConstant::CopyToTruncatedInt32() const {
   if (!has_double_value_) return NULL;
   int32_t truncated = NumberToInt32(*handle_);
-  return new HConstant(Factory::NewNumberFromInt(truncated),
+  return new HConstant(FACTORY->NewNumberFromInt(truncated),
                        Representation::Integer32());
 }
 
@@ -1054,7 +1054,7 @@ void HConstant::PrintDataTo(StringStream* stream) {
 
 
 bool HArrayLiteral::IsCopyOnWrite() const {
-  return constant_elements()->map() == Heap::fixed_cow_array_map();
+  return constant_elements()->map() == HEAP->fixed_cow_array_map();
 }
 
 

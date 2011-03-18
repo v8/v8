@@ -268,8 +268,7 @@ class Context: public FixedArray {
 
   GlobalObject* global() {
     Object* result = get(GLOBAL_INDEX);
-    ASSERT(Heap::gc_state() != Heap::NOT_IN_GC ||
-           IsBootstrappingOrGlobalObject(result));
+    ASSERT(IsBootstrappingOrGlobalObject(result));
     return reinterpret_cast<GlobalObject*>(result);
   }
   void set_global(GlobalObject* global) { set(GLOBAL_INDEX, global); }
@@ -288,14 +287,10 @@ class Context: public FixedArray {
   bool is_function_context() { return unchecked_previous() == NULL; }
 
   // Tells whether the global context is marked with out of memory.
-  bool has_out_of_memory() {
-    return global_context()->out_of_memory() == Heap::true_value();
-  }
+  inline bool has_out_of_memory();
 
   // Mark the global context with out of memory.
-  void mark_out_of_memory() {
-    global_context()->set_out_of_memory(Heap::true_value());
-  }
+  inline void mark_out_of_memory();
 
   // The exception holder is the object used as a with object in
   // the implementation of a catch block.
