@@ -3340,6 +3340,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   ZoneList<ObjectLiteral::Property*>* properties =
       new ZoneList<ObjectLiteral::Property*>(4);
   int number_of_boilerplate_properties = 0;
+  bool has_function = false;
 
   ObjectLiteralPropertyChecker checker(this, top_scope_->is_strict_mode());
 
@@ -3428,6 +3429,13 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
     ObjectLiteral::Property* property =
         new ObjectLiteral::Property(key, value);
 
+    // Mark object literals that contain function literals and pretenure the
+    // literal so it can be added as a constant function property.
+    if (value->AsFunctionLiteral() != NULL) {
+      has_function = true;
+      value->AsFunctionLiteral()->set_pretenure(true);
+    }
+
     // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
     if (IsBoilerplateProperty(property)) number_of_boilerplate_properties++;
     // Validate the property
@@ -3463,7 +3471,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
                            literal_index,
                            is_simple,
                            fast_elements,
-                           depth);
+                           depth,
+                           has_function);
 }
 
 

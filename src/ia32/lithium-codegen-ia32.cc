@@ -3676,7 +3676,13 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
   __ push(FieldOperand(eax, JSFunction::kLiteralsOffset));
   __ push(Immediate(Smi::FromInt(instr->hydrogen()->literal_index())));
   __ push(Immediate(instr->hydrogen()->constant_properties()));
-  __ push(Immediate(Smi::FromInt(instr->hydrogen()->fast_elements() ? 1 : 0)));
+  int flags = instr->hydrogen()->fast_elements()
+      ? ObjectLiteral::kFastElements
+      : ObjectLiteral::kNoFlags;
+  flags |= instr->hydrogen()->has_function()
+      ? ObjectLiteral::kHasFunction
+      : ObjectLiteral::kNoFlags;
+  __ push(Immediate(Smi::FromInt(flags)));
 
   // Pick the right runtime function to call.
   if (instr->hydrogen()->depth() > 1) {
@@ -3684,6 +3690,13 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
   } else {
     CallRuntime(Runtime::kCreateObjectLiteralShallow, 4, instr);
   }
+}
+
+
+void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
+  ASSERT(ToRegister(instr->InputAt(0)).is(eax));
+  __ push(eax);
+  CallRuntime(Runtime::kToFastProperties, 1, instr);
 }
 
 

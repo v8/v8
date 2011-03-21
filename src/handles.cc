@@ -958,34 +958,4 @@ bool CompileOptimized(Handle<JSFunction> function,
   return CompileLazyHelper(&info, flag);
 }
 
-
-OptimizedObjectForAddingMultipleProperties::
-OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
-                                           int expected_additional_properties,
-                                           bool condition) {
-  object_ = object;
-  if (condition && object_->HasFastProperties() && !object->IsJSGlobalProxy()) {
-    // Normalize the properties of object to avoid n^2 behavior
-    // when extending the object multiple properties. Indicate the number of
-    // properties to be added.
-    unused_property_fields_ = object->map()->unused_property_fields();
-    NormalizeProperties(object_,
-                        KEEP_INOBJECT_PROPERTIES,
-                        expected_additional_properties);
-    has_been_transformed_ = true;
-
-  } else {
-    has_been_transformed_ = false;
-  }
-}
-
-
-OptimizedObjectForAddingMultipleProperties::
-~OptimizedObjectForAddingMultipleProperties() {
-  // Reoptimize the object to allow fast property access.
-  if (has_been_transformed_) {
-    TransformToFastProperties(object_, unused_property_fields_);
-  }
-}
-
 } }  // namespace v8::internal

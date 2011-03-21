@@ -2905,7 +2905,8 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                                                 expr->constant_properties(),
                                                 expr->fast_elements(),
                                                 expr->literal_index(),
-                                                expr->depth()));
+                                                expr->depth(),
+                                                expr->has_function()));
   // The object is expected in the bailout environment during computation
   // of the property values and is the value of the entire expression.
   PushAndAdd(literal);
@@ -2946,7 +2947,19 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       default: UNREACHABLE();
     }
   }
-  ast_context()->ReturnValue(Pop());
+
+  if (expr->has_function()) {
+    // Return the result of the transformation to fast properties
+    // instead of the original since this operation changes the map
+    // of the object. This makes sure that the original object won't
+    // be used by other optimized code before it is transformed
+    // (e.g. because of code motion).
+    HToFastProperties* result = new HToFastProperties(Pop());
+    AddInstruction(result);
+    ast_context()->ReturnValue(result);
+  } else {
+    ast_context()->ReturnValue(Pop());
+  }
 }
 
 

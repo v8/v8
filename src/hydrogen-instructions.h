@@ -156,6 +156,7 @@ class LChunkBuilder;
   V(Sub)                                       \
   V(Test)                                      \
   V(Throw)                                     \
+  V(ToFastProperties)                          \
   V(Typeof)                                    \
   V(TypeofIs)                                  \
   V(UnaryMathOperation)                        \
@@ -3382,10 +3383,12 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
                  Handle<FixedArray> constant_properties,
                  bool fast_elements,
                  int literal_index,
-                 int depth)
+                 int depth,
+                 bool has_function)
       : HMaterializedLiteral<1>(literal_index, depth),
         constant_properties_(constant_properties),
-        fast_elements_(fast_elements) {
+        fast_elements_(fast_elements),
+        has_function_(has_function) {
     SetOperandAt(0, context);
   }
 
@@ -3394,6 +3397,7 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
     return constant_properties_;
   }
   bool fast_elements() const { return fast_elements_; }
+  bool has_function() const { return has_function_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -3404,6 +3408,7 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
  private:
   Handle<FixedArray> constant_properties_;
   bool fast_elements_;
+  bool has_function_;
 };
 
 
@@ -3464,6 +3469,24 @@ class HTypeof: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Typeof, "typeof")
+};
+
+
+class HToFastProperties: public HUnaryOperation {
+ public:
+  explicit HToFastProperties(HValue* value) : HUnaryOperation(value) {
+    // This instruction is not marked as having side effects, but
+    // changes the map of the input operand. Use it only when creating
+    // object literals.
+    ASSERT(value->IsObjectLiteral());
+    set_representation(Representation::Tagged());
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ToFastProperties, "to_fast_properties")
 };
 
 
