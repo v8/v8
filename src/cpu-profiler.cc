@@ -441,6 +441,7 @@ CpuProfiler::CpuProfiler()
       token_enumerator_(new TokenEnumerator()),
       generator_(NULL),
       processor_(NULL),
+      need_to_stop_sampler_(false),
       is_profiling_(false) {
 }
 
@@ -486,7 +487,10 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     }
     // Enable stack sampling.
     Sampler* sampler = reinterpret_cast<Sampler*>(LOGGER->ticker_);
-    if (!sampler->IsActive()) sampler->Start();
+    if (!sampler->IsActive()) {
+      sampler->Start();
+      need_to_stop_sampler_ = true;
+    }
     sampler->IncreaseProfilingDepth();
   }
 }
@@ -520,7 +524,10 @@ void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
   if (profiles_->IsLastProfile(title)) {
     Sampler* sampler = reinterpret_cast<Sampler*>(LOGGER->ticker_);
     sampler->DecreaseProfilingDepth();
-    sampler->Stop();
+    if (need_to_stop_sampler_) {
+      sampler->Stop();
+      need_to_stop_sampler_ = false;
+    }
     processor_->Stop();
     processor_->Join();
     delete processor_;

@@ -283,6 +283,7 @@ class CpuProfiler {
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
   int saved_logging_nesting_;
+  bool need_to_stop_sampler_;
   Atomic32 is_profiling_;
 
 #else

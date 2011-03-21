@@ -927,8 +927,9 @@ class SignalSender : public Thread {
 
   // Implement Thread::Run().
   virtual void Run() {
-    SamplerRegistry::State state = SamplerRegistry::GetState();
-    while (state != SamplerRegistry::HAS_NO_SAMPLERS) {
+    SamplerRegistry::State state;
+    while ((state = SamplerRegistry::GetState()) !=
+           SamplerRegistry::HAS_NO_SAMPLERS) {
       bool cpu_profiling_enabled =
           (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
       bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
