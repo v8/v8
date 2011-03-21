@@ -40,7 +40,9 @@ class HashMap;
 // for different compilation modes, to avoid retrieving the wrong result.
 class CompilationSubCache {
  public:
-  explicit CompilationSubCache(int generations): generations_(generations) {
+  CompilationSubCache(Isolate* isolate, int generations)
+      : isolate_(isolate),
+        generations_(generations) {
     tables_ = NewArray<Object*>(generations);
   }
 
@@ -78,7 +80,11 @@ class CompilationSubCache {
   // Number of generations in this sub-cache.
   inline int generations() { return generations_; }
 
+ protected:
+  Isolate* isolate() { return isolate_; }
+
  private:
+  Isolate* isolate_;
   int generations_;  // Number of generations.
   Object** tables_;  // Compilation cache tables - one for each generation.
 
@@ -89,7 +95,7 @@ class CompilationSubCache {
 // Sub-cache for scripts.
 class CompilationCacheScript : public CompilationSubCache {
  public:
-  explicit CompilationCacheScript(int generations);
+  CompilationCacheScript(Isolate* isolate, int generations);
 
   Handle<SharedFunctionInfo> Lookup(Handle<String> source,
                                     Handle<Object> name,
@@ -120,8 +126,8 @@ class CompilationCacheScript : public CompilationSubCache {
 // Sub-cache for eval scripts.
 class CompilationCacheEval: public CompilationSubCache {
  public:
-  explicit CompilationCacheEval(int generations)
-      : CompilationSubCache(generations) { }
+  CompilationCacheEval(Isolate* isolate, int generations)
+      : CompilationSubCache(isolate, generations) { }
 
   Handle<SharedFunctionInfo> Lookup(Handle<String> source,
                                     Handle<Context> context,
@@ -150,8 +156,8 @@ class CompilationCacheEval: public CompilationSubCache {
 // Sub-cache for regular expressions.
 class CompilationCacheRegExp: public CompilationSubCache {
  public:
-  explicit CompilationCacheRegExp(int generations)
-      : CompilationSubCache(generations) { }
+  CompilationCacheRegExp(Isolate* isolate, int generations)
+      : CompilationSubCache(isolate, generations) { }
 
   Handle<FixedArray> Lookup(Handle<String> source, JSRegExp::Flags flags);
 
@@ -245,13 +251,19 @@ class CompilationCache {
   void Enable();
   void Disable();
  private:
-  CompilationCache();
+  explicit CompilationCache(Isolate* isolate);
   ~CompilationCache();
 
   HashMap* EagerOptimizingSet();
 
   // The number of sub caches covering the different types to cache.
   static const int kSubCacheCount = 4;
+
+  bool IsEnabled() { return FLAG_compilation_cache && enabled_; }
+
+  Isolate* isolate() { return isolate_; }
+
+  Isolate* isolate_;
 
   CompilationCacheScript script_;
   CompilationCacheEval eval_global_;
@@ -263,8 +275,6 @@ class CompilationCache {
   bool enabled_;
 
   HashMap* eager_optimizing_set_;
-
-  bool IsEnabled() { return FLAG_compilation_cache && enabled_; }
 
   friend class Isolate;
 

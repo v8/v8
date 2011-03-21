@@ -598,7 +598,7 @@ bool Isolate::PreInit() {
   string_tracker_->isolate_ = this;
   thread_manager_ = new ThreadManager();
   thread_manager_->isolate_ = this;
-  compilation_cache_ = new CompilationCache();
+  compilation_cache_ = new CompilationCache(this);
   transcendental_cache_ = new TranscendentalCache();
   keyed_lookup_cache_ = new KeyedLookupCache();
   context_slot_cache_ = new ContextSlotCache();
