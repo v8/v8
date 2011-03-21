@@ -4111,9 +4111,7 @@ class SharedFunctionInfo: public HeapObject {
   // False if there are definitely no live objects created from this function.
   // True if live objects _may_ exist (existence not guaranteed).
   // May go back from true to false after GC.
-  inline bool live_objects_may_exist();
-
-  inline void set_live_objects_may_exist(bool value);
+  DECL_BOOLEAN_ACCESSORS(live_objects_may_exist)
 
   // [instance class name]: class name for instances.
   DECL_ACCESSORS(instance_class_name, Object)
@@ -4201,14 +4199,12 @@ class SharedFunctionInfo: public HeapObject {
   // this.x = y; where y is either a constant or refers to an argument.
   inline bool has_only_simple_this_property_assignments();
 
-  inline bool try_full_codegen();
-  inline void set_try_full_codegen(bool flag);
+  DECL_BOOLEAN_ACCESSORS(try_full_codegen)
 
   // Indicates if this function can be lazy compiled.
   // This is used to determine if we can safely flush code from a function
   // when doing GC if we expect that the function will no longer be used.
-  inline bool allows_lazy_compilation();
-  inline void set_allows_lazy_compilation(bool flag);
+  DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
 
   // Indicates how many full GCs this function has survived with assigned
   // code object. Used to determine when it is relatively safe to flush
@@ -4222,12 +4218,13 @@ class SharedFunctionInfo: public HeapObject {
   // shared function info. If a function is repeatedly optimized or if
   // we cannot optimize the function we disable optimization to avoid
   // spending time attempting to optimize it again.
-  inline bool optimization_disabled();
-  inline void set_optimization_disabled(bool value);
+  DECL_BOOLEAN_ACCESSORS(optimization_disabled)
 
   // Indicates whether the function is a strict mode function.
-  inline bool strict_mode();
-  inline void set_strict_mode(bool value);
+  DECL_BOOLEAN_ACCESSORS(strict_mode)
+
+  // False if the function definitely does not allocate an arguments object.
+  DECL_BOOLEAN_ACCESSORS(uses_arguments)
 
   // Indicates whether or not the code in the shared function support
   // deoptimization.
@@ -4410,6 +4407,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCodeAgeMask = 0x7;
   static const int kOptimizationDisabled = 7;
   static const int kStrictModeFunction = 8;
+  static const int kUsesArguments = 9;
 
  private:
 #if V8_HOST_ARCH_32_BIT

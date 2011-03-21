@@ -1135,7 +1135,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
   // Three cases: non-this global variables, lookup slots, and all other
   // types of slots.
   Slot* slot = var->AsSlot();
-  ASSERT((var->is_global() && !var->is_this()) == (slot != NULL));
+  ASSERT((var->is_global() && !var->is_this()) == (slot == NULL));
 
   if (slot == NULL) {
     Comment cmnt(masm_, "Global variable");

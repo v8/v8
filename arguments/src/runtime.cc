@@ -7201,7 +7201,7 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(Arguments args) {
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
 
   // We're not prepared to handle a function with arguments object.
-  ASSERT(!function->shared()->scope_info()->HasArgumentsShadow());
+  ASSERT(!function->shared()->uses_arguments());
 
   // We have hit a back edge in an unoptimized frame for a function that was
   // selected for on-stack replacement.  Find the unoptimized code object.
@@ -9370,16 +9370,13 @@ static bool CopyContextLocalsToScopeObject(
     int context_index = serialized_scope_info->ContextSlotIndex(
         *scope_info.context_slot_name(i), NULL);
 
-    // Don't include the arguments shadow (.arguments) context variable.
-    if (*scope_info.context_slot_name(i) != Heap::arguments_shadow_symbol()) {
-      RETURN_IF_EMPTY_HANDLE_VALUE(
-          SetProperty(scope_object,
-                      scope_info.context_slot_name(i),
-                      Handle<Object>(context->get(context_index)),
-                      NONE,
-                      kNonStrictMode),
-          false);
-    }
+    RETURN_IF_EMPTY_HANDLE_VALUE(
+        SetProperty(scope_object,
+                    scope_info.context_slot_name(i),
+                    Handle<Object>(context->get(context_index)),
+                    NONE,
+                    kNonStrictMode),
+        false);
   }
 
   return true;
@@ -9465,28 +9462,6 @@ static Handle<JSObject> MaterializeClosure(Handle<Context> context) {
   // Allocate and initialize a JSObject with all the content of theis function
   // closure.
   Handle<JSObject> closure_scope = Factory::NewJSObject(Top::object_function());
-
-  // Check whether the arguments shadow object exists.
-  int arguments_shadow_index =
-      shared->scope_info()->ContextSlotIndex(Heap::arguments_shadow_symbol(),
-                                             NULL);
-  if (arguments_shadow_index >= 0) {
-    // In this case all the arguments are available in the arguments shadow
-    // object.
-    Handle<JSObject> arguments_shadow(
-        JSObject::cast(context->get(arguments_shadow_index)));
-    for (int i = 0; i < scope_info.number_of_parameters(); ++i) {
-      // We don't expect exception-throwing getters on the arguments shadow.
-      Object* element = arguments_shadow->GetElement(i)->ToObjectUnchecked();
-      RETURN_IF_EMPTY_HANDLE_VALUE(
-          SetProperty(closure_scope,
-                      scope_info.parameter_name(i),
-                      Handle<Object>(element),
-                      NONE,
-                      kNonStrictMode),
-          Handle<JSObject>());
-    }
-  }
 
   // Fill all context locals to the context extension.
   if (!CopyContextLocalsToScopeObject(serialized_scope_info, scope_info,

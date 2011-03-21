@@ -155,9 +155,9 @@ class JSObjectsCluster BASE_EMBEDDED {
     // Their actual value is irrelevant for us.
     switch (special) {
       case ROOTS: return Heap::result_symbol();
-      case GLOBAL_PROPERTY: return Heap::code_symbol();
-      case CODE: return Heap::arguments_shadow_symbol();
-      case SELF: return Heap::catch_var_symbol();
+      case GLOBAL_PROPERTY: return Heap::catch_var_symbol();
+      case CODE: return Heap::code_symbol();
+      case SELF: return Heap::this_symbol();
       default:
         UNREACHABLE();
         return NULL;

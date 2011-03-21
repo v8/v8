@@ -131,7 +131,6 @@ namespace internal {
   V(StringImpl_symbol, "StringImpl")                                     \
   V(arguments_symbol, "arguments")                                       \
   V(Arguments_symbol, "Arguments")                                       \
-  V(arguments_shadow_symbol, ".arguments")                               \
   V(call_symbol, "call")                                                 \
   V(apply_symbol, "apply")                                               \
   V(caller_symbol, "caller")                                             \
