@@ -80,17 +80,22 @@ class IncrementalMarking : public AllStatic {
 
   static inline void RecordWrite(HeapObject* obj, Object* value) {
     if (!IsStopped() && value->IsHeapObject()) {
-      if (IsBlack(obj) && IsWhite(HeapObject::cast(value))) {
-        BlackToGrey(obj);
-        RestartIfNotMarking();
+      MarkBit value_bit = Marking::MarkBitFrom(HeapObject::cast(value));
+      if (IsWhite(value_bit)) {
+        MarkBit obj_bit = Marking::MarkBitFrom(obj);
+        if (IsBlack(obj_bit)) {
+          BlackToGrey(obj, obj_bit);
+          RestartIfNotMarking();
+        }
       }
     }
   }
 
   static inline void RecordWriteOf(HeapObject* value) {
     if (state_ != STOPPED) {
-      if (IsWhite(value)) {
-        WhiteToGrey(value);
+      MarkBit value_bit = Marking::MarkBitFrom(value);
+      if (IsWhite(value_bit)) {
+        WhiteToGrey(value, value_bit);
         RestartIfNotMarking();
       }
     }
@@ -99,64 +104,72 @@ class IncrementalMarking : public AllStatic {
 
   static inline void RecordWrites(HeapObject* obj) {
     if (!IsStopped()) {
-      if (IsBlack(obj)) {
-        BlackToGrey(obj);
+      MarkBit obj_bit = Marking::MarkBitFrom(obj);
+      if (IsBlack(obj_bit)) {
+        BlackToGrey(obj, obj_bit);
         RestartIfNotMarking();
       }
     }
   }
 
-
-  // Black markbits: 10
-  static inline bool IsBlack(HeapObject* obj) {
-    return Marking::IsMarked(obj->address());
+  // Impossible markbits: 01
+  static inline bool IsImpossible(MarkBit mark_bit) {
+    return !mark_bit.Get() && mark_bit.Next().Get();
   }
 
-  // White markbits: 00
-  static inline bool IsWhite(HeapObject* obj) {
-    return !Marking::IsMarked(obj->address()) &&
-        !Marking::IsMarked(obj->address() + kPointerSize);
+  // Black markbits: 10 - this is required by the sweeper.
+  static inline bool IsBlack(MarkBit mark_bit) {
+    ASSERT(!IsImpossible(mark_bit));
+    return mark_bit.Get() && !mark_bit.Next().Get();
   }
 
-  // Grey markbits: 01
-  static inline bool IsGrey(HeapObject* obj) {
-    return Marking::IsMarked(obj->address() + kPointerSize);
+  // White markbits: 00 - this is required by the mark bit clearer.
+  static inline bool IsWhite(MarkBit mark_bit) {
+    ASSERT(!IsImpossible(mark_bit));
+    return !mark_bit.Get();
   }
 
-  static inline void BlackToGrey(HeapObject* obj) {
+  // Grey markbits: 11
+  static inline bool IsGrey(MarkBit mark_bit) {
+    ASSERT(!IsImpossible(mark_bit));
+    return mark_bit.Get() && mark_bit.Next().Get();
+  }
+
+  static inline void BlackToGrey(HeapObject* obj, MarkBit mark_bit) {
+    ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
     ASSERT(obj->Size() >= 2*kPointerSize);
     ASSERT(!IsStopped());
-    ASSERT(IsBlack(obj));
-    Marking::ClearMark(obj->address());
-    Marking::SetMark(obj->address() + kPointerSize);
-    ASSERT(IsGrey(obj));
+    ASSERT(IsBlack(mark_bit));
+    mark_bit.Next().Set();
+    ASSERT(IsGrey(mark_bit));
 
     marking_stack_.Push(obj);
     ASSERT(!marking_stack_.overflowed());
   }
 
-  static inline void WhiteToGrey(HeapObject* obj) {
+  static inline void WhiteToGrey(HeapObject* obj, MarkBit mark_bit) {
+    ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
     ASSERT(obj->Size() >= 2*kPointerSize);
     ASSERT(!IsStopped());
-    ASSERT(IsWhite(obj));
-    Marking::SetMark(obj->address() + kPointerSize);
-    ASSERT(IsGrey(obj));
+    ASSERT(IsWhite(mark_bit));
+    mark_bit.Set();
+    mark_bit.Next().Set();
+    ASSERT(IsGrey(mark_bit));
 
     marking_stack_.Push(obj);
     ASSERT(!marking_stack_.overflowed());
   }
 
-  static inline void MarkBlack(HeapObject* obj) {
-    ASSERT(obj->Size() >= 2*kPointerSize);
-    Marking::SetMark(obj->address());
-    Marking::ClearMark(obj->address() + kPointerSize);
-    ASSERT(IsBlack(obj));
+  static inline void MarkBlack(MarkBit mark_bit) {
+    mark_bit.Set();
+    mark_bit.Next().Clear();
+    ASSERT(IsBlack(mark_bit));
   }
 
-  static inline const char* ColorStr(HeapObject* obj) {
-    if (IsBlack(obj)) return "black";
-    if (IsWhite(obj)) return "white";
-    if (IsGrey(obj)) return "grey";
+  static inline const char* ColorStr(MarkBit mark_bit) {
+    if (IsBlack(mark_bit)) return "black";
+    if (IsWhite(mark_bit)) return "white";
+    if (IsGrey(mark_bit)) return "grey";
     UNREACHABLE();
     return "???";
   }

@@ -809,6 +809,8 @@ class Heap : public AllStatic {
 
   // Heap root getters.  We have versions with and without type::cast() here.
   // You can't use type::cast during GC because the assert fails.
+  // TODO(gc): Try removing the unchecked accessors, now that GC marking does
+  // not corrupt the stack.
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
   static inline type* name() {                                                 \
     return type::cast(roots_[k##camel_name##RootIndex]);                       \
@@ -1128,6 +1130,8 @@ class Heap : public AllStatic {
   }
 
   static inline bool NextGCIsLikelyToBeFull() {
+    if (FLAG_gc_global) return true;
+
     intptr_t total_promoted =
         PromotedSpaceSize() + PromotedExternalMemorySize();
 
@@ -1771,7 +1775,7 @@ class MarkingStack {
   // otherwise mark the object as overflowed and wait for a rescan of the
   // heap.
   void Push(HeapObject* object) {
-    CHECK(object->IsHeapObject());
+    ASSERT(object->IsHeapObject());
     if (is_full()) {
       object->SetOverflow();
       overflowed_ = true;
@@ -1783,7 +1787,7 @@ class MarkingStack {
   HeapObject* Pop() {
     ASSERT(!is_empty());
     HeapObject* object = *(--top_);
-    CHECK(object->IsHeapObject());
+    ASSERT(object->IsHeapObject());
     return object;
   }
 

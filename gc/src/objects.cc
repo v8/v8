@@ -5437,7 +5437,8 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
         details.type() == CONSTANT_TRANSITION) {
       Map* target = reinterpret_cast<Map*>(contents->get(i));
       ASSERT(target->IsHeapObject());
-      if (!Marking::IsMarked(target)) {
+      MarkBit map_mark = Marking::MarkBitFrom(target);
+      if (!map_mark.Get()) {
         ASSERT(target->IsMap());
         contents->set_unchecked(i + 1, NullDescriptorDetails);
         contents->set_null_unchecked(i);

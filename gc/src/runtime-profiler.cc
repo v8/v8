@@ -402,7 +402,8 @@ void RuntimeProfiler::UpdateSamplesAfterScavenge() {
 void RuntimeProfiler::RemoveDeadSamples() {
   for (int i = 0; i < kSamplerWindowSize; i++) {
     Object* function = sampler_window[i];
-    if (function != NULL && !Marking::IsMarked(HeapObject::cast(function))) {
+    if (function != NULL &&
+        !Marking::MarkBitFrom(HeapObject::cast(function)).Get()) {
       sampler_window[i] = NULL;
     }
   }

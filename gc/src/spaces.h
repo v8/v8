@@ -117,11 +117,47 @@ class Space;
 class OldSpaceFreeList;
 
 
+// TODO(gc): Check that this all gets inlined and register allocated on
+// all platforms.
+class MarkBit {
+ public:
+  typedef uint32_t CellType;
+
+  inline MarkBit(CellType* cell, CellType mask)
+      : cell_(cell), mask_(mask) { }
+
+  inline CellType* cell() { return cell_; }
+  inline CellType mask() { return mask_; }
+
+#ifdef DEBUG
+  bool operator==(const MarkBit& other) {
+    return cell_ == other.cell_ && mask_ == other.mask_;
+  }
+#endif
+
+  inline void Set() { *cell_ |= mask_; }
+  inline bool Get() { return (*cell_ & mask_) != 0; }
+  inline void Clear() { *cell_ &= ~mask_; }
+
+  inline MarkBit Next() {
+    CellType new_mask = mask_ << 1;
+    if (new_mask == 0) {
+      return MarkBit(cell_ + 1, 1);
+    } else {
+      return MarkBit(cell_, new_mask);
+    }
+  }
+
+ private:
+  CellType* cell_;
+  CellType mask_;
+};
+
+
 // Bitmap is a sequence of cells each containing fixed number of bits.
 template<typename StorageDescriptor>
 class Bitmap {
  public:
-  typedef uint32_t CellType;
   static const uint32_t kBitsPerCell = 32;
   static const uint32_t kBitsPerCellLog2 = 5;
   static const uint32_t kBitIndexMask = kBitsPerCell - 1;
@@ -135,15 +171,11 @@ class Bitmap {
   }
 
   static int SizeFor(int cells_count) {
-    return sizeof(CellType)*cells_count;
+    return sizeof(MarkBit::CellType)*cells_count;
   }
 
   INLINE(static uint32_t IndexToCell(uint32_t index)) {
     return index >> kBitsPerCellLog2;
-  }
-
-  INLINE(static uint32_t IndexToBit(uint32_t index)) {
-    return index & kBitIndexMask;
   }
 
   INLINE(static uint32_t CellToIndex(uint32_t index)) {
@@ -154,8 +186,8 @@ class Bitmap {
     return (index + kBitIndexMask) & ~kBitIndexMask;
   }
 
-  INLINE(CellType* cells()) {
-    return reinterpret_cast<CellType*>(this);
+  INLINE(MarkBit::CellType* cells()) {
+    return reinterpret_cast<MarkBit::CellType*>(this);
   }
 
   INLINE(Address address()) {
@@ -166,58 +198,24 @@ class Bitmap {
     return reinterpret_cast<Bitmap*>(addr);
   }
 
-  INLINE(static Bitmap* FromAddress(uint32_t* addr)) {
-    return reinterpret_cast<Bitmap*>(addr);
-  }
-
-  INLINE(bool TestAndSet(const uint32_t index)) {
-    const uint32_t mask = 1 << (index & kBitIndexMask);
-    if (cells()[index >> kBitsPerCellLog2] & mask) {
-      return true;
-    } else {
-      cells()[index >> kBitsPerCellLog2] |= mask;
-      return false;
-    }
-  }
-
-  INLINE(bool Get(uint32_t index)) {
-    uint32_t mask = 1 << (index & kBitIndexMask);
-    return (this->cells()[index >> kBitsPerCellLog2] & mask) != 0;
-  }
-
-  INLINE(void Set(uint32_t index)) {
-    uint32_t mask = 1 << (index & kBitIndexMask);
-    cells()[index >> kBitsPerCellLog2] |= mask;
-  }
-
-  INLINE(void Clear(uint32_t index)) {
-    uint32_t mask = 1 << (index & kBitIndexMask);
-    cells()[index >> kBitsPerCellLog2] &= ~mask;
+  inline MarkBit MarkBitFromIndex(uint32_t index) {
+    MarkBit::CellType mask = 1 << (index & kBitIndexMask);
+    MarkBit::CellType* cell = this->cells() + (index >> kBitsPerCellLog2);
+    return MarkBit(cell, mask);
   }
 
   INLINE(void ClearRange(uint32_t start, uint32_t size)) {
     const uint32_t end = start + size;
     const uint32_t start_cell = start >> kBitsPerCellLog2;
     const uint32_t end_cell = end >> kBitsPerCellLog2;
-
-    const uint32_t start_mask = (-1) << (start & kBitIndexMask);
-    const uint32_t end_mask   = (1 << (end & kBitIndexMask)) - 1;
+    ASSERT((start & kBitIndexMask) == 0);
+    ASSERT((end & kBitIndexMask) == 0);
 
     ASSERT(static_cast<int>(start_cell) < CellsCount());
-    ASSERT(static_cast<int>(end_cell) < CellsCount() ||
-           (end_mask == 0 && static_cast<int>(end_cell) == CellsCount()));
+    ASSERT(static_cast<int>(end_cell) <= CellsCount());
 
-    if (start_cell == end_cell) {
-      cells()[start_cell] &= ~(start_mask & end_mask);
-    } else {
-      cells()[start_cell] &= ~start_mask;
-      if (end_mask != 0) cells()[end_cell] &= ~end_mask;
-
-      for (uint32_t cell = start_cell + 1, last_cell = end_cell - 1;
-           cell <= last_cell;
-           cell++) {
-        cells()[cell] = 0;
-      }
+    for (uint32_t cell = start_cell; cell < end_cell; cell++) {
+      cells()[cell] = 0;
     }
   }
 
@@ -1616,7 +1614,8 @@ class NewSpace : public Space {
 
   INLINE(uint32_t AddressToMarkbitIndex(Address addr)) {
     ASSERT(Contains(addr));
-    ASSERT(IsAligned(OffsetFrom(addr), kPointerSize));
+    ASSERT(IsAligned(OffsetFrom(addr), kPointerSize) ||
+           IsAligned(OffsetFrom(addr) - 1, kPointerSize));
     return static_cast<uint32_t>(addr - start_) >> kPointerSizeLog2;
   }
 

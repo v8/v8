@@ -1992,8 +1992,9 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* current = first_page_;
   while (current != NULL) {
     HeapObject* object = current->GetObject();
-    if (Marking::IsMarked(object)) {
-      Marking::ClearMark(object);
+    MarkBit mark_bit = Marking::MarkBitFrom(object);
+    if (mark_bit.Get()) {
+      mark_bit.Clear();
       MarkCompactCollector::tracer()->decrement_marked_count();
       previous = current;
       current = current->next_page();

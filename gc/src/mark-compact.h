@@ -45,59 +45,28 @@ class MarkingVisitor;
 
 class Marking {
  public:
-  INLINE(static bool IsMarked(HeapObject* obj)) {
-    return IsMarked(obj->address());
+  static inline MarkBit MarkBitFrom(HeapObject* obj) {
+    return MarkBitFrom(reinterpret_cast<Address>(obj));
   }
 
-  INLINE(static void SetMark(HeapObject* obj)) {
-    SetMark(obj->address());
+  static inline MarkBit MarkBitFromNewSpace(HeapObject* obj) {
+    ASSERT(Heap::InNewSpace(obj));
+    uint32_t index = Heap::new_space()->AddressToMarkbitIndex(
+        reinterpret_cast<Address>(obj));
+    return new_space_bitmap_->MarkBitFromIndex(index);
   }
 
-  INLINE(static void ClearMark(HeapObject* obj)) {
-    ClearMark(obj->address());
-  }
-
-  INLINE(static bool TestAndMark(Address addr)) {
+  static inline MarkBit MarkBitFrom(Address addr) {
     if (Heap::InNewSpace(addr)) {
       uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
-      return new_space_bitmap_->TestAndSet(index);
+      return new_space_bitmap_->MarkBitFromIndex(index);
     } else {
       Page *p = Page::FromAddress(addr);
-      return p->markbits()->TestAndSet(p->AddressToMarkbitIndex(addr));
+      return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr));
     }
   }
 
-  INLINE(static bool IsMarked(Address addr)) {
-    if (Heap::InNewSpace(addr)) {
-      uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
-      return new_space_bitmap_->Get(index);
-    } else {
-      Page *p = Page::FromAddress(addr);
-      return p->markbits()->Get(p->AddressToMarkbitIndex(addr));
-    }
-  }
-
-  INLINE(static void SetMark(Address addr)) {
-    if (Heap::InNewSpace(addr)) {
-      uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
-      new_space_bitmap_->Set(index);
-    } else {
-      Page *p = Page::FromAddress(addr);
-      p->markbits()->Set(p->FastAddressToMarkbitIndex(addr));
-    }
-  }
-
-  INLINE(static void ClearMark(Address addr)) {
-    if (Heap::InNewSpace(addr)) {
-      uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
-      new_space_bitmap_->Clear(index);
-    } else {
-      Page *p = Page::FromAddress(addr);
-      p->markbits()->Clear(p->FastAddressToMarkbitIndex(addr));
-    }
-  }
-
-  INLINE(static void ClearRange(Address addr, int size)) {
+  static void ClearRange(Address addr, int size) {
     if (Heap::InNewSpace(addr)) {
       uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
       new_space_bitmap_->ClearRange(index, size >> kPointerSizeLog2);
@@ -252,6 +221,14 @@ class MarkCompactCollector: public AllStatic {
   static const uint32_t kSingleFreeEncoding = 0;
   static const uint32_t kMultiFreeEncoding = 1;
 
+#ifdef DEBUG
+  static bool IsMarked(Object* obj) {
+    ASSERT(obj->IsHeapObject());
+    HeapObject* heap_object = HeapObject::cast(obj);
+    return Marking::MarkBitFrom(heap_object).Get();
+  }
+#endif
+
  private:
 #ifdef DEBUG
   enum CollectorState {
@@ -312,8 +289,10 @@ class MarkCompactCollector: public AllStatic {
   static void AfterMarking();
 
 
-  INLINE(static void MarkObject(HeapObject* obj)) {
-    if (!Marking::TestAndMark(obj->address())) {
+  INLINE(static void MarkObject(HeapObject* obj, MarkBit mark_bit)) {
+    ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
+    if (!mark_bit.Get()) {
+      mark_bit.Set();
       tracer_->increment_marked_count();
 #ifdef DEBUG
       UpdateLiveObjectCount(obj);
@@ -322,8 +301,9 @@ class MarkCompactCollector: public AllStatic {
     }
   }
 
-  INLINE(static void SetMark(HeapObject* obj)) {
-    Marking::SetMark(obj);
+  INLINE(static void SetMark(HeapObject* obj, MarkBit mark_bit)) {
+    ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
+    mark_bit.Set();
     tracer_->increment_marked_count();
 #ifdef DEBUG
     UpdateLiveObjectCount(obj);

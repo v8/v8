@@ -52,10 +52,12 @@ class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
  private:
   // Mark object pointed to by p.
   INLINE(static void MarkObjectByPointer(Object** p)) {
-    if ((*p)->IsHeapObject()) {
-      HeapObject* object = HeapObject::cast(*p);
-      if (IncrementalMarking::IsWhite(object)) {
-        IncrementalMarking::WhiteToGrey(object);
+    Object* obj = *p;
+    if (obj->IsHeapObject()) {
+      HeapObject* heap_object = HeapObject::cast(obj);
+      MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
+      if (IncrementalMarking::IsWhite(mark_bit)) {
+        IncrementalMarking::WhiteToGrey(heap_object, mark_bit);
       }
     }
   }
@@ -76,11 +78,13 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
 
  private:
   void MarkObjectByPointer(Object** p) {
-    if (!(*p)->IsHeapObject()) return;
+    Object* obj = *p;
+    if (!obj->IsHeapObject()) return;
 
-    HeapObject* object = HeapObject::cast(*p);
-    if (IncrementalMarking::IsWhite(object)) {
-      IncrementalMarking::WhiteToGrey(object);
+    HeapObject* heap_object = HeapObject::cast(obj);
+    MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
+    if (IncrementalMarking::IsWhite(mark_bit)) {
+      IncrementalMarking::WhiteToGrey(heap_object, mark_bit);
     }
   }
 };
@@ -177,11 +181,11 @@ void IncrementalMarking::Start() {
                             Heap::new_space()->FromSpaceHigh());
 
   // Clear markbits.
-  Address new_space_top = Heap::new_space()->top();
   Address new_space_bottom = Heap::new_space()->bottom();
+  uintptr_t new_space_size =
+      RoundUp(Heap::new_space()->top() - new_space_bottom, 32 * kPointerSize);
 
-  Marking::ClearRange(new_space_bottom,
-                      static_cast<int>(new_space_top - new_space_bottom));
+  Marking::ClearRange(new_space_bottom, new_space_size);
 
   ClearMarkbits();
 
@@ -217,7 +221,9 @@ void IncrementalMarking::Hurry() {
       // correct only for objects that occupy at least two words.
       if (obj->map() != filler_map) {
         obj->Iterate(&marking_visitor);
-        MarkBlack(obj); }
+        MarkBit mark_bit = Marking::MarkBitFrom(obj);
+        MarkBlack(mark_bit);
+      }
     }
     state_ = COMPLETE;
     if (FLAG_trace_incremental_marking) {
@@ -267,13 +273,15 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
         // Explicitly skip one word fillers. Incremental markbit patterns are
         // correct only for objects that occupy at least two words.
         if (obj->map() != filler_map) {
-          ASSERT(IsGrey(obj));
+          ASSERT(IsGrey(Marking::MarkBitFrom(obj)));
           Map* map = obj->map();
           int size = obj->SizeFromMap(map);
           bytes_to_process -= size;
-          if (IsWhite(map)) WhiteToGrey(map);
+          MarkBit map_mark_bit = Marking::MarkBitFrom(map);
+          if (IsWhite(map_mark_bit)) WhiteToGrey(map, map_mark_bit);
           obj->IterateBody(map->instance_type(), size, &marking_visitor);
-          MarkBlack(obj);
+          MarkBit obj_mark_bit = Marking::MarkBitFrom(obj);
+          MarkBlack(obj_mark_bit);
         }
         count++;
       }
