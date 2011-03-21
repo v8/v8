@@ -275,7 +275,7 @@ void BreakableStatementChecker::VisitThisFunction(ThisFunction* expr) {
 #define __ ACCESS_MASM(masm())
 
 bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = info->isolate();
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();

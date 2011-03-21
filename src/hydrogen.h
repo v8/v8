@@ -281,6 +281,9 @@ class HGraph: public ZoneObject {
   void InitializeInferredTypes(int from_inclusive, int to_inclusive);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
 
+  Isolate* isolate() { return isolate_; }
+
+  Isolate* isolate_;
   int next_block_id_;
   HBasicBlock* entry_block_;
   HEnvironment* start_environment_;

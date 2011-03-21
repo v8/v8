@@ -2180,7 +2180,7 @@ class RegExpEmpty: public RegExpTree {
 
 class AstVisitor BASE_EMBEDDED {
  public:
-  AstVisitor() : stack_overflow_(false) { }
+  AstVisitor() : isolate_(Isolate::Current()), stack_overflow_(false) { }
   virtual ~AstVisitor() { }
 
   // Stack overflow check and dynamic dispatch.
@@ -2210,7 +2210,11 @@ class AstVisitor BASE_EMBEDDED {
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
+ protected:
+  Isolate* isolate() { return isolate_; }
+
  private:
+  Isolate* isolate_;
   bool stack_overflow_;
 };
 

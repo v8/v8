@@ -512,12 +512,12 @@ HConstant* HGraph::GetConstantMinus1() {
 
 
 HConstant* HGraph::GetConstantTrue() {
-  return GetConstant(&constant_true_, HEAP->true_value());
+  return GetConstant(&constant_true_, isolate()->heap()->true_value());
 }
 
 
 HConstant* HGraph::GetConstantFalse() {
-  return GetConstant(&constant_false_, HEAP->false_value());
+  return GetConstant(&constant_false_, isolate()->heap()->false_value());
 }
 
 
@@ -573,7 +573,8 @@ void HBasicBlock::FinishExit(HControlInstruction* instruction) {
 
 
 HGraph::HGraph(CompilationInfo* info)
-    : next_block_id_(0),
+    : isolate_(info->isolate()),
+      next_block_id_(0),
       entry_block_(NULL),
       blocks_(8),
       values_(16),
@@ -1248,12 +1249,12 @@ class HGlobalValueNumberer BASE_EMBEDDED {
         info_(info),
         block_side_effects_(graph_->blocks()->length()),
         loop_side_effects_(graph_->blocks()->length()) {
-    ASSERT(HEAP->allow_allocation(false));
+    ASSERT(info->isolate()->heap()->allow_allocation(false));
     block_side_effects_.AddBlock(0, graph_->blocks()->length());
     loop_side_effects_.AddBlock(0, graph_->blocks()->length());
   }
   ~HGlobalValueNumberer() {
-    ASSERT(!HEAP->allow_allocation(true));
+    ASSERT(!info_->isolate()->heap()->allow_allocation(true));
   }
 
   void Analyze();
@@ -2278,8 +2279,8 @@ void HGraphBuilder::SetupScope(Scope* scope) {
   // We don't yet handle the function name for named function expressions.
   if (scope->function() != NULL) BAILOUT("named function expression");
 
-  HConstant* undefined_constant =
-      new HConstant(FACTORY->undefined_value(), Representation::Tagged());
+  HConstant* undefined_constant = new HConstant(
+      isolate()->factory()->undefined_value(), Representation::Tagged());
   AddInstruction(undefined_constant);
   graph_->set_undefined_constant(undefined_constant);
 
@@ -3625,7 +3626,8 @@ HInstruction* HGraphBuilder::BuildStoreKeyedFastElement(HValue* object,
   ASSERT(map->has_fast_elements());
   AddInstruction(new HCheckMap(object, map));
   HInstruction* elements = AddInstruction(new HLoadElements(object));
-  AddInstruction(new HCheckMap(elements, FACTORY->fixed_array_map()));
+  AddInstruction(new HCheckMap(elements,
+                               isolate()->factory()->fixed_array_map()));
   bool is_array = (map->instance_type() == JS_ARRAY_TYPE);
   HInstruction* length = NULL;
   if (is_array) {
@@ -4975,7 +4977,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         Handle<JSFunction> candidate(JSFunction::cast(lookup.GetValue()));
         // If the function is in new space we assume it's more likely to
         // change and thus prefer the general IC code.
-        if (!Isolate::Current()->heap()->InNewSpace(*candidate)) {
+        if (!isolate()->heap()->InNewSpace(*candidate)) {
           target = candidate;
         }
       }

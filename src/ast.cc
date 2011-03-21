@@ -700,7 +700,7 @@ void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 bool AstVisitor::CheckStackOverflow() {
   if (stack_overflow_) return true;
-  StackLimitCheck check(Isolate::Current());
+  StackLimitCheck check(isolate_);
   if (!check.HasOverflowed()) return false;
   return (stack_overflow_ = true);
 }
