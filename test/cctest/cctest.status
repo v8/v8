@@ -46,9 +46,6 @@ test-heap-profiler/HeapSnapshotsDiff: PASS || FAIL
 test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
 
-# BUG(1261): Flakey test.
-test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
-
 ##############################################################################
 [ $arch == arm ]
 

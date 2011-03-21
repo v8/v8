@@ -160,22 +160,21 @@ void StackTracer::Trace(Isolate* isolate, TickSample* sample) {
     return;
   }
 
-  // Sample potential return address value for frameless invocation of
-  // stubs (we'll figure out later, if this value makes sense).
-  sample->tos = Memory::Address_at(sample->sp);
-
-  int i = 0;
   const Address callback = isolate->external_callback();
-  // Surprisingly, PC can point _exactly_ to callback start, with good
-  // probability, and this will result in reporting fake nested
-  // callback call.
-  if (callback != NULL && callback != sample->pc) {
-    sample->stack[i++] = callback;
+  if (callback != NULL) {
+    sample->external_callback = callback;
+    sample->has_external_callback = true;
+  } else {
+    // Sample potential return address value for frameless invocation of
+    // stubs (we'll figure out later, if this value makes sense).
+    sample->tos = Memory::Address_at(sample->sp);
+    sample->has_external_callback = false;
   }
 
   SafeStackTraceFrameIterator it(isolate,
                                  sample->fp, sample->sp,
                                  sample->sp, js_entry_sp);
+  int i = 0;
   while (!it.done() && i < TickSample::kMaxFramesCount) {
     sample->stack[i++] = it.frame()->pc();
     it.Advance();
@@ -1134,7 +1133,13 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.Append(',');
   msg.AppendAddress(sample->sp);
   msg.Append(',');
-  msg.AppendAddress(sample->tos);
+  if (sample->has_external_callback) {
+    msg.Append(",1,");
+    msg.AppendAddress(sample->external_callback);
+  } else {
+    msg.Append(",0,");
+    msg.AppendAddress(sample->tos);
+  }
   msg.Append(",%d", static_cast<int>(sample->state));
   if (overflow) {
     msg.Append(",overflow");

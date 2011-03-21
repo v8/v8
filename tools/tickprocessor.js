@@ -161,7 +161,9 @@ function TickProcessor(
           processor: this.processFunctionMove },
       'snapshot-pos': { parsers: [parseInt, parseInt],
           processor: this.processSnapshotPosition },
-      'tick': { parsers: [parseInt, parseInt, parseInt, parseInt, 'var-args'],
+      'tick': {
+          parsers: [parseInt, parseInt, parseInt,
+                    parseInt, parseInt, 'var-args'],
           processor: this.processTick },
       'heap-sample-begin': { parsers: [null, null, parseInt],
           processor: this.processHeapSampleBegin },
@@ -344,22 +346,33 @@ TickProcessor.prototype.includeTick = function(vmState) {
 };
 
 
-TickProcessor.prototype.processTick = function(pc, sp, tos, vmState, stack) {
+TickProcessor.prototype.processTick = function(pc,
+                                               sp,
+                                               is_external_callback,
+                                               tos_or_external_callback,
+                                               vmState,
+                                               stack) {
   this.ticks_.total++;
   if (vmState == TickProcessor.VmStates.GC) this.ticks_.gc++;
   if (!this.includeTick(vmState)) {
     this.ticks_.excluded++;
     return;
   }
-
-  if (tos) {
-    var funcEntry = this.profile_.findEntry(tos);
+  if (is_external_callback) {
+    // Don't use PC when in external callback code, as it can point
+    // inside callback's code, and we will erroneously report
+    // that a callback calls itself.
+    pc = 0;
+  } else if (tos_or_external_callback) {
+    // Find out, if top of stack was pointing inside a JS function
+    // meaning that we have encountered a frameless invocation.
+    var funcEntry = this.profile_.findEntry(tos_or_external_callback);
     if (!funcEntry || !funcEntry.isJSFunction || !funcEntry.isJSFunction()) {
-      tos = 0;
+      tos_or_external_callback = 0;
     }
   }
 
-  this.profile_.recordTick(this.processStack(pc, tos, stack));
+  this.profile_.recordTick(this.processStack(pc, tos_or_external_callback, stack));
 };
 
 

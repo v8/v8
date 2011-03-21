@@ -303,13 +303,11 @@ TEST(CFromJSStackTrace) {
   //         DoTrace(EBP) [native]
   //           StackTracer::Trace
 
-  // The VM state tracking keeps track of external callbacks and puts
-  // them at the top of the sample stack.
-  int base = 0;
-  CHECK(sample.stack[0] == FUNCTION_ADDR(TraceExtension::Trace));
-  base++;
+  CHECK(sample.has_external_callback);
+  CHECK_EQ(FUNCTION_ADDR(TraceExtension::Trace), sample.external_callback);
 
   // Stack tracing will start from the first JS function, i.e. "JSFuncDoTrace"
+  int base = 0;
   CHECK_GT(sample.frames_count, base + 1);
   CHECK(IsAddressWithinFuncCode("JSFuncDoTrace", sample.stack[base + 0]));
   CHECK(IsAddressWithinFuncCode("JSTrace", sample.stack[base + 1]));
@@ -354,13 +352,11 @@ TEST(PureJSStackTrace) {
   //             StackTracer::Trace
   //
 
-  // The VM state tracking keeps track of external callbacks and puts
-  // them at the top of the sample stack.
-  int base = 0;
-  CHECK(sample.stack[0] == FUNCTION_ADDR(TraceExtension::JSTrace));
-  base++;
+  CHECK(sample.has_external_callback);
+  CHECK_EQ(FUNCTION_ADDR(TraceExtension::JSTrace), sample.external_callback);
 
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
+  int base = 0;
   CHECK_GT(sample.frames_count, base + 1);
   CHECK(IsAddressWithinFuncCode("JSTrace", sample.stack[base + 0]));
   CHECK(IsAddressWithinFuncCode("OuterJSTrace", sample.stack[base + 1]));

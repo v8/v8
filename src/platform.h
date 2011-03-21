@@ -581,13 +581,17 @@ class TickSample {
         tos(NULL),
         frames_count(0) {}
   StateTag state;  // The state of the VM.
-  Address pc;   // Instruction pointer.
-  Address sp;   // Stack pointer.
-  Address fp;   // Frame pointer.
-  Address tos;  // Top stack value (*sp).
+  Address pc;      // Instruction pointer.
+  Address sp;      // Stack pointer.
+  Address fp;      // Frame pointer.
+  union {
+    Address tos;   // Top stack value (*sp).
+    Address external_callback;
+  };
   static const int kMaxFramesCount = 64;
   Address stack[kMaxFramesCount];  // Call stack.
-  int frames_count;  // Number of captured frames.
+  int frames_count : 8;  // Number of captured frames.
+  bool has_external_callback : 1;
 };
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
