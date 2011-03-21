@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -121,8 +121,7 @@ class Variable: public ZoneObject {
   // Printing support
   static const char* Mode2String(Mode mode);
 
-  // Type testing & conversion
-  Property* AsProperty() const;
+  // Type testing & conversion.  Global variables are not slots.
   Slot* AsSlot() const;
 
   bool IsValidLeftHandSide() { return is_valid_LHS_; }
@@ -179,7 +178,7 @@ class Variable: public ZoneObject {
   }
 
   Slot* rewrite() const { return rewrite_; }
-  void set_rewrite(Slot* expr) { rewrite_ = expr; }
+  void set_rewrite(Slot* slot) { rewrite_ = slot; }
 
   StaticType* type() { return &type_; }
 

@@ -4501,18 +4501,12 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
       // The subexpression does not have side effects.
       ast_context()->ReturnValue(graph()->GetConstantFalse());
     } else if (prop != NULL) {
-      if (prop->is_synthetic()) {
-        // Result of deleting parameters is false, even when they rewrite
-        // to accesses on the arguments object.
-        ast_context()->ReturnValue(graph()->GetConstantFalse());
-      } else {
-        VISIT_FOR_VALUE(prop->obj());
-        VISIT_FOR_VALUE(prop->key());
-        HValue* key = Pop();
-        HValue* obj = Pop();
-        HDeleteProperty* instr = new HDeleteProperty(obj, key);
-        ast_context()->ReturnInstruction(instr, expr->id());
-      }
+      VISIT_FOR_VALUE(prop->obj());
+      VISIT_FOR_VALUE(prop->key());
+      HValue* key = Pop();
+      HValue* obj = Pop();
+      HDeleteProperty* instr = new HDeleteProperty(obj, key);
+      ast_context()->ReturnInstruction(instr, expr->id());
     } else if (var->is_global()) {
       BAILOUT("delete with global variable");
     } else {

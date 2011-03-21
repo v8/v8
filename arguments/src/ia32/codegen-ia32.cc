@@ -6308,47 +6308,37 @@ void CodeGenerator::VisitCall(Call* node) {
       // Load the function to call from the property through a reference.
 
       // Pass receiver to called function.
-      if (property->is_synthetic()) {
-        Reference ref(this, property);
-        ref.GetValue();
-        // Use global object as receiver.
-        LoadGlobalReceiver();
-        // Call the function.
-        CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
-      } else {
-        // Push the receiver onto the frame.
-        Load(property->obj());
+      Load(property->obj());
 
-        // Load the name of the function.
-        Load(property->key());
+      // Load the name of the function.
+      Load(property->key());
 
-        // Swap the name of the function and the receiver on the stack to follow
-        // the calling convention for call ICs.
-        Result key = frame_->Pop();
-        Result receiver = frame_->Pop();
-        frame_->Push(&key);
-        frame_->Push(&receiver);
-        key.Unuse();
-        receiver.Unuse();
+      // Swap the name of the function and the receiver on the stack to
+      // follow the calling convention for call ICs.
+      Result key = frame_->Pop();
+      Result receiver = frame_->Pop();
+      frame_->Push(&key);
+      frame_->Push(&receiver);
+      key.Unuse();
+      receiver.Unuse();
 
-        // Load the arguments.
-        int arg_count = args->length();
-        for (int i = 0; i < arg_count; i++) {
-          Load(args->at(i));
-          frame_->SpillTop();
-        }
-
-        // Place the key on top of stack and call the IC initialization code.
-        frame_->PushElementAt(arg_count + 1);
-        CodeForSourcePosition(node->position());
-        Result result =
-            frame_->CallKeyedCallIC(RelocInfo::CODE_TARGET,
-                                    arg_count,
-                                    loop_nesting());
-        frame_->Drop();  // Drop the key still on the stack.
-        frame_->RestoreContextRegister();
-        frame_->Push(&result);
+      // Load the arguments.
+      int arg_count = args->length();
+      for (int i = 0; i < arg_count; i++) {
+        Load(args->at(i));
+        frame_->SpillTop();
       }
+
+      // Place the key on top of stack and call the IC initialization code.
+      frame_->PushElementAt(arg_count + 1);
+      CodeForSourcePosition(node->position());
+      Result result =
+          frame_->CallKeyedCallIC(RelocInfo::CODE_TARGET,
+                                  arg_count,
+                                  loop_nesting());
+      frame_->Drop();  // Drop the key still on the stack.
+      frame_->RestoreContextRegister();
+      frame_->Push(&result);
     }
 
   } else {

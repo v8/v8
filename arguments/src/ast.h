@@ -1191,23 +1191,16 @@ class Slot: public Expression {
 
 class Property: public Expression {
  public:
-  // Synthetic properties are property lookups introduced by the system,
-  // to objects that aren't visible to the user. Function calls to synthetic
-  // properties should use the global object as receiver, not the base object
-  // of the resolved Reference.
-  enum Type { NORMAL, SYNTHETIC };
-  Property(Expression* obj, Expression* key, int pos, Type type = NORMAL)
+  Property(Expression* obj, Expression* key, int pos)
       : obj_(obj),
         key_(key),
         pos_(pos),
-        type_(type),
         receiver_types_(NULL),
         is_monomorphic_(false),
         is_array_length_(false),
         is_string_length_(false),
         is_string_access_(false),
-        is_function_prototype_(false),
-        is_arguments_access_(false) { }
+        is_function_prototype_(false) { }
 
   DECLARE_NODE_TYPE(Property)
 
@@ -1217,18 +1210,10 @@ class Property: public Expression {
   Expression* obj() const { return obj_; }
   Expression* key() const { return key_; }
   int position() const { return pos_; }
-  bool is_synthetic() const { return type_ == SYNTHETIC; }
 
   bool IsStringLength() const { return is_string_length_; }
   bool IsStringAccess() const { return is_string_access_; }
   bool IsFunctionPrototype() const { return is_function_prototype_; }
-
-  // Marks that this is actually an argument rewritten to a keyed property
-  // accessing the argument through the arguments shadow object.
-  void set_is_arguments_access(bool is_arguments_access) {
-    is_arguments_access_ = is_arguments_access;
-  }
-  bool is_arguments_access() const { return is_arguments_access_; }
 
   ExternalArrayType GetExternalArrayType() const { return array_type_; }
   void SetExternalArrayType(ExternalArrayType array_type) {
@@ -1252,7 +1237,6 @@ class Property: public Expression {
   Expression* obj_;
   Expression* key_;
   int pos_;
-  Type type_;
 
   ZoneMapList* receiver_types_;
   bool is_monomorphic_ : 1;
@@ -1260,7 +1244,6 @@ class Property: public Expression {
   bool is_string_length_ : 1;
   bool is_string_access_ : 1;
   bool is_function_prototype_ : 1;
-  bool is_arguments_access_ : 1;
   Handle<Map> monomorphic_receiver_type_;
   ExternalArrayType array_type_;
 

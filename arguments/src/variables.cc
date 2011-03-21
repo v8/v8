@@ -70,37 +70,26 @@ const char* Variable::Mode2String(Mode mode) {
 }
 
 
-Property* Variable::AsProperty() const {
-  return rewrite_ == NULL ? NULL : rewrite_->AsProperty();
-}
-
-
-Slot* Variable::AsSlot() const {
-  return rewrite_ == NULL ? NULL : rewrite_->AsSlot();
-}
+Slot* Variable::AsSlot() const { return rewrite_; }
 
 
 bool Variable::IsStackAllocated() const {
-  Slot* slot = AsSlot();
-  return slot != NULL && slot->IsStackAllocated();
+  return rewrite_ != NULL && rewrite_->IsStackAllocated();
 }
 
 
 bool Variable::IsParameter() const {
-  Slot* s = AsSlot();
-  return s != NULL && s->type() == Slot::PARAMETER;
+  return rewrite_ != NULL && rewrite_->type() == Slot::PARAMETER;
 }
 
 
 bool Variable::IsStackLocal() const {
-  Slot* s = AsSlot();
-  return s != NULL && s->type() == Slot::LOCAL;
+  return rewrite_ != NULL && rewrite_->type() == Slot::LOCAL;
 }
 
 
 bool Variable::IsContextSlot() const {
-  Slot* s = AsSlot();
-  return s != NULL && s->type() == Slot::CONTEXT;
+  return rewrite_ != NULL && rewrite_->type() == Slot::CONTEXT;
 }
 
 

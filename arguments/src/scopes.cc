@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -908,8 +908,9 @@ void Scope::AllocateParameterLocals() {
 void Scope::AllocateNonParameterLocal(Variable* var) {
   ASSERT(var->scope() == this);
   ASSERT(var->rewrite() == NULL ||
-         (!var->IsVariable(Factory::result_symbol())) ||
-         (var->AsSlot() == NULL || var->AsSlot()->type() != Slot::LOCAL));
+         !var->IsVariable(Factory::result_symbol()) ||
+         var->AsSlot() == NULL ||
+         var->AsSlot()->type() != Slot::LOCAL);
   if (var->rewrite() == NULL && MustAllocate(var)) {
     if (MustAllocateInContext(var)) {
       AllocateHeapSlot(var);
