@@ -2748,8 +2748,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   RecordComment("[ Constant Pool");
 
   // Put down constant pool marker "Undefined instruction" as specified by
-  // A3.1 Instruction set encoding.
-  emit(0x03000000 | num_prinfo_);
+  // A5.6 (ARMv7) Instruction set encoding.
+  emit(kConstantPoolMarker | num_prinfo_);
 
   // Emit constant pool entries.
   for (int i = 0; i < num_prinfo_; i++) {

@@ -316,16 +316,26 @@ void ArmDebugger::Debug() {
             }
             for (int i = 0; i < kNumVFPDoubleRegisters; i++) {
               dvalue = GetVFPDoubleRegisterValue(i);
-              PrintF("%3s: %f\n",
-                  VFPRegisters::Name(i, true), dvalue);
+              uint64_t as_words = BitCast<uint64_t>(dvalue);
+              PrintF("%3s: %f 0x%08x %08x\n",
+                     VFPRegisters::Name(i, true),
+                     dvalue,
+                     static_cast<uint32_t>(as_words >> 32),
+                     static_cast<uint32_t>(as_words & 0xffffffff));
             }
           } else {
             if (GetValue(arg1, &value)) {
               PrintF("%s: 0x%08x %d \n", arg1, value, value);
             } else if (GetVFPSingleValue(arg1, &svalue)) {
-              PrintF("%s: %f \n", arg1, svalue);
+              uint32_t as_word = BitCast<uint32_t>(svalue);
+              PrintF("%s: %f 0x%08x\n", arg1, svalue, as_word);
             } else if (GetVFPDoubleValue(arg1, &dvalue)) {
-              PrintF("%s: %f \n", arg1, dvalue);
+              uint64_t as_words = BitCast<uint64_t>(dvalue);
+              PrintF("%s: %f 0x%08x %08x\n",
+                     arg1,
+                     dvalue,
+                     static_cast<uint32_t>(as_words >> 32),
+                     static_cast<uint32_t>(as_words & 0xffffffff));
             } else {
               PrintF("%s unrecognized\n", arg1);
             }
@@ -380,11 +390,24 @@ void ArmDebugger::Debug() {
         end = cur + words;
 
         while (cur < end) {
-          PrintF("  0x%08x:  0x%08x %10d\n",
+          PrintF("  0x%08x:  0x%08x %10d",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
+          HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
+          int value = *cur;
+          Heap* current_heap = v8::internal::Isolate::Current()->heap();
+          if (current_heap->Contains(obj) || ((value & 1) == 0)) {
+            PrintF(" (");
+            if ((value & 1) == 0) {
+              PrintF("smi %d", value / 2);
+            } else {
+              obj->ShortPrint();
+            }
+            PrintF(")");
+          }
+          PrintF("\n");
           cur++;
         }
-      } else if (strcmp(cmd, "disasm") == 0) {
+      } else if (strcmp(cmd, "disasm") == 0 || strcmp(cmd, "di") == 0) {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // use a reasonably large buffer
@@ -398,11 +421,23 @@ void ArmDebugger::Debug() {
           cur = reinterpret_cast<byte*>(sim_->get_pc());
           end = cur + (10 * Instruction::kInstrSize);
         } else if (argc == 2) {
-          int32_t value;
-          if (GetValue(arg1, &value)) {
-            cur = reinterpret_cast<byte*>(sim_->get_pc());
-            // Disassemble <arg1> instructions.
-            end = cur + (value * Instruction::kInstrSize);
+          int regnum = Registers::Number(arg1);
+          if (regnum != kNoRegister || strncmp(arg1, "0x", 2) == 0) {
+            // The argument is an address or a register name.
+            int32_t value;
+            if (GetValue(arg1, &value)) {
+              cur = reinterpret_cast<byte*>(value);
+              // Disassemble 10 instructions at <arg1>.
+              end = cur + (10 * Instruction::kInstrSize);
+            }
+          } else {
+            // The argument is the number of instructions.
+            int32_t value;
+            if (GetValue(arg1, &value)) {
+              cur = reinterpret_cast<byte*>(sim_->get_pc());
+              // Disassemble <arg1> instructions.
+              end = cur + (value * Instruction::kInstrSize);
+            }
           }
         } else {
           int32_t value1;
@@ -524,8 +559,10 @@ void ArmDebugger::Debug() {
         PrintF("mem <address> [<words>]\n");
         PrintF("  dump memory content, default dump 10 words)\n");
         PrintF("disasm [<instructions>]\n");
-        PrintF("disasm [[<address>] <instructions>]\n");
-        PrintF("  disassemble code, default is 10 instructions from pc\n");
+        PrintF("disasm [<address/register>]\n");
+        PrintF("disasm [[<address/register>] <instructions>]\n");
+        PrintF("  disassemble code, default is 10 instructions\n");
+        PrintF("  from pc (alias 'di')\n");
         PrintF("gdb\n");
         PrintF("  enter gdb\n");
         PrintF("break <address>\n");
@@ -543,7 +580,7 @@ void ArmDebugger::Debug() {
         PrintF("    The first %d stop codes are watched:\n",
                Simulator::kNumOfWatchedStops);
         PrintF("    - They can be enabled / disabled: the Simulator\n");
-        PrintF("       will / won't stop when hitting them.\n");
+        PrintF("      will / won't stop when hitting them.\n");
         PrintF("    - The Simulator keeps track of how many times they \n");
         PrintF("      are met. (See the info command.) Going over a\n");
         PrintF("      disabled stop still increases its counter. \n");

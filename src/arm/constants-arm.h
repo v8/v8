@@ -89,6 +89,11 @@
 namespace v8 {
 namespace internal {
 
+// Constant pool marker.
+static const int kConstantPoolMarkerMask = 0xffe00000;
+static const int kConstantPoolMarker = 0x0c000000;
+static const int kConstantPoolLengthMask = 0x001ffff;
+
 // Number of registers in normal ARM mode.
 static const int kNumRegisters = 16;
 
