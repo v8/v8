@@ -756,11 +756,11 @@ char* OS::StrChr(char* str, int c) {
 void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
   // Use _TRUNCATE or strncpy_s crashes (by design) if buffer is too small.
   size_t buffer_size = static_cast<size_t>(dest.length());
-  if (n + 1 > buffer_size) // count for trailing '\0' 
+  if (n + 1 > buffer_size) // count for trailing '\0'
     n = _TRUNCATE;
   int result = strncpy_s(dest.start(), dest.length(), src, n);
   USE(result);
-  ASSERT(result == 0 || (n == _TRUNCATE && result == STRUNCATE)); 
+  ASSERT(result == 0 || (n == _TRUNCATE && result == STRUNCATE));
 }
 
 
