@@ -294,8 +294,7 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
              !src2.must_use_constant_pool() &&
              Isolate::Current()->cpu_features()->IsSupported(ARMv7) &&
              IsPowerOf2(src2.immediate() + 1)) {
-    ubfx(dst, src1, 0,
-        WhichPowerOf2(static_cast<uint32_t>(src2.immediate()) + 1), cond);
+    ubfx(dst, src1, 0, WhichPowerOf2(src2.immediate() + 1), cond);
 
   } else {
     and_(dst, src1, src2, LeaveCC, cond);
