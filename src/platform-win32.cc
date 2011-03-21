@@ -1503,17 +1503,19 @@ class Thread::PlatformData : public Malloced {
 // Initialize a Win32 thread object. The thread has an invalid thread
 // handle until it is started.
 
-Thread::Thread(Isolate* isolate)
+Thread::Thread(Isolate* isolate, const Options& options)
     : ThreadHandle(ThreadHandle::INVALID),
-      isolate_(isolate) {
+      isolate_(isolate),
+      stack_size_(options.stack_size) {
   data_ = new PlatformData(kNoThread);
-  set_name("v8:<unknown>");
+  set_name(options.name);
 }
 
 
 Thread::Thread(Isolate* isolate, const char* name)
     : ThreadHandle(ThreadHandle::INVALID),
-      isolate_(isolate) {
+      isolate_(isolate),
+      stack_size_(0) {
   data_ = new PlatformData(kNoThread);
   set_name(name);
 }
@@ -1538,7 +1540,7 @@ Thread::~Thread() {
 void Thread::Start() {
   data_->thread_ = reinterpret_cast<HANDLE>(
       _beginthreadex(NULL,
-                     0,
+                     static_cast<unsigned>(stack_size_),
                      ThreadEntry,
                      this,
                      0,
@@ -1884,7 +1886,9 @@ class Sampler::PlatformData : public Malloced {
 
 class SamplerThread : public Thread {
  public:
-  explicit SamplerThread(int interval) : Thread(NULL), interval_(interval) {}
+  explicit SamplerThread(int interval)
+      : Thread(NULL, "SamplerThread"),
+        interval_(interval) {}
 
   static void AddActiveSampler(Sampler* sampler) {
     ScopedLock lock(mutex_);

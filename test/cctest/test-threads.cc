@@ -64,7 +64,7 @@ static Turn turn = FILL_CACHE;
 
 class ThreadA: public v8::internal::Thread {
  public:
-  explicit ThreadA(i::Isolate* isolate) : Thread(isolate) { }
+  explicit ThreadA(i::Isolate* isolate) : Thread(isolate, "ThreadA") { }
   void Run() {
     v8::Locker locker;
     v8::HandleScope scope;
@@ -100,7 +100,7 @@ class ThreadA: public v8::internal::Thread {
 
 class ThreadB: public v8::internal::Thread {
  public:
-  explicit ThreadB(i::Isolate* isolate) : Thread(isolate) { }
+  explicit ThreadB(i::Isolate* isolate) : Thread(isolate, "ThreadB") { }
   void Run() {
     do {
       {

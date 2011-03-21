@@ -425,15 +425,18 @@ bool ThreadHandle::IsValid() const {
 }
 
 
-Thread::Thread(Isolate* isolate)
+Thread::Thread(Isolate* isolate, const Options& options)
     : ThreadHandle(ThreadHandle::INVALID),
-      isolate_(isolate) {
-  set_name("v8:<unknown>");
+      isolate_(isolate),
+      stack_size_(options.stack_size) {
+  set_name(options.name);
 }
+
 
 Thread::Thread(Isolate* isolate, const char* name)
     : ThreadHandle(ThreadHandle::INVALID),
-      isolate_(isolate) {
+      isolate_(isolate),
+      stack_size_(0) {
   set_name(name);
 }
 
@@ -462,7 +465,14 @@ void Thread::set_name(const char* name) {
 
 
 void Thread::Start() {
-  pthread_create(&thread_handle_data()->thread_, NULL, ThreadEntry, this);
+  pthread_attr_t* attr_ptr = NULL;
+  pthread_attr_t attr;
+  if (stack_size_ > 0) {
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
+    attr_ptr = &attr;
+  }
+  pthread_create(&thread_handle_data()->thread_, attr_ptr, ThreadEntry, this);
   ASSERT(IsValid());
 }
 

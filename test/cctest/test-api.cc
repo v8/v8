@@ -9929,7 +9929,7 @@ class RegExpInterruptTest {
   class GCThread : public i::Thread {
    public:
     explicit GCThread(i::Isolate* isolate, RegExpInterruptTest* test)
-        : Thread(isolate), test_(test) {}
+        : Thread(isolate, "GCThread"), test_(test) {}
     virtual void Run() {
       test_->CollectGarbage();
     }
@@ -10051,7 +10051,7 @@ class ApplyInterruptTest {
   class GCThread : public i::Thread {
    public:
     explicit GCThread(i::Isolate* isolate, ApplyInterruptTest* test)
-        : Thread(isolate), test_(test) {}
+        : Thread(isolate, "GCThread"), test_(test) {}
     virtual void Run() {
       test_->CollectGarbage();
     }
@@ -10347,7 +10347,7 @@ class RegExpStringModificationTest {
    public:
     explicit MorphThread(i::Isolate* isolate,
                          RegExpStringModificationTest* test)
-        : Thread(isolate), test_(test) {}
+        : Thread(isolate, "MorphThread"), test_(test) {}
     virtual void Run() {
       test_->MorphString();
     }
@@ -13044,10 +13044,10 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
 class IsolateThread : public v8::internal::Thread {
  public:
   explicit IsolateThread(v8::Isolate* isolate, int fib_limit)
-    : Thread(NULL),
-      isolate_(isolate),
-      fib_limit_(fib_limit),
-      result_(0) { }
+      : Thread(NULL, "IsolateThread"),
+        isolate_(isolate),
+        fib_limit_(fib_limit),
+        result_(0) { }
 
   void Run() {
     result_ = CalcFibonacci(isolate_, fib_limit_);
@@ -13095,9 +13095,9 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
   enum TestCase { IgnoreOOM, SetResourceConstraints, SetFatalHandler };
 
   explicit InitDefaultIsolateThread(TestCase testCase)
-    : Thread(NULL),
-      testCase_(testCase),
-      result_(false) { }
+      : Thread(NULL, "InitDefaultIsolateThread"),
+        testCase_(testCase),
+        result_(false) { }
 
   void Run() {
     switch (testCase_) {

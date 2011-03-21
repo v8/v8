@@ -388,8 +388,15 @@ class Thread: public ThreadHandle {
     LOCAL_STORAGE_KEY_MAX_VALUE = kMaxInt
   };
 
+  struct Options {
+    Options() : name("v8:<unknown>"), stack_size(0) {}
+
+    const char* name;
+    int stack_size;
+  };
+
   // Create new thread (with a value for storing in the TLS isolate field).
-  explicit Thread(Isolate* isolate);
+  Thread(Isolate* isolate, const Options& options);
   Thread(Isolate* isolate, const char* name);
   virtual ~Thread();
 
@@ -436,6 +443,7 @@ class Thread: public ThreadHandle {
   PlatformData* data_;
   Isolate* isolate_;
   char name_[kMaxThreadNameLength];
+  int stack_size_;
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };

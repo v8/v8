@@ -4721,7 +4721,7 @@ Barriers message_queue_barriers;
 class MessageQueueDebuggerThread : public v8::internal::Thread {
  public:
   explicit MessageQueueDebuggerThread(v8::internal::Isolate* isolate)
-      : Thread(isolate) { }
+      : Thread(isolate, "MessageQueueDebuggerThread") { }
   void Run();
 };
 
@@ -4972,13 +4972,15 @@ Barriers threaded_debugging_barriers;
 
 class V8Thread : public v8::internal::Thread {
  public:
-  explicit V8Thread(v8::internal::Isolate* isolate) : Thread(isolate) { }
+  explicit V8Thread(v8::internal::Isolate* isolate)
+      : Thread(isolate, "V8Thread") { }
   void Run();
 };
 
 class DebuggerThread : public v8::internal::Thread {
  public:
-  explicit DebuggerThread(v8::internal::Isolate* isolate) : Thread(isolate) { }
+  explicit DebuggerThread(v8::internal::Isolate* isolate)
+      : Thread(isolate, "DebuggerThread") { }
   void Run();
 };
 
@@ -5078,7 +5080,7 @@ TEST(ThreadedDebugging) {
 class BreakpointsV8Thread : public v8::internal::Thread {
  public:
   explicit BreakpointsV8Thread(v8::internal::Isolate* isolate)
-      : Thread(isolate) { }
+      : Thread(isolate, "BreakpointsV8Thread") { }
   void Run();
 };
 
@@ -5086,7 +5088,8 @@ class BreakpointsDebuggerThread : public v8::internal::Thread {
  public:
   explicit BreakpointsDebuggerThread(v8::internal::Isolate* isolate,
                                      bool global_evaluate)
-      : Thread(isolate), global_evaluate_(global_evaluate) {}
+      : Thread(isolate, "BreakpointsDebuggerThread"),
+        global_evaluate_(global_evaluate) {}
   void Run();
 
  private:
@@ -5647,14 +5650,14 @@ TEST(DebuggerClearMessageHandlerWhileActive) {
 class HostDispatchV8Thread : public v8::internal::Thread {
  public:
   explicit HostDispatchV8Thread(v8::internal::Isolate* isolate)
-      : Thread(isolate) { }
+      : Thread(isolate, "HostDispatchV8Thread") { }
   void Run();
 };
 
 class HostDispatchDebuggerThread : public v8::internal::Thread {
  public:
   explicit HostDispatchDebuggerThread(v8::internal::Isolate* isolate)
-      : Thread(isolate) { }
+      : Thread(isolate, "HostDispatchDebuggerThread") { }
   void Run();
 };
 
@@ -5753,14 +5756,14 @@ TEST(DebuggerHostDispatch) {
 class DebugMessageDispatchV8Thread : public v8::internal::Thread {
  public:
   explicit DebugMessageDispatchV8Thread(v8::internal::Isolate* isolate)
-      : Thread(isolate) { }
+      : Thread(isolate, "DebugMessageDispatchV8Thread") { }
   void Run();
 };
 
 class DebugMessageDispatchDebuggerThread : public v8::internal::Thread {
  public:
   explicit DebugMessageDispatchDebuggerThread(v8::internal::Isolate* isolate)
-      : Thread(isolate) { }
+      : Thread(isolate, "DebugMessageDispatchDebuggerThread") { }
   void Run();
 };
 
@@ -5863,7 +5866,10 @@ TEST(DebuggerAgent) {
 class DebuggerAgentProtocolServerThread : public i::Thread {
  public:
   explicit DebuggerAgentProtocolServerThread(i::Isolate* isolate, int port)
-      : Thread(isolate), port_(port), server_(NULL), client_(NULL),
+      : Thread(isolate, "DebuggerAgentProtocolServerThread"),
+        port_(port),
+        server_(NULL),
+        client_(NULL),
         listening_(OS::CreateSemaphore(0)) {
   }
   ~DebuggerAgentProtocolServerThread() {

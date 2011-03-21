@@ -35,12 +35,7 @@
 
 #include "../src/v8.h"
 
-// TODO(isolates):
-//   o Either use V8 internal platform stuff for every platform or
-//     re-implement it.
-//   o Do not assume not WIN32 implies pthreads.
-#ifndef WIN32
-#include <pthread.h>  // NOLINT
+#if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #endif
 
@@ -67,10 +62,6 @@ v8::Handle<v8::String> ReadFile(const char* name);
 void ReportException(v8::TryCatch* handler);
 
 
-#ifndef WIN32
-void* IsolateThreadEntry(void* arg);
-#endif
-
 static bool last_run = true;
 
 class SourceGroup {
@@ -78,14 +69,9 @@ class SourceGroup {
   SourceGroup() : argv_(NULL),
                   begin_offset_(0),
                   end_offset_(0),
-                  next_semaphore_(NULL),
-                  done_semaphore_(NULL) {
-#ifndef WIN32
-    next_semaphore_ = v8::internal::OS::CreateSemaphore(0);
-    done_semaphore_ = v8::internal::OS::CreateSemaphore(0);
-    thread_ = 0;
-#endif
-  }
+                  next_semaphore_(v8::internal::OS::CreateSemaphore(0)),
+                  done_semaphore_(v8::internal::OS::CreateSemaphore(0)),
+                  thread_(NULL) { }
 
   void Begin(char** argv, int offset) {
     argv_ = const_cast<const char**>(argv);
@@ -125,42 +111,49 @@ class SourceGroup {
     }
   }
 
-#ifdef WIN32
-  void StartExecuteInThread() { ExecuteInThread(); }
-  void WaitForThread() {}
-
-#else
   void StartExecuteInThread() {
-    if (thread_ == 0) {
-      pthread_attr_t attr;
-      // On some systems (OSX 10.6) the stack size default is 0.5Mb or less
-      // which is not enough to parse the big literal expressions used in tests.
-      // The stack size should be at least StackGuard::kLimitSize + some
-      // OS-specific padding for thread startup code.
-      size_t stacksize = 2 << 20;  // 2 Mb seems to be enough
-      pthread_attr_init(&attr);
-      pthread_attr_setstacksize(&attr, stacksize);
-      int error = pthread_create(&thread_, &attr, &IsolateThreadEntry, this);
-      if (error != 0) {
-        fprintf(stderr, "Error creating isolate thread.\n");
-        ExitShell(1);
-      }
+    if (thread_ == NULL) {
+      thread_ = new IsolateThread(this);
+      thread_->Start();
     }
     next_semaphore_->Signal();
   }
 
   void WaitForThread() {
-    if (thread_ == 0) return;
+    if (thread_ == NULL) return;
     if (last_run) {
-      pthread_join(thread_, NULL);
-      thread_ = 0;
+      thread_->Join();
+      thread_ = NULL;
     } else {
       done_semaphore_->Wait();
     }
   }
-#endif  // WIN32
 
  private:
+  static v8::internal::Thread::Options GetThreadOptions() {
+    v8::internal::Thread::Options options;
+    options.name = "IsolateThread";
+    // On some systems (OSX 10.6) the stack size default is 0.5Mb or less
+    // which is not enough to parse the big literal expressions used in tests.
+    // The stack size should be at least StackGuard::kLimitSize + some
+    // OS-specific padding for thread startup code.
+    options.stack_size = 2 << 20;  // 2 Mb seems to be enough
+    return options;
+  }
+
+  class IsolateThread : public v8::internal::Thread {
+   public:
+    explicit IsolateThread(SourceGroup* group)
+        : group_(group), v8::internal::Thread(NULL, GetThreadOptions()) {}
+
+    virtual void Run() {
+      group_->ExecuteInThread();
+    }
+
+   private:
+    SourceGroup* group_;
+  };
+
   void ExecuteInThread() {
     v8::Isolate* isolate = v8::Isolate::New();
     do {
@@ -185,19 +178,8 @@ class SourceGroup {
   int end_offset_;
   v8::internal::Semaphore* next_semaphore_;
   v8::internal::Semaphore* done_semaphore_;
-#ifndef WIN32
-  pthread_t thread_;
-#endif
-
-  friend void* IsolateThreadEntry(void* arg);
+  v8::internal::Thread* thread_;
 };
-
-#ifndef WIN32
-void* IsolateThreadEntry(void* arg) {
-  reinterpret_cast<SourceGroup*>(arg)->ExecuteInThread();
-  return NULL;
-}
-#endif
 
 
 static SourceGroup* isolate_sources = NULL;

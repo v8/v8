@@ -400,12 +400,18 @@ bool ThreadHandle::IsValid() const {
 }
 
 
-Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
-  set_name("v8:<unknown>");
+Thread::Thread(Isolate* isolate, const Options& options)
+    : ThreadHandle(ThreadHandle::INVALID),
+      isolate_(isolate),
+      stack_size_(options.stack_size) {
+  set_name(options.name);
 }
 
 
-Thread::Thread(const char* name) : ThreadHandle(ThreadHandle::INVALID) {
+Thread::Thread(Isolate* isolate, const char* name)
+    : ThreadHandle(ThreadHandle::INVALID),
+      isolate_(isolate),
+      stack_size_(0) {
   set_name(name);
 }
 
