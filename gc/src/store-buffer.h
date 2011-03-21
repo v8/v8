@@ -98,6 +98,8 @@ class StoreBuffer : public AllStatic {
   static void SortUniq();
   static void Verify();
 
+  static void PrepareForIteration();
+
 #ifdef DEBUG
   static void Clean();
   // Slow, for asserts only.

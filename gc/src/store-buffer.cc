@@ -96,7 +96,6 @@ void StoreBuffer::TearDown() {
 }
 
 
-
 #if V8_TARGET_ARCH_X64
 static int CompareAddresses(const void* void_a, const void* void_b) {
   intptr_t a =
@@ -158,6 +157,16 @@ void StoreBuffer::SortUniq() {
   Uniq();
 
   old_buffer_is_sorted_ = true;
+}
+
+
+void StoreBuffer::PrepareForIteration() {
+  Compact();
+  if (store_buffer_mode() == kStoreBufferDisabled) {
+    old_top_ = old_start_;
+    return;
+  }
+  ZapHashTables();
 }
 
 
@@ -256,7 +265,10 @@ void StoreBuffer::GCEpilogue(GCType type, GCCallbackFlags flags) {
 
 void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback callback) {
   if (store_buffer_mode() == kStoreBufferFunctional) {
-    SortUniq();
+    // We do not sort or remove duplicated entries from the store buffer because
+    // we expect that callback will rebuild the store buffer thus removing
+    // all duplicates and pointers to old space.
+    PrepareForIteration();
   }
   if (store_buffer_mode() != kStoreBufferFunctional) {
     old_top_ = old_start_;
@@ -287,14 +299,10 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback callback) {
         Object* object = *cell;
         // May be invalid if object is not in new space.
         HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
-        if (Heap::InNewSpace(object)) {
+        if (Heap::InFromSpace(object)) {
           callback(reinterpret_cast<HeapObject**>(cell), heap_object);
         }
         ASSERT(old_top_ == saved_top + 1 || old_top_ == saved_top);
-        ASSERT((old_top_ == saved_top + 1) ==
-               (Heap::InNewSpace(*cell) &&
-                   !Heap::InNewSpace(reinterpret_cast<Address>(cell)) &&
-                   Memory::Address_at(heap_object->address()) != NULL));
       }
     }
   }
