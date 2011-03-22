@@ -4904,10 +4904,17 @@ void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
 
 
 void Debug::SendCommand(const uint16_t* command, int length,
-                        ClientData* client_data) {
-  if (!i::Isolate::Current()->IsInitialized()) return;
-  i::Isolate::Current()->debugger()->ProcessCommand(
-      i::Vector<const uint16_t>(command, length), client_data);
+                        ClientData* client_data,
+                        Isolate* isolate) {
+  // If no isolate is supplied, use the default isolate.
+  if (isolate != NULL) {
+    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    internal_isolate->debugger()->ProcessCommand(
+        i::Vector<const uint16_t>(command, length), client_data);
+  } else {
+    i::Isolate::GetDefaultIsolateDebugger()->ProcessCommand(
+        i::Vector<const uint16_t>(command, length), client_data);
+  }
 }
 
 
