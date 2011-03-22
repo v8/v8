@@ -3776,7 +3776,8 @@ class Map: public HeapObject {
   inline int visitor_id();
   inline void set_visitor_id(int visitor_id);
 
-  // Returns the heap this map belongs to.
+  // Returns the isolate/heap this map belongs to.
+  inline Isolate* isolate();
   inline Heap* heap();
 
   typedef void (*TraverseCallback)(Map* map, void* data);

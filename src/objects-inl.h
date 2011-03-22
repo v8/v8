@@ -1134,9 +1134,7 @@ Heap* HeapObject::GetHeap() {
 
 
 Isolate* HeapObject::GetIsolate() {
-  Isolate* i = GetHeap()->isolate();
-  ASSERT(i == Isolate::Current());
-  return i;
+  return GetHeap()->isolate();
 }
 
 
@@ -2815,6 +2813,11 @@ Code* Code::GetCodeFromTargetAddress(Address address) {
 }
 
 
+Isolate* Map::isolate() {
+  return heap()->isolate();
+}
+
+
 Heap* Map::heap() {
   // NOTE: address() helper is not used to save one instruction.
   Heap* heap = Page::FromAddress(reinterpret_cast<Address>(this))->heap_;
@@ -2850,7 +2853,7 @@ MaybeObject* Map::GetFastElementsMap() {
   }
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(true);
-  COUNTERS->map_slow_to_fast_elements()->Increment();
+  isolate()->counters()->map_slow_to_fast_elements()->Increment();
   return new_map;
 }
 
@@ -2863,7 +2866,7 @@ MaybeObject* Map::GetSlowElementsMap() {
   }
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(false);
-  COUNTERS->map_fast_to_slow_elements()->Increment();
+  isolate()->counters()->map_fast_to_slow_elements()->Increment();
   return new_map;
 }
 
@@ -2878,7 +2881,7 @@ MaybeObject* Map::NewExternalArrayElementsMap() {
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(false);
   new_map->set_has_external_array_elements(true);
-  COUNTERS->map_to_external_array_elements()->Increment();
+  isolate()->counters()->map_to_external_array_elements()->Increment();
   return new_map;
 }
 

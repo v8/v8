@@ -1259,7 +1259,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   Isolate* isolate = GetHeap()->isolate();
   StringInputBuffer buffer(name);
   if (!isolate->scanner_constants()->IsIdentifier(&buffer)
-      && name != HEAP->hidden_symbol()) {
+      && name != isolate->heap()->hidden_symbol()) {
     Object* obj;
     { MaybeObject* maybe_obj =
           NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
@@ -5211,8 +5211,6 @@ static inline bool CompareStringContentsPartial(Isolate* isolate,
 
 
 bool String::SlowEquals(String* other) {
-  Heap* heap = GetHeap();
-
   // Fast check: negative check with lengths.
   int len = length();
   if (len != other->length()) return false;
@@ -5239,7 +5237,7 @@ bool String::SlowEquals(String* other) {
                                     Vector<const char>(str2, len));
   }
 
-  Isolate* isolate = heap->isolate();
+  Isolate* isolate = GetIsolate();
   if (lhs->IsFlat()) {
     if (lhs->IsAsciiRepresentation()) {
       Vector<const char> vec1 = lhs->ToAsciiVector();
