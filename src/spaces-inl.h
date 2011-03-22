@@ -29,8 +29,8 @@
 #define V8_SPACES_INL_H_
 
 #include "isolate.h"
-#include "memory.h"
 #include "spaces.h"
+#include "v8memory.h"
 
 namespace v8 {
 namespace internal {

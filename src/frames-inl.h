@@ -29,8 +29,8 @@
 #define V8_FRAMES_INL_H_
 
 #include "frames.h"
-
 #include "isolate.h"
+#include "v8memory.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/frames-ia32.h"

@@ -782,7 +782,7 @@
         >
       </File>
       <File
-        RelativePath="..\..\src\memory.h"
+        RelativePath="..\..\src\v8memory.h"
         >
       </File>
       <File

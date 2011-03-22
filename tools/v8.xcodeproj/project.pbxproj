@@ -761,7 +761,7 @@
 		897FF1580E719B8F00D62E90 /* macro-assembler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "macro-assembler.h"; sourceTree = "<group>"; };
 		897FF1590E719B8F00D62E90 /* mark-compact.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "mark-compact.cc"; sourceTree = "<group>"; };
 		897FF15A0E719B8F00D62E90 /* mark-compact.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "mark-compact.h"; sourceTree = "<group>"; };
-		897FF15B0E719B8F00D62E90 /* memory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = memory.h; sourceTree = "<group>"; };
+		897FF15B0E719B8F00D62E90 /* v8memory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = v8memory.h; sourceTree = "<group>"; };
 		897FF15C0E719B8F00D62E90 /* messages.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = messages.cc; sourceTree = "<group>"; };
 		897FF15D0E719B8F00D62E90 /* messages.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = messages.h; sourceTree = "<group>"; };
 		897FF15E0E719B8F00D62E90 /* mksnapshot.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = mksnapshot.cc; sourceTree = "<group>"; };
@@ -1218,7 +1218,7 @@
 				897FF1580E719B8F00D62E90 /* macro-assembler.h */,
 				897FF1590E719B8F00D62E90 /* mark-compact.cc */,
 				897FF15A0E719B8F00D62E90 /* mark-compact.h */,
-				897FF15B0E719B8F00D62E90 /* memory.h */,
+				897FF15B0E719B8F00D62E90 /* v8memory.h */,
 				897FF15C0E719B8F00D62E90 /* messages.cc */,
 				897FF15D0E719B8F00D62E90 /* messages.h */,
 				897FF15E0E719B8F00D62E90 /* mksnapshot.cc */,

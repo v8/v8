@@ -35,10 +35,10 @@
 #include "debug.h"
 #include "deoptimizer.h"
 #include "global-handles.h"
-#include "memory.h"
 #include "parser.h"
 #include "scopeinfo.h"
 #include "scopes.h"
+#include "v8memory.h"
 
 namespace v8 {
 namespace internal {
