@@ -499,7 +499,7 @@ class CpuFeatures {
 };
 
 
-class Assembler : public Malloced {
+class Assembler : public AssemblerBase {
  private:
   // We check before assembling an instruction that there is sufficient
   // space to write an instruction and its relocation information.

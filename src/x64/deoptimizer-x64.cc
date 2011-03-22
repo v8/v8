@@ -654,7 +654,9 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ movq(r8, arg5);
 #endif
 
-  __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);
+  Isolate* isolate = masm()->isolate();
+
+  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 5);
   // Preserve deoptimizer object in register rax and get the input
   // frame descriptor pointer.
   __ movq(rbx, Operand(rax, Deoptimizer::input_offset()));
@@ -699,7 +701,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ push(rax);
   __ PrepareCallCFunction(1);
   __ movq(arg1, rax);
-  __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
+  __ CallCFunction(
+      ExternalReference::compute_output_frames_function(isolate), 1);
   __ pop(rax);
 
   // Replace the current frame with the output frames.
@@ -757,7 +760,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Set up the roots register.
-  ExternalReference roots_address = ExternalReference::roots_address();
+  ExternalReference roots_address = ExternalReference::roots_address(isolate);
   __ InitializeRootRegister();
   __ InitializeSmiConstantRegister();
 

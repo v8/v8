@@ -2811,7 +2811,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   if (isolate()->cpu_features()->IsSupported(VFP3)) {
     __ PrepareCallCFunction(0, r1);
-    __ CallCFunction(ExternalReference::random_uint32_function(), 0);
+    __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 0);
 
     CpuFeatures::Scope scope(VFP3);
     // 0x41300000 is the top half of 1.0 x 2^20 as a double.
@@ -2832,7 +2832,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
     __ mov(r0, Operand(r4));
     __ PrepareCallCFunction(1, r1);
     __ CallCFunction(
-        ExternalReference::fill_heap_number_with_random_function(), 1);
+        ExternalReference::fill_heap_number_with_random_function(isolate()), 1);
   }
 
   context()->Plug(r0);

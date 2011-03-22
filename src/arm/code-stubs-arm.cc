@@ -949,7 +949,8 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   __ push(lr);
   __ PrepareCallCFunction(4, scratch);  // Two doubles are 4 arguments.
   // Call C routine that may not cause GC or other trouble.
-  __ CallCFunction(ExternalReference::double_fp_operation(op), 4);
+  __ CallCFunction(ExternalReference::double_fp_operation(op, masm->isolate()),
+                   4);
   // Store answer in the overwritable heap number.
 #if !defined(USE_ARM_EABI)
   // Double returned in fp coprocessor register 0 and 1, encoded as
@@ -1304,7 +1305,7 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm,
     // Call C routine that may not cause GC or other trouble.
     __ push(lr);
     __ PrepareCallCFunction(4, r5);  // Two doubles count as 4 arguments.
-    __ CallCFunction(ExternalReference::compare_doubles(), 4);
+    __ CallCFunction(ExternalReference::compare_doubles(masm->isolate()), 4);
     __ pop(pc);  // Return.
   }
 }
@@ -2018,7 +2019,8 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
         __ PrepareCallCFunction(4, r4);  // Two doubles count as 4 arguments.
         // Call C routine that may not cause GC or other trouble. r5 is callee
         // save.
-        __ CallCFunction(ExternalReference::double_fp_operation(op_), 4);
+        __ CallCFunction(
+            ExternalReference::double_fp_operation(op_, masm->isolate()), 4);
         // Store answer in the overwritable heap number.
     #if !defined(USE_ARM_EABI)
         // Double returned in fp coprocessor register 0 and 1, encoded as
@@ -2822,7 +2824,7 @@ void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   __ Push(r2, r1, r0);
 
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kBinaryOp_Patch)),
+      ExternalReference(IC_Utility(IC::kBinaryOp_Patch), masm->isolate()),
       5,
       1);
 }
@@ -2853,7 +2855,8 @@ void TypeRecordingBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   __ Push(r2, r1, r0);
 
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch)),
+      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch),
+                        masm->isolate()),
       5,
       1);
 }
@@ -3797,11 +3800,14 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     // r2 = low 32 bits of double value.
     // r3 = high 32 bits of double value.
     // r1 = TranscendentalCache::hash(double value).
-    __ mov(cache_entry,
-           Operand(ExternalReference::transcendental_cache_array_address()));
-    // r0 points to cache array.
-    __ ldr(cache_entry, MemOperand(cache_entry, type_ * sizeof(
-        Isolate::Current()->transcendental_cache()->caches_[0])));
+    Isolate* isolate = masm->isolate();
+    ExternalReference cache_array =
+        ExternalReference::transcendental_cache_array_address(isolate);
+    __ mov(cache_entry, Operand(cache_array));
+    // cache_entry points to cache array.
+    int cache_array_index
+        = type_ * sizeof(isolate->transcendental_cache()->caches_[0]);
+    __ ldr(cache_entry, MemOperand(cache_entry, cache_array_index));
     // r0 points to the cache for the type type_.
     // If NULL, the cache hasn't been initialized yet, so go through runtime.
     __ cmp(cache_entry, Operand(0, RelocInfo::NONE));
@@ -3846,7 +3852,9 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ bind(&calculate);
   if (tagged) {
     __ bind(&invalid_cache);
-    __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
+    ExternalReference runtime_function =
+        ExternalReference(RuntimeFunction(), masm->isolate());
+    __ TailCallExternalReference(runtime_function, 1, 1);
   } else {
     if (!Isolate::Current()->cpu_features()->IsSupported(VFP3)) UNREACHABLE();
     CpuFeatures::Scope scope(VFP3);
@@ -3909,18 +3917,20 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
 void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
                                                     Register scratch) {
+  Isolate* isolate = masm->isolate();
+
   __ push(lr);
   __ PrepareCallCFunction(2, scratch);
   __ vmov(r0, r1, d2);
   switch (type_) {
     case TranscendentalCache::SIN:
-      __ CallCFunction(ExternalReference::math_sin_double_function(), 2);
+      __ CallCFunction(ExternalReference::math_sin_double_function(isolate), 2);
       break;
     case TranscendentalCache::COS:
-      __ CallCFunction(ExternalReference::math_cos_double_function(), 2);
+      __ CallCFunction(ExternalReference::math_cos_double_function(isolate), 2);
       break;
     case TranscendentalCache::LOG:
-      __ CallCFunction(ExternalReference::math_log_double_function(), 2);
+      __ CallCFunction(ExternalReference::math_log_double_function(isolate), 2);
       break;
     default:
       UNIMPLEMENTED();
@@ -4140,7 +4150,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ PrepareCallCFunction(3, scratch);
     __ mov(r2, exponent);
     __ vmov(r0, r1, double_base);
-    __ CallCFunction(ExternalReference::power_double_int_function(), 3);
+    __ CallCFunction(
+        ExternalReference::power_double_int_function(masm->isolate()), 3);
     __ pop(lr);
     __ GetCFunctionDoubleResult(double_result);
     __ vstr(double_result,
@@ -4169,7 +4180,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ PrepareCallCFunction(4, scratch);
     __ vmov(r0, r1, double_base);
     __ vmov(r2, r3, double_exponent);
-    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(masm->isolate()), 4);
     __ pop(lr);
     __ GetCFunctionDoubleResult(double_result);
     __ vstr(double_result,
@@ -4209,15 +4221,16 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // r4: number of arguments including receiver  (C callee-saved)
   // r5: pointer to builtin function  (C callee-saved)
   // r6: pointer to the first argument (C callee-saved)
+  Isolate* isolate = masm->isolate();
 
   if (do_gc) {
     // Passing r0.
     __ PrepareCallCFunction(1, r1);
-    __ CallCFunction(ExternalReference::perform_gc_function(), 1);
+    __ CallCFunction(ExternalReference::perform_gc_function(isolate), 1);
   }
 
   ExternalReference scope_depth =
-      ExternalReference::heap_always_allocate_scope_depth();
+      ExternalReference::heap_always_allocate_scope_depth(isolate);
   if (always_allocate) {
     __ mov(r0, Operand(scope_depth));
     __ ldr(r1, MemOperand(r0));
@@ -4302,15 +4315,16 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ b(eq, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
-  __ mov(ip, Operand(ExternalReference::the_hole_value_location()));
+  __ mov(ip, Operand(ExternalReference::the_hole_value_location(isolate)));
   __ ldr(r3, MemOperand(ip));
-  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address)));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address,
+                                       isolate)));
   __ ldr(r0, MemOperand(ip));
   __ str(r3, MemOperand(ip));
 
   // Special handling of termination exceptions which are uncatchable
   // by javascript code.
-  __ cmp(r0, Operand(FACTORY->termination_exception()));
+  __ cmp(r0, Operand(isolate->factory()->termination_exception()));
   __ b(eq, throw_termination_exception);
 
   // Handle normal exception.
@@ -4418,11 +4432,13 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r2: receiver
   // r3: argc
   // r4: argv
+  Isolate* isolate = masm->isolate();
   __ mov(r8, Operand(-1));  // Push a bad frame pointer to fail if it is used.
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
   __ mov(r7, Operand(Smi::FromInt(marker)));
   __ mov(r6, Operand(Smi::FromInt(marker)));
-  __ mov(r5, Operand(ExternalReference(Isolate::k_c_entry_fp_address)));
+  __ mov(r5,
+         Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
   __ ldr(r5, MemOperand(r5));
   __ Push(r8, r7, r6, r5);
 
@@ -4431,7 +4447,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // If this is the outermost JS call, set js_entry_sp value.
-  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address);
+  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
   __ mov(r5, Operand(ExternalReference(js_entry_sp)));
   __ ldr(r6, MemOperand(r5));
   __ cmp(r6, Operand(0, RelocInfo::NONE));
@@ -4445,7 +4461,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // exception field in the JSEnv and return a failure sentinel.
   // Coming in here the fp will be invalid because the PushTryHandler below
   // sets it to 0 to signal the existence of the JSEntry frame.
-  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address)));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address,
+                                       isolate)));
   __ str(r0, MemOperand(ip));
   __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ b(&exit);
@@ -4460,9 +4477,10 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // saved values before returning a failure to C.
 
   // Clear any pending exceptions.
-  __ mov(ip, Operand(ExternalReference::the_hole_value_location()));
+  __ mov(ip, Operand(ExternalReference::the_hole_value_location(isolate)));
   __ ldr(r5, MemOperand(ip));
-  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address)));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address,
+                                       isolate)));
   __ str(r5, MemOperand(ip));
 
   // Invoke the function by calling through JS entry trampoline builtin.
@@ -4476,10 +4494,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r3: argc
   // r4: argv
   if (is_construct) {
-    ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline);
+    ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline,
+                                      isolate);
     __ mov(ip, Operand(construct_entry));
   } else {
-    ExternalReference entry(Builtins::JSEntryTrampoline);
+    ExternalReference entry(Builtins::JSEntryTrampoline, isolate);
     __ mov(ip, Operand(entry));
   }
   __ ldr(ip, MemOperand(ip));  // deref address
@@ -4495,7 +4514,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // displacement since the current stack pointer (sp) points directly
   // to the stack handler.
   __ ldr(r3, MemOperand(sp, StackHandlerConstants::kNextOffset));
-  __ mov(ip, Operand(ExternalReference(Isolate::k_handler_address)));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
   __ str(r3, MemOperand(ip));
   // No need to restore registers
   __ add(sp, sp, Operand(StackHandlerConstants::kSize));
@@ -4513,7 +4532,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ bind(&exit);  // r0 holds result
   // Restore the top frame descriptors from the stack.
   __ pop(r3);
-  __ mov(ip, Operand(ExternalReference(Isolate::k_c_entry_fp_address)));
+  __ mov(ip,
+         Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
   __ str(r3, MemOperand(ip));
 
   // Reset the stack to the callee saved registers.
@@ -4909,10 +4929,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Register last_match_info_elements = r6;
 
   // Ensure that a RegExp stack is allocated.
+  Isolate* isolate = masm->isolate();
   ExternalReference address_of_regexp_stack_memory_address =
-      ExternalReference::address_of_regexp_stack_memory_address();
+      ExternalReference::address_of_regexp_stack_memory_address(isolate);
   ExternalReference address_of_regexp_stack_memory_size =
-      ExternalReference::address_of_regexp_stack_memory_size();
+      ExternalReference::address_of_regexp_stack_memory_size(isolate);
   __ mov(r0, Operand(address_of_regexp_stack_memory_size));
   __ ldr(r0, MemOperand(r0, 0));
   __ tst(r0, Operand(r0));
@@ -5095,7 +5116,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ str(r0, MemOperand(sp, 2 * kPointerSize));
 
   // Argument 5 (sp[4]): static offsets vector buffer.
-  __ mov(r0, Operand(ExternalReference::address_of_static_offsets_vector()));
+  __ mov(r0,
+         Operand(ExternalReference::address_of_static_offsets_vector(isolate)));
   __ str(r0, MemOperand(sp, 1 * kPointerSize));
 
   // For arguments 4 and 3 get string length, calculate start of string data and
@@ -5143,9 +5165,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
-  __ mov(r1, Operand(ExternalReference::the_hole_value_location()));
+  __ mov(r1, Operand(ExternalReference::the_hole_value_location(isolate)));
   __ ldr(r1, MemOperand(r1, 0));
-  __ mov(r2, Operand(ExternalReference(Isolate::k_pending_exception_address)));
+  __ mov(r2, Operand(ExternalReference(Isolate::k_pending_exception_address,
+                                       isolate)));
   __ ldr(r0, MemOperand(r2, 0));
   __ cmp(r0, r1);
   __ b(eq, &runtime);
@@ -5198,7 +5221,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Get the static offsets vector filled by the native regexp code.
   ExternalReference address_of_static_offsets_vector =
-      ExternalReference::address_of_static_offsets_vector();
+      ExternalReference::address_of_static_offsets_vector(isolate);
   __ mov(r2, Operand(address_of_static_offsets_vector));
 
   // r1: number of capture registers
@@ -6793,7 +6816,8 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   __ push(lr);
 
   // Call the runtime system in a fresh internal frame.
-  ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss));
+  ExternalReference miss =
+      ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
   __ EnterInternalFrame();
   __ Push(r1, r0);
   __ mov(ip, Operand(Smi::FromInt(op_)));

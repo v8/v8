@@ -453,8 +453,10 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ mov(r2, Operand(Handle<Map>(transition)));
     __ Push(r2, r0);
     __ TailCallExternalReference(
-           ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage)),
-           3, 1);
+        ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage),
+                          masm->isolate()),
+        3,
+        1);
     return;
   }
 
@@ -570,7 +572,8 @@ static void CompileCallLoadPropertyWithInterceptor(MacroAssembler* masm,
   PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
 
   ExternalReference ref =
-      ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly));
+      ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
+                        masm->isolate());
   __ mov(r0, Operand(5));
   __ mov(r1, Operand(ref));
 
@@ -659,8 +662,9 @@ static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
   // garbage collection but instead return the allocation failure
   // object.
   const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
-  ExternalReference ref =
-      ExternalReference(&fun, ExternalReference::DIRECT_API_CALL);
+  ExternalReference ref = ExternalReference(&fun,
+                                            ExternalReference::DIRECT_API_CALL,
+                                            masm->isolate());
   return masm->TryCallApiFunctionAndReturn(ref, kStackUnwindSpace);
 }
 
@@ -843,9 +847,9 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                              interceptor_holder);
 
     __ CallExternalReference(
-          ExternalReference(
-              IC_Utility(IC::kLoadPropertyWithInterceptorForCall)),
-          5);
+        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForCall),
+                          masm->isolate()),
+        5);
 
     // Restore the name_ register.
     __ pop(name_);
@@ -1276,7 +1280,9 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
   // object.
   const int kStackUnwindSpace = 4;
   ExternalReference ref =
-      ExternalReference(&fun, ExternalReference::DIRECT_GETTER_CALL);
+      ExternalReference(&fun,
+                        ExternalReference::DIRECT_GETTER_CALL,
+                        masm()->isolate());
   return masm()->TryCallApiFunctionAndReturn(ref, kStackUnwindSpace);
 }
 
@@ -1405,7 +1411,8 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
       }
 
       ExternalReference ref =
-          ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
+          ExternalReference(IC_Utility(IC::kLoadCallbackProperty),
+                            masm()->isolate());
       __ TailCallExternalReference(ref, 5, 1);
     }
   } else {  // !compile_followup_inline
@@ -1417,8 +1424,9 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
     PushInterceptorArguments(masm(), receiver, holder_reg,
                              name_reg, interceptor_holder);
 
-    ExternalReference ref = ExternalReference(
-        IC_Utility(IC::kLoadPropertyWithInterceptorForLoad));
+    ExternalReference ref =
+        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForLoad),
+                          masm()->isolate());
     __ TailCallExternalReference(ref, 5, 1);
   }
 }
@@ -1634,10 +1642,11 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
         __ b(&call_builtin);
       }
 
+      Isolate* isolate = masm()->isolate();
       ExternalReference new_space_allocation_top =
-          ExternalReference::new_space_allocation_top_address();
+          ExternalReference::new_space_allocation_top_address(isolate);
       ExternalReference new_space_allocation_limit =
-          ExternalReference::new_space_allocation_limit_address();
+          ExternalReference::new_space_allocation_limit_address(isolate);
 
       const int kAllocationDelta = 4;
       // Load top and check if it is the end of elements.
@@ -1677,7 +1686,8 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ Ret();
     }
     __ bind(&call_builtin);
-    __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPush),
+    __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPush,
+                                                   masm()->isolate()),
                                  argc + 1,
                                  1);
   }
@@ -1762,7 +1772,8 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ Ret();
 
   __ bind(&call_builtin);
-  __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPop),
+  __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPop,
+                                                 masm()->isolate()),
                                argc + 1,
                                1);
 
@@ -2636,7 +2647,8 @@ MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
 
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
-      ExternalReference(IC_Utility(IC::kStoreCallbackProperty));
+      ExternalReference(IC_Utility(IC::kStoreCallbackProperty),
+                        masm()->isolate());
   __ TailCallExternalReference(store_callback_property, 4, 1);
 
   // Handle store cache miss.
@@ -2685,7 +2697,8 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
-      ExternalReference(IC_Utility(IC::kStoreInterceptorProperty));
+      ExternalReference(IC_Utility(IC::kStoreInterceptorProperty),
+                        masm()->isolate());
   __ TailCallExternalReference(store_ic_property, 4, 1);
 
   // Handle store cache miss.

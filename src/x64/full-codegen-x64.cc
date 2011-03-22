@@ -2701,7 +2701,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   // Return a random uint32 number in rax.
   // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
   __ PrepareCallCFunction(0);
-  __ CallCFunction(ExternalReference::random_uint32_function(), 0);
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 0);
 
   // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:

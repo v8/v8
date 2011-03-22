@@ -470,6 +470,9 @@ class Parser {
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_data() const { return pre_data_; }
 
+  // Check if the given string is 'eval' or 'arguments'.
+  bool IsEvalOrArguments(Handle<String> string);
+
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check

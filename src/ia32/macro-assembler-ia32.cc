@@ -152,7 +152,7 @@ void MacroAssembler::RecordWrite(Register object,
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
   Set(eax, Immediate(0));
-  mov(ebx, Immediate(ExternalReference(Runtime::kDebugBreak)));
+  mov(ebx, Immediate(ExternalReference(Runtime::kDebugBreak, isolate())));
   CEntryStub ces(1);
   call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
@@ -316,8 +316,10 @@ void MacroAssembler::EnterExitFramePrologue() {
   push(Immediate(CodeObject()));  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
-  ExternalReference c_entry_fp_address(Isolate::k_c_entry_fp_address);
-  ExternalReference context_address(Isolate::k_context_address);
+  ExternalReference c_entry_fp_address(Isolate::k_c_entry_fp_address,
+                                       isolate());
+  ExternalReference context_address(Isolate::k_context_address,
+                                    isolate());
   mov(Operand::StaticVariable(c_entry_fp_address), ebp);
   mov(Operand::StaticVariable(context_address), esi);
 }
@@ -395,14 +397,15 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
 
 void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
-  ExternalReference context_address(Isolate::k_context_address);
+  ExternalReference context_address(Isolate::k_context_address, isolate());
   mov(esi, Operand::StaticVariable(context_address));
 #ifdef DEBUG
   mov(Operand::StaticVariable(context_address), Immediate(0));
 #endif
 
   // Clear the top frame.
-  ExternalReference c_entry_fp_address(Isolate::k_c_entry_fp_address);
+  ExternalReference c_entry_fp_address(Isolate::k_c_entry_fp_address,
+                                       isolate());
   mov(Operand::StaticVariable(c_entry_fp_address), Immediate(0));
 }
 
@@ -436,16 +439,19 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     push(Immediate(0));  // NULL frame pointer.
   }
   // Save the current handler as the next handler.
-  push(Operand::StaticVariable(ExternalReference(Isolate::k_handler_address)));
+  push(Operand::StaticVariable(ExternalReference(Isolate::k_handler_address,
+                                                 isolate())));
   // Link this handler as the new current one.
-  mov(Operand::StaticVariable(ExternalReference(Isolate::k_handler_address)),
+  mov(Operand::StaticVariable(ExternalReference(Isolate::k_handler_address,
+                                                isolate())),
       esp);
 }
 
 
 void MacroAssembler::PopTryHandler() {
   ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
-  pop(Operand::StaticVariable(ExternalReference(Isolate::k_handler_address)));
+  pop(Operand::StaticVariable(ExternalReference(Isolate::k_handler_address,
+                                                isolate())));
   add(Operand(esp), Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
 
@@ -460,7 +466,8 @@ void MacroAssembler::Throw(Register value) {
   }
 
   // Drop the sp to the top of the handler.
-  ExternalReference handler_address(Isolate::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address,
+                                    isolate());
   mov(esp, Operand::StaticVariable(handler_address));
 
   // Restore next handler and frame pointer, discard handler state.
@@ -496,7 +503,8 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   }
 
   // Drop sp to the top stack handler.
-  ExternalReference handler_address(Isolate::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address,
+                                    isolate());
   mov(esp, Operand::StaticVariable(handler_address));
 
   // Unwind the handlers until the ENTRY handler is found.
@@ -519,12 +527,14 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   if (type == OUT_OF_MEMORY) {
     // Set external caught exception to false.
     ExternalReference external_caught(
-        Isolate::k_external_caught_exception_address);
+        Isolate::k_external_caught_exception_address,
+        isolate());
     mov(eax, false);
     mov(Operand::StaticVariable(external_caught), eax);
 
     // Set pending exception and eax to out of memory exception.
-    ExternalReference pending_exception(Isolate::k_pending_exception_address);
+    ExternalReference pending_exception(Isolate::k_pending_exception_address,
+                                        isolate());
     mov(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
     mov(Operand::StaticVariable(pending_exception), eax);
   }
@@ -614,7 +624,7 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
                                              Register scratch,
                                              AllocationFlags flags) {
   ExternalReference new_space_allocation_top =
-      ExternalReference::new_space_allocation_top_address();
+      ExternalReference::new_space_allocation_top_address(isolate());
 
   // Just return if allocation top is already known.
   if ((flags & RESULT_CONTAINS_TOP) != 0) {
@@ -646,7 +656,7 @@ void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
   }
 
   ExternalReference new_space_allocation_top =
-      ExternalReference::new_space_allocation_top_address();
+      ExternalReference::new_space_allocation_top_address(isolate());
 
   // Update new top. Use scratch if available.
   if (scratch.is(no_reg)) {
@@ -686,7 +696,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address();
+      ExternalReference::new_space_allocation_limit_address(isolate());
 
   if (!top_reg.is(result)) {
     mov(top_reg, result);
@@ -740,7 +750,7 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address();
+      ExternalReference::new_space_allocation_limit_address(isolate());
 
   // We assume that element_count*element_size + header_size does not
   // overflow.
@@ -786,7 +796,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address();
+      ExternalReference::new_space_allocation_limit_address(isolate());
   if (!object_size.is(result_end)) {
     mov(result_end, object_size);
   }
@@ -807,7 +817,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
 
 void MacroAssembler::UndoAllocationInNewSpace(Register object) {
   ExternalReference new_space_allocation_top =
-      ExternalReference::new_space_allocation_top_address();
+      ExternalReference::new_space_allocation_top_address(isolate());
 
   // Make sure the object has no tag before resetting top.
   and_(Operand(object), Immediate(~kHeapObjectTagMask));
@@ -1179,7 +1189,7 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
 void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
   const Runtime::Function* function = Runtime::FunctionForId(id);
   Set(eax, Immediate(function->nargs));
-  mov(ebx, Immediate(ExternalReference(function)));
+  mov(ebx, Immediate(ExternalReference(function, isolate())));
   CEntryStub ces(1);
   ces.SaveDoubles();
   CallStub(&ces);
@@ -1207,7 +1217,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // should remove this need and make the runtime routine entry code
   // smarter.
   Set(eax, Immediate(num_arguments));
-  mov(ebx, Immediate(ExternalReference(f)));
+  mov(ebx, Immediate(ExternalReference(f, isolate())));
   CEntryStub ces(1);
   CallStub(&ces);
 }
@@ -1227,7 +1237,7 @@ MaybeObject* MacroAssembler::TryCallRuntime(const Runtime::Function* f,
   // should remove this need and make the runtime routine entry code
   // smarter.
   Set(eax, Immediate(num_arguments));
-  mov(ebx, Immediate(ExternalReference(f)));
+  mov(ebx, Immediate(ExternalReference(f, isolate())));
   CEntryStub ces(1);
   return TryCallStub(&ces);
 }
@@ -1269,7 +1279,9 @@ MaybeObject* MacroAssembler::TryTailCallExternalReference(
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
                                      int num_arguments,
                                      int result_size) {
-  TailCallExternalReference(ExternalReference(fid), num_arguments, result_size);
+  TailCallExternalReference(ExternalReference(fid, isolate()),
+                            num_arguments,
+                            result_size);
 }
 
 
@@ -1277,7 +1289,7 @@ MaybeObject* MacroAssembler::TryTailCallRuntime(Runtime::FunctionId fid,
                                                 int num_arguments,
                                                 int result_size) {
   return TryTailCallExternalReference(
-      ExternalReference(fid), num_arguments, result_size);
+      ExternalReference(fid, isolate()), num_arguments, result_size);
 }
 
 
@@ -1377,9 +1389,9 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
 
   // Check if the function scheduled an exception.
   ExternalReference scheduled_exception_address =
-      ExternalReference::scheduled_exception_address();
+      ExternalReference::scheduled_exception_address(isolate());
   cmp(Operand::StaticVariable(scheduled_exception_address),
-      Immediate(FACTORY->the_hole_value()));
+      Immediate(isolate()->factory()->the_hole_value()));
   j(not_equal, &promote_scheduled_exception, not_taken);
   LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
@@ -1395,11 +1407,13 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
   jmp(&prologue);
 
   // HandleScope limit has changed. Delete allocated extensions.
+  ExternalReference delete_extensions =
+      ExternalReference::delete_handle_scope_extensions(isolate());
   bind(&delete_allocated_handles);
   mov(Operand::StaticVariable(limit_address), edi);
   mov(edi, eax);
   mov(Operand(esp, 0), Immediate(ExternalReference::isolate_address()));
-  mov(eax, Immediate(ExternalReference::delete_handle_scope_extensions()));
+  mov(eax, Immediate(delete_extensions));
   call(Operand(eax));
   mov(eax, edi);
   jmp(&leave_exit_frame);

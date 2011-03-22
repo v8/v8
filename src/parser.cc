@@ -252,7 +252,7 @@ void RegExpBuilder::AddQuantifierToAtom(int min,
 // allocated and hence used by the pre-parser.
 class TemporaryScope BASE_EMBEDDED {
  public:
-  explicit TemporaryScope(TemporaryScope** variable);
+  TemporaryScope(TemporaryScope** variable, Isolate* isolate);
   ~TemporaryScope();
 
   int NextMaterializedLiteralIndex() {
@@ -306,12 +306,11 @@ class TemporaryScope BASE_EMBEDDED {
 };
 
 
-TemporaryScope::TemporaryScope(TemporaryScope** variable)
+TemporaryScope::TemporaryScope(TemporaryScope** variable, Isolate* isolate)
   : materialized_literal_count_(0),
     expected_property_count_(0),
     only_simple_this_property_assignments_(false),
-    this_property_assignments_(
-        Isolate::Current()->factory()->empty_fixed_array()),
+    this_property_assignments_(isolate->factory()->empty_fixed_array()),
     loop_count_(0),
     variable_(variable),
     parent_(*variable) {
@@ -659,7 +658,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
   { Scope* scope = NewScope(top_scope_, type, inside_with());
     LexicalScope lexical_scope(&this->top_scope_, &this->with_nesting_level_,
                                scope);
-    TemporaryScope temp_scope(&this->temp_scope_);
+    TemporaryScope temp_scope(&this->temp_scope_, isolate());
     if (strict_mode == kStrictMode) {
       top_scope_->EnableStrictMode();
     }
@@ -749,7 +748,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
     }
     LexicalScope lexical_scope(&this->top_scope_, &this->with_nesting_level_,
                                scope);
-    TemporaryScope temp_scope(&this->temp_scope_);
+    TemporaryScope temp_scope(&this->temp_scope_, isolate());
 
     if (shared_info->strict_mode()) {
       top_scope_->EnableStrictMode();
@@ -952,8 +951,9 @@ class InitializationBlockFinder : public ParserFinder {
 // function contains only assignments of this type.
 class ThisNamedPropertyAssigmentFinder : public ParserFinder {
  public:
-  ThisNamedPropertyAssigmentFinder()
-      : only_simple_this_property_assignments_(true),
+  explicit ThisNamedPropertyAssigmentFinder(Isolate* isolate)
+      : isolate_(isolate),
+        only_simple_this_property_assignments_(true),
         names_(NULL),
         assigned_arguments_(NULL),
         assigned_constants_(NULL) {}
@@ -984,14 +984,14 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
   // form this.x = y;
   Handle<FixedArray> GetThisPropertyAssignments() {
     if (names_ == NULL) {
-      return FACTORY->empty_fixed_array();
+      return isolate_->factory()->empty_fixed_array();
     }
     ASSERT(names_ != NULL);
     ASSERT(assigned_arguments_ != NULL);
     ASSERT_EQ(names_->length(), assigned_arguments_->length());
     ASSERT_EQ(names_->length(), assigned_constants_->length());
     Handle<FixedArray> assignments =
-        FACTORY->NewFixedArray(names_->length() * 3);
+        isolate_->factory()->NewFixedArray(names_->length() * 3);
     for (int i = 0; i < names_->length(); i++) {
       assignments->set(i * 3, *names_->at(i));
       assignments->set(i * 3 + 1, Smi::FromInt(assigned_arguments_->at(i)));
@@ -1021,7 +1021,8 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     uint32_t dummy;
     if (literal != NULL &&
         literal->handle()->IsString() &&
-        !String::cast(*(literal->handle()))->Equals(HEAP->Proto_symbol()) &&
+        !String::cast(*(literal->handle()))->Equals(
+            isolate_->heap()->Proto_symbol()) &&
         !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
       Handle<String> key = Handle<String>::cast(literal->handle());
 
@@ -1055,7 +1056,7 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     EnsureAllocation();
     names_->Add(name);
     assigned_arguments_->Add(index);
-    assigned_constants_->Add(FACTORY->undefined_value());
+    assigned_constants_->Add(isolate_->factory()->undefined_value());
   }
 
   void AssignmentFromConstant(Handle<String> name, Handle<Object> value) {
@@ -1080,6 +1081,7 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     }
   }
 
+  Isolate* isolate_;
   bool only_simple_this_property_assignments_;
   ZoneStringList* names_;
   ZoneList<int>* assigned_arguments_;
@@ -1101,7 +1103,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
 
   ASSERT(processor != NULL);
   InitializationBlockFinder block_finder;
-  ThisNamedPropertyAssigmentFinder this_property_assignment_finder;
+  ThisNamedPropertyAssigmentFinder this_property_assignment_finder(isolate());
   bool directive_prologue = true;     // Parsing directive prologue.
 
   while (peek() != end_token) {
@@ -1519,10 +1521,12 @@ Block* Parser::ParseVariableStatement(bool* ok) {
   return result;
 }
 
-static bool IsEvalOrArguments(Handle<String> string) {
-  return string.is_identical_to(FACTORY->eval_symbol()) ||
-         string.is_identical_to(FACTORY->arguments_symbol());
+
+bool Parser::IsEvalOrArguments(Handle<String> string) {
+  return string.is_identical_to(isolate()->factory()->eval_symbol()) ||
+      string.is_identical_to(isolate()->factory()->arguments_symbol());
 }
+
 
 // If the variable declaration declares exactly one non-const
 // variable, then *var is set to that variable. In all other cases,
@@ -3540,7 +3544,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
     LexicalScope lexical_scope(&this->top_scope_, &this->with_nesting_level_,
                                scope);
-    TemporaryScope temp_scope(&this->temp_scope_);
+    TemporaryScope temp_scope(&this->temp_scope_, isolate());
     top_scope_->SetScopeName(name);
 
     //  FormalParameterList ::

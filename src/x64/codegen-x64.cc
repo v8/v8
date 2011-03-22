@@ -3981,7 +3981,7 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   function_return_is_shadowed_ = function_return_was_shadowed;
 
   // Get an external reference to the handler address.
-  ExternalReference handler_address(Isolate::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address, isolate());
 
   // Make sure that there's nothing left on the stack above the
   // handler structure.
@@ -4110,7 +4110,7 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
   function_return_is_shadowed_ = function_return_was_shadowed;
 
   // Get an external reference to the handler address.
-  ExternalReference handler_address(Isolate::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address, isolate());
 
   // If we can fall off the end of the try block, unlink from the try
   // chain and set the state on the frame to FALLING.
@@ -6439,7 +6439,7 @@ void CodeGenerator::GenerateRandomHeapNumber(
   // Return a random uint32 number in rax.
   // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
   __ PrepareCallCFunction(0);
-  __ CallCFunction(ExternalReference::random_uint32_function(), 0);
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 0);
 
   // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:

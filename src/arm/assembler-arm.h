@@ -549,7 +549,7 @@ extern const Instr kAndBicFlip;
 
 
 
-class Assembler : public Malloced {
+class Assembler : public AssemblerBase {
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the

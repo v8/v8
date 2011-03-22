@@ -68,7 +68,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   // JumpToExternalReference expects r0 to contain the number of arguments
   // including the receiver and the extra arguments.
   __ add(r0, r0, Operand(num_extra_args + 1));
-  __ JumpToExternalReference(ExternalReference(id));
+  __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 
 
@@ -442,7 +442,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   // Jump to the generic array code if the specialized code cannot handle
   // the construction.
   __ bind(&generic_array_code);
-  Code* code = Isolate::Current()->builtins()->builtin(
+  Code* code = masm->isolate()->builtins()->builtin(
       Builtins::ArrayCodeGeneric);
   Handle<Code> array_code(code);
   __ Jump(array_code, RelocInfo::CODE_TARGET);
@@ -475,7 +475,7 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
   // Jump to the generic construct code in case the specialized code cannot
   // handle the construction.
   __ bind(&generic_constructor);
-  Code* code = Isolate::Current()->builtins()->builtin(
+  Code* code = masm->isolate()->builtins()->builtin(
       Builtins::JSConstructStubGeneric);
   Handle<Code> generic_construct_stub(code);
   __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
@@ -635,7 +635,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Set expected number of arguments to zero (not changing r0).
   __ mov(r2, Operand(0, RelocInfo::NONE));
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
-  __ Jump(Handle<Code>(Isolate::Current()->builtins()->builtin(
+  __ Jump(Handle<Code>(masm->isolate()->builtins()->builtin(
       ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
 }
 
@@ -661,7 +661,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     Label undo_allocation;
 #ifdef ENABLE_DEBUGGER_SUPPORT
     ExternalReference debug_step_in_fp =
-        ExternalReference::debug_step_in_fp_address();
+        ExternalReference::debug_step_in_fp_address(masm->isolate());
     __ mov(r2, Operand(debug_step_in_fp));
     __ ldr(r2, MemOperand(r2));
     __ tst(r2, r2);
@@ -908,7 +908,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   if (is_api_function) {
     __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
     Handle<Code> code = Handle<Code>(
-        Isolate::Current()->builtins()->builtin(
+        masm->isolate()->builtins()->builtin(
             Builtins::HandleApiCallConstruct));
     ParameterCount expected(0);
     __ InvokeCode(code, expected, expected,
@@ -1006,7 +1006,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // Set up the roots register.
-  ExternalReference roots_address = ExternalReference::roots_address();
+  ExternalReference roots_address =
+      ExternalReference::roots_address(masm->isolate());
   __ mov(r10, Operand(roots_address));
 
   // Push the function and the receiver onto the stack.
@@ -1042,7 +1043,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Invoke the code and pass argc as r0.
   __ mov(r0, Operand(r3));
   if (is_construct) {
-    __ Call(Handle<Code>(Isolate::Current()->builtins()->builtin(
+    __ Call(Handle<Code>(masm->isolate()->builtins()->builtin(
         Builtins::JSConstructCall)), RelocInfo::CODE_TARGET);
   } else {
     ParameterCount actual(r0);
@@ -1172,7 +1173,7 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   // Probe the CPU to set the supported features, because this builtin
   // may be called before the initialization performs CPU setup.
-  Isolate::Current()->cpu_features()->Probe(false);
+  masm->isolate()->cpu_features()->Probe(false);
 
   // Lookup the function in the JavaScript frame and push it as an
   // argument to the on-stack replacement function.
@@ -1335,7 +1336,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // Expected number of arguments is 0 for CALL_NON_FUNCTION.
     __ mov(r2, Operand(0, RelocInfo::NONE));
     __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
-    __ Jump(Handle<Code>(Isolate::Current()->builtins()->builtin(
+    __ Jump(Handle<Code>(masm->isolate()->builtins()->builtin(
         ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
     __ bind(&function);
   }
@@ -1351,7 +1352,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ mov(r2, Operand(r2, ASR, kSmiTagSize));
   __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
   __ cmp(r2, r0);  // Check formal and actual parameter counts.
-  __ Jump(Handle<Code>(Isolate::Current()->builtins()->builtin(
+  __ Jump(Handle<Code>(masm->isolate()->builtins()->builtin(
       ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET, ne);
 
   ParameterCount expected(0);

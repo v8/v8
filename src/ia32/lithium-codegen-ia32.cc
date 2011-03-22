@@ -1226,7 +1226,9 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ PrepareCallCFunction(4, eax);
       __ movdbl(Operand(esp, 0 * kDoubleSize), left);
       __ movdbl(Operand(esp, 1 * kDoubleSize), right);
-      __ CallCFunction(ExternalReference::double_fp_operation(Token::MOD), 4);
+      __ CallCFunction(
+          ExternalReference::double_fp_operation(Token::MOD, isolate()),
+          4);
 
       // Return value is in st(0) on ia32.
       // Store it into the (fixed) result register.
@@ -1348,7 +1350,7 @@ void LCodeGen::EmitGoto(int block, LDeferredCode* deferred_stack_check) {
     // Perform stack overflow check if this goto needs it before jumping.
     if (deferred_stack_check != NULL) {
       ExternalReference stack_limit =
-          ExternalReference::address_of_stack_limit();
+          ExternalReference::address_of_stack_limit(isolate());
       __ cmp(esp, Operand::StaticVariable(stack_limit));
       __ j(above_equal, chunk_->GetAssemblyLabel(block));
       __ jmp(deferred_stack_check->entry());
@@ -2640,13 +2642,15 @@ void LCodeGen::DoPower(LPower* instr) {
   LOperand* right = instr->InputAt(1);
   DoubleRegister result_reg = ToDoubleRegister(instr->result());
   Representation exponent_type = instr->hydrogen()->right()->representation();
+
   if (exponent_type.IsDouble()) {
     // It is safe to use ebx directly since the instruction is marked
     // as a call.
     __ PrepareCallCFunction(4, ebx);
     __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
     __ movdbl(Operand(esp, 1 * kDoubleSize), ToDoubleRegister(right));
-    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
+                     4);
   } else if (exponent_type.IsInteger32()) {
     // It is safe to use ebx directly since the instruction is marked
     // as a call.
@@ -2654,7 +2658,8 @@ void LCodeGen::DoPower(LPower* instr) {
     __ PrepareCallCFunction(4, ebx);
     __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
     __ mov(Operand(esp, 1 * kDoubleSize), ToRegister(right));
-    __ CallCFunction(ExternalReference::power_double_int_function(), 4);
+    __ CallCFunction(ExternalReference::power_double_int_function(isolate()),
+                     4);
   } else {
     ASSERT(exponent_type.IsTagged());
     CpuFeatures::Scope scope(SSE2);
@@ -2679,7 +2684,8 @@ void LCodeGen::DoPower(LPower* instr) {
     __ PrepareCallCFunction(4, ebx);
     __ movdbl(Operand(esp, 0 * kDoubleSize), ToDoubleRegister(left));
     __ movdbl(Operand(esp, 1 * kDoubleSize), result_reg);
-    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
+                     4);
   }
 
   // Return value is in st(0) on ia32.
@@ -3978,7 +3984,8 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
 void LCodeGen::DoStackCheck(LStackCheck* instr) {
   // Perform stack overflow check.
   NearLabel done;
-  ExternalReference stack_limit = ExternalReference::address_of_stack_limit();
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit(isolate());
   __ cmp(esp, Operand::StaticVariable(stack_limit));
   __ j(above_equal, &done);
 

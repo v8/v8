@@ -1200,7 +1200,8 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ PrepareCallCFunction(2);
       __ movsd(xmm0, left);
       ASSERT(right.is(xmm1));
-      __ CallCFunction(ExternalReference::double_fp_operation(Token::MOD), 2);
+      __ CallCFunction(
+          ExternalReference::double_fp_operation(Token::MOD, isolate()), 2);
       __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
       __ movsd(result, xmm0);
       break;
@@ -2621,7 +2622,8 @@ void LCodeGen::DoPower(LPower* instr) {
     // Move arguments to correct registers
     __ movsd(xmm0, left_reg);
     ASSERT(ToDoubleRegister(right).is(xmm1));
-    __ CallCFunction(ExternalReference::power_double_double_function(), 2);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(isolate()), 2);
   } else if (exponent_type.IsInteger32()) {
     __ PrepareCallCFunction(2);
     // Move arguments to correct registers: xmm0 and edi (not rdi).
@@ -2632,7 +2634,8 @@ void LCodeGen::DoPower(LPower* instr) {
 #else
     ASSERT(ToRegister(right).is(rdi));
 #endif
-    __ CallCFunction(ExternalReference::power_double_int_function(), 2);
+    __ CallCFunction(
+        ExternalReference::power_double_int_function(isolate()), 2);
   } else {
     ASSERT(exponent_type.IsTagged());
     CpuFeatures::Scope scope(SSE2);
@@ -2654,7 +2657,8 @@ void LCodeGen::DoPower(LPower* instr) {
     // Move arguments to correct registers xmm0 and xmm1.
     __ movsd(xmm0, left_reg);
     // Right argument is already in xmm1.
-    __ CallCFunction(ExternalReference::power_double_double_function(), 2);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(isolate()), 2);
   }
   // Return value is in xmm0.
   __ movsd(result_reg, xmm0);

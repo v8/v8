@@ -510,6 +510,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   GeneratePrologue();
   CpuFeatures::Scope scope(SSE2);
 
+  Isolate* isolate = masm()->isolate();
+
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
 
@@ -550,7 +552,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ mov(Operand(esp, 2 * kPointerSize), ebx);  // Bailout id.
   __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Code address or 0.
   __ mov(Operand(esp, 4 * kPointerSize), edx);  // Fp-to-sp delta.
-  __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);
+  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 5);
 
   // Preserve deoptimizer object in register eax and get the input
   // frame descriptor pointer.
@@ -598,7 +600,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ push(eax);
   __ PrepareCallCFunction(1, ebx);
   __ mov(Operand(esp, 0 * kPointerSize), eax);
-  __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
+  __ CallCFunction(
+      ExternalReference::compute_output_frames_function(isolate), 1);
   __ pop(eax);
 
   // Replace the current frame with the output frames.

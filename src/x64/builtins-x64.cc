@@ -69,7 +69,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   // JumpToExternalReference expects rax to contain the number of arguments
   // including the receiver and the extra arguments.
   __ addq(rax, Immediate(num_extra_args + 1));
-  __ JumpToExternalReference(ExternalReference(id), 1);
+  __ JumpToExternalReference(ExternalReference(id, masm->isolate()), 1);
 }
 
 
@@ -98,7 +98,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Set expected number of arguments to zero (not changing rax).
   __ movq(rbx, Immediate(0));
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
-  __ Jump(Handle<Code>(Isolate::Current()->builtins()->builtin(
+  __ Jump(Handle<Code>(masm->isolate()->builtins()->builtin(
         ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
 }
 
@@ -127,7 +127,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
     ExternalReference debug_step_in_fp =
-        ExternalReference::debug_step_in_fp_address();
+        ExternalReference::debug_step_in_fp_address(masm->isolate());
     __ movq(kScratchRegister, debug_step_in_fp);
     __ cmpq(Operand(kScratchRegister, 0), Immediate(0));
     __ j(not_equal, &rt_call);
@@ -339,7 +339,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // Call the function.
   if (is_api_function) {
     __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-    Handle<Code> code = Handle<Code>(Isolate::Current()->builtins()->builtin(
+    Handle<Code> code = Handle<Code>(masm->isolate()->builtins()->builtin(
         Builtins::HandleApiCallConstruct));
     ParameterCount expected(0);
     __ InvokeCode(code, expected, expected,
@@ -492,7 +492,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Invoke the code.
   if (is_construct) {
     // Expects rdi to hold function pointer.
-    __ Call(Handle<Code>(Isolate::Current()->builtins()->builtin(
+    __ Call(Handle<Code>(masm->isolate()->builtins()->builtin(
         Builtins::JSConstructCall)), RelocInfo::CODE_TARGET);
   } else {
     ParameterCount actual(rax);
@@ -733,7 +733,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_zero, &function);
     __ Set(rbx, 0);
     __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
-    __ Jump(Handle<Code>(Isolate::Current()->builtins()->builtin(
+    __ Jump(Handle<Code>(masm->isolate()->builtins()->builtin(
         ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
     __ bind(&function);
   }
@@ -748,7 +748,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   __ cmpq(rax, rbx);
   __ j(not_equal,
-       Handle<Code>(Isolate::Current()->builtins()->builtin(
+       Handle<Code>(masm->isolate()->builtins()->builtin(
            ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
 
   ParameterCount expected(0);
@@ -863,7 +863,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ movq(rdx, Operand(rbp, kArgumentsOffset));  // load arguments
 
   // Use inline caching to speed up access to arguments.
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+  Handle<Code> ic(masm->isolate()->builtins()->builtin(
       Builtins::KeyedLoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
   // It is important that we do not have a test instruction after the
@@ -1265,8 +1265,8 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   // Jump to the generic array code in case the specialized code cannot handle
   // the construction.
   __ bind(&generic_array_code);
-  Code* code = Isolate::Current()->builtins()->builtin(
-      Builtins::ArrayCodeGeneric);
+  Code* code =
+      masm->isolate()->builtins()->builtin(Builtins::ArrayCodeGeneric);
   Handle<Code> array_code(code);
   __ Jump(array_code, RelocInfo::CODE_TARGET);
 }
@@ -1300,8 +1300,8 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
   // Jump to the generic construct code in case the specialized code cannot
   // handle the construction.
   __ bind(&generic_constructor);
-  Code* code = Isolate::Current()->builtins()->builtin(
-      Builtins::JSConstructStubGeneric);
+  Code* code =
+      masm->isolate()->builtins()->builtin(Builtins::JSConstructStubGeneric);
   Handle<Code> generic_construct_stub(code);
   __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
 }

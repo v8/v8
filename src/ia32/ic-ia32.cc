@@ -621,8 +621,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Load the key (consisting of map and symbol) from the cache and
   // check for match.
-  ExternalReference cache_keys
-      = ExternalReference::keyed_lookup_cache_keys();
+  ExternalReference cache_keys =
+      ExternalReference::keyed_lookup_cache_keys(masm->isolate());
   __ mov(edi, ecx);
   __ shl(edi, kPointerSizeLog2 + 1);
   __ cmp(ebx, Operand::StaticArray(edi, times_1, cache_keys));
@@ -636,8 +636,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // ebx     : receiver's map
   // eax     : key
   // ecx     : lookup cache index
-  ExternalReference cache_field_offsets
-      = ExternalReference::keyed_lookup_cache_field_offsets();
+  ExternalReference cache_field_offsets =
+      ExternalReference::keyed_lookup_cache_field_offsets(masm->isolate());
   __ mov(edi,
          Operand::StaticArray(ecx, times_pointer_size, cache_field_offsets));
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInObjectPropertiesOffset));
@@ -745,8 +745,9 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   __ push(ecx);  // return address
 
   // Perform tail call to the entry.
-  ExternalReference ref = ExternalReference(
-      IC_Utility(kKeyedLoadPropertyWithInterceptor));
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedLoadPropertyWithInterceptor),
+                        masm->isolate());
   __ TailCallExternalReference(ref, 2, 1);
 
   __ bind(&slow);
@@ -985,7 +986,7 @@ static void GenerateCallMiss(MacroAssembler* masm,
   // Call the entry.
   CEntryStub stub(1);
   __ mov(eax, Immediate(2));
-  __ mov(ebx, Immediate(ExternalReference(IC_Utility(id))));
+  __ mov(ebx, Immediate(ExternalReference(IC_Utility(id), masm->isolate())));
   __ CallStub(&stub);
 
   // Move result to edi and exit the internal frame.
@@ -1258,7 +1259,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   __ push(ebx);  // return address
 
   // Perform tail call to the entry.
-  ExternalReference ref = ExternalReference(IC_Utility(kLoadIC_Miss));
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kLoadIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 2, 1);
 }
 
@@ -1444,7 +1446,8 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   __ push(ebx);  // return address
 
   // Perform tail call to the entry.
-  ExternalReference ref = ExternalReference(IC_Utility(kKeyedLoadIC_Miss));
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedLoadIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 2, 1);
 }
 
@@ -1502,7 +1505,8 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
   __ push(ebx);
 
   // Perform tail call to the entry.
-  ExternalReference ref = ExternalReference(IC_Utility(kStoreIC_Miss));
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kStoreIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
 
@@ -1557,7 +1561,8 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   __ push(value);
   __ push(scratch);  // return address
 
-  ExternalReference ref = ExternalReference(IC_Utility(kStoreIC_ArrayLength));
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kStoreIC_ArrayLength), masm->isolate());
   __ TailCallExternalReference(ref, 2, 1);
 
   __ bind(&miss);
@@ -1654,7 +1659,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   __ push(ebx);
 
   // Do tail-call to runtime routine.
-  ExternalReference ref = ExternalReference(IC_Utility(kKeyedStoreIC_Miss));
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
 

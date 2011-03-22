@@ -1289,7 +1289,8 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ PrepareCallCFunction(4, scratch0());
       __ vmov(r0, r1, left);
       __ vmov(r2, r3, right);
-      __ CallCFunction(ExternalReference::double_fp_operation(Token::MOD), 4);
+      __ CallCFunction(
+          ExternalReference::double_fp_operation(Token::MOD, isolate()), 4);
       // Move the result in the double result register.
       __ GetCFunctionDoubleResult(ToDoubleRegister(instr->result()));
 
@@ -2742,14 +2743,16 @@ void LCodeGen::DoPower(LPower* instr) {
     __ PrepareCallCFunction(4, scratch);
     __ vmov(r0, r1, ToDoubleRegister(left));
     __ vmov(r2, r3, ToDoubleRegister(right));
-    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(isolate()), 4);
   } else if (exponent_type.IsInteger32()) {
     ASSERT(ToRegister(right).is(r0));
     // Prepare arguments and call C function.
     __ PrepareCallCFunction(4, scratch);
     __ mov(r2, ToRegister(right));
     __ vmov(r0, r1, ToDoubleRegister(left));
-    __ CallCFunction(ExternalReference::power_double_int_function(), 4);
+    __ CallCFunction(
+        ExternalReference::power_double_int_function(isolate()), 4);
   } else {
     ASSERT(exponent_type.IsTagged());
     ASSERT(instr->hydrogen()->left()->representation().IsDouble());
@@ -2782,7 +2785,8 @@ void LCodeGen::DoPower(LPower* instr) {
     __ PrepareCallCFunction(4, scratch);
     __ vmov(r0, r1, ToDoubleRegister(left));
     __ vmov(r2, r3, result_reg);
-    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(isolate()), 4);
   }
   // Store the result in the result register.
   __ GetCFunctionDoubleResult(result_reg);

@@ -186,7 +186,8 @@ class MacroAssembler: public Assembler {
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   void InitializeRootRegister() {
-    ExternalReference roots_address = ExternalReference::roots_address();
+    ExternalReference roots_address =
+        ExternalReference::roots_address(isolate());
     movq(kRootRegister, roots_address);
     addq(kRootRegister, Immediate(kRootRegisterBias));
   }
@@ -1797,13 +1798,13 @@ void MacroAssembler::InNewSpace(Register object,
     // case the size of the new space is different between the snapshot maker
     // and the running system.
     if (scratch.is(object)) {
-      movq(kScratchRegister, ExternalReference::new_space_mask());
+      movq(kScratchRegister, ExternalReference::new_space_mask(isolate()));
       and_(scratch, kScratchRegister);
     } else {
-      movq(scratch, ExternalReference::new_space_mask());
+      movq(scratch, ExternalReference::new_space_mask(isolate()));
       and_(scratch, object);
     }
-    movq(kScratchRegister, ExternalReference::new_space_start());
+    movq(kScratchRegister, ExternalReference::new_space_start(isolate()));
     cmpq(scratch, kScratchRegister);
     j(cc, branch);
   } else {

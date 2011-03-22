@@ -70,7 +70,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   // JumpToExternalReference expects eax to contain the number of arguments
   // including the receiver and the extra arguments.
   __ add(Operand(eax), Immediate(num_extra_args + 1));
-  __ JumpToExternalReference(ExternalReference(id));
+  __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 
 
@@ -100,7 +100,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Set expected number of arguments to zero (not changing eax).
   __ Set(ebx, Immediate(0));
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
-  __ jmp(Handle<Code>(Isolate::Current()->builtins()->builtin(
+  __ jmp(Handle<Code>(masm->isolate()->builtins()->builtin(
       ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
 }
 
@@ -128,7 +128,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     Label undo_allocation;
 #ifdef ENABLE_DEBUGGER_SUPPORT
     ExternalReference debug_step_in_fp =
-        ExternalReference::debug_step_in_fp_address();
+        ExternalReference::debug_step_in_fp_address(masm->isolate());
     __ cmp(Operand::StaticVariable(debug_step_in_fp), Immediate(0));
     __ j(not_equal, &rt_call);
 #endif
@@ -335,8 +335,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   if (is_api_function) {
     __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
     Handle<Code> code = Handle<Code>(
-        Isolate::Current()->builtins()->builtin(
-            Builtins::HandleApiCallConstruct));
+        masm->isolate()->builtins()->builtin(Builtins::HandleApiCallConstruct));
     ParameterCount expected(0);
     __ InvokeCode(code, expected, expected,
                   RelocInfo::CODE_TARGET, CALL_FUNCTION);
@@ -437,7 +436,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
   // Invoke the code.
   if (is_construct) {
-    __ call(Handle<Code>(Isolate::Current()->builtins()->builtin(
+    __ call(Handle<Code>(masm->isolate()->builtins()->builtin(
         Builtins::JSConstructCall)), RelocInfo::CODE_TARGET);
   } else {
     ParameterCount actual(eax);
@@ -675,7 +674,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_zero, &function, taken);
     __ Set(ebx, Immediate(0));
     __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
-    __ jmp(Handle<Code>(Isolate::Current()->builtins()->builtin(
+    __ jmp(Handle<Code>(masm->isolate()->builtins()->builtin(
         ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
     __ bind(&function);
   }
@@ -689,7 +688,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ mov(edx, FieldOperand(edi, JSFunction::kCodeEntryOffset));
   __ SmiUntag(ebx);
   __ cmp(eax, Operand(ebx));
-  __ j(not_equal, Handle<Code>(Isolate::Current()->builtins()->builtin(
+  __ j(not_equal, Handle<Code>(masm->isolate()->builtins()->builtin(
       ArgumentsAdaptorTrampoline)));
 
   ParameterCount expected(0);
@@ -709,7 +708,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // limit" is checked.
   Label okay;
   ExternalReference real_stack_limit =
-      ExternalReference::address_of_real_stack_limit();
+      ExternalReference::address_of_real_stack_limit(masm->isolate());
   __ mov(edi, Operand::StaticVariable(real_stack_limit));
   // Make ecx the space we have left. The stack might already be overflowed
   // here which will cause ecx to become negative.
@@ -797,7 +796,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ mov(edx, Operand(ebp, 2 * kPointerSize));  // load arguments
 
   // Use inline caching to speed up access to arguments.
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+  Handle<Code> ic(masm->isolate()->builtins()->builtin(
       Builtins::KeyedLoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   // It is important that we do not have a test instruction after the
@@ -1235,8 +1234,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   // Jump to the generic array code in case the specialized code cannot handle
   // the construction.
   __ bind(&generic_array_code);
-  Code* code = Isolate::Current()->builtins()->builtin(
-      Builtins::ArrayCodeGeneric);
+  Code* code = masm->isolate()->builtins()->builtin(Builtins::ArrayCodeGeneric);
   Handle<Code> array_code(code);
   __ jmp(array_code, RelocInfo::CODE_TARGET);
 }
@@ -1270,7 +1268,7 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
   // Jump to the generic construct code in case the specialized code cannot
   // handle the construction.
   __ bind(&generic_constructor);
-  Code* code = Isolate::Current()->builtins()->builtin(
+  Code* code = masm->isolate()->builtins()->builtin(
       Builtins::JSConstructStubGeneric);
   Handle<Code> generic_construct_stub(code);
   __ jmp(generic_construct_stub, RelocInfo::CODE_TARGET);
@@ -1520,7 +1518,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   // We shouldn't be performing on-stack replacement in the first
   // place if the CPU features we need for the optimized Crankshaft
   // code aren't supported.
-  CpuFeatures* cpu_features = Isolate::Current()->cpu_features();
+  CpuFeatures* cpu_features = masm->isolate()->cpu_features();
   cpu_features->Probe(false);
   if (!cpu_features->IsSupported(SSE2)) {
     __ Abort("Unreachable code: Cannot optimize without SSE2 support.");
@@ -1566,7 +1564,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ bind(&stack_check);
   NearLabel ok;
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit();
+      ExternalReference::address_of_stack_limit(masm->isolate());
   __ cmp(esp, Operand::StaticVariable(stack_limit));
   __ j(above_equal, &ok, taken);
   StackCheckStub stub;

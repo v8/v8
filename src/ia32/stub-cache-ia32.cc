@@ -415,8 +415,9 @@ static void CompileCallLoadPropertyWithInterceptor(MacroAssembler* masm,
                                                    JSObject* holder_obj) {
   PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
   __ CallExternalReference(
-        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly)),
-        5);
+      ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
+                        masm->isolate()),
+      5);
 }
 
 
@@ -703,9 +704,9 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                              interceptor_holder);
 
     __ CallExternalReference(
-          ExternalReference(
-              IC_Utility(IC::kLoadPropertyWithInterceptorForCall)),
-          5);
+        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForCall),
+                          masm->isolate()),
+        5);
 
     // Restore the name_ register.
     __ pop(name_);
@@ -731,7 +732,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ pop(receiver);  // Restore the holder.
     __ LeaveInternalFrame();
 
-    __ cmp(eax, FACTORY->no_interceptor_result_sentinel());
+    __ cmp(eax, masm->isolate()->factory()->no_interceptor_result_sentinel());
     __ j(not_equal, interceptor_succeeded);
   }
 
@@ -793,7 +794,10 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ push(eax);
     __ push(scratch);
     __ TailCallExternalReference(
-        ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage)), 3, 1);
+        ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage),
+                          masm->isolate()),
+        3,
+        1);
     return;
   }
 
@@ -1262,7 +1266,8 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
       __ push(scratch2);  // restore return address
 
       ExternalReference ref =
-          ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
+          ExternalReference(IC_Utility(IC::kLoadCallbackProperty),
+                            masm()->isolate());
       __ TailCallExternalReference(ref, 5, 1);
     }
   } else {  // !compile_followup_inline
@@ -1276,8 +1281,9 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
                              name_reg, interceptor_holder);
     __ push(scratch2);  // restore old return address
 
-    ExternalReference ref = ExternalReference(
-        IC_Utility(IC::kLoadPropertyWithInterceptorForLoad));
+    ExternalReference ref =
+        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForLoad),
+                          masm()->isolate());
     __ TailCallExternalReference(ref, 5, 1);
   }
 }
@@ -1509,10 +1515,11 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
         __ jmp(&call_builtin);
       }
 
+      Isolate* isolate = masm()->isolate();
       ExternalReference new_space_allocation_top =
-          ExternalReference::new_space_allocation_top_address();
+          ExternalReference::new_space_allocation_top_address(isolate);
       ExternalReference new_space_allocation_limit =
-          ExternalReference::new_space_allocation_limit_address();
+          ExternalReference::new_space_allocation_limit_address(isolate);
 
       const int kAllocationDelta = 4;
       // Load top.
@@ -1553,9 +1560,10 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
     }
 
     __ bind(&call_builtin);
-    __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPush),
-                                 argc + 1,
-                                 1);
+    __ TailCallExternalReference(
+        ExternalReference(Builtins::c_ArrayPush, masm()->isolate()),
+        argc + 1,
+        1);
   }
 
   __ bind(&miss);
@@ -1635,9 +1643,10 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&call_builtin);
-  __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPop),
-                               argc + 1,
-                               1);
+  __ TailCallExternalReference(
+      ExternalReference(Builtins::c_ArrayPop, masm()->isolate()),
+      argc + 1,
+      1);
 
   __ bind(&miss);
   MaybeObject* maybe_result = GenerateMissBranch();
@@ -1663,7 +1672,9 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
   // -----------------------------------
 
   // If object is not a string, bail out to regular call.
-  if (!object->IsString() || cell != NULL) return HEAP->undefined_value();
+  if (!object->IsString() || cell != NULL) {
+    return masm()->isolate()->heap()->undefined_value();
+  }
 
   const int argc = arguments().immediate();
 
@@ -2514,14 +2525,14 @@ MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   __ push(ebx);  // restore return address
 
   // Do tail-call to the runtime system.
+  Isolate* isolate = masm()->isolate();
   ExternalReference store_callback_property =
-      ExternalReference(IC_Utility(IC::kStoreCallbackProperty));
+      ExternalReference(IC_Utility(IC::kStoreCallbackProperty), isolate);
   __ TailCallExternalReference(store_callback_property, 4, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::StoreIC_Miss));
+  Handle<Code> ic(isolate->builtins()->builtin(Builtins::StoreIC_Miss));
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -2565,14 +2576,14 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   __ push(ebx);  // restore return address
 
   // Do tail-call to the runtime system.
+  Isolate* isolate = masm()->isolate();
   ExternalReference store_ic_property =
-      ExternalReference(IC_Utility(IC::kStoreInterceptorProperty));
+      ExternalReference(IC_Utility(IC::kStoreInterceptorProperty), isolate);
   __ TailCallExternalReference(store_ic_property, 4, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::StoreIC_Miss));
+  Handle<Code> ic(isolate->builtins()->builtin(Builtins::StoreIC_Miss));
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.

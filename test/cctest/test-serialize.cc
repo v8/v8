@@ -83,7 +83,7 @@ static int* counter_function(const char* name) {
 
 template <class T>
 static Address AddressOf(T id) {
-  return ExternalReference(id).address();
+  return ExternalReference(id, i::Isolate::Current()).address();
 }
 
 
@@ -100,7 +100,8 @@ static int make_code(TypeCode type, int id) {
 
 TEST(ExternalReferenceEncoder) {
   OS::Setup();
-  i::Isolate::Current()->stats_table()->SetCounterFunction(counter_function);
+  Isolate* isolate = i::Isolate::Current();
+  isolate->stats_table()->SetCounterFunction(counter_function);
   HEAP->Setup(false);
   ExternalReferenceEncoder encoder;
   CHECK_EQ(make_code(BUILTIN, Builtins::ArrayCode),
@@ -114,31 +115,33 @@ TEST(ExternalReferenceEncoder) {
   CHECK_EQ(make_code(STATS_COUNTER, Counters::k_keyed_load_function_prototype),
            encoder.Encode(keyed_load_function_prototype.address()));
   ExternalReference the_hole_value_location =
-      ExternalReference::the_hole_value_location();
+      ExternalReference::the_hole_value_location(isolate);
   CHECK_EQ(make_code(UNCLASSIFIED, 2),
            encoder.Encode(the_hole_value_location.address()));
   ExternalReference stack_limit_address =
-      ExternalReference::address_of_stack_limit();
+      ExternalReference::address_of_stack_limit(isolate);
   CHECK_EQ(make_code(UNCLASSIFIED, 4),
            encoder.Encode(stack_limit_address.address()));
   ExternalReference real_stack_limit_address =
-      ExternalReference::address_of_real_stack_limit();
+      ExternalReference::address_of_real_stack_limit(isolate);
   CHECK_EQ(make_code(UNCLASSIFIED, 5),
            encoder.Encode(real_stack_limit_address.address()));
 #ifdef ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(make_code(UNCLASSIFIED, 15),
-           encoder.Encode(ExternalReference::debug_break().address()));
+           encoder.Encode(ExternalReference::debug_break(isolate).address()));
 #endif  // ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(make_code(UNCLASSIFIED, 10),
-           encoder.Encode(ExternalReference::new_space_start().address()));
+           encoder.Encode(
+               ExternalReference::new_space_start(isolate).address()));
   CHECK_EQ(make_code(UNCLASSIFIED, 3),
-           encoder.Encode(ExternalReference::roots_address().address()));
+           encoder.Encode(ExternalReference::roots_address(isolate).address()));
 }
 
 
 TEST(ExternalReferenceDecoder) {
   OS::Setup();
-  i::Isolate::Current()->stats_table()->SetCounterFunction(counter_function);
+  Isolate* isolate = i::Isolate::Current();
+  isolate->stats_table()->SetCounterFunction(counter_function);
   HEAP->Setup(false);
   ExternalReferenceDecoder decoder;
   CHECK_EQ(AddressOf(Builtins::ArrayCode),
@@ -154,17 +157,17 @@ TEST(ExternalReferenceDecoder) {
            decoder.Decode(
                make_code(STATS_COUNTER,
                          Counters::k_keyed_load_function_prototype)));
-  CHECK_EQ(ExternalReference::the_hole_value_location().address(),
+  CHECK_EQ(ExternalReference::the_hole_value_location(isolate).address(),
            decoder.Decode(make_code(UNCLASSIFIED, 2)));
-  CHECK_EQ(ExternalReference::address_of_stack_limit().address(),
+  CHECK_EQ(ExternalReference::address_of_stack_limit(isolate).address(),
            decoder.Decode(make_code(UNCLASSIFIED, 4)));
-  CHECK_EQ(ExternalReference::address_of_real_stack_limit().address(),
+  CHECK_EQ(ExternalReference::address_of_real_stack_limit(isolate).address(),
            decoder.Decode(make_code(UNCLASSIFIED, 5)));
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  CHECK_EQ(ExternalReference::debug_break().address(),
+  CHECK_EQ(ExternalReference::debug_break(isolate).address(),
            decoder.Decode(make_code(UNCLASSIFIED, 15)));
 #endif  // ENABLE_DEBUGGER_SUPPORT
-  CHECK_EQ(ExternalReference::new_space_start().address(),
+  CHECK_EQ(ExternalReference::new_space_start(isolate).address(),
            decoder.Decode(make_code(UNCLASSIFIED, 10)));
 }
 

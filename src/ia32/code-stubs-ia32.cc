@@ -763,7 +763,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
         // number in eax.
         __ AllocateHeapNumber(eax, ecx, ebx, slow);
         // Store the result in the HeapNumber and return.
-        if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           __ cvtsi2sd(xmm0, Operand(left));
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -813,7 +813,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       }
       if (runtime_operands_type_ != BinaryOpIC::UNINIT_OR_SMI) {
         __ AllocateHeapNumber(ecx, ebx, no_reg, slow);
-        if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           FloatingPointHelper::LoadSSE2Smis(masm, ebx);
           switch (op_) {
@@ -917,7 +917,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         }
 
         Label not_floats;
-        if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           if (static_operands_type_.IsNumber()) {
             if (FLAG_debug_code) {
@@ -1051,7 +1051,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
             default: UNREACHABLE();
           }
           // Store the result in the HeapNumber and return.
-          if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+          if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
             CpuFeatures::Scope use_sse2(SSE2);
             __ cvtsi2sd(xmm0, Operand(ebx));
             __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -1269,7 +1269,7 @@ void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   // Patch the caller to an appropriate specialized stub and return the
   // operation result to the caller of the stub.
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kBinaryOp_Patch)),
+      ExternalReference(IC_Utility(IC::kBinaryOp_Patch), masm->isolate()),
       5,
       1);
 }
@@ -1305,7 +1305,8 @@ void TypeRecordingBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   // Patch the caller to an appropriate specialized stub and return the
   // operation result to the caller of the stub.
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch)),
+      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch),
+                        masm->isolate()),
       5,
       1);
 }
@@ -1328,7 +1329,8 @@ void TypeRecordingBinaryOpStub::GenerateTypeTransitionWithSavedArgs(
   // Patch the caller to an appropriate specialized stub and return the
   // operation result to the caller of the stub.
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch)),
+      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch),
+                        masm->isolate()),
       5,
       1);
 }
@@ -1646,7 +1648,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
         // number in eax.
         __ AllocateHeapNumber(eax, ecx, ebx, slow);
         // Store the result in the HeapNumber and return.
-        if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           __ cvtsi2sd(xmm0, Operand(left));
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -1691,7 +1693,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
             break;
         }
         __ AllocateHeapNumber(ecx, ebx, no_reg, slow);
-        if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           FloatingPointHelper::LoadSSE2Smis(masm, ebx);
           switch (op_) {
@@ -1823,7 +1825,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
     case Token::DIV: {
       Label not_floats;
       Label not_int32;
-      if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+      if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
         FloatingPointHelper::LoadSSE2Operands(masm, &not_floats);
         FloatingPointHelper::CheckSSE2OperandsAreInt32(masm, &not_int32, ecx);
@@ -1944,7 +1946,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           default: UNREACHABLE();
         }
         // Store the result in the HeapNumber and return.
-        if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           __ cvtsi2sd(xmm0, Operand(ebx));
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -2024,7 +2026,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
     case Token::MUL:
     case Token::DIV: {
       Label not_floats;
-      if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+      if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
         FloatingPointHelper::LoadSSE2Operands(masm, &not_floats);
 
@@ -2127,7 +2129,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
           default: UNREACHABLE();
         }
         // Store the result in the HeapNumber and return.
-        if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           __ cvtsi2sd(xmm0, Operand(ebx));
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -2228,7 +2230,7 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
     case Token::MUL:
     case Token::DIV: {
       Label not_floats;
-      if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+      if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
         FloatingPointHelper::LoadSSE2Operands(masm, &not_floats);
 
@@ -2326,7 +2328,7 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
           default: UNREACHABLE();
         }
         // Store the result in the HeapNumber and return.
-        if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           __ cvtsi2sd(xmm0, Operand(ebx));
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -2524,7 +2526,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     __ bind(&loaded);
   } else {  // UNTAGGED.
-    if (Isolate::Current()->cpu_features()->IsSupported(SSE4_1)) {
+    if (masm->isolate()->cpu_features()->IsSupported(SSE4_1)) {
       CpuFeatures::Scope sse4_scope(SSE4_1);
       __ pextrd(Operand(edx), xmm1, 0x1);  // copy xmm1[63..32] to edx.
     } else {
@@ -2555,11 +2557,12 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   // ebx = low 32 bits of double value.
   // edx = high 32 bits of double value.
   // ecx = TranscendentalCache::hash(double value).
-  __ mov(eax,
-         Immediate(ExternalReference::transcendental_cache_array_address()));
-  // Eax points to cache array.
-  __ mov(eax, Operand(eax, type_ * sizeof(
-      Isolate::Current()->transcendental_cache()->caches_[0])));
+  ExternalReference cache_array =
+      ExternalReference::transcendental_cache_array_address(masm->isolate());
+  __ mov(eax, Immediate(cache_array));
+  int cache_array_index =
+      type_ * sizeof(masm->isolate()->transcendental_cache()->caches_[0]);
+  __ mov(eax, Operand(eax, cache_array_index));
   // Eax points to the cache for the type type_.
   // If NULL, the cache hasn't been initialized yet, so go through runtime.
   __ test(eax, Operand(eax));
@@ -2645,7 +2648,9 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ bind(&runtime_call_clear_stack);
     __ fstp(0);
     __ bind(&runtime_call);
-    __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
+    ExternalReference runtime =
+        ExternalReference(RuntimeFunction(), masm->isolate());
+    __ TailCallExternalReference(runtime, 1, 1);
   } else {  // UNTAGGED.
     __ bind(&runtime_call_clear_stack);
     __ bind(&runtime_call);
@@ -2776,7 +2781,7 @@ void IntegerConvert(MacroAssembler* masm,
   Register scratch = ebx;
   Register scratch2 = edi;
   if (type_info.IsInteger32() &&
-      Isolate::Current()->cpu_features()->IsEnabled(SSE2)) {
+      masm->isolate()->cpu_features()->IsEnabled(SSE2)) {
     CpuFeatures::Scope scope(SSE2);
     __ cvttsd2si(ecx, FieldOperand(source, HeapNumber::kValueOffset));
     return;
@@ -3321,7 +3326,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     IntegerConvert(masm,
                    eax,
                    TypeInfo::Unknown(),
-                   Isolate::Current()->cpu_features()->IsSupported(SSE3),
+                   masm->isolate()->cpu_features()->IsSupported(SSE3),
                    &slow);
 
     // Do the bitwise operation and check if the result fits in a smi.
@@ -3344,7 +3349,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ AllocateHeapNumber(ebx, edx, edi, &slow);
       __ mov(eax, Operand(ebx));
     }
-    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+    if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
       CpuFeatures::Scope use_sse2(SSE2);
       __ cvtsi2sd(xmm0, Operand(ecx));
       __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -3738,9 +3743,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Ensure that a RegExp stack is allocated.
   ExternalReference address_of_regexp_stack_memory_address =
-      ExternalReference::address_of_regexp_stack_memory_address();
+      ExternalReference::address_of_regexp_stack_memory_address(
+          masm->isolate());
   ExternalReference address_of_regexp_stack_memory_size =
-      ExternalReference::address_of_regexp_stack_memory_size();
+      ExternalReference::address_of_regexp_stack_memory_size(masm->isolate());
   __ mov(ebx, Operand::StaticVariable(address_of_regexp_stack_memory_size));
   __ test(ebx, Operand(ebx));
   __ j(zero, &runtime, not_taken);
@@ -3920,7 +3926,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Argument 5: static offsets vector buffer.
   __ mov(Operand(esp, 4 * kPointerSize),
-         Immediate(ExternalReference::address_of_static_offsets_vector()));
+         Immediate(ExternalReference::address_of_static_offsets_vector(
+             masm->isolate())));
 
   // Argument 4: End of string data
   // Argument 3: Start of string data
@@ -3972,9 +3979,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
-  ExternalReference pending_exception(Isolate::k_pending_exception_address);
+  ExternalReference pending_exception(Isolate::k_pending_exception_address,
+                                      masm->isolate());
   __ mov(edx,
-         Operand::StaticVariable(ExternalReference::the_hole_value_location()));
+         Operand::StaticVariable(ExternalReference::the_hole_value_location(
+             masm->isolate())));
   __ mov(eax, Operand::StaticVariable(pending_exception));
   __ cmp(edx, Operand(eax));
   __ j(equal, &runtime);
@@ -4033,7 +4042,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Get the static offsets vector filled by the native regexp code.
   ExternalReference address_of_static_offsets_vector =
-      ExternalReference::address_of_static_offsets_vector();
+      ExternalReference::address_of_static_offsets_vector(masm->isolate());
   __ mov(ecx, Immediate(address_of_static_offsets_vector));
 
   // ebx: last_match_info backing store (FixedArray)
@@ -4162,7 +4171,8 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Register scratch = scratch2;
 
   // Load the number string cache.
-  ExternalReference roots_address = ExternalReference::roots_address();
+  ExternalReference roots_address =
+      ExternalReference::roots_address(masm->isolate());
   __ mov(scratch, Immediate(Heap::kNumberStringCacheRootIndex));
   __ mov(number_string_cache,
          Operand::StaticArray(scratch, times_pointer_size, roots_address));
@@ -4207,7 +4217,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                         FixedArray::kHeaderSize));
     __ test(probe, Immediate(kSmiTagMask));
     __ j(zero, not_found);
-    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+    if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
       CpuFeatures::Scope fscope(SSE2);
       __ movdbl(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
       __ movdbl(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
@@ -4445,7 +4455,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   if (include_number_compare_) {
     Label non_number_comparison;
     Label unordered;
-    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+    if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
       CpuFeatures::Scope use_sse2(SSE2);
       CpuFeatures::Scope use_cmov(CMOV);
 
@@ -4664,7 +4674,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ Set(eax, Immediate(argc_));
   __ Set(ebx, Immediate(0));
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
-  Handle<Code> adaptor(Isolate::Current()->builtins()->builtin(
+  Handle<Code> adaptor(masm->isolate()->builtins()->builtin(
       Builtins::ArgumentsAdaptorTrampoline));
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
@@ -4711,7 +4721,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   }
 
   ExternalReference scope_depth =
-      ExternalReference::heap_always_allocate_scope_depth();
+      ExternalReference::heap_always_allocate_scope_depth(masm->isolate());
   if (always_allocate_scope) {
     __ inc(Operand::StaticVariable(scope_depth));
   }
@@ -4747,14 +4757,14 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &failure_returned, not_taken);
 
   ExternalReference pending_exception_address(
-      Isolate::k_pending_exception_address);
+      Isolate::k_pending_exception_address, masm->isolate());
 
   // Check that there is no pending exception, otherwise we
   // should have returned some failure value.
   if (FLAG_debug_code) {
     __ push(edx);
     __ mov(edx, Operand::StaticVariable(
-           ExternalReference::the_hole_value_location()));
+        ExternalReference::the_hole_value_location(masm->isolate())));
     NearLabel okay;
     __ cmp(edx, Operand::StaticVariable(pending_exception_address));
     // Cannot use check here as it attempts to generate call into runtime.
@@ -4782,9 +4792,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(equal, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
+  ExternalReference the_hole_location =
+      ExternalReference::the_hole_value_location(masm->isolate());
   __ mov(eax, Operand::StaticVariable(pending_exception_address));
-  __ mov(edx,
-         Operand::StaticVariable(ExternalReference::the_hole_value_location()));
+  __ mov(edx, Operand::StaticVariable(the_hole_location));
   __ mov(Operand::StaticVariable(pending_exception_address), edx);
 
   // Special handling of termination exceptions which are uncatchable
@@ -4889,12 +4900,13 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ push(ebx);
 
   // Save copies of the top frame descriptor on the stack.
-  ExternalReference c_entry_fp(Isolate::k_c_entry_fp_address);
+  ExternalReference c_entry_fp(Isolate::k_c_entry_fp_address, masm->isolate());
   __ push(Operand::StaticVariable(c_entry_fp));
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // If this is the outermost JS call, set js_entry_sp value.
-  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address);
+  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address,
+                                masm->isolate());
   __ cmp(Operand::StaticVariable(js_entry_sp), Immediate(0));
   __ j(not_equal, &not_outermost_js);
   __ mov(Operand::StaticVariable(js_entry_sp), ebp);
@@ -4906,7 +4918,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Caught exception: Store result (exception) in the pending
   // exception field in the JSEnv and return a failure sentinel.
-  ExternalReference pending_exception(Isolate::k_pending_exception_address);
+  ExternalReference pending_exception(Isolate::k_pending_exception_address,
+                                      masm->isolate());
   __ mov(Operand::StaticVariable(pending_exception), eax);
   __ mov(eax, reinterpret_cast<int32_t>(Failure::Exception()));
   __ jmp(&exit);
@@ -4916,8 +4929,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
 
   // Clear any pending exceptions.
-  __ mov(edx,
-         Operand::StaticVariable(ExternalReference::the_hole_value_location()));
+  ExternalReference the_hole_location =
+      ExternalReference::the_hole_value_location(masm->isolate());
+  __ mov(edx, Operand::StaticVariable(the_hole_location));
   __ mov(Operand::StaticVariable(pending_exception), edx);
 
   // Fake a receiver (NULL).
@@ -4928,10 +4942,13 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // cannot store a reference to the trampoline code directly in this
   // stub, because the builtin stubs may not have been generated yet.
   if (is_construct) {
-    ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline);
+    ExternalReference construct_entry(
+        Builtins::JSConstructEntryTrampoline,
+        masm->isolate());
     __ mov(edx, Immediate(construct_entry));
   } else {
-    ExternalReference entry(Builtins::JSEntryTrampoline);
+    ExternalReference entry(Builtins::JSEntryTrampoline,
+                            masm->isolate());
     __ mov(edx, Immediate(entry));
   }
   __ mov(edx, Operand(edx, 0));  // deref address
@@ -4940,7 +4957,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Unlink this frame from the handler chain.
   __ pop(Operand::StaticVariable(ExternalReference(
-      Isolate::k_handler_address)));
+      Isolate::k_handler_address,
+      masm->isolate())));
   // Pop next_sp.
   __ add(Operand(esp), Immediate(StackHandlerConstants::kSize - kPointerSize));
 
@@ -4956,7 +4974,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Restore the top frame descriptor from the stack.
   __ bind(&exit);
   __ pop(Operand::StaticVariable(ExternalReference(
-      Isolate::k_c_entry_fp_address)));
+      Isolate::k_c_entry_fp_address,
+      masm->isolate())));
 
   // Restore callee-saved registers (C calling conventions).
   __ pop(ebx);
@@ -5005,7 +5024,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   static const int8_t kCmpEdiImmediateByte2 = BitCast<int8_t, uint8_t>(0xff);
   static const int8_t kMovEaxImmediateByte = BitCast<int8_t, uint8_t>(0xb8);
 
-  ExternalReference roots_address = ExternalReference::roots_address();
+  ExternalReference roots_address =
+      ExternalReference::roots_address(masm->isolate());
 
   ASSERT_EQ(object.code(), InstanceofStub::left().code());
   ASSERT_EQ(function.code(), InstanceofStub::right().code());
@@ -5914,7 +5934,8 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
   // Load the symbol table.
   Register symbol_table = c2;
-  ExternalReference roots_address = ExternalReference::roots_address();
+  ExternalReference roots_address =
+      ExternalReference::roots_address(masm->isolate());
   __ mov(scratch, Immediate(Heap::kSymbolTableRootIndex));
   __ mov(symbol_table,
          Operand::StaticArray(scratch, times_pointer_size, roots_address));
@@ -6371,7 +6392,7 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
 
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or SS2 or CMOV is unsupported.
-  CpuFeatures* cpu_features = Isolate::Current()->cpu_features();
+  CpuFeatures* cpu_features = masm->isolate()->cpu_features();
   if (cpu_features->IsSupported(SSE2) && cpu_features->IsSupported(CMOV)) {
     CpuFeatures::Scope scope1(SSE2);
     CpuFeatures::Scope scope2(CMOV);
@@ -6437,7 +6458,8 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   __ push(ecx);
 
   // Call the runtime system in a fresh internal frame.
-  ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss));
+  ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss),
+                                             masm->isolate());
   __ EnterInternalFrame();
   __ push(edx);
   __ push(eax);

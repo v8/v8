@@ -234,7 +234,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       PrepareForBailout(info->function(), NO_REGISTERS);
       NearLabel ok;
       ExternalReference stack_limit =
-          ExternalReference::address_of_stack_limit();
+          ExternalReference::address_of_stack_limit(isolate());
       __ cmp(esp, Operand::StaticVariable(stack_limit));
       __ j(above_equal, &ok, taken);
       StackCheckStub stub;
@@ -266,7 +266,8 @@ void FullCodeGenerator::ClearAccumulator() {
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   Comment cmnt(masm_, "[ Stack check");
   NearLabel ok;
-  ExternalReference stack_limit = ExternalReference::address_of_stack_limit();
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit(isolate());
   __ cmp(esp, Operand::StaticVariable(stack_limit));
   __ j(above_equal, &ok, taken);
   StackCheckStub stub;
@@ -2723,7 +2724,8 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   __ bind(&heapnumber_allocated);
 
   __ PrepareCallCFunction(0, ebx);
-  __ CallCFunction(ExternalReference::random_uint32_function(), 0);
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()),
+                   0);
 
   // Convert 32 random bits in eax to 0.(32 random bits) in a double
   // by computing:

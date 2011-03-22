@@ -508,7 +508,7 @@ class CpuFeatures {
 };
 
 
-class Assembler : public Malloced {
+class Assembler : public AssemblerBase {
  private:
   // We check before assembling an instruction that there is sufficient
   // space to write an instruction and its relocation information.
@@ -1010,7 +1010,8 @@ class Assembler : public Malloced {
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
   void emit_sse_operand(Register dst, XMMRegister src);
 
-  byte* addr_at(int pos)  { return buffer_ + pos; }
+  byte* addr_at(int pos) { return buffer_ + pos; }
+
  private:
   byte byte_at(int pos)  { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }

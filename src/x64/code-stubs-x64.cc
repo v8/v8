@@ -1000,7 +1000,7 @@ void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
 
   // Perform patching to an appropriate fast case and return the result.
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kBinaryOp_Patch)),
+      ExternalReference(IC_Utility(IC::kBinaryOp_Patch), masm->isolate()),
       5,
       1);
 }
@@ -1036,7 +1036,8 @@ void TypeRecordingBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   // Patch the caller to an appropriate specialized stub and return the
   // operation result to the caller of the stub.
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch)),
+      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch),
+                        masm->isolate()),
       5,
       1);
 }
@@ -1590,10 +1591,12 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   // ST[0] == double value.
   // rbx = bits of double value.
   // rcx = TranscendentalCache::hash(double value).
-  __ movq(rax, ExternalReference::transcendental_cache_array_address());
-  // rax points to cache array.
-  __ movq(rax, Operand(rax, type_ * sizeof(
-      Isolate::Current()->transcendental_cache()->caches_[0])));
+  ExternalReference cache_array =
+      ExternalReference::transcendental_cache_array_address(masm->isolate());
+  __ movq(rax, cache_array);
+  int cache_array_index =
+      type_ * sizeof(Isolate::Current()->transcendental_cache()->caches_[0]);
+  __ movq(rax, Operand(rax, cache_array_index));
   // rax points to the cache for the type type_.
   // If NULL, the cache hasn't been initialized yet, so go through runtime.
   __ testq(rax, rax);
@@ -1674,7 +1677,8 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ bind(&runtime_call_clear_stack);
     __ fstp(0);
     __ bind(&runtime_call);
-    __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
+    __ TailCallExternalReference(
+        ExternalReference(RuntimeFunction(), masm->isolate()), 1, 1);
   } else {  // UNTAGGED.
     __ bind(&runtime_call_clear_stack);
     __ bind(&runtime_call);
@@ -2440,10 +2444,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   Label runtime;
   // Ensure that a RegExp stack is allocated.
+  Isolate* isolate = masm->isolate();
   ExternalReference address_of_regexp_stack_memory_address =
-      ExternalReference::address_of_regexp_stack_memory_address();
+      ExternalReference::address_of_regexp_stack_memory_address(isolate);
   ExternalReference address_of_regexp_stack_memory_size =
-      ExternalReference::address_of_regexp_stack_memory_size();
+      ExternalReference::address_of_regexp_stack_memory_size(isolate);
   __ movq(kScratchRegister, address_of_regexp_stack_memory_size);
   __ movq(kScratchRegister, Operand(kScratchRegister, 0));
   __ testq(kScratchRegister, kScratchRegister);
@@ -2625,7 +2630,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 #endif
 
   // Argument 5: static offsets vector buffer.
-  __ movq(r8, ExternalReference::address_of_static_offsets_vector());
+  __ movq(r8, ExternalReference::address_of_static_offsets_vector(isolate));
   // Argument 5 passed in r8 on Linux and on the stack on Windows.
 #ifdef _WIN64
   __ movq(Operand(rsp, (argument_slots_on_stack - 4) * kPointerSize), r8);
@@ -2729,7 +2734,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ RecordWrite(rcx, RegExpImpl::kLastInputOffset, rax, rdi);
 
   // Get the static offsets vector filled by the native regexp code.
-  __ movq(rcx, ExternalReference::address_of_static_offsets_vector());
+  __ movq(rcx, ExternalReference::address_of_static_offsets_vector(isolate));
 
   // rbx: last_match_info backing store (FixedArray)
   // rcx: offsets vector
@@ -2762,7 +2767,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // haven't created the exception yet. Handle that in the runtime system.
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception_address(
-      Isolate::k_pending_exception_address);
+      Isolate::k_pending_exception_address, isolate);
   __ movq(rbx, pending_exception_address);
   __ movq(rax, Operand(rbx, 0));
   __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
@@ -3378,7 +3383,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   }
 
   ExternalReference scope_depth =
-      ExternalReference::heap_always_allocate_scope_depth();
+      ExternalReference::heap_always_allocate_scope_depth(masm->isolate());
   if (always_allocate_scope) {
     __ movq(kScratchRegister, scope_depth);
     __ incl(Operand(kScratchRegister, 0));
@@ -3457,10 +3462,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Retrieve the pending exception and clear the variable.
   ExternalReference pending_exception_address(
-      Isolate::k_pending_exception_address);
+      Isolate::k_pending_exception_address, masm->isolate());
   __ movq(kScratchRegister, pending_exception_address);
   __ movq(rax, Operand(kScratchRegister, 0));
-  __ movq(rdx, ExternalReference::the_hole_value_location());
+  __ movq(rdx, ExternalReference::the_hole_value_location(masm->isolate()));
   __ movq(rdx, Operand(rdx, 0));
   __ movq(Operand(kScratchRegister, 0), rdx);
 
@@ -3589,8 +3594,10 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // TODO(X64): On Win64, if we ever use XMM6-XMM15, the low low 64 bits are
   // callee save as well.
 
+  Isolate* isolate = masm->isolate();
+
   // Save copies of the top frame descriptor on the stack.
-  ExternalReference c_entry_fp(Isolate::k_c_entry_fp_address);
+  ExternalReference c_entry_fp(Isolate::k_c_entry_fp_address, isolate);
   __ load_rax(c_entry_fp);
   __ push(rax);
 
@@ -3601,7 +3608,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // If this is the outermost JS call, set js_entry_sp value.
-  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address);
+  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
   __ load_rax(js_entry_sp);
   __ testq(rax, rax);
   __ j(not_zero, &not_outermost_js);
@@ -3615,7 +3622,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Caught exception: Store result (exception) in the pending
   // exception field in the JSEnv and return a failure sentinel.
-  ExternalReference pending_exception(Isolate::k_pending_exception_address);
+  ExternalReference pending_exception(Isolate::k_pending_exception_address,
+                                      isolate);
   __ store_rax(pending_exception);
   __ movq(rax, Failure::Exception(), RelocInfo::NONE);
   __ jmp(&exit);
@@ -3625,7 +3633,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
 
   // Clear any pending exceptions.
-  __ load_rax(ExternalReference::the_hole_value_location());
+  __ load_rax(ExternalReference::the_hole_value_location(isolate));
   __ store_rax(pending_exception);
 
   // Fake a receiver (NULL).
@@ -3637,17 +3645,19 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // directly in the code, because the builtin stubs may not have been
   // generated yet at the time this code is generated.
   if (is_construct) {
-    ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline);
+    ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline,
+                                      isolate);
     __ load_rax(construct_entry);
   } else {
-    ExternalReference entry(Builtins::JSEntryTrampoline);
+    ExternalReference entry(Builtins::JSEntryTrampoline, isolate);
     __ load_rax(entry);
   }
   __ lea(kScratchRegister, FieldOperand(rax, Code::kHeaderSize));
   __ call(kScratchRegister);
 
   // Unlink this frame from the handler chain.
-  __ movq(kScratchRegister, ExternalReference(Isolate::k_handler_address));
+  __ movq(kScratchRegister,
+          ExternalReference(Isolate::k_handler_address, isolate));
   __ pop(Operand(kScratchRegister, 0));
   // Pop next_sp.
   __ addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
@@ -3664,7 +3674,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Restore the top frame descriptor from the stack.
   __ bind(&exit);
-  __ movq(kScratchRegister, ExternalReference(Isolate::k_c_entry_fp_address));
+  __ movq(kScratchRegister,
+          ExternalReference(Isolate::k_c_entry_fp_address, isolate));
   __ pop(Operand(kScratchRegister, 0));
 
   // Restore callee-saved registers (X64 conventions).
@@ -5041,7 +5052,8 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   __ push(rcx);
 
   // Call the runtime system in a fresh internal frame.
-  ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss));
+  ExternalReference miss =
+      ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
   __ EnterInternalFrame();
   __ push(rdx);
   __ push(rax);

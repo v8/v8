@@ -183,7 +183,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   ASSERT_EQ(0, loop_nesting_);
   loop_nesting_ = info->is_in_loop() ? 1 : 0;
 
-  Isolate::Current()->set_jump_target_compiling_deferred_code(false);
+  masm()->isolate()->set_jump_target_compiling_deferred_code(false);
 
   {
     CodeGenState state(this);
@@ -556,7 +556,7 @@ void CodeGenerator::ConvertInt32ResultToNumber(Result* value) {
     __ sar(val, 1);
     // If there was an overflow, bits 30 and 31 of the original number disagree.
     __ xor_(val, 0x80000000u);
-    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+    if (masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
       CpuFeatures::Scope fscope(SSE2);
       __ cvtsi2sd(xmm0, Operand(val));
     } else {
@@ -574,7 +574,7 @@ void CodeGenerator::ConvertInt32ResultToNumber(Result* value) {
                           no_reg, &allocation_failed);
     VirtualFrame* clone = new VirtualFrame(frame_);
     scratch.Unuse();
-    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+    if (masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
       CpuFeatures::Scope fscope(SSE2);
       __ movdbl(FieldOperand(val, HeapNumber::kValueOffset), xmm0);
     } else {
@@ -587,7 +587,7 @@ void CodeGenerator::ConvertInt32ResultToNumber(Result* value) {
     RegisterFile empty_regs;
     SetFrame(clone, &empty_regs);
     __ bind(&allocation_failed);
-    if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+    if (!masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
       // Pop the value from the floating point stack.
       __ fstp(0);
     }
@@ -614,7 +614,7 @@ void CodeGenerator::Load(Expression* expr) {
       safe_int32_mode_enabled() &&
       expr->side_effect_free() &&
       expr->num_bit_ops() > 2 &&
-      Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+      masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
     BreakTarget unsafe_bailout;
     JumpTarget done;
     unsafe_bailout.set_expected_height(frame_->height());
@@ -995,7 +995,7 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 
 Label* DeferredInlineBinaryOperation::NonSmiInputLabel() {
   if (Token::IsBitOp(op_) &&
-      Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+      masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
     return &non_smi_input_;
   } else {
     return entry_label();
@@ -1018,7 +1018,7 @@ void DeferredInlineBinaryOperation::JumpToConstantRhs(Condition cond,
 void DeferredInlineBinaryOperation::Generate() {
   // Registers are not saved implicitly for this stub, so we should not
   // tread on the registers that were not passed to us.
-  if (Isolate::Current()->cpu_features()->IsSupported(SSE2) &&
+  if (masm()->isolate()->cpu_features()->IsSupported(SSE2) &&
       ((op_ == Token::ADD) ||
        (op_ == Token::SUB) ||
        (op_ == Token::MUL) ||
@@ -1154,7 +1154,7 @@ void DeferredInlineBinaryOperation::GenerateNonSmiInput() {
     // The left_ and right_ registers have not been initialized yet.
     __ mov(right_, Immediate(smi_value_));
     __ mov(left_, Operand(dst_));
-    if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+    if (!masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
       __ jmp(entry_label());
       return;
     } else {
@@ -1267,7 +1267,7 @@ void DeferredInlineBinaryOperation::GenerateAnswerOutOfRange() {
   // This trashes right_.
   __ AllocateHeapNumber(left_, right_, no_reg, &after_alloc_failure2);
   __ bind(&allocation_ok);
-  if (Isolate::Current()->cpu_features()->IsSupported(SSE2) &&
+  if (masm()->isolate()->cpu_features()->IsSupported(SSE2) &&
       op_ != Token::SHR) {
     CpuFeatures::Scope use_sse2(SSE2);
     ASSERT(Token::IsBitOp(op_));
@@ -3032,7 +3032,7 @@ void CodeGenerator::ConstantSmiComparison(Condition cc,
       // constant smi.  If the non-smi is a heap number and this is not
       // a loop condition, inline the floating point code.
       if (!is_loop_condition &&
-          Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+          masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
         // Right side is a constant smi and left side has been checked
         // not to be a smi.
         CpuFeatures::Scope use_sse2(SSE2);
@@ -3196,7 +3196,7 @@ void CodeGenerator::GenerateInlineNumberComparison(Result* left_side,
   ASSERT(right_side->is_register());
 
   JumpTarget not_numbers;
-  if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+  if (masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
     CpuFeatures::Scope use_sse2(SSE2);
 
     // Load left and right operand into registers xmm0 and xmm1 and compare.
@@ -3346,7 +3346,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ j(not_equal, &build_args);
       __ mov(ecx, FieldOperand(eax, JSFunction::kCodeEntryOffset));
       __ sub(Operand(ecx), Immediate(Code::kHeaderSize - kHeapObjectTag));
-      Handle<Code> apply_code(Isolate::Current()->builtins()->builtin(
+      Handle<Code> apply_code(masm()->isolate()->builtins()->builtin(
           Builtins::FunctionApply));
       __ cmp(Operand(ecx), Immediate(apply_code));
       __ j(not_equal, &build_args);
@@ -3473,7 +3473,7 @@ void DeferredStackCheck::Generate() {
 void CodeGenerator::CheckStack() {
   DeferredStackCheck* deferred = new DeferredStackCheck;
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit();
+      ExternalReference::address_of_stack_limit(masm()->isolate());
   __ cmp(esp, Operand::StaticVariable(stack_limit));
   deferred->Branch(below);
   deferred->BindExit();
@@ -4647,7 +4647,8 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   function_return_is_shadowed_ = function_return_was_shadowed;
 
   // Get an external reference to the handler address.
-  ExternalReference handler_address(Isolate::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address,
+                                    masm()->isolate());
 
   // Make sure that there's nothing left on the stack above the
   // handler structure.
@@ -4773,7 +4774,8 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
   function_return_is_shadowed_ = function_return_was_shadowed;
 
   // Get an external reference to the handler address.
-  ExternalReference handler_address(Isolate::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address,
+                                    masm()->isolate());
 
   // If we can fall off the end of the try block, unlink from the try
   // chain and set the state on the frame to FALLING.
@@ -7446,13 +7448,14 @@ void CodeGenerator::GenerateRandomHeapNumber(
   __ bind(&heapnumber_allocated);
 
   __ PrepareCallCFunction(0, ebx);
-  __ CallCFunction(ExternalReference::random_uint32_function(), 0);
+  __ CallCFunction(ExternalReference::random_uint32_function(masm()->isolate()),
+                   0);
 
   // Convert 32 random bits in eax to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   // This is implemented on both SSE2 and FPU.
-  if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+  if (masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
     CpuFeatures::Scope fscope(SSE2);
     __ mov(ebx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
     __ movd(xmm1, Operand(ebx));
@@ -7669,7 +7672,7 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
   int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
 
   Handle<FixedArray> jsfunction_result_caches(
-      Isolate::Current()->global_context()->jsfunction_result_caches());
+      masm()->isolate()->global_context()->jsfunction_result_caches());
   if (jsfunction_result_caches->length() <= cache_id) {
     __ Abort("Attempt to use undefined cache.");
     frame_->Push(FACTORY->undefined_value());
@@ -7858,7 +7861,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   Load(args->at(0));
   Load(args->at(1));
-  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+  if (!masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
     Result res = frame_->CallRuntime(Runtime::kMath_pow, 2);
     frame_->Push(&res);
   } else {
@@ -8075,7 +8078,7 @@ void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
 
-  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+  if (!masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
     Result result = frame()->CallRuntime(Runtime::kMath_sqrt, 1);
     frame()->Push(&result);
   } else {
@@ -9388,7 +9391,7 @@ void DeferredReferenceGetNamedValue::Generate() {
     __ mov(eax, receiver_);
   }
   __ Set(ecx, Immediate(name_));
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+  Handle<Code> ic(masm()->isolate()->builtins()->builtin(
       Builtins::LoadIC_Initialize));
   RelocInfo::Mode mode = is_contextual_
       ? RelocInfo::CODE_TARGET_CONTEXT
@@ -9468,7 +9471,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // it in the IC initialization code and patch the cmp instruction.
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+  Handle<Code> ic(masm()->isolate()->builtins()->builtin(
       Builtins::KeyedLoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
@@ -9570,7 +9573,7 @@ void DeferredReferenceSetKeyedValue::Generate() {
   }
 
   // Call the IC stub.
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+  Handle<Code> ic(masm()->isolate()->builtins()->builtin(
       (strict_mode_ == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
                                     : Builtins::KeyedStoreIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
@@ -9595,7 +9598,7 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 
   bool contextual_load_in_builtin =
       is_contextual &&
-      (Isolate::Current()->bootstrapper()->IsActive() ||
+      (masm()->isolate()->bootstrapper()->IsActive() ||
        (!info_->closure().is_null() && info_->closure()->IsBuiltin()));
 
   Result result;
@@ -10193,7 +10196,7 @@ MemCopyFunction CreateMemCopyFunction() {
     __ int3();
     __ bind(&ok);
   }
-  if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+  if (masm.isolate()->cpu_features()->IsSupported(SSE2)) {
     CpuFeatures::Scope enable(SSE2);
     __ push(edi);
     __ push(esi);

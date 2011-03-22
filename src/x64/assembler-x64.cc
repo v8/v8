@@ -340,18 +340,18 @@ static void InitCoverageLog();
 #endif
 
 Assembler::Assembler(void* buffer, int buffer_size)
-    : code_targets_(100),
+    : AssemblerBase(Isolate::Current()),
+      code_targets_(100),
       positions_recorder_(this),
       emit_debug_code_(FLAG_debug_code) {
-  Isolate* isolate = Isolate::Current();
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
       buffer_size = kMinimalBufferSize;
 
-      if (isolate->assembler_spare_buffer() != NULL) {
-        buffer = isolate->assembler_spare_buffer();
-        isolate->set_assembler_spare_buffer(NULL);
+      if (isolate()->assembler_spare_buffer() != NULL) {
+        buffer = isolate()->assembler_spare_buffer();
+        isolate()->set_assembler_spare_buffer(NULL);
       }
     }
     if (buffer == NULL) {
@@ -392,11 +392,10 @@ Assembler::Assembler(void* buffer, int buffer_size)
 
 
 Assembler::~Assembler() {
-  Isolate* isolate = Isolate::Current();
   if (own_buffer_) {
-    if (isolate->assembler_spare_buffer() == NULL &&
+    if (isolate()->assembler_spare_buffer() == NULL &&
         buffer_size_ == kMinimalBufferSize) {
-      isolate->set_assembler_spare_buffer(buffer_);
+      isolate()->set_assembler_spare_buffer(buffer_);
     } else {
       DeleteArray(buffer_);
     }
@@ -481,7 +480,6 @@ void Assembler::bind(NearLabel* L) {
 
 
 void Assembler::GrowBuffer() {
-  Isolate* isolate = Isolate::Current();
   ASSERT(buffer_overflow());
   if (!own_buffer_) FATAL("external code buffer is too small");
 
@@ -520,9 +518,9 @@ void Assembler::GrowBuffer() {
           reloc_info_writer.pos(), desc.reloc_size);
 
   // Switch buffers.
-  if (isolate->assembler_spare_buffer() == NULL &&
+  if (isolate()->assembler_spare_buffer() == NULL &&
       buffer_size_ == kMinimalBufferSize) {
-    isolate->set_assembler_spare_buffer(buffer_);
+    isolate()->set_assembler_spare_buffer(buffer_);
   } else {
     DeleteArray(buffer_);
   }
@@ -1035,7 +1033,7 @@ void Assembler::cmpb_al(Immediate imm8) {
 
 
 void Assembler::cpuid() {
-  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(CPUID));
+  ASSERT(isolate()->cpu_features()->IsEnabled(CPUID));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x0F);
@@ -2386,7 +2384,7 @@ void Assembler::fistp_s(const Operand& adr) {
 
 
 void Assembler::fisttp_s(const Operand& adr) {
-  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(SSE3));
+  ASSERT(isolate()->cpu_features()->IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(adr);
@@ -2396,7 +2394,7 @@ void Assembler::fisttp_s(const Operand& adr) {
 
 
 void Assembler::fisttp_d(const Operand& adr) {
-  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(SSE3));
+  ASSERT(isolate()->cpu_features()->IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(adr);
@@ -2714,7 +2712,7 @@ void Assembler::movq(Register dst, XMMRegister src) {
 
 
 void Assembler::movdqa(const Operand& dst, XMMRegister src) {
-  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(SSE2));
+  ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x66);
@@ -2726,7 +2724,7 @@ void Assembler::movdqa(const Operand& dst, XMMRegister src) {
 
 
 void Assembler::movdqa(XMMRegister dst, const Operand& src) {
-  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(SSE2));
+  ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x66);

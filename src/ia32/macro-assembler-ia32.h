@@ -695,14 +695,16 @@ void MacroAssembler::InNewSpace(Register object,
     // The mask isn't really an address.  We load it as an external reference in
     // case the size of the new space is different between the snapshot maker
     // and the running system.
-    and_(Operand(scratch), Immediate(ExternalReference::new_space_mask()));
-    cmp(Operand(scratch), Immediate(ExternalReference::new_space_start()));
+    and_(Operand(scratch),
+         Immediate(ExternalReference::new_space_mask(isolate())));
+    cmp(Operand(scratch),
+        Immediate(ExternalReference::new_space_start(isolate())));
     j(cc, branch);
   } else {
     int32_t new_space_start = reinterpret_cast<int32_t>(
-        ExternalReference::new_space_start().address());
+        ExternalReference::new_space_start(isolate()).address());
     lea(scratch, Operand(object, -new_space_start));
-    and_(scratch, HEAP->NewSpaceMask());
+    and_(scratch, isolate()->heap()->NewSpaceMask());
     j(cc, branch);
   }
 }
