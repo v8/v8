@@ -668,9 +668,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     if (!ctx->IsHeapObject()) return false;
 
     Map* map = SafeMap(ctx);
-    if (!(map == HEAP->raw_unchecked_context_map() ||
-          map == HEAP->raw_unchecked_catch_context_map() ||
-          map == HEAP->raw_unchecked_global_context_map())) {
+    Heap* heap = map->heap();
+    if (!(map == heap->raw_unchecked_context_map() ||
+          map == heap->raw_unchecked_catch_context_map() ||
+          map == heap->raw_unchecked_global_context_map())) {
       return false;
     }
 

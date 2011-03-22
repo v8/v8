@@ -1721,11 +1721,11 @@ class FreeListNode: public HeapObject {
   // function also writes a map to the first word of the block so that it
   // looks like a heap object to the garbage collector and heap iteration
   // functions.
-  void set_size(int size_in_bytes);
+  void set_size(Heap* heap, int size_in_bytes);
 
   // Accessors for the next field.
-  inline Address next();
-  inline void set_next(Address next);
+  inline Address next(Heap* heap);
+  inline void set_next(Heap* heap, Address next);
 
  private:
   static const int kNextOffset = POINTER_SIZE_ALIGN(ByteArray::kHeaderSize);
@@ -1737,7 +1737,7 @@ class FreeListNode: public HeapObject {
 // The free list for the old space.
 class OldSpaceFreeList BASE_EMBEDDED {
  public:
-  explicit OldSpaceFreeList(AllocationSpace owner);
+  OldSpaceFreeList(Heap* heap, AllocationSpace owner);
 
   // Clear the free list.
   void Reset();
@@ -1766,6 +1766,8 @@ class OldSpaceFreeList BASE_EMBEDDED {
   // will always result in waste.)
   static const int kMinBlockSize = 2 * kPointerSize;
   static const int kMaxBlockSize = Page::kMaxHeapObjectSize;
+
+  Heap* heap_;
 
   // The identity of the owning space, for building allocation Failure
   // objects.
@@ -1841,7 +1843,7 @@ class OldSpaceFreeList BASE_EMBEDDED {
 // The free list for the map space.
 class FixedSizeFreeList BASE_EMBEDDED {
  public:
-  FixedSizeFreeList(AllocationSpace owner, int object_size);
+  FixedSizeFreeList(Heap* heap, AllocationSpace owner, int object_size);
 
   // Clear the free list.
   void Reset();
@@ -1862,6 +1864,9 @@ class FixedSizeFreeList BASE_EMBEDDED {
   void MarkNodes();
 
  private:
+
+  Heap* heap_;
+
   // Available bytes on the free list.
   intptr_t available_;
 
@@ -1893,7 +1898,8 @@ class OldSpace : public PagedSpace {
            intptr_t max_capacity,
            AllocationSpace id,
            Executability executable)
-      : PagedSpace(heap, max_capacity, id, executable), free_list_(id) {
+      : PagedSpace(heap, max_capacity, id, executable),
+        free_list_(heap, id) {
     page_extra_ = 0;
   }
 
@@ -1970,7 +1976,7 @@ class FixedSpace : public PagedSpace {
       : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE),
         object_size_in_bytes_(object_size_in_bytes),
         name_(name),
-        free_list_(id, object_size_in_bytes) {
+        free_list_(heap, id, object_size_in_bytes) {
     page_extra_ = Page::kObjectAreaSize % object_size_in_bytes;
   }
 
