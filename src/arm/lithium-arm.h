@@ -523,11 +523,29 @@ class LArgumentsElements: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LModI: public LTemplateInstruction<1, 2, 0> {
+class LModI: public LTemplateInstruction<1, 2, 3> {
  public:
-  LModI(LOperand* left, LOperand* right) {
+  // Used when the right hand is a constant power of 2.
+  LModI(LOperand* left,
+        LOperand* right) {
     inputs_[0] = left;
     inputs_[1] = right;
+    temps_[0] = NULL;
+    temps_[1] = NULL;
+    temps_[2] = NULL;
+  }
+
+  // Used for the standard case.
+  LModI(LOperand* left,
+        LOperand* right,
+        LOperand* temp1,
+        LOperand* temp2,
+        LOperand* temp3) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+    temps_[2] = temp3;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ModI, "mod-i")

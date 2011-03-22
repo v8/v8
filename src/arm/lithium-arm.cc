@@ -1345,29 +1345,25 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsInteger32()) {
-    // TODO(1042) The fixed register allocation
-    // is needed because we call GenericBinaryOpStub from
-    // the generated code, which requires registers r0
-    // and r1 to be used. We should remove that
-    // when we provide a native implementation.
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
 
-    LInstruction* result;
+    LModI* mod;
     if (instr->HasPowerOf2Divisor()) {
       ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
       LOperand* value = UseRegisterAtStart(instr->left());
-      LModI* mod = new LModI(value, UseOrConstant(instr->right()));
-      result = DefineSameAsFirst(mod);
-      result = AssignEnvironment(result);
+      mod = new LModI(value, UseOrConstant(instr->right()));
     } else {
-      LOperand* value = UseFixed(instr->left(), r0);
-      LOperand* divisor = UseFixed(instr->right(), r1);
-      result = DefineFixed(new LModI(value, divisor), r0);
-      result = AssignEnvironment(AssignPointerMap(result));
+      LOperand* dividend = UseRegister(instr->left());
+      LOperand* divisor = UseRegisterAtStart(instr->right());
+      mod = new LModI(dividend,
+                      divisor,
+                      TempRegister(),
+                      FixedTemp(d1),
+                      FixedTemp(d2));
     }
 
-    return result;
+    return AssignEnvironment(DefineSameAsFirst(mod));
   } else if (instr->representation().IsTagged()) {
     return DoArithmeticT(Token::MOD, instr);
   } else {

@@ -2489,6 +2489,18 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
 }
 
 
+void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
+    Register reg,
+    Register scratch,
+    Label* zero_and_neg,
+    Label* not_power_of_two) {
+  sub(scratch, reg, Operand(1), SetCC);
+  b(mi, zero_and_neg);
+  tst(scratch, reg);
+  b(ne, not_power_of_two);
+}
+
+
 void MacroAssembler::JumpIfNotBothSmi(Register reg1,
                                       Register reg2,
                                       Label* on_not_both_smi) {
