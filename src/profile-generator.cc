@@ -320,7 +320,7 @@ struct NodesPair {
 
 class FilteredCloneCallback {
  public:
-  explicit FilteredCloneCallback(ProfileNode* dst_root, int security_token_id)
+  FilteredCloneCallback(ProfileNode* dst_root, int security_token_id)
       : stack_(10),
         security_token_id_(security_token_id) {
     stack_.Add(NodesPair(NULL, dst_root));
@@ -550,13 +550,16 @@ static void DeleteCpuProfile(CpuProfile** profile_ptr) {
 }
 
 static void DeleteProfilesList(List<CpuProfile*>** list_ptr) {
-  (*list_ptr)->Iterate(DeleteCpuProfile);
-  delete *list_ptr;
+  if (*list_ptr != NULL) {
+    (*list_ptr)->Iterate(DeleteCpuProfile);
+    delete *list_ptr;
+  }
 }
 
 CpuProfilesCollection::~CpuProfilesCollection() {
   delete current_profiles_semaphore_;
   current_profiles_.Iterate(DeleteCpuProfile);
+  detached_profiles_.Iterate(DeleteCpuProfile);
   profiles_by_token_.Iterate(DeleteProfilesList);
   code_entries_.Iterate(DeleteCodeEntry);
 }
@@ -621,15 +624,8 @@ CpuProfile* CpuProfilesCollection::StopProfiling(int security_token_id,
 
 CpuProfile* CpuProfilesCollection::GetProfile(int security_token_id,
                                               unsigned uid) {
-  HashMap::Entry* entry = profiles_uids_.Lookup(reinterpret_cast<void*>(uid),
-                                                static_cast<uint32_t>(uid),
-                                                false);
-  int index;
-  if (entry != NULL) {
-    index = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
-  } else {
-    return NULL;
-  }
+  int index = GetProfileIndex(uid);
+  if (index < 0) return NULL;
   List<CpuProfile*>* unabridged_list =
       profiles_by_token_[TokenToIndex(TokenEnumerator::kNoSecurityToken)];
   if (security_token_id == TokenEnumerator::kNoSecurityToken) {
@@ -644,12 +640,54 @@ CpuProfile* CpuProfilesCollection::GetProfile(int security_token_id,
 }
 
 
+int CpuProfilesCollection::GetProfileIndex(unsigned uid) {
+  HashMap::Entry* entry = profiles_uids_.Lookup(reinterpret_cast<void*>(uid),
+                                                static_cast<uint32_t>(uid),
+                                                false);
+  return entry != NULL ?
+      static_cast<int>(reinterpret_cast<intptr_t>(entry->value)) : -1;
+}
+
+
 bool CpuProfilesCollection::IsLastProfile(const char* title) {
   // Called from VM thread, and only it can mutate the list,
   // so no locking is needed here.
   if (current_profiles_.length() != 1) return false;
   return StrLength(title) == 0
       || strcmp(current_profiles_[0]->title(), title) == 0;
+}
+
+
+void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
+  // Called from VM thread for a completed profile.
+  unsigned uid = profile->uid();
+  int index = GetProfileIndex(uid);
+  if (index < 0) {
+    detached_profiles_.RemoveElement(profile);
+    return;
+  }
+  profiles_uids_.Remove(reinterpret_cast<void*>(uid),
+                        static_cast<uint32_t>(uid));
+  // Decrement all indexes above the deleted one.
+  for (HashMap::Entry* p = profiles_uids_.Start();
+       p != NULL;
+       p = profiles_uids_.Next(p)) {
+    intptr_t p_index = reinterpret_cast<intptr_t>(p->value);
+    if (p_index > index) {
+      p->value = reinterpret_cast<void*>(p_index - 1);
+    }
+  }
+  for (int i = 0; i < profiles_by_token_.length(); ++i) {
+    List<CpuProfile*>* list = profiles_by_token_[i];
+    if (list != NULL && index < list->length()) {
+      // Move all filtered clones into detached_profiles_,
+      // so we can know that they are still in use.
+      CpuProfile* cloned_profile = list->Remove(index);
+      if (cloned_profile != NULL && cloned_profile != profile) {
+        detached_profiles_.Add(cloned_profile);
+      }
+    }
+  }
 }
 
 
@@ -1268,6 +1306,12 @@ HeapSnapshot::~HeapSnapshot() {
 }
 
 
+void HeapSnapshot::Delete() {
+  collection_->RemoveSnapshot(this);
+  delete this;
+}
+
+
 void HeapSnapshot::AllocateEntries(int entries_count,
                                    int children_count,
                                    int retainers_count) {
@@ -1576,6 +1620,14 @@ HeapSnapshot* HeapSnapshotsCollection::GetSnapshot(unsigned uid) {
                                                  static_cast<uint32_t>(uid),
                                                  false);
   return entry != NULL ? reinterpret_cast<HeapSnapshot*>(entry->value) : NULL;
+}
+
+
+void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
+  snapshots_.RemoveElement(snapshot);
+  unsigned uid = snapshot->uid();
+  snapshots_uids_.Remove(reinterpret_cast<void*>(uid),
+                         static_cast<uint32_t>(uid));
 }
 
 

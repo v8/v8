@@ -5078,6 +5078,18 @@ const CpuProfileNode* CpuProfileNode::GetChild(int index) const {
 }
 
 
+void CpuProfile::Delete() {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfile::Delete");
+  i::CpuProfiler::DeleteProfile(reinterpret_cast<i::CpuProfile*>(this));
+  if (i::CpuProfiler::GetProfilesCount() == 0 &&
+      !i::CpuProfiler::HasDetachedProfiles()) {
+    // If this was the last profile, clean up all accessory data as well.
+    i::CpuProfiler::DeleteAllProfiles();
+  }
+}
+
+
 unsigned CpuProfile::GetUid() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfile::GetUid");
@@ -5154,6 +5166,13 @@ const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title,
       i::CpuProfiler::StopProfiling(
           security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
           *Utils::OpenHandle(*title)));
+}
+
+
+void CpuProfiler::DeleteAllProfiles() {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfiler::DeleteAllProfiles");
+  i::CpuProfiler::DeleteAllProfiles();
 }
 
 
@@ -5363,6 +5382,18 @@ static i::HeapSnapshot* ToInternal(const HeapSnapshot* snapshot) {
 }
 
 
+void HeapSnapshot::Delete() {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::Delete");
+  if (i::HeapProfiler::GetSnapshotsCount() > 1) {
+    ToInternal(this)->Delete();
+  } else {
+    // If this is the last snapshot, clean up all accessory data as well.
+    i::HeapProfiler::DeleteAllSnapshots();
+  }
+}
+
+
 HeapSnapshot::Type HeapSnapshot::GetType() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetType");
@@ -5469,6 +5500,13 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
   return reinterpret_cast<const HeapSnapshot*>(
       i::HeapProfiler::TakeSnapshot(
           *Utils::OpenHandle(*title), internal_type, control));
+}
+
+
+void HeapProfiler::DeleteAllSnapshots() {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::DeleteAllSnapshots");
+  i::HeapProfiler::DeleteAllSnapshots();
 }
 
 

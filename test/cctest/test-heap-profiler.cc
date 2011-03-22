@@ -1395,4 +1395,62 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   CHECK_EQ(ccc, GetProperty(n_CCC, v8::HeapGraphEdge::kInternal, "Native"));
 }
 
+
+TEST(DeleteAllHeapSnapshots) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CHECK_EQ(0, v8::HeapProfiler::GetSnapshotsCount());
+  v8::HeapProfiler::DeleteAllSnapshots();
+  CHECK_EQ(0, v8::HeapProfiler::GetSnapshotsCount());
+  CHECK_NE(NULL, v8::HeapProfiler::TakeSnapshot(v8::String::New("1")));
+  CHECK_EQ(1, v8::HeapProfiler::GetSnapshotsCount());
+  v8::HeapProfiler::DeleteAllSnapshots();
+  CHECK_EQ(0, v8::HeapProfiler::GetSnapshotsCount());
+  CHECK_NE(NULL, v8::HeapProfiler::TakeSnapshot(v8::String::New("1")));
+  CHECK_NE(NULL, v8::HeapProfiler::TakeSnapshot(v8::String::New("2")));
+  CHECK_EQ(2, v8::HeapProfiler::GetSnapshotsCount());
+  v8::HeapProfiler::DeleteAllSnapshots();
+  CHECK_EQ(0, v8::HeapProfiler::GetSnapshotsCount());
+}
+
+
+TEST(DeleteHeapSnapshot) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CHECK_EQ(0, v8::HeapProfiler::GetSnapshotsCount());
+  const v8::HeapSnapshot* s1 =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("1"));
+  CHECK_NE(NULL, s1);
+  CHECK_EQ(1, v8::HeapProfiler::GetSnapshotsCount());
+  unsigned uid1 = s1->GetUid();
+  CHECK_EQ(s1, v8::HeapProfiler::FindSnapshot(uid1));
+  const_cast<v8::HeapSnapshot*>(s1)->Delete();
+  CHECK_EQ(0, v8::HeapProfiler::GetSnapshotsCount());
+  CHECK_EQ(NULL, v8::HeapProfiler::FindSnapshot(uid1));
+
+  const v8::HeapSnapshot* s2 =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("2"));
+  CHECK_NE(NULL, s2);
+  CHECK_EQ(1, v8::HeapProfiler::GetSnapshotsCount());
+  unsigned uid2 = s2->GetUid();
+  CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid2));
+  CHECK_EQ(s2, v8::HeapProfiler::FindSnapshot(uid2));
+  const v8::HeapSnapshot* s3 =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("3"));
+  CHECK_NE(NULL, s3);
+  CHECK_EQ(2, v8::HeapProfiler::GetSnapshotsCount());
+  unsigned uid3 = s3->GetUid();
+  CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid3));
+  CHECK_EQ(s3, v8::HeapProfiler::FindSnapshot(uid3));
+  const_cast<v8::HeapSnapshot*>(s2)->Delete();
+  CHECK_EQ(1, v8::HeapProfiler::GetSnapshotsCount());
+  CHECK_EQ(NULL, v8::HeapProfiler::FindSnapshot(uid2));
+  CHECK_EQ(s3, v8::HeapProfiler::FindSnapshot(uid3));
+  const_cast<v8::HeapSnapshot*>(s3)->Delete();
+  CHECK_EQ(0, v8::HeapProfiler::GetSnapshotsCount());
+  CHECK_EQ(NULL, v8::HeapProfiler::FindSnapshot(uid3));
+}
+
 #endif  // ENABLE_LOGGING_AND_PROFILING

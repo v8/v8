@@ -227,6 +227,9 @@ class CpuProfiler {
   static int GetProfilesCount();
   static CpuProfile* GetProfile(Object* security_token, int index);
   static CpuProfile* FindProfile(Object* security_token, unsigned uid);
+  static void DeleteAllProfiles();
+  static void DeleteProfile(CpuProfile* profile);
+  static bool HasDetachedProfiles();
 
   // Invoked from stack sampler (thread or signal handler.)
   static TickSample* TickSampleEvent(Isolate* isolate);
@@ -276,6 +279,8 @@ class CpuProfiler {
   CpuProfile* StopCollectingProfile(const char* title);
   CpuProfile* StopCollectingProfile(Object* security_token, String* title);
   void StopProcessorIfLastProfile(const char* title);
+  void StopProcessor();
+  void ResetProfiles();
 
   CpuProfilesCollection* profiles_;
   unsigned next_profile_uid_;

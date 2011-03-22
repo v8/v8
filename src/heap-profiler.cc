@@ -326,6 +326,13 @@ HeapProfiler::~HeapProfiler() {
   delete snapshots_;
 }
 
+
+void HeapProfiler::ResetSnapshots() {
+  delete snapshots_;
+  snapshots_ = new HeapSnapshotsCollection();
+}
+
+
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 void HeapProfiler::Setup() {
@@ -447,6 +454,13 @@ HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
   HeapProfiler* profiler = Isolate::Current()->heap_profiler();
   ASSERT(profiler != NULL);
   return profiler->snapshots_->GetSnapshot(uid);
+}
+
+
+void HeapProfiler::DeleteAllSnapshots() {
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  profiler->ResetSnapshots();
 }
 
 

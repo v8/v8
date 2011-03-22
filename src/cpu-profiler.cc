@@ -331,6 +331,27 @@ TickSample* CpuProfiler::TickSampleEvent(Isolate* isolate) {
 }
 
 
+void CpuProfiler::DeleteAllProfiles() {
+  ASSERT(Isolate::Current()->cpu_profiler() != NULL);
+  if (is_profiling())
+    Isolate::Current()->cpu_profiler()->StopProcessor();
+  Isolate::Current()->cpu_profiler()->ResetProfiles();
+}
+
+
+void CpuProfiler::DeleteProfile(CpuProfile* profile) {
+  ASSERT(Isolate::Current()->cpu_profiler() != NULL);
+  Isolate::Current()->cpu_profiler()->profiles_->RemoveProfile(profile);
+  delete profile;
+}
+
+
+bool CpuProfiler::HasDetachedProfiles() {
+  ASSERT(Isolate::Current()->cpu_profiler() != NULL);
+  return Isolate::Current()->cpu_profiler()->profiles_->HasDetachedProfiles();
+}
+
+
 void CpuProfiler::CallbackEvent(String* name, Address entry_point) {
   Isolate::Current()->cpu_profiler()->processor_->CallbackCreateEvent(
       Logger::CALLBACK_TAG, CodeEntry::kEmptyNamePrefix, name, entry_point);
@@ -452,6 +473,11 @@ CpuProfiler::~CpuProfiler() {
 }
 
 
+void CpuProfiler::ResetProfiles() {
+  delete profiles_;
+  profiles_ = new CpuProfilesCollection();
+}
+
 void CpuProfiler::StartCollectingProfile(const char* title) {
   if (profiles_->StartProfiling(title, next_profile_uid_++)) {
     StartProcessorIfNotStarted();
@@ -521,22 +547,25 @@ CpuProfile* CpuProfiler::StopCollectingProfile(Object* security_token,
 
 
 void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
-  if (profiles_->IsLastProfile(title)) {
-    Sampler* sampler = reinterpret_cast<Sampler*>(LOGGER->ticker_);
-    sampler->DecreaseProfilingDepth();
-    if (need_to_stop_sampler_) {
-      sampler->Stop();
-      need_to_stop_sampler_ = false;
-    }
-    processor_->Stop();
-    processor_->Join();
-    delete processor_;
-    delete generator_;
-    processor_ = NULL;
-    NoBarrier_Store(&is_profiling_, false);
-    generator_ = NULL;
-    LOGGER->logging_nesting_ = saved_logging_nesting_;
+  if (profiles_->IsLastProfile(title)) StopProcessor();
+}
+
+
+void CpuProfiler::StopProcessor() {
+  Sampler* sampler = reinterpret_cast<Sampler*>(LOGGER->ticker_);
+  sampler->DecreaseProfilingDepth();
+  if (need_to_stop_sampler_) {
+    sampler->Stop();
+    need_to_stop_sampler_ = false;
   }
+  processor_->Stop();
+  processor_->Join();
+  delete processor_;
+  delete generator_;
+  processor_ = NULL;
+  NoBarrier_Store(&is_profiling_, false);
+  generator_ = NULL;
+  LOGGER->logging_nesting_ = saved_logging_nesting_;
 }
 
 } }  // namespace v8::internal

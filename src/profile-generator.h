@@ -300,6 +300,8 @@ class CpuProfilesCollection {
   }
   CpuProfile* GetProfile(int security_token_id, unsigned uid);
   bool IsLastProfile(const char* title);
+  void RemoveProfile(CpuProfile* profile);
+  bool HasDetachedProfiles() { return detached_profiles_.length() > 0; }
 
   CodeEntry* NewCodeEntry(Logger::LogEventsAndTags tag,
                           String* name, String* resource_name, int line_number);
@@ -322,6 +324,7 @@ class CpuProfilesCollection {
   const char* GetFunctionName(const char* name) {
     return function_and_resource_names_.GetFunctionName(name);
   }
+  int GetProfileIndex(unsigned uid);
   List<CpuProfile*>* GetProfilesList(int security_token_id);
   int TokenToIndex(int security_token_id);
 
@@ -335,6 +338,7 @@ class CpuProfilesCollection {
   // Mapping from profiles' uids to indexes in the second nested list
   // of profiles_by_token_.
   HashMap profiles_uids_;
+  List<CpuProfile*> detached_profiles_;
 
   // Accessed by VM thread and profile generator thread.
   List<CpuProfile*> current_profiles_;
@@ -673,6 +677,7 @@ class HeapSnapshot {
                const char* title,
                unsigned uid);
   ~HeapSnapshot();
+  void Delete();
 
   HeapSnapshotsCollection* collection() { return collection_; }
   Type type() { return type_; }
@@ -840,6 +845,7 @@ class HeapSnapshotsCollection {
   void SnapshotGenerationFinished(HeapSnapshot* snapshot);
   List<HeapSnapshot*>* snapshots() { return &snapshots_; }
   HeapSnapshot* GetSnapshot(unsigned uid);
+  void RemoveSnapshot(HeapSnapshot* snapshot);
 
   StringsStorage* names() { return &names_; }
   TokenEnumerator* token_enumerator() { return token_enumerator_; }
