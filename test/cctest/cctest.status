@@ -94,6 +94,3 @@ test-thread-termination: SKIP
 
 ##############################################################################
 # Tests that time out with Isolates
-[ $system == linux ]
-test-profile-generator/RecordStackTraceAtStartProfiling: SKIP
-test-cpu-profiler/CrashIfStoppingLastNonExistentProfile: SKIP
