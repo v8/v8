@@ -246,83 +246,6 @@ void RegExpBuilder::AddQuantifierToAtom(int min,
 }
 
 
-// A temporary scope stores information during parsing, just like
-// a plain scope.  However, temporary scopes are not kept around
-// after parsing or referenced by syntax trees so they can be stack-
-// allocated and hence used by the pre-parser.
-class TemporaryScope BASE_EMBEDDED {
- public:
-  TemporaryScope(TemporaryScope** variable, Isolate* isolate);
-  ~TemporaryScope();
-
-  int NextMaterializedLiteralIndex() {
-    int next_index =
-        materialized_literal_count_ + JSFunction::kLiteralsPrefixSize;
-    materialized_literal_count_++;
-    return next_index;
-  }
-  int materialized_literal_count() { return materialized_literal_count_; }
-
-  void SetThisPropertyAssignmentInfo(
-      bool only_simple_this_property_assignments,
-      Handle<FixedArray> this_property_assignments) {
-    only_simple_this_property_assignments_ =
-        only_simple_this_property_assignments;
-    this_property_assignments_ = this_property_assignments;
-  }
-  bool only_simple_this_property_assignments() {
-    return only_simple_this_property_assignments_;
-  }
-  Handle<FixedArray> this_property_assignments() {
-    return this_property_assignments_;
-  }
-
-  void AddProperty() { expected_property_count_++; }
-  int expected_property_count() { return expected_property_count_; }
-
-  void AddLoop() { loop_count_++; }
-  bool ContainsLoops() const { return loop_count_ > 0; }
-
- private:
-  // Captures the number of literals that need materialization in the
-  // function.  Includes regexp literals, and boilerplate for object
-  // and array literals.
-  int materialized_literal_count_;
-
-  // Properties count estimation.
-  int expected_property_count_;
-
-  // Keeps track of assignments to properties of this. Used for
-  // optimizing constructors.
-  bool only_simple_this_property_assignments_;
-  Handle<FixedArray> this_property_assignments_;
-
-  // Captures the number of loops inside the scope.
-  int loop_count_;
-
-  // Bookkeeping
-  TemporaryScope** variable_;
-  TemporaryScope* parent_;
-};
-
-
-TemporaryScope::TemporaryScope(TemporaryScope** variable, Isolate* isolate)
-  : materialized_literal_count_(0),
-    expected_property_count_(0),
-    only_simple_this_property_assignments_(false),
-    this_property_assignments_(isolate->factory()->empty_fixed_array()),
-    loop_count_(0),
-    variable_(variable),
-    parent_(*variable) {
-  *variable = this;
-}
-
-
-TemporaryScope::~TemporaryScope() {
-  *variable_ = parent_;
-}
-
-
 Handle<String> Parser::LookupSymbol(int symbol_id) {
   // Length of symbol cache is the number of identified symbols.
   // If we are larger than that, or negative, it's not a cached symbol.
@@ -538,32 +461,93 @@ class TargetScope BASE_EMBEDDED {
 // LexicalScope is a support class to facilitate manipulation of the
 // Parser's scope stack. The constructor sets the parser's top scope
 // to the incoming scope, and the destructor resets it.
+//
+// Additionlaly, it stores transient information used during parsing.
+// These scopes are not kept around after parsing or referenced by syntax
+// trees so they can be stack-allocated and hence used by the pre-parser.
 
 class LexicalScope BASE_EMBEDDED {
  public:
-  LexicalScope(Scope** scope_variable,
-               int* with_nesting_level_variable,
-               Scope* scope)
-    : scope_variable_(scope_variable),
-      with_nesting_level_variable_(with_nesting_level_variable),
-      prev_scope_(*scope_variable),
-      prev_level_(*with_nesting_level_variable) {
-    *scope_variable = scope;
-    *with_nesting_level_variable = 0;
+  LexicalScope(Parser* parser, Scope* scope, Isolate* isolate);
+  ~LexicalScope();
+
+  int NextMaterializedLiteralIndex() {
+    int next_index =
+        materialized_literal_count_ + JSFunction::kLiteralsPrefixSize;
+    materialized_literal_count_++;
+    return next_index;
+  }
+  int materialized_literal_count() { return materialized_literal_count_; }
+
+  void SetThisPropertyAssignmentInfo(
+      bool only_simple_this_property_assignments,
+      Handle<FixedArray> this_property_assignments) {
+    only_simple_this_property_assignments_ =
+        only_simple_this_property_assignments;
+    this_property_assignments_ = this_property_assignments;
+  }
+  bool only_simple_this_property_assignments() {
+    return only_simple_this_property_assignments_;
+  }
+  Handle<FixedArray> this_property_assignments() {
+    return this_property_assignments_;
   }
 
-  ~LexicalScope() {
-    (*scope_variable_)->Leave();
-    *scope_variable_ = prev_scope_;
-    *with_nesting_level_variable_ = prev_level_;
-  }
+  void AddProperty() { expected_property_count_++; }
+  int expected_property_count() { return expected_property_count_; }
+
+  void AddLoop() { loop_count_++; }
+  bool ContainsLoops() const { return loop_count_ > 0; }
 
  private:
-  Scope** scope_variable_;
-  int* with_nesting_level_variable_;
-  Scope* prev_scope_;
-  int prev_level_;
+  // Captures the number of literals that need materialization in the
+  // function.  Includes regexp literals, and boilerplate for object
+  // and array literals.
+  int materialized_literal_count_;
+
+  // Properties count estimation.
+  int expected_property_count_;
+
+  // Keeps track of assignments to properties of this. Used for
+  // optimizing constructors.
+  bool only_simple_this_property_assignments_;
+  Handle<FixedArray> this_property_assignments_;
+
+  // Captures the number of loops inside the scope.
+  int loop_count_;
+
+  // Bookkeeping
+  Parser* parser_;
+  // Previous values
+  LexicalScope* lexical_scope_parent_;
+  Scope* previous_scope_;
+  int previous_with_nesting_level_;
 };
+
+
+LexicalScope::LexicalScope(Parser* parser, Scope* scope, Isolate* isolate)
+  : materialized_literal_count_(0),
+    expected_property_count_(0),
+    only_simple_this_property_assignments_(false),
+    this_property_assignments_(isolate->factory()->empty_fixed_array()),
+    loop_count_(0),
+    parser_(parser),
+    lexical_scope_parent_(parser->lexical_scope_),
+    previous_scope_(parser->top_scope_),
+    previous_with_nesting_level_(parser->with_nesting_level_) {
+  parser->top_scope_ = scope;
+  parser->lexical_scope_ = this;
+  parser->with_nesting_level_ = 0;
+}
+
+
+LexicalScope::~LexicalScope() {
+  parser_->top_scope_->Leave();
+  parser_->top_scope_ = previous_scope_;
+  parser_->lexical_scope_ = lexical_scope_parent_;
+  parser_->with_nesting_level_ = previous_with_nesting_level_;
+}
+
 
 // ----------------------------------------------------------------------------
 // The CHECK_OK macro is a convenient macro to enforce error
@@ -598,7 +582,7 @@ Parser::Parser(Handle<Script> script,
       scanner_(isolate_),
       top_scope_(NULL),
       with_nesting_level_(0),
-      temp_scope_(NULL),
+      lexical_scope_(NULL),
       target_stack_(NULL),
       allow_natives_syntax_(allow_natives_syntax),
       extension_(extension),
@@ -656,9 +640,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
 
   FunctionLiteral* result = NULL;
   { Scope* scope = NewScope(top_scope_, type, inside_with());
-    LexicalScope lexical_scope(&this->top_scope_, &this->with_nesting_level_,
-                               scope);
-    TemporaryScope temp_scope(&this->temp_scope_, isolate());
+    LexicalScope lexical_scope(this, scope, isolate());
     if (strict_mode == kStrictMode) {
       top_scope_->EnableStrictMode();
     }
@@ -674,15 +656,15 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
           no_name,
           top_scope_,
           body,
-          temp_scope.materialized_literal_count(),
-          temp_scope.expected_property_count(),
-          temp_scope.only_simple_this_property_assignments(),
-          temp_scope.this_property_assignments(),
+          lexical_scope.materialized_literal_count(),
+          lexical_scope.expected_property_count(),
+          lexical_scope.only_simple_this_property_assignments(),
+          lexical_scope.this_property_assignments(),
           0,
           0,
           source->length(),
           false,
-          temp_scope.ContainsLoops());
+          lexical_scope.ContainsLoops());
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
     }
@@ -746,9 +728,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
     if (!info->closure().is_null()) {
       scope = Scope::DeserializeScopeChain(info, scope);
     }
-    LexicalScope lexical_scope(&this->top_scope_, &this->with_nesting_level_,
-                               scope);
-    TemporaryScope temp_scope(&this->temp_scope_, isolate());
+    LexicalScope lexical_scope(this, scope, isolate());
 
     if (shared_info->strict_mode()) {
       top_scope_->EnableStrictMode();
@@ -1176,7 +1156,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
         this_property_assignment_finder.only_simple_this_property_assignments()
         && top_scope_->declarations()->length() == 0;
     if (only_simple_this_property_assignments) {
-      temp_scope_->SetThisPropertyAssignmentInfo(
+      lexical_scope_->SetThisPropertyAssignmentInfo(
           only_simple_this_property_assignments,
           this_property_assignment_finder.GetThisPropertyAssignments());
     }
@@ -2175,7 +2155,7 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   // DoStatement ::
   //   'do' Statement 'while' '(' Expression ')' ';'
 
-  temp_scope_->AddLoop();
+  lexical_scope_->AddLoop();
   DoWhileStatement* loop = new DoWhileStatement(labels);
   Target target(&this->target_stack_, loop);
 
@@ -2208,7 +2188,7 @@ WhileStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
   // WhileStatement ::
   //   'while' '(' Expression ')' Statement
 
-  temp_scope_->AddLoop();
+  lexical_scope_->AddLoop();
   WhileStatement* loop = new WhileStatement(labels);
   Target target(&this->target_stack_, loop);
 
@@ -2228,7 +2208,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   // ForStatement ::
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
 
-  temp_scope_->AddLoop();
+  lexical_scope_->AddLoop();
   Statement* init = NULL;
 
   Expect(Token::FOR, CHECK_OK);
@@ -2375,7 +2355,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
       property != NULL &&
       property->obj()->AsVariableProxy() != NULL &&
       property->obj()->AsVariableProxy()->is_this()) {
-    temp_scope_->AddProperty();
+    lexical_scope_->AddProperty();
   }
 
   // If we assign a function literal to a property we pretenure the
@@ -3017,7 +2997,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
   Expect(Token::RBRACK, CHECK_OK);
 
   // Update the scope information before the pre-parsing bailout.
-  int literal_index = temp_scope_->NextMaterializedLiteralIndex();
+  int literal_index = lexical_scope_->NextMaterializedLiteralIndex();
 
   // Allocate a fixed array with all the literals.
   Handle<FixedArray> literals =
@@ -3457,7 +3437,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   Expect(Token::RBRACE, CHECK_OK);
 
   // Computation of literal_index must happen before pre parse bailout.
-  int literal_index = temp_scope_->NextMaterializedLiteralIndex();
+  int literal_index = lexical_scope_->NextMaterializedLiteralIndex();
 
   Handle<FixedArray> constant_properties = isolate()->factory()->NewFixedArray(
       number_of_boilerplate_properties * 2, TENURED);
@@ -3488,7 +3468,7 @@ Expression* Parser::ParseRegExpLiteral(bool seen_equal, bool* ok) {
     return NULL;
   }
 
-  int literal_index = temp_scope_->NextMaterializedLiteralIndex();
+  int literal_index = lexical_scope_->NextMaterializedLiteralIndex();
 
   Handle<String> js_pattern = NextLiteralString(TENURED);
   scanner().ScanRegExpFlags();
@@ -3542,9 +3522,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
   // Parse function body.
   { Scope* scope =
         NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
-    LexicalScope lexical_scope(&this->top_scope_, &this->with_nesting_level_,
-                               scope);
-    TemporaryScope temp_scope(&this->temp_scope_, isolate());
+    LexicalScope lexical_scope(this, scope, isolate());
     top_scope_->SetScopeName(name);
 
     //  FormalParameterList ::
@@ -3642,11 +3620,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     } else {
       ParseSourceElements(body, Token::RBRACE, CHECK_OK);
 
-      materialized_literal_count = temp_scope.materialized_literal_count();
-      expected_property_count = temp_scope.expected_property_count();
+      materialized_literal_count = lexical_scope.materialized_literal_count();
+      expected_property_count = lexical_scope.expected_property_count();
       only_simple_this_property_assignments =
-          temp_scope.only_simple_this_property_assignments();
-      this_property_assignments = temp_scope.this_property_assignments();
+          lexical_scope.only_simple_this_property_assignments();
+      this_property_assignments = lexical_scope.this_property_assignments();
 
       Expect(Token::RBRACE, CHECK_OK);
       end_pos = scanner().location().end_pos;
@@ -3707,7 +3685,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
                             start_pos,
                             end_pos,
                             function_name->length() > 0,
-                            temp_scope.ContainsLoops());
+                            lexical_scope.ContainsLoops());
     function_literal->set_function_token_position(function_token_position);
 
     if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);

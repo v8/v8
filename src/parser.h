@@ -42,7 +42,7 @@ class FuncNameInferrer;
 class ParserLog;
 class PositionStack;
 class Target;
-class TemporaryScope;
+class LexicalScope;
 
 template <typename T> class ZoneListWrapper;
 
@@ -703,7 +703,7 @@ class Parser {
   Scope* top_scope_;
   int with_nesting_level_;
 
-  TemporaryScope* temp_scope_;
+  LexicalScope* lexical_scope_;
   Mode mode_;
 
   Target* target_stack_;  // for break, continue statements
@@ -718,6 +718,8 @@ class Parser {
   // Heuristically that means that the function will be called immediately,
   // so never lazily compile it.
   bool parenthesized_function_;
+
+  friend class LexicalScope;
 };
 
 
