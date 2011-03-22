@@ -3914,14 +3914,14 @@ Local<String> v8::String::New(const char* data, int length) {
 
 
 Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::New()");
-  LOG_API(isolate, "String::New(char)");
-  ENTER_V8;
   i::Handle<i::String> left_string = Utils::OpenHandle(*left);
+  i::Isolate* isolate = left_string->GetIsolate();
+  EnsureInitializedForIsolate(isolate, "v8::String::Concat()");
+  LOG_API(isolate, "String::Concat()");
+  ENTER_V8;
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
-  i::Handle<i::String> result = FACTORY->NewConsString(left_string,
-                                                          right_string);
+  i::Handle<i::String> result = isolate->factory()->NewConsString(left_string,
+                                                                  right_string);
   return Utils::ToLocal(result);
 }
 
@@ -3933,7 +3933,8 @@ Local<String> v8::String::NewUndetectable(const char* data, int length) {
   ENTER_V8;
   if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result =
-      FACTORY->NewStringFromUtf8(i::Vector<const char>(data, length));
+      isolate->factory()->NewStringFromUtf8(
+          i::Vector<const char>(data, length));
   result->MarkAsUndetectable();
   return Utils::ToLocal(result);
 }
@@ -4003,11 +4004,11 @@ Local<String> v8::String::NewExternal(
 
 
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::String> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
   if (IsDeadCheck(isolate, "v8::String::MakeExternal()")) return false;
   if (this->IsExternal()) return false;  // Already an external string.
   ENTER_V8;
-  i::Handle<i::String> obj = Utils::OpenHandle(this);
   if (isolate->string_tracker()->IsFreshUnusedString(obj)) {
     return false;
   }
@@ -4033,11 +4034,11 @@ Local<String> v8::String::NewExternal(
 
 bool v8::String::MakeExternal(
     v8::String::ExternalAsciiStringResource* resource) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::String> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
   if (IsDeadCheck(isolate, "v8::String::MakeExternal()")) return false;
   if (this->IsExternal()) return false;  // Already an external string.
   ENTER_V8;
-  i::Handle<i::String> obj = Utils::OpenHandle(this);
   if (isolate->string_tracker()->IsFreshUnusedString(obj)) {
     return false;
   }
@@ -4050,9 +4051,9 @@ bool v8::String::MakeExternal(
 
 
 bool v8::String::CanMakeExternal() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::String::CanMakeExternal()")) return false;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::String::CanMakeExternal()")) return false;
   if (isolate->string_tracker()->IsFreshUnusedString(obj)) {
     return false;
   }
