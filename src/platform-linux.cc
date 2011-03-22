@@ -812,7 +812,11 @@ enum ArmRegisters {R15 = 15, R13 = 13, R11 = 11};
 
 static int GetThreadID() {
   // Glibc doesn't provide a wrapper for gettid(2).
+#if defined(ANDROID)
+  return syscall(__NR_gettid);
+#else
   return syscall(SYS_gettid);
+#endif
 }
 
 
@@ -979,7 +983,11 @@ class SignalSender : public Thread {
   void SendProfilingSignal(int tid) {
     if (!signal_handler_installed_) return;
     // Glibc doesn't provide a wrapper for tgkill(2).
+#if defined(ANDROID)
+    syscall(__NR_tgkill, vm_tgid_, tid, SIGPROF);
+#else
     syscall(SYS_tgkill, vm_tgid_, tid, SIGPROF);
+#endif
   }
 
   void Sleep(SleepInterval full_or_half) {
