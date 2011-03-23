@@ -1388,7 +1388,7 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   i::Handle<i::JSFunction> result =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           function,
-          i::Isolate::Current()->global_context());
+          isolate->global_context());
   return Local<Script>(ToApi<Script>(result));
 }
 
@@ -1415,13 +1415,13 @@ Local<Value> Script::Run() {
       i::Handle<i::SharedFunctionInfo>
           function_info(i::SharedFunctionInfo::cast(*obj));
       fun = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          function_info, i::Isolate::Current()->global_context());
+          function_info, isolate->global_context());
     } else {
       fun = i::Handle<i::JSFunction>(i::JSFunction::cast(*obj));
     }
     EXCEPTION_PREAMBLE();
     i::Handle<i::Object> receiver(
-        i::Isolate::Current()->context()->global_proxy());
+        isolate->context()->global_proxy());
     i::Handle<i::Object> result =
         i::Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(Local<Value>());
@@ -1493,13 +1493,14 @@ v8::TryCatch::TryCatch()
 
 
 v8::TryCatch::~TryCatch() {
+  i::Isolate* isolate = i::Isolate::Current();
   if (rethrow_) {
     v8::HandleScope scope;
     v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(Exception());
-    i::Isolate::Current()->UnregisterTryCatchHandler(this);
+    isolate->UnregisterTryCatchHandler(this);
     v8::ThrowException(exc);
   } else {
-    i::Isolate::Current()->UnregisterTryCatchHandler(this);
+    isolate->UnregisterTryCatchHandler(this);
   }
 }
 
@@ -2037,7 +2038,7 @@ bool Value::IsRegExp() const {
 
 Local<String> Value::ToString() const {
   i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::ToString()")) {
+  if (IsDeadCheck(isolate, "v8::Value::ToString()")) {
     return Local<String>();
   }
   LOG_API(isolate, "ToString");
@@ -2095,7 +2096,7 @@ Local<v8::Object> Value::ToObject() const {
 
 Local<Boolean> Value::ToBoolean() const {
   i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::ToBoolean()")) {
+  if (IsDeadCheck(isolate, "v8::Value::ToBoolean()")) {
     return Local<Boolean>();
   }
   LOG_API(isolate, "ToBoolean");
@@ -3657,7 +3658,7 @@ Persistent<Context> v8::Context::New(
       global_constructor->set_needs_access_check(
           proxy_constructor->needs_access_check());
     }
-    i::Isolate::Current()->runtime_profiler()->Reset();
+    isolate->runtime_profiler()->Reset();
   }
   // Leave V8.
 
@@ -3712,11 +3713,12 @@ bool Context::InContext() {
 
 
 v8::Local<v8::Context> Context::GetEntered() {
-  if (IsDeadCheck(i::Isolate::Current(), "v8::Context::GetEntered()")) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::GetEntered()")) {
     return Local<Context>();
   }
   i::Handle<i::Object> last =
-      i::Isolate::Current()->handle_scope_implementer()->LastEnteredContext();
+      isolate->handle_scope_implementer()->LastEnteredContext();
   if (last.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(last);
   return Utils::ToLocal(context);
@@ -3724,10 +3726,11 @@ v8::Local<v8::Context> Context::GetEntered() {
 
 
 v8::Local<v8::Context> Context::GetCurrent() {
-  if (IsDeadCheck(i::Isolate::Current(), "v8::Context::GetCurrent()")) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::GetCurrent()")) {
     return Local<Context>();
   }
-  i::Handle<i::Object> current = i::Isolate::Current()->global_context();
+  i::Handle<i::Object> current = isolate->global_context();
   if (current.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(current);
   return Utils::ToLocal(context);
@@ -3735,11 +3738,12 @@ v8::Local<v8::Context> Context::GetCurrent() {
 
 
 v8::Local<v8::Context> Context::GetCalling() {
-  if (IsDeadCheck(i::Isolate::Current(), "v8::Context::GetCalling()")) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::GetCalling()")) {
     return Local<Context>();
   }
   i::Handle<i::Object> calling =
-      i::Isolate::Current()->GetCallingGlobalContext();
+      isolate->GetCallingGlobalContext();
   if (calling.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(calling);
   return Utils::ToLocal(context);
@@ -3759,12 +3763,13 @@ v8::Local<v8::Object> Context::Global() {
 
 
 void Context::DetachGlobal() {
-  if (IsDeadCheck(i::Isolate::Current(), "v8::Context::DetachGlobal()")) return;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::DetachGlobal()")) return;
   ENTER_V8;
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
-  i::Isolate::Current()->bootstrapper()->DetachGlobal(context);
+  isolate->bootstrapper()->DetachGlobal(context);
 }
 
 
@@ -4075,7 +4080,7 @@ Local<v8::Object> v8::Object::New() {
   LOG_API(isolate, "Object::New");
   ENTER_V8;
   i::Handle<i::JSObject> obj =
-      isolate->factory()->NewJSObject(i::Isolate::Current()->object_function());
+      isolate->factory()->NewJSObject(isolate->object_function());
   return Utils::ToLocal(obj);
 }
 
@@ -4550,9 +4555,9 @@ int V8::GetCurrentThreadId() {
 
 
 void V8::TerminateExecution(int thread_id) {
-  if (!i::Isolate::Current()->IsInitialized()) return;
-  API_ENTRY_CHECK("V8::GetCurrentThreadId()");
   i::Isolate* isolate = i::Isolate::Current();
+  if (!isolate->IsInitialized()) return;
+  API_ENTRY_CHECK("V8::GetCurrentThreadId()");
   // If the thread_id identifies the current thread just terminate
   // execution right away.  Otherwise, ask the thread manager to
   // terminate the thread with the given id if any.
@@ -4575,9 +4580,10 @@ void V8::TerminateExecution(Isolate* isolate) {
 
 
 bool V8::IsExecutionTerminating() {
-  if (!i::Isolate::Current()->IsInitialized()) return false;
-  if (i::Isolate::Current()->has_scheduled_exception()) {
-    return i::Isolate::Current()->scheduled_exception() ==
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!isolate->IsInitialized()) return false;
+  if (isolate->has_scheduled_exception()) {
+    return isolate->scheduled_exception() ==
         HEAP->termination_exception();
   }
   return false;
@@ -4894,9 +4900,9 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
   // TODO(sgjesse) support the old message handler API through a simple wrapper.
   isolate->set_message_handler(handler);
   if (handler != NULL) {
-    i::Isolate::Current()->debugger()->SetMessageHandler(MessageHandlerWrapper);
+    isolate->debugger()->SetMessageHandler(MessageHandlerWrapper);
   } else {
-    i::Isolate::Current()->debugger()->SetMessageHandler(NULL);
+    isolate->debugger()->SetMessageHandler(NULL);
   }
 }
 
@@ -4949,12 +4955,12 @@ Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
   i::Handle<i::Object> result;
   EXCEPTION_PREAMBLE();
   if (data.IsEmpty()) {
-    result = i::Isolate::Current()->debugger()->Call(
+    result = isolate->debugger()->Call(
         Utils::OpenHandle(*fun),
         isolate->factory()->undefined_value(),
         &has_pending_exception);
   } else {
-    result = i::Isolate::Current()->debugger()->Call(Utils::OpenHandle(*fun),
+    result = isolate->debugger()->Call(Utils::OpenHandle(*fun),
                                                      Utils::OpenHandle(*data),
                                                      &has_pending_exception);
   }
@@ -4969,7 +4975,7 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   ON_BAILOUT(isolate, "v8::Debug::GetMirror()", return Local<Value>());
   ENTER_V8;
   v8::HandleScope scope;
-  i::Debug* isolate_debug = i::Isolate::Current()->debug();
+  i::Debug* isolate_debug = isolate->debug();
   isolate_debug->Load();
   i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global());
   i::Handle<i::String> name =
