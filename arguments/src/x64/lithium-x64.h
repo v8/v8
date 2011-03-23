@@ -154,6 +154,7 @@ class LCodeGen;
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
+  V(ToFastProperties)                           \
   V(Throw)                                      \
   V(Typeof)                                     \
   V(TypeofIs)                                   \
@@ -1423,7 +1424,7 @@ class LCallRuntime: public LTemplateInstruction<1, 0, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime, "call-runtime")
   DECLARE_HYDROGEN_ACCESSOR(CallRuntime)
 
-  Runtime::Function* function() const { return hydrogen()->function(); }
+  const Runtime::Function* function() const { return hydrogen()->function(); }
   int arity() const { return hydrogen()->argument_count(); }
 };
 
@@ -1759,6 +1760,17 @@ class LFunctionLiteral: public LTemplateInstruction<1, 0, 0> {
   DECLARE_HYDROGEN_ACCESSOR(FunctionLiteral)
 
   Handle<SharedFunctionInfo> shared_info() { return hydrogen()->shared_info(); }
+};
+
+
+class LToFastProperties: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LToFastProperties(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ToFastProperties, "to-fast-properties")
+  DECLARE_HYDROGEN_ACCESSOR(ToFastProperties)
 };
 
 

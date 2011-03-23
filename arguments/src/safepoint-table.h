@@ -28,11 +28,9 @@
 #ifndef V8_SAFEPOINT_TABLE_H_
 #define V8_SAFEPOINT_TABLE_H_
 
-#include "v8.h"
-
 #include "heap.h"
+#include "v8memory.h"
 #include "zone.h"
-#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {

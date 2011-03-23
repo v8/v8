@@ -111,7 +111,7 @@ class AstPrinter: public PrettyPrinter {
   void inc_indent() { indent_++; }
   void dec_indent() { indent_--; }
 
-  static int indent_;
+  int indent_;
 };
 
 

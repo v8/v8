@@ -110,7 +110,8 @@ namespace internal {
 class Arguments;
 class Object;
 class Heap;
-class Top;
+class HeapObject;
+class Isolate;
 }
 
 
@@ -443,6 +444,8 @@ class V8EXPORT HandleScope {
    * Creates a new handle with the given value.
    */
   static internal::Object** CreateHandle(internal::Object* value);
+  // Faster version, uses HeapObject to obtain the current Isolate.
+  static internal::Object** CreateHandle(internal::HeapObject* value);
 
  private:
   // Make it impossible to create heap-allocated or illegal handle
@@ -459,7 +462,6 @@ class V8EXPORT HandleScope {
     internal::Object** next;
     internal::Object** limit;
     int level;
-
     inline void Initialize() {
       next = limit = NULL;
       level = 0;
@@ -468,6 +470,7 @@ class V8EXPORT HandleScope {
 
   void Leave();
 
+  internal::Isolate* isolate_;
   internal::Object** prev_next_;
   internal::Object** prev_limit_;
 
@@ -2548,6 +2551,90 @@ class V8EXPORT HeapStatistics {
 class RetainedObjectInfo;
 
 /**
+ * Isolate represents an isolated instance of the V8 engine.  V8
+ * isolates have completely separate states.  Objects from one isolate
+ * must not be used in other isolates.  When V8 is initialized a
+ * default isolate is implicitly created and entered.  The embedder
+ * can create additional isolates and use them in parallel in multiple
+ * threads.  An isolate can be entered by at most one thread at any
+ * given time.  The Locker/Unlocker API can be used to synchronize.
+ */
+class V8EXPORT Isolate {
+ public:
+  /**
+   * Stack-allocated class which sets the isolate for all operations
+   * executed within a local scope.
+   */
+  class V8EXPORT Scope {
+   public:
+    explicit Scope(Isolate* isolate) : isolate_(isolate) {
+      isolate->Enter();
+    }
+
+    ~Scope() { isolate_->Exit(); }
+
+   private:
+    Isolate* const isolate_;
+
+    // Prevent copying of Scope objects.
+    Scope(const Scope&);
+    Scope& operator=(const Scope&);
+  };
+
+  /**
+   * Creates a new isolate.  Does not change the currently entered
+   * isolate.
+   *
+   * When an isolate is no longer used its resources should be freed
+   * by calling Dispose().  Using the delete operator is not allowed.
+   */
+  static Isolate* New();
+
+  /**
+   * Returns the entered isolate for the current thread or NULL in
+   * case there is no current isolate.
+   */
+  static Isolate* GetCurrent();
+
+  /**
+   * Methods below this point require holding a lock (using Locker) in
+   * a multi-threaded environment.
+   */
+
+  /**
+   * Sets this isolate as the entered one for the current thread.
+   * Saves the previously entered one (if any), so that it can be
+   * restored when exiting.  Re-entering an isolate is allowed.
+   */
+  void Enter();
+
+  /**
+   * Exits this isolate by restoring the previously entered one in the
+   * current thread.  The isolate may still stay the same, if it was
+   * entered more than once.
+   *
+   * Requires: this == Isolate::GetCurrent().
+   */
+  void Exit();
+
+  /**
+   * Disposes the isolate.  The isolate must not be entered by any
+   * thread to be disposable.
+   */
+  void Dispose();
+
+ private:
+
+  Isolate();
+  Isolate(const Isolate&);
+  ~Isolate();
+  Isolate& operator=(const Isolate&);
+  void* operator new(size_t size);
+  void operator delete(void*, size_t);
+};
+
+
+/**
  * Container class for static utility functions.
  */
 class V8EXPORT V8 {
@@ -2872,12 +2959,16 @@ class V8EXPORT V8 {
   static void TerminateExecution(int thread_id);
 
   /**
-   * Forcefully terminate the current thread of JavaScript execution.
+   * Forcefully terminate the current thread of JavaScript execution
+   * in the given isolate. If no isolate is provided, the default
+   * isolate is used.
    *
    * This method can be used by any thread even if that thread has not
    * acquired the V8 lock with a Locker object.
+   *
+   * \param isolate The isolate in which to terminate the current JS execution.
    */
-  static void TerminateExecution();
+  static void TerminateExecution(Isolate* isolate = NULL);
 
   /**
    * Is V8 terminating JavaScript execution.
@@ -3055,7 +3146,7 @@ class V8EXPORT TryCatch {
   bool capture_message_ : 1;
   bool rethrow_ : 1;
 
-  friend class v8::internal::Top;
+  friend class v8::internal::Isolate;
 };
 
 
@@ -3218,15 +3309,26 @@ class V8EXPORT Context {
 
 /**
  * Multiple threads in V8 are allowed, but only one thread at a time
- * is allowed to use V8.  The definition of 'using V8' includes
- * accessing handles or holding onto object pointers obtained from V8
- * handles.  It is up to the user of V8 to ensure (perhaps with
- * locking) that this constraint is not violated.
+ * is allowed to use any given V8 isolate. See Isolate class
+ * comments. The definition of 'using V8 isolate' includes
+ * accessing handles or holding onto object pointers obtained
+ * from V8 handles while in the particular V8 isolate.  It is up
+ * to the user of V8 to ensure (perhaps with locking) that this
+ * constraint is not violated.
  *
- * If you wish to start using V8 in a thread you can do this by constructing
- * a v8::Locker object.  After the code using V8 has completed for the
- * current thread you can call the destructor.  This can be combined
- * with C++ scope-based construction as follows:
+ * More then one thread and multiple V8 isolates can be used
+ * without any locking if each isolate is created and accessed
+ * by a single thread only. For example, one thread can use
+ * multiple isolates or multiple threads can each create and run
+ * their own isolate.
+ *
+ * If you wish to start using V8 isolate in more then one thread
+ * you can do this by constructing a v8::Locker object to guard
+ * access to the isolate. After the code using V8 has completed
+ * for the current thread you can call the destructor.  This can
+ * be combined with C++ scope-based construction as follows
+ * (assumes the default isolate that is used if not specified as
+ * a parameter for the Locker):
  *
  * \code
  * ...
@@ -3468,7 +3570,7 @@ class Internals {
   // These values match non-compiler-dependent values defined within
   // the implementation of v8.
   static const int kHeapObjectMapOffset = 0;
-  static const int kMapInstanceTypeOffset = kApiPointerSize + kApiIntSize;
+  static const int kMapInstanceTypeOffset = 1 * kApiPointerSize + kApiIntSize;
   static const int kStringResourceOffset =
       InternalConstants<kApiPointerSize>::kStringResourceOffset;
 
@@ -3525,6 +3627,14 @@ class Internals {
     uint8_t* addr = reinterpret_cast<uint8_t*>(ptr) + offset - kHeapObjectTag;
     return *reinterpret_cast<T*>(addr);
   }
+
+  static inline bool CanCastToHeapObject(void* o) { return false; }
+  static inline bool CanCastToHeapObject(Context* o) { return true; }
+  static inline bool CanCastToHeapObject(String* o) { return true; }
+  static inline bool CanCastToHeapObject(Object* o) { return true; }
+  static inline bool CanCastToHeapObject(Message* o) { return true; }
+  static inline bool CanCastToHeapObject(StackTrace* o) { return true; }
+  static inline bool CanCastToHeapObject(StackFrame* o) { return true; }
 };
 
 }  // namespace internal
@@ -3541,7 +3651,12 @@ Local<T>::Local() : Handle<T>() { }
 template <class T>
 Local<T> Local<T>::New(Handle<T> that) {
   if (that.IsEmpty()) return Local<T>();
-  internal::Object** p = reinterpret_cast<internal::Object**>(*that);
+  T* that_ptr = *that;
+  internal::Object** p = reinterpret_cast<internal::Object**>(that_ptr);
+  if (internal::Internals::CanCastToHeapObject(that_ptr)) {
+    return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(
+        reinterpret_cast<internal::HeapObject*>(*p))));
+  }
   return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(*p)));
 }
 

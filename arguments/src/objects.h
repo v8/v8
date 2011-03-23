@@ -135,17 +135,35 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyDetails(PropertyAttributes attributes,
                   PropertyType type,
                   int index = 0) {
+    ASSERT(type != EXTERNAL_ARRAY_TRANSITION);
     ASSERT(TypeField::is_valid(type));
     ASSERT(AttributesField::is_valid(attributes));
-    ASSERT(IndexField::is_valid(index));
+    ASSERT(StorageField::is_valid(index));
 
     value_ = TypeField::encode(type)
         | AttributesField::encode(attributes)
-        | IndexField::encode(index);
+        | StorageField::encode(index);
 
     ASSERT(type == this->type());
     ASSERT(attributes == this->attributes());
     ASSERT(index == this->index());
+  }
+
+  PropertyDetails(PropertyAttributes attributes,
+                  PropertyType type,
+                  ExternalArrayType array_type) {
+    ASSERT(type == EXTERNAL_ARRAY_TRANSITION);
+    ASSERT(TypeField::is_valid(type));
+    ASSERT(AttributesField::is_valid(attributes));
+    ASSERT(StorageField::is_valid(static_cast<int>(array_type)));
+
+    value_ = TypeField::encode(type)
+        | AttributesField::encode(attributes)
+        | StorageField::encode(static_cast<int>(array_type));
+
+    ASSERT(type == this->type());
+    ASSERT(attributes == this->attributes());
+    ASSERT(array_type == this->array_type());
   }
 
   // Conversion for storing details as Object*.
@@ -157,7 +175,8 @@ class PropertyDetails BASE_EMBEDDED {
   bool IsTransition() {
     PropertyType t = type();
     ASSERT(t != INTERCEPTOR);
-    return t == MAP_TRANSITION || t == CONSTANT_TRANSITION;
+    return t == MAP_TRANSITION || t == CONSTANT_TRANSITION ||
+        t == EXTERNAL_ARRAY_TRANSITION;
   }
 
   bool IsProperty() {
@@ -166,11 +185,18 @@ class PropertyDetails BASE_EMBEDDED {
 
   PropertyAttributes attributes() { return AttributesField::decode(value_); }
 
-  int index() { return IndexField::decode(value_); }
+  int index() { return StorageField::decode(value_); }
+
+  ExternalArrayType array_type() {
+    ASSERT(type() == EXTERNAL_ARRAY_TRANSITION);
+    return static_cast<ExternalArrayType>(StorageField::decode(value_));
+  }
 
   inline PropertyDetails AsDeleted();
 
-  static bool IsValidIndex(int index) { return IndexField::is_valid(index); }
+  static bool IsValidIndex(int index) {
+    return StorageField::is_valid(index);
+  }
 
   bool IsReadOnly() { return (attributes() & READ_ONLY) != 0; }
   bool IsDontDelete() { return (attributes() & DONT_DELETE) != 0; }
@@ -179,10 +205,10 @@ class PropertyDetails BASE_EMBEDDED {
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
-  class TypeField:       public BitField<PropertyType,       0, 3> {};
-  class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
-  class DeletedField:    public BitField<uint32_t,           6, 1> {};
-  class IndexField:      public BitField<uint32_t,           7, 32-7> {};
+  class TypeField:       public BitField<PropertyType,       0, 4> {};
+  class AttributesField: public BitField<PropertyAttributes, 4, 3> {};
+  class DeletedField:    public BitField<uint32_t,           7, 1> {};
+  class StorageField:    public BitField<uint32_t,           8, 32-8> {};
 
   static const int kInitialIndex = 1;
  private:
@@ -729,6 +755,7 @@ class Object : public MaybeObject {
   // Oddball testing.
   INLINE(bool IsUndefined());
   INLINE(bool IsNull());
+  INLINE(bool IsTheHole());  // Shadows MaybeObject's implementation.
   INLINE(bool IsTrue());
   INLINE(bool IsFalse());
   inline bool IsArgumentsMarker();
@@ -885,7 +912,7 @@ class Failure: public MaybeObject {
   enum Type {
     RETRY_AFTER_GC = 0,
     EXCEPTION = 1,       // Returning this marker tells the real exception
-                         // is in Top::pending_exception.
+                         // is in Isolate::pending_exception.
     INTERNAL_ERROR = 2,
     OUT_OF_MEMORY_EXCEPTION = 3
   };
@@ -1072,6 +1099,14 @@ class HeapObject: public Object {
   // necessarily contain a map pointer.
   inline MapWord map_word();
   inline void set_map_word(MapWord map_word);
+
+  // The Heap the object was allocated in. Used also to access Isolate.
+  // This method can not be used during GC, it ASSERTs this.
+  inline Heap* GetHeap();
+  // Convenience method to get current isolate. This method can be
+  // accessed only when its result is the same as
+  // Isolate::Current(), it ASSERTs this. See also comment for GetHeap.
+  inline Isolate* GetIsolate();
 
   // Converts an address to a HeapObject pointer.
   static inline HeapObject* FromAddress(Address address);
@@ -1892,13 +1927,18 @@ class FixedArray: public HeapObject {
 
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
+  // TODO(isolates): duplicate.
+  inline void set_undefined(Heap* heap, int index);
   inline void set_null(int index);
+  // TODO(isolates): duplicate.
+  inline void set_null(Heap* heap, int index);
   inline void set_the_hole(int index);
 
   // Setters with less debug checks for the GC to use.
   inline void set_unchecked(int index, Smi* value);
-  inline void set_null_unchecked(int index);
-  inline void set_unchecked(int index, Object* value, WriteBarrierMode mode);
+  inline void set_null_unchecked(Heap* heap, int index);
+  inline void set_unchecked(Heap* heap, int index, Object* value,
+                            WriteBarrierMode mode);
 
   // Gives access to raw memory which stores the array's data.
   inline Object** data_start();
@@ -1993,7 +2033,9 @@ class DescriptorArray: public FixedArray {
 
   // Returns the number of descriptors in the array.
   int number_of_descriptors() {
-    return IsEmpty() ? 0 : length() - kFirstIndex;
+    ASSERT(length() > kFirstIndex || IsEmpty());
+    int len = length();
+    return len <= kFirstIndex ? 0 : len - kFirstIndex;
   }
 
   int NextEnumerationIndex() {
@@ -2285,7 +2327,8 @@ class HashTable: public FixedArray {
       (FixedArray::kMaxLength - kElementsStartOffset) / kEntrySize;
 
   // Find entry for key otherwise return kNotFound.
-  int FindEntry(Key key);
+  inline int FindEntry(Key key);
+  int FindEntry(Isolate* isolate, Key key);
 
  protected:
 
@@ -2357,16 +2400,16 @@ class HashTableKey {
 
 class SymbolTableShape {
  public:
-  static bool IsMatch(HashTableKey* key, Object* value) {
+  static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
   }
-  static uint32_t Hash(HashTableKey* key) {
+  static inline uint32_t Hash(HashTableKey* key) {
     return key->Hash();
   }
-  static uint32_t HashForObject(HashTableKey* key, Object* object) {
+  static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
     return key->HashForObject(object);
   }
-  MUST_USE_RESULT static MaybeObject* AsObject(HashTableKey* key) {
+  MUST_USE_RESULT static inline MaybeObject* AsObject(HashTableKey* key) {
     return key->AsObject();
   }
 
@@ -2409,18 +2452,18 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
 
 class MapCacheShape {
  public:
-  static bool IsMatch(HashTableKey* key, Object* value) {
+  static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
   }
-  static uint32_t Hash(HashTableKey* key) {
+  static inline uint32_t Hash(HashTableKey* key) {
     return key->Hash();
   }
 
-  static uint32_t HashForObject(HashTableKey* key, Object* object) {
+  static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static MaybeObject* AsObject(HashTableKey* key) {
+  MUST_USE_RESULT static inline MaybeObject* AsObject(HashTableKey* key) {
     return key->AsObject();
   }
 
@@ -3430,7 +3473,7 @@ class Code: public HeapObject {
   inline void CodeIterateBody(ObjectVisitor* v);
 
   template<typename StaticVisitor>
-  inline void CodeIterateBody();
+  inline void CodeIterateBody(Heap* heap);
 #ifdef OBJECT_PRINT
   inline void CodePrint() {
     CodePrint(stdout);
@@ -3485,18 +3528,18 @@ class Code: public HeapObject {
   static const int kFlagsICStateShift        = 0;
   static const int kFlagsICInLoopShift       = 3;
   static const int kFlagsTypeShift           = 4;
-  static const int kFlagsKindShift           = 7;
-  static const int kFlagsICHolderShift       = 11;
-  static const int kFlagsExtraICStateShift   = 12;
-  static const int kFlagsArgumentsCountShift = 14;
+  static const int kFlagsKindShift           = 8;
+  static const int kFlagsICHolderShift       = 12;
+  static const int kFlagsExtraICStateShift   = 13;
+  static const int kFlagsArgumentsCountShift = 15;
 
   static const int kFlagsICStateMask        = 0x00000007;  // 00000000111
   static const int kFlagsICInLoopMask       = 0x00000008;  // 00000001000
-  static const int kFlagsTypeMask           = 0x00000070;  // 00001110000
-  static const int kFlagsKindMask           = 0x00000780;  // 11110000000
-  static const int kFlagsCacheInPrototypeMapMask = 0x00000800;
-  static const int kFlagsExtraICStateMask   = 0x00003000;
-  static const int kFlagsArgumentsCountMask = 0xFFFFC000;
+  static const int kFlagsTypeMask           = 0x000000F0;  // 00001110000
+  static const int kFlagsKindMask           = 0x00000F00;  // 11110000000
+  static const int kFlagsCacheInPrototypeMapMask = 0x00001000;
+  static const int kFlagsExtraICStateMask   = 0x00006000;
+  static const int kFlagsArgumentsCountMask = 0xFFFF8000;
 
   static const int kFlagsNotUsedInLookup =
       (kFlagsICInLoopMask | kFlagsTypeMask | kFlagsCacheInPrototypeMapMask);
@@ -3698,7 +3741,9 @@ class Map: public HeapObject {
 
   // Returns a new map with all transitions dropped from the descriptors and the
   // external array elements bit set.
-  MUST_USE_RESULT inline MaybeObject* NewExternalArrayElementsMap();
+  MUST_USE_RESULT MaybeObject* GetExternalArrayElementsMap(
+      ExternalArrayType array_type,
+      bool safe_to_add_transition);
 
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);
@@ -3718,7 +3763,7 @@ class Map: public HeapObject {
   // Code cache operations.
 
   // Clears the code cache.
-  inline void ClearCodeCache();
+  inline void ClearCodeCache(Heap* heap);
 
   // Update code cache.
   MUST_USE_RESULT MaybeObject* UpdateCodeCache(String* name, Code* code);
@@ -3742,7 +3787,7 @@ class Map: public HeapObject {
   // Also, restore the original prototype on the targets of these
   // transitions, so that we do not process this map again while
   // following back pointers.
-  void ClearNonLiveTransitions(Object* real_prototype);
+  void ClearNonLiveTransitions(Heap* heap, Object* real_prototype);
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
@@ -3758,6 +3803,10 @@ class Map: public HeapObject {
 
   inline int visitor_id();
   inline void set_visitor_id(int visitor_id);
+
+  // Returns the isolate/heap this map belongs to.
+  inline Isolate* isolate();
+  inline Heap* heap();
 
   typedef void (*TraverseCallback)(Map* map, void* data);
 
@@ -5802,11 +5851,8 @@ class ExternalTwoByteString: public ExternalString {
 // iterating or updating after gc.
 class Relocatable BASE_EMBEDDED {
  public:
-  inline Relocatable() : prev_(top_) { top_ = this; }
-  virtual ~Relocatable() {
-    ASSERT_EQ(top_, this);
-    top_ = prev_;
-  }
+  explicit inline Relocatable(Isolate* isolate);
+  inline virtual ~Relocatable();
   virtual void IterateInstance(ObjectVisitor* v) { }
   virtual void PostGarbageCollection() { }
 
@@ -5818,7 +5864,7 @@ class Relocatable BASE_EMBEDDED {
   static void Iterate(ObjectVisitor* v, Relocatable* top);
   static char* Iterate(ObjectVisitor* v, char* t);
  private:
-  static Relocatable* top_;
+  Isolate* isolate_;
   Relocatable* prev_;
 };
 
@@ -5828,8 +5874,8 @@ class Relocatable BASE_EMBEDDED {
 // must be valid as long as the reader is being used.
 class FlatStringReader : public Relocatable {
  public:
-  explicit FlatStringReader(Handle<String> str);
-  explicit FlatStringReader(Vector<const char> input);
+  FlatStringReader(Isolate* isolate, Handle<String> str);
+  FlatStringReader(Isolate* isolate, Vector<const char> input);
   void PostGarbageCollection();
   inline uc32 Get(int index);
   int length() { return length_; }
@@ -5892,6 +5938,9 @@ class Oddball: public HeapObject {
   // [to_number]: Cached to_number computed at startup.
   DECL_ACCESSORS(to_number, Object)
 
+  inline byte kind();
+  inline void set_kind(byte kind);
+
   // Casting.
   static inline Oddball* cast(Object* obj);
 
@@ -5902,12 +5951,23 @@ class Oddball: public HeapObject {
 
   // Initialize the fields.
   MUST_USE_RESULT MaybeObject* Initialize(const char* to_string,
-                                          Object* to_number);
+                                          Object* to_number,
+                                          byte kind);
 
   // Layout description.
   static const int kToStringOffset = HeapObject::kHeaderSize;
   static const int kToNumberOffset = kToStringOffset + kPointerSize;
-  static const int kSize = kToNumberOffset + kPointerSize;
+  static const int kKindOffset = kToNumberOffset + kPointerSize;
+  static const int kSize = kKindOffset + kPointerSize;
+
+  static const byte kFalse = 0;
+  static const byte kTrue = 1;
+  static const byte kNotBooleanMask = ~1;
+  static const byte kTheHole = 2;
+  static const byte kNull = 3;
+  static const byte kArgumentMarker = 4;
+  static const byte kUndefined = 5;
+  static const byte kOther = 6;
 
   typedef FixedBodyDescriptor<kToStringOffset,
                               kToNumberOffset + kPointerSize,

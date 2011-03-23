@@ -72,14 +72,14 @@ JSObjectsCluster Clusterizer::Clusterize(HeapObject* obj, bool fine_grain) {
     String* constructor = GetConstructorNameForHeapProfile(
         JSObject::cast(js_obj));
     // Differentiate Object and Array instances.
-    if (fine_grain && (constructor == Heap::Object_symbol() ||
-                       constructor == Heap::Array_symbol())) {
+    if (fine_grain && (constructor == HEAP->Object_symbol() ||
+                       constructor == HEAP->Array_symbol())) {
       return JSObjectsCluster(constructor, obj);
     } else {
       return JSObjectsCluster(constructor);
     }
   } else if (obj->IsString()) {
-    return JSObjectsCluster(Heap::String_symbol());
+    return JSObjectsCluster(HEAP->String_symbol());
   } else if (obj->IsJSGlobalPropertyCell()) {
     return JSObjectsCluster(JSObjectsCluster::GLOBAL_PROPERTY);
   } else if (obj->IsCode() || obj->IsSharedFunctionInfo() || obj->IsScript()) {
@@ -112,10 +112,10 @@ int Clusterizer::CalculateNetworkSize(JSObject* obj) {
   int size = obj->Size();
   // If 'properties' and 'elements' are non-empty (thus, non-shared),
   // take their size into account.
-  if (obj->properties() != Heap::empty_fixed_array()) {
+  if (obj->properties() != HEAP->empty_fixed_array()) {
     size += obj->properties()->Size();
   }
-  if (obj->elements() != Heap::empty_fixed_array()) {
+  if (obj->elements() != HEAP->empty_fixed_array()) {
     size += obj->elements()->Size();
   }
   // For functions, also account non-empty context and literals sizes.
@@ -174,7 +174,8 @@ class RetainersPrinter : public RetainerHeapProfile::Printer {
     HeapStringAllocator allocator;
     StringStream stream(&allocator);
     cluster.Print(&stream);
-    LOG(HeapSampleJSRetainersEvent(
+    LOG(ISOLATE,
+        HeapSampleJSRetainersEvent(
         *(stream.ToCString()), *(retainers.ToCString())));
   }
 };
@@ -315,8 +316,6 @@ void RetainerTreeAggregator::Call(const JSObjectsCluster& cluster,
 }
 
 
-HeapProfiler* HeapProfiler::singleton_ = NULL;
-
 HeapProfiler::HeapProfiler()
     : snapshots_(new HeapSnapshotsCollection()),
       next_snapshot_uid_(1) {
@@ -327,12 +326,20 @@ HeapProfiler::~HeapProfiler() {
   delete snapshots_;
 }
 
+
+void HeapProfiler::ResetSnapshots() {
+  delete snapshots_;
+  snapshots_ = new HeapSnapshotsCollection();
+}
+
+
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 void HeapProfiler::Setup() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (singleton_ == NULL) {
-    singleton_ = new HeapProfiler();
+  Isolate* isolate = Isolate::Current();
+  if (isolate->heap_profiler() == NULL) {
+    isolate->set_heap_profiler(new HeapProfiler());
   }
 #endif
 }
@@ -340,8 +347,9 @@ void HeapProfiler::Setup() {
 
 void HeapProfiler::TearDown() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  delete singleton_;
-  singleton_ = NULL;
+  Isolate* isolate = Isolate::Current();
+  delete isolate->heap_profiler();
+  isolate->set_heap_profiler(NULL);
 #endif
 }
 
@@ -351,36 +359,38 @@ void HeapProfiler::TearDown() {
 HeapSnapshot* HeapProfiler::TakeSnapshot(const char* name,
                                          int type,
                                          v8::ActivityControl* control) {
-  ASSERT(singleton_ != NULL);
-  return singleton_->TakeSnapshotImpl(name, type, control);
+  ASSERT(Isolate::Current()->heap_profiler() != NULL);
+  return Isolate::Current()->heap_profiler()->TakeSnapshotImpl(name,
+                                                               type,
+                                                               control);
 }
 
 
 HeapSnapshot* HeapProfiler::TakeSnapshot(String* name,
                                          int type,
                                          v8::ActivityControl* control) {
-  ASSERT(singleton_ != NULL);
-  return singleton_->TakeSnapshotImpl(name, type, control);
+  ASSERT(Isolate::Current()->heap_profiler() != NULL);
+  return Isolate::Current()->heap_profiler()->TakeSnapshotImpl(name,
+                                                               type,
+                                                               control);
 }
 
 
 void HeapProfiler::DefineWrapperClass(
     uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback) {
-  ASSERT(singleton_ != NULL);
   ASSERT(class_id != v8::HeapProfiler::kPersistentHandleNoClassId);
-  if (singleton_->wrapper_callbacks_.length() <= class_id) {
-    singleton_->wrapper_callbacks_.AddBlock(
-        NULL, class_id - singleton_->wrapper_callbacks_.length() + 1);
+  if (wrapper_callbacks_.length() <= class_id) {
+    wrapper_callbacks_.AddBlock(
+        NULL, class_id - wrapper_callbacks_.length() + 1);
   }
-  singleton_->wrapper_callbacks_[class_id] = callback;
+  wrapper_callbacks_[class_id] = callback;
 }
 
 
 v8::RetainedObjectInfo* HeapProfiler::ExecuteWrapperClassCallback(
     uint16_t class_id, Object** wrapper) {
-  ASSERT(singleton_ != NULL);
-  if (singleton_->wrapper_callbacks_.length() <= class_id) return NULL;
-  return singleton_->wrapper_callbacks_[class_id](
+  if (wrapper_callbacks_.length() <= class_id) return NULL;
+  return wrapper_callbacks_[class_id](
       class_id, Utils::ToLocal(Handle<Object>(wrapper)));
 }
 
@@ -394,13 +404,13 @@ HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name,
   bool generation_completed = true;
   switch (s_type) {
     case HeapSnapshot::kFull: {
-      Heap::CollectAllGarbage(true);
+      HEAP->CollectAllGarbage(true);
       HeapSnapshotGenerator generator(result, control);
       generation_completed = generator.GenerateSnapshot();
       break;
     }
     case HeapSnapshot::kAggregated: {
-      Heap::CollectAllGarbage(true);
+      HEAP->CollectAllGarbage(true);
       AggregatedHeapSnapshot agg_snapshot;
       AggregatedHeapSnapshotGenerator generator(&agg_snapshot);
       generator.GenerateSnapshot();
@@ -427,26 +437,35 @@ HeapSnapshot* HeapProfiler::TakeSnapshotImpl(String* name,
 
 
 int HeapProfiler::GetSnapshotsCount() {
-  ASSERT(singleton_ != NULL);
-  return singleton_->snapshots_->snapshots()->length();
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  return profiler->snapshots_->snapshots()->length();
 }
 
 
 HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
-  ASSERT(singleton_ != NULL);
-  return singleton_->snapshots_->snapshots()->at(index);
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  return profiler->snapshots_->snapshots()->at(index);
 }
 
 
 HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
-  ASSERT(singleton_ != NULL);
-  return singleton_->snapshots_->GetSnapshot(uid);
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  return profiler->snapshots_->GetSnapshot(uid);
+}
+
+
+void HeapProfiler::DeleteAllSnapshots() {
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  profiler->ResetSnapshots();
 }
 
 
 void HeapProfiler::ObjectMoveEvent(Address from, Address to) {
-  ASSERT(singleton_ != NULL);
-  singleton_->snapshots_->ObjectMoveEvent(from, to);
+  snapshots_->ObjectMoveEvent(from, to);
 }
 
 
@@ -464,7 +483,8 @@ void ConstructorHeapProfile::Call(const JSObjectsCluster& cluster,
   HeapStringAllocator allocator;
   StringStream stream(&allocator);
   cluster.Print(&stream);
-  LOG(HeapSampleJSConstructorEvent(*(stream.ToCString()),
+  LOG(ISOLATE,
+      HeapSampleJSConstructorEvent(*(stream.ToCString()),
                                    number_and_size.number(),
                                    number_and_size.bytes()));
 }
@@ -683,7 +703,7 @@ RetainerHeapProfile::RetainerHeapProfile()
       aggregator_(NULL) {
   JSObjectsCluster roots(JSObjectsCluster::ROOTS);
   ReferencesExtractor extractor(roots, this);
-  Heap::IterateRoots(&extractor, VISIT_ONLY_STRONG);
+  HEAP->IterateRoots(&extractor, VISIT_ONLY_STRONG);
 }
 
 
@@ -753,15 +773,18 @@ static void PrintProducerStackTrace(Object* obj, void* trace) {
   String* constructor = GetConstructorNameForHeapProfile(JSObject::cast(obj));
   SmartPointer<char> s_name(
       constructor->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL));
-  LOG(HeapSampleJSProducerEvent(GetConstructorName(*s_name),
+  LOG(ISOLATE,
+      HeapSampleJSProducerEvent(GetConstructorName(*s_name),
                                 reinterpret_cast<Address*>(trace)));
 }
 
 
 void HeapProfiler::WriteSample() {
-  LOG(HeapSampleBeginEvent("Heap", "allocated"));
-  LOG(HeapSampleStats(
-      "Heap", "allocated", Heap::CommittedMemory(), Heap::SizeOfObjects()));
+  Isolate* isolate = Isolate::Current();
+  LOG(isolate, HeapSampleBeginEvent("Heap", "allocated"));
+  LOG(isolate,
+      HeapSampleStats(
+          "Heap", "allocated", HEAP->CommittedMemory(), HEAP->SizeOfObjects()));
 
   AggregatedHeapSnapshot snapshot;
   AggregatedHeapSnapshotGenerator generator(&snapshot);
@@ -772,7 +795,8 @@ void HeapProfiler::WriteSample() {
        i <= AggregatedHeapSnapshotGenerator::kAllStringsType;
        ++i) {
     if (info[i].bytes() > 0) {
-      LOG(HeapSampleItemEvent(info[i].name(), info[i].number(),
+      LOG(isolate,
+          HeapSampleItemEvent(info[i].name(), info[i].number(),
                               info[i].bytes()));
     }
   }
@@ -780,10 +804,10 @@ void HeapProfiler::WriteSample() {
   snapshot.js_cons_profile()->PrintStats();
   snapshot.js_retainer_profile()->PrintStats();
 
-  GlobalHandles::IterateWeakRoots(PrintProducerStackTrace,
-                                  StackWeakReferenceCallback);
+  isolate->global_handles()->IterateWeakRoots(PrintProducerStackTrace,
+                                              StackWeakReferenceCallback);
 
-  LOG(HeapSampleEndEvent("Heap", "allocated"));
+  LOG(isolate, HeapSampleEndEvent("Heap", "allocated"));
 }
 
 
@@ -1117,8 +1141,6 @@ void AggregatedHeapSnapshotGenerator::FillHeapSnapshot(HeapSnapshot* snapshot) {
 }
 
 
-bool ProducerHeapProfile::can_log_ = false;
-
 void ProducerHeapProfile::Setup() {
   can_log_ = true;
 }
@@ -1138,10 +1160,10 @@ void ProducerHeapProfile::DoRecordJSObjectAllocation(Object* obj) {
     stack[i++] = it.frame()->pc();
   }
   stack[i] = NULL;
-  Handle<Object> handle = GlobalHandles::Create(obj);
-  GlobalHandles::MakeWeak(handle.location(),
-                          static_cast<void*>(stack.start()),
-                          StackWeakReferenceCallback);
+  Handle<Object> handle = isolate_->global_handles()->Create(obj);
+  isolate_->global_handles()->MakeWeak(handle.location(),
+                                       static_cast<void*>(stack.start()),
+                                       StackWeakReferenceCallback);
 }
 
 

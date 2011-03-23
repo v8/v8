@@ -31,7 +31,6 @@
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "scopeinfo.h"
-#include "top.h"
 #include "unicode.h"
 #include "zone-inl.h"
 
@@ -48,24 +47,27 @@ TokenEnumerator::TokenEnumerator()
 
 
 TokenEnumerator::~TokenEnumerator() {
+  Isolate* isolate = Isolate::Current();
   for (int i = 0; i < token_locations_.length(); ++i) {
     if (!token_removed_[i]) {
-      GlobalHandles::ClearWeakness(token_locations_[i]);
-      GlobalHandles::Destroy(token_locations_[i]);
+      isolate->global_handles()->ClearWeakness(token_locations_[i]);
+      isolate->global_handles()->Destroy(token_locations_[i]);
     }
   }
 }
 
 
 int TokenEnumerator::GetTokenId(Object* token) {
+  Isolate* isolate = Isolate::Current();
   if (token == NULL) return TokenEnumerator::kNoSecurityToken;
   for (int i = 0; i < token_locations_.length(); ++i) {
     if (*token_locations_[i] == token && !token_removed_[i]) return i;
   }
-  Handle<Object> handle = GlobalHandles::Create(token);
+  Handle<Object> handle = isolate->global_handles()->Create(token);
   // handle.location() points to a memory cell holding a pointer
   // to a token object in the V8's heap.
-  GlobalHandles::MakeWeak(handle.location(), this, TokenRemovedCallback);
+  isolate->global_handles()->MakeWeak(handle.location(), this,
+                                      TokenRemovedCallback);
   token_locations_.Add(handle.location());
   token_removed_.Add(false);
   return token_locations_.length() - 1;
@@ -162,7 +164,7 @@ const char* StringsStorage::GetName(int index) {
 }
 
 
-const char* CodeEntry::kEmptyNamePrefix = "";
+const char* const CodeEntry::kEmptyNamePrefix = "";
 
 
 void CodeEntry::CopyData(const CodeEntry& source) {
@@ -318,7 +320,7 @@ struct NodesPair {
 
 class FilteredCloneCallback {
  public:
-  explicit FilteredCloneCallback(ProfileNode* dst_root, int security_token_id)
+  FilteredCloneCallback(ProfileNode* dst_root, int security_token_id)
       : stack_(10),
         security_token_id_(security_token_id) {
     stack_.Add(NodesPair(NULL, dst_root));
@@ -548,13 +550,16 @@ static void DeleteCpuProfile(CpuProfile** profile_ptr) {
 }
 
 static void DeleteProfilesList(List<CpuProfile*>** list_ptr) {
-  (*list_ptr)->Iterate(DeleteCpuProfile);
-  delete *list_ptr;
+  if (*list_ptr != NULL) {
+    (*list_ptr)->Iterate(DeleteCpuProfile);
+    delete *list_ptr;
+  }
 }
 
 CpuProfilesCollection::~CpuProfilesCollection() {
   delete current_profiles_semaphore_;
   current_profiles_.Iterate(DeleteCpuProfile);
+  detached_profiles_.Iterate(DeleteCpuProfile);
   profiles_by_token_.Iterate(DeleteProfilesList);
   code_entries_.Iterate(DeleteCodeEntry);
 }
@@ -619,15 +624,8 @@ CpuProfile* CpuProfilesCollection::StopProfiling(int security_token_id,
 
 CpuProfile* CpuProfilesCollection::GetProfile(int security_token_id,
                                               unsigned uid) {
-  HashMap::Entry* entry = profiles_uids_.Lookup(reinterpret_cast<void*>(uid),
-                                                static_cast<uint32_t>(uid),
-                                                false);
-  int index;
-  if (entry != NULL) {
-    index = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
-  } else {
-    return NULL;
-  }
+  int index = GetProfileIndex(uid);
+  if (index < 0) return NULL;
   List<CpuProfile*>* unabridged_list =
       profiles_by_token_[TokenToIndex(TokenEnumerator::kNoSecurityToken)];
   if (security_token_id == TokenEnumerator::kNoSecurityToken) {
@@ -642,12 +640,54 @@ CpuProfile* CpuProfilesCollection::GetProfile(int security_token_id,
 }
 
 
+int CpuProfilesCollection::GetProfileIndex(unsigned uid) {
+  HashMap::Entry* entry = profiles_uids_.Lookup(reinterpret_cast<void*>(uid),
+                                                static_cast<uint32_t>(uid),
+                                                false);
+  return entry != NULL ?
+      static_cast<int>(reinterpret_cast<intptr_t>(entry->value)) : -1;
+}
+
+
 bool CpuProfilesCollection::IsLastProfile(const char* title) {
   // Called from VM thread, and only it can mutate the list,
   // so no locking is needed here.
   if (current_profiles_.length() != 1) return false;
   return StrLength(title) == 0
       || strcmp(current_profiles_[0]->title(), title) == 0;
+}
+
+
+void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
+  // Called from VM thread for a completed profile.
+  unsigned uid = profile->uid();
+  int index = GetProfileIndex(uid);
+  if (index < 0) {
+    detached_profiles_.RemoveElement(profile);
+    return;
+  }
+  profiles_uids_.Remove(reinterpret_cast<void*>(uid),
+                        static_cast<uint32_t>(uid));
+  // Decrement all indexes above the deleted one.
+  for (HashMap::Entry* p = profiles_uids_.Start();
+       p != NULL;
+       p = profiles_uids_.Next(p)) {
+    intptr_t p_index = reinterpret_cast<intptr_t>(p->value);
+    if (p_index > index) {
+      p->value = reinterpret_cast<void*>(p_index - 1);
+    }
+  }
+  for (int i = 0; i < profiles_by_token_.length(); ++i) {
+    List<CpuProfile*>* list = profiles_by_token_[i];
+    if (list != NULL && index < list->length()) {
+      // Move all filtered clones into detached_profiles_,
+      // so we can know that they are still in use.
+      CpuProfile* cloned_profile = list->Remove(index);
+      if (cloned_profile != NULL && cloned_profile != profile) {
+        detached_profiles_.Add(cloned_profile);
+      }
+    }
+  }
 }
 
 
@@ -783,10 +823,12 @@ void SampleRateCalculator::UpdateMeasurements(double current_time) {
 }
 
 
-const char* ProfileGenerator::kAnonymousFunctionName = "(anonymous function)";
-const char* ProfileGenerator::kProgramEntryName = "(program)";
-const char* ProfileGenerator::kGarbageCollectorEntryName =
-  "(garbage collector)";
+const char* const ProfileGenerator::kAnonymousFunctionName =
+    "(anonymous function)";
+const char* const ProfileGenerator::kProgramEntryName =
+    "(program)";
+const char* const ProfileGenerator::kGarbageCollectorEntryName =
+    "(garbage collector)";
 
 
 ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
@@ -809,7 +851,15 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   if (sample.pc != NULL) {
     *entry++ = code_map_.FindEntry(sample.pc);
 
-    if (sample.tos != NULL) {
+    if (sample.has_external_callback) {
+      // Don't use PC when in external callback code, as it can point
+      // inside callback's code, and we will erroneously report
+      // that a callback calls itself.
+      *(entries.start()) = NULL;
+      *entry++ = code_map_.FindEntry(sample.external_callback);
+    } else if (sample.tos != NULL) {
+      // Find out, if top of stack was pointing inside a JS function
+      // meaning that we have encountered a frameless invocation.
       *entry = code_map_.FindEntry(sample.tos);
       if (*entry != NULL && !(*entry)->is_js_function()) {
         *entry = NULL;
@@ -1256,6 +1306,12 @@ HeapSnapshot::~HeapSnapshot() {
 }
 
 
+void HeapSnapshot::Delete() {
+  collection_->RemoveSnapshot(this);
+  delete this;
+}
+
+
 void HeapSnapshot::AllocateEntries(int entries_count,
                                    int children_count,
                                    int retainers_count) {
@@ -1564,6 +1620,14 @@ HeapSnapshot* HeapSnapshotsCollection::GetSnapshot(unsigned uid) {
                                                  static_cast<uint32_t>(uid),
                                                  false);
   return entry != NULL ? reinterpret_cast<HeapSnapshot*>(entry->value) : NULL;
+}
+
+
+void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
+  snapshots_.RemoveElement(snapshot);
+  unsigned uid = snapshot->uid();
+  snapshots_uids_.Remove(reinterpret_cast<void*>(uid),
+                         static_cast<uint32_t>(uid));
 }
 
 
@@ -1882,8 +1946,8 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     ExtractPropertyReferences(js_obj, entry);
     ExtractElementReferences(js_obj, entry);
     ExtractInternalReferences(js_obj, entry);
-    SetPropertyReference(obj, entry,
-                         Heap::Proto_symbol(), js_obj->GetPrototype());
+    SetPropertyReference(
+        obj, entry, HEAP->Proto_symbol(), js_obj->GetPrototype());
     if (obj->IsJSFunction()) {
       JSFunction* js_fun = JSFunction::cast(js_obj);
       SetInternalReference(
@@ -1895,12 +1959,12 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
         if (!proto_or_map->IsMap()) {
           SetPropertyReference(
               obj, entry,
-              Heap::prototype_symbol(), proto_or_map,
+              HEAP->prototype_symbol(), proto_or_map,
               JSFunction::kPrototypeOrInitialMapOffset);
         } else {
           SetPropertyReference(
               obj, entry,
-              Heap::prototype_symbol(), js_fun->prototype());
+              HEAP->prototype_symbol(), js_fun->prototype());
         }
       }
     }
@@ -2069,7 +2133,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   }
   SetRootGcRootsReference();
   RootsReferencesExtractor extractor(this);
-  Heap::IterateRoots(&extractor, VISIT_ALL);
+  HEAP->IterateRoots(&extractor, VISIT_ALL);
   filler_ = NULL;
   return progress_->ProgressReport(false);
 }
@@ -2308,9 +2372,10 @@ int NativeObjectsExplorer::EstimateObjectsCount() {
 
 void NativeObjectsExplorer::FillRetainedObjects() {
   if (embedder_queried_) return;
+  Isolate* isolate = Isolate::Current();
   // Record objects that are joined into ObjectGroups.
-  Heap::CallGlobalGCPrologueCallback();
-  List<ObjectGroup*>* groups = GlobalHandles::ObjectGroups();
+  isolate->heap()->CallGlobalGCPrologueCallback();
+  List<ObjectGroup*>* groups = isolate->global_handles()->object_groups();
   for (int i = 0; i < groups->length(); ++i) {
     ObjectGroup* group = groups->at(i);
     if (group->info_ == NULL) continue;
@@ -2322,11 +2387,11 @@ void NativeObjectsExplorer::FillRetainedObjects() {
     }
     group->info_ = NULL;  // Acquire info object ownership.
   }
-  GlobalHandles::RemoveObjectGroups();
-  Heap::CallGlobalGCEpilogueCallback();
+  isolate->global_handles()->RemoveObjectGroups();
+  isolate->heap()->CallGlobalGCEpilogueCallback();
   // Record objects that are not in ObjectGroups, but have class ID.
   GlobalHandlesExtractor extractor(this);
-  GlobalHandles::IterateAllRootsWithClassIds(&extractor);
+  isolate->global_handles()->IterateAllRootsWithClassIds(&extractor);
   embedder_queried_ = true;
 }
 
@@ -2404,8 +2469,9 @@ void NativeObjectsExplorer::SetRootNativesRootReference() {
 
 void NativeObjectsExplorer::VisitSubtreeWrapper(Object** p, uint16_t class_id) {
   if (in_groups_.Contains(*p)) return;
+  Isolate* isolate = Isolate::Current();
   v8::RetainedObjectInfo* info =
-      HeapProfiler::ExecuteWrapperClassCallback(class_id, p);
+      isolate->heap_profiler()->ExecuteWrapperClassCallback(class_id, p);
   if (info == NULL) return;
   GetListMaybeDisposeInfo(info)->Add(HeapObject::cast(*p));
 }
@@ -3182,7 +3248,7 @@ void HeapSnapshotJSONSerializer::SortHashMap(
 
 
 String* GetConstructorNameForHeapProfile(JSObject* object) {
-  if (object->IsJSFunction()) return Heap::closure_symbol();
+  if (object->IsJSFunction()) return HEAP->closure_symbol();
   return object->constructor_name();
 }
 

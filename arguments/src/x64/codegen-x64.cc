@@ -180,7 +180,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
   ASSERT_EQ(0, loop_nesting_);
   loop_nesting_ = info->is_in_loop() ? 1 : 0;
 
-  JumpTarget::set_compiling_deferred_code(false);
+  Isolate::Current()->set_jump_target_compiling_deferred_code(false);
 
   {
     CodeGenState state(this);
@@ -281,7 +281,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 
     // Initialize ThisFunction reference if present.
     if (scope()->is_function_scope() && scope()->function() != NULL) {
-      frame_->Push(Factory::the_hole_value());
+      frame_->Push(FACTORY->the_hole_value());
       StoreToSlot(scope()->function()->AsSlot(), NOT_CONST_INIT);
     }
 
@@ -316,7 +316,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
     if (!scope()->HasIllegalRedeclaration()) {
       Comment cmnt(masm_, "[ function body");
 #ifdef DEBUG
-      bool is_builtin = Bootstrapper::IsActive();
+      bool is_builtin = Isolate::Current()->bootstrapper()->IsActive();
       bool should_trace =
           is_builtin ? FLAG_trace_builtin_calls : FLAG_trace_calls;
       if (should_trace) {
@@ -333,7 +333,7 @@ void CodeGenerator::Generate(CompilationInfo* info) {
         ASSERT(!function_return_is_shadowed_);
         CodeForReturnPosition(info->function());
         frame_->PrepareForReturn();
-        Result undefined(Factory::undefined_value());
+        Result undefined(FACTORY->undefined_value());
         if (function_return_.is_bound()) {
           function_return_.Jump(&undefined);
         } else {
@@ -365,9 +365,9 @@ void CodeGenerator::Generate(CompilationInfo* info) {
 
   // Process any deferred code using the register allocator.
   if (!HasStackOverflow()) {
-    JumpTarget::set_compiling_deferred_code(true);
+    info->isolate()->set_jump_target_compiling_deferred_code(true);
     ProcessDeferred();
-    JumpTarget::set_compiling_deferred_code(false);
+    info->isolate()->set_jump_target_compiling_deferred_code(false);
   }
 
   // There is no need to delete the register allocator, it is a
@@ -516,12 +516,12 @@ void CodeGenerator::Load(Expression* expr) {
   if (dest.false_was_fall_through()) {
     // The false target was just bound.
     JumpTarget loaded;
-    frame_->Push(Factory::false_value());
+    frame_->Push(FACTORY->false_value());
     // There may be dangling jumps to the true target.
     if (true_target.is_linked()) {
       loaded.Jump();
       true_target.Bind();
-      frame_->Push(Factory::true_value());
+      frame_->Push(FACTORY->true_value());
       loaded.Bind();
     }
 
@@ -529,11 +529,11 @@ void CodeGenerator::Load(Expression* expr) {
     // There is true, and possibly false, control flow (with true as
     // the fall through).
     JumpTarget loaded;
-    frame_->Push(Factory::true_value());
+    frame_->Push(FACTORY->true_value());
     if (false_target.is_linked()) {
       loaded.Jump();
       false_target.Bind();
-      frame_->Push(Factory::false_value());
+      frame_->Push(FACTORY->false_value());
       loaded.Bind();
     }
 
@@ -548,14 +548,14 @@ void CodeGenerator::Load(Expression* expr) {
       loaded.Jump();  // Don't lose the current TOS.
       if (true_target.is_linked()) {
         true_target.Bind();
-        frame_->Push(Factory::true_value());
+        frame_->Push(FACTORY->true_value());
         if (false_target.is_linked()) {
           loaded.Jump();
         }
       }
       if (false_target.is_linked()) {
         false_target.Bind();
-        frame_->Push(Factory::false_value());
+        frame_->Push(FACTORY->false_value());
       }
       loaded.Bind();
     }
@@ -630,7 +630,7 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     // When using lazy arguments allocation, we store the arguments marker value
     // as a sentinel indicating that the arguments object hasn't been
     // allocated yet.
-    frame_->Push(Factory::arguments_marker());
+    frame_->Push(FACTORY->arguments_marker());
   } else {
     ArgumentsAccessStub stub(is_strict_mode()
         ? ArgumentsAccessStub::NEW_STRICT
@@ -1054,7 +1054,7 @@ void CodeGenerator::GenericBinaryOperation(BinaryOperation* expr,
 
 
 bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
-  Object* answer_object = Heap::undefined_value();
+  Object* answer_object = HEAP->undefined_value();
   switch (op) {
     case Token::ADD:
       // Use intptr_t to detect overflow of 32-bit int.
@@ -1128,7 +1128,7 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
       UNREACHABLE();
       break;
   }
-  if (answer_object == Heap::undefined_value()) {
+  if (answer_object->IsUndefined()) {
     return false;
   }
   frame_->Push(Handle<Object>(answer_object));
@@ -1363,7 +1363,7 @@ Result CodeGenerator::LikelySmiBinaryOperation(BinaryOperation* expr,
         if (!left_type_info.IsNumber()) {
           // Branch if not a heapnumber.
           __ Cmp(FieldOperand(answer.reg(), HeapObject::kMapOffset),
-                 Factory::heap_number_map());
+                 FACTORY->heap_number_map());
           deferred->Branch(not_equal);
         }
         // Load integer value into answer register using truncation.
@@ -2325,7 +2325,7 @@ void CodeGenerator::ConstantSmiComparison(Condition cc,
         // not to be a smi.
         JumpTarget not_number;
         __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
-               Factory::heap_number_map());
+               FACTORY->heap_number_map());
         not_number.Branch(not_equal, left_side);
         __ movsd(xmm1,
                  FieldOperand(left_reg, HeapNumber::kValueOffset));
@@ -2485,7 +2485,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // give us a megamorphic load site. Not super, but it works.
   Load(applicand);
   frame()->Dup();
-  Handle<String> name = Factory::LookupAsciiSymbol("apply");
+  Handle<String> name = FACTORY->LookupAsciiSymbol("apply");
   frame()->Push(name);
   Result answer = frame()->CallLoadIC(RelocInfo::CODE_TARGET);
   __ nop();
@@ -2553,7 +2553,8 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ j(not_equal, &build_args);
       __ movq(rcx, FieldOperand(rax, JSFunction::kCodeEntryOffset));
       __ subq(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-      Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
+      Handle<Code> apply_code(Isolate::Current()->builtins()->builtin(
+          Builtins::FunctionApply));
       __ Cmp(rcx, apply_code);
       __ j(not_equal, &build_args);
 
@@ -2796,7 +2797,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
   // If we have a function or a constant, we need to initialize the variable.
   Expression* val = NULL;
   if (node->mode() == Variable::CONST) {
-    val = new Literal(Factory::the_hole_value());
+    val = new Literal(FACTORY->the_hole_value());
   } else {
     val = node->fun();  // NULL if we don't have a function
   }
@@ -3972,7 +3973,7 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   function_return_is_shadowed_ = function_return_was_shadowed;
 
   // Get an external reference to the handler address.
-  ExternalReference handler_address(Top::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address, isolate());
 
   // Make sure that there's nothing left on the stack above the
   // handler structure.
@@ -4101,7 +4102,7 @@ void CodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* node) {
   function_return_is_shadowed_ = function_return_was_shadowed;
 
   // Get an external reference to the handler address.
-  ExternalReference handler_address(Top::k_handler_address);
+  ExternalReference handler_address(Isolate::k_handler_address, isolate());
 
   // If we can fall off the end of the try block, unlink from the try
   // chain and set the state on the frame to FALLING.
@@ -4268,8 +4269,8 @@ void CodeGenerator::InstantiateFunction(
     frame_->EmitPush(rsi);
     frame_->EmitPush(function_info);
     frame_->EmitPush(pretenure
-                     ? Factory::true_value()
-                     : Factory::false_value());
+                     ? FACTORY->true_value()
+                     : FACTORY->false_value());
     Result result = frame_->CallRuntime(Runtime::kNewClosure, 3);
     frame_->Push(&result);
   }
@@ -4754,7 +4755,7 @@ class DeferredAllocateInNewSpace: public DeferredCode {
                              Register target,
                              int registers_to_save = 0)
     : size_(size), target_(target), registers_to_save_(registers_to_save) {
-    ASSERT(size >= kPointerSize && size <= Heap::MaxObjectSizeInNewSpace());
+    ASSERT(size >= kPointerSize && size <= HEAP->MaxObjectSizeInNewSpace());
     set_comment("[ DeferredAllocateInNewSpace");
   }
   void Generate();
@@ -4969,11 +4970,11 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   frame_->Push(node->constant_elements());
   int length = node->values()->length();
   Result clone;
-  if (node->constant_elements()->map() == Heap::fixed_cow_array_map()) {
+  if (node->constant_elements()->map() == HEAP->fixed_cow_array_map()) {
     FastCloneShallowArrayStub stub(
         FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
     clone = frame_->CallStub(&stub, 3);
-    __ IncrementCounter(&Counters::cow_arrays_created_stub, 1);
+    __ IncrementCounter(COUNTERS->cow_arrays_created_stub(), 1);
   } else if (node->depth() > 1) {
     clone = frame_->CallRuntime(Runtime::kCreateArrayLiteral, 3);
   } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
@@ -5371,7 +5372,7 @@ void CodeGenerator::VisitCall(Call* node) {
     Load(function);
 
     // Allocate a frame slot for the receiver.
-    frame_->Push(Factory::undefined_value());
+    frame_->Push(FACTORY->undefined_value());
 
     // Load the arguments.
     int arg_count = args->length();
@@ -5403,7 +5404,7 @@ void CodeGenerator::VisitCall(Call* node) {
       if (arg_count > 0) {
         frame_->PushElementAt(arg_count);
       } else {
-        frame_->Push(Factory::undefined_value());
+        frame_->Push(FACTORY->undefined_value());
       }
       frame_->PushParameterAt(-1);
 
@@ -5425,7 +5426,7 @@ void CodeGenerator::VisitCall(Call* node) {
     if (arg_count > 0) {
       frame_->PushElementAt(arg_count);
     } else {
-      frame_->Push(Factory::undefined_value());
+      frame_->Push(FACTORY->undefined_value());
     }
     frame_->PushParameterAt(-1);
 
@@ -5704,7 +5705,7 @@ void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
   }
 #endif
   // Finally, we're expected to leave a value on the top of the stack.
-  frame_->Push(Factory::undefined_value());
+  frame_->Push(FACTORY->undefined_value());
 }
 
 
@@ -5967,7 +5968,7 @@ void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   Condition is_smi = masm_->CheckSmi(obj.reg());
   destination()->false_target()->Branch(is_smi);
 
-  __ Move(kScratchRegister, Factory::null_value());
+  __ Move(kScratchRegister, FACTORY->null_value());
   __ cmpq(obj.reg(), kScratchRegister);
   destination()->true_target()->Branch(equal);
 
@@ -6059,7 +6060,7 @@ class DeferredIsStringWrapperSafeForDefaultValueOf : public DeferredCode {
     __ jmp(&entry);
     __ bind(&loop);
     __ movq(scratch2_, FieldOperand(map_result_, 0));
-    __ Cmp(scratch2_, Factory::value_of_symbol());
+    __ Cmp(scratch2_, FACTORY->value_of_symbol());
     __ j(equal, &false_result);
     __ addq(map_result_, Immediate(kPointerSize));
     __ bind(&entry);
@@ -6271,17 +6272,17 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
 
   // Functions have class 'Function'.
   function.Bind();
-  frame_->Push(Factory::function_class_symbol());
+  frame_->Push(FACTORY->function_class_symbol());
   leave.Jump();
 
   // Objects with a non-function constructor have class 'Object'.
   non_function_constructor.Bind();
-  frame_->Push(Factory::Object_symbol());
+  frame_->Push(FACTORY->Object_symbol());
   leave.Jump();
 
   // Non-JS objects have class null.
   null.Bind();
-  frame_->Push(Factory::null_value());
+  frame_->Push(FACTORY->null_value());
 
   // All done.
   leave.Bind();
@@ -6420,7 +6421,7 @@ void CodeGenerator::GenerateRandomHeapNumber(
   // Return a random uint32 number in rax.
   // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
   __ PrepareCallCFunction(0);
-  __ CallCFunction(ExternalReference::random_uint32_function(), 0);
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 0);
 
   // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:
@@ -6650,10 +6651,10 @@ void CodeGenerator::GenerateGetFromCache(ZoneList<Expression*>* args) {
   int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
 
   Handle<FixedArray> jsfunction_result_caches(
-      Top::global_context()->jsfunction_result_caches());
+      Isolate::Current()->global_context()->jsfunction_result_caches());
   if (jsfunction_result_caches->length() <= cache_id) {
     __ Abort("Attempt to use undefined cache.");
-    frame_->Push(Factory::undefined_value());
+    frame_->Push(FACTORY->undefined_value());
     return;
   }
 
@@ -6819,7 +6820,7 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   __ bind(&done);
 
   deferred->BindExit();
-  frame_->Push(Factory::undefined_value());
+  frame_->Push(FACTORY->undefined_value());
 }
 
 
@@ -7163,7 +7164,7 @@ void CodeGenerator::GenerateGetCachedArrayIndex(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateFastAsciiArrayJoin(ZoneList<Expression*>* args) {
-  frame_->Push(Factory::undefined_value());
+  frame_->Push(FACTORY->undefined_value());
 }
 
 
@@ -7174,7 +7175,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   ZoneList<Expression*>* args = node->arguments();
   Comment cmnt(masm_, "[ CallRuntime");
-  Runtime::Function* function = node->function();
+  const Runtime::Function* function = node->function();
 
   if (function == NULL) {
     // Push the builtins object found in the current global object.
@@ -7258,12 +7259,12 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       } else {
         // Default: Result of deleting non-global, not dynamically
         // introduced variables is false.
-        frame_->Push(Factory::false_value());
+        frame_->Push(FACTORY->false_value());
       }
     } else {
       // Default: Result of deleting expressions is true.
       Load(node->expression());  // may have side-effects
-      frame_->SetElementAt(0, Factory::true_value());
+      frame_->SetElementAt(0, FACTORY->true_value());
     }
 
   } else if (op == Token::TYPEOF) {
@@ -7284,10 +7285,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         expression->AsLiteral()->IsNull())) {
       // Omit evaluating the value of the primitive literal.
       // It will be discarded anyway, and can have no side effect.
-      frame_->Push(Factory::undefined_value());
+      frame_->Push(FACTORY->undefined_value());
     } else {
       Load(node->expression());
-      frame_->SetElementAt(0, Factory::undefined_value());
+      frame_->SetElementAt(0, FACTORY->undefined_value());
     }
 
   } else {
@@ -7759,7 +7760,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     Result answer = frame_->Pop();
     answer.ToRegister();
 
-    if (check->Equals(Heap::number_symbol())) {
+    if (check->Equals(HEAP->number_symbol())) {
       Condition is_smi = masm_->CheckSmi(answer.reg());
       destination()->true_target()->Branch(is_smi);
       frame_->Spill(answer.reg());
@@ -7768,7 +7769,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       answer.Unuse();
       destination()->Split(equal);
 
-    } else if (check->Equals(Heap::string_symbol())) {
+    } else if (check->Equals(HEAP->string_symbol())) {
       Condition is_smi = masm_->CheckSmi(answer.reg());
       destination()->false_target()->Branch(is_smi);
 
@@ -7782,14 +7783,14 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       answer.Unuse();
       destination()->Split(below);  // Unsigned byte comparison needed.
 
-    } else if (check->Equals(Heap::boolean_symbol())) {
+    } else if (check->Equals(HEAP->boolean_symbol())) {
       __ CompareRoot(answer.reg(), Heap::kTrueValueRootIndex);
       destination()->true_target()->Branch(equal);
       __ CompareRoot(answer.reg(), Heap::kFalseValueRootIndex);
       answer.Unuse();
       destination()->Split(equal);
 
-    } else if (check->Equals(Heap::undefined_symbol())) {
+    } else if (check->Equals(HEAP->undefined_symbol())) {
       __ CompareRoot(answer.reg(), Heap::kUndefinedValueRootIndex);
       destination()->true_target()->Branch(equal);
 
@@ -7804,7 +7805,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       answer.Unuse();
       destination()->Split(not_zero);
 
-    } else if (check->Equals(Heap::function_symbol())) {
+    } else if (check->Equals(HEAP->function_symbol())) {
       Condition is_smi = masm_->CheckSmi(answer.reg());
       destination()->false_target()->Branch(is_smi);
       frame_->Spill(answer.reg());
@@ -7815,7 +7816,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       answer.Unuse();
       destination()->Split(equal);
 
-    } else if (check->Equals(Heap::object_symbol())) {
+    } else if (check->Equals(HEAP->object_symbol())) {
       Condition is_smi = masm_->CheckSmi(answer.reg());
       destination()->false_target()->Branch(is_smi);
       __ CompareRoot(answer.reg(), Heap::kNullValueRootIndex);
@@ -7979,7 +7980,8 @@ void DeferredReferenceGetNamedValue::Generate() {
     __ movq(rax, receiver_);
   }
   __ Move(rcx, name_);
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::LoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
   // The call must be followed by a test rax instruction to indicate
   // that the inobject property case was inlined.
@@ -7991,7 +7993,7 @@ void DeferredReferenceGetNamedValue::Generate() {
   // Here we use masm_-> instead of the __ macro because this is the
   // instruction that gets patched and coverage code gets in the way.
   masm_->testl(rax, Immediate(-delta_to_patch_site));
-  __ IncrementCounter(&Counters::named_load_inline_miss, 1);
+  __ IncrementCounter(COUNTERS->named_load_inline_miss(), 1);
 
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
@@ -8044,7 +8046,8 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // it in the IC initialization code and patch the movq instruction.
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the __
@@ -8058,7 +8061,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // 7-byte NOP with non-zero immediate (0f 1f 80 xxxxxxxx) which won't
   // be generated normally.
   masm_->testl(rax, Immediate(-delta_to_patch_site));
-  __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
+  __ IncrementCounter(COUNTERS->keyed_load_inline_miss(), 1);
 
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
@@ -8091,7 +8094,7 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
 
 
 void DeferredReferenceSetKeyedValue::Generate() {
-  __ IncrementCounter(&Counters::keyed_store_inline_miss, 1);
+  __ IncrementCounter(COUNTERS->keyed_store_inline_miss(), 1);
   // Move value, receiver, and key to registers rax, rdx, and rcx, as
   // the IC stub expects.
   // Move value to rax, using xchg if the receiver or key is in rax.
@@ -8138,7 +8141,7 @@ void DeferredReferenceSetKeyedValue::Generate() {
   }
 
   // Call the IC stub.
-  Handle<Code> ic(Builtins::builtin(
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
       (strict_mode_ == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
                                     : Builtins::KeyedStoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
@@ -8207,7 +8210,7 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     // This is the map check instruction that will be patched (so we can't
     // use the double underscore macro that may insert instructions).
     // Initially use an invalid map to force a failure.
-    masm()->movq(kScratchRegister, Factory::null_value(),
+    masm()->movq(kScratchRegister, FACTORY->null_value(),
                  RelocInfo::EMBEDDED_OBJECT);
     masm()->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
                  kScratchRegister);
@@ -8226,7 +8229,7 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     int offset = kMaxInt;
     masm()->movq(result.reg(), FieldOperand(receiver.reg(), offset));
 
-    __ IncrementCounter(&Counters::named_load_inline, 1);
+    __ IncrementCounter(COUNTERS->named_load_inline(), 1);
     deferred->BindExit();
   }
   ASSERT(frame()->height() == original_height - 1);
@@ -8284,7 +8287,7 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     // the __ macro for the following two instructions because it
     // might introduce extra instructions.
     __ bind(&patch_site);
-    masm()->movq(kScratchRegister, Factory::null_value(),
+    masm()->movq(kScratchRegister, FACTORY->null_value(),
                  RelocInfo::EMBEDDED_OBJECT);
     masm()->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
                  kScratchRegister);
@@ -8398,7 +8401,7 @@ Result CodeGenerator::EmitKeyedLoad() {
     // coverage code can interfere with the patching.  Do not use a load
     // from the root array to load null_value, since the load must be patched
     // with the expected receiver map, which is not in the root array.
-    masm_->movq(kScratchRegister, Factory::null_value(),
+    masm_->movq(kScratchRegister, FACTORY->null_value(),
                 RelocInfo::EMBEDDED_OBJECT);
     masm_->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
                 kScratchRegister);
@@ -8433,7 +8436,7 @@ Result CodeGenerator::EmitKeyedLoad() {
     result = elements;
     __ CompareRoot(result.reg(), Heap::kTheHoleValueRootIndex);
     deferred->Branch(equal);
-    __ IncrementCounter(&Counters::keyed_load_inline, 1);
+    __ IncrementCounter(COUNTERS->keyed_load_inline(), 1);
 
     deferred->BindExit();
   } else {
@@ -8522,7 +8525,7 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     __ bind(deferred->patch_site());
     // Avoid using __ to ensure the distance from patch_site
     // to the map address is always the same.
-    masm()->movq(kScratchRegister, Factory::fixed_array_map(),
+    masm()->movq(kScratchRegister, FACTORY->fixed_array_map(),
                RelocInfo::EMBEDDED_OBJECT);
     __ cmpq(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
             kScratchRegister);
@@ -8544,7 +8547,7 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
                          index.scale,
                          FixedArray::kHeaderSize),
             result.reg());
-    __ IncrementCounter(&Counters::keyed_store_inline, 1);
+    __ IncrementCounter(COUNTERS->keyed_store_inline(), 1);
 
     deferred->BindExit();
   } else {

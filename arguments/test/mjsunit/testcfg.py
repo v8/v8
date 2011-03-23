@@ -38,24 +38,31 @@ SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 
 class MjsunitTestCase(test.TestCase):
 
-  def __init__(self, path, file, mode, context, config):
+  def __init__(self, path, file, mode, context, config, isolates):
     super(MjsunitTestCase, self).__init__(context, path, mode)
     self.file = file
     self.config = config
     self.self_script = False
+    self.isolates = isolates
 
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
 
   def GetName(self):
-    return self.path[-1]
+    return self.path[-1] + ["", "-isolates"][self.isolates]
 
-  def GetCommand(self):
+  def TestsIsolates(self):
+    return self.isolates
+
+  def GetVmCommand(self, source):
     result = self.config.context.GetVmCommand(self, self.mode)
-    source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
       result += flags_match.group(1).strip().split()
+    return result
+
+  def GetVmArguments(self, source):
+    result = []
     additional_files = []
     files_match = FILES_PATTERN.search(source);
     # Accept several lines of 'Files:'
@@ -71,6 +78,15 @@ class MjsunitTestCase(test.TestCase):
     if SELF_SCRIPT_PATTERN.search(source):
       result.append(self.CreateSelfScript())
     result += [framework, self.file]
+    return result
+
+  def GetCommand(self):
+    source = open(self.file).read()
+    result = self.GetVmCommand(source)
+    result += self.GetVmArguments(source)
+    if self.isolates:
+      result.append("--isolate")
+      result += self.GetVmArguments(source)
     return result
 
   def GetSource(self):
@@ -104,7 +120,7 @@ class MjsunitTestConfiguration(test.TestConfiguration):
       return name.endswith('.js') and name != 'mjsunit.js'
     return [f[:-3] for f in os.listdir(path) if SelectTest(f)]
 
-  def ListTests(self, current_path, path, mode):
+  def ListTests(self, current_path, path, mode, variant_flags):
     mjsunit = [current_path + [t] for t in self.Ls(self.root)]
     regress = [current_path + ['regress', t] for t in self.Ls(join(self.root, 'regress'))]
     bugs = [current_path + ['bugs', t] for t in self.Ls(join(self.root, 'bugs'))]
@@ -122,7 +138,8 @@ class MjsunitTestConfiguration(test.TestConfiguration):
     for test in all_tests:
       if self.Contains(path, test):
         file_path = join(self.root, reduce(join, test[1:], "") + ".js")
-        result.append(MjsunitTestCase(test, file_path, mode, self.context, self))
+        result.append(MjsunitTestCase(test, file_path, mode, self.context, self, False))
+        result.append(MjsunitTestCase(test, file_path, mode, self.context, self, True))
     return result
 
   def GetBuildRequirements(self):

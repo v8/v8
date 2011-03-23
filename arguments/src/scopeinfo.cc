@@ -50,7 +50,7 @@ static int CompareLocal(Variable* const* v, Variable* const* w) {
 
 template<class Allocator>
 ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
-    : function_name_(Factory::empty_symbol()),
+    : function_name_(FACTORY->empty_symbol()),
       calls_eval_(scope->calls_eval()),
       parameters_(scope->num_parameters()),
       stack_slots_(scope->num_stack_slots()),
@@ -141,7 +141,7 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
              context_slots_.length());
       ASSERT(var->AsSlot()->index() - Context::MIN_CONTEXT_SLOTS ==
              context_modes_.length());
-      context_slots_.Add(Factory::empty_symbol());
+      context_slots_.Add(FACTORY->empty_symbol());
       context_modes_.Add(Variable::INTERNAL);
     }
   }
@@ -238,7 +238,7 @@ static Object** ReadList(Object** p,
 
 template<class Allocator>
 ScopeInfo<Allocator>::ScopeInfo(SerializedScopeInfo* data)
-  : function_name_(Factory::empty_symbol()),
+  : function_name_(FACTORY->empty_symbol()),
     parameters_(4),
     stack_slots_(8),
     context_slots_(8),
@@ -309,7 +309,7 @@ Handle<SerializedScopeInfo> ScopeInfo<Allocator>::Serialize() {
                stack_slots_.length();
 
   Handle<SerializedScopeInfo> data(
-      SerializedScopeInfo::cast(*Factory::NewFixedArray(length, TENURED)));
+      SerializedScopeInfo::cast(*FACTORY->NewFixedArray(length, TENURED)));
   AssertNoAllocation nogc;
 
   Object** p0 = data->data_start();
@@ -357,7 +357,7 @@ Handle<SerializedScopeInfo> SerializedScopeInfo::Create(Scope* scope) {
 
 
 SerializedScopeInfo* SerializedScopeInfo::Empty() {
-  return reinterpret_cast<SerializedScopeInfo*>(Heap::empty_fixed_array());
+  return reinterpret_cast<SerializedScopeInfo*>(HEAP->empty_fixed_array());
 }
 
 
@@ -448,7 +448,8 @@ int SerializedScopeInfo::StackSlotIndex(String* name) {
 
 int SerializedScopeInfo::ContextSlotIndex(String* name, Variable::Mode* mode) {
   ASSERT(name->IsSymbol());
-  int result = ContextSlotCache::Lookup(this, name, mode);
+  Isolate* isolate = GetIsolate();
+  int result = isolate->context_slot_cache()->Lookup(this, name, mode);
   if (result != ContextSlotCache::kNotFound) return result;
   if (length() > 0) {
     // Slots start after length entry.
@@ -465,13 +466,13 @@ int SerializedScopeInfo::ContextSlotIndex(String* name, Variable::Mode* mode) {
         Variable::Mode mode_value = static_cast<Variable::Mode>(v);
         if (mode != NULL) *mode = mode_value;
         result = static_cast<int>((p - p0) >> 1) + Context::MIN_CONTEXT_SLOTS;
-        ContextSlotCache::Update(this, name, mode_value, result);
+        isolate->context_slot_cache()->Update(this, name, mode_value, result);
         return result;
       }
       p += 2;
     }
   }
-  ContextSlotCache::Update(this, name, Variable::INTERNAL, -1);
+  isolate->context_slot_cache()->Update(this, name, Variable::INTERNAL, -1);
   return -1;
 }
 
@@ -547,7 +548,7 @@ void ContextSlotCache::Update(Object* data,
                               int slot_index) {
   String* symbol;
   ASSERT(slot_index > kNotFound);
-  if (Heap::LookupSymbolIfExists(name, &symbol)) {
+  if (HEAP->LookupSymbolIfExists(name, &symbol)) {
     int index = Hash(data, symbol);
     Key& key = keys_[index];
     key.data = data;
@@ -566,12 +567,6 @@ void ContextSlotCache::Clear() {
 }
 
 
-ContextSlotCache::Key ContextSlotCache::keys_[ContextSlotCache::kLength];
-
-
-uint32_t ContextSlotCache::values_[ContextSlotCache::kLength];
-
-
 #ifdef DEBUG
 
 void ContextSlotCache::ValidateEntry(Object* data,
@@ -579,7 +574,7 @@ void ContextSlotCache::ValidateEntry(Object* data,
                                      Variable::Mode mode,
                                      int slot_index) {
   String* symbol;
-  if (Heap::LookupSymbolIfExists(name, &symbol)) {
+  if (HEAP->LookupSymbolIfExists(name, &symbol)) {
     int index = Hash(data, name);
     Key& key = keys_[index];
     ASSERT(key.data == data);

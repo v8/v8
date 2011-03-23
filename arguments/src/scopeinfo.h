@@ -168,28 +168,36 @@ class ContextSlotCache {
  public:
   // Lookup context slot index for (data, name).
   // If absent, kNotFound is returned.
-  static int Lookup(Object* data,
-                    String* name,
-                    Variable::Mode* mode);
+  int Lookup(Object* data,
+             String* name,
+             Variable::Mode* mode);
 
   // Update an element in the cache.
-  static void Update(Object* data,
-                     String* name,
-                     Variable::Mode mode,
-                     int slot_index);
+  void Update(Object* data,
+              String* name,
+              Variable::Mode mode,
+              int slot_index);
 
   // Clear the cache.
-  static void Clear();
+  void Clear();
 
   static const int kNotFound = -2;
  private:
+  ContextSlotCache() {
+    for (int i = 0; i < kLength; ++i) {
+      keys_[i].data = NULL;
+      keys_[i].name = NULL;
+      values_[i] = kNotFound;
+    }
+  }
+
   inline static int Hash(Object* data, String* name);
 
 #ifdef DEBUG
-  static void ValidateEntry(Object* data,
-                            String* name,
-                            Variable::Mode mode,
-                            int slot_index);
+  void ValidateEntry(Object* data,
+                     String* name,
+                     Variable::Mode mode,
+                     int slot_index);
 #endif
 
   static const int kLength = 256;
@@ -223,8 +231,11 @@ class ContextSlotCache {
     uint32_t value_;
   };
 
-  static Key keys_[kLength];
-  static uint32_t values_[kLength];
+  Key keys_[kLength];
+  uint32_t values_[kLength];
+
+  friend class Isolate;
+  DISALLOW_COPY_AND_ASSIGN(ContextSlotCache);
 };
 
 

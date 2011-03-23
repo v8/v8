@@ -48,7 +48,7 @@ class Descriptor BASE_EMBEDDED {
   MUST_USE_RESULT MaybeObject* KeyToSymbol() {
     if (!StringShape(key_).IsSymbol()) {
       Object* result;
-      { MaybeObject* maybe_result = Heap::LookupSymbol(key_);
+      { MaybeObject* maybe_result = HEAP->LookupSymbol(key_);
         if (!maybe_result->ToObject(&result)) return maybe_result;
       }
       key_ = String::cast(result);
@@ -108,6 +108,16 @@ class MapTransitionDescriptor: public Descriptor {
  public:
   MapTransitionDescriptor(String* key, Map* map, PropertyAttributes attributes)
       : Descriptor(key, map, attributes, MAP_TRANSITION) { }
+};
+
+class ExternalArrayTransitionDescriptor: public Descriptor {
+ public:
+  ExternalArrayTransitionDescriptor(String* key,
+                                    Map* map,
+                                    ExternalArrayType array_type)
+      : Descriptor(key, map, PropertyDetails(NONE,
+                                             EXTERNAL_ARRAY_TRANSITION,
+                                             array_type)) { }
 };
 
 // Marks a field name in a map so that adding the field is guaranteed
@@ -262,7 +272,8 @@ class LookupResult BASE_EMBEDDED {
 
   Map* GetTransitionMap() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
-    ASSERT(type() == MAP_TRANSITION || type() == CONSTANT_TRANSITION);
+    ASSERT(type() == MAP_TRANSITION || type() == CONSTANT_TRANSITION ||
+           type() == EXTERNAL_ARRAY_TRANSITION);
     return Map::cast(GetValue());
   }
 
@@ -305,7 +316,7 @@ class LookupResult BASE_EMBEDDED {
   Object* GetCallbackObject() {
     if (lookup_type_ == CONSTANT_TYPE) {
       // For now we only have the __proto__ as constant type.
-      return Heap::prototype_accessors();
+      return HEAP->prototype_accessors();
     }
     return GetValue();
   }

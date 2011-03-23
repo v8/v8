@@ -7,6 +7,7 @@
 #include "v8.h"
 #include "cpu-profiler-inl.h"
 #include "cctest.h"
+#include "../include/v8-profiler.h"
 
 namespace i = v8::internal;
 
@@ -23,7 +24,7 @@ using i::TokenEnumerator;
 TEST(StartStop) {
   CpuProfilesCollection profiles;
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(&generator);
+  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
   while (!processor.running()) {
     i::Thread::YieldCPU();
@@ -87,7 +88,7 @@ TEST(CodeEvents) {
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(&generator);
+  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
   while (!processor.running()) {
     i::Thread::YieldCPU();
@@ -96,11 +97,11 @@ TEST(CodeEvents) {
   // Enqueue code creation events.
   i::HandleScope scope;
   const char* aaa_str = "aaa";
-  i::Handle<i::String> aaa_name = i::Factory::NewStringFromAscii(
+  i::Handle<i::String> aaa_name = FACTORY->NewStringFromAscii(
       i::Vector<const char>(aaa_str, i::StrLength(aaa_str)));
   processor.CodeCreateEvent(i::Logger::FUNCTION_TAG,
                             *aaa_name,
-                            i::Heap::empty_string(),
+                            HEAP->empty_string(),
                             0,
                             ToAddress(0x1000),
                             0x100,
@@ -151,7 +152,7 @@ TEST(TickEvents) {
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(&generator);
+  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
   while (!processor.running()) {
     i::Thread::YieldCPU();
@@ -234,6 +235,140 @@ TEST(CrashIfStoppingLastNonExistentProfile) {
   CpuProfiler::StartProfiling("1");
   CpuProfiler::StopProfiling("");
   CpuProfiler::TearDown();
+}
+
+
+TEST(DeleteAllCpuProfiles) {
+  InitializeVM();
+  TestSetup test_setup;
+  CpuProfiler::Setup();
+  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+  CpuProfiler::DeleteAllProfiles();
+  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+
+  CpuProfiler::StartProfiling("1");
+  CpuProfiler::StopProfiling("1");
+  CHECK_EQ(1, CpuProfiler::GetProfilesCount());
+  CpuProfiler::DeleteAllProfiles();
+  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+  CpuProfiler::StartProfiling("1");
+  CpuProfiler::StartProfiling("2");
+  CpuProfiler::StopProfiling("2");
+  CpuProfiler::StopProfiling("1");
+  CHECK_EQ(2, CpuProfiler::GetProfilesCount());
+  CpuProfiler::DeleteAllProfiles();
+  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+
+  // Test profiling cancellation by the 'delete' command.
+  CpuProfiler::StartProfiling("1");
+  CpuProfiler::StartProfiling("2");
+  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+  CpuProfiler::DeleteAllProfiles();
+  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+
+  CpuProfiler::TearDown();
+}
+
+
+TEST(DeleteCpuProfile) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CHECK_EQ(0, v8::CpuProfiler::GetProfilesCount());
+  v8::Local<v8::String> name1 = v8::String::New("1");
+  v8::CpuProfiler::StartProfiling(name1);
+  const v8::CpuProfile* p1 = v8::CpuProfiler::StopProfiling(name1);
+  CHECK_NE(NULL, p1);
+  CHECK_EQ(1, v8::CpuProfiler::GetProfilesCount());
+  unsigned uid1 = p1->GetUid();
+  CHECK_EQ(p1, v8::CpuProfiler::FindProfile(uid1));
+  const_cast<v8::CpuProfile*>(p1)->Delete();
+  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+  CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid1));
+
+  v8::Local<v8::String> name2 = v8::String::New("2");
+  v8::CpuProfiler::StartProfiling(name2);
+  const v8::CpuProfile* p2 = v8::CpuProfiler::StopProfiling(name2);
+  CHECK_NE(NULL, p2);
+  CHECK_EQ(1, v8::CpuProfiler::GetProfilesCount());
+  unsigned uid2 = p2->GetUid();
+  CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid2));
+  CHECK_EQ(p2, v8::CpuProfiler::FindProfile(uid2));
+  CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid1));
+  v8::Local<v8::String> name3 = v8::String::New("3");
+  v8::CpuProfiler::StartProfiling(name3);
+  const v8::CpuProfile* p3 = v8::CpuProfiler::StopProfiling(name3);
+  CHECK_NE(NULL, p3);
+  CHECK_EQ(2, v8::CpuProfiler::GetProfilesCount());
+  unsigned uid3 = p3->GetUid();
+  CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid3));
+  CHECK_EQ(p3, v8::CpuProfiler::FindProfile(uid3));
+  CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid1));
+  const_cast<v8::CpuProfile*>(p2)->Delete();
+  CHECK_EQ(1, v8::CpuProfiler::GetProfilesCount());
+  CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid2));
+  CHECK_EQ(p3, v8::CpuProfiler::FindProfile(uid3));
+  const_cast<v8::CpuProfile*>(p3)->Delete();
+  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+  CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid3));
+  CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid2));
+  CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid1));
+}
+
+
+TEST(DeleteCpuProfileDifferentTokens) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CHECK_EQ(0, v8::CpuProfiler::GetProfilesCount());
+  v8::Local<v8::String> name1 = v8::String::New("1");
+  v8::CpuProfiler::StartProfiling(name1);
+  const v8::CpuProfile* p1 = v8::CpuProfiler::StopProfiling(name1);
+  CHECK_NE(NULL, p1);
+  CHECK_EQ(1, v8::CpuProfiler::GetProfilesCount());
+  unsigned uid1 = p1->GetUid();
+  CHECK_EQ(p1, v8::CpuProfiler::FindProfile(uid1));
+  v8::Local<v8::String> token1 = v8::String::New("token1");
+  const v8::CpuProfile* p1_t1 = v8::CpuProfiler::FindProfile(uid1, token1);
+  CHECK_NE(NULL, p1_t1);
+  CHECK_NE(p1, p1_t1);
+  CHECK_EQ(1, v8::CpuProfiler::GetProfilesCount());
+  const_cast<v8::CpuProfile*>(p1)->Delete();
+  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+  CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid1));
+  CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid1, token1));
+  const_cast<v8::CpuProfile*>(p1_t1)->Delete();
+  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+
+  v8::Local<v8::String> name2 = v8::String::New("2");
+  v8::CpuProfiler::StartProfiling(name2);
+  v8::Local<v8::String> token2 = v8::String::New("token2");
+  const v8::CpuProfile* p2_t2 = v8::CpuProfiler::StopProfiling(name2, token2);
+  CHECK_NE(NULL, p2_t2);
+  CHECK_EQ(1, v8::CpuProfiler::GetProfilesCount());
+  unsigned uid2 = p2_t2->GetUid();
+  CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid2));
+  const v8::CpuProfile* p2 = v8::CpuProfiler::FindProfile(uid2);
+  CHECK_NE(p2_t2, p2);
+  v8::Local<v8::String> name3 = v8::String::New("3");
+  v8::CpuProfiler::StartProfiling(name3);
+  const v8::CpuProfile* p3 = v8::CpuProfiler::StopProfiling(name3);
+  CHECK_NE(NULL, p3);
+  CHECK_EQ(2, v8::CpuProfiler::GetProfilesCount());
+  unsigned uid3 = p3->GetUid();
+  CHECK_NE(static_cast<int>(uid1), static_cast<int>(uid3));
+  CHECK_EQ(p3, v8::CpuProfiler::FindProfile(uid3));
+  const_cast<v8::CpuProfile*>(p2_t2)->Delete();
+  CHECK_EQ(1, v8::CpuProfiler::GetProfilesCount());
+  CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid2));
+  CHECK_EQ(p3, v8::CpuProfiler::FindProfile(uid3));
+  const_cast<v8::CpuProfile*>(p2)->Delete();
+  CHECK_EQ(1, v8::CpuProfiler::GetProfilesCount());
+  CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid2));
+  CHECK_EQ(p3, v8::CpuProfiler::FindProfile(uid3));
+  const_cast<v8::CpuProfile*>(p3)->Delete();
+  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+  CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid3));
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

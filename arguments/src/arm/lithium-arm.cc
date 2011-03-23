@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
+
 #include "lithium-allocator-inl.h"
 #include "arm/lithium-arm.h"
 #include "arm/lithium-codegen-arm.h"
@@ -1343,29 +1345,25 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsInteger32()) {
-    // TODO(1042) The fixed register allocation
-    // is needed because we call GenericBinaryOpStub from
-    // the generated code, which requires registers r0
-    // and r1 to be used. We should remove that
-    // when we provide a native implementation.
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
 
-    LInstruction* result;
+    LModI* mod;
     if (instr->HasPowerOf2Divisor()) {
       ASSERT(!instr->CheckFlag(HValue::kCanBeDivByZero));
       LOperand* value = UseRegisterAtStart(instr->left());
-      LModI* mod = new LModI(value, UseOrConstant(instr->right()));
-      result = DefineSameAsFirst(mod);
-      result = AssignEnvironment(result);
+      mod = new LModI(value, UseOrConstant(instr->right()));
     } else {
-      LOperand* value = UseFixed(instr->left(), r0);
-      LOperand* divisor = UseFixed(instr->right(), r1);
-      result = DefineFixed(new LModI(value, divisor), r0);
-      result = AssignEnvironment(AssignPointerMap(result));
+      LOperand* dividend = UseRegister(instr->left());
+      LOperand* divisor = UseRegisterAtStart(instr->right());
+      mod = new LModI(dividend,
+                      divisor,
+                      TempRegister(),
+                      FixedTemp(d1),
+                      FixedTemp(d2));
     }
 
-    return result;
+    return AssignEnvironment(DefineSameAsFirst(mod));
   } else if (instr->representation().IsTagged()) {
     return DoArithmeticT(Token::MOD, instr);
   } else {
@@ -1991,6 +1989,13 @@ LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
   LOperand* index = UseRegister(instr->index());
   LAccessArgumentsAt* result = new LAccessArgumentsAt(arguments, length, index);
   return AssignEnvironment(DefineAsRegister(result));
+}
+
+
+LInstruction* LChunkBuilder::DoToFastProperties(HToFastProperties* instr) {
+  LOperand* object = UseFixed(instr->value(), r0);
+  LToFastProperties* result = new LToFastProperties(object);
+  return MarkAsCall(DefineFixed(result, r0), instr);
 }
 
 

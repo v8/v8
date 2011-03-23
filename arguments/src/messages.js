@@ -234,6 +234,7 @@ function FormatMessage(message) {
       strict_arguments_caller:      ["Cannot access property 'caller' of strict mode arguments"],
       strict_function_caller:       ["Cannot access property 'caller' of a strict mode function"],
       strict_function_arguments:    ["Cannot access property 'arguments' of a strict mode function"],
+      strict_caller:                ["Illegal access to a strict mode caller function."],
     };
   }
   var message_type = %MessageGetType(message);
@@ -1085,5 +1086,5 @@ function errorToString() {
 InstallFunctions($Error.prototype, DONT_ENUM, ['toString', errorToString]);
 
 // Boilerplate for exceptions for stack overflows. Used from
-// Top::StackOverflow().
+// Isolate::StackOverflow().
 const kStackOverflowBoilerplate = MakeRangeError('stack_overflow', []);

@@ -430,7 +430,6 @@ class LAllocator BASE_EMBEDDED {
  public:
   LAllocator(int first_virtual_register, HGraph* graph);
 
-  static void Setup();
   static void TraceAlloc(const char* msg, ...);
 
   // Lithium translation support.

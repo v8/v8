@@ -33,7 +33,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../src/v8.h"
 
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>  // NOLINT
+#endif
+
+static void ExitShell(int exit_code) {
+  // Use _exit instead of exit to avoid races between isolate
+  // threads and static destructors.
+  fflush(stdout);
+  fflush(stderr);
+  _exit(exit_code);
+}
+
+v8::Persistent<v8::Context> CreateShellContext();
 void RunShell(v8::Handle<v8::Context> context);
 bool ExecuteString(v8::Handle<v8::String> source,
                    v8::Handle<v8::Value> name,
@@ -48,63 +62,180 @@ v8::Handle<v8::String> ReadFile(const char* name);
 void ReportException(v8::TryCatch* handler);
 
 
+static bool last_run = true;
+
+class SourceGroup {
+ public:
+  SourceGroup() : argv_(NULL),
+                  begin_offset_(0),
+                  end_offset_(0),
+                  next_semaphore_(v8::internal::OS::CreateSemaphore(0)),
+                  done_semaphore_(v8::internal::OS::CreateSemaphore(0)),
+                  thread_(NULL) { }
+
+  void Begin(char** argv, int offset) {
+    argv_ = const_cast<const char**>(argv);
+    begin_offset_ = offset;
+  }
+
+  void End(int offset) { end_offset_ = offset; }
+
+  void Execute() {
+    for (int i = begin_offset_; i < end_offset_; ++i) {
+      const char* arg = argv_[i];
+      if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
+        // Execute argument given to -e option directly.
+        v8::HandleScope handle_scope;
+        v8::Handle<v8::String> file_name = v8::String::New("unnamed");
+        v8::Handle<v8::String> source = v8::String::New(argv_[i + 1]);
+        if (!ExecuteString(source, file_name, false, true)) {
+          ExitShell(1);
+          return;
+        }
+        ++i;
+      } else if (arg[0] == '-') {
+        // Ignore other options. They have been parsed already.
+      } else {
+        // Use all other arguments as names of files to load and run.
+        v8::HandleScope handle_scope;
+        v8::Handle<v8::String> file_name = v8::String::New(arg);
+        v8::Handle<v8::String> source = ReadFile(arg);
+        if (source.IsEmpty()) {
+          printf("Error reading '%s'\n", arg);
+        }
+        if (!ExecuteString(source, file_name, false, true)) {
+          ExitShell(1);
+          return;
+        }
+      }
+    }
+  }
+
+  void StartExecuteInThread() {
+    if (thread_ == NULL) {
+      thread_ = new IsolateThread(this);
+      thread_->Start();
+    }
+    next_semaphore_->Signal();
+  }
+
+  void WaitForThread() {
+    if (thread_ == NULL) return;
+    if (last_run) {
+      thread_->Join();
+      thread_ = NULL;
+    } else {
+      done_semaphore_->Wait();
+    }
+  }
+
+ private:
+  static v8::internal::Thread::Options GetThreadOptions() {
+    v8::internal::Thread::Options options;
+    options.name = "IsolateThread";
+    // On some systems (OSX 10.6) the stack size default is 0.5Mb or less
+    // which is not enough to parse the big literal expressions used in tests.
+    // The stack size should be at least StackGuard::kLimitSize + some
+    // OS-specific padding for thread startup code.
+    options.stack_size = 2 << 20;  // 2 Mb seems to be enough
+    return options;
+  }
+
+  class IsolateThread : public v8::internal::Thread {
+   public:
+    explicit IsolateThread(SourceGroup* group)
+        : group_(group), v8::internal::Thread(NULL, GetThreadOptions()) {}
+
+    virtual void Run() {
+      group_->ExecuteInThread();
+    }
+
+   private:
+    SourceGroup* group_;
+  };
+
+  void ExecuteInThread() {
+    v8::Isolate* isolate = v8::Isolate::New();
+    do {
+      if (next_semaphore_ != NULL) next_semaphore_->Wait();
+      {
+        v8::Isolate::Scope iscope(isolate);
+        v8::HandleScope scope;
+        v8::Persistent<v8::Context> context = CreateShellContext();
+        {
+          v8::Context::Scope cscope(context);
+          Execute();
+        }
+        context.Dispose();
+      }
+      if (done_semaphore_ != NULL) done_semaphore_->Signal();
+    } while (!last_run);
+    isolate->Dispose();
+  }
+
+  const char** argv_;
+  int begin_offset_;
+  int end_offset_;
+  v8::internal::Semaphore* next_semaphore_;
+  v8::internal::Semaphore* done_semaphore_;
+  v8::internal::Thread* thread_;
+};
+
+
+static SourceGroup* isolate_sources = NULL;
+
+
 int RunMain(int argc, char* argv[]) {
+  v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::HandleScope handle_scope;
-  // Create a template for the global object.
-  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
-  // Bind the global 'print' function to the C++ Print callback.
-  global->Set(v8::String::New("print"), v8::FunctionTemplate::New(Print));
-  // Bind the global 'read' function to the C++ Read callback.
-  global->Set(v8::String::New("read"), v8::FunctionTemplate::New(Read));
-  // Bind the global 'load' function to the C++ Load callback.
-  global->Set(v8::String::New("load"), v8::FunctionTemplate::New(Load));
-  // Bind the 'quit' function
-  global->Set(v8::String::New("quit"), v8::FunctionTemplate::New(Quit));
-  // Bind the 'version' function
-  global->Set(v8::String::New("version"), v8::FunctionTemplate::New(Version));
-  // Create a new execution environment containing the built-in
-  // functions
-  v8::Persistent<v8::Context> context = v8::Context::New(NULL, global);
+  v8::Persistent<v8::Context> context = CreateShellContext();
+  // Enter the newly created execution environment.
+  context->Enter();
   if (context.IsEmpty()) {
     printf("Error creating context\n");
     return 1;
   }
 
   bool run_shell = (argc == 1);
+  int num_isolates = 1;
   for (int i = 1; i < argc; i++) {
-    // Enter the execution environment before evaluating any code.
-    v8::Context::Scope context_scope(context);
-    const char* str = argv[i];
-    if (strcmp(str, "--shell") == 0) {
-      run_shell = true;
-    } else if (strcmp(str, "-f") == 0) {
-      // Ignore any -f flags for compatibility with the other stand-
-      // alone JavaScript engines.
-      continue;
-    } else if (strncmp(str, "--", 2) == 0) {
-      printf("Warning: unknown flag %s.\nTry --help for options\n", str);
-    } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
-      // Execute argument given to -e option directly
-      v8::HandleScope handle_scope;
-      v8::Handle<v8::String> file_name = v8::String::New("unnamed");
-      v8::Handle<v8::String> source = v8::String::New(argv[i + 1]);
-      if (!ExecuteString(source, file_name, false, true))
-        return 1;
-      i++;
-    } else {
-      // Use all other arguments as names of files to load and run.
-      v8::HandleScope handle_scope;
-      v8::Handle<v8::String> file_name = v8::String::New(str);
-      v8::Handle<v8::String> source = ReadFile(str);
-      if (source.IsEmpty()) {
-        printf("Error reading '%s'\n", str);
-        return 1;
-      }
-      if (!ExecuteString(source, file_name, false, true))
-        return 1;
-    }
+    if (strcmp(argv[i], "--isolate") == 0) ++num_isolates;
   }
+  if (isolate_sources == NULL) {
+    isolate_sources = new SourceGroup[num_isolates];
+    SourceGroup* current = isolate_sources;
+    current->Begin(argv, 1);
+    for (int i = 1; i < argc; i++) {
+      const char* str = argv[i];
+      if (strcmp(str, "--isolate") == 0) {
+        current->End(i);
+        current++;
+        current->Begin(argv, i + 1);
+      } else if (strcmp(str, "--shell") == 0) {
+        run_shell = true;
+      } else if (strcmp(str, "-f") == 0) {
+        // Ignore any -f flags for compatibility with the other stand-
+        // alone JavaScript engines.
+        continue;
+      } else if (strncmp(str, "--", 2) == 0) {
+        printf("Warning: unknown flag %s.\nTry --help for options\n", str);
+      }
+    }
+    current->End(argc);
+  }
+  for (int i = 1; i < num_isolates; ++i) {
+    isolate_sources[i].StartExecuteInThread();
+  }
+  isolate_sources[0].Execute();
   if (run_shell) RunShell(context);
+  for (int i = 1; i < num_isolates; ++i) {
+    isolate_sources[i].WaitForThread();
+  }
+  if (last_run) {
+    delete[] isolate_sources;
+    isolate_sources = NULL;
+  }
+  context->Exit();
   context.Dispose();
   return 0;
 }
@@ -142,6 +273,7 @@ int main(int argc, char* argv[]) {
       printf("============ Stress %d/%d ============\n",
              i + 1, stress_runs);
       v8::Testing::PrepareStressRun(i);
+      last_run = (i == stress_runs - 1);
       result = RunMain(argc, argv);
     }
     printf("======== Full Deoptimization =======\n");
@@ -157,6 +289,25 @@ int main(int argc, char* argv[]) {
 // Extracts a C string from a V8 Utf8Value.
 const char* ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<string conversion failed>";
+}
+
+
+// Creates a new execution environment containing the built-in
+// functions.
+v8::Persistent<v8::Context> CreateShellContext() {
+  // Create a template for the global object.
+  v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
+  // Bind the global 'print' function to the C++ Print callback.
+  global->Set(v8::String::New("print"), v8::FunctionTemplate::New(Print));
+  // Bind the global 'read' function to the C++ Read callback.
+  global->Set(v8::String::New("read"), v8::FunctionTemplate::New(Read));
+  // Bind the global 'load' function to the C++ Load callback.
+  global->Set(v8::String::New("load"), v8::FunctionTemplate::New(Load));
+  // Bind the 'quit' function
+  global->Set(v8::String::New("quit"), v8::FunctionTemplate::New(Quit));
+  // Bind the 'version' function
+  global->Set(v8::String::New("version"), v8::FunctionTemplate::New(Version));
+  return v8::Context::New(NULL, global);
 }
 
 
@@ -229,7 +380,7 @@ v8::Handle<v8::Value> Quit(const v8::Arguments& args) {
   // If not arguments are given args[0] will yield undefined which
   // converts to the integer value 0.
   int exit_code = args[0]->Int32Value();
-  exit(exit_code);
+  ExitShell(exit_code);
   return v8::Undefined();
 }
 

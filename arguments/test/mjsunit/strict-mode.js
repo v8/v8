@@ -1081,3 +1081,54 @@ function CheckPillDescriptor(func, name) {
   CheckPillDescriptor(args, "caller");
   CheckPillDescriptor(args, "callee");
 })();
+
+
+(function TestNonStrictFunctionCallerPillSimple() {
+  function return_my_caller() {
+    return return_my_caller.caller;
+  }
+
+  function strict() {
+    "use strict";
+    return_my_caller();
+  }
+  assertThrows(strict, TypeError);
+
+  function non_strict() {
+    return return_my_caller();
+  }
+  assertSame(non_strict(), non_strict);
+})();
+
+
+(function TestNonStrictFunctionCallerPill() {
+  function strict(n) {
+    "use strict";
+    non_strict(n);
+  }
+
+  function recurse(n, then) {
+    if (n > 0) {
+      recurse(n - 1);
+    } else {
+      return then();
+    }
+  }
+
+  function non_strict(n) {
+    recurse(n, function() { non_strict.caller; });
+  }
+
+  function test(n) {
+    try {
+      recurse(n, function() { strict(n); });
+    } catch(e) {
+      return e instanceof TypeError;
+    }
+    return false;
+  }
+
+  for (var i = 0; i < 10; i ++) {
+    assertEquals(test(i), true);
+  }
+})();

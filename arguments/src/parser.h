@@ -42,7 +42,7 @@ class FuncNameInferrer;
 class ParserLog;
 class PositionStack;
 class Target;
-class TemporaryScope;
+class LexicalScope;
 
 template <typename T> class ZoneListWrapper;
 
@@ -388,6 +388,8 @@ class RegExpParser {
     int disjunction_capture_index_;
   };
 
+  Isolate* isolate() { return isolate_; }
+
   uc32 current() { return current_; }
   bool has_more() { return has_more_; }
   bool has_next() { return next_pos_ < in()->length(); }
@@ -395,6 +397,7 @@ class RegExpParser {
   FlatStringReader* in() { return in_; }
   void ScanForCaptures();
 
+  Isolate* isolate_;
   Handle<String>* error_;
   ZoneList<RegExpCapture*>* captures_;
   FlatStringReader* in_;
@@ -449,6 +452,8 @@ class Parser {
     PARSE_EAGERLY
   };
 
+  Isolate* isolate() { return isolate_; }
+
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(Handle<String> source,
                                   bool in_global_context,
@@ -464,6 +469,9 @@ class Parser {
   V8JavaScriptScanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_data() const { return pre_data_; }
+
+  // Check if the given string is 'eval' or 'arguments'.
+  bool IsEvalOrArguments(Handle<String> string);
 
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
@@ -574,7 +582,7 @@ class Parser {
     if (stack_overflow_) {
       return Token::ILLEGAL;
     }
-    if (StackLimitCheck().HasOverflowed()) {
+    if (StackLimitCheck(isolate()).HasOverflowed()) {
       // Any further calls to Next or peek will return the illegal token.
       // The current call must return the next token, which might already
       // have been peek'ed.
@@ -592,21 +600,21 @@ class Parser {
 
   Handle<String> LiteralString(PretenureFlag tenured) {
     if (scanner().is_literal_ascii()) {
-      return Factory::NewStringFromAscii(scanner().literal_ascii_string(),
-                                         tenured);
+      return isolate_->factory()->NewStringFromAscii(
+          scanner().literal_ascii_string(), tenured);
     } else {
-      return Factory::NewStringFromTwoByte(scanner().literal_uc16_string(),
-                                           tenured);
+      return isolate_->factory()->NewStringFromTwoByte(
+            scanner().literal_uc16_string(), tenured);
     }
   }
 
   Handle<String> NextLiteralString(PretenureFlag tenured) {
     if (scanner().is_next_literal_ascii()) {
-      return Factory::NewStringFromAscii(scanner().next_literal_ascii_string(),
-                                         tenured);
+      return isolate_->factory()->NewStringFromAscii(
+          scanner().next_literal_ascii_string(), tenured);
     } else {
-      return Factory::NewStringFromTwoByte(scanner().next_literal_uc16_string(),
-                                           tenured);
+      return isolate_->factory()->NewStringFromTwoByte(
+          scanner().next_literal_uc16_string(), tenured);
     }
   }
 
@@ -686,6 +694,7 @@ class Parser {
                             Handle<String> type,
                             Vector< Handle<Object> > arguments);
 
+  Isolate* isolate_;
   ZoneList<Handle<String> > symbol_cache_;
 
   Handle<Script> script_;
@@ -694,7 +703,7 @@ class Parser {
   Scope* top_scope_;
   int with_nesting_level_;
 
-  TemporaryScope* temp_scope_;
+  LexicalScope* lexical_scope_;
   Mode mode_;
 
   Target* target_stack_;  // for break, continue statements
@@ -709,6 +718,8 @@ class Parser {
   // Heuristically that means that the function will be called immediately,
   // so never lazily compile it.
   bool parenthesized_function_;
+
+  friend class LexicalScope;
 };
 
 
@@ -765,8 +776,10 @@ class JsonParser BASE_EMBEDDED {
   }
 
  private:
-  JsonParser() { }
+  JsonParser() : isolate_(Isolate::Current()), scanner_(isolate_) { }
   ~JsonParser() { }
+
+  Isolate* isolate() { return isolate_; }
 
   // Parse a string containing a single JSON value.
   Handle<Object> ParseJson(Handle<String> script, UC16CharacterStream* source);
@@ -794,6 +807,7 @@ class JsonParser BASE_EMBEDDED {
   // Converts the currently parsed literal to a JavaScript String.
   Handle<String> GetString();
 
+  Isolate* isolate_;
   JsonScanner scanner_;
   bool stack_overflow_;
 };

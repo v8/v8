@@ -29,6 +29,8 @@
 #define V8_FRAMES_INL_H_
 
 #include "frames.h"
+#include "isolate.h"
+#include "v8memory.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/frames-ia32.h"
@@ -88,6 +90,11 @@ inline Address* StackHandler::pc_address() const {
 
 inline StackHandler* StackFrame::top_handler() const {
   return iterator_->handler();
+}
+
+
+inline Code* StackFrame::GetContainingCode(Isolate* isolate, Address pc) {
+  return isolate->pc_to_code_cache()->GetCacheEntry(pc)->code;
 }
 
 

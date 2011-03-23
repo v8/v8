@@ -155,6 +155,7 @@ class LCodeGen;
   V(SubI)                                       \
   V(TaggedToI)                                  \
   V(Throw)                                      \
+  V(ToFastProperties)                           \
   V(Typeof)                                     \
   V(TypeofIs)                                   \
   V(TypeofIsAndBranch)                          \
@@ -522,11 +523,29 @@ class LArgumentsElements: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LModI: public LTemplateInstruction<1, 2, 0> {
+class LModI: public LTemplateInstruction<1, 2, 3> {
  public:
-  LModI(LOperand* left, LOperand* right) {
+  // Used when the right hand is a constant power of 2.
+  LModI(LOperand* left,
+        LOperand* right) {
     inputs_[0] = left;
     inputs_[1] = right;
+    temps_[0] = NULL;
+    temps_[1] = NULL;
+    temps_[2] = NULL;
+  }
+
+  // Used for the standard case.
+  LModI(LOperand* left,
+        LOperand* right,
+        LOperand* temp1,
+        LOperand* temp2,
+        LOperand* temp3) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+    temps_[2] = temp3;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ModI, "mod-i")
@@ -1421,7 +1440,7 @@ class LCallRuntime: public LTemplateInstruction<1, 0, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime, "call-runtime")
   DECLARE_HYDROGEN_ACCESSOR(CallRuntime)
 
-  Runtime::Function* function() const { return hydrogen()->function(); }
+  const Runtime::Function* function() const { return hydrogen()->function(); }
   int arity() const { return hydrogen()->argument_count(); }
 };
 
@@ -1764,6 +1783,17 @@ class LFunctionLiteral: public LTemplateInstruction<1, 0, 0> {
   DECLARE_HYDROGEN_ACCESSOR(FunctionLiteral)
 
   Handle<SharedFunctionInfo> shared_info() { return hydrogen()->shared_info(); }
+};
+
+
+class LToFastProperties: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LToFastProperties(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ToFastProperties, "to-fast-properties")
+  DECLARE_HYDROGEN_ACCESSOR(ToFastProperties)
 };
 
 

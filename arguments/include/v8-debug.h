@@ -227,7 +227,7 @@ class EXPORT Debug {
    * Debug message callback function.
    *
    * \param message the debug message handler message object
-
+   *
    * A MessageHandler does not take possession of the message data,
    * and must not rely on the data persisting after the handler returns.
    */
@@ -253,25 +253,35 @@ class EXPORT Debug {
   static bool SetDebugEventListener(v8::Handle<v8::Object> that,
                                     Handle<Value> data = Handle<Value>());
 
-  // Schedule a debugger break to happen when JavaScript code is run.
-  static void DebugBreak();
+  // Schedule a debugger break to happen when JavaScript code is run
+  // in the given isolate. If no isolate is provided the default
+  // isolate is used.
+  static void DebugBreak(Isolate* isolate = NULL);
 
-  // Remove scheduled debugger break if it has not happened yet.
-  static void CancelDebugBreak();
+  // Remove scheduled debugger break in given isolate if it has not
+  // happened yet. If no isolate is provided the default isolate is
+  // used.
+  static void CancelDebugBreak(Isolate* isolate = NULL);
 
-  // Break execution of JavaScript (this method can be invoked from a
-  // non-VM thread) for further client command execution on a VM
-  // thread. Client data is then passed in EventDetails to
-  // EventCallback at the moment when the VM actually stops.
-  static void DebugBreakForCommand(ClientData* data = NULL);
+  // Break execution of JavaScript in the given isolate (this method
+  // can be invoked from a non-VM thread) for further client command
+  // execution on a VM thread. Client data is then passed in
+  // EventDetails to EventCallback at the moment when the VM actually
+  // stops. If no isolate is provided the default isolate is used.
+  static void DebugBreakForCommand(ClientData* data = NULL,
+                                   Isolate* isolate = NULL);
 
   // Message based interface. The message protocol is JSON. NOTE the message
   // handler thread is not supported any more parameter must be false.
   static void SetMessageHandler(MessageHandler handler,
                                 bool message_handler_thread = false);
   static void SetMessageHandler2(MessageHandler2 handler);
+
+  // If no isolate is provided the default isolate is
+  // used.
   static void SendCommand(const uint16_t* command, int length,
-                          ClientData* client_data = NULL);
+                          ClientData* client_data = NULL,
+                          Isolate* isolate = NULL);
 
   // Dispatch interface.
   static void SetHostDispatchHandler(HostDispatchHandler handler,

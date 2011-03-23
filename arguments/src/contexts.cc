@@ -55,7 +55,7 @@ Context* Context::global_context() {
 
   // During bootstrapping, the global object might not be set and we
   // have to search the context chain to find the global context.
-  ASSERT(Bootstrapper::IsActive());
+  ASSERT(Isolate::Current()->bootstrapper()->IsActive());
   Context* current = this;
   while (!current->IsGlobalContext()) {
     JSFunction* closure = JSFunction::cast(current->closure());
@@ -78,7 +78,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
                                ContextLookupFlags flags,
                                int* index_,
                                PropertyAttributes* attributes) {
-  Handle<Context> context(this);
+  Isolate* isolate = GetIsolate();
+  Handle<Context> context(this, isolate);
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
   *index_ = -1;
@@ -99,7 +100,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
     // Check the context extension object.
     if (context->has_extension()) {
-      Handle<JSObject> extension = Handle<JSObject>(context->extension());
+      Handle<JSObject> extension = Handle<JSObject>(context->extension(),
+                                                    isolate);
       // Context extension objects needs to behave as if they have no
       // prototype.  So even if we want to follow prototype chains, we
       // need to only do a local lookup for context extension objects.
@@ -121,7 +123,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
     if (context->is_function_context()) {
       // We may have context-local slots.  Check locals in the context.
       Handle<SerializedScopeInfo> scope_info(
-          context->closure()->shared()->scope_info());
+          context->closure()->shared()->scope_info(), isolate);
       Variable::Mode mode;
       int index = scope_info->ContextSlotIndex(*name, &mode);
       ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
@@ -175,9 +177,10 @@ Handle<Object> Context::Lookup(Handle<String> name,
     if (context->IsGlobalContext()) {
       follow_context_chain = false;
     } else if (context->is_function_context()) {
-      context = Handle<Context>(Context::cast(context->closure()->context()));
+      context = Handle<Context>(Context::cast(context->closure()->context()),
+                                isolate);
     } else {
-      context = Handle<Context>(context->previous());
+      context = Handle<Context>(context->previous(), isolate);
     }
   } while (follow_context_chain);
 
@@ -238,7 +241,7 @@ void Context::AddOptimizedFunction(JSFunction* function) {
 
   // Check that the context belongs to the weak global contexts list.
   bool found = false;
-  Object* context = Heap::global_contexts_list();
+  Object* context = GetHeap()->global_contexts_list();
   while (!context->IsUndefined()) {
     if (context == this) {
       found = true;
@@ -267,7 +270,7 @@ void Context::RemoveOptimizedFunction(JSFunction* function) {
       } else {
         prev->set_next_function_link(element_function->next_function_link());
       }
-      element_function->set_next_function_link(Heap::undefined_value());
+      element_function->set_next_function_link(GetHeap()->undefined_value());
       return;
     }
     prev = element_function;
@@ -284,7 +287,7 @@ Object* Context::OptimizedFunctionsListHead() {
 
 
 void Context::ClearOptimizedFunctions() {
-  set(OPTIMIZED_FUNCTIONS_LIST, Heap::undefined_value());
+  set(OPTIMIZED_FUNCTIONS_LIST, GetHeap()->undefined_value());
 }
 
 
@@ -292,14 +295,17 @@ void Context::ClearOptimizedFunctions() {
 bool Context::IsBootstrappingOrContext(Object* object) {
   // During bootstrapping we allow all objects to pass as
   // contexts. This is necessary to fix circular dependencies.
-  return Bootstrapper::IsActive() || object->IsContext();
+  return Isolate::Current()->bootstrapper()->IsActive() || object->IsContext();
 }
 
 
 bool Context::IsBootstrappingOrGlobalObject(Object* object) {
   // During bootstrapping we allow all objects to pass as global
   // objects. This is necessary to fix circular dependencies.
-  return Bootstrapper::IsActive() || object->IsGlobalObject();
+  Isolate* isolate = Isolate::Current();
+  return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
+      isolate->bootstrapper()->IsActive() ||
+      object->IsGlobalObject();
 }
 #endif
 

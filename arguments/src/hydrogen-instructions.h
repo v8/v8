@@ -156,6 +156,7 @@ class LChunkBuilder;
   V(Sub)                                       \
   V(Test)                                      \
   V(Throw)                                     \
+  V(ToFastProperties)                          \
   V(Typeof)                                    \
   V(TypeofIs)                                  \
   V(UnaryMathOperation)                        \
@@ -1244,7 +1245,8 @@ class HCallConstantFunction: public HCall<0> {
   Handle<JSFunction> function() const { return function_; }
 
   bool IsApplyFunction() const {
-    return function_->code() == Builtins::builtin(Builtins::FunctionApply);
+    return function_->code() ==
+        Isolate::Current()->builtins()->builtin(Builtins::FunctionApply);
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -1377,12 +1379,12 @@ class HCallNew: public HBinaryCall {
 class HCallRuntime: public HCall<0> {
  public:
   HCallRuntime(Handle<String> name,
-               Runtime::Function* c_function,
+               const Runtime::Function* c_function,
                int argument_count)
       : HCall<0>(argument_count), c_function_(c_function), name_(name) { }
   virtual void PrintDataTo(StringStream* stream);
 
-  Runtime::Function* function() const { return c_function_; }
+  const Runtime::Function* function() const { return c_function_; }
   Handle<String> name() const { return name_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -1392,7 +1394,7 @@ class HCallRuntime: public HCall<0> {
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime, "call_runtime")
 
  private:
-  Runtime::Function* c_function_;
+  const Runtime::Function* c_function_;
   Handle<String> name_;
 };
 
@@ -1770,7 +1772,7 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
   }
 
   virtual intptr_t Hashcode() {
-    ASSERT(!Heap::IsAllocationAllowed());
+    ASSERT(!HEAP->IsAllocationAllowed());
     intptr_t hash = reinterpret_cast<intptr_t>(*prototype());
     hash = 17 * hash + reinterpret_cast<intptr_t>(*holder());
     return hash;
@@ -1934,7 +1936,7 @@ class HConstant: public HTemplateInstruction<0> {
 
   Handle<Object> handle() const { return handle_; }
 
-  bool InOldSpace() const { return !Heap::InNewSpace(*handle_); }
+  bool InOldSpace() const { return !HEAP->InNewSpace(*handle_); }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
@@ -1959,7 +1961,7 @@ class HConstant: public HTemplateInstruction<0> {
   bool HasStringValue() const { return handle_->IsString(); }
 
   virtual intptr_t Hashcode() {
-    ASSERT(!Heap::allow_allocation(false));
+    ASSERT(!HEAP->allow_allocation(false));
     return reinterpret_cast<intptr_t>(*handle());
   }
 
@@ -2818,7 +2820,7 @@ class HLoadGlobal: public HTemplateInstruction<0> {
   virtual void PrintDataTo(StringStream* stream);
 
   virtual intptr_t Hashcode() {
-    ASSERT(!Heap::allow_allocation(false));
+    ASSERT(!HEAP->allow_allocation(false));
     return reinterpret_cast<intptr_t>(*cell_);
   }
 
@@ -3381,10 +3383,12 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
                  Handle<FixedArray> constant_properties,
                  bool fast_elements,
                  int literal_index,
-                 int depth)
+                 int depth,
+                 bool has_function)
       : HMaterializedLiteral<1>(literal_index, depth),
         constant_properties_(constant_properties),
-        fast_elements_(fast_elements) {
+        fast_elements_(fast_elements),
+        has_function_(has_function) {
     SetOperandAt(0, context);
   }
 
@@ -3393,6 +3397,7 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
     return constant_properties_;
   }
   bool fast_elements() const { return fast_elements_; }
+  bool has_function() const { return has_function_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -3403,6 +3408,7 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
  private:
   Handle<FixedArray> constant_properties_;
   bool fast_elements_;
+  bool has_function_;
 };
 
 
@@ -3463,6 +3469,24 @@ class HTypeof: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Typeof, "typeof")
+};
+
+
+class HToFastProperties: public HUnaryOperation {
+ public:
+  explicit HToFastProperties(HValue* value) : HUnaryOperation(value) {
+    // This instruction is not marked as having side effects, but
+    // changes the map of the input operand. Use it only when creating
+    // object literals.
+    ASSERT(value->IsObjectLiteral());
+    set_representation(Representation::Tagged());
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ToFastProperties, "to_fast_properties")
 };
 
 

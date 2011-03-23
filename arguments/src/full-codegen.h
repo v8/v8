@@ -553,6 +553,8 @@ class FullCodeGenerator: public AstVisitor {
       codegen_->set_new_context(old_);
     }
 
+    Isolate* isolate() const { return codegen_->isolate(); }
+
     // Convert constant control flow (true or false) to the result expected for
     // this expression context.
     virtual void Plug(bool flag) const = 0;
