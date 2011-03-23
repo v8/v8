@@ -827,6 +827,19 @@ const AccessorDescriptor Accessors::FunctionArguments = {
 //
 
 
+static MaybeObject* CheckNonStrictCallerOrThrow(
+    Isolate* isolate,
+    JSFunction* caller) {
+  DisableAssertNoAllocation enable_allocation;
+  if (caller->shared()->strict_mode()) {
+    return isolate->Throw(
+        *isolate->factory()->NewTypeError("strict_caller",
+                                          HandleVector<Object>(NULL, 0)));
+  }
+  return caller;
+}
+
+
 MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
@@ -847,14 +860,14 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
         // frames, e.g. frames for scripts not functions.
         if (i > 0) {
           ASSERT(!functions[i - 1]->shared()->is_toplevel());
-          return functions[i - 1];
+          return CheckNonStrictCallerOrThrow(isolate, functions[i - 1]);
         } else {
           for (it.Advance(); !it.done(); it.Advance()) {
             frame = it.frame();
             functions.Rewind(0);
             frame->GetFunctions(&functions);
             if (!functions.last()->shared()->is_toplevel()) {
-              return functions.last();
+              return CheckNonStrictCallerOrThrow(isolate, functions.last());
             }
             ASSERT(functions.length() == 1);
           }
