@@ -111,7 +111,7 @@ TEST(ExternalReferenceEncoder) {
   CHECK_EQ(make_code(IC_UTILITY, IC::kLoadCallbackProperty),
            Encode(encoder, IC_Utility(IC::kLoadCallbackProperty)));
   ExternalReference keyed_load_function_prototype =
-      ExternalReference(COUNTERS->keyed_load_function_prototype());
+      ExternalReference(isolate->counters()->keyed_load_function_prototype());
   CHECK_EQ(make_code(STATS_COUNTER, Counters::k_keyed_load_function_prototype),
            encoder.Encode(keyed_load_function_prototype.address()));
   ExternalReference the_hole_value_location =
@@ -152,7 +152,7 @@ TEST(ExternalReferenceDecoder) {
   CHECK_EQ(AddressOf(IC_Utility(IC::kLoadCallbackProperty)),
            decoder.Decode(make_code(IC_UTILITY, IC::kLoadCallbackProperty)));
   ExternalReference keyed_load_function =
-      ExternalReference(COUNTERS->keyed_load_function_prototype());
+      ExternalReference(isolate->counters()->keyed_load_function_prototype());
   CHECK_EQ(keyed_load_function.address(),
            decoder.Decode(
                make_code(STATS_COUNTER,
