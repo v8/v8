@@ -29,7 +29,9 @@
 #define V8_HYDROGEN_INSTRUCTIONS_H_
 
 #include "v8.h"
+
 #include "code-stubs.h"
+#include "small-pointer-list.h"
 #include "string-stream.h"
 #include "zone.h"
 
@@ -451,7 +453,6 @@ class HValue: public ZoneObject {
 
   HValue() : block_(NULL),
              id_(kNoNumber),
-             uses_(2),
              type_(HType::Tagged()),
              range_(NULL),
              flags_(0) {}
@@ -463,7 +464,7 @@ class HValue: public ZoneObject {
   int id() const { return id_; }
   void set_id(int id) { id_ = id; }
 
-  ZoneList<HValue*>* uses() { return &uses_; }
+  SmallPointerList<HValue>* uses() { return &uses_; }
 
   virtual bool EmitAtUses() { return false; }
   Representation representation() const { return representation_; }
@@ -607,7 +608,7 @@ class HValue: public ZoneObject {
   int id_;
 
   Representation representation_;
-  ZoneList<HValue*> uses_;
+  SmallPointerList<HValue> uses_;
   HType type_;
   Range* range_;
   int flags_;

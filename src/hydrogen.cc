@@ -745,7 +745,7 @@ void HGraph::EliminateRedundantPhis() {
     if (value != NULL) {
       // Iterate through uses finding the ones that should be
       // replaced.
-      ZoneList<HValue*>* uses = phi->uses();
+      SmallPointerList<HValue>* uses = phi->uses();
       while (!uses->is_empty()) {
         HValue* use = uses->RemoveLast();
         if (use != NULL) {
