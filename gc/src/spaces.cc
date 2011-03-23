@@ -87,6 +87,9 @@ void HeapObjectIterator::Initialize(PagedSpace* space,
                                     Address cur, Address end,
                                     HeapObjectIterator::PageMode mode,
                                     HeapObjectCallback size_f) {
+  // Check that we actually can iterate this space.
+  ASSERT(!space->was_swept_conservatively());
+
   space_ = space;
   cur_addr_ = cur;
   cur_end_ = end;
@@ -116,7 +119,6 @@ bool HeapObjectIterator::AdvanceToNextPage() {
   cur_addr_ = cur_page->ObjectAreaStart();
   cur_end_ = cur_page->ObjectAreaEnd();
   ASSERT(!cur_page->IsFlagSet(Page::WAS_SWEPT_CONSERVATIVELY));
-  ASSERT(IncrementalMarking::state() == IncrementalMarking::STOPPED);
   return true;
 }
 

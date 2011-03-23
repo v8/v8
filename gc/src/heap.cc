@@ -473,9 +473,17 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
   if (collector == SCAVENGER &&
       IncrementalMarking::state() != IncrementalMarking::STOPPED) {
     if (FLAG_trace_incremental_marking) {
-      PrintF("[IncrementalMarking] SCAVENGE -> MARK-SWEEP\n");
+      PrintF("[IncrementalMarking] Scavenge during marking.\n");
     }
-    collector = MARK_COMPACTOR;
+  }
+
+  if (collector == MARK_COMPACTOR &&
+      !MarkCompactCollector::PreciseSweepingRequired() &&
+      IncrementalMarking::state() == IncrementalMarking::MARKING) {
+    if (FLAG_trace_incremental_marking) {
+      PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
+    }
+    collector = SCAVENGER;
   }
 
   bool next_gc_likely_to_collect_more = false;
@@ -500,9 +508,12 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
     GarbageCollectionEpilogue();
   }
 
-  ASSERT(IncrementalMarking::state() == IncrementalMarking::STOPPED);
-  if (IncrementalMarking::WorthActivating() && NextGCIsLikelyToBeFull()) {
-    IncrementalMarking::Start();
+
+  ASSERT(collector == SCAVENGER || IncrementalMarking::IsStopped());
+  if (IncrementalMarking::IsStopped()) {
+    if (IncrementalMarking::WorthActivating() && NextGCIsLikelyToBeFull()) {
+      IncrementalMarking::Start();
+    }
   }
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -957,6 +968,10 @@ void Heap::Scavenge() {
 
   CheckNewSpaceExpansionCriteria();
 
+  SelectScavengingVisitorsTable();
+
+  IncrementalMarking::PrepareForScavenge();
+
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
   new_space_.Flip();
@@ -1018,6 +1033,7 @@ void Heap::Scavenge() {
 
   LiveObjectList::UpdateReferencesForScavengeGC();
   RuntimeProfiler::UpdateSamplesAfterScavenge();
+  IncrementalMarking::UpdateMarkingStackAfterScavenge();
 
   ASSERT(new_space_front == new_space_.top());
 
@@ -1213,6 +1229,22 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 }
 
 
+enum MarksHandling { TRANSFER_MARKS, IGNORE_MARKS };
+
+typedef void (*ScavengingCallback)(Map* map,
+                                   HeapObject** slot,
+                                   HeapObject* object);
+
+static VisitorDispatchTable<ScavengingCallback> scavening_visitors_table_;
+
+static inline void DoScavengeObject(Map* map,
+                                    HeapObject** slot,
+                                    HeapObject* obj) {
+  scavening_visitors_table_.GetVisitor(map)(map, slot, obj);
+}
+
+
+template<MarksHandling marks_handling>
 class ScavengingVisitor : public StaticVisitorBase {
  public:
   static void Initialize() {
@@ -1221,23 +1253,22 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitShortcutCandidate, &EvacuateShortcutCandidate);
     table_.Register(kVisitByteArray, &EvacuateByteArray);
     table_.Register(kVisitFixedArray, &EvacuateFixedArray);
+
     table_.Register(kVisitGlobalContext,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
-                        VisitSpecialized<Context::kSize>);
-
-    typedef ObjectEvacuationStrategy<POINTER_OBJECT> PointerObject;
+                        template VisitSpecialized<Context::kSize>);
 
     table_.Register(kVisitConsString,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
-                        VisitSpecialized<ConsString::kSize>);
+                        template VisitSpecialized<ConsString::kSize>);
 
     table_.Register(kVisitSharedFunctionInfo,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
-                        VisitSpecialized<SharedFunctionInfo::kSize>);
+                        template VisitSpecialized<SharedFunctionInfo::kSize>);
 
     table_.Register(kVisitJSFunction,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
-                    VisitSpecialized<JSFunction::kSize>);
+                        template VisitSpecialized<JSFunction::kSize>);
 
     table_.RegisterSpecializations<ObjectEvacuationStrategy<DATA_OBJECT>,
                                    kVisitDataObject,
@@ -1252,11 +1283,9 @@ class ScavengingVisitor : public StaticVisitorBase {
                                    kVisitStructGeneric>();
   }
 
-
-  static inline void Scavenge(Map* map, HeapObject** slot, HeapObject* obj) {
-    table_.GetVisitor(map)(map, slot, obj);
+  static VisitorDispatchTable<ScavengingCallback>* GetTable() {
+    return &table_;
   }
-
 
  private:
   enum ObjectContents  { DATA_OBJECT, POINTER_OBJECT };
@@ -1306,9 +1335,19 @@ class ScavengingVisitor : public StaticVisitorBase {
       }
     }
 #endif
+
+    if (marks_handling == TRANSFER_MARKS) TransferMark(source, target);
+
     return target;
   }
 
+
+  INLINE(static void TransferMark(HeapObject* from, HeapObject* to)) {
+    MarkBit from_mark_bit = Marking::MarkBitFrom(from);
+    if (IncrementalMarking::IsBlack(from_mark_bit)) {
+      IncrementalMarking::MarkBlack(Marking::MarkBitFrom(to));
+    }
+  }
 
   template<ObjectContents object_contents, SizeRestriction size_restriction>
   static inline void EvacuateObject(Map* map,
@@ -1403,7 +1442,8 @@ class ScavengingVisitor : public StaticVisitorBase {
                                                HeapObject* object) {
     ASSERT(IsShortcutCandidate(map->instance_type()));
 
-    if (ConsString::cast(object)->unchecked_second() == Heap::empty_string()) {
+    if (marks_handling == IGNORE_MARKS &&
+        ConsString::cast(object)->unchecked_second() == Heap::empty_string()) {
       HeapObject* first =
           HeapObject::cast(ConsString::cast(object)->unchecked_first());
 
@@ -1423,7 +1463,7 @@ class ScavengingVisitor : public StaticVisitorBase {
         return;
       }
 
-      Scavenge(first->map(), slot, first);
+      DoScavengeObject(first->map(), slot, first);
       object->set_map_word(MapWord::FromForwardingAddress(*slot));
       return;
     }
@@ -1450,13 +1490,24 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
   };
 
-  typedef void (*Callback)(Map* map, HeapObject** slot, HeapObject* object);
-
-  static VisitorDispatchTable<Callback> table_;
+  static VisitorDispatchTable<ScavengingCallback> table_;
 };
 
 
-VisitorDispatchTable<ScavengingVisitor::Callback> ScavengingVisitor::table_;
+template<MarksHandling marks_handling>
+VisitorDispatchTable<ScavengingCallback>
+    ScavengingVisitor<marks_handling>::table_;
+
+
+void Heap::SelectScavengingVisitorsTable() {
+  if (IncrementalMarking::IsStopped()) {
+    scavening_visitors_table_.CopyFrom(
+        ScavengingVisitor<IGNORE_MARKS>::GetTable());
+  } else {
+    scavening_visitors_table_.CopyFrom(
+        ScavengingVisitor<TRANSFER_MARKS>::GetTable());
+  }
+}
 
 
 void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
@@ -1464,7 +1515,7 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
   MapWord first_word = object->map_word();
   ASSERT(!first_word.IsForwardingAddress());
   Map* map = first_word.ToMap();
-  ScavengingVisitor::Scavenge(map, p, object);
+  DoScavengeObject(map, p, object);
 }
 
 
@@ -3711,8 +3762,7 @@ STRUCT_LIST(MAKE_CASE)
 
 void Heap::EnsureHeapIsIterable() {
   ASSERT(IsAllocationAllowed());
-  if (IncrementalMarking::state() != IncrementalMarking::STOPPED ||
-      old_pointer_space()->was_swept_conservatively() ||
+  if (old_pointer_space()->was_swept_conservatively() ||
       old_data_space()->was_swept_conservatively()) {
     CollectAllGarbage(kMakeHeapIterableMask);
   }
@@ -3796,7 +3846,7 @@ bool Heap::IdleNotification() {
   // Make sure that we have no pending context disposals and
   // conditionally uncommit from space.
   ASSERT(contexts_disposed_ == 0);
-  if (uncommit && IncrementalMarking::IsStopped()) Heap::UncommitFromSpace();
+  if (uncommit) Heap::UncommitFromSpace();
   return finished;
 }
 
@@ -4603,7 +4653,8 @@ bool Heap::Setup(bool create_heap_objects) {
     if (!ConfigureHeapDefault()) return false;
   }
 
-  ScavengingVisitor::Initialize();
+  ScavengingVisitor<TRANSFER_MARKS>::Initialize();
+  ScavengingVisitor<IGNORE_MARKS>::Initialize();
   NewSpaceScavenger::Initialize();
   MarkCompactCollector::Initialize();
 

@@ -142,6 +142,12 @@ class StaticVisitorBase : public AllStatic {
 template<typename Callback>
 class VisitorDispatchTable {
  public:
+  void CopyFrom(VisitorDispatchTable* other) {
+    memcpy(callbacks_,
+           other->callbacks_,
+           kPointerSize*StaticVisitorBase::kVisitorIdCount);
+  }
+
   inline Callback GetVisitor(Map* map) {
     return callbacks_[map->visitor_id()];
   }

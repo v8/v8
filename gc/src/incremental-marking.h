@@ -58,6 +58,10 @@ class IncrementalMarking : public AllStatic {
 
   static void Stop();
 
+  static void PrepareForScavenge();
+
+  static void UpdateMarkingStackAfterScavenge();
+
   static void Hurry();
 
   static void Finalize();
@@ -84,7 +88,7 @@ class IncrementalMarking : public AllStatic {
       if (IsWhite(value_bit)) {
         MarkBit obj_bit = Marking::MarkBitFrom(obj);
         if (IsBlack(obj_bit)) {
-          BlackToGrey(obj, obj_bit);
+          BlackToGreyAndPush(obj, obj_bit);
           RestartIfNotMarking();
         }
       }
@@ -95,7 +99,7 @@ class IncrementalMarking : public AllStatic {
     if (state_ != STOPPED) {
       MarkBit value_bit = Marking::MarkBitFrom(value);
       if (IsWhite(value_bit)) {
-        WhiteToGrey(value, value_bit);
+        WhiteToGreyAndPush(value, value_bit);
         RestartIfNotMarking();
       }
     }
@@ -106,7 +110,7 @@ class IncrementalMarking : public AllStatic {
     if (!IsStopped()) {
       MarkBit obj_bit = Marking::MarkBitFrom(obj);
       if (IsBlack(obj_bit)) {
-        BlackToGrey(obj, obj_bit);
+        BlackToGreyAndPush(obj, obj_bit);
         RestartIfNotMarking();
       }
     }
@@ -135,7 +139,7 @@ class IncrementalMarking : public AllStatic {
     return mark_bit.Get() && mark_bit.Next().Get();
   }
 
-  static inline void BlackToGrey(HeapObject* obj, MarkBit mark_bit) {
+  static inline void BlackToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
     ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
     ASSERT(obj->Size() >= 2*kPointerSize);
     ASSERT(!IsStopped());
@@ -143,6 +147,12 @@ class IncrementalMarking : public AllStatic {
     mark_bit.Next().Set();
     ASSERT(IsGrey(mark_bit));
 
+    marking_stack_.Push(obj);
+    ASSERT(!marking_stack_.overflowed());
+  }
+
+  static inline void WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
+    WhiteToGrey(obj, mark_bit);
     marking_stack_.Push(obj);
     ASSERT(!marking_stack_.overflowed());
   }
@@ -155,9 +165,6 @@ class IncrementalMarking : public AllStatic {
     mark_bit.Set();
     mark_bit.Next().Set();
     ASSERT(IsGrey(mark_bit));
-
-    marking_stack_.Push(obj);
-    ASSERT(!marking_stack_.overflowed());
   }
 
   static inline void MarkBlack(MarkBit mark_bit) {
@@ -181,6 +188,22 @@ class IncrementalMarking : public AllStatic {
     if (IsGrey(mark_bit)) return "grey";
     UNREACHABLE();
     return "???";
+  }
+
+  enum ObjectColor {
+    BLACK_OBJECT,
+    WHITE_OBJECT,
+    GREY_OBJECT,
+    IMPOSSIBLE_COLOR
+  };
+
+  static inline ObjectColor Color(HeapObject* obj) {
+    MarkBit mark_bit = Marking::MarkBitFrom(obj);
+    if (IsBlack(mark_bit)) return BLACK_OBJECT;
+    if (IsWhite(mark_bit)) return WHITE_OBJECT;
+    if (IsGrey(mark_bit)) return GREY_OBJECT;
+    UNREACHABLE();
+    return IMPOSSIBLE_COLOR;
   }
 
  private:

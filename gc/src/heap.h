@@ -1473,6 +1473,8 @@ class Heap : public AllStatic {
     return high_survival_rate_period_length_ > 0;
   }
 
+  static void SelectScavengingVisitorsTable();
+
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
 
@@ -1790,6 +1792,10 @@ class MarkingStack {
     ASSERT(object->IsHeapObject());
     return object;
   }
+
+  HeapObject** low() { return low_; }
+  HeapObject** top() { return top_; }
+  void set_top(HeapObject** top) { top_ = top; }
 
  private:
   HeapObject** low_;

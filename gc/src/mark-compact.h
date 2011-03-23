@@ -188,6 +188,7 @@ class MarkCompactCollector: public AllStatic {
     sweep_precisely_ = ((flags & Heap::kMakeHeapIterableMask) != 0);
   }
 
+  static bool PreciseSweepingRequired() { return sweep_precisely_; }
 
   static void Initialize();
 

@@ -247,8 +247,8 @@ void Marking::TransferMark(Address old_start, Address new_start) {
       old_mark_bit.Clear();
     } else if (IncrementalMarking::IsGrey(old_mark_bit)) {
       old_mark_bit.Next().Clear();
-      IncrementalMarking::WhiteToGrey(HeapObject::FromAddress(new_start),
-                                      new_mark_bit);
+      IncrementalMarking::WhiteToGreyAndPush(HeapObject::FromAddress(new_start),
+                                             new_mark_bit);
       IncrementalMarking::RestartIfNotMarking();
       // TODO(gc): if we shift huge array in the loop we might end up pushing
       // to much to marking stack. maybe we should check one or two elements
