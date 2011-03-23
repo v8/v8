@@ -1722,7 +1722,8 @@ bool DescriptorArray::IsProperty(int descriptor_number) {
 
 bool DescriptorArray::IsTransition(int descriptor_number) {
   PropertyType t = GetType(descriptor_number);
-  return t == MAP_TRANSITION || t == CONSTANT_TRANSITION;
+  return t == MAP_TRANSITION || t == CONSTANT_TRANSITION ||
+      t == EXTERNAL_ARRAY_TRANSITION;
 }
 
 
@@ -2867,21 +2868,6 @@ MaybeObject* Map::GetSlowElementsMap() {
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(false);
   isolate()->counters()->map_fast_to_slow_elements()->Increment();
-  return new_map;
-}
-
-
-MaybeObject* Map::NewExternalArrayElementsMap() {
-  // TODO(danno): Special case empty object map (or most common case)
-  // to return a pre-canned pixel array map.
-  Object* obj;
-  { MaybeObject* maybe_obj = CopyDropTransitions();
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  Map* new_map = Map::cast(obj);
-  new_map->set_has_fast_elements(false);
-  new_map->set_has_external_array_elements(true);
-  isolate()->counters()->map_to_external_array_elements()->Increment();
   return new_map;
 }
 

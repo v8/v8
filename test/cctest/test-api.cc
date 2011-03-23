@@ -11598,6 +11598,95 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
     free(large_array_data);
   }
 
+  // The "" property descriptor is overloaded to store information about
+  // the external array. Ensure that setting and accessing the "" property
+  // works (it should overwrite the information cached about the external
+  // array in the DescriptorArray) in various situations.
+  result = CompileRun("ext_array[''] = 23; ext_array['']");
+  CHECK_EQ(23, result->Int32Value());
+
+  // Property "" set after the external array is associated with the object.
+  {
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    obj2->Set(v8_str("ee_test_field"), v8::Int32::New(256));
+    obj2->Set(v8_str(""), v8::Int32::New(1503));
+    // Set the elements to be the external array.
+    obj2->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array['']");
+    CHECK_EQ(1503, result->Int32Value());
+  }
+
+  // Property "" set after the external array is associated with the object.
+  {
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    obj2->Set(v8_str("ee_test_field_2"), v8::Int32::New(256));
+    // Set the elements to be the external array.
+    obj2->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+    obj2->Set(v8_str(""), v8::Int32::New(1503));
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array['']");
+    CHECK_EQ(1503, result->Int32Value());
+  }
+
+  // Should reuse the map from previous test.
+  {
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    obj2->Set(v8_str("ee_test_field_2"), v8::Int32::New(256));
+    // Set the elements to be the external array. Should re-use the map
+    // from previous test.
+    obj2->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array['']");
+  }
+
+  // Property "" is a constant function that shouldn't not be interfered with
+  // when an external array is set.
+  {
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    // Start
+    obj2->Set(v8_str("ee_test_field3"), v8::Int32::New(256));
+
+    // Add a constant function to an object.
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array[''] = function() {return 1503;};"
+                        "ext_array['']();");
+
+    // Add an external array transition to the same map that
+    // has the constant transition.
+    v8::Handle<v8::Object> obj3 = v8::Object::New();
+    obj3->Set(v8_str("ee_test_field3"), v8::Int32::New(256));
+    obj3->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+    context->Global()->Set(v8_str("ext_array"), obj3);
+  }
+
+  // If a external array transition is in the map, it should get clobbered
+  // by a constant function.
+  {
+    // Add an external array transition.
+    v8::Handle<v8::Object> obj3 = v8::Object::New();
+    obj3->Set(v8_str("ee_test_field4"), v8::Int32::New(256));
+    obj3->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+
+    // Add a constant function to the same map that just got an external array
+    // transition.
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    obj2->Set(v8_str("ee_test_field4"), v8::Int32::New(256));
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array[''] = function() {return 1503;};"
+                        "ext_array['']();");
+  }
+
   free(array_data);
 }
 

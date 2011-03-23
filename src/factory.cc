@@ -392,8 +392,14 @@ Handle<Map> Factory::GetSlowElementsMap(Handle<Map> src) {
 }
 
 
-Handle<Map> Factory::NewExternalArrayElementsMap(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->NewExternalArrayElementsMap(), Map);
+Handle<Map> Factory::GetExternalArrayElementsMap(
+    Handle<Map> src,
+    ExternalArrayType array_type,
+    bool safe_to_add_transition) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     src->GetExternalArrayElementsMap(array_type,
+                                                      safe_to_add_transition),
+                     Map);
 }
 
 

@@ -318,14 +318,15 @@ enum InlineCacheHolderFlag {
 // Must fit in the BitField PropertyDetails::TypeField.
 // A copy of this is in mirror-debugger.js.
 enum PropertyType {
-  NORMAL              = 0,  // only in slow mode
-  FIELD               = 1,  // only in fast mode
-  CONSTANT_FUNCTION   = 2,  // only in fast mode
-  CALLBACKS           = 3,
-  INTERCEPTOR         = 4,  // only in lookup results, not in descriptors.
-  MAP_TRANSITION      = 5,  // only in fast mode
-  CONSTANT_TRANSITION = 6,  // only in fast mode
-  NULL_DESCRIPTOR     = 7,  // only in fast mode
+  NORMAL                    = 0,  // only in slow mode
+  FIELD                     = 1,  // only in fast mode
+  CONSTANT_FUNCTION         = 2,  // only in fast mode
+  CALLBACKS                 = 3,
+  INTERCEPTOR               = 4,  // only in lookup results, not in descriptors.
+  MAP_TRANSITION            = 5,  // only in fast mode
+  EXTERNAL_ARRAY_TRANSITION = 6,
+  CONSTANT_TRANSITION       = 7,  // only in fast mode
+  NULL_DESCRIPTOR           = 8,  // only in fast mode
   // All properties before MAP_TRANSITION are real.
   FIRST_PHANTOM_PROPERTY_TYPE = MAP_TRANSITION,
   // There are no IC stubs for NULL_DESCRIPTORS. Therefore,

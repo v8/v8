@@ -2981,14 +2981,16 @@ void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
   // map if the element type is now changing, because assumptions about
   // generated code based on the receiver's map will be invalid.
   i::Handle<i::HeapObject> elements(object->elements());
-  bool force_unique_map =
+  bool cant_reuse_map =
       elements->map()->IsUndefined() ||
       !elements->map()->has_external_array_elements() ||
       elements->map() != HEAP->MapForExternalArrayType(array_type);
-  if (force_unique_map) {
+  if (cant_reuse_map) {
     i::Handle<i::Map> external_array_map =
-        FACTORY->NewExternalArrayElementsMap(
-            i::Handle<i::Map>(object->map()));
+        FACTORY->GetExternalArrayElementsMap(
+            i::Handle<i::Map>(object->map()),
+            array_type,
+            object->HasFastProperties());
     object->set_map(*external_array_map);
   }
   object->set_elements(*array);

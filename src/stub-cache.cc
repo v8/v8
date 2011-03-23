@@ -649,7 +649,7 @@ MaybeObject* StubCache::ComputeKeyedLoadOrStoreExternalArray(
     }
     Object* result;
     { MaybeObject* maybe_result =
-          receiver->map()->UpdateCodeCache(name, Code::cast(code));
+          receiver->UpdateMapCodeCache(name, Code::cast(code));
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
   }
