@@ -106,8 +106,9 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
-  node->set_next(deoptimizing_code_list_);
-  deoptimizing_code_list_ = node;
+  DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
+  node->set_next(data->deoptimizing_code_list_);
+  data->deoptimizing_code_list_ = node;
 
   // Set the code for the function to non-optimized version.
   function->ReplaceCode(function->shared()->code());
@@ -315,7 +316,8 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
         optimized_code_->entry() + pc_offset);
     output_[0]->SetPc(pc);
   }
-  Code* continuation = Builtins::builtin(Builtins::NotifyOSR);
+  Code* continuation = Isolate::Current()->builtins()->builtin(
+    Builtins::NotifyOSR);
   output_[0]->SetContinuation(
       reinterpret_cast<uint32_t>(continuation->entry()));
 
@@ -489,11 +491,13 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
       FullCodeGenerator::StateField::decode(pc_and_state);
   output_frame->SetState(Smi::FromInt(state));
 
+
   // Set the continuation for the topmost frame.
   if (is_topmost) {
+    Builtins* builtins = isolate_->builtins();
     Code* continuation = (bailout_type_ == EAGER)
-        ? Builtins::builtin(Builtins::NotifyDeoptimized)
-        : Builtins::builtin(Builtins::NotifyLazyDeoptimized);
+        ? builtins->builtin(Builtins::NotifyDeoptimized)
+        : builtins->builtin(Builtins::NotifyLazyDeoptimized);
     output_frame->SetContinuation(
         reinterpret_cast<uint32_t>(continuation->entry()));
   }
@@ -509,6 +513,9 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
 // easily ported.
 void Deoptimizer::EntryGenerator::Generate() {
   GeneratePrologue();
+
+  Isolate* isolate = masm()->isolate();
+
   CpuFeatures::Scope scope(VFP3);
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -563,7 +570,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // r3: code address or 0 already loaded.
   __ str(r4, MemOperand(sp, 0 * kPointerSize));  // Fp-to-sp delta.
   // Call Deoptimizer::New().
-  __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);
+  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 5);
 
   // Preserve "deoptimizer" object in register r0 and get the input
   // frame descriptor pointer to r1 (deoptimizer->input_);
@@ -617,7 +624,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   // r0: deoptimizer object; r1: scratch.
   __ PrepareCallCFunction(1, r1);
   // Call Deoptimizer::ComputeOutputFrames().
-  __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
+  __ CallCFunction(
+      ExternalReference::compute_output_frames_function(isolate), 1);
   __ pop(r0);  // Restore deoptimizer object (class Deoptimizer).
 
   // Replace the current (input) frame with the output frames.
@@ -667,7 +675,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ pop(ip);  // remove lr
 
   // Set up the roots register.
-  ExternalReference roots_address = ExternalReference::roots_address();
+  ExternalReference roots_address = ExternalReference::roots_address(isolate);
   __ mov(r10, Operand(roots_address));
 
   __ pop(ip);  // remove pc

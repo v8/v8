@@ -68,7 +68,7 @@ TEST(DisasmIa320) {
   __ sub(Operand(eax), Immediate(12345678));
   __ xor_(eax, 12345678);
   __ and_(eax, 12345678);
-  Handle<FixedArray> foo = Factory::NewFixedArray(10, TENURED);
+  Handle<FixedArray> foo = FACTORY->NewFixedArray(10, TENURED);
   __ cmp(eax, foo);
 
   // ---- This one caused crash
@@ -99,7 +99,7 @@ TEST(DisasmIa320) {
   __ cmp(edx, 3);
   __ cmp(edx, Operand(esp, 4));
   __ cmp(Operand(ebp, ecx, times_4, 0), Immediate(1000));
-  Handle<FixedArray> foo2 = Factory::NewFixedArray(10, TENURED);
+  Handle<FixedArray> foo2 = FACTORY->NewFixedArray(10, TENURED);
   __ cmp(ebx, foo2);
   __ cmpb(ebx, Operand(ebp, ecx, times_2, 0));
   __ cmpb(Operand(ebp, ecx, times_2, 0), ebx);
@@ -107,12 +107,12 @@ TEST(DisasmIa320) {
   __ xor_(edx, 3);
   __ nop();
   {
-    CHECK(CpuFeatures::IsSupported(CPUID));
+    CHECK(Isolate::Current()->cpu_features()->IsSupported(CPUID));
     CpuFeatures::Scope fscope(CPUID);
     __ cpuid();
   }
   {
-    CHECK(CpuFeatures::IsSupported(RDTSC));
+    CHECK(Isolate::Current()->cpu_features()->IsSupported(RDTSC));
     CpuFeatures::Scope fscope(RDTSC);
     __ rdtsc();
   }
@@ -272,7 +272,8 @@ TEST(DisasmIa320) {
   __ bind(&L2);
   __ call(Operand(ebx, ecx, times_4, 10000));
   __ nop();
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::LoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
   __ call(FUNCTION_ADDR(DummyStaticFunction), RelocInfo::RUNTIME_ENTRY);
@@ -282,7 +283,8 @@ TEST(DisasmIa320) {
   __ jmp(Operand(ebx, ecx, times_4, 10000));
 #ifdef ENABLE_DEBUGGER_SUPPORT
   ExternalReference after_break_target =
-      ExternalReference(Debug_Address::AfterBreakTarget());
+      ExternalReference(Debug_Address::AfterBreakTarget(),
+                        assm.isolate());
   __ jmp(Operand::StaticVariable(after_break_target));
 #endif  // ENABLE_DEBUGGER_SUPPORT
   __ jmp(ic, RelocInfo::CODE_TARGET);
@@ -332,7 +334,7 @@ TEST(DisasmIa320) {
   __ j(zero, &Ljcc, taken);
   __ j(zero, &Ljcc, not_taken);
 
-  // __ mov(Operand::StaticVariable(Top::handler_address()), eax);
+  // __ mov(Operand::StaticVariable(Isolate::handler_address()), eax);
   // 0xD9 instructions
   __ nop();
 
@@ -373,7 +375,7 @@ TEST(DisasmIa320) {
   __ fwait();
   __ nop();
   {
-    if (CpuFeatures::IsSupported(SSE2)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
       CpuFeatures::Scope fscope(SSE2);
       __ cvttss2si(edx, Operand(ebx, ecx, times_4, 10000));
       __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
@@ -395,7 +397,7 @@ TEST(DisasmIa320) {
 
   // cmov.
   {
-    if (CpuFeatures::IsSupported(CMOV)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(CMOV)) {
       CpuFeatures::Scope use_cmov(CMOV);
       __ cmov(overflow, eax, Operand(eax, 0));
       __ cmov(no_overflow, eax, Operand(eax, 1));
@@ -418,7 +420,7 @@ TEST(DisasmIa320) {
 
   // andpd, cmpltsd, movaps, psllq, psrlq, por.
   {
-    if (CpuFeatures::IsSupported(SSE2)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
       CpuFeatures::Scope fscope(SSE2);
       __ andpd(xmm0, xmm1);
       __ andpd(xmm1, xmm2);
@@ -447,7 +449,7 @@ TEST(DisasmIa320) {
   }
 
   {
-    if (CpuFeatures::IsSupported(SSE4_1)) {
+    if (Isolate::Current()->cpu_features()->IsSupported(SSE4_1)) {
       CpuFeatures::Scope scope(SSE4_1);
       __ pextrd(Operand(eax), xmm0, 1);
       __ pinsrd(xmm1, Operand(eax), 0);
@@ -458,10 +460,10 @@ TEST(DisasmIa320) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(
+  Object* code = HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(Heap::undefined_value()))->ToObjectChecked();
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef OBJECT_PRINT
   Code::cast(code)->Print();

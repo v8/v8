@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
+
 #include "arm/lithium-codegen-arm.h"
 #include "arm/lithium-gap-resolver-arm.h"
 #include "code-stubs.h"
@@ -489,7 +491,7 @@ void LCodeGen::CallCode(Handle<Code> code,
 }
 
 
-void LCodeGen::CallRuntime(Runtime::Function* function,
+void LCodeGen::CallRuntime(const Runtime::Function* function,
                            int num_arguments,
                            LInstruction* instr) {
   ASSERT(instr != NULL);
@@ -588,14 +590,14 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
   if (length == 0) return;
   ASSERT(FLAG_deopt);
   Handle<DeoptimizationInputData> data =
-      Factory::NewDeoptimizationInputData(length, TENURED);
+      factory()->NewDeoptimizationInputData(length, TENURED);
 
   Handle<ByteArray> translations = translations_.CreateByteArray();
   data->SetTranslationByteArray(*translations);
   data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
 
   Handle<FixedArray> literals =
-      Factory::NewFixedArray(deoptimization_literals_.length(), TENURED);
+      factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);
   for (int i = 0; i < deoptimization_literals_.length(); i++) {
     literals->set(i, *deoptimization_literals_[i]);
   }
@@ -800,7 +802,7 @@ void LCodeGen::DoModI(LModI* instr) {
     if (divisor < 0) divisor = -divisor;
 
     Label positive_dividend, done;
-    __ tst(dividend, Operand(dividend));
+    __ cmp(dividend, Operand(0));
     __ b(pl, &positive_dividend);
     __ rsb(dividend, dividend, Operand(0));
     __ and_(dividend, dividend, Operand(divisor - 1));
@@ -815,55 +817,67 @@ void LCodeGen::DoModI(LModI* instr) {
     return;
   }
 
-  class DeferredModI: public LDeferredCode {
-   public:
-    DeferredModI(LCodeGen* codegen, LModI* instr)
-        : LDeferredCode(codegen), instr_(instr) { }
-    virtual void Generate() {
-      codegen()->DoDeferredBinaryOpStub(instr_, Token::MOD);
-    }
-   private:
-    LModI* instr_;
-  };
   // These registers hold untagged 32 bit values.
   Register left = ToRegister(instr->InputAt(0));
   Register right = ToRegister(instr->InputAt(1));
   Register result = ToRegister(instr->result());
-  Register scratch = scratch0();
 
-  Label deoptimize, done;
+  Register scratch = scratch0();
+  Register scratch2 = ToRegister(instr->TempAt(0));
+  DwVfpRegister dividend = ToDoubleRegister(instr->TempAt(1));
+  DwVfpRegister divisor = ToDoubleRegister(instr->TempAt(2));
+  DwVfpRegister quotient = double_scratch0();
+
+  ASSERT(result.is(left));
+
+  ASSERT(!dividend.is(divisor));
+  ASSERT(!dividend.is(quotient));
+  ASSERT(!divisor.is(quotient));
+  ASSERT(!scratch.is(left));
+  ASSERT(!scratch.is(right));
+  ASSERT(!scratch.is(result));
+
+  Label done, vfp_modulo, both_positive, right_negative;
+
   // Check for x % 0.
   if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
-    __ tst(right, Operand(right));
-    __ b(eq, &deoptimize);
+    __ cmp(right, Operand(0));
+    DeoptimizeIf(eq, instr->environment());
   }
 
-  // Check for (0 % -x) that will produce negative zero.
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    Label ok;
-    __ tst(left, Operand(left));
-    __ b(ne, &ok);
-    __ tst(right, Operand(right));
-    __ b(pl, &ok);
-    __ b(al, &deoptimize);
-    __ bind(&ok);
-  }
-
-  // Try a few common cases before using the stub.
-  Label call_stub;
-  const int kUnfolds = 3;
-  // Skip if either side is negative.
+  // (0 % x) must yield 0 (if x is finite, which is the case here).
   __ cmp(left, Operand(0));
-  __ cmp(right, Operand(0), NegateCondition(mi));
-  __ b(mi, &call_stub);
+  __ b(eq, &done);
+  // Preload right in a vfp register.
+  __ vmov(divisor.low(), right);
+  __ b(lt, &vfp_modulo);
+
+  __ cmp(left, Operand(right));
+  __ b(lt, &done);
+
+  // Check for (positive) power of two on the right hand side.
+  __ JumpIfNotPowerOfTwoOrZeroAndNeg(right,
+                                     scratch,
+                                     &right_negative,
+                                     &both_positive);
+  // Perform modulo operation (scratch contains right - 1).
+  __ and_(result, scratch, Operand(left));
+  __ b(&done);
+
+  __ bind(&right_negative);
+  // Negate right. The sign of the divisor does not matter.
+  __ rsb(right, right, Operand(0));
+
+  __ bind(&both_positive);
+  const int kUnfolds = 3;
   // If the right hand side is smaller than the (nonnegative)
-  // left hand side, it is the result. Else try a few subtractions
-  // of the left hand side.
+  // left hand side, the left hand side is the result.
+  // Else try a few subtractions of the left hand side.
   __ mov(scratch, left);
   for (int i = 0; i < kUnfolds; i++) {
     // Check if the left hand side is less or equal than the
     // the right hand side.
-    __ cmp(scratch, right);
+    __ cmp(scratch, Operand(right));
     __ mov(result, scratch, LeaveCC, lt);
     __ b(lt, &done);
     // If not, reduce the left hand side by the right hand
@@ -871,29 +885,45 @@ void LCodeGen::DoModI(LModI* instr) {
     if (i < kUnfolds - 1) __ sub(scratch, scratch, right);
   }
 
-  // Check for power of two on the right hand side.
-  __ JumpIfNotPowerOfTwoOrZero(right, scratch, &call_stub);
-  // Perform modulo operation (scratch contains right - 1).
-  __ and_(result, scratch, Operand(left));
-  __ b(&done);
+  __ bind(&vfp_modulo);
+  // Load the arguments in VFP registers.
+  // The divisor value is preloaded before. Be careful that 'right' is only live
+  // on entry.
+  __ vmov(dividend.low(), left);
+  // From here on don't use right as it may have been reallocated (for example
+  // to scratch2).
+  right = no_reg;
 
-  __ bind(&call_stub);
-  // Call the stub. The numbers in r0 and r1 have
-  // to be tagged to Smis. If that is not possible, deoptimize.
-  DeferredModI* deferred = new DeferredModI(this, instr);
-  __ TrySmiTag(left, &deoptimize, scratch);
-  __ TrySmiTag(right, &deoptimize, scratch);
+  __ vcvt_f64_s32(dividend, dividend.low());
+  __ vcvt_f64_s32(divisor, divisor.low());
 
-  __ b(al, deferred->entry());
-  __ bind(deferred->exit());
+  // We do not care about the sign of the divisor.
+  __ vabs(divisor, divisor);
+  // Compute the quotient and round it to a 32bit integer.
+  __ vdiv(quotient, dividend, divisor);
+  __ vcvt_s32_f64(quotient.low(), quotient);
+  __ vcvt_f64_s32(quotient, quotient.low());
 
-  // If the result in r0 is a Smi, untag it, else deoptimize.
-  __ JumpIfNotSmi(result, &deoptimize);
-  __ SmiUntag(result);
+  // Compute the remainder in result.
+  DwVfpRegister double_scratch = dividend;
+  __ vmul(double_scratch, divisor, quotient);
+  __ vcvt_s32_f64(double_scratch.low(), double_scratch);
+  __ vmov(scratch, double_scratch.low());
 
-  __ b(al, &done);
-  __ bind(&deoptimize);
-  DeoptimizeIf(al, instr->environment());
+  if (!instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ sub(result, left, scratch);
+  } else {
+    Label ok;
+    // Check for -0.
+    __ sub(scratch2, left, scratch, SetCC);
+    __ b(ne, &ok);
+    __ cmp(left, Operand(0));
+    DeoptimizeIf(mi, instr->environment());
+    __ bind(&ok);
+    // Load the result and we are done.
+    __ mov(result, scratch2);
+  }
+
   __ bind(&done);
 }
 
@@ -917,16 +947,16 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
   // Check for x / 0.
   if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
-    __ tst(right, right);
+    __ cmp(right, Operand(0));
     DeoptimizeIf(eq, instr->environment());
   }
 
   // Check for (0 / -x) that will produce negative zero.
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label left_not_zero;
-    __ tst(left, Operand(left));
+    __ cmp(left, Operand(0));
     __ b(ne, &left_not_zero);
-    __ tst(right, Operand(right));
+    __ cmp(right, Operand(0));
     DeoptimizeIf(mi, instr->environment());
     __ bind(&left_not_zero);
   }
@@ -1033,7 +1063,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // Bail out if the result is supposed to be negative zero.
     Label done;
-    __ tst(left, Operand(left));
+    __ cmp(left, Operand(0));
     __ b(ne, &done);
     if (instr->InputAt(1)->IsConstantOperand()) {
       if (ToInteger32(LConstantOperand::cast(instr->InputAt(1))) <= 0) {
@@ -1259,7 +1289,8 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ PrepareCallCFunction(4, scratch0());
       __ vmov(r0, r1, left);
       __ vmov(r2, r3, right);
-      __ CallCFunction(ExternalReference::double_fp_operation(Token::MOD), 4);
+      __ CallCFunction(
+          ExternalReference::double_fp_operation(Token::MOD, isolate()), 4);
       // Move the result in the double result register.
       __ GetCFunctionDoubleResult(ToDoubleRegister(instr->result()));
 
@@ -1898,10 +1929,9 @@ void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
   InstanceofStub stub(InstanceofStub::kArgsInRegisters);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 
-  Label true_value, done;
-  __ tst(r0, r0);
-  __ mov(r0, Operand(Factory::false_value()), LeaveCC, ne);
-  __ mov(r0, Operand(Factory::true_value()), LeaveCC, eq);
+  __ cmp(r0, Operand(0));
+  __ mov(r0, Operand(factory()->false_value()), LeaveCC, ne);
+  __ mov(r0, Operand(factory()->true_value()), LeaveCC, eq);
 }
 
 
@@ -1914,7 +1944,7 @@ void LCodeGen::DoInstanceOfAndBranch(LInstanceOfAndBranch* instr) {
 
   InstanceofStub stub(InstanceofStub::kArgsInRegisters);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-  __ tst(r0, Operand(r0));
+  __ cmp(r0, Operand(0));
   EmitBranch(true_block, false_block, eq);
 }
 
@@ -1960,13 +1990,13 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   // We use Factory::the_hole_value() on purpose instead of loading from the
   // root array to force relocation to be able to later patch with
   // the cached map.
-  __ mov(ip, Operand(Factory::the_hole_value()));
+  __ mov(ip, Operand(factory()->the_hole_value()));
   __ cmp(map, Operand(ip));
   __ b(ne, &cache_miss);
   // We use Factory::the_hole_value() on purpose instead of loading from the
   // root array to force relocation to be able to later patch
   // with true or false.
-  __ mov(result, Operand(Factory::the_hole_value()));
+  __ mov(result, Operand(factory()->the_hole_value()));
   __ b(&done);
 
   // The inlined call site cache did not match. Check null and string before
@@ -2179,7 +2209,8 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
 
   // Name is always in r2.
   __ mov(r2, Operand(instr->name()));
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Handle<Code> ic(
+      isolate()->builtins()->builtin(Builtins::LoadIC_Initialize));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2310,7 +2341,8 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->object()).is(r1));
   ASSERT(ToRegister(instr->key()).is(r0));
 
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic(isolate()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Initialize));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2402,7 +2434,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // stack.
   Label invoke, loop;
   // length is a small non-negative integer, due to the test above.
-  __ tst(length, Operand(length));
+  __ cmp(length, Operand(0));
   __ b(eq, &invoke);
   __ bind(&loop);
   __ ldr(scratch, MemOperand(elements, length, LSL, 2));
@@ -2638,14 +2670,16 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   // Move the result back to general purpose register r0.
   __ vmov(result, single_scratch);
 
-  // Test for -0.
-  Label done;
-  __ cmp(result, Operand(0));
-  __ b(ne, &done);
-  __ vmov(scratch1, input.high());
-  __ tst(scratch1, Operand(HeapNumber::kSignMask));
-  DeoptimizeIf(ne, instr->environment());
-  __ bind(&done);
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    // Test for -0.
+    Label done;
+    __ cmp(result, Operand(0));
+    __ b(ne, &done);
+    __ vmov(scratch1, input.high());
+    __ tst(scratch1, Operand(HeapNumber::kSignMask));
+    DeoptimizeIf(ne, instr->environment());
+    __ bind(&done);
+  }
 }
 
 
@@ -2662,14 +2696,16 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   DeoptimizeIf(ne, instr->environment());
   __ vmov(result, double_scratch0().low());
 
-  // Test for -0.
-  Label done;
-  __ cmp(result, Operand(0));
-  __ b(ne, &done);
-  __ vmov(scratch1, input.high());
-  __ tst(scratch1, Operand(HeapNumber::kSignMask));
-  DeoptimizeIf(ne, instr->environment());
-  __ bind(&done);
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    // Test for -0.
+    Label done;
+    __ cmp(result, Operand(0));
+    __ b(ne, &done);
+    __ vmov(scratch1, input.high());
+    __ tst(scratch1, Operand(HeapNumber::kSignMask));
+    DeoptimizeIf(ne, instr->environment());
+    __ bind(&done);
+  }
 }
 
 
@@ -2707,14 +2743,16 @@ void LCodeGen::DoPower(LPower* instr) {
     __ PrepareCallCFunction(4, scratch);
     __ vmov(r0, r1, ToDoubleRegister(left));
     __ vmov(r2, r3, ToDoubleRegister(right));
-    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(isolate()), 4);
   } else if (exponent_type.IsInteger32()) {
     ASSERT(ToRegister(right).is(r0));
     // Prepare arguments and call C function.
     __ PrepareCallCFunction(4, scratch);
     __ mov(r2, ToRegister(right));
     __ vmov(r0, r1, ToDoubleRegister(left));
-    __ CallCFunction(ExternalReference::power_double_int_function(), 4);
+    __ CallCFunction(
+        ExternalReference::power_double_int_function(isolate()), 4);
   } else {
     ASSERT(exponent_type.IsTagged());
     ASSERT(instr->hydrogen()->left()->representation().IsDouble());
@@ -2747,7 +2785,8 @@ void LCodeGen::DoPower(LPower* instr) {
     __ PrepareCallCFunction(4, scratch);
     __ vmov(r0, r1, ToDoubleRegister(left));
     __ vmov(r2, r3, result_reg);
-    __ CallCFunction(ExternalReference::power_double_double_function(), 4);
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(isolate()), 4);
   }
   // Store the result in the result register.
   __ GetCFunctionDoubleResult(result_reg);
@@ -2815,7 +2854,8 @@ void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
-  Handle<Code> ic = StubCache::ComputeKeyedCallInitialize(arity, NOT_IN_LOOP);
+  Handle<Code> ic =
+      isolate()->stub_cache()->ComputeKeyedCallInitialize(arity, NOT_IN_LOOP);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
@@ -2825,7 +2865,8 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
-  Handle<Code> ic = StubCache::ComputeCallInitialize(arity, NOT_IN_LOOP);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(
+      arity, NOT_IN_LOOP);
   __ mov(r2, Operand(instr->name()));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
   // Restore context register.
@@ -2848,7 +2889,8 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
-  Handle<Code> ic = StubCache::ComputeCallInitialize(arity, NOT_IN_LOOP);
+  Handle<Code> ic =
+      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP);
   __ mov(r2, Operand(instr->name()));
   CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -2866,7 +2908,8 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
   ASSERT(ToRegister(instr->InputAt(0)).is(r1));
   ASSERT(ToRegister(instr->result()).is(r0));
 
-  Handle<Code> builtin(Builtins::builtin(Builtins::JSConstructCall));
+  Handle<Code> builtin(isolate()->builtins()->builtin(
+      Builtins::JSConstructCall));
   __ mov(r0, Operand(instr->arity()));
   CallCode(builtin, RelocInfo::CONSTRUCT_CALL, instr);
 }
@@ -2915,7 +2958,7 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
   // Name is always in r2.
   __ mov(r2, Operand(instr->name()));
-  Handle<Code> ic(Builtins::builtin(
+  Handle<Code> ic(isolate()->builtins()->builtin(
       info_->is_strict() ? Builtins::StoreIC_Initialize_Strict
                          : Builtins::StoreIC_Initialize));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -2970,7 +3013,7 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->key()).is(r1));
   ASSERT(ToRegister(instr->value()).is(r0));
 
-  Handle<Code> ic(Builtins::builtin(
+  Handle<Code> ic(isolate()->builtins()->builtin(
       info_->is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
                          : Builtins::KeyedStoreIC_Initialize));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -3582,9 +3625,9 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
 
 void LCodeGen::LoadHeapObject(Register result,
                               Handle<HeapObject> object) {
-  if (Heap::InNewSpace(*object)) {
+  if (heap()->InNewSpace(*object)) {
     Handle<JSGlobalPropertyCell> cell =
-        Factory::NewJSGlobalPropertyCell(object);
+        factory()->NewJSGlobalPropertyCell(object);
     __ mov(result, Operand(cell));
     __ ldr(result, FieldMemOperand(result, JSGlobalPropertyCell::kValueOffset));
   } else {
@@ -3666,6 +3709,13 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
 }
 
 
+void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
+  ASSERT(ToRegister(instr->InputAt(0)).is(r0));
+  __ push(r0);
+  CallRuntime(Runtime::kToFastProperties, 1, instr);
+}
+
+
 void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   Label materialized;
   // Registers will be used as follows:
@@ -3726,16 +3776,17 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   // space for nested functions that don't need literals cloning.
   Handle<SharedFunctionInfo> shared_info = instr->shared_info();
   bool pretenure = instr->hydrogen()->pretenure();
-  if (shared_info->num_literals() == 0 && !pretenure) {
-    FastNewClosureStub stub;
+  if (!pretenure && shared_info->num_literals() == 0) {
+    FastNewClosureStub stub(
+        shared_info->strict_mode() ? kStrictMode : kNonStrictMode);
     __ mov(r1, Operand(shared_info));
     __ push(r1);
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   } else {
     __ mov(r2, Operand(shared_info));
     __ mov(r1, Operand(pretenure
-                       ? Factory::true_value()
-                       : Factory::false_value()));
+                       ? factory()->true_value()
+                       : factory()->false_value()));
     __ Push(cp, r2, r1);
     CallRuntime(Runtime::kNewClosure, 3, instr);
   }
@@ -3794,14 +3845,14 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
                                  Handle<String> type_name) {
   Condition final_branch_condition = kNoCondition;
   Register scratch = scratch0();
-  if (type_name->Equals(Heap::number_symbol())) {
+  if (type_name->Equals(heap()->number_symbol())) {
     __ JumpIfSmi(input, true_label);
     __ ldr(input, FieldMemOperand(input, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
     __ cmp(input, Operand(ip));
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(Heap::string_symbol())) {
+  } else if (type_name->Equals(heap()->string_symbol())) {
     __ JumpIfSmi(input, false_label);
     __ CompareObjectType(input, input, scratch, FIRST_NONSTRING_TYPE);
     __ b(ge, false_label);
@@ -3809,13 +3860,13 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ tst(ip, Operand(1 << Map::kIsUndetectable));
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(Heap::boolean_symbol())) {
+  } else if (type_name->Equals(heap()->boolean_symbol())) {
     __ CompareRoot(input, Heap::kTrueValueRootIndex);
     __ b(eq, true_label);
     __ CompareRoot(input, Heap::kFalseValueRootIndex);
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(Heap::undefined_symbol())) {
+  } else if (type_name->Equals(heap()->undefined_symbol())) {
     __ CompareRoot(input, Heap::kUndefinedValueRootIndex);
     __ b(eq, true_label);
     __ JumpIfSmi(input, false_label);
@@ -3825,12 +3876,12 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ tst(ip, Operand(1 << Map::kIsUndetectable));
     final_branch_condition = ne;
 
-  } else if (type_name->Equals(Heap::function_symbol())) {
+  } else if (type_name->Equals(heap()->function_symbol())) {
     __ JumpIfSmi(input, false_label);
     __ CompareObjectType(input, input, scratch, FIRST_FUNCTION_CLASS_TYPE);
     final_branch_condition = ge;
 
-  } else if (type_name->Equals(Heap::object_symbol())) {
+  } else if (type_name->Equals(heap()->object_symbol())) {
     __ JumpIfSmi(input, false_label);
     __ CompareRoot(input, Heap::kNullValueRootIndex);
     __ b(eq, true_label);

@@ -474,13 +474,13 @@ class MacroAssembler: public Assembler {
   void StubReturn(int argc);
 
   // Call a runtime routine.
-  void CallRuntime(Runtime::Function* f, int num_arguments);
+  void CallRuntime(const Runtime::Function* f, int num_arguments);
   void CallRuntimeSaveDoubles(Runtime::FunctionId id);
 
   // Call a runtime function, returning the CodeStub object called.
   // Try to generate the stub code if necessary.  Do not perform a GC
   // but instead return a retry after GC failure.
-  MUST_USE_RESULT MaybeObject* TryCallRuntime(Runtime::Function* f,
+  MUST_USE_RESULT MaybeObject* TryCallRuntime(const Runtime::Function* f,
                                               int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
@@ -695,14 +695,16 @@ void MacroAssembler::InNewSpace(Register object,
     // The mask isn't really an address.  We load it as an external reference in
     // case the size of the new space is different between the snapshot maker
     // and the running system.
-    and_(Operand(scratch), Immediate(ExternalReference::new_space_mask()));
-    cmp(Operand(scratch), Immediate(ExternalReference::new_space_start()));
+    and_(Operand(scratch),
+         Immediate(ExternalReference::new_space_mask(isolate())));
+    cmp(Operand(scratch),
+        Immediate(ExternalReference::new_space_start(isolate())));
     j(cc, branch);
   } else {
     int32_t new_space_start = reinterpret_cast<int32_t>(
-        ExternalReference::new_space_start().address());
+        ExternalReference::new_space_start(isolate()).address());
     lea(scratch, Operand(object, -new_space_start));
-    and_(scratch, Heap::NewSpaceMask());
+    and_(scratch, isolate()->heap()->NewSpaceMask());
     j(cc, branch);
   }
 }

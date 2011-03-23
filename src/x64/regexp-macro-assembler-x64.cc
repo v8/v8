@@ -63,11 +63,16 @@ namespace internal {
  *
  * The registers rax, rbx, r9 and r11 are free to use for computations.
  * If changed to use r12+, they should be saved as callee-save registers.
+ * The macro assembler special registers r12 and r13 (kSmiConstantRegister,
+ * kRootRegister) aren't special during execution of RegExp code (they don't
+ * hold the values assumed when creating JS code), so no Smi or Root related
+ * macro operations can be used.
  *
  * Each call to a C++ method should retain these registers.
  *
  * The stack will have the following content, in some order, indexable from the
  * frame pointer (see, e.g., kStackHighEnd):
+ *    - Isolate* isolate     (Address of the current isolate)
  *    - direct_call          (if 1, direct call from JavaScript code, if 0 call
  *                            through the runtime system)
  *    - stack_area_base      (High end of the memory area to use as
@@ -110,6 +115,7 @@ RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(
     Mode mode,
     int registers_to_save)
     : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
+      no_root_array_scope_(masm_),
       code_relative_fixup_positions_(4),
       mode_(mode),
       num_registers_(registers_to_save),
@@ -422,7 +428,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     __ movq(rdx, rbx);
 #endif
     ExternalReference compare =
-        ExternalReference::re_case_insensitive_compare_uc16();
+        ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
     __ CallCFunction(compare, num_arguments);
 
     // Restore original values before reacting on result value.
@@ -740,7 +746,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   Label stack_ok;
 
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit();
+      ExternalReference::address_of_stack_limit(masm_->isolate());
   __ movq(rcx, rsp);
   __ movq(kScratchRegister, stack_limit);
   __ subq(rcx, Operand(kScratchRegister, 0));
@@ -925,7 +931,8 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ movq(rdi, backtrack_stackpointer());   // First argument.
     __ lea(rsi, Operand(rbp, kStackHighEnd));  // Second argument.
 #endif
-    ExternalReference grow_stack = ExternalReference::re_grow_stack();
+    ExternalReference grow_stack =
+        ExternalReference::re_grow_stack(masm_->isolate());
     __ CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
@@ -954,10 +961,11 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(&code_desc);
-  Handle<Code> code = Factory::NewCode(code_desc,
-                                       Code::ComputeFlags(Code::REGEXP),
-                                       masm_->CodeObject());
-  PROFILE(RegExpCodeCreateEvent(*code, *source));
+  Isolate* isolate = ISOLATE;
+  Handle<Code> code = isolate->factory()->NewCode(
+      code_desc, Code::ComputeFlags(Code::REGEXP),
+      masm_->CodeObject());
+  PROFILE(isolate, RegExpCodeCreateEvent(*code, *source));
   return Handle<Object>::cast(code);
 }
 
@@ -1126,7 +1134,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   __ lea(rdi, Operand(rsp, -kPointerSize));
 #endif
   ExternalReference stack_check =
-      ExternalReference::re_check_stack_guard_state();
+      ExternalReference::re_check_stack_guard_state(masm_->isolate());
   __ CallCFunction(stack_check, num_arguments);
 }
 
@@ -1141,8 +1149,10 @@ static T& frame_entry(Address re_frame, int frame_offset) {
 int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
                                                   Code* re_code,
                                                   Address re_frame) {
-  if (StackGuard::IsStackOverflow()) {
-    Top::StackOverflow();
+  Isolate* isolate = frame_entry<Isolate*>(re_frame, kIsolate);
+  ASSERT(isolate == Isolate::Current());
+  if (isolate->stack_guard()->IsStackOverflow()) {
+    isolate->StackOverflow();
     return EXCEPTION;
   }
 
@@ -1324,7 +1334,7 @@ void RegExpMacroAssemblerX64::CheckPreemption() {
   // Check for preemption.
   Label no_preempt;
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit();
+      ExternalReference::address_of_stack_limit(masm_->isolate());
   __ load_rax(stack_limit);
   __ cmpq(rsp, rax);
   __ j(above, &no_preempt);
@@ -1338,7 +1348,7 @@ void RegExpMacroAssemblerX64::CheckPreemption() {
 void RegExpMacroAssemblerX64::CheckStackLimit() {
   Label no_stack_overflow;
   ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit();
+      ExternalReference::address_of_regexp_stack_limit(masm_->isolate());
   __ load_rax(stack_limit);
   __ cmpq(backtrack_stackpointer(), rax);
   __ j(above, &no_stack_overflow);

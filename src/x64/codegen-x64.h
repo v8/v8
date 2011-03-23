@@ -357,6 +357,7 @@ class CodeGenerator: public AstVisitor {
   // Accessors
   inline bool is_eval();
   inline Scope* scope();
+  inline bool is_strict_mode();
   inline StrictModeFlag strict_mode_flag();
 
   // Generating deferred code.
@@ -732,6 +733,7 @@ class CodeGenerator: public AstVisitor {
   bool in_spilled_code_;
 
   friend class VirtualFrame;
+  friend class Isolate;
   friend class JumpTarget;
   friend class Reference;
   friend class Result;
@@ -740,6 +742,7 @@ class CodeGenerator: public AstVisitor {
   friend class FullCodeGenSyntaxChecker;
 
   friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
+  friend class InlineRuntimeFunctionsTable;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

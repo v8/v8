@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
 #include "hydrogen.h"
 
 #include "codegen.h"
@@ -110,6 +111,21 @@ void HBasicBlock::AddInstruction(HInstruction* instr) {
   }
   instr->InsertAfter(last_);
   last_ = instr;
+}
+
+
+HDeoptimize* HBasicBlock::CreateDeoptimize() {
+  ASSERT(HasEnvironment());
+  HEnvironment* environment = last_environment();
+
+  HDeoptimize* instr = new HDeoptimize(environment->length());
+
+  for (int i = 0; i < environment->length(); i++) {
+    HValue* val = environment->values()->at(i);
+    instr->AddEnvironmentValue(val);
+  }
+
+  return instr;
 }
 
 
@@ -496,12 +512,12 @@ HConstant* HGraph::GetConstantMinus1() {
 
 
 HConstant* HGraph::GetConstantTrue() {
-  return GetConstant(&constant_true_, Heap::true_value());
+  return GetConstant(&constant_true_, isolate()->heap()->true_value());
 }
 
 
 HConstant* HGraph::GetConstantFalse() {
-  return GetConstant(&constant_false_, Heap::false_value());
+  return GetConstant(&constant_false_, isolate()->heap()->false_value());
 }
 
 
@@ -557,7 +573,8 @@ void HBasicBlock::FinishExit(HControlInstruction* instruction) {
 
 
 HGraph::HGraph(CompilationInfo* info)
-    : next_block_id_(0),
+    : isolate_(info->isolate()),
+      next_block_id_(0),
       entry_block_(NULL),
       blocks_(8),
       values_(16),
@@ -1011,8 +1028,8 @@ HValueMap::HValueMap(const HValueMap* other)
       lists_size_(other->lists_size_),
       count_(other->count_),
       present_flags_(other->present_flags_),
-      array_(Zone::NewArray<HValueMapListElement>(other->array_size_)),
-      lists_(Zone::NewArray<HValueMapListElement>(other->lists_size_)),
+      array_(ZONE->NewArray<HValueMapListElement>(other->array_size_)),
+      lists_(ZONE->NewArray<HValueMapListElement>(other->lists_size_)),
       free_list_head_(other->free_list_head_) {
   memcpy(array_, other->array_, array_size_ * sizeof(HValueMapListElement));
   memcpy(lists_, other->lists_, lists_size_ * sizeof(HValueMapListElement));
@@ -1091,7 +1108,7 @@ void HValueMap::Resize(int new_size) {
   }
 
   HValueMapListElement* new_array =
-      Zone::NewArray<HValueMapListElement>(new_size);
+      ZONE->NewArray<HValueMapListElement>(new_size);
   memset(new_array, 0, sizeof(HValueMapListElement) * new_size);
 
   HValueMapListElement* old_array = array_;
@@ -1129,7 +1146,7 @@ void HValueMap::ResizeLists(int new_size) {
   ASSERT(new_size > lists_size_);
 
   HValueMapListElement* new_lists =
-      Zone::NewArray<HValueMapListElement>(new_size);
+      ZONE->NewArray<HValueMapListElement>(new_size);
   memset(new_lists, 0, sizeof(HValueMapListElement) * new_size);
 
   HValueMapListElement* old_lists = lists_;
@@ -1232,12 +1249,12 @@ class HGlobalValueNumberer BASE_EMBEDDED {
         info_(info),
         block_side_effects_(graph_->blocks()->length()),
         loop_side_effects_(graph_->blocks()->length()) {
-    ASSERT(Heap::allow_allocation(false));
+    ASSERT(info->isolate()->heap()->allow_allocation(false));
     block_side_effects_.AddBlock(0, graph_->blocks()->length());
     loop_side_effects_.AddBlock(0, graph_->blocks()->length());
   }
   ~HGlobalValueNumberer() {
-    ASSERT(!Heap::allow_allocation(true));
+    ASSERT(!info_->isolate()->heap()->allow_allocation(true));
   }
 
   void Analyze();
@@ -2262,8 +2279,8 @@ void HGraphBuilder::SetupScope(Scope* scope) {
   // We don't yet handle the function name for named function expressions.
   if (scope->function() != NULL) BAILOUT("named function expression");
 
-  HConstant* undefined_constant =
-      new HConstant(Factory::undefined_value(), Representation::Tagged());
+  HConstant* undefined_constant = new HConstant(
+      isolate()->factory()->undefined_value(), Representation::Tagged());
   AddInstruction(undefined_constant);
   graph_->set_undefined_constant(undefined_constant);
 
@@ -2472,6 +2489,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   }
 
   VISIT_FOR_VALUE(stmt->tag());
+  AddSimulate(stmt->EntryId());
   HValue* tag_value = Pop();
   HBasicBlock* first_test_block = current_block();
 
@@ -2487,15 +2505,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     // Unconditionally deoptimize on the first non-smi compare.
     clause->RecordTypeFeedback(oracle());
     if (!clause->IsSmiCompare()) {
-      if (current_block() == first_test_block) {
-        // If the first test is the one that deopts and if the tag value is
-        // a phi, we need to have some use of that phi to prevent phi
-        // elimination from removing it.  This HSimulate is such a use.
-        Push(tag_value);
-        AddSimulate(stmt->EntryId());
-        Drop(1);
-      }
-      current_block()->Finish(new HDeoptimize());
+      current_block()->FinishExitWithDeoptimization();
       set_current_block(NULL);
       break;
     }
@@ -2895,7 +2905,8 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                                                 expr->constant_properties(),
                                                 expr->fast_elements(),
                                                 expr->literal_index(),
-                                                expr->depth()));
+                                                expr->depth(),
+                                                expr->has_function()));
   // The object is expected in the bailout environment during computation
   // of the property values and is the value of the entire expression.
   PushAndAdd(literal);
@@ -2936,7 +2947,19 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       default: UNREACHABLE();
     }
   }
-  ast_context()->ReturnValue(Pop());
+
+  if (expr->has_function()) {
+    // Return the result of the transformation to fast properties
+    // instead of the original since this operation changes the map
+    // of the object. This makes sure that the original object won't
+    // be used by other optimized code before it is transformed
+    // (e.g. because of code motion).
+    HToFastProperties* result = new HToFastProperties(Pop());
+    AddInstruction(result);
+    ast_context()->ReturnValue(result);
+  } else {
+    ast_context()->ReturnValue(Pop());
+  }
 }
 
 
@@ -3115,7 +3138,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExit(new HDeoptimize);
+    current_block()->FinishExitWithDeoptimization();
   } else {
     HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
     instr->set_position(expr->position());
@@ -3463,7 +3486,7 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExit(new HDeoptimize);
+    current_block()->FinishExitWithDeoptimization();
   } else {
     HInstruction* instr = BuildLoadNamedGeneric(object, expr);
     instr->set_position(expr->position());
@@ -3616,7 +3639,8 @@ HInstruction* HGraphBuilder::BuildStoreKeyedFastElement(HValue* object,
   ASSERT(map->has_fast_elements());
   AddInstruction(new HCheckMap(object, map));
   HInstruction* elements = AddInstruction(new HLoadElements(object));
-  AddInstruction(new HCheckMap(elements, Factory::fixed_array_map()));
+  AddInstruction(new HCheckMap(elements,
+                               isolate()->factory()->fixed_array_map()));
   bool is_array = (map->instance_type() == JS_ARRAY_TYPE);
   HInstruction* length = NULL;
   if (is_array) {
@@ -3828,7 +3852,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExit(new HDeoptimize);
+    current_block()->FinishExitWithDeoptimization();
   } else {
     HContext* context = new HContext;
     AddInstruction(context);
@@ -3927,7 +3951,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
   CompilationInfo target_info(target);
   if (!ParserApi::Parse(&target_info) ||
       !Scope::Analyze(&target_info)) {
-    if (Top::has_pending_exception()) {
+    if (target_info.isolate()->has_pending_exception()) {
       // Parse or scope error, never optimize this function.
       SetStackOverflow();
       target->shared()->set_optimization_disabled(true);
@@ -4216,13 +4240,6 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
 }
 
 
-static bool HasCustomCallGenerator(Handle<JSFunction> function) {
-  SharedFunctionInfo* info = function->shared();
-  return info->HasBuiltinFunctionId() &&
-      CallStubCompiler::HasCustomCallGenerator(info->builtin_function_id());
-}
-
-
 void HGraphBuilder::VisitCall(Call* expr) {
   Expression* callee = expr->expression();
   int argument_count = expr->arguments()->length() + 1;  // Plus receiver.
@@ -4280,13 +4297,11 @@ void HGraphBuilder::VisitCall(Call* expr) {
         return;
       }
 
-      if (HasCustomCallGenerator(expr->target()) ||
-          CallOptimization(*expr->target()).is_simple_api_call() ||
+      if (CallStubCompiler::HasCustomCallGenerator(*expr->target()) ||
           expr->check_type() != RECEIVER_MAP_CHECK) {
         // When the target has a custom call IC generator, use the IC,
-        // because it is likely to generate better code.  Similarly, we
-        // generate better call stubs for some API functions.
-        // Also use the IC when a primitive receiver check is required.
+        // because it is likely to generate better code.  Also use the IC
+        // when a primitive receiver check is required.
         HContext* context = new HContext;
         AddInstruction(context);
         call = PreProcessCall(new HCallNamed(context, name, argument_count));
@@ -4436,7 +4451,7 @@ void HGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
     BAILOUT("call to a JavaScript runtime function");
   }
 
-  Runtime::Function* function = expr->function();
+  const Runtime::Function* function = expr->function();
   ASSERT(function != NULL);
   if (function->intrinsic_type == Runtime::INLINE) {
     ASSERT(expr->name()->length() > 0);
@@ -4975,7 +4990,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         Handle<JSFunction> candidate(JSFunction::cast(lookup.GetValue()));
         // If the function is in new space we assume it's more likely to
         // change and thus prefer the general IC code.
-        if (!Heap::InNewSpace(*candidate)) {
+        if (!isolate()->heap()->InNewSpace(*candidate)) {
           target = candidate;
         }
       }

@@ -55,9 +55,9 @@ class HashMap {
 
   // initial_capacity is the size of the initial hash map;
   // it must be a power of 2 (and thus must not be 0).
-  HashMap(MatchFun match,
-          Allocator* allocator = &DefaultAllocator,
-          uint32_t initial_capacity = 8);
+  explicit HashMap(MatchFun match,
+                   Allocator* allocator = &DefaultAllocator,
+                   uint32_t initial_capacity = 8);
 
   ~HashMap();
 

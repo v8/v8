@@ -119,26 +119,34 @@ class UC16CharacterStream {
 };
 
 
+class ScannerConstants {
 // ---------------------------------------------------------------------
 // Constants used by scanners.
-
-class ScannerConstants : AllStatic {
  public:
   typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
 
-  static StaticResource<Utf8Decoder>* utf8_decoder() {
+  StaticResource<Utf8Decoder>* utf8_decoder() {
     return &utf8_decoder_;
   }
 
-  static unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
-  static unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
-  static unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
-  static unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
+  bool IsIdentifierStart(unibrow::uchar c) { return kIsIdentifierStart.get(c); }
+  bool IsIdentifierPart(unibrow::uchar c) { return kIsIdentifierPart.get(c); }
+  bool IsLineTerminator(unibrow::uchar c) { return kIsLineTerminator.get(c); }
+  bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
 
-  static bool IsIdentifier(unibrow::CharacterStream* buffer);
+  bool IsIdentifier(unibrow::CharacterStream* buffer);
 
  private:
-  static StaticResource<Utf8Decoder> utf8_decoder_;
+  ScannerConstants() {}
+
+  unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
+  unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
+  unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
+  unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
+  StaticResource<Utf8Decoder> utf8_decoder_;
+
+  friend class Isolate;
+  DISALLOW_COPY_AND_ASSIGN(ScannerConstants);
 };
 
 // ----------------------------------------------------------------------------
@@ -238,6 +246,8 @@ class LiteralBuffer {
   bool is_ascii_;
   int position_;
   Vector<byte> backing_store_;
+
+  DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
 };
 
 
@@ -263,7 +273,7 @@ class Scanner {
     bool complete_;
   };
 
-  Scanner();
+  explicit Scanner(Isolate* isolate);
 
   // Returns the current token again.
   Token::Value current_token() { return current_.token; }
@@ -418,6 +428,8 @@ class Scanner {
     return source_->pos() - kCharacterLookaheadBufferSize;
   }
 
+  ScannerConstants* scanner_constants_;
+
   // Buffers collecting literal strings, numbers, etc.
   LiteralBuffer literal_buffer1_;
   LiteralBuffer literal_buffer2_;
@@ -462,7 +474,7 @@ class JavaScriptScanner : public Scanner {
     bool complete_;
   };
 
-  JavaScriptScanner();
+  explicit JavaScriptScanner(Isolate* isolate);
 
   // Returns the next token.
   Token::Value Next();

@@ -1199,7 +1199,8 @@ LInstruction* LChunkBuilder::DoGlobalObject(HGlobalObject* instr) {
 
 
 LInstruction* LChunkBuilder::DoGlobalReceiver(HGlobalReceiver* instr) {
-  return DefineAsRegister(new LGlobalReceiver);
+  LOperand* global_object = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new LGlobalReceiver(global_object));
 }
 
 
@@ -1613,7 +1614,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       bool needs_check = !instr->value()->type().IsSmi();
       if (needs_check) {
         LOperand* xmm_temp =
-            (instr->CanTruncateToInt32() && CpuFeatures::IsSupported(SSE3))
+            (instr->CanTruncateToInt32() &&
+             Isolate::Current()->cpu_features()->IsSupported(SSE3))
             ? NULL
             : FixedTemp(xmm1);
         LTaggedToI* res = new LTaggedToI(value, xmm_temp);
@@ -1985,6 +1987,13 @@ LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
   LOperand* index = Use(instr->index());
   LAccessArgumentsAt* result = new LAccessArgumentsAt(arguments, length, index);
   return AssignEnvironment(DefineAsRegister(result));
+}
+
+
+LInstruction* LChunkBuilder::DoToFastProperties(HToFastProperties* instr) {
+  LOperand* object = UseFixed(instr->value(), rax);
+  LToFastProperties* result = new LToFastProperties(object);
+  return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
 

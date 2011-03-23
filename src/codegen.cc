@@ -61,9 +61,6 @@ Comment::~Comment() {
 #undef __
 
 
-CodeGenerator* CodeGeneratorScope::top_ = NULL;
-
-
 void CodeGenerator::ProcessDeferred() {
   while (!deferred_.is_empty()) {
     DeferredCode* code = deferred_.RemoveLast();
@@ -129,7 +126,7 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info) {
   bool print_json_ast = false;
   const char* ftype;
 
-  if (Bootstrapper::IsActive()) {
+  if (Isolate::Current()->bootstrapper()->IsActive()) {
     print_source = FLAG_print_builtin_source;
     print_ast = FLAG_print_builtin_ast;
     print_json_ast = FLAG_print_builtin_json_ast;
@@ -181,10 +178,10 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
   // Allocate and install the code.
   CodeDesc desc;
   masm->GetCode(&desc);
-  Handle<Code> code = Factory::NewCode(desc, flags, masm->CodeObject());
+  Handle<Code> code = FACTORY->NewCode(desc, flags, masm->CodeObject());
 
   if (!code.is_null()) {
-    Counters::total_compiled_code_size.Increment(code->instruction_size());
+    COUNTERS->total_compiled_code_size()->Increment(code->instruction_size());
   }
   return code;
 }
@@ -192,7 +189,7 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
 
 void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 #ifdef ENABLE_DISASSEMBLER
-  bool print_code = Bootstrapper::IsActive()
+  bool print_code = Isolate::Current()->bootstrapper()->IsActive()
       ? FLAG_print_builtin_code
       : (FLAG_print_code || (info->IsOptimizing() && FLAG_print_opt_code));
   Vector<const char> filter = CStrVector(FLAG_hydrogen_filter);
@@ -238,7 +235,7 @@ bool CodeGenerator::MakeCode(CompilationInfo* info) {
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
-    Counters::total_old_codegen_source_size.Increment(len);
+    COUNTERS->total_old_codegen_source_size()->Increment(len);
   }
   if (FLAG_trace_codegen) {
     PrintF("Classic Compiler - ");
@@ -251,10 +248,10 @@ bool CodeGenerator::MakeCode(CompilationInfo* info) {
   masm.positions_recorder()->StartGDBJITLineInfoRecording();
 #endif
   CodeGenerator cgen(&masm);
-  CodeGeneratorScope scope(&cgen);
+  CodeGeneratorScope scope(Isolate::Current(), &cgen);
   cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
-    ASSERT(!Top::has_pending_exception());
+    ASSERT(!Isolate::Current()->has_pending_exception());
     return false;
   }
 
@@ -279,12 +276,15 @@ bool CodeGenerator::MakeCode(CompilationInfo* info) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+
+static Vector<const char> kRegexp = CStrVector("regexp");
+
+
 bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   ASSERT(type != NULL);
-  if (!Logger::is_logging() && !CpuProfiler::is_profiling()) return false;
+  if (!LOGGER->is_logging() && !CpuProfiler::is_profiling()) return false;
   Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
   if (FLAG_log_regexp) {
-    static Vector<const char> kRegexp = CStrVector("regexp");
     if (name->IsEqualTo(kRegexp))
       return true;
   }
@@ -317,7 +317,7 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
   if (globals == 0) return;
 
   // Compute array of global variable and function declarations.
-  Handle<FixedArray> array = Factory::NewFixedArray(2 * globals, TENURED);
+  Handle<FixedArray> array = FACTORY->NewFixedArray(2 * globals, TENURED);
   for (int j = 0, i = 0; i < length; i++) {
     Declaration* node = declarations->at(i);
     Variable* var = node->proxy()->var();
@@ -374,7 +374,7 @@ const CodeGenerator::InlineFunctionGenerator
 bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
   ZoneList<Expression*>* args = node->arguments();
   Handle<String> name = node->name();
-  Runtime::Function* function = node->function();
+  const Runtime::Function* function = node->function();
   if (function != NULL && function->intrinsic_type == Runtime::INLINE) {
     int lookup_index = static_cast<int>(function->function_id) -
         static_cast<int>(Runtime::kFirstInlineFunction);
@@ -475,8 +475,13 @@ const char* GenericUnaryOpStub::GetName() {
 
 void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
   switch (type_) {
-    case READ_ELEMENT: GenerateReadElement(masm); break;
-    case NEW_OBJECT: GenerateNewObject(masm); break;
+    case READ_ELEMENT:
+      GenerateReadElement(masm);
+      break;
+    case NEW_NON_STRICT:
+    case NEW_STRICT:
+      GenerateNewObject(masm);
+      break;
   }
 }
 

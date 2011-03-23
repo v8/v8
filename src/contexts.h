@@ -78,11 +78,18 @@ enum ContextLookupFlags {
   V(INSTANTIATE_FUN_INDEX, JSFunction, instantiate_fun) \
   V(CONFIGURE_INSTANCE_FUN_INDEX, JSFunction, configure_instance_fun) \
   V(FUNCTION_MAP_INDEX, Map, function_map) \
+  V(STRICT_MODE_FUNCTION_MAP_INDEX, Map, strict_mode_function_map) \
   V(FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, function_without_prototype_map) \
+  V(STRICT_MODE_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, \
+    strict_mode_function_without_prototype_map) \
   V(FUNCTION_INSTANCE_MAP_INDEX, Map, function_instance_map) \
+  V(STRICT_MODE_FUNCTION_INSTANCE_MAP_INDEX, Map, \
+    strict_mode_function_instance_map) \
   V(JS_ARRAY_MAP_INDEX, Map, js_array_map)\
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)\
   V(ARGUMENTS_BOILERPLATE_INDEX, JSObject, arguments_boilerplate) \
+  V(STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX, JSObject, \
+    strict_mode_arguments_boilerplate) \
   V(MESSAGE_LISTENERS_INDEX, JSObject, message_listeners) \
   V(MAKE_MESSAGE_FUN_INDEX, JSFunction, make_message_fun) \
   V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun) \
@@ -182,11 +189,15 @@ class Context: public FixedArray {
     GLOBAL_PROXY_INDEX = MIN_CONTEXT_SLOTS,
     SECURITY_TOKEN_INDEX,
     ARGUMENTS_BOILERPLATE_INDEX,
+    STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX,
     JS_ARRAY_MAP_INDEX,
     REGEXP_RESULT_MAP_INDEX,
     FUNCTION_MAP_INDEX,
+    STRICT_MODE_FUNCTION_MAP_INDEX,
     FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
+    STRICT_MODE_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
     FUNCTION_INSTANCE_MAP_INDEX,
+    STRICT_MODE_FUNCTION_INSTANCE_MAP_INDEX,
     INITIAL_OBJECT_PROTOTYPE_INDEX,
     BOOLEAN_FUNCTION_INDEX,
     NUMBER_FUNCTION_INDEX,
@@ -257,8 +268,7 @@ class Context: public FixedArray {
 
   GlobalObject* global() {
     Object* result = get(GLOBAL_INDEX);
-    ASSERT(Heap::gc_state() != Heap::NOT_IN_GC ||
-           IsBootstrappingOrGlobalObject(result));
+    ASSERT(IsBootstrappingOrGlobalObject(result));
     return reinterpret_cast<GlobalObject*>(result);
   }
   void set_global(GlobalObject* global) { set(GLOBAL_INDEX, global); }
@@ -277,14 +287,10 @@ class Context: public FixedArray {
   bool is_function_context() { return unchecked_previous() == NULL; }
 
   // Tells whether the global context is marked with out of memory.
-  bool has_out_of_memory() {
-    return global_context()->out_of_memory() == Heap::true_value();
-  }
+  inline bool has_out_of_memory();
 
   // Mark the global context with out of memory.
-  void mark_out_of_memory() {
-    global_context()->set_out_of_memory(Heap::true_value());
-  }
+  inline void mark_out_of_memory();
 
   // The exception holder is the object used as a with object in
   // the implementation of a catch block.

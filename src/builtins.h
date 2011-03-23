@@ -58,7 +58,12 @@ enum BuiltinExtraArguments {
   V(FastHandleApiCall, NO_EXTRA_ARGUMENTS)                          \
   V(HandleApiCallConstruct, NEEDS_CALLED_FUNCTION)                  \
   V(HandleApiCallAsFunction, NO_EXTRA_ARGUMENTS)                    \
-  V(HandleApiCallAsConstructor, NO_EXTRA_ARGUMENTS)
+  V(HandleApiCallAsConstructor, NO_EXTRA_ARGUMENTS)                 \
+                                                                    \
+  V(StrictArgumentsCallee, NO_EXTRA_ARGUMENTS)                      \
+  V(StrictArgumentsCaller, NO_EXTRA_ARGUMENTS)                      \
+  V(StrictFunctionCaller, NO_EXTRA_ARGUMENTS)                       \
+  V(StrictFunctionArguments, NO_EXTRA_ARGUMENTS)
 
 
 // Define list of builtins implemented in assembly.
@@ -235,21 +240,24 @@ enum BuiltinExtraArguments {
   V(APPLY_OVERFLOW, 1)
 
 
+class BuiltinFunctionTable;
 class ObjectVisitor;
 
 
-class Builtins : public AllStatic {
+class Builtins {
  public:
+  ~Builtins();
+
   // Generate all builtin code objects. Should be called once during
-  // VM initialization.
-  static void Setup(bool create_heap_objects);
-  static void TearDown();
+  // isolate initialization.
+  void Setup(bool create_heap_objects);
+  void TearDown();
 
   // Garbage collection support.
-  static void IterateBuiltins(ObjectVisitor* v);
+  void IterateBuiltins(ObjectVisitor* v);
 
   // Disassembler support.
-  static const char* Lookup(byte* pc);
+  const char* Lookup(byte* pc);
 
   enum Name {
 #define DEF_ENUM_C(name, ignore) name,
@@ -276,13 +284,13 @@ class Builtins : public AllStatic {
     id_count
   };
 
-  static Code* builtin(Name name) {
+  Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins
     // during the marking phase of mark sweep. See IC::Clear.
     return reinterpret_cast<Code*>(builtins_[name]);
   }
 
-  static Address builtin_address(Name name) {
+  Address builtin_address(Name name) {
     return reinterpret_cast<Address>(&builtins_[name]);
   }
 
@@ -292,20 +300,24 @@ class Builtins : public AllStatic {
 
   static const char* GetName(JavaScript id) { return javascript_names_[id]; }
   static int GetArgumentsCount(JavaScript id) { return javascript_argc_[id]; }
-  static Handle<Code> GetCode(JavaScript id, bool* resolved);
+  Handle<Code> GetCode(JavaScript id, bool* resolved);
   static int NumberOfJavaScriptBuiltins() { return id_count; }
 
+  bool is_initialized() const { return initialized_; }
+
  private:
+  Builtins();
+
   // The external C++ functions called from the code.
-  static Address c_functions_[cfunction_count];
+  static Address const c_functions_[cfunction_count];
 
   // Note: These are always Code objects, but to conform with
   // IterateBuiltins() above which assumes Object**'s for the callback
   // function f, we use an Object* array here.
-  static Object* builtins_[builtin_count];
-  static const char* names_[builtin_count];
-  static const char* javascript_names_[id_count];
-  static int javascript_argc_[id_count];
+  Object* builtins_[builtin_count];
+  const char* names_[builtin_count];
+  static const char* const javascript_names_[id_count];
+  static int const javascript_argc_[id_count];
 
   static void Generate_Adaptor(MacroAssembler* masm,
                                CFunctionId id,
@@ -330,8 +342,16 @@ class Builtins : public AllStatic {
   static void Generate_ArrayConstructCode(MacroAssembler* masm);
 
   static void Generate_StringConstructCode(MacroAssembler* masm);
-
   static void Generate_OnStackReplacement(MacroAssembler* masm);
+
+  static void InitBuiltinFunctionTable();
+
+  bool initialized_;
+
+  friend class BuiltinFunctionTable;
+  friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(Builtins);
 };
 
 } }  // namespace v8::internal

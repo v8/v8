@@ -210,6 +210,9 @@
 		895692A412D4ED240072C313 /* gc-extension.cc in Sources */ = {isa = PBXBuildFile; fileRef = 893E24DA12B14B9F0083370F /* gc-extension.cc */; };
 		895692A512D4ED240072C313 /* objects-printer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8946827412C26EB700C914BC /* objects-printer.cc */; };
 		8956B6CF0F5D86730033B5A2 /* debug-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8956B6CD0F5D86570033B5A2 /* debug-agent.cc */; };
+		895D5B531334212D00254083 /* isolate.cc in Sources */ = {isa = PBXBuildFile; fileRef = 895D5B521334212D00254083 /* isolate.cc */; };
+		895D5B541334212D00254083 /* isolate.cc in Sources */ = {isa = PBXBuildFile; fileRef = 895D5B521334212D00254083 /* isolate.cc */; };
+		895D5B551334212D00254083 /* isolate.cc in Sources */ = {isa = PBXBuildFile; fileRef = 895D5B521334212D00254083 /* isolate.cc */; };
 		895FA753107FFED3006F39D4 /* constants-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 895FA748107FFE73006F39D4 /* constants-arm.cc */; };
 		896FA1E5130F93D300042054 /* lithium-gap-resolver-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 896FA1E3130F93D300042054 /* lithium-gap-resolver-arm.cc */; };
 		896FD03A0E78D717003DFB6A /* libv8-arm.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 89F23C870E78D5B2006B2466 /* libv8-arm.a */; };
@@ -562,6 +565,8 @@
 		58950D5A0F55514900F3E8BA /* virtual-frame.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "virtual-frame.cc"; sourceTree = "<group>"; };
 		58950D5B0F55514900F3E8BA /* virtual-frame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame.h"; sourceTree = "<group>"; };
 		8900116B0E71CA2300F91F35 /* libraries.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libraries.cc; sourceTree = "<group>"; };
+		891C92FD1334226000FF4757 /* lithium-allocator-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "lithium-allocator-inl.h"; sourceTree = "<group>"; };
+		891C92FE133422EB00FF4757 /* isolate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = isolate.h; sourceTree = "<group>"; };
 		8924315A12F8539900906AB2 /* lithium-gap-resolver-x64.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "lithium-gap-resolver-x64.cc"; path = "x64/lithium-gap-resolver-x64.cc"; sourceTree = "<group>"; };
 		8924315B12F8539900906AB2 /* lithium-gap-resolver-x64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "lithium-gap-resolver-x64.h"; path = "x64/lithium-gap-resolver-x64.h"; sourceTree = "<group>"; };
 		8938A2A212D63B630080CDDE /* lithium-x64.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "lithium-x64.cc"; path = "x64/lithium-x64.cc"; sourceTree = "<group>"; };
@@ -638,6 +643,8 @@
 		895692AA12D4ED240072C313 /* libv8-x64.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libv8-x64.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		8956B6CD0F5D86570033B5A2 /* debug-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-agent.cc"; sourceTree = "<group>"; };
 		8956B6CE0F5D86570033B5A2 /* debug-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "debug-agent.h"; sourceTree = "<group>"; };
+		895D5B4C1334210400254083 /* allocation-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "allocation-inl.h"; sourceTree = "<group>"; };
+		895D5B521334212D00254083 /* isolate.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = isolate.cc; sourceTree = "<group>"; };
 		895FA720107FFB15006F39D4 /* jump-target-heavy-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target-heavy-inl.h"; sourceTree = "<group>"; };
 		895FA725107FFB57006F39D4 /* codegen-ia32-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "codegen-ia32-inl.h"; path = "ia32/codegen-ia32-inl.h"; sourceTree = "<group>"; };
 		895FA72A107FFB85006F39D4 /* register-allocator-ia32-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "register-allocator-ia32-inl.h"; path = "ia32/register-allocator-ia32-inl.h"; sourceTree = "<group>"; };
@@ -754,7 +761,7 @@
 		897FF1580E719B8F00D62E90 /* macro-assembler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "macro-assembler.h"; sourceTree = "<group>"; };
 		897FF1590E719B8F00D62E90 /* mark-compact.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "mark-compact.cc"; sourceTree = "<group>"; };
 		897FF15A0E719B8F00D62E90 /* mark-compact.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "mark-compact.h"; sourceTree = "<group>"; };
-		897FF15B0E719B8F00D62E90 /* memory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = memory.h; sourceTree = "<group>"; };
+		897FF15B0E719B8F00D62E90 /* v8memory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = v8memory.h; sourceTree = "<group>"; };
 		897FF15C0E719B8F00D62E90 /* messages.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = messages.cc; sourceTree = "<group>"; };
 		897FF15D0E719B8F00D62E90 /* messages.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = messages.h; sourceTree = "<group>"; };
 		897FF15E0E719B8F00D62E90 /* mksnapshot.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = mksnapshot.cc; sourceTree = "<group>"; };
@@ -1055,6 +1062,7 @@
 				89B91B7A12D4EF65002FF4BC /* x64 */,
 				897FF0F60E719B8F00D62E90 /* accessors.cc */,
 				897FF0F70E719B8F00D62E90 /* accessors.h */,
+				895D5B4C1334210400254083 /* allocation-inl.h */,
 				897FF0F80E719B8F00D62E90 /* allocation.cc */,
 				897FF0F90E719B8F00D62E90 /* allocation.h */,
 				897FF0FA0E719B8F00D62E90 /* api.cc */,
@@ -1180,6 +1188,8 @@
 				89D7DDD912E8DE09001E2B82 /* inspector.h */,
 				89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */,
 				89A15C670EE4665300B48DEB /* interpreter-irregexp.h */,
+				895D5B521334212D00254083 /* isolate.cc */,
+				891C92FE133422EB00FF4757 /* isolate.h */,
 				897FF14E0E719B8F00D62E90 /* jsregexp.cc */,
 				897FF14F0E719B8F00D62E90 /* jsregexp.h */,
 				895FA720107FFB15006F39D4 /* jump-target-heavy-inl.h */,
@@ -1193,6 +1203,7 @@
 				58950D510F55514900F3E8BA /* jump-target.h */,
 				897FF1500E719B8F00D62E90 /* list-inl.h */,
 				897FF1510E719B8F00D62E90 /* list.h */,
+				891C92FD1334226000FF4757 /* lithium-allocator-inl.h */,
 				893E249312B14B3D0083370F /* lithium-allocator.cc */,
 				893E249412B14B3D0083370F /* lithium-allocator.h */,
 				894A59E712D777E80000766D /* lithium.cc */,
@@ -1207,7 +1218,7 @@
 				897FF1580E719B8F00D62E90 /* macro-assembler.h */,
 				897FF1590E719B8F00D62E90 /* mark-compact.cc */,
 				897FF15A0E719B8F00D62E90 /* mark-compact.h */,
-				897FF15B0E719B8F00D62E90 /* memory.h */,
+				897FF15B0E719B8F00D62E90 /* v8memory.h */,
 				897FF15C0E719B8F00D62E90 /* messages.cc */,
 				897FF15D0E719B8F00D62E90 /* messages.h */,
 				897FF15E0E719B8F00D62E90 /* mksnapshot.cc */,
@@ -1982,6 +1993,7 @@
 				89D7DDDE12E8DE09001E2B82 /* gdb-jit.cc in Sources */,
 				89D7DDDF12E8DE09001E2B82 /* inspector.cc in Sources */,
 				8924315C12F8539900906AB2 /* lithium-gap-resolver-x64.cc in Sources */,
+				895D5B551334212D00254083 /* isolate.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2119,6 +2131,7 @@
 				89D7DDD512E8DDCF001E2B82 /* lithium-gap-resolver-ia32.cc in Sources */,
 				89D7DDDA12E8DE09001E2B82 /* gdb-jit.cc in Sources */,
 				89D7DDDB12E8DE09001E2B82 /* inspector.cc in Sources */,
+				895D5B531334212D00254083 /* isolate.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2296,6 +2309,7 @@
 				89D7DDDC12E8DE09001E2B82 /* gdb-jit.cc in Sources */,
 				89D7DDDD12E8DE09001E2B82 /* inspector.cc in Sources */,
 				896FA1E5130F93D300042054 /* lithium-gap-resolver-arm.cc in Sources */,
+				895D5B541334212D00254083 /* isolate.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

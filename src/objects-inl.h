@@ -39,9 +39,10 @@
 #include "contexts.h"
 #include "conversions-inl.h"
 #include "heap.h"
-#include "memory.h"
+#include "isolate.h"
 #include "property.h"
 #include "spaces.h"
+#include "v8memory.h"
 
 namespace v8 {
 namespace internal {
@@ -78,7 +79,16 @@ PropertyDetails PropertyDetails::AsDeleted() {
   type* holder::name() { return type::cast(READ_FIELD(this, offset)); } \
   void holder::set_##name(type* value, WriteBarrierMode mode) {         \
     WRITE_FIELD(this, offset, value);                                   \
-    CONDITIONAL_WRITE_BARRIER(this, offset, mode);                      \
+    CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, mode);           \
+  }
+
+
+// GC-safe accessors do not use HeapObject::GetHeap(), but access TLS instead.
+#define ACCESSORS_GCSAFE(holder, name, type, offset)                    \
+  type* holder::name() { return type::cast(READ_FIELD(this, offset)); } \
+  void holder::set_##name(type* value, WriteBarrierMode mode) {         \
+    WRITE_FIELD(this, offset, value);                                   \
+    CONDITIONAL_WRITE_BARRIER(HEAP, this, offset, mode);                \
   }
 
 
@@ -419,7 +429,7 @@ bool MaybeObject::IsException() {
 
 
 bool MaybeObject::IsTheHole() {
-  return this == Heap::the_hole_value();
+  return !IsFailure() && ToObjectUnchecked()->IsTheHole();
 }
 
 
@@ -487,22 +497,27 @@ bool Object::IsDeoptimizationOutputData() {
 
 
 bool Object::IsContext() {
-  return Object::IsHeapObject()
-    && (HeapObject::cast(this)->map() == Heap::context_map() ||
-        HeapObject::cast(this)->map() == Heap::catch_context_map() ||
-        HeapObject::cast(this)->map() == Heap::global_context_map());
+  if (Object::IsHeapObject()) {
+    Heap* heap = HeapObject::cast(this)->GetHeap();
+    return (HeapObject::cast(this)->map() == heap->context_map() ||
+            HeapObject::cast(this)->map() == heap->catch_context_map() ||
+            HeapObject::cast(this)->map() == heap->global_context_map());
+  }
+  return false;
 }
 
 
 bool Object::IsCatchContext() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map() == Heap::catch_context_map();
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->catch_context_map();
 }
 
 
 bool Object::IsGlobalContext() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map() == Heap::global_context_map();
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->global_context_map();
 }
 
 
@@ -524,6 +539,7 @@ bool Object::IsCode() {
 
 
 bool Object::IsOddball() {
+  ASSERT(HEAP->is_safe_to_read_maps());
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() == ODDBALL_TYPE;
 }
@@ -568,7 +584,8 @@ bool Object::IsProxy() {
 
 
 bool Object::IsBoolean() {
-  return IsTrue() || IsFalse();
+  return IsOddball() &&
+      ((Oddball::cast(this)->kind() & Oddball::kNotBooleanMask) == 0);
 }
 
 
@@ -590,18 +607,21 @@ template <> inline bool Is<JSArray>(Object* obj) {
 
 
 bool Object::IsHashTable() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map() == Heap::hash_table_map();
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->hash_table_map();
 }
 
 
 bool Object::IsDictionary() {
-  return IsHashTable() && this != Heap::symbol_table();
+  return IsHashTable() && this !=
+         HeapObject::cast(this)->GetHeap()->symbol_table();
 }
 
 
 bool Object::IsSymbolTable() {
-  return IsHashTable() && this == Heap::raw_unchecked_symbol_table();
+  return IsHashTable() && this ==
+         HeapObject::cast(this)->GetHeap()->raw_unchecked_symbol_table();
 }
 
 
@@ -718,27 +738,32 @@ bool Object::IsStruct() {
 
 
 bool Object::IsUndefined() {
-  return this == Heap::undefined_value();
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kUndefined;
 }
 
 
 bool Object::IsNull() {
-  return this == Heap::null_value();
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kNull;
+}
+
+
+bool Object::IsTheHole() {
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kTheHole;
 }
 
 
 bool Object::IsTrue() {
-  return this == Heap::true_value();
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kTrue;
 }
 
 
 bool Object::IsFalse() {
-  return this == Heap::false_value();
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kFalse;
 }
 
 
 bool Object::IsArgumentsMarker() {
-  return this == Heap::arguments_marker();
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kArgumentMarker;
 }
 
 
@@ -748,7 +773,6 @@ double Object::Number() {
     ? static_cast<double>(reinterpret_cast<Smi*>(this)->value())
     : reinterpret_cast<HeapNumber*>(this)->value();
 }
-
 
 
 MaybeObject* Object::ToSmi() {
@@ -773,7 +797,7 @@ MaybeObject* Object::GetElement(uint32_t index) {
   // GetElement can trigger a getter which can cause allocation.
   // This was not always the case. This ASSERT is here to catch
   // leftover incorrect uses.
-  ASSERT(Heap::IsAllocationAllowed());
+  ASSERT(HEAP->IsAllocationAllowed());
   return GetElementWithReceiver(this, index);
 }
 
@@ -807,19 +831,19 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_FIELD(p, offset, value) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
 
-
+// TODO(isolates): Pass heap in to these macros.
 #define WRITE_BARRIER(object, offset) \
-  Heap::RecordWrite(object->address(), offset);
+  object->GetHeap()->RecordWrite(object->address(), offset);
 
 // CONDITIONAL_WRITE_BARRIER must be issued after the actual
 // write due to the assert validating the written value.
-#define CONDITIONAL_WRITE_BARRIER(object, offset, mode) \
+#define CONDITIONAL_WRITE_BARRIER(heap, object, offset, mode) \
   if (mode == UPDATE_WRITE_BARRIER) { \
-    Heap::RecordWrite(object->address(), offset); \
+    heap->RecordWrite(object->address(), offset); \
   } else { \
     ASSERT(mode == SKIP_WRITE_BARRIER); \
-    ASSERT(Heap::InNewSpace(object) || \
-           !Heap::InNewSpace(READ_FIELD(object, offset)) || \
+    ASSERT(heap->InNewSpace(object) || \
+           !heap->InNewSpace(READ_FIELD(object, offset)) || \
            Page::FromAddress(object->address())->           \
                IsRegionDirty(object->address() + offset));  \
   }
@@ -1099,6 +1123,21 @@ void HeapObject::VerifySmiField(int offset) {
 #endif
 
 
+Heap* HeapObject::GetHeap() {
+  // During GC, the map pointer in HeapObject is used in various ways that
+  // prevent us from retrieving Heap from the map.
+  // Assert that we are not in GC, implement GC code in a way that it doesn't
+  // pull heap from the map.
+  ASSERT(HEAP->is_safe_to_read_maps());
+  return map()->heap();
+}
+
+
+Isolate* HeapObject::GetIsolate() {
+  return GetHeap()->isolate();
+}
+
+
 Map* HeapObject::map() {
   return map_word().ToMap();
 }
@@ -1223,25 +1262,25 @@ HeapObject* JSObject::elements() {
 
 void JSObject::set_elements(HeapObject* value, WriteBarrierMode mode) {
   ASSERT(map()->has_fast_elements() ==
-         (value->map() == Heap::fixed_array_map() ||
-          value->map() == Heap::fixed_cow_array_map()));
+         (value->map() == GetHeap()->fixed_array_map() ||
+          value->map() == GetHeap()->fixed_cow_array_map()));
   // In the assert below Dictionary is covered under FixedArray.
   ASSERT(value->IsFixedArray() || value->IsExternalArray());
   WRITE_FIELD(this, kElementsOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kElementsOffset, mode);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kElementsOffset, mode);
 }
 
 
 void JSObject::initialize_properties() {
-  ASSERT(!Heap::InNewSpace(Heap::empty_fixed_array()));
-  WRITE_FIELD(this, kPropertiesOffset, Heap::empty_fixed_array());
+  ASSERT(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
+  WRITE_FIELD(this, kPropertiesOffset, GetHeap()->empty_fixed_array());
 }
 
 
 void JSObject::initialize_elements() {
   ASSERT(map()->has_fast_elements());
-  ASSERT(!Heap::InNewSpace(Heap::empty_fixed_array()));
-  WRITE_FIELD(this, kElementsOffset, Heap::empty_fixed_array());
+  ASSERT(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
+  WRITE_FIELD(this, kElementsOffset, GetHeap()->empty_fixed_array());
 }
 
 
@@ -1258,6 +1297,16 @@ MaybeObject* JSObject::ResetElements() {
 
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
+
+
+byte Oddball::kind() {
+  return READ_BYTE_FIELD(this, kKindOffset);
+}
+
+
+void Oddball::set_kind(byte value) {
+  WRITE_BYTE_FIELD(this, kKindOffset, value);
+}
 
 
 Object* JSGlobalPropertyCell::value() {
@@ -1313,6 +1362,12 @@ int JSObject::GetInternalFieldCount() {
 }
 
 
+int JSObject::GetInternalFieldOffset(int index) {
+  ASSERT(index < GetInternalFieldCount() && index >= 0);
+  return GetHeaderSize() + (kPointerSize * index);
+}
+
+
 Object* JSObject::GetInternalField(int index) {
   ASSERT(index < GetInternalFieldCount() && index >= 0);
   // Internal objects do follow immediately after the header, whereas in-object
@@ -1364,6 +1419,14 @@ Object* JSObject::FastPropertyAtPut(int index, Object* value) {
 }
 
 
+int JSObject::GetInObjectPropertyOffset(int index) {
+  // Adjust for the number of properties stored in the object.
+  index -= map()->inobject_properties();
+  ASSERT(index < 0);
+  return map()->instance_size() + (index * kPointerSize);
+}
+
+
 Object* JSObject::InObjectPropertyAt(int index) {
   // Adjust for the number of properties stored in the object.
   index -= map()->inobject_properties();
@@ -1381,14 +1444,14 @@ Object* JSObject::InObjectPropertyAtPut(int index,
   ASSERT(index < 0);
   int offset = map()->instance_size() + (index * kPointerSize);
   WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(this, offset, mode);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, mode);
   return value;
 }
 
 
 
 void JSObject::InitializeBody(int object_size, Object* value) {
-  ASSERT(!value->IsHeapObject() || !Heap::InNewSpace(value));
+  ASSERT(!value->IsHeapObject() || !GetHeap()->InNewSpace(value));
   for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
     WRITE_FIELD(this, offset, value);
   }
@@ -1411,7 +1474,7 @@ int JSObject::MaxFastProperties() {
 
 
 void Struct::InitializeBody(int object_size) {
-  Object* value = Heap::undefined_value();
+  Object* value = GetHeap()->undefined_value();
   for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
     WRITE_FIELD(this, offset, value);
   }
@@ -1457,7 +1520,7 @@ Object* FixedArray::get(int index) {
 
 
 void FixedArray::set(int index, Smi* value) {
-  ASSERT(map() != Heap::fixed_cow_array_map());
+  ASSERT(map() != HEAP->fixed_cow_array_map());
   ASSERT(reinterpret_cast<Object*>(value)->IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
@@ -1465,7 +1528,7 @@ void FixedArray::set(int index, Smi* value) {
 
 
 void FixedArray::set(int index, Object* value) {
-  ASSERT(map() != Heap::fixed_cow_array_map());
+  ASSERT(map() != HEAP->fixed_cow_array_map());
   ASSERT(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
@@ -1474,7 +1537,7 @@ void FixedArray::set(int index, Object* value) {
 
 
 WriteBarrierMode HeapObject::GetWriteBarrierMode(const AssertNoAllocation&) {
-  if (Heap::InNewSpace(this)) return SKIP_WRITE_BARRIER;
+  if (GetHeap()->InNewSpace(this)) return SKIP_WRITE_BARRIER;
   return UPDATE_WRITE_BARRIER;
 }
 
@@ -1482,44 +1545,55 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(const AssertNoAllocation&) {
 void FixedArray::set(int index,
                      Object* value,
                      WriteBarrierMode mode) {
-  ASSERT(map() != Heap::fixed_cow_array_map());
+  ASSERT(map() != HEAP->fixed_cow_array_map());
   ASSERT(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(this, offset, mode);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, mode);
 }
 
 
 void FixedArray::fast_set(FixedArray* array, int index, Object* value) {
-  ASSERT(array->map() != Heap::raw_unchecked_fixed_cow_array_map());
+  ASSERT(array->map() != HEAP->raw_unchecked_fixed_cow_array_map());
   ASSERT(index >= 0 && index < array->length());
-  ASSERT(!Heap::InNewSpace(value));
+  ASSERT(!HEAP->InNewSpace(value));
   WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
 }
 
 
 void FixedArray::set_undefined(int index) {
-  ASSERT(map() != Heap::fixed_cow_array_map());
+  ASSERT(map() != HEAP->fixed_cow_array_map());
+  set_undefined(GetHeap(), index);
+}
+
+
+void FixedArray::set_undefined(Heap* heap, int index) {
   ASSERT(index >= 0 && index < this->length());
-  ASSERT(!Heap::InNewSpace(Heap::undefined_value()));
+  ASSERT(!heap->InNewSpace(heap->undefined_value()));
   WRITE_FIELD(this, kHeaderSize + index * kPointerSize,
-              Heap::undefined_value());
+              heap->undefined_value());
 }
 
 
 void FixedArray::set_null(int index) {
-  ASSERT(map() != Heap::fixed_cow_array_map());
+  set_null(GetHeap(), index);
+}
+
+
+void FixedArray::set_null(Heap* heap, int index) {
   ASSERT(index >= 0 && index < this->length());
-  ASSERT(!Heap::InNewSpace(Heap::null_value()));
-  WRITE_FIELD(this, kHeaderSize + index * kPointerSize, Heap::null_value());
+  ASSERT(!heap->InNewSpace(heap->null_value()));
+  WRITE_FIELD(this, kHeaderSize + index * kPointerSize, heap->null_value());
 }
 
 
 void FixedArray::set_the_hole(int index) {
-  ASSERT(map() != Heap::fixed_cow_array_map());
+  ASSERT(map() != HEAP->fixed_cow_array_map());
   ASSERT(index >= 0 && index < this->length());
-  ASSERT(!Heap::InNewSpace(Heap::the_hole_value()));
-  WRITE_FIELD(this, kHeaderSize + index * kPointerSize, Heap::the_hole_value());
+  ASSERT(!HEAP->InNewSpace(HEAP->the_hole_value()));
+  WRITE_FIELD(this,
+              kHeaderSize + index * kPointerSize,
+              GetHeap()->the_hole_value());
 }
 
 
@@ -1530,19 +1604,20 @@ void FixedArray::set_unchecked(int index, Smi* value) {
 }
 
 
-void FixedArray::set_unchecked(int index,
+void FixedArray::set_unchecked(Heap* heap,
+                               int index,
                                Object* value,
                                WriteBarrierMode mode) {
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(this, offset, mode);
+  CONDITIONAL_WRITE_BARRIER(heap, this, offset, mode);
 }
 
 
-void FixedArray::set_null_unchecked(int index) {
+void FixedArray::set_null_unchecked(Heap* heap, int index) {
   ASSERT(index >= 0 && index < this->length());
-  ASSERT(!Heap::InNewSpace(Heap::null_value()));
-  WRITE_FIELD(this, kHeaderSize + index * kPointerSize, Heap::null_value());
+  ASSERT(!HEAP->InNewSpace(heap->null_value()));
+  WRITE_FIELD(this, kHeaderSize + index * kPointerSize, heap->null_value());
 }
 
 
@@ -1552,9 +1627,9 @@ Object** FixedArray::data_start() {
 
 
 bool DescriptorArray::IsEmpty() {
-  ASSERT(this == Heap::empty_descriptor_array() ||
-         this->length() > 2);
-  return this == Heap::empty_descriptor_array();
+  ASSERT(this->length() > kFirstIndex ||
+         this == HEAP->empty_descriptor_array());
+  return length() <= kFirstIndex;
 }
 
 
@@ -1584,10 +1659,10 @@ int DescriptorArray::Search(String* name) {
 
 
 int DescriptorArray::SearchWithCache(String* name) {
-  int number = DescriptorLookupCache::Lookup(this, name);
+  int number = GetIsolate()->descriptor_lookup_cache()->Lookup(this, name);
   if (number == DescriptorLookupCache::kAbsent) {
     number = Search(name);
-    DescriptorLookupCache::Update(this, name, number);
+    GetIsolate()->descriptor_lookup_cache()->Update(this, name, number);
   }
   return number;
 }
@@ -1673,8 +1748,8 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   ASSERT(descriptor_number < number_of_descriptors());
 
   // Make sure none of the elements in desc are in new space.
-  ASSERT(!Heap::InNewSpace(desc->GetKey()));
-  ASSERT(!Heap::InNewSpace(desc->GetValue()));
+  ASSERT(!HEAP->InNewSpace(desc->GetKey()));
+  ASSERT(!HEAP->InNewSpace(desc->GetValue()));
 
   fast_set(this, ToKeyIndex(descriptor_number), desc->GetKey());
   FixedArray* content_array = GetContentArray();
@@ -1696,6 +1771,30 @@ void DescriptorArray::Swap(int first, int second) {
   FixedArray* content_array = GetContentArray();
   fast_swap(content_array, ToValueIndex(first), ToValueIndex(second));
   fast_swap(content_array, ToDetailsIndex(first),  ToDetailsIndex(second));
+}
+
+
+template<typename Shape, typename Key>
+int HashTable<Shape, Key>::FindEntry(Key key) {
+  return FindEntry(GetIsolate(), key);
+}
+
+
+// Find entry for key otherwise return kNotFound.
+template<typename Shape, typename Key>
+int HashTable<Shape, Key>::FindEntry(Isolate* isolate, Key key) {
+  uint32_t capacity = Capacity();
+  uint32_t entry = FirstProbe(Shape::Hash(key), capacity);
+  uint32_t count = 1;
+  // EnsureCapacity will guarantee the hash table is never full.
+  while (true) {
+    Object* element = KeyAt(entry);
+    if (element == isolate->heap()->undefined_value()) break;  // Empty entry.
+    if (element != isolate->heap()->null_value() &&
+        Shape::IsMatch(key, element)) return entry;
+    entry = NextProbe(entry, count++, capacity);
+  }
+  return kNotFound;
 }
 
 
@@ -1945,7 +2044,7 @@ Object* ConsString::unchecked_first() {
 
 void ConsString::set_first(String* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kFirstOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kFirstOffset, mode);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kFirstOffset, mode);
 }
 
 
@@ -1961,7 +2060,7 @@ Object* ConsString::unchecked_second() {
 
 void ConsString::set_second(String* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kSecondOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kSecondOffset, mode);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kSecondOffset, mode);
 }
 
 
@@ -1997,7 +2096,7 @@ void JSFunctionResultCache::Clear() {
   int cache_size = size();
   Object** entries_start = RawField(this, OffsetOfElementAt(kEntriesIndex));
   MemsetPointer(entries_start,
-                Heap::the_hole_value(),
+                GetHeap()->the_hole_value(),
                 cache_size - kEntriesIndex);
   MakeZeroSize();
 }
@@ -2714,6 +2813,20 @@ Code* Code::GetCodeFromTargetAddress(Address address) {
 }
 
 
+Isolate* Map::isolate() {
+  return heap()->isolate();
+}
+
+
+Heap* Map::heap() {
+  // NOTE: address() helper is not used to save one instruction.
+  Heap* heap = Page::FromAddress(reinterpret_cast<Address>(this))->heap_;
+  ASSERT(heap != NULL);
+  ASSERT(heap->isolate() == Isolate::Current());
+  return heap;
+}
+
+
 Object* Code::GetObjectFromEntryAddress(Address location_of_address) {
   return HeapObject::
       FromAddress(Memory::Address_at(location_of_address) - Code::kHeaderSize);
@@ -2728,7 +2841,7 @@ Object* Map::prototype() {
 void Map::set_prototype(Object* value, WriteBarrierMode mode) {
   ASSERT(value->IsNull() || value->IsJSObject());
   WRITE_FIELD(this, kPrototypeOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kPrototypeOffset, mode);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kPrototypeOffset, mode);
 }
 
 
@@ -2740,7 +2853,7 @@ MaybeObject* Map::GetFastElementsMap() {
   }
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(true);
-  Counters::map_slow_to_fast_elements.Increment();
+  isolate()->counters()->map_slow_to_fast_elements()->Increment();
   return new_map;
 }
 
@@ -2753,7 +2866,7 @@ MaybeObject* Map::GetSlowElementsMap() {
   }
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(false);
-  Counters::map_fast_to_slow_elements.Increment();
+  isolate()->counters()->map_fast_to_slow_elements()->Increment();
   return new_map;
 }
 
@@ -2768,7 +2881,7 @@ MaybeObject* Map::NewExternalArrayElementsMap() {
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(false);
   new_map->set_has_external_array_elements(true);
-  Counters::map_to_external_array_elements.Increment();
+  isolate()->counters()->map_to_external_array_elements()->Increment();
   return new_map;
 }
 
@@ -2780,7 +2893,8 @@ ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, literals, FixedArray, kLiteralsOffset)
-ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
+ACCESSORS_GCSAFE(JSFunction, next_function_link, Object,
+                 kNextFunctionLinkOffset)
 
 ACCESSORS(GlobalObject, builtins, JSBuiltinsObject, kBuiltinsOffset)
 ACCESSORS(GlobalObject, global_context, Context, kGlobalContextOffset)
@@ -2869,8 +2983,8 @@ ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
 #endif
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
-ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
-ACCESSORS(SharedFunctionInfo, initial_map, Object, kInitialMapOffset)
+ACCESSORS_GCSAFE(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
+ACCESSORS_GCSAFE(SharedFunctionInfo, initial_map, Object, kInitialMapOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
@@ -2998,7 +3112,7 @@ void SharedFunctionInfo::set_live_objects_may_exist(bool value) {
 
 
 bool SharedFunctionInfo::IsInobjectSlackTrackingInProgress() {
-  return initial_map() != Heap::undefined_value();
+  return initial_map() != HEAP->undefined_value();
 }
 
 
@@ -3077,7 +3191,7 @@ Code* SharedFunctionInfo::unchecked_code() {
 
 void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kCodeOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kCodeOffset, mode);
+  ASSERT(!Isolate::Current()->heap()->InNewSpace(value));
 }
 
 
@@ -3090,7 +3204,7 @@ SerializedScopeInfo* SharedFunctionInfo::scope_info() {
 void SharedFunctionInfo::set_scope_info(SerializedScopeInfo* value,
                                         WriteBarrierMode mode) {
   WRITE_FIELD(this, kScopeInfoOffset, reinterpret_cast<Object*>(value));
-  CONDITIONAL_WRITE_BARRIER(this, kScopeInfoOffset, mode);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kScopeInfoOffset, mode);
 }
 
 
@@ -3105,7 +3219,8 @@ void SharedFunctionInfo::set_deopt_counter(Smi* value) {
 
 
 bool SharedFunctionInfo::is_compiled() {
-  return code() != Builtins::builtin(Builtins::LazyCompile);
+  return code() !=
+      Isolate::Current()->builtins()->builtin(Builtins::LazyCompile);
 }
 
 
@@ -3165,7 +3280,7 @@ bool JSFunction::IsOptimized() {
 
 
 bool JSFunction::IsMarkedForLazyRecompilation() {
-  return code() == Builtins::builtin(Builtins::LazyRecompile);
+  return code() == GetIsolate()->builtins()->builtin(Builtins::LazyRecompile);
 }
 
 
@@ -3182,7 +3297,7 @@ Code* JSFunction::unchecked_code() {
 
 void JSFunction::set_code(Code* value) {
   // Skip the write barrier because code is never in new space.
-  ASSERT(!Heap::InNewSpace(value));
+  ASSERT(!HEAP->InNewSpace(value));
   Address entry = value->entry();
   WRITE_INTPTR_FIELD(this, kCodeEntryOffset, reinterpret_cast<intptr_t>(entry));
 }
@@ -3222,7 +3337,7 @@ SharedFunctionInfo* JSFunction::unchecked_shared() {
 
 
 void JSFunction::set_context(Object* value) {
-  ASSERT(value == Heap::undefined_value() || value->IsContext());
+  ASSERT(value->IsUndefined() || value->IsContext());
   WRITE_FIELD(this, kContextOffset, value);
   WRITE_BARRIER(this, kContextOffset);
 }
@@ -3279,7 +3394,7 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code() != Builtins::builtin(Builtins::LazyCompile);
+  return code() != GetIsolate()->builtins()->builtin(Builtins::LazyCompile);
 }
 
 
@@ -3312,7 +3427,7 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
                                                    Code* value) {
   ASSERT(id < kJSBuiltinsCount);  // id is unsigned.
   WRITE_FIELD(this, OffsetOfCodeWithId(id), value);
-  ASSERT(!Heap::InNewSpace(value));
+  ASSERT(!HEAP->InNewSpace(value));
 }
 
 
@@ -3462,8 +3577,8 @@ void JSRegExp::SetDataAt(int index, Object* value) {
 
 JSObject::ElementsKind JSObject::GetElementsKind() {
   if (map()->has_fast_elements()) {
-    ASSERT(elements()->map() == Heap::fixed_array_map() ||
-           elements()->map() == Heap::fixed_cow_array_map());
+    ASSERT(elements()->map() == GetHeap()->fixed_array_map() ||
+           elements()->map() == GetHeap()->fixed_cow_array_map());
     return FAST_ELEMENTS;
   }
   HeapObject* array = elements();
@@ -3473,6 +3588,7 @@ JSObject::ElementsKind JSObject::GetElementsKind() {
     ASSERT(array->IsDictionary());
     return DICTIONARY_ELEMENTS;
   }
+  ASSERT(!map()->has_fast_elements());
   if (array->IsExternalArray()) {
     switch (array->map()->instance_type()) {
       case EXTERNAL_BYTE_ARRAY_TYPE:
@@ -3558,16 +3674,17 @@ bool JSObject::AllowsSetElementsLength() {
 MaybeObject* JSObject::EnsureWritableFastElements() {
   ASSERT(HasFastElements());
   FixedArray* elems = FixedArray::cast(elements());
-  if (elems->map() != Heap::fixed_cow_array_map()) return elems;
+  Isolate* isolate = GetIsolate();
+  if (elems->map() != isolate->heap()->fixed_cow_array_map()) return elems;
   Object* writable_elems;
-  { MaybeObject* maybe_writable_elems =
-        Heap::CopyFixedArrayWithMap(elems, Heap::fixed_array_map());
+  { MaybeObject* maybe_writable_elems = isolate->heap()->CopyFixedArrayWithMap(
+      elems, isolate->heap()->fixed_array_map());
     if (!maybe_writable_elems->ToObject(&writable_elems)) {
       return maybe_writable_elems;
     }
   }
   set_elements(FixedArray::cast(writable_elems));
-  Counters::cow_arrays_converted.Increment();
+  isolate->counters()->cow_arrays_converted()->Increment();
   return writable_elems;
 }
 
@@ -3707,7 +3824,7 @@ PropertyAttributes JSObject::GetPropertyAttribute(String* key) {
 Object* JSObject::BypassGlobalProxy() {
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
-    if (proto->IsNull()) return Heap::undefined_value();
+    if (proto->IsNull()) return GetHeap()->undefined_value();
     ASSERT(proto->IsJSGlobalObject());
     return proto;
   }
@@ -3718,7 +3835,7 @@ Object* JSObject::BypassGlobalProxy() {
 bool JSObject::HasHiddenPropertiesObject() {
   ASSERT(!IsJSGlobalProxy());
   return GetPropertyAttributePostInterceptor(this,
-                                             Heap::hidden_symbol(),
+                                             GetHeap()->hidden_symbol(),
                                              false) != ABSENT;
 }
 
@@ -3731,7 +3848,7 @@ Object* JSObject::GetHiddenPropertiesObject() {
   // object.
   Object* result =
       GetLocalPropertyPostInterceptor(this,
-                                      Heap::hidden_symbol(),
+                                      GetHeap()->hidden_symbol(),
                                       &attributes)->ToObjectUnchecked();
   return result;
 }
@@ -3739,7 +3856,7 @@ Object* JSObject::GetHiddenPropertiesObject() {
 
 MaybeObject* JSObject::SetHiddenPropertiesObject(Object* hidden_obj) {
   ASSERT(!IsJSGlobalProxy());
-  return SetPropertyPostInterceptor(Heap::hidden_symbol(),
+  return SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
                                     hidden_obj,
                                     DONT_ENUM,
                                     kNonStrictMode);
@@ -3807,12 +3924,57 @@ void Dictionary<Shape, Key>::SetEntry(int entry,
 }
 
 
-void Map::ClearCodeCache() {
+bool NumberDictionaryShape::IsMatch(uint32_t key, Object* other) {
+  ASSERT(other->IsNumber());
+  return key == static_cast<uint32_t>(other->Number());
+}
+
+
+uint32_t NumberDictionaryShape::Hash(uint32_t key) {
+  return ComputeIntegerHash(key);
+}
+
+
+uint32_t NumberDictionaryShape::HashForObject(uint32_t key, Object* other) {
+  ASSERT(other->IsNumber());
+  return ComputeIntegerHash(static_cast<uint32_t>(other->Number()));
+}
+
+
+MaybeObject* NumberDictionaryShape::AsObject(uint32_t key) {
+  return Isolate::Current()->heap()->NumberFromUint32(key);
+}
+
+
+bool StringDictionaryShape::IsMatch(String* key, Object* other) {
+  // We know that all entries in a hash table had their hash keys created.
+  // Use that knowledge to have fast failure.
+  if (key->Hash() != String::cast(other)->Hash()) return false;
+  return key->Equals(String::cast(other));
+}
+
+
+uint32_t StringDictionaryShape::Hash(String* key) {
+  return key->Hash();
+}
+
+
+uint32_t StringDictionaryShape::HashForObject(String* key, Object* other) {
+  return String::cast(other)->Hash();
+}
+
+
+MaybeObject* StringDictionaryShape::AsObject(String* key) {
+  return key;
+}
+
+
+void Map::ClearCodeCache(Heap* heap) {
   // No write barrier is needed since empty_fixed_array is not in new space.
   // Please note this function is used during marking:
   //  - MarkCompactCollector::MarkUnmarkedObject
-  ASSERT(!Heap::InNewSpace(Heap::raw_unchecked_empty_fixed_array()));
-  WRITE_FIELD(this, kCodeCacheOffset, Heap::raw_unchecked_empty_fixed_array());
+  ASSERT(!heap->InNewSpace(heap->raw_unchecked_empty_fixed_array()));
+  WRITE_FIELD(this, kCodeCacheOffset, heap->raw_unchecked_empty_fixed_array());
 }
 
 
@@ -3825,7 +3987,7 @@ void JSArray::EnsureSize(int required_size) {
     // constantly growing.
     Expand(required_size + (required_size >> 3));
     // It's a performance benefit to keep a frequently used array in new-space.
-  } else if (!Heap::new_space()->Contains(elts) &&
+  } else if (!GetHeap()->new_space()->Contains(elts) &&
              required_size < kArraySizeThatFitsComfortablyInNewSpace) {
     // Expand will allocate a new backing store in new space even if the size
     // we asked for isn't larger than what we had before.
@@ -3847,7 +4009,22 @@ void JSArray::SetContent(FixedArray* storage) {
 
 MaybeObject* FixedArray::Copy() {
   if (length() == 0) return this;
-  return Heap::CopyFixedArray(this);
+  return GetHeap()->CopyFixedArray(this);
+}
+
+
+Relocatable::Relocatable(Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
+  isolate_ = isolate;
+  prev_ = isolate->relocatable_top();
+  isolate->set_relocatable_top(this);
+}
+
+
+Relocatable::~Relocatable() {
+  ASSERT(isolate_ == Isolate::Current());
+  ASSERT_EQ(isolate_->relocatable_top(), this);
+  isolate_->set_relocatable_top(prev_);
 }
 
 

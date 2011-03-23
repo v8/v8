@@ -49,12 +49,12 @@ namespace internal {
 // Windows C Run-Time Library does not provide vsscanf.
 #define SScanF sscanf  // NOLINT
 
-// The Debugger class is used by the simulator while debugging simulated ARM
+// The ArmDebugger class is used by the simulator while debugging simulated ARM
 // code.
-class Debugger {
+class ArmDebugger {
  public:
-  explicit Debugger(Simulator* sim);
-  ~Debugger();
+  explicit ArmDebugger(Simulator* sim);
+  ~ArmDebugger();
 
   void Stop(Instruction* instr);
   void Debug();
@@ -83,12 +83,12 @@ class Debugger {
 };
 
 
-Debugger::Debugger(Simulator* sim) {
+ArmDebugger::ArmDebugger(Simulator* sim) {
   sim_ = sim;
 }
 
 
-Debugger::~Debugger() {
+ArmDebugger::~ArmDebugger() {
 }
 
 
@@ -105,7 +105,7 @@ static void InitializeCoverage() {
 }
 
 
-void Debugger::Stop(Instruction* instr) {
+void ArmDebugger::Stop(Instruction* instr) {
   // Get the stop code.
   uint32_t code = instr->SvcValue() & kStopCodeMask;
   // Retrieve the encoded address, which comes just after this stop.
@@ -137,7 +137,7 @@ static void InitializeCoverage() {
 }
 
 
-void Debugger::Stop(Instruction* instr) {
+void ArmDebugger::Stop(Instruction* instr) {
   // Get the stop code.
   uint32_t code = instr->SvcValue() & kStopCodeMask;
   // Retrieve the encoded address, which comes just after this stop.
@@ -159,7 +159,7 @@ void Debugger::Stop(Instruction* instr) {
 #endif
 
 
-int32_t Debugger::GetRegisterValue(int regnum) {
+int32_t ArmDebugger::GetRegisterValue(int regnum) {
   if (regnum == kPCRegister) {
     return sim_->get_pc();
   } else {
@@ -168,12 +168,12 @@ int32_t Debugger::GetRegisterValue(int regnum) {
 }
 
 
-double Debugger::GetVFPDoubleRegisterValue(int regnum) {
+double ArmDebugger::GetVFPDoubleRegisterValue(int regnum) {
   return sim_->get_double_from_d_register(regnum);
 }
 
 
-bool Debugger::GetValue(const char* desc, int32_t* value) {
+bool ArmDebugger::GetValue(const char* desc, int32_t* value) {
   int regnum = Registers::Number(desc);
   if (regnum != kNoRegister) {
     *value = GetRegisterValue(regnum);
@@ -189,7 +189,7 @@ bool Debugger::GetValue(const char* desc, int32_t* value) {
 }
 
 
-bool Debugger::GetVFPSingleValue(const char* desc, float* value) {
+bool ArmDebugger::GetVFPSingleValue(const char* desc, float* value) {
   bool is_double;
   int regnum = VFPRegisters::Number(desc, &is_double);
   if (regnum != kNoRegister && !is_double) {
@@ -200,7 +200,7 @@ bool Debugger::GetVFPSingleValue(const char* desc, float* value) {
 }
 
 
-bool Debugger::GetVFPDoubleValue(const char* desc, double* value) {
+bool ArmDebugger::GetVFPDoubleValue(const char* desc, double* value) {
   bool is_double;
   int regnum = VFPRegisters::Number(desc, &is_double);
   if (regnum != kNoRegister && is_double) {
@@ -211,7 +211,7 @@ bool Debugger::GetVFPDoubleValue(const char* desc, double* value) {
 }
 
 
-bool Debugger::SetBreakpoint(Instruction* breakpc) {
+bool ArmDebugger::SetBreakpoint(Instruction* breakpc) {
   // Check if a breakpoint can be set. If not return without any side-effects.
   if (sim_->break_pc_ != NULL) {
     return false;
@@ -226,7 +226,7 @@ bool Debugger::SetBreakpoint(Instruction* breakpc) {
 }
 
 
-bool Debugger::DeleteBreakpoint(Instruction* breakpc) {
+bool ArmDebugger::DeleteBreakpoint(Instruction* breakpc) {
   if (sim_->break_pc_ != NULL) {
     sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
   }
@@ -237,21 +237,21 @@ bool Debugger::DeleteBreakpoint(Instruction* breakpc) {
 }
 
 
-void Debugger::UndoBreakpoints() {
+void ArmDebugger::UndoBreakpoints() {
   if (sim_->break_pc_ != NULL) {
     sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
   }
 }
 
 
-void Debugger::RedoBreakpoints() {
+void ArmDebugger::RedoBreakpoints() {
   if (sim_->break_pc_ != NULL) {
     sim_->break_pc_->SetInstructionBits(kBreakpointInstr);
   }
 }
 
 
-void Debugger::Debug() {
+void ArmDebugger::Debug() {
   intptr_t last_pc = -1;
   bool done = false;
 
@@ -316,16 +316,26 @@ void Debugger::Debug() {
             }
             for (int i = 0; i < kNumVFPDoubleRegisters; i++) {
               dvalue = GetVFPDoubleRegisterValue(i);
-              PrintF("%3s: %f\n",
-                  VFPRegisters::Name(i, true), dvalue);
+              uint64_t as_words = BitCast<uint64_t>(dvalue);
+              PrintF("%3s: %f 0x%08x %08x\n",
+                     VFPRegisters::Name(i, true),
+                     dvalue,
+                     static_cast<uint32_t>(as_words >> 32),
+                     static_cast<uint32_t>(as_words & 0xffffffff));
             }
           } else {
             if (GetValue(arg1, &value)) {
               PrintF("%s: 0x%08x %d \n", arg1, value, value);
             } else if (GetVFPSingleValue(arg1, &svalue)) {
-              PrintF("%s: %f \n", arg1, svalue);
+              uint32_t as_word = BitCast<uint32_t>(svalue);
+              PrintF("%s: %f 0x%08x\n", arg1, svalue, as_word);
             } else if (GetVFPDoubleValue(arg1, &dvalue)) {
-              PrintF("%s: %f \n", arg1, dvalue);
+              uint64_t as_words = BitCast<uint64_t>(dvalue);
+              PrintF("%s: %f 0x%08x %08x\n",
+                     arg1,
+                     dvalue,
+                     static_cast<uint32_t>(as_words >> 32),
+                     static_cast<uint32_t>(as_words & 0xffffffff));
             } else {
               PrintF("%s unrecognized\n", arg1);
             }
@@ -380,11 +390,24 @@ void Debugger::Debug() {
         end = cur + words;
 
         while (cur < end) {
-          PrintF("  0x%08x:  0x%08x %10d\n",
+          PrintF("  0x%08x:  0x%08x %10d",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
+          HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
+          int value = *cur;
+          Heap* current_heap = v8::internal::Isolate::Current()->heap();
+          if (current_heap->Contains(obj) || ((value & 1) == 0)) {
+            PrintF(" (");
+            if ((value & 1) == 0) {
+              PrintF("smi %d", value / 2);
+            } else {
+              obj->ShortPrint();
+            }
+            PrintF(")");
+          }
+          PrintF("\n");
           cur++;
         }
-      } else if (strcmp(cmd, "disasm") == 0) {
+      } else if (strcmp(cmd, "disasm") == 0 || strcmp(cmd, "di") == 0) {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // use a reasonably large buffer
@@ -398,11 +421,23 @@ void Debugger::Debug() {
           cur = reinterpret_cast<byte*>(sim_->get_pc());
           end = cur + (10 * Instruction::kInstrSize);
         } else if (argc == 2) {
-          int32_t value;
-          if (GetValue(arg1, &value)) {
-            cur = reinterpret_cast<byte*>(sim_->get_pc());
-            // Disassemble <arg1> instructions.
-            end = cur + (value * Instruction::kInstrSize);
+          int regnum = Registers::Number(arg1);
+          if (regnum != kNoRegister || strncmp(arg1, "0x", 2) == 0) {
+            // The argument is an address or a register name.
+            int32_t value;
+            if (GetValue(arg1, &value)) {
+              cur = reinterpret_cast<byte*>(value);
+              // Disassemble 10 instructions at <arg1>.
+              end = cur + (10 * Instruction::kInstrSize);
+            }
+          } else {
+            // The argument is the number of instructions.
+            int32_t value;
+            if (GetValue(arg1, &value)) {
+              cur = reinterpret_cast<byte*>(sim_->get_pc());
+              // Disassemble <arg1> instructions.
+              end = cur + (value * Instruction::kInstrSize);
+            }
           }
         } else {
           int32_t value1;
@@ -524,8 +559,10 @@ void Debugger::Debug() {
         PrintF("mem <address> [<words>]\n");
         PrintF("  dump memory content, default dump 10 words)\n");
         PrintF("disasm [<instructions>]\n");
-        PrintF("disasm [[<address>] <instructions>]\n");
-        PrintF("  disassemble code, default is 10 instructions from pc\n");
+        PrintF("disasm [<address/register>]\n");
+        PrintF("disasm [[<address/register>] <instructions>]\n");
+        PrintF("  disassemble code, default is 10 instructions\n");
+        PrintF("  from pc (alias 'di')\n");
         PrintF("gdb\n");
         PrintF("  enter gdb\n");
         PrintF("break <address>\n");
@@ -539,11 +576,11 @@ void Debugger::Debug() {
         PrintF("    Stops are debug instructions inserted by\n");
         PrintF("    the Assembler::stop() function.\n");
         PrintF("    When hitting a stop, the Simulator will\n");
-        PrintF("    stop and and give control to the Debugger.\n");
+        PrintF("    stop and and give control to the ArmDebugger.\n");
         PrintF("    The first %d stop codes are watched:\n",
                Simulator::kNumOfWatchedStops);
         PrintF("    - They can be enabled / disabled: the Simulator\n");
-        PrintF("       will / won't stop when hitting them.\n");
+        PrintF("      will / won't stop when hitting them.\n");
         PrintF("    - The Simulator keeps track of how many times they \n");
         PrintF("      are met. (See the info command.) Going over a\n");
         PrintF("      disabled stop still increases its counter. \n");
@@ -593,7 +630,9 @@ static bool AllOnOnePage(uintptr_t start, int size) {
 }
 
 
-void Simulator::FlushICache(void* start_addr, size_t size) {
+void Simulator::FlushICache(v8::internal::HashMap* i_cache,
+                            void* start_addr,
+                            size_t size) {
   intptr_t start = reinterpret_cast<intptr_t>(start_addr);
   int intra_line = (start & CachePage::kLineMask);
   start -= intra_line;
@@ -602,22 +641,22 @@ void Simulator::FlushICache(void* start_addr, size_t size) {
   int offset = (start & CachePage::kPageMask);
   while (!AllOnOnePage(start, size - 1)) {
     int bytes_to_flush = CachePage::kPageSize - offset;
-    FlushOnePage(start, bytes_to_flush);
+    FlushOnePage(i_cache, start, bytes_to_flush);
     start += bytes_to_flush;
     size -= bytes_to_flush;
     ASSERT_EQ(0, start & CachePage::kPageMask);
     offset = 0;
   }
   if (size != 0) {
-    FlushOnePage(start, size);
+    FlushOnePage(i_cache, start, size);
   }
 }
 
 
-CachePage* Simulator::GetCachePage(void* page) {
-  v8::internal::HashMap::Entry* entry = i_cache_->Lookup(page,
-                                                         ICacheHash(page),
-                                                         true);
+CachePage* Simulator::GetCachePage(v8::internal::HashMap* i_cache, void* page) {
+  v8::internal::HashMap::Entry* entry = i_cache->Lookup(page,
+                                                        ICacheHash(page),
+                                                        true);
   if (entry->value == NULL) {
     CachePage* new_page = new CachePage();
     entry->value = new_page;
@@ -627,25 +666,28 @@ CachePage* Simulator::GetCachePage(void* page) {
 
 
 // Flush from start up to and not including start + size.
-void Simulator::FlushOnePage(intptr_t start, int size) {
+void Simulator::FlushOnePage(v8::internal::HashMap* i_cache,
+                             intptr_t start,
+                             int size) {
   ASSERT(size <= CachePage::kPageSize);
   ASSERT(AllOnOnePage(start, size - 1));
   ASSERT((start & CachePage::kLineMask) == 0);
   ASSERT((size & CachePage::kLineMask) == 0);
   void* page = reinterpret_cast<void*>(start & (~CachePage::kPageMask));
   int offset = (start & CachePage::kPageMask);
-  CachePage* cache_page = GetCachePage(page);
+  CachePage* cache_page = GetCachePage(i_cache, page);
   char* valid_bytemap = cache_page->ValidityByte(offset);
   memset(valid_bytemap, CachePage::LINE_INVALID, size >> CachePage::kLineShift);
 }
 
 
-void Simulator::CheckICache(Instruction* instr) {
+void Simulator::CheckICache(v8::internal::HashMap* i_cache,
+                            Instruction* instr) {
   intptr_t address = reinterpret_cast<intptr_t>(instr);
   void* page = reinterpret_cast<void*>(address & (~CachePage::kPageMask));
   void* line = reinterpret_cast<void*>(address & (~CachePage::kLineMask));
   int offset = (address & CachePage::kPageMask);
-  CachePage* cache_page = GetCachePage(page);
+  CachePage* cache_page = GetCachePage(i_cache, page);
   char* cache_valid_byte = cache_page->ValidityByte(offset);
   bool cache_hit = (*cache_valid_byte == CachePage::LINE_VALID);
   char* cached_line = cache_page->CachedData(offset & ~CachePage::kLineMask);
@@ -662,27 +704,18 @@ void Simulator::CheckICache(Instruction* instr) {
 }
 
 
-// Create one simulator per thread and keep it in thread local storage.
-static v8::internal::Thread::LocalStorageKey simulator_key;
-
-
-bool Simulator::initialized_ = false;
-
-
 void Simulator::Initialize() {
-  if (initialized_) return;
-  simulator_key = v8::internal::Thread::CreateThreadLocalKey();
-  initialized_ = true;
+  if (Isolate::Current()->simulator_initialized()) return;
+  Isolate::Current()->set_simulator_initialized(true);
   ::v8::internal::ExternalReference::set_redirector(&RedirectExternalReference);
 }
 
 
-v8::internal::HashMap* Simulator::i_cache_ = NULL;
-
-
-Simulator::Simulator() {
+Simulator::Simulator() : isolate_(Isolate::Current()) {
+  i_cache_ = isolate_->simulator_i_cache();
   if (i_cache_ == NULL) {
     i_cache_ = new v8::internal::HashMap(&ICacheMatch);
+    isolate_->set_simulator_i_cache(i_cache_);
   }
   Initialize();
   // Setup simulator support first. Some of this information is needed to
@@ -748,11 +781,14 @@ class Redirection {
       : external_function_(external_function),
         swi_instruction_(al | (0xf*B24) | kCallRtRedirected),
         type_(type),
-        next_(list_) {
-    Simulator::current()->
-        FlushICache(reinterpret_cast<void*>(&swi_instruction_),
-                      Instruction::kInstrSize);
-    list_ = this;
+        next_(NULL) {
+    Isolate* isolate = Isolate::Current();
+    next_ = isolate->simulator_redirection();
+    Simulator::current(isolate)->
+        FlushICache(isolate->simulator_i_cache(),
+                    reinterpret_cast<void*>(&swi_instruction_),
+                    Instruction::kInstrSize);
+    isolate->set_simulator_redirection(this);
   }
 
   void* address_of_swi_instruction() {
@@ -764,8 +800,9 @@ class Redirection {
 
   static Redirection* Get(void* external_function,
                           ExternalReference::Type type) {
-    Redirection* current;
-    for (current = list_; current != NULL; current = current->next_) {
+    Isolate* isolate = Isolate::Current();
+    Redirection* current = isolate->simulator_redirection();
+    for (; current != NULL; current = current->next_) {
       if (current->external_function_ == external_function) return current;
     }
     return new Redirection(external_function, type);
@@ -783,11 +820,7 @@ class Redirection {
   uint32_t swi_instruction_;
   ExternalReference::Type type_;
   Redirection* next_;
-  static Redirection* list_;
 };
-
-
-Redirection* Redirection::list_ = NULL;
 
 
 void* Simulator::RedirectExternalReference(void* external_function,
@@ -798,14 +831,20 @@ void* Simulator::RedirectExternalReference(void* external_function,
 
 
 // Get the active Simulator for the current thread.
-Simulator* Simulator::current() {
-  Initialize();
-  Simulator* sim = reinterpret_cast<Simulator*>(
-      v8::internal::Thread::GetThreadLocal(simulator_key));
+Simulator* Simulator::current(Isolate* isolate) {
+  v8::internal::Isolate::PerIsolateThreadData* isolate_data =
+      Isolate::CurrentPerIsolateThreadData();
+  if (isolate_data == NULL) {
+    Isolate::EnterDefaultIsolate();
+    isolate_data = Isolate::CurrentPerIsolateThreadData();
+  }
+  ASSERT(isolate_data != NULL);
+
+  Simulator* sim = isolate_data->simulator();
   if (sim == NULL) {
-    // TODO(146): delete the simulator object when a thread goes away.
+    // TODO(146): delete the simulator object when a thread/isolate goes away.
     sim = new Simulator();
-    v8::internal::Thread::SetThreadLocal(simulator_key, sim);
+    isolate_data->set_simulator(sim);
   }
   return sim;
 }
@@ -1533,7 +1572,8 @@ typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0,
                                         int32_t arg1,
                                         int32_t arg2,
                                         int32_t arg3,
-                                        int32_t arg4);
+                                        int32_t arg4,
+                                        int32_t arg5);
 typedef double (*SimulatorRuntimeFPCall)(int32_t arg0,
                                          int32_t arg1,
                                          int32_t arg2,
@@ -1564,7 +1604,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       int32_t arg2 = get_register(r2);
       int32_t arg3 = get_register(r3);
       int32_t* stack_pointer = reinterpret_cast<int32_t*>(get_register(sp));
-      int32_t arg4 = *stack_pointer;
+      int32_t arg4 = stack_pointer[0];
+      int32_t arg5 = stack_pointer[1];
       // This is dodgy but it works because the C entry stubs are never moved.
       // See comment in codegen-arm.cc and bug 1242173.
       int32_t saved_lr = get_register(lr);
@@ -1627,20 +1668,22 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             reinterpret_cast<SimulatorRuntimeCall>(external);
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF(
-              "Call to host function at %p args %08x, %08x, %08x, %08x, %0xc",
+              "Call to host function at %p"
+              "args %08x, %08x, %08x, %08x, %08x, %08x",
               FUNCTION_ADDR(target),
               arg0,
               arg1,
               arg2,
               arg3,
-              arg4);
+              arg4,
+              arg5);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        int64_t result = target(arg0, arg1, arg2, arg3, arg4);
+        int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
         if (::v8::internal::FLAG_trace_sim) {
@@ -1654,7 +1697,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       break;
     }
     case kBreakpoint: {
-      Debugger dbg(this);
+      ArmDebugger dbg(this);
       dbg.Debug();
       break;
     }
@@ -1668,7 +1711,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         // Stop if it is enabled, otherwise go on jumping over the stop
         // and the message address.
         if (isEnabledStop(code)) {
-          Debugger dbg(this);
+          ArmDebugger dbg(this);
           dbg.Stop(instr);
         } else {
           set_pc(get_pc() + 2 * Instruction::kInstrSize);
@@ -1976,7 +2019,7 @@ void Simulator::DecodeType01(Instruction* instr) {
           break;
         }
         case BKPT: {
-          Debugger dbg(this);
+          ArmDebugger dbg(this);
           PrintF("Simulator hit BKPT.\n");
           dbg.Debug();
           break;
@@ -2964,7 +3007,7 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
   if (v8::internal::FLAG_check_icache) {
-    CheckICache(instr);
+    CheckICache(isolate_->simulator_i_cache(), instr);
   }
   pc_modified_ = false;
   if (::v8::internal::FLAG_trace_sim) {
@@ -3047,7 +3090,7 @@ void Simulator::Execute() {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       icount_++;
       if (icount_ == ::v8::internal::FLAG_stop_sim_at) {
-        Debugger dbg(this);
+        ArmDebugger dbg(this);
         dbg.Debug();
       } else {
         InstructionDecode(instr);

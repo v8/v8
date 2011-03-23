@@ -976,3 +976,159 @@ repeat(10, function() { testAssignToUndefined(false); });
   assertEquals(["c", "d", "a", "b"], strict("a", "b"));
   assertEquals(["c", "d", "c", "d"], nonstrict("a", "b"));
 })();
+
+
+function CheckPillDescriptor(func, name) {
+
+  function CheckPill(pill) {
+    assertEquals("function", typeof pill);
+    assertInstanceof(pill, Function);
+    assertThrows(function() { pill.property = "value"; }, TypeError);
+    assertThrows(pill, TypeError);
+    assertEquals(pill.prototype, (function(){}).prototype);
+    var d = Object.getOwnPropertyDescriptor(pill, "prototype");
+    assertFalse(d.writable);
+    assertFalse(d.configurable);
+    assertFalse(d.enumerable);
+  }
+
+  var descriptor = Object.getOwnPropertyDescriptor(func, name);
+  CheckPill(descriptor.get)
+  CheckPill(descriptor.set);
+  assertFalse(descriptor.enumerable);
+  assertFalse(descriptor.configurable);
+}
+
+
+(function TestStrictFunctionPills() {
+  function strict() {
+    "use strict";
+  }
+  assertThrows(function() { strict.caller; }, TypeError);
+  assertThrows(function() { strict.arguments; }, TypeError);
+
+  var another = new Function("'use strict'");
+  assertThrows(function() { another.caller; }, TypeError);
+  assertThrows(function() { another.arguments; }, TypeError);
+
+  var third = (function() { "use strict"; return function() {}; })();
+  assertThrows(function() { third.caller; }, TypeError);
+  assertThrows(function() { third.arguments; }, TypeError);
+
+  CheckPillDescriptor(strict, "caller");
+  CheckPillDescriptor(strict, "arguments");
+  CheckPillDescriptor(another, "caller");
+  CheckPillDescriptor(another, "arguments");
+  CheckPillDescriptor(third, "caller");
+  CheckPillDescriptor(third, "arguments");
+})();
+
+
+(function TestStrictFunctionWritablePrototype() {
+  "use strict";
+  function TheClass() {
+  }
+  assertThrows(function() { TheClass.caller; }, TypeError);
+  assertThrows(function() { TheClass.arguments; }, TypeError);
+
+  // Strict functions must have writable prototype.
+  TheClass.prototype = {
+    func: function() { return "func_value"; },
+    get accessor() { return "accessor_value"; },
+    property: "property_value",
+  };
+
+  var o = new TheClass();
+  assertEquals(o.func(), "func_value");
+  assertEquals(o.accessor, "accessor_value");
+  assertEquals(o.property, "property_value");
+})();
+
+
+(function TestStrictArgumentPills() {
+  function strict() {
+    "use strict";
+    return arguments;
+  }
+
+  var args = strict();
+  CheckPillDescriptor(args, "caller");
+  CheckPillDescriptor(args, "callee");
+
+  args = strict(17, "value", strict);
+  assertEquals(17, args[0])
+  assertEquals("value", args[1])
+  assertEquals(strict, args[2]);
+  CheckPillDescriptor(args, "caller");
+  CheckPillDescriptor(args, "callee");
+
+  function outer() {
+    "use strict";
+    function inner() {
+      return arguments;
+    }
+    return inner;
+  }
+
+  var args = outer()();
+  CheckPillDescriptor(args, "caller");
+  CheckPillDescriptor(args, "callee");
+
+  args = outer()(17, "value", strict);
+  assertEquals(17, args[0])
+  assertEquals("value", args[1])
+  assertEquals(strict, args[2]);
+  CheckPillDescriptor(args, "caller");
+  CheckPillDescriptor(args, "callee");
+})();
+
+
+(function TestNonStrictFunctionCallerPillSimple() {
+  function return_my_caller() {
+    return return_my_caller.caller;
+  }
+
+  function strict() {
+    "use strict";
+    return_my_caller();
+  }
+  assertThrows(strict, TypeError);
+
+  function non_strict() {
+    return return_my_caller();
+  }
+  assertSame(non_strict(), non_strict);
+})();
+
+
+(function TestNonStrictFunctionCallerPill() {
+  function strict(n) {
+    "use strict";
+    non_strict(n);
+  }
+
+  function recurse(n, then) {
+    if (n > 0) {
+      recurse(n - 1);
+    } else {
+      return then();
+    }
+  }
+
+  function non_strict(n) {
+    recurse(n, function() { non_strict.caller; });
+  }
+
+  function test(n) {
+    try {
+      recurse(n, function() { strict(n); });
+    } catch(e) {
+      return e instanceof TypeError;
+    }
+    return false;
+  }
+
+  for (var i = 0; i < 10; i ++) {
+    assertEquals(test(i), true);
+  }
+})();

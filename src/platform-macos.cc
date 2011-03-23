@@ -88,6 +88,9 @@ double ceiling(double x) {
 }
 
 
+static Mutex* limit_mutex = NULL;
+
+
 void OS::Setup() {
   // Seed the random number generator.
   // Convert the current time to a 64-bit integer first, before converting it
@@ -96,6 +99,7 @@ void OS::Setup() {
   // call this setup code within the same millisecond.
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srandom(static_cast<unsigned int>(seed));
+  limit_mutex = CreateMutex();
 }
 
 
@@ -109,6 +113,9 @@ static void* highest_ever_allocated = reinterpret_cast<void*>(0);
 
 
 static void UpdateAllocatedSpaceLimits(void* address, int size) {
+  ASSERT(limit_mutex != NULL);
+  ScopedLock lock(limit_mutex);
+
   lowest_ever_allocated = Min(lowest_ever_allocated, address);
   highest_ever_allocated =
       Max(highest_ever_allocated,
@@ -143,7 +150,7 @@ void* OS::Allocate(const size_t requested,
                      MAP_PRIVATE | MAP_ANON,
                      kMmapFd, kMmapFdOffset);
   if (mbase == MAP_FAILED) {
-    LOG(StringEvent("OS::Allocate", "mmap failed"));
+    LOG(Isolate::Current(), StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
   }
   *allocated = msize;
@@ -258,7 +265,8 @@ void OS::LogSharedLibraryAddresses() {
     if (code_ptr == NULL) continue;
     const uintptr_t slide = _dyld_get_image_vmaddr_slide(i);
     const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
-    LOG(SharedLibraryEvent(_dyld_get_image_name(i), start, start + size));
+    LOG(Isolate::Current(),
+        SharedLibraryEvent(_dyld_get_image_name(i), start, start + size));
   }
 #endif  // ENABLE_LOGGING_AND_PROFILING
 }
@@ -424,19 +432,24 @@ bool ThreadHandle::IsValid() const {
 }
 
 
-Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
-  set_name("v8:<unknown>");
+Thread::Thread(Isolate* isolate, const Options& options)
+    : ThreadHandle(ThreadHandle::INVALID),
+      isolate_(isolate),
+      stack_size_(options.stack_size) {
+  set_name(options.name);
 }
 
 
-Thread::Thread(const char* name) : ThreadHandle(ThreadHandle::INVALID) {
+Thread::Thread(Isolate* isolate, const char* name)
+    : ThreadHandle(ThreadHandle::INVALID),
+      isolate_(isolate),
+      stack_size_(0) {
   set_name(name);
 }
 
 
 Thread::~Thread() {
 }
-
 
 
 static void SetThreadName(const char* name) {
@@ -464,6 +477,7 @@ static void* ThreadEntry(void* arg) {
   thread->thread_handle_data()->thread_ = pthread_self();
   SetThreadName(thread->name());
   ASSERT(thread->IsValid());
+  Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return NULL;
 }
@@ -476,7 +490,15 @@ void Thread::set_name(const char* name) {
 
 
 void Thread::Start() {
-  pthread_create(&thread_handle_data()->thread_, NULL, ThreadEntry, this);
+  pthread_attr_t* attr_ptr = NULL;
+  pthread_attr_t attr;
+  if (stack_size_ > 0) {
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
+    attr_ptr = &attr;
+  }
+  pthread_create(&thread_handle_data()->thread_, attr_ptr, ThreadEntry, this);
+  ASSERT(IsValid());
 }
 
 
@@ -595,52 +617,111 @@ Semaphore* OS::CreateSemaphore(int count) {
 
 class Sampler::PlatformData : public Malloced {
  public:
-  explicit PlatformData(Sampler* sampler)
-      : sampler_(sampler),
-        task_self_(mach_task_self()),
-        profiled_thread_(0),
-        sampler_thread_(0) {
+  PlatformData() : profiled_thread_(mach_thread_self()) {}
+
+  ~PlatformData() {
+    // Deallocate Mach port for thread.
+    mach_port_deallocate(mach_task_self(), profiled_thread_);
   }
 
-  Sampler* sampler_;
+  thread_act_t profiled_thread() { return profiled_thread_; }
+
+ private:
   // Note: for profiled_thread_ Mach primitives are used instead of PThread's
   // because the latter doesn't provide thread manipulation primitives required.
   // For details, consult "Mac OS X Internals" book, Section 7.3.
-  mach_port_t task_self_;
   thread_act_t profiled_thread_;
-  pthread_t sampler_thread_;
-  RuntimeProfilerRateLimiter rate_limiter_;
+};
 
-  // Sampler thread handler.
-  void Runner() {
-    while (sampler_->IsActive()) {
-      if (rate_limiter_.SuspendIfNecessary()) continue;
-      Sample();
-      OS::Sleep(sampler_->interval_);
+class SamplerThread : public Thread {
+ public:
+  explicit SamplerThread(int interval)
+      : Thread(NULL, "SamplerThread"),
+        interval_(interval) {}
+
+  static void AddActiveSampler(Sampler* sampler) {
+    ScopedLock lock(mutex_);
+    SamplerRegistry::AddActiveSampler(sampler);
+    if (instance_ == NULL) {
+      instance_ = new SamplerThread(sampler->interval());
+      instance_->Start();
+    } else {
+      ASSERT(instance_->interval_ == sampler->interval());
     }
   }
 
-  void Sample() {
-    if (sampler_->IsProfiling()) {
-      TickSample sample_obj;
-      TickSample* sample = CpuProfiler::TickSampleEvent();
-      if (sample == NULL) sample = &sample_obj;
+  static void RemoveActiveSampler(Sampler* sampler) {
+    ScopedLock lock(mutex_);
+    SamplerRegistry::RemoveActiveSampler(sampler);
+    if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
+      RuntimeProfiler::WakeUpRuntimeProfilerThreadBeforeShutdown();
+      instance_->Join();
+      delete instance_;
+      instance_ = NULL;
+    }
+  }
 
-      if (KERN_SUCCESS != thread_suspend(profiled_thread_)) return;
+  // Implement Thread::Run().
+  virtual void Run() {
+    SamplerRegistry::State state;
+    while ((state = SamplerRegistry::GetState()) !=
+           SamplerRegistry::HAS_NO_SAMPLERS) {
+      bool cpu_profiling_enabled =
+          (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
+      bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
+      // When CPU profiling is enabled both JavaScript and C++ code is
+      // profiled. We must not suspend.
+      if (!cpu_profiling_enabled) {
+        if (rate_limiter_.SuspendIfNecessary()) continue;
+      }
+      if (cpu_profiling_enabled) {
+        if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this)) {
+          return;
+        }
+      }
+      if (runtime_profiler_enabled) {
+        if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile, NULL)) {
+          return;
+        }
+      }
+      OS::Sleep(interval_);
+    }
+  }
+
+  static void DoCpuProfile(Sampler* sampler, void* raw_sampler_thread) {
+    if (!sampler->isolate()->IsInitialized()) return;
+    if (!sampler->IsProfiling()) return;
+    SamplerThread* sampler_thread =
+        reinterpret_cast<SamplerThread*>(raw_sampler_thread);
+    sampler_thread->SampleContext(sampler);
+  }
+
+  static void DoRuntimeProfile(Sampler* sampler, void* ignored) {
+    if (!sampler->isolate()->IsInitialized()) return;
+    sampler->isolate()->runtime_profiler()->NotifyTick();
+  }
+
+  void SampleContext(Sampler* sampler) {
+    thread_act_t profiled_thread = sampler->platform_data()->profiled_thread();
+    TickSample sample_obj;
+    TickSample* sample = CpuProfiler::TickSampleEvent(sampler->isolate());
+    if (sample == NULL) sample = &sample_obj;
+
+    if (KERN_SUCCESS != thread_suspend(profiled_thread)) return;
 
 #if V8_HOST_ARCH_X64
-      thread_state_flavor_t flavor = x86_THREAD_STATE64;
-      x86_thread_state64_t state;
-      mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
+    thread_state_flavor_t flavor = x86_THREAD_STATE64;
+    x86_thread_state64_t state;
+    mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
 #if __DARWIN_UNIX03
 #define REGISTER_FIELD(name) __r ## name
 #else
 #define REGISTER_FIELD(name) r ## name
 #endif  // __DARWIN_UNIX03
 #elif V8_HOST_ARCH_IA32
-      thread_state_flavor_t flavor = i386_THREAD_STATE;
-      i386_thread_state_t state;
-      mach_msg_type_number_t count = i386_THREAD_STATE_COUNT;
+    thread_state_flavor_t flavor = i386_THREAD_STATE;
+    i386_thread_state_t state;
+    mach_msg_type_number_t count = i386_THREAD_STATE_COUNT;
 #if __DARWIN_UNIX03
 #define REGISTER_FIELD(name) __e ## name
 #else
@@ -650,81 +731,64 @@ class Sampler::PlatformData : public Malloced {
 #error Unsupported Mac OS X host architecture.
 #endif  // V8_HOST_ARCH
 
-      if (thread_get_state(profiled_thread_,
-                           flavor,
-                           reinterpret_cast<natural_t*>(&state),
-                           &count) == KERN_SUCCESS) {
-        sample->state = Top::current_vm_state();
-        sample->pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
-        sample->sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
-        sample->fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
-        sampler_->SampleStack(sample);
-        sampler_->Tick(sample);
-      }
-      thread_resume(profiled_thread_);
+    if (thread_get_state(profiled_thread,
+                         flavor,
+                         reinterpret_cast<natural_t*>(&state),
+                         &count) == KERN_SUCCESS) {
+      sample->state = sampler->isolate()->current_vm_state();
+      sample->pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
+      sample->sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
+      sample->fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
+      sampler->SampleStack(sample);
+      sampler->Tick(sample);
     }
-    if (RuntimeProfiler::IsEnabled()) RuntimeProfiler::NotifyTick();
+    thread_resume(profiled_thread);
   }
+
+  const int interval_;
+  RuntimeProfilerRateLimiter rate_limiter_;
+
+  // Protects the process wide state below.
+  static Mutex* mutex_;
+  static SamplerThread* instance_;
+
+  DISALLOW_COPY_AND_ASSIGN(SamplerThread);
 };
 
 #undef REGISTER_FIELD
 
 
-// Entry point for sampler thread.
-static void* SamplerEntry(void* arg) {
-  Sampler::PlatformData* data =
-      reinterpret_cast<Sampler::PlatformData*>(arg);
-  data->Runner();
-  return 0;
-}
+Mutex* SamplerThread::mutex_ = OS::CreateMutex();
+SamplerThread* SamplerThread::instance_ = NULL;
 
 
-Sampler::Sampler(int interval)
-    : interval_(interval),
+Sampler::Sampler(Isolate* isolate, int interval)
+    : isolate_(isolate),
+      interval_(interval),
       profiling_(false),
       active_(false),
       samples_taken_(0) {
-  data_ = new PlatformData(this);
+  data_ = new PlatformData;
 }
 
 
 Sampler::~Sampler() {
+  ASSERT(!IsActive());
   delete data_;
 }
 
 
 void Sampler::Start() {
-  // Do not start multiple threads for the same sampler.
   ASSERT(!IsActive());
-  data_->profiled_thread_ = mach_thread_self();
-
-  // Create sampler thread with high priority.
-  // According to POSIX spec, when SCHED_FIFO policy is used, a thread
-  // runs until it exits or blocks.
-  pthread_attr_t sched_attr;
-  sched_param fifo_param;
-  pthread_attr_init(&sched_attr);
-  pthread_attr_setinheritsched(&sched_attr, PTHREAD_EXPLICIT_SCHED);
-  pthread_attr_setschedpolicy(&sched_attr, SCHED_FIFO);
-  fifo_param.sched_priority = sched_get_priority_max(SCHED_FIFO);
-  pthread_attr_setschedparam(&sched_attr, &fifo_param);
-
   SetActive(true);
-  pthread_create(&data_->sampler_thread_, &sched_attr, SamplerEntry, data_);
+  SamplerThread::AddActiveSampler(this);
 }
 
 
 void Sampler::Stop() {
-  // Seting active to false triggers termination of the sampler
-  // thread.
+  ASSERT(IsActive());
+  SamplerThread::RemoveActiveSampler(this);
   SetActive(false);
-
-  // Wait for sampler thread to terminate.
-  Top::WakeUpRuntimeProfilerThreadBeforeShutdown();
-  pthread_join(data_->sampler_thread_, NULL);
-
-  // Deallocate Mach port for thread.
-  mach_port_deallocate(data_->task_self_, data_->profiled_thread_);
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

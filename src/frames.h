@@ -28,6 +28,7 @@
 #ifndef V8_FRAMES_H_
 #define V8_FRAMES_H_
 
+#include "handles.h"
 #include "safepoint-table.h"
 
 namespace v8 {
@@ -44,11 +45,10 @@ int JSCallerSavedCode(int n);
 
 // Forward declarations.
 class StackFrameIterator;
-class Top;
 class ThreadLocalTop;
+class Isolate;
 
-
-class PcToCodeCache : AllStatic {
+class PcToCodeCache {
  public:
   struct PcToCodeCacheEntry {
     Address pc;
@@ -56,22 +56,28 @@ class PcToCodeCache : AllStatic {
     SafepointEntry safepoint_entry;
   };
 
-  static PcToCodeCacheEntry* cache(int index) {
-    return &cache_[index];
+  explicit PcToCodeCache(Isolate* isolate) : isolate_(isolate) {
+    Flush();
   }
 
-  static Code* GcSafeFindCodeForPc(Address pc);
-  static Code* GcSafeCastToCode(HeapObject* object, Address pc);
+  Code* GcSafeFindCodeForPc(Address pc);
+  Code* GcSafeCastToCode(HeapObject* object, Address pc);
 
-  static void FlushPcToCodeCache() {
+  void Flush() {
     memset(&cache_[0], 0, sizeof(cache_));
   }
 
-  static PcToCodeCacheEntry* GetCacheEntry(Address pc);
+  PcToCodeCacheEntry* GetCacheEntry(Address pc);
 
  private:
+  PcToCodeCacheEntry* cache(int index) { return &cache_[index]; }
+
+  Isolate* isolate_;
+
   static const int kPcToCodeCacheSize = 1024;
-  static PcToCodeCacheEntry cache_[kPcToCodeCacheSize];
+  PcToCodeCacheEntry cache_[kPcToCodeCacheSize];
+
+  DISALLOW_COPY_AND_ASSIGN(PcToCodeCache);
 };
 
 
@@ -199,12 +205,12 @@ class StackFrame BASE_EMBEDDED {
   virtual Code* unchecked_code() const = 0;
 
   // Get the code associated with this frame.
-  Code* code() const { return GetContainingCode(pc()); }
+  Code* LookupCode(Isolate* isolate) const {
+    return GetContainingCode(isolate, pc());
+  }
 
   // Get the code object that contains the given pc.
-  static Code* GetContainingCode(Address pc) {
-    return PcToCodeCache::GetCacheEntry(pc)->code;
-  }
+  static inline Code* GetContainingCode(Isolate* isolate, Address pc);
 
   // Get the code object containing the given pc and fill in the
   // safepoint entry and the number of stack slots. The pc must be at
@@ -612,7 +618,7 @@ class StackFrameIterator BASE_EMBEDDED {
   // An iterator that can start from a given FP address.
   // If use_top, then work as usual, if fp isn't NULL, use it,
   // otherwise, do nothing.
-  StackFrameIterator(bool use_top, Address fp, Address sp);
+  StackFrameIterator(Isolate* isolate, bool use_top, Address fp, Address sp);
 
   StackFrame* frame() const {
     ASSERT(!done());
@@ -675,6 +681,13 @@ class JavaScriptFrameIteratorTemp BASE_EMBEDDED {
     if (!done()) Advance();
   }
 
+  JavaScriptFrameIteratorTemp(Isolate* isolate,
+                              Address fp, Address sp,
+                              Address low_bound, Address high_bound) :
+      iterator_(isolate, fp, sp, low_bound, high_bound) {
+    if (!done()) Advance();
+  }
+
   inline JavaScriptFrame* frame() const;
 
   bool done() const { return iterator_.done(); }
@@ -712,7 +725,8 @@ class StackTraceFrameIterator: public JavaScriptFrameIterator {
 
 class SafeStackFrameIterator BASE_EMBEDDED {
  public:
-  SafeStackFrameIterator(Address fp, Address sp,
+  SafeStackFrameIterator(Isolate* isolate,
+                         Address fp, Address sp,
                          Address low_bound, Address high_bound);
 
   StackFrame* frame() const {
@@ -762,7 +776,8 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   bool CanIterateHandles(StackFrame* frame, StackHandler* handler);
   bool IsValidFrame(StackFrame* frame) const;
   bool IsValidCaller(StackFrame* frame);
-  static bool IsValidTop(Address low_bound, Address high_bound);
+  static bool IsValidTop(Isolate* isolate,
+                         Address low_bound, Address high_bound);
 
   // This is a nasty hack to make sure the active count is incremented
   // before the constructor for the embedded iterator is invoked. This
@@ -776,6 +791,7 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   };
 
   ActiveCountMaintainer maintainer_;
+  // TODO(isolates): this is dangerous.
   static int active_count_;
   StackAddressValidator stack_validator_;
   const bool is_valid_top_;
@@ -793,7 +809,8 @@ typedef JavaScriptFrameIteratorTemp<SafeStackFrameIterator>
 
 class SafeStackTraceFrameIterator: public SafeJavaScriptFrameIterator {
  public:
-  explicit SafeStackTraceFrameIterator(Address fp, Address sp,
+  explicit SafeStackTraceFrameIterator(Isolate* isolate,
+                                       Address fp, Address sp,
                                        Address low_bound, Address high_bound);
   void Advance();
 };

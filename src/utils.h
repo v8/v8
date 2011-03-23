@@ -784,6 +784,9 @@ struct BitCastHelper<Dest, Source*> {
 };
 
 template <class Dest, class Source>
+INLINE(Dest BitCast(const Source& source));
+
+template <class Dest, class Source>
 inline Dest BitCast(const Source& source) {
   return BitCastHelper<Dest, Source>::cast(source);
 }

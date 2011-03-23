@@ -708,7 +708,7 @@ class MacroAssembler: public Assembler {
                                                Condition cond = al);
 
   // Call a runtime routine.
-  void CallRuntime(Runtime::Function* f, int num_arguments);
+  void CallRuntime(const Runtime::Function* f, int num_arguments);
   void CallRuntimeSaveDoubles(Runtime::FunctionId id);
 
   // Convenience function: Same as above, but takes the fid instead.
@@ -752,7 +752,7 @@ class MacroAssembler: public Assembler {
   // return address (unless this is somehow accounted for by the called
   // function).
   void CallCFunction(ExternalReference function, int num_arguments);
-  void CallCFunction(Register function, int num_arguments);
+  void CallCFunction(Register function, Register scratch, int num_arguments);
 
   void GetCFunctionDoubleResult(const DoubleRegister dst);
 
@@ -826,6 +826,16 @@ class MacroAssembler: public Assembler {
   void JumpIfNotPowerOfTwoOrZero(Register reg,
                                  Register scratch,
                                  Label* not_power_of_two_or_zero);
+  // Check whether the value of reg is a power of two and not zero.
+  // Control falls through if it is, with scratch containing the mask
+  // value (reg - 1).
+  // Otherwise control jumps to the 'zero_and_neg' label if the value of reg is
+  // zero or negative, or jumps to the 'not_power_of_two' label if the value is
+  // strictly positive but not a power of two.
+  void JumpIfNotPowerOfTwoOrZeroAndNeg(Register reg,
+                                       Register scratch,
+                                       Label* zero_and_neg,
+                                       Label* not_power_of_two);
 
   // ---------------------------------------------------------------------------
   // Smi utilities
@@ -934,6 +944,11 @@ class MacroAssembler: public Assembler {
 
 
  private:
+  void CallCFunctionHelper(Register function,
+                           ExternalReference function_reference,
+                           Register scratch,
+                           int num_arguments);
+
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   int CallSize(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);

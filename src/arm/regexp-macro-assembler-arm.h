@@ -127,6 +127,7 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   static const int kRegisterOutput = kSecondaryReturnAddress + kPointerSize;
   static const int kStackHighEnd = kRegisterOutput + kPointerSize;
   static const int kDirectCall = kStackHighEnd + kPointerSize;
+  static const int kIsolate = kDirectCall + kPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.

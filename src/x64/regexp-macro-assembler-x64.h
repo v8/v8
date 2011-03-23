@@ -104,7 +104,8 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
                       Handle<String> subject,
                       int* offsets_vector,
                       int offsets_vector_length,
-                      int previous_index);
+                      int previous_index,
+                      Isolate* isolate);
 
   static Result Execute(Code* code,
                         String* input,
@@ -142,6 +143,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   static const int kStackHighEnd = kRegisterOutput + kPointerSize;
   // DirectCall is passed as 32 bit int (values 0 or 1).
   static const int kDirectCall = kStackHighEnd + kPointerSize;
+  static const int kIsolate = kDirectCall + kPointerSize;
 #else
   // In AMD64 ABI Calling Convention, the first six integer parameters
   // are passed as registers, and caller must allocate space on the stack
@@ -153,6 +155,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   static const int kRegisterOutput = kInputEnd - kPointerSize;
   static const int kStackHighEnd = kRegisterOutput - kPointerSize;
   static const int kDirectCall = kFrameAlign;
+  static const int kIsolate = kDirectCall + kPointerSize;
 #endif
 
 #ifdef _WIN64
@@ -248,6 +251,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   inline void Drop();
 
   MacroAssembler* masm_;
+  MacroAssembler::NoRootArrayScope no_root_array_scope_;
 
   ZoneList<int> code_relative_fixup_positions_;
 

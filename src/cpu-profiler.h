@@ -133,7 +133,8 @@ class TickSampleEventRecord BASE_EMBEDDED {
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public Thread {
  public:
-  explicit ProfilerEventsProcessor(ProfileGenerator* generator);
+  explicit ProfilerEventsProcessor(Isolate* isolate,
+                                   ProfileGenerator* generator);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.
@@ -196,21 +197,23 @@ class ProfilerEventsProcessor : public Thread {
 } }  // namespace v8::internal
 
 
-#define PROFILE(Call)                                  \
-  LOG(Call);                                           \
+#define PROFILE(isolate, Call)                         \
+  LOG(isolate, Call);                                  \
   do {                                                 \
     if (v8::internal::CpuProfiler::is_profiling()) {   \
       v8::internal::CpuProfiler::Call;                 \
     }                                                  \
   } while (false)
 #else
-#define PROFILE(Call) LOG(Call)
+#define PROFILE(isolate, Call) LOG(isolate, Call)
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 
 namespace v8 {
 namespace internal {
 
+
+// TODO(isolates): isolatify this class.
 class CpuProfiler {
  public:
   static void Setup();
@@ -224,9 +227,12 @@ class CpuProfiler {
   static int GetProfilesCount();
   static CpuProfile* GetProfile(Object* security_token, int index);
   static CpuProfile* FindProfile(Object* security_token, unsigned uid);
+  static void DeleteAllProfiles();
+  static void DeleteProfile(CpuProfile* profile);
+  static bool HasDetachedProfiles();
 
   // Invoked from stack sampler (thread or signal handler.)
-  static TickSample* TickSampleEvent();
+  static TickSample* TickSampleEvent(Isolate* isolate);
 
   // Must be called via PROFILE macro, otherwise will crash when
   // profiling is not enabled.
@@ -253,8 +259,15 @@ class CpuProfiler {
   static void SetterCallbackEvent(String* name, Address entry_point);
   static void SharedFunctionInfoMoveEvent(Address from, Address to);
 
+  // TODO(isolates): this doesn't have to use atomics anymore.
+
   static INLINE(bool is_profiling()) {
-    return NoBarrier_Load(&is_profiling_);
+    return is_profiling(Isolate::Current());
+  }
+
+  static INLINE(bool is_profiling(Isolate* isolate)) {
+    CpuProfiler* profiler = isolate->cpu_profiler();
+    return profiler != NULL && NoBarrier_Load(&profiler->is_profiling_);
   }
 
  private:
@@ -266,6 +279,8 @@ class CpuProfiler {
   CpuProfile* StopCollectingProfile(const char* title);
   CpuProfile* StopCollectingProfile(Object* security_token, String* title);
   void StopProcessorIfLastProfile(const char* title);
+  void StopProcessor();
+  void ResetProfiles();
 
   CpuProfilesCollection* profiles_;
   unsigned next_profile_uid_;
@@ -273,9 +288,8 @@ class CpuProfiler {
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
   int saved_logging_nesting_;
-
-  static CpuProfiler* singleton_;
-  static Atomic32 is_profiling_;
+  bool need_to_stop_sampler_;
+  Atomic32 is_profiling_;
 
 #else
   static INLINE(bool is_profiling()) { return false; }

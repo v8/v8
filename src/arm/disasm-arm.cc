@@ -89,6 +89,9 @@ class Decoder {
   // Returns the length of the disassembled machine instruction in bytes.
   int InstructionDecode(byte* instruction);
 
+  static bool IsConstantPoolAt(byte* instr_ptr);
+  static int ConstantPoolSizeAt(byte* instr_ptr);
+
  private:
   // Bottleneck functions to print into the out_buffer.
   void PrintChar(const char ch);
@@ -899,6 +902,7 @@ void Decoder::DecodeType2(Instruction* instr) {
     case da_x: {
       if (instr->HasW()) {
         Unknown(instr);  // not used in V8
+        return;
       }
       Format(instr, "'memop'cond'b 'rd, ['rn], #-'off12");
       break;
@@ -906,6 +910,7 @@ void Decoder::DecodeType2(Instruction* instr) {
     case ia_x: {
       if (instr->HasW()) {
         Unknown(instr);  // not used in V8
+        return;
       }
       Format(instr, "'memop'cond'b 'rd, ['rn], #+'off12");
       break;
@@ -992,11 +997,15 @@ void Decoder::DecodeType3(Instruction* instr) {
 
 
 void Decoder::DecodeType4(Instruction* instr) {
-  ASSERT(instr->Bit(22) == 0);  // Privileged mode currently not supported.
-  if (instr->HasL()) {
-    Format(instr, "ldm'cond'pu 'rn'w, 'rlist");
+  if (instr->Bit(22) != 0) {
+    // Privileged mode currently not supported.
+    Unknown(instr);
   } else {
-    Format(instr, "stm'cond'pu 'rn'w, 'rlist");
+    if (instr->HasL()) {
+      Format(instr, "ldm'cond'pu 'rn'w, 'rlist");
+    } else {
+      Format(instr, "stm'cond'pu 'rn'w, 'rlist");
+    }
   }
 }
 
@@ -1042,6 +1051,8 @@ int Decoder::DecodeType7(Instruction* instr) {
 // vmov: Rt = Sn
 // vcvt: Dd = Sm
 // vcvt: Sd = Dm
+// Dd = vabs(Dm)
+// Dd = vneg(Dm)
 // Dd = vadd(Dn, Dm)
 // Dd = vsub(Dn, Dm)
 // Dd = vmul(Dn, Dm)
@@ -1297,7 +1308,23 @@ void Decoder::DecodeType6CoprocessorIns(Instruction* instr) {
         break;
     }
   } else {
-    UNIMPLEMENTED();  // Not used by V8.
+    Unknown(instr);  // Not used by V8.
+  }
+}
+
+
+bool Decoder::IsConstantPoolAt(byte* instr_ptr) {
+  int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));
+  return (instruction_bits & kConstantPoolMarkerMask) == kConstantPoolMarker;
+}
+
+
+int Decoder::ConstantPoolSizeAt(byte* instr_ptr) {
+  if (IsConstantPoolAt(instr_ptr)) {
+    int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));
+    return instruction_bits & kConstantPoolLengthMask;
+  } else {
+    return -1;
   }
 }
 
@@ -1310,7 +1337,15 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
                                   "%08x       ",
                                   instr->InstructionBits());
   if (instr->ConditionField() == kSpecialCondition) {
-    UNIMPLEMENTED();
+    Unknown(instr);
+    return Instruction::kInstrSize;
+  }
+  int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));
+  if ((instruction_bits & kConstantPoolMarkerMask) == kConstantPoolMarker) {
+    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "constant pool begin (length %d)",
+                                    instruction_bits &
+                                    kConstantPoolLengthMask);
     return Instruction::kInstrSize;
   }
   switch (instr->TypeValue()) {
@@ -1362,9 +1397,8 @@ namespace disasm {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  static v8::internal::EmbeddedVector<char, 32> tmp_buffer;
-  v8::internal::OS::SNPrintF(tmp_buffer, "%p", addr);
-  return tmp_buffer.start();
+  v8::internal::OS::SNPrintF(tmp_buffer_, "%p", addr);
+  return tmp_buffer_.start();
 }
 
 
@@ -1414,12 +1448,7 @@ int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
 
 
 int Disassembler::ConstantPoolSizeAt(byte* instruction) {
-  int instruction_bits = *(reinterpret_cast<int*>(instruction));
-  if ((instruction_bits & 0xfff00000) == 0x03000000) {
-    return instruction_bits & 0x0000ffff;
-  } else {
-    return -1;
-  }
+  return v8::internal::Decoder::ConstantPoolSizeAt(instruction);
 }
 
 

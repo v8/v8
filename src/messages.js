@@ -230,6 +230,11 @@ function FormatMessage(message) {
       strict_function:              ["In strict mode code, functions can only be declared at top level or immediately within another function." ],
       strict_read_only_property:    ["Cannot assign to read only property '", "%0", "' of ", "%1"],
       strict_cannot_assign:         ["Cannot assign to read only '", "%0", "' in strict mode"],
+      strict_arguments_callee:      ["Cannot access property 'callee' of strict mode arguments"],
+      strict_arguments_caller:      ["Cannot access property 'caller' of strict mode arguments"],
+      strict_function_caller:       ["Cannot access property 'caller' of a strict mode function"],
+      strict_function_arguments:    ["Cannot access property 'arguments' of a strict mode function"],
+      strict_caller:                ["Illegal access to a strict mode caller function."],
     };
   }
   var message_type = %MessageGetType(message);
@@ -491,10 +496,24 @@ Script.prototype.nameOrSourceURL = function() {
   // because this file is being processed by js2c whose handling of spaces
   // in regexps is broken. Also, ['"] are excluded from allowed URLs to
   // avoid matches against sources that invoke evals with sourceURL.
-  var sourceUrlPattern =
-    /\/\/@[\040\t]sourceURL=[\040\t]*([^\s'"]*)[\040\t]*$/m;
-  var match = sourceUrlPattern.exec(this.source);
-  return match ? match[1] : this.name;
+  // A better solution would be to detect these special comments in
+  // the scanner/parser.
+  var source = ToString(this.source);
+  var sourceUrlPos = %StringIndexOf(source, "sourceURL=", 0);
+  if (sourceUrlPos > 4) {
+    var sourceUrlPattern =
+        /\/\/@[\040\t]sourceURL=[\040\t]*([^\s\'\"]*)[\040\t]*$/gm;
+    // Don't reuse lastMatchInfo here, so we create a new array with room
+    // for four captures (array with length one longer than the index
+    // of the fourth capture, where the numbering is zero-based).
+    var matchInfo = new InternalArray(CAPTURE(3) + 1);
+    var match =
+        %_RegExpExec(sourceUrlPattern, source, sourceUrlPos - 4, matchInfo);
+    if (match) {
+      return SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
+    }
+  }
+  return this.name;
 }
 
 
@@ -1067,5 +1086,5 @@ function errorToString() {
 InstallFunctions($Error.prototype, DONT_ENUM, ['toString', errorToString]);
 
 // Boilerplate for exceptions for stack overflows. Used from
-// Top::StackOverflow().
+// Isolate::StackOverflow().
 const kStackOverflowBoilerplate = MakeRangeError('stack_overflow', []);
