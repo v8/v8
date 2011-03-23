@@ -864,16 +864,56 @@ void LCodeGen::DoMulI(LMulI* instr) {
     __ movl(kScratchRegister, left);
   }
 
+  bool can_overflow =
+      instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   if (right->IsConstantOperand()) {
     int right_value = ToInteger32(LConstantOperand::cast(right));
-    __ imull(left, left, Immediate(right_value));
+    if (right_value == -1) {
+      __ negl(left);
+    } else if (right_value == 0) {
+      __ xorl(left, left);
+    } else if (right_value == 2) {
+      __ addl(left, left);
+    } else if (!can_overflow) {
+      // If the multiplication is known to not overflow, we
+      // can use operations that don't set the overflow flag
+      // correctly.
+      switch (right_value) {
+        case 1:
+          // Do nothing.
+          break;
+        case 3:
+          __ leal(left, Operand(left, left, times_2, 0));
+          break;
+        case 4:
+          __ shll(left, Immediate(2));
+          break;
+        case 5:
+          __ leal(left, Operand(left, left, times_4, 0));
+          break;
+        case 8:
+          __ shll(left, Immediate(3));
+          break;
+        case 9:
+          __ leal(left, Operand(left, left, times_8, 0));
+          break;
+        case 16:
+          __ shll(left, Immediate(4));
+          break;
+        default:
+          __ imull(left, left, Immediate(right_value));
+          break;
+      }
+    } else {
+      __ imull(left, left, Immediate(right_value));
+    }
   } else if (right->IsStackSlot()) {
     __ imull(left, ToOperand(right));
   } else {
     __ imull(left, ToRegister(right));
   }
 
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+  if (can_overflow) {
     DeoptimizeIf(overflow, instr->environment());
   }
 
@@ -1984,7 +2024,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
+void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
   Register result = ToRegister(instr->result());
   if (result.is(rax)) {
     __ load_rax(instr->hydrogen()->cell().location(),
@@ -1997,18 +2037,6 @@ void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
     __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(equal, instr->environment());
   }
-}
-
-
-void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
-  ASSERT(ToRegister(instr->global_object()).is(rax));
-  ASSERT(ToRegister(instr->result()).is(rax));
-
-  __ Move(rcx, instr->name());
-  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET :
-                                               RelocInfo::CODE_TARGET_CONTEXT;
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  CallCode(ic, mode, instr);
 }
 
 
@@ -2354,9 +2382,9 @@ void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
 
 
 void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
+  Register global = ToRegister(instr->global());
   Register result = ToRegister(instr->result());
-  __ movq(result, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ movq(result, FieldOperand(result, GlobalObject::kGlobalReceiverOffset));
+  __ movq(result, FieldOperand(global, GlobalObject::kGlobalReceiverOffset));
 }
 
 
@@ -3511,8 +3539,9 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
   // space for nested functions that don't need literals cloning.
   Handle<SharedFunctionInfo> shared_info = instr->shared_info();
   bool pretenure = instr->hydrogen()->pretenure();
-  if (shared_info->num_literals() == 0 && !pretenure) {
-    FastNewClosureStub stub;
+  if (!pretenure && shared_info->num_literals() == 0) {
+    FastNewClosureStub stub(
+        shared_info->strict_mode() ? kStrictMode : kNonStrictMode);
     __ Push(shared_info);
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   } else {

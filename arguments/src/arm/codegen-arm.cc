@@ -599,7 +599,9 @@ void CodeGenerator::StoreArgumentsObject(bool initial) {
     frame_->EmitPushRoot(Heap::kArgumentsMarkerRootIndex);
   } else {
     frame_->SpillAll();
-    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    ArgumentsAccessStub stub(is_strict_mode()
+        ? ArgumentsAccessStub::NEW_STRICT
+        : ArgumentsAccessStub::NEW_NON_STRICT);
     __ ldr(r2, frame_->Function());
     // The receiver is below the arguments, the return address, and the
     // frame pointer on the stack.
@@ -3106,10 +3108,11 @@ void CodeGenerator::InstantiateFunction(
     bool pretenure) {
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() &&
-      function_info->num_literals() == 0 &&
-      !pretenure) {
-    FastNewClosureStub stub;
+  if (!pretenure &&
+      scope()->is_function_scope() &&
+      function_info->num_literals() == 0) {
+    FastNewClosureStub stub(
+        function_info->strict_mode() ? kStrictMode : kNonStrictMode);
     frame_->EmitPush(Operand(function_info));
     frame_->SpillAll();
     frame_->CallStub(&stub, 1);

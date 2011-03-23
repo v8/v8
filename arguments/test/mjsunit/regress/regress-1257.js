@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,23 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// This test tests that no bailouts are missing by not hitting asserts in debug
-// mode. 
+function g(y) { assertEquals(y, 12); }
 
-test_count_operation()
-test_compound_assignment()
+var X = 0;
 
-function f() {}
-function test_count_operation()
-{
-  this.__defineSetter__('x', f);
-  this.__defineGetter__('x', f);
-  x = x++;
+function foo () {
+  var cnt = 0;
+  var l = -1;
+  var x = 0;
+  while (1) switch (l) {
+      case -1:
+        var y = x + 12;
+        l = 0;
+        break;
+      case 0:
+        // Loop for to hit OSR.
+        if (cnt++ < 10000000) {
+          l = 0;
+          break;
+        } else {
+          l = 1;
+          break;
+        }
+      case 1:
+        // This case will contain deoptimization
+        // because it has no type feedback.
+        g(y);
+        return;
+    };
 }
 
-function test_compound_assignment()
-{
-  this.__defineSetter__('y', f);
-  this.__defineGetter__('y', f);
-  y += y;
-}
+foo();

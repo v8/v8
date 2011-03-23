@@ -67,6 +67,7 @@ namespace internal {
 const double DoubleConstant::min_int = kMinInt;
 const double DoubleConstant::one_half = 0.5;
 const double DoubleConstant::minus_zero = -0.0;
+const double DoubleConstant::nan = OS::nan_value();
 const double DoubleConstant::negative_infinity = -V8_INFINITY;
 const char* RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
@@ -742,6 +743,12 @@ ExternalReference ExternalReference::address_of_minus_zero() {
 ExternalReference ExternalReference::address_of_negative_infinity() {
   return ExternalReference(reinterpret_cast<void*>(
       const_cast<double*>(&DoubleConstant::negative_infinity)));
+}
+
+
+ExternalReference ExternalReference::address_of_nan() {
+  return ExternalReference(reinterpret_cast<void*>(
+      const_cast<double*>(&DoubleConstant::nan)));
 }
 
 

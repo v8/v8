@@ -2127,6 +2127,68 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
 }
 
 
+MaybeObject* CallStubCompiler::CompileFastApiCall(
+    const CallOptimization& optimization,
+    Object* object,
+    JSObject* holder,
+    JSGlobalPropertyCell* cell,
+    JSFunction* function,
+    String* name) {
+  ASSERT(optimization.is_simple_api_call());
+  // Bail out if object is a global object as we don't want to
+  // repatch it to global receiver.
+  if (object->IsGlobalObject()) return Heap::undefined_value();
+  if (cell != NULL) return Heap::undefined_value();
+  int depth = optimization.GetPrototypeDepthOfExpectedType(
+            JSObject::cast(object), holder);
+  if (depth == kInvalidProtoDepth) return Heap::undefined_value();
+
+  Label miss, miss_before_stack_reserved;
+
+  GenerateNameCheck(name, &miss_before_stack_reserved);
+
+  // Get the receiver from the stack.
+  const int argc = arguments().immediate();
+  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &miss_before_stack_reserved, not_taken);
+
+  __ IncrementCounter(&Counters::call_const, 1);
+  __ IncrementCounter(&Counters::call_const_fast_api, 1);
+
+  // Allocate space for v8::Arguments implicit values. Must be initialized
+  // before calling any runtime function.
+  __ sub(Operand(esp), Immediate(kFastApiCallArguments * kPointerSize));
+
+  // Check that the maps haven't changed and find a Holder as a side effect.
+  CheckPrototypes(JSObject::cast(object), edx, holder,
+                  ebx, eax, edi, name, depth, &miss);
+
+  // Move the return address on top of the stack.
+  __ mov(eax, Operand(esp, 3 * kPointerSize));
+  __ mov(Operand(esp, 0 * kPointerSize), eax);
+
+  // esp[2 * kPointerSize] is uninitialized, esp[3 * kPointerSize] contains
+  // duplicate of return address and will be overwritten.
+  MaybeObject* result = GenerateFastApiCall(masm(), optimization, argc);
+  if (result->IsFailure()) return result;
+
+  __ bind(&miss);
+  __ add(Operand(esp), Immediate(kFastApiCallArguments * kPointerSize));
+
+  __ bind(&miss_before_stack_reserved);
+  Object* obj;
+  { MaybeObject* maybe_obj = GenerateMissBranch();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+
+  // Return the generated code.
+  return GetCode(function);
+}
+
+
 MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
                                                    JSObject* holder,
                                                    JSFunction* function,
@@ -2140,20 +2202,18 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  SharedFunctionInfo* function_info = function->shared();
-  if (function_info->HasBuiltinFunctionId()) {
-    BuiltinFunctionId id = function_info->builtin_function_id();
+  if (HasCustomCallGenerator(function)) {
     MaybeObject* maybe_result = CompileCustomCall(
-        id, object, holder, NULL, function, name);
+        object, holder, NULL, function, name);
     Object* result;
     if (!maybe_result->ToObject(&result)) return maybe_result;
     // undefined means bail out to regular compiler.
     if (!result->IsUndefined()) return result;
   }
 
-  Label miss_in_smi_check;
+  Label miss;
 
-  GenerateNameCheck(name, &miss_in_smi_check);
+  GenerateNameCheck(name, &miss);
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -2162,42 +2222,25 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
   // Check that the receiver isn't a smi.
   if (check != NUMBER_CHECK) {
     __ test(edx, Immediate(kSmiTagMask));
-    __ j(zero, &miss_in_smi_check, not_taken);
+    __ j(zero, &miss, not_taken);
   }
 
   // Make sure that it's okay not to patch the on stack receiver
   // unless we're doing a receiver map check.
   ASSERT(!object->IsGlobalObject() || check == RECEIVER_MAP_CHECK);
 
-  CallOptimization optimization(function);
-  int depth = kInvalidProtoDepth;
-  Label miss;
-
+  SharedFunctionInfo* function_info = function->shared();
   switch (check) {
     case RECEIVER_MAP_CHECK:
       __ IncrementCounter(&Counters::call_const, 1);
 
-      if (optimization.is_simple_api_call() && !object->IsGlobalObject()) {
-        depth = optimization.GetPrototypeDepthOfExpectedType(
-            JSObject::cast(object), holder);
-      }
-
-      if (depth != kInvalidProtoDepth) {
-        __ IncrementCounter(&Counters::call_const_fast_api, 1);
-
-        // Allocate space for v8::Arguments implicit values. Must be initialized
-        // before to call any runtime function.
-        __ sub(Operand(esp), Immediate(kFastApiCallArguments * kPointerSize));
-      }
-
       // Check that the maps haven't changed.
       CheckPrototypes(JSObject::cast(object), edx, holder,
-                      ebx, eax, edi, name, depth, &miss);
+                      ebx, eax, edi, name, &miss);
 
       // Patch the receiver on the stack with the global proxy if
       // necessary.
       if (object->IsGlobalObject()) {
-        ASSERT(depth == kInvalidProtoDepth);
         __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
         __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
       }
@@ -2268,25 +2311,10 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       UNREACHABLE();
   }
 
-  if (depth != kInvalidProtoDepth) {
-    // Move the return address on top of the stack.
-    __ mov(eax, Operand(esp, 3 * kPointerSize));
-    __ mov(Operand(esp, 0 * kPointerSize), eax);
-
-    // esp[2 * kPointerSize] is uninitialized, esp[3 * kPointerSize] contains
-    // duplicate of return address and will be overwritten.
-    MaybeObject* result = GenerateFastApiCall(masm(), optimization, argc);
-    if (result->IsFailure()) return result;
-  } else {
-    __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
-  }
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
 
   // Handle call cache miss.
   __ bind(&miss);
-  if (depth != kInvalidProtoDepth) {
-    __ add(Operand(esp), Immediate(kFastApiCallArguments * kPointerSize));
-  }
-  __ bind(&miss_in_smi_check);
   Object* obj;
   { MaybeObject* maybe_obj = GenerateMissBranch();
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
@@ -2378,11 +2406,9 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(JSObject* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  SharedFunctionInfo* function_info = function->shared();
-  if (function_info->HasBuiltinFunctionId()) {
-    BuiltinFunctionId id = function_info->builtin_function_id();
+  if (HasCustomCallGenerator(function)) {
     MaybeObject* maybe_result = CompileCustomCall(
-        id, object, holder, cell, function, name);
+        object, holder, cell, function, name);
     Object* result;
     if (!maybe_result->ToObject(&result)) return maybe_result;
     // undefined means bail out to regular compiler.

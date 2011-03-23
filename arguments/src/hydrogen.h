@@ -124,6 +124,10 @@ class HBasicBlock: public ZoneObject {
   void AddSimulate(int id) { AddInstruction(CreateSimulate(id)); }
   void AssignCommonDominator(HBasicBlock* other);
 
+  void FinishExitWithDeoptimization() {
+    FinishExit(CreateDeoptimize());
+  }
+
   // Add the inlined function exit sequence, adding an HLeaveInlined
   // instruction and updating the bailout environment.
   void AddLeaveInlined(HValue* return_value, HBasicBlock* target);
@@ -146,6 +150,7 @@ class HBasicBlock: public ZoneObject {
   void AddDominatedBlock(HBasicBlock* block);
 
   HSimulate* CreateSimulate(int id);
+  HDeoptimize* CreateDeoptimize();
 
   int block_id_;
   HGraph* graph_;
@@ -445,9 +450,6 @@ class AstContext {
   // the instruction as value.
   virtual void ReturnInstruction(HInstruction* instr, int ast_id) = 0;
 
-  void set_for_typeof(bool for_typeof) { for_typeof_ = for_typeof; }
-  bool is_for_typeof() { return for_typeof_; }
-
  protected:
   AstContext(HGraphBuilder* owner, Expression::Context kind);
   virtual ~AstContext();
@@ -464,7 +466,6 @@ class AstContext {
   HGraphBuilder* owner_;
   Expression::Context kind_;
   AstContext* outer_;
-  bool for_typeof_;
 };
 
 
@@ -731,7 +732,6 @@ class HGraphBuilder: public AstVisitor {
   void Bind(Variable* var, HValue* value) { environment()->Bind(var, value); }
 
   void VisitForValue(Expression* expr);
-  void VisitForTypeOf(Expression* expr);
   void VisitForEffect(Expression* expr);
   void VisitForControl(Expression* expr,
                        HBasicBlock* true_block,
@@ -767,13 +767,9 @@ class HGraphBuilder: public AstVisitor {
   HBasicBlock* CreateLoopHeaderBlock();
 
   // Helpers for flow graph construction.
-  enum GlobalPropertyAccess {
-    kUseCell,
-    kUseGeneric
-  };
-  GlobalPropertyAccess LookupGlobalProperty(Variable* var,
-                                            LookupResult* lookup,
-                                            bool is_store);
+  void LookupGlobalPropertyCell(Variable* var,
+                                LookupResult* lookup,
+                                bool is_store);
 
   bool TryArgumentsAccess(Property* expr);
   bool TryCallApply(Call* expr);

@@ -113,6 +113,21 @@ void HBasicBlock::AddInstruction(HInstruction* instr) {
 }
 
 
+HDeoptimize* HBasicBlock::CreateDeoptimize() {
+  ASSERT(HasEnvironment());
+  HEnvironment* environment = last_environment();
+
+  HDeoptimize* instr = new HDeoptimize(environment->length());
+
+  for (int i = 0; i < environment->length(); i++) {
+    HValue* val = environment->values()->at(i);
+    instr->AddEnvironmentValue(val);
+  }
+
+  return instr;
+}
+
+
 HSimulate* HBasicBlock::CreateSimulate(int id) {
   ASSERT(HasEnvironment());
   HEnvironment* environment = last_environment();
@@ -1961,10 +1976,7 @@ FunctionState::~FunctionState() {
 // Implementation of utility classes to represent an expression's context in
 // the AST.
 AstContext::AstContext(HGraphBuilder* owner, Expression::Context kind)
-    : owner_(owner),
-      kind_(kind),
-      outer_(owner->ast_context()),
-      for_typeof_(false) {
+    : owner_(owner), kind_(kind), outer_(owner->ast_context()) {
   owner->set_ast_context(this);  // Push.
 #ifdef DEBUG
   original_length_ = owner->environment()->length();
@@ -2106,14 +2118,6 @@ void HGraphBuilder::VisitForValue(Expression* expr) {
   ValueContext for_value(this);
   Visit(expr);
 }
-
-
-void HGraphBuilder::VisitForTypeOf(Expression* expr) {
-  ValueContext for_value(this);
-  for_value.set_for_typeof(true);
-  Visit(expr);
-}
-
 
 
 void HGraphBuilder::VisitForControl(Expression* expr,
@@ -2478,6 +2482,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   }
 
   VISIT_FOR_VALUE(stmt->tag());
+  AddSimulate(stmt->EntryId());
   HValue* tag_value = Pop();
   HBasicBlock* first_test_block = current_block();
 
@@ -2493,15 +2498,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     // Unconditionally deoptimize on the first non-smi compare.
     clause->RecordTypeFeedback(oracle());
     if (!clause->IsSmiCompare()) {
-      if (current_block() == first_test_block) {
-        // If the first test is the one that deopts and if the tag value is
-        // a phi, we need to have some use of that phi to prevent phi
-        // elimination from removing it.  This HSimulate is such a use.
-        Push(tag_value);
-        AddSimulate(stmt->EntryId());
-        Drop(1);
-      }
-      current_block()->Finish(new HDeoptimize());
+      current_block()->FinishExitWithDeoptimization();
       set_current_block(NULL);
       break;
     }
@@ -2803,21 +2800,29 @@ void HGraphBuilder::VisitConditional(Conditional* expr) {
 }
 
 
-HGraphBuilder::GlobalPropertyAccess HGraphBuilder::LookupGlobalProperty(
-    Variable* var, LookupResult* lookup, bool is_store) {
-  if (var->is_this() || !info()->has_global_object()) {
-    return kUseGeneric;
+void HGraphBuilder::LookupGlobalPropertyCell(Variable* var,
+                                             LookupResult* lookup,
+                                             bool is_store) {
+  if (var->is_this()) {
+    BAILOUT("global this reference");
+  }
+  if (!info()->has_global_object()) {
+    BAILOUT("no global object to optimize VariableProxy");
   }
   Handle<GlobalObject> global(info()->global_object());
   global->Lookup(*var->name(), lookup);
-  if (!lookup->IsProperty() ||
-      lookup->type() != NORMAL ||
-      (is_store && lookup->IsReadOnly()) ||
-      lookup->holder() != *global) {
-    return kUseGeneric;
+  if (!lookup->IsProperty()) {
+    BAILOUT("global variable cell not yet introduced");
   }
-
-  return kUseCell;
+  if (lookup->type() != NORMAL) {
+    BAILOUT("global variable has accessors");
+  }
+  if (is_store && lookup->IsReadOnly()) {
+    BAILOUT("read-only global variable");
+  }
+  if (lookup->holder() != *global) {
+    BAILOUT("global property on prototype of global object");
+  }
 }
 
 
@@ -2853,31 +2858,19 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
     ast_context()->ReturnInstruction(instr, expr->id());
   } else if (variable->is_global()) {
     LookupResult lookup;
-    GlobalPropertyAccess type = LookupGlobalProperty(variable, &lookup, false);
+    LookupGlobalPropertyCell(variable, &lookup, false);
+    CHECK_BAILOUT;
 
-    if (type == kUseCell &&
-        info()->global_object()->IsAccessCheckNeeded()) {
-      type = kUseGeneric;
+    Handle<GlobalObject> global(info()->global_object());
+    // TODO(3039103): Handle global property load through an IC call when access
+    // checks are enabled.
+    if (global->IsAccessCheckNeeded()) {
+      BAILOUT("global object requires access check");
     }
-
-    if (type == kUseCell) {
-      Handle<GlobalObject> global(info()->global_object());
-      Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
-      bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
-      HLoadGlobalCell* instr = new HLoadGlobalCell(cell, check_hole);
-      ast_context()->ReturnInstruction(instr, expr->id());
-    } else {
-      HContext* context = new HContext;
-      AddInstruction(context);
-      HGlobalObject* global_object = new HGlobalObject(context);
-      AddInstruction(global_object);
-      HLoadGlobalGeneric* instr =
-          new HLoadGlobalGeneric(context,
-                                 global_object,
-                                 variable->name(),
-                                 ast_context()->is_for_typeof());
-      ast_context()->ReturnInstruction(instr, expr->id());
-    }
+    Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
+    bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
+    HLoadGlobal* instr = new HLoadGlobal(cell, check_hole);
+    ast_context()->ReturnInstruction(instr, expr->id());
   } else {
     BAILOUT("reference to a variable which requires dynamic lookup");
   }
@@ -3125,7 +3118,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExit(new HDeoptimize);
+    current_block()->FinishExitWithDeoptimization();
   } else {
     HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
     instr->set_position(expr->position());
@@ -3234,18 +3227,16 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
                                                    int position,
                                                    int ast_id) {
   LookupResult lookup;
-  GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, true);
-  if (type == kUseCell) {
-    bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
-    Handle<GlobalObject> global(info()->global_object());
-    Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
-    HInstruction* instr = new HStoreGlobal(value, cell, check_hole);
-    instr->set_position(position);
-    AddInstruction(instr);
-    if (instr->HasSideEffects()) AddSimulate(ast_id);
-  } else {
-    BAILOUT("global store only supported for cells");
-  }
+  LookupGlobalPropertyCell(var, &lookup, true);
+  CHECK_BAILOUT;
+
+  bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
+  Handle<GlobalObject> global(info()->global_object());
+  Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
+  HInstruction* instr = new HStoreGlobal(value, cell, check_hole);
+  instr->set_position(position);
+  AddInstruction(instr);
+  if (instr->HasSideEffects()) AddSimulate(ast_id);
 }
 
 
@@ -3475,7 +3466,7 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExit(new HDeoptimize);
+    current_block()->FinishExitWithDeoptimization();
   } else {
     HInstruction* instr = BuildLoadNamedGeneric(object, expr);
     instr->set_position(expr->position());
@@ -3840,7 +3831,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExit(new HDeoptimize);
+    current_block()->FinishExitWithDeoptimization();
   } else {
     HContext* context = new HContext;
     AddInstruction(context);
@@ -4228,13 +4219,6 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
 }
 
 
-static bool HasCustomCallGenerator(Handle<JSFunction> function) {
-  SharedFunctionInfo* info = function->shared();
-  return info->HasBuiltinFunctionId() &&
-      CallStubCompiler::HasCustomCallGenerator(info->builtin_function_id());
-}
-
-
 void HGraphBuilder::VisitCall(Call* expr) {
   Expression* callee = expr->expression();
   int argument_count = expr->arguments()->length() + 1;  // Plus receiver.
@@ -4292,13 +4276,11 @@ void HGraphBuilder::VisitCall(Call* expr) {
         return;
       }
 
-      if (HasCustomCallGenerator(expr->target()) ||
-          CallOptimization(*expr->target()).is_simple_api_call() ||
+      if (CallStubCompiler::HasCustomCallGenerator(*expr->target()) ||
           expr->check_type() != RECEIVER_MAP_CHECK) {
         // When the target has a custom call IC generator, use the IC,
-        // because it is likely to generate better code.  Similarly, we
-        // generate better call stubs for some API functions.
-        // Also use the IC when a primitive receiver check is required.
+        // because it is likely to generate better code.  Also use the IC
+        // when a primitive receiver check is required.
         HContext* context = new HContext;
         AddInstruction(context);
         call = PreProcessCall(new HCallNamed(context, name, argument_count));
@@ -4340,12 +4322,10 @@ void HGraphBuilder::VisitCall(Call* expr) {
       // If there is a global property cell for the name at compile time and
       // access check is not enabled we assume that the function will not change
       // and generate optimized code for calling the function.
-      LookupResult lookup;
-      GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, false);
-      if (type == kUseCell &&
+      if (info()->has_global_object() &&
           !info()->global_object()->IsAccessCheckNeeded()) {
         Handle<GlobalObject> global(info()->global_object());
-        known_global_function = expr->ComputeGlobalTarget(global, &lookup);
+        known_global_function = expr->ComputeGlobalTarget(global, var->name());
       }
       if (known_global_function) {
         // Push the global object instead of the global receiver because
@@ -4541,7 +4521,12 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
       VisitForEffect(expr->expression());
     }
 
-  } else if (op == Token::BIT_NOT || op == Token::SUB) {
+  } else if (op == Token::TYPEOF) {
+    VISIT_FOR_VALUE(expr->expression());
+    HValue* value = Pop();
+    ast_context()->ReturnInstruction(new HTypeof(value), expr->id());
+
+  } else {
     VISIT_FOR_VALUE(expr->expression());
     HValue* value = Pop();
     HInstruction* instr = NULL;
@@ -4550,20 +4535,16 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
         instr = new HBitNot(value);
         break;
       case Token::SUB:
-        instr = new HMul(graph_->GetConstantMinus1(), value);
+        instr = new HMul(value, graph_->GetConstantMinus1());
+        break;
+      case Token::ADD:
+        instr = new HMul(value, graph_->GetConstant1());
         break;
       default:
-        UNREACHABLE();
+        BAILOUT("Value: unsupported unary operation");
         break;
     }
     ast_context()->ReturnInstruction(instr, expr->id());
-  } else if (op == Token::TYPEOF) {
-    VisitForTypeOf(expr->expression());
-    if (HasStackOverflow()) return;
-    HValue* value = Pop();
-    ast_context()->ReturnInstruction(new HTypeof(value), expr->id());
-  } else {
-    BAILOUT("Value: unsupported unary operation");
   }
 }
 
@@ -4944,8 +4925,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   if ((expr->op() == Token::EQ || expr->op() == Token::EQ_STRICT) &&
       left_unary != NULL && left_unary->op() == Token::TYPEOF &&
       right_literal != NULL && right_literal->handle()->IsString()) {
-    VisitForTypeOf(left_unary->expression());
-    if (HasStackOverflow()) return;
+    VISIT_FOR_VALUE(left_unary->expression());
     HValue* left = Pop();
     HInstruction* instr = new HTypeofIs(left,
         Handle<String>::cast(right_literal->handle()));

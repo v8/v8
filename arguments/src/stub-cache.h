@@ -680,6 +680,8 @@ class KeyedStoreStubCompiler: public StubCompiler {
   V(MathAbs)
 
 
+class CallOptimization;
+
 class CallStubCompiler: public StubCompiler {
  public:
   CallStubCompiler(int argc,
@@ -706,14 +708,13 @@ class CallStubCompiler: public StubCompiler {
                                                  JSFunction* function,
                                                  String* name);
 
-  static bool HasCustomCallGenerator(BuiltinFunctionId id);
+  static bool HasCustomCallGenerator(JSFunction* function);
 
  private:
   // Compiles a custom call constant/global IC. For constant calls
   // cell is NULL. Returns undefined if there is no custom call code
   // for the given function or it can't be generated.
-  MUST_USE_RESULT MaybeObject* CompileCustomCall(BuiltinFunctionId id,
-                                                 Object* object,
+  MUST_USE_RESULT MaybeObject* CompileCustomCall(Object* object,
                                                  JSObject* holder,
                                                  JSGlobalPropertyCell* cell,
                                                  JSFunction* function,
@@ -727,6 +728,14 @@ class CallStubCompiler: public StubCompiler {
                                                    String* fname);
   CUSTOM_CALL_IC_GENERATORS(DECLARE_CALL_GENERATOR)
 #undef DECLARE_CALL_GENERATOR
+
+  MUST_USE_RESULT MaybeObject* CompileFastApiCall(
+      const CallOptimization& optimization,
+      Object* object,
+      JSObject* holder,
+      JSGlobalPropertyCell* cell,
+      JSFunction* function,
+      String* name);
 
   const ParameterCount arguments_;
   const InLoopFlag in_loop_;
