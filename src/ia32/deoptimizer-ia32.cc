@@ -123,7 +123,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
-  DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
+  DeoptimizerData* data = code->GetIsolate()->deoptimizer_data();
   node->set_next(data->deoptimizing_code_list_);
   data->deoptimizing_code_list_ = node;
 
@@ -325,7 +325,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     output_[0]->SetPc(pc);
   }
   Code* continuation =
-      Isolate::Current()->builtins()->builtin(Builtins::NotifyOSR);
+      function->GetIsolate()->builtins()->builtin(Builtins::kNotifyOSR);
   output_[0]->SetContinuation(
       reinterpret_cast<uint32_t>(continuation->entry()));
 
@@ -494,8 +494,8 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   if (is_topmost) {
     Builtins* builtins = isolate_->builtins();
     Code* continuation = (bailout_type_ == EAGER)
-        ? builtins->builtin(Builtins::NotifyDeoptimized)
-        : builtins->builtin(Builtins::NotifyLazyDeoptimized);
+        ? builtins->builtin(Builtins::kNotifyDeoptimized)
+        : builtins->builtin(Builtins::kNotifyLazyDeoptimized);
     output_frame->SetContinuation(
         reinterpret_cast<uint32_t>(continuation->entry()));
   }

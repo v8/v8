@@ -5642,7 +5642,7 @@ void JSFunction::MarkForLazyRecompilation() {
   ASSERT(shared()->allows_lazy_compilation() ||
          code()->optimizable());
   Builtins* builtins = GetIsolate()->builtins();
-  ReplaceCode(builtins->builtin(Builtins::LazyRecompile));
+  ReplaceCode(builtins->builtin(Builtins::kLazyRecompile));
 }
 
 
@@ -6022,9 +6022,9 @@ void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
   }
   set_initial_map(map);
   Builtins* builtins = map->heap()->isolate()->builtins();
-  ASSERT_EQ(builtins->builtin(Builtins::JSConstructStubGeneric),
+  ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubGeneric),
             construct_stub());
-  set_construct_stub(builtins->builtin(Builtins::JSConstructStubCountdown));
+  set_construct_stub(builtins->builtin(Builtins::kJSConstructStubCountdown));
 }
 
 
@@ -6043,9 +6043,9 @@ void SharedFunctionInfo::DetachInitialMap() {
   // several more GCs) CompleteInobjectSlackTracking will eventually be called.
   set_initial_map(map->heap()->raw_unchecked_undefined_value());
   Builtins* builtins = map->heap()->isolate()->builtins();
-  ASSERT_EQ(builtins->builtin(Builtins::JSConstructStubCountdown),
+  ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubCountdown),
             *RawField(this, kConstructStubOffset));
-  set_construct_stub(builtins->builtin(Builtins::JSConstructStubGeneric));
+  set_construct_stub(builtins->builtin(Builtins::kJSConstructStubGeneric));
   // It is safe to clear the flag: it will be set again if the map is live.
   set_live_objects_may_exist(false);
 }
@@ -6059,9 +6059,9 @@ void SharedFunctionInfo::AttachInitialMap(Map* map) {
   // Resume inobject slack tracking.
   set_initial_map(map);
   Builtins* builtins = map->heap()->isolate()->builtins();
-  ASSERT_EQ(builtins->builtin(Builtins::JSConstructStubGeneric),
+  ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubGeneric),
             *RawField(this, kConstructStubOffset));
-  set_construct_stub(builtins->builtin(Builtins::JSConstructStubCountdown));
+  set_construct_stub(builtins->builtin(Builtins::kJSConstructStubCountdown));
   // The map survived the gc, so there may be objects referencing it.
   set_live_objects_may_exist(true);
 }
@@ -6093,9 +6093,9 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
   Heap* heap = map->heap();
   set_initial_map(heap->undefined_value());
   Builtins* builtins = heap->isolate()->builtins();
-  ASSERT_EQ(builtins->builtin(Builtins::JSConstructStubCountdown),
+  ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubCountdown),
             construct_stub());
-  set_construct_stub(builtins->builtin(Builtins::JSConstructStubGeneric));
+  set_construct_stub(builtins->builtin(Builtins::kJSConstructStubGeneric));
 
   int slack = map->unused_property_fields();
   map->TraverseTransitionTree(&GetMinInobjectSlack, &slack);

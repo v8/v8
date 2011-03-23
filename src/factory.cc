@@ -993,11 +993,8 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<Object> callee,
 
 Handle<JSFunction> Factory::CreateApiFunction(
     Handle<FunctionTemplateInfo> obj, ApiInstanceType instance_type) {
-  Handle<Code> code = Handle<Code>(isolate()->builtins()->builtin(
-      Builtins::HandleApiCall));
-  Handle<Code> construct_stub =
-      Handle<Code>(isolate()->builtins()->builtin(
-          Builtins::JSConstructStubApi));
+  Handle<Code> code = isolate()->builtins()->HandleApiCall();
+  Handle<Code> construct_stub = isolate()->builtins()->JSConstructStubApi();
 
   int internal_field_count = 0;
   if (!obj->instance_template()->IsUndefined()) {

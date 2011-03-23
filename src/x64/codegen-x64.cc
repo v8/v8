@@ -2561,8 +2561,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ j(not_equal, &build_args);
       __ movq(rcx, FieldOperand(rax, JSFunction::kCodeEntryOffset));
       __ subq(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-      Handle<Code> apply_code(Isolate::Current()->builtins()->builtin(
-          Builtins::FunctionApply));
+      Handle<Code> apply_code = Isolate::Current()->builtins()->FunctionApply();
       __ Cmp(rcx, apply_code);
       __ j(not_equal, &build_args);
 
@@ -7999,8 +7998,7 @@ void DeferredReferenceGetNamedValue::Generate() {
     __ movq(rax, receiver_);
   }
   __ Move(rcx, name_);
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::LoadIC_Initialize));
+  Handle<Code> ic = Isolate::Current()->builtins()->LoadIC_Initialize();
   __ Call(ic, RelocInfo::CODE_TARGET);
   // The call must be followed by a test rax instruction to indicate
   // that the inobject property case was inlined.
@@ -8066,8 +8064,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // it in the IC initialization code and patch the movq instruction.
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic = Isolate::Current()->builtins()->KeyedLoadIC_Initialize();
   __ Call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the __
@@ -8164,8 +8161,8 @@ void DeferredReferenceSetKeyedValue::Generate() {
 
   // Call the IC stub.
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      (strict_mode_ == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
-                                    : Builtins::KeyedStoreIC_Initialize));
+      (strict_mode_ == kStrictMode) ? Builtins::kKeyedStoreIC_Initialize_Strict
+                                    : Builtins::kKeyedStoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instructions (initial movq)
   // to the test instruction.  We use masm_-> directly here instead of the

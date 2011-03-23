@@ -3206,7 +3206,7 @@ void SharedFunctionInfo::set_deopt_counter(Smi* value) {
 
 bool SharedFunctionInfo::is_compiled() {
   return code() !=
-      Isolate::Current()->builtins()->builtin(Builtins::LazyCompile);
+      Isolate::Current()->builtins()->builtin(Builtins::kLazyCompile);
 }
 
 
@@ -3266,7 +3266,7 @@ bool JSFunction::IsOptimized() {
 
 
 bool JSFunction::IsMarkedForLazyRecompilation() {
-  return code() == GetIsolate()->builtins()->builtin(Builtins::LazyRecompile);
+  return code() == GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile);
 }
 
 
@@ -3380,7 +3380,7 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code() != GetIsolate()->builtins()->builtin(Builtins::LazyCompile);
+  return code() != GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
 }
 
 

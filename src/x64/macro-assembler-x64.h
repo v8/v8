@@ -1910,9 +1910,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   }
 
   if (!definitely_matches) {
-    Handle<Code> adaptor =
-        Handle<Code>(Isolate::Current()->builtins()->builtin(
-            Builtins::ArgumentsAdaptorTrampoline));
+    Handle<Code> adaptor = isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (!code_constant.is_null()) {
       movq(rdx, code_constant, RelocInfo::EMBEDDED_OBJECT);
       addq(rdx, Immediate(Code::kHeaderSize - kHeapObjectTag));

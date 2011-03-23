@@ -2271,11 +2271,11 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
 
   SharedFunctionInfo* share = SharedFunctionInfo::cast(result);
   share->set_name(name);
-  Code* illegal = isolate_->builtins()->builtin(Builtins::Illegal);
+  Code* illegal = isolate_->builtins()->builtin(Builtins::kIllegal);
   share->set_code(illegal);
   share->set_scope_info(SerializedScopeInfo::Empty());
   Code* construct_stub = isolate_->builtins()->builtin(
-      Builtins::JSConstructStubGeneric);
+      Builtins::kJSConstructStubGeneric);
   share->set_construct_stub(construct_stub);
   share->set_expected_nof_properties(0);
   share->set_length(0);

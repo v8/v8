@@ -3347,7 +3347,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ mov(ecx, FieldOperand(eax, JSFunction::kCodeEntryOffset));
       __ sub(Operand(ecx), Immediate(Code::kHeaderSize - kHeapObjectTag));
       Handle<Code> apply_code(masm()->isolate()->builtins()->builtin(
-          Builtins::FunctionApply));
+          Builtins::kFunctionApply));
       __ cmp(Operand(ecx), Immediate(apply_code));
       __ j(not_equal, &build_args);
 
@@ -9393,7 +9393,7 @@ void DeferredReferenceGetNamedValue::Generate() {
   }
   __ Set(ecx, Immediate(name_));
   Handle<Code> ic(masm()->isolate()->builtins()->builtin(
-      Builtins::LoadIC_Initialize));
+      Builtins::kLoadIC_Initialize));
   RelocInfo::Mode mode = is_contextual_
       ? RelocInfo::CODE_TARGET_CONTEXT
       : RelocInfo::CODE_TARGET;
@@ -9474,7 +9474,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
   Handle<Code> ic(masm()->isolate()->builtins()->builtin(
-      Builtins::KeyedLoadIC_Initialize));
+      Builtins::kKeyedLoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the __
@@ -9578,8 +9578,8 @@ void DeferredReferenceSetKeyedValue::Generate() {
 
   // Call the IC stub.
   Handle<Code> ic(masm()->isolate()->builtins()->builtin(
-      (strict_mode_ == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
-                                    : Builtins::KeyedStoreIC_Initialize));
+      (strict_mode_ == kStrictMode) ? Builtins::kKeyedStoreIC_Initialize_Strict
+                                    : Builtins::kKeyedStoreIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the

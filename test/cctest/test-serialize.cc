@@ -104,8 +104,8 @@ TEST(ExternalReferenceEncoder) {
   isolate->stats_table()->SetCounterFunction(counter_function);
   HEAP->Setup(false);
   ExternalReferenceEncoder encoder;
-  CHECK_EQ(make_code(BUILTIN, Builtins::ArrayCode),
-           Encode(encoder, Builtins::ArrayCode));
+  CHECK_EQ(make_code(BUILTIN, Builtins::kArrayCode),
+           Encode(encoder, Builtins::kArrayCode));
   CHECK_EQ(make_code(v8::internal::RUNTIME_FUNCTION, Runtime::kAbort),
            Encode(encoder, Runtime::kAbort));
   CHECK_EQ(make_code(IC_UTILITY, IC::kLoadCallbackProperty),
@@ -144,8 +144,8 @@ TEST(ExternalReferenceDecoder) {
   isolate->stats_table()->SetCounterFunction(counter_function);
   HEAP->Setup(false);
   ExternalReferenceDecoder decoder;
-  CHECK_EQ(AddressOf(Builtins::ArrayCode),
-           decoder.Decode(make_code(BUILTIN, Builtins::ArrayCode)));
+  CHECK_EQ(AddressOf(Builtins::kArrayCode),
+           decoder.Decode(make_code(BUILTIN, Builtins::kArrayCode)));
   CHECK_EQ(AddressOf(Runtime::kAbort),
            decoder.Decode(make_code(v8::internal::RUNTIME_FUNCTION,
                                     Runtime::kAbort)));

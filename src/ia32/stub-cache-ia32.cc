@@ -275,13 +275,14 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 
 void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
     MacroAssembler* masm, int index, Register prototype, Label* miss) {
+  Isolate* isolate = masm->isolate();
   // Check we're still in the same context.
   __ cmp(Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)),
-         Isolate::Current()->global());
+         isolate->global());
   __ j(not_equal, miss);
   // Get the global function with the given index.
-  JSFunction* function = JSFunction::cast(
-      Isolate::Current()->global_context()->get(index));
+  JSFunction* function =
+      JSFunction::cast(isolate->global_context()->get(index));
   // Load its initial map. The global functions all have initial maps.
   __ Set(prototype, Immediate(Handle<Map>(function->initial_map())));
   // Load the prototype from the initial map.
@@ -748,9 +749,9 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
   ASSERT(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
   Code* code = NULL;
   if (kind == Code::LOAD_IC) {
-    code = Isolate::Current()->builtins()->builtin(Builtins::LoadIC_Miss);
+    code = masm->isolate()->builtins()->builtin(Builtins::kLoadIC_Miss);
   } else {
-    code = Isolate::Current()->builtins()->builtin(Builtins::KeyedLoadIC_Miss);
+    code = masm->isolate()->builtins()->builtin(Builtins::kKeyedLoadIC_Miss);
   }
 
   Handle<Code> ic(code);
@@ -1360,8 +1361,8 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
 
 MaybeObject* CallStubCompiler::GenerateMissBranch() {
   MaybeObject* maybe_obj =
-      Isolate::Current()->stub_cache()->ComputeCallMiss(
-          arguments().immediate(), kind_);
+      masm()->isolate()->stub_cache()->ComputeCallMiss(arguments().immediate(),
+                                                       kind_);
   Object* obj;
   if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   __ jmp(Handle<Code>(Code::cast(obj)), RelocInfo::CODE_TARGET);
@@ -1913,7 +1914,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2))
+  if (masm()->isolate()->cpu_features()->IsSupported(SSE2))
     return HEAP->undefined_value();
   CpuFeatures::Scope use_sse2(SSE2);
 
@@ -2483,8 +2484,7 @@ MaybeObject* StoreStubCompiler::CompileStoreField(JSObject* object,
   // Handle store cache miss.
   __ bind(&miss);
   __ mov(ecx, Immediate(Handle<String>(name)));  // restore name
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::StoreIC_Miss));
+  Handle<Code> ic = masm()->isolate()->builtins()->StoreIC_Miss();
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -2536,7 +2536,7 @@ MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
 
   // Handle store cache miss.
   __ bind(&miss);
-  Handle<Code> ic(isolate->builtins()->builtin(Builtins::StoreIC_Miss));
+  Handle<Code> ic = isolate->builtins()->StoreIC_Miss();
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -2587,7 +2587,7 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 
   // Handle store cache miss.
   __ bind(&miss);
-  Handle<Code> ic(isolate->builtins()->builtin(Builtins::StoreIC_Miss));
+  Handle<Code> ic = isolate->builtins()->StoreIC_Miss();
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -2637,8 +2637,7 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   // Handle store cache miss.
   __ bind(&miss);
   __ IncrementCounter(counters->named_store_global_inline_miss(), 1);
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::StoreIC_Miss));
+  Handle<Code> ic = masm()->isolate()->builtins()->StoreIC_Miss();
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -2676,8 +2675,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   // Handle store cache miss.
   __ bind(&miss);
   __ DecrementCounter(counters->keyed_store_field(), 1);
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::KeyedStoreIC_Miss));
+  Handle<Code> ic = masm()->isolate()->builtins()->KeyedStoreIC_Miss();
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -2734,8 +2732,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
 
   // Handle store cache miss.
   __ bind(&miss);
-  Handle<Code> ic(
-      Isolate::Current()->builtins()->builtin(Builtins::KeyedStoreIC_Miss));
+  Handle<Code> ic = masm()->isolate()->builtins()->KeyedStoreIC_Miss();
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -3284,7 +3281,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
       int arg_number = shared->GetThisPropertyAssignmentArgument(i);
       __ mov(ebx, edi);
       __ cmp(eax, arg_number);
-      if (Isolate::Current()->cpu_features()->IsSupported(CMOV)) {
+      if (masm()->isolate()->cpu_features()->IsSupported(CMOV)) {
         CpuFeatures::Scope use_cmov(CMOV);
         __ cmov(above, ebx, Operand(ecx, arg_number * -kPointerSize));
       } else {
@@ -3327,9 +3324,8 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   // Jump to the generic stub in case the specialized code cannot handle the
   // construction.
   __ bind(&generic_stub_call);
-  Code* code = Isolate::Current()->builtins()->builtin(
-      Builtins::JSConstructStubGeneric);
-  Handle<Code> generic_construct_stub(code);
+  Handle<Code> generic_construct_stub =
+      masm()->isolate()->builtins()->JSConstructStubGeneric();
   __ jmp(generic_construct_stub, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
@@ -3604,10 +3600,10 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
       // processors that don't support SSE2. The code in IntegerConvert
       // (code-stubs-ia32.cc) is roughly what is needed here though the
       // conversion failure case does not need to be handled.
-      if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+      if (masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
         if (array_type != kExternalIntArray &&
             array_type != kExternalUnsignedIntArray) {
-          ASSERT(Isolate::Current()->cpu_features()->IsSupported(SSE2));
+          ASSERT(masm()->isolate()->cpu_features()->IsSupported(SSE2));
           CpuFeatures::Scope scope(SSE2);
           __ cvttsd2si(ecx, FieldOperand(eax, HeapNumber::kValueOffset));
           // ecx: untagged integer value
@@ -3635,7 +3631,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
               break;
           }
         } else {
-          if (Isolate::Current()->cpu_features()->IsSupported(SSE3)) {
+          if (masm()->isolate()->cpu_features()->IsSupported(SSE3)) {
             CpuFeatures::Scope scope(SSE3);
             // fisttp stores values as signed integers. To represent the
             // entire range of int and unsigned int arrays, store as a
@@ -3648,7 +3644,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
             __ pop(ecx);
             __ add(Operand(esp), Immediate(kPointerSize));
           } else {
-            ASSERT(Isolate::Current()->cpu_features()->IsSupported(SSE2));
+            ASSERT(masm()->isolate()->cpu_features()->IsSupported(SSE2));
             CpuFeatures::Scope scope(SSE2);
             // We can easily implement the correct rounding behavior for the
             // range [0, 2^31-1]. For the time being, to keep this code simple,

@@ -4496,11 +4496,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r3: argc
   // r4: argv
   if (is_construct) {
-    ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline,
+    ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
                                       isolate);
     __ mov(ip, Operand(construct_entry));
   } else {
-    ExternalReference entry(Builtins::JSEntryTrampoline, isolate);
+    ExternalReference entry(Builtins::kJSEntryTrampoline, isolate);
     __ mov(ip, Operand(entry));
   }
   __ ldr(ip, MemOperand(ip));  // deref address
@@ -5399,8 +5399,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ mov(r0, Operand(argc_));  // Setup the number of arguments.
   __ mov(r2, Operand(0, RelocInfo::NONE));
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
-  __ Jump(Handle<Code>(Isolate::Current()->builtins()->builtin(
-              Builtins::ArgumentsAdaptorTrampoline)),
+  __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
 

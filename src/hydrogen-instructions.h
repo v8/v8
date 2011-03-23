@@ -1246,7 +1246,7 @@ class HCallConstantFunction: public HCall<0> {
 
   bool IsApplyFunction() const {
     return function_->code() ==
-        Isolate::Current()->builtins()->builtin(Builtins::FunctionApply);
+        Isolate::Current()->builtins()->builtin(Builtins::kFunctionApply);
   }
 
   virtual void PrintDataTo(StringStream* stream);

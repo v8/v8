@@ -851,7 +851,7 @@ Address InternalFrame::GetCallerStackPointer() const {
 
 Code* ArgumentsAdaptorFrame::unchecked_code() const {
   return Isolate::Current()->builtins()->builtin(
-      Builtins::ArgumentsAdaptorTrampoline);
+      Builtins::kArgumentsAdaptorTrampoline);
 }
 
 

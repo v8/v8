@@ -1116,7 +1116,7 @@ Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
   // Name and receiver are on the top of the frame.  Both are dropped.
   // The IC expects name in rcx and receiver in rax.
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::LoadIC_Initialize));
+      Builtins::kLoadIC_Initialize));
   Result name = Pop();
   Result receiver = Pop();
   PrepareForCall(0, 0);
@@ -1134,7 +1134,7 @@ Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
   MoveResultsToRegisters(&key, &receiver, rax, rdx);
 
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::KeyedLoadIC_Initialize));
+      Builtins::kKeyedLoadIC_Initialize));
   return RawCallCodeObject(ic, mode);
 }
 
@@ -1145,8 +1145,8 @@ Result VirtualFrame::CallStoreIC(Handle<String> name,
   // Value and (if not contextual) receiver are on top of the frame.
   // The IC expects name in rcx, value in rax, and receiver in rdx.
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      (strict_mode == kStrictMode) ? Builtins::StoreIC_Initialize_Strict
-                                   : Builtins::StoreIC_Initialize));
+      (strict_mode == kStrictMode) ? Builtins::kStoreIC_Initialize_Strict
+                                   : Builtins::kStoreIC_Initialize));
   Result value = Pop();
   RelocInfo::Mode mode;
   if (is_contextual) {
@@ -1211,8 +1211,8 @@ Result VirtualFrame::CallKeyedStoreIC(StrictModeFlag strict_mode) {
   }
 
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      (strict_mode == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
-                                   : Builtins::KeyedStoreIC_Initialize));
+      (strict_mode == kStrictMode) ? Builtins::kKeyedStoreIC_Initialize_Strict
+                                   : Builtins::kKeyedStoreIC_Initialize));
   return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
 }
 
@@ -1260,7 +1260,7 @@ Result VirtualFrame::CallConstructor(int arg_count) {
   // IC expects arg count in rax, function in rdi, and the arguments
   // and receiver on the stack.
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::JSConstructCall));
+      Builtins::kJSConstructCall));
   // Duplicate the function before preparing the frame.
   PushElementAt(arg_count);
   Result function = Pop();

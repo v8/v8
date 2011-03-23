@@ -1811,13 +1811,13 @@ static MaybeObject* Runtime_SpecialArrayFunctions(RUNTIME_CALLING_CONVENTION) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, holder, 0);
 
-  InstallBuiltin(isolate, holder, "pop", Builtins::ArrayPop);
-  InstallBuiltin(isolate, holder, "push", Builtins::ArrayPush);
-  InstallBuiltin(isolate, holder, "shift", Builtins::ArrayShift);
-  InstallBuiltin(isolate, holder, "unshift", Builtins::ArrayUnshift);
-  InstallBuiltin(isolate, holder, "slice", Builtins::ArraySlice);
-  InstallBuiltin(isolate, holder, "splice", Builtins::ArraySplice);
-  InstallBuiltin(isolate, holder, "concat", Builtins::ArrayConcat);
+  InstallBuiltin(isolate, holder, "pop", Builtins::kArrayPop);
+  InstallBuiltin(isolate, holder, "push", Builtins::kArrayPush);
+  InstallBuiltin(isolate, holder, "shift", Builtins::kArrayShift);
+  InstallBuiltin(isolate, holder, "unshift", Builtins::kArrayUnshift);
+  InstallBuiltin(isolate, holder, "slice", Builtins::kArraySlice);
+  InstallBuiltin(isolate, holder, "splice", Builtins::kArraySplice);
+  InstallBuiltin(isolate, holder, "concat", Builtins::kArrayConcat);
 
   return *holder;
 }
@@ -7650,8 +7650,7 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(
   }
   StackCheckStub check_stub;
   Handle<Code> check_code = check_stub.GetCode();
-  Handle<Code> replacement_code(
-      isolate->builtins()->builtin(Builtins::OnStackReplacement));
+  Handle<Code> replacement_code = isolate->builtins()->OnStackReplacement();
   Deoptimizer::RevertStackCheckCode(*unoptimized,
                                     *check_code,
                                     *replacement_code);

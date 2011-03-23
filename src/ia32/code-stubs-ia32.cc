@@ -4681,8 +4681,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ Set(eax, Immediate(argc_));
   __ Set(ebx, Immediate(0));
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
-  Handle<Code> adaptor(masm->isolate()->builtins()->builtin(
-      Builtins::ArgumentsAdaptorTrampoline));
+  Handle<Code> adaptor =
+      masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
 
@@ -4950,11 +4950,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // stub, because the builtin stubs may not have been generated yet.
   if (is_construct) {
     ExternalReference construct_entry(
-        Builtins::JSConstructEntryTrampoline,
+        Builtins::kJSConstructEntryTrampoline,
         masm->isolate());
     __ mov(edx, Immediate(construct_entry));
   } else {
-    ExternalReference entry(Builtins::JSEntryTrampoline,
+    ExternalReference entry(Builtins::kJSEntryTrampoline,
                             masm->isolate());
     __ mov(edx, Immediate(entry));
   }

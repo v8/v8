@@ -878,14 +878,14 @@ MaybeObject* LoadIC::Load(State state,
           const int offset = String::kLengthOffset;
           PatchInlinedLoad(address(), map, offset);
           set_target(isolate()->builtins()->builtin(
-              Builtins::LoadIC_StringLength));
+              Builtins::kLoadIC_StringLength));
         } else {
           set_target(isolate()->builtins()->builtin(
-              Builtins::LoadIC_StringWrapperLength));
+              Builtins::kLoadIC_StringWrapperLength));
         }
       } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
         set_target(isolate()->builtins()->builtin(
-            Builtins::LoadIC_StringWrapperLength));
+            Builtins::kLoadIC_StringWrapperLength));
       } else {
         set_target(non_monomorphic_stub);
       }
@@ -908,7 +908,7 @@ MaybeObject* LoadIC::Load(State state,
         const int offset = JSArray::kLengthOffset;
         PatchInlinedLoad(address(), map, offset);
         set_target(isolate()->builtins()->builtin(
-            Builtins::LoadIC_ArrayLength));
+            Builtins::kLoadIC_ArrayLength));
       } else {
         set_target(non_monomorphic_stub);
       }
@@ -924,7 +924,7 @@ MaybeObject* LoadIC::Load(State state,
 #endif
       if (state == PREMONOMORPHIC) {
         set_target(isolate()->builtins()->builtin(
-            Builtins::LoadIC_FunctionPrototype));
+            Builtins::kLoadIC_FunctionPrototype));
       } else {
         set_target(non_monomorphic_stub);
       }
@@ -1451,8 +1451,8 @@ MaybeObject* StoreIC::Store(State state,
     if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
 #endif
     Builtins::Name target = (strict_mode == kStrictMode)
-        ? Builtins::StoreIC_ArrayLength_Strict
-        : Builtins::StoreIC_ArrayLength;
+        ? Builtins::kStoreIC_ArrayLength_Strict
+        : Builtins::kStoreIC_ArrayLength;
     set_target(isolate()->builtins()->builtin(target));
     return receiver->SetProperty(*name, *value, NONE, strict_mode);
   }

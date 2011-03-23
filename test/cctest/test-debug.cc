@@ -1022,13 +1022,13 @@ TEST(DebugStub) {
                           0,
                           v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
                           Isolate::Current()->builtins()->builtin(
-                              Builtins::StoreIC_DebugBreak));
+                              Builtins::kStoreIC_DebugBreak));
   CheckDebugBreakFunction(&env,
                           "function f3(){var a=x;}", "f3",
                           0,
                           v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
                           Isolate::Current()->builtins()->builtin(
-                              Builtins::LoadIC_DebugBreak));
+                              Builtins::kLoadIC_DebugBreak));
 
 // TODO(1240753): Make the test architecture independent or split
 // parts of the debugger into architecture dependent files. This
@@ -1042,7 +1042,7 @@ TEST(DebugStub) {
       0,
       v8::internal::RelocInfo::CODE_TARGET,
       Isolate::Current()->builtins()->builtin(
-          Builtins::KeyedStoreIC_DebugBreak));
+          Builtins::kKeyedStoreIC_DebugBreak));
   CheckDebugBreakFunction(
       &env,
       "function f5(){var index='propertyName'; var a={}; return a[index];}",
@@ -1050,7 +1050,7 @@ TEST(DebugStub) {
       0,
       v8::internal::RelocInfo::CODE_TARGET,
       Isolate::Current()->builtins()->builtin(
-          Builtins::KeyedLoadIC_DebugBreak));
+          Builtins::kKeyedLoadIC_DebugBreak));
 #endif
 
   // Check the debug break code stubs for call ICs with different number of

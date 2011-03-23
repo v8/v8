@@ -247,7 +247,7 @@ class CodeFlusher {
 
  private:
   void ProcessJSFunctionCandidates() {
-    Code* lazy_compile = isolate_->builtins()->builtin(Builtins::LazyCompile);
+    Code* lazy_compile = isolate_->builtins()->builtin(Builtins::kLazyCompile);
 
     JSFunction* candidate = jsfunction_candidates_head_;
     JSFunction* next_candidate;
@@ -272,7 +272,7 @@ class CodeFlusher {
 
 
   void ProcessSharedFunctionInfoCandidates() {
-    Code* lazy_compile = isolate_->builtins()->builtin(Builtins::LazyCompile);
+    Code* lazy_compile = isolate_->builtins()->builtin(Builtins::kLazyCompile);
 
     SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
     SharedFunctionInfo* next_candidate;
@@ -570,12 +570,12 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   inline static bool IsCompiled(JSFunction* function) {
     return function->unchecked_code() !=
-        Isolate::Current()->builtins()->builtin(Builtins::LazyCompile);
+        Isolate::Current()->builtins()->builtin(Builtins::kLazyCompile);
   }
 
   inline static bool IsCompiled(SharedFunctionInfo* function) {
     return function->unchecked_code() !=
-        Isolate::Current()->builtins()->builtin(Builtins::LazyCompile);
+        Isolate::Current()->builtins()->builtin(Builtins::kLazyCompile);
   }
 
   inline static bool IsFlushable(JSFunction* function) {

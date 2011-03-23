@@ -710,8 +710,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
 
   // Generate code
   if (FLAG_lazy && allow_lazy) {
-    Handle<Code> code(
-        info.isolate()->builtins()->builtin(Builtins::LazyCompile));
+    Handle<Code> code = info.isolate()->builtins()->LazyCompile();
     info.SetCode(code);
   } else {
     if (V8::UseCrankshaft()) {
@@ -801,7 +800,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   if (info->isolate()->logger()->is_logging() || CpuProfiler::is_profiling()) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
-    if (*code == info->isolate()->builtins()->builtin(Builtins::LazyCompile))
+    if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
       return;
     if (script->name()->IsString()) {
       int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;

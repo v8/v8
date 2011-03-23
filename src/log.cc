@@ -789,7 +789,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!log_->IsEnabled() || !FLAG_log_code) return;
   if (code == Isolate::Current()->builtins()->builtin(
-      Builtins::LazyCompile))
+      Builtins::kLazyCompile))
     return;
 
   LogMessageBuilder msg(this);
@@ -1418,7 +1418,7 @@ void Logger::LogCompiledFunctions() {
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
     if (*code_objects[i] == Isolate::Current()->builtins()->builtin(
-        Builtins::LazyCompile))
+        Builtins::kLazyCompile))
       continue;
     Handle<SharedFunctionInfo> shared = sfis[i];
     Handle<String> func_name(shared->DebugName());

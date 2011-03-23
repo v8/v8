@@ -1576,7 +1576,7 @@ void Builtins::InitBuiltinFunctionTable() {
     functions->generator = FUNCTION_ADDR(Generate_##aname);                 \
     functions->c_code = NULL;                                               \
     functions->s_name = #aname;                                             \
-    functions->name = aname;                                                \
+    functions->name = k##aname;                                             \
     functions->flags = Code::ComputeFlags(Code::kind,                       \
                                           NOT_IN_LOOP,                      \
                                           state,                            \
@@ -1683,6 +1683,25 @@ const char* Builtins::Lookup(byte* pc) {
   }
   return NULL;
 }
+
+
+#define DEFINE_BUILTIN_ACCESSOR_C(name, ignore)               \
+Handle<Code> Builtins::name() {                               \
+  Code** code_address =                                       \
+      reinterpret_cast<Code**>(builtin_address(k##name));     \
+  return Handle<Code>(code_address);                          \
+}
+#define DEFINE_BUILTIN_ACCESSOR_A(name, kind, state, extra) \
+Handle<Code> Builtins::name() {                             \
+  Code** code_address =                                     \
+      reinterpret_cast<Code**>(builtin_address(k##name));   \
+  return Handle<Code>(code_address);                        \
+}
+BUILTIN_LIST_C(DEFINE_BUILTIN_ACCESSOR_C)
+BUILTIN_LIST_A(DEFINE_BUILTIN_ACCESSOR_A)
+BUILTIN_LIST_DEBUG_A(DEFINE_BUILTIN_ACCESSOR_A)
+#undef DEFINE_BUILTIN_ACCESSOR_C
+#undef DEFINE_BUILTIN_ACCESSOR_A
 
 
 } }  // namespace v8::internal

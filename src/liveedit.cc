@@ -1033,7 +1033,7 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
 
   shared_info->set_construct_stub(
       Isolate::Current()->builtins()->builtin(
-          Builtins::JSConstructStubGeneric));
+          Builtins::kJSConstructStubGeneric));
 
   DeoptimizeDependentFunctions(*shared_info);
   Isolate::Current()->compilation_cache()->Remove(shared_info);
@@ -1404,7 +1404,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
     *mode = Debug::FRAME_DROPPED_IN_DEBUG_SLOT_CALL;
   } else if (pre_top_frame_code ==
       Isolate::Current()->builtins()->builtin(
-          Builtins::FrameDropper_LiveEdit)) {
+          Builtins::kFrameDropper_LiveEdit)) {
     // OK, we can drop our own code.
     *mode = Debug::FRAME_DROPPED_IN_DIRECT_CALL;
   } else if (pre_top_frame_code->kind() == Code::STUB &&
@@ -1430,8 +1430,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   // Make sure FixTryCatchHandler is idempotent.
   ASSERT(!FixTryCatchHandler(pre_top_frame, bottom_js_frame));
 
-  Handle<Code> code(Isolate::Current()->builtins()->builtin(
-      Builtins::FrameDropper_LiveEdit));
+  Handle<Code> code = Isolate::Current()->builtins()->FrameDropper_LiveEdit();
   top_frame->set_pc(code->entry());
   pre_top_frame->SetCallerFp(bottom_js_frame->fp());
 
