@@ -501,7 +501,8 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
   }
   Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_ascii), isolate);
 
-  if (IrregexpInterpreter::Match(byte_codes,
+  if (IrregexpInterpreter::Match(isolate,
+                                 byte_codes,
                                  subject,
                                  register_vector,
                                  index)) {
