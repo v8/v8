@@ -49,9 +49,9 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 }
 
 
-static intptr_t RootRegisterDelta(ExternalReference other) {
+  static intptr_t RootRegisterDelta(ExternalReference other, Isolate* isolate) {
   Address roots_register_value = kRootRegisterBias +
-      reinterpret_cast<Address>(Isolate::Current()->heap()->roots_address());
+      reinterpret_cast<Address>(isolate->heap()->roots_address());
   intptr_t delta = other.address() - roots_register_value;
   return delta;
 }
@@ -60,10 +60,10 @@ static intptr_t RootRegisterDelta(ExternalReference other) {
 Operand MacroAssembler::ExternalOperand(ExternalReference target,
                                         Register scratch) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(target);
+    intptr_t delta = RootRegisterDelta(target, isolate());
     if (is_int32(delta)) {
       Serializer::TooLateToEnableNow();
-      return Operand(kRootRegister, delta);
+      return Operand(kRootRegister, static_cast<int32_t>(delta));
     }
   }
   movq(scratch, target);
@@ -73,7 +73,7 @@ Operand MacroAssembler::ExternalOperand(ExternalReference target,
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(source);
+    intptr_t delta = RootRegisterDelta(source, isolate());
     if (is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       movq(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
@@ -92,7 +92,7 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
 
 void MacroAssembler::Store(ExternalReference destination, Register source) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(destination);
+    intptr_t delta = RootRegisterDelta(destination, isolate());
     if (is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       movq(Operand(kRootRegister, static_cast<int32_t>(delta)), source);
@@ -112,7 +112,7 @@ void MacroAssembler::Store(ExternalReference destination, Register source) {
 void MacroAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(source);
+    intptr_t delta = RootRegisterDelta(source, isolate());
     if (is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       lea(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
@@ -129,7 +129,7 @@ int MacroAssembler::LoadAddressSize(ExternalReference source) {
     // This calculation depends on the internals of LoadAddress.
     // It's correctness is ensured by the asserts in the Call
     // instruction below.
-    intptr_t delta = RootRegisterDelta(source);
+    intptr_t delta = RootRegisterDelta(source, isolate());
     if (is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       // Operand is lea(scratch, Operand(kRootRegister, delta));
