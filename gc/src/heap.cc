@@ -1591,7 +1591,7 @@ bool Heap::CreateInitialMaps() {
   }
   set_empty_fixed_array(FixedArray::cast(obj));
 
-  { MaybeObject* maybe_obj = Allocate(oddball_map(), OLD_DATA_SPACE);
+  { MaybeObject* maybe_obj = Allocate(oddball_map(), OLD_POINTER_SPACE);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_null_value(obj);
@@ -1847,7 +1847,7 @@ MaybeObject* Heap::AllocateJSGlobalPropertyCell(Object* value) {
 MaybeObject* Heap::CreateOddball(const char* to_string,
                                  Object* to_number) {
   Object* result;
-  { MaybeObject* maybe_result = Allocate(oddball_map(), OLD_DATA_SPACE);
+  { MaybeObject* maybe_result = Allocate(oddball_map(), OLD_POINTER_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   return Oddball::cast(result)->Initialize(to_string, to_number);
@@ -1923,7 +1923,7 @@ bool Heap::CreateInitialObjects() {
   }
   set_nan_value(obj);
 
-  { MaybeObject* maybe_obj = Allocate(oddball_map(), OLD_DATA_SPACE);
+  { MaybeObject* maybe_obj = Allocate(oddball_map(), OLD_POINTER_SPACE);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_undefined_value(obj);

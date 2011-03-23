@@ -53,11 +53,18 @@ class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
   // Mark object pointed to by p.
   INLINE(static void MarkObjectByPointer(Object** p)) {
     Object* obj = *p;
-    if (obj->IsHeapObject()) {
+    // Since we can be sure that the object is not tagged as a failure we can
+    // inline a slightly more efficient tag check here than IsHeapObject() would
+    // produce.
+    if (obj->NonFailureIsHeapObject()) {
       HeapObject* heap_object = HeapObject::cast(obj);
       MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
-      if (IncrementalMarking::IsWhite(mark_bit)) {
-        IncrementalMarking::WhiteToGrey(heap_object, mark_bit);
+      if (mark_bit.data_only()) {
+        IncrementalMarking::MarkBlackOrKeepGrey(mark_bit);
+      } else {
+        if (IncrementalMarking::IsWhite(mark_bit)) {
+          IncrementalMarking::WhiteToGrey(heap_object, mark_bit);
+        }
       }
     }
   }
@@ -83,8 +90,12 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
 
     HeapObject* heap_object = HeapObject::cast(obj);
     MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
-    if (IncrementalMarking::IsWhite(mark_bit)) {
-      IncrementalMarking::WhiteToGrey(heap_object, mark_bit);
+    if (mark_bit.data_only()) {
+      IncrementalMarking::MarkBlackOrKeepGrey(mark_bit);
+    } else {
+      if (IncrementalMarking::IsWhite(mark_bit)) {
+        IncrementalMarking::WhiteToGrey(heap_object, mark_bit);
+      }
     }
   }
 };
@@ -272,12 +283,12 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
 
         // Explicitly skip one word fillers. Incremental markbit patterns are
         // correct only for objects that occupy at least two words.
-        if (obj->map() != filler_map) {
+        Map* map = obj->map();
+        if (map != filler_map) {
           ASSERT(IsGrey(Marking::MarkBitFrom(obj)));
-          Map* map = obj->map();
           int size = obj->SizeFromMap(map);
           bytes_to_process -= size;
-          MarkBit map_mark_bit = Marking::MarkBitFrom(map);
+          MarkBit map_mark_bit = Marking::MarkBitFromOldSpace(map);
           if (IsWhite(map_mark_bit)) WhiteToGrey(map, map_mark_bit);
           obj->IterateBody(map->instance_type(), size, &marking_visitor);
           MarkBit obj_mark_bit = Marking::MarkBitFrom(obj);

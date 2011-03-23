@@ -441,7 +441,7 @@ class FlushCode : public AllStatic {
       SharedFunctionInfo* shared = candidate->unchecked_shared();
 
       Code* code = shared->unchecked_code();
-      MarkBit code_mark = Marking::MarkBitFrom(code);
+      MarkBit code_mark = Marking::MarkBitFromOldSpace(code);
       if (!code_mark.Get()) {
         shared->set_code(lazy_compile);
         candidate->set_code(lazy_compile);
@@ -466,7 +466,7 @@ class FlushCode : public AllStatic {
       SetNextCandidate(candidate, NULL);
 
       Code* code = candidate->unchecked_code();
-      MarkBit code_mark = Marking::MarkBitFrom(code);
+      MarkBit code_mark = Marking::MarkBitFromOldSpace(code);
       if (!code_mark.Get()) {
         candidate->set_code(lazy_compile);
       }
@@ -662,7 +662,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       // Please note targets for cleared inline cached do not have to be
       // marked since they are contained in Heap::non_monomorphic_cache().
     } else {
-      MarkBit code_mark = Marking::MarkBitFrom(code);
+      MarkBit code_mark = Marking::MarkBitFromOldSpace(code);
       MarkCompactCollector::MarkObject(code, code_mark);
     }
   }
@@ -684,7 +684,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
            (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
             rinfo->IsPatchedDebugBreakSlotSequence()));
     HeapObject* code = Code::GetCodeFromTargetAddress(rinfo->call_address());
-    MarkBit code_mark = Marking::MarkBitFrom(code);
+    MarkBit code_mark = Marking::MarkBitFromOldSpace(code);
     MarkCompactCollector::MarkObject(code, code_mark);
   }
 
@@ -706,7 +706,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     MarkBit mark = Marking::MarkBitFrom(obj);
     MarkCompactCollector::SetMark(obj, mark);
     // Mark the map pointer and the body.
-    MarkBit map_mark = Marking::MarkBitFrom(map);
+    MarkBit map_mark = Marking::MarkBitFromOldSpace(map);
     MarkCompactCollector::MarkObject(map, map_mark);
     IterateBody(map, obj);
   }
@@ -785,7 +785,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     // Code is either on stack, in compilation cache or referenced
     // by optimized version of function.
-    MarkBit code_mark = Marking::MarkBitFrom(function->unchecked_code());
+    MarkBit code_mark =
+        Marking::MarkBitFromOldSpace(function->unchecked_code());
     if (code_mark.Get()) {
       shared_info->set_code_age(0);
       return false;
@@ -802,7 +803,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   inline static bool IsFlushable(SharedFunctionInfo* shared_info) {
     // Code is either on stack, in compilation cache or referenced
     // by optimized version of function.
-    MarkBit code_mark = Marking::MarkBitFrom(shared_info->unchecked_code());
+    MarkBit code_mark =
+        Marking::MarkBitFromOldSpace(shared_info->unchecked_code());
     if (code_mark.Get()) {
       shared_info->set_code_age(0);
       return false;
@@ -938,7 +940,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     if (!flush_code_candidate) {
       Code* code = jsfunction->unchecked_shared()->unchecked_code();
-      MarkBit code_mark = Marking::MarkBitFrom(code);
+      MarkBit code_mark = Marking::MarkBitFromOldSpace(code);
       MarkCompactCollector::MarkObject(code, code_mark);
 
       if (jsfunction->unchecked_code()->kind() == Code::OPTIMIZED_FUNCTION) {
@@ -956,7 +958,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
              i++) {
           JSFunction* inlined = reinterpret_cast<JSFunction*>(literals->get(i));
           Code* inlined_code = inlined->unchecked_shared()->unchecked_code();
-          MarkBit inlined_code_mark = Marking::MarkBitFrom(inlined_code);
+          MarkBit inlined_code_mark =
+              Marking::MarkBitFromOldSpace(inlined_code);
           MarkCompactCollector::MarkObject(inlined_code, inlined_code_mark);
         }
       }
@@ -996,7 +999,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       MarkBit shared_info_mark = Marking::MarkBitFrom(shared_info);
       if (!shared_info_mark.Get()) {
         Map* shared_info_map = shared_info->map();
-        MarkBit shared_info_map_mark = Marking::MarkBitFrom(shared_info_map);
+        MarkBit shared_info_map_mark =
+            Marking::MarkBitFromOldSpace(shared_info_map);
         MarkCompactCollector::SetMark(shared_info, shared_info_mark);
         MarkCompactCollector::MarkObject(shared_info_map, shared_info_map_mark);
         VisitSharedFunctionInfoAndFlushCodeGeneric(shared_info_map,
@@ -1066,7 +1070,7 @@ class CodeMarkingVisitor : public ThreadVisitor {
   void VisitThread(ThreadLocalTop* top) {
     for (StackFrameIterator it(top); !it.done(); it.Advance()) {
       Code* code = it.frame()->unchecked_code();
-      MarkBit code_bit = Marking::MarkBitFrom(code);
+      MarkBit code_bit = Marking::MarkBitFromOldSpace(code);
       MarkCompactCollector::MarkObject(it.frame()->unchecked_code(), code_bit);
     }
   }
@@ -1084,7 +1088,8 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
     if (obj->IsSharedFunctionInfo()) {
       SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(obj);
       MarkBit shared_mark = Marking::MarkBitFrom(shared);
-      MarkBit code_mark = Marking::MarkBitFrom(shared->unchecked_code());
+      MarkBit code_mark =
+          Marking::MarkBitFromOldSpace(shared->unchecked_code());
       MarkCompactCollector::MarkObject(shared->unchecked_code(), code_mark);
       MarkCompactCollector::MarkObject(shared, shared_mark);
     }
@@ -1115,7 +1120,7 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
   // Make sure we are not referencing the code from the stack.
   for (StackFrameIterator it; !it.done(); it.Advance()) {
     Code* code = it.frame()->unchecked_code();
-    MarkBit code_mark = Marking::MarkBitFrom(code);
+    MarkBit code_mark = Marking::MarkBitFromOldSpace(code);
     MarkObject(code, code_mark);
   }
 
@@ -1157,7 +1162,7 @@ class RootMarkingVisitor : public ObjectVisitor {
     MarkCompactCollector::SetMark(object, mark_bit);
 
     // Mark the map pointer and body, and push them on the marking stack.
-    MarkBit map_mark = Marking::MarkBitFrom(map);
+    MarkBit map_mark = Marking::MarkBitFromOldSpace(map);
     MarkCompactCollector::MarkObject(map, map_mark);
     StaticMarkingVisitor::IterateBody(map, object);
 
@@ -1434,7 +1439,7 @@ void MarkCompactCollector::EmptyMarkingStack() {
     ASSERT(!object->IsOverflowed());
 
     Map* map = object->map();
-    MarkBit map_mark = Marking::MarkBitFrom(map);
+    MarkBit map_mark = Marking::MarkBitFromOldSpace(map);
     MarkObject(map, map_mark);
 
     StaticMarkingVisitor::IterateBody(map, object);
@@ -1633,7 +1638,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
   for (HeapObject* obj = map_iterator.Next();
        obj != NULL; obj = map_iterator.Next()) {
     Map* map = reinterpret_cast<Map*>(obj);
-    MarkBit map_mark = Marking::MarkBitFrom(map);
+    MarkBit map_mark = Marking::MarkBitFromOldSpace(map);
     if (!map_mark.Get() && map->IsFreeSpace()) continue;
 
     ASSERT(SafeIsMap(map));
@@ -1664,7 +1669,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
     while (SafeIsMap(current)) {
       next = current->prototype();
       // There should never be a dead map above a live map.
-      MarkBit current_mark = Marking::MarkBitFrom(current);
+      MarkBit current_mark = Marking::MarkBitFromOldSpace(current);
       ASSERT(on_dead_path || current_mark.Get());
 
       // A live map above a dead map indicates a dead transition.

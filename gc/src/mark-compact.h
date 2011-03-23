@@ -56,13 +56,22 @@ class Marking {
     return new_space_bitmap_->MarkBitFromIndex(index);
   }
 
+  static inline MarkBit MarkBitFromOldSpace(HeapObject* obj) {
+    ASSERT(!Heap::InNewSpace(obj));
+    ASSERT(obj->IsHeapObject());
+    Address addr = reinterpret_cast<Address>(obj);
+    Page *p = Page::FromAddress(addr);
+    return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr));
+  }
+
   static inline MarkBit MarkBitFrom(Address addr) {
     if (Heap::InNewSpace(addr)) {
       uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
       return new_space_bitmap_->MarkBitFromIndex(index);
     } else {
       Page *p = Page::FromAddress(addr);
-      return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr));
+      return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr),
+                                             p->ContainsOnlyData());
     }
   }
 

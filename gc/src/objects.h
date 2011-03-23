@@ -736,6 +736,7 @@ class Object : public MaybeObject {
   INLINE(bool IsTrue());
   INLINE(bool IsFalse());
   inline bool IsArgumentsMarker();
+  inline bool NonFailureIsHeapObject();
 
   // Filler objects (fillers and free space objects).
   inline bool IsFiller();

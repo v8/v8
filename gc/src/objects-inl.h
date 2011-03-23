@@ -139,6 +139,12 @@ bool Object::IsHeapObject() {
 }
 
 
+bool Object::NonFailureIsHeapObject() {
+  ASSERT(!this->IsFailure());
+  return (reinterpret_cast<intptr_t>(this) & kSmiTagMask) != 0;
+}
+
+
 bool Object::IsHeapNumber() {
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() == HEAP_NUMBER_TYPE;

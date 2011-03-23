@@ -123,8 +123,8 @@ class MarkBit {
  public:
   typedef uint32_t CellType;
 
-  inline MarkBit(CellType* cell, CellType mask)
-      : cell_(cell), mask_(mask) { }
+  inline MarkBit(CellType* cell, CellType mask, bool data_only)
+      : cell_(cell), mask_(mask), data_only_(data_only) { }
 
   inline CellType* cell() { return cell_; }
   inline CellType mask() { return mask_; }
@@ -139,18 +139,25 @@ class MarkBit {
   inline bool Get() { return (*cell_ & mask_) != 0; }
   inline void Clear() { *cell_ &= ~mask_; }
 
+  inline bool data_only() { return data_only_; }
+
   inline MarkBit Next() {
     CellType new_mask = mask_ << 1;
     if (new_mask == 0) {
-      return MarkBit(cell_ + 1, 1);
+      return MarkBit(cell_ + 1, 1, data_only_);
     } else {
-      return MarkBit(cell_, new_mask);
+      return MarkBit(cell_, new_mask, data_only_);
     }
   }
 
  private:
   CellType* cell_;
   CellType mask_;
+  // This boolean indicates that the object is in a data-only space with no
+  // pointers.  This enables some optimizations when marking.
+  // It is expected that this field is inlined and turned into control flow
+  // at the place where the MarkBit object is created.
+  bool data_only_;
 };
 
 
@@ -198,10 +205,10 @@ class Bitmap {
     return reinterpret_cast<Bitmap*>(addr);
   }
 
-  inline MarkBit MarkBitFromIndex(uint32_t index) {
+  inline MarkBit MarkBitFromIndex(uint32_t index, bool data_only = false) {
     MarkBit::CellType mask = 1 << (index & kBitIndexMask);
     MarkBit::CellType* cell = this->cells() + (index >> kBitsPerCellLog2);
-    return MarkBit(cell, mask);
+    return MarkBit(cell, mask, data_only);
   }
 
   INLINE(void ClearRange(uint32_t start, uint32_t size)) {
@@ -316,9 +323,14 @@ class MemoryChunk {
 
   int body_size() { return size() - kObjectStartOffset; }
 
+  bool Contains(Address addr) {
+    return addr >= body() && addr < address() + size();
+  }
+
   enum MemoryChunkFlags {
     IS_EXECUTABLE,
     WAS_SWEPT_CONSERVATIVELY,
+    CONTAINS_ONLY_DATA,
     NUM_MEMORY_CHUNK_FLAGS
   };
 
@@ -361,6 +373,10 @@ class MemoryChunk {
 
   Executability executable() {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
+  }
+
+  bool ContainsOnlyData() {
+    return IsFlagSet(CONTAINS_ONLY_DATA);
   }
 
   // ---------------------------------------------------------------------
@@ -410,20 +426,7 @@ class MemoryChunk {
   static MemoryChunk* Initialize(Address base,
                                  size_t size,
                                  Executability executable,
-                                 Space* owner) {
-    MemoryChunk* chunk = FromAddress(base);
-
-    ASSERT(base == chunk->address());
-
-    chunk->size_ = size;
-    chunk->flags_ = 0;
-    chunk->owner_ = owner;
-    chunk->markbits()->Clear();
-
-    if (executable == EXECUTABLE) chunk->SetFlag(IS_EXECUTABLE);
-
-    return chunk;
-  }
+                                 Space* owner);
 
   friend class MemoryAllocator;
 };

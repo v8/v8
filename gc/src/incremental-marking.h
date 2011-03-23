@@ -166,6 +166,15 @@ class IncrementalMarking : public AllStatic {
     ASSERT(IsBlack(mark_bit));
   }
 
+  // Does white->black or grey->grey
+  static inline void MarkBlackOrKeepGrey(MarkBit mark_bit) {
+    ASSERT(!IsImpossible(mark_bit));
+    if (mark_bit.Get()) return;
+    mark_bit.Set();
+    ASSERT(!IsWhite(mark_bit));
+    ASSERT(!IsImpossible(mark_bit));
+  }
+
   static inline const char* ColorStr(MarkBit mark_bit) {
     if (IsBlack(mark_bit)) return "black";
     if (IsWhite(mark_bit)) return "white";

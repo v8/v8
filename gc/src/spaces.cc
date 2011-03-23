@@ -392,6 +392,27 @@ void Page::InitializeAsAnchor(PagedSpace* owner) {
 }
 
 
+MemoryChunk* MemoryChunk::Initialize(Address base,
+                                     size_t size,
+                                     Executability executable,
+                                     Space* owner) {
+  MemoryChunk* chunk = FromAddress(base);
+
+  ASSERT(base == chunk->address());
+
+  chunk->size_ = size;
+  chunk->flags_ = 0;
+  chunk->owner_ = owner;
+  chunk->markbits()->Clear();
+
+  if (executable == EXECUTABLE) chunk->SetFlag(IS_EXECUTABLE);
+
+  if (owner == Heap::old_data_space()) chunk->SetFlag(CONTAINS_ONLY_DATA);
+
+  return chunk;
+}
+
+
 void MemoryChunk::InsertAfter(MemoryChunk* other) {
   next_chunk_ = other->next_chunk_;
   prev_chunk_ = other;
