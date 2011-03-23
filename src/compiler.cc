@@ -409,8 +409,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // rest of the function into account to avoid overlap with the
   // parsing statistics.
   HistogramTimer* rate = info->is_eval()
-      ? COUNTERS->compile_eval()
-      : COUNTERS->compile();
+      ? info->isolate()->counters()->compile_eval()
+      : info->isolate()->counters()->compile();
   HistogramTimerScope timer(rate);
 
   // Compile the code.
@@ -480,10 +480,10 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              ScriptDataImpl* input_pre_data,
                                              Handle<Object> script_data,
                                              NativesFlag natives) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
-  COUNTERS->total_load_size()->Increment(source_length);
-  COUNTERS->total_compile_size()->Increment(source_length);
+  isolate->counters()->total_load_size()->Increment(source_length);
+  isolate->counters()->total_compile_size()->Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(isolate, COMPILER);

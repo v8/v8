@@ -3699,7 +3699,8 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     FastCloneShallowArrayStub stub(
         FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
     frame_->CallStub(&stub, 3);
-    __ IncrementCounter(COUNTERS->cow_arrays_created_stub(), 1, r1, r2);
+    __ IncrementCounter(masm_->isolate()->counters()->cow_arrays_created_stub(),
+                        1, r1, r2);
   } else if (node->depth() > 1) {
     frame_->CallRuntime(Runtime::kCreateArrayLiteral, 3);
   } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
@@ -6588,9 +6589,10 @@ void DeferredReferenceGetNamedValue::Generate() {
   Register scratch1 = VirtualFrame::scratch0();
   Register scratch2 = VirtualFrame::scratch1();
   ASSERT(!receiver_.is(scratch1) && !receiver_.is(scratch2));
-  __ DecrementCounter(COUNTERS->named_load_inline(), 1, scratch1, scratch2);
-  __ IncrementCounter(COUNTERS->named_load_inline_miss(), 1,
-      scratch1, scratch2);
+  __ DecrementCounter(masm_->isolate()->counters()->named_load_inline(),
+                      1, scratch1, scratch2);
+  __ IncrementCounter(masm_->isolate()->counters()->named_load_inline_miss(),
+                      1, scratch1, scratch2);
 
   // Ensure receiver in r0 and name in r2 to match load ic calling convention.
   __ Move(r0, receiver_);
@@ -6661,9 +6663,10 @@ void DeferredReferenceGetKeyedValue::Generate() {
 
   Register scratch1 = VirtualFrame::scratch0();
   Register scratch2 = VirtualFrame::scratch1();
-  __ DecrementCounter(COUNTERS->keyed_load_inline(), 1, scratch1, scratch2);
-  __ IncrementCounter(COUNTERS->keyed_load_inline_miss(),
-      1, scratch1, scratch2);
+  __ DecrementCounter(masm_->isolate()->counters()->keyed_load_inline(),
+                      1, scratch1, scratch2);
+  __ IncrementCounter(masm_->isolate()->counters()->keyed_load_inline_miss(),
+                      1, scratch1, scratch2);
 
   // Ensure key in r0 and receiver in r1 to match keyed load ic calling
   // convention.
@@ -6722,8 +6725,9 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
 void DeferredReferenceSetKeyedValue::Generate() {
   Register scratch1 = VirtualFrame::scratch0();
   Register scratch2 = VirtualFrame::scratch1();
-  __ DecrementCounter(COUNTERS->keyed_store_inline(), 1, scratch1, scratch2);
-  __ IncrementCounter(COUNTERS->keyed_store_inline_miss(),
+  __ DecrementCounter(masm_->isolate()->counters()->keyed_store_inline(),
+                      1, scratch1, scratch2);
+  __ IncrementCounter(masm_->isolate()->counters()->keyed_store_inline_miss(),
                       1, scratch1, scratch2);
 
   // Ensure value in r0, key in r1 and receiver in r2 to match keyed store ic
@@ -6840,11 +6844,12 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     // Counter will be decremented in the deferred code. Placed here to avoid
     // having it in the instruction stream below where patching will occur.
     if (is_contextual) {
-      __ IncrementCounter(COUNTERS->named_load_global_inline(), 1,
-                          frame_->scratch0(), frame_->scratch1());
+      __ IncrementCounter(
+          masm_->isolate()->counters()->named_load_global_inline(),
+          1, frame_->scratch0(), frame_->scratch1());
     } else {
-      __ IncrementCounter(COUNTERS->named_load_inline(), 1,
-                          frame_->scratch0(), frame_->scratch1());
+      __ IncrementCounter(masm_->isolate()->counters()->named_load_inline(),
+                          1, frame_->scratch0(), frame_->scratch1());
     }
 
     // The following instructions are the inlined load of an in-object property.
@@ -6876,8 +6881,9 @@ void CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
         }
       }
       if (is_dont_delete) {
-        __ IncrementCounter(COUNTERS->dont_delete_hint_hit(), 1,
-                            frame_->scratch0(), frame_->scratch1());
+        __ IncrementCounter(
+            masm_->isolate()->counters()->dont_delete_hint_hit(),
+            1, frame_->scratch0(), frame_->scratch1());
       }
     }
 
@@ -7062,8 +7068,8 @@ void CodeGenerator::EmitKeyedLoad() {
 
     // Counter will be decremented in the deferred code. Placed here to avoid
     // having it in the instruction stream below where patching will occur.
-    __ IncrementCounter(COUNTERS->keyed_load_inline(), 1,
-                        frame_->scratch0(), frame_->scratch1());
+    __ IncrementCounter(masm_->isolate()->counters()->keyed_load_inline(),
+                        1, frame_->scratch0(), frame_->scratch1());
 
     // Load the key and receiver from the stack.
     bool key_is_known_smi = frame_->KnownSmiAt(0);
@@ -7149,8 +7155,8 @@ void CodeGenerator::EmitKeyedStore(StaticType* key_type,
 
     // Counter will be decremented in the deferred code. Placed here to avoid
     // having it in the instruction stream below where patching will occur.
-    __ IncrementCounter(COUNTERS->keyed_store_inline(), 1,
-                        scratch1, scratch2);
+    __ IncrementCounter(masm_->isolate()->counters()->keyed_store_inline(),
+                        1, scratch1, scratch2);
 
 
     // Load the value, key and receiver from the stack.

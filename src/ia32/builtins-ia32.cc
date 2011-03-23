@@ -376,7 +376,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   __ pop(ecx);
   __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));  // 1 ~ receiver
   __ push(ecx);
-  __ IncrementCounter(COUNTERS->constructed_objects(), 1);
+  __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1);
   __ ret(0);
 }
 
@@ -1065,7 +1065,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                        edi,
                        kPreallocatedArrayElements,
                        &prepare_generic_code_call);
-  __ IncrementCounter(COUNTERS->array_function_native(), 1);
+  __ IncrementCounter(masm->isolate()->counters()->array_function_native(), 1);
   __ pop(ebx);
   if (construct_call) {
     __ pop(edi);
@@ -1121,7 +1121,8 @@ static void ArrayNativeCode(MacroAssembler* masm,
                   edi,
                   true,
                   &prepare_generic_code_call);
-  __ IncrementCounter(COUNTERS->array_function_native(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->array_function_native(), 1);
   __ mov(eax, ebx);
   __ pop(ebx);
   if (construct_call) {
@@ -1148,7 +1149,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                   edi,
                   false,
                   &prepare_generic_code_call);
-  __ IncrementCounter(COUNTERS->array_function_native(), 1);
+  __ IncrementCounter(counters->array_function_native(), 1);
   __ mov(eax, ebx);
   __ pop(ebx);
   if (construct_call) {
@@ -1283,7 +1284,8 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
-  __ IncrementCounter(COUNTERS->string_ctor_calls(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->string_ctor_calls(), 1);
 
   if (FLAG_debug_code) {
     __ LoadGlobalFunction(Context::STRING_FUNCTION_INDEX, ecx);
@@ -1312,7 +1314,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
       edx,  // Scratch 2.
       false,  // Input is known to be smi?
       &not_cached);
-  __ IncrementCounter(COUNTERS->string_ctor_cached_number(), 1);
+  __ IncrementCounter(counters->string_ctor_cached_number(), 1);
   __ bind(&argument_is_string);
   // ----------- S t a t e -------------
   //  -- ebx    : argument converted to string
@@ -1364,12 +1366,12 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   Condition is_string = masm->IsObjectStringType(eax, ebx, ecx);
   __ j(NegateCondition(is_string), &convert_argument);
   __ mov(ebx, eax);
-  __ IncrementCounter(COUNTERS->string_ctor_string_value(), 1);
+  __ IncrementCounter(counters->string_ctor_string_value(), 1);
   __ jmp(&argument_is_string);
 
   // Invoke the conversion builtin and put the result into ebx.
   __ bind(&convert_argument);
-  __ IncrementCounter(COUNTERS->string_ctor_conversions(), 1);
+  __ IncrementCounter(counters->string_ctor_conversions(), 1);
   __ EnterInternalFrame();
   __ push(edi);  // Preserve the function.
   __ push(eax);
@@ -1391,7 +1393,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // At this point the argument is already a string. Call runtime to
   // create a string wrapper.
   __ bind(&gc_required);
-  __ IncrementCounter(COUNTERS->string_ctor_gc_required(), 1);
+  __ IncrementCounter(counters->string_ctor_gc_required(), 1);
   __ EnterInternalFrame();
   __ push(ebx);
   __ CallRuntime(Runtime::kNewStringWrapper, 1);
@@ -1442,7 +1444,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -----------------------------------
 
   Label invoke, dont_adapt_arguments;
-  __ IncrementCounter(COUNTERS->arguments_adaptors(), 1);
+  __ IncrementCounter(masm->isolate()->counters()->arguments_adaptors(), 1);
 
   Label enough, too_few;
   __ cmp(eax, Operand(ebx));
@@ -1490,7 +1492,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     Label fill;
     __ bind(&fill);
     __ inc(ecx);
-    __ push(Immediate(FACTORY->undefined_value()));
+    __ push(Immediate(masm->isolate()->factory()->undefined_value()));
     __ cmp(ecx, Operand(ebx));
     __ j(less, &fill);
 

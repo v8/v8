@@ -52,24 +52,25 @@ namespace internal {
 //
 class SlidingStateWindow {
  public:
-  SlidingStateWindow();
+  explicit SlidingStateWindow(Isolate* isolate);
   ~SlidingStateWindow();
   void AddState(StateTag state);
 
  private:
   static const int kBufferSize = 256;
+  Counters* counters_;
   int current_index_;
   bool is_full_;
   byte buffer_[kBufferSize];
 
 
   void IncrementStateCounter(StateTag state) {
-    COUNTERS->state_counters(state)->Increment();
+    counters_->state_counters(state)->Increment();
   }
 
 
   void DecrementStateCounter(StateTag state) {
-    COUNTERS->state_counters(state)->Decrement();
+    counters_->state_counters(state)->Decrement();
   }
 };
 
@@ -238,11 +239,12 @@ class Ticker: public Sampler {
 //
 // SlidingStateWindow implementation.
 //
-SlidingStateWindow::SlidingStateWindow(): current_index_(0), is_full_(false) {
+SlidingStateWindow::SlidingStateWindow(Isolate* isolate)
+    : counters_(isolate->counters()), current_index_(0), is_full_(false) {
   for (int i = 0; i < kBufferSize; i++) {
     buffer_[i] = static_cast<byte>(OTHER);
   }
-  LOGGER->ticker_->SetWindow(this);
+  isolate->logger()->ticker_->SetWindow(this);
 }
 
 
@@ -1515,8 +1517,9 @@ bool Logger::Setup() {
 
   ticker_ = new Ticker(Isolate::Current(), kSamplingIntervalMs);
 
+  Isolate* isolate = Isolate::Current();
   if (FLAG_sliding_state_window && sliding_state_window_ == NULL) {
-    sliding_state_window_ = new SlidingStateWindow();
+    sliding_state_window_ = new SlidingStateWindow(isolate);
   }
 
   bool start_logging = FLAG_log || FLAG_log_runtime || FLAG_log_api
@@ -1528,7 +1531,7 @@ bool Logger::Setup() {
   }
 
   if (FLAG_prof) {
-    profiler_ = new Profiler(Isolate::Current());
+    profiler_ = new Profiler(isolate);
     if (!FLAG_prof_auto) {
       profiler_->pause();
     } else {
@@ -1603,7 +1606,7 @@ void Logger::EnableSlidingStateWindow() {
   // Otherwise, if the sliding state window computation has not been
   // started we do it now.
   if (sliding_state_window_ == NULL) {
-    sliding_state_window_ = new SlidingStateWindow();
+    sliding_state_window_ = new SlidingStateWindow(Isolate::Current());
   }
 #endif
 }

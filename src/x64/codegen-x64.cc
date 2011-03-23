@@ -4982,7 +4982,8 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     FastCloneShallowArrayStub stub(
         FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
     clone = frame_->CallStub(&stub, 3);
-    __ IncrementCounter(COUNTERS->cow_arrays_created_stub(), 1);
+    Counters* counters = masm()->isolate()->counters();
+    __ IncrementCounter(counters->cow_arrays_created_stub(), 1);
   } else if (node->depth() > 1) {
     clone = frame_->CallRuntime(Runtime::kCreateArrayLiteral, 3);
   } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
@@ -8011,7 +8012,8 @@ void DeferredReferenceGetNamedValue::Generate() {
   // Here we use masm_-> instead of the __ macro because this is the
   // instruction that gets patched and coverage code gets in the way.
   masm_->testl(rax, Immediate(-delta_to_patch_site));
-  __ IncrementCounter(COUNTERS->named_load_inline_miss(), 1);
+  Counters* counters = masm()->isolate()->counters();
+  __ IncrementCounter(counters->named_load_inline_miss(), 1);
 
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
@@ -8079,7 +8081,8 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // 7-byte NOP with non-zero immediate (0f 1f 80 xxxxxxxx) which won't
   // be generated normally.
   masm_->testl(rax, Immediate(-delta_to_patch_site));
-  __ IncrementCounter(COUNTERS->keyed_load_inline_miss(), 1);
+  Counters* counters = masm()->isolate()->counters();
+  __ IncrementCounter(counters->keyed_load_inline_miss(), 1);
 
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
@@ -8112,7 +8115,8 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
 
 
 void DeferredReferenceSetKeyedValue::Generate() {
-  __ IncrementCounter(COUNTERS->keyed_store_inline_miss(), 1);
+  Counters* counters = masm()->isolate()->counters();
+  __ IncrementCounter(counters->keyed_store_inline_miss(), 1);
   // Move value, receiver, and key to registers rax, rdx, and rcx, as
   // the IC stub expects.
   // Move value to rax, using xchg if the receiver or key is in rax.
@@ -8247,7 +8251,8 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     int offset = kMaxInt;
     masm()->movq(result.reg(), FieldOperand(receiver.reg(), offset));
 
-    __ IncrementCounter(COUNTERS->named_load_inline(), 1);
+    Counters* counters = masm()->isolate()->counters();
+    __ IncrementCounter(counters->named_load_inline(), 1);
     deferred->BindExit();
   }
   ASSERT(frame()->height() == original_height - 1);
@@ -8454,7 +8459,8 @@ Result CodeGenerator::EmitKeyedLoad() {
     result = elements;
     __ CompareRoot(result.reg(), Heap::kTheHoleValueRootIndex);
     deferred->Branch(equal);
-    __ IncrementCounter(COUNTERS->keyed_load_inline(), 1);
+    Counters* counters = masm()->isolate()->counters();
+    __ IncrementCounter(counters->keyed_load_inline(), 1);
 
     deferred->BindExit();
   } else {
@@ -8565,7 +8571,8 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
                          index.scale,
                          FixedArray::kHeaderSize),
             result.reg());
-    __ IncrementCounter(COUNTERS->keyed_store_inline(), 1);
+    Counters* counters = masm()->isolate()->counters();
+    __ IncrementCounter(counters->keyed_store_inline(), 1);
 
     deferred->BindExit();
   } else {

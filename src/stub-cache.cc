@@ -1500,7 +1500,7 @@ MaybeObject* StubCompiler::CompileCallInitialize(Code::Flags flags) {
         GetCodeWithFlags(flags, "CompileCallInitialize");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_initialize_stubs()->Increment();
+  isolate()->counters()->call_initialize_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1527,7 +1527,7 @@ MaybeObject* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
         GetCodeWithFlags(flags, "CompileCallPreMonomorphic");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_premonomorphic_stubs()->Increment();
+  isolate()->counters()->call_premonomorphic_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1551,7 +1551,7 @@ MaybeObject* StubCompiler::CompileCallNormal(Code::Flags flags) {
   { MaybeObject* maybe_result = GetCodeWithFlags(flags, "CompileCallNormal");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_normal_stubs()->Increment();
+  isolate()->counters()->call_normal_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1576,7 +1576,7 @@ MaybeObject* StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
         GetCodeWithFlags(flags, "CompileCallMegamorphic");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_megamorphic_stubs()->Increment();
+  isolate()->counters()->call_megamorphic_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1600,7 +1600,7 @@ MaybeObject* StubCompiler::CompileCallMiss(Code::Flags flags) {
   { MaybeObject* maybe_result = GetCodeWithFlags(flags, "CompileCallMiss");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_megamorphic_stubs()->Increment();
+  isolate()->counters()->call_megamorphic_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),

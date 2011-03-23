@@ -364,7 +364,8 @@ void GenericBinaryOpStub::GenerateCall(
 
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
-    __ IncrementCounter(COUNTERS->generic_binary_stub_calls_regs(), 1);
+    __ IncrementCounter(
+        masm->isolate()->counters()->generic_binary_stub_calls_regs(), 1);
   }
 
   // Call the stub.
@@ -400,7 +401,8 @@ void GenericBinaryOpStub::GenerateCall(
 
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
-    __ IncrementCounter(COUNTERS->generic_binary_stub_calls_regs(), 1);
+    __ IncrementCounter(
+        masm->isolate()->counters()->generic_binary_stub_calls_regs(), 1);
   }
 
   // Call the stub.
@@ -435,7 +437,8 @@ void GenericBinaryOpStub::GenerateCall(
     }
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
-    __ IncrementCounter(COUNTERS->generic_binary_stub_calls_regs(), 1);
+    Counters* counters = masm->isolate()->counters();
+    __ IncrementCounter(counters->generic_binary_stub_calls_regs(), 1);
   }
 
   // Call the stub.
@@ -878,7 +881,8 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
 void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   Label call_runtime;
 
-  __ IncrementCounter(COUNTERS->generic_binary_stub_calls(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->generic_binary_stub_calls(), 1);
 
   if (runtime_operands_type_ == BinaryOpIC::UNINIT_OR_SMI) {
     Label slow;
@@ -2200,7 +2204,8 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
   Label call_runtime;
 
-  __ IncrementCounter(COUNTERS->generic_binary_stub_calls(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->generic_binary_stub_calls(), 1);
 
   switch (op_) {
     case Token::ADD:
@@ -3906,7 +3911,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // edx: code
   // edi: encoding of subject string (1 if ascii 0 if two_byte);
   // All checks done. Now push arguments for native regexp code.
-  __ IncrementCounter(COUNTERS->regexp_entry_native(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->regexp_entry_native(), 1);
 
   // Isolates: note we add an additional parameter here (isolate pointer).
   static const int kRegExpExecuteArguments = 8;
@@ -4251,7 +4257,8 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                       index,
                       times_twice_pointer_size,
                       FixedArray::kHeaderSize + kPointerSize));
-  __ IncrementCounter(COUNTERS->number_to_string_native(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->number_to_string_native(), 1);
 }
 
 
@@ -5534,7 +5541,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ test(ecx, Operand(ecx));
   __ j(not_zero, &second_not_zero_length);
   // Second string is empty, result is first string which is already in eax.
-  __ IncrementCounter(COUNTERS->string_add_native(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
   __ bind(&second_not_zero_length);
   __ mov(ebx, FieldOperand(eax, String::kLengthOffset));
@@ -5543,7 +5551,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(not_zero, &both_not_zero_length);
   // First string is empty, result is second string which is in edx.
   __ mov(eax, edx);
-  __ IncrementCounter(COUNTERS->string_add_native(), 1);
+  __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
   // Both strings are non-empty.
@@ -5577,7 +5585,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
       masm, ebx, ecx, eax, edx, edi,
       &make_two_character_string_no_reload, &make_two_character_string);
-  __ IncrementCounter(COUNTERS->string_add_native(), 1);
+  __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
   // Allocate a two character string.
@@ -5589,7 +5597,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ movzx_b(ebx, FieldOperand(eax, SeqAsciiString::kHeaderSize));
   __ movzx_b(ecx, FieldOperand(edx, SeqAsciiString::kHeaderSize));
   __ bind(&make_two_character_string_no_reload);
-  __ IncrementCounter(COUNTERS->string_add_make_two_char(), 1);
+  __ IncrementCounter(counters->string_add_make_two_char(), 1);
   __ AllocateAsciiString(eax,  // Result.
                          2,    // Length.
                          edi,  // Scratch 1.
@@ -5600,7 +5608,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ or_(ebx, Operand(ecx));
   // Set the characters in the new string.
   __ mov_w(FieldOperand(eax, SeqAsciiString::kHeaderSize), ebx);
-  __ IncrementCounter(COUNTERS->string_add_native(), 1);
+  __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
   __ bind(&longer_than_two);
@@ -5631,7 +5639,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ mov(FieldOperand(ecx, ConsString::kFirstOffset), eax);
   __ mov(FieldOperand(ecx, ConsString::kSecondOffset), edx);
   __ mov(eax, ecx);
-  __ IncrementCounter(COUNTERS->string_add_native(), 1);
+  __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
   __ bind(&non_ascii);
   // At least one of the strings is two-byte. Check whether it happens
@@ -5708,7 +5716,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // edx: first char of second argument
   // edi: length of second argument
   StringHelper::GenerateCopyCharacters(masm, ecx, edx, edi, ebx, true);
-  __ IncrementCounter(COUNTERS->string_add_native(), 1);
+  __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
   // Handle creating a flat two byte result.
@@ -5749,7 +5757,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // edx: first char of second argument
   // edi: length of second argument
   StringHelper::GenerateCopyCharacters(masm, ecx, edx, edi, ebx, false);
-  __ IncrementCounter(COUNTERS->string_add_native(), 1);
+  __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
   // Just jump to runtime to add the two strings.
@@ -6174,7 +6182,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // esi: character of sub string start
   StringHelper::GenerateCopyCharactersREP(masm, edi, esi, ecx, ebx, true);
   __ mov(esi, edx);  // Restore esi.
-  __ IncrementCounter(COUNTERS->sub_string_native(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(3 * kPointerSize);
 
   __ bind(&non_ascii_flat);
@@ -6215,7 +6224,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ mov(esi, edx);  // Restore esi.
 
   __ bind(&return_eax);
-  __ IncrementCounter(COUNTERS->sub_string_native(), 1);
+  __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(3 * kPointerSize);
 
   // Just jump to runtime to create the sub string.
@@ -6234,7 +6243,8 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   Label result_greater;
   Label compare_lengths;
 
-  __ IncrementCounter(COUNTERS->string_compare_native(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->string_compare_native(), 1);
 
   // Find minimum length.
   NearLabel left_shorter;
@@ -6325,7 +6335,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(EQUAL == 0);
   STATIC_ASSERT(kSmiTag == 0);
   __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
-  __ IncrementCounter(COUNTERS->string_compare_native(), 1);
+  __ IncrementCounter(masm->isolate()->counters()->string_compare_native(), 1);
   __ ret(2 * kPointerSize);
 
   __ bind(&not_same);

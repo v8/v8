@@ -2355,6 +2355,7 @@ PropertyAttributes JSObject::GetLocalPropertyAttribute(String* name) {
 
 MaybeObject* NormalizedMapCache::Get(JSObject* obj,
                                      PropertyNormalizationMode mode) {
+  Isolate* isolate = obj->GetIsolate();
   Map* fast = obj->map();
   int index = Hash(fast) % kEntries;
   Object* result = get(index);
@@ -2381,7 +2382,7 @@ MaybeObject* NormalizedMapCache::Get(JSObject* obj,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   set(index, result);
-  COUNTERS->normalized_maps()->Increment();
+  isolate->counters()->normalized_maps()->Increment();
 
   return result;
 }
@@ -2441,7 +2442,7 @@ MaybeObject* JSObject::UpdateMapCodeCache(String* name, Code* code) {
                                                      UNIQUE_NORMALIZED_MAP);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
-    COUNTERS->normalized_maps()->Increment();
+    GetIsolate()->counters()->normalized_maps()->Increment();
 
     set_map(Map::cast(obj));
   }
