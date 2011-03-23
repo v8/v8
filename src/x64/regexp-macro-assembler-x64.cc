@@ -63,6 +63,10 @@ namespace internal {
  *
  * The registers rax, rbx, r9 and r11 are free to use for computations.
  * If changed to use r12+, they should be saved as callee-save registers.
+ * The macro assembler special registers r12 and r13 (kSmiConstantRegister,
+ * kRootRegister) aren't special during execution of RegExp code (they don't
+ * hold the values assumed when creating JS code), so no Smi or Root related
+ * macro operations can be used.
  *
  * Each call to a C++ method should retain these registers.
  *
@@ -111,6 +115,7 @@ RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(
     Mode mode,
     int registers_to_save)
     : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
+      no_root_array_scope_(masm_),
       code_relative_fixup_positions_(4),
       mode_(mode),
       num_registers_(registers_to_save),

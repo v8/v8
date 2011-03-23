@@ -1911,7 +1911,8 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   Register map = ToRegister(instr->TempAt(0));
   __ movq(map, FieldOperand(object, HeapObject::kMapOffset));
   __ bind(deferred->map_check());  // Label for calculating code patching.
-  __ Move(kScratchRegister, factory()->the_hole_value());
+  __ movq(kScratchRegister, factory()->the_hole_value(),
+          RelocInfo::EMBEDDED_OBJECT);
   __ cmpq(map, kScratchRegister);  // Patched to cached map.
   __ j(not_equal, &cache_miss);
   // Patched to load either true or false.

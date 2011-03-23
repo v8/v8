@@ -52,7 +52,7 @@ static void ProbeTable(Isolate* isolate,
   ExternalReference key_offset(isolate->stub_cache()->key_reference(table));
   Label miss;
 
-  __ movq(kScratchRegister, key_offset);
+  __ LoadAddress(kScratchRegister, key_offset);
   // Check that the key in the entry matches the name.
   // Multiply entry offset by 16 to get the entry address. Since the
   // offset register already holds the entry offset times four, multiply
@@ -398,7 +398,7 @@ static void CompileCallLoadPropertyWithInterceptor(MacroAssembler* masm,
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
                         masm->isolate());
   __ movq(rax, Immediate(5));
-  __ movq(rbx, ref);
+  __ LoadAddress(rbx, ref);
 
   CEntryStub stub(1);
   __ CallStub(&stub);
@@ -1491,8 +1491,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       const int kAllocationDelta = 4;
       // Load top.
-      __ movq(rcx, new_space_allocation_top);
-      __ movq(rcx, Operand(rcx, 0));
+      __ Load(rcx, new_space_allocation_top);
 
       // Check if it's the end of elements.
       __ lea(rdx, FieldOperand(rbx,
@@ -1501,13 +1500,13 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ cmpq(rdx, rcx);
       __ j(not_equal, &call_builtin);
       __ addq(rcx, Immediate(kAllocationDelta * kPointerSize));
-      __ movq(kScratchRegister, new_space_allocation_limit);
-      __ cmpq(rcx, Operand(kScratchRegister, 0));
+      Operand limit_operand =
+          masm()->ExternalOperand(new_space_allocation_limit);
+      __ cmpq(rcx, limit_operand);
       __ j(above, &call_builtin);
 
       // We fit and could grow elements.
-      __ movq(kScratchRegister, new_space_allocation_top);
-      __ movq(Operand(kScratchRegister, 0), rcx);
+      __ Store(new_space_allocation_top, rcx);
       __ movq(rcx, Operand(rsp, argc * kPointerSize));
 
       // Push the argument...

@@ -251,6 +251,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   inline void Drop();
 
   MacroAssembler* masm_;
+  MacroAssembler::NoRootArrayScope no_root_array_scope_;
 
   ZoneList<int> code_relative_fixup_positions_;
 

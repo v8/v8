@@ -760,7 +760,6 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Set up the roots register.
-  ExternalReference roots_address = ExternalReference::roots_address(isolate);
   __ InitializeRootRegister();
   __ InitializeSmiConstantRegister();
 

@@ -633,7 +633,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
       = ExternalReference::keyed_lookup_cache_keys(masm->isolate());
   __ movq(rdi, rcx);
   __ shl(rdi, Immediate(kPointerSizeLog2 + 1));
-  __ movq(kScratchRegister, cache_keys);
+  __ LoadAddress(kScratchRegister, cache_keys);
   __ cmpq(rbx, Operand(kScratchRegister, rdi, times_1, 0));
   __ j(not_equal, &slow);
   __ cmpq(rax, Operand(kScratchRegister, rdi, times_1, kPointerSize));
@@ -642,7 +642,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Get field offset, which is a 32-bit integer.
   ExternalReference cache_field_offsets
       = ExternalReference::keyed_lookup_cache_field_offsets(masm->isolate());
-  __ movq(kScratchRegister, cache_field_offsets);
+  __ LoadAddress(kScratchRegister, cache_field_offsets);
   __ movl(rdi, Operand(kScratchRegister, rcx, times_4, 0));
   __ movzxbq(rcx, FieldOperand(rbx, Map::kInObjectPropertiesOffset));
   __ subq(rdi, rcx);
@@ -1009,7 +1009,7 @@ static void GenerateCallMiss(MacroAssembler* masm, int argc, IC::UtilityId id) {
   // Call the entry.
   CEntryStub stub(1);
   __ movq(rax, Immediate(2));
-  __ movq(rbx, ExternalReference(IC_Utility(id), masm->isolate()));
+  __ LoadAddress(rbx, ExternalReference(IC_Utility(id), masm->isolate()));
   __ CallStub(&stub);
 
   // Move result to rdi and exit the internal frame.

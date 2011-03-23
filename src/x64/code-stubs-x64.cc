@@ -2449,8 +2449,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
       ExternalReference::address_of_regexp_stack_memory_address(isolate);
   ExternalReference address_of_regexp_stack_memory_size =
       ExternalReference::address_of_regexp_stack_memory_size(isolate);
-  __ movq(kScratchRegister, address_of_regexp_stack_memory_size);
-  __ movq(kScratchRegister, Operand(kScratchRegister, 0));
+  __ Load(kScratchRegister, address_of_regexp_stack_memory_size);
   __ testq(kScratchRegister, kScratchRegister);
   __ j(zero, &runtime);
 
@@ -2611,7 +2610,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Argument 8: Pass current isolate address.
   // __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kPointerSize),
   //     Immediate(ExternalReference::isolate_address()));
-  __ movq(kScratchRegister, ExternalReference::isolate_address());
+  __ LoadAddress(kScratchRegister, ExternalReference::isolate_address());
   __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kPointerSize),
           kScratchRegister);
 
@@ -2630,7 +2629,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 #endif
 
   // Argument 5: static offsets vector buffer.
-  __ movq(r8, ExternalReference::address_of_static_offsets_vector(isolate));
+  __ LoadAddress(r8,
+                 ExternalReference::address_of_static_offsets_vector(isolate));
   // Argument 5 passed in r8 on Linux and on the stack on Windows.
 #ifdef _WIN64
   __ movq(Operand(rsp, (argument_slots_on_stack - 4) * kPointerSize), r8);
@@ -2734,7 +2734,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ RecordWrite(rcx, RegExpImpl::kLastInputOffset, rax, rdi);
 
   // Get the static offsets vector filled by the native regexp code.
-  __ movq(rcx, ExternalReference::address_of_static_offsets_vector(isolate));
+  __ LoadAddress(rcx,
+                 ExternalReference::address_of_static_offsets_vector(isolate));
 
   // rbx: last_match_info backing store (FixedArray)
   // rcx: offsets vector
@@ -2768,12 +2769,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception_address(
       Isolate::k_pending_exception_address, isolate);
-  __ movq(rbx, pending_exception_address);
-  __ movq(rax, Operand(rbx, 0));
+  Operand pending_exception_operand =
+      masm->ExternalOperand(pending_exception_address, rbx);
+  __ movq(rax, pending_exception_operand);
   __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
   __ cmpq(rax, rdx);
   __ j(equal, &runtime);
-  __ movq(Operand(rbx, 0), rdx);
+  __ movq(pending_exception_operand, rdx);
 
   __ CompareRoot(rax, Heap::kTerminationExceptionRootIndex);
   NearLabel termination_exception;
@@ -3385,8 +3387,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   ExternalReference scope_depth =
       ExternalReference::heap_always_allocate_scope_depth(masm->isolate());
   if (always_allocate_scope) {
-    __ movq(kScratchRegister, scope_depth);
-    __ incl(Operand(kScratchRegister, 0));
+    Operand scope_depth_operand = masm->ExternalOperand(scope_depth);
+    __ incl(scope_depth_operand);
   }
 
   // Call C function.
@@ -3399,14 +3401,14 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax).
     __ lea(rcx, StackSpaceOperand(0));
-    __ movq(rdx, ExternalReference::isolate_address());
+    __ LoadAddress(rdx, ExternalReference::isolate_address());
   } else {
     ASSERT_EQ(2, result_size_);
     // Pass a pointer to the result location as the first argument.
     __ lea(rcx, StackSpaceOperand(2));
     // Pass a pointer to the Arguments object as the second argument.
     __ lea(rdx, StackSpaceOperand(0));
-    __ movq(r8, ExternalReference::isolate_address());
+    __ LoadAddress(r8, ExternalReference::isolate_address());
   }
 
 #else  // _WIN64
@@ -3419,8 +3421,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Result is in rax - do not destroy this register!
 
   if (always_allocate_scope) {
-    __ movq(kScratchRegister, scope_depth);
-    __ decl(Operand(kScratchRegister, 0));
+    Operand scope_depth_operand = masm->ExternalOperand(scope_depth);
+    __ decl(scope_depth_operand);
   }
 
   // Check for failure result.
@@ -3463,11 +3465,11 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Retrieve the pending exception and clear the variable.
   ExternalReference pending_exception_address(
       Isolate::k_pending_exception_address, masm->isolate());
-  __ movq(kScratchRegister, pending_exception_address);
-  __ movq(rax, Operand(kScratchRegister, 0));
-  __ movq(rdx, ExternalReference::the_hole_value_location(masm->isolate()));
-  __ movq(rdx, Operand(rdx, 0));
-  __ movq(Operand(kScratchRegister, 0), rdx);
+  Operand pending_exception_operand =
+      masm->ExternalOperand(pending_exception_address);
+  __ movq(rax, pending_exception_operand);
+  __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
+  __ movq(pending_exception_operand, rdx);
 
   // Special handling of termination exceptions which are uncatchable
   // by javascript code.
@@ -3566,54 +3568,58 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   Label not_outermost_js, not_outermost_js_2;
 #endif
+  {  // NOLINT. Scope block confuses linter.
+    MacroAssembler::NoRootArrayScope uninitialized_root_register(masm);
+    // Setup frame.
+    __ push(rbp);
+    __ movq(rbp, rsp);
 
-  // Setup frame.
-  __ push(rbp);
-  __ movq(rbp, rsp);
-
-  // Push the stack frame type marker twice.
-  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
-  // Scratch register is neither callee-save, nor an argument register on any
-  // platform. It's free to use at this point.
-  // Cannot use smi-register for loading yet.
-  __ movq(kScratchRegister,
-          reinterpret_cast<uint64_t>(Smi::FromInt(marker)),
-          RelocInfo::NONE);
-  __ push(kScratchRegister);  // context slot
-  __ push(kScratchRegister);  // function slot
-  // Save callee-saved registers (X64/Win64 calling conventions).
-  __ push(r12);
-  __ push(r13);
-  __ push(r14);
-  __ push(r15);
+    // Push the stack frame type marker twice.
+    int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
+    // Scratch register is neither callee-save, nor an argument register on any
+    // platform. It's free to use at this point.
+    // Cannot use smi-register for loading yet.
+    __ movq(kScratchRegister,
+            reinterpret_cast<uint64_t>(Smi::FromInt(marker)),
+            RelocInfo::NONE);
+    __ push(kScratchRegister);  // context slot
+    __ push(kScratchRegister);  // function slot
+    // Save callee-saved registers (X64/Win64 calling conventions).
+    __ push(r12);
+    __ push(r13);
+    __ push(r14);
+    __ push(r15);
 #ifdef _WIN64
-  __ push(rdi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
-  __ push(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
+    __ push(rdi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
+    __ push(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
 #endif
-  __ push(rbx);
-  // TODO(X64): On Win64, if we ever use XMM6-XMM15, the low low 64 bits are
-  // callee save as well.
+    __ push(rbx);
+    // TODO(X64): On Win64, if we ever use XMM6-XMM15, the low low 64 bits are
+    // callee save as well.
+
+    // Set up the roots and smi constant registers.
+    // Needs to be done before any further smi loads.
+    __ InitializeSmiConstantRegister();
+    __ InitializeRootRegister();
+  }
 
   Isolate* isolate = masm->isolate();
 
   // Save copies of the top frame descriptor on the stack.
   ExternalReference c_entry_fp(Isolate::k_c_entry_fp_address, isolate);
-  __ load_rax(c_entry_fp);
-  __ push(rax);
-
-  // Set up the roots and smi constant registers.
-  // Needs to be done before any further smi loads.
-  __ InitializeRootRegister();
-  __ InitializeSmiConstantRegister();
+  {
+    Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
+    __ push(c_entry_fp_operand);
+  }
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // If this is the outermost JS call, set js_entry_sp value.
   ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
-  __ load_rax(js_entry_sp);
+  __ Load(rax, js_entry_sp);
   __ testq(rax, rax);
   __ j(not_zero, &not_outermost_js);
   __ movq(rax, rbp);
-  __ store_rax(js_entry_sp);
+  __ Store(js_entry_sp, rax);
   __ bind(&not_outermost_js);
 #endif
 
@@ -3624,7 +3630,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // exception field in the JSEnv and return a failure sentinel.
   ExternalReference pending_exception(Isolate::k_pending_exception_address,
                                       isolate);
-  __ store_rax(pending_exception);
+  __ Store(pending_exception, rax);
   __ movq(rax, Failure::Exception(), RelocInfo::NONE);
   __ jmp(&exit);
 
@@ -3633,8 +3639,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
 
   // Clear any pending exceptions.
-  __ load_rax(ExternalReference::the_hole_value_location(isolate));
-  __ store_rax(pending_exception);
+  __ LoadRoot(rax, Heap::kTheHoleValueRootIndex);
+  __ Store(pending_exception, rax);
 
   // Fake a receiver (NULL).
   __ push(Immediate(0));  // receiver
@@ -3647,18 +3653,19 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   if (is_construct) {
     ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline,
                                       isolate);
-    __ load_rax(construct_entry);
+    __ Load(rax, construct_entry);
   } else {
     ExternalReference entry(Builtins::JSEntryTrampoline, isolate);
-    __ load_rax(entry);
+    __ Load(rax, entry);
   }
   __ lea(kScratchRegister, FieldOperand(rax, Code::kHeaderSize));
   __ call(kScratchRegister);
 
   // Unlink this frame from the handler chain.
-  __ movq(kScratchRegister,
-          ExternalReference(Isolate::k_handler_address, isolate));
-  __ pop(Operand(kScratchRegister, 0));
+  Operand handler_operand =
+      masm->ExternalOperand(ExternalReference(Isolate::k_handler_address,
+                                              isolate));
+  __ pop(handler_operand);
   // Pop next_sp.
   __ addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
 
@@ -3674,9 +3681,10 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Restore the top frame descriptor from the stack.
   __ bind(&exit);
-  __ movq(kScratchRegister,
-          ExternalReference(Isolate::k_c_entry_fp_address, isolate));
-  __ pop(Operand(kScratchRegister, 0));
+  {
+    Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
+    __ pop(c_entry_fp_operand);
+  }
 
   // Restore callee-saved registers (X64 conventions).
   __ pop(rbx);
@@ -3716,7 +3724,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   static const int kOffsetToResultValue = 21;
   // The last 4 bytes of the instruction sequence
   //   movq(rax, FieldOperand(rdi, HeapObject::kMapOffset)
-  //   Move(kScratchRegister, Factory::the_hole_value)
+  //   Move(kScratchRegister, FACTORY->the_hole_value())
   // in front of the hole value address.
   static const unsigned int kWordBeforeMapCheckValue = 0xBA49FF78;
   // The last 4 bytes of the instruction sequence

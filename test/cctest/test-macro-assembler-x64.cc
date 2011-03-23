@@ -96,6 +96,7 @@ static void EntryCode(MacroAssembler* masm) {
   // Smi constant register is callee save.
   __ push(v8::internal::kSmiConstantRegister);
   __ InitializeSmiConstantRegister();
+  __ InitializeRootRegister();
 }
 
 
