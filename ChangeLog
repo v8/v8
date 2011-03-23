@@ -1,3 +1,16 @@
+2011-03-23: Version 3.2.4
+
+        Added isolates which allows several V8 instances in the same process.
+        This is controlled through the new Isolate class in the API.
+
+        Implemented more of EcmaScript 5 strict mode.
+
+        Reduced the time it takes to make detailed heap snapshot.
+
+        Added a number of commands to the ARM simulator and enhanced the ARM
+        disassembler.
+
+
 2011-03-17: Version 3.2.3
 
         Fixed a number of crash bugs.
