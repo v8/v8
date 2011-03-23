@@ -792,7 +792,7 @@ Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
   LOG_API(isolate, "FunctionTemplate::New");
   ENTER_V8;
   i::Handle<i::Struct> struct_obj =
-      FACTORY->NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
+      isolate->factory()->NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
   i::Handle<i::FunctionTemplateInfo> obj =
       i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
   InitializeFunctionTemplate(obj);
@@ -819,12 +819,12 @@ Local<Signature> Signature::New(Handle<FunctionTemplate> receiver,
   LOG_API(isolate, "Signature::New");
   ENTER_V8;
   i::Handle<i::Struct> struct_obj =
-      FACTORY->NewStruct(i::SIGNATURE_INFO_TYPE);
+      isolate->factory()->NewStruct(i::SIGNATURE_INFO_TYPE);
   i::Handle<i::SignatureInfo> obj =
       i::Handle<i::SignatureInfo>::cast(struct_obj);
   if (!receiver.IsEmpty()) obj->set_receiver(*Utils::OpenHandle(*receiver));
   if (argc > 0) {
-    i::Handle<i::FixedArray> args = FACTORY->NewFixedArray(argc);
+    i::Handle<i::FixedArray> args = isolate->factory()->NewFixedArray(argc);
     for (int i = 0; i < argc; i++) {
       if (!argv[i].IsEmpty())
         args->set(i, *Utils::OpenHandle(*argv[i]));
@@ -885,7 +885,7 @@ void FunctionTemplate::SetCallHandler(InvocationCallback callback,
   ENTER_V8;
   i::HandleScope scope(isolate);
   i::Handle<i::Struct> struct_obj =
-      FACTORY->NewStruct(i::CALL_HANDLER_INFO_TYPE);
+      isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
@@ -1081,7 +1081,7 @@ Local<ObjectTemplate> ObjectTemplate::New(
   LOG_API(isolate, "ObjectTemplate::New");
   ENTER_V8;
   i::Handle<i::Struct> struct_obj =
-      FACTORY->NewStruct(i::OBJECT_TEMPLATE_INFO_TYPE);
+    isolate->factory()->NewStruct(i::OBJECT_TEMPLATE_INFO_TYPE);
   i::Handle<i::ObjectTemplateInfo> obj =
       i::Handle<i::ObjectTemplateInfo>::cast(struct_obj);
   InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
@@ -1179,7 +1179,7 @@ void ObjectTemplate::SetAccessCheckCallbacks(
   EnsureConstructor(this);
 
   i::Handle<i::Struct> struct_info =
-      FACTORY->NewStruct(i::ACCESS_CHECK_INFO_TYPE);
+      isolate->factory()->NewStruct(i::ACCESS_CHECK_INFO_TYPE);
   i::Handle<i::AccessCheckInfo> info =
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
@@ -1386,7 +1386,7 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   i::Handle<i::SharedFunctionInfo> function =
       i::Handle<i::SharedFunctionInfo>(i::SharedFunctionInfo::cast(*obj));
   i::Handle<i::JSFunction> result =
-      FACTORY->NewFunctionFromSharedFunctionInfo(
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
           function,
           i::Isolate::Current()->global_context());
   return Local<Script>(ToApi<Script>(result));
@@ -1414,7 +1414,7 @@ Local<Value> Script::Run() {
     if (obj->IsSharedFunctionInfo()) {
       i::Handle<i::SharedFunctionInfo>
           function_info(i::SharedFunctionInfo::cast(*obj));
-      fun = FACTORY->NewFunctionFromSharedFunctionInfo(
+      fun = isolate->factory()->NewFunctionFromSharedFunctionInfo(
           function_info, i::Isolate::Current()->global_context());
     } else {
       fun = i::Handle<i::JSFunction>(i::JSFunction::cast(*obj));
@@ -2341,7 +2341,7 @@ Local<Uint32> Value::ToArrayIndex() const {
     if (index <= static_cast<uint32_t>(i::Smi::kMaxValue)) {
       value = i::Handle<i::Object>(i::Smi::FromInt(index));
     } else {
-      value = FACTORY->NewNumber(index);
+      value = isolate->factory()->NewNumber(index);
     }
     return Utils::Uint32ToLocal(value);
   }
@@ -2604,7 +2604,8 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
 
 
 Local<Array> v8::Object::GetPropertyNames() {
-  ON_BAILOUT(i::Isolate::Current(), "v8::Object::GetPropertyNames()",
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::Object::GetPropertyNames()",
              return Local<v8::Array>());
   ENTER_V8;
   v8::HandleScope scope;
@@ -2614,8 +2615,9 @@ Local<Array> v8::Object::GetPropertyNames() {
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
   // we clone the result.
-  i::Handle<i::FixedArray> elms = FACTORY->CopyFixedArray(value);
-  i::Handle<i::JSArray> result = FACTORY->NewJSArrayWithElements(elms);
+  i::Handle<i::FixedArray> elms = isolate->factory()->CopyFixedArray(value);
+  i::Handle<i::JSArray> result =
+      isolate->factory()->NewJSArrayWithElements(elms);
   return scope.Close(Utils::ToLocal(result));
 }
 
@@ -2839,7 +2841,7 @@ void v8::Object::TurnOnAccessCheck() {
   i::Deoptimizer::DeoptimizeGlobalObject(*obj);
 
   i::Handle<i::Map> new_map =
-    FACTORY->CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
+    isolate->factory()->CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
   new_map->set_is_access_check_needed(true);
   obj->set_map(*new_map);
 }
@@ -2878,7 +2880,7 @@ int v8::Object::GetIdentityHash() {
   }
   i::Handle<i::JSObject> hidden_props =
       i::Handle<i::JSObject>::cast(hidden_props_obj);
-  i::Handle<i::String> hash_symbol = FACTORY->identity_hash_symbol();
+  i::Handle<i::String> hash_symbol = isolate->factory()->identity_hash_symbol();
   if (hidden_props->HasLocalProperty(*hash_symbol)) {
     i::Handle<i::Object> hash = i::GetProperty(hidden_props, hash_symbol);
     CHECK(!hash.is_null());
@@ -4245,7 +4247,7 @@ Local<String> v8::String::NewSymbol(const char* data, int length) {
   ENTER_V8;
   if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result =
-      FACTORY->LookupSymbol(i::Vector<const char>(data, length));
+      isolate->factory()->LookupSymbol(i::Vector<const char>(data, length));
   return Utils::ToLocal(result);
 }
 
@@ -4704,7 +4706,7 @@ Local<Value> Exception::RangeError(v8::Handle<v8::String> raw_message) {
   {
     i::HandleScope scope(isolate);
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = FACTORY->NewRangeError(message);
+    i::Handle<i::Object> result = isolate->factory()->NewRangeError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4720,7 +4722,8 @@ Local<Value> Exception::ReferenceError(v8::Handle<v8::String> raw_message) {
   {
     i::HandleScope scope(isolate);
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = FACTORY->NewReferenceError(message);
+    i::Handle<i::Object> result =
+        isolate->factory()->NewReferenceError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4736,7 +4739,7 @@ Local<Value> Exception::SyntaxError(v8::Handle<v8::String> raw_message) {
   {
     i::HandleScope scope(isolate);
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = FACTORY->NewSyntaxError(message);
+    i::Handle<i::Object> result = isolate->factory()->NewSyntaxError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4752,7 +4755,7 @@ Local<Value> Exception::TypeError(v8::Handle<v8::String> raw_message) {
   {
     i::HandleScope scope(isolate);
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = FACTORY->NewTypeError(message);
+    i::Handle<i::Object> result = isolate->factory()->NewTypeError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4768,7 +4771,7 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
   {
     i::HandleScope scope(isolate);
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = FACTORY->NewError(message);
+    i::Handle<i::Object> result = isolate->factory()->NewError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4944,10 +4947,10 @@ Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
   i::Handle<i::Object> result;
   EXCEPTION_PREAMBLE();
   if (data.IsEmpty()) {
-    result =
-        i::Isolate::Current()->debugger()->Call(Utils::OpenHandle(*fun),
-                                                FACTORY->undefined_value(),
-                                                &has_pending_exception);
+    result = i::Isolate::Current()->debugger()->Call(
+        Utils::OpenHandle(*fun),
+        isolate->factory()->undefined_value(),
+        &has_pending_exception);
   } else {
     result = i::Isolate::Current()->debugger()->Call(Utils::OpenHandle(*fun),
                                                      Utils::OpenHandle(*data),
@@ -4967,7 +4970,8 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   i::Debug* isolate_debug = i::Isolate::Current()->debug();
   isolate_debug->Load();
   i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global());
-  i::Handle<i::String> name = FACTORY->LookupAsciiSymbol("MakeMirror");
+  i::Handle<i::String> name =
+      isolate->factory()->LookupAsciiSymbol("MakeMirror");
   i::Handle<i::Object> fun_obj = i::GetProperty(debug, name);
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);
   v8::Handle<v8::Function> v8_fun = Utils::ToLocal(fun);
@@ -5022,7 +5026,7 @@ Handle<String> CpuProfileNode::GetScriptResourceName() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetScriptResourceName");
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
-  return Handle<String>(ToApi<String>(FACTORY->LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
       node->entry()->resource_name())));
 }
 
@@ -5108,7 +5112,7 @@ Handle<String> CpuProfile::GetTitle() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfile::GetTitle");
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return Handle<String>(ToApi<String>(FACTORY->LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
       profile->title())));
 }
 
@@ -5204,11 +5208,11 @@ Handle<Value> HeapGraphEdge::GetName() const {
     case i::HeapGraphEdge::kInternal:
     case i::HeapGraphEdge::kProperty:
     case i::HeapGraphEdge::kShortcut:
-      return Handle<String>(ToApi<String>(FACTORY->LookupAsciiSymbol(
+      return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
           edge->name())));
     case i::HeapGraphEdge::kElement:
     case i::HeapGraphEdge::kHidden:
-      return Handle<Number>(ToApi<Number>(FACTORY->NewNumberFromInt(
+      return Handle<Number>(ToApi<Number>(isolate->factory()->NewNumberFromInt(
           edge->index())));
     default: UNREACHABLE();
   }
@@ -5276,7 +5280,7 @@ HeapGraphNode::Type HeapGraphNode::GetType() const {
 Handle<String> HeapGraphNode::GetName() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphNode::GetName");
-  return Handle<String>(ToApi<String>(FACTORY->LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
       ToInternal(this)->name())));
 }
 
@@ -5418,7 +5422,7 @@ unsigned HeapSnapshot::GetUid() const {
 Handle<String> HeapSnapshot::GetTitle() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetTitle");
-  return Handle<String>(ToApi<String>(FACTORY->LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
       ToInternal(this)->title())));
 }
 
