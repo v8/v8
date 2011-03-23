@@ -43,12 +43,10 @@ class SafepointGenerator : public CallWrapper {
  public:
   SafepointGenerator(LCodeGen* codegen,
                      LPointerMap* pointers,
-                     int deoptimization_index,
-                     bool ensure_reloc_space = false)
+                     int deoptimization_index)
       : codegen_(codegen),
         pointers_(pointers),
-        deoptimization_index_(deoptimization_index),
-        ensure_reloc_space_(ensure_reloc_space) { }
+        deoptimization_index_(deoptimization_index) { }
   virtual ~SafepointGenerator() { }
 
   virtual void BeforeCall(int call_size) {
@@ -67,9 +65,7 @@ class SafepointGenerator : public CallWrapper {
   virtual void AfterCall() {
     // Ensure that we have enough space in the reloc info to patch
     // this with calls when doing deoptimization.
-    if (ensure_reloc_space_) {
-      codegen_->masm()->RecordComment(RelocInfo::kFillerCommentString, true);
-    }
+    codegen_->masm()->RecordComment(RelocInfo::kFillerCommentString, true);
     codegen_->RecordSafepoint(pointers_, deoptimization_index_);
   }
 
@@ -79,7 +75,6 @@ class SafepointGenerator : public CallWrapper {
   LCodeGen* codegen_;
   LPointerMap* pointers_;
   int deoptimization_index_;
-  bool ensure_reloc_space_;
 };
 
 
@@ -2342,8 +2337,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   RegisterEnvironmentForDeoptimization(env);
   SafepointGenerator safepoint_generator(this,
                                          pointers,
-                                         env->deoptimization_index(),
-                                         true);
+                                         env->deoptimization_index());
   v8::internal::ParameterCount actual(rax);
   __ InvokeFunction(function, actual, CALL_FUNCTION, &safepoint_generator);
 }
@@ -3789,8 +3783,7 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   // builtin)
   SafepointGenerator safepoint_generator(this,
                                          pointers,
-                                         env->deoptimization_index(),
-                                         true);
+                                         env->deoptimization_index());
   __ Push(Smi::FromInt(strict_mode_flag()));
   __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, &safepoint_generator);
 }
