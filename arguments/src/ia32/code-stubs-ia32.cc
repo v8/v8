@@ -3610,7 +3610,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // esp[0] : return address
   // esp[4] : number of parameters
   // esp[8] : receiver displacement
-  // esp[16] : function
+  // esp[12] : function
 
   // The displacement is used for skipping the return address and the
   // frame pointer on the stack. It is the offset of the last
@@ -3639,79 +3639,83 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // the arguments object and the elements array.
   NearLabel add_arguments_object;
   __ bind(&try_allocate);
-  __ test(ecx, Operand(ecx));
-  __ j(zero, &add_arguments_object);
-  __ lea(ecx, Operand(ecx, times_2, FixedArray::kHeaderSize));
-  __ bind(&add_arguments_object);
-  __ add(Operand(ecx), Immediate(GetArgumentsObjectSize()));
-
-  // Do the allocation of both objects in one go.
-  __ AllocateInNewSpace(ecx, eax, edx, ebx, &runtime, TAG_OBJECT);
-
-  // Get the arguments boilerplate from the current (global) context.
-  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ mov(edi, FieldOperand(edi, GlobalObject::kGlobalContextOffset));
-  __ mov(edi, Operand(edi,
-                      Context::SlotOffset(GetArgumentsBoilerplateIndex())));
-
-  // Copy the JS object part.
-  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
-    __ mov(ebx, FieldOperand(edi, i));
-    __ mov(FieldOperand(eax, i), ebx);
-  }
-
   if (type_ == NEW_NON_STRICT) {
-    // Setup the callee in-object property.
-    STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
-    __ mov(ebx, Operand(esp, 3 * kPointerSize));
+    __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
+  } else {
+    __ test(ecx, Operand(ecx));
+    __ j(zero, &add_arguments_object);
+    __ lea(ecx, Operand(ecx, times_2, FixedArray::kHeaderSize));
+    __ bind(&add_arguments_object);
+    __ add(Operand(ecx), Immediate(GetArgumentsObjectSize()));
+
+    // Do the allocation of both objects in one go.
+    __ AllocateInNewSpace(ecx, eax, edx, ebx, &runtime, TAG_OBJECT);
+
+    // Get the arguments boilerplate from the current (global) context.
+    __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ mov(edi, FieldOperand(edi, GlobalObject::kGlobalContextOffset));
+    __ mov(edi, Operand(edi,
+                        Context::SlotOffset(GetArgumentsBoilerplateIndex())));
+
+    // Copy the JS object part.
+    for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
+      __ mov(ebx, FieldOperand(edi, i));
+      __ mov(FieldOperand(eax, i), ebx);
+    }
+
+    if (type_ == NEW_NON_STRICT) {
+      // Setup the callee in-object property.
+      STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
+      __ mov(ebx, Operand(esp, 3 * kPointerSize));
+      __ mov(FieldOperand(eax, JSObject::kHeaderSize +
+                          Heap::kArgumentsCalleeIndex * kPointerSize),
+             ebx);
+    }
+
+    // Get the length (smi tagged) and set that as an in-object property too.
+    STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
+    __ mov(ecx, Operand(esp, 1 * kPointerSize));
     __ mov(FieldOperand(eax, JSObject::kHeaderSize +
-                             Heap::kArgumentsCalleeIndex * kPointerSize),
-           ebx);
+                        Heap::kArgumentsLengthIndex * kPointerSize),
+           ecx);
+
+    // If there are no actual arguments, we're done.
+    Label done;
+    __ test(ecx, Operand(ecx));
+    __ j(zero, &done);
+
+    // Get the parameters pointer from the stack.
+    __ mov(edx, Operand(esp, 2 * kPointerSize));
+
+    // Setup the elements pointer in the allocated arguments object and
+    // initialize the header in the elements fixed array.
+    __ lea(edi, Operand(eax, GetArgumentsObjectSize()));
+    __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
+    __ mov(FieldOperand(edi, FixedArray::kMapOffset),
+           Immediate(FACTORY->fixed_array_map()));
+
+    __ mov(FieldOperand(edi, FixedArray::kLengthOffset), ecx);
+    // Untag the length for the loop below.
+    __ SmiUntag(ecx);
+
+    // Copy the fixed array slots.
+    NearLabel loop;
+    __ bind(&loop);
+    __ mov(ebx, Operand(edx, -1 * kPointerSize));  // Skip receiver.
+    __ mov(FieldOperand(edi, FixedArray::kHeaderSize), ebx);
+    __ add(Operand(edi), Immediate(kPointerSize));
+    __ sub(Operand(edx), Immediate(kPointerSize));
+    __ dec(ecx);
+    __ j(not_zero, &loop);
+
+    // Return and remove the on-stack parameters.
+    __ bind(&done);
+    __ ret(3 * kPointerSize);
+
+    // Do the runtime call to allocate the arguments object.
+    __ bind(&runtime);
+    __ TailCallRuntime(Runtime::kNewStrictArgumentsFast, 3, 1);
   }
-
-  // Get the length (smi tagged) and set that as an in-object property too.
-  STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
-  __ mov(ecx, Operand(esp, 1 * kPointerSize));
-  __ mov(FieldOperand(eax, JSObject::kHeaderSize +
-                           Heap::kArgumentsLengthIndex * kPointerSize),
-         ecx);
-
-  // If there are no actual arguments, we're done.
-  Label done;
-  __ test(ecx, Operand(ecx));
-  __ j(zero, &done);
-
-  // Get the parameters pointer from the stack.
-  __ mov(edx, Operand(esp, 2 * kPointerSize));
-
-  // Setup the elements pointer in the allocated arguments object and
-  // initialize the header in the elements fixed array.
-  __ lea(edi, Operand(eax, GetArgumentsObjectSize()));
-  __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
-  __ mov(FieldOperand(edi, FixedArray::kMapOffset),
-         Immediate(FACTORY->fixed_array_map()));
-
-  __ mov(FieldOperand(edi, FixedArray::kLengthOffset), ecx);
-  // Untag the length for the loop below.
-  __ SmiUntag(ecx);
-
-  // Copy the fixed array slots.
-  NearLabel loop;
-  __ bind(&loop);
-  __ mov(ebx, Operand(edx, -1 * kPointerSize));  // Skip receiver.
-  __ mov(FieldOperand(edi, FixedArray::kHeaderSize), ebx);
-  __ add(Operand(edi), Immediate(kPointerSize));
-  __ sub(Operand(edx), Immediate(kPointerSize));
-  __ dec(ecx);
-  __ j(not_zero, &loop);
-
-  // Return and remove the on-stack parameters.
-  __ bind(&done);
-  __ ret(3 * kPointerSize);
-
-  // Do the runtime call to allocate the arguments object.
-  __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
 }
 
 

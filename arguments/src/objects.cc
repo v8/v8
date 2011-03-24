@@ -2700,7 +2700,17 @@ MaybeObject* JSObject::DeleteElementPostInterceptor(uint32_t index,
       }
       break;
     }
-    default:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
+      break;
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -2780,6 +2790,7 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       }
       break;
     }
+
     case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
@@ -2791,6 +2802,7 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       // Pixel and external array elements cannot be deleted. Just
       // silently ignore here.
       break;
+
     case DICTIONARY_ELEMENTS: {
       NumberDictionary* dictionary = element_dictionary();
       int entry = dictionary->FindEntry(index);
@@ -2810,8 +2822,9 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       }
       break;
     }
-    default:
-      UNREACHABLE();
+
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
       break;
   }
   return isolate->heap()->true_value();
@@ -2928,9 +2941,29 @@ bool JSObject::ReferencesObject(Object* obj) {
       }
       break;
     }
-    default:
-      UNREACHABLE();
+    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+      FixedArray* parameter_map = FixedArray::cast(elements());
+      // Check the mapped parameters.
+      int length = parameter_map->length();
+      for (int i = 2; i < length; ++i) {
+        Object* value = parameter_map->get(i);
+        if (!value->IsTheHole() && value == obj) return true;
+      }
+      // Check the arguments.
+      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+      if (arguments->IsDictionary()) {
+        NumberDictionary* dictionary = NumberDictionary::cast(arguments);
+        key = dictionary->SlowReverseLookup(obj);
+        if (key != heap->undefined_value()) return true;
+      } else {
+        int count = arguments->length();
+        for (int i = 0; i < count; ++i) {
+          Object* value = arguments->get(i);
+          if (!value->IsTheHole() && value == obj) return true;
+        }
+      }
       break;
+    }
   }
 
   // For functions check the context.
@@ -3197,8 +3230,8 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
         }
         break;
       }
-      default:
-        UNREACHABLE();
+      case NON_STRICT_ARGUMENTS_ELEMENTS:
+        UNIMPLEMENTED();
         break;
     }
   } else {
@@ -3408,8 +3441,8 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
         return isolate->heap()->undefined_value();
       case DICTIONARY_ELEMENTS:
         break;
-      default:
-        UNREACHABLE();
+      case NON_STRICT_ARGUMENTS_ELEMENTS:
+        UNIMPLEMENTED();
         break;
     }
 
@@ -4011,8 +4044,18 @@ MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
       // Compute the union of this and the temporary fixed array.
       return UnionOfKeys(key_array);
     }
-    default:
-      UNREACHABLE();
+    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
+      break;
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+      break;
   }
   UNREACHABLE();
   return heap->null_value();  // Failure case needs to "return" a value.
@@ -6636,7 +6679,17 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
       }
       break;
     }
-    default:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
+      break;
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -6681,7 +6734,17 @@ MaybeObject* JSObject::SetSlowElements(Object* len) {
       }
       break;
     }
-    default:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
+      break;
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -6791,7 +6854,17 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
         }
         return this;
       }
-      default:
+      case NON_STRICT_ARGUMENTS_ELEMENTS:
+        UNIMPLEMENTED();
+        break;
+      case EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_PIXEL_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -6907,8 +6980,8 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
       }
       break;
     }
-    default:
-      UNREACHABLE();
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
       break;
   }
 
@@ -7027,8 +7100,8 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
       }
       break;
     }
-    default:
-      UNREACHABLE();
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
       break;
   }
 
@@ -7088,9 +7161,26 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
       }
       break;
     }
-    default:
-      UNREACHABLE();
+    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+      FixedArray* parameter_map = FixedArray::cast(elements());
+      uint32_t length = parameter_map->length();
+      Object* probe =
+          (index + 2 < length) ? parameter_map->get(index + 2) : NULL;
+      if (probe != NULL && !probe->IsTheHole()) return true;
+
+      // Not a mapped parameter, check the arguments.
+      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+      if (arguments->IsDictionary()) {
+        if (NumberDictionary::cast(arguments)->FindEntry(index) !=
+            NumberDictionary::kNotFound) {
+          return true;
+        }
+      } else if (index < static_cast<uint32_t>(arguments->length()) &&
+                 !arguments->get(index)->IsTheHole()) {
+        return true;
+      }
       break;
+    }
   }
 
   // Handle [] on String objects.
@@ -7479,12 +7569,26 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
         }
 #endif
       }
-
       return value;
     }
-    default:
-      UNREACHABLE();
+
+    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+      FixedArray* parameter_map = FixedArray::cast(elements());
+      uint32_t length = parameter_map->length();
+      Object* probe =
+          (index + 2 < length) ? parameter_map->get(index + 2) : NULL;
+      if (probe != NULL && !probe->IsTheHole()) {
+        Context* context = Context::cast(parameter_map->get(0));
+        int context_index = Smi::cast(probe)->value();
+        ASSERT(!context->get(context_index)->IsTheHole());
+        context->set(context_index, value);
+        return value;
+      } else {
+        // Object is not mapped, defer to the arguments.
+        UNIMPLEMENTED();
+      }
       break;
+    }
   }
   // All possible cases have been handled above. Add a return to avoid the
   // complaints from the compiler.
@@ -7555,8 +7659,8 @@ MaybeObject* JSObject::GetElementPostInterceptor(Object* receiver,
       }
       break;
     }
-    default:
-      UNREACHABLE();
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
       break;
   }
 
@@ -7657,6 +7761,35 @@ MaybeObject* JSObject::GetElementWithReceiver(Object* receiver,
       }
       break;
     }
+    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+      FixedArray* parameter_map = FixedArray::cast(elements());
+      uint32_t length = parameter_map->length();
+      Object* probe =
+          (index + 2 < length) ? parameter_map->get(index + 2) : NULL;
+      if (probe != NULL && !probe->IsTheHole()) {
+        Context* context = Context::cast(parameter_map->get(0));
+        int context_index = Smi::cast(probe)->value();
+        ASSERT(!context->get(context_index)->IsTheHole());
+        return context->get(context_index);
+      } else {
+        // Object is not mapped, defer to the arguments.
+        FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+        if (arguments->IsDictionary()) {
+          NumberDictionary* dictionary = NumberDictionary::cast(arguments);
+          int entry = dictionary->FindEntry(index);
+          if (entry != NumberDictionary::kNotFound) {
+            Object* element = dictionary->ValueAt(entry);
+            PropertyDetails details = dictionary->DetailsAt(entry);
+            if (details.type() != CALLBACKS) return element;
+            UNIMPLEMENTED();  // CALLBACKS not yet implemented.
+          }
+        } else if (index < static_cast<uint32_t>(arguments->length())) {
+          Object* value = arguments->get(index);
+          if (!value->IsTheHole()) return value;
+        }
+      }
+      break;
+    }
   }
 
   Object* pt = GetPrototype();
@@ -7740,6 +7873,9 @@ MaybeObject* JSObject::GetExternalElement(uint32_t index) {
     case DICTIONARY_ELEMENTS:
       UNREACHABLE();
       break;
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
+      break;
   }
   return GetHeap()->undefined_value();
 }
@@ -7774,8 +7910,8 @@ bool JSObject::HasDenseElements() {
       number_of_elements = dictionary->NumberOfElements();
       break;
     }
-    default:
-      UNREACHABLE();
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
       break;
   }
 
@@ -8010,8 +8146,8 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
       return element_dictionary()->FindEntry(index)
           != NumberDictionary::kNotFound;
     }
-    default:
-      UNREACHABLE();
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
       break;
   }
   // All possibilities have been handled above already.
@@ -8257,12 +8393,34 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       if (storage != NULL) {
         element_dictionary()->CopyKeysTo(storage, filter);
       }
-      counter = element_dictionary()->NumberOfElementsFilterAttributes(filter);
+      counter += element_dictionary()->NumberOfElementsFilterAttributes(filter);
       break;
     }
-    default:
-      UNREACHABLE();
+    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+      FixedArray* parameter_map = FixedArray::cast(elements());
+      int length = parameter_map->length();
+      for (int i = 2; i < length; ++i) {
+        if (!parameter_map->get(i)->IsTheHole()) {
+          if (storage != NULL) storage->set(i - 2, Smi::FromInt(i - 2));
+          ++counter;
+        }
+      }
+      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+      if (arguments->IsDictionary()) {
+        NumberDictionary* dictionary = NumberDictionary::cast(arguments);
+        if (storage != NULL) dictionary->CopyKeysTo(storage, filter);
+        counter += dictionary->NumberOfElementsFilterAttributes(filter);
+      } else {
+        int length = arguments->length();
+        for (int i = 0; i < length; ++i) {
+          if (!arguments->get(i)->IsTheHole()) {
+            if (storage != NULL) storage->set(i, Smi::FromInt(i));
+            ++counter;
+          }
+        }
+      }
       break;
+    }
   }
 
   if (this->IsJSValue()) {

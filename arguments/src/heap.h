@@ -103,6 +103,7 @@ inline Heap* _inline_get_heap_();
   V(Map, external_int_array_map, ExternalIntArrayMap)                          \
   V(Map, external_unsigned_int_array_map, ExternalUnsignedIntArrayMap)         \
   V(Map, external_float_array_map, ExternalFloatArrayMap)                      \
+  V(Map, non_strict_arguments_elements_map, NonStrictArgumentsElementsMap)     \
   V(Map, context_map, ContextMap)                                              \
   V(Map, catch_context_map, CatchContextMap)                                   \
   V(Map, code_map, CodeMap)                                                    \

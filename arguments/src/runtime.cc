@@ -7182,6 +7182,104 @@ static MaybeObject* Runtime_DateYMDFromTime(RUNTIME_CALLING_CONVENTION) {
 
 static MaybeObject* Runtime_NewArgumentsFast(RUNTIME_CALLING_CONVENTION) {
   RUNTIME_GET_ISOLATE;
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+
+  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  Object** parameters = reinterpret_cast<Object**>(args[1]);
+  const int argument_count = Smi::cast(args[2])->value();
+
+  Handle<JSObject> result =
+      isolate->factory()->NewArgumentsObject(callee, argument_count);
+  // Allocate the elements if needed.
+  int parameter_count = callee->shared()->formal_parameter_count();
+  if (argument_count > 0) {
+    if (parameter_count > 0) {
+      int mapped_count = Min(argument_count, parameter_count);
+      Handle<FixedArray> parameter_map =
+          isolate->factory()->NewFixedArray(mapped_count + 2, NOT_TENURED);
+      parameter_map->set_map(
+          isolate->heap()->non_strict_arguments_elements_map());
+
+      Handle<Map> old_map(result->map());
+      Handle<Map> new_map =
+          isolate->factory()->CopyMapDropTransitions(old_map);
+      new_map->set_has_fast_elements(false);
+
+      result->set_map(*new_map);
+      result->set_elements(*parameter_map);
+
+      // Store the context and the arguments array at the beginning of the
+      // parameter map.
+      Handle<Context> context(isolate->context());
+      Handle<FixedArray> arguments =
+          isolate->factory()->NewFixedArray(argument_count, NOT_TENURED);
+      parameter_map->set(0, *context);
+      parameter_map->set(1, *arguments);
+
+      // Loop over the actual parameters backwards.
+      int index = argument_count - 1;
+      while (index >= mapped_count) {
+        // These go directly in the arguments array and have no
+        // corresponding slot in the parameter map.
+        arguments->set(index, *(parameters - index - 1));
+        --index;
+      }
+
+      ScopeInfo<> scope_info(callee->shared()->scope_info());
+      while (index >= 0) {
+        // Detect duplicate names.
+        Handle<String> name = scope_info.parameter_name(index);
+        int context_slot_count = scope_info.number_of_context_slots();
+        bool duplicate = false;
+        for (int j = 0; j < index; ++j) {
+          if (scope_info.parameter_name(j).is_identical_to(name)) {
+            duplicate = true;
+            break;
+          }
+        }
+
+        if (duplicate) {
+          // This goes directly in the arguments array with a hole in the
+          // parameter map.
+          arguments->set(index, *(parameters - index - 1));
+          parameter_map->set_the_hole(index + 2);
+        } else {
+          // The context index goes in the parameter map with a hole in the
+          // arguments array.
+          int context_index = -1;
+          for (int j = Context::MIN_CONTEXT_SLOTS;
+               j < context_slot_count;
+               ++j) {
+            if (scope_info.context_slot_name(j).is_identical_to(name)) {
+              context_index = j;
+              break;
+            }
+          }
+          ASSERT(context_index >= 0);
+          arguments->set_the_hole(index);
+          parameter_map->set(index + 2, Smi::FromInt(context_index));
+        }
+
+        --index;
+      }
+    } else {
+      // If there is no aliasing, the arguments object elements are not
+      // special in any way.
+      Handle<FixedArray> elements =
+          isolate->factory()->NewFixedArray(argument_count, NOT_TENURED);
+      result->set_elements(*elements);
+      for (int i = 0; i < argument_count; ++i) {
+        elements->set(i, *(parameters - i - 1));
+      }
+    }
+  }
+  return *result;
+}
+
+
+static MaybeObject* Runtime_NewStrictArgumentsFast(RUNTIME_CALLING_CONVENTION) {
+  RUNTIME_GET_ISOLATE;
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
 
@@ -10683,6 +10781,7 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
   }
 
   const int length = frame->ComputeParametersCount();
+  UNIMPLEMENTED();
   Handle<JSObject> arguments =
       isolate->factory()->NewArgumentsObject(function, length);
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);

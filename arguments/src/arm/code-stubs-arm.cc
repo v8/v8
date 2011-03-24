@@ -4811,86 +4811,91 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // Try the new space allocation. Start out with computing the size
   // of the arguments object and the elements array in words.
   Label add_arguments_object;
-  __ bind(&try_allocate);
-  __ cmp(r1, Operand(0, RelocInfo::NONE));
-  __ b(eq, &add_arguments_object);
-  __ mov(r1, Operand(r1, LSR, kSmiTagSize));
-  __ add(r1, r1, Operand(FixedArray::kHeaderSize / kPointerSize));
-  __ bind(&add_arguments_object);
-  __ add(r1, r1, Operand(GetArgumentsObjectSize() / kPointerSize));
-
-  // Do the allocation of both objects in one go.
-  __ AllocateInNewSpace(
-      r1,
-      r0,
-      r2,
-      r3,
-      &runtime,
-      static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
-
-  // Get the arguments boilerplate from the current (global) context.
-  __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ ldr(r4, FieldMemOperand(r4, GlobalObject::kGlobalContextOffset));
-  __ ldr(r4, MemOperand(r4,
-                        Context::SlotOffset(GetArgumentsBoilerplateIndex())));
-
-  // Copy the JS object part.
-  __ CopyFields(r0, r4, r3.bit(), JSObject::kHeaderSize / kPointerSize);
-
   if (type_ == NEW_NON_STRICT) {
-    // Setup the callee in-object property.
-    STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
-    __ ldr(r3, MemOperand(sp, 2 * kPointerSize));
-    const int kCalleeOffset = JSObject::kHeaderSize +
-                              Heap::kArgumentsCalleeIndex * kPointerSize;
-    __ str(r3, FieldMemOperand(r0, kCalleeOffset));
+    __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
+  } else {
+    __ bind(&try_allocate);
+    __ cmp(r1, Operand(0, RelocInfo::NONE));
+    __ b(eq, &add_arguments_object);
+    __ mov(r1, Operand(r1, LSR, kSmiTagSize));
+    __ add(r1, r1, Operand(FixedArray::kHeaderSize / kPointerSize));
+    __ bind(&add_arguments_object);
+    __ add(r1, r1, Operand(GetArgumentsObjectSize() / kPointerSize));
+
+    // Do the allocation of both objects in one go.
+    __ AllocateInNewSpace(
+        r1,
+        r0,
+        r2,
+        r3,
+        &runtime,
+        static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
+
+    // Get the arguments boilerplate from the current (global) context.
+    __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ ldr(r4, FieldMemOperand(r4, GlobalObject::kGlobalContextOffset));
+    __ ldr(r4, MemOperand(r4,
+                          Context::SlotOffset(GetArgumentsBoilerplateIndex())));
+
+    // Copy the JS object part.
+    __ CopyFields(r0, r4, r3.bit(), JSObject::kHeaderSize / kPointerSize);
+
+    if (type_ == NEW_NON_STRICT) {
+      // Setup the callee in-object property.
+      STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
+      __ ldr(r3, MemOperand(sp, 2 * kPointerSize));
+      const int kCalleeOffset = JSObject::kHeaderSize +
+          Heap::kArgumentsCalleeIndex * kPointerSize;
+      __ str(r3, FieldMemOperand(r0, kCalleeOffset));
+    }
+
+    // Get the length (smi tagged) and set that as an in-object property too.
+    STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
+    __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
+    __ str(r1, FieldMemOperand(r0, JSObject::kHeaderSize +
+                               Heap::kArgumentsLengthIndex * kPointerSize));
+
+    // If there are no actual arguments, we're done.
+    Label done;
+    __ cmp(r1, Operand(0, RelocInfo::NONE));
+    __ b(eq, &done);
+
+    // Get the parameters pointer from the stack.
+    __ ldr(r2, MemOperand(sp, 1 * kPointerSize));
+
+    // Setup the elements pointer in the allocated arguments object and
+    // initialize the header in the elements fixed array.
+    __ add(r4, r0, Operand(GetArgumentsObjectSize()));
+    __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
+    __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
+    __ str(r3, FieldMemOperand(r4, FixedArray::kMapOffset));
+    __ str(r1, FieldMemOperand(r4, FixedArray::kLengthOffset));
+    // Untag the length for the loop.
+    __ mov(r1, Operand(r1, LSR, kSmiTagSize));
+
+    // Copy the fixed array slots.
+    Label loop;
+    // Setup r4 to point to the first array slot.
+    __ add(r4, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+    __ bind(&loop);
+    // Pre-decrement r2 with kPointerSize on each iteration.
+    // Pre-decrement in order to skip receiver.
+    __ ldr(r3, MemOperand(r2, kPointerSize, NegPreIndex));
+    // Post-increment r4 with kPointerSize on each iteration.
+    __ str(r3, MemOperand(r4, kPointerSize, PostIndex));
+    __ sub(r1, r1, Operand(1));
+    __ cmp(r1, Operand(0, RelocInfo::NONE));
+    __ b(ne, &loop);
+
+    // Return and remove the on-stack parameters.
+    __ bind(&done);
+    __ add(sp, sp, Operand(3 * kPointerSize));
+    __ Ret();
+
+    // Do the runtime call to allocate the arguments object.
+    __ bind(&runtime);
+    __ TailCallRuntime(Runtime::kNewStrictArgumentsFast, 3, 1);
   }
-
-  // Get the length (smi tagged) and set that as an in-object property too.
-  STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
-  __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
-  __ str(r1, FieldMemOperand(r0, JSObject::kHeaderSize +
-                                 Heap::kArgumentsLengthIndex * kPointerSize));
-
-  // If there are no actual arguments, we're done.
-  Label done;
-  __ cmp(r1, Operand(0, RelocInfo::NONE));
-  __ b(eq, &done);
-
-  // Get the parameters pointer from the stack.
-  __ ldr(r2, MemOperand(sp, 1 * kPointerSize));
-
-  // Setup the elements pointer in the allocated arguments object and
-  // initialize the header in the elements fixed array.
-  __ add(r4, r0, Operand(GetArgumentsObjectSize()));
-  __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
-  __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
-  __ str(r3, FieldMemOperand(r4, FixedArray::kMapOffset));
-  __ str(r1, FieldMemOperand(r4, FixedArray::kLengthOffset));
-  __ mov(r1, Operand(r1, LSR, kSmiTagSize));  // Untag the length for the loop.
-
-  // Copy the fixed array slots.
-  Label loop;
-  // Setup r4 to point to the first array slot.
-  __ add(r4, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ bind(&loop);
-  // Pre-decrement r2 with kPointerSize on each iteration.
-  // Pre-decrement in order to skip receiver.
-  __ ldr(r3, MemOperand(r2, kPointerSize, NegPreIndex));
-  // Post-increment r4 with kPointerSize on each iteration.
-  __ str(r3, MemOperand(r4, kPointerSize, PostIndex));
-  __ sub(r1, r1, Operand(1));
-  __ cmp(r1, Operand(0, RelocInfo::NONE));
-  __ b(ne, &loop);
-
-  // Return and remove the on-stack parameters.
-  __ bind(&done);
-  __ add(sp, sp, Operand(3 * kPointerSize));
-  __ Ret();
-
-  // Do the runtime call to allocate the arguments object.
-  __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
 }
 
 

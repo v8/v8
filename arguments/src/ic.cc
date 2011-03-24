@@ -1253,8 +1253,13 @@ MaybeObject* KeyedLoadIC::Load(State state,
   }
 
   // Do not use ICs for objects that require access checks (including
-  // the global object).
+  // the global object) nor for non-strict arguments objects.
   bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
+  if (use_ic && object->IsJSObject()) {
+    Heap* heap = Handle<JSObject>::cast(object)->GetHeap();
+    Map* elements_map = Handle<JSObject>::cast(object)->elements()->map();
+    use_ic = (elements_map != heap->non_strict_arguments_elements_map());
+  }
 
   if (use_ic) {
     Code* stub = generic_stub();

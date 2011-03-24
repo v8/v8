@@ -614,8 +614,8 @@ bool Object::IsHashTable() {
 
 
 bool Object::IsDictionary() {
-  return IsHashTable() && this !=
-         HeapObject::cast(this)->GetHeap()->symbol_table();
+  return IsHashTable() &&
+      this != HeapObject::cast(this)->GetHeap()->symbol_table();
 }
 
 
@@ -3561,31 +3561,31 @@ JSObject::ElementsKind JSObject::GetElementsKind() {
   }
   HeapObject* array = elements();
   if (array->IsFixedArray()) {
-    // FAST_ELEMENTS or DICTIONARY_ELEMENTS are both stored in a
-    // FixedArray, but FAST_ELEMENTS is already handled above.
+    // FAST_ELEMENTS, DICTIONARY_ELEMENTS, and NON_STRICT_ARGUMENTS_ELEMENTS
+    // are all stored in a FixedArray, but FAST_ELEMENTS is already handled
+    // above.
+    if (array->map() == GetHeap()->non_strict_arguments_elements()) {
+      return NON_STRICT_ARGUMENTS_ELEMENTS;
+    }
     ASSERT(array->IsDictionary());
     return DICTIONARY_ELEMENTS;
   }
-  ASSERT(!map()->has_fast_elements());
-  if (array->IsExternalArray()) {
-    switch (array->map()->instance_type()) {
-      case EXTERNAL_BYTE_ARRAY_TYPE:
-        return EXTERNAL_BYTE_ELEMENTS;
-      case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-        return EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
-      case EXTERNAL_SHORT_ARRAY_TYPE:
-        return EXTERNAL_SHORT_ELEMENTS;
-      case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-        return EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
-      case EXTERNAL_INT_ARRAY_TYPE:
-        return EXTERNAL_INT_ELEMENTS;
-      case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-        return EXTERNAL_UNSIGNED_INT_ELEMENTS;
-      case EXTERNAL_PIXEL_ARRAY_TYPE:
-        return EXTERNAL_PIXEL_ELEMENTS;
-      default:
-        break;
-    }
+  ASSERT(array->IsExternalArray());
+  switch (array->map()->instance_type()) {
+    case EXTERNAL_BYTE_ARRAY_TYPE:
+      return EXTERNAL_BYTE_ELEMENTS;
+    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+      return EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
+    case EXTERNAL_SHORT_ARRAY_TYPE:
+      return EXTERNAL_SHORT_ELEMENTS;
+    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+      return EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
+    case EXTERNAL_INT_ARRAY_TYPE:
+      return EXTERNAL_INT_ELEMENTS;
+    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+      return EXTERNAL_UNSIGNED_INT_ELEMENTS;
+    case EXTERNAL_PIXEL_ARRAY_TYPE:
+      return EXTERNAL_PIXEL_ELEMENTS;
   }
   ASSERT(array->map()->instance_type() == EXTERNAL_FLOAT_ARRAY_TYPE);
   return EXTERNAL_FLOAT_ELEMENTS;

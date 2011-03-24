@@ -2341,80 +2341,85 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // the arguments object and the elements array.
   Label add_arguments_object;
   __ bind(&try_allocate);
-  __ testl(rcx, rcx);
-  __ j(zero, &add_arguments_object);
-  __ leal(rcx, Operand(rcx, times_pointer_size, FixedArray::kHeaderSize));
-  __ bind(&add_arguments_object);
-  __ addl(rcx, Immediate(GetArgumentsObjectSize()));
-
-  // Do the allocation of both objects in one go.
-  __ AllocateInNewSpace(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
-
-  // Get the arguments boilerplate from the current (global) context.
-  __ movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ movq(rdi, FieldOperand(rdi, GlobalObject::kGlobalContextOffset));
-  __ movq(rdi, Operand(rdi,
-                       Context::SlotOffset(GetArgumentsBoilerplateIndex())));
-
-  // Copy the JS object part.
-  STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
-  __ movq(kScratchRegister, FieldOperand(rdi, 0 * kPointerSize));
-  __ movq(rdx, FieldOperand(rdi, 1 * kPointerSize));
-  __ movq(rbx, FieldOperand(rdi, 2 * kPointerSize));
-  __ movq(FieldOperand(rax, 0 * kPointerSize), kScratchRegister);
-  __ movq(FieldOperand(rax, 1 * kPointerSize), rdx);
-  __ movq(FieldOperand(rax, 2 * kPointerSize), rbx);
-
   if (type_ == NEW_NON_STRICT) {
-    // Setup the callee in-object property.
-    ASSERT(Heap::kArgumentsCalleeIndex == 1);
-    __ movq(kScratchRegister, Operand(rsp, 3 * kPointerSize));
+    __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
+  } else {
+    __ testl(rcx, rcx);
+    __ j(zero, &add_arguments_object);
+    __ leal(rcx, Operand(rcx, times_pointer_size, FixedArray::kHeaderSize));
+    __ bind(&add_arguments_object);
+    __ addl(rcx, Immediate(GetArgumentsObjectSize()));
+
+    // Do the allocation of both objects in one go.
+    __ AllocateInNewSpace(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
+
+    // Get the arguments boilerplate from the current (global) context.
+    __ movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ movq(rdi, FieldOperand(rdi, GlobalObject::kGlobalContextOffset));
+    __ movq(rdi, Operand(rdi,
+                         Context::SlotOffset(GetArgumentsBoilerplateIndex())));
+
+    // Copy the JS object part.
+    STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
+    __ movq(kScratchRegister, FieldOperand(rdi, 0 * kPointerSize));
+    __ movq(rdx, FieldOperand(rdi, 1 * kPointerSize));
+    __ movq(rbx, FieldOperand(rdi, 2 * kPointerSize));
+    __ movq(FieldOperand(rax, 0 * kPointerSize), kScratchRegister);
+    __ movq(FieldOperand(rax, 1 * kPointerSize), rdx);
+    __ movq(FieldOperand(rax, 2 * kPointerSize), rbx);
+
+    if (type_ == NEW_NON_STRICT) {
+      // Setup the callee in-object property.
+      ASSERT(Heap::kArgumentsCalleeIndex == 1);
+      __ movq(kScratchRegister, Operand(rsp, 3 * kPointerSize));
+      __ movq(FieldOperand(rax, JSObject::kHeaderSize +
+                           Heap::kArgumentsCalleeIndex * kPointerSize),
+              kScratchRegister);
+    }
+
+    // Get the length (smi tagged) and set that as an in-object property too.
+    ASSERT(Heap::kArgumentsLengthIndex == 0);
+    __ movq(rcx, Operand(rsp, 1 * kPointerSize));
     __ movq(FieldOperand(rax, JSObject::kHeaderSize +
-                              Heap::kArgumentsCalleeIndex * kPointerSize),
-            kScratchRegister);
+                         Heap::kArgumentsLengthIndex * kPointerSize),
+            rcx);
+
+    // If there are no actual arguments, we're done.
+    Label done;
+    __ SmiTest(rcx);
+    __ j(zero, &done);
+
+    // Get the parameters pointer from the stack and untag the length.
+    __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+
+    // Setup the elements pointer in the allocated arguments object and
+    // initialize the header in the elements fixed array.
+    __ lea(rdi, Operand(rax, GetArgumentsObjectSize()));
+    __ movq(FieldOperand(rax, JSObject::kElementsOffset), rdi);
+    __ LoadRoot(kScratchRegister, Heap::kFixedArrayMapRootIndex);
+    __ movq(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);
+    __ movq(FieldOperand(rdi, FixedArray::kLengthOffset), rcx);
+    __ SmiToInteger32(rcx, rcx);  // Untag length for the loop below.
+
+    // Copy the fixed array slots.
+    Label loop;
+    __ bind(&loop);
+    // -1 ~ skip the receiver.
+    __ movq(kScratchRegister, Operand(rdx, -1 * kPointerSize));
+    __ movq(FieldOperand(rdi, FixedArray::kHeaderSize), kScratchRegister);
+    __ addq(rdi, Immediate(kPointerSize));
+    __ subq(rdx, Immediate(kPointerSize));
+    __ decl(rcx);
+    __ j(not_zero, &loop);
+
+    // Return and remove the on-stack parameters.
+    __ bind(&done);
+    __ ret(3 * kPointerSize);
+
+    // Do the runtime call to allocate the arguments object.
+    __ bind(&runtime);
+    __ TailCallRuntime(Runtime::kNewStrictArgumentsFast, 3, 1);
   }
-
-  // Get the length (smi tagged) and set that as an in-object property too.
-  ASSERT(Heap::kArgumentsLengthIndex == 0);
-  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
-  __ movq(FieldOperand(rax, JSObject::kHeaderSize +
-                            Heap::kArgumentsLengthIndex * kPointerSize),
-          rcx);
-
-  // If there are no actual arguments, we're done.
-  Label done;
-  __ SmiTest(rcx);
-  __ j(zero, &done);
-
-  // Get the parameters pointer from the stack and untag the length.
-  __ movq(rdx, Operand(rsp, 2 * kPointerSize));
-
-  // Setup the elements pointer in the allocated arguments object and
-  // initialize the header in the elements fixed array.
-  __ lea(rdi, Operand(rax, GetArgumentsObjectSize()));
-  __ movq(FieldOperand(rax, JSObject::kElementsOffset), rdi);
-  __ LoadRoot(kScratchRegister, Heap::kFixedArrayMapRootIndex);
-  __ movq(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);
-  __ movq(FieldOperand(rdi, FixedArray::kLengthOffset), rcx);
-  __ SmiToInteger32(rcx, rcx);  // Untag length for the loop below.
-
-  // Copy the fixed array slots.
-  Label loop;
-  __ bind(&loop);
-  __ movq(kScratchRegister, Operand(rdx, -1 * kPointerSize));  // Skip receiver.
-  __ movq(FieldOperand(rdi, FixedArray::kHeaderSize), kScratchRegister);
-  __ addq(rdi, Immediate(kPointerSize));
-  __ subq(rdx, Immediate(kPointerSize));
-  __ decl(rcx);
-  __ j(not_zero, &loop);
-
-  // Return and remove the on-stack parameters.
-  __ bind(&done);
-  __ ret(3 * kPointerSize);
-
-  // Do the runtime call to allocate the arguments object.
-  __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
 }
 
 
