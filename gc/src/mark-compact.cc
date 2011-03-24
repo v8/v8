@@ -1639,7 +1639,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
        obj != NULL; obj = map_iterator.Next()) {
     Map* map = reinterpret_cast<Map*>(obj);
     MarkBit map_mark = Marking::MarkBitFromOldSpace(map);
-    if (!map_mark.Get() && map->IsFreeSpace()) continue;
+    if (map->IsFreeSpace()) continue;
 
     ASSERT(SafeIsMap(map));
     // Only JSObject and subtypes have map transitions and back pointers.
@@ -1664,6 +1664,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
 
     // Follow back pointers, setting them to prototype,
     // clearing map transitions when necessary.
+    current = map;
     bool on_dead_path = !map_mark.Get();
     Object* next;
     while (SafeIsMap(current)) {
