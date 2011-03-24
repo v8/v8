@@ -33,7 +33,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// When building with V8 in a shared library we cannot use functions which
+// is not explicitly a part of the public V8 API. This extensive use of
+// #ifndef USING_V8_SHARED/#endif is a hack until we can resolve whether to
+// still use the shell sample for testing or change to use the  and the
+// developer shell d8 TODO(1272).
+#ifndef USING_V8_SHARED
 #include "../src/v8.h"
+#endif  // USING_V8_SHARED
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
@@ -66,12 +73,15 @@ static bool last_run = true;
 
 class SourceGroup {
  public:
-  SourceGroup() : argv_(NULL),
-                  begin_offset_(0),
-                  end_offset_(0),
+  SourceGroup() : 
+#ifndef USING_V8_SHARED
                   next_semaphore_(v8::internal::OS::CreateSemaphore(0)),
                   done_semaphore_(v8::internal::OS::CreateSemaphore(0)),
-                  thread_(NULL) { }
+                  thread_(NULL),
+#endif  // USING_V8_SHARED
+                  argv_(NULL),
+                  begin_offset_(0),
+                  end_offset_(0) { }
 
   void Begin(char** argv, int offset) {
     argv_ = const_cast<const char**>(argv);
@@ -111,6 +121,7 @@ class SourceGroup {
     }
   }
 
+#ifndef USING_V8_SHARED
   void StartExecuteInThread() {
     if (thread_ == NULL) {
       thread_ = new IsolateThread(this);
@@ -128,8 +139,10 @@ class SourceGroup {
       done_semaphore_->Wait();
     }
   }
+#endif  // USING_V8_SHARED
 
  private:
+#ifndef USING_V8_SHARED
   static v8::internal::Thread::Options GetThreadOptions() {
     v8::internal::Thread::Options options;
     options.name = "IsolateThread";
@@ -173,12 +186,14 @@ class SourceGroup {
     isolate->Dispose();
   }
 
-  const char** argv_;
-  int begin_offset_;
-  int end_offset_;
   v8::internal::Semaphore* next_semaphore_;
   v8::internal::Semaphore* done_semaphore_;
   v8::internal::Thread* thread_;
+#endif  // USING_V8_SHARED
+
+  const char** argv_;
+  int begin_offset_;
+  int end_offset_;
 };
 
 
@@ -199,7 +214,15 @@ int RunMain(int argc, char* argv[]) {
   bool run_shell = (argc == 1);
   int num_isolates = 1;
   for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "--isolate") == 0) ++num_isolates;
+    if (strcmp(argv[i], "--isolate") == 0) {
+#ifndef USING_V8_SHARED
+      ++num_isolates;
+#else  // USING_V8_SHARED
+      printf("Error: --isolate not supported when linked with shared "
+             "library\n");
+      ExitShell(1);
+#endif  // USING_V8_SHARED
+    }
   }
   if (isolate_sources == NULL) {
     isolate_sources = new SourceGroup[num_isolates];
@@ -223,14 +246,18 @@ int RunMain(int argc, char* argv[]) {
     }
     current->End(argc);
   }
+#ifndef USING_V8_SHARED
   for (int i = 1; i < num_isolates; ++i) {
     isolate_sources[i].StartExecuteInThread();
   }
+#endif  // USING_V8_SHARED
   isolate_sources[0].Execute();
   if (run_shell) RunShell(context);
+#ifndef USING_V8_SHARED
   for (int i = 1; i < num_isolates; ++i) {
     isolate_sources[i].WaitForThread();
   }
+#endif  // USING_V8_SHARED
   if (last_run) {
     delete[] isolate_sources;
     isolate_sources = NULL;
