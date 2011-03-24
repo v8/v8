@@ -11521,24 +11521,6 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                       "sum;");
   CHECK_EQ(7800000, result->Int32Value());
 
-  // Test edge cases for crankshaft code.
-  array->set(0, static_cast<ElementType>(0xFFFFFFFF));
-  result = CompileRun("function ee_limit_test_func(i) {"
-                      "   return ext_array[i];"
-                      " return sum;"
-                      "}"
-                      "sum=0;"
-                      "for (var i=0;i<1000000;++i) {"
-                      "  sum=ee_limit_test_func(0);"
-                      "}"
-                      "sum;");
-  if (array_type == v8::kExternalFloatArray) {
-    CHECK_EQ(0, result->Int32Value());
-  } else {
-    CHECK_EQ(static_cast<int>(static_cast<ElementType>(0xFFFFFFFF)),
-             result->Int32Value());
-  }
-
   result = CompileRun("ext_array[3] = 33;"
                       "delete ext_array[3];"
                       "ext_array[3];");
