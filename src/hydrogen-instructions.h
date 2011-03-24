@@ -127,10 +127,10 @@ class LChunkBuilder;
   V(LoadGlobal)                                \
   V(LoadKeyedFastElement)                      \
   V(LoadKeyedGeneric)                          \
+  V(LoadKeyedSpecializedArrayElement)          \
   V(LoadNamedField)                            \
-  V(LoadNamedGeneric)                          \
   V(LoadNamedFieldPolymorphic)                 \
-  V(LoadPixelArrayElement)                     \
+  V(LoadNamedGeneric)                          \
   V(Mod)                                       \
   V(Mul)                                       \
   V(ObjectLiteral)                             \
@@ -149,7 +149,7 @@ class LChunkBuilder;
   V(StoreContextSlot)                          \
   V(StoreGlobal)                               \
   V(StoreKeyedFastElement)                     \
-  V(StorePixelArrayElement)                    \
+  V(StoreKeyedSpecializedArrayElement)         \
   V(StoreKeyedGeneric)                         \
   V(StoreNamedField)                           \
   V(StoreNamedGeneric)                         \
@@ -171,7 +171,7 @@ class LChunkBuilder;
   V(InobjectFields)                            \
   V(BackingStoreFields)                        \
   V(ArrayElements)                             \
-  V(PixelArrayElements)                        \
+  V(SpecializedArrayElements)                  \
   V(GlobalVars)                                \
   V(Maps)                                      \
   V(ArrayLengths)                              \
@@ -1587,7 +1587,7 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
       : HUnaryOperation(value) {
     set_representation(Representation::External());
     // The result of this instruction is idempotent as long as its inputs don't
-    // change.  The external array of a pixel array elements object cannot
+    // change.  The external array of a specialized array elements object cannot
     // change once set, so it's no necessary to introduce any additional
     // dependencies on top of the inputs.
     SetFlag(kUseGVN);
@@ -3079,13 +3079,20 @@ class HLoadKeyedFastElement: public HBinaryOperation {
 };
 
 
-class HLoadPixelArrayElement: public HBinaryOperation {
+class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
  public:
-  HLoadPixelArrayElement(HValue* external_elements, HValue* key)
-      : HBinaryOperation(external_elements, key) {
-    set_representation(Representation::Integer32());
-    SetFlag(kDependsOnPixelArrayElements);
-    // Native code could change the pixel array.
+  HLoadKeyedSpecializedArrayElement(HValue* external_elements,
+                                    HValue* key,
+                                    ExternalArrayType array_type)
+      : HBinaryOperation(external_elements, key),
+        array_type_(array_type) {
+    if (array_type == kExternalFloatArray) {
+      set_representation(Representation::Double());
+    } else {
+      set_representation(Representation::Integer32());
+    }
+    SetFlag(kDependsOnSpecializedArrayElements);
+    // Native code could change the specialized array.
     SetFlag(kDependsOnCalls);
     SetFlag(kUseGVN);
   }
@@ -3101,12 +3108,21 @@ class HLoadPixelArrayElement: public HBinaryOperation {
 
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
+  ExternalArrayType array_type() const { return array_type_; }
 
-  DECLARE_CONCRETE_INSTRUCTION(LoadPixelArrayElement,
-                               "load_pixel_array_element")
+  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedSpecializedArrayElement,
+                               "load_keyed_specialized_array_element")
 
  protected:
-  virtual bool DataEquals(HValue* other) { return true; }
+  virtual bool DataEquals(HValue* other) {
+    if (!other->IsLoadKeyedSpecializedArrayElement()) return false;
+    HLoadKeyedSpecializedArrayElement* cast_other =
+        HLoadKeyedSpecializedArrayElement::cast(other);
+    return array_type_ == cast_other->array_type();
+  }
+
+ private:
+  ExternalArrayType array_type_;
 };
 
 
@@ -3241,10 +3257,14 @@ class HStoreKeyedFastElement: public HTemplateInstruction<3> {
 };
 
 
-class HStorePixelArrayElement: public HTemplateInstruction<3> {
+class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
  public:
-  HStorePixelArrayElement(HValue* external_elements, HValue* key, HValue* val) {
-    SetFlag(kChangesPixelArrayElements);
+  HStoreKeyedSpecializedArrayElement(HValue* external_elements,
+                                     HValue* key,
+                                     HValue* val,
+                                     ExternalArrayType array_type)
+      : array_type_(array_type) {
+    SetFlag(kChangesSpecializedArrayElements);
     SetOperandAt(0, external_elements);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
@@ -3256,16 +3276,23 @@ class HStorePixelArrayElement: public HTemplateInstruction<3> {
     if (index == 0) {
       return Representation::External();
     } else {
-      return Representation::Integer32();
+      if (index == 2 && array_type() == kExternalFloatArray) {
+        return Representation::Double();
+      } else {
+        return Representation::Integer32();
+      }
     }
   }
 
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
+  ExternalArrayType array_type() const { return array_type_; }
 
-  DECLARE_CONCRETE_INSTRUCTION(StorePixelArrayElement,
-                               "store_pixel_array_element")
+  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement,
+                               "store_keyed_specialized_array_element")
+ private:
+  ExternalArrayType array_type_;
 };
 
 

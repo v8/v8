@@ -583,6 +583,8 @@ enum InstanceType {
   FIRST_FUNCTION_CLASS_TYPE = JS_REGEXP_TYPE
 };
 
+static const int kExternalArrayTypeCount = LAST_EXTERNAL_ARRAY_TYPE -
+    FIRST_EXTERNAL_ARRAY_TYPE + 1;
 
 STATIC_CHECK(JS_OBJECT_TYPE == Internals::kJSObjectType);
 STATIC_CHECK(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);

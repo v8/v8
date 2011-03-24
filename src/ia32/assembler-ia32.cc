@@ -2176,6 +2176,17 @@ void Assembler::cvtss2sd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::cvtsd2ss(XMMRegister dst, XMMRegister src) {
+  ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0x5A);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::addsd(XMMRegister dst, XMMRegister src) {
   ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
@@ -2414,6 +2425,39 @@ void Assembler::movsd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0x10);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movss(const Operand& dst, XMMRegister src ) {
+  ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);  // float
+  EMIT(0x0F);
+  EMIT(0x11);  // store
+  emit_sse_operand(src, dst);
+}
+
+
+void Assembler::movss(XMMRegister dst, const Operand& src) {
+  ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);  // float
+  EMIT(0x0F);
+  EMIT(0x10);  // load
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movss(XMMRegister dst, XMMRegister src) {
+  ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);
   EMIT(0x0F);
   EMIT(0x10);
   emit_sse_operand(dst, src);

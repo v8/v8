@@ -2216,11 +2216,16 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
                    Heap::kFixedArrayMapRootIndex);
     __ j(equal, &done);
     __ CompareRoot(FieldOperand(result, HeapObject::kMapOffset),
-                   Heap::kExternalPixelArrayMapRootIndex);
-    __ j(equal, &done);
-    __ CompareRoot(FieldOperand(result, HeapObject::kMapOffset),
                    Heap::kFixedCOWArrayMapRootIndex);
-    __ Check(equal, "Check for fast elements failed.");
+    __ j(equal, &done);
+    Register temp((result.is(rax)) ? rbx : rax);
+    __ push(temp);
+    __ movq(temp, FieldOperand(result, HeapObject::kMapOffset));
+    __ movzxbq(temp, FieldOperand(temp, Map::kInstanceTypeOffset));
+    __ subq(temp, Immediate(FIRST_EXTERNAL_ARRAY_TYPE));
+    __ cmpq(temp, Immediate(kExternalArrayTypeCount));
+    __ pop(temp);
+    __ Check(below, "Check for fast elements failed.");
     __ bind(&done);
   }
 }
@@ -2271,14 +2276,47 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 }
 
 
-void LCodeGen::DoLoadPixelArrayElement(LLoadPixelArrayElement* instr) {
-  Register external_elements = ToRegister(instr->external_pointer());
+void LCodeGen::DoLoadKeyedSpecializedArrayElement(
+    LLoadKeyedSpecializedArrayElement* instr) {
+  Register external_pointer = ToRegister(instr->external_pointer());
   Register key = ToRegister(instr->key());
-  Register result = ToRegister(instr->result());
-  ASSERT(result.is(external_elements));
-
-  // Load the result.
-  __ movzxbq(result, Operand(external_elements, key, times_1, 0));
+  ExternalArrayType array_type = instr->array_type();
+  if (array_type == kExternalFloatArray) {
+    XMMRegister result(ToDoubleRegister(instr->result()));
+    __ movss(result, Operand(external_pointer, key, times_4, 0));
+    __ cvtss2sd(result, result);
+  } else {
+    Register result(ToRegister(instr->result()));
+    switch (array_type) {
+      case kExternalByteArray:
+        __ movsxbq(result, Operand(external_pointer, key, times_1, 0));
+        break;
+      case kExternalUnsignedByteArray:
+      case kExternalPixelArray:
+        __ movzxbq(result, Operand(external_pointer, key, times_1, 0));
+        break;
+      case kExternalShortArray:
+        __ movsxwq(result, Operand(external_pointer, key, times_2, 0));
+        break;
+      case kExternalUnsignedShortArray:
+        __ movzxwq(result, Operand(external_pointer, key, times_2, 0));
+        break;
+      case kExternalIntArray:
+        __ movsxlq(result, Operand(external_pointer, key, times_4, 0));
+        break;
+      case kExternalUnsignedIntArray:
+        __ movl(result, Operand(external_pointer, key, times_4, 0));
+        __ testl(result, result);
+        // TODO(danno): we could be more clever here, perhaps having a special
+        // version of the stub that detects if the overflow case actually
+        // happens, and generate code that returns a double rather than int.
+        DeoptimizeIf(negative, instr->environment());
+        break;
+      case kExternalFloatArray:
+        UNREACHABLE();
+        break;
+    }
+  }
 }
 
 
@@ -2892,21 +2930,46 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 }
 
 
-void LCodeGen::DoStorePixelArrayElement(LStorePixelArrayElement* instr) {
+void LCodeGen::DoStoreKeyedSpecializedArrayElement(
+    LStoreKeyedSpecializedArrayElement* instr) {
   Register external_pointer = ToRegister(instr->external_pointer());
   Register key = ToRegister(instr->key());
-  Register value = ToRegister(instr->value());
-
-  {  // Clamp the value to [0..255].
-    NearLabel done;
-    __ testl(value, Immediate(0xFFFFFF00));
-    __ j(zero, &done);
-    __ setcc(negative, value);  // 1 if negative, 0 if positive.
-    __ decb(value);  // 0 if negative, 255 if positive.
-    __ bind(&done);
+  ExternalArrayType array_type = instr->array_type();
+  if (array_type == kExternalFloatArray) {
+    XMMRegister value(ToDoubleRegister(instr->value()));
+    __ cvtsd2ss(value, value);
+    __ movss(Operand(external_pointer, key, times_4, 0), value);
+  } else {
+    Register value(ToRegister(instr->value()));
+    switch (array_type) {
+      case kExternalPixelArray:
+        {  // Clamp the value to [0..255].
+          NearLabel done;
+          __ testl(value, Immediate(0xFFFFFF00));
+          __ j(zero, &done);
+          __ setcc(negative, value);  // 1 if negative, 0 if positive.
+          __ decb(value);  // 0 if negative, 255 if positive.
+          __ bind(&done);
+          __ movb(Operand(external_pointer, key, times_1, 0), value);
+        }
+        break;
+      case kExternalByteArray:
+      case kExternalUnsignedByteArray:
+        __ movb(Operand(external_pointer, key, times_1, 0), value);
+        break;
+      case kExternalShortArray:
+      case kExternalUnsignedShortArray:
+        __ movw(Operand(external_pointer, key, times_2, 0), value);
+        break;
+      case kExternalIntArray:
+      case kExternalUnsignedIntArray:
+        __ movl(Operand(external_pointer, key, times_4, 0), value);
+        break;
+      case kExternalFloatArray:
+        UNREACHABLE();
+        break;
+    }
   }
-
-  __ movb(Operand(external_pointer, key, times_1, 0), value);
 }
 
 

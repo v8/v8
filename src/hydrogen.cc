@@ -3219,9 +3219,10 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
       // never both. Pixel array maps that are assigned to pixel array elements
       // are always created with the fast elements flag cleared.
       if (receiver_type->has_external_array_elements()) {
-        if (expr->GetExternalArrayType() == kExternalPixelArray) {
-          instr = BuildStoreKeyedPixelArrayElement(object, key, value, expr);
-        }
+        instr = BuildStoreKeyedSpecializedArrayElement(object,
+                                                       key,
+                                                       value,
+                                                       expr);
       } else if (receiver_type->has_fast_elements()) {
         instr = BuildStoreKeyedFastElement(object, key, value, expr);
       }
@@ -3534,9 +3535,10 @@ HInstruction* HGraphBuilder::BuildLoadKeyedFastElement(HValue* object,
 }
 
 
-HInstruction* HGraphBuilder::BuildLoadKeyedPixelArrayElement(HValue* object,
-                                                             HValue* key,
-                                                             Property* expr) {
+HInstruction* HGraphBuilder::BuildLoadKeyedSpecializedArrayElement(
+    HValue* object,
+    HValue* key,
+    Property* expr) {
   ASSERT(!expr->key()->IsPropertyName() && expr->IsMonomorphic());
   AddInstruction(new HCheckNonSmi(object));
   Handle<Map> map = expr->GetMonomorphicReceiverType();
@@ -3551,8 +3553,10 @@ HInstruction* HGraphBuilder::BuildLoadKeyedPixelArrayElement(HValue* object,
   HLoadExternalArrayPointer* external_elements =
       new HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
-  HLoadPixelArrayElement* pixel_array_value =
-      new HLoadPixelArrayElement(external_elements, key);
+  HLoadKeyedSpecializedArrayElement* pixel_array_value =
+      new HLoadKeyedSpecializedArrayElement(external_elements,
+                                            key,
+                                            expr->GetExternalArrayType());
   return pixel_array_value;
 }
 
@@ -3590,11 +3594,11 @@ HInstruction* HGraphBuilder::BuildStoreKeyedFastElement(HValue* object,
 }
 
 
-HInstruction* HGraphBuilder::BuildStoreKeyedPixelArrayElement(
+HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
     HValue* object,
     HValue* key,
     HValue* val,
-    Expression* expr) {
+    Assignment* expr) {
   ASSERT(expr->IsMonomorphic());
   AddInstruction(new HCheckNonSmi(object));
   Handle<Map> map = expr->GetMonomorphicReceiverType();
@@ -3608,7 +3612,11 @@ HInstruction* HGraphBuilder::BuildStoreKeyedPixelArrayElement(
   HLoadExternalArrayPointer* external_elements =
       new HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
-  return new HStorePixelArrayElement(external_elements, key, val);
+  return new HStoreKeyedSpecializedArrayElement(
+      external_elements,
+      key,
+      val,
+      expr->GetExternalArrayType());
 }
 
 
@@ -3703,9 +3711,7 @@ void HGraphBuilder::VisitProperty(Property* expr) {
       // both. Pixel array maps that are assigned to pixel array elements are
       // always created with the fast elements flag cleared.
       if (receiver_type->has_external_array_elements()) {
-        if (expr->GetExternalArrayType() == kExternalPixelArray) {
-          instr = BuildLoadKeyedPixelArrayElement(obj, key, expr);
-        }
+        instr = BuildLoadKeyedSpecializedArrayElement(obj, key, expr);
       } else if (receiver_type->has_fast_elements()) {
         instr = BuildLoadKeyedFastElement(obj, key, expr);
       }

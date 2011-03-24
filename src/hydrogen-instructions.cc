@@ -1226,8 +1226,36 @@ void HLoadKeyedGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
-void HLoadPixelArrayElement::PrintDataTo(StringStream* stream) {
+void HLoadKeyedSpecializedArrayElement::PrintDataTo(
+    StringStream* stream) {
   external_pointer()->PrintNameTo(stream);
+  stream->Add(".");
+  switch (array_type()) {
+    case kExternalByteArray:
+      stream->Add("byte");
+      break;
+    case kExternalUnsignedByteArray:
+      stream->Add("u_byte");
+      break;
+    case kExternalShortArray:
+      stream->Add("short");
+      break;
+    case kExternalUnsignedShortArray:
+      stream->Add("u_short");
+      break;
+    case kExternalIntArray:
+      stream->Add("int");
+      break;
+    case kExternalUnsignedIntArray:
+      stream->Add("u_int");
+      break;
+    case kExternalFloatArray:
+      stream->Add("float");
+      break;
+    case kExternalPixelArray:
+      stream->Add("pixel");
+      break;
+  }
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("]");
@@ -1275,8 +1303,36 @@ void HStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
-void HStorePixelArrayElement::PrintDataTo(StringStream* stream) {
+void HStoreKeyedSpecializedArrayElement::PrintDataTo(
+    StringStream* stream) {
   external_pointer()->PrintNameTo(stream);
+  stream->Add(".");
+  switch (array_type()) {
+    case kExternalByteArray:
+      stream->Add("byte");
+      break;
+    case kExternalUnsignedByteArray:
+      stream->Add("u_byte");
+      break;
+    case kExternalShortArray:
+      stream->Add("short");
+      break;
+    case kExternalUnsignedShortArray:
+      stream->Add("u_short");
+      break;
+    case kExternalIntArray:
+      stream->Add("int");
+      break;
+    case kExternalUnsignedIntArray:
+      stream->Add("u_int");
+      break;
+    case kExternalFloatArray:
+      stream->Add("float");
+      break;
+    case kExternalPixelArray:
+      stream->Add("pixel");
+      break;
+  }
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("] = ");
