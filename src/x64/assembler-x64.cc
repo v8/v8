@@ -944,6 +944,12 @@ void Assembler::clc() {
   emit(0xF8);
 }
 
+void Assembler::cld() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xFC);
+}
+
 void Assembler::cdq() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
