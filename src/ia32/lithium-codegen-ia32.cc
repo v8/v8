@@ -2109,13 +2109,76 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
-  Register object = ToRegister(instr->InputAt(0));
+  Register object = ToRegister(instr->object());
   Register result = ToRegister(instr->result());
   if (instr->hydrogen()->is_in_object()) {
     __ mov(result, FieldOperand(object, instr->hydrogen()->offset()));
   } else {
     __ mov(result, FieldOperand(object, JSObject::kPropertiesOffset));
     __ mov(result, FieldOperand(result, instr->hydrogen()->offset()));
+  }
+}
+
+
+void LCodeGen::EmitLoadField(Register result,
+                             Register object,
+                             Handle<Map> type,
+                             Handle<String> name) {
+  LookupResult lookup;
+  type->LookupInDescriptors(NULL, *name, &lookup);
+  ASSERT(lookup.IsProperty() && lookup.type() == FIELD);
+  int index = lookup.GetLocalFieldIndexFromMap(*type);
+  int offset = index * kPointerSize;
+  if (index < 0) {
+    // Negative property indices are in-object properties, indexed
+    // from the end of the fixed part of the object.
+    __ mov(result, FieldOperand(object, offset + type->instance_size()));
+  } else {
+    // Non-negative property indices are in the properties array.
+    __ mov(result, FieldOperand(object, JSObject::kPropertiesOffset));
+    __ mov(result, FieldOperand(result, offset + FixedArray::kHeaderSize));
+  }
+}
+
+
+void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
+  Register object = ToRegister(instr->object());
+  Register result = ToRegister(instr->result());
+
+  int map_count = instr->hydrogen()->types()->length();
+  Handle<String> name = instr->hydrogen()->name();
+  if (map_count == 0) {
+    ASSERT(instr->hydrogen()->need_generic());
+    __ mov(ecx, name);
+    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+    CallCode(ic, RelocInfo::CODE_TARGET, instr, false);
+  } else {
+    NearLabel done;
+    for (int i = 0; i < map_count - 1; ++i) {
+      Handle<Map> map = instr->hydrogen()->types()->at(i);
+      NearLabel next;
+      __ cmp(FieldOperand(object, HeapObject::kMapOffset), map);
+      __ j(not_equal, &next);
+      EmitLoadField(result, object, map, name);
+      __ jmp(&done);
+      __ bind(&next);
+    }
+    Handle<Map> map = instr->hydrogen()->types()->last();
+    __ cmp(FieldOperand(object, HeapObject::kMapOffset), map);
+    if (instr->hydrogen()->need_generic()) {
+      NearLabel generic;
+      __ j(not_equal, &generic);
+      EmitLoadField(result, object, map, name);
+      __ jmp(&done);
+      __ bind(&generic);
+      __ mov(ecx, name);
+      Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+      CallCode(ic, RelocInfo::CODE_TARGET, instr, false);
+    } else {
+      DeoptimizeIf(not_equal, instr->environment());
+      EmitLoadField(result, object, map, name);
+    }
+    __ bind(&done);
   }
 }
 

@@ -3445,69 +3445,6 @@ void HGraphBuilder::VisitThrow(Throw* expr) {
 }
 
 
-void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
-                                                    HValue* object,
-                                                    ZoneMapList* types,
-                                                    Handle<String> name) {
-  // TODO(ager): We should recognize when the prototype chains for different
-  // maps are identical. In that case we can avoid repeatedly generating the
-  // same prototype map checks.
-  int count = 0;
-  HBasicBlock* join = NULL;
-  for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
-    Handle<Map> map = types->at(i);
-    LookupResult lookup;
-    map->LookupInDescriptors(NULL, *name, &lookup);
-    if (lookup.IsProperty() && lookup.type() == FIELD) {
-      if (count == 0) {
-        AddInstruction(new HCheckNonSmi(object));  // Only needed once.
-        join = graph()->CreateBasicBlock();
-      }
-      ++count;
-      HBasicBlock* if_true = graph()->CreateBasicBlock();
-      HBasicBlock* if_false = graph()->CreateBasicBlock();
-      HCompareMap* compare = new HCompareMap(object, map, if_true, if_false);
-      current_block()->Finish(compare);
-
-      set_current_block(if_true);
-      HLoadNamedField* instr =
-          BuildLoadNamedField(object, expr, map, &lookup, false);
-      instr->set_position(expr->position());
-      instr->ClearFlag(HValue::kUseGVN);
-      AddInstruction(instr);
-      if (!ast_context()->IsEffect()) Push(instr);
-      current_block()->Goto(join);
-
-      set_current_block(if_false);
-    }
-  }
-
-  // Finish up.  Unconditionally deoptimize if we've handled all the maps we
-  // know about and do not want to handle ones we've never seen.  Otherwise
-  // use a generic IC.
-  if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExitWithDeoptimization();
-  } else {
-    HInstruction* instr = BuildLoadNamedGeneric(object, expr);
-    instr->set_position(expr->position());
-
-    if (join != NULL) {
-      AddInstruction(instr);
-      if (!ast_context()->IsEffect()) Push(instr);
-      current_block()->Goto(join);
-    } else {
-      ast_context()->ReturnInstruction(instr, expr->id());
-      return;
-    }
-  }
-
-  ASSERT(join != NULL);
-  join->SetJoinId(expr->id());
-  set_current_block(join);
-  if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
-}
-
-
 HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
                                                     Property* expr,
                                                     Handle<Map> type,
@@ -3748,9 +3685,8 @@ void HGraphBuilder::VisitProperty(Property* expr) {
     if (expr->IsMonomorphic()) {
       instr = BuildLoadNamed(obj, expr, types->first(), name);
     } else if (types != NULL && types->length() > 1) {
-      HandlePolymorphicLoadNamedField(expr, obj, types, name);
-      return;
-
+      AddInstruction(new HCheckNonSmi(obj));
+      instr = new HLoadNamedFieldPolymorphic(obj, types, name);
     } else {
       instr = BuildLoadNamedGeneric(obj, expr);
     }

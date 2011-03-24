@@ -129,6 +129,7 @@ class LChunkBuilder;
   V(LoadKeyedGeneric)                          \
   V(LoadNamedField)                            \
   V(LoadNamedGeneric)                          \
+  V(LoadNamedFieldPolymorphic)                 \
   V(LoadPixelArrayElement)                     \
   V(Mod)                                       \
   V(Mul)                                       \
@@ -2970,6 +2971,37 @@ class HLoadNamedField: public HUnaryOperation {
   bool is_in_object_;
   int offset_;
 };
+
+
+class HLoadNamedFieldPolymorphic: public HUnaryOperation {
+ public:
+  HLoadNamedFieldPolymorphic(HValue* object,
+                             ZoneMapList* types,
+                             Handle<String> name);
+
+  HValue* object() { return OperandAt(0); }
+  ZoneMapList* types() { return &types_; }
+  Handle<String> name() { return name_; }
+  bool need_generic() { return need_generic_; }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadNamedFieldPolymorphic,
+                               "load_named_field_polymorphic")
+
+  static const int kMaxLoadPolymorphism = 4;
+
+ protected:
+  virtual bool DataEquals(HValue* value);
+
+ private:
+  ZoneMapList types_;
+  Handle<String> name_;
+  bool need_generic_;
+};
+
 
 
 class HLoadNamedGeneric: public HBinaryOperation {
