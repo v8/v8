@@ -36,8 +36,8 @@
 // When building with V8 in a shared library we cannot use functions which
 // is not explicitly a part of the public V8 API. This extensive use of
 // #ifndef USING_V8_SHARED/#endif is a hack until we can resolve whether to
-// still use the shell sample for testing or change to use the  and the
-// developer shell d8 TODO(1272).
+// still use the shell sample for testing or change to use the developer
+// shell d8 TODO(1272).
 #ifndef USING_V8_SHARED
 #include "../src/v8.h"
 #endif  // USING_V8_SHARED
@@ -73,7 +73,7 @@ static bool last_run = true;
 
 class SourceGroup {
  public:
-  SourceGroup() : 
+  SourceGroup() :
 #ifndef USING_V8_SHARED
                   next_semaphore_(v8::internal::OS::CreateSemaphore(0)),
                   done_semaphore_(v8::internal::OS::CreateSemaphore(0)),
