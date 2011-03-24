@@ -45,11 +45,11 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
       generating_stub_(false),
       allow_stub_calls_(true),
       root_array_available_(true),
-      code_object_(HEAP->undefined_value()) {
+      code_object_(isolate()->heap()->undefined_value()) {
 }
 
 
-  static intptr_t RootRegisterDelta(ExternalReference other, Isolate* isolate) {
+static intptr_t RootRegisterDelta(ExternalReference other, Isolate* isolate) {
   Address roots_register_value = kRootRegisterBias +
       reinterpret_cast<Address>(isolate->heap()->roots_address());
   intptr_t delta = other.address() - roots_register_value;
