@@ -3564,7 +3564,7 @@ JSObject::ElementsKind JSObject::GetElementsKind() {
     // FAST_ELEMENTS, DICTIONARY_ELEMENTS, and NON_STRICT_ARGUMENTS_ELEMENTS
     // are all stored in a FixedArray, but FAST_ELEMENTS is already handled
     // above.
-    if (array->map() == GetHeap()->non_strict_arguments_elements()) {
+    if (array->map() == GetHeap()->non_strict_arguments_elements_map()) {
       return NON_STRICT_ARGUMENTS_ELEMENTS;
     }
     ASSERT(array->IsDictionary());
@@ -3586,6 +3586,8 @@ JSObject::ElementsKind JSObject::GetElementsKind() {
       return EXTERNAL_UNSIGNED_INT_ELEMENTS;
     case EXTERNAL_PIXEL_ARRAY_TYPE:
       return EXTERNAL_PIXEL_ELEMENTS;
+    default:
+      break;
   }
   ASSERT(array->map()->instance_type() == EXTERNAL_FLOAT_ARRAY_TYPE);
   return EXTERNAL_FLOAT_ELEMENTS;
