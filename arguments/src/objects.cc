@@ -2752,6 +2752,40 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
 }
 
 
+void JSObject::DeleteFromFastElements(FixedArray* elements, uint32_t index) {
+  ASSERT(elements->map() != elements->GetHeap()->fixed_cow_array_map());
+  int length = IsJSArray()
+      ? Smi::cast(JSArray::cast(this)->length())->value()
+      : elements->length();
+  if (index < static_cast<uint32_t>(length)) {
+    elements->set_the_hole(index);
+  }
+}
+
+
+MaybeObject* JSObject::DeleteFromDictionaryElements(NumberDictionary* elements,
+                                                    uint32_t index,
+                                                    DeleteMode mode) {
+  Isolate* isolate = GetIsolate();
+  int entry = elements->FindEntry(index);
+  if (entry != NumberDictionary::kNotFound) {
+    Object* result = elements->DeleteProperty(entry, mode);
+    if (mode == STRICT_DELETION && result == isolate->heap()->false_value()) {
+      // In strict mode, attempting to delete a non-configurable property
+      // throws an exception.
+      HandleScope scope(isolate);
+      Handle<Object> name = isolate->factory()->NewNumberFromUint(index);
+      Handle<Object> args[2] = { name, Handle<Object>(this) };
+      Handle<Object> error =
+          isolate->factory()->NewTypeError("strict_delete_property",
+                                           HandleVector(args, 2));
+      return isolate->Throw(*error);
+    }
+  }
+  return isolate->heap()->true_value();
+}
+
+
 MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   Isolate* isolate = GetIsolate();
   // Check access rights if needed.
@@ -2782,12 +2816,7 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       { MaybeObject* maybe_obj = EnsureWritableFastElements();
         if (!maybe_obj->ToObject(&obj)) return maybe_obj;
       }
-      uint32_t length = IsJSArray() ?
-      static_cast<uint32_t>(Smi::cast(JSArray::cast(this)->length())->value()) :
-      static_cast<uint32_t>(FixedArray::cast(elements())->length());
-      if (index < length) {
-        FixedArray::cast(elements())->set_the_hole(index);
-      }
+      DeleteFromFastElements(FixedArray::cast(elements()), index);
       break;
     }
 
@@ -2803,29 +2832,30 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       // silently ignore here.
       break;
 
-    case DICTIONARY_ELEMENTS: {
-      NumberDictionary* dictionary = element_dictionary();
-      int entry = dictionary->FindEntry(index);
-      if (entry != NumberDictionary::kNotFound) {
-        Object* result = dictionary->DeleteProperty(entry, mode);
-        if (mode == STRICT_DELETION && result ==
-            isolate->heap()->false_value()) {
-          // In strict mode, deleting a non-configurable property throws
-          // exception. dictionary->DeleteProperty will return false_value()
-          // if a non-configurable property is being deleted.
-          HandleScope scope;
-          Handle<Object> i = isolate->factory()->NewNumberFromUint(index);
-          Handle<Object> args[2] = { i, Handle<Object>(this) };
-          return isolate->Throw(*isolate->factory()->NewTypeError(
-              "strict_delete_property", HandleVector(args, 2)));
+    case DICTIONARY_ELEMENTS:
+      return DeleteFromDictionaryElements(element_dictionary(), index, mode);
+
+    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+      FixedArray* parameter_map = FixedArray::cast(elements());
+      uint32_t length = parameter_map->length();
+      Object* probe =
+          (index + 2) < length ? parameter_map->get(index + 2) : NULL;
+      if (probe != NULL && !probe->IsTheHole()) {
+        // TODO(kmillikin): We could check if this was the last aliased
+        // parameter, and revert to normal elements in that case.  That
+        // would enable GC of the context.
+        parameter_map->set_the_hole(index + 2);
+      } else {
+        FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+        if (arguments->IsDictionary()) {
+          NumberDictionary* dictionary = NumberDictionary::cast(arguments);
+          return DeleteFromDictionaryElements(dictionary, index, mode);
+        } else {
+          DeleteFromFastElements(arguments, index);
         }
       }
       break;
     }
-
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
-      UNIMPLEMENTED();
-      break;
   }
   return isolate->heap()->true_value();
 }

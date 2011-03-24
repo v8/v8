@@ -10781,7 +10781,6 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
   }
 
   const int length = frame->ComputeParametersCount();
-  UNIMPLEMENTED();
   Handle<JSObject> arguments =
       isolate->factory()->NewArgumentsObject(function, length);
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
