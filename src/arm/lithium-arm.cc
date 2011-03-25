@@ -1827,6 +1827,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
   // TODO(danno): Add support for other external array types.
   if (instr->array_type() != kExternalPixelArray) {
     Abort("unsupported load for external array type.");
+    return NULL;
   }
 
   ASSERT(instr->representation().IsInteger32());
@@ -1875,6 +1876,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
   // TODO(danno): Add support for other external array types.
   if (instr->array_type() != kExternalPixelArray) {
     Abort("unsupported store for external array type.");
+    return NULL;
   }
 
   ASSERT(instr->value()->representation().IsInteger32());
