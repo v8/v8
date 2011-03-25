@@ -5817,9 +5817,14 @@ void HStatistics::Print() {
     PrintF(" %8u bytes / %4.1f %%\n", size, size_percent);
   }
   double source_size_in_kb = static_cast<double>(source_size_) / 1024;
+  double normalized_time =  source_size_in_kb > 0
+      ? (static_cast<double>(sum) / 1000) / source_size_in_kb
+      : 0;
+  double normalized_bytes = source_size_in_kb > 0
+      ? total_size_ / source_size_in_kb
+      : 0;
   PrintF("%30s - %7.3f ms           %7.3f bytes\n", "Sum",
-         (static_cast<double>(sum) / 1000) / source_size_in_kb,
-         total_size_ / source_size_in_kb);
+         normalized_time, normalized_bytes);
   PrintF("---------------------------------------------------------------\n");
   PrintF("%30s - %7.3f ms (%.1f times slower than full code gen)\n",
          "Total",
