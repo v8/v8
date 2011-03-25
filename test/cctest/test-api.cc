@@ -13092,7 +13092,14 @@ TEST(MultipleIsolatesOnIndividualThreads) {
 
 class InitDefaultIsolateThread : public v8::internal::Thread {
  public:
-  enum TestCase { IgnoreOOM, SetResourceConstraints, SetFatalHandler };
+  enum TestCase {
+    IgnoreOOM,
+    SetResourceConstraints,
+    SetFatalHandler,
+    SetCounterFunction,
+    SetCreateHistogramFunction,
+    SetAddHistogramSampleFunction
+  };
 
   explicit InitDefaultIsolateThread(TestCase testCase)
       : Thread(NULL, "InitDefaultIsolateThread"),
@@ -13116,6 +13123,18 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
 
     case SetFatalHandler:
       v8::V8::SetFatalErrorHandler(NULL);
+      break;
+
+    case SetCounterFunction:
+      v8::V8::SetCounterFunction(NULL);
+      break;
+
+    case SetCreateHistogramFunction:
+      v8::V8::SetCreateHistogramFunction(NULL);
+      break;
+
+    case SetAddHistogramSampleFunction:
+      v8::V8::SetAddHistogramSampleFunction(NULL);
       break;
     }
     result_ = true;
@@ -13146,6 +13165,18 @@ TEST(InitializeDefaultIsolateOnSecondaryThread2) {
 
 TEST(InitializeDefaultIsolateOnSecondaryThread3) {
   InitializeTestHelper(InitDefaultIsolateThread::SetFatalHandler);
+}
+
+TEST(InitializeDefaultIsolateOnSecondaryThread4) {
+  InitializeTestHelper(InitDefaultIsolateThread::SetCounterFunction);
+}
+
+TEST(InitializeDefaultIsolateOnSecondaryThread5) {
+  InitializeTestHelper(InitDefaultIsolateThread::SetCreateHistogramFunction);
+}
+
+TEST(InitializeDefaultIsolateOnSecondaryThread6) {
+  InitializeTestHelper(InitDefaultIsolateThread::SetAddHistogramSampleFunction);
 }
 
 
