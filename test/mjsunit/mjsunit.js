@@ -41,15 +41,62 @@ MjsUnitAssertionError.prototype.toString = function () {
  * the f-word and ignore all other lines.
  */
 
+function MjsUnitToString(value) {
+  switch (typeof value) {
+    case "string":
+      return JSON.stringify(value);
+    case "number":
+      if (value === 0 && (1 / value) < 0) return "-0";
+    case "boolean":
+    case "null":
+    case "undefined":
+    case "function":
+      return String(value);
+    case "object":
+      if (value === null) return "null";
+      var clazz = Object.prototype.toString.call(value);
+      clazz = clazz.substring(8, clazz.length - 1);
+      switch (clazz) {
+        case "Number":
+        case "String":
+        case "Boolean":
+        case "Date":
+          return clazz + "(" + MjsUnitToString(value.valueOf()) + ")";
+        case "RegExp":
+          return value.toString();
+        case "Array":
+          return "[" + value.map(MjsUnitArrayElementToString).join(",") + "]";
+        case "Object":
+          break;
+        default:
+          return clazz + "()";
+      }
+      // [[Class]] is "Object".
+      var constructor = value.constructor.name;
+      if (name) return name + "()";
+      return "Object()";
+    default:
+      return "-- unknown value --";
+  }
+}
+
+
+function MjsUnitArrayElementToString(value, index, array) {
+  if (value === undefined && !(index in array)) return "";
+  return MjsUnitToString(value);
+}
+
+
 function fail(expected, found, name_opt) {
-  var start;
+  var message = "Fail" + "ure";
   if (name_opt) {
     // Fix this when we ditch the old test runner.
-    start = "Fail" + "ure (" + name_opt + "): ";
-  } else {
-    start = "Fail" + "ure:";
+    message += " (" + name_opt + ")";
   }
-  throw new MjsUnitAssertionError(start + " expected <" + expected + "> found <" + found + ">");
+
+  message += ": expected <" + MjsUnitToString(expected) +
+      "> found <" + MjsUnitToString(found) + ">";
+  throw new MjsUnitAssertionError(message);
 }
 
 
@@ -73,13 +120,17 @@ function deepObjectEquals(a, b) {
 
 
 function deepEquals(a, b) {
-  if (a == b) return true;
+  if (a == b) {
+    // Check for -0.
+    if (a === 0 && b === 0) return (1 / a) === (1 / b);
+    return true;
+  }
   if (typeof a == "number" && typeof b == "number" && isNaN(a) && isNaN(b)) {
     return true;
   }
   if (a == null || b == null) return false;
   if (a.constructor === RegExp || b.constructor === RegExp) {
-    return (a.constructor === b.constructor) && (a.toString === b.toString);
+    return (a.constructor === b.constructor) && (a.toString() === b.toString());
   }
   if ((typeof a) !== 'object' || (typeof b) !== 'object' ||
       (a === null) || (b === null))
@@ -205,7 +256,7 @@ function assertDoesNotThrow(code) {
 
 function assertUnreachable(name_opt) {
   // Fix this when we ditch the old test runner.
-  var message = "Fail" + "ure: unreachable"
+  var message = "Fail" + "ure: unreachable";
   if (name_opt) {
     message += " - " + name_opt;
   }
