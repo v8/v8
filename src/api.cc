@@ -69,7 +69,7 @@ namespace v8 {
 
 #define ON_BAILOUT(isolate, location, code)                        \
   if (IsDeadCheck(isolate, location) ||                            \
-            v8::V8::IsExecutionTerminating()) {                    \
+      IsExecutionTerminatingCheck(isolate)) {                      \
     code;                                                          \
     UNREACHABLE();                                                 \
   }
@@ -253,6 +253,16 @@ static bool ReportEmptyHandle(const char* location) {
 static inline bool IsDeadCheck(i::Isolate* isolate, const char* location) {
   return !isolate->IsInitialized()
       && i::V8::IsDead() ? ReportV8Dead(location) : false;
+}
+
+
+static inline bool IsExecutionTerminatingCheck(i::Isolate* isolate) {
+  if (!isolate->IsInitialized()) return false;
+  if (isolate->has_scheduled_exception()) {
+    return isolate->scheduled_exception() ==
+        isolate->heap()->termination_exception();
+  }
+  return false;
 }
 
 
@@ -4629,12 +4639,7 @@ void V8::TerminateExecution(Isolate* isolate) {
 
 bool V8::IsExecutionTerminating() {
   i::Isolate* isolate = i::Isolate::Current();
-  if (!isolate->IsInitialized()) return false;
-  if (isolate->has_scheduled_exception()) {
-    return isolate->scheduled_exception() ==
-        HEAP->termination_exception();
-  }
-  return false;
+  return IsExecutionTerminatingCheck(isolate);
 }
 
 
