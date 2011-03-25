@@ -1085,16 +1085,25 @@ void LCodeGen::DoBitI(LBitI* instr) {
   ASSERT(left->Equals(instr->result()));
   ASSERT(left->IsRegister());
   Register result = ToRegister(left);
-  Register right_reg = EmitLoadRegister(right, ip);
+  Operand right_operand(no_reg);
+
+  if (right->IsStackSlot() || right->IsArgument()) {
+    Register right_reg = EmitLoadRegister(right, ip);
+    right_operand = Operand(right_reg);
+  } else {
+    ASSERT(right->IsRegister() || right->IsConstantOperand());
+    right_operand = ToOperand(right);
+  }
+
   switch (instr->op()) {
     case Token::BIT_AND:
-      __ and_(result, ToRegister(left), Operand(right_reg));
+      __ and_(result, ToRegister(left), right_operand);
       break;
     case Token::BIT_OR:
-      __ orr(result, ToRegister(left), Operand(right_reg));
+      __ orr(result, ToRegister(left), right_operand);
       break;
     case Token::BIT_XOR:
-      __ eor(result, ToRegister(left), Operand(right_reg));
+      __ eor(result, ToRegister(left), right_operand);
       break;
     default:
       UNREACHABLE();
@@ -1163,11 +1172,21 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
 
 
 void LCodeGen::DoSubI(LSubI* instr) {
-  Register left = ToRegister(instr->InputAt(0));
-  Register right = EmitLoadRegister(instr->InputAt(1), ip);
-  ASSERT(instr->InputAt(0)->Equals(instr->result()));
-  __ sub(left, left, right, SetCC);
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  ASSERT(left->Equals(instr->result()));
+  bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
+  SBit set_cond = can_overflow ? SetCC : LeaveCC;
+
+  if (right->IsStackSlot() || right->IsArgument()) {
+    Register right_reg = EmitLoadRegister(right, ip);
+    __ sub(ToRegister(left), ToRegister(left), Operand(right_reg), set_cond);
+  } else {
+    ASSERT(right->IsRegister() || right->IsConstantOperand());
+    __ sub(ToRegister(left), ToRegister(left), ToOperand(right), set_cond);
+  }
+
+  if (can_overflow) {
     DeoptimizeIf(vs, instr->environment());
   }
 }
@@ -1256,11 +1275,18 @@ void LCodeGen::DoAddI(LAddI* instr) {
   LOperand* left = instr->InputAt(0);
   LOperand* right = instr->InputAt(1);
   ASSERT(left->Equals(instr->result()));
+  bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
+  SBit set_cond = can_overflow ? SetCC : LeaveCC;
 
-  Register right_reg = EmitLoadRegister(right, ip);
-  __ add(ToRegister(left), ToRegister(left), Operand(right_reg), SetCC);
+  if (right->IsStackSlot() || right->IsArgument()) {
+    Register right_reg = EmitLoadRegister(right, ip);
+    __ add(ToRegister(left), ToRegister(left), Operand(right_reg), set_cond);
+  } else {
+    ASSERT(right->IsRegister() || right->IsConstantOperand());
+    __ add(ToRegister(left), ToRegister(left), ToOperand(right), set_cond);
+  }
 
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+  if (can_overflow) {
     DeoptimizeIf(vs, instr->environment());
   }
 }
