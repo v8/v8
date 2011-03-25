@@ -31,6 +31,7 @@
 
 #include "ia32/lithium-codegen-ia32.h"
 #include "code-stubs.h"
+#include "deoptimizer.h"
 #include "stub-cache.h"
 
 namespace v8 {
@@ -50,9 +51,6 @@ class SafepointGenerator : public PostCallGenerator {
   virtual ~SafepointGenerator() { }
 
   virtual void Generate() {
-    // Ensure that we have enough space in the reloc info to patch
-    // this with calls when doing deoptimization.
-    codegen_->EnsureRelocSpaceForDeoptimization();
     codegen_->RecordSafepoint(pointers_, deoptimization_index_);
   }
 
@@ -73,7 +71,6 @@ bool LCodeGen::GenerateCode() {
   return GeneratePrologue() &&
       GenerateBody() &&
       GenerateDeferredCode() &&
-      GenerateRelocPadding() &&
       GenerateSafepointTable();
 }
 
@@ -83,6 +80,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   code->set_stack_slots(StackSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
   PopulateDeoptimizationData(code);
+  Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(code);
 }
 
 
@@ -380,22 +378,6 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
 }
 
 
-void LCodeGen::EnsureRelocSpaceForDeoptimization() {
-  // Since we patch the reloc info with RUNTIME_ENTRY calls every
-  // patch site will take up 2 bytes + any pc-jumps.  We are
-  // conservative and always reserve 6 bytes in case a simple pc-jump
-  // is not enough.
-  uint32_t pc_delta =
-      masm()->pc_offset() - deoptimization_reloc_size.last_pc_offset;
-  if (is_uintn(pc_delta, 6)) {
-    deoptimization_reloc_size.min_size += 2;
-  } else {
-    deoptimization_reloc_size.min_size += 6;
-  }
-  deoptimization_reloc_size.last_pc_offset = masm()->pc_offset();
-}
-
-
 void LCodeGen::AddToTranslation(Translation* translation,
                                 LOperand* op,
                                 bool is_tagged) {
@@ -449,7 +431,6 @@ void LCodeGen::CallCode(Handle<Code> code,
   }
   __ call(code, mode);
 
-  EnsureRelocSpaceForDeoptimization();
   RegisterLazyDeoptimization(instr);
 
   // Signal that we don't inline smi code before these stubs in the
@@ -474,7 +455,7 @@ void LCodeGen::CallRuntime(const Runtime::Function* fun,
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   }
   __ CallRuntime(fun, argc);
-  EnsureRelocSpaceForDeoptimization();
+
   RegisterLazyDeoptimization(instr);
 }
 
@@ -2539,7 +2520,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   } else {
     __ call(FieldOperand(edi, JSFunction::kCodeEntryOffset));
   }
-  EnsureRelocSpaceForDeoptimization();
 
   // Setup deoptimization.
   RegisterLazyDeoptimization(instr);
