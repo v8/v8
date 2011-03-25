@@ -122,9 +122,10 @@ void CpuFeatures::Probe(bool portable) {
   CodeDesc desc;
   assm.GetCode(&desc);
   Object* code;
-  { MaybeObject* maybe_code = HEAP->CreateCode(desc,
-                                               Code::ComputeFlags(Code::STUB),
-                                               Handle<Code>::null());
+  { MaybeObject* maybe_code =
+        assm.isolate()->heap()->CreateCode(desc,
+                                           Code::ComputeFlags(Code::STUB),
+                                           Handle<Code>::null());
     if (!maybe_code->ToObject(&code)) return;
   }
   if (!code->IsCode()) return;
@@ -2672,7 +2673,7 @@ void Assembler::GrowBuffer() {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if ((desc.buffer_size > kMaximalBufferSize) ||
-      (desc.buffer_size > HEAP->MaxOldGenerationSize())) {
+      (desc.buffer_size > isolate()->heap()->MaxOldGenerationSize())) {
     V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
   }
 

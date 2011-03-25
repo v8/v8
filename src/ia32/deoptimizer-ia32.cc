@@ -56,7 +56,8 @@ static void ZapCodeRange(Address start, Address end) {
 
 
 void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
-  HandleScope scope;
+  Isolate* isolate = code->GetIsolate();
+  HandleScope scope(isolate);
 
   // Compute the size of relocation information needed for the code
   // patching in Deoptimizer::DeoptimizeFunction.
@@ -103,7 +104,7 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
     // Allocate new relocation info and copy old relocation to the end
     // of the new relocation info array because relocation info is
     // written and read backwards.
-    Factory* factory = code->GetIsolate()->factory();
+    Factory* factory = isolate->factory();
     Handle<ByteArray> new_reloc =
         factory->NewByteArray(reloc_length + padding, TENURED);
     memcpy(new_reloc->GetDataStartAddress() + padding,
@@ -131,10 +132,11 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
 
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
-  HandleScope scope;
-  AssertNoAllocation no_allocation;
-
   if (!function->IsOptimized()) return;
+
+  Isolate* isolate = function->GetIsolate();
+  HandleScope scope(isolate);
+  AssertNoAllocation no_allocation;
 
   // Get the optimized code.
   Code* code = function->code();
@@ -194,11 +196,12 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   // a non-live object in the extra space at the end of the former reloc info.
   Address junk_address = reloc_info->address() + reloc_info->Size();
   ASSERT(junk_address <= reloc_end_address);
-  HEAP->CreateFillerObjectAt(junk_address, reloc_end_address - junk_address);
+  isolate->heap()->CreateFillerObjectAt(junk_address,
+                                        reloc_end_address - junk_address);
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
-  DeoptimizerData* data = code->GetIsolate()->deoptimizer_data();
+  DeoptimizerData* data = isolate->deoptimizer_data();
   node->set_next(data->deoptimizing_code_list_);
   data->deoptimizing_code_list_ = node;
 

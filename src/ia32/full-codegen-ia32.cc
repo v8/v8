@@ -2097,7 +2097,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(ResolveEvalFlag flag,
   if (arg_count > 0) {
     __ push(Operand(esp, arg_count * kPointerSize));
   } else {
-    __ push(Immediate(FACTORY->undefined_value()));
+    __ push(Immediate(isolate()->factory()->undefined_value()));
   }
 
   // Push the receiver of the enclosing function.
@@ -2800,7 +2800,7 @@ void FullCodeGenerator::EmitMathPow(ZoneList<Expression*>* args) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  if (masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
+  if (isolate()->cpu_features()->IsSupported(SSE2)) {
     MathPowStub stub;
     __ CallStub(&stub);
   } else {
@@ -3307,7 +3307,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ mov(array_length, FieldOperand(array, JSArray::kLengthOffset));
   __ SmiUntag(array_length);
   __ j(not_zero, &non_trivial_array);
-  __ mov(result_operand, FACTORY->empty_string());
+  __ mov(result_operand, isolate()->factory()->empty_string());
   __ jmp(&done);
 
   // Save the array length.
@@ -3518,7 +3518,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
 
 
   __ bind(&bailout);
-  __ mov(result_operand, FACTORY->undefined_value());
+  __ mov(result_operand, isolate()->factory()->undefined_value());
   __ bind(&done);
   __ mov(eax, result_operand);
   // Drop temp values from the stack, and restore context register.
@@ -4224,7 +4224,7 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
 
 
 void FullCodeGenerator::EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site) {
-  Counters* counters = masm()->isolate()->counters();
+  Counters* counters = isolate()->counters();
   switch (ic->kind()) {
     case Code::LOAD_IC:
       __ IncrementCounter(counters->named_load_full(), 1);
