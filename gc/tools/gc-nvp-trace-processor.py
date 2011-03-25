@@ -216,7 +216,10 @@ def reclaimed_bytes(row):
   return row['total_size_before'] - row['total_size_after']
 
 def other_scope(r):
-  return r['pause'] - r['mark'] - r['sweep'] - r['compact']
+  return r['pause'] - r['mark'] - r['sweep'] - r['compact'] - r['external']
+
+def real_mutator(r):
+  return r['mutator'] - r['stepstook']
 
 plots = [
   [
@@ -226,7 +229,23 @@ plots = [
     Plot(Item('Marking', 'mark', lc = 'purple'),
          Item('Sweep', 'sweep', lc = 'blue'),
          Item('Compaction', 'compact', lc = 'red'),
-         Item('Other', other_scope, lc = 'grey'))
+         Item('Other', other_scope, lc = '#ADD8E6'),
+         Item('External', 'external', lc = '#D3D3D3'),
+         Item('IGC Steps', 'stepstook', lc = '#FF6347'))
+  ],
+  [
+    Set('style fill solid 0.5 noborder'),
+    Set('style histogram rowstacked'),
+    Set('style data histograms'),
+    Plot(Item('Marking', 'mark', lc = 'purple'),
+         Item('Sweep', 'sweep', lc = 'blue'),
+         Item('Compaction', 'compact', lc = 'red'),
+         Item('Other', other_scope, lc = '#ADD8E6'),
+         Item('External', 'external', lc = '#D3D3D3'))
+  ],
+
+  [
+    Plot(Item('Mutator', real_mutator, lc = 'black', style = 'lines'))
   ],
   [
     Set('style histogram rowstacked'),

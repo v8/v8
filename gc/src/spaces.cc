@@ -1519,7 +1519,8 @@ HeapObject* OldSpaceFreeList::Allocate(int size_in_bytes) {
   owner_->Allocate(new_node_size);
 
   if (new_node_size - size_in_bytes > kThreshold &&
-      IncrementalMarking::state() == IncrementalMarking::MARKING) {
+      IncrementalMarking::state() == IncrementalMarking::MARKING &&
+      FLAG_incremental_marking_steps) {
     // We don't want to give too large linear areas to the allocator while
     // incremental marking is going on, because we won't check again whether
     // we want to do another increment until the linear area is used up.

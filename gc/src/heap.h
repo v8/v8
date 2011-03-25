@@ -1992,6 +1992,11 @@ class GCTracer BASE_EMBEDDED {
   // Size of objects promoted during the current collection.
   intptr_t promoted_objects_size_;
 
+  // Incremental marking steps counters.
+  int steps_count_;
+
+  double steps_took_;
+
   // Maximum GC pause.
   static int max_gc_pause_;
 

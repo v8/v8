@@ -37,8 +37,8 @@ namespace internal {
 IncrementalMarking::State IncrementalMarking::state_ = STOPPED;
 MarkingStack IncrementalMarking::marking_stack_;
 
-static double steps_took = 0;
-static int steps_count = 0;
+double IncrementalMarking::steps_took_ = 0;
+int IncrementalMarking::steps_count_ = 0;
 
 static intptr_t allocated = 0;
 
@@ -197,8 +197,8 @@ void IncrementalMarking::Start() {
   ASSERT(FLAG_incremental_marking);
   ASSERT(state_ == STOPPED);
   state_ = MARKING;
-  steps_took = 0;
-  steps_count = 0;
+
+  ResetStepCounters();
 
   PatchIncrementalMarkingRecordWriteStubs(true);
 
@@ -234,6 +234,8 @@ void IncrementalMarking::Start() {
 
 void IncrementalMarking::PrepareForScavenge() {
   if (IsStopped()) return;
+
+  ResetStepCounters();
 
   Address new_space_low = Heap::new_space()->FromSpaceLow();
   Address new_space_high = Heap::new_space()->FromSpaceHigh();
@@ -292,12 +294,8 @@ void IncrementalMarking::Hurry() {
     state_ = COMPLETE;
     if (FLAG_trace_incremental_marking) {
       double end = OS::TimeCurrentMillis();
-      PrintF("[IncrementalMarking] Complete (hurry), "
-                 "spent %d ms, %d steps took %d ms (avg %d ms)\n",
-             static_cast<int>(end - start),
-             steps_count,
-             static_cast<int>(steps_took),
-             static_cast<int>(steps_took / steps_count));
+      PrintF("[IncrementalMarking] Complete (hurry), spent %d ms.\n",
+             static_cast<int>(end - start));
     }
   }
 }
@@ -306,6 +304,7 @@ void IncrementalMarking::Hurry() {
 void IncrementalMarking::Finalize() {
   Hurry();
   state_ = STOPPED;
+  ResetStepCounters();
   PatchIncrementalMarkingRecordWriteStubs(false);
   ASSERT(marking_stack_.is_empty());
 }
@@ -313,25 +312,26 @@ void IncrementalMarking::Finalize() {
 
 void IncrementalMarking::MarkingComplete() {
   state_ = COMPLETE;
-  // We completed marking.
   if (FLAG_trace_incremental_marking) {
-    PrintF("[IncrementalMarking] Complete (normal), "
-               "%d steps took %d ms (avg %d ms).\n",
-           steps_count,
-           static_cast<int>(steps_took),
-           static_cast<int>(steps_took / steps_count));
+    PrintF("[IncrementalMarking] Complete (normal).\n");
   }
   StackGuard::RequestGC();
 }
 
 
 void IncrementalMarking::Step(intptr_t allocated_bytes) {
-  if (state_ == MARKING && Heap::gc_state() == Heap::NOT_IN_GC) {
+  if (state_ == MARKING &&
+      Heap::gc_state() == Heap::NOT_IN_GC &&
+      FLAG_incremental_marking_steps) {
     allocated += allocated_bytes;
 
     if (allocated >= kAllocatedThreshold) {
       double start = 0;
-      if (FLAG_trace_incremental_marking) start = OS::TimeCurrentMillis();
+
+      if (FLAG_trace_incremental_marking || FLAG_trace_gc) {
+        start = OS::TimeCurrentMillis();
+      }
+
       intptr_t bytes_to_process = allocated * kAllocationMarkingFactor;
       int count = 0;
 
@@ -357,10 +357,10 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
       }
       allocated = 0;
       if (marking_stack_.is_empty()) MarkingComplete();
-      if (FLAG_trace_incremental_marking) {
+      if (FLAG_trace_incremental_marking || FLAG_trace_gc) {
         double end = OS::TimeCurrentMillis();
-        steps_took += (end - start);
-        steps_count++;
+        steps_took_ += (end - start);
+        steps_count_++;
       }
     }
   }

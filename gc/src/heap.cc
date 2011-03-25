@@ -479,7 +479,8 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
 
   if (collector == MARK_COMPACTOR &&
       !MarkCompactCollector::PreciseSweepingRequired() &&
-      IncrementalMarking::state() == IncrementalMarking::MARKING) {
+      IncrementalMarking::state() == IncrementalMarking::MARKING &&
+      FLAG_incremental_marking_steps) {
     if (FLAG_trace_incremental_marking) {
       PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
     }
@@ -5388,6 +5389,9 @@ GCTracer::GCTracer()
   if (last_gc_end_timestamp_ > 0) {
     spent_in_mutator_ = Max(start_time_ - last_gc_end_timestamp_, 0.0);
   }
+
+  steps_count_ = IncrementalMarking::steps_count();
+  steps_took_ = IncrementalMarking::steps_took();
 }
 
 
@@ -5421,7 +5425,13 @@ GCTracer::~GCTracer() {
            SizeOfHeapObjects());
 
     if (external_time > 0) PrintF("%d / ", external_time);
-    PrintF("%d ms.\n", time);
+    PrintF("%d ms", time);
+    if (steps_count_ > 0) {
+      PrintF(" (+ %d ms in %d steps)",
+             static_cast<int>(steps_took_),
+             steps_count_);
+    }
+    PrintF(".\n");
   } else {
     PrintF("pause=%d ", time);
     PrintF("mutator=%d ",
@@ -5454,6 +5464,8 @@ GCTracer::~GCTracer() {
 
     PrintF("allocated=%" V8_PTR_PREFIX "d ", allocated_since_last_gc_);
     PrintF("promoted=%" V8_PTR_PREFIX "d ", promoted_objects_size_);
+    PrintF("stepscount=%d ", steps_count_);
+    PrintF("stepstook=%d ", static_cast<int>(steps_took_));
 
     PrintF("\n");
   }

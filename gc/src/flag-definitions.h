@@ -256,6 +256,7 @@ DEFINE_bool(collect_maps, true,
 DEFINE_bool(flush_code, false,
             "flush code that we expect not to use again before full gc")
 DEFINE_bool(incremental_marking, true, "use incremental marking")
+DEFINE_bool(incremental_marking_steps, true, "do incremental marking steps")
 DEFINE_bool(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 

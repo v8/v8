@@ -164,13 +164,13 @@ void MarkCompactCollector::CollectGarbage() {
   // Tell the tracer.
   if (IsCompacting()) tracer_->set_is_compacting();
 
-  if (IncrementalMarking::state() == IncrementalMarking::STOPPED) {
+  if (IncrementalMarking::IsStopped()) {
     MarkLiveObjects();
   } else {
     {
       GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_MARK);
       IncrementalMarking::Finalize();
-      ASSERT(IncrementalMarking::state() == IncrementalMarking::STOPPED);
+      ASSERT(IncrementalMarking::IsStopped());
     }
     MarkLiveObjects();
   }
@@ -2519,6 +2519,9 @@ int MarkCompactCollector::IterateLiveObjects(PagedSpace* space,
 }
 
 
+// TODO(gc) ReportDeleteIfNeeded is not called currently.
+// Our profiling tools do not expect intersections between
+// code objects. We should either reenable it or change our tools.
 void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
 #ifdef ENABLE_GDB_JIT_INTERFACE
   if (obj->IsCode()) {

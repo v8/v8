@@ -206,9 +206,27 @@ class IncrementalMarking : public AllStatic {
     return IMPOSSIBLE_COLOR;
   }
 
+  static inline int steps_count() {
+    return steps_count_;
+  }
+
+  static inline double steps_took() {
+    return steps_took_;
+  }
+
  private:
+  static void ResetStepCounters() {
+    steps_count_ = 0;
+    steps_took_ = 0;
+  }
+
+
   static State state_;
   static MarkingStack marking_stack_;
+
+  static int steps_count_;
+  static double steps_took_;
+
 };
 
 } }  // namespace v8::internal
