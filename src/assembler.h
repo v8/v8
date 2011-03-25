@@ -184,13 +184,16 @@ class RelocInfo BASE_EMBEDDED {
   // we do not normally record relocation info.
   static const char* kFillerCommentString;
 
-  // The size of a comment is equal to tree bytes for the extra tagged pc +
-  // the tag for the data, and kPointerSize for the actual pointer to the
+  // The minimum size of a comment is equal to three bytes for the extra tagged
+  // pc + the tag for the data, and kPointerSize for the actual pointer to the
   // comment.
-  static const int kRelocCommentSize = 3 + kPointerSize;
+  static const int kMinRelocCommentSize = 3 + kPointerSize;
 
   // The maximum size for a call instruction including pc-jump.
   static const int kMaxCallSize = 6;
+
+  // The maximum pc delta that will use the short encoding.
+  static const int kMaxSmallPCDelta;
 
   enum Mode {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).

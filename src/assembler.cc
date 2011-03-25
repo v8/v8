@@ -139,6 +139,7 @@ const int kPCJumpTag = (1 << kExtraTagBits) - 1;
 
 const int kSmallPCDeltaBits = kBitsPerByte - kTagBits;
 const int kSmallPCDeltaMask = (1 << kSmallPCDeltaBits) - 1;
+const int RelocInfo::kMaxSmallPCDelta = kSmallPCDeltaMask;
 
 const int kVariableLengthPCJumpTopTag = 1;
 const int kChunkBits = 7;
@@ -252,7 +253,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteExtraTaggedPC(pc_delta, kPCJumpTag);
     WriteExtraTaggedData(rinfo->data() - last_data_, kCommentTag);
     last_data_ = rinfo->data();
-    ASSERT(begin_pos - pos_ == RelocInfo::kRelocCommentSize);
+    ASSERT(begin_pos - pos_ >= RelocInfo::kMinRelocCommentSize);
   } else {
     // For all other modes we simply use the mode as the extra tag.
     // None of these modes need a data component.

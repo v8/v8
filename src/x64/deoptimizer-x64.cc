@@ -46,6 +46,11 @@ int Deoptimizer::patch_size() {
 }
 
 
+void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
+  // TODO(1276): Implement.
+}
+
+
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   AssertNoAllocation no_allocation;
 
