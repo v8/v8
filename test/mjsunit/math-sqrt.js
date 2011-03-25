@@ -30,7 +30,7 @@
 function test(expected_sqrt, value) {
   assertEquals(expected_sqrt, Math.sqrt(value));
   if (isFinite(value)) {
-    if ((1 / value) != -Infinity) {
+    if ((1 / value) == -Infinity) {
       // Math.pow(-0, 0.5) must be zero, but Math.sqrt(-0) is -0.
       expected_sqrt = 0;
     }
