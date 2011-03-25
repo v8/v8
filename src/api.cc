@@ -325,44 +325,6 @@ void ImplementationUtilities::ZapHandleRange(i::Object** begin,
 #endif
 
 
-v8::Handle<v8::Primitive> ImplementationUtilities::Undefined() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (!EnsureInitializedForIsolate(isolate, "v8::Undefined()")) {
-    return v8::Handle<v8::Primitive>();
-  }
-  return v8::Handle<Primitive>(ToApi<Primitive>(
-      isolate->factory()->undefined_value()));
-}
-
-
-v8::Handle<v8::Primitive> ImplementationUtilities::Null() {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
-  if (!EnsureInitializedForIsolate(isolate, "v8::Null()"))
-      return v8::Handle<v8::Primitive>();
-  return v8::Handle<Primitive>(
-      ToApi<Primitive>(isolate->factory()->null_value()));
-}
-
-
-v8::Handle<v8::Boolean> ImplementationUtilities::True() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (!EnsureInitializedForIsolate(isolate, "v8::True()")) {
-    return v8::Handle<v8::Boolean>();
-  }
-  return v8::Handle<v8::Boolean>(ToApi<Boolean>(
-      isolate->factory()->true_value()));
-}
-
-
-v8::Handle<v8::Boolean> ImplementationUtilities::False() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (!EnsureInitializedForIsolate(isolate, "v8::False()")) {
-    return v8::Handle<v8::Boolean>();
-  }
-  return v8::Handle<v8::Boolean>(ToApi<Boolean>(
-      isolate->factory()->false_value()));
-}
-
 void V8::SetFlagsFromString(const char* str, int length) {
   i::FlagList::SetFlagsFromString(str, length);
 }
@@ -422,29 +384,41 @@ Extension::Extension(const char* name,
 
 v8::Handle<Primitive> Undefined() {
   i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate,  "Undefined");
-  return ImplementationUtilities::Undefined();
+  if (!EnsureInitializedForIsolate(isolate, "v8::Undefined()")) {
+    return v8::Handle<v8::Primitive>();
+  }
+  return v8::Handle<Primitive>(ToApi<Primitive>(
+      isolate->factory()->undefined_value()));
 }
 
 
 v8::Handle<Primitive> Null() {
   i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "Null");
-  return ImplementationUtilities::Null();
+  if (!EnsureInitializedForIsolate(isolate, "v8::Null()")) {
+    return v8::Handle<v8::Primitive>();
+  }
+  return v8::Handle<Primitive>(
+      ToApi<Primitive>(isolate->factory()->null_value()));
 }
 
 
 v8::Handle<Boolean> True() {
   i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "True");
-  return ImplementationUtilities::True();
+  if (!EnsureInitializedForIsolate(isolate, "v8::True()")) {
+    return v8::Handle<Boolean>();
+  }
+  return v8::Handle<Boolean>(
+      ToApi<Boolean>(isolate->factory()->true_value()));
 }
 
 
 v8::Handle<Boolean> False() {
   i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "False");
-  return ImplementationUtilities::False();
+  if (!EnsureInitializedForIsolate(isolate, "v8::False()")) {
+    return v8::Handle<Boolean>();
+  }
+  return v8::Handle<Boolean>(
+      ToApi<Boolean>(isolate->factory()->false_value()));
 }
 
 
@@ -5285,7 +5259,7 @@ Handle<Value> HeapGraphEdge::GetName() const {
           edge->index())));
     default: UNREACHABLE();
   }
-  return ImplementationUtilities::Undefined();
+  return v8::Undefined();
 }
 
 
