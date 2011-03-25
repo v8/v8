@@ -2800,8 +2800,12 @@ void FullCodeGenerator::EmitMathPow(ZoneList<Expression*>* args) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  MathPowStub stub;
-  __ CallStub(&stub);
+  if (masm()->isolate()->cpu_features()->IsSupported(SSE2)) {
+    MathPowStub stub;
+    __ CallStub(&stub);
+  } else {
+    __ CallRuntime(Runtime::kMath_pow, 2);
+  }
   context()->Plug(eax);
 }
 
