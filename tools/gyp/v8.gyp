@@ -438,6 +438,7 @@
             '../../src/objects.h',
             '../../src/parser.cc',
             '../../src/parser.h',
+            '../../src/platform-tls-mac.h',
             '../../src/platform-tls-win32.h',
             '../../src/platform-tls.h',
             '../../src/platform.h',

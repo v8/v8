@@ -25,26 +25,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform and architecture specific thread local store functions.
+#ifndef V8_PLATFORM_TLS_MAC_H_
+#define V8_PLATFORM_TLS_MAC_H_
 
-#ifndef V8_PLATFORM_TLS_H_
-#define V8_PLATFORM_TLS_H_
+#include "globals.h"
 
-#ifdef V8_FAST_TLS
+namespace v8 {
+namespace internal {
 
-// When fast TLS is requested we include the appropriate
-// implementation header.
-//
-// The implementation header defines V8_FAST_TLS_SUPPORTED if it
-// provides fast TLS support for the current platform and architecture
-// combination.
+#if defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_X64)
 
-#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
-#include "platform-tls-win32.h"
-#elif defined(__APPLE__)
-#include "platform-tls-mac.h"
+#define V8_FAST_TLS_SUPPORTED 1
+
+INLINE(intptr_t InternalGetExistingThreadLocal(intptr_t index));
+
+inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
+  // The constants below are taken from pthreads.s from the XNU kernel
+  // sources archive at www.opensource.apple.com.
+  intptr_t result;
+#if defined(V8_HOST_ARCH_IA32)
+  asm("movl %%gs:0x48(,%1,4), %0;"
+      :"=r"(result)  // Output must be a writable register.
+      :"0"(index));  // Input is the same as output.
+#else
+  asm("movq %%gs:0x60(,%1,8), %0;"
+      :"=r"(result)
+      :"0"(index));
+#endif
+  return result;
+}
+
 #endif
 
-#endif
+} }  // namespace v8::internal
 
-#endif  // V8_PLATFORM_TLS_H_
+#endif  // V8_PLATFORM_TLS_MAC_H_
