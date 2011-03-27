@@ -5230,8 +5230,9 @@ static MaybeObject* QuoteJsonString(Isolate* isolate,
   int final_length = static_cast<int>(
       write_cursor - reinterpret_cast<Char*>(
           new_string->address() + SeqAsciiString::kHeaderSize));
-  isolate->heap()->new_space()->ShrinkStringAtAllocationBoundary<StringType>(
-      new_string, final_length);
+  isolate->heap()->new_space()->
+      template ShrinkStringAtAllocationBoundary<StringType>(
+          new_string, final_length);
   return new_string;
 }
 

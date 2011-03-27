@@ -870,6 +870,14 @@
         >
       </File>
       <File
+        RelativePath="..\..\src\platform-tls-win32.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\platform-tls.h"
+        >
+      </File>
+      <File
         RelativePath="..\..\src\platform-win32.cc"
         >
       </File>

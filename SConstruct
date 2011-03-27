@@ -128,6 +128,9 @@ LIBRARY_FLAGS = {
     'inspector:on': {
       'CPPDEFINES':   ['INSPECTOR'],
     },
+    'fasttls:on': {
+      'CPPDEFINES':   ['V8_FAST_TLS'],
+    },
     'liveobjectlist:on': {
       'CPPDEFINES':   ['ENABLE_DEBUGGER_SUPPORT', 'INSPECTOR',
                        'LIVE_OBJECT_LIST', 'OBJECT_PRINT'],
@@ -784,6 +787,12 @@ SIMPLE_OPTIONS = {
     'values': ['on', 'off'],
     'default': 'off',
     'help': 'enable the disassembler to inspect generated code'
+  },
+  'fasttls': {
+    'values': ['on', 'off'],
+    'default': 'on',
+    'help': 'enable fast thread local storage support '
+            '(if available on the current architecture/platform)'
   },
   'sourcesignatures': {
     'values': ['MD5', 'timestamp'],

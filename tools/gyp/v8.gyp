@@ -41,6 +41,7 @@
           'ENABLE_LOGGING_AND_PROFILING',
           'ENABLE_DEBUGGER_SUPPORT',
           'ENABLE_VMSTATE_TRACKING',
+          'V8_FAST_TLS',
         ],
         'conditions': [
           ['OS!="mac"', {
@@ -437,6 +438,8 @@
             '../../src/objects.h',
             '../../src/parser.cc',
             '../../src/parser.h',
+            '../../src/platform-tls-win32.h',
+            '../../src/platform-tls.h',
             '../../src/platform.h',
             '../../src/preparse-data.cc',
             '../../src/preparse-data.h',
