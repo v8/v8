@@ -7585,9 +7585,9 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
   HandleScope scope(isolate);
-  Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
-  Handle<Object> this_handle(receiver);
-  Handle<JSObject> holder_handle(this);
+  Handle<InterceptorInfo> interceptor(GetIndexedInterceptor(), isolate);
+  Handle<Object> this_handle(receiver, isolate);
+  Handle<JSObject> holder_handle(this, isolate);
 
   if (!interceptor->getter()->IsUndefined()) {
     v8::IndexedPropertyGetter getter =

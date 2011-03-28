@@ -619,7 +619,7 @@ void Logger::ApiNamedPropertyAccess(const char* tag,
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   SmartPointer<char> property_name =
       String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  LOGGER->ApiEvent("api,%s,\"%s\",\"%s\"\n", tag, *class_name, *property_name);
+  ApiEvent("api,%s,\"%s\",\"%s\"\n", tag, *class_name, *property_name);
 #endif
 }
 
@@ -631,7 +631,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
   String* class_name_obj = holder->class_name();
   SmartPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  LOGGER->ApiEvent("api,%s,\"%s\",%u\n", tag, *class_name, index);
+  ApiEvent("api,%s,\"%s\",%u\n", tag, *class_name, index);
 #endif
 }
 
@@ -641,7 +641,7 @@ void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
   String* class_name_obj = object->class_name();
   SmartPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  LOGGER->ApiEvent("api,%s,\"%s\"\n", tag, *class_name);
+  ApiEvent("api,%s,\"%s\"\n", tag, *class_name);
 #endif
 }
 
@@ -649,7 +649,7 @@ void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
 void Logger::ApiEntryCall(const char* name) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!log_->IsEnabled() || !FLAG_log_api) return;
-  LOGGER->ApiEvent("api,%s\n", name);
+  ApiEvent("api,%s\n", name);
 #endif
 }
 

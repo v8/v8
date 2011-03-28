@@ -3240,14 +3240,16 @@ int Function::GetScriptLineNumber() const {
 
 
 int String::Length() const {
-  if (IsDeadCheck(i::Isolate::Current(), "v8::String::Length()")) return 0;
-  return Utils::OpenHandle(this)->length();
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (IsDeadCheck(str->GetIsolate(), "v8::String::Length()")) return 0;
+  return str->length();
 }
 
 
 int String::Utf8Length() const {
-  if (IsDeadCheck(i::Isolate::Current(), "v8::String::Utf8Length()")) return 0;
-  return Utils::OpenHandle(this)->Utf8Length();
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (IsDeadCheck(str->GetIsolate(), "v8::String::Utf8Length()")) return 0;
+  return str->Utf8Length();
 }
 
 
