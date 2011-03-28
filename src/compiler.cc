@@ -203,6 +203,10 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   Handle<Code> code(info->shared_info()->code());
   ASSERT(code->kind() == Code::FUNCTION);
 
+  // We should never arrive here if optimization has been disabled on the
+  // shared function info.
+  ASSERT(!info->shared_info()->optimization_disabled());
+
   // Fall back to using the full code generator if it's not possible
   // to use the Hydrogen-based optimizing compiler. We already have
   // generated code for this from the shared function object.
@@ -629,6 +633,11 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
     } else {
       ASSERT(!info->code().is_null());
       Handle<Code> code = info->code();
+      // Set optimizable to false if this is disallowed by the shared
+      // function info, e.g., we might have flushed the code and must
+      // reset this bit when lazy compiling the code again.
+      if (shared->optimization_disabled()) code->set_optimizable(false);
+
       Handle<JSFunction> function = info->closure();
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 
@@ -665,7 +674,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
         ASSERT(shared->is_compiled());
         shared->set_code_age(0);
 
-        if (V8::UseCrankshaft() && info->AllowOptimize()) {
+        if (info->AllowOptimize() && !shared->optimization_disabled()) {
           // If we're asked to always optimize, we compile the optimized
           // version of the function right away - unless the debugger is
           // active as it makes no sense to compile optimized code then.
