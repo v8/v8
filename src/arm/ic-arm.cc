@@ -968,7 +968,7 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
 
   // Find the end of the inlined code for handling the load if this is an
   // inlined IC call site.
-  Address inline_end_address;
+  Address inline_end_address = 0;
   if (InlinedICSiteMarker(address, &inline_end_address)
       != Assembler::PROPERTY_ACCESS_INLINED) {
     return false;
@@ -1008,7 +1008,7 @@ bool LoadIC::PatchInlinedContextualLoad(Address address,
                                         bool is_dont_delete) {
   // Find the end of the inlined code for handling the contextual load if
   // this is inlined IC call site.
-  Address inline_end_address;
+  Address inline_end_address = 0;
   int marker = InlinedICSiteMarker(address, &inline_end_address);
   if (!((marker == Assembler::PROPERTY_ACCESS_INLINED_CONTEXT) ||
         (marker == Assembler::PROPERTY_ACCESS_INLINED_CONTEXT_DONT_DELETE))) {
@@ -1049,7 +1049,7 @@ bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
 
   // Find the end of the inlined code for the store if there is an
   // inlined version of the store.
-  Address inline_end_address;
+  Address inline_end_address = 0;
   if (InlinedICSiteMarker(address, &inline_end_address)
       != Assembler::PROPERTY_ACCESS_INLINED) {
     return false;
@@ -1099,7 +1099,7 @@ bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
 bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
   if (V8::UseCrankshaft()) return false;
 
-  Address inline_end_address;
+  Address inline_end_address = 0;
   if (InlinedICSiteMarker(address, &inline_end_address)
       != Assembler::PROPERTY_ACCESS_INLINED) {
     return false;
@@ -1121,7 +1121,7 @@ bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
 
   // Find the end of the inlined code for handling the store if this is an
   // inlined IC call site.
-  Address inline_end_address;
+  Address inline_end_address = 0;
   if (InlinedICSiteMarker(address, &inline_end_address)
       != Assembler::PROPERTY_ACCESS_INLINED) {
     return false;
