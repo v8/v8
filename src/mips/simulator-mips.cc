@@ -1705,7 +1705,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
                 }
               }
               break;
-            case CEIL_W_D: // Round double to word towards positive infinity.
+            case CEIL_W_D:  // Round double to word towards positive infinity.
               {
                 double rounded = ceil(fs);
                 int32_t result = static_cast<int32_t>(rounded);

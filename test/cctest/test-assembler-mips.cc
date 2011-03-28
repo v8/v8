@@ -290,23 +290,23 @@ TEST(MIPS3) {
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
     __ ldc1(f6, MemOperand(a0, OFFSET_OF(T, b)) );
     __ add_d(f8, f4, f6);
-    __ sdc1(f8, MemOperand(a0, OFFSET_OF(T, c)) );   // c = a + b.
+    __ sdc1(f8, MemOperand(a0, OFFSET_OF(T, c)) );  // c = a + b.
 
     __ mov_d(f10, f8);  // c
     __ neg_d(f12, f6);  // -b
     __ sub_d(f10, f10, f12);
-    __ sdc1(f10, MemOperand(a0, OFFSET_OF(T, d)) );   // d = c - (-b).
+    __ sdc1(f10, MemOperand(a0, OFFSET_OF(T, d)) );  // d = c - (-b).
 
-    __ sdc1(f4, MemOperand(a0, OFFSET_OF(T, b)) );  // b = a.
+    __ sdc1(f4, MemOperand(a0, OFFSET_OF(T, b)) );   // b = a.
 
     __ li(t0, 120);
     __ mtc1(t0, f14);
     __ cvt_d_w(f14, f14);   // f14 = 120.0.
     __ mul_d(f10, f10, f14);
-    __ sdc1(f10, MemOperand(a0, OFFSET_OF(T, e)) );   // e = d * 120 = 1.8066e16.
+    __ sdc1(f10, MemOperand(a0, OFFSET_OF(T, e)) );  // e = d * 120 = 1.8066e16.
 
     __ div_d(f12, f10, f4);
-    __ sdc1(f12, MemOperand(a0, OFFSET_OF(T, f)) );   // f = e / a = 120.44.
+    __ sdc1(f12, MemOperand(a0, OFFSET_OF(T, f)) );  // f = e / a = 120.44.
 
     __ sqrt_d(f14, f12);
     __ sdc1(f14, MemOperand(a0, OFFSET_OF(T, g)) );

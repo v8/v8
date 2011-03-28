@@ -1476,8 +1476,9 @@ void Assembler::tlt(Register rs, Register rt, uint16_t code) {
 
 void Assembler::tltu(Register rs, Register rt, uint16_t code) {
   ASSERT(is_uint10(code));
-  Instr instr = 
-      SPECIAL | TLTU | rs.code() << kRsShift | rt.code() << kRtShift | code << 6;
+  Instr instr =
+      SPECIAL | TLTU | rs.code() << kRsShift
+      | rt.code() << kRtShift | code << 6;
   emit(instr);
 }
 

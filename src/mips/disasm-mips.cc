@@ -268,7 +268,7 @@ void Decoder::PrintCode(Instruction* instr) {
   switch (instr->FunctionFieldRaw()) {
     case BREAK: {
       int32_t code = instr->Bits(25, 6);
-      out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_, 
+      out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
                                       "0x%05x (%d)", code, code);
       break;
                 }
