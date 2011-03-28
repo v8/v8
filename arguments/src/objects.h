@@ -1871,12 +1871,17 @@ class JSObject: public HeapObject {
                                                             DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeleteElementWithInterceptor(uint32_t index);
 
-  // Deletion utilities taking an explicit backing store argument.
-  void DeleteFromFastElements(FixedArray* elements, uint32_t index);
-  MUST_USE_RESULT MaybeObject* DeleteFromDictionaryElements(
-      NumberDictionary* elements,
-      uint32_t index,
-      DeleteMode mode);
+  // Utilities taking an explicit backing store arguments.
+  MUST_USE_RESULT MaybeObject* DeleteFromElements(FixedArray* elements,
+                                                  ElementsKind kind,
+                                                  uint32_t index,
+                                                  DeleteMode mode);
+  bool ReferencesObjectFromElements(FixedArray* elements,
+                                    ElementsKind kind,
+                                    Object* object);
+  bool HasElementInElements(FixedArray* elements,
+                            ElementsKind kind,
+                            uint32_t index);
 
   PropertyAttributes GetPropertyAttributePostInterceptor(JSObject* receiver,
                                                          String* name,

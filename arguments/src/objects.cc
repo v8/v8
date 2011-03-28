@@ -2678,19 +2678,13 @@ MaybeObject* JSObject::DeleteElementPostInterceptor(uint32_t index,
                                                     DeleteMode mode) {
   Heap* heap = GetHeap();
   ASSERT(!HasExternalArrayElements());
+  // We don't have to handle strict mode deletion of non-configurable
+  // properties.
+  ASSERT(mode != STRICT_DELETION);
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
-      Object* obj;
-      { MaybeObject* maybe_obj = EnsureWritableFastElements();
-        if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-      }
-      uint32_t length = IsJSArray() ?
-      static_cast<uint32_t>(Smi::cast(JSArray::cast(this)->length())->value()) :
-      static_cast<uint32_t>(FixedArray::cast(elements())->length());
-      if (index < length) {
-        FixedArray::cast(elements())->set_the_hole(index);
-      }
-      break;
+      FixedArray* elements = FixedArray::cast(this->elements());
+      return DeleteFromElements(elements, FAST_ELEMENTS, index, mode);
     }
     case DICTIONARY_ELEMENTS: {
       NumberDictionary* dictionary = element_dictionary();
@@ -2752,34 +2746,38 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
 }
 
 
-void JSObject::DeleteFromFastElements(FixedArray* elements, uint32_t index) {
-  ASSERT(elements->map() != elements->GetHeap()->fixed_cow_array_map());
-  int length = IsJSArray()
-      ? Smi::cast(JSArray::cast(this)->length())->value()
-      : elements->length();
-  if (index < static_cast<uint32_t>(length)) {
-    elements->set_the_hole(index);
-  }
-}
-
-
-MaybeObject* JSObject::DeleteFromDictionaryElements(NumberDictionary* elements,
-                                                    uint32_t index,
-                                                    DeleteMode mode) {
+MaybeObject* JSObject::DeleteFromElements(FixedArray* elements,
+                                          ElementsKind kind,
+                                          uint32_t index,
+                                          DeleteMode mode) {
+  ASSERT(kind == FAST_ELEMENTS || kind == DICTIONARY_ELEMENTS);
   Isolate* isolate = GetIsolate();
-  int entry = elements->FindEntry(index);
-  if (entry != NumberDictionary::kNotFound) {
-    Object* result = elements->DeleteProperty(entry, mode);
-    if (mode == STRICT_DELETION && result == isolate->heap()->false_value()) {
-      // In strict mode, attempting to delete a non-configurable property
-      // throws an exception.
-      HandleScope scope(isolate);
-      Handle<Object> name = isolate->factory()->NewNumberFromUint(index);
-      Handle<Object> args[2] = { name, Handle<Object>(this) };
-      Handle<Object> error =
-          isolate->factory()->NewTypeError("strict_delete_property",
-                                           HandleVector(args, 2));
-      return isolate->Throw(*error);
+  if (kind == FAST_ELEMENTS) {
+    Object* object;
+    MaybeObject* maybe_object = EnsureWritableFastElements();
+    if (!maybe_object->ToObject(&object)) return maybe_object;
+    int length = IsJSArray()
+        ? Smi::cast(JSArray::cast(this)->length())->value()
+        : elements->length();
+    if (index < static_cast<uint32_t>(length)) {
+      elements->set_the_hole(index);
+    }
+  } else {
+    NumberDictionary* dictionary = NumberDictionary::cast(elements);
+    int entry = dictionary->FindEntry(index);
+    if (entry != NumberDictionary::kNotFound) {
+      Object* result = dictionary->DeleteProperty(entry, mode);
+      if (mode == STRICT_DELETION && result == isolate->heap()->false_value()) {
+        // In strict mode, attempting to delete a non-configurable property
+        // throws an exception.
+        HandleScope scope(isolate);
+        Handle<Object> name = isolate->factory()->NewNumberFromUint(index);
+        Handle<Object> args[2] = { name, Handle<Object>(this) };
+        Handle<Object> error =
+            isolate->factory()->NewTypeError("strict_delete_property",
+                                             HandleVector(args, 2));
+        return isolate->Throw(*error);
+      }
     }
   }
   return isolate->heap()->true_value();
@@ -2804,20 +2802,17 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
 
   if (HasIndexedInterceptor()) {
     // Skip interceptor if forcing deletion.
-    if (mode == FORCE_DELETION) {
-      return DeleteElementPostInterceptor(index, mode);
-    }
-    return DeleteElementWithInterceptor(index);
+    return (mode == FORCE_DELETION)
+        ? DeleteElementPostInterceptor(index, FORCE_DELETION)
+        : DeleteElementWithInterceptor(index);
   }
 
-  switch (GetElementsKind()) {
-    case FAST_ELEMENTS: {
-      Object* obj;
-      { MaybeObject* maybe_obj = EnsureWritableFastElements();
-        if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-      }
-      DeleteFromFastElements(FixedArray::cast(elements()), index);
-      break;
+  ElementsKind kind = GetElementsKind();
+  switch (kind) {
+    case FAST_ELEMENTS:
+    case DICTIONARY_ELEMENTS: {
+      FixedArray* elements = FixedArray::cast(this->elements());
+      return DeleteFromElements(elements, kind, index, mode);
     }
 
     case EXTERNAL_PIXEL_ELEMENTS:
@@ -2832,28 +2827,20 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
       // silently ignore here.
       break;
 
-    case DICTIONARY_ELEMENTS:
-      return DeleteFromDictionaryElements(element_dictionary(), index, mode);
-
     case NON_STRICT_ARGUMENTS_ELEMENTS: {
       FixedArray* parameter_map = FixedArray::cast(elements());
       uint32_t length = parameter_map->length();
       Object* probe =
           (index + 2) < length ? parameter_map->get(index + 2) : NULL;
-      if (probe != NULL && !probe->IsTheHole()) {
-        // TODO(kmillikin): We could check if this was the last aliased
-        // parameter, and revert to normal elements in that case.  That
-        // would enable GC of the context.
-        parameter_map->set_the_hole(index + 2);
-      } else {
+      if (probe == NULL || probe->IsTheHole()) {
         FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-        if (arguments->IsDictionary()) {
-          NumberDictionary* dictionary = NumberDictionary::cast(arguments);
-          return DeleteFromDictionaryElements(dictionary, index, mode);
-        } else {
-          DeleteFromFastElements(arguments, index);
-        }
+        kind = arguments->IsDictionary() ? DICTIONARY_ELEMENTS : FAST_ELEMENTS;
+        return DeleteFromElements(arguments, kind, index, mode);
       }
+      // TODO(kmillikin): We could check if this was the last aliased
+      // parameter, and revert to normal elements in that case.  That
+      // would enable GC of the context.
+      parameter_map->set_the_hole(index + 2);
       break;
     }
   }
@@ -2918,6 +2905,26 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
 }
 
 
+bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
+                                            ElementsKind kind,
+                                            Object* object) {
+  ASSERT(kind == FAST_ELEMENTS || kind == DICTIONARY_ELEMENTS);
+  if (kind == FAST_ELEMENTS) {
+    int length = IsJSArray()
+        ? Smi::cast(JSArray::cast(this)->length())->value()
+        : elements->length();
+    for (int i = 0; i < length; ++i) {
+      Object* element = elements->get(i);
+      if (!element->IsTheHole() && element == object) return true;
+    }
+  } else {
+    Object* key = NumberDictionary::cast(elements)->SlowReverseLookup(object);
+    if (!key->IsUndefined()) return true;
+  }
+  return false;
+}
+
+
 // Check whether this object references another object.
 bool JSObject::ReferencesObject(Object* obj) {
   Heap* heap = GetHeap();
@@ -2940,7 +2947,8 @@ bool JSObject::ReferencesObject(Object* obj) {
   }
 
   // Check if the object is among the indexed properties.
-  switch (GetElementsKind()) {
+  ElementsKind kind = GetElementsKind();
+  switch (kind) {
     case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
@@ -2952,23 +2960,10 @@ bool JSObject::ReferencesObject(Object* obj) {
       // Raw pixels and external arrays do not reference other
       // objects.
       break;
-    case FAST_ELEMENTS: {
-      int length = IsJSArray() ?
-          Smi::cast(JSArray::cast(this)->length())->value() :
-          FixedArray::cast(elements())->length();
-      for (int i = 0; i < length; i++) {
-        Object* element = FixedArray::cast(elements())->get(i);
-        if (!element->IsTheHole() && element == obj) {
-          return true;
-        }
-      }
-      break;
-    }
+    case FAST_ELEMENTS:
     case DICTIONARY_ELEMENTS: {
-      key = element_dictionary()->SlowReverseLookup(obj);
-      if (!key->IsUndefined()) {
-        return true;
-      }
+      FixedArray* elements = FixedArray::cast(this->elements());
+      if (ReferencesObjectFromElements(elements, kind, obj)) return true;
       break;
     }
     case NON_STRICT_ARGUMENTS_ELEMENTS: {
@@ -2981,17 +2976,8 @@ bool JSObject::ReferencesObject(Object* obj) {
       }
       // Check the arguments.
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-      if (arguments->IsDictionary()) {
-        NumberDictionary* dictionary = NumberDictionary::cast(arguments);
-        key = dictionary->SlowReverseLookup(obj);
-        if (key != heap->undefined_value()) return true;
-      } else {
-        int count = arguments->length();
-        for (int i = 0; i < count; ++i) {
-          Object* value = arguments->get(i);
-          if (!value->IsTheHole() && value == obj) return true;
-        }
-      }
+      kind = arguments->IsDictionary() ? DICTIONARY_ELEMENTS : FAST_ELEMENTS;
+      if (ReferencesObjectFromElements(arguments, kind, obj)) return true;
       break;
     }
   }
@@ -7139,6 +7125,28 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
 }
 
 
+bool JSObject::HasElementInElements(FixedArray* elements,
+                                    ElementsKind kind,
+                                    uint32_t index) {
+  ASSERT(kind == FAST_ELEMENTS || kind == DICTIONARY_ELEMENTS);
+  if (kind == FAST_ELEMENTS) {
+    int length = IsJSArray()
+        ? Smi::cast(JSArray::cast(this)->length())->value()
+        : elements->length();
+    if (index < static_cast<uint32_t>(length) &&
+        !elements->get(index)->IsTheHole()) {
+      return true;
+    }
+  } else {
+    if (NumberDictionary::cast(elements)->FindEntry(index) !=
+        NumberDictionary::kNotFound) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
   Heap* heap = GetHeap();
 
@@ -7154,14 +7162,12 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
     return HasElementWithInterceptor(receiver, index);
   }
 
-  switch (GetElementsKind()) {
-    case FAST_ELEMENTS: {
-      uint32_t length = IsJSArray() ?
-          static_cast<uint32_t>
-              (Smi::cast(JSArray::cast(this)->length())->value()) :
-          static_cast<uint32_t>(FixedArray::cast(elements())->length());
-      if ((index < length) &&
-          !FixedArray::cast(elements())->get(index)->IsTheHole()) return true;
+  ElementsKind kind = GetElementsKind();
+  switch (kind) {
+    case FAST_ELEMENTS:
+    case DICTIONARY_ELEMENTS: {
+      FixedArray* elements = FixedArray::cast(this->elements());
+      if (HasElementInElements(elements, kind, index)) return true;
       break;
     }
     case EXTERNAL_PIXEL_ELEMENTS: {
@@ -7184,13 +7190,6 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
       }
       break;
     }
-    case DICTIONARY_ELEMENTS: {
-      if (element_dictionary()->FindEntry(index)
-          != NumberDictionary::kNotFound) {
-        return true;
-      }
-      break;
-    }
     case NON_STRICT_ARGUMENTS_ELEMENTS: {
       FixedArray* parameter_map = FixedArray::cast(elements());
       uint32_t length = parameter_map->length();
@@ -7200,15 +7199,8 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
 
       // Not a mapped parameter, check the arguments.
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-      if (arguments->IsDictionary()) {
-        if (NumberDictionary::cast(arguments)->FindEntry(index) !=
-            NumberDictionary::kNotFound) {
-          return true;
-        }
-      } else if (index < static_cast<uint32_t>(arguments->length()) &&
-                 !arguments->get(index)->IsTheHole()) {
-        return true;
-      }
+      kind = arguments->IsDictionary() ? DICTIONARY_ELEMENTS : FAST_ELEMENTS;
+      if (HasElementInElements(arguments, kind, index)) return true;
       break;
     }
   }
