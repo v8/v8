@@ -1,3 +1,12 @@
+2011-03-28: Version 3.2.5
+
+        Fixed build with Irregexp interpreter (issue 1266). 
+
+        Added Crankshaft support for external arrays.
+
+        Fixed two potential crash bugs.
+
+
 2011-03-23: Version 3.2.4
 
         Added isolates which allows several V8 instances in the same process.
