@@ -344,7 +344,7 @@ v8::Handle<Value> ThrowException(v8::Handle<v8::Value> value) {
   // If we're passed an empty handle, we throw an undefined exception
   // to deal more gracefully with out of memory situations.
   if (value.IsEmpty()) {
-    isolate->ScheduleThrow(HEAP->undefined_value());
+    isolate->ScheduleThrow(isolate->heap()->undefined_value());
   } else {
     isolate->ScheduleThrow(*Utils::OpenHandle(*value));
   }
@@ -2018,9 +2018,10 @@ bool Value::IsUint32() const {
 
 
 bool Value::IsDate() const {
-  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsDate()")) return false;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Value::IsDate()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return obj->HasSpecificClassOf(HEAP->Date_symbol());
+  return obj->HasSpecificClassOf(isolate->heap()->Date_symbol());
 }
 
 
@@ -2210,9 +2211,10 @@ void v8::Array::CheckCast(Value* that) {
 
 
 void v8::Date::CheckCast(v8::Value* that) {
-  if (IsDeadCheck(i::Isolate::Current(), "v8::Date::Cast()")) return;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Date::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  ApiCheck(obj->HasSpecificClassOf(HEAP->Date_symbol()),
+  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Date_symbol()),
            "v8::Date::Cast()",
            "Could not convert to date");
 }
@@ -3579,11 +3581,12 @@ HeapStatistics::HeapStatistics(): total_heap_size_(0),
 
 
 void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
-  heap_statistics->set_total_heap_size(HEAP->CommittedMemory());
+  i::Heap* heap = i::Isolate::Current()->heap();
+  heap_statistics->set_total_heap_size(heap->CommittedMemory());
   heap_statistics->set_total_heap_size_executable(
-      HEAP->CommittedMemoryExecutable());
-  heap_statistics->set_used_heap_size(HEAP->SizeOfObjects());
-  heap_statistics->set_heap_size_limit(HEAP->MaxReserved());
+      heap->CommittedMemoryExecutable());
+  heap_statistics->set_used_heap_size(heap->SizeOfObjects());
+  heap_statistics->set_heap_size_limit(heap->MaxReserved());
 }
 
 
@@ -3596,14 +3599,16 @@ bool v8::V8::IdleNotification() {
 
 
 void v8::V8::LowMemoryNotification() {
-  if (!i::Isolate::Current()->IsInitialized()) return;
-  HEAP->CollectAllGarbage(true);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!isolate->IsInitialized()) return;
+  isolate->heap()->CollectAllGarbage(true);
 }
 
 
 int v8::V8::ContextDisposedNotification() {
-  if (!i::Isolate::Current()->IsInitialized()) return 0;
-  return HEAP->NotifyContextDisposed();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!isolate->IsInitialized()) return 0;
+  return isolate->heap()->NotifyContextDisposed();
 }
 
 
@@ -3665,7 +3670,8 @@ Persistent<Context> v8::Context::New(
         proxy_constructor->set_needs_access_check(
             global_constructor->needs_access_check());
         global_constructor->set_needs_access_check(false);
-        global_constructor->set_access_check_info(HEAP->undefined_value());
+        global_constructor->set_access_check_info(
+            isolate->heap()->undefined_value());
       }
     }
 
@@ -4346,7 +4352,7 @@ bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
   NeanderObject obj(2);
   obj.set(0, *isolate->factory()->NewProxy(FUNCTION_ADDR(that)));
   obj.set(1, data.IsEmpty() ?
-             HEAP->undefined_value() :
+             isolate->heap()->undefined_value() :
              *Utils::OpenHandle(*data));
   listeners.add(obj.value());
   return true;
@@ -4366,7 +4372,7 @@ void V8::RemoveMessageListeners(MessageCallback that) {
     NeanderObject listener(i::JSObject::cast(listeners.get(i)));
     i::Handle<i::Proxy> callback_obj(i::Proxy::cast(listener.get(0)));
     if (callback_obj->proxy() == FUNCTION_ADDR(that)) {
-      listeners.set(i, HEAP->undefined_value());
+      listeners.set(i, isolate->heap()->undefined_value());
     }
   }
 }
@@ -4536,21 +4542,22 @@ bool V8::IsProfilerPaused() {
 
 void V8::ResumeProfilerEx(int flags, int tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
   if (flags & PROFILER_MODULE_HEAP_SNAPSHOT) {
     // Snapshot mode: resume modules, perform GC, then pause only
     // those modules which haven't been started prior to making a
     // snapshot.
 
     // Make a GC prior to taking a snapshot.
-    HEAP->CollectAllGarbage(false);
+    isolate->heap()->CollectAllGarbage(false);
     // Reset snapshot flag and CPU module flags.
     flags &= ~(PROFILER_MODULE_HEAP_SNAPSHOT | PROFILER_MODULE_CPU);
-    const int current_flags = LOGGER->GetActiveProfilerModules();
-    LOGGER->ResumeProfiler(flags, tag);
-    HEAP->CollectAllGarbage(false);
-    LOGGER->PauseProfiler(~current_flags & flags, tag);
+    const int current_flags = isolate->logger()->GetActiveProfilerModules();
+    isolate->logger()->ResumeProfiler(flags, tag);
+    isolate->heap()->CollectAllGarbage(false);
+    isolate->logger()->PauseProfiler(~current_flags & flags, tag);
   } else {
-    LOGGER->ResumeProfiler(flags, tag);
+    isolate->logger()->ResumeProfiler(flags, tag);
   }
 #endif
 }
