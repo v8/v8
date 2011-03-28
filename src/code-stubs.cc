@@ -37,9 +37,10 @@ namespace v8 {
 namespace internal {
 
 bool CodeStub::FindCodeInCache(Code** code_out) {
-  int index = HEAP->code_stubs()->FindEntry(GetKey());
+  Heap* heap = Isolate::Current()->heap();
+  int index = heap->code_stubs()->FindEntry(GetKey());
   if (index != NumberDictionary::kNotFound) {
-    *code_out = Code::cast(HEAP->code_stubs()->ValueAt(index));
+    *code_out = Code::cast(heap->code_stubs()->ValueAt(index));
     return true;
   }
   return false;
@@ -86,9 +87,12 @@ int CodeStub::GetCodeKind() {
 
 
 Handle<Code> CodeStub::GetCode() {
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
   Code* code;
   if (!FindCodeInCache(&code)) {
-    v8::HandleScope scope;
+    HandleScope scope(isolate);
 
     // Generate the new code.
     MacroAssembler masm(NULL, 256);
@@ -103,24 +107,24 @@ Handle<Code> CodeStub::GetCode() {
         static_cast<Code::Kind>(GetCodeKind()),
         InLoop(),
         GetICState());
-    Handle<Code> new_object = FACTORY->NewCode(
+    Handle<Code> new_object = factory->NewCode(
         desc, flags, masm.CodeObject(), NeedsImmovableCode());
     RecordCodeGeneration(*new_object, &masm);
     FinishCode(*new_object);
 
     // Update the dictionary and the root in Heap.
     Handle<NumberDictionary> dict =
-        FACTORY->DictionaryAtNumberPut(
-            Handle<NumberDictionary>(HEAP->code_stubs()),
+        factory->DictionaryAtNumberPut(
+            Handle<NumberDictionary>(heap->code_stubs()),
             GetKey(),
             new_object);
-    HEAP->public_set_code_stubs(*dict);
+    heap->public_set_code_stubs(*dict);
 
     code = *new_object;
   }
 
-  ASSERT(!NeedsImmovableCode() || HEAP->lo_space()->Contains(code));
-  return Handle<Code>(code);
+  ASSERT(!NeedsImmovableCode() || heap->lo_space()->Contains(code));
+  return Handle<Code>(code, isolate);
 }
 
 
@@ -130,6 +134,7 @@ MaybeObject* CodeStub::TryGetCode() {
     // Generate the new code.
     MacroAssembler masm(NULL, 256);
     GenerateCode(&masm);
+    Heap* heap = masm.isolate()->heap();
 
     // Create the code object.
     CodeDesc desc;
@@ -142,7 +147,7 @@ MaybeObject* CodeStub::TryGetCode() {
         GetICState());
     Object* new_object;
     { MaybeObject* maybe_new_object =
-          HEAP->CreateCode(desc, flags, masm.CodeObject());
+          heap->CreateCode(desc, flags, masm.CodeObject());
       if (!maybe_new_object->ToObject(&new_object)) return maybe_new_object;
     }
     code = Code::cast(new_object);
@@ -151,9 +156,9 @@ MaybeObject* CodeStub::TryGetCode() {
 
     // Try to update the code cache but do not fail if unable.
     MaybeObject* maybe_new_object =
-        HEAP->code_stubs()->AtNumberPut(GetKey(), code);
+        heap->code_stubs()->AtNumberPut(GetKey(), code);
     if (maybe_new_object->ToObject(&new_object)) {
-      HEAP->public_set_code_stubs(NumberDictionary::cast(new_object));
+      heap->public_set_code_stubs(NumberDictionary::cast(new_object));
     }
   }
 
