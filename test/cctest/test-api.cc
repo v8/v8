@@ -3870,10 +3870,8 @@ THREADED_TEST(ExtensibleOnUndetectable) {
 
   source = v8_str("undetectable.y = 2000;");
   script = Script::Compile(source);
-  v8::TryCatch try_catch;
   Local<Value> result = script->Run();
-  CHECK(result.IsEmpty());
-  CHECK(try_catch.HasCaught());
+  ExpectBoolean("undetectable.y == undefined", true);
 }
 
 

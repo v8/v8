@@ -1719,7 +1719,8 @@ class JSObject: public HeapObject {
   // Add a property to an object.
   MUST_USE_RESULT MaybeObject* AddProperty(String* name,
                                            Object* value,
-                                           PropertyAttributes attributes);
+                                           PropertyAttributes attributes,
+                                           StrictModeFlag strict_mode);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties

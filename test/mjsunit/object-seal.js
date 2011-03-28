@@ -75,12 +75,8 @@ assertTrue(Object.isSealed(obj));
 assertFalse(Object.isFrozen(obj));
 
 // We should not allow new properties to be added.
-try {
-   obj.foo = 42;
-   assertUnreachable();
-} catch(e) {
-  assertTrue(/object is not extensible/.test(e));
-}
+obj.foo = 42;
+assertEquals(obj.foo, undefined);
 
 desc = Object.getOwnPropertyDescriptor(obj, 'x');
 assertTrue(desc.writable);
@@ -125,13 +121,8 @@ assertEquals(undefined, desc.value);
 assertEquals(set, desc.set);
 assertEquals(get, desc.get);
 
-try {
-  obj2.foo = 42;
-  assertUnreachable();
-} catch(e) {
-  assertTrue(/object is not extensible/.test(e));
-}
-
+obj2.foo = 42;
+assertEquals(obj2.foo, undefined);
 
 // Test seal on arrays.
 var arr = new Array(42,43);
