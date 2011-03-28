@@ -163,18 +163,23 @@ SOURCES = {
     arm/assembler-arm.cc
     """),
   'arch:mips': Split("""
+    jump-target-light.cc
+    virtual-frame-light.cc
     mips/assembler-mips.cc
     mips/builtins-mips.cc
+    mips/code-stubs-mips.cc
     mips/codegen-mips.cc
     mips/constants-mips.cc
     mips/cpu-mips.cc
     mips/debug-mips.cc
+    mips/deoptimizer-mips.cc
     mips/disasm-mips.cc
-    mips/full-codegen-mips.cc
     mips/frames-mips.cc
+    mips/full-codegen-mips.cc
     mips/ic-mips.cc
     mips/jump-target-mips.cc
     mips/macro-assembler-mips.cc
+    mips/regexp-macro-assembler-mips.cc
     mips/register-allocator-mips.cc
     mips/stub-cache-mips.cc
     mips/virtual-frame-mips.cc

@@ -224,14 +224,37 @@ LIBRARY_FLAGS = {
     },
     'arch:mips': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
+      'mips_arch_variant:mips32r2': {
+        'CPPDEFINES':    ['_MIPS_ARCH_MIPS32R2']
+      },
       'simulator:none': {
-        'CCFLAGS':      ['-EL', '-mips32r2', '-Wa,-mips32r2', '-fno-inline'],
-        'LDFLAGS':      ['-EL']
+        'CCFLAGS':      ['-EL'],
+        'LINKFLAGS':    ['-EL'],
+        'mips_arch_variant:mips32r2': {
+          'CCFLAGS':      ['-mips32r2', '-Wa,-mips32r2']
+        },
+        'mips_arch_variant:mips32r1': {
+          'CCFLAGS':      ['-mips32', '-Wa,-mips32']
+        },
+        'library:static': {
+          'LINKFLAGS':    ['-static', '-static-libgcc']
+        },
+        'mipsabi:softfloat': {
+          'CCFLAGS':      ['-msoft-float'],
+          'LINKFLAGS':    ['-msoft-float']
+        },
+        'mipsabi:hardfloat': {
+          'CCFLAGS':      ['-mhard-float'],
+          'LINKFLAGS':    ['-mhard-float']
+        }
       }
     },
     'simulator:mips': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32'],
+      'mipsabi:softfloat': {
+        'CPPDEFINES':    ['__mips_soft_float=1'],
+      }
     },
     'arch:x64': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
@@ -345,6 +368,9 @@ V8_EXTRA_FLAGS = {
     },
     'arch:mips': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
+      'mips_arch_variant:mips32r2': {
+        'CPPDEFINES':    ['_MIPS_ARCH_MIPS32R2']
+      },
     },
     'disassembler:on': {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
@@ -519,10 +545,29 @@ SAMPLE_FLAGS = {
     },
     'arch:mips': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
+      'mips_arch_variant:mips32r2': {
+        'CPPDEFINES':    ['_MIPS_ARCH_MIPS32R2']
+      },
       'simulator:none': {
-        'CCFLAGS':      ['-EL', '-mips32r2', '-Wa,-mips32r2', '-fno-inline'],
+        'CCFLAGS':      ['-EL'],
         'LINKFLAGS':    ['-EL'],
-        'LDFLAGS':      ['-EL']
+        'mips_arch_variant:mips32r2': {
+          'CCFLAGS':      ['-mips32r2', '-Wa,-mips32r2']
+        },
+        'mips_arch_variant:mips32r1': {
+          'CCFLAGS':      ['-mips32', '-Wa,-mips32']
+        },
+        'library:static': {
+          'LINKFLAGS':    ['-static', '-static-libgcc']
+        },
+        'mipsabi:softfloat': {
+          'CCFLAGS':      ['-msoft-float'],
+          'LINKFLAGS':    ['-msoft-float']
+        },
+        'mipsabi:hardfloat': {
+          'CCFLAGS':      ['-mhard-float'],
+          'LINKFLAGS':    ['-mhard-float']
+        }
       }
     },
     'simulator:arm': {
@@ -531,7 +576,10 @@ SAMPLE_FLAGS = {
     },
     'simulator:mips': {
       'CCFLAGS':      ['-m32'],
-      'LINKFLAGS':    ['-m32']
+      'LINKFLAGS':    ['-m32'],
+      'mipsabi:softfloat': {
+        'CPPDEFINES':    ['__mips_soft_float=1'],
+      }
     },
     'mode:release': {
       'CCFLAGS':      ['-O2']
@@ -818,6 +866,16 @@ SIMPLE_OPTIONS = {
     'values': ['off', 'instrument', 'optimize'],
     'default': 'off',
     'help': 'select profile guided optimization variant',
+  },
+  'mipsabi': {
+    'values': ['hardfloat', 'softfloat', 'none'],
+    'default': 'hardfloat',
+    'help': 'generate calling conventiont according to selected mips ABI'
+  },
+  'mips_arch_variant': {
+    'values': ['mips32r2', 'mips32r1'],
+    'default': 'mips32r2',
+    'help': 'mips variant'
   }
 }
 
@@ -1014,11 +1072,12 @@ def PostprocessOptions(options, os):
     if 'msvcltcg' in ARGUMENTS:
       print "Warning: forcing msvcltcg on as it is required for pgo (%s)" % options['pgo']
     options['msvcltcg'] = 'on'
-  if options['arch'] == 'mips':
-    if ('regexp' in ARGUMENTS) and options['regexp'] == 'native':
-      # Print a warning if native regexp is specified for mips
-      print "Warning: forcing regexp to interpreted for mips"
-    options['regexp'] = 'interpreted'
+    if (options['simulator'] == 'mips' and options['mipsabi'] != 'softfloat'):
+      # Print a warning if soft-float ABI is not selected for mips simulator
+      print "Warning: forcing soft-float mips ABI when running on simulator"
+      options['mipsabi'] = 'softfloat'
+    if (options['mipsabi'] != 'none') and (options['arch'] != 'mips') and (options['simulator'] != 'mips'):
+      options['mipsabi'] = 'none'
   if options['liveobjectlist'] == 'on':
     if (options['debuggersupport'] != 'on') or (options['mode'] == 'release'):
       # Print a warning that liveobjectlist will implicitly enable the debugger

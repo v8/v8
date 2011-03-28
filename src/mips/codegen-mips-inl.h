@@ -29,6 +29,8 @@
 #ifndef V8_MIPS_CODEGEN_MIPS_INL_H_
 #define V8_MIPS_CODEGEN_MIPS_INL_H_
 
+#include "virtual-frame-mips.h"
+
 namespace v8 {
 namespace internal {
 
@@ -42,23 +44,15 @@ void DeferredCode::Jump() {
 }
 
 
+// Note: this has been hacked for submisson. Mips branches require two
+//  additional operands: Register src1, const Operand& src2.
+void DeferredCode::Branch(Condition cond) {
+  __ Branch(&entry_label_, cond, zero_reg, Operand(0));
+}
+
+
 void Reference::GetValueAndSpill() {
   GetValue();
-}
-
-
-void CodeGenerator::VisitAndSpill(Statement* statement) {
-  Visit(statement);
-}
-
-
-void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
-  VisitStatements(statements);
-}
-
-
-void CodeGenerator::LoadAndSpill(Expression* expression) {
-  Load(expression);
 }
 
 

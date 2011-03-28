@@ -25,66 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// CPU specific code for arm independent of OS goes here.
+#ifndef V8_VIRTUAL_FRAME_MIPS_INL_H_
+#define V8_VIRTUAL_FRAME_MIPS_INL_H_
 
-#include <sys/syscall.h>
-#include <unistd.h>
-
-#ifdef __mips
-#include <asm/cachectl.h>
-#endif  // #ifdef __mips
-
-#include "v8.h"
-
-#if defined(V8_TARGET_ARCH_MIPS)
-
-#include "cpu.h"
-#include "macro-assembler.h"
-
-#include "simulator.h"  // For cache flushing.
+#include "assembler-mips.h"
+#include "virtual-frame-mips.h"
 
 namespace v8 {
 namespace internal {
 
 
-void CPU::Setup() {
-  CpuFeatures* cpu_features = Isolate::Current()->cpu_features();
-  cpu_features->Probe(true);
-  if (!cpu_features->IsSupported(FPU) || Serializer::enabled()) {
-    V8::DisableCrankshaft();
-  }
+MemOperand VirtualFrame::ParameterAt(int index) {
+  UNIMPLEMENTED_MIPS();
+  return MemOperand(zero_reg, 0);
 }
 
 
-void CPU::FlushICache(void* start, size_t size) {
-#if !defined (USE_SIMULATOR)
-  int res;
-
-  // See http://www.linux-mips.org/wiki/Cacheflush_Syscall
-  res = syscall(__NR_cacheflush, start, size, ICACHE);
-
-  if (res) {
-    V8_Fatal(__FILE__, __LINE__, "Failed to flush the instruction cache");
-  }
-
-#else  // USE_SIMULATOR.
-  // Not generating mips instructions for C-code. This means that we are
-  // building a mips emulator based target.  We should notify the simulator
-  // that the Icache was flushed.
-  // None of this code ends up in the snapshot so there are no issues
-  // around whether or not to generate the code when building snapshots.
-  Simulator::FlushICache(Isolate::Current()->simulator_i_cache(), start, size);
-#endif  // USE_SIMULATOR.
+// The receiver frame slot.
+MemOperand VirtualFrame::Receiver() {
+  UNIMPLEMENTED_MIPS();
+  return MemOperand(zero_reg, 0);
 }
 
 
-void CPU::DebugBreak() {
-#ifdef __mips
-  asm volatile("break");
-#endif  // #ifdef __mips
+void VirtualFrame::Forget(int count) {
+  UNIMPLEMENTED_MIPS();
 }
 
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_MIPS
+#endif  // V8_VIRTUAL_FRAME_MIPS_INL_H_

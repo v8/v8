@@ -382,7 +382,8 @@ Isolate::Isolate()
   zone_.isolate_ = this;
   stack_guard_.isolate_ = this;
 
-#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
+#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
+    defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
   simulator_initialized_ = false;
   simulator_i_cache_ = NULL;
   simulator_redirection_ = NULL;
@@ -658,10 +659,8 @@ bool Isolate::Init(Deserializer* des) {
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
-#if defined(V8_TARGET_ARCH_ARM)
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
   Simulator::Initialize();
-#elif defined(V8_TARGET_ARCH_MIPS)
-  ::assembler::mips::Simulator::Initialize();
 #endif
 #endif
 

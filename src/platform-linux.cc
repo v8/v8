@@ -97,6 +97,10 @@ uint64_t OS::CpuFeaturesImpliedByPlatform() {
   return 1u << VFP3;
 #elif CAN_USE_ARMV7_INSTRUCTIONS
   return 1u << ARMv7;
+#elif(defined(__mips_hard_float) && __mips_hard_float != 0)
+    // Here gcc is telling us that we are on an MIPS and gcc is assuming that we
+    // have FPU instructions.  If gcc can assume it then so can we.
+    return 1u << FPU;
 #else
   return 0;  // Linux runs on anything.
 #endif
@@ -175,6 +179,58 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
 #endif  // def __arm__
 
 
+#ifdef __mips__
+bool OS::MipsCpuHasFeature(CpuFeature feature) {
+  const char* search_string = NULL;
+  const char* file_name = "/proc/cpuinfo";
+  // Simple detection of FPU at runtime for Linux.
+  // It is based on /proc/cpuinfo, which reveals hardware configuration
+  // to user-space applications.  According to MIPS (early 2010), no similar
+  // facility is universally available on the MIPS architectures,
+  // so it's up to individual OSes to provide such.
+  //
+  // This is written as a straight shot one pass parser
+  // and not using STL string and ifstream because,
+  // on Linux, it's reading from a (non-mmap-able)
+  // character special device.
+
+  switch (feature) {
+    case FPU:
+      search_string = "FPU";
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  FILE* f = NULL;
+  const char* what = search_string;
+
+  if (NULL == (f = fopen(file_name, "r")))
+    return false;
+
+  int k;
+  while (EOF != (k = fgetc(f))) {
+    if (k == *what) {
+      ++what;
+      while ((*what != '\0') && (*what == fgetc(f))) {
+        ++what;
+      }
+      if (*what == '\0') {
+        fclose(f);
+        return true;
+      } else {
+        what = search_string;
+      }
+    }
+  }
+  fclose(f);
+
+  // Did not find string in the proc file.
+  return false;
+}
+#endif  // def __mips__
+
+
 int OS::ActivationFrameAlignment() {
 #ifdef V8_TARGET_ARCH_ARM
   // On EABI ARM targets this is required for fp correctness in the
@@ -190,8 +246,9 @@ int OS::ActivationFrameAlignment() {
 
 
 void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
-#if defined(V8_TARGET_ARCH_ARM) && defined(__arm__)
-  // Only use on ARM hardware.
+#if (defined(V8_TARGET_ARCH_ARM) && defined(__arm__)) || \
+    (defined(V8_TARGET_ARCH_MIPS) && defined(__mips__))
+  // Only use on ARM or MIPS hardware.
   MemoryBarrier();
 #else
   __asm__ __volatile__("" : : : "memory");
@@ -860,8 +917,9 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample->fp = reinterpret_cast<Address>(mcontext.arm_fp);
 #endif
 #elif V8_HOST_ARCH_MIPS
-  // Implement this on MIPS.
-  UNIMPLEMENTED();
+  sample.pc = reinterpret_cast<Address>(mcontext.pc);
+  sample.sp = reinterpret_cast<Address>(mcontext.gregs[29]);
+  sample.fp = reinterpret_cast<Address>(mcontext.gregs[30]);
 #endif
   sampler->SampleStack(sample);
   sampler->Tick(sample);

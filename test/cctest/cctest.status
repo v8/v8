@@ -79,12 +79,15 @@ test-compiler: SKIP
 test-cpu-profiler: SKIP
 test-debug: SKIP
 test-decls: SKIP
+test-deoptimization: SKIP
 test-func-name-inference: SKIP
 test-heap: SKIP
 test-heap-profiler: SKIP
 test-log: SKIP
 test-log-utils: SKIP
 test-mark-compact: SKIP
+test-parsing: SKIP
+test-profile-generator: SKIP
 test-regexp: SKIP
 test-serialize: SKIP
 test-sockets: SKIP
