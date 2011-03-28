@@ -104,14 +104,14 @@ TEST(ExternalReferenceEncoder) {
   isolate->stats_table()->SetCounterFunction(counter_function);
   HEAP->Setup(false);
   ExternalReferenceEncoder encoder;
-  CHECK_EQ(make_code(BUILTIN, Builtins::ArrayCode),
-           Encode(encoder, Builtins::ArrayCode));
+  CHECK_EQ(make_code(BUILTIN, Builtins::kArrayCode),
+           Encode(encoder, Builtins::kArrayCode));
   CHECK_EQ(make_code(v8::internal::RUNTIME_FUNCTION, Runtime::kAbort),
            Encode(encoder, Runtime::kAbort));
   CHECK_EQ(make_code(IC_UTILITY, IC::kLoadCallbackProperty),
            Encode(encoder, IC_Utility(IC::kLoadCallbackProperty)));
   ExternalReference keyed_load_function_prototype =
-      ExternalReference(COUNTERS->keyed_load_function_prototype());
+      ExternalReference(isolate->counters()->keyed_load_function_prototype());
   CHECK_EQ(make_code(STATS_COUNTER, Counters::k_keyed_load_function_prototype),
            encoder.Encode(keyed_load_function_prototype.address()));
   ExternalReference the_hole_value_location =
@@ -144,15 +144,15 @@ TEST(ExternalReferenceDecoder) {
   isolate->stats_table()->SetCounterFunction(counter_function);
   HEAP->Setup(false);
   ExternalReferenceDecoder decoder;
-  CHECK_EQ(AddressOf(Builtins::ArrayCode),
-           decoder.Decode(make_code(BUILTIN, Builtins::ArrayCode)));
+  CHECK_EQ(AddressOf(Builtins::kArrayCode),
+           decoder.Decode(make_code(BUILTIN, Builtins::kArrayCode)));
   CHECK_EQ(AddressOf(Runtime::kAbort),
            decoder.Decode(make_code(v8::internal::RUNTIME_FUNCTION,
                                     Runtime::kAbort)));
   CHECK_EQ(AddressOf(IC_Utility(IC::kLoadCallbackProperty)),
            decoder.Decode(make_code(IC_UTILITY, IC::kLoadCallbackProperty)));
   ExternalReference keyed_load_function =
-      ExternalReference(COUNTERS->keyed_load_function_prototype());
+      ExternalReference(isolate->counters()->keyed_load_function_prototype());
   CHECK_EQ(keyed_load_function.address(),
            decoder.Decode(
                make_code(STATS_COUNTER,

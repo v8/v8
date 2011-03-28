@@ -740,9 +740,9 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
              prop->key()->AsLiteral()->handle()->IsSmi());
       __ Move(rcx, prop->key()->AsLiteral()->handle());
 
-      Handle<Code> ic(isolate()->builtins()->builtin(is_strict_mode()
-          ? Builtins::KeyedStoreIC_Initialize_Strict
-          : Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic = is_strict_mode()
+          ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
+          : isolate()->builtins()->KeyedStoreIC_Initialize();
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
     }
   }
@@ -1121,8 +1121,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
   // load IC call.
   __ movq(rax, GlobalObjectOperand());
   __ Move(rcx, slot->var()->name());
-  Handle<Code> ic(isolate()->builtins()->builtin(
-      Builtins::LoadIC_Initialize));
+  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
   RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
       ? RelocInfo::CODE_TARGET
       : RelocInfo::CODE_TARGET_CONTEXT;
@@ -1205,8 +1204,8 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
                   ContextSlotOperandCheckExtensions(obj_proxy->var()->AsSlot(),
                                                     slow));
           __ Move(rax, key_literal->handle());
-          Handle<Code> ic(isolate()->builtins()->builtin(
-              Builtins::KeyedLoadIC_Initialize));
+          Handle<Code> ic =
+              isolate()->builtins()->KeyedLoadIC_Initialize();
           EmitCallIC(ic, RelocInfo::CODE_TARGET);
           __ jmp(done);
         }
@@ -1229,8 +1228,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
     // object on the stack.
     __ Move(rcx, var->name());
     __ movq(rax, GlobalObjectOperand());
-    Handle<Code> ic(isolate()->builtins()->builtin(
-        Builtins::LoadIC_Initialize));
+    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
     EmitCallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
     context()->Plug(rax);
 
@@ -1293,8 +1291,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
     __ Move(rax, key_literal->handle());
 
     // Do a keyed property load.
-    Handle<Code> ic(isolate()->builtins()->builtin(
-        Builtins::KeyedLoadIC_Initialize));
+    Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
     EmitCallIC(ic, RelocInfo::CODE_TARGET);
     context()->Plug(rax);
   }
@@ -1405,8 +1402,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           __ Move(rcx, key->handle());
           __ movq(rdx, Operand(rsp, 0));
           if (property->emit_store()) {
-            Handle<Code> ic(isolate()->builtins()->builtin(
-                Builtins::StoreIC_Initialize));
+            Handle<Code> ic = isolate()->builtins()->StoreIC_Initialize();
             EmitCallIC(ic, RelocInfo::CODE_TARGET);
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
           }
@@ -1650,16 +1646,14 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
   __ Move(rcx, key->handle());
-  Handle<Code> ic(isolate()->builtins()->builtin(
-      Builtins::LoadIC_Initialize));
+  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
   EmitCallIC(ic, RelocInfo::CODE_TARGET);
 }
 
 
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
-  Handle<Code> ic(isolate()->builtins()->builtin(
-      Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
   EmitCallIC(ic, RelocInfo::CODE_TARGET);
 }
 
@@ -1765,9 +1759,9 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       __ movq(rdx, rax);
       __ pop(rax);  // Restore value.
       __ Move(rcx, prop->key()->AsLiteral()->handle());
-      Handle<Code> ic(isolate()->builtins()->builtin(
-          is_strict_mode() ? Builtins::StoreIC_Initialize_Strict
-                           : Builtins::StoreIC_Initialize));
+      Handle<Code> ic = is_strict_mode()
+          ? isolate()->builtins()->StoreIC_Initialize_Strict()
+          : isolate()->builtins()->StoreIC_Initialize();
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
     }
@@ -1788,9 +1782,9 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
         __ pop(rdx);
       }
       __ pop(rax);  // Restore value.
-      Handle<Code> ic(isolate()->builtins()->builtin(
-          is_strict_mode() ? Builtins::KeyedStoreIC_Initialize_Strict
-                           : Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic = is_strict_mode()
+          ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
+          : isolate()->builtins()->KeyedStoreIC_Initialize();
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
     }
@@ -1814,9 +1808,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // rcx, and the global object on the stack.
     __ Move(rcx, var->name());
     __ movq(rdx, GlobalObjectOperand());
-    Handle<Code> ic(isolate()->builtins()->builtin(is_strict_mode()
-        ? Builtins::StoreIC_Initialize_Strict
-        : Builtins::StoreIC_Initialize));
+    Handle<Code> ic = is_strict_mode()
+        ? isolate()->builtins()->StoreIC_Initialize_Strict()
+        : isolate()->builtins()->StoreIC_Initialize();
     EmitCallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
 
   } else if (op == Token::INIT_CONST) {
@@ -1917,9 +1911,9 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   } else {
     __ pop(rdx);
   }
-  Handle<Code> ic(isolate()->builtins()->builtin(
-      is_strict_mode() ? Builtins::StoreIC_Initialize_Strict
-                       : Builtins::StoreIC_Initialize));
+  Handle<Code> ic = is_strict_mode()
+      ? isolate()->builtins()->StoreIC_Initialize_Strict()
+      : isolate()->builtins()->StoreIC_Initialize();
   EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -1957,9 +1951,9 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   }
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
-  Handle<Code> ic(isolate()->builtins()->builtin(
-      is_strict_mode() ? Builtins::KeyedStoreIC_Initialize_Strict
-                       : Builtins::KeyedStoreIC_Initialize));
+  Handle<Code> ic = is_strict_mode()
+      ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
+      : isolate()->builtins()->KeyedStoreIC_Initialize();
   EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -2238,8 +2232,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         // Record source code position for IC call.
         SetSourcePosition(prop->position());
 
-        Handle<Code> ic(isolate()->builtins()->builtin(
-            Builtins::KeyedLoadIC_Initialize));
+        Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
         EmitCallIC(ic, RelocInfo::CODE_TARGET);
         // Push result (function).
         __ push(rax);
@@ -2307,8 +2300,8 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ Set(rax, arg_count);
   __ movq(rdi, Operand(rsp, arg_count * kPointerSize));
 
-  Handle<Code> construct_builtin(isolate()->builtins()->builtin(
-      Builtins::JSConstructCall));
+  Handle<Code> construct_builtin =
+      isolate()->builtins()->JSConstructCall();
   __ Call(construct_builtin, RelocInfo::CONSTRUCT_CALL);
   context()->Plug(rax);
 }
@@ -3231,7 +3224,288 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
-  context()->Plug(Heap::kUndefinedValueRootIndex);
+  Label bailout, return_result, done, one_char_separator, long_separator,
+      non_trivial_array, not_size_one_array, loop,
+      loop_1, loop_1_condition, loop_2, loop_2_entry, loop_3, loop_3_entry;
+  ASSERT(args->length() == 2);
+  // We will leave the separator on the stack until the end of the function.
+  VisitForStackValue(args->at(1));
+  // Load this to rax (= array)
+  VisitForAccumulatorValue(args->at(0));
+  // All aliases of the same register have disjoint lifetimes.
+  Register array = rax;
+  Register elements = no_reg;  // Will be rax.
+
+  Register index = rdx;
+
+  Register string_length = rcx;
+
+  Register string = rsi;
+
+  Register scratch = rbx;
+
+  Register array_length = rdi;
+  Register result_pos = no_reg;  // Will be rdi.
+
+  Operand separator_operand =    Operand(rsp, 2 * kPointerSize);
+  Operand result_operand =       Operand(rsp, 1 * kPointerSize);
+  Operand array_length_operand = Operand(rsp, 0 * kPointerSize);
+  // Separator operand is already pushed. Make room for the two
+  // other stack fields, and clear the direction flag in anticipation
+  // of calling CopyBytes.
+  __ subq(rsp, Immediate(2 * kPointerSize));
+  __ cld();
+  // Check that the array is a JSArray
+  __ JumpIfSmi(array, &bailout);
+  __ CmpObjectType(array, JS_ARRAY_TYPE, scratch);
+  __ j(not_equal, &bailout);
+
+  // Check that the array has fast elements.
+  __ testb(FieldOperand(scratch, Map::kBitField2Offset),
+           Immediate(1 << Map::kHasFastElements));
+  __ j(zero, &bailout);
+
+  // Array has fast elements, so its length must be a smi.
+  // If the array has length zero, return the empty string.
+  __ movq(array_length, FieldOperand(array, JSArray::kLengthOffset));
+  __ SmiCompare(array_length, Smi::FromInt(0));
+  __ j(not_zero, &non_trivial_array);
+  __ LoadRoot(rax, Heap::kEmptyStringRootIndex);
+  __ jmp(&return_result);
+
+  // Save the array length on the stack.
+  __ bind(&non_trivial_array);
+  __ SmiToInteger32(array_length, array_length);
+  __ movl(array_length_operand, array_length);
+
+  // Save the FixedArray containing array's elements.
+  // End of array's live range.
+  elements = array;
+  __ movq(elements, FieldOperand(array, JSArray::kElementsOffset));
+  array = no_reg;
+
+
+  // Check that all array elements are sequential ASCII strings, and
+  // accumulate the sum of their lengths, as a smi-encoded value.
+  __ Set(index, 0);
+  __ Set(string_length, 0);
+  // Loop condition: while (index < array_length).
+  // Live loop registers: index(int32), array_length(int32), string(String*),
+  //                      scratch, string_length(int32), elements(FixedArray*).
+  if (FLAG_debug_code) {
+    __ cmpq(index, array_length);
+    __ Assert(below, "No empty arrays here in EmitFastAsciiArrayJoin");
+  }
+  __ bind(&loop);
+  __ movq(string, FieldOperand(elements,
+                               index,
+                               times_pointer_size,
+                               FixedArray::kHeaderSize));
+  __ JumpIfSmi(string, &bailout);
+  __ movq(scratch, FieldOperand(string, HeapObject::kMapOffset));
+  __ movzxbl(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ andb(scratch, Immediate(
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
+  __ cmpb(scratch, Immediate(kStringTag | kAsciiStringTag | kSeqStringTag));
+  __ j(not_equal, &bailout);
+  __ AddSmiField(string_length,
+                 FieldOperand(string, SeqAsciiString::kLengthOffset));
+  __ j(overflow, &bailout);
+  __ incl(index);
+  __ cmpl(index, array_length);
+  __ j(less, &loop);
+
+  // Live registers:
+  // string_length: Sum of string lengths.
+  // elements: FixedArray of strings.
+  // index: Array length.
+  // array_length: Array length.
+
+  // If array_length is 1, return elements[0], a string.
+  __ cmpl(array_length, Immediate(1));
+  __ j(not_equal, &not_size_one_array);
+  __ movq(rax, FieldOperand(elements, FixedArray::kHeaderSize));
+  __ jmp(&return_result);
+
+  __ bind(&not_size_one_array);
+
+  // End of array_length live range.
+  result_pos = array_length;
+  array_length = no_reg;
+
+  // Live registers:
+  // string_length: Sum of string lengths.
+  // elements: FixedArray of strings.
+  // index: Array length.
+
+  // Check that the separator is a sequential ASCII string.
+  __ movq(string, separator_operand);
+  __ JumpIfSmi(string, &bailout);
+  __ movq(scratch, FieldOperand(string, HeapObject::kMapOffset));
+  __ movzxbl(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ andb(scratch, Immediate(
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
+  __ cmpb(scratch, Immediate(kStringTag | kAsciiStringTag | kSeqStringTag));
+  __ j(not_equal, &bailout);
+
+  // Live registers:
+  // string_length: Sum of string lengths.
+  // elements: FixedArray of strings.
+  // index: Array length.
+  // string: Separator string.
+
+  // Add (separator length times (array_length - 1)) to string_length.
+  __ SmiToInteger32(scratch,
+                    FieldOperand(string, SeqAsciiString::kLengthOffset));
+  __ decl(index);
+  __ imull(scratch, index);
+  __ j(overflow, &bailout);
+  __ addl(string_length, scratch);
+  __ j(overflow, &bailout);
+
+  // Live registers and stack values:
+  //   string_length: Total length of result string.
+  //   elements: FixedArray of strings.
+  __ AllocateAsciiString(result_pos, string_length, scratch,
+                         index, string, &bailout);
+  __ movq(result_operand, result_pos);
+  __ lea(result_pos, FieldOperand(result_pos, SeqAsciiString::kHeaderSize));
+
+  __ movq(string, separator_operand);
+  __ SmiCompare(FieldOperand(string, SeqAsciiString::kLengthOffset),
+                Smi::FromInt(1));
+  __ j(equal, &one_char_separator);
+  __ j(greater, &long_separator);
+
+
+  // Empty separator case:
+  __ Set(index, 0);
+  __ movl(scratch, array_length_operand);
+  __ jmp(&loop_1_condition);
+  // Loop condition: while (index < array_length).
+  __ bind(&loop_1);
+  // Each iteration of the loop concatenates one string to the result.
+  // Live values in registers:
+  //   index: which element of the elements array we are adding to the result.
+  //   result_pos: the position to which we are currently copying characters.
+  //   elements: the FixedArray of strings we are joining.
+  //   scratch: array length.
+
+  // Get string = array[index].
+  __ movq(string, FieldOperand(elements, index,
+                               times_pointer_size,
+                               FixedArray::kHeaderSize));
+  __ SmiToInteger32(string_length,
+                    FieldOperand(string, String::kLengthOffset));
+  __ lea(string,
+         FieldOperand(string, SeqAsciiString::kHeaderSize));
+  __ CopyBytes(result_pos, string, string_length);
+  __ incl(index);
+  __ bind(&loop_1_condition);
+  __ cmpl(index, scratch);
+  __ j(less, &loop_1);  // Loop while (index < array_length).
+  __ jmp(&done);
+
+  // Generic bailout code used from several places.
+  __ bind(&bailout);
+  __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+  __ jmp(&return_result);
+
+
+  // One-character separator case
+  __ bind(&one_char_separator);
+  // Get the separator ascii character value.
+  // Register "string" holds the separator.
+  __ movzxbl(scratch, FieldOperand(string, SeqAsciiString::kHeaderSize));
+  __ Set(index, 0);
+  // Jump into the loop after the code that copies the separator, so the first
+  // element is not preceded by a separator
+  __ jmp(&loop_2_entry);
+  // Loop condition: while (index < length).
+  __ bind(&loop_2);
+  // Each iteration of the loop concatenates one string to the result.
+  // Live values in registers:
+  //   elements: The FixedArray of strings we are joining.
+  //   index: which element of the elements array we are adding to the result.
+  //   result_pos: the position to which we are currently copying characters.
+  //   scratch: Separator character.
+
+  // Copy the separator character to the result.
+  __ movb(Operand(result_pos, 0), scratch);
+  __ incq(result_pos);
+
+  __ bind(&loop_2_entry);
+  // Get string = array[index].
+  __ movq(string, FieldOperand(elements, index,
+                               times_pointer_size,
+                               FixedArray::kHeaderSize));
+  __ SmiToInteger32(string_length,
+                    FieldOperand(string, String::kLengthOffset));
+  __ lea(string,
+         FieldOperand(string, SeqAsciiString::kHeaderSize));
+  __ CopyBytes(result_pos, string, string_length);
+  __ incl(index);
+  __ cmpl(index, array_length_operand);
+  __ j(less, &loop_2);  // End while (index < length).
+  __ jmp(&done);
+
+
+  // Long separator case (separator is more than one character).
+  __ bind(&long_separator);
+
+  // Make elements point to end of elements array, and index
+  // count from -array_length to zero, so we don't need to maintain
+  // a loop limit.
+  __ movl(index, array_length_operand);
+  __ lea(elements, FieldOperand(elements, index, times_pointer_size,
+                                FixedArray::kHeaderSize));
+  __ neg(index);
+
+  // Replace separator string with pointer to its first character, and
+  // make scratch be its length.
+  __ movq(string, separator_operand);
+  __ SmiToInteger32(scratch,
+                    FieldOperand(string, String::kLengthOffset));
+  __ lea(string,
+         FieldOperand(string, SeqAsciiString::kHeaderSize));
+  __ movq(separator_operand, string);
+
+  // Jump into the loop after the code that copies the separator, so the first
+  // element is not preceded by a separator
+  __ jmp(&loop_3_entry);
+  // Loop condition: while (index < length).
+  __ bind(&loop_3);
+  // Each iteration of the loop concatenates one string to the result.
+  // Live values in registers:
+  //   index: which element of the elements array we are adding to the result.
+  //   result_pos: the position to which we are currently copying characters.
+  //   scratch: Separator length.
+  //   separator_operand (rsp[0x10]): Address of first char of separator.
+
+  // Copy the separator to the result.
+  __ movq(string, separator_operand);
+  __ movl(string_length, scratch);
+  __ CopyBytes(result_pos, string, string_length, 2);
+
+  __ bind(&loop_3_entry);
+  // Get string = array[index].
+  __ movq(string, Operand(elements, index, times_pointer_size, 0));
+  __ SmiToInteger32(string_length,
+                    FieldOperand(string, String::kLengthOffset));
+  __ lea(string,
+         FieldOperand(string, SeqAsciiString::kHeaderSize));
+  __ CopyBytes(result_pos, string, string_length);
+  __ incq(index);
+  __ j(not_equal, &loop_3);  // Loop while (index < 0).
+
+  __ bind(&done);
+  __ movq(rax, result_operand);
+
+  __ bind(&return_result);
+  // Drop temp values from the stack, and restore context register.
+  __ addq(rsp, Immediate(3 * kPointerSize));
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  context()->Plug(rax);
 }
 
 
@@ -3575,9 +3849,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case NAMED_PROPERTY: {
       __ Move(rcx, prop->key()->AsLiteral()->handle());
       __ pop(rdx);
-      Handle<Code> ic(isolate()->builtins()->builtin(
-          is_strict_mode() ? Builtins::StoreIC_Initialize_Strict
-                           : Builtins::StoreIC_Initialize));
+      Handle<Code> ic = is_strict_mode()
+          ? isolate()->builtins()->StoreIC_Initialize_Strict()
+          : isolate()->builtins()->StoreIC_Initialize();
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
@@ -3592,9 +3866,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       __ pop(rcx);
       __ pop(rdx);
-      Handle<Code> ic(isolate()->builtins()->builtin(
-          is_strict_mode() ? Builtins::KeyedStoreIC_Initialize_Strict
-                           : Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic = is_strict_mode()
+          ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
+          : isolate()->builtins()->KeyedStoreIC_Initialize();
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
@@ -3619,8 +3893,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     Comment cmnt(masm_, "Global variable");
     __ Move(rcx, proxy->name());
     __ movq(rax, GlobalObjectOperand());
-    Handle<Code> ic(isolate()->builtins()->builtin(
-        Builtins::LoadIC_Initialize));
+    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
     // Use a regular load, not a contextual load, to avoid a reference
     // error.
     EmitCallIC(ic, RelocInfo::CODE_TARGET);
@@ -3884,18 +4157,19 @@ Register FullCodeGenerator::context_register() {
 void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
   ASSERT(mode == RelocInfo::CODE_TARGET ||
          mode == RelocInfo::CODE_TARGET_CONTEXT);
+  Counters* counters = isolate()->counters();
   switch (ic->kind()) {
     case Code::LOAD_IC:
-      __ IncrementCounter(COUNTERS->named_load_full(), 1);
+      __ IncrementCounter(counters->named_load_full(), 1);
       break;
     case Code::KEYED_LOAD_IC:
-      __ IncrementCounter(COUNTERS->keyed_load_full(), 1);
+      __ IncrementCounter(counters->keyed_load_full(), 1);
       break;
     case Code::STORE_IC:
-      __ IncrementCounter(COUNTERS->named_store_full(), 1);
+      __ IncrementCounter(counters->named_store_full(), 1);
       break;
     case Code::KEYED_STORE_IC:
-      __ IncrementCounter(COUNTERS->keyed_store_full(), 1);
+      __ IncrementCounter(counters->keyed_store_full(), 1);
     default:
       break;
   }
@@ -3927,18 +4201,19 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
 
 
 void FullCodeGenerator::EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site) {
+  Counters* counters = isolate()->counters();
   switch (ic->kind()) {
     case Code::LOAD_IC:
-      __ IncrementCounter(COUNTERS->named_load_full(), 1);
+      __ IncrementCounter(counters->named_load_full(), 1);
       break;
     case Code::KEYED_LOAD_IC:
-      __ IncrementCounter(COUNTERS->keyed_load_full(), 1);
+      __ IncrementCounter(counters->keyed_load_full(), 1);
       break;
     case Code::STORE_IC:
-      __ IncrementCounter(COUNTERS->named_store_full(), 1);
+      __ IncrementCounter(counters->named_store_full(), 1);
       break;
     case Code::KEYED_STORE_IC:
-      __ IncrementCounter(COUNTERS->keyed_store_full(), 1);
+      __ IncrementCounter(counters->keyed_store_full(), 1);
     default:
       break;
   }

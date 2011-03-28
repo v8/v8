@@ -1156,6 +1156,60 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
 }
 
 
+HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* object,
+                                                       ZoneMapList* types,
+                                                       Handle<String> name)
+    : HUnaryOperation(object),
+      types_(Min(types->length(), kMaxLoadPolymorphism)),
+      name_(name),
+      need_generic_(false) {
+  set_representation(Representation::Tagged());
+  SetFlag(kDependsOnMaps);
+  for (int i = 0;
+       i < types->length() && types_.length() < kMaxLoadPolymorphism;
+       ++i) {
+    Handle<Map> map = types->at(i);
+    LookupResult lookup;
+    map->LookupInDescriptors(NULL, *name, &lookup);
+    if (lookup.IsProperty() && lookup.type() == FIELD) {
+      types_.Add(types->at(i));
+      int index = lookup.GetLocalFieldIndexFromMap(*map);
+      if (index < 0) {
+        SetFlag(kDependsOnInobjectFields);
+      } else {
+        SetFlag(kDependsOnBackingStoreFields);
+      }
+    }
+  }
+
+  if (types_.length() == types->length() && FLAG_deoptimize_uncommon_cases) {
+    SetFlag(kUseGVN);
+  } else {
+    SetAllSideEffects();
+    need_generic_ = true;
+  }
+}
+
+
+bool HLoadNamedFieldPolymorphic::DataEquals(HValue* value) {
+  HLoadNamedFieldPolymorphic* other = HLoadNamedFieldPolymorphic::cast(value);
+  if (types_.length() != other->types()->length()) return false;
+  if (!name_.is_identical_to(other->name())) return false;
+  if (need_generic_ != other->need_generic_) return false;
+  for (int i = 0; i < types_.length(); i++) {
+    bool found = false;
+    for (int j = 0; j < types_.length(); j++) {
+      if (types_.at(j).is_identical_to(other->types()->at(i))) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) return false;
+  }
+  return true;
+}
+
+
 void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add("[");
@@ -1172,8 +1226,36 @@ void HLoadKeyedGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
-void HLoadPixelArrayElement::PrintDataTo(StringStream* stream) {
+void HLoadKeyedSpecializedArrayElement::PrintDataTo(
+    StringStream* stream) {
   external_pointer()->PrintNameTo(stream);
+  stream->Add(".");
+  switch (array_type()) {
+    case kExternalByteArray:
+      stream->Add("byte");
+      break;
+    case kExternalUnsignedByteArray:
+      stream->Add("u_byte");
+      break;
+    case kExternalShortArray:
+      stream->Add("short");
+      break;
+    case kExternalUnsignedShortArray:
+      stream->Add("u_short");
+      break;
+    case kExternalIntArray:
+      stream->Add("int");
+      break;
+    case kExternalUnsignedIntArray:
+      stream->Add("u_int");
+      break;
+    case kExternalFloatArray:
+      stream->Add("float");
+      break;
+    case kExternalPixelArray:
+      stream->Add("pixel");
+      break;
+  }
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("]");
@@ -1221,8 +1303,36 @@ void HStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
-void HStorePixelArrayElement::PrintDataTo(StringStream* stream) {
+void HStoreKeyedSpecializedArrayElement::PrintDataTo(
+    StringStream* stream) {
   external_pointer()->PrintNameTo(stream);
+  stream->Add(".");
+  switch (array_type()) {
+    case kExternalByteArray:
+      stream->Add("byte");
+      break;
+    case kExternalUnsignedByteArray:
+      stream->Add("u_byte");
+      break;
+    case kExternalShortArray:
+      stream->Add("short");
+      break;
+    case kExternalUnsignedShortArray:
+      stream->Add("u_short");
+      break;
+    case kExternalIntArray:
+      stream->Add("int");
+      break;
+    case kExternalUnsignedIntArray:
+      stream->Add("u_int");
+      break;
+    case kExternalFloatArray:
+      stream->Add("float");
+      break;
+    case kExternalPixelArray:
+      stream->Add("pixel");
+      break;
+  }
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("] = ");

@@ -527,12 +527,12 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   // Record type feedback from the oracle in the AST.
   is_monomorphic_ = oracle->LoadIsMonomorphic(this);
   if (key()->IsPropertyName()) {
-    if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_ArrayLength)) {
+    if (oracle->LoadIsBuiltin(this, Builtins::kLoadIC_ArrayLength)) {
       is_array_length_ = true;
-    } else if (oracle->LoadIsBuiltin(this, Builtins::LoadIC_StringLength)) {
+    } else if (oracle->LoadIsBuiltin(this, Builtins::kLoadIC_StringLength)) {
       is_string_length_ = true;
     } else if (oracle->LoadIsBuiltin(this,
-                                     Builtins::LoadIC_FunctionPrototype)) {
+                                     Builtins::kLoadIC_FunctionPrototype)) {
       is_function_prototype_ = true;
     } else {
       Literal* lit_key = key()->AsLiteral();
@@ -541,7 +541,7 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
       ZoneMapList* types = oracle->LoadReceiverTypes(this, name);
       receiver_types_ = types;
     }
-  } else if (oracle->LoadIsBuiltin(this, Builtins::KeyedLoadIC_String)) {
+  } else if (oracle->LoadIsBuiltin(this, Builtins::kKeyedLoadIC_String)) {
     is_string_access_ = true;
   } else if (is_monomorphic_) {
     monomorphic_receiver_type_ = oracle->LoadMonomorphicReceiverType(this);

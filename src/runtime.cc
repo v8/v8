@@ -593,7 +593,7 @@ static MaybeObject* Runtime_CreateArrayLiteralShallow(
   }
   if (JSObject::cast(*boilerplate)->elements()->map() ==
       isolate->heap()->fixed_cow_array_map()) {
-    COUNTERS->cow_arrays_created_runtime()->Increment();
+    isolate->counters()->cow_arrays_created_runtime()->Increment();
   }
   return isolate->heap()->CopyJSObject(JSObject::cast(*boilerplate));
 }
@@ -1811,13 +1811,13 @@ static MaybeObject* Runtime_SpecialArrayFunctions(RUNTIME_CALLING_CONVENTION) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, holder, 0);
 
-  InstallBuiltin(isolate, holder, "pop", Builtins::ArrayPop);
-  InstallBuiltin(isolate, holder, "push", Builtins::ArrayPush);
-  InstallBuiltin(isolate, holder, "shift", Builtins::ArrayShift);
-  InstallBuiltin(isolate, holder, "unshift", Builtins::ArrayUnshift);
-  InstallBuiltin(isolate, holder, "slice", Builtins::ArraySlice);
-  InstallBuiltin(isolate, holder, "splice", Builtins::ArraySplice);
-  InstallBuiltin(isolate, holder, "concat", Builtins::ArrayConcat);
+  InstallBuiltin(isolate, holder, "pop", Builtins::kArrayPop);
+  InstallBuiltin(isolate, holder, "push", Builtins::kArrayPush);
+  InstallBuiltin(isolate, holder, "shift", Builtins::kArrayShift);
+  InstallBuiltin(isolate, holder, "unshift", Builtins::kArrayUnshift);
+  InstallBuiltin(isolate, holder, "slice", Builtins::kArraySlice);
+  InstallBuiltin(isolate, holder, "splice", Builtins::kArraySplice);
+  InstallBuiltin(isolate, holder, "concat", Builtins::kArrayConcat);
 
   return *holder;
 }
@@ -5230,8 +5230,9 @@ static MaybeObject* QuoteJsonString(Isolate* isolate,
   int final_length = static_cast<int>(
       write_cursor - reinterpret_cast<Char*>(
           new_string->address() + SeqAsciiString::kHeaderSize));
-  isolate->heap()->new_space()->ShrinkStringAtAllocationBoundary<StringType>(
-      new_string, final_length);
+  isolate->heap()->new_space()->
+      template ShrinkStringAtAllocationBoundary<StringType>(
+          new_string, final_length);
   return new_string;
 }
 
@@ -7650,8 +7651,7 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(
   }
   StackCheckStub check_stub;
   Handle<Code> check_code = check_stub.GetCode();
-  Handle<Code> replacement_code(
-      isolate->builtins()->builtin(Builtins::OnStackReplacement));
+  Handle<Code> replacement_code = isolate->builtins()->OnStackReplacement();
   Deoptimizer::RevertStackCheckCode(*unoptimized,
                                     *check_code,
                                     *replacement_code);
@@ -9308,6 +9308,7 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
     }
     case INTERCEPTOR:
     case MAP_TRANSITION:
+    case EXTERNAL_ARRAY_TRANSITION:
     case CONSTANT_TRANSITION:
     case NULL_DESCRIPTOR:
       return heap->undefined_value();
@@ -12217,16 +12218,17 @@ const Runtime::Function* Runtime::FunctionForId(Runtime::FunctionId id) {
 
 
 void Runtime::PerformGC(Object* result) {
+  Isolate* isolate = Isolate::Current();
   Failure* failure = Failure::cast(result);
   if (failure->IsRetryAfterGC()) {
     // Try to do a garbage collection; ignore it if it fails. The C
     // entry stub will throw an out-of-memory exception in that case.
-    HEAP->CollectGarbage(failure->allocation_space());
+    isolate->heap()->CollectGarbage(failure->allocation_space());
   } else {
     // Handle last resort GC and make sure to allow future allocations
     // to grow the heap without causing GCs (if possible).
-    COUNTERS->gc_last_resort_from_js()->Increment();
-    HEAP->CollectAllGarbage(false);
+    isolate->counters()->gc_last_resort_from_js()->Increment();
+    isolate->heap()->CollectAllGarbage(false);
   }
 }
 

@@ -3870,10 +3870,8 @@ THREADED_TEST(ExtensibleOnUndetectable) {
 
   source = v8_str("undetectable.y = 2000;");
   script = Script::Compile(source);
-  v8::TryCatch try_catch;
   Local<Value> result = script->Run();
-  CHECK(result.IsEmpty());
-  CHECK(try_catch.HasCaught());
+  ExpectBoolean("undetectable.y == undefined", true);
 }
 
 
@@ -4744,130 +4742,130 @@ THREADED_TEST(StringWrite) {
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, sizeof(utf8buf), &charlen);
-  CHECK_EQ(len, 9);
-  CHECK_EQ(charlen, 5);
-  CHECK_EQ(strcmp(utf8buf, "abc\303\260\342\230\203"), 0);
+  CHECK_EQ(9, len);
+  CHECK_EQ(5, charlen);
+  CHECK_EQ(0, strcmp(utf8buf, "abc\303\260\342\230\203"));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 8, &charlen);
-  CHECK_EQ(len, 8);
-  CHECK_EQ(charlen, 5);
-  CHECK_EQ(strncmp(utf8buf, "abc\303\260\342\230\203\1", 9), 0);
+  CHECK_EQ(8, len);
+  CHECK_EQ(5, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\342\230\203\1", 9));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 7, &charlen);
-  CHECK_EQ(len, 5);
-  CHECK_EQ(charlen, 4);
-  CHECK_EQ(strncmp(utf8buf, "abc\303\260\1", 5), 0);
+  CHECK_EQ(5, len);
+  CHECK_EQ(4, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\1", 5));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 6, &charlen);
-  CHECK_EQ(len, 5);
-  CHECK_EQ(charlen, 4);
-  CHECK_EQ(strncmp(utf8buf, "abc\303\260\1", 5), 0);
+  CHECK_EQ(5, len);
+  CHECK_EQ(4, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\1", 5));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 5, &charlen);
-  CHECK_EQ(len, 5);
-  CHECK_EQ(charlen, 4);
-  CHECK_EQ(strncmp(utf8buf, "abc\303\260\1", 5), 0);
+  CHECK_EQ(5, len);
+  CHECK_EQ(4, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\1", 5));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 4, &charlen);
-  CHECK_EQ(len, 3);
-  CHECK_EQ(charlen, 3);
-  CHECK_EQ(strncmp(utf8buf, "abc\1", 4), 0);
+  CHECK_EQ(3, len);
+  CHECK_EQ(3, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\1", 4));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 3, &charlen);
-  CHECK_EQ(len, 3);
-  CHECK_EQ(charlen, 3);
-  CHECK_EQ(strncmp(utf8buf, "abc\1", 4), 0);
+  CHECK_EQ(3, len);
+  CHECK_EQ(3, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\1", 4));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 2, &charlen);
-  CHECK_EQ(len, 2);
-  CHECK_EQ(charlen, 2);
-  CHECK_EQ(strncmp(utf8buf, "ab\1", 3), 0);
+  CHECK_EQ(2, len);
+  CHECK_EQ(2, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "ab\1", 3));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf);
-  CHECK_EQ(len, 5);
+  CHECK_EQ(5, len);
   len = str->Write(wbuf);
-  CHECK_EQ(len, 5);
-  CHECK_EQ(strcmp("abcde", buf), 0);
+  CHECK_EQ(5, len);
+  CHECK_EQ(0, strcmp("abcde", buf));
   uint16_t answer1[] = {'a', 'b', 'c', 'd', 'e', '\0'};
-  CHECK_EQ(StrCmp16(answer1, wbuf), 0);
+  CHECK_EQ(0, StrCmp16(answer1, wbuf));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 0, 4);
-  CHECK_EQ(len, 4);
+  CHECK_EQ(4, len);
   len = str->Write(wbuf, 0, 4);
-  CHECK_EQ(len, 4);
-  CHECK_EQ(strncmp("abcd\1", buf, 5), 0);
+  CHECK_EQ(4, len);
+  CHECK_EQ(0, strncmp("abcd\1", buf, 5));
   uint16_t answer2[] = {'a', 'b', 'c', 'd', 0x101};
-  CHECK_EQ(StrNCmp16(answer2, wbuf, 5), 0);
+  CHECK_EQ(0, StrNCmp16(answer2, wbuf, 5));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 0, 5);
-  CHECK_EQ(len, 5);
+  CHECK_EQ(5, len);
   len = str->Write(wbuf, 0, 5);
-  CHECK_EQ(len, 5);
-  CHECK_EQ(strncmp("abcde\1", buf, 6), 0);
+  CHECK_EQ(5, len);
+  CHECK_EQ(0, strncmp("abcde\1", buf, 6));
   uint16_t answer3[] = {'a', 'b', 'c', 'd', 'e', 0x101};
-  CHECK_EQ(StrNCmp16(answer3, wbuf, 6), 0);
+  CHECK_EQ(0, StrNCmp16(answer3, wbuf, 6));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 0, 6);
-  CHECK_EQ(len, 5);
+  CHECK_EQ(5, len);
   len = str->Write(wbuf, 0, 6);
-  CHECK_EQ(len, 5);
-  CHECK_EQ(strcmp("abcde", buf), 0);
+  CHECK_EQ(5, len);
+  CHECK_EQ(0, strcmp("abcde", buf));
   uint16_t answer4[] = {'a', 'b', 'c', 'd', 'e', '\0'};
-  CHECK_EQ(StrCmp16(answer4, wbuf), 0);
+  CHECK_EQ(0, StrCmp16(answer4, wbuf));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 4, -1);
-  CHECK_EQ(len, 1);
+  CHECK_EQ(1, len);
   len = str->Write(wbuf, 4, -1);
-  CHECK_EQ(len, 1);
-  CHECK_EQ(strcmp("e", buf), 0);
+  CHECK_EQ(1, len);
+  CHECK_EQ(0, strcmp("e", buf));
   uint16_t answer5[] = {'e', '\0'};
-  CHECK_EQ(StrCmp16(answer5, wbuf), 0);
+  CHECK_EQ(0, StrCmp16(answer5, wbuf));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 4, 6);
-  CHECK_EQ(len, 1);
+  CHECK_EQ(1, len);
   len = str->Write(wbuf, 4, 6);
-  CHECK_EQ(len, 1);
-  CHECK_EQ(strcmp("e", buf), 0);
-  CHECK_EQ(StrCmp16(answer5, wbuf), 0);
+  CHECK_EQ(1, len);
+  CHECK_EQ(0, strcmp("e", buf));
+  CHECK_EQ(0, StrCmp16(answer5, wbuf));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 4, 1);
-  CHECK_EQ(len, 1);
+  CHECK_EQ(1, len);
   len = str->Write(wbuf, 4, 1);
-  CHECK_EQ(len, 1);
-  CHECK_EQ(strncmp("e\1", buf, 2), 0);
+  CHECK_EQ(1, len);
+  CHECK_EQ(0, strncmp("e\1", buf, 2));
   uint16_t answer6[] = {'e', 0x101};
-  CHECK_EQ(StrNCmp16(answer6, wbuf, 2), 0);
+  CHECK_EQ(0, StrNCmp16(answer6, wbuf, 2));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 3, 1);
-  CHECK_EQ(len, 1);
+  CHECK_EQ(1, len);
   len = str->Write(wbuf, 3, 1);
-  CHECK_EQ(len, 1);
-  CHECK_EQ(strncmp("d\1", buf, 2), 0);
+  CHECK_EQ(1, len);
+  CHECK_EQ(0, strncmp("d\1", buf, 2));
   uint16_t answer7[] = {'d', 0x101};
-  CHECK_EQ(StrNCmp16(answer7, wbuf, 2), 0);
+  CHECK_EQ(0, StrNCmp16(answer7, wbuf, 2));
 }
 
 
@@ -11492,6 +11490,35 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
     CHECK_EQ(true, result->BooleanValue());
   }
 
+  // Test crankshaft external array loads
+  for (int i = 0; i < kElementCount; i++) {
+    array->set(i, static_cast<ElementType>(i));
+  }
+  result = CompileRun("function ee_load_test_func(sum) {"
+                      " for (var i=0;i<40;++i)"
+                      "   sum += ext_array[i];"
+                      " return sum;"
+                      "}"
+                      "sum=0;"
+                      "for (var i=0;i<10000;++i) {"
+                      "  sum=ee_load_test_func(sum);"
+                      "}"
+                      "sum;");
+  CHECK_EQ(7800000, result->Int32Value());
+
+  // Test crankshaft external array stores
+  result = CompileRun("function ee_store_test_func(sum) {"
+                      " for (var i=0;i<40;++i)"
+                      "   sum += ext_array[i] = i;"
+                      " return sum;"
+                      "}"
+                      "sum=0;"
+                      "for (var i=0;i<10000;++i) {"
+                      "  sum=ee_store_test_func(sum);"
+                      "}"
+                      "sum;");
+  CHECK_EQ(7800000, result->Int32Value());
+
   result = CompileRun("ext_array[3] = 33;"
                       "delete ext_array[3];"
                       "ext_array[3];");
@@ -11596,6 +11623,95 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                         "!failed;");
     CHECK_EQ(true, result->BooleanValue());
     free(large_array_data);
+  }
+
+  // The "" property descriptor is overloaded to store information about
+  // the external array. Ensure that setting and accessing the "" property
+  // works (it should overwrite the information cached about the external
+  // array in the DescriptorArray) in various situations.
+  result = CompileRun("ext_array[''] = 23; ext_array['']");
+  CHECK_EQ(23, result->Int32Value());
+
+  // Property "" set after the external array is associated with the object.
+  {
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    obj2->Set(v8_str("ee_test_field"), v8::Int32::New(256));
+    obj2->Set(v8_str(""), v8::Int32::New(1503));
+    // Set the elements to be the external array.
+    obj2->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array['']");
+    CHECK_EQ(1503, result->Int32Value());
+  }
+
+  // Property "" set after the external array is associated with the object.
+  {
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    obj2->Set(v8_str("ee_test_field_2"), v8::Int32::New(256));
+    // Set the elements to be the external array.
+    obj2->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+    obj2->Set(v8_str(""), v8::Int32::New(1503));
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array['']");
+    CHECK_EQ(1503, result->Int32Value());
+  }
+
+  // Should reuse the map from previous test.
+  {
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    obj2->Set(v8_str("ee_test_field_2"), v8::Int32::New(256));
+    // Set the elements to be the external array. Should re-use the map
+    // from previous test.
+    obj2->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array['']");
+  }
+
+  // Property "" is a constant function that shouldn't not be interfered with
+  // when an external array is set.
+  {
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    // Start
+    obj2->Set(v8_str("ee_test_field3"), v8::Int32::New(256));
+
+    // Add a constant function to an object.
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array[''] = function() {return 1503;};"
+                        "ext_array['']();");
+
+    // Add an external array transition to the same map that
+    // has the constant transition.
+    v8::Handle<v8::Object> obj3 = v8::Object::New();
+    obj3->Set(v8_str("ee_test_field3"), v8::Int32::New(256));
+    obj3->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+    context->Global()->Set(v8_str("ext_array"), obj3);
+  }
+
+  // If a external array transition is in the map, it should get clobbered
+  // by a constant function.
+  {
+    // Add an external array transition.
+    v8::Handle<v8::Object> obj3 = v8::Object::New();
+    obj3->Set(v8_str("ee_test_field4"), v8::Int32::New(256));
+    obj3->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+
+    // Add a constant function to the same map that just got an external array
+    // transition.
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    obj2->Set(v8_str("ee_test_field4"), v8::Int32::New(256));
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array[''] = function() {return 1503;};"
+                        "ext_array['']();");
   }
 
   free(array_data);

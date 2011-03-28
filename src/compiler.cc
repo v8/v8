@@ -203,6 +203,10 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   Handle<Code> code(info->shared_info()->code());
   ASSERT(code->kind() == Code::FUNCTION);
 
+  // We should never arrive here if optimization has been disabled on the
+  // shared function info.
+  ASSERT(!info->shared_info()->optimization_disabled());
+
   // Fall back to using the full code generator if it's not possible
   // to use the Hydrogen-based optimizing compiler. We already have
   // generated code for this from the shared function object.
@@ -409,8 +413,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // rest of the function into account to avoid overlap with the
   // parsing statistics.
   HistogramTimer* rate = info->is_eval()
-      ? COUNTERS->compile_eval()
-      : COUNTERS->compile();
+      ? info->isolate()->counters()->compile_eval()
+      : info->isolate()->counters()->compile();
   HistogramTimerScope timer(rate);
 
   // Compile the code.
@@ -480,10 +484,10 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              ScriptDataImpl* input_pre_data,
                                              Handle<Object> script_data,
                                              NativesFlag natives) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
-  COUNTERS->total_load_size()->Increment(source_length);
-  COUNTERS->total_compile_size()->Increment(source_length);
+  isolate->counters()->total_load_size()->Increment(source_length);
+  isolate->counters()->total_compile_size()->Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(isolate, COMPILER);
@@ -629,6 +633,11 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
     } else {
       ASSERT(!info->code().is_null());
       Handle<Code> code = info->code();
+      // Set optimizable to false if this is disallowed by the shared
+      // function info, e.g., we might have flushed the code and must
+      // reset this bit when lazy compiling the code again.
+      if (shared->optimization_disabled()) code->set_optimizable(false);
+
       Handle<JSFunction> function = info->closure();
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 
@@ -665,7 +674,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
         ASSERT(shared->is_compiled());
         shared->set_code_age(0);
 
-        if (V8::UseCrankshaft() && info->AllowOptimize()) {
+        if (info->AllowOptimize() && !shared->optimization_disabled()) {
           // If we're asked to always optimize, we compile the optimized
           // version of the function right away - unless the debugger is
           // active as it makes no sense to compile optimized code then.
@@ -710,8 +719,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
 
   // Generate code
   if (FLAG_lazy && allow_lazy) {
-    Handle<Code> code(
-        info.isolate()->builtins()->builtin(Builtins::LazyCompile));
+    Handle<Code> code = info.isolate()->builtins()->LazyCompile();
     info.SetCode(code);
   } else {
     if (V8::UseCrankshaft()) {
@@ -801,7 +809,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   if (info->isolate()->logger()->is_logging() || CpuProfiler::is_profiling()) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
-    if (*code == info->isolate()->builtins()->builtin(Builtins::LazyCompile))
+    if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
       return;
     if (script->name()->IsString()) {
       int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;

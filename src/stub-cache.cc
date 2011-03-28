@@ -84,7 +84,7 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
 
   // If the primary entry has useful data in it, we retire it to the
   // secondary cache before overwriting it.
-  if (hit != isolate_->builtins()->builtin(Builtins::Illegal)) {
+  if (hit != isolate_->builtins()->builtin(Builtins::kIllegal)) {
     Code::Flags primary_flags = Code::RemoveTypeFromFlags(hit->flags());
     int secondary_offset =
         SecondaryOffset(primary->key, primary_flags, primary_offset);
@@ -245,7 +245,7 @@ MaybeObject* StubCache::ComputeLoadInterceptor(String* name,
 
 
 MaybeObject* StubCache::ComputeLoadNormal() {
-  return isolate_->builtins()->builtin(Builtins::LoadIC_Normal);
+  return isolate_->builtins()->builtin(Builtins::kLoadIC_Normal);
 }
 
 
@@ -649,7 +649,7 @@ MaybeObject* StubCache::ComputeKeyedLoadOrStoreExternalArray(
     }
     Object* result;
     { MaybeObject* maybe_result =
-          receiver->map()->UpdateCodeCache(name, Code::cast(code));
+          receiver->UpdateMapCodeCache(name, Code::cast(code));
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
   }
@@ -659,8 +659,8 @@ MaybeObject* StubCache::ComputeKeyedLoadOrStoreExternalArray(
 
 MaybeObject* StubCache::ComputeStoreNormal(StrictModeFlag strict_mode) {
   return isolate_->builtins()->builtin((strict_mode == kStrictMode)
-                            ? Builtins::StoreIC_Normal_Strict
-                            : Builtins::StoreIC_Normal);
+                            ? Builtins::kStoreIC_Normal_Strict
+                            : Builtins::kStoreIC_Normal);
 }
 
 
@@ -1221,12 +1221,12 @@ void StubCache::Clear() {
   for (int i = 0; i < kPrimaryTableSize; i++) {
     primary_[i].key = isolate_->heap()->empty_string();
     primary_[i].value = isolate_->builtins()->builtin(
-        Builtins::Illegal);
+        Builtins::kIllegal);
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
     secondary_[j].key = isolate_->heap()->empty_string();
     secondary_[j].value = isolate_->builtins()->builtin(
-        Builtins::Illegal);
+        Builtins::kIllegal);
   }
 }
 
@@ -1500,7 +1500,7 @@ MaybeObject* StubCompiler::CompileCallInitialize(Code::Flags flags) {
         GetCodeWithFlags(flags, "CompileCallInitialize");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_initialize_stubs()->Increment();
+  isolate()->counters()->call_initialize_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1527,7 +1527,7 @@ MaybeObject* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
         GetCodeWithFlags(flags, "CompileCallPreMonomorphic");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_premonomorphic_stubs()->Increment();
+  isolate()->counters()->call_premonomorphic_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1551,7 +1551,7 @@ MaybeObject* StubCompiler::CompileCallNormal(Code::Flags flags) {
   { MaybeObject* maybe_result = GetCodeWithFlags(flags, "CompileCallNormal");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_normal_stubs()->Increment();
+  isolate()->counters()->call_normal_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1576,7 +1576,7 @@ MaybeObject* StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
         GetCodeWithFlags(flags, "CompileCallMegamorphic");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_megamorphic_stubs()->Increment();
+  isolate()->counters()->call_megamorphic_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1600,7 +1600,7 @@ MaybeObject* StubCompiler::CompileCallMiss(Code::Flags flags) {
   { MaybeObject* maybe_result = GetCodeWithFlags(flags, "CompileCallMiss");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_megamorphic_stubs()->Increment();
+  isolate()->counters()->call_megamorphic_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),

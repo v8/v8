@@ -717,11 +717,11 @@ void Debug::Setup(bool create_heap_objects) {
   if (create_heap_objects) {
     // Get code to handle debug break on return.
     debug_break_return_ =
-        Isolate::Current()->builtins()->builtin(Builtins::Return_DebugBreak);
+        Isolate::Current()->builtins()->builtin(Builtins::kReturn_DebugBreak);
     ASSERT(debug_break_return_->IsCode());
     // Get code to handle debug break in debug break slots.
     debug_break_slot_ =
-        Isolate::Current()->builtins()->builtin(Builtins::Slot_DebugBreak);
+        Isolate::Current()->builtins()->builtin(Builtins::kSlot_DebugBreak);
     ASSERT(debug_break_slot_->IsCode());
   }
 }
@@ -1007,14 +1007,15 @@ Object* Debug::Break(RUNTIME_CALLING_CONVENTION) {
       FRAME_DROPPED_IN_IC_CALL) {
     // We must have been calling IC stub. Do not go there anymore.
     Code* plain_return =
-        Isolate::Current()->builtins()->builtin(Builtins::PlainReturn_LiveEdit);
+        Isolate::Current()->builtins()->builtin(
+            Builtins::kPlainReturn_LiveEdit);
     debug->thread_local_.after_break_target_ = plain_return->entry();
   } else if (debug->thread_local_.frame_drop_mode_ ==
       FRAME_DROPPED_IN_DEBUG_SLOT_CALL) {
     // Debug break slot stub does not return normally, instead it manually
     // cleans the stack and jumps. We should patch the jump address.
     Code* plain_return = Isolate::Current()->builtins()->builtin(
-        Builtins::FrameDropper_LiveEdit);
+        Builtins::kFrameDropper_LiveEdit);
     debug->thread_local_.after_break_target_ = plain_return->entry();
   } else if (debug->thread_local_.frame_drop_mode_ ==
       FRAME_DROPPED_IN_DIRECT_CALL) {
@@ -1517,22 +1518,16 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
         return ComputeCallDebugBreak(code->arguments_count(), code->kind());
 
       case Code::LOAD_IC:
-        return Handle<Code>(Isolate::Current()->builtins()->builtin(
-            Builtins::LoadIC_DebugBreak));
+        return Isolate::Current()->builtins()->LoadIC_DebugBreak();
 
       case Code::STORE_IC:
-        return Handle<Code>(Isolate::Current()->builtins()->builtin(
-            Builtins::StoreIC_DebugBreak));
+        return Isolate::Current()->builtins()->StoreIC_DebugBreak();
 
       case Code::KEYED_LOAD_IC:
-        return Handle<Code>(
-            Isolate::Current()->builtins()->builtin(
-                Builtins::KeyedLoadIC_DebugBreak));
+        return Isolate::Current()->builtins()->KeyedLoadIC_DebugBreak();
 
       case Code::KEYED_STORE_IC:
-        return Handle<Code>(
-            Isolate::Current()->builtins()->builtin(
-                Builtins::KeyedStoreIC_DebugBreak));
+        return Isolate::Current()->builtins()->KeyedStoreIC_DebugBreak();
 
       default:
         UNREACHABLE();
@@ -1540,15 +1535,13 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   }
   if (RelocInfo::IsConstructCall(mode)) {
     Handle<Code> result =
-        Handle<Code>(Isolate::Current()->builtins()->builtin(
-            Builtins::ConstructCall_DebugBreak));
+        Isolate::Current()->builtins()->ConstructCall_DebugBreak();
     return result;
   }
   if (code->kind() == Code::STUB) {
     ASSERT(code->major_key() == CodeStub::CallFunction);
     Handle<Code> result =
-        Handle<Code>(Isolate::Current()->builtins()->builtin(
-            Builtins::StubNoRegisters_DebugBreak));
+        Isolate::Current()->builtins()->StubNoRegisters_DebugBreak();
     return result;
   }
 
@@ -1616,9 +1609,9 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
     // Don't allow step into functions in the native context.
     if (!function->IsBuiltin()) {
       if (function->shared()->code() ==
-          Isolate::Current()->builtins()->builtin(Builtins::FunctionApply) ||
+          Isolate::Current()->builtins()->builtin(Builtins::kFunctionApply) ||
           function->shared()->code() ==
-          Isolate::Current()->builtins()->builtin(Builtins::FunctionCall)) {
+          Isolate::Current()->builtins()->builtin(Builtins::kFunctionCall)) {
         // Handle function.apply and function.call separately to flood the
         // function to be called and not the code for Builtins::FunctionApply or
         // Builtins::FunctionCall. The receiver of call/apply is the target

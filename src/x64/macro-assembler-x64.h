@@ -470,6 +470,11 @@ class MacroAssembler: public Assembler {
               Register src1,
               Register src2,
               LabelType* on_not_smi_result);
+  template <typename LabelType>
+  void SmiAdd(Register dst,
+              Register src1,
+              const Operand& src2,
+              LabelType* on_not_smi_result);
 
   void SmiAdd(Register dst,
               Register src1,
@@ -589,6 +594,10 @@ class MacroAssembler: public Assembler {
 
   // Converts a positive smi to a negative index.
   SmiIndex SmiToNegativeIndex(Register dst, Register src, int shift);
+
+  // Add the value of a smi in memory to an int32 register.
+  // Sets flags as a normal add.
+  void AddSmiField(Register dst, const Operand& src);
 
   // Basic Smi operations.
   void Move(Register dst, Smi* source) {
@@ -1022,6 +1031,18 @@ class MacroAssembler: public Assembler {
 
   Handle<Object> CodeObject() { return code_object_; }
 
+  // Copy length bytes from source to destination.
+  // Uses scratch register internally (if you have a low-eight register
+  // free, do use it, otherwise kScratchRegister will be used).
+  // The min_length is a minimum limit on the value that length will have.
+  // The algorithm has some special cases that might be omitted if the string
+  // is known to always be long.
+  void CopyBytes(Register destination,
+                 Register source,
+                 Register length,
+                 int min_length = 0,
+                 Register scratch = kScratchRegister);
+
 
   // ---------------------------------------------------------------------------
   // StatsCounter support
@@ -1265,6 +1286,26 @@ void MacroAssembler::SmiAdd(Register dst,
     j(overflow, on_not_smi_result);
     movq(dst, kScratchRegister);
   } else {
+    movq(dst, src1);
+    addq(dst, src2);
+    j(overflow, on_not_smi_result);
+  }
+}
+
+
+template <typename LabelType>
+void MacroAssembler::SmiAdd(Register dst,
+                            Register src1,
+                            const Operand& src2,
+                            LabelType* on_not_smi_result) {
+  ASSERT_NOT_NULL(on_not_smi_result);
+  if (dst.is(src1)) {
+    movq(kScratchRegister, src1);
+    addq(kScratchRegister, src2);
+    j(overflow, on_not_smi_result);
+    movq(dst, kScratchRegister);
+  } else {
+    ASSERT(!src2.AddressUsesRegister(dst));
     movq(dst, src1);
     addq(dst, src2);
     j(overflow, on_not_smi_result);
@@ -1910,9 +1951,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   }
 
   if (!definitely_matches) {
-    Handle<Code> adaptor =
-        Handle<Code>(Isolate::Current()->builtins()->builtin(
-            Builtins::ArgumentsAdaptorTrampoline));
+    Handle<Code> adaptor = isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (!code_constant.is_null()) {
       movq(rdx, code_constant, RelocInfo::EMBEDDED_OBJECT);
       addq(rdx, Immediate(Code::kHeaderSize - kHeapObjectTag));

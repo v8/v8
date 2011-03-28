@@ -114,6 +114,7 @@ int signbit(double x);
 #endif  // __GNUC__
 
 #include "atomicops.h"
+#include "platform-tls.h"
 #include "utils.h"
 #include "v8globals.h"
 
@@ -427,6 +428,19 @@ class Thread: public ThreadHandle {
   static bool HasThreadLocal(LocalStorageKey key) {
     return GetThreadLocal(key) != NULL;
   }
+
+#ifdef V8_FAST_TLS_SUPPORTED
+  static inline void* GetExistingThreadLocal(LocalStorageKey key) {
+    void* result = reinterpret_cast<void*>(
+        InternalGetExistingThreadLocal(static_cast<intptr_t>(key)));
+    ASSERT(result == GetThreadLocal(key));
+    return result;
+  }
+#else
+  static inline void* GetExistingThreadLocal(LocalStorageKey key) {
+    return GetThreadLocal(key);
+  }
+#endif
 
   // A hint to the scheduler to let another thread run.
   static void YieldCPU();

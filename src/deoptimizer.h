@@ -136,6 +136,13 @@ class Deoptimizer : public Malloced {
                           Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
 
+  // Makes sure that there is enough room in the relocation
+  // information of a code object to perform lazy deoptimization
+  // patching. If there is not enough room a new relocation
+  // information object is allocated and comments are added until it
+  // is big enough.
+  static void EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code);
+
   // Deoptimize the function now. Its current optimized code will never be run
   // again and any activations of the optimized code will get deoptimized when
   // execution returns.
@@ -319,7 +326,9 @@ class FrameDescription {
                    JSFunction* function);
 
   void* operator new(size_t size, uint32_t frame_size) {
-    return malloc(size + frame_size);
+    // Subtracts kPointerSize, as the member frame_content_ already supplies
+    // the first element of the area to store the frame.
+    return malloc(size + frame_size - kPointerSize);
   }
 
   void operator delete(void* description) {
@@ -403,7 +412,7 @@ class FrameDescription {
   }
 
   static int frame_content_offset() {
-    return sizeof(FrameDescription);
+    return OFFSET_OF(FrameDescription, frame_content_);
   }
 
  private:
@@ -421,6 +430,10 @@ class FrameDescription {
   // Continuation is the PC where the execution continues after
   // deoptimizing.
   intptr_t continuation_;
+
+  // This must be at the end of the object as the object is allocated larger
+  // than it's definition indicate to extend this array.
+  intptr_t frame_content_[1];
 
   intptr_t* GetFrameSlotPointer(unsigned offset) {
     ASSERT(offset < frame_size_);

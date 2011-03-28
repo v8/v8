@@ -135,17 +135,35 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyDetails(PropertyAttributes attributes,
                   PropertyType type,
                   int index = 0) {
+    ASSERT(type != EXTERNAL_ARRAY_TRANSITION);
     ASSERT(TypeField::is_valid(type));
     ASSERT(AttributesField::is_valid(attributes));
-    ASSERT(IndexField::is_valid(index));
+    ASSERT(StorageField::is_valid(index));
 
     value_ = TypeField::encode(type)
         | AttributesField::encode(attributes)
-        | IndexField::encode(index);
+        | StorageField::encode(index);
 
     ASSERT(type == this->type());
     ASSERT(attributes == this->attributes());
     ASSERT(index == this->index());
+  }
+
+  PropertyDetails(PropertyAttributes attributes,
+                  PropertyType type,
+                  ExternalArrayType array_type) {
+    ASSERT(type == EXTERNAL_ARRAY_TRANSITION);
+    ASSERT(TypeField::is_valid(type));
+    ASSERT(AttributesField::is_valid(attributes));
+    ASSERT(StorageField::is_valid(static_cast<int>(array_type)));
+
+    value_ = TypeField::encode(type)
+        | AttributesField::encode(attributes)
+        | StorageField::encode(static_cast<int>(array_type));
+
+    ASSERT(type == this->type());
+    ASSERT(attributes == this->attributes());
+    ASSERT(array_type == this->array_type());
   }
 
   // Conversion for storing details as Object*.
@@ -157,7 +175,8 @@ class PropertyDetails BASE_EMBEDDED {
   bool IsTransition() {
     PropertyType t = type();
     ASSERT(t != INTERCEPTOR);
-    return t == MAP_TRANSITION || t == CONSTANT_TRANSITION;
+    return t == MAP_TRANSITION || t == CONSTANT_TRANSITION ||
+        t == EXTERNAL_ARRAY_TRANSITION;
   }
 
   bool IsProperty() {
@@ -166,11 +185,18 @@ class PropertyDetails BASE_EMBEDDED {
 
   PropertyAttributes attributes() { return AttributesField::decode(value_); }
 
-  int index() { return IndexField::decode(value_); }
+  int index() { return StorageField::decode(value_); }
+
+  ExternalArrayType array_type() {
+    ASSERT(type() == EXTERNAL_ARRAY_TRANSITION);
+    return static_cast<ExternalArrayType>(StorageField::decode(value_));
+  }
 
   inline PropertyDetails AsDeleted();
 
-  static bool IsValidIndex(int index) { return IndexField::is_valid(index); }
+  static bool IsValidIndex(int index) {
+    return StorageField::is_valid(index);
+  }
 
   bool IsReadOnly() { return (attributes() & READ_ONLY) != 0; }
   bool IsDontDelete() { return (attributes() & DONT_DELETE) != 0; }
@@ -179,10 +205,10 @@ class PropertyDetails BASE_EMBEDDED {
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
-  class TypeField:       public BitField<PropertyType,       0, 3> {};
-  class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
-  class DeletedField:    public BitField<uint32_t,           6, 1> {};
-  class IndexField:      public BitField<uint32_t,           7, 32-7> {};
+  class TypeField:       public BitField<PropertyType,       0, 4> {};
+  class AttributesField: public BitField<PropertyAttributes, 4, 3> {};
+  class DeletedField:    public BitField<uint32_t,           7, 1> {};
+  class StorageField:    public BitField<uint32_t,           8, 32-8> {};
 
   static const int kInitialIndex = 1;
  private:
@@ -557,6 +583,8 @@ enum InstanceType {
   FIRST_FUNCTION_CLASS_TYPE = JS_REGEXP_TYPE
 };
 
+static const int kExternalArrayTypeCount = LAST_EXTERNAL_ARRAY_TYPE -
+    FIRST_EXTERNAL_ARRAY_TYPE + 1;
 
 STATIC_CHECK(JS_OBJECT_TYPE == Internals::kJSObjectType);
 STATIC_CHECK(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
@@ -1691,7 +1719,8 @@ class JSObject: public HeapObject {
   // Add a property to an object.
   MUST_USE_RESULT MaybeObject* AddProperty(String* name,
                                            Object* value,
-                                           PropertyAttributes attributes);
+                                           PropertyAttributes attributes,
+                                           StrictModeFlag strict_mode);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties
@@ -3502,18 +3531,18 @@ class Code: public HeapObject {
   static const int kFlagsICStateShift        = 0;
   static const int kFlagsICInLoopShift       = 3;
   static const int kFlagsTypeShift           = 4;
-  static const int kFlagsKindShift           = 7;
-  static const int kFlagsICHolderShift       = 11;
-  static const int kFlagsExtraICStateShift   = 12;
-  static const int kFlagsArgumentsCountShift = 14;
+  static const int kFlagsKindShift           = 8;
+  static const int kFlagsICHolderShift       = 12;
+  static const int kFlagsExtraICStateShift   = 13;
+  static const int kFlagsArgumentsCountShift = 15;
 
   static const int kFlagsICStateMask        = 0x00000007;  // 00000000111
   static const int kFlagsICInLoopMask       = 0x00000008;  // 00000001000
-  static const int kFlagsTypeMask           = 0x00000070;  // 00001110000
-  static const int kFlagsKindMask           = 0x00000780;  // 11110000000
-  static const int kFlagsCacheInPrototypeMapMask = 0x00000800;
-  static const int kFlagsExtraICStateMask   = 0x00003000;
-  static const int kFlagsArgumentsCountMask = 0xFFFFC000;
+  static const int kFlagsTypeMask           = 0x000000F0;  // 00001110000
+  static const int kFlagsKindMask           = 0x00000F00;  // 11110000000
+  static const int kFlagsCacheInPrototypeMapMask = 0x00001000;
+  static const int kFlagsExtraICStateMask   = 0x00006000;
+  static const int kFlagsArgumentsCountMask = 0xFFFF8000;
 
   static const int kFlagsNotUsedInLookup =
       (kFlagsICInLoopMask | kFlagsTypeMask | kFlagsCacheInPrototypeMapMask);
@@ -3715,7 +3744,9 @@ class Map: public HeapObject {
 
   // Returns a new map with all transitions dropped from the descriptors and the
   // external array elements bit set.
-  MUST_USE_RESULT inline MaybeObject* NewExternalArrayElementsMap();
+  MUST_USE_RESULT MaybeObject* GetExternalArrayElementsMap(
+      ExternalArrayType array_type,
+      bool safe_to_add_transition);
 
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);

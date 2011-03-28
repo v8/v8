@@ -316,15 +316,15 @@ class LoadIC: public IC {
   // Stub accessors.
   Code* megamorphic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::LoadIC_Megamorphic);
+        Builtins::kLoadIC_Megamorphic);
   }
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
-        Builtins::LoadIC_Initialize);
+        Builtins::kLoadIC_Initialize);
   }
   Code* pre_monomorphic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::LoadIC_PreMonomorphic);
+        Builtins::kLoadIC_PreMonomorphic);
   }
 
   static void Clear(Address address, Code* target);
@@ -382,28 +382,28 @@ class KeyedLoadIC: public IC {
   // Stub accessors.
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
-        Builtins::KeyedLoadIC_Initialize);
+        Builtins::kKeyedLoadIC_Initialize);
   }
   Code* megamorphic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedLoadIC_Generic);
+        Builtins::kKeyedLoadIC_Generic);
   }
   Code* generic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedLoadIC_Generic);
+        Builtins::kKeyedLoadIC_Generic);
   }
   Code* pre_monomorphic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedLoadIC_PreMonomorphic);
+        Builtins::kKeyedLoadIC_PreMonomorphic);
   }
   Code* string_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedLoadIC_String);
+        Builtins::kKeyedLoadIC_String);
   }
 
   Code* indexed_interceptor_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedLoadIC_IndexedInterceptor);
+        Builtins::kKeyedLoadIC_IndexedInterceptor);
   }
 
   static void Clear(Address address, Code* target);
@@ -465,27 +465,27 @@ class StoreIC: public IC {
   // Stub accessors.
   Code* megamorphic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::StoreIC_Megamorphic);
+        Builtins::kStoreIC_Megamorphic);
   }
   Code* megamorphic_stub_strict() {
     return isolate()->builtins()->builtin(
-        Builtins::StoreIC_Megamorphic_Strict);
+        Builtins::kStoreIC_Megamorphic_Strict);
   }
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
-        Builtins::StoreIC_Initialize);
+        Builtins::kStoreIC_Initialize);
   }
   static Code* initialize_stub_strict() {
     return Isolate::Current()->builtins()->builtin(
-        Builtins::StoreIC_Initialize_Strict);
+        Builtins::kStoreIC_Initialize_Strict);
   }
   Code* global_proxy_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::StoreIC_GlobalProxy);
+        Builtins::kStoreIC_GlobalProxy);
   }
   Code* global_proxy_stub_strict() {
     return isolate()->builtins()->builtin(
-        Builtins::StoreIC_GlobalProxy_Strict);
+        Builtins::kStoreIC_GlobalProxy_Strict);
   }
 
   static void Clear(Address address, Code* target);
@@ -540,27 +540,27 @@ class KeyedStoreIC: public IC {
   // Stub accessors.
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Initialize);
+        Builtins::kKeyedStoreIC_Initialize);
   }
   Code* megamorphic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Generic);
+        Builtins::kKeyedStoreIC_Generic);
   }
   static Code* initialize_stub_strict() {
     return Isolate::Current()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Initialize_Strict);
+        Builtins::kKeyedStoreIC_Initialize_Strict);
   }
   Code* megamorphic_stub_strict() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Generic_Strict);
+        Builtins::kKeyedStoreIC_Generic_Strict);
   }
   Code* generic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Generic);
+        Builtins::kKeyedStoreIC_Generic);
   }
   Code* generic_stub_strict() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Generic_Strict);
+        Builtins::kKeyedStoreIC_Generic_Strict);
   }
 
   static void Clear(Address address, Code* target);

@@ -415,8 +415,6 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->reloc_size =
       static_cast<int>((buffer_ + buffer_size_) - reloc_info_writer.pos());
   desc->origin = this;
-
-  COUNTERS->reloc_info_size()->Increment(desc->reloc_size);
 }
 
 
@@ -944,6 +942,12 @@ void Assembler::clc() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0xF8);
+}
+
+void Assembler::cld() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xFC);
 }
 
 void Assembler::cdq() {

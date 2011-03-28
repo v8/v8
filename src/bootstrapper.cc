@@ -445,7 +445,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   // --- E m p t y ---
   Handle<Code> code =
       Handle<Code>(Isolate::Current()->builtins()->builtin(
-          Builtins::EmptyFunction));
+          Builtins::kEmptyFunction));
   empty_function->set_code(*code);
   empty_function->shared()->set_code(*code);
   Handle<String> source = FACTORY->NewStringFromAscii(CStrVector("() {}"));
@@ -587,9 +587,9 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
 
   // Create the ThrowTypeError function instances.
   Handle<JSFunction> arguments_throw =
-      CreateThrowTypeErrorFunction(Builtins::StrictFunctionArguments);
+      CreateThrowTypeErrorFunction(Builtins::kStrictFunctionArguments);
   Handle<JSFunction> caller_throw =
-      CreateThrowTypeErrorFunction(Builtins::StrictFunctionCaller);
+      CreateThrowTypeErrorFunction(Builtins::kStrictFunctionCaller);
 
   // Complete the callback fixed arrays.
   arguments->set(0, *arguments_throw);
@@ -673,7 +673,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
   if (js_global_template.is_null()) {
     Handle<String> name = Handle<String>(HEAP->empty_symbol());
     Handle<Code> code = Handle<Code>(Isolate::Current()->builtins()->builtin(
-        Builtins::Illegal));
+        Builtins::kIllegal));
     js_global_function =
         FACTORY->NewFunction(name, JS_GLOBAL_OBJECT_TYPE,
                              JSGlobalObject::kSize, code, true);
@@ -707,7 +707,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
   if (global_template.IsEmpty()) {
     Handle<String> name = Handle<String>(HEAP->empty_symbol());
     Handle<Code> code = Handle<Code>(Isolate::Current()->builtins()->builtin(
-        Builtins::Illegal));
+        Builtins::kIllegal));
     global_proxy_function =
         FACTORY->NewFunction(name, JS_GLOBAL_PROXY_TYPE,
                              JSGlobalProxy::kSize, code, true);
@@ -796,15 +796,15 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
   // Install global Function object
   InstallFunction(global, "Function", JS_FUNCTION_TYPE, JSFunction::kSize,
-                  empty_function, Builtins::Illegal, true);  // ECMA native.
+                  empty_function, Builtins::kIllegal, true);  // ECMA native.
 
   {  // --- A r r a y ---
     Handle<JSFunction> array_function =
         InstallFunction(global, "Array", JS_ARRAY_TYPE, JSArray::kSize,
                         Isolate::Current()->initial_object_prototype(),
-                        Builtins::ArrayCode, true);
+                        Builtins::kArrayCode, true);
     array_function->shared()->set_construct_stub(
-        Isolate::Current()->builtins()->builtin(Builtins::ArrayConstructCode));
+        Isolate::Current()->builtins()->builtin(Builtins::kArrayConstructCode));
     array_function->shared()->DontAdaptArguments();
 
     // This seems a bit hackish, but we need to make sure Array.length
@@ -832,7 +832,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSFunction> number_fun =
         InstallFunction(global, "Number", JS_VALUE_TYPE, JSValue::kSize,
                         Isolate::Current()->initial_object_prototype(),
-                        Builtins::Illegal, true);
+                        Builtins::kIllegal, true);
     global_context()->set_number_function(*number_fun);
   }
 
@@ -840,7 +840,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSFunction> boolean_fun =
         InstallFunction(global, "Boolean", JS_VALUE_TYPE, JSValue::kSize,
                         Isolate::Current()->initial_object_prototype(),
-                        Builtins::Illegal, true);
+                        Builtins::kIllegal, true);
     global_context()->set_boolean_function(*boolean_fun);
   }
 
@@ -848,9 +848,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSFunction> string_fun =
         InstallFunction(global, "String", JS_VALUE_TYPE, JSValue::kSize,
                         Isolate::Current()->initial_object_prototype(),
-                        Builtins::Illegal, true);
+                        Builtins::kIllegal, true);
     string_fun->shared()->set_construct_stub(
-        Isolate::Current()->builtins()->builtin(Builtins::StringConstructCode));
+        Isolate::Current()->builtins()->builtin(
+            Builtins::kStringConstructCode));
     global_context()->set_string_function(*string_fun);
     // Add 'length' property to strings.
     Handle<DescriptorArray> string_descriptors =
@@ -872,7 +873,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSFunction> date_fun =
         InstallFunction(global, "Date", JS_VALUE_TYPE, JSValue::kSize,
                         Isolate::Current()->initial_object_prototype(),
-                        Builtins::Illegal, true);
+                        Builtins::kIllegal, true);
 
     global_context()->set_date_function(*date_fun);
   }
@@ -883,7 +884,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSFunction> regexp_fun =
         InstallFunction(global, "RegExp", JS_REGEXP_TYPE, JSRegExp::kSize,
                         Isolate::Current()->initial_object_prototype(),
-                        Builtins::Illegal, true);
+                        Builtins::kIllegal, true);
     global_context()->set_regexp_function(*regexp_fun);
 
     ASSERT(regexp_fun->has_initial_map());
@@ -968,7 +969,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // class_name equals 'Arguments'.
     Handle<String> symbol = FACTORY->LookupAsciiSymbol("Arguments");
     Handle<Code> code = Handle<Code>(
-        Isolate::Current()->builtins()->builtin(Builtins::Illegal));
+        Isolate::Current()->builtins()->builtin(Builtins::kIllegal));
     Handle<JSObject> prototype =
         Handle<JSObject>(
             JSObject::cast(global_context()->object_function()->prototype()));
@@ -1023,9 +1024,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<FixedArray> caller = FACTORY->NewFixedArray(2, TENURED);
 
     Handle<JSFunction> callee_throw =
-        CreateThrowTypeErrorFunction(Builtins::StrictArgumentsCallee);
+        CreateThrowTypeErrorFunction(Builtins::kStrictArgumentsCallee);
     Handle<JSFunction> caller_throw =
-        CreateThrowTypeErrorFunction(Builtins::StrictArgumentsCaller);
+        CreateThrowTypeErrorFunction(Builtins::kStrictArgumentsCaller);
 
     // Install the ThrowTypeError functions.
     callee->set(0, *callee_throw);
@@ -1088,7 +1089,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   {  // --- context extension
     // Create a function for the context extension objects.
     Handle<Code> code = Handle<Code>(
-        Isolate::Current()->builtins()->builtin(Builtins::Illegal));
+        Isolate::Current()->builtins()->builtin(Builtins::kIllegal));
     Handle<JSFunction> context_extension_fun =
         FACTORY->NewFunction(FACTORY->empty_symbol(),
                              JS_CONTEXT_EXTENSION_OBJECT_TYPE,
@@ -1106,7 +1107,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // Setup the call-as-function delegate.
     Handle<Code> code =
         Handle<Code>(Isolate::Current()->builtins()->builtin(
-            Builtins::HandleApiCallAsFunction));
+            Builtins::kHandleApiCallAsFunction));
     Handle<JSFunction> delegate =
         FACTORY->NewFunction(FACTORY->empty_symbol(), JS_OBJECT_TYPE,
                              JSObject::kHeaderSize, code, true);
@@ -1118,7 +1119,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // Setup the call-as-constructor delegate.
     Handle<Code> code =
         Handle<Code>(Isolate::Current()->builtins()->builtin(
-            Builtins::HandleApiCallAsConstructor));
+            Builtins::kHandleApiCallAsConstructor));
     Handle<JSFunction> delegate =
         FACTORY->NewFunction(FACTORY->empty_symbol(), JS_OBJECT_TYPE,
                              JSObject::kHeaderSize, code, true);
@@ -1251,7 +1252,7 @@ bool Genesis::InstallNatives() {
   // JavaScript builtins, a reference to the builtins object
   // (itself) and a reference to the global_context directly in the object.
   Handle<Code> code = Handle<Code>(
-      isolate->builtins()->builtin(Builtins::Illegal));
+      isolate->builtins()->builtin(Builtins::kIllegal));
   Handle<JSFunction> builtins_fun =
       factory->NewFunction(factory->empty_symbol(), JS_BUILTINS_OBJECT_TYPE,
                            JSBuiltinsObject::kSize, code, true);
@@ -1296,7 +1297,7 @@ bool Genesis::InstallNatives() {
     Handle<JSFunction> script_fun =
         InstallFunction(builtins, "Script", JS_VALUE_TYPE, JSValue::kSize,
                         isolate->initial_object_prototype(),
-                        Builtins::Illegal, false);
+                        Builtins::kIllegal, false);
     Handle<JSObject> prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
     SetPrototype(script_fun, prototype);
@@ -1421,7 +1422,7 @@ bool Genesis::InstallNatives() {
         InstallFunction(builtins, "OpaqueReference", JS_VALUE_TYPE,
                         JSValue::kSize,
                         isolate->initial_object_prototype(),
-                        Builtins::Illegal, false);
+                        Builtins::kIllegal, false);
     Handle<JSObject> prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
     SetPrototype(opaque_reference_fun, prototype);
@@ -1443,14 +1444,14 @@ bool Genesis::InstallNatives() {
                         JS_ARRAY_TYPE,
                         JSArray::kSize,
                         isolate->initial_object_prototype(),
-                        Builtins::ArrayCode,
+                        Builtins::kArrayCode,
                         true);
     Handle<JSObject> prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
     SetPrototype(array_function, prototype);
 
     array_function->shared()->set_construct_stub(
-        isolate->builtins()->builtin(Builtins::ArrayConstructCode));
+        isolate->builtins()->builtin(Builtins::kArrayConstructCode));
     array_function->shared()->DontAdaptArguments();
 
     // Make "length" magic on instances.
@@ -1505,12 +1506,12 @@ bool Genesis::InstallNatives() {
     Handle<JSFunction> call =
         InstallFunction(proto, "call", JS_OBJECT_TYPE, JSObject::kHeaderSize,
                         Handle<JSObject>::null(),
-                        Builtins::FunctionCall,
+                        Builtins::kFunctionCall,
                         false);
     Handle<JSFunction> apply =
         InstallFunction(proto, "apply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
                         Handle<JSObject>::null(),
-                        Builtins::FunctionApply,
+                        Builtins::kFunctionApply,
                         false);
 
     // Make sure that Function.prototype.call appears to be compiled.
@@ -1936,6 +1937,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           break;
         }
         case MAP_TRANSITION:
+        case EXTERNAL_ARRAY_TRANSITION:
         case CONSTANT_TRANSITION:
         case NULL_DESCRIPTOR:
           // Ignore non-properties.

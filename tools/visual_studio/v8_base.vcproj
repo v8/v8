@@ -870,6 +870,14 @@
         >
       </File>
       <File
+        RelativePath="..\..\src\platform-tls-win32.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\platform-tls.h"
+        >
+      </File>
+      <File
         RelativePath="..\..\src\platform-win32.cc"
         >
       </File>
@@ -1023,6 +1031,10 @@
       </File>
       <File
         RelativePath="..\..\src\shell.h"
+        >
+      </File>
+      <File
+        RelativePath="..\..\src\small-pointer-list.h"
         >
       </File>
       <File

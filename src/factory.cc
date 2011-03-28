@@ -392,8 +392,14 @@ Handle<Map> Factory::GetSlowElementsMap(Handle<Map> src) {
 }
 
 
-Handle<Map> Factory::NewExternalArrayElementsMap(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->NewExternalArrayElementsMap(), Map);
+Handle<Map> Factory::GetExternalArrayElementsMap(
+    Handle<Map> src,
+    ExternalArrayType array_type,
+    bool safe_to_add_transition) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     src->GetExternalArrayElementsMap(array_type,
+                                                      safe_to_add_transition),
+                     Map);
 }
 
 
@@ -987,11 +993,8 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<Object> callee,
 
 Handle<JSFunction> Factory::CreateApiFunction(
     Handle<FunctionTemplateInfo> obj, ApiInstanceType instance_type) {
-  Handle<Code> code = Handle<Code>(isolate()->builtins()->builtin(
-      Builtins::HandleApiCall));
-  Handle<Code> construct_stub =
-      Handle<Code>(isolate()->builtins()->builtin(
-          Builtins::JSConstructStubApi));
+  Handle<Code> code = isolate()->builtins()->HandleApiCall();
+  Handle<Code> construct_stub = isolate()->builtins()->JSConstructStubApi();
 
   int internal_field_count = 0;
   if (!obj->instance_template()->IsUndefined()) {

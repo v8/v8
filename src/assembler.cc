@@ -140,6 +140,7 @@ const int kPCJumpTag = (1 << kExtraTagBits) - 1;
 
 const int kSmallPCDeltaBits = kBitsPerByte - kTagBits;
 const int kSmallPCDeltaMask = (1 << kSmallPCDeltaBits) - 1;
+const int RelocInfo::kMaxSmallPCDelta = kSmallPCDeltaMask;
 
 const int kVariableLengthPCJumpTopTag = 1;
 const int kChunkBits = 7;
@@ -217,7 +218,6 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
 #ifdef DEBUG
   byte* begin_pos = pos_;
 #endif
-  COUNTERS->reloc_info_count()->Increment();
   ASSERT(rinfo->pc() - last_pc_ >= 0);
   ASSERT(RelocInfo::NUMBER_OF_MODES <= kMaxRelocModes);
   // Use unsigned delta-encoding for pc.

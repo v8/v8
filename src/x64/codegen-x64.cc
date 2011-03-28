@@ -2561,8 +2561,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ j(not_equal, &build_args);
       __ movq(rcx, FieldOperand(rax, JSFunction::kCodeEntryOffset));
       __ subq(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-      Handle<Code> apply_code(Isolate::Current()->builtins()->builtin(
-          Builtins::FunctionApply));
+      Handle<Code> apply_code = Isolate::Current()->builtins()->FunctionApply();
       __ Cmp(rcx, apply_code);
       __ j(not_equal, &build_args);
 
@@ -4982,7 +4981,8 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     FastCloneShallowArrayStub stub(
         FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
     clone = frame_->CallStub(&stub, 3);
-    __ IncrementCounter(COUNTERS->cow_arrays_created_stub(), 1);
+    Counters* counters = masm()->isolate()->counters();
+    __ IncrementCounter(counters->cow_arrays_created_stub(), 1);
   } else if (node->depth() > 1) {
     clone = frame_->CallRuntime(Runtime::kCreateArrayLiteral, 3);
   } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
@@ -7998,8 +7998,7 @@ void DeferredReferenceGetNamedValue::Generate() {
     __ movq(rax, receiver_);
   }
   __ Move(rcx, name_);
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::LoadIC_Initialize));
+  Handle<Code> ic = Isolate::Current()->builtins()->LoadIC_Initialize();
   __ Call(ic, RelocInfo::CODE_TARGET);
   // The call must be followed by a test rax instruction to indicate
   // that the inobject property case was inlined.
@@ -8011,7 +8010,8 @@ void DeferredReferenceGetNamedValue::Generate() {
   // Here we use masm_-> instead of the __ macro because this is the
   // instruction that gets patched and coverage code gets in the way.
   masm_->testl(rax, Immediate(-delta_to_patch_site));
-  __ IncrementCounter(COUNTERS->named_load_inline_miss(), 1);
+  Counters* counters = masm()->isolate()->counters();
+  __ IncrementCounter(counters->named_load_inline_miss(), 1);
 
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
@@ -8064,8 +8064,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // it in the IC initialization code and patch the movq instruction.
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic = Isolate::Current()->builtins()->KeyedLoadIC_Initialize();
   __ Call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the __
@@ -8079,7 +8078,8 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // 7-byte NOP with non-zero immediate (0f 1f 80 xxxxxxxx) which won't
   // be generated normally.
   masm_->testl(rax, Immediate(-delta_to_patch_site));
-  __ IncrementCounter(COUNTERS->keyed_load_inline_miss(), 1);
+  Counters* counters = masm()->isolate()->counters();
+  __ IncrementCounter(counters->keyed_load_inline_miss(), 1);
 
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
@@ -8112,7 +8112,8 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
 
 
 void DeferredReferenceSetKeyedValue::Generate() {
-  __ IncrementCounter(COUNTERS->keyed_store_inline_miss(), 1);
+  Counters* counters = masm()->isolate()->counters();
+  __ IncrementCounter(counters->keyed_store_inline_miss(), 1);
   // Move value, receiver, and key to registers rax, rdx, and rcx, as
   // the IC stub expects.
   // Move value to rax, using xchg if the receiver or key is in rax.
@@ -8160,8 +8161,8 @@ void DeferredReferenceSetKeyedValue::Generate() {
 
   // Call the IC stub.
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      (strict_mode_ == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
-                                    : Builtins::KeyedStoreIC_Initialize));
+      (strict_mode_ == kStrictMode) ? Builtins::kKeyedStoreIC_Initialize_Strict
+                                    : Builtins::kKeyedStoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instructions (initial movq)
   // to the test instruction.  We use masm_-> directly here instead of the
@@ -8247,7 +8248,8 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     int offset = kMaxInt;
     masm()->movq(result.reg(), FieldOperand(receiver.reg(), offset));
 
-    __ IncrementCounter(COUNTERS->named_load_inline(), 1);
+    Counters* counters = masm()->isolate()->counters();
+    __ IncrementCounter(counters->named_load_inline(), 1);
     deferred->BindExit();
   }
   ASSERT(frame()->height() == original_height - 1);
@@ -8454,7 +8456,8 @@ Result CodeGenerator::EmitKeyedLoad() {
     result = elements;
     __ CompareRoot(result.reg(), Heap::kTheHoleValueRootIndex);
     deferred->Branch(equal);
-    __ IncrementCounter(COUNTERS->keyed_load_inline(), 1);
+    Counters* counters = masm()->isolate()->counters();
+    __ IncrementCounter(counters->keyed_load_inline(), 1);
 
     deferred->BindExit();
   } else {
@@ -8565,7 +8568,8 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
                          index.scale,
                          FixedArray::kHeaderSize),
             result.reg());
-    __ IncrementCounter(COUNTERS->keyed_store_inline(), 1);
+    Counters* counters = masm()->isolate()->counters();
+    __ IncrementCounter(counters->keyed_store_inline(), 1);
 
     deferred->BindExit();
   } else {

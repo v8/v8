@@ -393,7 +393,7 @@ void* MemoryAllocator::AllocateRawMemory(const size_t requested,
 #ifdef DEBUG
   ZapBlock(reinterpret_cast<Address>(mem), alloced);
 #endif
-  COUNTERS->memory_allocated()->Increment(alloced);
+  isolate_->counters()->memory_allocated()->Increment(alloced);
   return mem;
 }
 
@@ -409,7 +409,7 @@ void MemoryAllocator::FreeRawMemory(void* mem,
   } else {
     OS::Free(mem, length);
   }
-  COUNTERS->memory_allocated()->Decrement(static_cast<int>(length));
+  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(length));
   size_ -= static_cast<int>(length);
   if (executable == EXECUTABLE) size_executable_ -= static_cast<int>(length);
 
@@ -537,7 +537,7 @@ Page* MemoryAllocator::CommitPages(Address start, size_t size,
 #ifdef DEBUG
   ZapBlock(start, size);
 #endif
-  COUNTERS->memory_allocated()->Increment(static_cast<int>(size));
+  isolate_->counters()->memory_allocated()->Increment(static_cast<int>(size));
 
   // So long as we correctly overestimated the number of chunks we should not
   // run out of chunk ids.
@@ -561,7 +561,7 @@ bool MemoryAllocator::CommitBlock(Address start,
 #ifdef DEBUG
   ZapBlock(start, size);
 #endif
-  COUNTERS->memory_allocated()->Increment(static_cast<int>(size));
+  isolate_->counters()->memory_allocated()->Increment(static_cast<int>(size));
   return true;
 }
 
@@ -574,7 +574,7 @@ bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
   ASSERT(InInitialChunk(start + size - 1));
 
   if (!initial_chunk_->Uncommit(start, size)) return false;
-  COUNTERS->memory_allocated()->Decrement(static_cast<int>(size));
+  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
   return true;
 }
 
@@ -675,7 +675,8 @@ void MemoryAllocator::DeleteChunk(int chunk_id) {
     // TODO(1240712): VirtualMemory::Uncommit has a return value which
     // is ignored here.
     initial_chunk_->Uncommit(c.address(), c.size());
-    COUNTERS->memory_allocated()->Decrement(static_cast<int>(c.size()));
+    Counters* counters = isolate_->counters();
+    counters->memory_allocated()->Decrement(static_cast<int>(c.size()));
   } else {
     LOG(isolate_, DeleteEvent("PagedChunk", c.address()));
     ObjectSpace space = static_cast<ObjectSpace>(1 << c.owner_identity());
@@ -2753,7 +2754,7 @@ LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
   LargeObjectChunk* chunk = reinterpret_cast<LargeObjectChunk*>(mem);
   chunk->size_ = size;
   Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
-  page->heap_ = Isolate::Current()->heap();
+  page->heap_ = isolate->heap();
   return chunk;
 }
 

@@ -851,7 +851,7 @@ Address InternalFrame::GetCallerStackPointer() const {
 
 Code* ArgumentsAdaptorFrame::unchecked_code() const {
   return Isolate::Current()->builtins()->builtin(
-      Builtins::ArgumentsAdaptorTrampoline);
+      Builtins::kArgumentsAdaptorTrampoline);
 }
 
 
@@ -1147,14 +1147,14 @@ Code* PcToCodeCache::GcSafeFindCodeForPc(Address pc) {
 
 
 PcToCodeCache::PcToCodeCacheEntry* PcToCodeCache::GetCacheEntry(Address pc) {
-  COUNTERS->pc_to_code()->Increment();
+  isolate_->counters()->pc_to_code()->Increment();
   ASSERT(IsPowerOf2(kPcToCodeCacheSize));
   uint32_t hash = ComputeIntegerHash(
       static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pc)));
   uint32_t index = hash & (kPcToCodeCacheSize - 1);
   PcToCodeCacheEntry* entry = cache(index);
   if (entry->pc == pc) {
-    COUNTERS->pc_to_code_cached()->Increment();
+    isolate_->counters()->pc_to_code_cached()->Increment();
     ASSERT(entry->code == GcSafeFindCodeForPc(pc));
   } else {
     // Because this code may be interrupted by a profiling signal that

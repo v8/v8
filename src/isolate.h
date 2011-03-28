@@ -402,7 +402,8 @@ class Isolate {
 
   // Returns the isolate inside which the current thread is running.
   INLINE(static Isolate* Current()) {
-    Isolate* isolate = UncheckedCurrent();
+    Isolate* isolate = reinterpret_cast<Isolate*>(
+        Thread::GetExistingThreadLocal(isolate_key_));
     ASSERT(isolate != NULL);
     return isolate;
   }

@@ -52,24 +52,25 @@ namespace internal {
 //
 class SlidingStateWindow {
  public:
-  SlidingStateWindow();
+  explicit SlidingStateWindow(Isolate* isolate);
   ~SlidingStateWindow();
   void AddState(StateTag state);
 
  private:
   static const int kBufferSize = 256;
+  Counters* counters_;
   int current_index_;
   bool is_full_;
   byte buffer_[kBufferSize];
 
 
   void IncrementStateCounter(StateTag state) {
-    COUNTERS->state_counters(state)->Increment();
+    counters_->state_counters(state)->Increment();
   }
 
 
   void DecrementStateCounter(StateTag state) {
-    COUNTERS->state_counters(state)->Decrement();
+    counters_->state_counters(state)->Decrement();
   }
 };
 
@@ -238,11 +239,12 @@ class Ticker: public Sampler {
 //
 // SlidingStateWindow implementation.
 //
-SlidingStateWindow::SlidingStateWindow(): current_index_(0), is_full_(false) {
+SlidingStateWindow::SlidingStateWindow(Isolate* isolate)
+    : counters_(isolate->counters()), current_index_(0), is_full_(false) {
   for (int i = 0; i < kBufferSize; i++) {
     buffer_[i] = static_cast<byte>(OTHER);
   }
-  LOGGER->ticker_->SetWindow(this);
+  isolate->logger()->ticker_->SetWindow(this);
 }
 
 
@@ -617,7 +619,7 @@ void Logger::ApiNamedPropertyAccess(const char* tag,
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   SmartPointer<char> property_name =
       String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  LOGGER->ApiEvent("api,%s,\"%s\",\"%s\"\n", tag, *class_name, *property_name);
+  ApiEvent("api,%s,\"%s\",\"%s\"\n", tag, *class_name, *property_name);
 #endif
 }
 
@@ -629,7 +631,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
   String* class_name_obj = holder->class_name();
   SmartPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  LOGGER->ApiEvent("api,%s,\"%s\",%u\n", tag, *class_name, index);
+  ApiEvent("api,%s,\"%s\",%u\n", tag, *class_name, index);
 #endif
 }
 
@@ -639,7 +641,7 @@ void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
   String* class_name_obj = object->class_name();
   SmartPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  LOGGER->ApiEvent("api,%s,\"%s\"\n", tag, *class_name);
+  ApiEvent("api,%s,\"%s\"\n", tag, *class_name);
 #endif
 }
 
@@ -647,7 +649,7 @@ void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
 void Logger::ApiEntryCall(const char* name) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!log_->IsEnabled() || !FLAG_log_api) return;
-  LOGGER->ApiEvent("api,%s\n", name);
+  ApiEvent("api,%s\n", name);
 #endif
 }
 
@@ -787,7 +789,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!log_->IsEnabled() || !FLAG_log_code) return;
   if (code == Isolate::Current()->builtins()->builtin(
-      Builtins::LazyCompile))
+      Builtins::kLazyCompile))
     return;
 
   LogMessageBuilder msg(this);
@@ -1416,7 +1418,7 @@ void Logger::LogCompiledFunctions() {
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
     if (*code_objects[i] == Isolate::Current()->builtins()->builtin(
-        Builtins::LazyCompile))
+        Builtins::kLazyCompile))
       continue;
     Handle<SharedFunctionInfo> shared = sfis[i];
     Handle<String> func_name(shared->DebugName());
@@ -1515,8 +1517,9 @@ bool Logger::Setup() {
 
   ticker_ = new Ticker(Isolate::Current(), kSamplingIntervalMs);
 
+  Isolate* isolate = Isolate::Current();
   if (FLAG_sliding_state_window && sliding_state_window_ == NULL) {
-    sliding_state_window_ = new SlidingStateWindow();
+    sliding_state_window_ = new SlidingStateWindow(isolate);
   }
 
   bool start_logging = FLAG_log || FLAG_log_runtime || FLAG_log_api
@@ -1528,7 +1531,7 @@ bool Logger::Setup() {
   }
 
   if (FLAG_prof) {
-    profiler_ = new Profiler(Isolate::Current());
+    profiler_ = new Profiler(isolate);
     if (!FLAG_prof_auto) {
       profiler_->pause();
     } else {
@@ -1603,7 +1606,7 @@ void Logger::EnableSlidingStateWindow() {
   // Otherwise, if the sliding state window computation has not been
   // started we do it now.
   if (sliding_state_window_ == NULL) {
-    sliding_state_window_ = new SlidingStateWindow();
+    sliding_state_window_ = new SlidingStateWindow(Isolate::Current());
   }
 #endif
 }

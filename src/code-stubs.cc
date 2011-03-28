@@ -48,7 +48,7 @@ bool CodeStub::FindCodeInCache(Code** code_out) {
 
 void CodeStub::GenerateCode(MacroAssembler* masm) {
   // Update the static counter each time a new code stub is generated.
-  COUNTERS->code_stubs()->Increment();
+  masm->isolate()->counters()->code_stubs()->Increment();
 
   // Nested stubs are not allowed for leafs.
   AllowStubCallsScope allow_scope(masm, AllowsStubCalls());
@@ -62,9 +62,11 @@ void CodeStub::GenerateCode(MacroAssembler* masm) {
 void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
   code->set_major_key(MajorKey());
 
-  PROFILE(ISOLATE, CodeCreateEvent(Logger::STUB_TAG, code, GetName()));
+  Isolate* isolate = masm->isolate();
+  PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, GetName()));
   GDBJIT(AddCode(GDBJITInterface::STUB, GetName(), code));
-  COUNTERS->total_stubs_code_size()->Increment(code->instruction_size());
+  Counters* counters = isolate->counters();
+  counters->total_stubs_code_size()->Increment(code->instruction_size());
 
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code_stubs) {

@@ -3347,7 +3347,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
       __ mov(ecx, FieldOperand(eax, JSFunction::kCodeEntryOffset));
       __ sub(Operand(ecx), Immediate(Code::kHeaderSize - kHeapObjectTag));
       Handle<Code> apply_code(masm()->isolate()->builtins()->builtin(
-          Builtins::FunctionApply));
+          Builtins::kFunctionApply));
       __ cmp(Operand(ecx), Immediate(apply_code));
       __ j(not_equal, &build_args);
 
@@ -5696,7 +5696,8 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     FastCloneShallowArrayStub stub(
         FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
     clone = frame_->CallStub(&stub, 3);
-    __ IncrementCounter(COUNTERS->cow_arrays_created_stub(), 1);
+    Counters* counters = masm()->isolate()->counters();
+    __ IncrementCounter(counters->cow_arrays_created_stub(), 1);
   } else if (node->depth() > 1) {
     clone = frame_->CallRuntime(Runtime::kCreateArrayLiteral, 3);
   } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
@@ -9392,7 +9393,7 @@ void DeferredReferenceGetNamedValue::Generate() {
   }
   __ Set(ecx, Immediate(name_));
   Handle<Code> ic(masm()->isolate()->builtins()->builtin(
-      Builtins::LoadIC_Initialize));
+      Builtins::kLoadIC_Initialize));
   RelocInfo::Mode mode = is_contextual_
       ? RelocInfo::CODE_TARGET_CONTEXT
       : RelocInfo::CODE_TARGET;
@@ -9409,15 +9410,16 @@ void DeferredReferenceGetNamedValue::Generate() {
   int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
   // Here we use masm_-> instead of the __ macro because this is the
   // instruction that gets patched and coverage code gets in the way.
+  Counters* counters = masm()->isolate()->counters();
   if (is_contextual_) {
     masm_->mov(is_dont_delete_ ? edx : ecx, -delta_to_patch_site);
-    __ IncrementCounter(COUNTERS->named_load_global_inline_miss(), 1);
+    __ IncrementCounter(counters->named_load_global_inline_miss(), 1);
     if (is_dont_delete_) {
-      __ IncrementCounter(COUNTERS->dont_delete_hint_miss(), 1);
+      __ IncrementCounter(counters->dont_delete_hint_miss(), 1);
     }
   } else {
     masm_->test(eax, Immediate(-delta_to_patch_site));
-    __ IncrementCounter(COUNTERS->named_load_inline_miss(), 1);
+    __ IncrementCounter(counters->named_load_inline_miss(), 1);
   }
 
   if (!dst_.is(eax)) __ mov(dst_, eax);
@@ -9472,7 +9474,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
   Handle<Code> ic(masm()->isolate()->builtins()->builtin(
-      Builtins::KeyedLoadIC_Initialize));
+      Builtins::kKeyedLoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the __
@@ -9483,7 +9485,8 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // Here we use masm_-> instead of the __ macro because this is the
   // instruction that gets patched and coverage code gets in the way.
   masm_->test(eax, Immediate(-delta_to_patch_site));
-  __ IncrementCounter(COUNTERS->keyed_load_inline_miss(), 1);
+  Counters* counters = masm()->isolate()->counters();
+  __ IncrementCounter(counters->keyed_load_inline_miss(), 1);
 
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
@@ -9519,7 +9522,8 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
 
 
 void DeferredReferenceSetKeyedValue::Generate() {
-  __ IncrementCounter(COUNTERS->keyed_store_inline_miss(), 1);
+  Counters* counters = masm()->isolate()->counters();
+  __ IncrementCounter(counters->keyed_store_inline_miss(), 1);
   // Move value_ to eax, key_ to ecx, and receiver_ to edx.
   Register old_value = value_;
 
@@ -9574,8 +9578,8 @@ void DeferredReferenceSetKeyedValue::Generate() {
 
   // Call the IC stub.
   Handle<Code> ic(masm()->isolate()->builtins()->builtin(
-      (strict_mode_ == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
-                                    : Builtins::KeyedStoreIC_Initialize));
+      (strict_mode_ == kStrictMode) ? Builtins::kKeyedStoreIC_Initialize_Strict
+                                    : Builtins::kKeyedStoreIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the
@@ -9596,9 +9600,13 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
   int original_height = frame()->height();
 #endif
 
+  Isolate* isolate = masm()->isolate();
+  Factory* factory = isolate->factory();
+  Counters* counters = isolate->counters();
+
   bool contextual_load_in_builtin =
       is_contextual &&
-      (masm()->isolate()->bootstrapper()->IsActive() ||
+      (isolate->bootstrapper()->IsActive() ||
        (!info_->closure().is_null() && info_->closure()->IsBuiltin()));
 
   Result result;
@@ -9644,7 +9652,7 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
     // use the double underscore macro that may insert instructions).
     // Initially use an invalid map to force a failure.
     masm()->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
-                Immediate(FACTORY->null_value()));
+                Immediate(factory->null_value()));
     // This branch is always a forwards branch so it's always a fixed size
     // which allows the assert below to succeed and patching to work.
     deferred->Branch(not_equal);
@@ -9656,15 +9664,15 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 
     if (is_contextual) {
       // Load the (initialy invalid) cell and get its value.
-      masm()->mov(result.reg(), FACTORY->null_value());
+      masm()->mov(result.reg(), factory->null_value());
       if (FLAG_debug_code) {
         __ cmp(FieldOperand(result.reg(), HeapObject::kMapOffset),
-               FACTORY->global_property_cell_map());
+               factory->global_property_cell_map());
         __ Assert(equal, "Uninitialized inlined contextual load");
       }
       __ mov(result.reg(),
              FieldOperand(result.reg(), JSGlobalPropertyCell::kValueOffset));
-      __ cmp(result.reg(), FACTORY->the_hole_value());
+      __ cmp(result.reg(), factory->the_hole_value());
       deferred->Branch(equal);
       bool is_dont_delete = false;
       if (!info_->closure().is_null()) {
@@ -9684,15 +9692,15 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
       }
       deferred->set_is_dont_delete(is_dont_delete);
       if (!is_dont_delete) {
-        __ cmp(result.reg(), FACTORY->the_hole_value());
+        __ cmp(result.reg(), factory->the_hole_value());
         deferred->Branch(equal);
       } else if (FLAG_debug_code) {
-        __ cmp(result.reg(), FACTORY->the_hole_value());
+        __ cmp(result.reg(), factory->the_hole_value());
         __ Check(not_equal, "DontDelete cells can't contain the hole");
       }
-      __ IncrementCounter(COUNTERS->named_load_global_inline(), 1);
+      __ IncrementCounter(counters->named_load_global_inline(), 1);
       if (is_dont_delete) {
-        __ IncrementCounter(COUNTERS->dont_delete_hint_hit(), 1);
+        __ IncrementCounter(counters->dont_delete_hint_hit(), 1);
       }
     } else {
       // The initial (invalid) offset has to be large enough to force a 32-bit
@@ -9700,7 +9708,7 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
       // kMaxInt (minus kHeapObjectTag).
       int offset = kMaxInt;
       masm()->mov(result.reg(), FieldOperand(receiver.reg(), offset));
-      __ IncrementCounter(COUNTERS->named_load_inline(), 1);
+      __ IncrementCounter(counters->named_load_inline(), 1);
     }
 
     deferred->BindExit();
@@ -9888,7 +9896,7 @@ Result CodeGenerator::EmitKeyedLoad() {
     result = elements;
     __ cmp(Operand(result.reg()), Immediate(FACTORY->the_hole_value()));
     deferred->Branch(equal);
-    __ IncrementCounter(COUNTERS->keyed_load_inline(), 1);
+    __ IncrementCounter(masm_->isolate()->counters()->keyed_load_inline(), 1);
 
     deferred->BindExit();
   } else {
@@ -9993,7 +10001,7 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
 
     // Store the value.
     __ mov(FixedArrayElementOperand(tmp.reg(), key.reg()), result.reg());
-    __ IncrementCounter(COUNTERS->keyed_store_inline(), 1);
+    __ IncrementCounter(masm_->isolate()->counters()->keyed_store_inline(), 1);
 
     deferred->BindExit();
   } else {
@@ -10224,7 +10232,7 @@ MemCopyFunction CreateMemCopyFunction() {
     __ test(Operand(src), Immediate(0x0F));
     __ j(not_zero, &unaligned_source);
     {
-      __ IncrementCounter(COUNTERS->memcopy_aligned(), 1);
+      __ IncrementCounter(masm.isolate()->counters()->memcopy_aligned(), 1);
       // Copy loop for aligned source and destination.
       __ mov(edx, count);
       Register loop_count = ecx;
@@ -10272,7 +10280,7 @@ MemCopyFunction CreateMemCopyFunction() {
       // Copy loop for unaligned source and aligned destination.
       // If source is not aligned, we can't read it as efficiently.
       __ bind(&unaligned_source);
-      __ IncrementCounter(COUNTERS->memcopy_unaligned(), 1);
+      __ IncrementCounter(masm.isolate()->counters()->memcopy_unaligned(), 1);
       __ mov(edx, ecx);
       Register loop_count = ecx;
       Register count = edx;
@@ -10316,7 +10324,7 @@ MemCopyFunction CreateMemCopyFunction() {
     }
 
   } else {
-    __ IncrementCounter(COUNTERS->memcopy_noxmm(), 1);
+    __ IncrementCounter(masm.isolate()->counters()->memcopy_noxmm(), 1);
     // SSE2 not supported. Unlikely to happen in practice.
     __ push(edi);
     __ push(esi);

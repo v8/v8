@@ -284,7 +284,7 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
     symbol_cache_.at(symbol_id) = result;
     return result;
   }
-  COUNTERS->total_preparse_symbols_skipped()->Increment();
+  isolate()->counters()->total_preparse_symbols_skipped()->Increment();
   return result;
 }
 
@@ -599,8 +599,8 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
                                       StrictModeFlag strict_mode) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
 
-  HistogramTimerScope timer(COUNTERS->parse());
-  COUNTERS->total_parse_size()->Increment(source->length());
+  HistogramTimerScope timer(isolate()->counters()->parse());
+  isolate()->counters()->total_parse_size()->Increment(source->length());
   fni_ = new FuncNameInferrer();
 
   // Initialize parser state.
@@ -681,9 +681,9 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
 
 FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
-  HistogramTimerScope timer(COUNTERS->parse_lazy());
+  HistogramTimerScope timer(isolate()->counters()->parse_lazy());
   Handle<String> source(String::cast(script_->source()));
-  COUNTERS->total_parse_size()->Increment(source->length());
+  isolate()->counters()->total_parse_size()->Increment(source->length());
 
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
   // Initialize parser state.
@@ -3608,7 +3608,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         // End position greater than end of stream is safe, and hard to check.
         ReportInvalidPreparseData(name, CHECK_OK);
       }
-      COUNTERS->total_preparse_skipped()->Increment(
+      isolate()->counters()->total_preparse_skipped()->Increment(
           end_pos - function_block_pos);
       // Seek to position just before terminal '}'.
       scanner().SeekForward(end_pos - 1);
