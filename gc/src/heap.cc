@@ -60,6 +60,7 @@ namespace internal {
 String* Heap::hidden_symbol_;
 Object* Heap::roots_[Heap::kRootListLength];
 Object* Heap::global_contexts_list_;
+StoreBufferRebuilder Heap::store_buffer_rebuilder_;
 
 
 NewSpace Heap::new_space_;
@@ -96,7 +97,7 @@ int Heap::initial_semispace_size_ = 1*MB;
 intptr_t Heap::code_range_size_ = 512*MB;
 intptr_t Heap::max_executable_size_ = 256*MB;
 #else
-static const int default_max_semispace_size_  = 8*MB;
+static const int default_max_semispace_size_  = 4*MB;
 intptr_t Heap::max_old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 512*KB;
 intptr_t Heap::code_range_size_ = 0;
@@ -480,6 +481,7 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
   if (collector == MARK_COMPACTOR &&
       !MarkCompactCollector::PreciseSweepingRequired() &&
       IncrementalMarking::state() == IncrementalMarking::MARKING &&
+      !IncrementalMarking::should_hurry() &&
       FLAG_incremental_marking_steps) {
     if (FLAG_trace_incremental_marking) {
       PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
@@ -951,6 +953,62 @@ void Heap::CheckNewSpaceExpansionCriteria() {
 }
 
 
+void Heap::ScavengeStoreBufferCallback(MemoryChunk* page,
+                                       StoreBufferEvent event) {
+  store_buffer_rebuilder_.Callback(page, event);
+}
+
+
+void StoreBufferRebuilder::Callback(MemoryChunk* page, StoreBufferEvent event) {
+  if (event == kStoreBufferStartScanningPagesEvent) {
+    start_of_current_page_ = NULL;
+    current_page_ = NULL;
+  } else if (event == kStoreBufferScanningPageEvent) {
+    if (current_page_ != NULL) {
+      // If this page already overflowed the store buffer during this iteration.
+      if (current_page_->scan_on_scavenge()) {
+        // Then we should wipe out the entries that have been added for it.
+        StoreBuffer::SetTop(start_of_current_page_);
+      } else if (StoreBuffer::Top() - start_of_current_page_ >=
+                 (StoreBuffer::Limit() - StoreBuffer::Top()) >> 2) {
+        // Did we find too many pointers in the previous page?  The heuristic is
+        // that no page can take more then 1/5 the remaining slots in the store
+        // buffer.
+        current_page_->set_scan_on_scavenge(true);
+        StoreBuffer::SetTop(start_of_current_page_);
+      } else {
+        // In this case the page we scanned took a reasonable number of slots in
+        // the store buffer.  It has now been rehabilitated and is no longer
+        // marked scan_on_scavenge.
+        ASSERT(!current_page_->scan_on_scavenge());
+      }
+    }
+    start_of_current_page_ = StoreBuffer::Top();
+    current_page_ = page;
+  } else if (event == kStoreBufferFullEvent) {
+    // The current page overflowed the store buffer again.  Wipe out its entries
+    // in the store buffer and mark it scan-on-scavenge again.  This may happen
+    // several times while scanning.
+    if (current_page_ == NULL) {
+      // Store Buffer overflowed while scanning promoted objects.  These are not
+      // in any particular page, though they are likely to be clustered by the
+      // allocation routines.
+      StoreBuffer::HandleFullness();
+    } else {
+      // Store Buffer overflowed while scanning a particular old space page for
+      // pointers to new space.
+      ASSERT(current_page_ == page);
+      ASSERT(page != NULL);
+      current_page_->set_scan_on_scavenge(true);
+      ASSERT(start_of_current_page_ != StoreBuffer::Top());
+      StoreBuffer::SetTop(start_of_current_page_);
+    }
+  } else {
+    UNREACHABLE();
+  }
+}
+
+
 void Heap::Scavenge() {
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
@@ -1008,7 +1066,7 @@ void Heap::Scavenge() {
 
   // Copy objects reachable from the old generation.
   {
-    StoreBufferRebuildScope scope;
+    StoreBufferRebuildScope scope(&ScavengeStoreBufferCallback);
     StoreBuffer::IteratePointersToNewSpace(&ScavengeObject);
   }
 
@@ -1205,7 +1263,7 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 
     // Promote and process all the to-be-promoted objects.
     {
-      StoreBufferRebuildScope scope;
+      StoreBufferRebuildScope scope(&ScavengeStoreBufferCallback);
       while (!promotion_queue.is_empty()) {
         HeapObject* target;
         int size;
@@ -3977,12 +4035,11 @@ static void VerifyPointers(
 
   while (it.has_next()) {
     Page* page = it.next();
-    Address start = page->ObjectAreaStart();
-    Address end = page->ObjectAreaEnd();
-
-    Heap::IteratePointersToNewSpace(start,
-                                    end,
-                                    &DummyScavengePointer);
+    Heap::IteratePointersOnPage(
+        reinterpret_cast<PagedSpace*>(page->owner()),
+        &Heap::IteratePointersToNewSpace,
+        &DummyScavengePointer,
+        page);
   }
 }
 
@@ -4193,23 +4250,15 @@ void Heap::IterateAndMarkPointersToFromSpace(Address start,
   while (slot_address < end) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
     Object* object = *slot;
-    // In normal store buffer operation we use this function to process the
-    // promotion queue and we never scan an object twice so we will not see
-    // pointers that have already been updated to point to to-space.  But
-    // in the case of store buffer overflow we scan the entire old space to
-    // find pointers that point to new-space and in that case we may hit
-    // newly promoted objects and fix the pointers before the promotion
-    // queue gets to them.
-    ASSERT(StoreBuffer::store_buffer_mode() !=
-               StoreBuffer::kStoreBufferFunctional ||
-           !Heap::InToSpace(object));
+    // If the store buffer becomes overfull we mark pages as being exempt from
+    // the store buffer.  These pages are scanned to find pointers that point
+    // to the new space.  In that case we may hit newly promoted objects and
+    // fix the pointers before the promotion queue gets to them.  Thus the 'if'.
     if (Heap::InFromSpace(object)) {
       callback(reinterpret_cast<HeapObject**>(slot), HeapObject::cast(object));
       if (Heap::InNewSpace(*slot)) {
         ASSERT(Heap::InToSpace(*slot));
         ASSERT((*slot)->IsHeapObject());
-        ASSERT(StoreBuffer::CellIsInStoreBuffer(
-            reinterpret_cast<Address>(slot)));
       }
     }
     slot_address += kPointerSize;
@@ -4290,8 +4339,7 @@ static void CheckStoreBuffer(Object** current,
 // Check that the store buffer contains all intergenerational pointers by
 // scanning a page and ensuring that all pointers to young space are in the
 // store buffer.
-void Heap::OldPointerSpaceCheckStoreBuffer(
-    ExpectedPageWatermarkState watermark_state) {
+void Heap::OldPointerSpaceCheckStoreBuffer() {
   OldSpace* space = old_pointer_space();
   PageIterator pages(space);
 
@@ -4318,8 +4366,7 @@ void Heap::OldPointerSpaceCheckStoreBuffer(
 }
 
 
-void Heap::MapSpaceCheckStoreBuffer(
-    ExpectedPageWatermarkState watermark_state) {
+void Heap::MapSpaceCheckStoreBuffer() {
   MapSpace* space = map_space();
   PageIterator pages(space);
 
@@ -4390,60 +4437,69 @@ void Heap::LargeObjectSpaceCheckStoreBuffer() {
 void Heap::IteratePointers(
     PagedSpace* space,
     PointerRegionCallback visit_pointer_region,
-    ObjectSlotCallback copy_object_func,
-    ExpectedPageWatermarkState expected_page_watermark_state) {
+    ObjectSlotCallback copy_object_func) {
 
   PageIterator pages(space);
 
   while (pages.has_next()) {
     Page* page = pages.next();
-    Address start = page->ObjectAreaStart();
-    Address limit = page->ObjectAreaEnd();
+    IteratePointersOnPage(space, visit_pointer_region, copy_object_func, page);
+  }
+}
 
-    Address end = start;
 
-    Object* free_space_map = Heap::free_space_map();
-    Object* two_pointer_filler_map = Heap::two_pointer_filler_map();
+void Heap::IteratePointersOnPage(
+    PagedSpace* space,
+    PointerRegionCallback visit_pointer_region,
+    ObjectSlotCallback copy_object_func,
+    Page* page) {
+  Address visitable_start = page->ObjectAreaStart();
+  Address end_of_page = page->ObjectAreaEnd();
 
-    while (end < limit) {
-      Object* o = *reinterpret_cast<Object**>(end);
-      // Skip fillers but not things that look like fillers in the special
-      // garbage section which can contain anything.
-      if (o == free_space_map ||
-          o == two_pointer_filler_map ||
-          end == space->top()) {
-        if (start != end) {
-          // After calling this the special garbage section may have moved.
-          visit_pointer_region(start, end, copy_object_func);
-          if (end >= space->top() && end < space->limit()) {
-            end = space->limit();
-            start = end;
-            continue;
-          }
+  Address visitable_end = visitable_start;
+
+  Object* free_space_map = Heap::free_space_map();
+  Object* two_pointer_filler_map = Heap::two_pointer_filler_map();
+
+  while (visitable_end < end_of_page) {
+    Object* o = *reinterpret_cast<Object**>(visitable_end);
+    // Skip fillers but not things that look like fillers in the special
+    // garbage section which can contain anything.
+    if (o == free_space_map ||
+        o == two_pointer_filler_map ||
+        visitable_end == space->top()) {
+      if (visitable_start != visitable_end) {
+        // After calling this the special garbage section may have moved.
+        visit_pointer_region(visitable_start, visitable_end, copy_object_func);
+        if (visitable_end >= space->top() && visitable_end < space->limit()) {
+          visitable_end = space->limit();
+          visitable_start = visitable_end;
+          continue;
         }
-        if (end == space->top()) {
-          start = end = space->limit();
-        } else {
-          // At this point we are either at the start of a filler or we are at
-          // the point where the space->top() used to be before the
-          // visit_pointer_region call above.  Either way we can skip the
-          // object at the current spot:  We don't promise to visit objects
-          // allocated during heap traversal, and if space->top() moved then it
-          // must be because an object was allocated at this point.
-          start = end + HeapObject::FromAddress(end)->Size();
-          end = start;
-        }
-      } else {
-        ASSERT(o != free_space_map);
-        ASSERT(o != two_pointer_filler_map);
-        ASSERT(end < space->top() || end >= space->limit());
-        end += kPointerSize;
       }
+      if (visitable_end == space->top() && visitable_end != space->limit()) {
+        visitable_start = visitable_end = space->limit();
+      } else {
+        // At this point we are either at the start of a filler or we are at
+        // the point where the space->top() used to be before the
+        // visit_pointer_region call above.  Either way we can skip the
+        // object at the current spot:  We don't promise to visit objects
+        // allocated during heap traversal, and if space->top() moved then it
+        // must be because an object was allocated at this point.
+        visitable_start =
+            visitable_end + HeapObject::FromAddress(visitable_end)->Size();
+        visitable_end = visitable_start;
+      }
+    } else {
+      ASSERT(o != free_space_map);
+      ASSERT(o != two_pointer_filler_map);
+      ASSERT(visitable_end < space->top() || visitable_end >= space->limit());
+      visitable_end += kPointerSize;
     }
-    ASSERT(end == limit);
-    if (start != end) {
-      visit_pointer_region(start, end, copy_object_func);
-    }
+  }
+  ASSERT(visitable_end == end_of_page);
+  if (visitable_start != visitable_end) {
+    visit_pointer_region(visitable_start, visitable_end, copy_object_func);
   }
 }
 

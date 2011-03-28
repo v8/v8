@@ -39,6 +39,7 @@ MarkingStack IncrementalMarking::marking_stack_;
 
 double IncrementalMarking::steps_took_ = 0;
 int IncrementalMarking::steps_count_ = 0;
+bool IncrementalMarking::should_hurry_ = false;
 intptr_t IncrementalMarking::allocation_marking_factor_ = 0;
 
 static intptr_t allocated = 0;
@@ -146,7 +147,7 @@ static void ClearMarkbits() {
 
 bool IncrementalMarking::WorthActivating() {
 #ifndef DEBUG
-  static const intptr_t kActivationThreshold = 20*MB;
+  static const intptr_t kActivationThreshold = 8 * MB;
 #else
   // TODO(gc) consider setting this to some low level so that some
   // debug tests run with incremental marking and some without.
@@ -307,6 +308,7 @@ void IncrementalMarking::Hurry() {
 void IncrementalMarking::Finalize() {
   Hurry();
   state_ = STOPPED;
+  IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
   PatchIncrementalMarkingRecordWriteStubs(false);
   ASSERT(marking_stack_.is_empty());
@@ -315,6 +317,12 @@ void IncrementalMarking::Finalize() {
 
 void IncrementalMarking::MarkingComplete() {
   state_ = COMPLETE;
+  // We will set the stack guard to request a GC now.  This will mean the rest
+  // of the GC gets performed as soon as possible (we can't do a GC here in a
+  // record-write context).  If a few things get allocated between now and then
+  // that shouldn't make us do a scavenge and keep being incremental, so we set
+  // the should-hurry flag to indicate that there can't be much work left to do.
+  set_should_hurry(true);
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Complete (normal).\n");
   }

@@ -303,9 +303,13 @@ class Bitmap {
 // any heap object.
 class MemoryChunk {
  public:
+  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
     return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
   }
+
+  // Only works for addresses in pointer spaces, not data or code spaces.
+  static inline MemoryChunk* FromAnyPointerAddress(Address addr);
 
   Address address() { return reinterpret_cast<Address>(this); }
 
@@ -317,7 +321,29 @@ class MemoryChunk {
   void set_next_chunk(MemoryChunk* next) { next_chunk_ = next; }
   void set_prev_chunk(MemoryChunk* prev) { prev_chunk_ = prev; }
 
-  Space* owner() const { return owner_; }
+  Space* owner() const {
+    if ((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
+        kFailureTag) {
+      return reinterpret_cast<Space*>(owner_ - kFailureTag);
+    } else {
+      return NULL;
+    }
+  }
+
+  void set_owner(Space* space) {
+    ASSERT((reinterpret_cast<intptr_t>(space) & kFailureTagMask) == 0);
+    owner_ = reinterpret_cast<Address>(space) + kFailureTag;
+    ASSERT((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
+           kFailureTag);
+  }
+
+  bool scan_on_scavenge() { return scan_on_scavenge_; }
+  void set_scan_on_scavenge(bool scan) { scan_on_scavenge_ = scan; }
+
+  int store_buffer_counter() { return store_buffer_counter_; }
+  void set_store_buffer_counter(int counter) {
+    store_buffer_counter_ = counter;
+  }
 
   Address body() { return address() + kObjectStartOffset; }
 
@@ -351,7 +377,7 @@ class MemoryChunk {
   static const intptr_t kAlignmentMask = kAlignment - 1;
 
   static const size_t kHeaderSize = kPointerSize + kPointerSize + kPointerSize +
-    kPointerSize + kPointerSize + kPointerSize;
+    kPointerSize + kPointerSize + kPointerSize + kPointerSize;
 
   static const size_t kMarksBitmapLength =
     (1 << kPageSizeBits) >> (kPointerSizeLog2);
@@ -421,7 +447,17 @@ class MemoryChunk {
   MemoryChunk* prev_chunk_;
   size_t size_;
   intptr_t flags_;
-  Space* owner_;
+  // The identity of the owning space.  This is tagged as a failure pointer, but
+  // no failure can be in an object, so this can be distinguished from any entry
+  // in a fixed array.
+  Address owner_;
+  // This flag indicates that the page is not being tracked by the store buffer.
+  // At any point where we have to iterate over pointers to new space, we must
+  // search this page for pointers to new space.
+  bool scan_on_scavenge_;
+  // Used by the store buffer to keep track of which pages to mark scan-on-
+  // scavenge.
+  int store_buffer_counter_;
 
   static MemoryChunk* Initialize(Address base,
                                  size_t size,
@@ -443,11 +479,8 @@ class Page : public MemoryChunk {
  public:
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize[
-  //
-  // Note that this function only works for addresses in normal paged
-  // spaces and addresses in the first 1Mbyte of large object pages (i.e.,
-  // the start of large objects but not necessarily derived pointers
-  // within them).
+  // This only works if the object is in fact in a page.  See also MemoryChunk::
+  // FromAddress() and FromAnyAddress().
   INLINE(static Page* FromAddress(Address a)) {
     return reinterpret_cast<Page*>(OffsetFrom(a) & ~kPageAlignmentMask);
   }
@@ -467,8 +500,6 @@ class Page : public MemoryChunk {
   inline Page* prev_page();
   inline void set_next_page(Page* page);
   inline void set_prev_page(Page* page);
-
-  PagedSpace* owner() const { return reinterpret_cast<PagedSpace*>(owner_); }
 
   // Returns the start address of the object area in this page.
   Address ObjectAreaStart() { return address() + kObjectStartOffset; }
@@ -1102,7 +1133,6 @@ class OldSpaceFreeList BASE_EMBEDDED {
   static const int kMinBlockSize = 3 * kPointerSize;
   static const int kMaxBlockSize = Page::kMaxHeapObjectSize;
 
-  // The identity of the owning space.
   PagedSpace* owner_;
 
   // Total available bytes in all blocks on this free list.
@@ -2024,6 +2054,67 @@ class LargeObjectIterator: public ObjectIterator {
  private:
   LargePage* current_;
   HeapObjectCallback size_func_;
+};
+
+
+// Iterates over the chunks (pages and large object pages) that can contain
+// pointers to new space.
+class PointerChunkIterator BASE_EMBEDDED {
+ public:
+  inline PointerChunkIterator();
+
+  // Return NULL when the iterator is done.
+  MemoryChunk* next() {
+    switch (state_) {
+      case kOldPointerState: {
+        if (old_pointer_iterator_.has_next()) {
+          return old_pointer_iterator_.next();
+        }
+        state_ = kMapState;
+        // Fall through.
+      }
+      case kMapState: {
+        if (map_iterator_.has_next()) {
+          return map_iterator_.next();
+        }
+        state_ = kLargeObjectState;
+        // Fall through.
+      }
+      case kLargeObjectState: {
+        HeapObject* heap_object;
+        do {
+          heap_object = lo_iterator_.next();
+          if (heap_object == NULL) {
+            state_ = kFinishedState;
+            return NULL;
+          }
+          // Fixed arrays are the only pointer-containing objects in large
+          // object space.
+        } while (!heap_object->IsFixedArray());
+        MemoryChunk* answer = MemoryChunk::FromAddress(heap_object->address());
+        return answer;
+      }
+      case kFinishedState:
+        return NULL;
+      default:
+        break;
+    }
+    UNREACHABLE();
+    return NULL;
+  }
+
+
+ private:
+  enum State {
+    kOldPointerState,
+    kMapState,
+    kLargeObjectState,
+    kFinishedState
+  };
+  State state_;
+  PageIterator old_pointer_iterator_;
+  PageIterator map_iterator_;
+  LargeObjectIterator lo_iterator_;
 };
 
 

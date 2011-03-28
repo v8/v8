@@ -113,14 +113,6 @@ void MemoryAllocator::UnprotectChunkFromPage(Page* page) {
 
 // --------------------------------------------------------------------------
 // PagedSpace
-
-bool PagedSpace::Contains(Address addr) {
-  Page* p = Page::FromAddress(addr);
-  if (!p->is_valid()) return false;
-  return p->owner() == this;
-}
-
-
 Page* Page::Initialize(MemoryChunk* chunk,
                        Executability executable,
                        PagedSpace* owner) {
@@ -134,6 +126,40 @@ Page* Page::Initialize(MemoryChunk* chunk,
               page->ObjectAreaEnd() - page->ObjectAreaStart());
   return page;
 }
+
+
+bool PagedSpace::Contains(Address addr) {
+  Page* p = Page::FromAddress(addr);
+  if (!p->is_valid()) return false;
+  return p->owner() == this;
+}
+
+
+MemoryChunk* MemoryChunk::FromAnyPointerAddress(Address addr) {
+  MemoryChunk* maybe = reinterpret_cast<MemoryChunk*>(
+      OffsetFrom(addr) & ~Page::kPageAlignmentMask);
+  if (maybe->owner() != NULL) return maybe;
+  LargeObjectIterator iterator(Heap::lo_space());
+  for (HeapObject* o = iterator.next(); o != NULL; o = iterator.next()) {
+    // Fixed arrays are the only pointer-containing objects in large object
+    // space.
+    if (o->IsFixedArray()) {
+      MemoryChunk* chunk = MemoryChunk::FromAddress(o->address());
+      if (chunk->Contains(addr)) {
+        return chunk;
+      }
+    }
+  }
+  UNREACHABLE();
+  return NULL;
+}
+
+
+PointerChunkIterator::PointerChunkIterator()
+    : state_(kOldPointerState),
+      old_pointer_iterator_(Heap::old_pointer_space()),
+      map_iterator_(Heap::map_space()),
+      lo_iterator_(Heap::lo_space()) { }
 
 
 Page* Page::next_page() {

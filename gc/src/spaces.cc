@@ -67,7 +67,13 @@ HeapObjectIterator::HeapObjectIterator(PagedSpace* space,
 
 HeapObjectIterator::HeapObjectIterator(Page* page,
                                        HeapObjectCallback size_func) {
-  Initialize(page->owner(),
+  Space* owner = page->owner();
+  ASSERT(owner == Heap::old_pointer_space() ||
+         owner == Heap::old_data_space() ||
+         owner == Heap::map_space() ||
+         owner == Heap::cell_space() ||
+         owner == Heap::code_space());
+  Initialize(reinterpret_cast<PagedSpace*>(owner),
              page->ObjectAreaStart(),
              page->ObjectAreaEnd(),
              kOnePageOnly,
@@ -381,7 +387,7 @@ Address MemoryAllocator::AllocateAlignedMemory(const size_t requested,
 
 
 void Page::InitializeAsAnchor(PagedSpace* owner) {
-  owner_ = owner;
+  set_owner(owner);
   set_prev_page(this);
   set_next_page(this);
 }
@@ -397,8 +403,9 @@ MemoryChunk* MemoryChunk::Initialize(Address base,
 
   chunk->size_ = size;
   chunk->flags_ = 0;
-  chunk->owner_ = owner;
+  chunk->set_owner(owner);
   chunk->markbits()->Clear();
+  chunk->set_scan_on_scavenge(false);
 
   if (executable == EXECUTABLE) chunk->SetFlag(IS_EXECUTABLE);
 
@@ -1416,9 +1423,6 @@ void OldSpaceFreeList::Reset() {
 
 
 int OldSpaceFreeList::Free(Address start, int size_in_bytes) {
-#ifdef DEBUG
-  MemoryAllocator::ZapBlock(start, size_in_bytes);
-#endif
   if (size_in_bytes == 0) return 0;
   FreeListNode* node = FreeListNode::FromAddress(start);
   node->set_size(size_in_bytes);
@@ -1578,6 +1582,13 @@ bool NewSpace::ReserveSpace(int bytes) {
 
 void PagedSpace::PrepareForMarkCompact(bool will_compact) {
   ASSERT(!will_compact);
+  // We don't have a linear allocation area while sweeping.  It will be restored
+  // on the first allocation after the sweep.
+  // Mark the old linear allocation area with a free space map so it can be
+  // skipped when scanning the heap.
+  int old_linear_size = limit() - top();
+  Free(top(), old_linear_size);
+  SetTop(NULL, NULL);
 }
 
 
@@ -1771,6 +1782,7 @@ void PagedSpace::ReportStatistics() {
              ", available: %" V8_PTR_PREFIX "d, %%%d\n",
          Capacity(), Waste(), Available(), pct);
 
+  if (was_swept_conservatively_) return;
   ClearHistograms();
   HeapObjectIterator obj_it(this);
   for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next())

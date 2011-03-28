@@ -1846,7 +1846,9 @@ void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
   int survivors_size = 0;
 
   // First pass: traverse all objects in inactive semispace, remove marks,
-  // migrate live objects and write forwarding addresses.
+  // migrate live objects and write forwarding addresses.  This stage puts
+  // new entries in the store buffer and may cause some pages to be marked
+  // scan-on-scavenge.
   for (Address current = from_bottom; current < from_top; current += size) {
     HeapObject* object = HeapObject::FromAddress(current);
 
@@ -1899,7 +1901,7 @@ void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
   LiveObjectList::IterateElements(&updating_visitor);
 
   {
-    StoreBufferRebuildScope scope;
+    StoreBufferRebuildScope scope(&Heap::ScavengeStoreBufferCallback);
     StoreBuffer::IteratePointersToNewSpace(&UpdatePointerToNewGen);
   }
 
@@ -2402,10 +2404,6 @@ static void SweepPrecisely(PagedSpace* space,
 void MarkCompactCollector::SweepSpace(PagedSpace* space,
                                       SweeperType sweeper) {
   space->set_was_swept_conservatively(sweeper == CONSERVATIVE);
-
-  // We don't have a linear allocation area while sweeping.  It will be restored
-  // on the first allocation after the sweep.
-  space->SetTop(NULL, NULL);
 
   space->ClearStats();
 

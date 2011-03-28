@@ -267,6 +267,12 @@ bool Heap::InToSpace(Object* object) {
 }
 
 
+bool Heap::OldGenerationAllocationLimitReached() {
+  if (!IncrementalMarking::IsStopped()) return false;
+  return OldGenerationSpaceAvailable() < 0;
+}
+
+
 bool Heap::ShouldBePromoted(Address old_address, int object_size) {
   // An object should be promoted if:
   // - the object has survived a scavenge operation or
@@ -388,9 +394,11 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
   // copied.
   if (first_word.IsForwardingAddress()) {
     HeapObject* dest = first_word.ToForwardingAddress();
+    ASSERT(InFromSpace(*p));
     *p = dest;
     Address slot = reinterpret_cast<Address>(p);
     if (Heap::InNewSpace(dest) && !Heap::InNewSpace(slot)) {
+      ASSERT(InToSpace(dest));
       StoreBuffer::EnterDirectlyIntoStoreBuffer(slot);
     }
     return;

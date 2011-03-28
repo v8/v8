@@ -25,18 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_WRITE_BARRIER_H_
-#define V8_WRITE_BARRIER_H_
+#ifndef V8_STORE_BUFFER_H_
+#define V8_STORE_BUFFER_H_
 
 #include "allocation.h"
 #include "checks.h"
 #include "globals.h"
 #include "platform.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
 
+
 typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
+
 
 // Used to implement the write barrier by collecting addresses of pointers
 // between spaces.
@@ -54,14 +57,16 @@ class StoreBuffer : public AllStatic {
   // buffer that should still be in the store buffer after GC.  It enters
   // addresses directly into the old buffer because the GC starts by wiping the
   // old buffer and thereafter only visits each cell once so there is no need
-  // to attempt to remove any dupes.  During the first part of a scavenge we
+  // to attempt to remove any dupes.  During the first part of a GC we
   // are using the store buffer to access the old spaces and at the same time
   // we are rebuilding the store buffer using this function.  There is, however
   // no issue of overwriting the buffer we are iterating over, because this
   // stage of the scavenge can only reduce the number of addresses in the store
   // buffer (some objects are promoted so pointers to them do not need to be in
-  // the store buffer).  The later parts of the scavenge process the promotion
-  // queue and they can overflow this buffer, which we must check for.
+  // the store buffer).  The later parts of the GC scan the pages that are
+  // exempt from the store buffer and process the promotion queue.  These steps
+  // can overflow this buffer.  We check for this and on overflow we call the
+  // callback set up with the StoreBufferRebuildScope object.
   static inline void EnterDirectlyIntoStoreBuffer(Address addr);
 
   // Iterates over all pointers that go from old space to new space.  It will
@@ -80,25 +85,26 @@ class StoreBuffer : public AllStatic {
   static void GCPrologue(GCType type, GCCallbackFlags flags);
   static void GCEpilogue(GCType type, GCCallbackFlags flags);
 
+  static Object*** Limit() { return reinterpret_cast<Object***>(old_limit_); }
   static Object*** Start() { return reinterpret_cast<Object***>(old_start_); }
   static Object*** Top() { return reinterpret_cast<Object***>(old_top_); }
+  static void SetTop(Object*** top) {
+    ASSERT(top >= Start());
+    ASSERT(top <= Limit());
+    old_top_ = reinterpret_cast<Address*>(top);
+  }
 
-  enum StoreBufferMode {
-    kStoreBufferFunctional,
-    kStoreBufferDisabled,
-    kStoreBufferBeingRebuilt
-  };
-
-  static StoreBufferMode store_buffer_mode() { return store_buffer_mode_; }
-  static inline void set_store_buffer_mode(StoreBufferMode mode);
   static bool old_buffer_is_sorted() { return old_buffer_is_sorted_; }
+  static bool old_buffer_is_filtered() { return old_buffer_is_filtered_; }
 
   // Goes through the store buffer removing pointers to things that have
   // been promoted.  Rebuilds the store buffer completely if it overflowed.
   static void SortUniq();
+
+  static void HandleFullness();
   static void Verify();
 
-  static void PrepareForIteration();
+  static bool PrepareForIteration();
 
 #ifdef DEBUG
   static void Clean();
@@ -118,9 +124,13 @@ class StoreBuffer : public AllStatic {
   static Address* old_top_;
 
   static bool old_buffer_is_sorted_;
-  static StoreBufferMode store_buffer_mode_;
+  static bool old_buffer_is_filtered_;
   static bool during_gc_;
+  // The garbage collector iterates over many pointers to new space that are not
+  // handled by the store buffer.  This flag indicates whether the pointers
+  // found by the callbacks should be added to the store buffer or not.
   static bool store_buffer_rebuilding_enabled_;
+  static StoreBufferCallback callback_;
   static bool may_move_store_buffer_entries_;
 
   static VirtualMemory* virtual_memory_;
@@ -131,6 +141,8 @@ class StoreBuffer : public AllStatic {
   static void Uniq();
   static void ZapHashTables();
   static bool HashTablesAreZapped();
+  static void FilterScanOnScavengeEntries();
+  static void ExemptPopularPages(int prime_sample_step, int threshold);
 
   friend class StoreBufferRebuildScope;
   friend class DontMoveStoreBufferEntriesScope;
@@ -139,18 +151,23 @@ class StoreBuffer : public AllStatic {
 
 class StoreBufferRebuildScope {
  public:
-  StoreBufferRebuildScope() :
-      stored_state_(StoreBuffer::store_buffer_rebuilding_enabled_) {
+  explicit StoreBufferRebuildScope(StoreBufferCallback callback)
+      : stored_state_(StoreBuffer::store_buffer_rebuilding_enabled_),
+        stored_callback_(StoreBuffer::callback_) {
     StoreBuffer::store_buffer_rebuilding_enabled_ = true;
+    StoreBuffer::callback_ = callback;
+    (*callback)(NULL, kStoreBufferScanningPageEvent);
   }
 
   ~StoreBufferRebuildScope() {
+    StoreBuffer::callback_ = stored_callback_;
     StoreBuffer::store_buffer_rebuilding_enabled_ = stored_state_;
     StoreBuffer::CheckForFullBuffer();
   }
 
  private:
   bool stored_state_;
+  StoreBufferCallback stored_callback_;
 };
 
 
@@ -171,4 +188,4 @@ class DontMoveStoreBufferEntriesScope {
 
 } }  // namespace v8::internal
 
-#endif  // V8_WRITE_BARRIER_H_
+#endif  // V8_STORE_BUFFER_H_

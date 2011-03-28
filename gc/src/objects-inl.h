@@ -831,7 +831,9 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 
 #define WRITE_BARRIER(object, offset, value) \
   IncrementalMarking::RecordWrite(object, value); \
-  Heap::RecordWrite(object->address(), offset);
+  if (Heap::InNewSpace(value)) { \
+    Heap::RecordWrite(object->address(), offset); \
+  }
 
 #define READ_DOUBLE_FIELD(p, offset) \
   (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)))

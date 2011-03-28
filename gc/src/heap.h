@@ -35,6 +35,7 @@
 #include "spaces.h"
 #include "splay-tree-inl.h"
 #include "v8-counters.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
@@ -233,6 +234,22 @@ typedef String* (*ExternalStringTableUpdaterCallback)(Object** pointer);
 typedef void (*PointerRegionCallback)(Address start,
                                       Address end,
                                       ObjectSlotCallback copy_object_func);
+
+
+class StoreBufferRebuilder : public AllStatic {
+ public:
+  void Callback(MemoryChunk* page, StoreBufferEvent event);
+
+ private:
+  // We record in this variable how full the store buffer was when we started
+  // iterating over the current page, finding pointers to new space.  If the
+  // store buffer overflows again we can exempt the page from the store buffer
+  // by rewinding to this point instead of having to search the store buffer.
+  Object*** start_of_current_page_;
+  // The current page we are scanning in the store buffer iterator.
+  MemoryChunk* current_page_;
+};
+
 
 
 // The all static Heap captures the interface to the global object heap.
@@ -851,11 +868,6 @@ class Heap : public AllStatic {
   // Iterates over all the other roots in the heap.
   static void IterateWeakRoots(ObjectVisitor* v, VisitMode mode);
 
-  enum ExpectedPageWatermarkState {
-    WATERMARK_SHOULD_BE_VALID,
-    WATERMARK_CAN_BE_INVALID
-  };
-
   // For each region of pointers on a page in use from an old space call
   // visit_pointer_region callback.
   // If either visit_pointer_region or callback can cause an allocation
@@ -866,8 +878,12 @@ class Heap : public AllStatic {
   static void IteratePointers(
       PagedSpace* space,
       PointerRegionCallback visit_pointer_region,
+      ObjectSlotCallback callback);
+  static void IteratePointersOnPage(
+      PagedSpace* space,
+      PointerRegionCallback visit_pointer_region,
       ObjectSlotCallback callback,
-      ExpectedPageWatermarkState expected_page_watermark_state);
+      Page* page);
 
   // Iterate pointers to from semispace of new space found in memory interval
   // from start to end.
@@ -955,10 +971,8 @@ class Heap : public AllStatic {
   // Verify the heap is in its normal state before or after a GC.
   static void Verify();
 
-  static void OldPointerSpaceCheckStoreBuffer(
-      ExpectedPageWatermarkState watermark_state);
-  static void MapSpaceCheckStoreBuffer(
-      ExpectedPageWatermarkState watermark_state);
+  static void OldPointerSpaceCheckStoreBuffer();
+  static void MapSpaceCheckStoreBuffer();
   static void LargeObjectSpaceCheckStoreBuffer();
 
   // Report heap statistics.
@@ -1065,16 +1079,14 @@ class Heap : public AllStatic {
            > old_gen_promotion_limit_;
   }
 
-  static intptr_t OldGenerationSpaceAvailable() {
+  static inline intptr_t OldGenerationSpaceAvailable() {
     return old_gen_allocation_limit_ -
            (PromotedSpaceSize() + PromotedExternalMemorySize());
   }
 
   // True if we have reached the allocation limit in the old generation that
   // should artificially cause a GC right now.
-  static bool OldGenerationAllocationLimitReached() {
-    return OldGenerationSpaceAvailable() < 0;
-  }
+  static inline bool OldGenerationAllocationLimitReached();
 
   // Can be called when the embedding application is idle.
   static bool IdleNotification();
@@ -1271,6 +1283,8 @@ class Heap : public AllStatic {
 
   static Object* global_contexts_list_;
 
+  static StoreBufferRebuilder store_buffer_rebuilder_;
+
   struct StringTypeTable {
     InstanceType type;
     int size;
@@ -1382,6 +1396,8 @@ class Heap : public AllStatic {
 
   static Address DoScavenge(ObjectVisitor* scavenge_visitor,
                             Address new_space_front);
+  static void ScavengeStoreBufferCallback(MemoryChunk* page,
+                                          StoreBufferEvent event);
 
   // Performs a major collection in the whole heap.
   static void MarkCompact(GCTracer* tracer);

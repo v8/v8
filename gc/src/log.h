@@ -28,6 +28,7 @@
 #ifndef V8_LOG_H_
 #define V8_LOG_H_
 
+#include "objects.h"
 #include "platform.h"
 #include "log-utils.h"
 

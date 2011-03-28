@@ -50,6 +50,8 @@ class IncrementalMarking : public AllStatic {
     return state_;
   }
 
+  static bool should_hurry() { return should_hurry_; }
+
   static inline bool IsStopped() { return state() == STOPPED; }
 
   static bool WorthActivating();
@@ -217,6 +219,7 @@ class IncrementalMarking : public AllStatic {
   }
 
  private:
+  static void set_should_hurry(bool val) { should_hurry_ = val; }
   static void ResetStepCounters() {
     steps_count_ = 0;
     steps_took_ = 0;
@@ -229,7 +232,7 @@ class IncrementalMarking : public AllStatic {
 
   static int steps_count_;
   static double steps_took_;
-
+  static bool should_hurry_;
   static intptr_t allocation_marking_factor_;
 };
 

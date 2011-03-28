@@ -133,6 +133,7 @@ class FixedArray;
 class FunctionEntry;
 class FunctionLiteral;
 class FunctionTemplateInfo;
+class MemoryChunk;
 class NumberDictionary;
 class StringDictionary;
 template <typename T> class Handle;
@@ -313,6 +314,17 @@ enum InlineCacheHolderFlag {
   OWN_MAP,  // For fast properties objects.
   PROTOTYPE_MAP  // For slow properties objects (except GlobalObjects).
 };
+
+
+// The Store Buffer (GC).
+typedef enum {
+  kStoreBufferFullEvent,
+  kStoreBufferStartScanningPagesEvent,
+  kStoreBufferScanningPageEvent
+} StoreBufferEvent;
+
+
+typedef void (*StoreBufferCallback)(MemoryChunk* page, StoreBufferEvent event);
 
 
 // Type of properties.

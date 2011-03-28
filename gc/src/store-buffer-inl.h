@@ -25,10 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_WRITE_BARRIER_INL_H_
-#define V8_WRITE_BARRIER_INL_H_
+#ifndef V8_STORE_BUFFER_INL_H_
+#define V8_STORE_BUFFER_INL_H_
 
-#include "v8.h"
 #include "store-buffer.h"
 
 namespace v8 {
@@ -40,6 +39,8 @@ Address StoreBuffer::TopAddress() {
 
 
 void StoreBuffer::Mark(Address addr) {
+  ASSERT(!Heap::cell_space()->Contains(addr));
+  ASSERT(!Heap::code_space()->Contains(addr));
   Address* top = reinterpret_cast<Address*>(Heap::store_buffer_top());
   *top++ = addr;
   Heap::public_set_store_buffer_top(top);
@@ -52,37 +53,26 @@ void StoreBuffer::Mark(Address addr) {
 }
 
 
-void StoreBuffer::set_store_buffer_mode(StoreBuffer::StoreBufferMode mode) {
-  if (FLAG_trace_gc) {
-    if (mode != store_buffer_mode_) {
-      if (mode == kStoreBufferDisabled) {
-        PrintF("Store buffer overflowed.\n");
-      } else if (mode == kStoreBufferBeingRebuilt) {
-        PrintF("Store buffer being rebuilt.\n");
-      } else if (mode == kStoreBufferFunctional) {
-        PrintF("Store buffer reenabled.\n");
-      }
-    }
-  }
-  store_buffer_mode_ = mode;
-}
-
-
 void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
   if (store_buffer_rebuilding_enabled_) {
+    ASSERT(!Heap::cell_space()->Contains(addr));
+    ASSERT(!Heap::code_space()->Contains(addr));
+    ASSERT(!Heap::old_data_space()->Contains(addr));
+    ASSERT(!Heap::new_space()->Contains(addr));
     Address* top = old_top_;
     *top++ = addr;
     old_top_ = top;
-    if (top >= old_limit_) {
-      Counters::store_buffer_overflows.Increment();
-      set_store_buffer_mode(kStoreBufferDisabled);
-      old_top_ = old_start_;
-    }
     old_buffer_is_sorted_ = false;
+    old_buffer_is_filtered_ = false;
+    if (top >= old_limit_) {
+      ASSERT(callback_ != NULL);
+      (*callback_)(MemoryChunk::FromAnyPointerAddress(addr),
+                   kStoreBufferFullEvent);
+    }
   }
 }
 
 
 } }  // namespace v8::internal
 
-#endif  // V8_WRITE_BARRIER_INL_H_
+#endif  // V8_STORE_BUFFER_INL_H_

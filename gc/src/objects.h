@@ -36,6 +36,7 @@
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/constants-mips.h"
 #endif
+#include "v8checks.h"
 
 //
 // Most object types in the V8 JavaScript are described in this file.
