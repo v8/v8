@@ -288,14 +288,33 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
 
   // There are no translation commands for the caller's pc and fp, the
   // context, and the function.  Set them up explicitly.
-  for (int i = 0; ok && i < 4; i++) {
+  for (int i =  StandardFrameConstants::kCallerPCOffset;
+       ok && i >=  StandardFrameConstants::kMarkerOffset;
+       i -= kPointerSize) {
     uint32_t input_value = input_->GetFrameSlot(input_offset);
     if (FLAG_trace_osr) {
-      PrintF("    [sp + %d] <- 0x%08x ; [sp + %d] (fixed part)\n",
+      const char* name = "UNKNOWN";
+      switch (i) {
+        case StandardFrameConstants::kCallerPCOffset:
+          name = "caller's pc";
+          break;
+        case StandardFrameConstants::kCallerFPOffset:
+          name = "fp";
+          break;
+        case StandardFrameConstants::kContextOffset:
+          name = "context";
+          break;
+        case StandardFrameConstants::kMarkerOffset:
+          name = "function";
+          break;
+      }
+      PrintF("    [sp + %d] <- 0x%08x ; [sp + %d] (fixed part - %s)\n",
              output_offset,
              input_value,
-             input_offset);
+             input_offset,
+             name);
     }
+
     output_[0]->SetFrameSlot(output_offset, input_->GetFrameSlot(input_offset));
     input_offset -= kPointerSize;
     output_offset -= kPointerSize;
