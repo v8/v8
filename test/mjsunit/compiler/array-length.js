@@ -36,7 +36,7 @@ function Test(a0, a2, a5) {
 var a0 = [];
 var a2 = [1,2];
 var a5 = [1,2,3,4,5];
-for (var i = 0; i < 10000000; i++) Test(a0, a2, a5);
+for (var i = 0; i < 100000; i++) Test(a0, a2, a5);
 assertEquals("undefined", typeof(ArrayLength(0)));
-for (var i = 0; i < 10000000; i++) Test(a0, a2, a5);
+for (var i = 0; i < 100000; i++) Test(a0, a2, a5);
 assertEquals(4, ArrayLength("hest"));
