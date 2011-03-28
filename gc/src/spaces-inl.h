@@ -203,22 +203,26 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
 // -----------------------------------------------------------------------------
 // NewSpace
 
-MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes,
-                                           AllocationInfo* alloc_info) {
-  Address new_top = alloc_info->top + size_in_bytes;
-  if (new_top > alloc_info->limit) return Failure::RetryAfterGC();
+MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes) {
+  Address new_top = allocation_info_.top + size_in_bytes;
+  if (new_top > allocation_info_.limit) {
+    Address high = to_space_.high();
+    if (allocation_info_.limit < high) {
+      allocation_info_.limit = Min(
+          allocation_info_.limit + inline_alloction_limit_step_,
+          high);
+      return AllocateRawInternal(size_in_bytes);
+    }
+    return Failure::RetryAfterGC();
+  }
 
-  Object* obj = HeapObject::FromAddress(alloc_info->top);
-  alloc_info->top = new_top;
-#ifdef DEBUG
-  SemiSpace* space =
-      (alloc_info == &allocation_info_) ? &to_space_ : &from_space_;
-  ASSERT(space->low() <= alloc_info->top
-         && alloc_info->top <= space->high()
-         && alloc_info->limit == space->high());
-#endif
+  Object* obj = HeapObject::FromAddress(allocation_info_.top);
+  allocation_info_.top = new_top;
+  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
-  IncrementalMarking::Step(size_in_bytes);
+  int bytes_allocated = new_top - top_on_previous_step_;
+  IncrementalMarking::Step(bytes_allocated);
+  top_on_previous_step_ = new_top;
 
   return obj;
 }

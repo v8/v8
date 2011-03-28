@@ -35,13 +35,6 @@
 namespace v8 {
 namespace internal {
 
-// For contiguous spaces, top should be in the space (or at the end) and limit
-// should be the end of the space.
-#define ASSERT_SEMISPACE_ALLOCATION_INFO(info, space) \
-  ASSERT((space).low() <= (info).top                  \
-         && (info).top <= (space).high()              \
-         && (info).limit == (space).high())
-
 // ----------------------------------------------------------------------------
 // HeapObjectIterator
 
@@ -848,10 +841,8 @@ bool NewSpace::Setup(int maximum_semispace_capacity) {
   object_mask_ = address_mask_ | kHeapObjectTagMask;
   object_expected_ = reinterpret_cast<uintptr_t>(start_) | kHeapObjectTag;
 
-  allocation_info_.top = to_space_.low();
-  allocation_info_.limit = to_space_.high();
+  ResetAllocationInfo();
 
-  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
   return true;
 }
 

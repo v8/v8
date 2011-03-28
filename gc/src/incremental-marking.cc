@@ -39,6 +39,7 @@ MarkingStack IncrementalMarking::marking_stack_;
 
 double IncrementalMarking::steps_took_ = 0;
 int IncrementalMarking::steps_count_ = 0;
+intptr_t IncrementalMarking::allocation_marking_factor_ = 0;
 
 static intptr_t allocated = 0;
 
@@ -221,6 +222,8 @@ void IncrementalMarking::Start() {
   VerifyMarkbitsAreClean();
 #endif
 
+  Heap::new_space()->LowerInlineAllocationLimit(kAllocatedThreshold);
+
   // Mark strong roots grey.
   IncrementalMarkingRootMarkingVisitor visitor;
   Heap::IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
@@ -332,7 +335,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
         start = OS::TimeCurrentMillis();
       }
 
-      intptr_t bytes_to_process = allocated * kAllocationMarkingFactor;
+      intptr_t bytes_to_process = allocated * allocation_marking_factor_;
       int count = 0;
 
       Map* filler_map = Heap::one_pointer_filler_map();
@@ -360,7 +363,12 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
       if (FLAG_trace_incremental_marking || FLAG_trace_gc) {
         double end = OS::TimeCurrentMillis();
         steps_took_ += (end - start);
-        steps_count_++;
+      }
+
+      steps_count_++;
+
+      if ((steps_count_ % kAllocationMarkingFactorSpeedupInterval) == 0) {
+        allocation_marking_factor_ *= kAllocationMarkingFactorSpeedup;
       }
     }
   }

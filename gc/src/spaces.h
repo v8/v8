@@ -1631,11 +1631,19 @@ class NewSpace : public Space {
   Address* allocation_limit_address() { return &allocation_info_.limit; }
 
   MUST_USE_RESULT MaybeObject* AllocateRaw(int size_in_bytes) {
-    return AllocateRawInternal(size_in_bytes, &allocation_info_);
+    return AllocateRawInternal(size_in_bytes);
   }
 
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetAllocationInfo();
+
+  void LowerInlineAllocationLimit(intptr_t step) {
+    inline_alloction_limit_step_ = step;
+    allocation_info_.limit = Min(
+        allocation_info_.top + inline_alloction_limit_step_,
+        allocation_info_.limit);
+    top_on_previous_step_ = allocation_info_.top;
+  }
 
   // Get the extent of the inactive semispace (for use as a marking stack).
   Address FromSpaceLow() { return from_space_.low(); }
@@ -1727,15 +1735,21 @@ class NewSpace : public Space {
   // mark-compact collection.
   AllocationInfo allocation_info_;
 
+  // When incremental marking is active we will set allocation_info_.limit
+  // to be lower than actual limit and then will gradually increase it
+  // in steps to guarantee that we do incremental marking steps even
+  // when all allocation is performed from inlined generated code.
+  intptr_t inline_alloction_limit_step_;
+
+  Address top_on_previous_step_;
+
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
 #endif
 
-  // Implementation of AllocateRaw and MCAllocateRaw.
-  MUST_USE_RESULT inline MaybeObject* AllocateRawInternal(
-      int size_in_bytes,
-      AllocationInfo* alloc_info);
+  // Implementation of AllocateRaw.
+  MUST_USE_RESULT inline MaybeObject* AllocateRawInternal(int size_in_bytes);
 
   friend class SemiSpaceIterator;
 
@@ -1770,6 +1784,14 @@ class OldSpace : public PagedSpace {
  public:
   TRACK_MEMORY("OldSpace")
 };
+
+
+// For contiguous spaces, top should be in the space (or at the end) and limit
+// should be the end of the space.
+#define ASSERT_SEMISPACE_ALLOCATION_INFO(info, space) \
+  ASSERT((space).low() <= (info).top                  \
+         && (info).top <= (space).high()              \
+         && (info).limit <= (space).high())
 
 
 // -----------------------------------------------------------------------------

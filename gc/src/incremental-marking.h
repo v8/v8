@@ -69,7 +69,9 @@ class IncrementalMarking : public AllStatic {
   static void MarkingComplete();
 
   static const intptr_t kAllocatedThreshold = 1024;
-  static const intptr_t kAllocationMarkingFactor = 8;
+  static const intptr_t kInitialAllocationMarkingFactor = 8;
+  static const intptr_t kAllocationMarkingFactorSpeedupInterval = 512;
+  static const intptr_t kAllocationMarkingFactorSpeedup = 2;
 
   static void Step(intptr_t allocated);
 
@@ -218,6 +220,7 @@ class IncrementalMarking : public AllStatic {
   static void ResetStepCounters() {
     steps_count_ = 0;
     steps_took_ = 0;
+    allocation_marking_factor_ = kInitialAllocationMarkingFactor;
   }
 
 
@@ -227,6 +230,7 @@ class IncrementalMarking : public AllStatic {
   static int steps_count_;
   static double steps_took_;
 
+  static intptr_t allocation_marking_factor_;
 };
 
 } }  // namespace v8::internal
