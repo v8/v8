@@ -5710,9 +5710,9 @@ void HandleScopeImplementer::Iterate(ObjectVisitor* v) {
 
 
 char* HandleScopeImplementer::Iterate(ObjectVisitor* v, char* storage) {
-  HandleScopeImplementer* thread_local =
+  HandleScopeImplementer* scope_implementer =
       reinterpret_cast<HandleScopeImplementer*>(storage);
-  thread_local->IterateThis(v);
+  scope_implementer->IterateThis(v);
   return storage + ArchiveSpacePerThread();
 }
 
