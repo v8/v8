@@ -1125,7 +1125,9 @@ class OldSpaceFreeList BASE_EMBEDDED {
 #ifdef DEBUG
   void Zap();
   static intptr_t SumFreeList(FreeListNode* node);
+  static int FreeListLength(FreeListNode* cur);
   intptr_t SumFreeLists();
+  bool IsVeryLong();
 #endif
 
  private:

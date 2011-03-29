@@ -98,7 +98,7 @@ intptr_t Heap::code_range_size_ = 512*MB;
 intptr_t Heap::max_executable_size_ = 256*MB;
 #else
 static const int default_max_semispace_size_  = 4*MB;
-intptr_t Heap::max_old_generation_size_ = 512*MB;
+intptr_t Heap::max_old_generation_size_ = 700*MB;
 int Heap::initial_semispace_size_ = 512*KB;
 intptr_t Heap::code_range_size_ = 0;
 intptr_t Heap::max_executable_size_ = 128*MB;

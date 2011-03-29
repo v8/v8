@@ -239,8 +239,6 @@ void IncrementalMarking::Start() {
 void IncrementalMarking::PrepareForScavenge() {
   if (IsStopped()) return;
 
-  ResetStepCounters();
-
   Address new_space_low = Heap::new_space()->FromSpaceLow();
   Address new_space_high = Heap::new_space()->FromSpaceHigh();
   Marking::ClearRange(new_space_low,
@@ -376,7 +374,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
       steps_count_++;
 
       if ((steps_count_ % kAllocationMarkingFactorSpeedupInterval) == 0) {
-        allocation_marking_factor_ *= kAllocationMarkingFactorSpeedup;
+        allocation_marking_factor_ += kAllocationMarkingFactorSpeedup;
       }
     }
   }

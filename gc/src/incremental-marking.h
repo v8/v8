@@ -70,10 +70,18 @@ class IncrementalMarking : public AllStatic {
 
   static void MarkingComplete();
 
-  static const intptr_t kAllocatedThreshold = 1024;
-  static const intptr_t kInitialAllocationMarkingFactor = 8;
-  static const intptr_t kAllocationMarkingFactorSpeedupInterval = 512;
-  static const intptr_t kAllocationMarkingFactorSpeedup = 2;
+  // It's hard to know how much work the incremental marker should do to make
+  // progress in the face of the mutator creating new work for it.  We start
+  // of at a moderate rate of work and gradually increase the speed of the
+  // incremental marker until it completes.
+  // Do some marking every time this much memory has been allocated.
+  static const intptr_t kAllocatedThreshold = 8192;
+  // Start off by marking this many times more memory than has been allocated.
+  static const intptr_t kInitialAllocationMarkingFactor = 4;
+  // After this many steps we increase the marking/allocating factor.
+  static const intptr_t kAllocationMarkingFactorSpeedupInterval = 1024;
+  // This is how much we increase the marking/allocating factor by.
+  static const intptr_t kAllocationMarkingFactorSpeedup = 4;
 
   static void Step(intptr_t allocated);
 

@@ -1446,7 +1446,7 @@ int OldSpaceFreeList::Free(Address start, int size_in_bytes) {
     huge_list_ = node;
   }
   available_ += size_in_bytes;
-  ASSERT(available_ == SumFreeLists());
+  ASSERT(IsVeryLong() || available_ == SumFreeLists());
   return 0;
 }
 
@@ -1496,7 +1496,7 @@ HeapObject* OldSpaceFreeList::Allocate(int size_in_bytes) {
   }
 
   available_ -= new_node_size;
-  ASSERT(available_ == SumFreeLists());
+  ASSERT(IsVeryLong() || available_ == SumFreeLists());
 
   int old_linear_size = owner_->limit() - owner_->top();
   // Mark the old linear allocation area with a free space map so it can be
@@ -1547,6 +1547,32 @@ intptr_t OldSpaceFreeList::SumFreeList(FreeListNode* cur) {
 }
 
 
+static const int kVeryLongFreeList = 500;
+
+
+int OldSpaceFreeList::FreeListLength(FreeListNode* cur) {
+  int length = 0;
+  while (cur != NULL) {
+    length++;
+    cur = cur->next();
+    if (length == kVeryLongFreeList) return length;
+  }
+  return length;
+}
+
+
+bool OldSpaceFreeList::IsVeryLong() {
+  if (FreeListLength(small_list_) == kVeryLongFreeList) return  true;
+  if (FreeListLength(medium_list_) == kVeryLongFreeList) return  true;
+  if (FreeListLength(large_list_) == kVeryLongFreeList) return  true;
+  if (FreeListLength(huge_list_) == kVeryLongFreeList) return  true;
+  return false;
+}
+
+
+// This can take a very long time because it is linear in the number of entries
+// on the free list, so it should not be called if FreeListLength returns
+// kVeryLongFreeList.
 intptr_t OldSpaceFreeList::SumFreeLists() {
   intptr_t sum = SumFreeList(small_list_);
   sum += SumFreeList(medium_list_);
