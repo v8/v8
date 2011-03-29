@@ -7497,7 +7497,107 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
   // Otherwise default to slow case.
   MaybeObject* result = NormalizeElements();
   if (result->IsFailure()) return result;
-  return SetElement(index, value, strict_mode, check_prototype);
+  return SetDictionaryElement(index, value, strict_mode, check_prototype);
+}
+
+
+MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
+                                            Object* value,
+                                            StrictModeFlag strict_mode,
+                                            bool check_prototype) {
+  ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
+  Isolate* isolate = GetIsolate();
+  Heap* heap = isolate->heap();
+
+  // Insert element in the dictionary.
+  FixedArray* elements = FixedArray::cast(this->elements());
+  bool is_arguments =
+      (elements->map() == heap->non_strict_arguments_elements_map());
+  NumberDictionary* dictionary = NULL;
+  if (is_arguments) {
+    dictionary = NumberDictionary::cast(elements->get(1));
+  } else {
+    dictionary = NumberDictionary::cast(elements);
+  }
+
+  int entry = dictionary->FindEntry(index);
+  if (entry != NumberDictionary::kNotFound) {
+    Object* element = dictionary->ValueAt(entry);
+    PropertyDetails details = dictionary->DetailsAt(entry);
+    if (details.type() == CALLBACKS) {
+      return SetElementWithCallback(element, index, value, this);
+    } else {
+      dictionary->UpdateMaxNumberKey(index);
+      // If put fails in strict mode, throw an exception.
+      if (!dictionary->ValueAtPut(entry, value) && strict_mode == kStrictMode) {
+        Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
+        Handle<Object> holder(this);
+        Handle<Object> args[2] = { number, holder };
+        Handle<Object> error =
+            isolate->factory()->NewTypeError("strict_read_only_property",
+                                             HandleVector(args, 2));
+        return isolate->Throw(*error);
+      }
+    }
+  } else {
+    // Index not already used. Look for an accessor in the prototype chain.
+    if (check_prototype) {
+      bool found;
+      MaybeObject* result =
+          // Strict mode not needed. No-setter case already handled.
+          SetElementWithCallbackSetterInPrototypes(index, value, &found);
+      if (found) return result;
+    }
+    // When we set the is_extensible flag to false we always force the
+    // element into dictionary mode (and force them to stay there).
+    if (!map()->is_extensible()) {
+      Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
+      Handle<String> name = isolate->factory()->NumberToString(number);
+      Handle<Object> args[1] = { name };
+      Handle<Object> error =
+          isolate->factory()->NewTypeError("object_not_extensible",
+                                           HandleVector(args, 1));
+      return isolate->Throw(*error);
+    }
+    Object* new_dictionary;
+    MaybeObject* maybe = dictionary->AtNumberPut(index, value);
+    if (!maybe->ToObject(&new_dictionary)) return maybe;
+    if (dictionary != NumberDictionary::cast(new_dictionary)) {
+      if (is_arguments) {
+        elements->set(1, new_dictionary);
+      } else {
+        set_elements(HeapObject::cast(new_dictionary));
+      }
+      dictionary = NumberDictionary::cast(new_dictionary);
+    }
+  }
+
+  // Update the array length if this JSObject is an array.
+  if (IsJSArray()) {
+    MaybeObject* result =
+        JSArray::cast(this)->JSArrayUpdateLengthFromIndex(index, value);
+    if (result->IsFailure()) return result;
+  }
+
+  // Attempt to put this object back in fast case.
+  if (ShouldConvertToFastElements()) {
+    uint32_t new_length = 0;
+    if (IsJSArray()) {
+      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&new_length));
+    } else {
+      new_length = dictionary->max_number_key() + 1;
+    }
+    MaybeObject* result =
+        SetFastElementsCapacityAndLength(new_length, new_length);
+    if (result->IsFailure()) return result;
+#ifdef DEBUG
+    if (FLAG_trace_normalization) {
+      PrintF("Object elements are fast case again:\n");
+      Print();
+    }
+#endif
+  }
+  return value;
 }
 
 
@@ -7547,8 +7647,9 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
   Isolate* isolate = GetIsolate();
   switch (GetElementsKind()) {
     case FAST_ELEMENTS:
-      // Fast case.
       return SetFastElement(index, value, strict_mode, check_prototype);
+    case DICTIONARY_ELEMENTS:
+      return SetDictionaryElement(index, value, strict_mode, check_prototype);
     case EXTERNAL_PIXEL_ELEMENTS: {
       ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       return pixels->SetValue(index, value);
@@ -7584,92 +7685,6 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
       ExternalFloatArray* array = ExternalFloatArray::cast(elements());
       return array->SetValue(index, value);
     }
-    case DICTIONARY_ELEMENTS: {
-      // Insert element in the dictionary.
-      FixedArray* elms = FixedArray::cast(elements());
-      NumberDictionary* dictionary = NumberDictionary::cast(elms);
-
-      int entry = dictionary->FindEntry(index);
-      if (entry != NumberDictionary::kNotFound) {
-        Object* element = dictionary->ValueAt(entry);
-        PropertyDetails details = dictionary->DetailsAt(entry);
-        if (details.type() == CALLBACKS) {
-          return SetElementWithCallback(element, index, value, this);
-        } else {
-          dictionary->UpdateMaxNumberKey(index);
-          // If put fails instrict mode, throw exception.
-          if (!dictionary->ValueAtPut(entry, value) &&
-              strict_mode == kStrictMode) {
-            Handle<Object> number(isolate->factory()->NewNumberFromUint(index));
-            Handle<Object> holder(this);
-            Handle<Object> args[2] = { number, holder };
-            return isolate->Throw(
-                *isolate->factory()->NewTypeError("strict_read_only_property",
-                                                  HandleVector(args, 2)));
-          }
-        }
-      } else {
-        // Index not already used. Look for an accessor in the prototype chain.
-        if (check_prototype) {
-          bool found;
-          MaybeObject* result =
-              // Strict mode not needed. No-setter case already handled.
-              SetElementWithCallbackSetterInPrototypes(index, value, &found);
-          if (found) return result;
-        }
-        // When we set the is_extensible flag to false we always force
-        // the element into dictionary mode (and force them to stay there).
-        if (!map()->is_extensible()) {
-          Handle<Object> number(isolate->factory()->NewNumberFromUint(index));
-          Handle<String> index_string(
-              isolate->factory()->NumberToString(number));
-          Handle<Object> args[1] = { index_string };
-          return isolate->Throw(
-              *isolate->factory()->NewTypeError("object_not_extensible",
-                                                HandleVector(args, 1)));
-        }
-        Object* result;
-        { MaybeObject* maybe_result = dictionary->AtNumberPut(index, value);
-          if (!maybe_result->ToObject(&result)) return maybe_result;
-        }
-        if (elms != FixedArray::cast(result)) {
-          set_elements(FixedArray::cast(result));
-        }
-      }
-
-      // Update the array length if this JSObject is an array.
-      if (IsJSArray()) {
-        JSArray* array = JSArray::cast(this);
-        Object* return_value;
-        { MaybeObject* maybe_return_value =
-              array->JSArrayUpdateLengthFromIndex(index, value);
-          if (!maybe_return_value->ToObject(&return_value)) {
-            return maybe_return_value;
-          }
-        }
-      }
-
-      // Attempt to put this object back in fast case.
-      if (ShouldConvertToFastElements()) {
-        uint32_t new_length = 0;
-        if (IsJSArray()) {
-          CHECK(JSArray::cast(this)->length()->ToArrayIndex(&new_length));
-        } else {
-          new_length = NumberDictionary::cast(elements())->max_number_key() + 1;
-        }
-        MaybeObject* result =
-            SetFastElementsCapacityAndLength(new_length, new_length);
-        if (result->IsFailure()) return result;
-#ifdef DEBUG
-        if (FLAG_trace_normalization) {
-          PrintF("Object elements are fast case again:\n");
-          Print();
-        }
-#endif
-      }
-      return value;
-    }
-
     case NON_STRICT_ARGUMENTS_ELEMENTS: {
       FixedArray* parameter_map = FixedArray::cast(elements());
       uint32_t length = parameter_map->length();
@@ -7685,8 +7700,8 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
         // Object is not mapped, defer to the arguments.
         FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
         if (arguments->IsDictionary()) {
-          UNIMPLEMENTED();
-          break;
+          return SetDictionaryElement(index, value, strict_mode,
+                                      check_prototype);
         } else {
           return SetFastElement(index, value, strict_mode, check_prototype);
         }
@@ -8040,16 +8055,23 @@ bool JSObject::ShouldConvertToSlowElements(int new_capacity) {
 
 
 bool JSObject::ShouldConvertToFastElements() {
-  ASSERT(HasDictionaryElements());
-  NumberDictionary* dictionary = NumberDictionary::cast(elements());
+  ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
   // If the elements are sparse, we should not go back to fast case.
   if (!HasDenseElements()) return false;
-  // If an element has been added at a very high index in the elements
-  // dictionary, we cannot go back to fast case.
-  if (dictionary->requires_slow_elements()) return false;
   // An object requiring access checks is never allowed to have fast
   // elements.  If it had fast elements we would skip security checks.
   if (IsAccessCheckNeeded()) return false;
+
+  FixedArray* elements = FixedArray::cast(this->elements());
+  NumberDictionary* dictionary = NULL;
+  if (elements->map() == GetHeap()->non_strict_arguments_elements_map()) {
+    dictionary = NumberDictionary::cast(elements->get(1));
+  } else {
+    dictionary = NumberDictionary::cast(elements);
+  }
+  // If an element has been added at a very high index in the elements
+  // dictionary, we cannot go back to fast case.
+  if (dictionary->requires_slow_elements()) return false;
   // If the dictionary backing storage takes up roughly half as much
   // space as a fast-case backing storage would the array should have
   // fast elements.

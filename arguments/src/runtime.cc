@@ -4063,7 +4063,7 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return js_object->SetElement(index, *value, strict_mode);
+    return js_object->SetElement(index, *value, strict_mode, true);
   } else {
     return js_object->SetProperty(*name, *value, attr, strict_mode);
   }
@@ -4091,12 +4091,12 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
       return *value;
     }
 
-    return js_object->SetElement(index, *value, kNonStrictMode);
+    return js_object->SetElement(index, *value, kNonStrictMode, true);
   }
 
   if (key->IsString()) {
     if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
-      return js_object->SetElement(index, *value, kNonStrictMode);
+      return js_object->SetElement(index, *value, kNonStrictMode, true);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
       key_string->TryFlatten();
@@ -4113,7 +4113,7 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return js_object->SetElement(index, *value, kNonStrictMode);
+    return js_object->SetElement(index, *value, kNonStrictMode, true);
   } else {
     return js_object->SetLocalPropertyIgnoreAttributes(*name, *value, attr);
   }
@@ -8608,8 +8608,8 @@ static MaybeObject* Runtime_PushIfAbsent(RUNTIME_CALLING_CONVENTION) {
   }
   Object* obj;
   // Strict not needed. Used for cycle detection in Array join implementation.
-  { MaybeObject* maybe_obj = array->SetFastElement(length, element,
-                                                   kNonStrictMode);
+  { MaybeObject* maybe_obj =
+        array->SetFastElement(length, element, kNonStrictMode, true);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   return isolate->heap()->true_value();

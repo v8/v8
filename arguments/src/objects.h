@@ -1587,14 +1587,18 @@ class JSObject: public HeapObject {
   MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
                                               Object* value,
                                               StrictModeFlag strict_mode,
-                                              bool check_prototype = true);
+                                              bool check_prototype);
+  MUST_USE_RESULT MaybeObject* SetDictionaryElement(uint32_t index,
+                                                    Object* value,
+                                                    StrictModeFlag strict_mode,
+                                                    bool check_prototype);
 
   // Set the index'th array element.
   // A Failure object is returned if GC is needed.
   MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
                                           Object* value,
                                           StrictModeFlag strict_mode,
-                                          bool check_prototype = true);
+                                          bool check_prototype);
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
