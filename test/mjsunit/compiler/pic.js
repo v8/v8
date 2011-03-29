@@ -53,7 +53,7 @@ o1.f = o2.f = o3.f = function() { return 99; }
 
 // Run the test until we're fairly sure we've optimized the
 // polymorphic property access.
-for (var i = 0; i < 1000000; i++) {
+for (var i = 0; i < 100000; i++) {
   Test(o1);
   Test(o2);
   Test(o3);
