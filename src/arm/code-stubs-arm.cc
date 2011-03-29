@@ -3429,9 +3429,20 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
           // If not try to return a heap number.
           __ b(mi, &return_heap_number);
+          // Check for minus zero. Return heap number for minus zero.
+          Label not_zero;
+          __ cmp(scratch1, Operand(0));
+          __ b(ne, &not_zero);
+          __ vmov(scratch2, d5.high());
+          __ tst(scratch2, Operand(HeapNumber::kSignMask));
+          __ b(ne, &return_heap_number);
+          __ bind(&not_zero);
+
           // Tag the result and return.
           __ SmiTag(r0, scratch1);
           __ Ret();
+        } else {
+          // DIV just falls through to allocating a heap number.
         }
 
         if (result_type_ >= (op_ == Token::DIV) ? TRBinaryOpIC::HEAP_NUMBER
