@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1365,7 +1365,9 @@ class JSObject: public HeapObject {
   // few objects and so before writing to any element the array must
   // be copied. Use EnsureWritableFastElements in this case.
   //
-  // In the slow mode elements is either a NumberDictionary or an ExternalArray.
+  // In the slow mode the elements is either a NumberDictionary, an
+  // ExternalArray, or a FixedArray parameter map for a (non-strict)
+  // arguments object.
   DECL_ACCESSORS(elements, HeapObject)
   inline void initialize_elements();
   MUST_USE_RESULT inline MaybeObject* ResetElements();
@@ -1381,9 +1383,12 @@ class JSObject: public HeapObject {
   inline bool HasExternalIntElements();
   inline bool HasExternalUnsignedIntElements();
   inline bool HasExternalFloatElements();
+  bool HasFastArgumentsElements();
+  bool HasDictionaryArgumentsElements();
   inline bool AllowsSetElementsLength();
   inline NumberDictionary* element_dictionary();  // Gets slow elements.
-  // Requires: this->HasFastElements().
+
+  // Requires: HasFastElements().
   MUST_USE_RESULT inline MaybeObject* EnsureWritableFastElements();
 
   // Collects elements starting at index 0.
@@ -1601,6 +1606,9 @@ class JSObject: public HeapObject {
   // failed.
   MaybeObject* GetExternalElement(uint32_t index);
 
+  // Replace the elements' backing store with fast elements of the given
+  // capacity.  Update the length for JSArrays.  Returns the new backing
+  // store.
   MUST_USE_RESULT MaybeObject* SetFastElementsCapacityAndLength(int capacity,
                                                                 int length);
   MUST_USE_RESULT MaybeObject* SetSlowElements(Object* length);
@@ -1727,6 +1735,9 @@ class JSObject: public HeapObject {
   MUST_USE_RESULT MaybeObject* NormalizeProperties(
       PropertyNormalizationMode mode,
       int expected_additional_properties);
+
+  // Convert and update the elements backing store to be a NumberDictionary
+  // dictionary.  Returns the backing after conversion.
   MUST_USE_RESULT MaybeObject* NormalizeElements();
 
   MUST_USE_RESULT MaybeObject* UpdateMapCodeCache(String* name, Code* code);
@@ -1871,11 +1882,10 @@ class JSObject: public HeapObject {
                                                             DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeleteElementWithInterceptor(uint32_t index);
 
-  // Utilities taking an explicit backing store arguments.
-  MUST_USE_RESULT MaybeObject* DeleteFromElements(FixedArray* elements,
-                                                  ElementsKind kind,
-                                                  uint32_t index,
-                                                  DeleteMode mode);
+  MUST_USE_RESULT MaybeObject* DeleteFastElement(uint32_t index);
+  MUST_USE_RESULT MaybeObject* DeleteDictionaryElement(uint32_t index,
+                                                       DeleteMode mode);
+
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,
                                     Object* object);
