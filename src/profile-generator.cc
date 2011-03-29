@@ -984,11 +984,6 @@ int HeapEntry::RetainedSize(bool exact) {
 }
 
 
-List<HeapGraphPath*>* HeapEntry::GetRetainingPaths() {
-  return snapshot_->GetRetainingPaths(this);
-}
-
-
 template<class Visitor>
 void HeapEntry::ApplyAndPaintAllReachable(Visitor* visitor) {
   List<HeapEntry*> list(10);
@@ -1147,107 +1142,6 @@ void HeapEntry::CalculateExactRetainedSize() {
 }
 
 
-class CachedHeapGraphPath {
- public:
-  CachedHeapGraphPath()
-      : nodes_(NodesMatch) { }
-  CachedHeapGraphPath(const CachedHeapGraphPath& src)
-      : nodes_(NodesMatch, &HashMap::DefaultAllocator, src.nodes_.capacity()),
-        path_(src.path_.length() + 1) {
-    for (HashMap::Entry* p = src.nodes_.Start();
-         p != NULL;
-         p = src.nodes_.Next(p)) {
-      nodes_.Lookup(p->key, p->hash, true);
-    }
-    path_.AddAll(src.path_);
-  }
-  void Add(HeapGraphEdge* edge) {
-    nodes_.Lookup(edge->to(), Hash(edge->to()), true);
-    path_.Add(edge);
-  }
-  bool ContainsNode(HeapEntry* node) {
-    return nodes_.Lookup(node, Hash(node), false) != NULL;
-  }
-  const List<HeapGraphEdge*>* path() const { return &path_; }
-
- private:
-  static uint32_t Hash(HeapEntry* entry) {
-    return static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry));
-  }
-  static bool NodesMatch(void* key1, void* key2) { return key1 == key2; }
-
-  HashMap nodes_;
-  List<HeapGraphEdge*> path_;
-};
-
-
-List<HeapGraphPath*>* HeapEntry::CalculateRetainingPaths() {
-  List<HeapGraphPath*>* retaining_paths = new List<HeapGraphPath*>(4);
-  CachedHeapGraphPath path;
-  FindRetainingPaths(&path, retaining_paths);
-  return retaining_paths;
-}
-
-
-void HeapEntry::FindRetainingPaths(CachedHeapGraphPath* prev_path,
-                                   List<HeapGraphPath*>* retaining_paths) {
-  Vector<HeapGraphEdge*> rets = retainers();
-  for (int i = 0; i < rets.length(); ++i) {
-    HeapGraphEdge* ret_edge = rets[i];
-    if (prev_path->ContainsNode(ret_edge->From())) continue;
-    if (ret_edge->From() != snapshot()->root()) {
-      CachedHeapGraphPath path(*prev_path);
-      path.Add(ret_edge);
-      ret_edge->From()->FindRetainingPaths(&path, retaining_paths);
-    } else {
-      HeapGraphPath* ret_path = new HeapGraphPath(*prev_path->path());
-      ret_path->Set(0, ret_edge);
-      retaining_paths->Add(ret_path);
-    }
-  }
-}
-
-
-HeapGraphPath::HeapGraphPath(const List<HeapGraphEdge*>& path)
-    : path_(path.length() + 1) {
-  Add(NULL);
-  for (int i = path.length() - 1; i >= 0; --i) {
-    Add(path[i]);
-  }
-}
-
-
-void HeapGraphPath::Print() {
-  path_[0]->From()->Print(1, 0);
-  for (int i = 0; i < path_.length(); ++i) {
-    OS::Print(" -> ");
-    HeapGraphEdge* edge = path_[i];
-    switch (edge->type()) {
-      case HeapGraphEdge::kContextVariable:
-        OS::Print("[#%s] ", edge->name());
-        break;
-      case HeapGraphEdge::kElement:
-      case HeapGraphEdge::kHidden:
-        OS::Print("[%d] ", edge->index());
-        break;
-      case HeapGraphEdge::kInternal:
-        OS::Print("[$%s] ", edge->name());
-        break;
-      case HeapGraphEdge::kProperty:
-        OS::Print("[%s] ", edge->name());
-        break;
-      case HeapGraphEdge::kShortcut:
-        OS::Print("[^%s] ", edge->name());
-        break;
-      default:
-        OS::Print("!!! unknown edge type: %d ", edge->type());
-    }
-    edge->to()->Print(1, 0);
-  }
-  OS::Print("\n");
-}
-
-
 // It is very important to keep objects that form a heap snapshot
 // as small as possible.
 namespace {  // Avoid littering the global namespace.
@@ -1278,8 +1172,7 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       gc_roots_entry_(NULL),
       natives_root_entry_(NULL),
       raw_entries_(NULL),
-      entries_sorted_(false),
-      retaining_paths_(HeapEntry::Match) {
+      entries_sorted_(false) {
   STATIC_ASSERT(
       sizeof(HeapGraphEdge) ==
       SnapshotSizeConstants<sizeof(void*)>::kExpectedHeapGraphEdgeSize);  // NOLINT
@@ -1288,21 +1181,8 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       SnapshotSizeConstants<sizeof(void*)>::kExpectedHeapEntrySize);  // NOLINT
 }
 
-
-static void DeleteHeapGraphPath(HeapGraphPath** path_ptr) {
-  delete *path_ptr;
-}
-
 HeapSnapshot::~HeapSnapshot() {
   DeleteArray(raw_entries_);
-  for (HashMap::Entry* p = retaining_paths_.Start();
-       p != NULL;
-       p = retaining_paths_.Next(p)) {
-    List<HeapGraphPath*>* list =
-        reinterpret_cast<List<HeapGraphPath*>*>(p->value);
-    list->Iterate(DeleteHeapGraphPath);
-    delete list;
-  }
 }
 
 
@@ -1404,14 +1284,7 @@ HeapEntry* HeapSnapshot::GetNextEntryToInit() {
 }
 
 
-HeapSnapshotsDiff* HeapSnapshot::CompareWith(HeapSnapshot* snapshot) {
-  return collection_->CompareSnapshots(this, snapshot);
-}
-
-
 HeapEntry* HeapSnapshot::GetEntryById(uint64_t id) {
-  // GetSortedEntriesList is used in diff algorithm and sorts
-  // entries by their id.
   List<HeapEntry*>* entries_by_id = GetSortedEntriesList();
 
   // Perform a binary search by id.
@@ -1429,16 +1302,6 @@ HeapEntry* HeapSnapshot::GetEntryById(uint64_t id) {
       return entries_by_id->at(mid);
   }
   return NULL;
-}
-
-
-List<HeapGraphPath*>* HeapSnapshot::GetRetainingPaths(HeapEntry* entry) {
-  HashMap::Entry* p =
-      retaining_paths_.Lookup(entry, HeapEntry::Hash(entry), true);
-  if (p->value == NULL) {
-    p->value = entry->CalculateRetainingPaths();
-  }
-  return reinterpret_cast<List<HeapGraphPath*>*>(p->value);
 }
 
 
@@ -1628,13 +1491,6 @@ void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
   unsigned uid = snapshot->uid();
   snapshots_uids_.Remove(reinterpret_cast<void*>(uid),
                          static_cast<uint32_t>(uid));
-}
-
-
-HeapSnapshotsDiff* HeapSnapshotsCollection::CompareSnapshots(
-    HeapSnapshot* snapshot1,
-    HeapSnapshot* snapshot2) {
-  return comparator_.Compare(snapshot1, snapshot2);
 }
 
 
@@ -2801,83 +2657,6 @@ bool HeapSnapshotGenerator::ApproximateRetainedSizes() {
     if (!ProgressReport()) return false;
   }
   return true;
-}
-
-
-void HeapSnapshotsDiff::CreateRoots(int additions_count, int deletions_count) {
-  raw_additions_root_ =
-      NewArray<char>(HeapEntry::EntriesSize(1, additions_count, 0));
-  additions_root()->Init(
-      snapshot2_, HeapEntry::kHidden, "", 0, 0, additions_count, 0);
-  raw_deletions_root_ =
-      NewArray<char>(HeapEntry::EntriesSize(1, deletions_count, 0));
-  deletions_root()->Init(
-      snapshot1_, HeapEntry::kHidden, "", 0, 0, deletions_count, 0);
-}
-
-
-static void DeleteHeapSnapshotsDiff(HeapSnapshotsDiff** diff_ptr) {
-  delete *diff_ptr;
-}
-
-HeapSnapshotsComparator::~HeapSnapshotsComparator() {
-  diffs_.Iterate(DeleteHeapSnapshotsDiff);
-}
-
-
-HeapSnapshotsDiff* HeapSnapshotsComparator::Compare(HeapSnapshot* snapshot1,
-                                                    HeapSnapshot* snapshot2) {
-  snapshot1->ClearPaint();
-  snapshot1->root()->PaintAllReachable();
-  snapshot2->ClearPaint();
-  snapshot2->root()->PaintAllReachable();
-
-  List<HeapEntry*>* entries1 = snapshot1->GetSortedEntriesList();
-  List<HeapEntry*>* entries2 = snapshot2->GetSortedEntriesList();
-  int i = 0, j = 0;
-  List<HeapEntry*> added_entries, deleted_entries;
-  while (i < entries1->length() && j < entries2->length()) {
-    uint64_t id1 = entries1->at(i)->id();
-    uint64_t id2 = entries2->at(j)->id();
-    if (id1 == id2) {
-      HeapEntry* entry1 = entries1->at(i++);
-      HeapEntry* entry2 = entries2->at(j++);
-      if (entry1->painted_reachable() != entry2->painted_reachable()) {
-        if (entry1->painted_reachable())
-          deleted_entries.Add(entry1);
-        else
-          added_entries.Add(entry2);
-      }
-    } else if (id1 < id2) {
-      HeapEntry* entry = entries1->at(i++);
-      deleted_entries.Add(entry);
-    } else {
-      HeapEntry* entry = entries2->at(j++);
-      added_entries.Add(entry);
-    }
-  }
-  while (i < entries1->length()) {
-    HeapEntry* entry = entries1->at(i++);
-    deleted_entries.Add(entry);
-  }
-  while (j < entries2->length()) {
-    HeapEntry* entry = entries2->at(j++);
-    added_entries.Add(entry);
-  }
-
-  HeapSnapshotsDiff* diff = new HeapSnapshotsDiff(snapshot1, snapshot2);
-  diffs_.Add(diff);
-  diff->CreateRoots(added_entries.length(), deleted_entries.length());
-
-  for (int i = 0; i < deleted_entries.length(); ++i) {
-    HeapEntry* entry = deleted_entries[i];
-    diff->AddDeletedEntry(i, i + 1, entry);
-  }
-  for (int i = 0; i < added_entries.length(); ++i) {
-    HeapEntry* entry = added_entries[i];
-    diff->AddAddedEntry(i, i + 1, entry);
-  }
-  return diff;
 }
 
 

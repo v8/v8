@@ -240,22 +240,6 @@ class V8EXPORT HeapGraphEdge {
 };
 
 
-class V8EXPORT HeapGraphPath {
- public:
-  /** Returns the number of edges in the path. */
-  int GetEdgesCount() const;
-
-  /** Returns an edge from the path. */
-  const HeapGraphEdge* GetEdge(int index) const;
-
-  /** Returns origin node. */
-  const HeapGraphNode* GetFromNode() const;
-
-  /** Returns destination node. */
-  const HeapGraphNode* GetToNode() const;
-};
-
-
 /**
  * HeapGraphNode represents a node in a heap graph.
  */
@@ -325,27 +309,11 @@ class V8EXPORT HeapGraphNode {
   /** Returns a retainer by index. */
   const HeapGraphEdge* GetRetainer(int index) const;
 
-  /** Returns the number of simple retaining paths from the root to the node. */
-  int GetRetainingPathsCount() const;
-
-  /** Returns a retaining path by index. */
-  const HeapGraphPath* GetRetainingPath(int index) const;
-
   /**
    * Returns a dominator node. This is the node that participates in every
    * path from the snapshot root to the current node.
    */
   const HeapGraphNode* GetDominatorNode() const;
-};
-
-
-class V8EXPORT HeapSnapshotsDiff {
- public:
-  /** Returns the root node for added nodes. */
-  const HeapGraphNode* GetAdditionsRoot() const;
-
-  /** Returns the root node for deleted nodes. */
-  const HeapGraphNode* GetDeletionsRoot() const;
 };
 
 
@@ -377,12 +345,6 @@ class V8EXPORT HeapSnapshot {
 
   /** Returns a node by its id. */
   const HeapGraphNode* GetNodeById(uint64_t id) const;
-
-  /**
-   * Returns a diff between this snapshot and another one. Only snapshots
-   * of the same type can be compared.
-   */
-  const HeapSnapshotsDiff* CompareWith(const HeapSnapshot* snapshot) const;
 
   /**
    * Deletes the snapshot and removes it from HeapProfiler's list.

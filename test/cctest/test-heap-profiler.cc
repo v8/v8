@@ -433,19 +433,6 @@ static const v8::HeapGraphNode* GetProperty(const v8::HeapGraphNode* node,
 }
 
 
-static bool IsNodeRetainedAs(const v8::HeapGraphNode* node,
-                             v8::HeapGraphEdge::Type type,
-                             const char* name) {
-  for (int i = 0, count = node->GetRetainersCount(); i < count; ++i) {
-    const v8::HeapGraphEdge* prop = node->GetRetainer(i);
-    v8::String::AsciiValue prop_name(prop->GetName());
-    if (prop->GetType() == type && strcmp(name, *prop_name) == 0)
-      return true;
-  }
-  return false;
-}
-
-
 static bool HasString(const v8::HeapGraphNode* node, const char* contents) {
   for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = node->GetChild(i);
@@ -496,56 +483,6 @@ TEST(HeapSnapshot) {
   CHECK(det.has_A2);
   CHECK(det.has_B2);
   CHECK(det.has_C2);
-
-  /*
-    // Currently disabled. Too many retaining paths emerge, need to
-    // reduce the amount.
-
-  // Verify 'a2' object retainers. They are:
-  //  - (global object).a2
-  //  - c2.x1, c2.x2, c2[1]
-  //  - b2_1 and b2_2 closures: via 'x' variable
-  CHECK_EQ(6, a2_node->GetRetainingPathsCount());
-  bool has_global_obj_a2_ref = false;
-  bool has_c2_x1_ref = false, has_c2_x2_ref = false, has_c2_1_ref = false;
-  bool has_b2_1_x_ref = false, has_b2_2_x_ref = false;
-  for (int i = 0; i < a2_node->GetRetainingPathsCount(); ++i) {
-    const v8::HeapGraphPath* path = a2_node->GetRetainingPath(i);
-    const int edges_count = path->GetEdgesCount();
-    CHECK_GT(edges_count, 0);
-    const v8::HeapGraphEdge* last_edge = path->GetEdge(edges_count - 1);
-    v8::String::AsciiValue last_edge_name(last_edge->GetName());
-    if (strcmp("a2", *last_edge_name) == 0
-        && last_edge->GetType() == v8::HeapGraphEdge::kProperty) {
-      has_global_obj_a2_ref = true;
-      continue;
-    }
-    CHECK_GT(edges_count, 1);
-    const v8::HeapGraphEdge* prev_edge = path->GetEdge(edges_count - 2);
-    v8::String::AsciiValue prev_edge_name(prev_edge->GetName());
-    if (strcmp("x1", *last_edge_name) == 0
-        && last_edge->GetType() == v8::HeapGraphEdge::kProperty
-        && strcmp("c2", *prev_edge_name) == 0) has_c2_x1_ref = true;
-    if (strcmp("x2", *last_edge_name) == 0
-        && last_edge->GetType() == v8::HeapGraphEdge::kProperty
-        && strcmp("c2", *prev_edge_name) == 0) has_c2_x2_ref = true;
-    if (strcmp("1", *last_edge_name) == 0
-        && last_edge->GetType() == v8::HeapGraphEdge::kElement
-        && strcmp("c2", *prev_edge_name) == 0) has_c2_1_ref = true;
-    if (strcmp("x", *last_edge_name) == 0
-        && last_edge->GetType() == v8::HeapGraphEdge::kContextVariable
-        && strcmp("b2_1", *prev_edge_name) == 0) has_b2_1_x_ref = true;
-    if (strcmp("x", *last_edge_name) == 0
-        && last_edge->GetType() == v8::HeapGraphEdge::kContextVariable
-        && strcmp("b2_2", *prev_edge_name) == 0) has_b2_2_x_ref = true;
-  }
-  CHECK(has_global_obj_a2_ref);
-  CHECK(has_c2_x1_ref);
-  CHECK(has_c2_x2_ref);
-  CHECK(has_c2_1_ref);
-  CHECK(has_b2_1_x_ref);
-  CHECK(has_b2_2_x_ref);
-  */
 }
 
 
@@ -771,76 +708,6 @@ TEST(HeapEntryIdsAndGC) {
   CHECK_NE(NULL, b2);
   CHECK_NE_UINT64_T(0, b1->GetId());
   CHECK_EQ_UINT64_T(b1->GetId(), b2->GetId());
-}
-
-
-TEST(HeapSnapshotsDiff) {
-  v8::HandleScope scope;
-  LocalContext env;
-
-  CompileRun(
-      "function A() {}\n"
-      "function B(x) { this.x = x; }\n"
-      "function A2(a) { for (var i = 0; i < a; ++i) this[i] = i; }\n"
-      "var a = new A();\n"
-      "var b = new B(a);");
-  const v8::HeapSnapshot* snapshot1 =
-      v8::HeapProfiler::TakeSnapshot(v8::String::New("s1"));
-
-  CompileRun(
-      "delete a;\n"
-      "b.x = null;\n"
-      "var a = new A2(20);\n"
-      "var b2 = new B(a);");
-  const v8::HeapSnapshot* snapshot2 =
-      v8::HeapProfiler::TakeSnapshot(v8::String::New("s2"));
-
-  const v8::HeapSnapshotsDiff* diff = snapshot1->CompareWith(snapshot2);
-
-  // Verify additions: ensure that addition of A and B was detected.
-  const v8::HeapGraphNode* additions_root = diff->GetAdditionsRoot();
-  bool found_A = false, found_B = false;
-  uint64_t s1_A_id = 0;
-  for (int i = 0, count = additions_root->GetChildrenCount(); i < count; ++i) {
-    const v8::HeapGraphEdge* prop = additions_root->GetChild(i);
-    const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kObject) {
-      v8::String::AsciiValue node_name(node->GetName());
-      if (strcmp(*node_name, "A2") == 0) {
-        CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::kShortcut, "a"));
-        CHECK(!found_A);
-        found_A = true;
-        s1_A_id = node->GetId();
-      } else if (strcmp(*node_name, "B") == 0) {
-        CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::kShortcut, "b2"));
-        CHECK(!found_B);
-        found_B = true;
-      }
-    }
-  }
-  CHECK(found_A);
-  CHECK(found_B);
-
-  // Verify deletions: ensure that deletion of A was detected.
-  const v8::HeapGraphNode* deletions_root = diff->GetDeletionsRoot();
-  bool found_A_del = false;
-  uint64_t s2_A_id = 0;
-  for (int i = 0, count = deletions_root->GetChildrenCount(); i < count; ++i) {
-    const v8::HeapGraphEdge* prop = deletions_root->GetChild(i);
-    const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kObject) {
-      v8::String::AsciiValue node_name(node->GetName());
-      if (strcmp(*node_name, "A") == 0) {
-        CHECK(IsNodeRetainedAs(node, v8::HeapGraphEdge::kShortcut, "a"));
-        CHECK(!found_A_del);
-        found_A_del = true;
-        s2_A_id = node->GetId();
-      }
-    }
-  }
-  CHECK(found_A_del);
-  CHECK_NE_UINT64_T(0, s1_A_id);
-  CHECK(s1_A_id != s2_A_id);
 }
 
 
