@@ -250,6 +250,20 @@ SOURCES = {
 }
 
 
+PREPARSER_SOURCES = {
+  'all': Split("""
+    allocation.cc
+    hashmap.cc
+    preparse-data.cc
+    preparser.cc
+    preparser-api.cc
+    scanner-base.cc
+    token.cc
+    unicode.cc
+    """)
+}
+
+
 D8_FILES = {
   'all': [
     'd8.cc', 'd8-debug.cc'
@@ -335,6 +349,9 @@ def ConfigureObjectFiles():
   source_objs = context.ConfigureObject(env, source_files)
   non_snapshot_files = [source_objs]
 
+  preparser_source_files = context.GetRelevantSources(PREPARSER_SOURCES)
+  preparser_objs = context.ConfigureObject(env, preparser_source_files)
+
   # Create snapshot if necessary.  For cross compilation you should either
   # do without snapshots and take the performance hit or you should build a
   # host VM with the simulator=arm and snapshot=on options and then take the
@@ -355,8 +372,8 @@ def ConfigureObjectFiles():
   else:
     snapshot_obj = empty_snapshot_obj
   library_objs = [non_snapshot_files, libraries_obj, snapshot_obj]
-  return (library_objs, d8_objs, [mksnapshot])
+  return (library_objs, d8_objs, [mksnapshot], preparser_objs)
 
 
-(library_objs, d8_objs, mksnapshot) = ConfigureObjectFiles()
-Return('library_objs d8_objs mksnapshot')
+(library_objs, d8_objs, mksnapshot, preparser_objs) = ConfigureObjectFiles()
+Return('library_objs d8_objs mksnapshot preparser_objs')
