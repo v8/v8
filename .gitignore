@@ -19,6 +19,7 @@ d8
 d8_g
 shell
 shell_g
+/build/gyp
 /obj/
 /test/es5conform/data/
 /test/mozilla/data/
