@@ -579,7 +579,7 @@ Parser::Parser(Handle<Script> script,
     : isolate_(script->GetIsolate()),
       symbol_cache_(pre_data ? pre_data->symbol_count() : 0),
       script_(script),
-      scanner_(isolate_),
+      scanner_(isolate_->scanner_constants()),
       top_scope_(NULL),
       with_nesting_level_(0),
       lexical_scope_(NULL),
@@ -5053,7 +5053,7 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
                                   bool allow_lazy,
                                   ParserRecorder* recorder) {
   Isolate* isolate = Isolate::Current();
-  V8JavaScriptScanner scanner(isolate);
+  V8JavaScriptScanner scanner(isolate->scanner_constants());
   scanner.Initialize(source);
   intptr_t stack_limit = isolate->stack_guard()->real_climit();
   if (!preparser::PreParser::PreParseProgram(&scanner,

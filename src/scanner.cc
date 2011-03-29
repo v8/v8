@@ -345,7 +345,8 @@ void V8JavaScriptScanner::Initialize(UC16CharacterStream* source) {
 // ----------------------------------------------------------------------------
 // JsonScanner
 
-JsonScanner::JsonScanner(Isolate* isolate) : Scanner(isolate) { }
+JsonScanner::JsonScanner(ScannerConstants* scanner_constants)
+    : Scanner(scanner_constants) { }
 
 
 void JsonScanner::Initialize(UC16CharacterStream* source) {

@@ -265,7 +265,7 @@ TEST(StandAlonePreParser) {
         reinterpret_cast<const i::byte*>(program),
         static_cast<unsigned>(strlen(program)));
     i::CompleteParserRecorder log;
-    i::V8JavaScriptScanner scanner(ISOLATE);
+    i::V8JavaScriptScanner scanner(ISOLATE->scanner_constants());
     scanner.Initialize(&stream);
 
     v8::preparser::PreParser::PreParseResult result =
@@ -358,7 +358,7 @@ TEST(PreParseOverflow) {
       reinterpret_cast<const i::byte*>(*program),
       static_cast<unsigned>(kProgramSize));
   i::CompleteParserRecorder log;
-  i::V8JavaScriptScanner scanner(ISOLATE);
+  i::V8JavaScriptScanner scanner(ISOLATE->scanner_constants());
   scanner.Initialize(&stream);
 
 
@@ -576,7 +576,7 @@ void TestStreamScanner(i::UC16CharacterStream* stream,
                        i::Token::Value* expected_tokens,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
-  i::V8JavaScriptScanner scanner(ISOLATE);
+  i::V8JavaScriptScanner scanner(ISOLATE->scanner_constants());
   scanner.Initialize(stream);
 
   int i = 0;
@@ -655,7 +655,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   i::Utf8ToUC16CharacterStream stream(
        reinterpret_cast<const i::byte*>(re_source),
        static_cast<unsigned>(strlen(re_source)));
-  i::V8JavaScriptScanner scanner(ISOLATE);
+  i::V8JavaScriptScanner scanner(ISOLATE->scanner_constants());
   scanner.Initialize(&stream);
 
   i::Token::Value start = scanner.peek();

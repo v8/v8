@@ -168,6 +168,77 @@ void Isolate::PreallocatedMemoryThreadStop() {
 }
 
 
+void Isolate::PreallocatedStorageInit(size_t size) {
+  ASSERT(free_list_.next_ == &free_list_);
+  ASSERT(free_list_.previous_ == &free_list_);
+  PreallocatedStorage* free_chunk =
+      reinterpret_cast<PreallocatedStorage*>(new char[size]);
+  free_list_.next_ = free_list_.previous_ = free_chunk;
+  free_chunk->next_ = free_chunk->previous_ = &free_list_;
+  free_chunk->size_ = size - sizeof(PreallocatedStorage);
+  preallocated_storage_preallocated_ = true;
+}
+
+
+void* Isolate::PreallocatedStorageNew(size_t size) {
+  if (!preallocated_storage_preallocated_) {
+    return FreeStoreAllocationPolicy::New(size);
+  }
+  ASSERT(free_list_.next_ != &free_list_);
+  ASSERT(free_list_.previous_ != &free_list_);
+
+  size = (size + kPointerSize - 1) & ~(kPointerSize - 1);
+  // Search for exact fit.
+  for (PreallocatedStorage* storage = free_list_.next_;
+       storage != &free_list_;
+       storage = storage->next_) {
+    if (storage->size_ == size) {
+      storage->Unlink();
+      storage->LinkTo(&in_use_list_);
+      return reinterpret_cast<void*>(storage + 1);
+    }
+  }
+  // Search for first fit.
+  for (PreallocatedStorage* storage = free_list_.next_;
+       storage != &free_list_;
+       storage = storage->next_) {
+    if (storage->size_ >= size + sizeof(PreallocatedStorage)) {
+      storage->Unlink();
+      storage->LinkTo(&in_use_list_);
+      PreallocatedStorage* left_over =
+          reinterpret_cast<PreallocatedStorage*>(
+              reinterpret_cast<char*>(storage + 1) + size);
+      left_over->size_ = storage->size_ - size - sizeof(PreallocatedStorage);
+      ASSERT(size + left_over->size_ + sizeof(PreallocatedStorage) ==
+             storage->size_);
+      storage->size_ = size;
+      left_over->LinkTo(&free_list_);
+      return reinterpret_cast<void*>(storage + 1);
+    }
+  }
+  // Allocation failure.
+  ASSERT(false);
+  return NULL;
+}
+
+
+// We don't attempt to coalesce.
+void Isolate::PreallocatedStorageDelete(void* p) {
+  if (p == NULL) {
+    return;
+  }
+  if (!preallocated_storage_preallocated_) {
+    FreeStoreAllocationPolicy::Delete(p);
+    return;
+  }
+  PreallocatedStorage* storage = reinterpret_cast<PreallocatedStorage*>(p) - 1;
+  ASSERT(storage->next_->previous_ == storage);
+  ASSERT(storage->previous_->next_ == storage);
+  storage->Unlink();
+  storage->LinkTo(&free_list_);
+}
+
+
 Isolate* Isolate::default_isolate_ = NULL;
 Thread::LocalStorageKey Isolate::isolate_key_;
 Thread::LocalStorageKey Isolate::thread_id_key_;

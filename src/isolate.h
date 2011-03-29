@@ -292,8 +292,6 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   /* Assembler state. */                                                       \
   /* A previously allocated buffer of kMinimalBufferSize bytes, or NULL. */    \
   V(byte*, assembler_spare_buffer, NULL)                                       \
-  /*This static counter ensures that NativeAllocationCheckers can be nested.*/ \
-  V(int, allocation_disallowed, 0)                                             \
   V(FatalErrorCallback, exception_behavior, NULL)                              \
   V(v8::Debug::MessageHandler, message_handler, NULL)                          \
   /* To distinguish the function templates, so that we can find them in the */ \
