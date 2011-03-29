@@ -218,7 +218,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   void BranchOrBacktrack(Condition condition, Label* to);
 
   void MarkPositionForCodeRelativeFixup() {
-    code_relative_fixup_positions_.Add(masm_->pc_offset());
+    code_relative_fixup_positions_.Add(masm_.pc_offset());
   }
 
   void FixupCodeRelativePositions();
@@ -250,7 +250,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   // Increments the stack pointer (rcx) by a word size.
   inline void Drop();
 
-  MacroAssembler* masm_;
+  MacroAssembler masm_;
   MacroAssembler::NoRootArrayScope no_root_array_scope_;
 
   ZoneList<int> code_relative_fixup_positions_;
