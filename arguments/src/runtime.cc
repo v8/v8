@@ -7234,11 +7234,11 @@ static MaybeObject* Runtime_NewArgumentsFast(RUNTIME_CALLING_CONVENTION) {
 
       ScopeInfo<> scope_info(callee->shared()->scope_info());
       while (index >= 0) {
-        // Detect duplicate names.
+        // Detect duplicate names to the right in the parameter list.
         Handle<String> name = scope_info.parameter_name(index);
         int context_slot_count = scope_info.number_of_context_slots();
         bool duplicate = false;
-        for (int j = 0; j < index; ++j) {
+        for (int j = index + 1; j < parameter_count; ++j) {
           if (scope_info.parameter_name(j).is_identical_to(name)) {
             duplicate = true;
             break;
