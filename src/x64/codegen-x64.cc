@@ -8276,17 +8276,9 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     result = allocator()->Allocate();
     ASSERT(result.is_valid() && receiver.is_valid() && value.is_valid());
 
-    // Cannot use r12 for receiver, because that changes
-    // the distance between a call and a fixup location,
-    // due to a special encoding of r12 as r/m in a ModR/M byte.
-    if (receiver.reg().is(r12)) {
-      frame()->Spill(receiver.reg());  // It will be overwritten with result.
-      // Swap receiver and value.
-      __ movq(result.reg(), receiver.reg());
-      Result temp = receiver;
-      receiver = result;
-      result = temp;
-    }
+    // r12 is now a reserved register, so it cannot be the receiver.
+    // If it was, the distance to the fixup location would not be constant.
+    ASSERT(!receiver.reg().is(r12));
 
     // Check that the receiver is a heap object.
     Condition is_smi = masm()->CheckSmi(receiver.reg());
