@@ -1451,6 +1451,8 @@ class Heap {
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
 
+  void SwitchScavengingVisitorsTableIfProfilingWasEnabled();
+
   // Performs a minor collection in new generation.
   void Scavenge();
 
