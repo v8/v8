@@ -358,6 +358,8 @@ ZoneMapList* TypeFeedbackOracle::CollectReceiverTypes(int position,
 void TypeFeedbackOracle::SetInfo(int position, Object* target) {
   MaybeObject* maybe_result = dictionary_->AtNumberPut(position, target);
   Object* result;
+  USE(maybe_result);
+  USE(result);
   // Dictionary has been allocated with sufficient size for all elements.
   ASSERT(maybe_result->ToObject(&result));
   ASSERT(*dictionary_ == result);
