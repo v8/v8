@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -302,6 +302,21 @@ class OS {
   static int ActivationFrameAlignment();
 
   static void ReleaseStore(volatile AtomicWord* ptr, AtomicWord value);
+
+#if defined(V8_TARGET_ARCH_IA32)
+  // Copy memory area to disjoint memory area.
+  static void MemCopy(void* dest, const void* src, size_t size);
+  // Limit below which the extra overhead of the MemCopy function is likely
+  // to outweigh the benefits of faster copying.
+  static const int kMinComplexMemCopy = 64;
+  typedef void (*MemCopyFunction)(void* dest, const void* src, size_t size);
+
+#else  // V8_TARGET_ARCH_IA32
+  static void MemCopy(void* dest, const void* src, size_t size) {
+    memcpy(dest, src, size);
+  }
+  static const int kMinComplexMemCopy = 256;
+#endif  // V8_TARGET_ARCH_IA32
 
  private:
   static const int msPerSecond = 1000;

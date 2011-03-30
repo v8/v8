@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -204,6 +204,29 @@ int OS::VSNPrintF(Vector<char> str,
   }
 }
 
+
+#if defined(V8_TARGET_ARCH_IA32)
+static OS::MemCopyFunction memcopy_function = NULL;
+static Mutex* memcopy_function_mutex = OS::CreateMutex();
+// Defined in codegen-ia32.cc.
+OS::MemCopyFunction CreateMemCopyFunction();
+
+// Copy memory area to disjoint memory area.
+void OS::MemCopy(void* dest, const void* src, size_t size) {
+  if (memcopy_function == NULL) {
+    ScopedLock lock(memcopy_function_mutex);
+    Isolate::EnsureDefaultIsolate();
+    if (memcopy_function == NULL) {
+      Release_Store(reinterpret_cast<AtomicWord*>(&memcopy_function),
+                    reinterpret_cast<AtomicWord>(CreateMemCopyFunction()));
+    }
+  }
+  (*memcopy_function)(dest, src, size);
+#ifdef DEBUG
+  CHECK_EQ(0, memcmp(dest, src, size));
+#endif
+}
+#endif  // V8_TARGET_ARCH_IA32
 
 // ----------------------------------------------------------------------------
 // POSIX string support.

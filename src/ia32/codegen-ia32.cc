@@ -10174,7 +10174,7 @@ static void MemCopyWrapper(void* dest, const void* src, size_t size) {
 }
 
 
-MemCopyFunction CreateMemCopyFunction() {
+OS::MemCopyFunction CreateMemCopyFunction() {
   HandleScope scope;
   MacroAssembler masm(NULL, 1 * KB);
 
@@ -10198,7 +10198,7 @@ MemCopyFunction CreateMemCopyFunction() {
 
   if (FLAG_debug_code) {
     __ cmp(Operand(esp, kSizeOffset + stack_offset),
-           Immediate(kMinComplexMemCopy));
+           Immediate(OS::kMinComplexMemCopy));
     Label ok;
     __ j(greater_equal, &ok);
     __ int3();
@@ -10377,7 +10377,8 @@ MemCopyFunction CreateMemCopyFunction() {
   if (chunk == NULL) return &MemCopyWrapper;
   memcpy(chunk->GetStartAddress(), desc.buffer, desc.instr_size);
   CPU::FlushICache(chunk->GetStartAddress(), desc.instr_size);
-  return FUNCTION_CAST<MemCopyFunction>(chunk->GetStartAddress());
+  MemoryBarrier();
+  return FUNCTION_CAST<OS::MemCopyFunction>(chunk->GetStartAddress());
 }
 
 #undef __

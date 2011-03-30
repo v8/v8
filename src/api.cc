@@ -1302,7 +1302,7 @@ ScriptData* ScriptData::New(const char* data, int length) {
   }
   // Copy the data to align it.
   unsigned* deserialized_data = i::NewArray<unsigned>(deserialized_data_length);
-  i::MemCopy(deserialized_data, data, length);
+  i::OS::MemCopy(deserialized_data, data, length);
 
   return new i::ScriptDataImpl(
       i::Vector<unsigned>(deserialized_data, deserialized_data_length));
