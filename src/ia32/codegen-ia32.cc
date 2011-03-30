@@ -10377,7 +10377,6 @@ OS::MemCopyFunction CreateMemCopyFunction() {
   if (chunk == NULL) return &MemCopyWrapper;
   memcpy(chunk->GetStartAddress(), desc.buffer, desc.instr_size);
   CPU::FlushICache(chunk->GetStartAddress(), desc.instr_size);
-  MemoryBarrier();
   return FUNCTION_CAST<OS::MemCopyFunction>(chunk->GetStartAddress());
 }
 

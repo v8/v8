@@ -8824,9 +8824,6 @@ ModuloFunction CreateModuloFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  // Make sure that the compiled code is visible to all threads before
-  // returning the pointer to it.
-  MemoryBarrier();
   // Call the function from C++ through this pointer.
   return FUNCTION_CAST<ModuloFunction>(buffer);
 }

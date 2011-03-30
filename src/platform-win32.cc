@@ -188,7 +188,9 @@ void OS::MemCopy(void* dest, const void* src, size_t size) {
     ScopedLock lock(memcopy_function_mutex);
     Isolate::EnsureDefaultIsolate();
     if (memcopy_function == NULL) {
-      memcopy_function = CreateMemCopyFunction();
+      OS::MemCopyFunction temp = CreateMemCopyFunction();
+      MemoryBarrier();
+      memcopy_function = temp;
     }
   }
   (*memcopy_function)(dest, src, size);
@@ -210,8 +212,9 @@ double modulo(double x, double y) {
     ScopedLock lock(modulo_function_mutex);
     Isolate::EnsureDefaultIsolate();
     if (modulo_function == NULL) {
-      Release_Store(reinterpret_cast<AtomicWord*>(&modulo_function),
-                    reinterpret_cast<AtomicWord>(CreateModuloFunction()));
+      ModuloFunction temp = CreateModuloFunction();
+      MemoryBarrier();
+      modulo_function = temp;
     }
   }
   return (*modulo_function)(x, y);

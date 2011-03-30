@@ -217,8 +217,9 @@ void OS::MemCopy(void* dest, const void* src, size_t size) {
     ScopedLock lock(memcopy_function_mutex);
     Isolate::EnsureDefaultIsolate();
     if (memcopy_function == NULL) {
-      Release_Store(reinterpret_cast<AtomicWord*>(&memcopy_function),
-                    reinterpret_cast<AtomicWord>(CreateMemCopyFunction()));
+      OS::MemCopyFunction temp = CreateMemCopyFunction();
+      MemoryBarrier();
+      memcopy_function = temp;
     }
   }
   (*memcopy_function)(dest, src, size);
