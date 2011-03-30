@@ -1278,8 +1278,7 @@ void StubCache::CollectMatchingMaps(ZoneMapList* types,
 // StubCompiler implementation.
 
 
-MaybeObject* LoadCallbackProperty(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty) {
   ASSERT(args[0]->IsJSObject());
   ASSERT(args[1]->IsJSObject());
   AccessorInfo* callback = AccessorInfo::cast(args[3]);
@@ -1301,8 +1300,7 @@ MaybeObject* LoadCallbackProperty(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-MaybeObject* StoreCallbackProperty(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   JSObject* recv = JSObject::cast(args[0]);
   AccessorInfo* callback = AccessorInfo::cast(args[1]);
   Address setter_address = v8::ToCData<Address>(callback->setter());
@@ -1335,8 +1333,7 @@ static const int kAccessorInfoOffsetInInterceptorArgs = 2;
  * Returns |Heap::no_interceptor_result_sentinel()| if interceptor doesn't
  * provide any value for the given name.
  */
-MaybeObject* LoadPropertyWithInterceptorOnly(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
   Handle<String> name_handle = args.at<String>(0);
   Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(1);
   ASSERT(kAccessorInfoOffsetInInterceptorArgs == 2);
@@ -1435,8 +1432,7 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
  * Loads a property with an interceptor performing post interceptor
  * lookup if interceptor failed.
  */
-MaybeObject* LoadPropertyWithInterceptorForLoad(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad) {
   PropertyAttributes attr = NONE;
   Object* result;
   { MaybeObject* maybe_result = LoadWithInterceptor(&args, &attr);
@@ -1449,8 +1445,7 @@ MaybeObject* LoadPropertyWithInterceptorForLoad(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-MaybeObject* LoadPropertyWithInterceptorForCall(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall) {
   PropertyAttributes attr;
   MaybeObject* result = LoadWithInterceptor(&args, &attr);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
@@ -1461,8 +1456,7 @@ MaybeObject* LoadPropertyWithInterceptorForCall(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-MaybeObject* StoreInterceptorProperty(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
   ASSERT(args.length() == 4);
   JSObject* recv = JSObject::cast(args[0]);
   String* name = String::cast(args[1]);
@@ -1478,8 +1472,7 @@ MaybeObject* StoreInterceptorProperty(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-MaybeObject* KeyedLoadPropertyWithInterceptor(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor) {
   JSObject* receiver = JSObject::cast(args[0]);
   ASSERT(Smi::cast(args[1])->value() >= 0);
   uint32_t index = Smi::cast(args[1])->value();

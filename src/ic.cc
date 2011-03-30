@@ -1815,8 +1815,7 @@ static JSFunction* CompileFunction(Isolate* isolate,
 
 
 // Used from ic-<arch>.cc.
-MUST_USE_RESULT MaybeObject* CallIC_Miss(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, CallIC_Miss) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   CallIC ic(isolate);
@@ -1846,8 +1845,7 @@ MUST_USE_RESULT MaybeObject* CallIC_Miss(RUNTIME_CALLING_CONVENTION) {
 
 
 // Used from ic-<arch>.cc.
-MUST_USE_RESULT MaybeObject* KeyedCallIC_Miss(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_Miss) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   KeyedCallIC ic(isolate);
@@ -1868,8 +1866,7 @@ MUST_USE_RESULT MaybeObject* KeyedCallIC_Miss(RUNTIME_CALLING_CONVENTION) {
 
 
 // Used from ic-<arch>.cc.
-MUST_USE_RESULT MaybeObject* LoadIC_Miss(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, LoadIC_Miss) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   LoadIC ic(isolate);
@@ -1879,8 +1876,7 @@ MUST_USE_RESULT MaybeObject* LoadIC_Miss(RUNTIME_CALLING_CONVENTION) {
 
 
 // Used from ic-<arch>.cc
-MUST_USE_RESULT MaybeObject* KeyedLoadIC_Miss(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_Miss) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   KeyedLoadIC ic(isolate);
@@ -1890,8 +1886,7 @@ MUST_USE_RESULT MaybeObject* KeyedLoadIC_Miss(RUNTIME_CALLING_CONVENTION) {
 
 
 // Used from ic-<arch>.cc.
-MUST_USE_RESULT MaybeObject* StoreIC_Miss(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, StoreIC_Miss) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
   StoreIC ic(isolate);
@@ -1905,8 +1900,7 @@ MUST_USE_RESULT MaybeObject* StoreIC_Miss(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-MUST_USE_RESULT MaybeObject* StoreIC_ArrayLength(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
   NoHandleAllocation nha;
 
   ASSERT(args.length() == 2);
@@ -1927,9 +1921,7 @@ MUST_USE_RESULT MaybeObject* StoreIC_ArrayLength(RUNTIME_CALLING_CONVENTION) {
 // Extend storage is called in a store inline cache when
 // it is necessary to extend the properties array of a
 // JSObject.
-MUST_USE_RESULT MaybeObject* SharedStoreIC_ExtendStorage(
-    RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, SharedStoreIC_ExtendStorage) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
 
@@ -1963,8 +1955,7 @@ MUST_USE_RESULT MaybeObject* SharedStoreIC_ExtendStorage(
 
 
 // Used from ic-<arch>.cc.
-MUST_USE_RESULT MaybeObject* KeyedStoreIC_Miss(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Miss) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(isolate);
@@ -2037,8 +2028,7 @@ BinaryOpIC::TypeInfo BinaryOpIC::GetTypeInfo(Object* left,
 Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info);
 
 
-MUST_USE_RESULT MaybeObject* BinaryOp_Patch(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   ASSERT(args.length() == 5);
 
   HandleScope scope(isolate);
@@ -2209,8 +2199,7 @@ Handle<Code> GetTypeRecordingBinaryOpStub(int key,
                                           TRBinaryOpIC::TypeInfo result_type);
 
 
-MaybeObject* TypeRecordingBinaryOp_Patch(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, TypeRecordingBinaryOp_Patch) {
   ASSERT(args.length() == 5);
 
   HandleScope scope(isolate);
@@ -2365,8 +2354,7 @@ CompareIC::State CompareIC::TargetState(State state,
 
 
 // Used from ic_<arch>.cc.
-Code* CompareIC_Miss(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
   CompareIC ic(isolate, static_cast<Token::Value>(Smi::cast(args[2])->value()));
