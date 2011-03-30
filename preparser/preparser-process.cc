@@ -27,103 +27,62 @@
 
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdio.h>
+
 #include "../include/v8stdint.h"
 #include "../include/v8-preparser.h"
-#include "unicode-inl.h"
 
-enum ResultCode { kSuccess = 0, kErrorReading = 1, kErrorWriting = 2 };
+// This file is only used for testing the stand-alone preparser
+// library.
+// The first (and only) argument must be the path of a JavaScript file.
+// This file is preparsed and the resulting preparser data is written
+// to stdout. Diagnostic output is output on stderr.
+// The file must contain only ASCII characters (UTF-8 isn't supported).
+// The file is read into memory, so it should have a reasonable size.
 
-namespace v8 {
-namespace internal {
 
-// THIS FILE IS PROOF-OF-CONCEPT ONLY.
-// The final goal is a stand-alone preparser library.
-
-
-class UTF8InputStream : public v8::UnicodeInputStream {
+// Adapts an ASCII string to the UnicodeInputStream interface.
+class AsciiInputStream : public v8::UnicodeInputStream {
  public:
-  UTF8InputStream(uint8_t* buffer, size_t length)
+  AsciiInputStream(uint8_t* buffer, size_t length)
       : buffer_(buffer),
-        offset_(0),
-        pos_(0),
-        end_offset_(static_cast<int>(length)) { }
+        end_offset_(static_cast<int>(length)),
+        offset_(0) { }
 
-  virtual ~UTF8InputStream() { }
+  virtual ~AsciiInputStream() { }
 
   virtual void PushBack(int32_t ch) {
-    // Pushback assumes that the character pushed back is the
-    // one that was most recently read, and jumps back in the
-    // UTF-8 stream by the length of that character's encoding.
-    offset_ -= unibrow::Utf8::Length(ch);
-    pos_--;
+    offset_--;
 #ifdef DEBUG
-    if (static_cast<unsigned>(ch) <= unibrow::Utf8::kMaxOneByteChar) {
-      if (ch != buffer_[offset_]) {
-        fprintf(stderr, "Invalid pushback: '%c'.", ch);
-        exit(1);
-      }
-    } else {
-      unsigned tmp = 0;
-      if (static_cast<unibrow::uchar>(ch) !=
-          unibrow::Utf8::CalculateValue(buffer_ + offset_,
-                                        end_offset_ - offset_,
-                                        &tmp)) {
-        fprintf(stderr, "Invalid pushback: 0x%x.", ch);
-        exit(1);
-      }
+    if (offset_ < 0 ||
+        (ch != ((offset_ >= end_offset_) ? -1 : buffer_[offset_]))) {
+      fprintf(stderr, "Invalid pushback: '%c' at offset %d.", ch, offset_);
+      exit(1);
     }
 #endif
   }
 
   virtual int32_t Next() {
-    if (offset_ == end_offset_) return -1;
-    uint8_t first_char = buffer_[offset_];
-    if (first_char <= unibrow::Utf8::kMaxOneByteChar) {
-      pos_++;
-      offset_++;
-      return static_cast<int32_t>(first_char);
+    if (offset_ >= end_offset_) {
+      offset_++;  // Increment anyway to allow symmetric pushbacks.
+      return -1;
     }
-    unibrow::uchar codepoint =
-        unibrow::Utf8::CalculateValue(buffer_ + offset_,
-                                      end_offset_ - offset_,
-                                      &offset_);
-    pos_++;
-    return static_cast<int32_t>(codepoint);
+    uint8_t next_char = buffer_[offset_];
+#ifdef DEBUG
+    if (next_char > 0x7fu) {
+      fprintf(stderr, "Non-ASCII character in input: '%c'.", next_char);
+      exit(1);
+    }
+#endif
+    offset_++;
+    return static_cast<int32_t>(next_char);
   }
 
  private:
   const uint8_t* buffer_;
-  unsigned offset_;
-  unsigned pos_;
-  unsigned end_offset_;
+  const int end_offset_;
+  int offset_;
 };
-
-
-// Write a number to dest in network byte order.
-void WriteUInt32(FILE* dest, uint32_t value, bool* ok) {
-  for (int i = 3; i >= 0; i--) {
-    uint8_t byte = static_cast<uint8_t>(value >> (i << 3));
-    int result = fputc(byte, dest);
-    if (result == EOF) {
-      *ok = false;
-      return;
-    }
-  }
-}
-
-// Read number from FILE* in network byte order.
-uint32_t ReadUInt32(FILE* source, bool* ok) {
-  uint32_t n = 0;
-  for (int i = 0; i < 4; i++) {
-    int c = fgetc(source);
-    if (c == EOF) {
-      *ok = false;
-      return 0;
-    }
-    n = (n << 8) + static_cast<uint32_t>(c);
-  }
-  return n;
-}
 
 
 bool ReadBuffer(FILE* source, void* buffer, size_t length) {
@@ -150,57 +109,61 @@ class ScopedPointer {
 };
 
 
-// Preparse input and output result on stdout.
-int PreParseIO(FILE* input) {
-  fprintf(stderr, "LOG: Enter parsing loop\n");
-  bool ok = true;
-  uint32_t length = ReadUInt32(input, &ok);
-  fprintf(stderr, "LOG: Input length: %d\n", length);
-  if (!ok) return kErrorReading;
-  ScopedPointer<uint8_t> buffer(new uint8_t[length]);
-
-  if (!ReadBuffer(input, *buffer, length)) {
-    return kErrorReading;
-  }
-  UTF8InputStream input_buffer(*buffer, static_cast<size_t>(length));
-
-  v8::PreParserData data =
-      v8::Preparse(&input_buffer, 64 * 1024 * sizeof(void*));  // NOLINT
-  if (data.stack_overflow()) {
-    fprintf(stderr, "LOG: Stack overflow\n");
+int main(int argc, char* argv[]) {
+  // Check for filename argument.
+  if (argc < 2) {
+    fprintf(stderr, "ERROR: No filename on command line.\n");
     fflush(stderr);
-    // Report stack overflow error/no-preparser-data.
-    WriteUInt32(stdout, 0, &ok);
-    if (!ok) return kErrorWriting;
-    return 0;
+    return EXIT_FAILURE;
+  }
+  const char* filename = argv[1];
+
+  // Open JS file.
+  FILE* input = fopen(filename, "rb");
+  if (input == NULL) {
+    perror("ERROR: Error opening file");
+    fflush(stderr);
+    return EXIT_FAILURE;
   }
 
+  // Find length of JS file.
+  if (fseek(input, 0, SEEK_END) != 0) {
+    perror("ERROR: Error during seek");
+    fflush(stderr);
+    return EXIT_FAILURE;
+  }
+  size_t length = static_cast<size_t>(ftell(input));
+  rewind(input);
+
+  // Read JS file into memory buffer.
+  ScopedPointer<uint8_t> buffer(new uint8_t[length]);
+  if (!ReadBuffer(input, *buffer, length)) {
+    perror("ERROR: Reading file");
+    fflush(stderr);
+    return EXIT_FAILURE;
+  }
+  fclose(input);
+
+  // Preparse input file.
+  AsciiInputStream input_buffer(*buffer, length);
+  size_t kMaxStackSize = 64 * 1024 * sizeof(void*);  // NOLINT
+  v8::PreParserData data = v8::Preparse(&input_buffer, kMaxStackSize);
+
+  // Fail if stack overflow.
+  if (data.stack_overflow()) {
+    fprintf(stderr, "ERROR: Stack overflow\n");
+    fflush(stderr);
+    return EXIT_FAILURE;
+  }
+
+  // Print preparser data to stdout.
   uint32_t size = data.size();
   fprintf(stderr, "LOG: Success, data size: %u\n", size);
   fflush(stderr);
-  WriteUInt32(stdout, size, &ok);
-  if (!ok) return kErrorWriting;
   if (!WriteBuffer(stdout, data.data(), size)) {
-    return kErrorWriting;
+    perror("ERROR: Writing data");
+    return EXIT_FAILURE;
   }
-  return 0;
-}
 
-} }  // namespace v8::internal
-
-
-int main(int argc, char* argv[]) {
-  FILE* input = stdin;
-  if (argc > 1) {
-    char* arg = argv[1];
-    input = fopen(arg, "rb");
-    if (input == NULL) return EXIT_FAILURE;
-  }
-  int status = 0;
-  do {
-    status = v8::internal::PreParseIO(input);
-  } while (status == 0);
-  fprintf(stderr, "EXIT: Failure %d\n", status);
-  fflush(stderr);
-  return EXIT_FAILURE;
+  return EXIT_SUCCESS;
 }

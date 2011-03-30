@@ -1350,7 +1350,7 @@ def BuildSpecific(env, mode, env_overrides):
     exports='context',
     duplicate=False
   )
-  preparser_name = join('obj', 'preparser', target_id, 'preparser' + suffix)
+  preparser_name = join('obj', 'preparser', target_id, 'preparser')
   preparser_program = preparser_env.Program(preparser_name, preparser_object);
   preparser_env.Depends(preparser_program, preparser_library)
   context.preparser_targets.append(preparser_program)
