@@ -2571,22 +2571,20 @@ MaybeObject* JSObject::TransformToFastProperties(int unused_property_fields) {
 
 MaybeObject* JSObject::NormalizeElements() {
   ASSERT(!HasExternalArrayElements());
-  if (HasDictionaryElements() || HasDictionaryArgumentsElements()) {
-    return elements();
-  }
-  ASSERT(HasFastElements() || HasFastArgumentsElements());
   // Find the backing store.
-  FixedArray* fast_elements = FixedArray::cast(elements());
+  FixedArray* elements = FixedArray::cast(this->elements());
   bool is_arguments =
-      (fast_elements->map() == GetHeap()->non_strict_arguments_elements_map());
+      (elements->map() == GetHeap()->non_strict_arguments_elements_map());
   if (is_arguments) {
-    fast_elements = FixedArray::cast(fast_elements->get(1));
+    elements = FixedArray::cast(elements->get(1));
   }
+  if (elements->IsDictionary()) return elements;
 
+  ASSERT(HasFastElements() || HasFastArgumentsElements());
   // Compute the effective length and allocate a new backing store.
   int length = IsJSArray()
       ? Smi::cast(JSArray::cast(this)->length())->value()
-      : fast_elements->length();
+      : elements->length();
   NumberDictionary* dictionary = NULL;
   { Object* object;
     MaybeObject* maybe = NumberDictionary::Allocate(length);
@@ -2596,20 +2594,20 @@ MaybeObject* JSObject::NormalizeElements() {
 
   // Copy the elements to the new backing store.
   for (int i = 0; i < length; i++) {
-    Object* value = fast_elements->get(i);
+    Object* value = elements->get(i);
     if (!value->IsTheHole()) {
       PropertyDetails details = PropertyDetails(NONE, NORMAL);
-      Object* result;
+      Object* new_dictionary;
       MaybeObject* maybe =
-          dictionary->AddNumberEntry(i, fast_elements->get(i), details);
-      if (!maybe->ToObject(&result)) return maybe;
-      dictionary = NumberDictionary::cast(result);
+          dictionary->AddNumberEntry(i, elements->get(i), details);
+      if (!maybe->ToObject(&new_dictionary)) return maybe;
+      dictionary = NumberDictionary::cast(new_dictionary);
     }
   }
 
   // Switch to using the dictionary as the backing storage for elements.
   if (is_arguments) {
-    FixedArray::cast(elements())->set(1, dictionary);
+    FixedArray::cast(this->elements())->set(1, dictionary);
   } else {
     // Set the new map first to satify the elements type assert in
     // set_elements().
@@ -3222,6 +3220,24 @@ void JSObject::LookupCallback(String* name, LookupResult* result) {
 }
 
 
+// Search for a getter or setter in an elements dictionary.  Returns either
+// undefined if the element is read-only, or the getter/setter pair (fixed
+// array) if there is an existing one, or the hole value if the element does
+// not exist or is a normal non-getter/setter data element.
+static Object* FindGetterSetterInDictionary(NumberDictionary* dictionary,
+                                            uint32_t index,
+                                            Heap* heap) {
+  int entry = dictionary->FindEntry(index);
+  if (entry != NumberDictionary::kNotFound) {
+    Object* result = dictionary->ValueAt(entry);
+    PropertyDetails details = dictionary->DetailsAt(entry);
+    if (details.IsReadOnly()) return heap->undefined_value();
+    if (details.type() == CALLBACKS && result->IsFixedArray()) return result;
+  }
+  return heap->the_hole_value();
+}
+
+
 MaybeObject* JSObject::DefineGetterSetter(String* name,
                                           PropertyAttributes attributes) {
   Heap* heap = GetHeap();
@@ -3255,25 +3271,30 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
         // elements.
         return heap->undefined_value();
       case DICTIONARY_ELEMENTS: {
-        // Lookup the index.
-        NumberDictionary* dictionary = element_dictionary();
-        int entry = dictionary->FindEntry(index);
-        if (entry != NumberDictionary::kNotFound) {
-          Object* result = dictionary->ValueAt(entry);
-          PropertyDetails details = dictionary->DetailsAt(entry);
-          if (details.IsReadOnly()) return heap->undefined_value();
-          if (details.type() == CALLBACKS) {
-            if (result->IsFixedArray()) {
-              return result;
-            }
-            // Otherwise allow to override it.
+        Object* probe =
+            FindGetterSetterInDictionary(element_dictionary(), index, heap);
+        if (!probe->IsTheHole()) return probe;
+        // Otherwise allow to override it.
+        break;
+      }
+      case NON_STRICT_ARGUMENTS_ELEMENTS: {
+        // Ascertain whether we have read-only properties or an existing
+        // getter/setter pair in an arguments elements dictionary backing
+        // store.
+        FixedArray* parameter_map = FixedArray::cast(elements());
+        uint32_t length = parameter_map->length();
+        Object* probe =
+            (index + 2) < length ? parameter_map->get(index + 2) : NULL;
+        if (probe == NULL || probe->IsTheHole()) {
+          FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+          if (arguments->IsDictionary()) {
+            NumberDictionary* dictionary = NumberDictionary::cast(arguments);
+            probe = FindGetterSetterInDictionary(dictionary, index, heap);
+            if (!probe->IsTheHole()) return probe;
           }
         }
         break;
       }
-      case NON_STRICT_ARGUMENTS_ELEMENTS:
-        UNIMPLEMENTED();
-        break;
     }
   } else {
     // Lookup the name.
@@ -3336,24 +3357,38 @@ MaybeObject* JSObject::SetElementCallback(uint32_t index,
   PropertyDetails details = PropertyDetails(attributes, CALLBACKS);
 
   // Normalize elements to make this operation simple.
-  Object* ok;
-  { MaybeObject* maybe_ok = NormalizeElements();
-    if (!maybe_ok->ToObject(&ok)) return maybe_ok;
+  NumberDictionary* dictionary = NULL;
+  { Object* result;
+    MaybeObject* maybe = NormalizeElements();
+    if (!maybe->ToObject(&result)) return maybe;
+    dictionary = NumberDictionary::cast(result);
   }
-  // TODO(kmillikin): Handle arguments object with dictionary elements.
-  ASSERT(HasDictionaryElements());
+  ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
 
   // Update the dictionary with the new CALLBACKS property.
-  Object* dict;
-  { MaybeObject* maybe_dict =
-        element_dictionary()->Set(index, structure, details);
-    if (!maybe_dict->ToObject(&dict)) return maybe_dict;
+  { Object* result;
+    MaybeObject* maybe = dictionary->Set(index, structure, details);
+    if (!maybe->ToObject(&result)) return maybe;
+    dictionary = NumberDictionary::cast(result);
   }
 
-  NumberDictionary* elements = NumberDictionary::cast(dict);
-  elements->set_requires_slow_elements();
-  // Set the potential new dictionary on the object.
-  set_elements(elements);
+  dictionary->set_requires_slow_elements();
+  // Update the dictionary backing store on the object.
+  if (elements()->map() == GetHeap()->non_strict_arguments_elements_map()) {
+    // Also delete any parameter alias.
+    //
+    // TODO(kmillikin): when deleting the last parameter alias we could
+    // switch to a direct backing store without the parameter map.  This
+    // would allow GC of the context.
+    FixedArray* parameter_map = FixedArray::cast(elements());
+    uint32_t length = parameter_map->length();
+    if (index + 2 < length) {
+      parameter_map->set(index + 2, GetHeap()->the_hole_value());
+    }
+    parameter_map->set(1, dictionary);
+  } else {
+    set_elements(dictionary);
+  }
 
   return structure;
 }
@@ -7166,14 +7201,34 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
     }
     case DICTIONARY_ELEMENTS: {
       if (element_dictionary()->FindEntry(index) !=
-              NumberDictionary::kNotFound) {
+          NumberDictionary::kNotFound) {
         return DICTIONARY_ELEMENT;
       }
       break;
     }
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
-      UNIMPLEMENTED();
+    case NON_STRICT_ARGUMENTS_ELEMENTS: {
+      // Aliased parameters and non-aliased elements in a fast backing store
+      // behave as FAST_ELEMENT.  Non-aliased elements in a dictionary
+      // backing store behave as DICTIONARY_ELEMENT.
+      FixedArray* parameter_map = FixedArray::cast(elements());
+      uint32_t length = parameter_map->length();
+      Object* probe =
+          (index + 2) < length ? parameter_map->get(index + 2) : NULL;
+      if (probe != NULL && !probe->IsTheHole()) return FAST_ELEMENT;
+      // If not aliased, check the arguments.
+      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+      if (arguments->IsDictionary()) {
+        NumberDictionary* dictionary = NumberDictionary::cast(arguments);
+        if (dictionary->FindEntry(index) != NumberDictionary::kNotFound) {
+          return DICTIONARY_ELEMENT;
+        }
+      } else {
+        length = arguments->length();
+        probe = (index < length) ? arguments->get(index) : NULL;
+        if (probe != NULL && !probe->IsTheHole()) return FAST_ELEMENT;
+      }
       break;
+    }
   }
 
   return UNDEFINED_ELEMENT;
@@ -7323,7 +7378,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     Handle<JSObject> self(JSObject::cast(receiver));
     Handle<JSObject> holder_handle(JSObject::cast(holder));
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
-    Handle<String> key(isolate->factory()->NumberToString(number));
+    Handle<String> key = isolate->factory()->NumberToString(number);
     LOG(isolate, ApiNamedPropertyAccess("load", *self, *key));
     CustomArguments args(isolate, data->data(), *self, *holder_handle);
     v8::AccessorInfo info(args.end());
@@ -7898,8 +7953,13 @@ MaybeObject* JSObject::GetElementWithReceiver(Object* receiver,
           if (entry != NumberDictionary::kNotFound) {
             Object* element = dictionary->ValueAt(entry);
             PropertyDetails details = dictionary->DetailsAt(entry);
-            if (details.type() != CALLBACKS) return element;
-            UNIMPLEMENTED();  // CALLBACKS not yet implemented.
+            if (details.type() == CALLBACKS) {
+              return GetElementWithCallback(receiver,
+                                            element,
+                                            index,
+                                            this);
+            }
+            return element;
           }
         } else if (index < static_cast<uint32_t>(arguments->length())) {
           Object* value = arguments->get(index);

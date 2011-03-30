@@ -879,7 +879,13 @@ static MaybeObject* Runtime_GetOwnProperty(RUNTIME_CALLING_CONVENTION) {
           ASSERT(proto->IsJSGlobalObject());
           holder = Handle<JSObject>(JSObject::cast(proto));
         }
-        NumberDictionary* dictionary = holder->element_dictionary();
+        FixedArray* elements = FixedArray::cast(holder->elements());
+        NumberDictionary* dictionary = NULL;
+        if (elements->map() == heap->non_strict_arguments_elements_map()) {
+          dictionary = NumberDictionary::cast(elements->get(1));
+        } else {
+          dictionary = NumberDictionary::cast(elements);
+        }
         int entry = dictionary->FindEntry(index);
         ASSERT(entry != NumberDictionary::kNotFound);
         PropertyDetails details = dictionary->DetailsAt(entry);
