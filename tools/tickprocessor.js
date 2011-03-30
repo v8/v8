@@ -345,7 +345,6 @@ TickProcessor.prototype.includeTick = function(vmState) {
   return this.stateFilter_ == null || this.stateFilter_ == vmState;
 };
 
-
 TickProcessor.prototype.processTick = function(pc,
                                                sp,
                                                is_external_callback,
@@ -361,8 +360,10 @@ TickProcessor.prototype.processTick = function(pc,
   if (is_external_callback) {
     // Don't use PC when in external callback code, as it can point
     // inside callback's code, and we will erroneously report
-    // that a callback calls itself.
-    pc = 0;
+    // that a callback calls itself. Instead we use tos_or_external_callback,
+    // as simply resetting PC will produce unaccounted ticks.
+    pc = tos_or_external_callback;
+    tos_or_external_callback = 0;
   } else if (tos_or_external_callback) {
     // Find out, if top of stack was pointing inside a JS function
     // meaning that we have encountered a frameless invocation.

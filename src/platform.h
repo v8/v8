@@ -596,7 +596,8 @@ class TickSample {
         sp(NULL),
         fp(NULL),
         tos(NULL),
-        frames_count(0) {}
+        frames_count(0),
+        has_external_callback(false) {}
   StateTag state;  // The state of the VM.
   Address pc;      // Instruction pointer.
   Address sp;      // Stack pointer.

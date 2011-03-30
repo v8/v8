@@ -187,6 +187,7 @@ void ProfilerEventsProcessor::AddCurrentStack() {
   sample->state = Isolate::Current()->current_vm_state();
   sample->pc = reinterpret_cast<Address>(sample);  // Not NULL.
   sample->tos = NULL;
+  sample->has_external_callback = false;
   sample->frames_count = 0;
   for (StackTraceFrameIterator it;
        !it.done() && sample->frames_count < TickSample::kMaxFramesCount;
