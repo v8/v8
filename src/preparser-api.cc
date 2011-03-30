@@ -192,7 +192,7 @@ UnicodeInputStream::~UnicodeInputStream() { }
 PreParserData Preparse(UnicodeInputStream* input, size_t max_stack) {
   internal::InputStreamUTF16Buffer buffer(input);
   uintptr_t stack_limit = reinterpret_cast<uintptr_t>(&buffer) - max_stack;
-  ScannerConstants scanner_constants;
+  internal::ScannerConstants scanner_constants;
   internal::StandAloneJavaScriptScanner scanner(&scanner_constants);
   scanner.Initialize(&buffer);
   internal::CompleteParserRecorder recorder;
