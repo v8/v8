@@ -383,7 +383,7 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
   int length = code_positions.length();
   ASSERT(source_positions.length() == length);
   for (int i = 0; i < length; i++) {
-    AssertNoAllocation no_allocation();
+    AssertNoAllocation no_allocation;
     RelocInfo info(code->instruction_start() + code_positions[i],
                    RelocInfo::CODE_TARGET, 0);
     Code* target = Code::GetCodeFromTargetAddress(info.target_address());
