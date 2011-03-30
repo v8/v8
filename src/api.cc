@@ -4175,9 +4175,11 @@ void v8::Date::DateTimeConfigurationChangeNotification() {
 
     // Call ResetDateCache(0 but expect no exceptions:
     bool caught_exception = false;
-    i::Handle<i::Object> result =
-        i::Execution::TryCall(func, isolate->js_builtins_object(), 0, NULL,
-        &caught_exception);
+    i::Execution::TryCall(func,
+                          isolate->js_builtins_object(),
+                          0,
+                          NULL,
+                          &caught_exception);
   }
 }
 
