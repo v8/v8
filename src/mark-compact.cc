@@ -161,7 +161,7 @@ void MarkCompactCollector::Finish() {
   // force lazy re-initialization of it. This must be done after the
   // GC, because it relies on the new address of certain old space
   // objects (empty string, illegal builtin).
-  Isolate::Current()->stub_cache()->Clear();
+  heap_->isolate()->stub_cache()->Clear();
 
   heap_->external_string_table_.CleanUp();
 
@@ -570,12 +570,12 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   inline static bool IsCompiled(JSFunction* function) {
     return function->unchecked_code() !=
-        Isolate::Current()->builtins()->builtin(Builtins::kLazyCompile);
+        function->GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
   }
 
   inline static bool IsCompiled(SharedFunctionInfo* function) {
     return function->unchecked_code() !=
-        Isolate::Current()->builtins()->builtin(Builtins::kLazyCompile);
+        function->GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
   }
 
   inline static bool IsFlushable(JSFunction* function) {
