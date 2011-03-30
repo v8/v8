@@ -379,7 +379,6 @@ class TestCase(object):
 
   def Run(self):
     self.BeforeRun()
-    result = "exception"
     try:
       result = self.RunCommand(self.GetCommand())
     finally:
@@ -1317,7 +1316,7 @@ def GetSpecialCommandProcessor(value):
     return ExpandCommand
 
 
-BUILT_IN_TESTS = ['mjsunit', 'cctest', 'message', 'preparser']
+BUILT_IN_TESTS = ['mjsunit', 'cctest', 'message']
 
 
 def GetSuites(test_root):
