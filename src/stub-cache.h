@@ -323,7 +323,7 @@ class StubCache {
   }
 
   Isolate* isolate() { return isolate_; }
-  Heap* heap() { return isolate()->heap(); };
+  Heap* heap() { return isolate()->heap(); }
 
  private:
   explicit StubCache(Isolate* isolate);
