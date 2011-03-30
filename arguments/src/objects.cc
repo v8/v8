@@ -2572,19 +2572,19 @@ MaybeObject* JSObject::TransformToFastProperties(int unused_property_fields) {
 MaybeObject* JSObject::NormalizeElements() {
   ASSERT(!HasExternalArrayElements());
   // Find the backing store.
-  FixedArray* elements = FixedArray::cast(this->elements());
+  FixedArray* original = FixedArray::cast(elements());
   bool is_arguments =
-      (elements->map() == GetHeap()->non_strict_arguments_elements_map());
+      (original->map() == GetHeap()->non_strict_arguments_elements_map());
   if (is_arguments) {
-    elements = FixedArray::cast(elements->get(1));
+    original = FixedArray::cast(original->get(1));
   }
-  if (elements->IsDictionary()) return elements;
+  if (original->IsDictionary()) return original;
 
   ASSERT(HasFastElements() || HasFastArgumentsElements());
   // Compute the effective length and allocate a new backing store.
   int length = IsJSArray()
       ? Smi::cast(JSArray::cast(this)->length())->value()
-      : elements->length();
+      : original->length();
   NumberDictionary* dictionary = NULL;
   { Object* object;
     MaybeObject* maybe = NumberDictionary::Allocate(length);
@@ -2594,12 +2594,11 @@ MaybeObject* JSObject::NormalizeElements() {
 
   // Copy the elements to the new backing store.
   for (int i = 0; i < length; i++) {
-    Object* value = elements->get(i);
+    Object* value = original->get(i);
     if (!value->IsTheHole()) {
       PropertyDetails details = PropertyDetails(NONE, NORMAL);
       Object* new_dictionary;
-      MaybeObject* maybe =
-          dictionary->AddNumberEntry(i, elements->get(i), details);
+      MaybeObject* maybe = dictionary->AddNumberEntry(i, value, details);
       if (!maybe->ToObject(&new_dictionary)) return maybe;
       dictionary = NumberDictionary::cast(new_dictionary);
     }
@@ -2607,7 +2606,7 @@ MaybeObject* JSObject::NormalizeElements() {
 
   // Switch to using the dictionary as the backing storage for elements.
   if (is_arguments) {
-    FixedArray::cast(this->elements())->set(1, dictionary);
+    FixedArray::cast(elements())->set(1, dictionary);
   } else {
     // Set the new map first to satify the elements type assert in
     // set_elements().
@@ -2756,20 +2755,20 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
 MaybeObject* JSObject::DeleteFastElement(uint32_t index) {
   ASSERT(HasFastElements() || HasFastArgumentsElements());
   Heap* heap = GetHeap();
-  FixedArray* elements = FixedArray::cast(this->elements());
-  if (elements->map() == heap->non_strict_arguments_elements_map()) {
-    elements = FixedArray::cast(elements->get(1));
+  FixedArray* backing_store = FixedArray::cast(elements());
+  if (backing_store->map() == heap->non_strict_arguments_elements_map()) {
+    backing_store = FixedArray::cast(backing_store->get(1));
   } else {
-    Object* object;
+    Object* writable;
     MaybeObject* maybe = EnsureWritableFastElements();
-    if (!maybe->ToObject(&object)) return maybe;
-    elements = FixedArray::cast(object);
+    if (!maybe->ToObject(&writable)) return maybe;
+    backing_store = FixedArray::cast(writable);
   }
   int length = IsJSArray()
       ? Smi::cast(JSArray::cast(this)->length())->value()
-      : elements->length();
+      : backing_store->length();
   if (index < static_cast<uint32_t>(length)) {
-    elements->set_the_hole(index);
+    backing_store->set_the_hole(index);
   }
   return heap->true_value();
 }
@@ -2779,11 +2778,11 @@ MaybeObject* JSObject::DeleteDictionaryElement(uint32_t index,
                                                DeleteMode mode) {
   Isolate* isolate = GetIsolate();
   Heap* heap = isolate->heap();
-  FixedArray* elements = FixedArray::cast(this->elements());
-  if (elements->map() == heap->non_strict_arguments_elements_map()) {
-    elements = FixedArray::cast(elements->get(1));
+  FixedArray* backing_store = FixedArray::cast(elements());
+  if (backing_store->map() == heap->non_strict_arguments_elements_map()) {
+    backing_store = FixedArray::cast(backing_store->get(1));
   }
-  NumberDictionary* dictionary = NumberDictionary::cast(elements);
+  NumberDictionary* dictionary = NumberDictionary::cast(backing_store);
   int entry = dictionary->FindEntry(index);
   if (entry != NumberDictionary::kNotFound) {
     Object* result = dictionary->DeleteProperty(entry, mode);
@@ -7500,19 +7499,19 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
                                       bool check_prototype) {
   ASSERT(HasFastElements() || HasFastArgumentsElements());
 
-  FixedArray* elements = FixedArray::cast(this->elements());
-  if (elements->map() == GetHeap()->non_strict_arguments_elements_map()) {
-    elements = FixedArray::cast(elements->get(1));
+  FixedArray* backing_store = FixedArray::cast(elements());
+  if (backing_store->map() == GetHeap()->non_strict_arguments_elements_map()) {
+    backing_store = FixedArray::cast(backing_store->get(1));
   } else {
-    Object* object;
+    Object* writable;
     MaybeObject* maybe = EnsureWritableFastElements();
-    if (!maybe->ToObject(&object)) return maybe;
-    elements = FixedArray::cast(object);
+    if (!maybe->ToObject(&writable)) return maybe;
+    backing_store = FixedArray::cast(writable);
   }
-  uint32_t length = static_cast<uint32_t>(elements->length());
+  uint32_t length = static_cast<uint32_t>(backing_store->length());
 
   if (check_prototype &&
-      (index >= length || elements->get(index)->IsTheHole())) {
+      (index >= length || backing_store->get(index)->IsTheHole())) {
     bool found;
     MaybeObject* result =
         SetElementWithCallbackSetterInPrototypes(index, value, &found);
@@ -7521,7 +7520,7 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
 
   // Check whether there is extra space in fixed array..
   if (index < length) {
-    elements->set(index, value);
+    backing_store->set(index, value);
     if (IsJSArray()) {
       // Update the length of the array if needed.
       uint32_t array_length = 0;
@@ -8063,25 +8062,25 @@ bool JSObject::HasDenseElements() {
   int capacity = 0;
   int number_of_elements = 0;
 
-  FixedArray* elements = FixedArray::cast(this->elements());
+  FixedArray* backing_store = FixedArray::cast(elements());
   switch (GetElementsKind()) {
     case NON_STRICT_ARGUMENTS_ELEMENTS:
-      elements = FixedArray::cast(elements->get(1));
-      if (elements->IsDictionary()) {
-        NumberDictionary* dictionary = NumberDictionary::cast(elements);
+      backing_store = FixedArray::cast(backing_store->get(1));
+      if (backing_store->IsDictionary()) {
+        NumberDictionary* dictionary = NumberDictionary::cast(backing_store);
         capacity = dictionary->Capacity();
         number_of_elements = dictionary->NumberOfElements();
         break;
       }
       // Fall through.
     case FAST_ELEMENTS:
-      capacity = elements->length();
+      capacity = backing_store->length();
       for (int i = 0; i < capacity; ++i) {
-        if (!elements->get(i)->IsTheHole()) ++number_of_elements;
+        if (!backing_store->get(i)->IsTheHole()) ++number_of_elements;
       }
       break;
     case DICTIONARY_ELEMENTS: {
-      NumberDictionary* dictionary = NumberDictionary::cast(elements);
+      NumberDictionary* dictionary = NumberDictionary::cast(backing_store);
       capacity = dictionary->Capacity();
       number_of_elements = dictionary->NumberOfElements();
       break;
@@ -8106,11 +8105,11 @@ bool JSObject::ShouldConvertToSlowElements(int new_capacity) {
   // Keep the array in fast case if the current backing storage is
   // almost filled and if the new capacity is no more than twice the
   // old capacity.
-  FixedArray* elements = FixedArray::cast(this->elements());
-  if (elements->map() == GetHeap()->non_strict_arguments_elements_map()) {
-    elements = FixedArray::cast(elements->get(1));
+  FixedArray* backing_store = FixedArray::cast(elements());
+  if (backing_store->map() == GetHeap()->non_strict_arguments_elements_map()) {
+    backing_store = FixedArray::cast(backing_store->get(1));
   }
-  return !HasDenseElements() || ((new_capacity / 2) > elements->length());
+  return !HasDenseElements() || ((new_capacity / 2) > backing_store->length());
 }
 
 
