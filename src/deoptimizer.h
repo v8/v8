@@ -192,7 +192,7 @@ class Deoptimizer : public Malloced {
 
   void InsertHeapNumberValues(int index, JavaScriptFrame* frame);
 
-  static void ComputeOutputFrames(Deoptimizer* deoptimizer, Isolate* isolate);
+  static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
   static Address GetDeoptimizationEntry(int id, BailoutType type);
   static int GetDeoptimizationId(Address addr, BailoutType type);

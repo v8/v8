@@ -101,7 +101,8 @@ class V8 : public AllStatic {
   // use a separate random state for internal random number
   // generation.
   static uint32_t RandomPrivate(Isolate* isolate);
-  static Object* FillHeapNumberWithRandom(Object* heap_number);
+  static Object* FillHeapNumberWithRandom(Object* heap_number,
+                                          Isolate* isolate);
 
   // Idle notification directly from the API.
   static bool IdleNotification();

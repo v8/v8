@@ -663,23 +663,26 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ neg(arg5);
 
   // Allocate a new deoptimizer object.
-  __ PrepareCallCFunction(5);
+  __ PrepareCallCFunction(6);
   __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ movq(arg1, rax);
   __ movq(arg2, Immediate(type()));
   // Args 3 and 4 are already in the right registers.
 
-  // On windows put the argument on the stack (PrepareCallCFunction have
-  // created space for this). On linux pass the argument in r8.
+  // On windows put the arguments on the stack (PrepareCallCFunction
+  // has created space for this). On linux pass the arguments in r8 and r9.
 #ifdef _WIN64
   __ movq(Operand(rsp, 4 * kPointerSize), arg5);
+  __ LoadAddress(arg5, ExternalReference::isolate_address());
+  __ movq(Operand(rsp, 5 * kPointerSize), arg5);
 #else
   __ movq(r8, arg5);
+  __ LoadAddress(r9, ExternalReference::isolate_address());
 #endif
 
   Isolate* isolate = masm()->isolate();
 
-  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 5);
+  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
   // Preserve deoptimizer object in register rax and get the input
   // frame descriptor pointer.
   __ movq(rbx, Operand(rax, Deoptimizer::input_offset()));
@@ -722,10 +725,11 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Compute the output frame in the deoptimizer.
   __ push(rax);
-  __ PrepareCallCFunction(1);
+  __ PrepareCallCFunction(2);
   __ movq(arg1, rax);
+  __ LoadAddress(arg2, ExternalReference::isolate_address());
   __ CallCFunction(
-      ExternalReference::compute_output_frames_function(isolate), 1);
+      ExternalReference::compute_output_frames_function(isolate), 2);
   __ pop(rax);
 
   // Replace the current frame with the output frames.

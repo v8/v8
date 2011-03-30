@@ -7448,9 +7448,10 @@ void CodeGenerator::GenerateRandomHeapNumber(
 
   __ bind(&heapnumber_allocated);
 
-  __ PrepareCallCFunction(0, ebx);
+  __ PrepareCallCFunction(1, ebx);
+  __ mov(Operand(esp, 0), Immediate(ExternalReference::isolate_address()));
   __ CallCFunction(ExternalReference::random_uint32_function(masm()->isolate()),
-                   0);
+                   1);
 
   // Convert 32 random bits in eax to 0.(32 random bits) in a double
   // by computing:

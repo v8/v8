@@ -171,8 +171,8 @@ typedef union {
 } double_int_union;
 
 
-Object* V8::FillHeapNumberWithRandom(Object* heap_number) {
-  uint64_t random_bits = Random(Isolate::Current());
+Object* V8::FillHeapNumberWithRandom(Object* heap_number, Isolate* isolate) {
+  uint64_t random_bits = Random(isolate);
   // Make a double* from address (heap_number + sizeof(double)).
   double_int_union* r = reinterpret_cast<double_int_union*>(
       reinterpret_cast<char*>(heap_number) +

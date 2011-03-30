@@ -2851,9 +2851,6 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments) {
   ASSERT(frame_alignment != 0);
   ASSERT(num_arguments >= 0);
 
-  // Reserve space for Isolate address which is always passed as last parameter
-  num_arguments += 1;
-
   // Make stack end at alignment and allocate space for arguments and old rsp.
   movq(kScratchRegister, rsp);
   ASSERT(IsPowerOf2(frame_alignment));
@@ -2873,26 +2870,6 @@ void MacroAssembler::CallCFunction(ExternalReference function,
 
 
 void MacroAssembler::CallCFunction(Register function, int num_arguments) {
-  // Pass current isolate address as additional parameter.
-  if (num_arguments < kRegisterPassedArguments) {
-#ifdef _WIN64
-    // First four arguments are passed in registers on Windows.
-    Register arg_to_reg[] = {rcx, rdx, r8, r9};
-#else
-    // First six arguments are passed in registers on other platforms.
-    Register arg_to_reg[] = {rdi, rsi, rdx, rcx, r8, r9};
-#endif
-    Register reg = arg_to_reg[num_arguments];
-    LoadAddress(reg, ExternalReference::isolate_address());
-  } else {
-    // Push Isolate pointer after all parameters.
-    int argument_slots_on_stack =
-        ArgumentStackSlotsForCFunctionCall(num_arguments);
-    LoadAddress(kScratchRegister, ExternalReference::isolate_address());
-    movq(Operand(rsp, argument_slots_on_stack * kPointerSize),
-         kScratchRegister);
-  }
-
   // Check stack alignment.
   if (emit_debug_code()) {
     CheckStackAlignment();
@@ -2901,7 +2878,6 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
   call(function);
   ASSERT(OS::ActivationFrameAlignment() != 0);
   ASSERT(num_arguments >= 0);
-  num_arguments += 1;
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
   movq(rsp, Operand(rsp, argument_slots_on_stack * kPointerSize));

@@ -1799,9 +1799,10 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   bind(&delete_allocated_handles);
   str(r5, MemOperand(r7, kLimitOffset));
   mov(r4, r0);
-  PrepareCallCFunction(0, r5);
+  PrepareCallCFunction(1, r5);
+  mov(r0, Operand(ExternalReference::isolate_address()));
   CallCFunction(
-      ExternalReference::delete_handle_scope_extensions(isolate()), 0);
+      ExternalReference::delete_handle_scope_extensions(isolate()), 1);
   mov(r0, r4);
   jmp(&leave_exit_frame);
 
@@ -2797,9 +2798,6 @@ static const int kRegisterPassedArguments = 4;
 void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
   int frame_alignment = ActivationFrameAlignment();
 
-  // Reserve space for Isolate address which is always passed as last parameter
-  num_arguments += 1;
-
   // Up to four simple arguments are passed in registers r0..r3.
   int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
                                0 : num_arguments - kRegisterPassedArguments;
@@ -2836,19 +2834,6 @@ void MacroAssembler::CallCFunctionHelper(Register function,
                                          ExternalReference function_reference,
                                          Register scratch,
                                          int num_arguments) {
-  // Push Isolate address as the last argument.
-  if (num_arguments < kRegisterPassedArguments) {
-    Register arg_to_reg[] = {r0, r1, r2, r3};
-    Register r = arg_to_reg[num_arguments];
-    mov(r, Operand(ExternalReference::isolate_address()));
-  } else {
-    int stack_passed_arguments = num_arguments - kRegisterPassedArguments;
-    // Push Isolate address on the stack after the arguments.
-    mov(scratch, Operand(ExternalReference::isolate_address()));
-    str(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
-  }
-  num_arguments += 1;
-
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.

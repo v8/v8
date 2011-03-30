@@ -199,8 +199,7 @@ void Deoptimizer::HandleWeakDeoptimizedCode(
 }
 
 
-void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer,
-                                      Isolate* isolate) {
+void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
 }
 
