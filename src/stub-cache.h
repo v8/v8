@@ -322,6 +322,8 @@ class StubCache {
     return NULL;
   }
 
+  Isolate* isolate() { return isolate_; }
+  Heap* heap() { return isolate()->heap(); }
 
  private:
   explicit StubCache(Isolate* isolate);
@@ -559,6 +561,8 @@ class StubCompiler BASE_EMBEDDED {
                                     LookupResult* lookup);
 
   Isolate* isolate() { return scope_.isolate(); }
+  Heap* heap() { return isolate()->heap(); }
+  Factory* factory() { return isolate()->factory(); }
 
  private:
   HandleScope scope_;

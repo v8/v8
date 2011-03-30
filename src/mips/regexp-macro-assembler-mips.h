@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2006-2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,18 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
-#define V8_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
+
+#ifndef V8_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
+#define V8_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
 
 namespace v8 {
 namespace internal {
 
-#ifndef V8_INTERPRETED_REGEXP
-
-class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
+#ifdef V8_INTERPRETED_REGEXP
+class RegExpMacroAssemblerMIPS: public RegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerX64(Mode mode, int registers_to_save);
-  virtual ~RegExpMacroAssemblerX64();
+  RegExpMacroAssemblerMIPS();
+  virtual ~RegExpMacroAssemblerMIPS();
+};
+#else  // V8_INTERPRETED_REGEXP
+class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
+ public:
+  RegExpMacroAssemblerMIPS(Mode mode, int registers_to_save);
+  virtual ~RegExpMacroAssemblerMIPS();
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);
   virtual void AdvanceRegister(int reg, int by);
@@ -100,86 +106,41 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void WriteStackPointerToRegister(int reg);
 
-  static Result Match(Handle<Code> regexp,
-                      Handle<String> subject,
-                      int* offsets_vector,
-                      int offsets_vector_length,
-                      int previous_index,
-                      Isolate* isolate);
-
-  static Result Execute(Code* code,
-                        String* input,
-                        int start_offset,
-                        const byte* input_start,
-                        const byte* input_end,
-                        int* output,
-                        bool at_start);
-
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
   // returning.
   static int CheckStackGuardState(Address* return_address,
                                   Code* re_code,
                                   Address re_frame);
-
  private:
-  // Offsets from rbp of function parameters and stored registers.
+  // Offsets from frame_pointer() of function parameters and stored registers.
   static const int kFramePointer = 0;
-  // Above the frame pointer - function parameters and return address.
-  static const int kReturn_eip = kFramePointer + kPointerSize;
-  static const int kFrameAlign = kReturn_eip + kPointerSize;
 
-#ifdef _WIN64
-  // Parameters (first four passed as registers, but with room on stack).
-  // In Microsoft 64-bit Calling Convention, there is room on the callers
-  // stack (before the return address) to spill parameter registers. We
-  // use this space to store the register passed parameters.
-  static const int kInputString = kFrameAlign;
-  // StartIndex is passed as 32 bit int.
-  static const int kStartIndex = kInputString + kPointerSize;
-  static const int kInputStart = kStartIndex + kPointerSize;
-  static const int kInputEnd = kInputStart + kPointerSize;
-  static const int kRegisterOutput = kInputEnd + kPointerSize;
+  // Above the frame pointer - Stored registers and stack passed parameters.
+  // Registers s0 to s7, fp, and ra.
+  static const int kStoredRegisters = kFramePointer;
+  // Return address (stored from link register, read into pc on return).
+  static const int kReturnAddress = kStoredRegisters + 9 * kPointerSize;
+  // Stack frame header.
+  static const int kStackFrameHeader = kReturnAddress + kPointerSize;
+  // Stack parameters placed by caller.
+  static const int kRegisterOutput = kStackFrameHeader + 16;
   static const int kStackHighEnd = kRegisterOutput + kPointerSize;
-  // DirectCall is passed as 32 bit int (values 0 or 1).
   static const int kDirectCall = kStackHighEnd + kPointerSize;
   static const int kIsolate = kDirectCall + kPointerSize;
-#else
-  // In AMD64 ABI Calling Convention, the first six integer parameters
-  // are passed as registers, and caller must allocate space on the stack
-  // if it wants them stored. We push the parameters after the frame pointer.
-  static const int kInputString = kFramePointer - kPointerSize;
-  static const int kStartIndex = kInputString - kPointerSize;
-  static const int kInputStart = kStartIndex - kPointerSize;
-  static const int kInputEnd = kInputStart - kPointerSize;
-  static const int kRegisterOutput = kInputEnd - kPointerSize;
-  static const int kStackHighEnd = kRegisterOutput - kPointerSize;
-  static const int kDirectCall = kFrameAlign;
-  static const int kIsolate = kDirectCall + kPointerSize;
-#endif
 
-#ifdef _WIN64
-  // Microsoft calling convention has three callee-saved registers
-  // (that we are using). We push these after the frame pointer.
-  static const int kBackup_rsi = kFramePointer - kPointerSize;
-  static const int kBackup_rdi = kBackup_rsi - kPointerSize;
-  static const int kBackup_rbx = kBackup_rdi - kPointerSize;
-  static const int kLastCalleeSaveRegister = kBackup_rbx;
-#else
-  // AMD64 Calling Convention has only one callee-save register that
-  // we use. We push this after the frame pointer (and after the
-  // parameters).
-  static const int kBackup_rbx = kStackHighEnd - kPointerSize;
-  static const int kLastCalleeSaveRegister = kBackup_rbx;
-#endif
-
+  // Below the frame pointer.
+  // Register parameters stored by setup code.
+  static const int kInputEnd = kFramePointer - kPointerSize;
+  static const int kInputStart = kInputEnd - kPointerSize;
+  static const int kStartIndex = kInputStart - kPointerSize;
+  static const int kInputString = kStartIndex - kPointerSize;
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
-  static const int kInputStartMinusOne =
-      kLastCalleeSaveRegister - kPointerSize;
-
+  static const int kInputStartMinusOne = kInputString - kPointerSize;
+  static const int kAtStart = kInputStartMinusOne - kPointerSize;
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kInputStartMinusOne - kPointerSize;
+  static const int kRegisterZero = kAtStart - kPointerSize;
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;
@@ -194,66 +155,71 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
 
-  // Generate a call to CheckStackGuardState.
-  void CallCheckStackGuardState();
 
-  // The rbp-relative location of a regexp register.
-  Operand register_location(int register_index);
+  // Generate a call to CheckStackGuardState.
+  void CallCheckStackGuardState(Register scratch);
+
+  // The ebp-relative location of a regexp register.
+  MemOperand register_location(int register_index);
+
+  // Register holding the current input position as negative offset from
+  // the end of the string.
+  inline Register current_input_offset() { return t2; }
 
   // The register containing the current character after LoadCurrentCharacter.
-  inline Register current_character() { return rdx; }
+  inline Register current_character() { return t3; }
+
+  // Register holding address of the end of the input string.
+  inline Register end_of_input_address() { return t6; }
+
+  // Register holding the frame address. Local variables, parameters and
+  // regexp registers are addressed relative to this.
+  inline Register frame_pointer() { return fp; }
 
   // The register containing the backtrack stack top. Provides a meaningful
   // name to the register.
-  inline Register backtrack_stackpointer() { return rcx; }
+  inline Register backtrack_stackpointer() { return t4; }
 
-  // The registers containing a self pointer to this code's Code object.
-  inline Register code_object_pointer() { return r8; }
+  // Register holding pointer to the current code object.
+  inline Register code_pointer() { return t1; }
 
   // Byte size of chars in the string to match (decided by the Mode argument)
   inline int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
   // is NULL, in which case it is a conditional Backtrack.
-  void BranchOrBacktrack(Condition condition, Label* to);
-
-  void MarkPositionForCodeRelativeFixup() {
-    code_relative_fixup_positions_.Add(masm_.pc_offset());
-  }
-
-  void FixupCodeRelativePositions();
+  void BranchOrBacktrack(Label* to,
+                         Condition condition,
+                         Register rs,
+                         const Operand& rt);
 
   // Call and return internally in the generated code in a way that
   // is GC-safe (i.e., doesn't leave absolute code addresses on the stack)
-  inline void SafeCall(Label* to);
-  inline void SafeCallTarget(Label* label);
+  inline void SafeCall(Label* to,
+                       Condition cond,
+                       Register rs,
+                       const Operand& rt);
   inline void SafeReturn();
+  inline void SafeCallTarget(Label* name);
 
   // Pushes the value of a register on the backtrack stack. Decrements the
-  // stack pointer (rcx) by a word size and stores the register's value there.
+  // stack pointer by a word size and stores the register's value there.
   inline void Push(Register source);
 
-  // Pushes a value on the backtrack stack. Decrements the stack pointer (rcx)
-  // by a word size and stores the value there.
-  inline void Push(Immediate value);
-
-  // Pushes the Code object relative offset of a label on the backtrack stack
-  // (i.e., a backtrack target). Decrements the stack pointer (rcx)
-  // by a word size and stores the value there.
-  inline void Push(Label* label);
-
   // Pops a value from the backtrack stack. Reads the word at the stack pointer
-  // (rcx) and increments it by a word size.
+  // and increments it by a word size.
   inline void Pop(Register target);
 
-  // Drops the top value from the backtrack stack without reading it.
-  // Increments the stack pointer (rcx) by a word size.
-  inline void Drop();
+  // Calls a C function and cleans up the frame alignment done by
+  // by FrameAlign. The called function *is* allowed to trigger a garbage
+  // collection, but may not take more than four arguments (no arguments
+  // passed on the stack), and the first argument will be a pointer to the
+  // return address.
+  inline void CallCFunctionUsingStub(ExternalReference function,
+                                     int num_arguments);
 
-  MacroAssembler masm_;
-  MacroAssembler::NoRootArrayScope no_root_array_scope_;
 
-  ZoneList<int> code_relative_fixup_positions_;
+  MacroAssembler* masm_;
 
   // Which mode to generate code for (ASCII or UC16).
   Mode mode_;
@@ -277,6 +243,8 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
 
 #endif  // V8_INTERPRETED_REGEXP
 
+
 }}  // namespace v8::internal
 
-#endif  // V8_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
+#endif  // V8_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
+

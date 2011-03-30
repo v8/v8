@@ -1,6 +1,20 @@
+2011-03-30: Version 3.2.6
+
+        Fixed xcode build warning in shell.cc (out of order initialization).
+
+        Fixed null-pointer dereference in the compiler when running without
+        SSE3 support (Chromium issue 77654).
+
+        Fixed x64 compilation error due to some dead code. (Issue 1286)
+
+        Introduced scons target to build the preparser stand-alone example.
+
+        Made FreeBSD build and pass all tests.
+
+
 2011-03-28: Version 3.2.5
 
-        Fixed build with Irregexp interpreter (issue 1266). 
+        Fixed build with Irregexp interpreter (issue 1266).
 
         Added Crankshaft support for external arrays.
 

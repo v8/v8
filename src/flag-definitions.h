@@ -97,7 +97,11 @@ private:
 #define FLAG FLAG_FULL
 
 // Flags for Crankshaft.
-DEFINE_bool(crankshaft, true, "use crankshaft")
+#ifdef V8_TARGET_ARCH_MIPS
+  DEFINE_bool(crankshaft, false, "use crankshaft")
+#else
+  DEFINE_bool(crankshaft, true, "use crankshaft")
+#endif
 DEFINE_string(hydrogen_filter, "", "hydrogen use/trace filter")
 DEFINE_bool(use_hydrogen, true, "use generated hydrogen for compilation")
 DEFINE_bool(build_lithium, true, "use lithium chunk builder")
@@ -161,6 +165,8 @@ DEFINE_bool(enable_vfp3, true,
             "enable use of VFP3 instructions if available (ARM only)")
 DEFINE_bool(enable_armv7, true,
             "enable use of ARMv7 instructions if available (ARM only)")
+DEFINE_bool(enable_fpu, true,
+            "enable use of MIPS FPU instructions if available (MIPS only)")
 
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")

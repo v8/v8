@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,28 +25,67 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 #include "v8.h"
-#include "execution.h"
 
-#include "cctest.h"
+#include "codegen.h"
+#include "deoptimizer.h"
+#include "full-codegen.h"
+#include "safepoint-table.h"
 
-using ::v8::Local;
-using ::v8::String;
-using ::v8::Script;
+// Note: this file was taken from the X64 version. ARM has a partially working
+// lithium implementation, but for now it is not ported to mips.
 
-namespace i = ::v8::internal;
+namespace v8 {
+namespace internal {
 
-TEST(MIPSFunctionCalls) {
-  // Disable compilation of natives.
-  i::FLAG_disable_native_files = true;
-  i::FLAG_full_compiler = false;
 
-  v8::HandleScope scope;
-  LocalContext env;  // from cctest.h
+int Deoptimizer::table_entry_size_ = 10;
 
-  const char* c_source = "function foo() { return 0x1234; }; foo();";
-  Local<String> source = ::v8::String::New(c_source);
-  Local<Script> script = ::v8::Script::Compile(source);
-  CHECK_EQ(0x1234,  script->Run()->Int32Value());
+
+int Deoptimizer::patch_size() {
+  const int kCallInstructionSizeInWords = 3;
+  return kCallInstructionSizeInWords * Assembler::kInstrSize;
 }
+
+
+void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
+                                        Code* check_code,
+                                        Code* replacement_code) {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
+                                         Code* check_code,
+                                         Code* replacement_code) {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::DoComputeOsrOutputFrame() {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
+                                 int frame_index) {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::EntryGenerator::Generate() {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
+  UNIMPLEMENTED();
+}
+
+
+} }  // namespace v8::internal

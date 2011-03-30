@@ -139,7 +139,7 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
 
   // Check that the properties array is a dictionary.
   __ cmp(FieldOperand(properties, HeapObject::kMapOffset),
-         Immediate(FACTORY->hash_table_map()));
+         Immediate(masm->isolate()->factory()->hash_table_map()));
   __ j(not_equal, miss_label);
 
   // Compute the capacity mask.
@@ -179,7 +179,7 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
     ASSERT_EQ(kSmiTagSize, 1);
     __ mov(entity_name, Operand(properties, index, times_half_pointer_size,
                                 kElementsStartOffset - kHeapObjectTag));
-    __ cmp(entity_name, FACTORY->undefined_value());
+    __ cmp(entity_name, masm->isolate()->factory()->undefined_value());
     if (i != kProbes - 1) {
       __ j(equal, &done, taken);
 
@@ -860,10 +860,10 @@ MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCell(
   if (Serializer::enabled()) {
     __ mov(scratch, Immediate(Handle<Object>(cell)));
     __ cmp(FieldOperand(scratch, JSGlobalPropertyCell::kValueOffset),
-           Immediate(FACTORY->the_hole_value()));
+           Immediate(masm->isolate()->factory()->the_hole_value()));
   } else {
     __ cmp(Operand::Cell(Handle<JSGlobalPropertyCell>(cell)),
-           Immediate(FACTORY->the_hole_value()));
+           Immediate(masm->isolate()->factory()->the_hole_value()));
   }
   __ j(not_equal, miss, not_taken);
   return cell;
@@ -916,8 +916,6 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
   ASSERT(!scratch2.is(object_reg) && !scratch2.is(holder_reg)
          && !scratch2.is(scratch1));
 
-  Heap* heap = isolate()->heap();
-
   // Keep track of the current object in register reg.
   Register reg = object_reg;
   JSObject* current = object;
@@ -942,7 +940,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
         !current->IsJSGlobalObject() &&
         !current->IsJSGlobalProxy()) {
       if (!name->IsSymbol()) {
-        MaybeObject* maybe_lookup_result = heap->LookupSymbol(name);
+        MaybeObject* maybe_lookup_result = heap()->LookupSymbol(name);
         Object* lookup_result = NULL;  // Initialization to please compiler.
         if (!maybe_lookup_result->ToObject(&lookup_result)) {
           set_failure(Failure::cast(maybe_lookup_result));
@@ -962,7 +960,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
       __ mov(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
       reg = holder_reg;  // from now the object is in holder_reg
       __ mov(reg, FieldOperand(scratch1, Map::kPrototypeOffset));
-    } else if (heap->InNewSpace(prototype)) {
+    } else if (heap()->InNewSpace(prototype)) {
       // Get the map of the current object.
       __ mov(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
       __ cmp(Operand(scratch1), Immediate(Handle<Map>(current->map())));
@@ -1216,7 +1214,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
     // Check if interceptor provided a value for property.  If it's
     // the case, return immediately.
     Label interceptor_failed;
-    __ cmp(eax, FACTORY->no_interceptor_result_sentinel());
+    __ cmp(eax, factory()->no_interceptor_result_sentinel());
     __ j(equal, &interceptor_failed);
     __ LeaveInternalFrame();
     __ ret(0);
@@ -1474,7 +1472,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
     // Check that the elements are in fast mode and writable.
     __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
-           Immediate(FACTORY->fixed_array_map()));
+           Immediate(factory()->fixed_array_map()));
     __ j(not_equal, &call_builtin);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
@@ -1550,7 +1548,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       // ... and fill the rest with holes.
       for (int i = 1; i < kAllocationDelta; i++) {
         __ mov(Operand(edx, i * kPointerSize),
-               Immediate(FACTORY->the_hole_value()));
+               Immediate(factory()->the_hole_value()));
       }
 
       // Restore receiver to edx as finish sequence assumes it's here.
@@ -1596,7 +1594,7 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
 
   // If object is not an array, bail out to regular call.
   if (!object->IsJSArray() || cell != NULL) {
-    return isolate()->heap()->undefined_value();
+    return heap()->undefined_value();
   }
 
   Label miss, return_undefined, call_builtin;
@@ -1619,7 +1617,7 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
 
   // Check that the elements are in fast mode and writable.
   __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
-         Immediate(FACTORY->fixed_array_map()));
+         Immediate(factory()->fixed_array_map()));
   __ j(not_equal, &call_builtin);
 
   // Get the array's length into ecx and calculate new length.
@@ -1633,7 +1631,7 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ mov(eax, FieldOperand(ebx,
                            ecx, times_half_pointer_size,
                            FixedArray::kHeaderSize));
-  __ cmp(Operand(eax), Immediate(FACTORY->the_hole_value()));
+  __ cmp(Operand(eax), Immediate(factory()->the_hole_value()));
   __ j(equal, &call_builtin);
 
   // Set the array's length.
@@ -1643,11 +1641,11 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ mov(FieldOperand(ebx,
                       ecx, times_half_pointer_size,
                       FixedArray::kHeaderSize),
-         Immediate(FACTORY->the_hole_value()));
+         Immediate(factory()->the_hole_value()));
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&return_undefined);
-  __ mov(eax, Immediate(FACTORY->undefined_value()));
+  __ mov(eax, Immediate(factory()->undefined_value()));
   __ ret((argc + 1) * kPointerSize);
 
   __ bind(&call_builtin);
@@ -1714,7 +1712,7 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
   if (argc > 0) {
     __ mov(index, Operand(esp, (argc - 0) * kPointerSize));
   } else {
-    __ Set(index, Immediate(FACTORY->undefined_value()));
+    __ Set(index, Immediate(factory()->undefined_value()));
   }
 
   StringCharCodeAtGenerator char_code_at_generator(receiver,
@@ -1733,7 +1731,7 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
 
   if (index_out_of_range.is_linked()) {
     __ bind(&index_out_of_range);
-    __ Set(eax, Immediate(FACTORY->nan_value()));
+    __ Set(eax, Immediate(factory()->nan_value()));
     __ ret((argc + 1) * kPointerSize);
   }
 
@@ -1765,7 +1763,7 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
 
   // If object is not a string, bail out to regular call.
   if (!object->IsString() || cell != NULL) {
-    return isolate()->heap()->undefined_value();
+    return heap()->undefined_value();
   }
 
   const int argc = arguments().immediate();
@@ -1799,7 +1797,7 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
   if (argc > 0) {
     __ mov(index, Operand(esp, (argc - 0) * kPointerSize));
   } else {
-    __ Set(index, Immediate(FACTORY->undefined_value()));
+    __ Set(index, Immediate(factory()->undefined_value()));
   }
 
   StringCharAtGenerator char_at_generator(receiver,
@@ -1819,7 +1817,7 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
 
   if (index_out_of_range.is_linked()) {
     __ bind(&index_out_of_range);
-    __ Set(eax, Immediate(FACTORY->empty_string()));
+    __ Set(eax, Immediate(factory()->empty_string()));
     __ ret((argc + 1) * kPointerSize);
   }
 
@@ -1923,7 +1921,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  if (isolate()->cpu_features()->IsSupported(SSE2)) {
+  if (!isolate()->cpu_features()->IsSupported(SSE2)) {
     return isolate()->heap()->undefined_value();
   }
 
@@ -1966,7 +1964,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
 
   // Check if the argument is a heap number and load its value into xmm0.
   Label slow;
-  __ CheckMap(eax, FACTORY->heap_number_map(), &slow, true);
+  __ CheckMap(eax, factory()->heap_number_map(), &slow, true);
   __ movdbl(xmm0, FieldOperand(eax, HeapNumber::kValueOffset));
 
   // Check if the argument is strictly positive. Note this also
@@ -2110,7 +2108,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
   // Check if the argument is a heap number and load its exponent and
   // sign into ebx.
   __ bind(&not_smi);
-  __ CheckMap(eax, FACTORY->heap_number_map(), &slow, true);
+  __ CheckMap(eax, factory()->heap_number_map(), &slow, true);
   __ mov(ebx, FieldOperand(eax, HeapNumber::kExponentOffset));
 
   // Check the sign of the argument. If the argument is positive,
@@ -2155,12 +2153,11 @@ MaybeObject* CallStubCompiler::CompileFastApiCall(
   ASSERT(optimization.is_simple_api_call());
   // Bail out if object is a global object as we don't want to
   // repatch it to global receiver.
-  Heap* heap = isolate()->heap();
-  if (object->IsGlobalObject()) return heap->undefined_value();
-  if (cell != NULL) return heap->undefined_value();
+  if (object->IsGlobalObject()) return heap()->undefined_value();
+  if (cell != NULL) return heap()->undefined_value();
   int depth = optimization.GetPrototypeDepthOfExpectedType(
             JSObject::cast(object), holder);
-  if (depth == kInvalidProtoDepth) return heap->undefined_value();
+  if (depth == kInvalidProtoDepth) return heap()->undefined_value();
 
   Label miss, miss_before_stack_reserved;
 
@@ -2311,9 +2308,9 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       } else {
         Label fast;
         // Check that the object is a boolean.
-        __ cmp(edx, FACTORY->true_value());
+        __ cmp(edx, factory()->true_value());
         __ j(equal, &fast, taken);
-        __ cmp(edx, FACTORY->false_value());
+        __ cmp(edx, factory()->false_value());
         __ j(not_equal, &miss, not_taken);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
@@ -2637,7 +2634,7 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   // cell could have been deleted and reintroducing the global needs
   // to update the property details in the property dictionary of the
   // global object. We bail out to the runtime system to do that.
-  __ cmp(cell_operand, FACTORY->the_hole_value());
+  __ cmp(cell_operand, factory()->the_hole_value());
   __ j(equal, &miss);
 
   // Store the value in the cell.
@@ -2723,7 +2720,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
   // Get the elements array and make sure it is a fast element array, not 'cow'.
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
   __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
-         Immediate(FACTORY->fixed_array_map()));
+         Immediate(factory()->fixed_array_map()));
   __ j(not_equal, &miss, not_taken);
 
   // Check that the key is within bounds.
@@ -2935,10 +2932,10 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 
   // Check for deleted property if property can actually be deleted.
   if (!is_dont_delete) {
-    __ cmp(ebx, FACTORY->the_hole_value());
+    __ cmp(ebx, factory()->the_hole_value());
     __ j(equal, &miss, not_taken);
   } else if (FLAG_debug_code) {
-    __ cmp(ebx, FACTORY->the_hole_value());
+    __ cmp(ebx, factory()->the_hole_value());
     __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 
@@ -3195,7 +3192,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
   // Load the result and make sure it's not the hole.
   __ mov(ebx, Operand(ecx, eax, times_2,
                       FixedArray::kHeaderSize - kHeapObjectTag));
-  __ cmp(ebx, FACTORY->the_hole_value());
+  __ cmp(ebx, factory()->the_hole_value());
   __ j(equal, &miss, not_taken);
   __ mov(eax, ebx);
   __ ret(0);
@@ -3224,7 +3221,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   // code for the function thereby hitting the break points.
   __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kDebugInfoOffset));
-  __ cmp(ebx, FACTORY->undefined_value());
+  __ cmp(ebx, factory()->undefined_value());
   __ j(not_equal, &generic_stub_call, not_taken);
 #endif
 
@@ -3261,7 +3258,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   // ebx: initial map
   // edx: JSObject (untagged)
   __ mov(Operand(edx, JSObject::kMapOffset), ebx);
-  __ mov(ebx, FACTORY->empty_fixed_array());
+  __ mov(ebx, factory()->empty_fixed_array());
   __ mov(Operand(edx, JSObject::kPropertiesOffset), ebx);
   __ mov(Operand(edx, JSObject::kElementsOffset), ebx);
 
@@ -3278,7 +3275,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   __ lea(ecx, Operand(esp, eax, times_4, 1 * kPointerSize));
 
   // Use edi for holding undefined which is used in several places below.
-  __ mov(edi, FACTORY->undefined_value());
+  __ mov(edi, factory()->undefined_value());
 
   // eax: argc
   // ecx: first argument
@@ -3593,7 +3590,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
     // edi: elements array
     // ebx: untagged index
     __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
-           Immediate(FACTORY->heap_number_map()));
+           Immediate(factory()->heap_number_map()));
     __ j(not_equal, &slow);
 
     // The WebGL specification leaves the behavior of storing NaN and

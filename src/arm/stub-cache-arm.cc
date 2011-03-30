@@ -555,7 +555,7 @@ static void PushInterceptorArguments(MacroAssembler* masm,
                                      JSObject* holder_obj) {
   __ push(name);
   InterceptorInfo* interceptor = holder_obj->GetNamedInterceptor();
-  ASSERT(!HEAP->InNewSpace(interceptor));
+  ASSERT(!masm->isolate()->heap()->InNewSpace(interceptor));
   Register scratch = name;
   __ mov(scratch, Operand(Handle<Object>(interceptor)));
   __ push(scratch);
@@ -624,7 +624,7 @@ static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
   // Pass the additional arguments FastHandleApiCall expects.
   Object* call_data = optimization.api_call_info()->data();
   Handle<CallHandlerInfo> api_call_info_handle(optimization.api_call_info());
-  if (HEAP->InNewSpace(call_data)) {
+  if (masm->isolate()->heap()->InNewSpace(call_data)) {
     __ Move(r0, api_call_info_handle);
     __ ldr(r6, FieldMemOperand(r0, CallHandlerInfo::kDataOffset));
   } else {
@@ -719,7 +719,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                      name,
                      holder,
                      miss);
-      return HEAP->undefined_value();
+      return masm->isolate()->heap()->undefined_value();
     }
   }
 
@@ -822,7 +822,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
       FreeSpaceForFastApiCall(masm);
     }
 
-    return HEAP->undefined_value();
+    return masm->isolate()->heap()->undefined_value();
   }
 
   void CompileRegular(MacroAssembler* masm,
@@ -1091,7 +1091,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
         !current->IsJSGlobalObject() &&
         !current->IsJSGlobalProxy()) {
       if (!name->IsSymbol()) {
-        MaybeObject* maybe_lookup_result = HEAP->LookupSymbol(name);
+        MaybeObject* maybe_lookup_result = heap()->LookupSymbol(name);
         Object* lookup_result = NULL;  // Initialization to please compiler.
         if (!maybe_lookup_result->ToObject(&lookup_result)) {
           set_failure(Failure::cast(maybe_lookup_result));
@@ -1111,7 +1111,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
       __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
       reg = holder_reg;  // from now the object is in holder_reg
       __ ldr(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
-    } else if (HEAP->InNewSpace(prototype)) {
+    } else if (heap()->InNewSpace(prototype)) {
       // Get the map of the current object.
       __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
       __ cmp(scratch1, Operand(Handle<Map>(current->map())));
@@ -1259,7 +1259,7 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
   __ push(receiver);
   __ mov(scratch2, sp);  // scratch2 = AccessorInfo::args_
   Handle<AccessorInfo> callback_handle(callback);
-  if (HEAP->InNewSpace(callback_handle->data())) {
+  if (heap()->InNewSpace(callback_handle->data())) {
     __ Move(scratch3, callback_handle);
     __ ldr(scratch3, FieldMemOperand(scratch3, AccessorInfo::kDataOffset));
   } else {
@@ -1477,7 +1477,7 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
   __ ldr(r1, FieldMemOperand(r3, JSGlobalPropertyCell::kValueOffset));
 
   // Check that the cell contains the same function.
-  if (HEAP->InNewSpace(function)) {
+  if (heap()->InNewSpace(function)) {
     // We can't embed a pointer to a function in new space so we have
     // to verify that the shared function info is unchanged. This has
     // the nice side effect that multiple closures based on the same
@@ -1560,7 +1560,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
   // -----------------------------------
 
   // If object is not an array, bail out to regular call.
-  if (!object->IsJSArray() || cell != NULL) return HEAP->undefined_value();
+  if (!object->IsJSArray() || cell != NULL) return heap()->undefined_value();
 
   Label miss;
 
@@ -1720,7 +1720,7 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   // -----------------------------------
 
   // If object is not an array, bail out to regular call.
-  if (!object->IsJSArray() || cell != NULL) return HEAP->undefined_value();
+  if (!object->IsJSArray() || cell != NULL) return heap()->undefined_value();
 
   Label miss, return_undefined, call_builtin;
 
@@ -1806,7 +1806,7 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
   // -----------------------------------
 
   // If object is not a string, bail out to regular call.
-  if (!object->IsString() || cell != NULL) return HEAP->undefined_value();
+  if (!object->IsString() || cell != NULL) return heap()->undefined_value();
 
   const int argc = arguments().immediate();
 
@@ -1890,7 +1890,7 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
   // -----------------------------------
 
   // If object is not a string, bail out to regular call.
-  if (!object->IsString() || cell != NULL) return HEAP->undefined_value();
+  if (!object->IsString() || cell != NULL) return heap()->undefined_value();
 
   const int argc = arguments().immediate();
 
@@ -1979,7 +1979,7 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
 
   // If the object is not a JSObject or we got an unexpected number of
   // arguments, bail out to the regular call.
-  if (!object->IsJSObject() || argc != 1) return HEAP->undefined_value();
+  if (!object->IsJSObject() || argc != 1) return heap()->undefined_value();
 
   Label miss;
   GenerateNameCheck(name, &miss);
@@ -2048,8 +2048,9 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   //  -- sp[argc * 4]           : receiver
   // -----------------------------------
 
-  if (!masm()->isolate()->cpu_features()->IsSupported(VFP3))
-      return HEAP->undefined_value();
+  if (!masm()->isolate()->cpu_features()->IsSupported(VFP3)) {
+      return heap()->undefined_value();
+  }
 
   CpuFeatures::Scope scope_vfp3(VFP3);
 
@@ -2057,7 +2058,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
 
   // If the object is not a JSObject or we got an unexpected number of
   // arguments, bail out to the regular call.
-  if (!object->IsJSObject() || argc != 1) return HEAP->undefined_value();
+  if (!object->IsJSObject() || argc != 1) return heap()->undefined_value();
 
   Label miss, slow;
   GenerateNameCheck(name, &miss);
@@ -2199,7 +2200,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
 
   // If the object is not a JSObject or we got an unexpected number of
   // arguments, bail out to the regular call.
-  if (!object->IsJSObject() || argc != 1) return HEAP->undefined_value();
+  if (!object->IsJSObject() || argc != 1) return heap()->undefined_value();
 
   Label miss;
   GenerateNameCheck(name, &miss);
@@ -2291,18 +2292,16 @@ MaybeObject* CallStubCompiler::CompileFastApiCall(
     JSGlobalPropertyCell* cell,
     JSFunction* function,
     String* name) {
-  Isolate* isolate = masm()->isolate();
-  Heap* heap = isolate->heap();
-  Counters* counters = isolate->counters();
+  Counters* counters = isolate()->counters();
 
   ASSERT(optimization.is_simple_api_call());
   // Bail out if object is a global object as we don't want to
   // repatch it to global receiver.
-  if (object->IsGlobalObject()) return heap->undefined_value();
-  if (cell != NULL) return heap->undefined_value();
+  if (object->IsGlobalObject()) return heap()->undefined_value();
+  if (cell != NULL) return heap()->undefined_value();
   int depth = optimization.GetPrototypeDepthOfExpectedType(
             JSObject::cast(object), holder);
-  if (depth == kInvalidProtoDepth) return heap->undefined_value();
+  if (depth == kInvalidProtoDepth) return heap()->undefined_value();
 
   Label miss, miss_before_stack_reserved;
 
@@ -2802,7 +2801,7 @@ MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(NONEXISTENT, HEAP->empty_string());
+  return GetCode(NONEXISTENT, heap()->empty_string());
 }
 
 
@@ -3251,7 +3250,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
   __ ldr(elements_reg,
          FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
   __ ldr(scratch, FieldMemOperand(elements_reg, HeapObject::kMapOffset));
-  __ cmp(scratch, Operand(Handle<Map>(FACTORY->fixed_array_map())));
+  __ cmp(scratch, Operand(Handle<Map>(factory()->fixed_array_map())));
   __ b(ne, &miss);
 
   // Check that the key is within bounds.

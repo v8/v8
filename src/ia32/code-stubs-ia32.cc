@@ -1359,6 +1359,9 @@ void TypeRecordingBinaryOpStub::Generate(MacroAssembler* masm) {
     case TRBinaryOpIC::HEAP_NUMBER:
       GenerateHeapNumberStub(masm);
       break;
+    case TRBinaryOpIC::ODDBALL:
+      GenerateOddballStub(masm);
+      break;
     case TRBinaryOpIC::STRING:
       GenerateStringStub(masm);
       break;
@@ -2024,9 +2027,41 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 }
 
 
+void TypeRecordingBinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
+  Label call_runtime;
+
+  if (op_ == Token::ADD) {
+    // Handle string addition here, because it is the only operation
+    // that does not do a ToNumber conversion on the operands.
+    GenerateAddStrings(masm);
+  }
+
+  // Convert odd ball arguments to numbers.
+  NearLabel check, done;
+  __ cmp(edx, FACTORY->undefined_value());
+  __ j(not_equal, &check);
+  if (Token::IsBitOp(op_)) {
+    __ xor_(edx, Operand(edx));
+  } else {
+    __ mov(edx, Immediate(FACTORY->nan_value()));
+  }
+  __ jmp(&done);
+  __ bind(&check);
+  __ cmp(eax, FACTORY->undefined_value());
+  __ j(not_equal, &done);
+  if (Token::IsBitOp(op_)) {
+    __ xor_(eax, Operand(eax));
+  } else {
+    __ mov(eax, Immediate(FACTORY->nan_value()));
+  }
+  __ bind(&done);
+
+  GenerateHeapNumberStub(masm);
+}
+
+
 void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
   Label call_runtime;
-  ASSERT(operands_type_ == TRBinaryOpIC::HEAP_NUMBER);
 
   // Floating point case.
   switch (op_) {

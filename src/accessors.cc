@@ -100,14 +100,15 @@ Object* Accessors::FlattenNumber(Object* value) {
 
 
 MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
+  Isolate* isolate = object->GetIsolate();
   value = FlattenNumber(value);
 
   // Need to call methods that may trigger GC.
-  HandleScope scope;
+  HandleScope scope(isolate);
 
   // Protect raw pointers.
-  Handle<JSObject> object_handle(object);
-  Handle<Object> value_handle(value);
+  Handle<JSObject> object_handle(object, isolate);
+  Handle<Object> value_handle(value, isolate);
 
   bool has_exception;
   Handle<Object> uint32_v = Execution::ToUint32(value_handle, &has_exception);
@@ -126,13 +127,13 @@ MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
       // This means one of the object's prototypes is a JSArray and
       // the object does not have a 'length' property.
       // Calling SetProperty causes an infinite loop.
-      return object->SetLocalPropertyIgnoreAttributes(HEAP->length_symbol(),
-                                                      value, NONE);
+      return object->SetLocalPropertyIgnoreAttributes(
+          isolate->heap()->length_symbol(), value, NONE);
     }
   }
-  return Isolate::Current()->Throw(
-      *FACTORY->NewRangeError("invalid_array_length",
-          HandleVector<Object>(NULL, 0)));
+  return isolate->Throw(
+      *isolate->factory()->NewRangeError("invalid_array_length",
+                                         HandleVector<Object>(NULL, 0)));
 }
 
 
@@ -315,15 +316,18 @@ const AccessorDescriptor Accessors::ScriptCompilationType = {
 
 
 MaybeObject* Accessors::ScriptGetLineEnds(Object* object, void*) {
-  HandleScope scope;
-  Handle<Script> script(Script::cast(JSValue::cast(object)->value()));
+  JSValue* wrapper = JSValue::cast(object);
+  Isolate* isolate = wrapper->GetIsolate();
+  HandleScope scope(isolate);
+  Handle<Script> script(Script::cast(wrapper->value()), isolate);
   InitScriptLineEnds(script);
   ASSERT(script->line_ends()->IsFixedArray());
   Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
   // We do not want anyone to modify this array from JS.
-  ASSERT(*line_ends == HEAP->empty_fixed_array() ||
-         line_ends->map() == HEAP->fixed_cow_array_map());
-  Handle<JSArray> js_array = FACTORY->NewJSArrayWithElements(line_ends);
+  ASSERT(*line_ends == isolate->heap()->empty_fixed_array() ||
+         line_ends->map() == isolate->heap()->fixed_cow_array_map());
+  Handle<JSArray> js_array =
+      isolate->factory()->NewJSArrayWithElements(line_ends);
   return *js_array;
 }
 
@@ -444,9 +448,10 @@ const AccessorDescriptor Accessors::ScriptEvalFromFunctionName = {
 
 
 MaybeObject* Accessors::FunctionGetPrototype(Object* object, void*) {
+  Heap* heap = Isolate::Current()->heap();
   bool found_it = false;
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
-  if (!found_it) return HEAP->undefined_value();
+  if (!found_it) return heap->undefined_value();
   while (!function->should_have_prototype()) {
     found_it = false;
     function = FindInPrototypeChain<JSFunction>(object->GetPrototype(),
@@ -457,7 +462,7 @@ MaybeObject* Accessors::FunctionGetPrototype(Object* object, void*) {
 
   if (!function->has_prototype()) {
     Object* prototype;
-    { MaybeObject* maybe_prototype = HEAP->AllocateFunctionPrototype(function);
+    { MaybeObject* maybe_prototype = heap->AllocateFunctionPrototype(function);
       if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
     }
     Object* result;
@@ -472,12 +477,13 @@ MaybeObject* Accessors::FunctionGetPrototype(Object* object, void*) {
 MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
                                              Object* value,
                                              void*) {
+  Heap* heap = object->GetHeap();
   bool found_it = false;
   JSFunction* function = FindInPrototypeChain<JSFunction>(object, &found_it);
-  if (!found_it) return HEAP->undefined_value();
+  if (!found_it) return heap->undefined_value();
   if (!function->should_have_prototype()) {
     // Since we hit this accessor, object will have no prototype property.
-    return object->SetLocalPropertyIgnoreAttributes(HEAP->prototype_symbol(),
+    return object->SetLocalPropertyIgnoreAttributes(heap->prototype_symbol(),
                                                     value,
                                                     NONE);
   }

@@ -294,6 +294,9 @@ class OS {
   // Support runtime detection of VFP3 on ARM CPUs.
   static bool ArmCpuHasFeature(CpuFeature feature);
 
+  // Support runtime detection of FPU on MIPS CPUs.
+  static bool MipsCpuHasFeature(CpuFeature feature);
+
   // Returns the activation frame alignment constraint or zero if
   // the platform doesn't care. Guaranteed to be a power of two.
   static int ActivationFrameAlignment();

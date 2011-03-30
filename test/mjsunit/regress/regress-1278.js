@@ -25,42 +25,45 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function GetX(o) { return o.x; }
-function CallF(o) { return o.f(); }
-function SetX(o) { o.x = 42; }
-function SetXY(o,y) { return o.x = y; }
+// See: http://code.google.com/p/v8/issues/detail?id=1278
 
+// Test that that handling of 0/-0 is correct for binary operations when the
+// TypeRecordingBinaryOpStub transitions through different states.
 
-function Test(o) {
-  SetX(o);
-  assertEquals(42, GetX(o));
-  assertEquals(87, SetXY(o, 87));
-  assertEquals(87, GetX(o));
-  assertTrue(SetXY(o, o) === o);
-  assertTrue(o === GetX(o), "o === GetX(o)");
-  assertEquals("hest", SetXY(o, "hest"));
-  assertEquals("hest", GetX(o));
-  assertTrue(SetXY(o, Test) === Test);
-  assertTrue(Test === GetX(o), "Test === GetX(o)");
-  assertEquals(99, CallF(o));
+function add(x, y) {
+  return x + y;
 }
 
-// Create a bunch of objects with different layouts.
-var o1 = { x: 0, y: 1 };
-var o2 = { y: 1, x: 0 };
-var o3 = { y: 1, z: 2, x: 0 };
-o1.f = o2.f = o3.f = function() { return 99; }
-
-// Run the test until we're fairly sure we've optimized the
-// polymorphic property access.
-for (var i = 0; i < 100000; i++) {
-  Test(o1);
-  Test(o2);
-  Test(o3);
+function sub(x, y) {
+  return x - y;
 }
 
-// Make sure that the following doesn't crash.
-GetX(0);
-SetX(0);
-SetXY(0, 0);
-assertThrows("CallF(0)", TypeError);
+function mul(x, y) {
+  return x * y;
+}
+
+function div(x, y) {
+  return x / y;
+}
+
+for (var i = 0; i < 10; i++) {
+  assertEquals(0, add(0, 0));
+  assertEquals(0, add(0, -0));
+  assertEquals(0, add(-0, 0));
+  assertEquals(-0, add(-0, -0));
+
+  assertEquals(0, sub(0, 0));
+  assertEquals(0, sub(0, -0));
+  assertEquals(-0, sub(-0, 0));
+  assertEquals(0, sub(-0, -0));
+
+  assertEquals(0, mul(0, 0));
+  assertEquals(-0, mul(0, -0));
+  assertEquals(-0, mul(-0, 0));
+  assertEquals(0, mul(-0, -0));
+
+  assertEquals(0, div(0, 1));
+  assertEquals(-0, div(0, -1));
+  assertEquals(-0, div(-0, 1));
+  assertEquals(0, div(-0, -1));
+}

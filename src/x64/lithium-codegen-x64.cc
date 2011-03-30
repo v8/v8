@@ -63,9 +63,6 @@ class SafepointGenerator : public CallWrapper {
   }
 
   virtual void AfterCall() {
-    // Ensure that we have enough space in the reloc info to patch
-    // this with calls when doing deoptimization.
-    codegen_->masm()->RecordComment(RelocInfo::kFillerCommentString, true);
     codegen_->RecordSafepoint(pointers_, deoptimization_index_);
   }
 

@@ -1905,7 +1905,6 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
   ASSERT(instr->key()->representation().IsInteger32());
 
   LOperand* external_pointer = UseRegister(instr->external_pointer());
-  LOperand* val = UseRegister(instr->value());
   LOperand* key = UseRegister(instr->key());
   LOperand* temp = NULL;
 
@@ -1914,6 +1913,15 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
     // is in a byte register. eax is an arbitrary choice to satisfy this
     // requirement.
     temp = FixedTemp(eax);
+  }
+
+  LOperand* val = NULL;
+  if (array_type == kExternalByteArray ||
+      array_type == kExternalUnsignedByteArray) {
+    // We need a byte register in this case for the value.
+    val = UseFixed(instr->value(), eax);
+  } else {
+    val = UseRegister(instr->value());
   }
 
   return new LStoreKeyedSpecializedArrayElement(external_pointer,

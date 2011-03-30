@@ -4514,7 +4514,6 @@ SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
                                      int offset,
                                      int length,
                                      int* length_return) {
-  ASSERT(NativeAllocationChecker::allocation_allowed());
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
     return SmartPointer<char>(NULL);
   }
@@ -4594,7 +4593,6 @@ const uc16* String::GetTwoByteData(unsigned start) {
 
 
 SmartPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
-  ASSERT(NativeAllocationChecker::allocation_allowed());
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
     return SmartPointer<uc16>();
   }

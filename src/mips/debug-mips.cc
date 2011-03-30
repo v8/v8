@@ -38,8 +38,10 @@ namespace v8 {
 namespace internal {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
+
 bool BreakLocationIterator::IsDebugBreakAtReturn() {
-  return Debug::IsDebugBreakAtReturn(rinfo());
+  UNIMPLEMENTED_MIPS();
+  return false;
 }
 
 
@@ -54,16 +56,31 @@ void BreakLocationIterator::ClearDebugBreakAtReturn() {
 }
 
 
-// A debug break in the exit code is identified by a call.
+// A debug break in the exit code is identified by the JS frame exit code
+// having been patched with li/call psuedo-instrunction (liu/ori/jalr)
 bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
-  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
-  return rinfo->IsPatchedReturnSequence();
+  UNIMPLEMENTED_MIPS();
+  return false;
+}
+
+
+bool BreakLocationIterator::IsDebugBreakAtSlot() {
+  UNIMPLEMENTED_MIPS();
+  return false;
+}
+
+
+void BreakLocationIterator::SetDebugBreakAtSlot() {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void BreakLocationIterator::ClearDebugBreakAtSlot() {
+  UNIMPLEMENTED_MIPS();
 }
 
 
 #define __ ACCESS_MASM(masm)
-
-
 
 
 void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
@@ -106,12 +123,23 @@ void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  masm->Abort("LiveEdit frame dropping is not supported on mips");
+void Debug::GenerateSlot(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
 }
 
+
+void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
 void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  masm->Abort("LiveEdit frame dropping is not supported on mips");
+  UNIMPLEMENTED_MIPS();
 }
 
 

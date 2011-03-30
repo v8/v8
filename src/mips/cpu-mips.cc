@@ -39,16 +39,25 @@
 #if defined(V8_TARGET_ARCH_MIPS)
 
 #include "cpu.h"
+#include "macro-assembler.h"
+
+#include "simulator.h"  // For cache flushing.
 
 namespace v8 {
 namespace internal {
 
+
 void CPU::Setup() {
-  // Nothing to do.
+  CpuFeatures* cpu_features = Isolate::Current()->cpu_features();
+  cpu_features->Probe(true);
+  if (!cpu_features->IsSupported(FPU) || Serializer::enabled()) {
+    V8::DisableCrankshaft();
+  }
 }
 
+
 void CPU::FlushICache(void* start, size_t size) {
-#ifdef __mips
+#if !defined (USE_SIMULATOR)
   int res;
 
   // See http://www.linux-mips.org/wiki/Cacheflush_Syscall
@@ -58,7 +67,14 @@ void CPU::FlushICache(void* start, size_t size) {
     V8_Fatal(__FILE__, __LINE__, "Failed to flush the instruction cache");
   }
 
-#endif    // #ifdef __mips
+#else  // USE_SIMULATOR.
+  // Not generating mips instructions for C-code. This means that we are
+  // building a mips emulator based target.  We should notify the simulator
+  // that the Icache was flushed.
+  // None of this code ends up in the snapshot so there are no issues
+  // around whether or not to generate the code when building snapshots.
+  Simulator::FlushICache(Isolate::Current()->simulator_i_cache(), start, size);
+#endif  // USE_SIMULATOR.
 }
 
 
@@ -67,6 +83,7 @@ void CPU::DebugBreak() {
   asm volatile("break");
 #endif  // #ifdef __mips
 }
+
 
 } }  // namespace v8::internal
 

@@ -93,10 +93,12 @@ class Debugger;
 class DebuggerAgent;
 #endif
 
-#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
+#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
+    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
 class Redirection;
 class Simulator;
 #endif
+
 
 // Static indirection table for handles to constants.  If a frame
 // element represents a constant, the data contains an index into
@@ -195,10 +197,8 @@ class ThreadLocalTop BASE_EMBEDDED {
   Address handler_;   // try-blocks are chained through the stack
 
 #ifdef USE_SIMULATOR
-#ifdef V8_TARGET_ARCH_ARM
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
   Simulator* simulator_;
-#elif V8_TARGET_ARCH_MIPS
-  assembler::mips::Simulator* simulator_;
 #endif
 #endif  // USE_SIMULATOR
 
@@ -221,7 +221,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   Address try_catch_handler_address_;
 };
 
-#if defined(V8_TARGET_ARCH_ARM)
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
 
 #define ISOLATE_PLATFORM_INIT_LIST(V)                                          \
   /* VirtualFrame::SpilledScope state */                                       \
@@ -229,7 +229,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   /* CodeGenerator::EmitNamedStore state */                                    \
   V(int, inlined_write_barrier_size, -1)
 
-#if !defined(__arm__)
+#if !defined(__arm__) && !defined(__mips__)
 class HashMap;
 #endif
 
@@ -292,8 +292,6 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   /* Assembler state. */                                                       \
   /* A previously allocated buffer of kMinimalBufferSize bytes, or NULL. */    \
   V(byte*, assembler_spare_buffer, NULL)                                       \
-  /*This static counter ensures that NativeAllocationCheckers can be nested.*/ \
-  V(int, allocation_disallowed, 0)                                             \
   V(FatalErrorCallback, exception_behavior, NULL)                              \
   V(v8::Debug::MessageHandler, message_handler, NULL)                          \
   /* To distinguish the function templates, so that we can find them in the */ \
@@ -341,7 +339,8 @@ class Isolate {
           thread_id_(thread_id),
           stack_limit_(0),
           thread_state_(NULL),
-#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
+#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
+    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
           simulator_(NULL),
 #endif
           next_(NULL),
@@ -353,7 +352,8 @@ class Isolate {
     ThreadState* thread_state() const { return thread_state_; }
     void set_thread_state(ThreadState* value) { thread_state_ = value; }
 
-#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
+#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
+    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
     Simulator* simulator() const { return simulator_; }
     void set_simulator(Simulator* simulator) {
       simulator_ = simulator;
@@ -370,7 +370,8 @@ class Isolate {
     uintptr_t stack_limit_;
     ThreadState* thread_state_;
 
-#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM)
+#if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
+    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
     Simulator* simulator_;
 #endif
 
@@ -854,7 +855,8 @@ class Isolate {
   int* code_kind_statistics() { return code_kind_statistics_; }
 #endif
 
-#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
+#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
+    defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
   bool simulator_initialized() { return simulator_initialized_; }
   void set_simulator_initialized(bool initialized) {
     simulator_initialized_ = initialized;
@@ -1076,7 +1078,8 @@ class Isolate {
   ZoneObjectList frame_element_constant_list_;
   ZoneObjectList result_constant_list_;
 
-#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__)
+#if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
+    defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
   bool simulator_initialized_;
   HashMap* simulator_i_cache_;
   Redirection* simulator_redirection_;

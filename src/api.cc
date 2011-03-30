@@ -5288,34 +5288,6 @@ const HeapGraphNode* HeapGraphEdge::GetToNode() const {
 }
 
 
-static i::HeapGraphPath* ToInternal(const HeapGraphPath* path) {
-  return const_cast<i::HeapGraphPath*>(
-      reinterpret_cast<const i::HeapGraphPath*>(path));
-}
-
-
-int HeapGraphPath::GetEdgesCount() const {
-  return ToInternal(this)->path()->length();
-}
-
-
-const HeapGraphEdge* HeapGraphPath::GetEdge(int index) const {
-  return reinterpret_cast<const HeapGraphEdge*>(
-      ToInternal(this)->path()->at(index));
-}
-
-
-const HeapGraphNode* HeapGraphPath::GetFromNode() const {
-  return GetEdgesCount() > 0 ? GetEdge(0)->GetFromNode() : NULL;
-}
-
-
-const HeapGraphNode* HeapGraphPath::GetToNode() const {
-  const int count = GetEdgesCount();
-  return count > 0 ? GetEdge(count - 1)->GetToNode() : NULL;
-}
-
-
 static i::HeapEntry* ToInternal(const HeapGraphNode* entry) {
   return const_cast<i::HeapEntry*>(
       reinterpret_cast<const i::HeapEntry*>(entry));
@@ -5397,45 +5369,10 @@ const HeapGraphEdge* HeapGraphNode::GetRetainer(int index) const {
 }
 
 
-int HeapGraphNode::GetRetainingPathsCount() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainingPathsCount");
-  return ToInternal(this)->GetRetainingPaths()->length();
-}
-
-
-const HeapGraphPath* HeapGraphNode::GetRetainingPath(int index) const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainingPath");
-  return reinterpret_cast<const HeapGraphPath*>(
-      ToInternal(this)->GetRetainingPaths()->at(index));
-}
-
-
 const HeapGraphNode* HeapGraphNode::GetDominatorNode() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetDominatorNode");
   return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->dominator());
-}
-
-
-const HeapGraphNode* HeapSnapshotsDiff::GetAdditionsRoot() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapSnapshotsDiff::GetAdditionsRoot");
-  i::HeapSnapshotsDiff* diff =
-      const_cast<i::HeapSnapshotsDiff*>(
-          reinterpret_cast<const i::HeapSnapshotsDiff*>(this));
-  return reinterpret_cast<const HeapGraphNode*>(diff->additions_root());
-}
-
-
-const HeapGraphNode* HeapSnapshotsDiff::GetDeletionsRoot() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapSnapshotsDiff::GetDeletionsRoot");
-  i::HeapSnapshotsDiff* diff =
-      const_cast<i::HeapSnapshotsDiff*>(
-          reinterpret_cast<const i::HeapSnapshotsDiff*>(this));
-  return reinterpret_cast<const HeapGraphNode*>(diff->deletions_root());
 }
 
 
@@ -5491,15 +5428,6 @@ const HeapGraphNode* HeapSnapshot::GetNodeById(uint64_t id) const {
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetNodeById");
   return reinterpret_cast<const HeapGraphNode*>(
       ToInternal(this)->GetEntryById(id));
-}
-
-
-const HeapSnapshotsDiff* HeapSnapshot::CompareWith(
-    const HeapSnapshot* snapshot) const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapSnapshot::CompareWith");
-  return reinterpret_cast<const HeapSnapshotsDiff*>(
-      ToInternal(this)->CompareWith(ToInternal(snapshot)));
 }
 
 
@@ -5710,9 +5638,9 @@ void HandleScopeImplementer::Iterate(ObjectVisitor* v) {
 
 
 char* HandleScopeImplementer::Iterate(ObjectVisitor* v, char* storage) {
-  HandleScopeImplementer* thread_local =
+  HandleScopeImplementer* scope_implementer =
       reinterpret_cast<HandleScopeImplementer*>(storage);
-  thread_local->IterateThis(v);
+  scope_implementer->IterateThis(v);
   return storage + ArchiveSpacePerThread();
 }
 

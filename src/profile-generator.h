@@ -490,8 +490,6 @@ class HeapGraphEdge BASE_EMBEDDED {
 };
 
 
-class CachedHeapGraphPath;
-class HeapGraphPath;
 class HeapSnapshot;
 
 // HeapEntry instances represent an entity from the heap (or a special
@@ -551,7 +549,6 @@ class HeapEntry BASE_EMBEDDED {
     return Vector<HeapGraphEdge>(children_arr(), children_count_); }
   Vector<HeapGraphEdge*> retainers() {
     return Vector<HeapGraphEdge*>(retainers_arr(), retainers_count_); }
-  List<HeapGraphPath*>* GetRetainingPaths();
   HeapEntry* dominator() { return dominator_; }
   void set_dominator(HeapEntry* entry) { dominator_ = entry; }
 
@@ -585,18 +582,12 @@ class HeapEntry BASE_EMBEDDED {
 
   int EntrySize() { return EntriesSize(1, children_count_, retainers_count_); }
   int RetainedSize(bool exact);
-  List<HeapGraphPath*>* CalculateRetainingPaths();
 
   void Print(int max_depth, int indent);
 
   static int EntriesSize(int entries_count,
                          int children_count,
                          int retainers_count);
-  static uint32_t Hash(HeapEntry* entry) {
-    return ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(entry)));
-  }
-  static bool Match(void* entry1, void* entry2) { return entry1 == entry2; }
 
  private:
   HeapGraphEdge* children_arr() {
@@ -606,8 +597,6 @@ class HeapEntry BASE_EMBEDDED {
     return reinterpret_cast<HeapGraphEdge**>(children_arr() + children_count_);
   }
   void CalculateExactRetainedSize();
-  void FindRetainingPaths(CachedHeapGraphPath* prev_path,
-                          List<HeapGraphPath*>* retaining_paths);
   const char* TypeAsString();
 
   unsigned painted_: 2;
@@ -638,27 +627,7 @@ class HeapEntry BASE_EMBEDDED {
 };
 
 
-class HeapGraphPath {
- public:
-  HeapGraphPath()
-      : path_(8) { }
-  explicit HeapGraphPath(const List<HeapGraphEdge*>& path);
-
-  void Add(HeapGraphEdge* edge) { path_.Add(edge); }
-  void Set(int index, HeapGraphEdge* edge) { path_[index] = edge; }
-  const List<HeapGraphEdge*>* path() { return &path_; }
-
-  void Print();
-
- private:
-  List<HeapGraphEdge*> path_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapGraphPath);
-};
-
-
 class HeapSnapshotsCollection;
-class HeapSnapshotsDiff;
 
 // HeapSnapshot represents a single heap snapshot. It is stored in
 // HeapSnapshotsCollection, which is also a factory for
@@ -700,9 +669,7 @@ class HeapSnapshot {
   HeapEntry* AddGcRootsEntry(int children_count, int retainers_count);
   HeapEntry* AddNativesRootEntry(int children_count, int retainers_count);
   void ClearPaint();
-  HeapSnapshotsDiff* CompareWith(HeapSnapshot* snapshot);
   HeapEntry* GetEntryById(uint64_t id);
-  List<HeapGraphPath*>* GetRetainingPaths(HeapEntry* entry);
   List<HeapEntry*>* GetSortedEntriesList();
   template<class Visitor>
   void IterateEntries(Visitor* visitor) { entries_.Iterate(visitor); }
@@ -724,7 +691,6 @@ class HeapSnapshot {
   char* raw_entries_;
   List<HeapEntry*> entries_;
   bool entries_sorted_;
-  HashMap retaining_paths_;
 #ifdef DEBUG
   int raw_entries_size_;
 #endif
@@ -781,58 +747,6 @@ class HeapObjectsMap {
 };
 
 
-class HeapSnapshotsDiff {
- public:
-  HeapSnapshotsDiff(HeapSnapshot* snapshot1, HeapSnapshot* snapshot2)
-      : snapshot1_(snapshot1),
-        snapshot2_(snapshot2),
-        raw_additions_root_(NULL),
-        raw_deletions_root_(NULL) { }
-
-  ~HeapSnapshotsDiff() {
-    DeleteArray(raw_deletions_root_);
-    DeleteArray(raw_additions_root_);
-  }
-
-  void AddAddedEntry(int child_index, int index, HeapEntry* entry) {
-    additions_root()->SetUnidirElementReference(child_index, index, entry);
-  }
-
-  void AddDeletedEntry(int child_index, int index, HeapEntry* entry) {
-    deletions_root()->SetUnidirElementReference(child_index, index, entry);
-  }
-
-  void CreateRoots(int additions_count, int deletions_count);
-
-  HeapEntry* additions_root() {
-    return reinterpret_cast<HeapEntry*>(raw_additions_root_);
-  }
-  HeapEntry* deletions_root() {
-    return reinterpret_cast<HeapEntry*>(raw_deletions_root_);
-  }
-
- private:
-  HeapSnapshot* snapshot1_;
-  HeapSnapshot* snapshot2_;
-  char* raw_additions_root_;
-  char* raw_deletions_root_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapSnapshotsDiff);
-};
-
-
-class HeapSnapshotsComparator {
- public:
-  HeapSnapshotsComparator() { }
-  ~HeapSnapshotsComparator();
-  HeapSnapshotsDiff* Compare(HeapSnapshot* snapshot1, HeapSnapshot* snapshot2);
- private:
-  List<HeapSnapshotsDiff*> diffs_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapSnapshotsComparator);
-};
-
-
 class HeapSnapshotsCollection {
  public:
   HeapSnapshotsCollection();
@@ -853,9 +767,6 @@ class HeapSnapshotsCollection {
   uint64_t GetObjectId(Address addr) { return ids_.FindObject(addr); }
   void ObjectMoveEvent(Address from, Address to) { ids_.MoveObject(from, to); }
 
-  HeapSnapshotsDiff* CompareSnapshots(HeapSnapshot* snapshot1,
-                                      HeapSnapshot* snapshot2);
-
  private:
   INLINE(static bool HeapSnapshotsMatch(void* key1, void* key2)) {
     return key1 == key2;
@@ -869,7 +780,6 @@ class HeapSnapshotsCollection {
   TokenEnumerator* token_enumerator_;
   // Mapping from HeapObject addresses to objects' uids.
   HeapObjectsMap ids_;
-  HeapSnapshotsComparator comparator_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshotsCollection);
 };

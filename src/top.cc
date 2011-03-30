@@ -306,11 +306,6 @@ void Isolate::PrintStack() {
       allocator = preallocated_message_space_;
     }
 
-    NativeAllocationChecker allocation_checker(
-      !FLAG_preallocate_message_memory ?
-      NativeAllocationChecker::ALLOW :
-      NativeAllocationChecker::DISALLOW);
-
     StringStream::ClearMentionedObjectCache();
     StringStream accumulator(allocator);
     incomplete_message_ = &accumulator;

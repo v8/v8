@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -40,16 +40,17 @@ namespace internal {
 static const int kNumRegs = 32;
 
 static const RegList kJSCallerSaved =
+  1 << 2 |  // v0
   1 << 4 |  // a0
   1 << 5 |  // a1
   1 << 6 |  // a2
   1 << 7;   // a3
 
-static const int kNumJSCallerSaved = 4;
+static const int kNumJSCallerSaved = 5;
 
 
 // Return the code of the n-th caller-saved register available to JavaScript
-// e.g. JSCallerSavedReg(0) returns r0.code() == 0.
+// e.g. JSCallerSavedReg(0) returns a0.code() == 4.
 int JSCallerSavedCode(int n);
 
 
@@ -63,6 +64,18 @@ static const RegList kCalleeSaved =
 
 static const int kNumCalleeSaved = 11;
 
+
+// Number of registers for which space is reserved in safepoints. Must be a
+// multiple of 8.
+// TODO(mips): Only 8 registers may actually be sufficient. Revisit.
+static const int kNumSafepointRegisters = 16;
+
+// Define the list of registers actually saved at safepoints.
+// Note that the number of saved registers may be smaller than the reserved
+// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
+static const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
+static const int kNumSafepointSavedRegisters =
+    kNumJSCallerSaved + kNumCalleeSaved;
 
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
@@ -88,15 +101,14 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
-  // Exit frames have a debug marker on the stack.
-  static const int kSPDisplacement = -1 * kPointerSize;
-
-  // The debug marker is just above the frame pointer.
   static const int kDebugMarkOffset = -1 * kPointerSize;
   // Must be the same as kDebugMarkOffset. Alias introduced when upgrading.
   static const int kCodeOffset = -1 * kPointerSize;
+  static const int kSPOffset = -1 * kPointerSize;
 
-  static const int kSavedRegistersOffset = 0 * kPointerSize;
+  // TODO(mips): Use a patched sp value on the stack instead.
+  // A marker of 0 indicates that double registers are saved.
+  static const int kMarkerOffset = -2 * kPointerSize;
 
   // The caller fields are below the frame pointer on the stack.
   static const int kCallerFPOffset = +0 * kPointerSize;
@@ -126,6 +138,8 @@ class StandardFrameConstants : public AllStatic {
   static const int kCArgsSlotsSize = 4 * kPointerSize;
   // JS argument slots size.
   static const int kJSArgsSlotsSize = 0 * kPointerSize;
+  // Assembly builtins argument slots size.
+  static const int kBArgsSlotsSize = 0 * kPointerSize;
 };
 
 
@@ -158,6 +172,7 @@ inline Object* JavaScriptFrame::function_slot_object() const {
   const int offset = JavaScriptFrameConstants::kFunctionOffset;
   return Memory::Object_at(fp() + offset);
 }
+
 
 } }  // namespace v8::internal
 

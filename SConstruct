@@ -224,14 +224,37 @@ LIBRARY_FLAGS = {
     },
     'arch:mips': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
+      'mips_arch_variant:mips32r2': {
+        'CPPDEFINES':    ['_MIPS_ARCH_MIPS32R2']
+      },
       'simulator:none': {
-        'CCFLAGS':      ['-EL', '-mips32r2', '-Wa,-mips32r2', '-fno-inline'],
-        'LDFLAGS':      ['-EL']
+        'CCFLAGS':      ['-EL'],
+        'LINKFLAGS':    ['-EL'],
+        'mips_arch_variant:mips32r2': {
+          'CCFLAGS':      ['-mips32r2', '-Wa,-mips32r2']
+        },
+        'mips_arch_variant:mips32r1': {
+          'CCFLAGS':      ['-mips32', '-Wa,-mips32']
+        },
+        'library:static': {
+          'LINKFLAGS':    ['-static', '-static-libgcc']
+        },
+        'mipsabi:softfloat': {
+          'CCFLAGS':      ['-msoft-float'],
+          'LINKFLAGS':    ['-msoft-float']
+        },
+        'mipsabi:hardfloat': {
+          'CCFLAGS':      ['-mhard-float'],
+          'LINKFLAGS':    ['-mhard-float']
+        }
       }
     },
     'simulator:mips': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32'],
+      'mipsabi:softfloat': {
+        'CPPDEFINES':    ['__mips_soft_float=1'],
+      }
     },
     'arch:x64': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
@@ -345,6 +368,9 @@ V8_EXTRA_FLAGS = {
     },
     'arch:mips': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
+      'mips_arch_variant:mips32r2': {
+        'CPPDEFINES':    ['_MIPS_ARCH_MIPS32R2']
+      },
     },
     'disassembler:on': {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
@@ -478,17 +504,17 @@ SAMPLE_FLAGS = {
       'LIBS':         ['pthread'],
     },
     'os:freebsd': {
-      'LIBPATH' : ['/usr/local/lib'],
-      'LIBS':     ['execinfo', 'pthread']
+      'LIBPATH' :     ['/usr/local/lib'],
+      'LIBS':         ['execinfo', 'pthread']
     },
     'os:solaris': {
-      'LIBPATH' : ['/usr/local/lib'],
-      'LIBS':     ['m', 'pthread', 'socket', 'nsl', 'rt'],
-      'LINKFLAGS': ['-mt']
+      'LIBPATH' :     ['/usr/local/lib'],
+      'LIBS':         ['m', 'pthread', 'socket', 'nsl', 'rt'],
+      'LINKFLAGS':    ['-mt']
     },
     'os:openbsd': {
-      'LIBPATH' : ['/usr/local/lib'],
-      'LIBS':     ['execinfo', 'pthread']
+      'LIBPATH' :     ['/usr/local/lib'],
+      'LIBS':         ['execinfo', 'pthread']
     },
     'os:win32': {
       'LIBS':         ['winmm', 'ws2_32']
@@ -532,6 +558,150 @@ SAMPLE_FLAGS = {
     'simulator:mips': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
+    },
+    'mode:release': {
+      'CCFLAGS':      ['-O2']
+    },
+    'mode:debug': {
+      'CCFLAGS':      ['-g', '-O0'],
+      'CPPDEFINES':   ['DEBUG']
+    },
+  },
+  'msvc': {
+    'all': {
+      'LIBS': ['winmm', 'ws2_32']
+    },
+    'verbose:off': {
+      'CCFLAGS': ['/nologo'],
+      'LINKFLAGS': ['/NOLOGO']
+    },
+    'verbose:on': {
+      'LINKFLAGS': ['/VERBOSE']
+    },
+    'library:shared': {
+      'CPPDEFINES': ['USING_V8_SHARED']
+    },
+    'prof:on': {
+      'LINKFLAGS': ['/MAP']
+    },
+    'mode:release': {
+      'CCFLAGS':   ['/O2'],
+      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF'],
+      'msvcrt:static': {
+        'CCFLAGS': ['/MT']
+      },
+      'msvcrt:shared': {
+        'CCFLAGS': ['/MD']
+      },
+      'msvcltcg:on': {
+        'CCFLAGS':      ['/GL'],
+        'pgo:off': {
+          'LINKFLAGS':    ['/LTCG'],
+        },
+      },
+      'pgo:instrument': {
+        'LINKFLAGS':    ['/LTCG:PGI']
+      },
+      'pgo:optimize': {
+        'LINKFLAGS':    ['/LTCG:PGO']
+      }
+    },
+    'arch:ia32': {
+      'CPPDEFINES': ['V8_TARGET_ARCH_IA32', 'WIN32'],
+      'LINKFLAGS': ['/MACHINE:X86']
+    },
+    'arch:x64': {
+      'CPPDEFINES': ['V8_TARGET_ARCH_X64', 'WIN32'],
+      'LINKFLAGS': ['/MACHINE:X64', '/STACK:2091752']
+    },
+    'mode:debug': {
+      'CCFLAGS':    ['/Od'],
+      'LINKFLAGS':  ['/DEBUG'],
+      'CPPDEFINES': ['DEBUG'],
+      'msvcrt:static': {
+        'CCFLAGS':  ['/MTd']
+      },
+      'msvcrt:shared': {
+        'CCFLAGS':  ['/MDd']
+      }
+    }
+  }
+}
+
+
+PREPARSER_FLAGS = {
+  'all': {
+    'CPPPATH': [join(abspath('.'), 'include'), join(abspath('.'), 'src')]
+  },
+  'gcc': {
+    'all': {
+      'LIBPATH': ['.'],
+      'CCFLAGS': ['-fno-rtti', '-fno-exceptions']
+    },
+    'os:win32': {
+      'LIBS':         ['winmm', 'ws2_32']
+    },
+    'os:android': {
+      'CPPDEFINES':   ['ANDROID', '__ARM_ARCH_5__', '__ARM_ARCH_5T__',
+                       '__ARM_ARCH_5E__', '__ARM_ARCH_5TE__'],
+      'CCFLAGS':      ANDROID_FLAGS,
+      'CPPPATH':      ANDROID_INCLUDES,
+      'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib',
+                      ANDROID_TOP + '/prebuilt/linux-x86/toolchain/arm-eabi-4.4.0/lib/gcc/arm-eabi/4.4.0/interwork'],
+      'LINKFLAGS':    ANDROID_LINKFLAGS,
+      'LIBS':         ['log', 'c', 'stdc++', 'm', 'gcc'],
+      'mode:release': {
+        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
+      }
+    },
+    'arch:arm': {
+      'LINKFLAGS':   ARM_LINK_FLAGS
+    },
+    'arch:ia32': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
+    },
+    'arch:x64': {
+      'CCFLAGS':      ['-m64'],
+      'LINKFLAGS':    ['-m64']
+    },
+    'arch:mips': {
+      'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
+      'mips_arch_variant:mips32r2': {
+        'CPPDEFINES':    ['_MIPS_ARCH_MIPS32R2']
+      },
+      'simulator:none': {
+        'CCFLAGS':      ['-EL'],
+        'LINKFLAGS':    ['-EL'],
+        'mips_arch_variant:mips32r2': {
+          'CCFLAGS':      ['-mips32r2', '-Wa,-mips32r2']
+        },
+        'mips_arch_variant:mips32r1': {
+          'CCFLAGS':      ['-mips32', '-Wa,-mips32']
+        },
+        'library:static': {
+          'LINKFLAGS':    ['-static', '-static-libgcc']
+        },
+        'mipsabi:softfloat': {
+          'CCFLAGS':      ['-msoft-float'],
+          'LINKFLAGS':    ['-msoft-float']
+        },
+        'mipsabi:hardfloat': {
+          'CCFLAGS':      ['-mhard-float'],
+          'LINKFLAGS':    ['-mhard-float']
+        }
+      }
+    },
+    'simulator:arm': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
+    },
+    'simulator:mips': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32'],
+      'mipsabi:softfloat': {
+        'CPPDEFINES':    ['__mips_soft_float=1'],
+      }
     },
     'mode:release': {
       'CCFLAGS':      ['-O2']
@@ -818,6 +988,16 @@ SIMPLE_OPTIONS = {
     'values': ['off', 'instrument', 'optimize'],
     'default': 'off',
     'help': 'select profile guided optimization variant',
+  },
+  'mipsabi': {
+    'values': ['hardfloat', 'softfloat', 'none'],
+    'default': 'hardfloat',
+    'help': 'generate calling conventiont according to selected mips ABI'
+  },
+  'mips_arch_variant': {
+    'values': ['mips32r2', 'mips32r1'],
+    'default': 'mips32r2',
+    'help': 'mips variant'
   }
 }
 
@@ -936,6 +1116,7 @@ class BuildContext(object):
     self.options = options
     self.env_overrides = env_overrides
     self.samples = samples
+    self.preparser_targets = []
     self.use_snapshot = (options['snapshot'] != 'off')
     self.build_snapshot = (options['snapshot'] == 'on')
     self.flags = None
@@ -1014,11 +1195,12 @@ def PostprocessOptions(options, os):
     if 'msvcltcg' in ARGUMENTS:
       print "Warning: forcing msvcltcg on as it is required for pgo (%s)" % options['pgo']
     options['msvcltcg'] = 'on'
-  if options['arch'] == 'mips':
-    if ('regexp' in ARGUMENTS) and options['regexp'] == 'native':
-      # Print a warning if native regexp is specified for mips
-      print "Warning: forcing regexp to interpreted for mips"
-    options['regexp'] = 'interpreted'
+    if (options['simulator'] == 'mips' and options['mipsabi'] != 'softfloat'):
+      # Print a warning if soft-float ABI is not selected for mips simulator
+      print "Warning: forcing soft-float mips ABI when running on simulator"
+      options['mipsabi'] = 'softfloat'
+    if (options['mipsabi'] != 'none') and (options['arch'] != 'mips') and (options['simulator'] != 'mips'):
+      options['mipsabi'] = 'none'
   if options['liveobjectlist'] == 'on':
     if (options['debuggersupport'] != 'on') or (options['mode'] == 'release'):
       # Print a warning that liveobjectlist will implicitly enable the debugger
@@ -1065,6 +1247,7 @@ def BuildSpecific(env, mode, env_overrides):
   dtoa_flags = context.AddRelevantFlags(library_flags, DTOA_EXTRA_FLAGS)
   cctest_flags = context.AddRelevantFlags(v8_flags, CCTEST_EXTRA_FLAGS)
   sample_flags = context.AddRelevantFlags(user_environ, SAMPLE_FLAGS)
+  preparser_flags = context.AddRelevantFlags(user_environ, PREPARSER_FLAGS)
   d8_flags = context.AddRelevantFlags(library_flags, D8_FLAGS)
 
   context.flags = {
@@ -1073,13 +1256,15 @@ def BuildSpecific(env, mode, env_overrides):
     'dtoa': dtoa_flags,
     'cctest': cctest_flags,
     'sample': sample_flags,
-    'd8': d8_flags
+    'd8': d8_flags,
+    'preparser': preparser_flags
   }
 
   # Generate library base name.
   target_id = mode
   suffix = SUFFIXES[target_id]
   library_name = 'v8' + suffix
+  preparser_library_name = 'v8preparser' + suffix
   version = GetVersion()
   if context.options['soname'] == 'on':
     # When building shared object with SONAME version the library name.
@@ -1093,7 +1278,7 @@ def BuildSpecific(env, mode, env_overrides):
     env['SONAME'] = soname
 
   # Build the object files by invoking SCons recursively.
-  (object_files, shell_files, mksnapshot) = env.SConscript(
+  (object_files, shell_files, mksnapshot, preparser_files) = env.SConscript(
     join('src', 'SConscript'),
     build_dir=join('obj', target_id),
     exports='context',
@@ -1108,13 +1293,20 @@ def BuildSpecific(env, mode, env_overrides):
   context.ApplyEnvOverrides(env)
   if context.options['library'] == 'static':
     library = env.StaticLibrary(library_name, object_files)
+    preparser_library = env.StaticLibrary(preparser_library_name,
+                                          preparser_files)
   else:
     # There seems to be a glitch in the way scons decides where to put
     # PDB files when compiling using MSVC so we specify it manually.
     # This should not affect any other platforms.
     pdb_name = library_name + '.dll.pdb'
     library = env.SharedLibrary(library_name, object_files, PDB=pdb_name)
+    preparser_pdb_name = preparser_library_name + '.dll.pdb';
+    preparser_library = env.SharedLibrary(preparser_library_name,
+                                          preparser_files,
+                                          PDB=preparser_pdb_name)
   context.library_targets.append(library)
+  context.library_targets.append(preparser_library)
 
   d8_env = Environment()
   d8_env.Replace(**context.flags['d8'])
@@ -1148,6 +1340,21 @@ def BuildSpecific(env, mode, env_overrides):
   )
   context.cctest_targets.append(cctest_program)
 
+  preparser_env = env.Copy()
+  preparser_env.Replace(**context.flags['preparser'])
+  preparser_env.Prepend(LIBS=[preparser_library_name])
+  context.ApplyEnvOverrides(preparser_env)
+  preparser_object = preparser_env.SConscript(
+    join('preparser', 'SConscript'),
+    build_dir=join('obj', 'preparser', target_id),
+    exports='context',
+    duplicate=False
+  )
+  preparser_name = join('obj', 'preparser', target_id, 'preparser' + suffix)
+  preparser_program = preparser_env.Program(preparser_name, preparser_object);
+  preparser_env.Depends(preparser_program, preparser_library)
+  context.preparser_targets.append(preparser_program)
+
   return context
 
 
@@ -1164,6 +1371,7 @@ def Build():
   mksnapshots = []
   cctests = []
   samples = []
+  preparsers = []
   d8s = []
   modes = SplitList(env['mode'])
   for mode in modes:
@@ -1172,6 +1380,7 @@ def Build():
     mksnapshots += context.mksnapshot_targets
     cctests += context.cctest_targets
     samples += context.sample_targets
+    preparsers += context.preparser_targets
     d8s += context.d8_targets
 
   env.Alias('library', libraries)
@@ -1179,6 +1388,7 @@ def Build():
   env.Alias('cctests', cctests)
   env.Alias('sample', samples)
   env.Alias('d8', d8s)
+  env.Alias('preparser', preparsers)
 
   if env['sample']:
     env.Default('sample')

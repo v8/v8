@@ -49,6 +49,10 @@
 #include "regexp-macro-assembler.h"
 #include "arm/regexp-macro-assembler-arm.h"
 #endif
+#if V8_TARGET_ARCH_MIPS && !V8_INTERPRETED_REGEXP
+#include "regexp-macro-assembler.h"
+#include "mips/regexp-macro-assembler-mips.h"
+#endif
 
 namespace v8 {
 namespace internal {

@@ -25,53 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+#ifndef V8_MIPS_LITHIUM_CODEGEN_MIPS_H_
+#define V8_MIPS_LITHIUM_CODEGEN_MIPS_H_
 
-#if defined(V8_TARGET_ARCH_MIPS)
+#include "mips/lithium-mips.h"
 
-#include "codegen-inl.h"
-#include "fast-codegen.h"
+#include "deoptimizer.h"
+#include "safepoint-table.h"
+#include "scopes.h"
+
+// Note: this file was taken from the X64 version. ARM has a partially working
+// lithium implementation, but for now it is not ported to mips.
 
 namespace v8 {
 namespace internal {
 
-#define __ ACCESS_MASM(masm_)
+// Forward declarations.
+class LDeferredCode;
 
-Register FastCodeGenerator::accumulator0() { return no_reg; }
-Register FastCodeGenerator::accumulator1() { return no_reg; }
-Register FastCodeGenerator::scratch0() { return no_reg; }
-Register FastCodeGenerator::scratch1() { return no_reg; }
-Register FastCodeGenerator::receiver_reg() { return no_reg; }
-Register FastCodeGenerator::context_reg() { return no_reg; }
+class LCodeGen BASE_EMBEDDED {
+ public:
+  LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info) { }
 
+  // Try to generate code for the entire chunk, but it may fail if the
+  // chunk contains constructs we cannot handle. Returns true if the
+  // code generation attempt succeeded.
+  bool GenerateCode() {
+    UNIMPLEMENTED();
+    return false;
+  }
 
-void FastCodeGenerator::Generate(CompilationInfo* info) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> name) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void FastCodeGenerator::EmitThisPropertyLoad(Handle<String> name) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void FastCodeGenerator::EmitBitOr() {
-  UNIMPLEMENTED_MIPS();
-}
-
-#undef __
-
+  // Finish the code by setting stack height, safepoint, and bailout
+  // information on it.
+  void FinishCode(Handle<Code> code) { UNIMPLEMENTED(); }
+};
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_MIPS
+#endif  // V8_MIPS_LITHIUM_CODEGEN_MIPS_H_

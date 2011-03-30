@@ -25,42 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function GetX(o) { return o.x; }
-function CallF(o) { return o.f(); }
-function SetX(o) { o.x = 42; }
-function SetXY(o,y) { return o.x = y; }
+#ifndef V8_VIRTUAL_FRAME_MIPS_INL_H_
+#define V8_VIRTUAL_FRAME_MIPS_INL_H_
+
+#include "assembler-mips.h"
+#include "virtual-frame-mips.h"
+
+namespace v8 {
+namespace internal {
 
 
-function Test(o) {
-  SetX(o);
-  assertEquals(42, GetX(o));
-  assertEquals(87, SetXY(o, 87));
-  assertEquals(87, GetX(o));
-  assertTrue(SetXY(o, o) === o);
-  assertTrue(o === GetX(o), "o === GetX(o)");
-  assertEquals("hest", SetXY(o, "hest"));
-  assertEquals("hest", GetX(o));
-  assertTrue(SetXY(o, Test) === Test);
-  assertTrue(Test === GetX(o), "Test === GetX(o)");
-  assertEquals(99, CallF(o));
+MemOperand VirtualFrame::ParameterAt(int index) {
+  UNIMPLEMENTED_MIPS();
+  return MemOperand(zero_reg, 0);
 }
 
-// Create a bunch of objects with different layouts.
-var o1 = { x: 0, y: 1 };
-var o2 = { y: 1, x: 0 };
-var o3 = { y: 1, z: 2, x: 0 };
-o1.f = o2.f = o3.f = function() { return 99; }
 
-// Run the test until we're fairly sure we've optimized the
-// polymorphic property access.
-for (var i = 0; i < 100000; i++) {
-  Test(o1);
-  Test(o2);
-  Test(o3);
+// The receiver frame slot.
+MemOperand VirtualFrame::Receiver() {
+  UNIMPLEMENTED_MIPS();
+  return MemOperand(zero_reg, 0);
 }
 
-// Make sure that the following doesn't crash.
-GetX(0);
-SetX(0);
-SetXY(0, 0);
-assertThrows("CallF(0)", TypeError);
+
+void VirtualFrame::Forget(int count) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+} }  // namespace v8::internal
+
+#endif  // V8_VIRTUAL_FRAME_MIPS_INL_H_

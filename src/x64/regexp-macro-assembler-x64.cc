@@ -109,13 +109,13 @@ namespace internal {
  *              bool direct_call)
  */
 
-#define __ ACCESS_MASM(masm_)
+#define __ ACCESS_MASM((&masm_))
 
 RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(
     Mode mode,
     int registers_to_save)
-    : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
-      no_root_array_scope_(masm_),
+    : masm_(NULL, kRegExpCodeSize),
+      no_root_array_scope_(&masm_),
       code_relative_fixup_positions_(4),
       mode_(mode),
       num_registers_(registers_to_save),
@@ -132,7 +132,6 @@ RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(
 
 
 RegExpMacroAssemblerX64::~RegExpMacroAssemblerX64() {
-  delete masm_;
   // Unuse labels in case we throw away the assembler without calling GetCode.
   entry_label_.Unuse();
   start_label_.Unuse();
@@ -428,11 +427,11 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     __ movq(rdx, rbx);
 #endif
     ExternalReference compare =
-        ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
+        ExternalReference::re_case_insensitive_compare_uc16(masm_.isolate());
     __ CallCFunction(compare, num_arguments);
 
     // Restore original values before reacting on result value.
-    __ Move(code_object_pointer(), masm_->CodeObject());
+    __ Move(code_object_pointer(), masm_.CodeObject());
     __ pop(backtrack_stackpointer());
 #ifndef _WIN64
     __ pop(rdi);
@@ -746,7 +745,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   Label stack_ok;
 
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(masm_->isolate());
+      ExternalReference::address_of_stack_limit(masm_.isolate());
   __ movq(rcx, rsp);
   __ movq(kScratchRegister, stack_limit);
   __ subq(rcx, Operand(kScratchRegister, 0));
@@ -762,7 +761,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ jmp(&exit_label_);
 
   __ bind(&stack_limit_hit);
-  __ Move(code_object_pointer(), masm_->CodeObject());
+  __ Move(code_object_pointer(), masm_.CodeObject());
   CallCheckStackGuardState();  // Preserves no registers beside rbp and rsp.
   __ testq(rax, rax);
   // If returned value is non-zero, we exit with the returned value as result.
@@ -817,7 +816,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Initialize backtrack stack pointer.
   __ movq(backtrack_stackpointer(), Operand(rbp, kStackHighEnd));
   // Initialize code object pointer.
-  __ Move(code_object_pointer(), masm_->CodeObject());
+  __ Move(code_object_pointer(), masm_.CodeObject());
   // Load previous char as initial value of current-character.
   Label at_start;
   __ cmpb(Operand(rbp, kStartIndex), Immediate(0));
@@ -898,7 +897,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ j(not_zero, &exit_label_);
 
     // Restore registers.
-    __ Move(code_object_pointer(), masm_->CodeObject());
+    __ Move(code_object_pointer(), masm_.CodeObject());
     __ pop(rdi);
     __ pop(backtrack_stackpointer());
     // String might have moved: Reload esi from frame.
@@ -932,7 +931,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ lea(rsi, Operand(rbp, kStackHighEnd));  // Second argument.
 #endif
     ExternalReference grow_stack =
-        ExternalReference::re_grow_stack(masm_->isolate());
+        ExternalReference::re_grow_stack(masm_.isolate());
     __ CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
@@ -941,7 +940,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     // Otherwise use return value as new stack pointer.
     __ movq(backtrack_stackpointer(), rax);
     // Restore saved registers and continue.
-    __ Move(code_object_pointer(), masm_->CodeObject());
+    __ Move(code_object_pointer(), masm_.CodeObject());
 #ifndef _WIN64
     __ pop(rdi);
     __ pop(rsi);
@@ -960,11 +959,11 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   FixupCodeRelativePositions();
 
   CodeDesc code_desc;
-  masm_->GetCode(&code_desc);
+  masm_.GetCode(&code_desc);
   Isolate* isolate = ISOLATE;
   Handle<Code> code = isolate->factory()->NewCode(
       code_desc, Code::ComputeFlags(Code::REGEXP),
-      masm_->CodeObject());
+      masm_.CodeObject());
   PROFILE(isolate, RegExpCodeCreateEvent(*code, *source));
   return Handle<Object>::cast(code);
 }
@@ -1134,7 +1133,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   __ lea(rdi, Operand(rsp, -kPointerSize));
 #endif
   ExternalReference stack_check =
-      ExternalReference::re_check_stack_guard_state(masm_->isolate());
+      ExternalReference::re_check_stack_guard_state(masm_.isolate());
   __ CallCFunction(stack_check, num_arguments);
 }
 
@@ -1299,8 +1298,8 @@ void RegExpMacroAssemblerX64::FixupCodeRelativePositions() {
     // Patch the relative offset to be relative to the Code object pointer
     // instead.
     int patch_position = position - kIntSize;
-    int offset = masm_->long_at(patch_position);
-    masm_->long_at_put(patch_position,
+    int offset = masm_.long_at(patch_position);
+    masm_.long_at_put(patch_position,
                        offset
                        + position
                        + Code::kHeaderSize
@@ -1334,7 +1333,7 @@ void RegExpMacroAssemblerX64::CheckPreemption() {
   // Check for preemption.
   Label no_preempt;
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(masm_->isolate());
+      ExternalReference::address_of_stack_limit(masm_.isolate());
   __ load_rax(stack_limit);
   __ cmpq(rsp, rax);
   __ j(above, &no_preempt);
@@ -1348,7 +1347,7 @@ void RegExpMacroAssemblerX64::CheckPreemption() {
 void RegExpMacroAssemblerX64::CheckStackLimit() {
   Label no_stack_overflow;
   ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit(masm_->isolate());
+      ExternalReference::address_of_regexp_stack_limit(masm_.isolate());
   __ load_rax(stack_limit);
   __ cmpq(backtrack_stackpointer(), rax);
   __ j(above, &no_stack_overflow);

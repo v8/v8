@@ -116,16 +116,6 @@ void LCodeGen::Comment(const char* format, ...) {
 }
 
 
-bool LCodeGen::GenerateRelocPadding() {
-  int reloc_size = masm()->relocation_writer_size();
-  while (reloc_size < deoptimization_reloc_size.min_size) {
-    __ RecordComment(RelocInfo::kFillerCommentString, true);
-    reloc_size += RelocInfo::kMinRelocCommentSize;
-  }
-  return !is_aborted();
-}
-
-
 bool LCodeGen::GeneratePrologue() {
   ASSERT(is_generating());
 

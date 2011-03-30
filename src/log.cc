@@ -1134,7 +1134,6 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.AppendAddress(sample->pc);
   msg.Append(',');
   msg.AppendAddress(sample->sp);
-  msg.Append(',');
   if (sample->has_external_callback) {
     msg.Append(",1,");
     msg.AppendAddress(sample->external_callback);
