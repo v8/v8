@@ -1923,7 +1923,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  if (isolate()->cpu_features()->IsSupported(SSE2)) {
+  if (!isolate()->cpu_features()->IsSupported(SSE2)) {
     return isolate()->heap()->undefined_value();
   }
 
