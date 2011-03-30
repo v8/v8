@@ -129,7 +129,7 @@ class MarkCompactCollector {
                                    int* offset);
 
   // Type of functions to process non-live objects.
-  typedef void (*ProcessNonLiveFunction)(HeapObject* object);
+  typedef void (*ProcessNonLiveFunction)(HeapObject* object, Isolate* isolate);
 
   // Pointer to member function, used in IterateLiveObjects.
   typedef int (MarkCompactCollector::*LiveObjectCallback)(HeapObject* obj);
@@ -179,7 +179,7 @@ class MarkCompactCollector {
 #endif
 
   // Determine type of object and emit deletion log event.
-  static void ReportDeleteIfNeeded(HeapObject* obj);
+  static void ReportDeleteIfNeeded(HeapObject* obj, Isolate* isolate);
 
   // Returns size of a possibly marked object.
   static int SizeOfMarkedObject(HeapObject* obj);

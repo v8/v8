@@ -3014,7 +3014,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       }
 
       // Free the chunk.
-      heap()->mark_compact_collector()->ReportDeleteIfNeeded(object);
+      heap()->mark_compact_collector()->ReportDeleteIfNeeded(
+          object, heap()->isolate());
       LiveObjectList::ProcessNonLive(object);
 
       size_ -= static_cast<int>(chunk_size);

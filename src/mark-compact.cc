@@ -1690,7 +1690,7 @@ inline void EncodeForwardingAddressInPagedSpace(Heap* heap,
 
 
 // Most non-live objects are ignored.
-inline void IgnoreNonLiveObject(HeapObject* object) {}
+inline void IgnoreNonLiveObject(HeapObject* object, Isolate* isolate) {}
 
 
 // Function template that, given a range of addresses (eg, a semispace or a
@@ -1744,7 +1744,7 @@ inline void EncodeForwardingAddressesInRange(MarkCompactCollector* collector,
       }
     } else {  // Non-live object.
       object_size = object->Size();
-      ProcessNonLive(object);
+      ProcessNonLive(object, collector->heap()->isolate());
       if (is_prev_alive) {  // Transition from live to non-live.
         free_start = current;
         is_prev_alive = false;
@@ -2089,7 +2089,8 @@ static void SweepSpace(Heap* heap, PagedSpace* space) {
           is_previous_alive = true;
         }
       } else {
-        heap->mark_compact_collector()->ReportDeleteIfNeeded(object);
+        heap->mark_compact_collector()->ReportDeleteIfNeeded(
+            object, heap->isolate());
         if (is_previous_alive) {  // Transition from live to free.
           free_start = current;
           is_previous_alive = false;
@@ -3046,7 +3047,8 @@ void MarkCompactCollector::EnableCodeFlushing(bool enable) {
 }
 
 
-void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
+void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj,
+                                                Isolate* isolate) {
 #ifdef ENABLE_GDB_JIT_INTERFACE
   if (obj->IsCode()) {
     GDBJITInterface::RemoveCode(reinterpret_cast<Code*>(obj));
@@ -3054,7 +3056,7 @@ void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
 #endif
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (obj->IsCode()) {
-    PROFILE(ISOLATE, CodeDeleteEvent(obj->address()));
+    PROFILE(isolate, CodeDeleteEvent(obj->address()));
   }
 #endif
 }
