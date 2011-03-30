@@ -4246,7 +4246,9 @@ Local<v8::Array> v8::Array::New(int length) {
   ENTER_V8(isolate);
   int real_length = length > 0 ? length : 0;
   i::Handle<i::JSArray> obj = isolate->factory()->NewJSArray(real_length);
-  obj->set_length(*isolate->factory()->NewNumberFromInt(real_length));
+  i::Handle<i::Object> length_obj =
+      isolate->factory()->NewNumberFromInt(real_length);
+  obj->set_length(*length_obj);
   return Utils::ToLocal(obj);
 }
 
