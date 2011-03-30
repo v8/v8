@@ -930,6 +930,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                       const char* name,
                       int children_count,
                       int retainers_count);
+  const char* GetSystemEntryName(HeapObject* object);
   void ExtractReferences(HeapObject* obj);
   void ExtractClosureReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractPropertyReferences(JSObject* js_obj, HeapEntry* entry);

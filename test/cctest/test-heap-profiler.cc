@@ -574,10 +574,10 @@ TEST(HeapSnapshotCodeObjects) {
 
   // Find references to code.
   const v8::HeapGraphNode* compiled_code =
-      GetProperty(compiled, v8::HeapGraphEdge::kInternal, "code");
+      GetProperty(compiled, v8::HeapGraphEdge::kInternal, "shared");
   CHECK_NE(NULL, compiled_code);
   const v8::HeapGraphNode* lazy_code =
-      GetProperty(lazy, v8::HeapGraphEdge::kInternal, "code");
+      GetProperty(lazy, v8::HeapGraphEdge::kInternal, "shared");
   CHECK_NE(NULL, lazy_code);
 
   // Verify that non-compiled code doesn't contain references to "x"
@@ -1257,9 +1257,9 @@ TEST(HeapSnapshotRetainedObjectInfo) {
       ccc, v8::HeapGraphNode::kString, "CCC");
   CHECK_NE(NULL, n_CCC);
 
-  CHECK_EQ(aaa, GetProperty(n_AAA, v8::HeapGraphEdge::kInternal, "Native"));
-  CHECK_EQ(aaa, GetProperty(n_BBB, v8::HeapGraphEdge::kInternal, "Native"));
-  CHECK_EQ(ccc, GetProperty(n_CCC, v8::HeapGraphEdge::kInternal, "Native"));
+  CHECK_EQ(aaa, GetProperty(n_AAA, v8::HeapGraphEdge::kInternal, "native"));
+  CHECK_EQ(aaa, GetProperty(n_BBB, v8::HeapGraphEdge::kInternal, "native"));
+  CHECK_EQ(ccc, GetProperty(n_CCC, v8::HeapGraphEdge::kInternal, "native"));
 }
 
 
