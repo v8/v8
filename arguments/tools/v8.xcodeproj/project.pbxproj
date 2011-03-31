@@ -914,6 +914,9 @@
 		89F3605A12DCDF6400ACF8A6 /* lithium-codegen-x64.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "lithium-codegen-x64.cc"; path = "x64/lithium-codegen-x64.cc"; sourceTree = "<group>"; };
 		89FB0E360F8E531900B04B3C /* d8-posix.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-posix.cc"; path = "../src/d8-posix.cc"; sourceTree = "<group>"; };
 		89FB0E370F8E531900B04B3C /* d8-windows.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-windows.cc"; path = "../src/d8-windows.cc"; sourceTree = "<group>"; };
+		9C1F8E1D133906180068B362 /* small-pointer-list.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "small-pointer-list.h"; sourceTree = "<group>"; };
+		9C76176D133FB7740057370B /* platform-tls-mac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "platform-tls-mac.h"; sourceTree = "<group>"; };
+		9C8E8061133CF772004058A5 /* platform-tls.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "platform-tls.h"; sourceTree = "<group>"; };
 		9F11D99E105AF0A300EBE5B2 /* heap-profiler.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "heap-profiler.cc"; sourceTree = "<group>"; };
 		9F11D99F105AF0A300EBE5B2 /* heap-profiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "heap-profiler.h"; sourceTree = "<group>"; };
 		9F2B370E114FF62D007CDAF4 /* circular-queue-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "circular-queue-inl.h"; sourceTree = "<group>"; };
@@ -1237,6 +1240,8 @@
 				897FF1670E719B8F00D62E90 /* platform-macos.cc */,
 				897FF1680E719B8F00D62E90 /* platform-nullos.cc */,
 				893A72230F7B0FF200303DD2 /* platform-posix.cc */,
+				9C76176D133FB7740057370B /* platform-tls-mac.h */,
+				9C8E8061133CF772004058A5 /* platform-tls.h */,
 				897FF1690E719B8F00D62E90 /* platform-win32.cc */,
 				897FF16A0E719B8F00D62E90 /* platform.h */,
 				893E249512B14B3D0083370F /* preparse-data.cc */,
@@ -1283,6 +1288,7 @@
 				897FF17B0E719B8F00D62E90 /* serialize.h */,
 				897FF17C0E719B8F00D62E90 /* shell.h */,
 				893E24A012B14B3D0083370F /* simulator.h */,
+				9C1F8E1D133906180068B362 /* small-pointer-list.h */,
 				897FF1810E719B8F00D62E90 /* smart-pointer.h */,
 				897FF1820E719B8F00D62E90 /* snapshot-common.cc */,
 				897FF1830E719B8F00D62E90 /* snapshot-empty.cc */,

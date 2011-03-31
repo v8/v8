@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-
 #include "v8.h"
 
 #if defined(V8_TARGET_ARCH_MIPS)
@@ -39,44 +37,50 @@
 namespace v8 {
 namespace internal {
 
-// -------------------------------------------------------------------------
-// VirtualFrame implementation.
-
 #define __ ACCESS_MASM(masm())
 
-void VirtualFrame::SyncElementBelowStackPointer(int index) {
-  UNREACHABLE();
+void VirtualFrame::PopToA1A0() {
+  UNIMPLEMENTED_MIPS();
 }
 
 
-void VirtualFrame::SyncElementByPushing(int index) {
-  UNREACHABLE();
+void VirtualFrame::PopToA1() {
+  UNIMPLEMENTED_MIPS();
 }
 
 
-void VirtualFrame::SyncRange(int begin, int end) {
-  // All elements are in memory on MIPS (ie, synced).
-#ifdef DEBUG
-  for (int i = begin; i <= end; i++) {
-    ASSERT(elements_[i].is_synced());
-  }
-#endif
+void VirtualFrame::PopToA0() {
+  UNIMPLEMENTED_MIPS();
 }
 
 
-void VirtualFrame::MergeTo(VirtualFrame* expected) {
+void VirtualFrame::MergeTo(const VirtualFrame* expected,
+                           Condition cond,
+                           Register r1,
+                           const Operand& r2) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void VirtualFrame::MergeTo(VirtualFrame* expected,
+                           Condition cond,
+                           Register r1,
+                           const Operand& r2) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void VirtualFrame::MergeTOSTo(
+    VirtualFrame::TopOfStack expected_top_of_stack_state,
+    Condition cond,
+    Register r1,
+    const Operand& r2) {
   UNIMPLEMENTED_MIPS();
 }
 
 
 void VirtualFrame::Enter() {
-  // TODO(MIPS): Implement DEBUG
-
-  // We are about to push four values to the frame.
-  Adjust(4);
-  __ MultiPush(ra.bit() | fp.bit() | cp.bit() | a1.bit());
-  // Adjust FP to point to saved FP.
-  __ addiu(fp, sp, 2 * kPointerSize);
+  UNIMPLEMENTED_MIPS();
 }
 
 
@@ -86,46 +90,12 @@ void VirtualFrame::Exit() {
 
 
 void VirtualFrame::AllocateStackSlots() {
-  int count = local_count();
-  if (count > 0) {
-    Comment cmnt(masm(), "[ Allocate space for locals");
-    Adjust(count);
-      // Initialize stack slots with 'undefined' value.
-    __ LoadRoot(t0, Heap::kUndefinedValueRootIndex);
-    __ addiu(sp, sp, -count * kPointerSize);
-    for (int i = 0; i < count; i++) {
-      __ sw(t0, MemOperand(sp, (count-i-1)*kPointerSize));
-    }
-  }
-}
-
-
-void VirtualFrame::SaveContextRegister() {
   UNIMPLEMENTED_MIPS();
 }
 
-
-void VirtualFrame::RestoreContextRegister() {
-  UNIMPLEMENTED_MIPS();
-}
 
 
 void VirtualFrame::PushReceiverSlotAddress() {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-int VirtualFrame::InvalidateFrameSlotAt(int index) {
-  return kIllegalIndex;
-}
-
-
-void VirtualFrame::TakeFrameSlotAt(int index) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void VirtualFrame::StoreToFrameSlotAt(int index) {
   UNIMPLEMENTED_MIPS();
 }
 
@@ -135,182 +105,200 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 }
 
 
-void VirtualFrame::RawCallStub(CodeStub* stub) {
+void VirtualFrame::CallJSFunction(int arg_count) {
   UNIMPLEMENTED_MIPS();
 }
 
 
-void VirtualFrame::CallStub(CodeStub* stub, Result* arg) {
+void VirtualFrame::CallRuntime(const Runtime::Function* f, int arg_count) {
   UNIMPLEMENTED_MIPS();
-}
-
-
-void VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
-  PrepareForCall(arg_count, arg_count);
-  ASSERT(cgen()->HasValidEntryRegisters());
-  __ CallRuntime(f, arg_count);
 }
 
 
 void VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
-  PrepareForCall(arg_count, arg_count);
-  ASSERT(cgen()->HasValidEntryRegisters());
-  __ CallRuntime(id, arg_count);
-}
-
-
-void VirtualFrame::CallAlignedRuntime(Runtime::Function* f, int arg_count) {
   UNIMPLEMENTED_MIPS();
 }
 
 
-void VirtualFrame::CallAlignedRuntime(Runtime::FunctionId id, int arg_count) {
+#ifdef ENABLE_DEBUGGER_SUPPORT
+void VirtualFrame::DebugBreak() {
   UNIMPLEMENTED_MIPS();
 }
+#endif
 
 
 void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
                                  InvokeJSFlags flags,
-                                 Result* arg_count_register,
                                  int arg_count) {
   UNIMPLEMENTED_MIPS();
 }
 
 
-void VirtualFrame::CallCodeObject(Handle<Code> code,
-                                  RelocInfo::Mode rmode,
-                                  int dropped_args) {
-  switch (code->kind()) {
-    case Code::CALL_IC:
-      break;
-    case Code::FUNCTION:
-      UNIMPLEMENTED_MIPS();
-      break;
-    case Code::KEYED_LOAD_IC:
-      UNIMPLEMENTED_MIPS();
-      break;
-    case Code::LOAD_IC:
-      UNIMPLEMENTED_MIPS();
-      break;
-    case Code::KEYED_STORE_IC:
-      UNIMPLEMENTED_MIPS();
-      break;
-    case Code::STORE_IC:
-      UNIMPLEMENTED_MIPS();
-      break;
-    case Code::BUILTIN:
-      UNIMPLEMENTED_MIPS();
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
-  Forget(dropped_args);
-  ASSERT(cgen()->HasValidEntryRegisters());
-  __ Call(code, rmode);
+void VirtualFrame::CallLoadIC(Handle<String> name, RelocInfo::Mode mode) {
+  UNIMPLEMENTED_MIPS();
 }
 
 
-void VirtualFrame::CallCodeObject(Handle<Code> code,
-                                  RelocInfo::Mode rmode,
-                                  Result* arg,
-                                  int dropped_args) {
+void VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void VirtualFrame::CallKeyedLoadIC() {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void VirtualFrame::CallKeyedStoreIC() {
   UNIMPLEMENTED_MIPS();
 }
 
 
 void VirtualFrame::CallCodeObject(Handle<Code> code,
                                   RelocInfo::Mode rmode,
-                                  Result* arg0,
-                                  Result* arg1,
-                                  int dropped_args,
-                                  bool set_auto_args_slots) {
+                                  int dropped_args) {
   UNIMPLEMENTED_MIPS();
 }
+
+
+//    NO_TOS_REGISTERS, A0_TOS, A1_TOS, A1_A0_TOS, A0_A1_TOS.
+const bool VirtualFrame::kA0InUse[TOS_STATES] =
+    { false,            true,   false,  true,      true };
+const bool VirtualFrame::kA1InUse[TOS_STATES] =
+    { false,            false,  true,   true,      true };
+const int VirtualFrame::kVirtualElements[TOS_STATES] =
+    { 0,                1,      1,      2,         2 };
+const Register VirtualFrame::kTopRegister[TOS_STATES] =
+    { a0,               a0,     a1,     a1,        a0 };
+const Register VirtualFrame::kBottomRegister[TOS_STATES] =
+    { a0,               a0,     a1,     a0,        a1 };
+const Register VirtualFrame::kAllocatedRegisters[
+    VirtualFrame::kNumberOfAllocatedRegisters] = { a2, a3, t0, t1, t2 };
+// Popping is done by the transition implied by kStateAfterPop.  Of course if
+// there were no stack slots allocated to registers then the physical SP must
+// be adjusted.
+const VirtualFrame::TopOfStack VirtualFrame::kStateAfterPop[TOS_STATES] =
+    { NO_TOS_REGISTERS, NO_TOS_REGISTERS, NO_TOS_REGISTERS, A0_TOS, A1_TOS };
+// Pushing is done by the transition implied by kStateAfterPush.  Of course if
+// the maximum number of registers was already allocated to the top of stack
+// slots then one register must be physically pushed onto the stack.
+const VirtualFrame::TopOfStack VirtualFrame::kStateAfterPush[TOS_STATES] =
+    { A0_TOS, A1_A0_TOS, A0_A1_TOS, A0_A1_TOS, A1_A0_TOS };
 
 
 void VirtualFrame::Drop(int count) {
-  ASSERT(count >= 0);
-  ASSERT(height() >= count);
-  int num_virtual_elements = (element_count() - 1) - stack_pointer_;
-
-  // Emit code to lower the stack pointer if necessary.
-  if (num_virtual_elements < count) {
-    int num_dropped = count - num_virtual_elements;
-    stack_pointer_ -= num_dropped;
-    __ addiu(sp, sp, num_dropped * kPointerSize);
-  }
-
-  // Discard elements from the virtual frame and free any registers.
-  for (int i = 0; i < count; i++) {
-    FrameElement dropped = elements_.RemoveLast();
-    if (dropped.is_register()) {
-      Unuse(dropped.reg());
-    }
-  }
-}
-
-
-void VirtualFrame::DropFromVFrameOnly(int count) {
   UNIMPLEMENTED_MIPS();
 }
 
 
-Result VirtualFrame::Pop() {
+void VirtualFrame::Pop() {
   UNIMPLEMENTED_MIPS();
-  Result res = Result();
-  return res;    // UNIMPLEMENTED RETURN
 }
 
 
 void VirtualFrame::EmitPop(Register reg) {
-  ASSERT(stack_pointer_ == element_count() - 1);
-  stack_pointer_--;
-  elements_.RemoveLast();
-  __ Pop(reg);
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void VirtualFrame::SpillAllButCopyTOSToA0() {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void VirtualFrame::SpillAllButCopyTOSToA1() {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void VirtualFrame::SpillAllButCopyTOSToA1A0() {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+Register VirtualFrame::Peek() {
+  UNIMPLEMENTED_MIPS();
+  return no_reg;
+}
+
+
+Register VirtualFrame::Peek2() {
+  UNIMPLEMENTED_MIPS();
+  return no_reg;
+}
+
+
+void VirtualFrame::Dup() {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void VirtualFrame::Dup2() {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+Register VirtualFrame::PopToRegister(Register but_not_to_this_one) {
+  UNIMPLEMENTED_MIPS();
+  return no_reg;
+}
+
+
+void VirtualFrame::EnsureOneFreeTOSRegister() {
+  UNIMPLEMENTED_MIPS();
 }
 
 
 void VirtualFrame::EmitMultiPop(RegList regs) {
-  ASSERT(stack_pointer_ == element_count() - 1);
-  for (int16_t i = 0; i < kNumRegisters; i++) {
-    if ((regs & (1 << i)) != 0) {
-      stack_pointer_--;
-      elements_.RemoveLast();
-    }
-  }
-  __ MultiPop(regs);
+  UNIMPLEMENTED_MIPS();
 }
 
 
-void VirtualFrame::EmitPush(Register reg) {
-  ASSERT(stack_pointer_ == element_count() - 1);
-  elements_.Add(FrameElement::MemoryElement(NumberInfo::Unknown()));
-  stack_pointer_++;
-  __ Push(reg);
+void VirtualFrame::EmitPush(Register reg, TypeInfo info) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void VirtualFrame::SetElementAt(Register reg, int this_far_down) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+Register VirtualFrame::GetTOSRegister() {
+  UNIMPLEMENTED_MIPS();
+  return no_reg;
+}
+
+
+void VirtualFrame::EmitPush(Operand operand, TypeInfo info) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void VirtualFrame::EmitPush(MemOperand operand, TypeInfo info) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void VirtualFrame::EmitPushRoot(Heap::RootListIndex index) {
+  UNIMPLEMENTED_MIPS();
 }
 
 
 void VirtualFrame::EmitMultiPush(RegList regs) {
-  ASSERT(stack_pointer_ == element_count() - 1);
-  for (int16_t i = kNumRegisters; i > 0; i--) {
-    if ((regs & (1 << i)) != 0) {
-      elements_.Add(FrameElement::MemoryElement(NumberInfo::Unknown()));
-      stack_pointer_++;
-    }
-  }
-  __ MultiPush(regs);
-}
-
-
-void VirtualFrame::EmitArgumentSlots(RegList reglist) {
   UNIMPLEMENTED_MIPS();
 }
+
+
+void VirtualFrame::EmitMultiPushReversed(RegList regs) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void VirtualFrame::SpillAll() {
+  UNIMPLEMENTED_MIPS();
+}
+
 
 #undef __
 

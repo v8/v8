@@ -197,7 +197,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   MaybeObject* maybe_check_code = check_stub.TryGetCode();
   if (maybe_check_code->ToObject(&check_code)) {
     Code* replacement_code =
-        isolate_->builtins()->builtin(Builtins::OnStackReplacement);
+        isolate_->builtins()->builtin(Builtins::kOnStackReplacement);
     Code* unoptimized_code = shared->code();
     Deoptimizer::PatchStackCheckCode(unoptimized_code,
                                      Code::cast(check_code),

@@ -1026,6 +1026,10 @@
         >
       </File>
       <File
+        RelativePath="..\..\src\small-pointer-list.h"
+        >
+      </File>
+      <File
         RelativePath="..\..\src\snapshot-common.cc"
         >
       </File>

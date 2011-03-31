@@ -903,8 +903,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     }
 
     Handle<Code> adaptor =
-        Handle<Code>(Isolate::Current()->builtins()->builtin(
-            Builtins::ArgumentsAdaptorTrampoline));
+        isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
       if (call_wrapper != NULL) {
         call_wrapper->BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));

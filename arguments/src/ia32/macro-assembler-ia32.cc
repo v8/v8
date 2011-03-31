@@ -45,7 +45,7 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       generating_stub_(false),
       allow_stub_calls_(true),
-      code_object_(HEAP->undefined_value()) {
+      code_object_(isolate()->heap()->undefined_value()) {
 }
 
 
@@ -250,7 +250,7 @@ void MacroAssembler::AbortIfNotNumber(Register object) {
   test(object, Immediate(kSmiTagMask));
   j(zero, &ok);
   cmp(FieldOperand(object, HeapObject::kMapOffset),
-      FACTORY->heap_number_map());
+      isolate()->factory()->heap_number_map());
   Assert(equal, "Operand not a number");
   bind(&ok);
 }
@@ -286,7 +286,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(Immediate(Smi::FromInt(type)));
   push(Immediate(CodeObject()));
   if (emit_debug_code()) {
-    cmp(Operand(esp, 0), Immediate(FACTORY->undefined_value()));
+    cmp(Operand(esp, 0), Immediate(isolate()->factory()->undefined_value()));
     Check(not_equal, "code object not properly patched");
   }
 }
@@ -577,7 +577,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     push(scratch);
     // Read the first word and compare to global_context_map.
     mov(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
-    cmp(scratch, FACTORY->global_context_map());
+    cmp(scratch, isolate()->factory()->global_context_map());
     Check(equal, "JSGlobalObject::global_context should be a global context.");
     pop(scratch);
   }
@@ -598,13 +598,13 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
   // Check the context is a global context.
   if (emit_debug_code()) {
-    cmp(holder_reg, FACTORY->null_value());
+    cmp(holder_reg, isolate()->factory()->null_value());
     Check(not_equal, "JSGlobalProxy::context() should not be null.");
 
     push(holder_reg);
     // Read the first word and compare to global_context_map(),
     mov(holder_reg, FieldOperand(holder_reg, HeapObject::kMapOffset));
-    cmp(holder_reg, FACTORY->global_context_map());
+    cmp(holder_reg, isolate()->factory()->global_context_map());
     Check(equal, "JSGlobalObject::global_context should be a global context.");
     pop(holder_reg);
   }
@@ -843,7 +843,7 @@ void MacroAssembler::AllocateHeapNumber(Register result,
 
   // Set the map.
   mov(FieldOperand(result, HeapObject::kMapOffset),
-      Immediate(FACTORY->heap_number_map()));
+      Immediate(isolate()->factory()->heap_number_map()));
 }
 
 
@@ -873,7 +873,7 @@ void MacroAssembler::AllocateTwoByteString(Register result,
 
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
-      Immediate(FACTORY->string_map()));
+      Immediate(isolate()->factory()->string_map()));
   mov(scratch1, length);
   SmiTag(scratch1);
   mov(FieldOperand(result, String::kLengthOffset), scratch1);
@@ -908,7 +908,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
 
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
-      Immediate(FACTORY->ascii_string_map()));
+      Immediate(isolate()->factory()->ascii_string_map()));
   mov(scratch1, length);
   SmiTag(scratch1);
   mov(FieldOperand(result, String::kLengthOffset), scratch1);
@@ -934,7 +934,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
 
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
-      Immediate(FACTORY->ascii_string_map()));
+      Immediate(isolate()->factory()->ascii_string_map()));
   mov(FieldOperand(result, String::kLengthOffset),
       Immediate(Smi::FromInt(length)));
   mov(FieldOperand(result, String::kHashFieldOffset),
@@ -956,7 +956,7 @@ void MacroAssembler::AllocateConsString(Register result,
 
   // Set the map. The other fields are left uninitialized.
   mov(FieldOperand(result, HeapObject::kMapOffset),
-      Immediate(FACTORY->cons_string_map()));
+      Immediate(isolate()->factory()->cons_string_map()));
 }
 
 
@@ -974,7 +974,7 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
 
   // Set the map. The other fields are left uninitialized.
   mov(FieldOperand(result, HeapObject::kMapOffset),
-      Immediate(FACTORY->cons_ascii_string_map()));
+      Immediate(isolate()->factory()->cons_ascii_string_map()));
 }
 
 
@@ -1092,7 +1092,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   // If the prototype or initial map is the hole, don't return it and
   // simply miss the cache instead. This will allow us to allocate a
   // prototype object on-demand in the runtime system.
-  cmp(Operand(result), Immediate(FACTORY->the_hole_value()));
+  cmp(Operand(result), Immediate(isolate()->factory()->the_hole_value()));
   j(equal, miss, not_taken);
 
   // If the function does not have an initial map, we're done.
@@ -1158,7 +1158,7 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
   if (num_arguments > 0) {
     add(Operand(esp), Immediate(num_arguments * kPointerSize));
   }
-  mov(eax, Immediate(FACTORY->undefined_value()));
+  mov(eax, Immediate(isolate()->factory()->undefined_value()));
 }
 
 
@@ -1229,7 +1229,7 @@ MaybeObject* MacroAssembler::TryCallRuntime(const Runtime::Function* f,
     IllegalOperation(num_arguments);
     // Since we did not call the stub, there was no allocation failure.
     // Return some non-failure object.
-    return HEAP->undefined_value();
+    return isolate()->heap()->undefined_value();
   }
 
   // TODO(1236192): Most runtime routines don't need the number of
@@ -1403,7 +1403,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
   }
   bind(&empty_handle);
   // It was zero; the result is undefined.
-  mov(eax, FACTORY->undefined_value());
+  mov(eax, isolate()->factory()->undefined_value());
   jmp(&prologue);
 
   // HandleScope limit has changed. Delete allocated extensions.
@@ -1486,8 +1486,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 
   if (!definitely_matches) {
     Handle<Code> adaptor =
-        Handle<Code>(Isolate::Current()->builtins()->builtin(
-            Builtins::ArgumentsAdaptorTrampoline));
+        isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (!code_constant.is_null()) {
       mov(edx, Immediate(code_constant));
       add(Operand(edx), Immediate(Code::kHeaderSize - kHeapObjectTag));
@@ -1665,7 +1664,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   mov(map, FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
   if (emit_debug_code()) {
     Label ok, fail;
-    CheckMap(map, FACTORY->meta_map(), &fail, false);
+    CheckMap(map, isolate()->factory()->meta_map(), &fail, false);
     jmp(&ok);
     bind(&fail);
     Abort("Global functions must have initial map");
@@ -1813,12 +1812,13 @@ void MacroAssembler::Assert(Condition cc, const char* msg) {
 
 void MacroAssembler::AssertFastElements(Register elements) {
   if (emit_debug_code()) {
+    Factory* factory = isolate()->factory();
     Label ok;
     cmp(FieldOperand(elements, HeapObject::kMapOffset),
-        Immediate(FACTORY->fixed_array_map()));
+        Immediate(factory->fixed_array_map()));
     j(equal, &ok);
     cmp(FieldOperand(elements, HeapObject::kMapOffset),
-        Immediate(FACTORY->fixed_cow_array_map()));
+        Immediate(factory->fixed_cow_array_map()));
     j(equal, &ok);
     Abort("JSObject with fast elements map has slow elements");
     bind(&ok);
@@ -1883,7 +1883,7 @@ void MacroAssembler::JumpIfNotNumber(Register reg,
   if (emit_debug_code()) AbortIfSmi(reg);
   if (!info.IsNumber()) {
     cmp(FieldOperand(reg, HeapObject::kMapOffset),
-        FACTORY->heap_number_map());
+        isolate()->factory()->heap_number_map());
     j(not_equal, on_not_number);
   }
 }

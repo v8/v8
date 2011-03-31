@@ -794,10 +794,6 @@ class HGraphBuilder: public AstVisitor {
 
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
-  void HandlePolymorphicLoadNamedField(Property* expr,
-                                       HValue* object,
-                                       ZoneMapList* types,
-                                       Handle<String> name);
   void HandlePolymorphicStoreNamedField(Assignment* expr,
                                         HValue* object,
                                         HValue* value,
@@ -823,9 +819,9 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildLoadKeyedFastElement(HValue* object,
                                           HValue* key,
                                           Property* expr);
-  HInstruction* BuildLoadKeyedPixelArrayElement(HValue* object,
-                                                HValue* key,
-                                                Property* expr);
+  HInstruction* BuildLoadKeyedSpecializedArrayElement(HValue* object,
+                                                      HValue* key,
+                                                      Property* expr);
   HInstruction* BuildLoadKeyedGeneric(HValue* object,
                                       HValue* key);
 
@@ -854,10 +850,11 @@ class HGraphBuilder: public AstVisitor {
                                            HValue* val,
                                            Expression* expr);
 
-  HInstruction* BuildStoreKeyedPixelArrayElement(HValue* object,
-                                                 HValue* key,
-                                                 HValue* val,
-                                                 Expression* expr);
+  HInstruction* BuildStoreKeyedSpecializedArrayElement(
+      HValue* object,
+      HValue* key,
+      HValue* val,
+      Assignment* expr);
 
   HValue* BuildContextChainWalk(Variable* var);
 

@@ -207,8 +207,6 @@ namespace internal {
   SC(memcopy_noxmm, V8.MemCopyNoXMM)                                  \
   SC(enum_cache_hits, V8.EnumCacheHits)                               \
   SC(enum_cache_misses, V8.EnumCacheMisses)                           \
-  SC(reloc_info_count, V8.RelocInfoCount)                             \
-  SC(reloc_info_size, V8.RelocInfoSize)                               \
   SC(zone_segment_bytes, V8.ZoneSegmentBytes)                         \
   SC(compute_entry_frame, V8.ComputeEntryFrame)                       \
   SC(generic_binary_stub_calls, V8.GenericBinaryStubCalls)            \
@@ -310,8 +308,6 @@ class Counters {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };
-
-#define COUNTERS Isolate::Current()->counters()
 
 } }  // namespace v8::internal
 

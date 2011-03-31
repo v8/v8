@@ -55,6 +55,8 @@
 #include "x64/regexp-macro-assembler-x64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/regexp-macro-assembler-arm.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "mips/regexp-macro-assembler-mips.h"
 #else  // Unknown architecture.
 #error "Unknown architecture."
 #endif  // Target architecture.
@@ -140,6 +142,7 @@ const int kPCJumpTag = (1 << kExtraTagBits) - 1;
 
 const int kSmallPCDeltaBits = kBitsPerByte - kTagBits;
 const int kSmallPCDeltaMask = (1 << kSmallPCDeltaBits) - 1;
+const int RelocInfo::kMaxSmallPCDelta = kSmallPCDeltaMask;
 
 const int kVariableLengthPCJumpTopTag = 1;
 const int kChunkBits = 7;
@@ -217,7 +220,6 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
 #ifdef DEBUG
   byte* begin_pos = pos_;
 #endif
-  COUNTERS->reloc_info_count()->Increment();
   ASSERT(rinfo->pc() - last_pc_ >= 0);
   ASSERT(RelocInfo::NUMBER_OF_MODES <= kMaxRelocModes);
   // Use unsigned delta-encoding for pc.
@@ -795,6 +797,8 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
   function = FUNCTION_ADDR(RegExpMacroAssemblerIA32::CheckStackGuardState);
 #elif V8_TARGET_ARCH_ARM
   function = FUNCTION_ADDR(RegExpMacroAssemblerARM::CheckStackGuardState);
+#elif V8_TARGET_ARCH_MIPS
+  function = FUNCTION_ADDR(RegExpMacroAssemblerMIPS::CheckStackGuardState);
 #else
   UNREACHABLE();
 #endif
@@ -998,7 +1002,7 @@ ExternalReference ExternalReference::compare_doubles(Isolate* isolate) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 ExternalReference ExternalReference::debug_break(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(Debug::Break)));
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(Debug_Break)));
 }
 
 

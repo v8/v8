@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -114,6 +114,7 @@ int signbit(double x);
 #endif  // __GNUC__
 
 #include "atomicops.h"
+#include "platform-tls.h"
 #include "utils.h"
 #include "v8globals.h"
 
@@ -293,11 +294,29 @@ class OS {
   // Support runtime detection of VFP3 on ARM CPUs.
   static bool ArmCpuHasFeature(CpuFeature feature);
 
+  // Support runtime detection of FPU on MIPS CPUs.
+  static bool MipsCpuHasFeature(CpuFeature feature);
+
   // Returns the activation frame alignment constraint or zero if
   // the platform doesn't care. Guaranteed to be a power of two.
   static int ActivationFrameAlignment();
 
   static void ReleaseStore(volatile AtomicWord* ptr, AtomicWord value);
+
+#if defined(V8_TARGET_ARCH_IA32)
+  // Copy memory area to disjoint memory area.
+  static void MemCopy(void* dest, const void* src, size_t size);
+  // Limit below which the extra overhead of the MemCopy function is likely
+  // to outweigh the benefits of faster copying.
+  static const int kMinComplexMemCopy = 64;
+  typedef void (*MemCopyFunction)(void* dest, const void* src, size_t size);
+
+#else  // V8_TARGET_ARCH_IA32
+  static void MemCopy(void* dest, const void* src, size_t size) {
+    memcpy(dest, src, size);
+  }
+  static const int kMinComplexMemCopy = 256;
+#endif  // V8_TARGET_ARCH_IA32
 
  private:
   static const int msPerSecond = 1000;
@@ -427,6 +446,19 @@ class Thread: public ThreadHandle {
   static bool HasThreadLocal(LocalStorageKey key) {
     return GetThreadLocal(key) != NULL;
   }
+
+#ifdef V8_FAST_TLS_SUPPORTED
+  static inline void* GetExistingThreadLocal(LocalStorageKey key) {
+    void* result = reinterpret_cast<void*>(
+        InternalGetExistingThreadLocal(static_cast<intptr_t>(key)));
+    ASSERT(result == GetThreadLocal(key));
+    return result;
+  }
+#else
+  static inline void* GetExistingThreadLocal(LocalStorageKey key) {
+    return GetThreadLocal(key);
+  }
+#endif
 
   // A hint to the scheduler to let another thread run.
   static void YieldCPU();
@@ -579,7 +611,8 @@ class TickSample {
         sp(NULL),
         fp(NULL),
         tos(NULL),
-        frames_count(0) {}
+        frames_count(0),
+        has_external_callback(false) {}
   StateTag state;  // The state of the VM.
   Address pc;      // Instruction pointer.
   Address sp;      // Stack pointer.

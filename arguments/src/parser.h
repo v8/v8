@@ -776,7 +776,9 @@ class JsonParser BASE_EMBEDDED {
   }
 
  private:
-  JsonParser() : isolate_(Isolate::Current()), scanner_(isolate_) { }
+  JsonParser()
+      : isolate_(Isolate::Current()),
+        scanner_(isolate_->scanner_constants()) { }
   ~JsonParser() { }
 
   Isolate* isolate() { return isolate_; }

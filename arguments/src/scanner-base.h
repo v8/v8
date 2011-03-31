@@ -123,6 +123,7 @@ class ScannerConstants {
 // ---------------------------------------------------------------------
 // Constants used by scanners.
  public:
+  ScannerConstants() {}
   typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
 
   StaticResource<Utf8Decoder>* utf8_decoder() {
@@ -137,7 +138,6 @@ class ScannerConstants {
   bool IsIdentifier(unibrow::CharacterStream* buffer);
 
  private:
-  ScannerConstants() {}
 
   unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
   unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
@@ -145,7 +145,6 @@ class ScannerConstants {
   unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
   StaticResource<Utf8Decoder> utf8_decoder_;
 
-  friend class Isolate;
   DISALLOW_COPY_AND_ASSIGN(ScannerConstants);
 };
 
@@ -273,7 +272,7 @@ class Scanner {
     bool complete_;
   };
 
-  explicit Scanner(Isolate* isolate);
+  explicit Scanner(ScannerConstants* scanner_contants);
 
   // Returns the current token again.
   Token::Value current_token() { return current_.token; }
@@ -474,7 +473,7 @@ class JavaScriptScanner : public Scanner {
     bool complete_;
   };
 
-  explicit JavaScriptScanner(Isolate* isolate);
+  explicit JavaScriptScanner(ScannerConstants* scanner_contants);
 
   // Returns the next token.
   Token::Value Next();

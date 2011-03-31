@@ -848,11 +848,45 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
                IsRegionDirty(object->address() + offset));  \
   }
 
-#define READ_DOUBLE_FIELD(p, offset) \
-  (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)))
+#ifndef V8_TARGET_ARCH_MIPS
+  #define READ_DOUBLE_FIELD(p, offset) \
+    (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)))
+#else  // V8_TARGET_ARCH_MIPS
+  // Prevent gcc from using load-double (mips ldc1) on (possibly)
+  // non-64-bit aligned HeapNumber::value.
+  static inline double read_double_field(HeapNumber* p, int offset) {
+    union conversion {
+      double d;
+      uint32_t u[2];
+    } c;
+    c.u[0] = (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)));
+    c.u[1] = (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset + 4)));
+    return c.d;
+  }
+  #define READ_DOUBLE_FIELD(p, offset) read_double_field(p, offset)
+#endif  // V8_TARGET_ARCH_MIPS
 
-#define WRITE_DOUBLE_FIELD(p, offset, value) \
-  (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)) = value)
+
+#ifndef V8_TARGET_ARCH_MIPS
+  #define WRITE_DOUBLE_FIELD(p, offset, value) \
+    (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)) = value)
+#else  // V8_TARGET_ARCH_MIPS
+  // Prevent gcc from using store-double (mips sdc1) on (possibly)
+  // non-64-bit aligned HeapNumber::value.
+  static inline void write_double_field(HeapNumber* p, int offset,
+                                        double value) {
+    union conversion {
+      double d;
+      uint32_t u[2];
+    } c;
+    c.d = value;
+    (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset))) = c.u[0];
+    (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset + 4))) = c.u[1];
+  }
+  #define WRITE_DOUBLE_FIELD(p, offset, value) \
+    write_double_field(p, offset, value)
+#endif  // V8_TARGET_ARCH_MIPS
+
 
 #define READ_INT_FIELD(p, offset) \
   (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)))
@@ -3198,7 +3232,7 @@ void SharedFunctionInfo::set_deopt_counter(Smi* value) {
 
 bool SharedFunctionInfo::is_compiled() {
   return code() !=
-      Isolate::Current()->builtins()->builtin(Builtins::LazyCompile);
+      Isolate::Current()->builtins()->builtin(Builtins::kLazyCompile);
 }
 
 
@@ -3258,7 +3292,7 @@ bool JSFunction::IsOptimized() {
 
 
 bool JSFunction::IsMarkedForLazyRecompilation() {
-  return code() == GetIsolate()->builtins()->builtin(Builtins::LazyRecompile);
+  return code() == GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile);
 }
 
 
@@ -3372,7 +3406,7 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code() != GetIsolate()->builtins()->builtin(Builtins::LazyCompile);
+  return code() != GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
 }
 
 

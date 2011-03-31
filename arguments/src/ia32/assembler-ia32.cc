@@ -122,9 +122,10 @@ void CpuFeatures::Probe(bool portable) {
   CodeDesc desc;
   assm.GetCode(&desc);
   Object* code;
-  { MaybeObject* maybe_code = HEAP->CreateCode(desc,
-                                               Code::ComputeFlags(Code::STUB),
-                                               Handle<Code>::null());
+  { MaybeObject* maybe_code =
+        assm.isolate()->heap()->CreateCode(desc,
+                                           Code::ComputeFlags(Code::STUB),
+                                           Handle<Code>::null());
     if (!maybe_code->ToObject(&code)) return;
   }
   if (!code->IsCode()) return;
@@ -368,8 +369,6 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->instr_size = pc_offset();
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
   desc->origin = this;
-
-  COUNTERS->reloc_info_size()->Increment(desc->reloc_size);
 }
 
 
@@ -2178,6 +2177,17 @@ void Assembler::cvtss2sd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::cvtsd2ss(XMMRegister dst, XMMRegister src) {
+  ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0x5A);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::addsd(XMMRegister dst, XMMRegister src) {
   ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
@@ -2422,6 +2432,39 @@ void Assembler::movsd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::movss(const Operand& dst, XMMRegister src ) {
+  ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);  // float
+  EMIT(0x0F);
+  EMIT(0x11);  // store
+  emit_sse_operand(src, dst);
+}
+
+
+void Assembler::movss(XMMRegister dst, const Operand& src) {
+  ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);  // float
+  EMIT(0x0F);
+  EMIT(0x10);  // load
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movss(XMMRegister dst, XMMRegister src) {
+  ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0x10);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::movd(XMMRegister dst, const Operand& src) {
   ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
@@ -2630,7 +2673,7 @@ void Assembler::GrowBuffer() {
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if ((desc.buffer_size > kMaximalBufferSize) ||
-      (desc.buffer_size > HEAP->MaxOldGenerationSize())) {
+      (desc.buffer_size > isolate()->heap()->MaxOldGenerationSize())) {
     V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
   }
 

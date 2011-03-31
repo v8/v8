@@ -140,7 +140,7 @@ void JumpTarget::ComputeEntryFrame() {
   // the directionality of the block.  Compute: an entry frame for the
   // block.
 
-  COUNTERS->compute_entry_frame()->Increment();
+  Isolate::Current()->counters()->compute_entry_frame()->Increment();
 #ifdef DEBUG
   if (Isolate::Current()->jump_target_compiling_deferred_code()) {
     ASSERT(reaching_frames_.length() > 1);

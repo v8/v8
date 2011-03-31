@@ -983,7 +983,10 @@ function CheckPillDescriptor(func, name) {
   function CheckPill(pill) {
     assertEquals("function", typeof pill);
     assertInstanceof(pill, Function);
-    assertThrows(function() { pill.property = "value"; }, TypeError);
+    pill.property = "value";
+    assertEquals(pill.value, undefined);
+    assertThrows(function() { 'use strict'; pill.property = "value"; },
+                 TypeError);
     assertThrows(pill, TypeError);
     assertEquals(pill.prototype, (function(){}).prototype);
     var d = Object.getOwnPropertyDescriptor(pill, "prototype");

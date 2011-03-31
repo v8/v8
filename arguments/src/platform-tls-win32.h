@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,28 +25,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef V8_PLATFORM_TLS_WIN32_H_
+#define V8_PLATFORM_TLS_WIN32_H_
 
-#include "v8.h"
-#include "execution.h"
+#include "checks.h"
+#include "globals.h"
+#include "win32-headers.h"
 
-#include "cctest.h"
+namespace v8 {
+namespace internal {
 
-using ::v8::Local;
-using ::v8::String;
-using ::v8::Script;
+#if defined(_WIN32) && !defined(_WIN64)
 
-namespace i = ::v8::internal;
+#define V8_FAST_TLS_SUPPORTED 1
 
-TEST(MIPSFunctionCalls) {
-  // Disable compilation of natives.
-  i::FLAG_disable_native_files = true;
-  i::FLAG_full_compiler = false;
-
-  v8::HandleScope scope;
-  LocalContext env;  // from cctest.h
-
-  const char* c_source = "function foo() { return 0x1234; }; foo();";
-  Local<String> source = ::v8::String::New(c_source);
-  Local<Script> script = ::v8::Script::Compile(source);
-  CHECK_EQ(0x1234,  script->Run()->Int32Value());
+inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
+  const intptr_t kTibInlineTlsOffset = 0xE10;
+  const intptr_t kTibExtraTlsOffset = 0xF94;
+  const intptr_t kMaxInlineSlots = 64;
+  const intptr_t kMaxSlots = kMaxInlineSlots + 1024;
+  ASSERT(0 <= index && index < kMaxSlots);
+  if (index < kMaxInlineSlots) {
+    return static_cast<intptr_t>(__readfsdword(kTibInlineTlsOffset +
+                                               kPointerSize * index));
+  }
+  intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
+  ASSERT(extra != 0);
+  return *reinterpret_cast<intptr_t*>(extra +
+                                      kPointerSize * (index - kMaxInlineSlots));
 }
+
+#endif
+
+} }  // namespace v8::internal
+
+#endif  // V8_PLATFORM_TLS_WIN32_H_

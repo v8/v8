@@ -163,18 +163,23 @@ SOURCES = {
     arm/assembler-arm.cc
     """),
   'arch:mips': Split("""
+    jump-target-light.cc
+    virtual-frame-light.cc
     mips/assembler-mips.cc
     mips/builtins-mips.cc
+    mips/code-stubs-mips.cc
     mips/codegen-mips.cc
     mips/constants-mips.cc
     mips/cpu-mips.cc
     mips/debug-mips.cc
+    mips/deoptimizer-mips.cc
     mips/disasm-mips.cc
-    mips/full-codegen-mips.cc
     mips/frames-mips.cc
+    mips/full-codegen-mips.cc
     mips/ic-mips.cc
     mips/jump-target-mips.cc
     mips/macro-assembler-mips.cc
+    mips/regexp-macro-assembler-mips.cc
     mips/register-allocator-mips.cc
     mips/stub-cache-mips.cc
     mips/virtual-frame-mips.cc
@@ -242,6 +247,20 @@ SOURCES = {
   'mode:debug': [
     'objects-debug.cc', 'prettyprinter.cc', 'regexp-macro-assembler-tracer.cc'
   ]
+}
+
+
+PREPARSER_SOURCES = {
+  'all': Split("""
+    allocation.cc
+    hashmap.cc
+    preparse-data.cc
+    preparser.cc
+    preparser-api.cc
+    scanner-base.cc
+    token.cc
+    unicode.cc
+    """)
 }
 
 
@@ -330,6 +349,9 @@ def ConfigureObjectFiles():
   source_objs = context.ConfigureObject(env, source_files)
   non_snapshot_files = [source_objs]
 
+  preparser_source_files = context.GetRelevantSources(PREPARSER_SOURCES)
+  preparser_objs = context.ConfigureObject(env, preparser_source_files)
+
   # Create snapshot if necessary.  For cross compilation you should either
   # do without snapshots and take the performance hit or you should build a
   # host VM with the simulator=arm and snapshot=on options and then take the
@@ -350,8 +372,8 @@ def ConfigureObjectFiles():
   else:
     snapshot_obj = empty_snapshot_obj
   library_objs = [non_snapshot_files, libraries_obj, snapshot_obj]
-  return (library_objs, d8_objs, [mksnapshot])
+  return (library_objs, d8_objs, [mksnapshot], preparser_objs)
 
 
-(library_objs, d8_objs, mksnapshot) = ConfigureObjectFiles()
-Return('library_objs d8_objs mksnapshot')
+(library_objs, d8_objs, mksnapshot, preparser_objs) = ConfigureObjectFiles()
+Return('library_objs d8_objs mksnapshot preparser_objs')

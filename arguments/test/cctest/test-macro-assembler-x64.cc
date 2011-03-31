@@ -95,6 +95,7 @@ typedef int (*F0)();
 static void EntryCode(MacroAssembler* masm) {
   // Smi constant register is callee save.
   __ push(v8::internal::kSmiConstantRegister);
+  __ push(v8::internal::kRootRegister);
   __ InitializeSmiConstantRegister();
   __ InitializeRootRegister();
 }
@@ -106,6 +107,7 @@ static void ExitCode(MacroAssembler* masm) {
   __ cmpq(rdx, v8::internal::kSmiConstantRegister);
   __ movq(rdx, Immediate(-1));
   __ cmovq(not_equal, rax, rdx);
+  __ pop(v8::internal::kRootRegister);
   __ pop(v8::internal::kSmiConstantRegister);
 }
 

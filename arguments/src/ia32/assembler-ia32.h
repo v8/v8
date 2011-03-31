@@ -904,6 +904,7 @@ class Assembler : public AssemblerBase {
 
   void cvtsi2sd(XMMRegister dst, const Operand& src);
   void cvtss2sd(XMMRegister dst, XMMRegister src);
+  void cvtsd2ss(XMMRegister dst, XMMRegister src);
 
   void addsd(XMMRegister dst, XMMRegister src);
   void subsd(XMMRegister dst, XMMRegister src);
@@ -933,6 +934,10 @@ class Assembler : public AssemblerBase {
   void movd(XMMRegister dst, const Operand& src);
   void movd(const Operand& src, XMMRegister dst);
   void movsd(XMMRegister dst, XMMRegister src);
+
+  void movss(XMMRegister dst, const Operand& src);
+  void movss(const Operand& src, XMMRegister dst);
+  void movss(XMMRegister dst, XMMRegister src);
 
   void pand(XMMRegister dst, XMMRegister src);
   void pxor(XMMRegister dst, XMMRegister src);

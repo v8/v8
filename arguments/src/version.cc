@@ -34,11 +34,11 @@
 // cannot be changed without changing the SCons build script.
 #define MAJOR_VERSION     3
 #define MINOR_VERSION     2
-#define BUILD_NUMBER      5
+#define BUILD_NUMBER      7
 #define PATCH_LEVEL       0
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)
-#define IS_CANDIDATE_VERSION 0
+#define IS_CANDIDATE_VERSION 1
 
 // Define SONAME to have the SCons build the put a specific SONAME into the
 // shared library instead the generic SONAME generated from the V8 version

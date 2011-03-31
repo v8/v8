@@ -175,13 +175,17 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info) {
 Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
                                              Code::Flags flags,
                                              CompilationInfo* info) {
+  Isolate* isolate = info->isolate();
+
   // Allocate and install the code.
   CodeDesc desc;
   masm->GetCode(&desc);
-  Handle<Code> code = FACTORY->NewCode(desc, flags, masm->CodeObject());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, flags, masm->CodeObject());
 
   if (!code.is_null()) {
-    COUNTERS->total_compiled_code_size()->Increment(code->instruction_size());
+    isolate->counters()->total_compiled_code_size()->Increment(
+        code->instruction_size());
   }
   return code;
 }
@@ -235,7 +239,8 @@ bool CodeGenerator::MakeCode(CompilationInfo* info) {
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
-    COUNTERS->total_old_codegen_source_size()->Increment(len);
+    Counters* counters = info->isolate()->counters();
+    counters->total_old_codegen_source_size()->Increment(len);
   }
   if (FLAG_trace_codegen) {
     PrintF("Classic Compiler - ");

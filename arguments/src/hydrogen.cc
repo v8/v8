@@ -43,6 +43,8 @@
 #include "x64/lithium-codegen-x64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/lithium-codegen-arm.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "mips/lithium-codegen-mips.h"
 #else
 #error Unsupported target architecture.
 #endif
@@ -745,7 +747,7 @@ void HGraph::EliminateRedundantPhis() {
     if (value != NULL) {
       // Iterate through uses finding the ones that should be
       // replaced.
-      ZoneList<HValue*>* uses = phi->uses();
+      SmallPointerList<HValue>* uses = phi->uses();
       while (!uses->is_empty()) {
         HValue* use = uses->RemoveLast();
         if (use != NULL) {
@@ -3214,9 +3216,10 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
       // never both. Pixel array maps that are assigned to pixel array elements
       // are always created with the fast elements flag cleared.
       if (receiver_type->has_external_array_elements()) {
-        if (expr->GetExternalArrayType() == kExternalPixelArray) {
-          instr = BuildStoreKeyedPixelArrayElement(object, key, value, expr);
-        }
+        instr = BuildStoreKeyedSpecializedArrayElement(object,
+                                                       key,
+                                                       value,
+                                                       expr);
       } else if (receiver_type->has_fast_elements()) {
         instr = BuildStoreKeyedFastElement(object, key, value, expr);
       }
@@ -3440,69 +3443,6 @@ void HGraphBuilder::VisitThrow(Throw* expr) {
 }
 
 
-void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
-                                                    HValue* object,
-                                                    ZoneMapList* types,
-                                                    Handle<String> name) {
-  // TODO(ager): We should recognize when the prototype chains for different
-  // maps are identical. In that case we can avoid repeatedly generating the
-  // same prototype map checks.
-  int count = 0;
-  HBasicBlock* join = NULL;
-  for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
-    Handle<Map> map = types->at(i);
-    LookupResult lookup;
-    map->LookupInDescriptors(NULL, *name, &lookup);
-    if (lookup.IsProperty() && lookup.type() == FIELD) {
-      if (count == 0) {
-        AddInstruction(new HCheckNonSmi(object));  // Only needed once.
-        join = graph()->CreateBasicBlock();
-      }
-      ++count;
-      HBasicBlock* if_true = graph()->CreateBasicBlock();
-      HBasicBlock* if_false = graph()->CreateBasicBlock();
-      HCompareMap* compare = new HCompareMap(object, map, if_true, if_false);
-      current_block()->Finish(compare);
-
-      set_current_block(if_true);
-      HLoadNamedField* instr =
-          BuildLoadNamedField(object, expr, map, &lookup, false);
-      instr->set_position(expr->position());
-      instr->ClearFlag(HValue::kUseGVN);
-      AddInstruction(instr);
-      if (!ast_context()->IsEffect()) Push(instr);
-      current_block()->Goto(join);
-
-      set_current_block(if_false);
-    }
-  }
-
-  // Finish up.  Unconditionally deoptimize if we've handled all the maps we
-  // know about and do not want to handle ones we've never seen.  Otherwise
-  // use a generic IC.
-  if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExitWithDeoptimization();
-  } else {
-    HInstruction* instr = BuildLoadNamedGeneric(object, expr);
-    instr->set_position(expr->position());
-
-    if (join != NULL) {
-      AddInstruction(instr);
-      if (!ast_context()->IsEffect()) Push(instr);
-      current_block()->Goto(join);
-    } else {
-      ast_context()->ReturnInstruction(instr, expr->id());
-      return;
-    }
-  }
-
-  ASSERT(join != NULL);
-  join->SetJoinId(expr->id());
-  set_current_block(join);
-  if (!ast_context()->IsEffect()) ast_context()->ReturnValue(Pop());
-}
-
-
 HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
                                                     Property* expr,
                                                     Handle<Map> type,
@@ -3592,9 +3532,10 @@ HInstruction* HGraphBuilder::BuildLoadKeyedFastElement(HValue* object,
 }
 
 
-HInstruction* HGraphBuilder::BuildLoadKeyedPixelArrayElement(HValue* object,
-                                                             HValue* key,
-                                                             Property* expr) {
+HInstruction* HGraphBuilder::BuildLoadKeyedSpecializedArrayElement(
+    HValue* object,
+    HValue* key,
+    Property* expr) {
   ASSERT(!expr->key()->IsPropertyName() && expr->IsMonomorphic());
   AddInstruction(new HCheckNonSmi(object));
   Handle<Map> map = expr->GetMonomorphicReceiverType();
@@ -3609,8 +3550,10 @@ HInstruction* HGraphBuilder::BuildLoadKeyedPixelArrayElement(HValue* object,
   HLoadExternalArrayPointer* external_elements =
       new HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
-  HLoadPixelArrayElement* pixel_array_value =
-      new HLoadPixelArrayElement(external_elements, key);
+  HLoadKeyedSpecializedArrayElement* pixel_array_value =
+      new HLoadKeyedSpecializedArrayElement(external_elements,
+                                            key,
+                                            expr->GetExternalArrayType());
   return pixel_array_value;
 }
 
@@ -3648,11 +3591,11 @@ HInstruction* HGraphBuilder::BuildStoreKeyedFastElement(HValue* object,
 }
 
 
-HInstruction* HGraphBuilder::BuildStoreKeyedPixelArrayElement(
+HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
     HValue* object,
     HValue* key,
     HValue* val,
-    Expression* expr) {
+    Assignment* expr) {
   ASSERT(expr->IsMonomorphic());
   AddInstruction(new HCheckNonSmi(object));
   Handle<Map> map = expr->GetMonomorphicReceiverType();
@@ -3666,7 +3609,11 @@ HInstruction* HGraphBuilder::BuildStoreKeyedPixelArrayElement(
   HLoadExternalArrayPointer* external_elements =
       new HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
-  return new HStorePixelArrayElement(external_elements, key, val);
+  return new HStoreKeyedSpecializedArrayElement(
+      external_elements,
+      key,
+      val,
+      expr->GetExternalArrayType());
 }
 
 
@@ -3743,9 +3690,8 @@ void HGraphBuilder::VisitProperty(Property* expr) {
     if (expr->IsMonomorphic()) {
       instr = BuildLoadNamed(obj, expr, types->first(), name);
     } else if (types != NULL && types->length() > 1) {
-      HandlePolymorphicLoadNamedField(expr, obj, types, name);
-      return;
-
+      AddInstruction(new HCheckNonSmi(obj));
+      instr = new HLoadNamedFieldPolymorphic(obj, types, name);
     } else {
       instr = BuildLoadNamedGeneric(obj, expr);
     }
@@ -3762,9 +3708,7 @@ void HGraphBuilder::VisitProperty(Property* expr) {
       // both. Pixel array maps that are assigned to pixel array elements are
       // always created with the fast elements flag cleared.
       if (receiver_type->has_external_array_elements()) {
-        if (expr->GetExternalArrayType() == kExternalPixelArray) {
-          instr = BuildLoadKeyedPixelArrayElement(obj, key, expr);
-        }
+        instr = BuildLoadKeyedSpecializedArrayElement(obj, key, expr);
       } else if (receiver_type->has_fast_elements()) {
         instr = BuildLoadKeyedFastElement(obj, key, expr);
       }
@@ -5864,9 +5808,14 @@ void HStatistics::Print() {
     PrintF(" %8u bytes / %4.1f %%\n", size, size_percent);
   }
   double source_size_in_kb = static_cast<double>(source_size_) / 1024;
+  double normalized_time =  source_size_in_kb > 0
+      ? (static_cast<double>(sum) / 1000) / source_size_in_kb
+      : 0;
+  double normalized_bytes = source_size_in_kb > 0
+      ? total_size_ / source_size_in_kb
+      : 0;
   PrintF("%30s - %7.3f ms           %7.3f bytes\n", "Sum",
-         (static_cast<double>(sum) / 1000) / source_size_in_kb,
-         total_size_ / source_size_in_kb);
+         normalized_time, normalized_bytes);
   PrintF("---------------------------------------------------------------\n");
   PrintF("%30s - %7.3f ms (%.1f times slower than full code gen)\n",
          "Total",

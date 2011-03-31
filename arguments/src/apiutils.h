@@ -31,11 +31,6 @@
 namespace v8 {
 class ImplementationUtilities {
  public:
-  static v8::Handle<v8::Primitive> Undefined();
-  static v8::Handle<v8::Primitive> Null();
-  static v8::Handle<v8::Boolean> True();
-  static v8::Handle<v8::Boolean> False();
-
   static int GetNameCount(ExtensionConfiguration* that) {
     return that->name_count_;
   }

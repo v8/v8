@@ -27,8 +27,6 @@
 
 #include "../include/v8-preparser.h"
 
-#include "v8.h"
-
 #include "globals.h"
 #include "checks.h"
 #include "allocation.h"
@@ -161,8 +159,8 @@ class InputStreamUTF16Buffer : public UC16CharacterStream {
 
 class StandAloneJavaScriptScanner : public JavaScriptScanner {
  public:
-  StandAloneJavaScriptScanner()
-    : JavaScriptScanner(Isolate::Current()) { }
+  explicit StandAloneJavaScriptScanner(ScannerConstants* scanner_constants)
+      : JavaScriptScanner(scanner_constants) { }
 
   void Initialize(UC16CharacterStream* source) {
     source_ = source;
@@ -176,7 +174,8 @@ class StandAloneJavaScriptScanner : public JavaScriptScanner {
 };
 
 
-// Functions declared by allocation.h
+// Functions declared by allocation.h and implemented in both api.cc (for v8)
+// or here (for a stand-alone preparser).
 
 void FatalProcessOutOfMemory(const char* reason) {
   V8_Fatal(__FILE__, __LINE__, reason);
@@ -193,7 +192,8 @@ UnicodeInputStream::~UnicodeInputStream() { }
 PreParserData Preparse(UnicodeInputStream* input, size_t max_stack) {
   internal::InputStreamUTF16Buffer buffer(input);
   uintptr_t stack_limit = reinterpret_cast<uintptr_t>(&buffer) - max_stack;
-  internal::StandAloneJavaScriptScanner scanner;
+  internal::ScannerConstants scanner_constants;
+  internal::StandAloneJavaScriptScanner scanner(&scanner_constants);
   scanner.Initialize(&buffer);
   internal::CompleteParserRecorder recorder;
   preparser::PreParser::PreParseResult result =

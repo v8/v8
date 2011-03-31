@@ -27,13 +27,7 @@
 
 // Features shared by parsing and pre-parsing scanners.
 
-#include "v8.h"
-
-/*
-TODO(isolates): I incldue v8.h instead of these because we need Isolate and 
-some classes (NativeAllocationChecker) are moved into isolate.h 
 #include "../include/v8stdint.h"
-*/
 #include "scanner-base.h"
 #include "char-predicates-inl.h"
 
@@ -60,8 +54,8 @@ bool ScannerConstants::IsIdentifier(unibrow::CharacterStream* buffer) {
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(Isolate* isolate)
-    : scanner_constants_(isolate->scanner_constants()),
+Scanner::Scanner(ScannerConstants* scanner_constants)
+    : scanner_constants_(scanner_constants),
       octal_pos_(kNoOctalLocation) {
 }
 
@@ -120,7 +114,8 @@ uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
 // ----------------------------------------------------------------------------
 // JavaScriptScanner
 
-JavaScriptScanner::JavaScriptScanner(Isolate* isolate) : Scanner(isolate) {}
+JavaScriptScanner::JavaScriptScanner(ScannerConstants* scanner_contants)
+    : Scanner(scanner_contants) { }
 
 
 Token::Value JavaScriptScanner::Next() {

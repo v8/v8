@@ -45,13 +45,13 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
       generating_stub_(false),
       allow_stub_calls_(true),
       root_array_available_(true),
-      code_object_(HEAP->undefined_value()) {
+      code_object_(isolate()->heap()->undefined_value()) {
 }
 
 
-static intptr_t RootRegisterDelta(ExternalReference other) {
+static intptr_t RootRegisterDelta(ExternalReference other, Isolate* isolate) {
   Address roots_register_value = kRootRegisterBias +
-      reinterpret_cast<Address>(Isolate::Current()->heap()->roots_address());
+      reinterpret_cast<Address>(isolate->heap()->roots_address());
   intptr_t delta = other.address() - roots_register_value;
   return delta;
 }
@@ -60,10 +60,10 @@ static intptr_t RootRegisterDelta(ExternalReference other) {
 Operand MacroAssembler::ExternalOperand(ExternalReference target,
                                         Register scratch) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(target);
+    intptr_t delta = RootRegisterDelta(target, isolate());
     if (is_int32(delta)) {
       Serializer::TooLateToEnableNow();
-      return Operand(kRootRegister, delta);
+      return Operand(kRootRegister, static_cast<int32_t>(delta));
     }
   }
   movq(scratch, target);
@@ -73,7 +73,7 @@ Operand MacroAssembler::ExternalOperand(ExternalReference target,
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(source);
+    intptr_t delta = RootRegisterDelta(source, isolate());
     if (is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       movq(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
@@ -92,7 +92,7 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
 
 void MacroAssembler::Store(ExternalReference destination, Register source) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(destination);
+    intptr_t delta = RootRegisterDelta(destination, isolate());
     if (is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       movq(Operand(kRootRegister, static_cast<int32_t>(delta)), source);
@@ -112,7 +112,7 @@ void MacroAssembler::Store(ExternalReference destination, Register source) {
 void MacroAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(source);
+    intptr_t delta = RootRegisterDelta(source, isolate());
     if (is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       lea(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
@@ -129,7 +129,7 @@ int MacroAssembler::LoadAddressSize(ExternalReference source) {
     // This calculation depends on the internals of LoadAddress.
     // It's correctness is ensured by the asserts in the Call
     // instruction below.
-    intptr_t delta = RootRegisterDelta(source);
+    intptr_t delta = RootRegisterDelta(source, isolate());
     if (is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       // Operand is lea(scratch, Operand(kRootRegister, delta));
@@ -909,9 +909,9 @@ void MacroAssembler::Integer64PlusConstantToSmi(Register dst,
                                                 Register src,
                                                 int constant) {
   if (dst.is(src)) {
-    addq(dst, Immediate(constant));
+    addl(dst, Immediate(constant));
   } else {
-    lea(dst, Operand(src, constant));
+    leal(dst, Operand(src, constant));
   }
   shl(dst, Immediate(kSmiShift));
 }
@@ -1245,12 +1245,10 @@ void MacroAssembler::SmiAdd(Register dst,
   // No overflow checking. Use only when it's known that
   // overflowing is impossible.
   ASSERT(!dst.is(src2));
-  if (dst.is(src1)) {
-    addq(dst, src2);
-  } else {
+  if (!dst.is(src1)) {
     movq(dst, src1);
-    addq(dst, src2);
   }
+  addq(dst, src2);
   Assert(no_overflow, "Smi addition overflow");
 }
 
@@ -1259,12 +1257,10 @@ void MacroAssembler::SmiSub(Register dst, Register src1, Register src2) {
   // No overflow checking. Use only when it's known that
   // overflowing is impossible (e.g., subtracting two positive smis).
   ASSERT(!dst.is(src2));
-  if (dst.is(src1)) {
-    subq(dst, src2);
-  } else {
+  if (!dst.is(src1)) {
     movq(dst, src1);
-    subq(dst, src2);
   }
+  subq(dst, src2);
   Assert(no_overflow, "Smi subtraction overflow");
 }
 
@@ -1274,12 +1270,10 @@ void MacroAssembler::SmiSub(Register dst,
                             const Operand& src2) {
   // No overflow checking. Use only when it's known that
   // overflowing is impossible (e.g., subtracting two positive smis).
-  if (dst.is(src1)) {
-    subq(dst, src2);
-  } else {
+  if (!dst.is(src1)) {
     movq(dst, src1);
-    subq(dst, src2);
   }
+  subq(dst, src2);
   Assert(no_overflow, "Smi subtraction overflow");
 }
 
@@ -1464,6 +1458,13 @@ SmiIndex MacroAssembler::SmiToNegativeIndex(Register dst,
   }
   return SmiIndex(dst, times_1);
 }
+
+
+void MacroAssembler::AddSmiField(Register dst, const Operand& src) {
+  ASSERT_EQ(0, kSmiShift % kBitsPerByte);
+  addl(dst, Operand(src, kSmiShift / kBitsPerByte));
+}
+
 
 
 void MacroAssembler::Move(Register dst, Register src) {
@@ -2698,6 +2699,70 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
   // Set the map. The other fields are left uninitialized.
   LoadRoot(kScratchRegister, Heap::kConsAsciiStringMapRootIndex);
   movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
+}
+
+
+// Copy memory, byte-by-byte, from source to destination.  Not optimized for
+// long or aligned copies.  The contents of scratch and length are destroyed.
+// Destination is incremented by length, source, length and scratch are
+// clobbered.
+// A simpler loop is faster on small copies, but slower on large ones.
+// The cld() instruction must have been emitted, to set the direction flag(),
+// before calling this function.
+void MacroAssembler::CopyBytes(Register destination,
+                               Register source,
+                               Register length,
+                               int min_length,
+                               Register scratch) {
+  ASSERT(min_length >= 0);
+  if (FLAG_debug_code) {
+    cmpl(length, Immediate(min_length));
+    Assert(greater_equal, "Invalid min_length");
+  }
+  Label loop, done, short_string, short_loop;
+
+  const int kLongStringLimit = 20;
+  if (min_length <= kLongStringLimit) {
+    cmpl(length, Immediate(kLongStringLimit));
+    j(less_equal, &short_string);
+  }
+
+  ASSERT(source.is(rsi));
+  ASSERT(destination.is(rdi));
+  ASSERT(length.is(rcx));
+
+  // Because source is 8-byte aligned in our uses of this function,
+  // we keep source aligned for the rep movs operation by copying the odd bytes
+  // at the end of the ranges.
+  movq(scratch, length);
+  shrl(length, Immediate(3));
+  repmovsq();
+  // Move remaining bytes of length.
+  andl(scratch, Immediate(0x7));
+  movq(length, Operand(source, scratch, times_1, -8));
+  movq(Operand(destination, scratch, times_1, -8), length);
+  addq(destination, scratch);
+
+  if (min_length <= kLongStringLimit) {
+    jmp(&done);
+
+    bind(&short_string);
+    if (min_length == 0) {
+      testl(length, length);
+      j(zero, &done);
+    }
+    lea(scratch, Operand(destination, length, times_1, 0));
+
+    bind(&short_loop);
+    movb(length, Operand(source, 0));
+    movb(Operand(destination, 0), length);
+    incq(source);
+    incq(destination);
+    cmpq(destination, scratch);
+    j(not_equal, &short_loop);
+
+    bind(&done);
+  }
 }
 
 

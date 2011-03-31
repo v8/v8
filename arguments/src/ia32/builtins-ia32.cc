@@ -100,8 +100,9 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Set expected number of arguments to zero (not changing eax).
   __ Set(ebx, Immediate(0));
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
-  __ jmp(Handle<Code>(masm->isolate()->builtins()->builtin(
-      ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
+  Handle<Code> arguments_adaptor =
+      masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+  __ jmp(arguments_adaptor, RelocInfo::CODE_TARGET);
 }
 
 
@@ -184,7 +185,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // ebx: JSObject
     // edi: start of next object
     __ mov(Operand(ebx, JSObject::kMapOffset), eax);
-    __ mov(ecx, FACTORY->empty_fixed_array());
+    Factory* factory = masm->isolate()->factory();
+    __ mov(ecx, factory->empty_fixed_array());
     __ mov(Operand(ebx, JSObject::kPropertiesOffset), ecx);
     __ mov(Operand(ebx, JSObject::kElementsOffset), ecx);
     // Set extra fields in the newly allocated object.
@@ -194,9 +196,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     { Label loop, entry;
       // To allow for truncation.
       if (count_constructions) {
-        __ mov(edx, FACTORY->one_pointer_filler_map());
+        __ mov(edx, factory->one_pointer_filler_map());
       } else {
-        __ mov(edx, FACTORY->undefined_value());
+        __ mov(edx, factory->undefined_value());
       }
       __ lea(ecx, Operand(ebx, JSObject::kHeaderSize));
       __ jmp(&entry);
@@ -252,7 +254,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // edi: FixedArray
     // edx: number of elements
     // ecx: start of next object
-    __ mov(eax, FACTORY->fixed_array_map());
+    __ mov(eax, factory->fixed_array_map());
     __ mov(Operand(edi, FixedArray::kMapOffset), eax);  // setup the map
     __ SmiTag(edx);
     __ mov(Operand(edi, FixedArray::kLengthOffset), edx);  // and length
@@ -262,7 +264,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // edi: FixedArray
     // ecx: start of next object
     { Label loop, entry;
-      __ mov(edx, FACTORY->undefined_value());
+      __ mov(edx, factory->undefined_value());
       __ lea(eax, Operand(edi, FixedArray::kHeaderSize));
       __ jmp(&entry);
       __ bind(&loop);
@@ -334,8 +336,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // Call the function.
   if (is_api_function) {
     __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-    Handle<Code> code = Handle<Code>(
-        masm->isolate()->builtins()->builtin(Builtins::HandleApiCallConstruct));
+    Handle<Code> code =
+        masm->isolate()->builtins()->HandleApiCallConstruct();
     ParameterCount expected(0);
     __ InvokeCode(code, expected, expected,
                   RelocInfo::CODE_TARGET, CALL_FUNCTION);
@@ -376,7 +378,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   __ pop(ecx);
   __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));  // 1 ~ receiver
   __ push(ecx);
-  __ IncrementCounter(COUNTERS->constructed_objects(), 1);
+  __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1);
   __ ret(0);
 }
 
@@ -436,8 +438,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
   // Invoke the code.
   if (is_construct) {
-    __ call(Handle<Code>(masm->isolate()->builtins()->builtin(
-        Builtins::JSConstructCall)), RelocInfo::CODE_TARGET);
+    __ call(masm->isolate()->builtins()->JSConstructCall(),
+            RelocInfo::CODE_TARGET);
   } else {
     ParameterCount actual(eax);
     __ InvokeFunction(edi, actual, CALL_FUNCTION);
@@ -561,12 +563,14 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
 
 
 void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
+  Factory* factory = masm->isolate()->factory();
+
   // 1. Make sure we have at least one argument.
   { Label done;
     __ test(eax, Operand(eax));
     __ j(not_zero, &done, taken);
     __ pop(ebx);
-    __ push(Immediate(FACTORY->undefined_value()));
+    __ push(Immediate(factory->undefined_value()));
     __ push(ebx);
     __ inc(eax);
     __ bind(&done);
@@ -600,9 +604,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ test(ebx, Immediate(kSmiTagMask));
     __ j(zero, &convert_to_object);
 
-    __ cmp(ebx, FACTORY->null_value());
+    __ cmp(ebx, factory->null_value());
     __ j(equal, &use_global_receiver);
-    __ cmp(ebx, FACTORY->undefined_value());
+    __ cmp(ebx, factory->undefined_value());
     __ j(equal, &use_global_receiver);
 
     // We don't use IsObjectJSObjectType here because we jump on success.
@@ -674,8 +678,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_zero, &function, taken);
     __ Set(ebx, Immediate(0));
     __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
-    __ jmp(Handle<Code>(masm->isolate()->builtins()->builtin(
-        ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
+    __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+           RelocInfo::CODE_TARGET);
     __ bind(&function);
   }
 
@@ -688,8 +692,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ mov(edx, FieldOperand(edi, JSFunction::kCodeEntryOffset));
   __ SmiUntag(ebx);
   __ cmp(eax, Operand(ebx));
-  __ j(not_equal, Handle<Code>(masm->isolate()->builtins()->builtin(
-      ArgumentsAdaptorTrampoline)));
+  __ j(not_equal,
+       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline());
 
   ParameterCount expected(0);
   __ InvokeCode(Operand(edx), expected, expected, JUMP_FUNCTION);
@@ -754,9 +758,10 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Compute the receiver in non-strict mode.
   __ test(ebx, Immediate(kSmiTagMask));
   __ j(zero, &call_to_object);
-  __ cmp(ebx, FACTORY->null_value());
+  Factory* factory = masm->isolate()->factory();
+  __ cmp(ebx, factory->null_value());
   __ j(equal, &use_global_receiver);
-  __ cmp(ebx, FACTORY->undefined_value());
+  __ cmp(ebx, factory->undefined_value());
   __ j(equal, &use_global_receiver);
 
   // If given receiver is already a JavaScript object then there's no
@@ -796,8 +801,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ mov(edx, Operand(ebp, 2 * kPointerSize));  // load arguments
 
   // Use inline caching to speed up access to arguments.
-  Handle<Code> ic(masm->isolate()->builtins()->builtin(
-      Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Initialize();
   __ call(ic, RelocInfo::CODE_TARGET);
   // It is important that we do not have a test instruction after the
   // call.  A test instruction after the call is used to indicate that
@@ -868,8 +872,9 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch1: initial map
   // scratch2: start of next object
   __ mov(FieldOperand(result, JSObject::kMapOffset), scratch1);
+  Factory* factory = masm->isolate()->factory();
   __ mov(FieldOperand(result, JSArray::kPropertiesOffset),
-         FACTORY->empty_fixed_array());
+         factory->empty_fixed_array());
   // Field JSArray::kElementsOffset is initialized later.
   __ mov(FieldOperand(result, JSArray::kLengthOffset), Immediate(0));
 
@@ -877,7 +882,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // fixed array.
   if (initial_capacity == 0) {
     __ mov(FieldOperand(result, JSArray::kElementsOffset),
-           FACTORY->empty_fixed_array());
+           factory->empty_fixed_array());
     return;
   }
 
@@ -894,7 +899,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch1: elements array
   // scratch2: start of next object
   __ mov(FieldOperand(scratch1, FixedArray::kMapOffset),
-         FACTORY->fixed_array_map());
+         factory->fixed_array_map());
   __ mov(FieldOperand(scratch1, FixedArray::kLengthOffset),
          Immediate(Smi::FromInt(initial_capacity)));
 
@@ -905,7 +910,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   if (initial_capacity <= kLoopUnfoldLimit) {
     // Use a scratch register here to have only one reloc info when unfolding
     // the loop.
-    __ mov(scratch3, FACTORY->the_hole_value());
+    __ mov(scratch3, factory->the_hole_value());
     for (int i = 0; i < initial_capacity; i++) {
       __ mov(FieldOperand(scratch1,
                           FixedArray::kHeaderSize + i * kPointerSize),
@@ -915,7 +920,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
     Label loop, entry;
     __ jmp(&entry);
     __ bind(&loop);
-    __ mov(Operand(scratch1, 0), FACTORY->the_hole_value());
+    __ mov(Operand(scratch1, 0), factory->the_hole_value());
     __ add(Operand(scratch1), Immediate(kPointerSize));
     __ bind(&entry);
     __ cmp(scratch1, Operand(scratch2));
@@ -970,7 +975,8 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array_end: start of next object
   // array_size: size of array (smi)
   __ mov(FieldOperand(result, JSObject::kMapOffset), elements_array);
-  __ mov(elements_array, FACTORY->empty_fixed_array());
+  Factory* factory = masm->isolate()->factory();
+  __ mov(elements_array, factory->empty_fixed_array());
   __ mov(FieldOperand(result, JSArray::kPropertiesOffset), elements_array);
   // Field JSArray::kElementsOffset is initialized later.
   __ mov(FieldOperand(result, JSArray::kLengthOffset), array_size);
@@ -989,7 +995,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array_end: start of next object
   // array_size: size of array (smi)
   __ mov(FieldOperand(elements_array, FixedArray::kMapOffset),
-         FACTORY->fixed_array_map());
+         factory->fixed_array_map());
   // For non-empty JSArrays the length of the FixedArray and the JSArray is the
   // same.
   __ mov(FieldOperand(elements_array, FixedArray::kLengthOffset), array_size);
@@ -1001,7 +1007,7 @@ static void AllocateJSArray(MacroAssembler* masm,
     __ SmiUntag(array_size);
     __ lea(edi, Operand(elements_array,
                         FixedArray::kHeaderSize - kHeapObjectTag));
-    __ mov(eax, FACTORY->the_hole_value());
+    __ mov(eax, factory->the_hole_value());
     __ cld();
     // Do not use rep stos when filling less than kRepStosThreshold
     // words.
@@ -1065,7 +1071,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                        edi,
                        kPreallocatedArrayElements,
                        &prepare_generic_code_call);
-  __ IncrementCounter(COUNTERS->array_function_native(), 1);
+  __ IncrementCounter(masm->isolate()->counters()->array_function_native(), 1);
   __ pop(ebx);
   if (construct_call) {
     __ pop(edi);
@@ -1121,7 +1127,8 @@ static void ArrayNativeCode(MacroAssembler* masm,
                   edi,
                   true,
                   &prepare_generic_code_call);
-  __ IncrementCounter(COUNTERS->array_function_native(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->array_function_native(), 1);
   __ mov(eax, ebx);
   __ pop(ebx);
   if (construct_call) {
@@ -1148,7 +1155,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                   edi,
                   false,
                   &prepare_generic_code_call);
-  __ IncrementCounter(COUNTERS->array_function_native(), 1);
+  __ IncrementCounter(counters->array_function_native(), 1);
   __ mov(eax, ebx);
   __ pop(ebx);
   if (construct_call) {
@@ -1234,8 +1241,8 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   // Jump to the generic array code in case the specialized code cannot handle
   // the construction.
   __ bind(&generic_array_code);
-  Code* code = masm->isolate()->builtins()->builtin(Builtins::ArrayCodeGeneric);
-  Handle<Code> array_code(code);
+  Handle<Code> array_code =
+      masm->isolate()->builtins()->ArrayCodeGeneric();
   __ jmp(array_code, RelocInfo::CODE_TARGET);
 }
 
@@ -1268,9 +1275,8 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
   // Jump to the generic construct code in case the specialized code cannot
   // handle the construction.
   __ bind(&generic_constructor);
-  Code* code = masm->isolate()->builtins()->builtin(
-      Builtins::JSConstructStubGeneric);
-  Handle<Code> generic_construct_stub(code);
+  Handle<Code> generic_construct_stub =
+      masm->isolate()->builtins()->JSConstructStubGeneric();
   __ jmp(generic_construct_stub, RelocInfo::CODE_TARGET);
 }
 
@@ -1283,7 +1289,8 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
-  __ IncrementCounter(COUNTERS->string_ctor_calls(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->string_ctor_calls(), 1);
 
   if (FLAG_debug_code) {
     __ LoadGlobalFunction(Context::STRING_FUNCTION_INDEX, ecx);
@@ -1312,7 +1319,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
       edx,  // Scratch 2.
       false,  // Input is known to be smi?
       &not_cached);
-  __ IncrementCounter(COUNTERS->string_ctor_cached_number(), 1);
+  __ IncrementCounter(counters->string_ctor_cached_number(), 1);
   __ bind(&argument_is_string);
   // ----------- S t a t e -------------
   //  -- ebx    : argument converted to string
@@ -1341,7 +1348,8 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ mov(FieldOperand(eax, HeapObject::kMapOffset), ecx);
 
   // Set properties and elements.
-  __ Set(ecx, Immediate(FACTORY->empty_fixed_array()));
+  Factory* factory = masm->isolate()->factory();
+  __ Set(ecx, Immediate(factory->empty_fixed_array()));
   __ mov(FieldOperand(eax, JSObject::kPropertiesOffset), ecx);
   __ mov(FieldOperand(eax, JSObject::kElementsOffset), ecx);
 
@@ -1364,12 +1372,12 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   Condition is_string = masm->IsObjectStringType(eax, ebx, ecx);
   __ j(NegateCondition(is_string), &convert_argument);
   __ mov(ebx, eax);
-  __ IncrementCounter(COUNTERS->string_ctor_string_value(), 1);
+  __ IncrementCounter(counters->string_ctor_string_value(), 1);
   __ jmp(&argument_is_string);
 
   // Invoke the conversion builtin and put the result into ebx.
   __ bind(&convert_argument);
-  __ IncrementCounter(COUNTERS->string_ctor_conversions(), 1);
+  __ IncrementCounter(counters->string_ctor_conversions(), 1);
   __ EnterInternalFrame();
   __ push(edi);  // Preserve the function.
   __ push(eax);
@@ -1382,7 +1390,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // Load the empty string into ebx, remove the receiver from the
   // stack, and jump back to the case where the argument is a string.
   __ bind(&no_arguments);
-  __ Set(ebx, Immediate(FACTORY->empty_string()));
+  __ Set(ebx, Immediate(factory->empty_string()));
   __ pop(ecx);
   __ lea(esp, Operand(esp, kPointerSize));
   __ push(ecx);
@@ -1391,7 +1399,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // At this point the argument is already a string. Call runtime to
   // create a string wrapper.
   __ bind(&gc_required);
-  __ IncrementCounter(COUNTERS->string_ctor_gc_required(), 1);
+  __ IncrementCounter(counters->string_ctor_gc_required(), 1);
   __ EnterInternalFrame();
   __ push(ebx);
   __ CallRuntime(Runtime::kNewStringWrapper, 1);
@@ -1442,7 +1450,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -----------------------------------
 
   Label invoke, dont_adapt_arguments;
-  __ IncrementCounter(COUNTERS->arguments_adaptors(), 1);
+  __ IncrementCounter(masm->isolate()->counters()->arguments_adaptors(), 1);
 
   Label enough, too_few;
   __ cmp(eax, Operand(ebx));
@@ -1490,7 +1498,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     Label fill;
     __ bind(&fill);
     __ inc(ecx);
-    __ push(Immediate(FACTORY->undefined_value()));
+    __ push(Immediate(masm->isolate()->factory()->undefined_value()));
     __ cmp(ecx, Operand(ebx));
     __ j(less, &fill);
 
@@ -1586,7 +1594,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 
 
 #undef __
-
-} }  // namespace v8::internal
+}
+}  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_IA32

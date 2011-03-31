@@ -70,6 +70,7 @@ TickSampleEventRecord* TickSampleEventRecord::init(void* value) {
   // Init the required fields only.
   result->sample.pc = NULL;
   result->sample.frames_count = 0;
+  result->sample.has_external_callback = false;
   return result;
 }
 

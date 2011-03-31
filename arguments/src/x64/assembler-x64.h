@@ -1137,6 +1137,7 @@ class Assembler : public AssemblerBase {
 
   // Miscellaneous
   void clc();
+  void cld();
   void cpuid();
   void hlt();
   void int3();

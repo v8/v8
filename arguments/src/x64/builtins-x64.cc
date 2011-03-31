@@ -98,8 +98,8 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Set expected number of arguments to zero (not changing rax).
   __ movq(rbx, Immediate(0));
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
-  __ Jump(Handle<Code>(masm->isolate()->builtins()->builtin(
-        ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
+  __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+          RelocInfo::CODE_TARGET);
 }
 
 
@@ -339,8 +339,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // Call the function.
   if (is_api_function) {
     __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-    Handle<Code> code = Handle<Code>(masm->isolate()->builtins()->builtin(
-        Builtins::HandleApiCallConstruct));
+    Handle<Code> code =
+        masm->isolate()->builtins()->HandleApiCallConstruct();
     ParameterCount expected(0);
     __ InvokeCode(code, expected, expected,
                   RelocInfo::CODE_TARGET, CALL_FUNCTION);
@@ -379,7 +379,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   SmiIndex index = masm->SmiToIndex(rbx, rbx, kPointerSizeLog2);
   __ lea(rsp, Operand(rsp, index.reg, index.scale, 1 * kPointerSize));
   __ push(rcx);
-  __ IncrementCounter(COUNTERS->constructed_objects(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->constructed_objects(), 1);
   __ ret(0);
 }
 
@@ -492,8 +493,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Invoke the code.
   if (is_construct) {
     // Expects rdi to hold function pointer.
-    __ Call(Handle<Code>(masm->isolate()->builtins()->builtin(
-        Builtins::JSConstructCall)), RelocInfo::CODE_TARGET);
+    __ Call(masm->isolate()->builtins()->JSConstructCall(),
+            RelocInfo::CODE_TARGET);
   } else {
     ParameterCount actual(rax);
     // Function must be in rdi.
@@ -733,8 +734,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_zero, &function);
     __ Set(rbx, 0);
     __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
-    __ Jump(Handle<Code>(masm->isolate()->builtins()->builtin(
-        ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
+    __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+            RelocInfo::CODE_TARGET);
     __ bind(&function);
   }
 
@@ -748,8 +749,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   __ cmpq(rax, rbx);
   __ j(not_equal,
-       Handle<Code>(masm->isolate()->builtins()->builtin(
-           ArgumentsAdaptorTrampoline)), RelocInfo::CODE_TARGET);
+       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+       RelocInfo::CODE_TARGET);
 
   ParameterCount expected(0);
   __ InvokeCode(rdx, expected, expected, JUMP_FUNCTION);
@@ -863,8 +864,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ movq(rdx, Operand(rbp, kArgumentsOffset));  // load arguments
 
   // Use inline caching to speed up access to arguments.
-  Handle<Code> ic(masm->isolate()->builtins()->builtin(
-      Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic =
+      masm->isolate()->builtins()->KeyedLoadIC_Initialize();
   __ Call(ic, RelocInfo::CODE_TARGET);
   // It is important that we do not have a test instruction after the
   // call.  A test instruction after the call is used to indicate that
@@ -1138,7 +1139,8 @@ static void ArrayNativeCode(MacroAssembler* masm,
                        r8,
                        kPreallocatedArrayElements,
                        call_generic_code);
-  __ IncrementCounter(COUNTERS->array_function_native(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->array_function_native(), 1);
   __ movq(rax, rbx);
   __ ret(kPointerSize);
 
@@ -1169,7 +1171,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                   r9,
                   true,
                   call_generic_code);
-  __ IncrementCounter(COUNTERS->array_function_native(), 1);
+  __ IncrementCounter(counters->array_function_native(), 1);
   __ movq(rax, rbx);
   __ ret(2 * kPointerSize);
 
@@ -1191,7 +1193,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                   r9,
                   false,
                   call_generic_code);
-  __ IncrementCounter(COUNTERS->array_function_native(), 1);
+  __ IncrementCounter(counters->array_function_native(), 1);
 
   // rax: argc
   // rbx: JSArray
@@ -1265,9 +1267,8 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   // Jump to the generic array code in case the specialized code cannot handle
   // the construction.
   __ bind(&generic_array_code);
-  Code* code =
-      masm->isolate()->builtins()->builtin(Builtins::ArrayCodeGeneric);
-  Handle<Code> array_code(code);
+  Handle<Code> array_code =
+      masm->isolate()->builtins()->ArrayCodeGeneric();
   __ Jump(array_code, RelocInfo::CODE_TARGET);
 }
 
@@ -1300,9 +1301,8 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
   // Jump to the generic construct code in case the specialized code cannot
   // handle the construction.
   __ bind(&generic_constructor);
-  Code* code =
-      masm->isolate()->builtins()->builtin(Builtins::JSConstructStubGeneric);
-  Handle<Code> generic_construct_stub(code);
+  Handle<Code> generic_construct_stub =
+      masm->isolate()->builtins()->JSConstructStubGeneric();
   __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
 }
 
@@ -1356,7 +1356,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -----------------------------------
 
   Label invoke, dont_adapt_arguments;
-  __ IncrementCounter(COUNTERS->arguments_adaptors(), 1);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->arguments_adaptors(), 1);
 
   Label enough, too_few;
   __ cmpq(rax, rbx);
