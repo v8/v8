@@ -1158,9 +1158,12 @@ void HeapObject::VerifySmiField(int offset) {
 
 
 Heap* HeapObject::GetHeap() {
-  uintptr_t addr = reinterpret_cast<uintptr_t>(this);
-  addr >>= kHeapDescriptorGranularityBits;
-  return heap_descriptors[addr].heap;
+  // During GC, the map pointer in HeapObject is used in various ways that
+  // prevent us from retrieving Heap from the map.
+  // Assert that we are not in GC, implement GC code in a way that it doesn't
+  // pull heap from the map.
+  ASSERT(HEAP->is_safe_to_read_maps());
+  return map()->heap();
 }
 
 
