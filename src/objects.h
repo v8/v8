@@ -3487,6 +3487,10 @@ class Code: public HeapObject {
   void CodeVerify();
 #endif
 
+  // Returns the isolate/heap this code object belongs to.
+  inline Isolate* isolate();
+  inline Heap* heap();
+
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;
@@ -6008,6 +6012,10 @@ class JSGlobalPropertyCell: public HeapObject {
   typedef FixedBodyDescriptor<kValueOffset,
                               kValueOffset + kPointerSize,
                               kSize> BodyDescriptor;
+
+  // Returns the isolate/heap this cell object belongs to.
+  inline Isolate* isolate();
+  inline Heap* heap();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalPropertyCell);
