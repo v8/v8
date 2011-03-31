@@ -10177,7 +10177,13 @@ static void MemCopyWrapper(void* dest, const void* src, size_t size) {
 
 OS::MemCopyFunction CreateMemCopyFunction() {
   HandleScope scope;
-  MacroAssembler masm(NULL, 1 * KB);
+  size_t actual_size;
+  // Allocate buffer in executable space.
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
+                                                 &actual_size,
+                                                 true));
+  if (buffer == NULL) return &MemCopyWrapper;
+  MacroAssembler masm(buffer, static_cast<int>(actual_size));
 
   // Generated code is put into a fixed, unmovable, buffer, and not into
   // the V8 heap. We can't, and don't, refer to any relocatable addresses
@@ -10233,7 +10239,6 @@ OS::MemCopyFunction CreateMemCopyFunction() {
     __ test(Operand(src), Immediate(0x0F));
     __ j(not_zero, &unaligned_source);
     {
-      __ IncrementCounter(masm.isolate()->counters()->memcopy_aligned(), 1);
       // Copy loop for aligned source and destination.
       __ mov(edx, count);
       Register loop_count = ecx;
@@ -10281,7 +10286,6 @@ OS::MemCopyFunction CreateMemCopyFunction() {
       // Copy loop for unaligned source and aligned destination.
       // If source is not aligned, we can't read it as efficiently.
       __ bind(&unaligned_source);
-      __ IncrementCounter(masm.isolate()->counters()->memcopy_unaligned(), 1);
       __ mov(edx, ecx);
       Register loop_count = ecx;
       Register count = edx;
@@ -10325,7 +10329,6 @@ OS::MemCopyFunction CreateMemCopyFunction() {
     }
 
   } else {
-    __ IncrementCounter(masm.isolate()->counters()->memcopy_noxmm(), 1);
     // SSE2 not supported. Unlikely to happen in practice.
     __ push(edi);
     __ push(esi);
@@ -10372,13 +10375,8 @@ OS::MemCopyFunction CreateMemCopyFunction() {
   masm.GetCode(&desc);
   ASSERT(desc.reloc_size == 0);
 
-  // Copy the generated code into an executable chunk and return a pointer
-  // to the first instruction in it as a C++ function pointer.
-  LargeObjectChunk* chunk = LargeObjectChunk::New(desc.instr_size, EXECUTABLE);
-  if (chunk == NULL) return &MemCopyWrapper;
-  memcpy(chunk->GetStartAddress(), desc.buffer, desc.instr_size);
-  CPU::FlushICache(chunk->GetStartAddress(), desc.instr_size);
-  return FUNCTION_CAST<OS::MemCopyFunction>(chunk->GetStartAddress());
+  CPU::FlushICache(buffer, actual_size);
+  return FUNCTION_CAST<OS::MemCopyFunction>(buffer);
 }
 
 #undef __
