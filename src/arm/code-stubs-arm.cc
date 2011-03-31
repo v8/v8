@@ -502,7 +502,7 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
                                    FloatingPointHelper::Destination destination,
                                    Register scratch1,
                                    Register scratch2) {
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     __ mov(scratch1, Operand(r0, ASR, kSmiTagSize));
     __ vmov(d7.high(), scratch1);
@@ -570,7 +570,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
 
   // Handle loading a double from a heap number.
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3) &&
+  if (CpuFeatures::IsSupported(VFP3) &&
       destination == kVFPRegisters) {
     CpuFeatures::Scope scope(VFP3);
     // Load the double from tagged HeapNumber to double register.
@@ -585,7 +585,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
 
   // Handle loading a double from a smi.
   __ bind(&is_smi);
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     // Convert smi to double using VFP instructions.
     __ SmiUntag(scratch1, object);
@@ -676,7 +676,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
 
   __ JumpIfNotSmi(object, &obj_is_not_smi);
   __ SmiUntag(scratch1, object);
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     __ vmov(single_scratch, scratch1);
     __ vcvt_f64_s32(double_dst, single_scratch);
@@ -744,7 +744,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_int32);
 
   // Load the number.
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     // Load the double value.
     __ sub(scratch1, object, Operand(kHeapObjectTag));
@@ -818,7 +818,7 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
 
   // Object is a heap number.
   // Convert the floating point value to a 32-bit integer.
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     SwVfpRegister single_scratch = double_scratch.low();
     // Load the double value.
@@ -1153,7 +1153,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   }
 
   // Lhs is a smi, rhs is a number.
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     // Convert lhs to a double in d7.
     CpuFeatures::Scope scope(VFP3);
     __ SmiToDoubleVFPRegister(lhs, d7, r7, s15);
@@ -1193,7 +1193,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   }
 
   // Rhs is a smi, lhs is a heap number.
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     // Load the double from lhs, tagged HeapNumber r1, to d7.
     __ sub(r7, lhs, Operand(kHeapObjectTag));
@@ -1373,7 +1373,7 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 
   // Both are heap numbers.  Load them up then jump to the code we have
   // for that.
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     __ sub(r7, rhs, Operand(kHeapObjectTag));
     __ vldr(d6, r7, HeapNumber::kValueOffset);
@@ -1463,7 +1463,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Label load_result_from_cache;
   if (!object_is_smi) {
     __ JumpIfSmi(object, &is_smi);
-    if (isolate->cpu_features()->IsSupported(VFP3)) {
+    if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       __ CheckMap(object,
                   scratch1,
@@ -1597,7 +1597,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // The arguments have been converted to doubles and stored in d6 and d7, if
   // VFP3 is supported, or in r0, r1, r2, and r3.
   Isolate* isolate = masm->isolate();
-  if (isolate->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     __ bind(&lhs_not_nan);
     CpuFeatures::Scope scope(VFP3);
     Label no_nan;
@@ -1707,7 +1707,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 // The stub returns zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   // This stub uses VFP3 instructions.
-  ASSERT(Isolate::Current()->cpu_features()->IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
 
   Label false_result;
   Label not_heap_number;
@@ -1794,7 +1794,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
     const Builtins::JavaScript& builtin) {
   Label slow, slow_reverse, do_the_call;
   bool use_fp_registers =
-      Isolate::Current()->cpu_features()->IsSupported(VFP3) &&
+      CpuFeatures::IsSupported(VFP3) &&
       Token::MOD != op_;
 
   ASSERT((lhs.is(r0) && rhs.is(r1)) || (lhs.is(r1) && rhs.is(r0)));
@@ -1811,7 +1811,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
 
     // If we have floating point hardware, inline ADD, SUB, MUL, and DIV,
     // using registers d7 and d6 for the double values.
-    if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+    if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       __ mov(r7, Operand(rhs, ASR, kSmiTagSize));
       __ vmov(s15, r7);
@@ -1907,7 +1907,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
       __ AllocateHeapNumber(r5, r4, r7, heap_number_map, &slow);
       }
 
-      if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+      if (CpuFeatures::IsSupported(VFP3)) {
         CpuFeatures::Scope scope(VFP3);
         // Convert smi in r0 to double in d7.
         __ mov(r7, Operand(r0, ASR, kSmiTagSize));
@@ -1964,7 +1964,7 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
       __ AllocateHeapNumber(r5, r4, r7, heap_number_map, &slow);
       }
 
-      if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+      if (CpuFeatures::IsSupported(VFP3)) {
         CpuFeatures::Scope scope(VFP3);
         // Convert smi in r1 to double in d6.
         __ mov(r7, Operand(r1, ASR, kSmiTagSize));
@@ -2177,7 +2177,7 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
       // The code below for writing into heap numbers isn't capable of writing
       // the register as an unsigned int so we go to slow case if we hit this
       // case.
-      if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+      if (CpuFeatures::IsSupported(VFP3)) {
         __ b(mi, &result_not_a_smi);
       } else {
         __ b(mi, &slow);
@@ -2225,7 +2225,7 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
   // result.
   __ mov(r0, Operand(r5));
 
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     // Convert the int32 in r2 to the heap number in r0. r3 is corrupted.
     CpuFeatures::Scope scope(VFP3);
     __ vmov(s0, r2);
@@ -3077,7 +3077,7 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
       // Load left and right operands into d6 and d7 or r0/r1 and r2/r3
       // depending on whether VFP3 is available or not.
       FloatingPointHelper::Destination destination =
-          Isolate::Current()->cpu_features()->IsSupported(VFP3) &&
+          CpuFeatures::IsSupported(VFP3) &&
           op_ != Token::MOD ?
           FloatingPointHelper::kVFPRegisters :
           FloatingPointHelper::kCoreRegisters;
@@ -3190,7 +3190,7 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
           // The code below for writing into heap numbers isn't capable of
           // writing the register as an unsigned int so we go to slow case if we
           // hit this case.
-          if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+          if (CpuFeatures::IsSupported(VFP3)) {
             __ b(mi, &result_not_a_smi);
           } else {
             __ b(mi, not_numbers);
@@ -3229,7 +3229,7 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
       // result.
       __ mov(r0, Operand(r5));
 
-      if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+      if (CpuFeatures::IsSupported(VFP3)) {
         // Convert the int32 in r2 to the heap number in r0. r3 is corrupted. As
         // mentioned above SHR needs to always produce a positive result.
         CpuFeatures::Scope scope(VFP3);
@@ -3358,7 +3358,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
     // Jump to type transition if they are not. The registers r0 and r1 (right
     // and left) are preserved for the runtime call.
     FloatingPointHelper::Destination destination =
-        Isolate::Current()->cpu_features()->IsSupported(VFP3) &&
+        CpuFeatures::IsSupported(VFP3) &&
         op_ != Token::MOD ?
         FloatingPointHelper::kVFPRegisters :
         FloatingPointHelper::kCoreRegisters;
@@ -3545,7 +3545,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // to return a heap number if we can.
           // The non vfp3 code does not support this special case, so jump to
           // runtime if we don't support it.
-          if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+          if (CpuFeatures::IsSupported(VFP3)) {
             __ b(mi,
                  (result_type_ <= TRBinaryOpIC::INT32) ? &transition
                                                        : &return_heap_number);
@@ -3571,7 +3571,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       __ Ret();
 
       __ bind(&return_heap_number);
-      if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+      if (CpuFeatures::IsSupported(VFP3)) {
         CpuFeatures::Scope scope(VFP3);
         heap_number_result = r5;
         GenerateHeapResultAllocation(masm,
@@ -3806,7 +3806,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   const Register cache_entry = r0;
   const bool tagged = (argument_type_ == TAGGED);
 
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     if (tagged) {
       // Argument is a number and is on stack and in r0.
@@ -3894,7 +3894,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
        __ vldr(d2, FieldMemOperand(r6, HeapNumber::kValueOffset));
     }
     __ Ret();
-  }  // if (Isolate::Current()->cpu_features()->IsSupported(VFP3))
+  }  // if (CpuFeatures::IsSupported(VFP3))
 
   __ bind(&calculate);
   if (tagged) {
@@ -3903,7 +3903,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
         ExternalReference(RuntimeFunction(), masm->isolate());
     __ TailCallExternalReference(runtime_function, 1, 1);
   } else {
-    if (!Isolate::Current()->cpu_features()->IsSupported(VFP3)) UNREACHABLE();
+    if (!CpuFeatures::IsSupported(VFP3)) UNREACHABLE();
     CpuFeatures::Scope scope(VFP3);
 
     Label no_update;
@@ -4102,7 +4102,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ mov(r0, Operand(r2));
     }
 
-    if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+    if (CpuFeatures::IsSupported(VFP3)) {
       // Convert the int32 in r1 to the heap number in r0. r2 is corrupted.
       CpuFeatures::Scope scope(VFP3);
       __ vmov(s0, r1);
@@ -4143,7 +4143,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 void MathPowStub::Generate(MacroAssembler* masm) {
   Label call_runtime;
 
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
 
     Label base_not_smi;
@@ -6807,7 +6807,7 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
 
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or VFP3 is unsupported.
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
 
     // Load left and right operand

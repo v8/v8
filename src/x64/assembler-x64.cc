@@ -38,22 +38,38 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
 
-CpuFeatures::CpuFeatures()
-    : supported_(kDefaultCpuFeatures),
-      enabled_(0),
-      found_by_runtime_probing_(0) {
-}
+
+#ifdef DEBUG
+bool CpuFeatures::initialized_ = false;
+#endif
+uint64_t CpuFeatures::supported_ = CpuFeatures::kDefaultCpuFeatures;
+uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 
 
-void CpuFeatures::Probe(bool portable)  {
-  ASSERT(HEAP->HasBeenSetup());
+void CpuFeatures::Probe() {
+  ASSERT(!initialized_);
+#ifdef DEBUG
+  initialized_ = true;
+#endif
   supported_ = kDefaultCpuFeatures;
-  if (portable && Serializer::enabled()) {
+  if (Serializer::enabled()) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
     return;  // No features if we might serialize.
   }
 
-  Assembler assm(NULL, 0);
+  const int kBufferSize = 4 * KB;
+  VirtualMemory* memory = new VirtualMemory(kBufferSize);
+  if (!memory->IsReserved()) {
+    delete memory;
+    return;
+  }
+  ASSERT(memory->size() >= static_cast<size_t>(kBufferSize));
+  if (!memory->Commit(memory->address(), kBufferSize, true/*executable*/)) {
+    delete memory;
+    return;
+  }
+
+  Assembler assm(NULL, memory->address(), kBufferSize);
   Label cpuid, done;
 #define __ assm.
   // Save old rsp, since we are going to modify the stack.
@@ -117,31 +133,20 @@ void CpuFeatures::Probe(bool portable)  {
   __ ret(0);
 #undef __
 
-  CodeDesc desc;
-  assm.GetCode(&desc);
-  Isolate* isolate = Isolate::Current();
-  MaybeObject* maybe_code =
-      isolate->heap()->CreateCode(desc,
-                                  Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>());
-  Object* code;
-  if (!maybe_code->ToObject(&code)) return;
-  if (!code->IsCode()) return;
-  PROFILE(isolate,
-          CodeCreateEvent(Logger::BUILTIN_TAG,
-                          Code::cast(code), "CpuFeatures::Probe"));
   typedef uint64_t (*F0)();
-  F0 probe = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  F0 probe = FUNCTION_CAST<F0>(reinterpret_cast<Address>(memory->address()));
   supported_ = probe();
   found_by_runtime_probing_ = supported_;
   found_by_runtime_probing_ &= ~kDefaultCpuFeatures;
   uint64_t os_guarantees = OS::CpuFeaturesImpliedByPlatform();
   supported_ |= os_guarantees;
-  found_by_runtime_probing_ &= portable ? ~os_guarantees : 0;
+  found_by_runtime_probing_ &= ~os_guarantees;
   // SSE2 and CMOV must be available on an X64 CPU.
   ASSERT(IsSupported(CPUID));
   ASSERT(IsSupported(SSE2));
   ASSERT(IsSupported(CMOV));
+
+  delete memory;
 }
 
 
@@ -339,8 +344,8 @@ bool Operand::AddressUsesRegister(Register reg) const {
 static void InitCoverageLog();
 #endif
 
-Assembler::Assembler(void* buffer, int buffer_size)
-    : AssemblerBase(Isolate::Current()),
+Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
+    : AssemblerBase(arg_isolate),
       code_targets_(100),
       positions_recorder_(this),
       emit_debug_code_(FLAG_debug_code) {
@@ -1037,7 +1042,7 @@ void Assembler::cmpb_al(Immediate imm8) {
 
 
 void Assembler::cpuid() {
-  ASSERT(isolate()->cpu_features()->IsEnabled(CPUID));
+  ASSERT(CpuFeatures::IsEnabled(CPUID));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x0F);
@@ -2388,7 +2393,7 @@ void Assembler::fistp_s(const Operand& adr) {
 
 
 void Assembler::fisttp_s(const Operand& adr) {
-  ASSERT(isolate()->cpu_features()->IsEnabled(SSE3));
+  ASSERT(CpuFeatures::IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(adr);
@@ -2398,7 +2403,7 @@ void Assembler::fisttp_s(const Operand& adr) {
 
 
 void Assembler::fisttp_d(const Operand& adr) {
-  ASSERT(isolate()->cpu_features()->IsEnabled(SSE3));
+  ASSERT(CpuFeatures::IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(adr);
@@ -2716,7 +2721,7 @@ void Assembler::movq(Register dst, XMMRegister src) {
 
 
 void Assembler::movdqa(const Operand& dst, XMMRegister src) {
-  ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x66);
@@ -2728,7 +2733,7 @@ void Assembler::movdqa(const Operand& dst, XMMRegister src) {
 
 
 void Assembler::movdqa(XMMRegister dst, const Operand& src) {
-  ASSERT(isolate()->cpu_features()->IsEnabled(SSE2));
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x66);

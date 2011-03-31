@@ -562,7 +562,7 @@ void FullCodeGenerator::TestContext::Plug(bool flag) const {
 void FullCodeGenerator::DoTest(Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     // Emit the inlined tests assumed by the stub.
     __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
@@ -2802,7 +2802,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   // Convert 32 random bits in r0 to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  if (isolate()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     __ PrepareCallCFunction(1, r0);
     __ mov(r0, Operand(ExternalReference::isolate_address()));
     __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);

@@ -1062,7 +1062,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
     uint64_t int_val = BitCast<uint64_t, double>(v);
     int32_t lower = static_cast<int32_t>(int_val);
     int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
-    if (isolate()->cpu_features()->IsSupported(SSE4_1)) {
+    if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatures::Scope scope(SSE4_1);
       if (lower != 0) {
         __ Set(temp, Immediate(lower));
@@ -3427,7 +3427,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     __ jmp(&done);
 
     __ bind(&heap_number);
-    if (isolate()->cpu_features()->IsSupported(SSE3)) {
+    if (CpuFeatures::IsSupported(SSE3)) {
       CpuFeatures::Scope scope(SSE3);
       NearLabel convert;
       // Use more powerful conversion when sse3 is available.
@@ -3537,7 +3537,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     // the JS bitwise operations.
     __ cvttsd2si(result_reg, Operand(input_reg));
     __ cmp(result_reg, 0x80000000u);
-    if (isolate()->cpu_features()->IsSupported(SSE3)) {
+    if (CpuFeatures::IsSupported(SSE3)) {
       // This will deoptimize if the exponent of the input in out of range.
       CpuFeatures::Scope scope(SSE3);
       NearLabel convert, done;

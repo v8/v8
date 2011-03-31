@@ -2726,7 +2726,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   // This is implemented on both SSE2 and FPU.
-  if (isolate()->cpu_features()->IsSupported(SSE2)) {
+  if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatures::Scope fscope(SSE2);
     __ mov(ebx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
     __ movd(xmm1, Operand(ebx));
@@ -2801,7 +2801,7 @@ void FullCodeGenerator::EmitMathPow(ZoneList<Expression*>* args) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  if (isolate()->cpu_features()->IsSupported(SSE2)) {
+  if (CpuFeatures::IsSupported(SSE2)) {
     MathPowStub stub;
     __ CallStub(&stub);
   } else {

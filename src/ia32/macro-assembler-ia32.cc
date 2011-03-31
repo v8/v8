@@ -42,7 +42,7 @@ namespace internal {
 // MacroAssembler implementation.
 
 MacroAssembler::MacroAssembler(void* buffer, int size)
-    : Assembler(buffer, size),
+    : Assembler(Isolate::Current(), buffer, size),
       generating_stub_(false),
       allow_stub_calls_(true),
       code_object_(isolate()->heap()->undefined_value()) {
@@ -231,7 +231,7 @@ void MacroAssembler::IsInstanceJSObjectType(Register map,
 
 
 void MacroAssembler::FCmp() {
-  if (Isolate::Current()->cpu_features()->IsSupported(CMOV)) {
+  if (CpuFeatures::IsSupported(CMOV)) {
     fucomip();
     ffree(0);
     fincstp();

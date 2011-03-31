@@ -40,10 +40,10 @@ namespace v8 {
 namespace internal {
 
 MacroAssembler::MacroAssembler(void* buffer, int size)
-    : Assembler(buffer, size),
+    : Assembler(Isolate::Current(), buffer, size),
       generating_stub_(false),
       allow_stub_calls_(true),
-      code_object_(HEAP->undefined_value()) {
+      code_object_(isolate()->heap()->undefined_value()) {
 }
 
 
@@ -292,7 +292,7 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
 
   } else if (!src2.is_single_instruction() &&
              !src2.must_use_constant_pool() &&
-             Isolate::Current()->cpu_features()->IsSupported(ARMv7) &&
+             CpuFeatures::IsSupported(ARMv7) &&
              IsPowerOf2(src2.immediate() + 1)) {
     ubfx(dst, src1, 0, WhichPowerOf2(src2.immediate() + 1), cond);
 
@@ -305,7 +305,7 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
 void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width,
                           Condition cond) {
   ASSERT(lsb < 32);
-  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+  if (!CpuFeatures::IsSupported(ARMv7)) {
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
     and_(dst, src1, Operand(mask), LeaveCC, cond);
     if (lsb != 0) {
@@ -320,7 +320,7 @@ void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width,
 void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width,
                           Condition cond) {
   ASSERT(lsb < 32);
-  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+  if (!CpuFeatures::IsSupported(ARMv7)) {
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
     and_(dst, src1, Operand(mask), LeaveCC, cond);
     int shift_up = 32 - lsb - width;
@@ -348,7 +348,7 @@ void MacroAssembler::Bfi(Register dst,
   ASSERT(lsb + width < 32);
   ASSERT(!scratch.is(dst));
   if (width == 0) return;
-  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+  if (!CpuFeatures::IsSupported(ARMv7)) {
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
     bic(dst, dst, Operand(mask));
     and_(scratch, src, Operand((1 << width) - 1));
@@ -362,7 +362,7 @@ void MacroAssembler::Bfi(Register dst,
 
 void MacroAssembler::Bfc(Register dst, int lsb, int width, Condition cond) {
   ASSERT(lsb < 32);
-  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+  if (!CpuFeatures::IsSupported(ARMv7)) {
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
     bic(dst, dst, Operand(mask));
   } else {
@@ -373,7 +373,7 @@ void MacroAssembler::Bfc(Register dst, int lsb, int width, Condition cond) {
 
 void MacroAssembler::Usat(Register dst, int satpos, const Operand& src,
                           Condition cond) {
-  if (!Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+  if (!CpuFeatures::IsSupported(ARMv7)) {
     ASSERT(!dst.is(pc) && !src.rm().is(pc));
     ASSERT((satpos >= 0) && (satpos <= 31));
 
@@ -619,7 +619,7 @@ void MacroAssembler::Ldrd(Register dst1, Register dst2,
   ASSERT_EQ(dst1.code() + 1, dst2.code());
 
   // Generate two ldr instructions if ldrd is not available.
-  if (Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+  if (CpuFeatures::IsSupported(ARMv7)) {
     CpuFeatures::Scope scope(ARMv7);
     ldrd(dst1, dst2, src, cond);
   } else {
@@ -644,7 +644,7 @@ void MacroAssembler::Strd(Register src1, Register src2,
   ASSERT_EQ(src1.code() + 1, src2.code());
 
   // Generate two str instructions if strd is not available.
-  if (Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+  if (CpuFeatures::IsSupported(ARMv7)) {
     CpuFeatures::Scope scope(ARMv7);
     strd(src1, src2, dst, cond);
   } else {
@@ -1903,7 +1903,7 @@ void MacroAssembler::ConvertToInt32(Register source,
                                     Register scratch2,
                                     DwVfpRegister double_scratch,
                                     Label *not_int32) {
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     sub(scratch, source, Operand(kHeapObjectTag));
     vldr(double_scratch, scratch, HeapNumber::kValueOffset);
@@ -1999,7 +1999,7 @@ void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
                                      Register scratch1,
                                      Register scratch2,
                                      CheckForInexactConversion check_inexact) {
-  ASSERT(Isolate::Current()->cpu_features()->IsSupported(VFP3));
+  ASSERT(CpuFeatures::IsSupported(VFP3));
   CpuFeatures::Scope scope(VFP3);
   Register prev_fpscr = scratch1;
   Register scratch = scratch2;
@@ -2157,7 +2157,7 @@ void MacroAssembler::EmitECMATruncate(Register result,
 void MacroAssembler::GetLeastBitsFromSmi(Register dst,
                                          Register src,
                                          int num_least_bits) {
-  if (Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+  if (CpuFeatures::IsSupported(ARMv7)) {
     ubfx(dst, src, kSmiTagSize, num_least_bits);
   } else {
     mov(dst, Operand(src, ASR, kSmiTagSize));

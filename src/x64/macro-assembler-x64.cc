@@ -41,7 +41,7 @@ namespace v8 {
 namespace internal {
 
 MacroAssembler::MacroAssembler(void* buffer, int size)
-    : Assembler(buffer, size),
+    : Assembler(Isolate::Current(), buffer, size),
       generating_stub_(false),
       allow_stub_calls_(true),
       root_array_available_(true),

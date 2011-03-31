@@ -242,6 +242,7 @@ class HashMap;
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
+  V(uint64_t, enabled_cpu_features, 0)                                         \
   V(v8::Debug::EventCallback, debug_event_callback, NULL)                      \
   V(DebuggerAgent*, debugger_agent_instance, NULL)
 #else
@@ -708,10 +709,6 @@ class Isolate {
 
   Bootstrapper* bootstrapper() { return bootstrapper_; }
   Counters* counters() { return counters_; }
-  // TODO(isolates): Having CPU features per isolate is probably too
-  // flexible. We only really need to have the set of currently
-  // enabled features for asserts in DEBUG builds.
-  CpuFeatures* cpu_features() { return cpu_features_; }
   CodeRange* code_range() { return code_range_; }
   RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
@@ -1029,7 +1026,6 @@ class Isolate {
   RuntimeProfiler* runtime_profiler_;
   CompilationCache* compilation_cache_;
   Counters* counters_;
-  CpuFeatures* cpu_features_;
   CodeRange* code_range_;
   Mutex* break_access_;
   Heap heap_;

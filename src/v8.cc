@@ -41,6 +41,9 @@
 namespace v8 {
 namespace internal {
 
+static Mutex* init_once_mutex = OS::CreateMutex();
+static bool init_once_called = false;
+
 bool V8::is_running_ = false;
 bool V8::has_been_setup_ = false;
 bool V8::has_been_disposed_ = false;
@@ -49,6 +52,8 @@ bool V8::use_crankshaft_ = true;
 
 
 bool V8::Initialize(Deserializer* des) {
+  InitializeOncePerProcess();
+
   // The current thread may not yet had entered an isolate to run.
   // Note the Isolate::Current() may be non-null because for various
   // initialization purposes an initializing thread may be assigned an isolate
@@ -67,15 +72,6 @@ bool V8::Initialize(Deserializer* des) {
 
   Isolate* isolate = Isolate::Current();
   if (isolate->IsInitialized()) return true;
-
-#if defined(V8_TARGET_ARCH_ARM) && !defined(USE_ARM_EABI)
-  use_crankshaft_ = false;
-#else
-  use_crankshaft_ = FLAG_crankshaft;
-#endif
-
-  // Peephole optimization might interfere with deoptimization.
-  FLAG_peephole_optimization = !use_crankshaft_;
 
   is_running_ = true;
   has_been_setup_ = true;
@@ -186,6 +182,34 @@ Object* V8::FillHeapNumberWithRandom(Object* heap_number, Isolate* isolate) {
   r->double_value -= binary_million;
 
   return heap_number;
+}
+
+
+void V8::InitializeOncePerProcess() {
+  ScopedLock lock(init_once_mutex);
+  if (init_once_called) return;
+  init_once_called = true;
+
+  // Setup the platform OS support.
+  OS::Setup();
+
+#if defined(V8_TARGET_ARCH_ARM) && !defined(USE_ARM_EABI)
+  use_crankshaft_ = false;
+#else
+  use_crankshaft_ = FLAG_crankshaft;
+#endif
+
+  if (Serializer::enabled()) {
+    use_crankshaft_ = false;
+  }
+
+  CPU::Setup();
+  if (!CPU::SupportsCrankshaft()) {
+    use_crankshaft_ = false;
+  }
+
+  // Peephole optimization might interfere with deoptimization.
+  FLAG_peephole_optimization = !use_crankshaft_;
 }
 
 } }  // namespace v8::internal

@@ -2961,7 +2961,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                          times_1,
                          FixedArray::kHeaderSize));
     __ JumpIfSmi(probe, not_found);
-    ASSERT(Isolate::Current()->cpu_features()->IsSupported(SSE2));
+    ASSERT(CpuFeatures::IsSupported(SSE2));
     CpuFeatures::Scope fscope(SSE2);
     __ movsd(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
     __ movsd(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
