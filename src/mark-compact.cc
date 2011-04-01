@@ -464,7 +464,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       // Please note targets for cleared inline cached do not have to be
       // marked since they are contained in HEAP->non_monomorphic_cache().
     } else {
-      HEAP->mark_compact_collector()->MarkObject(code);
+      code->heap()->mark_compact_collector()->MarkObject(code);
     }
   }
 
@@ -472,7 +472,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
     Object* cell = rinfo->target_cell();
     Object* old_cell = cell;
-    VisitPointer(HEAP, &cell);
+    VisitPointer(reinterpret_cast<JSGlobalPropertyCell*>(cell)->heap(), &cell);
     if (cell != old_cell) {
       rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell));
     }
@@ -484,28 +484,31 @@ class StaticMarkingVisitor : public StaticVisitorBase {
            (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
             rinfo->IsPatchedDebugBreakSlotSequence()));
     HeapObject* code = Code::GetCodeFromTargetAddress(rinfo->call_address());
-    HEAP->mark_compact_collector()->MarkObject(code);
+    reinterpret_cast<Code*>(code)->heap()->mark_compact_collector()->
+        MarkObject(code);
   }
 
   // Mark object pointed to by p.
   INLINE(static void MarkObjectByPointer(Heap* heap, Object** p)) {
     if (!(*p)->IsHeapObject()) return;
     HeapObject* object = ShortCircuitConsString(p);
-    heap->mark_compact_collector()->MarkObject(object);
+    if (!object->IsMarked()) {
+      heap->mark_compact_collector()->MarkUnmarkedObject(object);
+    }
   }
 
 
   // Visit an unmarked object.
-  static inline void VisitUnmarkedObject(HeapObject* obj) {
+  INLINE(static void VisitUnmarkedObject(MarkCompactCollector* collector,
+                                         HeapObject* obj)) {
 #ifdef DEBUG
-    ASSERT(HEAP->Contains(obj));
+    ASSERT(Isolate::Current()->heap()->Contains(obj));
     ASSERT(!obj->IsMarked());
 #endif
     Map* map = obj->map();
-    MarkCompactCollector* collector = map->heap()->mark_compact_collector();
     collector->SetMark(obj);
     // Mark the map pointer and the body.
-    collector->MarkObject(map);
+    if (!map->IsMarked()) collector->MarkUnmarkedObject(map);
     IterateBody(map, obj);
   }
 
@@ -518,12 +521,13 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     StackLimitCheck check(heap->isolate());
     if (check.HasOverflowed()) return false;
 
+    MarkCompactCollector* collector = heap->mark_compact_collector();
     // Visit the unmarked objects.
     for (Object** p = start; p < end; p++) {
       if (!(*p)->IsHeapObject()) continue;
       HeapObject* obj = HeapObject::cast(*p);
       if (obj->IsMarked()) continue;
-      VisitUnmarkedObject(obj);
+      VisitUnmarkedObject(collector, obj);
     }
     return true;
   }
