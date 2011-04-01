@@ -600,6 +600,7 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
 
 void Deoptimizer::EntryGenerator::Generate() {
   GeneratePrologue();
+  CpuFeatures::Scope scope(SSE2);
 
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;

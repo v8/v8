@@ -2744,6 +2744,7 @@ void LCodeGen::DoPower(LPower* instr) {
         ExternalReference::power_double_int_function(isolate()), 2);
   } else {
     ASSERT(exponent_type.IsTagged());
+    CpuFeatures::Scope scope(SSE2);
     Register right_reg = ToRegister(right);
 
     Label non_smi, call;
