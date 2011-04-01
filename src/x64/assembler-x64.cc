@@ -354,7 +354,7 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
     if (buffer_size <= kMinimalBufferSize) {
       buffer_size = kMinimalBufferSize;
 
-      if (isolate()->assembler_spare_buffer() != NULL) {
+      if (isolate() != NULL && isolate()->assembler_spare_buffer() != NULL) {
         buffer = isolate()->assembler_spare_buffer();
         isolate()->set_assembler_spare_buffer(NULL);
       }
@@ -397,7 +397,8 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
 
 Assembler::~Assembler() {
   if (own_buffer_) {
-    if (isolate()->assembler_spare_buffer() == NULL &&
+    if (isolate() != NULL && 
+        isolate()->assembler_spare_buffer() == NULL &&
         buffer_size_ == kMinimalBufferSize) {
       isolate()->set_assembler_spare_buffer(buffer_);
     } else {
@@ -518,7 +519,8 @@ void Assembler::GrowBuffer() {
           reloc_info_writer.pos(), desc.reloc_size);
 
   // Switch buffers.
-  if (isolate()->assembler_spare_buffer() == NULL &&
+  if (isolate() != NULL &&
+      isolate()->assembler_spare_buffer() == NULL &&
       buffer_size_ == kMinimalBufferSize) {
     isolate()->set_assembler_spare_buffer(buffer_);
   } else {
