@@ -316,6 +316,8 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   /* AstNode state. */                                                         \
   V(unsigned, ast_node_id, 0)                                                  \
   V(unsigned, ast_node_count, 0)                                               \
+  /* SafeStackFrameIterator activations count. */                              \
+  V(int, safe_stack_iterator_counter, 0)                                       \
   ISOLATE_PLATFORM_INIT_LIST(V)                                                \
   ISOLATE_LOGGING_INIT_LIST(V)                                                 \
   ISOLATE_DEBUGGER_INIT_LIST(V)

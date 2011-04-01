@@ -39,9 +39,6 @@
 namespace v8 {
 namespace internal {
 
-
-int SafeStackFrameIterator::active_count_ = 0;
-
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
 class StackHandlerIterator BASE_EMBEDDED {
@@ -221,16 +218,34 @@ bool SafeStackFrameIterator::ExitFrameValidator::IsValidFP(Address fp) {
 }
 
 
+SafeStackFrameIterator::ActiveCountMaintainer::ActiveCountMaintainer(
+    Isolate* isolate)
+    : isolate_(isolate) {
+  isolate_->set_safe_stack_iterator_counter(
+      isolate_->safe_stack_iterator_counter() + 1);
+}
+
+
+SafeStackFrameIterator::ActiveCountMaintainer::~ActiveCountMaintainer() {
+  isolate_->set_safe_stack_iterator_counter(
+      isolate_->safe_stack_iterator_counter() - 1);
+}
+
+
 SafeStackFrameIterator::SafeStackFrameIterator(
     Isolate* isolate,
     Address fp, Address sp, Address low_bound, Address high_bound) :
-    maintainer_(),
+    maintainer_(isolate),
     stack_validator_(low_bound, high_bound),
     is_valid_top_(IsValidTop(isolate, low_bound, high_bound)),
     is_valid_fp_(IsWithinBounds(low_bound, high_bound, fp)),
     is_working_iterator_(is_valid_top_ || is_valid_fp_),
     iteration_done_(!is_working_iterator_),
     iterator_(isolate, is_valid_top_, is_valid_fp_ ? fp : NULL, sp) {
+}
+
+bool SafeStackFrameIterator::is_active(Isolate* isolate) {
+  return isolate->safe_stack_iterator_counter() > 0;
 }
 
 
@@ -388,13 +403,14 @@ StackFrame::Type StackFrame::ComputeType(State* state) {
   const int offset = StandardFrameConstants::kMarkerOffset;
   Object* marker = Memory::Object_at(state->fp + offset);
   if (!marker->IsSmi()) {
+    Isolate* isolate = Isolate::Current();
     // If we're using a "safe" stack iterator, we treat optimized
     // frames as normal JavaScript frames to avoid having to look
     // into the heap to determine the state. This is safe as long
     // as nobody tries to GC...
-    if (SafeStackFrameIterator::is_active()) return JAVA_SCRIPT;
-    Code::Kind kind = GetContainingCode(Isolate::Current(),
-                                        *(state->pc_address))->kind();
+    if (SafeStackFrameIterator::is_active(isolate))
+      return JAVA_SCRIPT;
+    Code::Kind kind = GetContainingCode(isolate, *(state->pc_address))->kind();
     ASSERT(kind == Code::FUNCTION || kind == Code::OPTIMIZED_FUNCTION);
     return (kind == Code::OPTIMIZED_FUNCTION) ? OPTIMIZED : JAVA_SCRIPT;
   }
@@ -539,7 +555,7 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
 
   // Make sure that we're not doing "safe" stack frame iteration. We cannot
   // possibly find pointers in optimized frames in that state.
-  ASSERT(!SafeStackFrameIterator::is_active());
+  ASSERT(!SafeStackFrameIterator::is_active(Isolate::Current()));
 
   // Compute the safepoint information.
   unsigned stack_slots = 0;
@@ -640,8 +656,9 @@ Code* JavaScriptFrame::unchecked_code() const {
 
 Address JavaScriptFrame::GetCallerStackPointer() const {
   int arguments;
-  if (SafeStackFrameIterator::is_active() ||
-      HEAP->gc_state() != Heap::NOT_IN_GC) {
+  Isolate* isolate = Isolate::Current();
+  if (SafeStackFrameIterator::is_active(isolate) ||
+      isolate->heap()->gc_state() != Heap::NOT_IN_GC) {
     // If the we are currently iterating the safe stack the
     // arguments for frames are traversed as if they were
     // expression stack elements of the calling frame. The reason for
