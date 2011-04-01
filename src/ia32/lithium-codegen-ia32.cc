@@ -2304,11 +2304,11 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
         break;
       case kExternalUnsignedIntArray:
         __ mov(result, Operand(external_pointer, key, times_4, 0));
-        __ test(Operand(result), Immediate(0x80000000));
+        __ test(result, Operand(result));
         // TODO(danno): we could be more clever here, perhaps having a special
         // version of the stub that detects if the overflow case actually
         // happens, and generate code that returns a double rather than int.
-        DeoptimizeIf(not_zero, instr->environment());
+        DeoptimizeIf(negative, instr->environment());
         break;
       case kExternalFloatArray:
         UNREACHABLE();

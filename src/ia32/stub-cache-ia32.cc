@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -3629,6 +3629,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
                 __ bind(&done);
               }
               __ mov_b(Operand(edi, ebx, times_1, 0), ecx);
+              break;
             case kExternalByteArray:
             case kExternalUnsignedByteArray:
               __ mov_b(Operand(edi, ebx, times_1, 0), ecx);
