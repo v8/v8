@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -196,7 +196,7 @@ void V8::InitializeOncePerProcess() {
 #if defined(V8_TARGET_ARCH_ARM) && !defined(USE_ARM_EABI)
   use_crankshaft_ = false;
 #else
-  use_crankshaft_ = FLAG_crankshaft;
+  use_crankshaft_ = true;
 #endif
 
   if (Serializer::enabled()) {
