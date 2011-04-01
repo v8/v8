@@ -2435,11 +2435,71 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  // Just indicate false, as %_IsStringWrapperSafeForDefaultValueOf() is only
-  // used in a few functions in runtime.js which should not normally be hit by
-  // this compiler.
+  if (FLAG_debug_code) __ AbortIfSmi(rax);
+
+  // Check whether this map has already been checked to be safe for default
+  // valueOf.
+  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ testb(FieldOperand(rbx, Map::kBitField2Offset),
+           Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
+  __ j(not_zero, if_true);
+
+  // Check for fast case object. Generate false result for slow case object.
+  __ movq(rcx, FieldOperand(rax, JSObject::kPropertiesOffset));
+  __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ CompareRoot(rcx, Heap::kHashTableMapRootIndex);
+  __ j(equal, if_false);
+
+  // Look for valueOf symbol in the descriptor array, and indicate false if
+  // found. The type is not checked, so if it is a transition it is a false
+  // negative.
+  __ movq(rbx, FieldOperand(rbx, Map::kInstanceDescriptorsOffset));
+  __ movq(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
+  // rbx: descriptor array
+  // rcx: length of descriptor array
+  // Calculate the end of the descriptor array.
+  SmiIndex index = masm_->SmiToIndex(rdx, rcx, kPointerSizeLog2);
+  __ lea(rcx,
+         Operand(
+             rbx, index.reg, index.scale, FixedArray::kHeaderSize));
+  // Calculate location of the first key name.
+  __ addq(rbx,
+          Immediate(FixedArray::kHeaderSize +
+                    DescriptorArray::kFirstIndex * kPointerSize));
+  // Loop through all the keys in the descriptor array. If one of these is the
+  // symbol valueOf the result is false.
+  Label entry, loop;
+  __ jmp(&entry);
+  __ bind(&loop);
+  __ movq(rdx, FieldOperand(rbx, 0));
+  __ Cmp(rdx, FACTORY->value_of_symbol());
+  __ j(equal, if_false);
+  __ addq(rbx, Immediate(kPointerSize));
+  __ bind(&entry);
+  __ cmpq(rbx, rcx);
+  __ j(not_equal, &loop);
+
+  // Reload map as register rbx was used as temporary above.
+  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+
+  // If a valueOf property is not found on the object check that it's
+  // prototype is the un-modified String prototype. If not result is false.
+  __ movq(rcx, FieldOperand(rbx, Map::kPrototypeOffset));
+  __ testq(rcx, Immediate(kSmiTagMask));
+  __ j(zero, if_false);
+  __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ movq(rdx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalContextOffset));
+  __ cmpq(rcx,
+          ContextOperand(rdx, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
+  __ j(not_equal, if_false);
+  // Set the bit in the map to indicate that it has been checked safe for
+  // default valueOf and set true result.
+  __ or_(FieldOperand(rbx, Map::kBitField2Offset),
+         Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
+  __ jmp(if_true);
+
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-  __ jmp(if_false);
   context()->Plug(if_true, if_false);
 }
 

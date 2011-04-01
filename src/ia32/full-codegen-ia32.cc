@@ -2458,10 +2458,73 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  // TODO(3110205): Implement this.
-  // Currently unimplemented.  Emit false, a safe choice.
+  if (FLAG_debug_code) __ AbortIfSmi(eax);
+
+  // Check whether this map has already been checked to be safe for default
+  // valueOf.
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ test_b(FieldOperand(ebx, Map::kBitField2Offset),
+            1 << Map::kStringWrapperSafeForDefaultValueOf);
+  __ j(not_zero, if_true);
+
+  // Check for fast case object. Return false for slow case objects.
+  __ mov(ecx, FieldOperand(eax, JSObject::kPropertiesOffset));
+  __ mov(ecx, FieldOperand(ecx, HeapObject::kMapOffset));
+  __ cmp(ecx, FACTORY->hash_table_map());
+  __ j(equal, if_false);
+
+  // Look for valueOf symbol in the descriptor array, and indicate false if
+  // found. The type is not checked, so if it is a transition it is a false
+  // negative.
+  __ mov(ebx, FieldOperand(ebx, Map::kInstanceDescriptorsOffset));
+  __ mov(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
+  // ebx: descriptor array
+  // ecx: length of descriptor array
+  // Calculate the end of the descriptor array.
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kPointerSize == 4);
+  __ lea(ecx, Operand(ebx, ecx, times_2, FixedArray::kHeaderSize));
+  // Calculate location of the first key name.
+  __ add(Operand(ebx),
+           Immediate(FixedArray::kHeaderSize +
+                     DescriptorArray::kFirstIndex * kPointerSize));
+  // Loop through all the keys in the descriptor array. If one of these is the
+  // symbol valueOf the result is false.
+  Label entry, loop;
+  __ jmp(&entry);
+  __ bind(&loop);
+  __ mov(edx, FieldOperand(ebx, 0));
+  __ cmp(edx, FACTORY->value_of_symbol());
+  __ j(equal, if_false);
+  __ add(Operand(ebx), Immediate(kPointerSize));
+  __ bind(&entry);
+  __ cmp(ebx, Operand(ecx));
+  __ j(not_equal, &loop);
+
+  // Reload map as register ebx was used as temporary above.
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+
+  // If a valueOf property is not found on the object check that it's
+  // prototype is the un-modified String prototype. If not result is false.
+  __ mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
+  __ test(ecx, Immediate(kSmiTagMask));
+  __ j(zero, if_false);
+  __ mov(ecx, FieldOperand(ecx, HeapObject::kMapOffset));
+  __ mov(edx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(edx,
+         FieldOperand(edx, GlobalObject::kGlobalContextOffset));
+  __ cmp(ecx,
+         ContextOperand(edx,
+                        Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
+  __ j(not_equal, if_false);
+  // Set the bit in the map to indicate that it has been checked safe for
+  // default valueOf and set true result.
+  __ or_(FieldOperand(ebx, Map::kBitField2Offset),
+         Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
+  __ jmp(if_true);
+
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-  __ jmp(if_false);
   context()->Plug(if_true, if_false);
 }
 
