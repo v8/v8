@@ -398,7 +398,7 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
 
 Assembler::~Assembler() {
   if (own_buffer_) {
-    if (isolate() != NULL && 
+    if (isolate() != NULL &&
         isolate()->assembler_spare_buffer() == NULL &&
         buffer_size_ == kMinimalBufferSize) {
       isolate()->set_assembler_spare_buffer(buffer_);
