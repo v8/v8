@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 
 #include <stdlib.h>
 
@@ -1070,7 +1070,7 @@ TEST(TestInternalWeakLists) {
   for (int i = 0; i < kNumTestContexts; i++) {
     ctx[i] = v8::Context::New();
 
-    bool opt = (FLAG_always_opt && !i::FLAG_always_full_compiler);
+    bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
 
     CHECK_EQ(i + 1, CountGlobalContexts());
 
@@ -1204,7 +1204,7 @@ TEST(TestInternalWeakListsTraverseWithGC) {
     CHECK_EQ(i + 1, CountGlobalContextsWithGC(i / 2 + 1));
   }
 
-  bool opt = (FLAG_always_opt && !i::FLAG_always_full_compiler);
+  bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
 
   // Compile a number of functions the length of the weak list of optimized
   // functions both with and without GCs while iterating the list.

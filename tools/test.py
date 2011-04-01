@@ -584,9 +584,7 @@ class TestSuite(object):
 
 # Use this to run several variants of the tests, e.g.:
 # VARIANT_FLAGS = [[], ['--always_compact', '--noflush_code']]
-VARIANT_FLAGS = [[],
-                 ['--stress-opt', '--always-opt'],
-                 ['--always-full-compiler']]
+VARIANT_FLAGS = [[], ['--stress-opt', '--always-opt'], ['--nocrankshaft']]
 
 
 class TestRepository(TestSuite):

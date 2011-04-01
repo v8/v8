@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2007-2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -371,7 +371,7 @@ TEST(DeoptimizeBinaryOperationADDString) {
     i::FLAG_always_opt = true;
     CompileRun(f_source);
     CompileRun("f('a+', new X());");
-    CHECK(i::FLAG_always_full_compiler ||
+    CHECK(!i::V8::UseCrankshaft() ||
           GetJSFunction(env->Global(), "f")->IsOptimized());
 
     // Call f and force deoptimization while processing the binary operation.
@@ -423,7 +423,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
   i::FLAG_always_opt = true;
   CompileRun(f_source);
   CompileRun("f(7, new X());");
-  CHECK(i::FLAG_always_full_compiler ||
+  CHECK(!i::V8::UseCrankshaft() ||
         GetJSFunction((*env)->Global(), "f")->IsOptimized());
 
   // Call f and force deoptimization while processing the binary operation.
@@ -534,7 +534,7 @@ TEST(DeoptimizeCompare) {
     i::FLAG_always_opt = true;
     CompileRun(f_source);
     CompileRun("f('a', new X());");
-    CHECK(i::FLAG_always_full_compiler ||
+    CHECK(!i::V8::UseCrankshaft() ||
           GetJSFunction(env->Global(), "f")->IsOptimized());
 
     // Call f and force deoptimization while processing the comparison.
@@ -606,7 +606,7 @@ TEST(DeoptimizeLoadICStoreIC) {
     CompileRun("g1(new X());");
     CompileRun("f2(new X(), 'z');");
     CompileRun("g2(new X(), 'z');");
-    if (!i::FLAG_always_full_compiler) {
+    if (i::V8::UseCrankshaft()) {
       CHECK(GetJSFunction(env->Global(), "f1")->IsOptimized());
       CHECK(GetJSFunction(env->Global(), "g1")->IsOptimized());
       CHECK(GetJSFunction(env->Global(), "f2")->IsOptimized());
@@ -692,7 +692,7 @@ TEST(DeoptimizeLoadICStoreICNested) {
     CompileRun("g1(new X());");
     CompileRun("f2(new X(), 'z');");
     CompileRun("g2(new X(), 'z');");
-    if (!i::FLAG_always_full_compiler) {
+    if (i::V8::UseCrankshaft()) {
       CHECK(GetJSFunction(env->Global(), "f1")->IsOptimized());
       CHECK(GetJSFunction(env->Global(), "g1")->IsOptimized());
       CHECK(GetJSFunction(env->Global(), "f2")->IsOptimized());

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -4259,6 +4259,9 @@ class SharedFunctionInfo: public HeapObject {
   // this.x = y; where y is either a constant or refers to an argument.
   inline bool has_only_simple_this_property_assignments();
 
+  inline bool try_full_codegen();
+  inline void set_try_full_codegen(bool flag);
+
   // Indicates if this function can be lazy compiled.
   // This is used to determine if we can safely flush code from a function
   // when doing GC if we expect that the function will no longer be used.
@@ -4458,12 +4461,13 @@ class SharedFunctionInfo: public HeapObject {
 
   // Bit positions in compiler_hints.
   static const int kHasOnlySimpleThisPropertyAssignments = 0;
-  static const int kAllowLazyCompilation = 1;
-  static const int kLiveObjectsMayExist = 2;
-  static const int kCodeAgeShift = 3;
+  static const int kTryFullCodegen = 1;
+  static const int kAllowLazyCompilation = 2;
+  static const int kLiveObjectsMayExist = 3;
+  static const int kCodeAgeShift = 4;
   static const int kCodeAgeMask = 0x7;
-  static const int kOptimizationDisabled = 6;
-  static const int kStrictModeFunction = 7;
+  static const int kOptimizationDisabled = 7;
+  static const int kStrictModeFunction = 8;
 
  private:
 #if V8_HOST_ARCH_32_BIT

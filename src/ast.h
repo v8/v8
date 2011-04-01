@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1748,6 +1748,7 @@ class FunctionLiteral: public Expression {
         contains_loops_(contains_loops),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(HEAP->empty_string()),
+        try_full_codegen_(false),
         pretenure_(false) { }
 
   DECLARE_NODE_TYPE(FunctionLiteral)
@@ -1785,6 +1786,9 @@ class FunctionLiteral: public Expression {
     inferred_name_ = inferred_name;
   }
 
+  bool try_full_codegen() { return try_full_codegen_; }
+  void set_try_full_codegen(bool flag) { try_full_codegen_ = flag; }
+
   bool pretenure() { return pretenure_; }
   void set_pretenure(bool value) { pretenure_ = value; }
 
@@ -1804,6 +1808,7 @@ class FunctionLiteral: public Expression {
   bool strict_mode_;
   int function_token_position_;
   Handle<String> inferred_name_;
+  bool try_full_codegen_;
   bool pretenure_;
 };
 

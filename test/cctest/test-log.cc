@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 //
 // Tests of logging functions from log.h
 
@@ -294,7 +294,7 @@ static void CheckThatProfilerWorks(LogBufferMatcher* matcher) {
 TEST(ProfLazyMode) {
   ScopedLoggerInitializer initialize_logger(true);
 
-  if (i::FLAG_always_full_compiler) return;
+  if (!i::V8::UseCrankshaft()) return;
 
   // No sampling should happen prior to resuming profiler unless we
   // are runtime profiling.
