@@ -2267,15 +2267,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       }
     }
   } else {
-    // Call to some other expression.  If the expression is an anonymous
-    // function literal not called in a loop, mark it as one that should
-    // also use the full code generator.
-    FunctionLiteral* lit = fun->AsFunctionLiteral();
-    if (lit != NULL &&
-        lit->name()->Equals(isolate()->heap()->empty_string()) &&
-        loop_depth() == 0) {
-      lit->set_try_full_codegen(true);
-    }
     { PreservePositionScope scope(masm()->positions_recorder());
       VisitForStackValue(fun);
     }

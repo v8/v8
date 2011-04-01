@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -3054,10 +3054,6 @@ BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
 BOOL_GETTER(SharedFunctionInfo, compiler_hints,
             has_only_simple_this_property_assignments,
             kHasOnlySimpleThisPropertyAssignments)
-BOOL_ACCESSORS(SharedFunctionInfo,
-               compiler_hints,
-               try_full_codegen,
-               kTryFullCodegen)
 BOOL_ACCESSORS(SharedFunctionInfo,
                compiler_hints,
                allows_lazy_compilation,
