@@ -739,7 +739,7 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   void Advance();
   void Reset();
 
-  static bool is_active(Isolate* isolate);
+  static bool is_active() { return active_count_ > 0; }
 
   static bool IsWithinBounds(
       Address low_bound, Address high_bound, Address addr) {
@@ -786,13 +786,13 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   // heap objects.
   class ActiveCountMaintainer BASE_EMBEDDED {
    public:
-    explicit ActiveCountMaintainer(Isolate* isolate);
-    ~ActiveCountMaintainer();
-   private:
-    Isolate* isolate_;
+    ActiveCountMaintainer() { active_count_++; }
+    ~ActiveCountMaintainer() { active_count_--; }
   };
 
   ActiveCountMaintainer maintainer_;
+  // TODO(isolates): this is dangerous.
+  static int active_count_;
   StackAddressValidator stack_validator_;
   const bool is_valid_top_;
   const bool is_valid_fp_;
