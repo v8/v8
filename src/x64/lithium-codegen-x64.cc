@@ -2019,7 +2019,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
+void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
   if (result.is(rax)) {
     __ load_rax(instr->hydrogen()->cell().location(),
@@ -2032,6 +2032,18 @@ void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
     __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(equal, instr->environment());
   }
+}
+
+
+void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
+  ASSERT(ToRegister(instr->global_object()).is(rax));
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  __ Move(rcx, instr->name());
+  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET :
+                                               RelocInfo::CODE_TARGET_CONTEXT;
+  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+  CallCode(ic, mode, instr);
 }
 
 

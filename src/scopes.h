@@ -149,7 +149,9 @@ class Scope: public ZoneObject {
   void AddParameter(Variable* var);
 
   // Create a new unresolved variable.
-  virtual VariableProxy* NewUnresolved(Handle<String> name, bool inside_with);
+  virtual VariableProxy* NewUnresolved(Handle<String> name,
+                                       bool inside_with,
+                                       int position = RelocInfo::kNoPosition);
 
   // Remove a unresolved variable. During parsing, an unresolved variable
   // may have been added optimistically, but then only the variable name
@@ -479,7 +481,9 @@ class DummyScope : public Scope {
 
   virtual Variable* Lookup(Handle<String> name)  { return NULL; }
 
-  virtual VariableProxy* NewUnresolved(Handle<String> name, bool inside_with) {
+  virtual VariableProxy* NewUnresolved(Handle<String> name,
+                                       bool inside_with,
+                                       int position = RelocInfo::kNoPosition) {
     return NULL;
   }
 

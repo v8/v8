@@ -1342,9 +1342,14 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
 }
 
 
-void HLoadGlobal::PrintDataTo(StringStream* stream) {
+void HLoadGlobalCell::PrintDataTo(StringStream* stream) {
   stream->Add("[%p]", *cell());
   if (check_hole_value()) stream->Add(" (deleteable/read-only)");
+}
+
+
+void HLoadGlobalGeneric::PrintDataTo(StringStream* stream) {
+  stream->Add("%o ", *name());
 }
 
 

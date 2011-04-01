@@ -1135,6 +1135,7 @@ class VariableProxy: public Expression {
   Variable* var() const { return var_; }
   bool is_this() const { return is_this_; }
   bool inside_with() const { return inside_with_; }
+  int position() const { return position_; }
 
   void MarkAsTrivial() { is_trivial_ = true; }
 
@@ -1147,8 +1148,12 @@ class VariableProxy: public Expression {
   bool is_this_;
   bool inside_with_;
   bool is_trivial_;
+  int position_;
 
-  VariableProxy(Handle<String> name, bool is_this, bool inside_with);
+  VariableProxy(Handle<String> name,
+                bool is_this,
+                bool inside_with,
+                int position = RelocInfo::kNoPosition);
   explicit VariableProxy(bool is_this);
 
   friend class Scope;
@@ -1316,7 +1321,7 @@ class Call: public Expression {
   Handle<JSGlobalPropertyCell> cell() { return cell_; }
 
   bool ComputeTarget(Handle<Map> type, Handle<String> name);
-  bool ComputeGlobalTarget(Handle<GlobalObject> global, Handle<String> name);
+  bool ComputeGlobalTarget(Handle<GlobalObject> global, LookupResult* lookup);
 
   // Bailout support.
   int ReturnId() const { return return_id_; }

@@ -2883,7 +2883,9 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::FUTURE_RESERVED_WORD: {
       Handle<String> name = ParseIdentifier(CHECK_OK);
       if (fni_ != NULL) fni_->PushVariableName(name);
-      result = top_scope_->NewUnresolved(name, inside_with());
+      result = top_scope_->NewUnresolved(name,
+                                         inside_with(),
+                                         scanner().location().beg_pos);
       break;
     }
 
