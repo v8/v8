@@ -544,6 +544,8 @@ class FunctionState BASE_EMBEDDED {
     test_context_ = NULL;
   }
 
+  FunctionState* outer() { return outer_; }
+
  private:
   HGraphBuilder* owner_;
 

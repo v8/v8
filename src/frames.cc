@@ -617,7 +617,7 @@ Object* JavaScriptFrame::GetParameter(int index) const {
 
 int JavaScriptFrame::ComputeParametersCount() const {
   Address base  = caller_sp() + JavaScriptFrameConstants::kReceiverOffset;
-  Address limit = fp() + JavaScriptFrameConstants::kSavedRegistersOffset;
+  Address limit = fp() + JavaScriptFrameConstants::kLastParameterOffset;
   return static_cast<int>((base - limit) / kPointerSize);
 }
 
@@ -1084,7 +1084,7 @@ void JavaScriptFrame::Iterate(ObjectVisitor* v) const {
 
 void JavaScriptFrame::IterateArguments(ObjectVisitor* v) const {
   // Traverse callee-saved registers, receiver, and parameters.
-  const int kBaseOffset = JavaScriptFrameConstants::kSavedRegistersOffset;
+  const int kBaseOffset = JavaScriptFrameConstants::kLastParameterOffset;
   const int kLimitOffset = JavaScriptFrameConstants::kReceiverOffset;
   Object** base = &Memory::Object_at(fp() + kBaseOffset);
   Object** limit = &Memory::Object_at(caller_sp() + kLimitOffset) + 1;

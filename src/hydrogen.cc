@@ -3852,12 +3852,18 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
 
 void HGraphBuilder::TraceInline(Handle<JSFunction> target, const char* reason) {
   if (FLAG_trace_inlining) {
-    SmartPointer<char> callee = target->shared()->DebugName()->ToCString();
-    SmartPointer<char> caller =
-        info()->function()->debug_name()->ToCString();
     if (reason == NULL) {
+      // We are currently in the context of inlined function thus we have
+      // to go to an outer FunctionState to get caller.
+      SmartPointer<char> callee = target->shared()->DebugName()->ToCString();
+      SmartPointer<char> caller =
+          function_state()->outer()->compilation_info()->function()->
+              debug_name()->ToCString();
       PrintF("Inlined %s called from %s.\n", *callee, *caller);
     } else {
+      SmartPointer<char> callee = target->shared()->DebugName()->ToCString();
+      SmartPointer<char> caller =
+          info()->function()->debug_name()->ToCString();
       PrintF("Did not inline %s called from %s (%s).\n",
              *callee, *caller, reason);
     }
@@ -5117,7 +5123,14 @@ void HGraphBuilder::GenerateIsStringWrapperSafeForDefaultValueOf(
 // Support for construct call checks.
 void HGraphBuilder::GenerateIsConstructCall(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 0);
-  ast_context()->ReturnInstruction(new HIsConstructCall, call->id());
+  if (function_state()->outer() != NULL) {
+    // We are generating graph for inlined function. Currently
+    // constructor inlining is not supported and we can just return
+    // false from %_IsConstructCall().
+    ast_context()->ReturnValue(graph()->GetConstantFalse());
+  } else {
+    ast_context()->ReturnInstruction(new HIsConstructCall, call->id());
+  }
 }
 
 

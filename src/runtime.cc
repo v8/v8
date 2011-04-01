@@ -7066,6 +7066,46 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewClosure) {
   return *result;
 }
 
+
+static SmartPointer<Object**> GetNonBoundArguments(int bound_argc,
+                                                   int* total_argc) {
+  // Find frame containing arguments passed to the caller.
+  JavaScriptFrameIterator it;
+  JavaScriptFrame* frame = it.frame();
+  List<JSFunction*> functions(2);
+  frame->GetFunctions(&functions);
+  if (functions.length() > 1) {
+    int inlined_frame_index = functions.length() - 1;
+    JSFunction* inlined_function = functions[inlined_frame_index];
+    int args_count = inlined_function->shared()->formal_parameter_count();
+    ScopedVector<SlotRef> args_slots(args_count);
+    SlotRef::ComputeSlotMappingForArguments(frame,
+                                            inlined_frame_index,
+                                            &args_slots);
+
+    *total_argc = bound_argc + args_count;
+    SmartPointer<Object**> param_data(NewArray<Object**>(*total_argc));
+    for (int i = 0; i < args_count; i++) {
+      Handle<Object> val = args_slots[i].GetValue();
+      param_data[bound_argc + i] = val.location();
+    }
+    return param_data;
+  } else {
+    it.AdvanceToArgumentsFrame();
+    frame = it.frame();
+    int args_count = frame->ComputeParametersCount();
+
+    *total_argc = bound_argc + args_count;
+    SmartPointer<Object**> param_data(NewArray<Object**>(*total_argc));
+    for (int i = 0; i < args_count; i++) {
+      Handle<Object> val = Handle<Object>(frame->GetParameter(i));
+      param_data[bound_argc + i] = val.location();
+    }
+    return param_data;
+  }
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
@@ -7073,33 +7113,21 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObjectFromBound) {
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
 
   // Second argument is either null or an array of bound arguments.
-  FixedArray* bound_args = NULL;
+  Handle<FixedArray> bound_args;
   int bound_argc = 0;
   if (!args[1]->IsNull()) {
     CONVERT_ARG_CHECKED(JSArray, params, 1);
     RUNTIME_ASSERT(params->HasFastElements());
-    bound_args = FixedArray::cast(params->elements());
+    bound_args = Handle<FixedArray>(FixedArray::cast(params->elements()));
     bound_argc = Smi::cast(params->length())->value();
   }
 
-  // Find frame containing arguments passed to the caller.
-  JavaScriptFrameIterator it;
-  JavaScriptFrame* frame = it.frame();
-  ASSERT(!frame->is_optimized());
-  it.AdvanceToArgumentsFrame();
-  frame = it.frame();
-  int argc = frame->ComputeParametersCount();
-
-  // Prepend bound arguments to caller's arguments.
-  int total_argc = bound_argc + argc;
-  SmartPointer<Object**> param_data(NewArray<Object**>(total_argc));
+  int total_argc = 0;
+  SmartPointer<Object**> param_data =
+      GetNonBoundArguments(bound_argc, &total_argc);
   for (int i = 0; i < bound_argc; i++) {
     Handle<Object> val = Handle<Object>(bound_args->get(i));
     param_data[i] = val.location();
-  }
-  for (int i = 0; i < argc; i++) {
-    Handle<Object> val = Handle<Object>(frame->GetParameter(i));
-    param_data[bound_argc + i] = val.location();
   }
 
   bool exception = false;
