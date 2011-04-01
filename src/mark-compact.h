@@ -98,8 +98,6 @@ class MarkingStack {
 
 // -------------------------------------------------------------------------
 // Mark-Compact collector
-//
-// All methods are static.
 
 class OverflowedObjectsScanner;
 
