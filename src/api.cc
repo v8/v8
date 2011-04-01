@@ -2879,6 +2879,33 @@ Local<v8::Object> v8::Object::Clone() {
 }
 
 
+static i::Context* GetCreationContext(i::JSObject* object) {
+  i::Object* constructor = object->map()->constructor();
+  i::JSFunction* function;
+  if (!constructor->IsJSFunction()) {
+    // API functions have null as a constructor,
+    // but any JSFunction knows its context immediately.
+    ASSERT(object->IsJSFunction() &&
+           i::JSFunction::cast(object)->shared()->IsApiFunction());
+    function = i::JSFunction::cast(object);
+  } else {
+    function = i::JSFunction::cast(constructor);
+  }
+  return function->context()->global_context();
+}
+
+
+Local<v8::Context> v8::Object::CreationContext() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate,
+             "v8::Object::CreationContext()", return Local<v8::Context>());
+  ENTER_V8(isolate);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Context* context = GetCreationContext(*self);
+  return Utils::ToLocal(i::Handle<i::Context>(context));
+}
+
+
 int v8::Object::GetIdentityHash() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::GetIdentityHash()", return 0);
