@@ -606,7 +606,7 @@ Handle<Code> HGraph::Compile(CompilationInfo* info) {
 
   if (!FLAG_use_lithium) return Handle<Code>::null();
 
-  MacroAssembler assembler(NULL, 0);
+  MacroAssembler assembler(info->isolate(), NULL, 0);
   LCodeGen generator(chunk, &assembler, info);
 
   if (FLAG_eliminate_empty_blocks) {

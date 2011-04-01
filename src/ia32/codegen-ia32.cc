@@ -10176,14 +10176,13 @@ static void MemCopyWrapper(void* dest, const void* src, size_t size) {
 
 
 OS::MemCopyFunction CreateMemCopyFunction() {
-  HandleScope scope;
   size_t actual_size;
   // Allocate buffer in executable space.
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
                                                  &actual_size,
                                                  true));
   if (buffer == NULL) return &MemCopyWrapper;
-  MacroAssembler masm(buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
 
   // Generated code is put into a fixed, unmovable, buffer, and not into
   // the V8 heap. We can't, and don't, refer to any relocatable addresses

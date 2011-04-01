@@ -215,13 +215,14 @@ OS::MemCopyFunction CreateMemCopyFunction();
 void OS::MemCopy(void* dest, const void* src, size_t size) {
   if (memcopy_function == NULL) {
     ScopedLock lock(memcopy_function_mutex);
-    Isolate::EnsureDefaultIsolate();
     if (memcopy_function == NULL) {
       OS::MemCopyFunction temp = CreateMemCopyFunction();
       MemoryBarrier();
       memcopy_function = temp;
     }
   }
+  // Note: here we rely on dependent reads being ordered. This is true
+  // on all architectures we currently support.
   (*memcopy_function)(dest, src, size);
 #ifdef DEBUG
   CHECK_EQ(0, memcmp(dest, src, size));

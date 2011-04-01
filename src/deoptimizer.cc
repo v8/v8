@@ -933,7 +933,7 @@ LargeObjectChunk* Deoptimizer::CreateCode(BailoutType type) {
   // isn't meant to be serialized at all.
   ASSERT(!Serializer::enabled());
 
-  MacroAssembler masm(NULL, 16 * KB);
+  MacroAssembler masm(Isolate::Current(), NULL, 16 * KB);
   masm.set_emit_debug_code(false);
   GenerateDeoptimizationEntries(&masm, kNumberOfEntries, type);
   CodeDesc desc;

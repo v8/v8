@@ -345,7 +345,7 @@ TEST(AssemblerIa329) {
   InitializeVM();
   v8::HandleScope scope;
   v8::internal::byte buffer[256];
-  MacroAssembler assm(buffer, sizeof buffer);
+  MacroAssembler assm(Isolate::Current(), buffer, sizeof buffer);
   enum { kEqual = 0, kGreater = 1, kLess = 2, kNaN = 3, kUndefined = 4 };
   Label equal_l, less_l, greater_l, nan_l;
   __ fld_d(Operand(esp, 3 * kPointerSize));
