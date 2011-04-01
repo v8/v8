@@ -114,7 +114,7 @@ namespace internal {
 RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(
     Mode mode,
     int registers_to_save)
-    : masm_(NULL, kRegExpCodeSize),
+    : masm_(Isolate::Current(), NULL, kRegExpCodeSize),
       no_root_array_scope_(&masm_),
       code_relative_fixup_positions_(4),
       mode_(mode),
