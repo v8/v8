@@ -2767,9 +2767,33 @@ void HGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 
+static Handle<SharedFunctionInfo> SearchSharedFunctionInfo(
+    Code* unoptimized_code, FunctionLiteral* expr) {
+  int start_position = expr->start_position();
+  RelocIterator it(unoptimized_code);
+  for (;!it.done(); it.next()) {
+    RelocInfo* rinfo = it.rinfo();
+    if (rinfo->rmode() != RelocInfo::EMBEDDED_OBJECT) continue;
+    Object* obj = rinfo->target_object();
+    if (obj->IsSharedFunctionInfo()) {
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+      if (shared->start_position() == start_position) {
+        return Handle<SharedFunctionInfo>(shared);
+      }
+    }
+  }
+
+  return Handle<SharedFunctionInfo>();
+}
+
+
 void HGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   Handle<SharedFunctionInfo> shared_info =
-      Compiler::BuildFunctionInfo(expr, info()->script());
+      SearchSharedFunctionInfo(info()->shared_info()->code(),
+                               expr);
+  if (shared_info.is_null()) {
+    shared_info = Compiler::BuildFunctionInfo(expr, info()->script());
+  }
   CHECK_BAILOUT;
   HFunctionLiteral* instr =
       new HFunctionLiteral(shared_info, expr->pretenure());
