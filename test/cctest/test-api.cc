@@ -13629,3 +13629,102 @@ TEST(DefinePropertyPostDetach) {
   context->DetachGlobal();
   define_property->Call(proxy, 0, NULL);
 }
+
+
+static void InstallContextId(v8::Handle<Context> context, int id) {
+  Context::Scope scope(context);
+  CompileRun("Object.prototype").As<Object>()->
+      Set(v8_str("context_id"), v8::Integer::New(id));
+}
+
+
+static void CheckContextId(v8::Handle<Object> object, int expected) {
+  CHECK_EQ(expected, object->Get(v8_str("context_id"))->Int32Value());
+}
+
+
+THREADED_TEST(CreationContext) {
+  HandleScope handle_scope;
+  Persistent<Context> context1 = Context::New();
+  InstallContextId(context1, 1);
+  Persistent<Context> context2 = Context::New();
+  InstallContextId(context2, 2);
+  Persistent<Context> context3 = Context::New();
+  InstallContextId(context3, 3);
+
+  Local<v8::FunctionTemplate> tmpl = v8::FunctionTemplate::New();
+
+  Local<Object> object1;
+  Local<Function> func1;
+  {
+    Context::Scope scope(context1);
+    object1 = Object::New();
+    func1 = tmpl->GetFunction();
+  }
+
+  Local<Object> object2;
+  Local<Function> func2;
+  {
+    Context::Scope scope(context2);
+    object2 = Object::New();
+    func2 = tmpl->GetFunction();
+  }
+
+  Local<Object> instance1;
+  Local<Object> instance2;
+
+  {
+    Context::Scope scope(context3);
+    instance1 = func1->NewInstance();
+    instance2 = func2->NewInstance();
+  }
+
+  CHECK(object1->CreationContext() == context1);
+  CheckContextId(object1, 1);
+  CHECK(func1->CreationContext() == context1);
+  CheckContextId(func1, 1);
+  CHECK(instance1->CreationContext() == context1);
+  CheckContextId(instance1, 1);
+  CHECK(object2->CreationContext() == context2);
+  CheckContextId(object2, 2);
+  CHECK(func2->CreationContext() == context2);
+  CheckContextId(func2, 2);
+  CHECK(instance2->CreationContext() == context2);
+  CheckContextId(instance2, 2);
+
+  {
+    Context::Scope scope(context1);
+    CHECK(object1->CreationContext() == context1);
+    CheckContextId(object1, 1);
+    CHECK(func1->CreationContext() == context1);
+    CheckContextId(func1, 1);
+    CHECK(instance1->CreationContext() == context1);
+    CheckContextId(instance1, 1);
+    CHECK(object2->CreationContext() == context2);
+    CheckContextId(object2, 2);
+    CHECK(func2->CreationContext() == context2);
+    CheckContextId(func2, 2);
+    CHECK(instance2->CreationContext() == context2);
+    CheckContextId(instance2, 2);
+  }
+
+  {
+    Context::Scope scope(context2);
+    CHECK(object1->CreationContext() == context1);
+    CheckContextId(object1, 1);
+    CHECK(func1->CreationContext() == context1);
+    CheckContextId(func1, 1);
+    CHECK(instance1->CreationContext() == context1);
+    CheckContextId(instance1, 1);
+    CHECK(object2->CreationContext() == context2);
+    CheckContextId(object2, 2);
+    CHECK(func2->CreationContext() == context2);
+    CheckContextId(func2, 2);
+    CHECK(instance2->CreationContext() == context2);
+    CheckContextId(instance2, 2);
+  }
+
+  context1.Dispose();
+  context2.Dispose();
+  context3.Dispose();
+}

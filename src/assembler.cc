@@ -1002,7 +1002,7 @@ ExternalReference ExternalReference::compare_doubles(Isolate* isolate) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 ExternalReference ExternalReference::debug_break(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(Debug::Break)));
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(Debug_Break)));
 }
 
 

@@ -606,7 +606,7 @@ Handle<Code> HGraph::Compile(CompilationInfo* info) {
 
   if (!FLAG_use_lithium) return Handle<Code>::null();
 
-  MacroAssembler assembler(NULL, 0);
+  MacroAssembler assembler(info->isolate(), NULL, 0);
   LCodeGen generator(chunk, &assembler, info);
 
   if (FLAG_eliminate_empty_blocks) {
@@ -1980,7 +1980,10 @@ FunctionState::~FunctionState() {
 // Implementation of utility classes to represent an expression's context in
 // the AST.
 AstContext::AstContext(HGraphBuilder* owner, Expression::Context kind)
-    : owner_(owner), kind_(kind), outer_(owner->ast_context()) {
+    : owner_(owner),
+      kind_(kind),
+      outer_(owner->ast_context()),
+      for_typeof_(false) {
   owner->set_ast_context(this);  // Push.
 #ifdef DEBUG
   original_length_ = owner->environment()->length();
@@ -2122,6 +2125,14 @@ void HGraphBuilder::VisitForValue(Expression* expr) {
   ValueContext for_value(this);
   Visit(expr);
 }
+
+
+void HGraphBuilder::VisitForTypeOf(Expression* expr) {
+  ValueContext for_value(this);
+  for_value.set_for_typeof(true);
+  Visit(expr);
+}
+
 
 
 void HGraphBuilder::VisitForControl(Expression* expr,
@@ -2767,9 +2778,33 @@ void HGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 
+static Handle<SharedFunctionInfo> SearchSharedFunctionInfo(
+    Code* unoptimized_code, FunctionLiteral* expr) {
+  int start_position = expr->start_position();
+  RelocIterator it(unoptimized_code);
+  for (;!it.done(); it.next()) {
+    RelocInfo* rinfo = it.rinfo();
+    if (rinfo->rmode() != RelocInfo::EMBEDDED_OBJECT) continue;
+    Object* obj = rinfo->target_object();
+    if (obj->IsSharedFunctionInfo()) {
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+      if (shared->start_position() == start_position) {
+        return Handle<SharedFunctionInfo>(shared);
+      }
+    }
+  }
+
+  return Handle<SharedFunctionInfo>();
+}
+
+
 void HGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   Handle<SharedFunctionInfo> shared_info =
-      Compiler::BuildFunctionInfo(expr, info()->script());
+      SearchSharedFunctionInfo(info()->shared_info()->code(),
+                               expr);
+  if (shared_info.is_null()) {
+    shared_info = Compiler::BuildFunctionInfo(expr, info()->script());
+  }
   CHECK_BAILOUT;
   HFunctionLiteral* instr =
       new HFunctionLiteral(shared_info, expr->pretenure());
@@ -2809,29 +2844,21 @@ void HGraphBuilder::VisitConditional(Conditional* expr) {
 }
 
 
-void HGraphBuilder::LookupGlobalPropertyCell(Variable* var,
-                                             LookupResult* lookup,
-                                             bool is_store) {
-  if (var->is_this()) {
-    BAILOUT("global this reference");
-  }
-  if (!info()->has_global_object()) {
-    BAILOUT("no global object to optimize VariableProxy");
+HGraphBuilder::GlobalPropertyAccess HGraphBuilder::LookupGlobalProperty(
+    Variable* var, LookupResult* lookup, bool is_store) {
+  if (var->is_this() || !info()->has_global_object()) {
+    return kUseGeneric;
   }
   Handle<GlobalObject> global(info()->global_object());
   global->Lookup(*var->name(), lookup);
-  if (!lookup->IsProperty()) {
-    BAILOUT("global variable cell not yet introduced");
+  if (!lookup->IsProperty() ||
+      lookup->type() != NORMAL ||
+      (is_store && lookup->IsReadOnly()) ||
+      lookup->holder() != *global) {
+    return kUseGeneric;
   }
-  if (lookup->type() != NORMAL) {
-    BAILOUT("global variable has accessors");
-  }
-  if (is_store && lookup->IsReadOnly()) {
-    BAILOUT("read-only global variable");
-  }
-  if (lookup->holder() != *global) {
-    BAILOUT("global property on prototype of global object");
-  }
+
+  return kUseCell;
 }
 
 
@@ -2867,19 +2894,33 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
     ast_context()->ReturnInstruction(instr, expr->id());
   } else if (variable->is_global()) {
     LookupResult lookup;
-    LookupGlobalPropertyCell(variable, &lookup, false);
-    CHECK_BAILOUT;
+    GlobalPropertyAccess type = LookupGlobalProperty(variable, &lookup, false);
 
-    Handle<GlobalObject> global(info()->global_object());
-    // TODO(3039103): Handle global property load through an IC call when access
-    // checks are enabled.
-    if (global->IsAccessCheckNeeded()) {
-      BAILOUT("global object requires access check");
+    if (type == kUseCell &&
+        info()->global_object()->IsAccessCheckNeeded()) {
+      type = kUseGeneric;
     }
-    Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
-    bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
-    HLoadGlobal* instr = new HLoadGlobal(cell, check_hole);
-    ast_context()->ReturnInstruction(instr, expr->id());
+
+    if (type == kUseCell) {
+      Handle<GlobalObject> global(info()->global_object());
+      Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
+      bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
+      HLoadGlobalCell* instr = new HLoadGlobalCell(cell, check_hole);
+      ast_context()->ReturnInstruction(instr, expr->id());
+    } else {
+      HContext* context = new HContext;
+      AddInstruction(context);
+      HGlobalObject* global_object = new HGlobalObject(context);
+      AddInstruction(global_object);
+      HLoadGlobalGeneric* instr =
+          new HLoadGlobalGeneric(context,
+                                 global_object,
+                                 variable->name(),
+                                 ast_context()->is_for_typeof());
+      instr->set_position(expr->position());
+      ASSERT(instr->HasSideEffects());
+      ast_context()->ReturnInstruction(instr, expr->id());
+    }
   } else {
     BAILOUT("reference to a variable which requires dynamic lookup");
   }
@@ -3250,16 +3291,18 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
                                                    int position,
                                                    int ast_id) {
   LookupResult lookup;
-  LookupGlobalPropertyCell(var, &lookup, true);
-  CHECK_BAILOUT;
-
-  bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
-  Handle<GlobalObject> global(info()->global_object());
-  Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
-  HInstruction* instr = new HStoreGlobal(value, cell, check_hole);
-  instr->set_position(position);
-  AddInstruction(instr);
-  if (instr->HasSideEffects()) AddSimulate(ast_id);
+  GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, true);
+  if (type == kUseCell) {
+    bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
+    Handle<GlobalObject> global(info()->global_object());
+    Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
+    HInstruction* instr = new HStoreGlobal(value, cell, check_hole);
+    instr->set_position(position);
+    AddInstruction(instr);
+    if (instr->HasSideEffects()) AddSimulate(ast_id);
+  } else {
+    BAILOUT("global store only supported for cells");
+  }
 }
 
 
@@ -3828,12 +3871,18 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
 
 void HGraphBuilder::TraceInline(Handle<JSFunction> target, const char* reason) {
   if (FLAG_trace_inlining) {
-    SmartPointer<char> callee = target->shared()->DebugName()->ToCString();
-    SmartPointer<char> caller =
-        info()->function()->debug_name()->ToCString();
     if (reason == NULL) {
+      // We are currently in the context of inlined function thus we have
+      // to go to an outer FunctionState to get caller.
+      SmartPointer<char> callee = target->shared()->DebugName()->ToCString();
+      SmartPointer<char> caller =
+          function_state()->outer()->compilation_info()->function()->
+              debug_name()->ToCString();
       PrintF("Inlined %s called from %s.\n", *callee, *caller);
     } else {
+      SmartPointer<char> callee = target->shared()->DebugName()->ToCString();
+      SmartPointer<char> caller =
+          info()->function()->debug_name()->ToCString();
       PrintF("Did not inline %s called from %s (%s).\n",
              *callee, *caller, reason);
     }
@@ -4287,10 +4336,12 @@ void HGraphBuilder::VisitCall(Call* expr) {
       // If there is a global property cell for the name at compile time and
       // access check is not enabled we assume that the function will not change
       // and generate optimized code for calling the function.
-      if (info()->has_global_object() &&
+      LookupResult lookup;
+      GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, false);
+      if (type == kUseCell &&
           !info()->global_object()->IsAccessCheckNeeded()) {
         Handle<GlobalObject> global(info()->global_object());
-        known_global_function = expr->ComputeGlobalTarget(global, var->name());
+        known_global_function = expr->ComputeGlobalTarget(global, &lookup);
       }
       if (known_global_function) {
         // Push the global object instead of the global receiver because
@@ -4493,7 +4544,8 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
     }
 
   } else if (op == Token::TYPEOF) {
-    VISIT_FOR_VALUE(expr->expression());
+    VisitForTypeOf(expr->expression());
+    if (HasStackOverflow()) return;
     HValue* value = Pop();
     ast_context()->ReturnInstruction(new HTypeof(value), expr->id());
 
@@ -4896,7 +4948,8 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   if ((expr->op() == Token::EQ || expr->op() == Token::EQ_STRICT) &&
       left_unary != NULL && left_unary->op() == Token::TYPEOF &&
       right_literal != NULL && right_literal->handle()->IsString()) {
-    VISIT_FOR_VALUE(left_unary->expression());
+    VisitForTypeOf(left_unary->expression());
+    if (HasStackOverflow()) return;
     HValue* left = Pop();
     HInstruction* instr = new HTypeofIs(left,
         Handle<String>::cast(right_literal->handle()));
@@ -5093,7 +5146,14 @@ void HGraphBuilder::GenerateIsStringWrapperSafeForDefaultValueOf(
 // Support for construct call checks.
 void HGraphBuilder::GenerateIsConstructCall(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 0);
-  ast_context()->ReturnInstruction(new HIsConstructCall, call->id());
+  if (function_state()->outer() != NULL) {
+    // We are generating graph for inlined function. Currently
+    // constructor inlining is not supported and we can just return
+    // false from %_IsConstructCall().
+    ast_context()->ReturnValue(graph()->GetConstantFalse());
+  } else {
+    ast_context()->ReturnInstruction(new HIsConstructCall, call->id());
+  }
 }
 
 

@@ -392,23 +392,24 @@ class StubCache {
 
 
 // Support functions for IC stubs for callbacks.
-MaybeObject* LoadCallbackProperty(RUNTIME_CALLING_CONVENTION);
-MaybeObject* StoreCallbackProperty(RUNTIME_CALLING_CONVENTION);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty);
 
 
 // Support functions for IC stubs for interceptors.
-MaybeObject* LoadPropertyWithInterceptorOnly(RUNTIME_CALLING_CONVENTION);
-MaybeObject* LoadPropertyWithInterceptorForLoad(RUNTIME_CALLING_CONVENTION);
-MaybeObject* LoadPropertyWithInterceptorForCall(RUNTIME_CALLING_CONVENTION);
-MaybeObject* StoreInterceptorProperty(RUNTIME_CALLING_CONVENTION);
-MaybeObject* CallInterceptorProperty(RUNTIME_CALLING_CONVENTION);
-MaybeObject* KeyedLoadPropertyWithInterceptor(RUNTIME_CALLING_CONVENTION);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, CallInterceptorProperty);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor);
 
 
 // The stub compiler compiles stubs for the stub cache.
 class StubCompiler BASE_EMBEDDED {
  public:
-  StubCompiler() : scope_(), masm_(NULL, 256), failure_(NULL) { }
+  StubCompiler()
+      : scope_(), masm_(Isolate::Current(), NULL, 256), failure_(NULL) { }
 
   MUST_USE_RESULT MaybeObject* CompileCallInitialize(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* CompileCallPreMonomorphic(Code::Flags flags);

@@ -770,7 +770,7 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target,
     true_target->Branch(eq);
 
     // Slow case.
-    if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+    if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       // Implements the slow case by using ToBooleanStub.
       // The ToBooleanStub takes a single argument, and
@@ -967,8 +967,7 @@ void DeferredInlineSmiOperation::JumpToNonSmiInput(Condition cond) {
 void DeferredInlineSmiOperation::JumpToAnswerOutOfRange(Condition cond) {
   ASSERT(Token::IsBitOp(op_));
 
-  if ((op_ == Token::SHR) &&
-      !Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if ((op_ == Token::SHR) && !CpuFeatures::IsSupported(VFP3)) {
     // >>> requires an unsigned to double conversion and the non VFP code
     // does not support this conversion.
     __ b(cond, entry_label());
@@ -1072,7 +1071,7 @@ void DeferredInlineSmiOperation::Generate() {
 void DeferredInlineSmiOperation::WriteNonSmiAnswer(Register answer,
                                                    Register heap_number,
                                                    Register scratch) {
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     __ vmov(s0, answer);
     if (op_ == Token::SHR) {
@@ -1142,7 +1141,7 @@ void DeferredInlineSmiOperation::GenerateNonSmiInput() {
         // SHR is special because it is required to produce a positive answer.
         __ cmp(int32, Operand(0, RelocInfo::NONE));
       }
-      if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+      if (CpuFeatures::IsSupported(VFP3)) {
         __ b(mi, &result_not_a_smi);
       } else {
         // Non VFP code cannot convert from unsigned to double, so fall back
@@ -4617,7 +4616,7 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   Load(args->at(0));
   Load(args->at(1));
 
-  if (!Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (!CpuFeatures::IsSupported(VFP3)) {
     frame_->CallRuntime(Runtime::kMath_pow, 2);
     frame_->EmitPush(r0);
   } else {
@@ -4771,7 +4770,7 @@ void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
 
-  if (!Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (!CpuFeatures::IsSupported(VFP3)) {
     frame_->CallRuntime(Runtime::kMath_sqrt, 1);
     frame_->EmitPush(r0);
   } else {
@@ -5360,9 +5359,10 @@ void CodeGenerator::GenerateRandomHeapNumber(
   // Convert 32 random bits in r0 to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
-    __ PrepareCallCFunction(0, r1);
-    __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 0);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    __ PrepareCallCFunction(1, r0);
+    __ mov(r0, Operand(ExternalReference::isolate_address()));
+    __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
     CpuFeatures::Scope scope(VFP3);
     // 0x41300000 is the top half of 1.0 x 2^20 as a double.
@@ -5380,10 +5380,11 @@ void CodeGenerator::GenerateRandomHeapNumber(
     __ vstr(d7, r0, HeapNumber::kValueOffset);
     frame_->EmitPush(r4);
   } else {
+    __ PrepareCallCFunction(2, r0);
     __ mov(r0, Operand(r4));
-    __ PrepareCallCFunction(1, r1);
+    __ mov(r1, Operand(ExternalReference::isolate_address()));
     __ CallCFunction(
-        ExternalReference::fill_heap_number_with_random_function(isolate()), 1);
+        ExternalReference::fill_heap_number_with_random_function(isolate()), 2);
     frame_->EmitPush(r0);
   }
 }
@@ -5674,7 +5675,7 @@ void CodeGenerator::GenerateCallFunction(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     TranscendentalCacheStub stub(TranscendentalCache::SIN,
                                  TranscendentalCacheStub::TAGGED);
     frame_->SpillAllButCopyTOSToR0();
@@ -5689,7 +5690,7 @@ void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     TranscendentalCacheStub stub(TranscendentalCache::COS,
                                  TranscendentalCacheStub::TAGGED);
     frame_->SpillAllButCopyTOSToR0();
@@ -5704,7 +5705,7 @@ void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateMathLog(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     TranscendentalCacheStub stub(TranscendentalCache::LOG,
                                  TranscendentalCacheStub::TAGGED);
     frame_->SpillAllButCopyTOSToR0();

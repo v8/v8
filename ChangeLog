@@ -1,3 +1,13 @@
+2011-04-04: Version 3.2.7
+
+        Disabled the original 'classic' V8 code generator.  Crankshaft is
+        now the default on all platforms.
+
+        Changed the heap profiler to use more descriptive names.
+
+        Performance and stability improvements to isolates on all platforms.
+
+
 2011-03-30: Version 3.2.6
 
         Fixed xcode build warning in shell.cc (out of order initialization).

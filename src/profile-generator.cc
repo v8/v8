@@ -1690,7 +1690,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
                         : "",
                     children_count,
                     retainers_count);
-  } else if (object->IsFixedArray()) {
+  } else if (object->IsFixedArray() || object->IsByteArray()) {
     return AddEntry(object,
                     HeapEntry::kArray,
                     "",
@@ -1705,7 +1705,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
   }
   return AddEntry(object,
                   HeapEntry::kHidden,
-                  "system",
+                  GetSystemEntryName(object),
                   children_count,
                   retainers_count);
 }
@@ -1731,6 +1731,21 @@ void V8HeapExplorer::AddRootEntries(SnapshotFillerInterface* filler) {
 }
 
 
+const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
+  switch (object->map()->instance_type()) {
+    case MAP_TYPE: return "system / Map";
+    case JS_GLOBAL_PROPERTY_CELL_TYPE: return "system / JSGlobalPropertyCell";
+    case PROXY_TYPE: return "system / Proxy";
+    case ODDBALL_TYPE: return "system / Oddball";
+#define MAKE_STRUCT_CASE(NAME, Name, name) \
+    case NAME##_TYPE: return "system / "#Name;
+  STRUCT_LIST(MAKE_STRUCT_CASE)
+#undef MAKE_STRUCT_CASE
+    default: return "system";
+  }
+}
+
+
 int V8HeapExplorer::EstimateObjectsCount() {
   HeapIterator iterator(HeapIterator::kFilterUnreachable);
   int objects_count = 0;
@@ -1745,12 +1760,10 @@ class IndexedReferencesExtractor : public ObjectVisitor {
  public:
   IndexedReferencesExtractor(V8HeapExplorer* generator,
                              HeapObject* parent_obj,
-                             HeapEntry* parent_entry,
-                             bool process_field_marks = false)
+                             HeapEntry* parent_entry)
       : generator_(generator),
         parent_obj_(parent_obj),
         parent_(parent_entry),
-        process_field_marks_(process_field_marks),
         next_index_(1) {
   }
   void VisitPointers(Object** start, Object** end) {
@@ -1768,7 +1781,7 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   }
  private:
   bool CheckVisitedAndUnmark(Object** field) {
-    if (process_field_marks_ && (*field)->IsFailure()) {
+    if ((*field)->IsFailure()) {
       intptr_t untagged = reinterpret_cast<intptr_t>(*field) & ~kFailureTagMask;
       *field = reinterpret_cast<Object*>(untagged | kHeapObjectTag);
       ASSERT((*field)->IsHeapObject());
@@ -1779,7 +1792,6 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   V8HeapExplorer* generator_;
   HeapObject* parent_obj_;
   HeapEntry* parent_;
-  bool process_field_marks_;
   int next_index_;
 };
 
@@ -1794,6 +1806,7 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     // uses for the global object.
     JSGlobalProxy* proxy = JSGlobalProxy::cast(obj);
     SetRootShortcutReference(proxy->map()->prototype());
+    SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
     IndexedReferencesExtractor refs_extractor(this, obj, entry);
     obj->Iterate(&refs_extractor);
   } else if (obj->IsJSObject()) {
@@ -1806,10 +1819,6 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
         obj, entry, HEAP->Proto_symbol(), js_obj->GetPrototype());
     if (obj->IsJSFunction()) {
       JSFunction* js_fun = JSFunction::cast(js_obj);
-      SetInternalReference(
-          js_fun, entry,
-          "code", js_fun->shared(),
-          JSFunction::kSharedFunctionInfoOffset);
       Object* proto_or_map = js_fun->prototype_or_initial_map();
       if (!proto_or_map->IsTheHole()) {
         if (!proto_or_map->IsMap()) {
@@ -1823,8 +1832,24 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
               HEAP->prototype_symbol(), js_fun->prototype());
         }
       }
+      SetInternalReference(js_fun, entry,
+                           "shared", js_fun->shared(),
+                           JSFunction::kSharedFunctionInfoOffset);
+      SetInternalReference(js_fun, entry,
+                           "context", js_fun->unchecked_context(),
+                           JSFunction::kContextOffset);
+      SetInternalReference(js_fun, entry,
+                           "literals", js_fun->literals(),
+                           JSFunction::kLiteralsOffset);
     }
-    IndexedReferencesExtractor refs_extractor(this, obj, entry, true);
+    SetInternalReference(obj, entry,
+                         "properties", js_obj->properties(),
+                         JSObject::kPropertiesOffset);
+    SetInternalReference(obj, entry,
+                         "elements", js_obj->elements(),
+                         JSObject::kElementsOffset);
+    SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
+    IndexedReferencesExtractor refs_extractor(this, obj, entry);
     obj->Iterate(&refs_extractor);
   } else if (obj->IsString()) {
     if (obj->IsConsString()) {
@@ -1832,7 +1857,41 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
       SetInternalReference(obj, entry, 1, cs->first());
       SetInternalReference(obj, entry, 2, cs->second());
     }
+  } else if (obj->IsMap()) {
+    Map* map = Map::cast(obj);
+    SetInternalReference(obj, entry,
+                         "prototype", map->prototype(), Map::kPrototypeOffset);
+    SetInternalReference(obj, entry,
+                         "constructor", map->constructor(),
+                         Map::kConstructorOffset);
+    SetInternalReference(obj, entry,
+                         "descriptors", map->instance_descriptors(),
+                         Map::kInstanceDescriptorsOffset);
+    SetInternalReference(obj, entry,
+                         "code_cache", map->code_cache(),
+                         Map::kCodeCacheOffset);
+    SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
+    IndexedReferencesExtractor refs_extractor(this, obj, entry);
+    obj->Iterate(&refs_extractor);
+  } else if (obj->IsSharedFunctionInfo()) {
+    SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+    SetInternalReference(obj, entry,
+                         "name", shared->name(),
+                         SharedFunctionInfo::kNameOffset);
+    SetInternalReference(obj, entry,
+                         "code", shared->unchecked_code(),
+                         SharedFunctionInfo::kCodeOffset);
+    SetInternalReference(obj, entry,
+                         "instance_class_name", shared->instance_class_name(),
+                         SharedFunctionInfo::kInstanceClassNameOffset);
+    SetInternalReference(obj, entry,
+                         "script", shared->script(),
+                         SharedFunctionInfo::kScriptOffset);
+    SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
+    IndexedReferencesExtractor refs_extractor(this, obj, entry);
+    obj->Iterate(&refs_extractor);
   } else {
+    SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
     IndexedReferencesExtractor refs_extractor(this, obj, entry);
     obj->Iterate(&refs_extractor);
   }
@@ -2307,7 +2366,7 @@ void NativeObjectsExplorer::SetWrapperNativeReferences(
   ASSERT(info_entry != NULL);
   filler_->SetNamedReference(HeapGraphEdge::kInternal,
                              wrapper, wrapper_entry,
-                             "Native",
+                             "native",
                              info, info_entry);
   filler_->SetIndexedAutoIndexReference(HeapGraphEdge::kElement,
                                         info, info_entry,

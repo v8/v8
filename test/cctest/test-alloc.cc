@@ -200,6 +200,7 @@ TEST(CodeRange) {
       size_t allocated = 0;
       void* base = Isolate::Current()->code_range()->
           AllocateRawMemory(requested, &allocated);
+      CHECK(base != NULL);
       blocks.Add(Block(base, static_cast<int>(allocated)));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -326,30 +326,9 @@ static bool MakeCode(CompilationInfo* info) {
 
   if (Rewriter::Rewrite(info) && Scope::Analyze(info)) {
     if (V8::UseCrankshaft()) return MakeCrankshaftCode(info);
-
-    // Generate code and return it.  Code generator selection is governed by
-    // which backends are enabled and whether the function is considered
-    // run-once code or not.
-    //
-    // --full-compiler enables the dedicated backend for code we expect to
-    // be run once
-    //
-    // The normal choice of backend can be overridden with the flags
-    // --always-full-compiler.
-    if (Rewriter::Analyze(info)) {
-      Handle<SharedFunctionInfo> shared = info->shared_info();
-      bool is_run_once = (shared.is_null())
-          ? info->scope()->is_global_scope()
-          : (shared->is_toplevel() || shared->try_full_codegen());
-      bool can_use_full =
-          FLAG_full_compiler && !info->function()->contains_loops();
-      if (AlwaysFullCompiler() || (is_run_once && can_use_full)) {
-        return FullCodeGenerator::MakeCode(info);
-      } else {
-        return AssignedVariablesAnalyzer::Analyze(info) &&
-            CodeGenerator::MakeCode(info);
-      }
-    }
+    // If crankshaft is not supported fall back to full code generator
+    // for all compilation.
+    return FullCodeGenerator::MakeCode(info);
   }
 
   return false;
@@ -721,35 +700,12 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   if (FLAG_lazy && allow_lazy) {
     Handle<Code> code = info.isolate()->builtins()->LazyCompile();
     info.SetCode(code);
-  } else {
-    if (V8::UseCrankshaft()) {
-      if (!MakeCrankshaftCode(&info)) {
-        return Handle<SharedFunctionInfo>::null();
-      }
-    } else {
-      // The bodies of function literals have not yet been visited by the
-      // AST optimizer/analyzer.
-      if (!Rewriter::Analyze(&info)) return Handle<SharedFunctionInfo>::null();
-
-      bool is_run_once = literal->try_full_codegen();
-      bool can_use_full = FLAG_full_compiler && !literal->contains_loops();
-
-      if (AlwaysFullCompiler() || (is_run_once && can_use_full)) {
-        if (!FullCodeGenerator::MakeCode(&info)) {
-          return Handle<SharedFunctionInfo>::null();
-        }
-      } else {
-        // We fall back to the classic V8 code generator.
-        if (!AssignedVariablesAnalyzer::Analyze(&info) ||
-            !CodeGenerator::MakeCode(&info)) {
-          return Handle<SharedFunctionInfo>::null();
-        }
-      }
-    }
+  } else if ((V8::UseCrankshaft() && MakeCrankshaftCode(&info)) ||
+             (!V8::UseCrankshaft() && FullCodeGenerator::MakeCode(&info))) {
     ASSERT(!info.code().is_null());
-
-    // Function compilation complete.
     scope_info = SerializedScopeInfo::Create(info.scope());
+  } else {
+    return Handle<SharedFunctionInfo>::null();
   }
 
   // Create a shared function info object.
@@ -791,7 +747,6 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->SetThisPropertyAssignmentsInfo(
       lit->has_only_simple_this_property_assignments(),
       *lit->this_property_assignments());
-  function_info->set_try_full_codegen(lit->try_full_codegen());
   function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   function_info->set_strict_mode(lit->strict_mode());
 }

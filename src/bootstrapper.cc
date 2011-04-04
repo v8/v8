@@ -400,19 +400,22 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
 
   // Please note that the prototype property for function instances must be
   // writable.
-  global_context()->set_function_instance_map(
-      *CreateFunctionMap(ADD_WRITEABLE_PROTOTYPE));
+  Handle<Map> function_instance_map =
+      CreateFunctionMap(ADD_WRITEABLE_PROTOTYPE);
+  global_context()->set_function_instance_map(*function_instance_map);
 
   // Functions with this map will not have a 'prototype' property, and
   // can not be used as constructors.
+  Handle<Map> function_without_prototype_map =
+      CreateFunctionMap(DONT_ADD_PROTOTYPE);
   global_context()->set_function_without_prototype_map(
-      *CreateFunctionMap(DONT_ADD_PROTOTYPE));
+      *function_without_prototype_map);
 
   // Allocate the function map. This map is temporary, used only for processing
   // of builtins.
   // Later the map is replaced with writable prototype map, allocated below.
-  global_context()->set_function_map(
-      *CreateFunctionMap(ADD_READONLY_PROTOTYPE));
+  Handle<Map> function_map = CreateFunctionMap(ADD_READONLY_PROTOTYPE);
+  global_context()->set_function_map(*function_map);
 
   // The final map for functions. Writeable prototype.
   // This map is installed in MakeFunctionInstancePrototypeWritable.
@@ -474,8 +477,6 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   function_instance_map_writable_prototype_->set_prototype(*empty_function);
 
   // Allocate the function map first and then patch the prototype later
-  Handle<Map> function_without_prototype_map(
-      global_context()->function_without_prototype_map());
   Handle<Map> empty_fm = factory->CopyMapDropDescriptors(
       function_without_prototype_map);
   empty_fm->set_instance_descriptors(
@@ -578,21 +579,27 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   Handle<FixedArray> caller = factory->NewFixedArray(2, TENURED);
 
   // Allocate map for the strict mode function instances.
+  Handle<Map> strict_mode_function_instance_map =
+      CreateStrictModeFunctionMap(
+          ADD_WRITEABLE_PROTOTYPE, empty, arguments, caller);
   global_context()->set_strict_mode_function_instance_map(
-      *CreateStrictModeFunctionMap(
-          ADD_WRITEABLE_PROTOTYPE, empty, arguments, caller));
+      *strict_mode_function_instance_map);
 
   // Allocate map for the prototype-less strict mode instances.
+  Handle<Map> strict_mode_function_without_prototype_map =
+      CreateStrictModeFunctionMap(
+          DONT_ADD_PROTOTYPE, empty, arguments, caller);
   global_context()->set_strict_mode_function_without_prototype_map(
-      *CreateStrictModeFunctionMap(
-          DONT_ADD_PROTOTYPE, empty, arguments, caller));
+      *strict_mode_function_without_prototype_map);
 
   // Allocate map for the strict mode functions. This map is temporary, used
   // only for processing of builtins.
   // Later the map is replaced with writable prototype map, allocated below.
+  Handle<Map> strict_mode_function_map =
+      CreateStrictModeFunctionMap(
+          ADD_READONLY_PROTOTYPE, empty, arguments, caller);
   global_context()->set_strict_mode_function_map(
-      *CreateStrictModeFunctionMap(
-          ADD_READONLY_PROTOTYPE, empty, arguments, caller));
+      *strict_mode_function_map);
 
   // The final map for the strict mode functions. Writeable prototype.
   // This map is installed in MakeFunctionInstancePrototypeWritable.
@@ -1239,10 +1246,11 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
 }
 
 
-#define INSTALL_NATIVE(Type, name, var)                                     \
-  Handle<String> var##_name = factory->LookupAsciiSymbol(name);             \
-  global_context()->set_##var(Type::cast(                                   \
-      global_context()->builtins()->GetPropertyNoExceptionThrown(*var##_name)));
+#define INSTALL_NATIVE(Type, name, var)                                        \
+  Handle<String> var##_name = factory->LookupAsciiSymbol(name);                \
+  Object* var##_native =                                                       \
+      global_context()->builtins()->GetPropertyNoExceptionThrown(*var##_name); \
+  global_context()->set_##var(Type::cast(var##_native));
 
 
 void Genesis::InstallNativeFunctions() {

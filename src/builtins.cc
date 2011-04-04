@@ -1594,10 +1594,11 @@ void Builtins::InitBuiltinFunctionTable() {
 
 void Builtins::Setup(bool create_heap_objects) {
   ASSERT(!initialized_);
-  Heap* heap = Isolate::Current()->heap();
+  Isolate* isolate = Isolate::Current();
+  Heap* heap = isolate->heap();
 
   // Create a scope for the handles in the builtins.
-  HandleScope scope;
+  HandleScope scope(isolate);
 
   const BuiltinDesc* functions = BuiltinFunctionTable::functions();
 
@@ -1609,7 +1610,7 @@ void Builtins::Setup(bool create_heap_objects) {
   // separate code object for each one.
   for (int i = 0; i < builtin_count; i++) {
     if (create_heap_objects) {
-      MacroAssembler masm(buffer, sizeof buffer);
+      MacroAssembler masm(isolate, buffer, sizeof buffer);
       // Generate the code/adaptor.
       typedef void (*Generator)(MacroAssembler*, int, BuiltinExtraArguments);
       Generator g = FUNCTION_CAST<Generator>(functions[i].generator);
@@ -1634,7 +1635,7 @@ void Builtins::Setup(bool create_heap_objects) {
         }
       }
       // Log the event and add the code to the builtins array.
-      PROFILE(ISOLATE,
+      PROFILE(isolate,
               CodeCreateEvent(Logger::BUILTIN_TAG,
                               Code::cast(code),
                               functions[i].s_name));

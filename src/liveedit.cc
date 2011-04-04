@@ -1013,8 +1013,8 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
   if (IsJSFunctionCode(shared_info->code())) {
-    ReplaceCodeObject(shared_info->code(),
-                      *(compile_info_wrapper.GetFunctionCode()));
+    Handle<Code> code = compile_info_wrapper.GetFunctionCode();
+    ReplaceCodeObject(shared_info->code(), *code);
     Handle<Object> code_scope_info =  compile_info_wrapper.GetCodeScopeInfo();
     if (code_scope_info->IsFixedArray()) {
       shared_info->set_scope_info(SerializedScopeInfo::cast(*code_scope_info));
@@ -1028,8 +1028,10 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
     debug_info->set_original_code(*new_original_code);
   }
 
-  shared_info->set_start_position(compile_info_wrapper.GetStartPosition());
-  shared_info->set_end_position(compile_info_wrapper.GetEndPosition());
+  int start_position = compile_info_wrapper.GetStartPosition();
+  int end_position = compile_info_wrapper.GetEndPosition();
+  shared_info->set_start_position(start_position);
+  shared_info->set_end_position(end_position);
 
   shared_info->set_construct_stub(
       Isolate::Current()->builtins()->builtin(
@@ -1233,13 +1235,14 @@ MaybeObject* LiveEdit::PatchFunctionPositions(
   int old_function_start = info->start_position();
   int new_function_start = TranslatePosition(old_function_start,
                                              position_change_array);
-  info->set_start_position(new_function_start);
-  info->set_end_position(TranslatePosition(info->end_position(),
-                                           position_change_array));
+  int new_function_end = TranslatePosition(info->end_position(),
+                                           position_change_array);
+  int new_function_token_pos =
+      TranslatePosition(info->function_token_position(), position_change_array);
 
-  info->set_function_token_position(
-      TranslatePosition(info->function_token_position(),
-      position_change_array));
+  info->set_start_position(new_function_start);
+  info->set_end_position(new_function_end);
+  info->set_function_token_position(new_function_token_pos);
 
   if (IsJSFunctionCode(info->code())) {
     // Patch relocation info section of the code.

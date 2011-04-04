@@ -2163,7 +2163,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
+void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
   __ mov(ip, Operand(Handle<Object>(instr->hydrogen()->cell())));
   __ ldr(result, FieldMemOperand(ip, JSGlobalPropertyCell::kValueOffset));
@@ -2172,6 +2172,18 @@ void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
     __ cmp(result, ip);
     DeoptimizeIf(eq, instr->environment());
   }
+}
+
+
+void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
+  ASSERT(ToRegister(instr->global_object()).is(r0));
+  ASSERT(ToRegister(instr->result()).is(r0));
+
+  __ mov(r2, Operand(instr->name()));
+  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET
+                                             : RelocInfo::CODE_TARGET_CONTEXT;
+  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+  CallCode(ic, mode, instr);
 }
 
 

@@ -771,7 +771,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
         // number in eax.
         __ AllocateHeapNumber(eax, ecx, ebx, slow);
         // Store the result in the HeapNumber and return.
-        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+        if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           __ cvtsi2sd(xmm0, Operand(left));
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -821,7 +821,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       }
       if (runtime_operands_type_ != BinaryOpIC::UNINIT_OR_SMI) {
         __ AllocateHeapNumber(ecx, ebx, no_reg, slow);
-        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+        if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           FloatingPointHelper::LoadSSE2Smis(masm, ebx);
           switch (op_) {
@@ -926,7 +926,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         }
 
         Label not_floats;
-        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+        if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           if (static_operands_type_.IsNumber()) {
             if (FLAG_debug_code) {
@@ -1060,7 +1060,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
             default: UNREACHABLE();
           }
           // Store the result in the HeapNumber and return.
-          if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+          if (CpuFeatures::IsSupported(SSE2)) {
             CpuFeatures::Scope use_sse2(SSE2);
             __ cvtsi2sd(xmm0, Operand(ebx));
             __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -1660,7 +1660,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
         // number in eax.
         __ AllocateHeapNumber(eax, ecx, ebx, slow);
         // Store the result in the HeapNumber and return.
-        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+        if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           __ cvtsi2sd(xmm0, Operand(left));
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -1705,7 +1705,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
             break;
         }
         __ AllocateHeapNumber(ecx, ebx, no_reg, slow);
-        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+        if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           FloatingPointHelper::LoadSSE2Smis(masm, ebx);
           switch (op_) {
@@ -1837,7 +1837,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
     case Token::DIV: {
       Label not_floats;
       Label not_int32;
-      if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+      if (CpuFeatures::IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
         FloatingPointHelper::LoadSSE2Operands(masm, &not_floats);
         FloatingPointHelper::CheckSSE2OperandsAreInt32(masm, &not_int32, ecx);
@@ -1958,7 +1958,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           default: UNREACHABLE();
         }
         // Store the result in the HeapNumber and return.
-        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+        if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           __ cvtsi2sd(xmm0, Operand(ebx));
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -2070,7 +2070,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
     case Token::MUL:
     case Token::DIV: {
       Label not_floats;
-      if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+      if (CpuFeatures::IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
         FloatingPointHelper::LoadSSE2Operands(masm, &not_floats);
 
@@ -2173,7 +2173,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
           default: UNREACHABLE();
         }
         // Store the result in the HeapNumber and return.
-        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+        if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           __ cvtsi2sd(xmm0, Operand(ebx));
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -2275,7 +2275,7 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
     case Token::MUL:
     case Token::DIV: {
       Label not_floats;
-      if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+      if (CpuFeatures::IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
         FloatingPointHelper::LoadSSE2Operands(masm, &not_floats);
 
@@ -2373,7 +2373,7 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
           default: UNREACHABLE();
         }
         // Store the result in the HeapNumber and return.
-        if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+        if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
           __ cvtsi2sd(xmm0, Operand(ebx));
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -2572,7 +2572,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     __ bind(&loaded);
   } else {  // UNTAGGED.
-    if (masm->isolate()->cpu_features()->IsSupported(SSE4_1)) {
+    if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatures::Scope sse4_scope(SSE4_1);
       __ pextrd(Operand(edx), xmm1, 0x1);  // copy xmm1[63..32] to edx.
     } else {
@@ -2826,8 +2826,7 @@ void IntegerConvert(MacroAssembler* masm,
   Label done, right_exponent, normal_exponent;
   Register scratch = ebx;
   Register scratch2 = edi;
-  if (type_info.IsInteger32() &&
-      masm->isolate()->cpu_features()->IsEnabled(SSE2)) {
+  if (type_info.IsInteger32() && CpuFeatures::IsSupported(SSE2)) {
     CpuFeatures::Scope scope(SSE2);
     __ cvttsd2si(ecx, FieldOperand(source, HeapNumber::kValueOffset));
     return;
@@ -3375,7 +3374,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     IntegerConvert(masm,
                    eax,
                    TypeInfo::Unknown(),
-                   masm->isolate()->cpu_features()->IsSupported(SSE3),
+                   CpuFeatures::IsSupported(SSE3),
                    &slow);
 
     // Do the bitwise operation and check if the result fits in a smi.
@@ -3398,7 +3397,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ AllocateHeapNumber(ebx, edx, edi, &slow);
       __ mov(eax, Operand(ebx));
     }
-    if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+    if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatures::Scope use_sse2(SSE2);
       __ cvtsi2sd(xmm0, Operand(ecx));
       __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -4270,7 +4269,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                         FixedArray::kHeaderSize));
     __ test(probe, Immediate(kSmiTagMask));
     __ j(zero, not_found);
-    if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+    if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatures::Scope fscope(SSE2);
       __ movdbl(xmm0, FieldOperand(object, HeapNumber::kValueOffset));
       __ movdbl(xmm1, FieldOperand(probe, HeapNumber::kValueOffset));
@@ -4509,7 +4508,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   if (include_number_compare_) {
     Label non_number_comparison;
     Label unordered;
-    if (masm->isolate()->cpu_features()->IsSupported(SSE2)) {
+    if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatures::Scope use_sse2(SSE2);
       CpuFeatures::Scope use_cmov(CMOV);
 
@@ -6455,8 +6454,7 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
 
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or SS2 or CMOV is unsupported.
-  CpuFeatures* cpu_features = masm->isolate()->cpu_features();
-  if (cpu_features->IsSupported(SSE2) && cpu_features->IsSupported(CMOV)) {
+  if (CpuFeatures::IsSupported(SSE2) && CpuFeatures::IsSupported(CMOV)) {
     CpuFeatures::Scope scope1(SSE2);
     CpuFeatures::Scope scope2(CMOV);
 

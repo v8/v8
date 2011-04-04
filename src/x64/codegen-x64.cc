@@ -6438,8 +6438,13 @@ void CodeGenerator::GenerateRandomHeapNumber(
 
   // Return a random uint32 number in rax.
   // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
-  __ PrepareCallCFunction(0);
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 0);
+  __ PrepareCallCFunction(1);
+#ifdef _WIN64
+  __ LoadAddress(rcx, ExternalReference::isolate_address());
+#else
+  __ LoadAddress(rdi, ExternalReference::isolate_address());
+#endif
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
   // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:
@@ -8276,17 +8281,9 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     result = allocator()->Allocate();
     ASSERT(result.is_valid() && receiver.is_valid() && value.is_valid());
 
-    // Cannot use r12 for receiver, because that changes
-    // the distance between a call and a fixup location,
-    // due to a special encoding of r12 as r/m in a ModR/M byte.
-    if (receiver.reg().is(r12)) {
-      frame()->Spill(receiver.reg());  // It will be overwritten with result.
-      // Swap receiver and value.
-      __ movq(result.reg(), receiver.reg());
-      Result temp = receiver;
-      receiver = result;
-      result = temp;
-    }
+    // r12 is now a reserved register, so it cannot be the receiver.
+    // If it was, the distance to the fixup location would not be constant.
+    ASSERT(!receiver.reg().is(r12));
 
     // Check that the receiver is a heap object.
     Condition is_smi = masm()->CheckSmi(receiver.reg());
@@ -8758,7 +8755,7 @@ ModuloFunction CreateModuloFunction() {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler masm(buffer, static_cast<int>(actual_size));
+  Assembler masm(NULL, buffer, static_cast<int>(actual_size));
   // Generated code is put into a fixed, unmovable, buffer, and not into
   // the V8 heap. We can't, and don't, refer to any relocatable addresses
   // (e.g. the JavaScript nan-object).
@@ -8832,7 +8829,7 @@ ModuloFunction CreateModuloFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  // Call the function from C++.
+  // Call the function from C++ through this pointer.
   return FUNCTION_CAST<ModuloFunction>(buffer);
 }
 

@@ -562,7 +562,7 @@ void FullCodeGenerator::TestContext::Plug(bool flag) const {
 void FullCodeGenerator::DoTest(Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     // Emit the inlined tests assumed by the stub.
     __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
@@ -1622,25 +1622,24 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       break;
   }
 
+  // For compound assignments we need another deoptimization point after the
+  // variable/property load.
   if (expr->is_compound()) {
     { AccumulatorValueContext context(this);
       switch (assign_type) {
         case VARIABLE:
           EmitVariableLoad(expr->target()->AsVariableProxy()->var());
+          PrepareForBailout(expr->target(), TOS_REG);
           break;
         case NAMED_PROPERTY:
           EmitNamedPropertyLoad(property);
+          PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
           break;
         case KEYED_PROPERTY:
           EmitKeyedPropertyLoad(property);
+          PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
           break;
       }
-    }
-
-    // For property compound assignments we need another deoptimization
-    // point after the property load.
-    if (property != NULL) {
-      PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
     }
 
     Token::Value op = expr->binary_op();
@@ -2352,16 +2351,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       }
     }
   } else {
-    // Call to some other expression.  If the expression is an anonymous
-    // function literal not called in a loop, mark it as one that should
-    // also use the fast code generator.
-    FunctionLiteral* lit = fun->AsFunctionLiteral();
-    if (lit != NULL &&
-        lit->name()->Equals(isolate()->heap()->empty_string()) &&
-        loop_depth() == 0) {
-      lit->set_try_full_codegen(true);
-    }
-
     { PreservePositionScope scope(masm()->positions_recorder());
       VisitForStackValue(fun);
     }
@@ -2543,11 +2532,75 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  // Just indicate false, as %_IsStringWrapperSafeForDefaultValueOf() is only
-  // used in a few functions in runtime.js which should not normally be hit by
-  // this compiler.
+  if (FLAG_debug_code) __ AbortIfSmi(r0);
+
+  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ ldrb(ip, FieldMemOperand(r1, Map::kBitField2Offset));
+  __ tst(ip, Operand(1 << Map::kStringWrapperSafeForDefaultValueOf));
+  __ b(ne, if_true);
+
+  // Check for fast case object. Generate false result for slow case object.
+  __ ldr(r2, FieldMemOperand(r0, JSObject::kPropertiesOffset));
+  __ ldr(r2, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
+  __ cmp(r2, ip);
+  __ b(eq, if_false);
+
+  // Look for valueOf symbol in the descriptor array, and indicate false if
+  // found. The type is not checked, so if it is a transition it is a false
+  // negative.
+  __ ldr(r4, FieldMemOperand(r1, Map::kInstanceDescriptorsOffset));
+  __ ldr(r3, FieldMemOperand(r4, FixedArray::kLengthOffset));
+  // r4: descriptor array
+  // r3: length of descriptor array
+  // Calculate the end of the descriptor array.
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kPointerSize == 4);
+  __ add(r2, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(r2, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+
+  // Calculate location of the first key name.
+  __ add(r4,
+         r4,
+         Operand(FixedArray::kHeaderSize - kHeapObjectTag +
+                 DescriptorArray::kFirstIndex * kPointerSize));
+  // Loop through all the keys in the descriptor array. If one of these is the
+  // symbol valueOf the result is false.
+  Label entry, loop;
+  // The use of ip to store the valueOf symbol asumes that it is not otherwise
+  // used in the loop below.
+  __ mov(ip, Operand(FACTORY->value_of_symbol()));
+  __ jmp(&entry);
+  __ bind(&loop);
+  __ ldr(r3, MemOperand(r4, 0));
+  __ cmp(r3, ip);
+  __ b(eq, if_false);
+  __ add(r4, r4, Operand(kPointerSize));
+  __ bind(&entry);
+  __ cmp(r4, Operand(r2));
+  __ b(ne, &loop);
+
+  // If a valueOf property is not found on the object check that it's
+  // prototype is the un-modified String prototype. If not result is false.
+  __ ldr(r2, FieldMemOperand(r1, Map::kPrototypeOffset));
+  __ tst(r2, Operand(kSmiTagMask));
+  __ b(eq, if_false);
+  __ ldr(r2, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ ldr(r3, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ ldr(r3, FieldMemOperand(r3, GlobalObject::kGlobalContextOffset));
+  __ ldr(r3, ContextOperand(r3, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
+  __ cmp(r2, r3);
+  __ b(ne, if_false);
+
+  // Set the bit in the map to indicate that it has been checked safe for
+  // default valueOf and set true result.
+  __ ldrb(r2, FieldMemOperand(r4, Map::kBitField2Offset));
+  __ orr(r2, r2, Operand(1 << Map::kStringWrapperSafeForDefaultValueOf));
+  __ strb(r2, FieldMemOperand(r4, Map::kBitField2Offset));
+  __ jmp(if_true);
+
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-  __ jmp(if_false);
   context()->Plug(if_true, if_false);
 }
 
@@ -2802,9 +2855,10 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   // Convert 32 random bits in r0 to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  if (isolate()->cpu_features()->IsSupported(VFP3)) {
-    __ PrepareCallCFunction(0, r1);
-    __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 0);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    __ PrepareCallCFunction(1, r0);
+    __ mov(r0, Operand(ExternalReference::isolate_address()));
+    __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
     CpuFeatures::Scope scope(VFP3);
     // 0x41300000 is the top half of 1.0 x 2^20 as a double.
@@ -2822,10 +2876,11 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
     __ vstr(d7, r0, HeapNumber::kValueOffset);
     __ mov(r0, r4);
   } else {
+    __ PrepareCallCFunction(2, r0);
     __ mov(r0, Operand(r4));
-    __ PrepareCallCFunction(1, r1);
+    __ mov(r1, Operand(ExternalReference::isolate_address()));
     __ CallCFunction(
-        ExternalReference::fill_heap_number_with_random_function(isolate()), 1);
+        ExternalReference::fill_heap_number_with_random_function(isolate()), 2);
   }
 
   context()->Plug(r0);
@@ -3827,7 +3882,11 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // We need a second deoptimization point after loading the value
   // in case evaluating the property load my have a side effect.
-  PrepareForBailout(expr->increment(), TOS_REG);
+  if (assign_type == VARIABLE) {
+    PrepareForBailout(expr->expression(), TOS_REG);
+  } else {
+    PrepareForBailout(expr->increment(), TOS_REG);
+  }
 
   // Call ToNumber only if operand is not a smi.
   Label no_conversion;

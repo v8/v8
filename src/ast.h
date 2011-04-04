@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1135,6 +1135,7 @@ class VariableProxy: public Expression {
   Variable* var() const { return var_; }
   bool is_this() const { return is_this_; }
   bool inside_with() const { return inside_with_; }
+  int position() const { return position_; }
 
   void MarkAsTrivial() { is_trivial_ = true; }
 
@@ -1147,8 +1148,12 @@ class VariableProxy: public Expression {
   bool is_this_;
   bool inside_with_;
   bool is_trivial_;
+  int position_;
 
-  VariableProxy(Handle<String> name, bool is_this, bool inside_with);
+  VariableProxy(Handle<String> name,
+                bool is_this,
+                bool inside_with,
+                int position = RelocInfo::kNoPosition);
   explicit VariableProxy(bool is_this);
 
   friend class Scope;
@@ -1316,7 +1321,7 @@ class Call: public Expression {
   Handle<JSGlobalPropertyCell> cell() { return cell_; }
 
   bool ComputeTarget(Handle<Map> type, Handle<String> name);
-  bool ComputeGlobalTarget(Handle<GlobalObject> global, Handle<String> name);
+  bool ComputeGlobalTarget(Handle<GlobalObject> global, LookupResult* lookup);
 
   // Bailout support.
   int ReturnId() const { return return_id_; }
@@ -1743,7 +1748,6 @@ class FunctionLiteral: public Expression {
         contains_loops_(contains_loops),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(HEAP->empty_string()),
-        try_full_codegen_(false),
         pretenure_(false) { }
 
   DECLARE_NODE_TYPE(FunctionLiteral)
@@ -1781,9 +1785,6 @@ class FunctionLiteral: public Expression {
     inferred_name_ = inferred_name;
   }
 
-  bool try_full_codegen() { return try_full_codegen_; }
-  void set_try_full_codegen(bool flag) { try_full_codegen_ = flag; }
-
   bool pretenure() { return pretenure_; }
   void set_pretenure(bool value) { pretenure_ = value; }
 
@@ -1803,7 +1804,6 @@ class FunctionLiteral: public Expression {
   bool strict_mode_;
   int function_token_position_;
   Handle<String> inferred_name_;
-  bool try_full_codegen_;
   bool pretenure_;
 };
 

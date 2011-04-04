@@ -97,6 +97,10 @@ void* ZoneObject::operator new(size_t size) {
   return ZONE->New(static_cast<int>(size));
 }
 
+void* ZoneObject::operator new(size_t size, Zone* zone) {
+  return zone->New(static_cast<int>(size));
+}
+
 
 inline void* ZoneListAllocationPolicy::New(int size) {
   return ZONE->New(size);

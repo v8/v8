@@ -414,7 +414,6 @@ Isolate::Isolate()
       runtime_profiler_(NULL),
       compilation_cache_(NULL),
       counters_(new Counters()),
-      cpu_features_(NULL),
       code_range_(NULL),
       break_access_(OS::CreateMutex()),
       logger_(new Logger()),
@@ -593,8 +592,6 @@ Isolate::~Isolate() {
 
   delete counters_;
   counters_ = NULL;
-  delete cpu_features_;
-  cpu_features_ = NULL;
 
   delete handle_scope_implementer_;
   handle_scope_implementer_ = NULL;
@@ -680,7 +677,6 @@ bool Isolate::PreInit() {
   write_input_buffer_ = new StringInputBuffer();
   global_handles_ = new GlobalHandles(this);
   bootstrapper_ = new Bootstrapper();
-  cpu_features_ = new CpuFeatures();
   handle_scope_implementer_ = new HandleScopeImplementer();
   stub_cache_ = new StubCache(this);
   ast_sentinels_ = new AstSentinels();
@@ -724,9 +720,6 @@ bool Isolate::Init(Deserializer* des) {
 
   CpuProfiler::Setup();
   HeapProfiler::Setup();
-
-  // Setup the platform OS support.
-  OS::Setup();
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
@@ -785,11 +778,6 @@ bool Isolate::Init(Deserializer* des) {
   // Deserializing may put strange things in the root array's copy of the
   // stack guard.
   heap_.SetStackLimits();
-
-  // Setup the CPU support. Must be done after heap setup and after
-  // any deserialization because we have to have the initial heap
-  // objects in place for creating the code object used for probing.
-  CPU::Setup();
 
   deoptimizer_data_ = new DeoptimizerData;
   runtime_profiler_ = new RuntimeProfiler(this);

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -199,6 +199,8 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
 
 Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   ASSERT(!object->IsJSFunction());
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
 
   // If you return a function from here, it will be called when an
   // attempt is made to call the given object as a function.
@@ -206,7 +208,7 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   // Regular expressions can be called as functions in both Firefox
   // and Safari so we allow it too.
   if (object->IsJSRegExp()) {
-    Handle<String> exec = FACTORY->exec_symbol();
+    Handle<String> exec = factory->exec_symbol();
     // TODO(lrn): Bug 617.  We should use the default function here, not the
     // one on the RegExp object.
     Object* exec_function;
@@ -214,7 +216,7 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
       // This can lose an exception, but the alternative is to put a failure
       // object in a handle, which is not GC safe.
       if (!maybe_exec_function->ToObject(&exec_function)) {
-        return FACTORY->undefined_value();
+        return factory->undefined_value();
       }
     }
     return Handle<Object>(exec_function);
@@ -225,15 +227,16 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   if (object->IsHeapObject() &&
       HeapObject::cast(*object)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
-        Isolate::Current()->global_context()->call_as_function_delegate());
+        isolate->global_context()->call_as_function_delegate());
   }
 
-  return FACTORY->undefined_value();
+  return factory->undefined_value();
 }
 
 
 Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
   ASSERT(!object->IsJSFunction());
+  Isolate* isolate = Isolate::Current();
 
   // If you return a function from here, it will be called when an
   // attempt is made to call the given object as a constructor.
@@ -243,10 +246,10 @@ Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
   if (object->IsHeapObject() &&
       HeapObject::cast(*object)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
-        Isolate::Current()->global_context()->call_as_constructor_delegate());
+        isolate->global_context()->call_as_constructor_delegate());
   }
 
-  return FACTORY->undefined_value();
+  return isolate->factory()->undefined_value();
 }
 
 
@@ -467,10 +470,11 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 
 #define RETURN_NATIVE_CALL(name, argc, argv, has_pending_exception)            \
   do {                                                                         \
+    Isolate* isolate = Isolate::Current();                                     \
     Object** args[argc] = argv;                                                \
     ASSERT(has_pending_exception != NULL);                                     \
-    return Call(Isolate::Current()->name##_fun(),                              \
-                Isolate::Current()->js_builtins_object(), argc, args,          \
+    return Call(isolate->name##_fun(),                                         \
+                isolate->js_builtins_object(), argc, args,                     \
                 has_pending_exception);                                        \
   } while (false)
 
@@ -549,20 +553,23 @@ Handle<JSRegExp> Execution::NewJSRegExp(Handle<String> pattern,
 
 
 Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
+  Isolate* isolate = string->GetIsolate();
+  Factory* factory = isolate->factory();
+
   int int_index = static_cast<int>(index);
   if (int_index < 0 || int_index >= string->length()) {
-    return FACTORY->undefined_value();
+    return factory->undefined_value();
   }
 
   Handle<Object> char_at =
-      GetProperty(Isolate::Current()->js_builtins_object(),
-                  FACTORY->char_at_symbol());
+      GetProperty(isolate->js_builtins_object(),
+                  factory->char_at_symbol());
   if (!char_at->IsJSFunction()) {
-    return FACTORY->undefined_value();
+    return factory->undefined_value();
   }
 
   bool caught_exception;
-  Handle<Object> index_object = FACTORY->NewNumberFromInt(int_index);
+  Handle<Object> index_object = factory->NewNumberFromInt(int_index);
   Object** index_arg[] = { index_object.location() };
   Handle<Object> result = TryCall(Handle<JSFunction>::cast(char_at),
                                   string,
@@ -570,7 +577,7 @@ Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
                                   index_arg,
                                   &caught_exception);
   if (caught_exception) {
-    return FACTORY->undefined_value();
+    return factory->undefined_value();
   }
   return result;
 }
@@ -578,17 +585,18 @@ Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
 
 Handle<JSFunction> Execution::InstantiateFunction(
     Handle<FunctionTemplateInfo> data, bool* exc) {
+  Isolate* isolate = data->GetIsolate();
   // Fast case: see if the function has already been instantiated
   int serial_number = Smi::cast(data->serial_number())->value();
   Object* elm =
-      Isolate::Current()->global_context()->function_cache()->
+      isolate->global_context()->function_cache()->
           GetElementNoExceptionThrown(serial_number);
   if (elm->IsJSFunction()) return Handle<JSFunction>(JSFunction::cast(elm));
   // The function has not yet been instantiated in this context; do it.
   Object** args[1] = { Handle<Object>::cast(data).location() };
   Handle<Object> result =
-      Call(Isolate::Current()->instantiate_fun(),
-           Isolate::Current()->js_builtins_object(), 1, args, exc);
+      Call(isolate->instantiate_fun(),
+           isolate->js_builtins_object(), 1, args, exc);
   if (*exc) return Handle<JSFunction>::null();
   return Handle<JSFunction>::cast(result);
 }
@@ -596,12 +604,13 @@ Handle<JSFunction> Execution::InstantiateFunction(
 
 Handle<JSObject> Execution::InstantiateObject(Handle<ObjectTemplateInfo> data,
                                               bool* exc) {
+  Isolate* isolate = data->GetIsolate();
   if (data->property_list()->IsUndefined() &&
       !data->constructor()->IsUndefined()) {
     // Initialization to make gcc happy.
     Object* result = NULL;
     {
-      HandleScope scope;
+      HandleScope scope(isolate);
       Handle<FunctionTemplateInfo> cons_template =
           Handle<FunctionTemplateInfo>(
               FunctionTemplateInfo::cast(data->constructor()));
@@ -616,8 +625,8 @@ Handle<JSObject> Execution::InstantiateObject(Handle<ObjectTemplateInfo> data,
   } else {
     Object** args[1] = { Handle<Object>::cast(data).location() };
     Handle<Object> result =
-        Call(Isolate::Current()->instantiate_fun(),
-             Isolate::Current()->js_builtins_object(), 1, args, exc);
+        Call(isolate->instantiate_fun(),
+             isolate->js_builtins_object(), 1, args, exc);
     if (*exc) return Handle<JSObject>::null();
     return Handle<JSObject>::cast(result);
   }
@@ -627,9 +636,10 @@ Handle<JSObject> Execution::InstantiateObject(Handle<ObjectTemplateInfo> data,
 void Execution::ConfigureInstance(Handle<Object> instance,
                                   Handle<Object> instance_template,
                                   bool* exc) {
+  Isolate* isolate = Isolate::Current();
   Object** args[2] = { instance.location(), instance_template.location() };
-  Execution::Call(Isolate::Current()->configure_instance_fun(),
-                  Isolate::Current()->js_builtins_object(), 2, args, exc);
+  Execution::Call(isolate->configure_instance_fun(),
+                  isolate->js_builtins_object(), 2, args, exc);
 }
 
 
@@ -637,6 +647,7 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
                                             Handle<JSFunction> fun,
                                             Handle<Object> pos,
                                             Handle<Object> is_global) {
+  Isolate* isolate = fun->GetIsolate();
   const int argc = 4;
   Object** args[argc] = { recv.location(),
                           Handle<Object>::cast(fun).location(),
@@ -644,10 +655,13 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
                           is_global.location() };
   bool caught_exception = false;
   Handle<Object> result =
-      TryCall(Isolate::Current()->get_stack_trace_line_fun(),
-              Isolate::Current()->js_builtins_object(), argc, args,
+      TryCall(isolate->get_stack_trace_line_fun(),
+              isolate->js_builtins_object(), argc, args,
               &caught_exception);
-  if (caught_exception || !result->IsString()) return FACTORY->empty_symbol();
+  if (caught_exception || !result->IsString()) {
+      return isolate->factory()->empty_symbol();
+  }
+
   return Handle<String>::cast(result);
 }
 
@@ -728,10 +742,11 @@ Object* Execution::DebugBreakHelper() {
 }
 
 void Execution::ProcessDebugMesssages(bool debug_command_only) {
+  Isolate* isolate = Isolate::Current();
   // Clear the debug command request flag.
-  Isolate::Current()->stack_guard()->Continue(DEBUGCOMMAND);
+  isolate->stack_guard()->Continue(DEBUGCOMMAND);
 
-  HandleScope scope;
+  HandleScope scope(isolate);
   // Enter the debugger. Just continue if we fail to enter the debugger.
   EnterDebugger debugger;
   if (debugger.FailedToEnter()) {
@@ -740,8 +755,8 @@ void Execution::ProcessDebugMesssages(bool debug_command_only) {
 
   // Notify the debug event listeners. Indicate auto continue if the break was
   // a debug command break.
-  Isolate::Current()->debugger()->OnDebugBreak(FACTORY->undefined_value(),
-                                               debug_command_only);
+  isolate->debugger()->OnDebugBreak(isolate->factory()->undefined_value(),
+                                    debug_command_only);
 }
 
 

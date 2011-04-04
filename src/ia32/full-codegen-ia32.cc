@@ -1563,25 +1563,24 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     }
   }
 
+  // For compound assignments we need another deoptimization point after the
+  // variable/property load.
   if (expr->is_compound()) {
     { AccumulatorValueContext context(this);
       switch (assign_type) {
         case VARIABLE:
           EmitVariableLoad(expr->target()->AsVariableProxy()->var());
+          PrepareForBailout(expr->target(), TOS_REG);
           break;
         case NAMED_PROPERTY:
           EmitNamedPropertyLoad(property);
+          PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
           break;
         case KEYED_PROPERTY:
           EmitKeyedPropertyLoad(property);
+          PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
           break;
       }
-    }
-
-    // For property compound assignments we need another deoptimization
-    // point after the property load.
-    if (property != NULL) {
-      PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
     }
 
     Token::Value op = expr->binary_op();
@@ -2268,15 +2267,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       }
     }
   } else {
-    // Call to some other expression.  If the expression is an anonymous
-    // function literal not called in a loop, mark it as one that should
-    // also use the full code generator.
-    FunctionLiteral* lit = fun->AsFunctionLiteral();
-    if (lit != NULL &&
-        lit->name()->Equals(isolate()->heap()->empty_string()) &&
-        loop_depth() == 0) {
-      lit->set_try_full_codegen(true);
-    }
     { PreservePositionScope scope(masm()->positions_recorder());
       VisitForStackValue(fun);
     }
@@ -2458,10 +2448,73 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  // TODO(3110205): Implement this.
-  // Currently unimplemented.  Emit false, a safe choice.
+  if (FLAG_debug_code) __ AbortIfSmi(eax);
+
+  // Check whether this map has already been checked to be safe for default
+  // valueOf.
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ test_b(FieldOperand(ebx, Map::kBitField2Offset),
+            1 << Map::kStringWrapperSafeForDefaultValueOf);
+  __ j(not_zero, if_true);
+
+  // Check for fast case object. Return false for slow case objects.
+  __ mov(ecx, FieldOperand(eax, JSObject::kPropertiesOffset));
+  __ mov(ecx, FieldOperand(ecx, HeapObject::kMapOffset));
+  __ cmp(ecx, FACTORY->hash_table_map());
+  __ j(equal, if_false);
+
+  // Look for valueOf symbol in the descriptor array, and indicate false if
+  // found. The type is not checked, so if it is a transition it is a false
+  // negative.
+  __ mov(ebx, FieldOperand(ebx, Map::kInstanceDescriptorsOffset));
+  __ mov(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
+  // ebx: descriptor array
+  // ecx: length of descriptor array
+  // Calculate the end of the descriptor array.
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kPointerSize == 4);
+  __ lea(ecx, Operand(ebx, ecx, times_2, FixedArray::kHeaderSize));
+  // Calculate location of the first key name.
+  __ add(Operand(ebx),
+           Immediate(FixedArray::kHeaderSize +
+                     DescriptorArray::kFirstIndex * kPointerSize));
+  // Loop through all the keys in the descriptor array. If one of these is the
+  // symbol valueOf the result is false.
+  Label entry, loop;
+  __ jmp(&entry);
+  __ bind(&loop);
+  __ mov(edx, FieldOperand(ebx, 0));
+  __ cmp(edx, FACTORY->value_of_symbol());
+  __ j(equal, if_false);
+  __ add(Operand(ebx), Immediate(kPointerSize));
+  __ bind(&entry);
+  __ cmp(ebx, Operand(ecx));
+  __ j(not_equal, &loop);
+
+  // Reload map as register ebx was used as temporary above.
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+
+  // If a valueOf property is not found on the object check that it's
+  // prototype is the un-modified String prototype. If not result is false.
+  __ mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
+  __ test(ecx, Immediate(kSmiTagMask));
+  __ j(zero, if_false);
+  __ mov(ecx, FieldOperand(ecx, HeapObject::kMapOffset));
+  __ mov(edx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(edx,
+         FieldOperand(edx, GlobalObject::kGlobalContextOffset));
+  __ cmp(ecx,
+         ContextOperand(edx,
+                        Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
+  __ j(not_equal, if_false);
+  // Set the bit in the map to indicate that it has been checked safe for
+  // default valueOf and set true result.
+  __ or_(FieldOperand(ebx, Map::kBitField2Offset),
+         Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
+  __ jmp(if_true);
+
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-  __ jmp(if_false);
   context()->Plug(if_true, if_false);
 }
 
@@ -2717,15 +2770,16 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
 
   __ bind(&heapnumber_allocated);
 
-  __ PrepareCallCFunction(0, ebx);
+  __ PrepareCallCFunction(1, ebx);
+  __ mov(Operand(esp, 0), Immediate(ExternalReference::isolate_address()));
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()),
-                   0);
+                   1);
 
   // Convert 32 random bits in eax to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   // This is implemented on both SSE2 and FPU.
-  if (isolate()->cpu_features()->IsSupported(SSE2)) {
+  if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatures::Scope fscope(SSE2);
     __ mov(ebx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
     __ movd(xmm1, Operand(ebx));
@@ -2800,7 +2854,7 @@ void FullCodeGenerator::EmitMathPow(ZoneList<Expression*>* args) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  if (isolate()->cpu_features()->IsSupported(SSE2)) {
+  if (CpuFeatures::IsSupported(SSE2)) {
     MathPowStub stub;
     __ CallStub(&stub);
   } else {
@@ -3778,7 +3832,11 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // We need a second deoptimization point after loading the value
   // in case evaluating the property load my have a side effect.
-  PrepareForBailout(expr->increment(), TOS_REG);
+  if (assign_type == VARIABLE) {
+    PrepareForBailout(expr->expression(), TOS_REG);
+  } else {
+    PrepareForBailout(expr->increment(), TOS_REG);
+  }
 
   // Call ToNumber only if operand is not a smi.
   NearLabel no_conversion;

@@ -86,15 +86,15 @@ void MarkCompactCollector::CollectGarbage() {
     GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_COMPACT);
     EncodeForwardingAddresses();
 
-    heap_->MarkMapPointersAsEncoded(true);
+    heap()->MarkMapPointersAsEncoded(true);
     UpdatePointers();
-    heap_->MarkMapPointersAsEncoded(false);
-    heap_->isolate()->pc_to_code_cache()->Flush();
+    heap()->MarkMapPointersAsEncoded(false);
+    heap()->isolate()->pc_to_code_cache()->Flush();
 
     RelocateObjects();
   } else {
     SweepSpaces();
-    heap_->isolate()->pc_to_code_cache()->Flush();
+    heap()->isolate()->pc_to_code_cache()->Flush();
   }
 
   Finish();
@@ -123,7 +123,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   compact_on_next_gc_ = false;
 
   if (FLAG_never_compact) compacting_collection_ = false;
-  if (!HEAP->map_space()->MapPointersEncodable())
+  if (!heap()->map_space()->MapPointersEncodable())
       compacting_collection_ = false;
   if (FLAG_collect_maps) CreateBackPointers();
 #ifdef ENABLE_GDB_JIT_INTERFACE
@@ -161,9 +161,9 @@ void MarkCompactCollector::Finish() {
   // force lazy re-initialization of it. This must be done after the
   // GC, because it relies on the new address of certain old space
   // objects (empty string, illegal builtin).
-  Isolate::Current()->stub_cache()->Clear();
+  heap()->isolate()->stub_cache()->Clear();
 
-  heap_->external_string_table_.CleanUp();
+  heap()->external_string_table_.CleanUp();
 
   // If we've just compacted old space there's no reason to check the
   // fragmentation limit. Just return.
@@ -456,7 +456,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(heap, p);
   }
 
-  static inline void VisitCodeTarget(RelocInfo* rinfo) {
+  static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* code = Code::GetCodeFromTargetAddress(rinfo->target_address());
     if (FLAG_cleanup_ics_at_gc && code->is_inline_cache_stub()) {
@@ -464,48 +464,50 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       // Please note targets for cleared inline cached do not have to be
       // marked since they are contained in HEAP->non_monomorphic_cache().
     } else {
-      HEAP->mark_compact_collector()->MarkObject(code);
+      heap->mark_compact_collector()->MarkObject(code);
     }
   }
 
-  static void VisitGlobalPropertyCell(RelocInfo* rinfo) {
+  static void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo) {
     ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
     Object* cell = rinfo->target_cell();
     Object* old_cell = cell;
-    VisitPointer(HEAP, &cell);
+    VisitPointer(heap, &cell);
     if (cell != old_cell) {
       rinfo->set_target_cell(reinterpret_cast<JSGlobalPropertyCell*>(cell));
     }
   }
 
-  static inline void VisitDebugTarget(RelocInfo* rinfo) {
+  static inline void VisitDebugTarget(Heap* heap, RelocInfo* rinfo) {
     ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
             rinfo->IsPatchedReturnSequence()) ||
            (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
             rinfo->IsPatchedDebugBreakSlotSequence()));
     HeapObject* code = Code::GetCodeFromTargetAddress(rinfo->call_address());
-    HEAP->mark_compact_collector()->MarkObject(code);
+    heap->mark_compact_collector()->MarkObject(code);
   }
 
   // Mark object pointed to by p.
   INLINE(static void MarkObjectByPointer(Heap* heap, Object** p)) {
     if (!(*p)->IsHeapObject()) return;
     HeapObject* object = ShortCircuitConsString(p);
-    heap->mark_compact_collector()->MarkObject(object);
+    if (!object->IsMarked()) {
+      heap->mark_compact_collector()->MarkUnmarkedObject(object);
+    }
   }
 
 
   // Visit an unmarked object.
-  static inline void VisitUnmarkedObject(HeapObject* obj) {
+  INLINE(static void VisitUnmarkedObject(MarkCompactCollector* collector,
+                                         HeapObject* obj)) {
 #ifdef DEBUG
-    ASSERT(HEAP->Contains(obj));
+    ASSERT(Isolate::Current()->heap()->Contains(obj));
     ASSERT(!obj->IsMarked());
 #endif
     Map* map = obj->map();
-    MarkCompactCollector* collector = map->heap()->mark_compact_collector();
     collector->SetMark(obj);
     // Mark the map pointer and the body.
-    collector->MarkObject(map);
+    if (!map->IsMarked()) collector->MarkUnmarkedObject(map);
     IterateBody(map, obj);
   }
 
@@ -518,12 +520,13 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     StackLimitCheck check(heap->isolate());
     if (check.HasOverflowed()) return false;
 
+    MarkCompactCollector* collector = heap->mark_compact_collector();
     // Visit the unmarked objects.
     for (Object** p = start; p < end; p++) {
       if (!(*p)->IsHeapObject()) continue;
       HeapObject* obj = HeapObject::cast(*p);
       if (obj->IsMarked()) continue;
-      VisitUnmarkedObject(obj);
+      VisitUnmarkedObject(collector, obj);
     }
     return true;
   }
@@ -561,8 +564,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   // flushed.
   static const int kCodeAgeThreshold = 5;
 
-  inline static bool HasSourceCode(SharedFunctionInfo* info) {
-    Object* undefined = HEAP->raw_unchecked_undefined_value();
+  inline static bool HasSourceCode(Heap* heap, SharedFunctionInfo* info) {
+    Object* undefined = heap->raw_unchecked_undefined_value();
     return (info->script() != undefined) &&
         (reinterpret_cast<Script*>(info->script())->source() != undefined);
   }
@@ -570,15 +573,15 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   inline static bool IsCompiled(JSFunction* function) {
     return function->unchecked_code() !=
-        Isolate::Current()->builtins()->builtin(Builtins::kLazyCompile);
+        function->GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
   }
 
   inline static bool IsCompiled(SharedFunctionInfo* function) {
     return function->unchecked_code() !=
-        Isolate::Current()->builtins()->builtin(Builtins::kLazyCompile);
+        function->GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
   }
 
-  inline static bool IsFlushable(JSFunction* function) {
+  inline static bool IsFlushable(Heap* heap, JSFunction* function) {
     SharedFunctionInfo* shared_info = function->unchecked_shared();
 
     // Code is either on stack, in compilation cache or referenced
@@ -593,10 +596,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       return false;
     }
 
-    return IsFlushable(shared_info);
+    return IsFlushable(heap, shared_info);
   }
 
-  inline static bool IsFlushable(SharedFunctionInfo* shared_info) {
+  inline static bool IsFlushable(Heap* heap, SharedFunctionInfo* shared_info) {
     // Code is either on stack, in compilation cache or referenced
     // by optimized version of function.
     if (shared_info->unchecked_code()->IsMarked()) {
@@ -606,7 +609,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     // The function must be compiled and have the source code available,
     // to be able to recompile it in case we need the function again.
-    if (!(shared_info->is_compiled() && HasSourceCode(shared_info))) {
+    if (!(shared_info->is_compiled() && HasSourceCode(heap, shared_info))) {
       return false;
     }
 
@@ -638,7 +641,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
 
   static bool FlushCodeForFunction(Heap* heap, JSFunction* function) {
-    if (!IsFlushable(function)) return false;
+    if (!IsFlushable(heap, function)) return false;
 
     // This function's code looks flushable. But we have to postpone the
     // decision until we see all functions that point to the same
@@ -715,7 +718,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     if (shared->IsInobjectSlackTrackingInProgress()) shared->DetachInitialMap();
 
     if (!known_flush_code_candidate) {
-      known_flush_code_candidate = IsFlushable(shared);
+      known_flush_code_candidate = IsFlushable(heap, shared);
       if (known_flush_code_candidate) {
         heap->mark_compact_collector()->code_flusher()->AddCandidate(shared);
       }
@@ -865,16 +868,16 @@ class MarkingVisitor : public ObjectVisitor {
     StaticMarkingVisitor::VisitPointers(heap_, start, end);
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) {
-    StaticMarkingVisitor::VisitCodeTarget(rinfo);
+  void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
+    StaticMarkingVisitor::VisitCodeTarget(heap, rinfo);
   }
 
-  void VisitGlobalPropertyCell(RelocInfo* rinfo) {
-    StaticMarkingVisitor::VisitGlobalPropertyCell(rinfo);
+  void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo) {
+    StaticMarkingVisitor::VisitGlobalPropertyCell(heap, rinfo);
   }
 
-  void VisitDebugTarget(RelocInfo* rinfo) {
-    StaticMarkingVisitor::VisitDebugTarget(rinfo);
+  void VisitDebugTarget(Heap* heap, RelocInfo* rinfo) {
+    StaticMarkingVisitor::VisitDebugTarget(heap, rinfo);
   }
 
  private:
@@ -922,7 +925,7 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
 
 
 void MarkCompactCollector::PrepareForCodeFlushing() {
-  ASSERT(heap_ == Isolate::Current()->heap());
+  ASSERT(heap() == Isolate::Current()->heap());
 
   if (!FLAG_flush_code) {
     EnableCodeFlushing(false);
@@ -930,8 +933,8 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  if (heap_->isolate()->debug()->IsLoaded() ||
-      heap_->isolate()->debug()->has_break_points()) {
+  if (heap()->isolate()->debug()->IsLoaded() ||
+      heap()->isolate()->debug()->has_break_points()) {
     EnableCodeFlushing(false);
     return;
   }
@@ -940,10 +943,10 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
 
   // Ensure that empty descriptor array is marked. Method MarkDescriptorArray
   // relies on it being marked before any other descriptor array.
-  MarkObject(heap_->raw_unchecked_empty_descriptor_array());
+  MarkObject(heap()->raw_unchecked_empty_descriptor_array());
 
   // Make sure we are not referencing the code from the stack.
-  ASSERT(this == heap_->mark_compact_collector());
+  ASSERT(this == heap()->mark_compact_collector());
   for (StackFrameIterator it; !it.done(); it.Advance()) {
     MarkObject(it.frame()->unchecked_code());
   }
@@ -951,12 +954,12 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
   // Iterate the archived stacks in all threads to check if
   // the code is referenced.
   CodeMarkingVisitor code_marking_visitor(this);
-  heap_->isolate()->thread_manager()->IterateArchivedThreads(
+  heap()->isolate()->thread_manager()->IterateArchivedThreads(
       &code_marking_visitor);
 
   SharedFunctionInfoMarkingVisitor visitor(this);
-  heap_->isolate()->compilation_cache()->IterateFunctions(&visitor);
-  heap_->isolate()->handle_scope_implementer()->Iterate(&visitor);
+  heap()->isolate()->compilation_cache()->IterateFunctions(&visitor);
+  heap()->isolate()->handle_scope_implementer()->Iterate(&visitor);
 
   ProcessMarkingStack();
 }
@@ -1004,7 +1007,8 @@ class RootMarkingVisitor : public ObjectVisitor {
 // Helper class for pruning the symbol table.
 class SymbolTableCleaner : public ObjectVisitor {
  public:
-  SymbolTableCleaner() : pointers_removed_(0) { }
+  explicit SymbolTableCleaner(Heap* heap)
+    : heap_(heap), pointers_removed_(0) { }
 
   virtual void VisitPointers(Object** start, Object** end) {
     // Visit all HeapObject pointers in [start, end).
@@ -1016,10 +1020,10 @@ class SymbolTableCleaner : public ObjectVisitor {
         // Since no objects have yet been moved we can safely access the map of
         // the object.
         if ((*p)->IsExternalString()) {
-          HEAP->FinalizeExternalString(String::cast(*p));
+          heap_->FinalizeExternalString(String::cast(*p));
         }
         // Set the entry to null_value (as deleted).
-        *p = HEAP->raw_unchecked_null_value();
+        *p = heap_->raw_unchecked_null_value();
         pointers_removed_++;
       }
     }
@@ -1029,6 +1033,7 @@ class SymbolTableCleaner : public ObjectVisitor {
     return pointers_removed_;
   }
  private:
+  Heap* heap_;
   int pointers_removed_;
 };
 
@@ -1054,7 +1059,7 @@ void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
   if (object->IsMap()) {
     Map* map = Map::cast(object);
     if (FLAG_cleanup_caches_in_maps_at_gc) {
-      map->ClearCodeCache(heap_);
+      map->ClearCodeCache(heap());
     }
     SetMark(map);
     if (FLAG_collect_maps &&
@@ -1125,7 +1130,7 @@ void MarkCompactCollector::MarkDescriptorArray(
 
 
 void MarkCompactCollector::CreateBackPointers() {
-  HeapObjectIterator iterator(HEAP->map_space());
+  HeapObjectIterator iterator(heap()->map_space());
   for (HeapObject* next_object = iterator.next();
        next_object != NULL; next_object = iterator.next()) {
     if (next_object->IsMap()) {  // Could also be ByteArray on free list.
@@ -1134,7 +1139,7 @@ void MarkCompactCollector::CreateBackPointers() {
           map->instance_type() <= JS_FUNCTION_TYPE) {
         map->CreateBackPointers();
       } else {
-        ASSERT(map->instance_descriptors() == HEAP->empty_descriptor_array());
+        ASSERT(map->instance_descriptors() == heap()->empty_descriptor_array());
       }
     }
   }
@@ -1182,11 +1187,11 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
 
 
 void MarkCompactCollector::MarkSymbolTable() {
-  SymbolTable* symbol_table = heap_->raw_unchecked_symbol_table();
+  SymbolTable* symbol_table = heap()->raw_unchecked_symbol_table();
   // Mark the symbol table itself.
   SetMark(symbol_table);
   // Explicitly mark the prefix.
-  MarkingVisitor marker(heap_);
+  MarkingVisitor marker(heap());
   symbol_table->IteratePrefix(&marker);
   ProcessMarkingStack();
 }
@@ -1195,7 +1200,7 @@ void MarkCompactCollector::MarkSymbolTable() {
 void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
   // Mark the heap roots including global variables, stack variables,
   // etc., and all objects reachable from them.
-  HEAP->IterateStrongRoots(visitor, VISIT_ONLY_STRONG);
+  heap()->IterateStrongRoots(visitor, VISIT_ONLY_STRONG);
 
   // Handle the symbol table specially.
   MarkSymbolTable();
@@ -1210,7 +1215,7 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
 
 void MarkCompactCollector::MarkObjectGroups() {
   List<ObjectGroup*>* object_groups =
-      heap_->isolate()->global_handles()->object_groups();
+      heap()->isolate()->global_handles()->object_groups();
 
   for (int i = 0; i < object_groups->length(); i++) {
     ObjectGroup* entry = object_groups->at(i);
@@ -1246,7 +1251,7 @@ void MarkCompactCollector::MarkObjectGroups() {
 
 void MarkCompactCollector::MarkImplicitRefGroups() {
   List<ImplicitRefGroup*>* ref_groups =
-      heap_->isolate()->global_handles()->implicit_ref_groups();
+      heap()->isolate()->global_handles()->implicit_ref_groups();
 
   for (int i = 0; i < ref_groups->length(); i++) {
     ImplicitRefGroup* entry = ref_groups->at(i);
@@ -1279,7 +1284,7 @@ void MarkCompactCollector::EmptyMarkingStack() {
   while (!marking_stack_.is_empty()) {
     HeapObject* object = marking_stack_.Pop();
     ASSERT(object->IsHeapObject());
-    ASSERT(heap_->Contains(object));
+    ASSERT(heap()->Contains(object));
     ASSERT(object->IsMarked());
     ASSERT(!object->IsOverflowed());
 
@@ -1303,32 +1308,32 @@ void MarkCompactCollector::EmptyMarkingStack() {
 void MarkCompactCollector::RefillMarkingStack() {
   ASSERT(marking_stack_.overflowed());
 
-  SemiSpaceIterator new_it(HEAP->new_space(), &OverflowObjectSize);
+  SemiSpaceIterator new_it(heap()->new_space(), &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &new_it);
   if (marking_stack_.is_full()) return;
 
-  HeapObjectIterator old_pointer_it(HEAP->old_pointer_space(),
+  HeapObjectIterator old_pointer_it(heap()->old_pointer_space(),
                                     &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &old_pointer_it);
   if (marking_stack_.is_full()) return;
 
-  HeapObjectIterator old_data_it(HEAP->old_data_space(), &OverflowObjectSize);
+  HeapObjectIterator old_data_it(heap()->old_data_space(), &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &old_data_it);
   if (marking_stack_.is_full()) return;
 
-  HeapObjectIterator code_it(HEAP->code_space(), &OverflowObjectSize);
+  HeapObjectIterator code_it(heap()->code_space(), &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &code_it);
   if (marking_stack_.is_full()) return;
 
-  HeapObjectIterator map_it(HEAP->map_space(), &OverflowObjectSize);
+  HeapObjectIterator map_it(heap()->map_space(), &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &map_it);
   if (marking_stack_.is_full()) return;
 
-  HeapObjectIterator cell_it(HEAP->cell_space(), &OverflowObjectSize);
+  HeapObjectIterator cell_it(heap()->cell_space(), &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &cell_it);
   if (marking_stack_.is_full()) return;
 
-  LargeObjectIterator lo_it(HEAP->lo_space(), &OverflowObjectSize);
+  LargeObjectIterator lo_it(heap()->lo_space(), &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &lo_it);
   if (marking_stack_.is_full()) return;
 
@@ -1366,7 +1371,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   // The recursive GC marker detects when it is nearing stack overflow,
   // and switches to a different marking system.  JS interrupts interfere
   // with the C stack limit check.
-  PostponeInterruptsScope postpone(heap_->isolate());
+  PostponeInterruptsScope postpone(heap()->isolate());
 
 #ifdef DEBUG
   ASSERT(state_ == PREPARE_GC);
@@ -1374,14 +1379,14 @@ void MarkCompactCollector::MarkLiveObjects() {
 #endif
   // The to space contains live objects, the from space is used as a marking
   // stack.
-  marking_stack_.Initialize(heap_->new_space()->FromSpaceLow(),
-                            heap_->new_space()->FromSpaceHigh());
+  marking_stack_.Initialize(heap()->new_space()->FromSpaceLow(),
+                            heap()->new_space()->FromSpaceHigh());
 
   ASSERT(!marking_stack_.overflowed());
 
   PrepareForCodeFlushing();
 
-  RootMarkingVisitor root_visitor(heap_);
+  RootMarkingVisitor root_visitor(heap());
   MarkRoots(&root_visitor);
 
   // The objects reachable from the roots are marked, yet unreachable
@@ -1395,10 +1400,10 @@ void MarkCompactCollector::MarkLiveObjects() {
   //
   // First we identify nonlive weak handles and mark them as pending
   // destruction.
-  heap_->isolate()->global_handles()->IdentifyWeakHandles(
+  heap()->isolate()->global_handles()->IdentifyWeakHandles(
       &IsUnmarkedHeapObject);
   // Then we mark the objects and process the transitive closure.
-  heap_->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
+  heap()->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
   while (marking_stack_.overflowed()) {
     RefillMarkingStack();
     EmptyMarkingStack();
@@ -1411,20 +1416,20 @@ void MarkCompactCollector::MarkLiveObjects() {
   // Prune the symbol table removing all symbols only pointed to by the
   // symbol table.  Cannot use symbol_table() here because the symbol
   // table is marked.
-  SymbolTable* symbol_table = heap_->raw_unchecked_symbol_table();
-  SymbolTableCleaner v;
+  SymbolTable* symbol_table = heap()->raw_unchecked_symbol_table();
+  SymbolTableCleaner v(heap());
   symbol_table->IterateElements(&v);
   symbol_table->ElementsRemoved(v.PointersRemoved());
-  heap_->external_string_table_.Iterate(&v);
-  heap_->external_string_table_.CleanUp();
+  heap()->external_string_table_.Iterate(&v);
+  heap()->external_string_table_.CleanUp();
 
   // Process the weak references.
   MarkCompactWeakObjectRetainer mark_compact_object_retainer;
-  heap_->ProcessWeakReferences(&mark_compact_object_retainer);
+  heap()->ProcessWeakReferences(&mark_compact_object_retainer);
 
   // Remove object groups after marking phase.
-  heap_->isolate()->global_handles()->RemoveObjectGroups();
-  heap_->isolate()->global_handles()->RemoveImplicitRefGroups();
+  heap()->isolate()->global_handles()->RemoveObjectGroups();
+  heap()->isolate()->global_handles()->RemoveImplicitRefGroups();
 
   // Flush code from collected candidates.
   if (is_code_flushing_enabled()) {
@@ -1432,28 +1437,28 @@ void MarkCompactCollector::MarkLiveObjects() {
   }
 
   // Clean up dead objects from the runtime profiler.
-  heap_->isolate()->runtime_profiler()->RemoveDeadSamples();
+  heap()->isolate()->runtime_profiler()->RemoveDeadSamples();
 }
 
 
 #ifdef DEBUG
 void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj) {
   live_bytes_ += obj->Size();
-  if (HEAP->new_space()->Contains(obj)) {
+  if (heap()->new_space()->Contains(obj)) {
     live_young_objects_size_ += obj->Size();
-  } else if (HEAP->map_space()->Contains(obj)) {
+  } else if (heap()->map_space()->Contains(obj)) {
     ASSERT(obj->IsMap());
     live_map_objects_size_ += obj->Size();
-  } else if (HEAP->cell_space()->Contains(obj)) {
+  } else if (heap()->cell_space()->Contains(obj)) {
     ASSERT(obj->IsJSGlobalPropertyCell());
     live_cell_objects_size_ += obj->Size();
-  } else if (HEAP->old_pointer_space()->Contains(obj)) {
+  } else if (heap()->old_pointer_space()->Contains(obj)) {
     live_old_pointer_objects_size_ += obj->Size();
-  } else if (HEAP->old_data_space()->Contains(obj)) {
+  } else if (heap()->old_data_space()->Contains(obj)) {
     live_old_data_objects_size_ += obj->Size();
-  } else if (HEAP->code_space()->Contains(obj)) {
+  } else if (heap()->code_space()->Contains(obj)) {
     live_code_objects_size_ += obj->Size();
-  } else if (HEAP->lo_space()->Contains(obj)) {
+  } else if (heap()->lo_space()->Contains(obj)) {
     live_lo_objects_size_ += obj->Size();
   } else {
     UNREACHABLE();
@@ -1469,7 +1474,7 @@ void MarkCompactCollector::SweepLargeObjectSpace() {
       compacting_collection_ ? ENCODE_FORWARDING_ADDRESSES : SWEEP_SPACES;
 #endif
   // Deallocate unmarked objects and clear marked bits for marked objects.
-  HEAP->lo_space()->FreeUnmarkedObjects();
+  heap()->lo_space()->FreeUnmarkedObjects();
 }
 
 
@@ -1482,7 +1487,7 @@ bool MarkCompactCollector::SafeIsMap(HeapObject* object) {
 
 
 void MarkCompactCollector::ClearNonLiveTransitions() {
-  HeapObjectIterator map_iterator(HEAP->map_space(), &SizeOfMarkedObject);
+  HeapObjectIterator map_iterator(heap() ->map_space(), &SizeOfMarkedObject);
   // Iterate over the map space, setting map transitions that go from
   // a marked map to an unmarked map to null transitions.  At the same time,
   // set all the prototype fields of maps back to their original value,
@@ -1532,7 +1537,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
       // This test will always be false on the first iteration.
       if (on_dead_path && current->IsMarked()) {
         on_dead_path = false;
-        current->ClearNonLiveTransitions(heap_, real_prototype);
+        current->ClearNonLiveTransitions(heap(), real_prototype);
       }
       *HeapObject::RawField(current, Map::kPrototypeOffset) =
           real_prototype;
@@ -1690,7 +1695,7 @@ inline void EncodeForwardingAddressInPagedSpace(Heap* heap,
 
 
 // Most non-live objects are ignored.
-inline void IgnoreNonLiveObject(HeapObject* object) {}
+inline void IgnoreNonLiveObject(HeapObject* object, Isolate* isolate) {}
 
 
 // Function template that, given a range of addresses (eg, a semispace or a
@@ -1744,7 +1749,7 @@ inline void EncodeForwardingAddressesInRange(MarkCompactCollector* collector,
       }
     } else {  // Non-live object.
       object_size = object->Size();
-      ProcessNonLive(object);
+      ProcessNonLive(object, collector->heap()->isolate());
       if (is_prev_alive) {  // Transition from live to non-live.
         free_start = current;
         is_prev_alive = false;
@@ -1767,8 +1772,8 @@ void MarkCompactCollector::EncodeForwardingAddressesInNewSpace() {
                                    EncodeForwardingAddressInNewSpace,
                                    IgnoreNonLiveObject>(
       this,
-      heap_->new_space()->bottom(),
-      heap_->new_space()->top(),
+      heap()->new_space()->bottom(),
+      heap()->new_space()->top(),
       &ignored);
 }
 
@@ -2089,7 +2094,8 @@ static void SweepSpace(Heap* heap, PagedSpace* space) {
           is_previous_alive = true;
         }
       } else {
-        heap->mark_compact_collector()->ReportDeleteIfNeeded(object);
+        heap->mark_compact_collector()->ReportDeleteIfNeeded(
+            object, heap->isolate());
         if (is_previous_alive) {  // Transition from live to free.
           free_start = current;
           is_previous_alive = false;
@@ -2189,24 +2195,24 @@ void MarkCompactCollector::EncodeForwardingAddresses() {
   // Objects in the active semispace of the young generation may be
   // relocated to the inactive semispace (if not promoted).  Set the
   // relocation info to the beginning of the inactive semispace.
-  heap_->new_space()->MCResetRelocationInfo();
+  heap()->new_space()->MCResetRelocationInfo();
 
   // Compute the forwarding pointers in each space.
   EncodeForwardingAddressesInPagedSpace<MCAllocateFromOldPointerSpace,
                                         ReportDeleteIfNeeded>(
-      heap_->old_pointer_space());
+      heap()->old_pointer_space());
 
   EncodeForwardingAddressesInPagedSpace<MCAllocateFromOldDataSpace,
                                         IgnoreNonLiveObject>(
-      heap_->old_data_space());
+      heap()->old_data_space());
 
   EncodeForwardingAddressesInPagedSpace<MCAllocateFromCodeSpace,
                                         ReportDeleteIfNeeded>(
-      heap_->code_space());
+      heap()->code_space());
 
   EncodeForwardingAddressesInPagedSpace<MCAllocateFromCellSpace,
                                         IgnoreNonLiveObject>(
-      heap_->cell_space());
+      heap()->cell_space());
 
 
   // Compute new space next to last after the old and code spaces have been
@@ -2218,25 +2224,26 @@ void MarkCompactCollector::EncodeForwardingAddresses() {
   // non-live map pointers to get the sizes of non-live objects.
   EncodeForwardingAddressesInPagedSpace<MCAllocateFromMapSpace,
                                         IgnoreNonLiveObject>(
-      heap_->map_space());
+      heap()->map_space());
 
   // Write relocation info to the top page, so we can use it later.  This is
   // done after promoting objects from the new space so we get the correct
   // allocation top.
-  heap_->old_pointer_space()->MCWriteRelocationInfoToPage();
-  heap_->old_data_space()->MCWriteRelocationInfoToPage();
-  heap_->code_space()->MCWriteRelocationInfoToPage();
-  heap_->map_space()->MCWriteRelocationInfoToPage();
-  heap_->cell_space()->MCWriteRelocationInfoToPage();
+  heap()->old_pointer_space()->MCWriteRelocationInfoToPage();
+  heap()->old_data_space()->MCWriteRelocationInfoToPage();
+  heap()->code_space()->MCWriteRelocationInfoToPage();
+  heap()->map_space()->MCWriteRelocationInfoToPage();
+  heap()->cell_space()->MCWriteRelocationInfoToPage();
 }
 
 
 class MapIterator : public HeapObjectIterator {
  public:
-  MapIterator() : HeapObjectIterator(HEAP->map_space(), &SizeCallback) { }
+  explicit MapIterator(Heap* heap)
+    : HeapObjectIterator(heap->map_space(), &SizeCallback) { }
 
-  explicit MapIterator(Address start)
-      : HeapObjectIterator(HEAP->map_space(), start, &SizeCallback) { }
+  MapIterator(Heap* heap, Address start)
+      : HeapObjectIterator(heap->map_space(), start, &SizeCallback) { }
 
  private:
   static int SizeCallback(HeapObject* unused) {
@@ -2252,7 +2259,8 @@ class MapCompact {
     : heap_(heap),
       live_maps_(live_maps),
       to_evacuate_start_(heap->map_space()->TopAfterCompaction(live_maps)),
-      map_to_evacuate_it_(to_evacuate_start_),
+      vacant_map_it_(heap),
+      map_to_evacuate_it_(heap, to_evacuate_start_),
       first_map_to_evacuate_(
           reinterpret_cast<Map*>(HeapObject::FromAddress(to_evacuate_start_))) {
   }
@@ -2273,35 +2281,40 @@ class MapCompact {
 
   void UpdateMapPointersInRoots() {
     MapUpdatingVisitor map_updating_visitor;
-    heap_->IterateRoots(&map_updating_visitor, VISIT_ONLY_STRONG);
-    heap_->isolate()->global_handles()->IterateWeakRoots(&map_updating_visitor);
+    heap()->IterateRoots(&map_updating_visitor, VISIT_ONLY_STRONG);
+    heap()->isolate()->global_handles()->IterateWeakRoots(
+        &map_updating_visitor);
     LiveObjectList::IterateElements(&map_updating_visitor);
   }
 
   void UpdateMapPointersInPagedSpace(PagedSpace* space) {
-    ASSERT(space != heap_->map_space());
+    ASSERT(space != heap()->map_space());
 
     PageIterator it(space, PageIterator::PAGES_IN_USE);
     while (it.has_next()) {
       Page* p = it.next();
-      UpdateMapPointersInRange(heap_, p->ObjectAreaStart(), p->AllocationTop());
+      UpdateMapPointersInRange(heap(),
+                               p->ObjectAreaStart(),
+                               p->AllocationTop());
     }
   }
 
   void UpdateMapPointersInNewSpace() {
-    NewSpace* space = heap_->new_space();
-    UpdateMapPointersInRange(heap_, space->bottom(), space->top());
+    NewSpace* space = heap()->new_space();
+    UpdateMapPointersInRange(heap(), space->bottom(), space->top());
   }
 
   void UpdateMapPointersInLargeObjectSpace() {
-    LargeObjectIterator it(heap_->lo_space());
+    LargeObjectIterator it(heap()->lo_space());
     for (HeapObject* obj = it.next(); obj != NULL; obj = it.next())
-      UpdateMapPointersInObject(heap_, obj);
+      UpdateMapPointersInObject(heap(), obj);
   }
 
   void Finish() {
-    heap_->map_space()->FinishCompaction(to_evacuate_start_, live_maps_);
+    heap()->map_space()->FinishCompaction(to_evacuate_start_, live_maps_);
   }
+
+  inline Heap* heap() const { return heap_; }
 
  private:
   Heap* heap_;
@@ -2452,26 +2465,26 @@ void MarkCompactCollector::SweepSpaces() {
   // the map space last because freeing non-live maps overwrites them and
   // the other spaces rely on possibly non-live maps to get the sizes for
   // non-live objects.
-  SweepSpace(heap_, heap_->old_pointer_space());
-  SweepSpace(heap_, heap_->old_data_space());
-  SweepSpace(heap_, heap_->code_space());
-  SweepSpace(heap_, heap_->cell_space());
+  SweepSpace(heap(), heap()->old_pointer_space());
+  SweepSpace(heap(), heap()->old_data_space());
+  SweepSpace(heap(), heap()->code_space());
+  SweepSpace(heap(), heap()->cell_space());
   { GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_SWEEP_NEWSPACE);
-    SweepNewSpace(heap_, heap_->new_space());
+    SweepNewSpace(heap(), heap()->new_space());
   }
-  SweepSpace(heap_, heap_->map_space());
+  SweepSpace(heap(), heap()->map_space());
 
-  heap_->IterateDirtyRegions(heap_->map_space(),
-                             &heap_->IteratePointersInDirtyMapsRegion,
+  heap()->IterateDirtyRegions(heap()->map_space(),
+                             &heap()->IteratePointersInDirtyMapsRegion,
                              &UpdatePointerToNewGen,
-                             heap_->WATERMARK_SHOULD_BE_VALID);
+                             heap()->WATERMARK_SHOULD_BE_VALID);
 
-  intptr_t live_maps_size = heap_->map_space()->Size();
+  intptr_t live_maps_size = heap()->map_space()->Size();
   int live_maps = static_cast<int>(live_maps_size / Map::kSize);
   ASSERT(live_map_objects_size_ == live_maps_size);
 
-  if (heap_->map_space()->NeedsCompaction(live_maps)) {
-    MapCompact map_compact(heap_, live_maps);
+  if (heap()->map_space()->NeedsCompaction(live_maps)) {
+    MapCompact map_compact(heap(), live_maps);
 
     map_compact.CompactMaps();
     map_compact.UpdateMapPointersInRoots();
@@ -2479,7 +2492,7 @@ void MarkCompactCollector::SweepSpaces() {
     PagedSpaces spaces;
     for (PagedSpace* space = spaces.next();
          space != NULL; space = spaces.next()) {
-      if (space == heap_->map_space()) continue;
+      if (space == heap()->map_space()) continue;
       map_compact.UpdateMapPointersInPagedSpace(space);
     }
     map_compact.UpdateMapPointersInNewSpace();
@@ -2575,6 +2588,8 @@ class UpdatingVisitor: public ObjectVisitor {
         reinterpret_cast<Code*>(target)->instruction_start());
   }
 
+  inline Heap* heap() const { return heap_; }
+
  private:
   void UpdatePointer(Object** p) {
     if (!(*p)->IsHeapObject()) return;
@@ -2582,27 +2597,27 @@ class UpdatingVisitor: public ObjectVisitor {
     HeapObject* obj = HeapObject::cast(*p);
     Address old_addr = obj->address();
     Address new_addr;
-    ASSERT(!heap_->InFromSpace(obj));
+    ASSERT(!heap()->InFromSpace(obj));
 
-    if (heap_->new_space()->Contains(obj)) {
+    if (heap()->new_space()->Contains(obj)) {
       Address forwarding_pointer_addr =
-          heap_->new_space()->FromSpaceLow() +
-          heap_->new_space()->ToSpaceOffsetForAddress(old_addr);
+          heap()->new_space()->FromSpaceLow() +
+          heap()->new_space()->ToSpaceOffsetForAddress(old_addr);
       new_addr = Memory::Address_at(forwarding_pointer_addr);
 
 #ifdef DEBUG
-      ASSERT(heap_->old_pointer_space()->Contains(new_addr) ||
-             heap_->old_data_space()->Contains(new_addr) ||
-             heap_->new_space()->FromSpaceContains(new_addr) ||
-             heap_->lo_space()->Contains(HeapObject::FromAddress(new_addr)));
+      ASSERT(heap()->old_pointer_space()->Contains(new_addr) ||
+             heap()->old_data_space()->Contains(new_addr) ||
+             heap()->new_space()->FromSpaceContains(new_addr) ||
+             heap()->lo_space()->Contains(HeapObject::FromAddress(new_addr)));
 
-      if (heap_->new_space()->FromSpaceContains(new_addr)) {
-        ASSERT(heap_->new_space()->FromSpaceOffsetForAddress(new_addr) <=
-               heap_->new_space()->ToSpaceOffsetForAddress(old_addr));
+      if (heap()->new_space()->FromSpaceContains(new_addr)) {
+        ASSERT(heap()->new_space()->FromSpaceOffsetForAddress(new_addr) <=
+               heap()->new_space()->ToSpaceOffsetForAddress(old_addr));
       }
 #endif
 
-    } else if (heap_->lo_space()->Contains(obj)) {
+    } else if (heap()->lo_space()->Contains(obj)) {
       // Don't move objects in the large object space.
       return;
 
@@ -2641,34 +2656,34 @@ void MarkCompactCollector::UpdatePointers() {
   ASSERT(state_ == ENCODE_FORWARDING_ADDRESSES);
   state_ = UPDATE_POINTERS;
 #endif
-  UpdatingVisitor updating_visitor(heap_);
-  heap_->isolate()->runtime_profiler()->UpdateSamplesAfterCompact(
+  UpdatingVisitor updating_visitor(heap());
+  heap()->isolate()->runtime_profiler()->UpdateSamplesAfterCompact(
       &updating_visitor);
-  heap_->IterateRoots(&updating_visitor, VISIT_ONLY_STRONG);
-  heap_->isolate()->global_handles()->IterateWeakRoots(&updating_visitor);
+  heap()->IterateRoots(&updating_visitor, VISIT_ONLY_STRONG);
+  heap()->isolate()->global_handles()->IterateWeakRoots(&updating_visitor);
 
   // Update the pointer to the head of the weak list of global contexts.
-  updating_visitor.VisitPointer(&heap_->global_contexts_list_);
+  updating_visitor.VisitPointer(&heap()->global_contexts_list_);
 
   LiveObjectList::IterateElements(&updating_visitor);
 
   int live_maps_size = IterateLiveObjects(
-      heap_->map_space(), &MarkCompactCollector::UpdatePointersInOldObject);
+      heap()->map_space(), &MarkCompactCollector::UpdatePointersInOldObject);
   int live_pointer_olds_size = IterateLiveObjects(
-      heap_->old_pointer_space(),
+      heap()->old_pointer_space(),
       &MarkCompactCollector::UpdatePointersInOldObject);
   int live_data_olds_size = IterateLiveObjects(
-      heap_->old_data_space(),
+      heap()->old_data_space(),
       &MarkCompactCollector::UpdatePointersInOldObject);
   int live_codes_size = IterateLiveObjects(
-      heap_->code_space(), &MarkCompactCollector::UpdatePointersInOldObject);
+      heap()->code_space(), &MarkCompactCollector::UpdatePointersInOldObject);
   int live_cells_size = IterateLiveObjects(
-      heap_->cell_space(), &MarkCompactCollector::UpdatePointersInOldObject);
+      heap()->cell_space(), &MarkCompactCollector::UpdatePointersInOldObject);
   int live_news_size = IterateLiveObjects(
-      heap_->new_space(), &MarkCompactCollector::UpdatePointersInNewObject);
+      heap()->new_space(), &MarkCompactCollector::UpdatePointersInNewObject);
 
   // Large objects do not move, the map word can be updated directly.
-  LargeObjectIterator it(heap_->lo_space());
+  LargeObjectIterator it(heap()->lo_space());
   for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
     UpdatePointersInNewObject(obj);
   }
@@ -2695,8 +2710,8 @@ int MarkCompactCollector::UpdatePointersInNewObject(HeapObject* obj) {
 
   Address forwarded = GetForwardingAddressInOldSpace(old_map);
 
-  ASSERT(heap_->map_space()->Contains(old_map));
-  ASSERT(heap_->map_space()->Contains(forwarded));
+  ASSERT(heap()->map_space()->Contains(old_map));
+  ASSERT(heap()->map_space()->Contains(forwarded));
 #ifdef DEBUG
   if (FLAG_gc_verbose) {
     PrintF("update %p : %p -> %p\n", obj->address(), old_map->address(),
@@ -2711,7 +2726,7 @@ int MarkCompactCollector::UpdatePointersInNewObject(HeapObject* obj) {
   int obj_size = obj->SizeFromMap(old_map);
 
   // Update pointers in the object body.
-  UpdatingVisitor updating_visitor(heap_);
+  UpdatingVisitor updating_visitor(heap());
   obj->IterateBody(old_map->instance_type(), obj_size, &updating_visitor);
   return obj_size;
 }
@@ -2720,8 +2735,8 @@ int MarkCompactCollector::UpdatePointersInNewObject(HeapObject* obj) {
 int MarkCompactCollector::UpdatePointersInOldObject(HeapObject* obj) {
   // Decode the map pointer.
   MapWord encoding = obj->map_word();
-  Address map_addr = encoding.DecodeMapAddress(heap_->map_space());
-  ASSERT(heap_->map_space()->Contains(HeapObject::FromAddress(map_addr)));
+  Address map_addr = encoding.DecodeMapAddress(heap()->map_space());
+  ASSERT(heap()->map_space()->Contains(HeapObject::FromAddress(map_addr)));
 
   // At this point, the first word of map_addr is also encoded, cannot
   // cast it to Map* using Map::cast.
@@ -2742,7 +2757,7 @@ int MarkCompactCollector::UpdatePointersInOldObject(HeapObject* obj) {
 #endif
 
   // Update pointers in the object body.
-  UpdatingVisitor updating_visitor(heap_);
+  UpdatingVisitor updating_visitor(heap());
   obj->IterateBody(type, obj_size, &updating_visitor);
   return obj_size;
 }
@@ -2799,18 +2814,18 @@ void MarkCompactCollector::RelocateObjects() {
   // Relocates objects, always relocate map objects first. Relocating
   // objects in other space relies on map objects to get object size.
   int live_maps_size = IterateLiveObjects(
-      heap_->map_space(), &MarkCompactCollector::RelocateMapObject);
+      heap()->map_space(), &MarkCompactCollector::RelocateMapObject);
   int live_pointer_olds_size = IterateLiveObjects(
-      heap_->old_pointer_space(),
+      heap()->old_pointer_space(),
       &MarkCompactCollector::RelocateOldPointerObject);
   int live_data_olds_size = IterateLiveObjects(
-      heap_->old_data_space(), &MarkCompactCollector::RelocateOldDataObject);
+      heap()->old_data_space(), &MarkCompactCollector::RelocateOldDataObject);
   int live_codes_size = IterateLiveObjects(
-      heap_->code_space(), &MarkCompactCollector::RelocateCodeObject);
+      heap()->code_space(), &MarkCompactCollector::RelocateCodeObject);
   int live_cells_size = IterateLiveObjects(
-      heap_->cell_space(), &MarkCompactCollector::RelocateCellObject);
+      heap()->cell_space(), &MarkCompactCollector::RelocateCellObject);
   int live_news_size = IterateLiveObjects(
-      heap_->new_space(), &MarkCompactCollector::RelocateNewObject);
+      heap()->new_space(), &MarkCompactCollector::RelocateNewObject);
 
   USE(live_maps_size);
   USE(live_pointer_olds_size);
@@ -2826,28 +2841,28 @@ void MarkCompactCollector::RelocateObjects() {
   ASSERT(live_news_size == live_young_objects_size_);
 
   // Flip from and to spaces
-  heap_->new_space()->Flip();
+  heap()->new_space()->Flip();
 
-  heap_->new_space()->MCCommitRelocationInfo();
+  heap()->new_space()->MCCommitRelocationInfo();
 
   // Set age_mark to bottom in to space
-  Address mark = heap_->new_space()->bottom();
-  heap_->new_space()->set_age_mark(mark);
+  Address mark = heap()->new_space()->bottom();
+  heap()->new_space()->set_age_mark(mark);
 
   PagedSpaces spaces;
   for (PagedSpace* space = spaces.next(); space != NULL; space = spaces.next())
     space->MCCommitRelocationInfo();
 
-  heap_->CheckNewSpaceExpansionCriteria();
-  heap_->IncrementYoungSurvivorsCounter(live_news_size);
+  heap()->CheckNewSpaceExpansionCriteria();
+  heap()->IncrementYoungSurvivorsCounter(live_news_size);
 }
 
 
 int MarkCompactCollector::RelocateMapObject(HeapObject* obj) {
   // Recover map pointer.
   MapWord encoding = obj->map_word();
-  Address map_addr = encoding.DecodeMapAddress(heap_->map_space());
-  ASSERT(heap_->map_space()->Contains(HeapObject::FromAddress(map_addr)));
+  Address map_addr = encoding.DecodeMapAddress(heap()->map_space());
+  ASSERT(heap()->map_space()->Contains(HeapObject::FromAddress(map_addr)));
 
   // Get forwarding address before resetting map pointer
   Address new_addr = GetForwardingAddressInOldSpace(obj);
@@ -2860,7 +2875,7 @@ int MarkCompactCollector::RelocateMapObject(HeapObject* obj) {
 
   if (new_addr != old_addr) {
     // Move contents.
-    heap_->MoveBlockToOldSpaceAndUpdateRegionMarks(new_addr,
+    heap()->MoveBlockToOldSpaceAndUpdateRegionMarks(new_addr,
                                                    old_addr,
                                                    Map::kSize);
   }
@@ -2906,8 +2921,8 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
                                                    PagedSpace* space) {
   // Recover map pointer.
   MapWord encoding = obj->map_word();
-  Address map_addr = encoding.DecodeMapAddress(heap_->map_space());
-  ASSERT(heap_->map_space()->Contains(map_addr));
+  Address map_addr = encoding.DecodeMapAddress(heap()->map_space());
+  ASSERT(heap()->map_space()->Contains(map_addr));
 
   // Get forwarding address before resetting map pointer.
   Address new_addr = GetForwardingAddressInOldSpace(obj);
@@ -2919,10 +2934,10 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
 
   if (new_addr != old_addr) {
     // Move contents.
-    if (space == heap_->old_data_space()) {
-      heap_->MoveBlock(new_addr, old_addr, obj_size);
+    if (space == heap()->old_data_space()) {
+      heap()->MoveBlock(new_addr, old_addr, obj_size);
     } else {
-      heap_->MoveBlockToOldSpaceAndUpdateRegionMarks(new_addr,
+      heap()->MoveBlockToOldSpaceAndUpdateRegionMarks(new_addr,
                                                      old_addr,
                                                      obj_size);
     }
@@ -2932,47 +2947,47 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsSharedFunctionInfo()) {
-    PROFILE(heap_->isolate(),
+    PROFILE(heap()->isolate(),
             SharedFunctionInfoMoveEvent(old_addr, new_addr));
   }
-  HEAP_PROFILE(heap_, ObjectMoveEvent(old_addr, new_addr));
+  HEAP_PROFILE(heap(), ObjectMoveEvent(old_addr, new_addr));
 
   return obj_size;
 }
 
 
 int MarkCompactCollector::RelocateOldPointerObject(HeapObject* obj) {
-  return RelocateOldNonCodeObject(obj, heap_->old_pointer_space());
+  return RelocateOldNonCodeObject(obj, heap()->old_pointer_space());
 }
 
 
 int MarkCompactCollector::RelocateOldDataObject(HeapObject* obj) {
-  return RelocateOldNonCodeObject(obj, heap_->old_data_space());
+  return RelocateOldNonCodeObject(obj, heap()->old_data_space());
 }
 
 
 int MarkCompactCollector::RelocateCellObject(HeapObject* obj) {
-  return RelocateOldNonCodeObject(obj, heap_->cell_space());
+  return RelocateOldNonCodeObject(obj, heap()->cell_space());
 }
 
 
 int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
   // Recover map pointer.
   MapWord encoding = obj->map_word();
-  Address map_addr = encoding.DecodeMapAddress(heap_->map_space());
-  ASSERT(heap_->map_space()->Contains(HeapObject::FromAddress(map_addr)));
+  Address map_addr = encoding.DecodeMapAddress(heap()->map_space());
+  ASSERT(heap()->map_space()->Contains(HeapObject::FromAddress(map_addr)));
 
   // Get forwarding address before resetting map pointer
   Address new_addr = GetForwardingAddressInOldSpace(obj);
 
   // Reset the map pointer.
-  int obj_size = RestoreMap(obj, heap_->code_space(), new_addr, map_addr);
+  int obj_size = RestoreMap(obj, heap()->code_space(), new_addr, map_addr);
 
   Address old_addr = obj->address();
 
   if (new_addr != old_addr) {
     // Move contents.
-    heap_->MoveBlock(new_addr, old_addr, obj_size);
+    heap()->MoveBlock(new_addr, old_addr, obj_size);
   }
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
@@ -2980,9 +2995,9 @@ int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
     // May also update inline cache target.
     Code::cast(copied_to)->Relocate(new_addr - old_addr);
     // Notify the logger that compiled code has moved.
-    PROFILE(heap_->isolate(), CodeMoveEvent(old_addr, new_addr));
+    PROFILE(heap()->isolate(), CodeMoveEvent(old_addr, new_addr));
   }
-  HEAP_PROFILE(heap_, ObjectMoveEvent(old_addr, new_addr));
+  HEAP_PROFILE(heap(), ObjectMoveEvent(old_addr, new_addr));
 
   return obj_size;
 }
@@ -2993,26 +3008,26 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
 
   // Get forwarding address
   Address old_addr = obj->address();
-  int offset = heap_->new_space()->ToSpaceOffsetForAddress(old_addr);
+  int offset = heap()->new_space()->ToSpaceOffsetForAddress(old_addr);
 
   Address new_addr =
-    Memory::Address_at(heap_->new_space()->FromSpaceLow() + offset);
+    Memory::Address_at(heap()->new_space()->FromSpaceLow() + offset);
 
 #ifdef DEBUG
-  if (heap_->new_space()->FromSpaceContains(new_addr)) {
-    ASSERT(heap_->new_space()->FromSpaceOffsetForAddress(new_addr) <=
-           heap_->new_space()->ToSpaceOffsetForAddress(old_addr));
+  if (heap()->new_space()->FromSpaceContains(new_addr)) {
+    ASSERT(heap()->new_space()->FromSpaceOffsetForAddress(new_addr) <=
+           heap()->new_space()->ToSpaceOffsetForAddress(old_addr));
   } else {
-    ASSERT(heap_->TargetSpace(obj) == heap_->old_pointer_space() ||
-           heap_->TargetSpace(obj) == heap_->old_data_space());
+    ASSERT(heap()->TargetSpace(obj) == heap()->old_pointer_space() ||
+           heap()->TargetSpace(obj) == heap()->old_data_space());
   }
 #endif
 
   // New and old addresses cannot overlap.
-  if (heap_->InNewSpace(HeapObject::FromAddress(new_addr))) {
-    heap_->CopyBlock(new_addr, old_addr, obj_size);
+  if (heap()->InNewSpace(HeapObject::FromAddress(new_addr))) {
+    heap()->CopyBlock(new_addr, old_addr, obj_size);
   } else {
-    heap_->CopyBlockToOldSpaceAndUpdateRegionMarks(new_addr,
+    heap()->CopyBlockToOldSpaceAndUpdateRegionMarks(new_addr,
                                                    old_addr,
                                                    obj_size);
   }
@@ -3025,10 +3040,10 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
 
   HeapObject* copied_to = HeapObject::FromAddress(new_addr);
   if (copied_to->IsSharedFunctionInfo()) {
-    PROFILE(heap_->isolate(),
+    PROFILE(heap()->isolate(),
             SharedFunctionInfoMoveEvent(old_addr, new_addr));
   }
-  HEAP_PROFILE(heap_, ObjectMoveEvent(old_addr, new_addr));
+  HEAP_PROFILE(heap(), ObjectMoveEvent(old_addr, new_addr));
 
   return obj_size;
 }
@@ -3037,7 +3052,7 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
 void MarkCompactCollector::EnableCodeFlushing(bool enable) {
   if (enable) {
     if (code_flusher_ != NULL) return;
-    code_flusher_ = new CodeFlusher(heap_->isolate());
+    code_flusher_ = new CodeFlusher(heap()->isolate());
   } else {
     if (code_flusher_ == NULL) return;
     delete code_flusher_;
@@ -3046,7 +3061,8 @@ void MarkCompactCollector::EnableCodeFlushing(bool enable) {
 }
 
 
-void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
+void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj,
+                                                Isolate* isolate) {
 #ifdef ENABLE_GDB_JIT_INTERFACE
   if (obj->IsCode()) {
     GDBJITInterface::RemoveCode(reinterpret_cast<Code*>(obj));
@@ -3054,7 +3070,7 @@ void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
 #endif
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (obj->IsCode()) {
-    PROFILE(ISOLATE, CodeDeleteEvent(obj->address()));
+    PROFILE(isolate, CodeDeleteEvent(obj->address()));
   }
 #endif
 }

@@ -155,6 +155,7 @@ inline Heap* _inline_get_heap_();
   V(name_symbol, "name")                                                 \
   V(number_symbol, "number")                                             \
   V(Number_symbol, "Number")                                             \
+  V(nan_symbol, "NaN")                                                   \
   V(RegExp_symbol, "RegExp")                                             \
   V(source_symbol, "source")                                             \
   V(global_symbol, "global")                                             \
@@ -1450,6 +1451,8 @@ class Heap {
 
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
+
+  void SwitchScavengingVisitorsTableIfProfilingWasEnabled();
 
   // Performs a minor collection in new generation.
   void Scavenge();

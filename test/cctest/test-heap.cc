@@ -70,7 +70,7 @@ static void CheckFindCodeObject() {
   // Test FindCodeObject
 #define __ assm.
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
 
   __ nop();  // supported on all architectures
 

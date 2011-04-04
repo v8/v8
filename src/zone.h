@@ -133,6 +133,7 @@ class ZoneObject {
  public:
   // Allocate a new ZoneObject of 'size' bytes in the Zone.
   inline void* operator new(size_t size);
+  inline void* operator new(size_t size, Zone* zone);
 
   // Ideally, the delete operator should be private instead of
   // public, but unfortunately the compiler sometimes synthesizes

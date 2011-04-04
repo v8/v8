@@ -116,7 +116,7 @@ namespace internal {
 RegExpMacroAssemblerARM::RegExpMacroAssemblerARM(
     Mode mode,
     int registers_to_save)
-    : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
+    : masm_(new MacroAssembler(Isolate::Current(), NULL, kRegExpCodeSize)),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -347,7 +347,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     __ sub(current_input_offset(), r2, end_of_input_address());
   } else {
     ASSERT(mode_ == UC16);
-    int argument_count = 3;
+    int argument_count = 4;
     __ PrepareCallCFunction(argument_count, r2);
 
     // r0 - offset of start of capture
@@ -358,6 +358,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     //   r0: Address byte_offset1 - Address captured substring's start.
     //   r1: Address byte_offset2 - Address of current character position.
     //   r2: size_t byte_length - length of capture in bytes(!)
+    //   r3: Isolate* isolate
 
     // Address of start of capture.
     __ add(r0, r0, Operand(end_of_input_address()));
@@ -367,6 +368,8 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     __ mov(r4, Operand(r1));
     // Address of current input position.
     __ add(r1, current_input_offset(), Operand(end_of_input_address()));
+    // Isolate.
+    __ mov(r3, Operand(ExternalReference::isolate_address()));
 
     ExternalReference function =
         ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
@@ -778,10 +781,11 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
     Label grow_failed;
 
     // Call GrowStack(backtrack_stackpointer(), &stack_base)
-    static const int num_arguments = 2;
+    static const int num_arguments = 3;
     __ PrepareCallCFunction(num_arguments, r0);
     __ mov(r0, backtrack_stackpointer());
     __ add(r1, frame_pointer(), Operand(kStackHighEnd));
+    __ mov(r2, Operand(ExternalReference::isolate_address()));
     ExternalReference grow_stack =
         ExternalReference::re_grow_stack(masm_->isolate());
     __ CallCFunction(grow_stack, num_arguments);

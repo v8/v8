@@ -167,7 +167,7 @@ v8::Handle<v8::Value> I18NExtension::JSAvailableLocales(
   v8::Local<v8::Array> all_locales = v8::Array::New();
 
   int count = 0;
-  const Locale* icu_locales = icu::Locale::getAvailableLocales(count);
+  const icu::Locale* icu_locales = icu::Locale::getAvailableLocales(count);
   for (int i = 0; i < count; ++i) {
     all_locales->Set(i, v8::String::New(icu_locales[i].getName()));
   }
@@ -230,7 +230,7 @@ static v8::Handle<v8::Value> GetDisplayItem(const v8::Arguments& args,
   icu::Locale icu_locale(base_locale.c_str());
   icu::Locale display_locale =
       icu::Locale(*v8::String::Utf8Value(args[1]->ToString()));
-  UnicodeString result;
+  icu::UnicodeString result;
   if (item == "language") {
     icu_locale.getDisplayLanguage(display_locale, result);
   } else if (item == "script") {

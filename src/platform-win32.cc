@@ -176,16 +176,50 @@ double ceiling(double x) {
 
 static Mutex* limit_mutex = NULL;
 
+#if defined(V8_TARGET_ARCH_IA32)
+static OS::MemCopyFunction memcopy_function = NULL;
+static Mutex* memcopy_function_mutex = OS::CreateMutex();
+// Defined in codegen-ia32.cc.
+OS::MemCopyFunction CreateMemCopyFunction();
+
+// Copy memory area to disjoint memory area.
+void OS::MemCopy(void* dest, const void* src, size_t size) {
+  if (memcopy_function == NULL) {
+    ScopedLock lock(memcopy_function_mutex);
+    if (memcopy_function == NULL) {
+      OS::MemCopyFunction temp = CreateMemCopyFunction();
+      MemoryBarrier();
+      memcopy_function = temp;
+    }
+  }
+  // Note: here we rely on dependent reads being ordered. This is true
+  // on all architectures we currently support.
+  (*memcopy_function)(dest, src, size);
+#ifdef DEBUG
+  CHECK_EQ(0, memcmp(dest, src, size));
+#endif
+}
+#endif  // V8_TARGET_ARCH_IA32
 
 #ifdef _WIN64
 typedef double (*ModuloFunction)(double, double);
-
+static ModuloFunction modulo_function = NULL;
+static Mutex* modulo_function_mutex = OS::CreateMutex();
 // Defined in codegen-x64.cc.
 ModuloFunction CreateModuloFunction();
 
 double modulo(double x, double y) {
-  static ModuloFunction function = CreateModuloFunction();
-  return function(x, y);
+  if (modulo_function == NULL) {
+    ScopedLock lock(modulo_function_mutex);
+    if (modulo_function == NULL) {
+      ModuloFunction temp = CreateModuloFunction();
+      MemoryBarrier();
+      modulo_function = temp;
+    }
+  }
+  // Note: here we rely on dependent reads being ordered. This is true
+  // on all architectures we currently support.
+  return (*modulo_function)(x, y);
 }
 #else  // Win32
 

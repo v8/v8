@@ -124,7 +124,8 @@ class LChunkBuilder;
   V(LoadElements)                              \
   V(LoadExternalArrayPointer)                  \
   V(LoadFunctionPrototype)                     \
-  V(LoadGlobal)                                \
+  V(LoadGlobalCell)                            \
+  V(LoadGlobalGeneric)                         \
   V(LoadKeyedFastElement)                      \
   V(LoadKeyedGeneric)                          \
   V(LoadKeyedSpecializedArrayElement)          \
@@ -2809,9 +2810,9 @@ class HUnknownOSRValue: public HTemplateInstruction<0> {
 };
 
 
-class HLoadGlobal: public HTemplateInstruction<0> {
+class HLoadGlobalCell: public HTemplateInstruction<0> {
  public:
-  HLoadGlobal(Handle<JSGlobalPropertyCell> cell, bool check_hole_value)
+  HLoadGlobalCell(Handle<JSGlobalPropertyCell> cell, bool check_hole_value)
       : cell_(cell), check_hole_value_(check_hole_value) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
@@ -2832,17 +2833,49 @@ class HLoadGlobal: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(LoadGlobal, "load_global")
+  DECLARE_CONCRETE_INSTRUCTION(LoadGlobalCell, "load_global_cell")
 
  protected:
   virtual bool DataEquals(HValue* other) {
-    HLoadGlobal* b = HLoadGlobal::cast(other);
+    HLoadGlobalCell* b = HLoadGlobalCell::cast(other);
     return cell_.is_identical_to(b->cell());
   }
 
  private:
   Handle<JSGlobalPropertyCell> cell_;
   bool check_hole_value_;
+};
+
+
+class HLoadGlobalGeneric: public HBinaryOperation {
+ public:
+  HLoadGlobalGeneric(HValue* context,
+                     HValue* global_object,
+                     Handle<Object> name,
+                     bool for_typeof)
+      : HBinaryOperation(context, global_object),
+        name_(name),
+        for_typeof_(for_typeof) {
+    set_representation(Representation::Tagged());
+    SetAllSideEffects();
+  }
+
+  HValue* context() { return OperandAt(0); }
+  HValue* global_object() { return OperandAt(1); }
+  Handle<Object> name() const { return name_; }
+  bool for_typeof() const { return for_typeof_; }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadGlobalGeneric, "load_global_generic")
+
+ private:
+  Handle<Object> name_;
+  bool for_typeof_;
 };
 
 

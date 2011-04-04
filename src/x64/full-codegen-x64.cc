@@ -1576,25 +1576,24 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     }
   }
 
+  // For compound assignments we need another deoptimization point after the
+  // variable/property load.
   if (expr->is_compound()) {
     { AccumulatorValueContext context(this);
       switch (assign_type) {
         case VARIABLE:
           EmitVariableLoad(expr->target()->AsVariableProxy()->var());
+          PrepareForBailout(expr->target(), TOS_REG);
           break;
         case NAMED_PROPERTY:
           EmitNamedPropertyLoad(property);
+          PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
           break;
         case KEYED_PROPERTY:
           EmitKeyedPropertyLoad(property);
+          PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
           break;
       }
-    }
-
-    // For property compound assignments we need another deoptimization
-    // point after the property load.
-    if (property != NULL) {
-      PrepareForBailoutForId(expr->CompoundLoadId(), TOS_REG);
     }
 
     Token::Value op = expr->binary_op();
@@ -2248,15 +2247,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       }
     }
   } else {
-    // Call to some other expression.  If the expression is an anonymous
-    // function literal not called in a loop, mark it as one that should
-    // also use the full code generator.
-    FunctionLiteral* lit = fun->AsFunctionLiteral();
-    if (lit != NULL &&
-        lit->name()->Equals(isolate()->heap()->empty_string()) &&
-        loop_depth() == 0) {
-      lit->set_try_full_codegen(true);
-    }
     { PreservePositionScope scope(masm()->positions_recorder());
       VisitForStackValue(fun);
     }
@@ -2435,11 +2425,71 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  // Just indicate false, as %_IsStringWrapperSafeForDefaultValueOf() is only
-  // used in a few functions in runtime.js which should not normally be hit by
-  // this compiler.
+  if (FLAG_debug_code) __ AbortIfSmi(rax);
+
+  // Check whether this map has already been checked to be safe for default
+  // valueOf.
+  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ testb(FieldOperand(rbx, Map::kBitField2Offset),
+           Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
+  __ j(not_zero, if_true);
+
+  // Check for fast case object. Generate false result for slow case object.
+  __ movq(rcx, FieldOperand(rax, JSObject::kPropertiesOffset));
+  __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ CompareRoot(rcx, Heap::kHashTableMapRootIndex);
+  __ j(equal, if_false);
+
+  // Look for valueOf symbol in the descriptor array, and indicate false if
+  // found. The type is not checked, so if it is a transition it is a false
+  // negative.
+  __ movq(rbx, FieldOperand(rbx, Map::kInstanceDescriptorsOffset));
+  __ movq(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
+  // rbx: descriptor array
+  // rcx: length of descriptor array
+  // Calculate the end of the descriptor array.
+  SmiIndex index = masm_->SmiToIndex(rdx, rcx, kPointerSizeLog2);
+  __ lea(rcx,
+         Operand(
+             rbx, index.reg, index.scale, FixedArray::kHeaderSize));
+  // Calculate location of the first key name.
+  __ addq(rbx,
+          Immediate(FixedArray::kHeaderSize +
+                    DescriptorArray::kFirstIndex * kPointerSize));
+  // Loop through all the keys in the descriptor array. If one of these is the
+  // symbol valueOf the result is false.
+  Label entry, loop;
+  __ jmp(&entry);
+  __ bind(&loop);
+  __ movq(rdx, FieldOperand(rbx, 0));
+  __ Cmp(rdx, FACTORY->value_of_symbol());
+  __ j(equal, if_false);
+  __ addq(rbx, Immediate(kPointerSize));
+  __ bind(&entry);
+  __ cmpq(rbx, rcx);
+  __ j(not_equal, &loop);
+
+  // Reload map as register rbx was used as temporary above.
+  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+
+  // If a valueOf property is not found on the object check that it's
+  // prototype is the un-modified String prototype. If not result is false.
+  __ movq(rcx, FieldOperand(rbx, Map::kPrototypeOffset));
+  __ testq(rcx, Immediate(kSmiTagMask));
+  __ j(zero, if_false);
+  __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ movq(rdx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalContextOffset));
+  __ cmpq(rcx,
+          ContextOperand(rdx, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
+  __ j(not_equal, if_false);
+  // Set the bit in the map to indicate that it has been checked safe for
+  // default valueOf and set true result.
+  __ or_(FieldOperand(rbx, Map::kBitField2Offset),
+         Immediate(1 << Map::kStringWrapperSafeForDefaultValueOf));
+  __ jmp(if_true);
+
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-  __ jmp(if_false);
   context()->Plug(if_true, if_false);
 }
 
@@ -2693,8 +2743,13 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
 
   // Return a random uint32 number in rax.
   // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
-  __ PrepareCallCFunction(0);
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 0);
+  __ PrepareCallCFunction(1);
+#ifdef _WIN64
+  __ LoadAddress(rcx, ExternalReference::isolate_address());
+#else
+  __ LoadAddress(rdi, ExternalReference::isolate_address());
+#endif
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
   // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:
@@ -3753,7 +3808,11 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // We need a second deoptimization point after loading the value
   // in case evaluating the property load my have a side effect.
-  PrepareForBailout(expr->increment(), TOS_REG);
+  if (assign_type == VARIABLE) {
+    PrepareForBailout(expr->expression(), TOS_REG);
+  } else {
+    PrepareForBailout(expr->increment(), TOS_REG);
+  }
 
   // Call ToNumber only if operand is not a smi.
   NearLabel no_conversion;

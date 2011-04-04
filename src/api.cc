@@ -1302,7 +1302,7 @@ ScriptData* ScriptData::New(const char* data, int length) {
   }
   // Copy the data to align it.
   unsigned* deserialized_data = i::NewArray<unsigned>(deserialized_data_length);
-  i::MemCopy(deserialized_data, data, length);
+  i::OS::MemCopy(deserialized_data, data, length);
 
   return new i::ScriptDataImpl(
       i::Vector<unsigned>(deserialized_data, deserialized_data_length));
@@ -2879,6 +2879,33 @@ Local<v8::Object> v8::Object::Clone() {
 }
 
 
+static i::Context* GetCreationContext(i::JSObject* object) {
+  i::Object* constructor = object->map()->constructor();
+  i::JSFunction* function;
+  if (!constructor->IsJSFunction()) {
+    // API functions have null as a constructor,
+    // but any JSFunction knows its context immediately.
+    ASSERT(object->IsJSFunction() &&
+           i::JSFunction::cast(object)->shared()->IsApiFunction());
+    function = i::JSFunction::cast(object);
+  } else {
+    function = i::JSFunction::cast(constructor);
+  }
+  return function->context()->global_context();
+}
+
+
+Local<v8::Context> v8::Object::CreationContext() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate,
+             "v8::Object::CreationContext()", return Local<v8::Context>());
+  ENTER_V8(isolate);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Context* context = GetCreationContext(*self);
+  return Utils::ToLocal(i::Handle<i::Context>(context));
+}
+
+
 int v8::Object::GetIdentityHash() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::GetIdentityHash()", return 0);
@@ -4175,9 +4202,11 @@ void v8::Date::DateTimeConfigurationChangeNotification() {
 
     // Call ResetDateCache(0 but expect no exceptions:
     bool caught_exception = false;
-    i::Handle<i::Object> result =
-        i::Execution::TryCall(func, isolate->js_builtins_object(), 0, NULL,
-        &caught_exception);
+    i::Execution::TryCall(func,
+                          isolate->js_builtins_object(),
+                          0,
+                          NULL,
+                          &caught_exception);
   }
 }
 
@@ -4246,7 +4275,9 @@ Local<v8::Array> v8::Array::New(int length) {
   ENTER_V8(isolate);
   int real_length = length > 0 ? length : 0;
   i::Handle<i::JSArray> obj = isolate->factory()->NewJSArray(real_length);
-  obj->set_length(*isolate->factory()->NewNumberFromInt(real_length));
+  i::Handle<i::Object> length_obj =
+      isolate->factory()->NewNumberFromInt(real_length);
+  obj->set_length(*length_obj);
   return Utils::ToLocal(obj);
 }
 
