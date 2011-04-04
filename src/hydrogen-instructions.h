@@ -932,7 +932,7 @@ class HChange: public HUnaryOperation {
           Representation from,
           Representation to,
           bool is_truncating)
-      : HUnaryOperation(value), from_(from), to_(to) {
+      : HUnaryOperation(value), from_(from) {
     ASSERT(!from.IsNone() && !to.IsNone());
     ASSERT(!from.Equals(to));
     set_representation(to);
@@ -947,7 +947,7 @@ class HChange: public HUnaryOperation {
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
   Representation from() const { return from_; }
-  Representation to() const { return to_; }
+  Representation to() const { return representation(); }
   virtual Representation RequiredInputRepresentation(int index) const {
     return from_;
   }
@@ -969,7 +969,6 @@ class HChange: public HUnaryOperation {
 
  private:
   Representation from_;
-  Representation to_;
 };
 
 
