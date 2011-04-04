@@ -147,7 +147,8 @@ class LCodeGen;
   V(SmiUntag)                                   \
   V(StackCheck)                                 \
   V(StoreContextSlot)                           \
-  V(StoreGlobal)                                \
+  V(StoreGlobalCell)                            \
+  V(StoreGlobalGeneric)                         \
   V(StoreKeyedFastElement)                      \
   V(StoreKeyedGeneric)                          \
   V(StoreKeyedSpecializedArrayElement)          \
@@ -1317,14 +1318,34 @@ class LLoadGlobalGeneric: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LStoreGlobal: public LTemplateInstruction<0, 1, 0> {
+class LStoreGlobalCell: public LTemplateInstruction<0, 1, 0> {
  public:
-  explicit LStoreGlobal(LOperand* value) {
+  explicit LStoreGlobalCell(LOperand* value) {
     inputs_[0] = value;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(StoreGlobal, "store-global")
-  DECLARE_HYDROGEN_ACCESSOR(StoreGlobal)
+  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store-global-cell")
+  DECLARE_HYDROGEN_ACCESSOR(StoreGlobalCell)
+};
+
+
+class LStoreGlobalGeneric: public LTemplateInstruction<0, 3, 0> {
+ public:
+  explicit LStoreGlobalGeneric(LOperand* context,
+                               LOperand* global_object,
+                               LOperand* value) {
+    inputs_[0] = context;
+    inputs_[1] = global_object;
+    inputs_[2] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalGeneric, "store-global-generic")
+  DECLARE_HYDROGEN_ACCESSOR(StoreGlobalGeneric)
+
+  LOperand* context() { return InputAt(0); }
+  LOperand* global_object() { return InputAt(1); }
+  Handle<Object> name() const { return hydrogen()->name(); }
+  LOperand* value() { return InputAt(2); }
 };
 
 

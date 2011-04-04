@@ -1353,8 +1353,14 @@ void HLoadGlobalGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
-void HStoreGlobal::PrintDataTo(StringStream* stream) {
+void HStoreGlobalCell::PrintDataTo(StringStream* stream) {
   stream->Add("[%p] = ", *cell());
+  value()->PrintNameTo(stream);
+}
+
+
+void HStoreGlobalGeneric::PrintDataTo(StringStream* stream) {
+  stream->Add("%o = ", *name());
   value()->PrintNameTo(stream);
 }
 

@@ -148,7 +148,8 @@ class LChunkBuilder;
   V(Simulate)                                  \
   V(StackCheck)                                \
   V(StoreContextSlot)                          \
-  V(StoreGlobal)                               \
+  V(StoreGlobalCell)                           \
+  V(StoreGlobalGeneric)                        \
   V(StoreKeyedFastElement)                     \
   V(StoreKeyedSpecializedArrayElement)         \
   V(StoreKeyedGeneric)                         \
@@ -2878,11 +2879,11 @@ class HLoadGlobalGeneric: public HBinaryOperation {
 };
 
 
-class HStoreGlobal: public HUnaryOperation {
+class HStoreGlobalCell: public HUnaryOperation {
  public:
-  HStoreGlobal(HValue* value,
-               Handle<JSGlobalPropertyCell> cell,
-               bool check_hole_value)
+  HStoreGlobalCell(HValue* value,
+                   Handle<JSGlobalPropertyCell> cell,
+                   bool check_hole_value)
       : HUnaryOperation(value),
         cell_(cell),
         check_hole_value_(check_hole_value) {
@@ -2897,11 +2898,43 @@ class HStoreGlobal: public HUnaryOperation {
   }
   virtual void PrintDataTo(StringStream* stream);
 
-  DECLARE_CONCRETE_INSTRUCTION(StoreGlobal, "store_global")
+  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store_global_cell")
 
  private:
   Handle<JSGlobalPropertyCell> cell_;
   bool check_hole_value_;
+};
+
+
+class HStoreGlobalGeneric: public HTemplateInstruction<3> {
+ public:
+  HStoreGlobalGeneric(HValue* context,
+                      HValue* global_object,
+                      Handle<Object> name,
+                      HValue* value)
+      : name_(name) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, global_object);
+    SetOperandAt(2, value);
+    set_representation(Representation::Tagged());
+    SetAllSideEffects();
+  }
+
+  HValue* context() { return OperandAt(0); }
+  HValue* global_object() { return OperandAt(1); }
+  Handle<Object> name() const { return name_; }
+  HValue* value() { return OperandAt(2); }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalGeneric, "store_global_generic")
+
+ private:
+  Handle<Object> name_;
 };
 
 

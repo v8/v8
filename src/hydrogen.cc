@@ -3296,12 +3296,24 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
     bool check_hole = !lookup.IsDontDelete() || lookup.IsReadOnly();
     Handle<GlobalObject> global(info()->global_object());
     Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(&lookup));
-    HInstruction* instr = new HStoreGlobal(value, cell, check_hole);
+    HInstruction* instr = new HStoreGlobalCell(value, cell, check_hole);
     instr->set_position(position);
     AddInstruction(instr);
     if (instr->HasSideEffects()) AddSimulate(ast_id);
   } else {
-    BAILOUT("global store only supported for cells");
+    HContext* context = new HContext;
+    AddInstruction(context);
+    HGlobalObject* global_object = new HGlobalObject(context);
+    AddInstruction(global_object);
+    HStoreGlobalGeneric* instr =
+        new HStoreGlobalGeneric(context,
+                                global_object,
+                                var->name(),
+                                value);
+    instr->set_position(position);
+    AddInstruction(instr);
+    ASSERT(instr->HasSideEffects());
+    if (instr->HasSideEffects()) AddSimulate(ast_id);
   }
 }
 
