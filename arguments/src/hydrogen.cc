@@ -3280,6 +3280,20 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     } else if (var->IsStackAllocated()) {
       Bind(var, Top());
     } else if (var->IsContextSlot()) {
+      // Bail out if we try to mutate a parameter value in a function using
+      // the arguments object.  We do not (yet) correctly handle the
+      // arguments property of the function.
+      if (info()->scope()->arguments() != NULL) {
+        // Parameters will rewrite to context slots.  We have no direct way
+        // to detect that the variable is a parameter.
+        int count = info()->scope()->num_parameters();
+        for (int i = 0; i < count; ++i) {
+          if (var == info()->scope()->parameter(i)) {
+            BAILOUT("assignment to parameter, function uses arguments object");
+          }
+        }
+      }
+
       HValue* context = BuildContextChainWalk(var);
       int index = var->AsSlot()->index();
       HStoreContextSlot* instr = new HStoreContextSlot(context, index, Top());
@@ -3398,6 +3412,20 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
       ast_context()->ReturnValue(value);
 
     } else if (var->IsContextSlot() && var->mode() != Variable::CONST) {
+      // Bail out if we try to mutate a parameter value in a function using
+      // the arguments object.  We do not (yet) correctly handle the
+      // arguments property of the function.
+      if (info()->scope()->arguments() != NULL) {
+        // Parameters will rewrite to context slots.  We have no direct way
+        // to detect that the variable is a parameter.
+        int count = info()->scope()->num_parameters();
+        for (int i = 0; i < count; ++i) {
+          if (var == info()->scope()->parameter(i)) {
+            BAILOUT("assignment to parameter, function uses arguments object");
+          }
+        }
+      }
+
       VISIT_FOR_VALUE(expr->value());
       HValue* context = BuildContextChainWalk(var);
       int index = var->AsSlot()->index();
@@ -4554,6 +4582,20 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
     } else if (var->IsStackAllocated()) {
       Bind(var, after);
     } else if (var->IsContextSlot()) {
+      // Bail out if we try to mutate a parameter value in a function using
+      // the arguments object.  We do not (yet) correctly handle the
+      // arguments property of the function.
+      if (info()->scope()->arguments() != NULL) {
+        // Parameters will rewrite to context slots.  We have no direct way
+        // to detect that the variable is a parameter.
+        int count = info()->scope()->num_parameters();
+        for (int i = 0; i < count; ++i) {
+          if (var == info()->scope()->parameter(i)) {
+            BAILOUT("assignment to parameter, function uses arguments object");
+          }
+        }
+      }
+
       HValue* context = BuildContextChainWalk(var);
       int index = var->AsSlot()->index();
       HStoreContextSlot* instr = new HStoreContextSlot(context, index, after);
