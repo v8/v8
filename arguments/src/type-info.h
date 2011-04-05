@@ -267,8 +267,6 @@ class TypeFeedbackOracle BASE_EMBEDDED {
                                     Handle<String> name,
                                     Code::Flags flags);
 
-  void SetInfo(int position, Object* target);
-
   void PopulateMap(Handle<Code> code);
 
   void CollectPositions(Code* code,

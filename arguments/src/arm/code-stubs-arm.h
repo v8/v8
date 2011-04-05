@@ -235,7 +235,7 @@ class TypeRecordingBinaryOpStub: public CodeStub {
         operands_type_(TRBinaryOpIC::UNINITIALIZED),
         result_type_(TRBinaryOpIC::UNINITIALIZED),
         name_(NULL) {
-    use_vfp3_ = CpuFeatures::IsSupported(VFP3);
+    use_vfp3_ = Isolate::Current()->cpu_features()->IsSupported(VFP3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
 

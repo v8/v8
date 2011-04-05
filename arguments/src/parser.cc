@@ -88,13 +88,12 @@ class PositionStack  {
 
 
 RegExpBuilder::RegExpBuilder()
-    : zone_(Isolate::Current()->zone()),
-      pending_empty_(false),
-      characters_(NULL),
-      terms_(),
-      alternatives_()
+  : pending_empty_(false),
+    characters_(NULL),
+    terms_(),
+    alternatives_()
 #ifdef DEBUG
-    , last_added_(ADD_NONE)
+  , last_added_(ADD_NONE)
 #endif
   {}
 
@@ -102,7 +101,7 @@ RegExpBuilder::RegExpBuilder()
 void RegExpBuilder::FlushCharacters() {
   pending_empty_ = false;
   if (characters_ != NULL) {
-    RegExpTree* atom = new(zone()) RegExpAtom(characters_->ToConstVector());
+    RegExpTree* atom = new RegExpAtom(characters_->ToConstVector());
     characters_ = NULL;
     text_.Add(atom);
     LAST(ADD_ATOM);
@@ -118,7 +117,7 @@ void RegExpBuilder::FlushText() {
   } else if (num_text == 1) {
     terms_.Add(text_.last());
   } else {
-    RegExpText* text = new(zone()) RegExpText();
+    RegExpText* text = new RegExpText();
     for (int i = 0; i < num_text; i++)
       text_.Get(i)->AppendToText(text);
     terms_.Add(text);
@@ -179,7 +178,7 @@ void RegExpBuilder::FlushTerms() {
   } else if (num_terms == 1) {
     alternative = terms_.last();
   } else {
-    alternative = new(zone()) RegExpAlternative(terms_.GetList());
+    alternative = new RegExpAlternative(terms_.GetList());
   }
   alternatives_.Add(alternative);
   terms_.Clear();
@@ -196,7 +195,7 @@ RegExpTree* RegExpBuilder::ToRegExp() {
   if (num_alternatives == 1) {
     return alternatives_.last();
   }
-  return new(zone()) RegExpDisjunction(alternatives_.GetList());
+  return new RegExpDisjunction(alternatives_.GetList());
 }
 
 
@@ -215,11 +214,11 @@ void RegExpBuilder::AddQuantifierToAtom(int min,
     int num_chars = char_vector.length();
     if (num_chars > 1) {
       Vector<const uc16> prefix = char_vector.SubVector(0, num_chars - 1);
-      text_.Add(new(zone()) RegExpAtom(prefix));
+      text_.Add(new RegExpAtom(prefix));
       char_vector = char_vector.SubVector(num_chars - 1, num_chars);
     }
     characters_ = NULL;
-    atom = new(zone()) RegExpAtom(char_vector);
+    atom = new RegExpAtom(char_vector);
     FlushText();
   } else if (text_.length() > 0) {
     ASSERT(last_added_ == ADD_ATOM);
@@ -242,7 +241,7 @@ void RegExpBuilder::AddQuantifierToAtom(int min,
     UNREACHABLE();
     return;
   }
-  terms_.Add(new(zone()) RegExpQuantifier(min, max, type, atom));
+  terms_.Add(new RegExpQuantifier(min, max, type, atom));
   LAST(ADD_TERM);
 }
 
@@ -409,7 +408,7 @@ unsigned* ScriptDataImpl::ReadAddress(int position) {
 
 
 Scope* Parser::NewScope(Scope* parent, Scope::Type type, bool inside_with) {
-  Scope* result = new(zone()) Scope(parent, type);
+  Scope* result = new Scope(parent, type);
   result->Initialize(inside_with);
   return result;
 }
@@ -602,7 +601,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 
   HistogramTimerScope timer(isolate()->counters()->parse());
   isolate()->counters()->total_parse_size()->Increment(source->length());
-  fni_ = new(zone()) FuncNameInferrer();
+  fni_ = new FuncNameInferrer();
 
   // Initialize parser state.
   source->TryFlatten();
@@ -653,7 +652,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
       CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
     }
     if (ok) {
-      result = new(zone()) FunctionLiteral(
+      result = new FunctionLiteral(
           no_name,
           top_scope_,
           body,
@@ -714,7 +713,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
   ASSERT(target_stack_ == NULL);
 
   Handle<String> name(String::cast(shared_info->name()));
-  fni_ = new(zone()) FuncNameInferrer();
+  fni_ = new FuncNameInferrer();
   fni_->PushEnclosingName(name);
 
   mode_ = PARSE_EAGERLY;
@@ -1253,7 +1252,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       // one must take great care not to treat it as a
       // fall-through. It is much easier just to wrap the entire
       // try-statement in a statement block and put the labels there
-      Block* result = new(zone()) Block(labels, 1, false);
+      Block* result = new Block(labels, 1, false);
       Target target(&this->target_stack_, result);
       TryStatement* statement = ParseTryStatement(CHECK_OK);
       if (statement) {
@@ -1351,13 +1350,13 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // a performance issue since it may lead to repeated
   // Runtime::DeclareContextSlot() calls.
   VariableProxy* proxy = top_scope_->NewUnresolved(name, inside_with());
-  top_scope_->AddDeclaration(new(zone()) Declaration(proxy, mode, fun));
+  top_scope_->AddDeclaration(new Declaration(proxy, mode, fun));
 
   // For global const variables we bind the proxy to a variable.
   if (mode == Variable::CONST && top_scope_->is_global_scope()) {
     ASSERT(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
-    var = new(zone()) Variable(top_scope_, name, Variable::CONST, true, kind);
+    var = new Variable(top_scope_, name, Variable::CONST, true, kind);
   }
 
   // If requested and we have a local variable, bind the proxy to the variable
@@ -1445,11 +1444,10 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
   // other functions are setup when entering the surrounding scope.
-  SharedFunctionInfoLiteral* lit =
-      new(zone()) SharedFunctionInfoLiteral(shared);
+  SharedFunctionInfoLiteral* lit = new SharedFunctionInfoLiteral(shared);
   VariableProxy* var = Declare(name, Variable::VAR, NULL, true, CHECK_OK);
-  return new(zone()) ExpressionStatement(new(zone()) Assignment(
-      Token::INIT_VAR, var, lit, RelocInfo::kNoPosition));
+  return new ExpressionStatement(
+      new Assignment(Token::INIT_VAR, var, lit, RelocInfo::kNoPosition));
 }
 
 
@@ -1481,7 +1479,7 @@ Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
   // (ECMA-262, 3rd, 12.2)
   //
   // Construct block expecting 16 statements.
-  Block* result = new(zone()) Block(labels, 16, false);
+  Block* result = new Block(labels, 16, false);
   Target target(&this->target_stack_, result);
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
@@ -1551,7 +1549,7 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
   // is inside an initializer block, it is ignored.
   //
   // Create new block with one expected declaration.
-  Block* block = new(zone()) Block(NULL, 1, true);
+  Block* block = new Block(NULL, 1, true);
   VariableProxy* last_var = NULL;  // the last variable declared
   int nvars = 0;  // the number of variables declared
   do {
@@ -1652,8 +1650,7 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     if (top_scope_->is_global_scope()) {
       // Compute the arguments for the runtime call.
       ZoneList<Expression*>* arguments = new ZoneList<Expression*>(3);
-      // We have at least 1 parameter.
-      arguments->Add(new(zone()) Literal(name));
+      arguments->Add(new Literal(name));  // we have at least 1 parameter
       CallRuntime* initialize;
 
       if (is_const) {
@@ -1665,7 +1662,7 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
         // Note that the function does different things depending on
         // the number of arguments (1 or 2).
         initialize =
-            new(zone()) CallRuntime(
+            new CallRuntime(
               isolate()->factory()->InitializeConstGlobal_symbol(),
               Runtime::FunctionForId(Runtime::kInitializeConstGlobal),
               arguments);
@@ -1689,13 +1686,13 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
         // Note that the function does different things depending on
         // the number of arguments (2 or 3).
         initialize =
-            new(zone()) CallRuntime(
+            new CallRuntime(
               isolate()->factory()->InitializeVarGlobal_symbol(),
               Runtime::FunctionForId(Runtime::kInitializeVarGlobal),
               arguments);
       }
 
-      block->AddStatement(new(zone()) ExpressionStatement(initialize));
+      block->AddStatement(new ExpressionStatement(initialize));
     }
 
     // Add an assignment node to the initialization statement block if
@@ -1710,11 +1707,8 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     // the top context for variables). Sigh...
     if (value != NULL) {
       Token::Value op = (is_const ? Token::INIT_CONST : Token::INIT_VAR);
-      Assignment* assignment =
-          new(zone()) Assignment(op, last_var, value, position);
-      if (block) {
-        block->AddStatement(new(zone()) ExpressionStatement(assignment));
-      }
+      Assignment* assignment = new Assignment(op, last_var, value, position);
+      if (block) block->AddStatement(new ExpressionStatement(assignment));
     }
 
     if (fni_ != NULL) fni_->Leave();
@@ -1780,7 +1774,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
 
   // Parsed expression statement.
   ExpectSemicolon(CHECK_OK);
-  return new(zone()) ExpressionStatement(expr);
+  return new ExpressionStatement(expr);
 }
 
 
@@ -1800,7 +1794,7 @@ IfStatement* Parser::ParseIfStatement(ZoneStringList* labels, bool* ok) {
   } else {
     else_statement = EmptyStatement();
   }
-  return new(zone()) IfStatement(condition, then_statement, else_statement);
+  return new IfStatement(condition, then_statement, else_statement);
 }
 
 
@@ -1830,7 +1824,7 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
     return NULL;
   }
   ExpectSemicolon(CHECK_OK);
-  return new(zone()) ContinueStatement(target);
+  return new ContinueStatement(target);
 }
 
 
@@ -1865,7 +1859,7 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
     return NULL;
   }
   ExpectSemicolon(CHECK_OK);
-  return new(zone()) BreakStatement(target);
+  return new BreakStatement(target);
 }
 
 
@@ -1886,7 +1880,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   if (!top_scope_->is_function_scope()) {
     Handle<String> type = isolate()->factory()->illegal_return_symbol();
     Expression* throw_error = NewThrowSyntaxError(type, Handle<Object>::null());
-    return new(zone()) ExpressionStatement(throw_error);
+    return new ExpressionStatement(throw_error);
   }
 
   Token::Value tok = peek();
@@ -1895,12 +1889,12 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       tok == Token::RBRACE ||
       tok == Token::EOS) {
     ExpectSemicolon(CHECK_OK);
-    return new(zone()) ReturnStatement(GetLiteralUndefined());
+    return new ReturnStatement(GetLiteralUndefined());
   }
 
   Expression* expr = ParseExpression(true, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
-  return new(zone()) ReturnStatement(expr);
+  return new ReturnStatement(expr);
 }
 
 
@@ -1921,21 +1915,21 @@ Block* Parser::WithHelper(Expression* obj,
   // Create resulting block with two statements.
   // 1: Evaluate the with expression.
   // 2: The try-finally block evaluating the body.
-  Block* result = new(zone()) Block(NULL, 2, false);
+  Block* result = new Block(NULL, 2, false);
 
   if (result != NULL) {
-    result->AddStatement(new(zone()) WithEnterStatement(obj, is_catch_block));
+    result->AddStatement(new WithEnterStatement(obj, is_catch_block));
 
     // Create body block.
-    Block* body = new(zone()) Block(NULL, 1, false);
+    Block* body = new Block(NULL, 1, false);
     body->AddStatement(stat);
 
     // Create exit block.
-    Block* exit = new(zone()) Block(NULL, 1, false);
-    exit->AddStatement(new(zone()) WithExitStatement());
+    Block* exit = new Block(NULL, 1, false);
+    exit->AddStatement(new WithExitStatement());
 
     // Return a try-finally statement.
-    TryFinallyStatement* wrapper = new(zone()) TryFinallyStatement(body, exit);
+    TryFinallyStatement* wrapper = new TryFinallyStatement(body, exit);
     wrapper->set_escaping_targets(collector.targets());
     result->AddStatement(wrapper);
   }
@@ -1992,7 +1986,7 @@ CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
     statements->Add(stat);
   }
 
-  return new(zone()) CaseClause(label, statements, pos);
+  return new CaseClause(label, statements, pos);
 }
 
 
@@ -2001,7 +1995,7 @@ SwitchStatement* Parser::ParseSwitchStatement(ZoneStringList* labels,
   // SwitchStatement ::
   //   'switch' '(' Expression ')' '{' CaseClause* '}'
 
-  SwitchStatement* statement = new(zone()) SwitchStatement(labels);
+  SwitchStatement* statement = new SwitchStatement(labels);
   Target target(&this->target_stack_, statement);
 
   Expect(Token::SWITCH, CHECK_OK);
@@ -2037,7 +2031,7 @@ Statement* Parser::ParseThrowStatement(bool* ok) {
   Expression* exception = ParseExpression(true, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
 
-  return new(zone()) ExpressionStatement(new(zone()) Throw(exception, pos));
+  return new ExpressionStatement(new Throw(exception, pos));
 }
 
 
@@ -2101,10 +2095,9 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
       // executing the finally block.
       catch_var =
           top_scope_->NewTemporary(isolate()->factory()->catch_var_symbol());
-      Literal* name_literal = new(zone()) Literal(name);
-      VariableProxy* catch_var_use = new(zone()) VariableProxy(catch_var);
-      Expression* obj =
-          new(zone()) CatchExtensionObject(name_literal, catch_var_use);
+      Literal* name_literal = new Literal(name);
+      VariableProxy* catch_var_use = new VariableProxy(catch_var);
+      Expression* obj = new CatchExtensionObject(name_literal, catch_var_use);
       { Target target(&this->target_stack_, &catch_collector);
         catch_block = WithHelper(obj, NULL, true, CHECK_OK);
       }
@@ -2128,11 +2121,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   //   'try { try { } catch { } } finally { }'
 
   if (catch_block != NULL && finally_block != NULL) {
-    VariableProxy* catch_var_defn = new(zone()) VariableProxy(catch_var);
+    VariableProxy* catch_var_defn = new VariableProxy(catch_var);
     TryCatchStatement* statement =
-        new(zone()) TryCatchStatement(try_block, catch_var_defn, catch_block);
+        new TryCatchStatement(try_block, catch_var_defn, catch_block);
     statement->set_escaping_targets(collector.targets());
-    try_block = new(zone()) Block(NULL, 1, false);
+    try_block = new Block(NULL, 1, false);
     try_block->AddStatement(statement);
     catch_block = NULL;
   }
@@ -2140,13 +2133,12 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   TryStatement* result = NULL;
   if (catch_block != NULL) {
     ASSERT(finally_block == NULL);
-    VariableProxy* catch_var_defn = new(zone()) VariableProxy(catch_var);
-    result =
-        new(zone()) TryCatchStatement(try_block, catch_var_defn, catch_block);
+    VariableProxy* catch_var_defn = new VariableProxy(catch_var);
+    result = new TryCatchStatement(try_block, catch_var_defn, catch_block);
     result->set_escaping_targets(collector.targets());
   } else {
     ASSERT(finally_block != NULL);
-    result = new(zone()) TryFinallyStatement(try_block, finally_block);
+    result = new TryFinallyStatement(try_block, finally_block);
     // Add the jump targets of the try block and the catch block.
     for (int i = 0; i < collector.targets()->length(); i++) {
       catch_collector.AddTarget(collector.targets()->at(i));
@@ -2164,7 +2156,7 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   //   'do' Statement 'while' '(' Expression ')' ';'
 
   lexical_scope_->AddLoop();
-  DoWhileStatement* loop = new(zone()) DoWhileStatement(labels);
+  DoWhileStatement* loop = new DoWhileStatement(labels);
   Target target(&this->target_stack_, loop);
 
   Expect(Token::DO, CHECK_OK);
@@ -2197,7 +2189,7 @@ WhileStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
   //   'while' '(' Expression ')' Statement
 
   lexical_scope_->AddLoop();
-  WhileStatement* loop = new(zone()) WhileStatement(labels);
+  WhileStatement* loop = new WhileStatement(labels);
   Target target(&this->target_stack_, loop);
 
   Expect(Token::WHILE, CHECK_OK);
@@ -2227,7 +2219,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
       Block* variable_statement =
           ParseVariableDeclarations(false, &each, CHECK_OK);
       if (peek() == Token::IN && each != NULL) {
-        ForInStatement* loop = new(zone()) ForInStatement(labels);
+        ForInStatement* loop = new ForInStatement(labels);
         Target target(&this->target_stack_, loop);
 
         Expect(Token::IN, CHECK_OK);
@@ -2236,7 +2228,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
         Statement* body = ParseStatement(NULL, CHECK_OK);
         loop->Initialize(each, enumerable, body);
-        Block* result = new(zone()) Block(NULL, 2, false);
+        Block* result = new Block(NULL, 2, false);
         result->AddStatement(variable_statement);
         result->AddStatement(loop);
         // Parsed for-in loop w/ variable/const declaration.
@@ -2257,7 +2249,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
               isolate()->factory()->invalid_lhs_in_for_in_symbol();
           expression = NewThrowReferenceError(type);
         }
-        ForInStatement* loop = new(zone()) ForInStatement(labels);
+        ForInStatement* loop = new ForInStatement(labels);
         Target target(&this->target_stack_, loop);
 
         Expect(Token::IN, CHECK_OK);
@@ -2270,13 +2262,13 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         return loop;
 
       } else {
-        init = new(zone()) ExpressionStatement(expression);
+        init = new ExpressionStatement(expression);
       }
     }
   }
 
   // Standard 'for' loop
-  ForStatement* loop = new(zone()) ForStatement(labels);
+  ForStatement* loop = new ForStatement(labels);
   Target target(&this->target_stack_, loop);
 
   // Parsed initializer at this point.
@@ -2292,7 +2284,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   Statement* next = NULL;
   if (peek() != Token::RPAREN) {
     Expression* exp = ParseExpression(true, CHECK_OK);
-    next = new(zone()) ExpressionStatement(exp);
+    next = new ExpressionStatement(exp);
   }
   Expect(Token::RPAREN, CHECK_OK);
 
@@ -2313,7 +2305,7 @@ Expression* Parser::ParseExpression(bool accept_IN, bool* ok) {
     Expect(Token::COMMA, CHECK_OK);
     int position = scanner().location().beg_pos;
     Expression* right = ParseAssignmentExpression(accept_IN, CHECK_OK);
-    result = new(zone()) BinaryOperation(Token::COMMA, result, right, position);
+    result = new BinaryOperation(Token::COMMA, result, right, position);
   }
   return result;
 }
@@ -2385,7 +2377,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     fni_->Leave();
   }
 
-  return new(zone()) Assignment(op, expression, right, pos);
+  return new Assignment(op, expression, right, pos);
 }
 
 
@@ -2407,7 +2399,7 @@ Expression* Parser::ParseConditionalExpression(bool accept_IN, bool* ok) {
   Expect(Token::COLON, CHECK_OK);
   int right_position = scanner().peek_location().beg_pos;
   Expression* right = ParseAssignmentExpression(accept_IN, CHECK_OK);
-  return new(zone()) Conditional(expression, left, right,
+  return new Conditional(expression, left, right,
                          left_position, right_position);
 }
 
@@ -2495,12 +2487,12 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
         x = NewCompareNode(cmp, x, y, position);
         if (cmp != op) {
           // The comparison was negated - add a NOT.
-          x = new(zone()) UnaryOperation(Token::NOT, x);
+          x = new UnaryOperation(Token::NOT, x);
         }
 
       } else {
         // We have a "normal" binary operation.
-        x = new(zone()) BinaryOperation(op, x, y, position);
+        x = new BinaryOperation(op, x, y, position);
       }
     }
   }
@@ -2517,15 +2509,15 @@ Expression* Parser::NewCompareNode(Token::Value op,
     bool is_strict = (op == Token::EQ_STRICT);
     Literal* x_literal = x->AsLiteral();
     if (x_literal != NULL && x_literal->IsNull()) {
-      return new(zone()) CompareToNull(is_strict, y);
+      return new CompareToNull(is_strict, y);
     }
 
     Literal* y_literal = y->AsLiteral();
     if (y_literal != NULL && y_literal->IsNull()) {
-      return new(zone()) CompareToNull(is_strict, x);
+      return new CompareToNull(is_strict, x);
     }
   }
-  return new(zone()) CompareOperation(op, x, y, position);
+  return new CompareOperation(op, x, y, position);
 }
 
 
@@ -2572,7 +2564,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       }
     }
 
-    return new(zone()) UnaryOperation(op, expression);
+    return new UnaryOperation(op, expression);
 
   } else if (Token::IsCountOp(op)) {
     op = Next();
@@ -2593,9 +2585,8 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     }
 
     int position = scanner().location().beg_pos;
-    IncrementOperation* increment =
-        new(zone()) IncrementOperation(op, expression);
-    return new(zone()) CountOperation(true /* prefix */, increment, position);
+    IncrementOperation* increment = new IncrementOperation(op, expression);
+    return new CountOperation(true /* prefix */, increment, position);
 
   } else {
     return ParsePostfixExpression(ok);
@@ -2627,10 +2618,8 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
 
     Token::Value next = Next();
     int position = scanner().location().beg_pos;
-    IncrementOperation* increment =
-        new(zone()) IncrementOperation(next, expression);
-    expression =
-        new(zone()) CountOperation(false /* postfix */, increment, position);
+    IncrementOperation* increment = new IncrementOperation(next, expression);
+    expression = new CountOperation(false /* postfix */, increment, position);
   }
   return expression;
 }
@@ -2653,7 +2642,7 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         Consume(Token::LBRACK);
         int pos = scanner().location().beg_pos;
         Expression* index = ParseExpression(true, CHECK_OK);
-        result = new(zone()) Property(result, index, pos);
+        result = new Property(result, index, pos);
         Expect(Token::RBRACK, CHECK_OK);
         break;
       }
@@ -2691,7 +2680,7 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         Consume(Token::PERIOD);
         int pos = scanner().location().beg_pos;
         Handle<String> name = ParseIdentifierName(CHECK_OK);
-        result = new(zone()) Property(result, new(zone()) Literal(name), pos);
+        result = new Property(result, new Literal(name), pos);
         if (fni_ != NULL) fni_->PushLiteralName(name);
         break;
       }
@@ -2727,7 +2716,7 @@ Expression* Parser::ParseNewPrefix(PositionStack* stack, bool* ok) {
 
   if (!stack->is_empty()) {
     int last = stack->pop();
-    result = new(zone()) CallNew(result, new ZoneList<Expression*>(0), last);
+    result = new CallNew(result, new ZoneList<Expression*>(0), last);
   }
   return result;
 }
@@ -2772,7 +2761,7 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
         Consume(Token::LBRACK);
         int pos = scanner().location().beg_pos;
         Expression* index = ParseExpression(true, CHECK_OK);
-        result = new(zone()) Property(result, index, pos);
+        result = new Property(result, index, pos);
         Expect(Token::RBRACK, CHECK_OK);
         break;
       }
@@ -2780,7 +2769,7 @@ Expression* Parser::ParseMemberWithNewPrefixesExpression(PositionStack* stack,
         Consume(Token::PERIOD);
         int pos = scanner().location().beg_pos;
         Handle<String> name = ParseIdentifierName(CHECK_OK);
-        result = new(zone()) Property(result, new(zone()) Literal(name), pos);
+        result = new Property(result, new Literal(name), pos);
         if (fni_ != NULL) fni_->PushLiteralName(name);
         break;
       }
@@ -2808,7 +2797,7 @@ DebuggerStatement* Parser::ParseDebuggerStatement(bool* ok) {
 
   Expect(Token::DEBUGGER, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
-  return new(zone()) DebuggerStatement();
+  return new DebuggerStatement();
 }
 
 
@@ -2877,26 +2866,24 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
 
     case Token::NULL_LITERAL:
       Consume(Token::NULL_LITERAL);
-      result = new(zone()) Literal(isolate()->factory()->null_value());
+      result = new Literal(isolate()->factory()->null_value());
       break;
 
     case Token::TRUE_LITERAL:
       Consume(Token::TRUE_LITERAL);
-      result = new(zone()) Literal(isolate()->factory()->true_value());
+      result = new Literal(isolate()->factory()->true_value());
       break;
 
     case Token::FALSE_LITERAL:
       Consume(Token::FALSE_LITERAL);
-      result = new(zone()) Literal(isolate()->factory()->false_value());
+      result = new Literal(isolate()->factory()->false_value());
       break;
 
     case Token::IDENTIFIER:
     case Token::FUTURE_RESERVED_WORD: {
       Handle<String> name = ParseIdentifier(CHECK_OK);
       if (fni_ != NULL) fni_->PushVariableName(name);
-      result = top_scope_->NewUnresolved(name,
-                                         inside_with(),
-                                         scanner().location().beg_pos);
+      result = top_scope_->NewUnresolved(name, inside_with());
       break;
     }
 
@@ -2912,7 +2899,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::STRING: {
       Consume(Token::STRING);
       Handle<String> symbol = GetSymbol(CHECK_OK);
-      result = new(zone()) Literal(symbol);
+      result = new Literal(symbol);
       if (fni_ != NULL) fni_->PushLiteralName(symbol);
       break;
     }
@@ -3039,7 +3026,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
     literals->set_map(isolate()->heap()->fixed_cow_array_map());
   }
 
-  return new(zone()) ArrayLiteral(literals, values,
+  return new ArrayLiteral(literals, values,
                           literal_index, is_simple, depth);
 }
 
@@ -3317,7 +3304,7 @@ ObjectLiteral::Property* Parser::ParseObjectLiteralGetSet(bool is_getter,
     // Allow any number of parameters for compatiabilty with JSC.
     // Specification only allows zero parameters for get and one for set.
     ObjectLiteral::Property* property =
-        new(zone()) ObjectLiteral::Property(is_getter, value);
+        new ObjectLiteral::Property(is_getter, value);
     return property;
   } else {
     ReportUnexpectedToken(next);
@@ -3383,7 +3370,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
         }
         // Failed to parse as get/set property, so it's just a property
         // called "get" or "set".
-        key = new(zone()) Literal(id);
+        key = new Literal(id);
         break;
       }
       case Token::STRING: {
@@ -3395,7 +3382,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
           key = NewNumberLiteral(index);
           break;
         }
-        key = new(zone()) Literal(string);
+        key = new Literal(string);
         break;
       }
       case Token::NUMBER: {
@@ -3410,7 +3397,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
         if (Token::IsKeyword(next)) {
           Consume(next);
           Handle<String> string = GetSymbol(CHECK_OK);
-          key = new(zone()) Literal(string);
+          key = new Literal(string);
         } else {
           // Unexpected token.
           Token::Value next = Next();
@@ -3424,7 +3411,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
     Expression* value = ParseAssignmentExpression(true, CHECK_OK);
 
     ObjectLiteral::Property* property =
-        new(zone()) ObjectLiteral::Property(key, value);
+        new ObjectLiteral::Property(key, value);
 
     // Mark object literals that contain function literals and pretenure the
     // literal so it can be added as a constant function property.
@@ -3463,7 +3450,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
                                        &is_simple,
                                        &fast_elements,
                                        &depth);
-  return new(zone()) ObjectLiteral(constant_properties,
+  return new ObjectLiteral(constant_properties,
                            properties,
                            literal_index,
                            is_simple,
@@ -3488,7 +3475,7 @@ Expression* Parser::ParseRegExpLiteral(bool seen_equal, bool* ok) {
   Handle<String> js_flags = NextLiteralString(TENURED);
   Next();
 
-  return new(zone()) RegExpLiteral(js_pattern, js_flags, literal_index);
+  return new RegExpLiteral(js_pattern, js_flags, literal_index);
 }
 
 
@@ -3591,9 +3578,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       VariableProxy* fproxy =
           top_scope_->NewUnresolved(function_name, inside_with());
       fproxy->BindTo(fvar);
-      body->Add(new(zone()) ExpressionStatement(
-                    new(zone()) Assignment(Token::INIT_CONST, fproxy,
-                                   new(zone()) ThisFunction(),
+      body->Add(new ExpressionStatement(
+                    new Assignment(Token::INIT_CONST, fproxy,
+                                   new ThisFunction(),
                                    RelocInfo::kNoPosition)));
     }
 
@@ -3687,7 +3674,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     }
 
     FunctionLiteral* function_literal =
-        new(zone()) FunctionLiteral(name,
+        new FunctionLiteral(name,
                             top_scope_,
                             body,
                             materialized_literal_count,
@@ -3749,7 +3736,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   }
 
   // We have a valid intrinsics call or a call to a builtin.
-  return new(zone()) CallRuntime(name, function, args);
+  return new CallRuntime(name, function, args);
 }
 
 
@@ -3804,12 +3791,12 @@ void Parser::ExpectSemicolon(bool* ok) {
 
 
 Literal* Parser::GetLiteralUndefined() {
-  return new(zone()) Literal(isolate()->factory()->undefined_value());
+  return new Literal(isolate()->factory()->undefined_value());
 }
 
 
 Literal* Parser::GetLiteralTheHole() {
-  return new(zone()) Literal(isolate()->factory()->the_hole_value());
+  return new Literal(isolate()->factory()->the_hole_value());
 }
 
 
@@ -3957,7 +3944,7 @@ void Parser::RegisterTargetUse(BreakTarget* target, Target* stop) {
 
 
 Literal* Parser::NewNumberLiteral(double number) {
-  return new(zone()) Literal(isolate()->factory()->NewNumber(number, TENURED));
+  return new Literal(isolate()->factory()->NewNumber(number, TENURED));
 }
 
 
@@ -4004,9 +3991,9 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
                                                                        TENURED);
 
   ZoneList<Expression*>* args = new ZoneList<Expression*>(2);
-  args->Add(new(zone()) Literal(type));
-  args->Add(new(zone()) Literal(array));
-  return new(zone()) Throw(new(zone()) CallRuntime(constructor, NULL, args),
+  args->Add(new Literal(type));
+  args->Add(new Literal(array));
+  return new Throw(new CallRuntime(constructor, NULL, args),
                    scanner().location().beg_pos);
 }
 
@@ -4329,13 +4316,13 @@ RegExpTree* RegExpParser::ParseDisjunction() {
 
       // Build result of subexpression.
       if (type == CAPTURE) {
-        RegExpCapture* capture = new(zone()) RegExpCapture(body, capture_index);
+        RegExpCapture* capture = new RegExpCapture(body, capture_index);
         captures_->at(capture_index - 1) = capture;
         body = capture;
       } else if (type != GROUPING) {
         ASSERT(type == POSITIVE_LOOKAHEAD || type == NEGATIVE_LOOKAHEAD);
         bool is_positive = (type == POSITIVE_LOOKAHEAD);
-        body = new(zone()) RegExpLookahead(body,
+        body = new RegExpLookahead(body,
                                    is_positive,
                                    end_capture_index - capture_index,
                                    capture_index);
@@ -4358,10 +4345,10 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       Advance();
       if (multiline_) {
         builder->AddAssertion(
-            new(zone()) RegExpAssertion(RegExpAssertion::START_OF_LINE));
+            new RegExpAssertion(RegExpAssertion::START_OF_LINE));
       } else {
         builder->AddAssertion(
-            new(zone()) RegExpAssertion(RegExpAssertion::START_OF_INPUT));
+            new RegExpAssertion(RegExpAssertion::START_OF_INPUT));
         set_contains_anchor();
       }
       continue;
@@ -4371,7 +4358,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       RegExpAssertion::Type type =
           multiline_ ? RegExpAssertion::END_OF_LINE :
                        RegExpAssertion::END_OF_INPUT;
-      builder->AddAssertion(new(zone()) RegExpAssertion(type));
+      builder->AddAssertion(new RegExpAssertion(type));
       continue;
     }
     case '.': {
@@ -4379,7 +4366,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       // everything except \x0a, \x0d, \u2028 and \u2029
       ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
       CharacterRange::AddClassEscape('.', ranges);
-      RegExpTree* atom = new(zone()) RegExpCharacterClass(ranges, false);
+      RegExpTree* atom = new RegExpCharacterClass(ranges, false);
       builder->AddAtom(atom);
       break;
     }
@@ -4412,7 +4399,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         captures_->Add(NULL);
       }
       // Store current state and begin new disjunction parsing.
-      stored_state = new(zone()) RegExpParserState(stored_state,
+      stored_state = new RegExpParserState(stored_state,
                                            type,
                                            captures_started());
       builder = stored_state->builder();
@@ -4432,12 +4419,12 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       case 'b':
         Advance(2);
         builder->AddAssertion(
-            new(zone()) RegExpAssertion(RegExpAssertion::BOUNDARY));
+            new RegExpAssertion(RegExpAssertion::BOUNDARY));
         continue;
       case 'B':
         Advance(2);
         builder->AddAssertion(
-            new(zone()) RegExpAssertion(RegExpAssertion::NON_BOUNDARY));
+            new RegExpAssertion(RegExpAssertion::NON_BOUNDARY));
         continue;
       // AtomEscape ::
       //   CharacterClassEscape
@@ -4449,7 +4436,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         Advance(2);
         ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
         CharacterRange::AddClassEscape(c, ranges);
-        RegExpTree* atom = new(zone()) RegExpCharacterClass(ranges, false);
+        RegExpTree* atom = new RegExpCharacterClass(ranges, false);
         builder->AddAtom(atom);
         break;
       }
@@ -4465,7 +4452,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             builder->AddEmpty();
             break;
           }
-          RegExpTree* atom = new(zone()) RegExpBackReference(capture);
+          RegExpTree* atom = new RegExpBackReference(capture);
           builder->AddAtom(atom);
           break;
         }
@@ -4983,7 +4970,7 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
     ranges->Add(CharacterRange::Everything());
     is_negated = !is_negated;
   }
-  return new(zone()) RegExpCharacterClass(ranges, is_negated);
+  return new RegExpCharacterClass(ranges, is_negated);
 }
 
 

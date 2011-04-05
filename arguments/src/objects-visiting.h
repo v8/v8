@@ -141,22 +141,13 @@ class StaticVisitorBase : public AllStatic {
 template<typename Callback>
 class VisitorDispatchTable {
  public:
-  void CopyFrom(VisitorDispatchTable* other) {
-    // We are not using memcpy to guarantee that during update
-    // every element of callbacks_ array will remain correct
-    // pointer (memcpy might be implemented as a byte copying loop).
-    for (int i = 0; i < StaticVisitorBase::kVisitorIdCount; i++) {
-      NoBarrier_Store(&callbacks_[i], other->callbacks_[i]);
-    }
-  }
-
   inline Callback GetVisitor(Map* map) {
-    return reinterpret_cast<Callback>(callbacks_[map->visitor_id()]);
+    return callbacks_[map->visitor_id()];
   }
 
   void Register(StaticVisitorBase::VisitorId id, Callback callback) {
     ASSERT(id < StaticVisitorBase::kVisitorIdCount);  // id is unsigned.
-    callbacks_[id] = reinterpret_cast<AtomicWord>(callback);
+    callbacks_[id] = callback;
   }
 
   template<typename Visitor,
@@ -188,7 +179,7 @@ class VisitorDispatchTable {
   }
 
  private:
-  AtomicWord callbacks_[StaticVisitorBase::kVisitorIdCount];
+  Callback callbacks_[StaticVisitorBase::kVisitorIdCount];
 };
 
 

@@ -941,8 +941,6 @@ void Heap::Scavenge() {
 
   gc_state_ = SCAVENGE;
 
-  SwitchScavengingVisitorsTableIfProfilingWasEnabled();
-
   Page::FlipMeaningOfInvalidatedWatermarkFlag(this);
 #ifdef DEBUG
   VerifyPageWatermarkValidity(old_pointer_space_, ALL_VALID);
@@ -1234,32 +1232,6 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 }
 
 
-enum LoggingAndProfiling {
-  LOGGING_AND_PROFILING_ENABLED,
-  LOGGING_AND_PROFILING_DISABLED
-};
-
-
-typedef void (*ScavengingCallback)(Map* map,
-                                   HeapObject** slot,
-                                   HeapObject* object);
-
-
-static Atomic32 scavenging_visitors_table_mode_;
-static VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
-
-
-INLINE(static void DoScavengeObject(Map* map,
-                                    HeapObject** slot,
-                                    HeapObject* obj));
-
-
-void DoScavengeObject(Map* map, HeapObject** slot, HeapObject* obj) {
-  scavenging_visitors_table_.GetVisitor(map)(map, slot, obj);
-}
-
-
-template<LoggingAndProfiling logging_and_profiling_mode>
 class ScavengingVisitor : public StaticVisitorBase {
  public:
   static void Initialize() {
@@ -1268,22 +1240,23 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitShortcutCandidate, &EvacuateShortcutCandidate);
     table_.Register(kVisitByteArray, &EvacuateByteArray);
     table_.Register(kVisitFixedArray, &EvacuateFixedArray);
-
     table_.Register(kVisitGlobalContext,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
-                        template VisitSpecialized<Context::kSize>);
+                        VisitSpecialized<Context::kSize>);
+
+    typedef ObjectEvacuationStrategy<POINTER_OBJECT> PointerObject;
 
     table_.Register(kVisitConsString,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
-                        template VisitSpecialized<ConsString::kSize>);
+                        VisitSpecialized<ConsString::kSize>);
 
     table_.Register(kVisitSharedFunctionInfo,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
-                        template VisitSpecialized<SharedFunctionInfo::kSize>);
+                        VisitSpecialized<SharedFunctionInfo::kSize>);
 
     table_.Register(kVisitJSFunction,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
-                        template VisitSpecialized<JSFunction::kSize>);
+                    VisitSpecialized<JSFunction::kSize>);
 
     table_.RegisterSpecializations<ObjectEvacuationStrategy<DATA_OBJECT>,
                                    kVisitDataObject,
@@ -1298,9 +1271,11 @@ class ScavengingVisitor : public StaticVisitorBase {
                                    kVisitStructGeneric>();
   }
 
-  static VisitorDispatchTable<ScavengingCallback>* GetTable() {
-    return &table_;
+
+  static inline void Scavenge(Map* map, HeapObject** slot, HeapObject* obj) {
+    table_.GetVisitor(map)(map, slot, obj);
   }
+
 
  private:
   enum ObjectContents  { DATA_OBJECT, POINTER_OBJECT };
@@ -1338,24 +1313,21 @@ class ScavengingVisitor : public StaticVisitorBase {
     // Set the forwarding address.
     source->set_map_word(MapWord::FromForwardingAddress(target));
 
-    if (logging_and_profiling_mode == LOGGING_AND_PROFILING_ENABLED) {
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
-      // Update NewSpace stats if necessary.
-      RecordCopiedObject(heap, target);
+    // Update NewSpace stats if necessary.
+    RecordCopiedObject(heap, target);
 #endif
-      HEAP_PROFILE(heap, ObjectMoveEvent(source->address(), target->address()));
+    HEAP_PROFILE(heap, ObjectMoveEvent(source->address(), target->address()));
 #if defined(ENABLE_LOGGING_AND_PROFILING)
-      Isolate* isolate = heap->isolate();
-      if (isolate->logger()->is_logging() ||
-          isolate->cpu_profiler()->is_profiling()) {
-        if (target->IsSharedFunctionInfo()) {
-          PROFILE(isolate, SharedFunctionInfoMoveEvent(
-              source->address(), target->address()));
-        }
+    Isolate* isolate = heap->isolate();
+    if (isolate->logger()->is_logging() ||
+        isolate->cpu_profiler()->is_profiling()) {
+      if (target->IsSharedFunctionInfo()) {
+        PROFILE(isolate, SharedFunctionInfoMoveEvent(
+            source->address(), target->address()));
       }
-#endif
     }
-
+#endif
     return target;
   }
 
@@ -1471,7 +1443,7 @@ class ScavengingVisitor : public StaticVisitorBase {
         return;
       }
 
-      DoScavengeObject(first->map(), slot, first);
+      Scavenge(first->map(), slot, first);
       object->set_map_word(MapWord::FromForwardingAddress(*slot));
       return;
     }
@@ -1498,51 +1470,13 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
   };
 
-  static VisitorDispatchTable<ScavengingCallback> table_;
+  typedef void (*Callback)(Map* map, HeapObject** slot, HeapObject* object);
+
+  static VisitorDispatchTable<Callback> table_;
 };
 
 
-template<LoggingAndProfiling logging_and_profiling_mode>
-VisitorDispatchTable<ScavengingCallback>
-    ScavengingVisitor<logging_and_profiling_mode>::table_;
-
-
-static void InitializeScavengingVisitorsTables() {
-  ScavengingVisitor<LOGGING_AND_PROFILING_DISABLED>::Initialize();
-  ScavengingVisitor<LOGGING_AND_PROFILING_ENABLED>::Initialize();
-  scavenging_visitors_table_.CopyFrom(
-      ScavengingVisitor<LOGGING_AND_PROFILING_DISABLED>::GetTable());
-  scavenging_visitors_table_mode_ = LOGGING_AND_PROFILING_DISABLED;
-}
-
-
-void Heap::SwitchScavengingVisitorsTableIfProfilingWasEnabled() {
-  if (scavenging_visitors_table_mode_ == LOGGING_AND_PROFILING_ENABLED) {
-    // Table was already updated by some isolate.
-    return;
-  }
-
-  if (isolate()->logger()->is_logging() ||
-      isolate()->cpu_profiler()->is_profiling() ||
-      (isolate()->heap_profiler() != NULL &&
-       isolate()->heap_profiler()->is_profiling())) {
-    // If one of the isolates is doing scavenge at this moment of time
-    // it might see this table in an inconsitent state when
-    // some of the callbacks point to
-    // ScavengingVisitor<LOGGING_AND_PROFILING_ENABLED> and others
-    // to ScavengingVisitor<LOGGING_AND_PROFILING_DISABLED>.
-    // However this does not lead to any bugs as such isolate does not have
-    // profiling enabled and any isolate with enabled profiling is guaranteed
-    // to see the table in the consistent state.
-    scavenging_visitors_table_.CopyFrom(
-        ScavengingVisitor<LOGGING_AND_PROFILING_ENABLED>::GetTable());
-
-    // We use Release_Store to prevent reordering of this write before writes
-    // to the table.
-    Release_Store(&scavenging_visitors_table_mode_,
-                  LOGGING_AND_PROFILING_ENABLED);
-  }
-}
+VisitorDispatchTable<ScavengingVisitor::Callback> ScavengingVisitor::table_;
 
 
 void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
@@ -1550,7 +1484,7 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
   MapWord first_word = object->map_word();
   ASSERT(!first_word.IsForwardingAddress());
   Map* map = first_word.ToMap();
-  DoScavengeObject(map, p, object);
+  ScavengingVisitor::Scavenge(map, p, object);
 }
 
 
@@ -4829,10 +4763,10 @@ bool Heap::Setup(bool create_heap_objects) {
   gc_initializer_mutex->Lock();
   static bool initialized_gc = false;
   if (!initialized_gc) {
-    initialized_gc = true;
-    InitializeScavengingVisitorsTables();
-    NewSpaceScavenger::Initialize();
-    MarkCompactCollector::Initialize();
+      initialized_gc = true;
+      ScavengingVisitor::Initialize();
+      NewSpaceScavenger::Initialize();
+      MarkCompactCollector::Initialize();
   }
   gc_initializer_mutex->Unlock();
 

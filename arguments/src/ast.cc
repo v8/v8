@@ -77,23 +77,20 @@ VariableProxy::VariableProxy(Variable* var)
       var_(NULL),  // Will be set by the call to BindTo.
       is_this_(var->is_this()),
       inside_with_(false),
-      is_trivial_(false),
-      position_(RelocInfo::kNoPosition) {
+      is_trivial_(false) {
   BindTo(var);
 }
 
 
 VariableProxy::VariableProxy(Handle<String> name,
                              bool is_this,
-                             bool inside_with,
-                             int position)
+                             bool inside_with)
   : name_(name),
     var_(NULL),
     is_this_(is_this),
     inside_with_(inside_with),
-    is_trivial_(false),
-    position_(position) {
-  // Names must be canonicalized for fast equality checks.
+    is_trivial_(false) {
+  // names must be canonicalized for fast equality checks
   ASSERT(name->IsSymbol());
 }
 
@@ -625,21 +622,24 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
 
 
 bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
-                               LookupResult* lookup) {
+                               Handle<String> name) {
   target_ = Handle<JSFunction>::null();
   cell_ = Handle<JSGlobalPropertyCell>::null();
-  ASSERT(lookup->IsProperty() &&
-         lookup->type() == NORMAL &&
-         lookup->holder() == *global);
-  cell_ = Handle<JSGlobalPropertyCell>(global->GetPropertyCell(lookup));
-  if (cell_->value()->IsJSFunction()) {
-    Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
-    // If the function is in new space we assume it's more likely to
-    // change and thus prefer the general IC code.
-    if (!HEAP->InNewSpace(*candidate) &&
-        CanCallWithoutIC(candidate, arguments()->length())) {
-      target_ = candidate;
-      return true;
+  LookupResult lookup;
+  global->Lookup(*name, &lookup);
+  if (lookup.IsProperty() &&
+      lookup.type() == NORMAL &&
+      lookup.holder() == *global) {
+    cell_ = Handle<JSGlobalPropertyCell>(global->GetPropertyCell(&lookup));
+    if (cell_->value()->IsJSFunction()) {
+      Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
+      // If the function is in new space we assume it's more likely to
+      // change and thus prefer the general IC code.
+      if (!HEAP->InNewSpace(*candidate) &&
+          CanCallWithoutIC(candidate, arguments()->length())) {
+        target_ = candidate;
+        return true;
+      }
     }
   }
   return false;

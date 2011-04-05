@@ -468,97 +468,58 @@ class MemOperand BASE_EMBEDDED {
 
 // CpuFeatures keeps track of which features are supported by the target CPU.
 // Supported features must be enabled by a Scope before use.
-class CpuFeatures : public AllStatic {
+class CpuFeatures {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
-  static void Probe();
+  void Probe(bool portable);
 
   // Check whether a feature is supported by the target CPU.
-  static bool IsSupported(CpuFeature f) {
-    ASSERT(initialized_);
+  bool IsSupported(CpuFeature f) const {
     if (f == VFP3 && !FLAG_enable_vfp3) return false;
     return (supported_ & (1u << f)) != 0;
   }
 
-#ifdef DEBUG
   // Check whether a feature is currently enabled.
-  static bool IsEnabled(CpuFeature f) {
-    ASSERT(initialized_);
-    Isolate* isolate = Isolate::UncheckedCurrent();
-    if (isolate == NULL) {
-      // When no isolate is available, work as if we're running in
-      // release mode.
-      return IsSupported(f);
-    }
-    unsigned enabled = static_cast<unsigned>(isolate->enabled_cpu_features());
-    return (enabled & (1u << f)) != 0;
+  bool IsEnabled(CpuFeature f) const {
+    return (enabled_ & (1u << f)) != 0;
   }
-#endif
 
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
    public:
-    explicit Scope(CpuFeature f) {
-      unsigned mask = 1u << f;
-      ASSERT(CpuFeatures::IsSupported(f));
+    explicit Scope(CpuFeature f)
+        : cpu_features_(Isolate::Current()->cpu_features()),
+          isolate_(Isolate::Current()) {
+      ASSERT(cpu_features_->IsSupported(f));
       ASSERT(!Serializer::enabled() ||
-             (CpuFeatures::found_by_runtime_probing_ & mask) == 0);
-      isolate_ = Isolate::UncheckedCurrent();
-      old_enabled_ = 0;
-      if (isolate_ != NULL) {
-        old_enabled_ = static_cast<unsigned>(isolate_->enabled_cpu_features());
-        isolate_->set_enabled_cpu_features(old_enabled_ | mask);
-      }
+             (cpu_features_->found_by_runtime_probing_ & (1u << f)) == 0);
+      old_enabled_ = cpu_features_->enabled_;
+      cpu_features_->enabled_ |= 1u << f;
     }
     ~Scope() {
-      ASSERT_EQ(Isolate::UncheckedCurrent(), isolate_);
-      if (isolate_ != NULL) {
-        isolate_->set_enabled_cpu_features(old_enabled_);
-      }
+      ASSERT_EQ(Isolate::Current(), isolate_);
+      cpu_features_->enabled_ = old_enabled_;
     }
    private:
-    Isolate* isolate_;
     unsigned old_enabled_;
+    CpuFeatures* cpu_features_;
+    Isolate* isolate_;
 #else
    public:
     explicit Scope(CpuFeature f) {}
 #endif
   };
 
-  class TryForceFeatureScope BASE_EMBEDDED {
-   public:
-    explicit TryForceFeatureScope(CpuFeature f)
-        : old_supported_(CpuFeatures::supported_) {
-      if (CanForce()) {
-        CpuFeatures::supported_ |= (1u << f);
-      }
-    }
-
-    ~TryForceFeatureScope() {
-      if (CanForce()) {
-        CpuFeatures::supported_ = old_supported_;
-      }
-    }
-
-   private:
-    static bool CanForce() {
-      // It's only safe to temporarily force support of CPU features
-      // when there's only a single isolate, which is guaranteed when
-      // the serializer is enabled.
-      return Serializer::enabled();
-    }
-
-    const unsigned old_supported_;
-  };
-
  private:
-#ifdef DEBUG
-  static bool initialized_;
-#endif
-  static unsigned supported_;
-  static unsigned found_by_runtime_probing_;
+  CpuFeatures();
+
+  unsigned supported_;
+  unsigned enabled_;
+  unsigned found_by_runtime_probing_;
+
+  friend class Isolate;
 
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
@@ -603,7 +564,7 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size);
+  Assembler(void* buffer, int buffer_size);
   ~Assembler();
 
   // Overrides the default provided by FLAG_debug_code.

@@ -27,8 +27,6 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_IA32)
-
 #include "ia32/lithium-gap-resolver-ia32.h"
 #include "ia32/lithium-codegen-ia32.h"
 
@@ -462,5 +460,3 @@ void LGapResolver::EmitSwap(int index) {
 #undef __
 
 } }  // namespace v8::internal
-
-#endif  // V8_TARGET_ARCH_IA32

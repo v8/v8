@@ -42,12 +42,11 @@ namespace v8 {
 namespace internal {
 
 void CPU::Setup() {
-  CpuFeatures::Probe();
-}
-
-
-bool CPU::SupportsCrankshaft() {
-  return CpuFeatures::IsSupported(VFP3);
+  CpuFeatures* cpu_features = Isolate::Current()->cpu_features();
+  cpu_features->Probe(true);
+  if (!cpu_features->IsSupported(VFP3) || Serializer::enabled()) {
+    V8::DisableCrankshaft();
+  }
 }
 
 

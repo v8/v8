@@ -321,14 +321,12 @@ void Scope::AddParameter(Variable* var) {
 }
 
 
-VariableProxy* Scope::NewUnresolved(Handle<String> name,
-                                    bool inside_with,
-                                    int position) {
+VariableProxy* Scope::NewUnresolved(Handle<String> name, bool inside_with) {
   // Note that we must not share the unresolved variables with
   // the same name because they may be removed selectively via
   // RemoveUnresolved().
   ASSERT(!resolved());
-  VariableProxy* proxy = new VariableProxy(name, false, inside_with, position);
+  VariableProxy* proxy = new VariableProxy(name, false, inside_with);
   unresolved_.Add(proxy);
   return proxy;
 }

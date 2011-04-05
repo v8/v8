@@ -103,7 +103,6 @@ void TestMemCopy(Vector<byte> src,
 
 
 TEST(MemCopy) {
-  v8::V8::Initialize();
   OS::Setup();
   const int N = OS::kMinComplexMemCopy + 128;
   Vector<byte> buffer1 = Vector<byte>::New(N);

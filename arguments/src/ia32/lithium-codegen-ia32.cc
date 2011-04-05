@@ -1062,7 +1062,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
     uint64_t int_val = BitCast<uint64_t, double>(v);
     int32_t lower = static_cast<int32_t>(int_val);
     int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
-    if (CpuFeatures::IsSupported(SSE4_1)) {
+    if (isolate()->cpu_features()->IsSupported(SSE4_1)) {
       CpuFeatures::Scope scope(SSE4_1);
       if (lower != 0) {
         __ Set(temp, Immediate(lower));
@@ -2032,7 +2032,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
+void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
   Register result = ToRegister(instr->result());
   __ mov(result, Operand::Cell(instr->hydrogen()->cell()));
   if (instr->hydrogen()->check_hole_value()) {
@@ -2042,20 +2042,7 @@ void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
-  ASSERT(ToRegister(instr->context()).is(esi));
-  ASSERT(ToRegister(instr->global_object()).is(eax));
-  ASSERT(ToRegister(instr->result()).is(eax));
-
-  __ mov(ecx, instr->name());
-  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET :
-                                               RelocInfo::CODE_TARGET_CONTEXT;
-  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-  CallCode(ic, mode, instr);
-}
-
-
-void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
+void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
   Register value = ToRegister(instr->InputAt(0));
   Operand cell_operand = Operand::Cell(instr->hydrogen()->cell());
 
@@ -2070,17 +2057,6 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
 
   // Store the value.
   __ mov(cell_operand, value);
-}
-
-
-void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
-  ASSERT(ToRegister(instr->context()).is(esi));
-  ASSERT(ToRegister(instr->global_object()).is(edx));
-  ASSERT(ToRegister(instr->value()).is(eax));
-
-  __ mov(ecx, instr->name());
-  Handle<Code> ic = isolate()->builtins()->StoreIC_Initialize();
-  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
 }
 
 
@@ -2328,11 +2304,11 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
         break;
       case kExternalUnsignedIntArray:
         __ mov(result, Operand(external_pointer, key, times_4, 0));
-        __ test(result, Operand(result));
+        __ test(Operand(result), Immediate(0x80000000));
         // TODO(danno): we could be more clever here, perhaps having a special
         // version of the stub that detects if the overflow case actually
         // happens, and generate code that returns a double rather than int.
-        DeoptimizeIf(negative, instr->environment());
+        DeoptimizeIf(not_zero, instr->environment());
         break;
       case kExternalFloatArray:
         UNREACHABLE();
@@ -3451,7 +3427,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     __ jmp(&done);
 
     __ bind(&heap_number);
-    if (CpuFeatures::IsSupported(SSE3)) {
+    if (isolate()->cpu_features()->IsSupported(SSE3)) {
       CpuFeatures::Scope scope(SSE3);
       NearLabel convert;
       // Use more powerful conversion when sse3 is available.
@@ -3561,7 +3537,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     // the JS bitwise operations.
     __ cvttsd2si(result_reg, Operand(input_reg));
     __ cmp(result_reg, 0x80000000u);
-    if (CpuFeatures::IsSupported(SSE3)) {
+    if (isolate()->cpu_features()->IsSupported(SSE3)) {
       // This will deoptimize if the exponent of the input in out of range.
       CpuFeatures::Scope scope(SSE3);
       NearLabel convert, done;

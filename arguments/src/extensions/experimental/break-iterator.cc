@@ -46,16 +46,16 @@ icu::BreakIterator* BreakIterator::UnpackBreakIterator(
   return NULL;
 }
 
-icu::UnicodeString* BreakIterator::ResetAdoptedText(
+UnicodeString* BreakIterator::ResetAdoptedText(
     v8::Handle<v8::Object> obj, v8::Handle<v8::Value> value) {
   // Get the previous value from the internal field.
-  icu::UnicodeString* text = static_cast<icu::UnicodeString*>(
+  UnicodeString* text = static_cast<UnicodeString*>(
       obj->GetPointerFromInternalField(1));
   delete text;
 
   // Assign new value to the internal pointer.
   v8::String::Value text_value(value);
-  text = new icu::UnicodeString(
+  text = new UnicodeString(
       reinterpret_cast<const UChar*>(*text_value), text_value.length());
   obj->SetPointerInInternalField(1, text);
 
@@ -74,7 +74,7 @@ void BreakIterator::DeleteBreakIterator(v8::Persistent<v8::Value> object,
   // pointing to a break iterator.
   delete UnpackBreakIterator(persistent_object);
 
-  delete static_cast<icu::UnicodeString*>(
+  delete static_cast<UnicodeString*>(
       persistent_object->GetPointerFromInternalField(1));
 
   // Then dispose of the persistent handle to JS object.
@@ -144,9 +144,8 @@ v8::Handle<v8::Value> BreakIterator::BreakIteratorBreakType(
   }
 
   // TODO(cira): Remove cast once ICU fixes base BreakIterator class.
-  icu::RuleBasedBreakIterator* rule_based_iterator =
-      static_cast<icu::RuleBasedBreakIterator*>(break_iterator);
-  int32_t status = rule_based_iterator->getRuleStatus();
+  int32_t status =
+      static_cast<RuleBasedBreakIterator*>(break_iterator)->getRuleStatus();
   // Keep return values in sync with JavaScript BreakType enum.
   if (status >= UBRK_WORD_NONE && status < UBRK_WORD_NONE_LIMIT) {
     return v8::Int32::New(UBRK_WORD_NONE);

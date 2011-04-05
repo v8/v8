@@ -6420,13 +6420,8 @@ void CodeGenerator::GenerateRandomHeapNumber(
 
   // Return a random uint32 number in rax.
   // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
-  __ PrepareCallCFunction(1);
-#ifdef _WIN64
-  __ LoadAddress(rcx, ExternalReference::isolate_address());
-#else
-  __ LoadAddress(rdi, ExternalReference::isolate_address());
-#endif
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+  __ PrepareCallCFunction(0);
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 0);
 
   // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:
@@ -8737,7 +8732,7 @@ ModuloFunction CreateModuloFunction() {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler masm(NULL, buffer, static_cast<int>(actual_size));
+  Assembler masm(buffer, static_cast<int>(actual_size));
   // Generated code is put into a fixed, unmovable, buffer, and not into
   // the V8 heap. We can't, and don't, refer to any relocatable addresses
   // (e.g. the JavaScript nan-object).
