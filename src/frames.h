@@ -463,11 +463,8 @@ class JavaScriptFrame: public StandardFrame {
   inline void set_receiver(Object* value);
 
   // Access the parameters.
-  inline Address GetParameterSlot(int index) const;
-  inline Object* GetParameter(int index) const;
-  inline int ComputeParametersCount() const {
-    return GetNumberOfIncomingArguments();
-  }
+  Object* GetParameter(int index) const;
+  int ComputeParametersCount() const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const;
@@ -504,8 +501,6 @@ class JavaScriptFrame: public StandardFrame {
       : StandardFrame(iterator) { }
 
   virtual Address GetCallerStackPointer() const;
-
-  virtual int GetNumberOfIncomingArguments() const;
 
   // Garbage collection support. Iterates over incoming arguments,
   // receiver, and any callee-saved registers.
@@ -566,10 +561,6 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
  protected:
   explicit ArgumentsAdaptorFrame(StackFrameIterator* iterator)
       : JavaScriptFrame(iterator) { }
-
-  virtual int GetNumberOfIncomingArguments() const {
-     return Smi::cast(GetExpression(0))->value();
-  }
 
   virtual Address GetCallerStackPointer() const;
 
