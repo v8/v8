@@ -191,7 +191,7 @@ void StackTracer::Trace(Isolate* isolate, TickSample* sample) {
 //
 class Ticker: public Sampler {
  public:
-  explicit Ticker(Isolate* isolate, int interval):
+  Ticker(Isolate* isolate, int interval):
       Sampler(isolate, interval),
       window_(NULL),
       profiler_(NULL) {}

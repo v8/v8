@@ -925,7 +925,7 @@ Object* Debug::Break(Arguments args) {
   thread_local_.frame_drop_mode_ = FRAMES_UNTOUCHED;
 
   // Get the top-most JavaScript frame.
-  JavaScriptFrameIterator it;
+  JavaScriptFrameIterator it(isolate_);
   JavaScriptFrame* frame = it.frame();
 
   // Just continue if breaks are disabled or debugger cannot be loaded.
@@ -1224,7 +1224,7 @@ void Debug::FloodHandlerWithOneShot() {
     // If there is no JavaScript stack don't do anything.
     return;
   }
-  for (JavaScriptFrameIterator it(id); !it.done(); it.Advance()) {
+  for (JavaScriptFrameIterator it(isolate_, id); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     if (frame->HasHandler()) {
       Handle<SharedFunctionInfo> shared =
@@ -1280,7 +1280,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
     // If there is no JavaScript stack don't do anything.
     return;
   }
-  JavaScriptFrameIterator frames_it(id);
+  JavaScriptFrameIterator frames_it(isolate_, id);
   JavaScriptFrame* frame = frames_it.frame();
 
   // First of all ensure there is one-shot break points in the top handler
@@ -1777,7 +1777,7 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   Handle<Code> original_code(debug_info->original_code());
 #ifdef DEBUG
   // Get the code which is actually executing.
-  Handle<Code> frame_code(frame->LookupCode(isolate_));
+  Handle<Code> frame_code(frame->LookupCode());
   ASSERT(frame_code.is_identical_to(code));
 #endif
 
@@ -1859,7 +1859,7 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   Handle<Code> code(debug_info->code());
 #ifdef DEBUG
   // Get the code which is actually executing.
-  Handle<Code> frame_code(frame->LookupCode(Isolate::Current()));
+  Handle<Code> frame_code(frame->LookupCode());
   ASSERT(frame_code.is_identical_to(code));
 #endif
 

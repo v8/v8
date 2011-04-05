@@ -863,6 +863,7 @@ class EnterDebugger BASE_EMBEDDED {
   EnterDebugger()
       : isolate_(Isolate::Current()),
         prev_(isolate_->debug()->debugger_entry()),
+        it_(isolate_),
         has_js_frames_(!it_.done()),
         save_(isolate_) {
     Debug* debug = isolate_->debug();

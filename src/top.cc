@@ -89,13 +89,13 @@ char* Isolate::Iterate(ObjectVisitor* v, char* thread_storage) {
 
 
 void Isolate::IterateThread(ThreadVisitor* v) {
-  v->VisitThread(thread_local_top());
+  v->VisitThread(this, thread_local_top());
 }
 
 
 void Isolate::IterateThread(ThreadVisitor* v, char* t) {
   ThreadLocalTop* thread = reinterpret_cast<ThreadLocalTop*>(t);
-  v->VisitThread(thread);
+  v->VisitThread(this, thread);
 }
 
 
@@ -125,7 +125,7 @@ void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   }
 
   // Iterate over pointers on native execution stack.
-  for (StackFrameIterator it(thread); !it.done(); it.Advance()) {
+  for (StackFrameIterator it(this, thread); !it.done(); it.Advance()) {
     it.frame()->Iterate(v);
   }
 }
@@ -204,7 +204,7 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
   Handle<String> constructor_key =
       factory()->LookupAsciiSymbol("isConstructor");
 
-  StackTraceFrameIterator it;
+  StackTraceFrameIterator it(this);
   int frames_seen = 0;
   while (!it.done() && (frames_seen < limit)) {
     JavaScriptFrame* frame = it.frame();
@@ -584,12 +584,12 @@ Failure* Isolate::PromoteScheduledException() {
 
 
 void Isolate::PrintCurrentStackTrace(FILE* out) {
-  StackTraceFrameIterator it;
+  StackTraceFrameIterator it(this);
   while (!it.done()) {
     HandleScope scope;
     // Find code position if recorded in relocation info.
     JavaScriptFrame* frame = it.frame();
-    int pos = frame->LookupCode(this)->SourcePosition(frame->pc());
+    int pos = frame->LookupCode()->SourcePosition(frame->pc());
     Handle<Object> pos_obj(Smi::FromInt(pos));
     // Fetch function and receiver.
     Handle<JSFunction> fun(JSFunction::cast(frame->function()));
@@ -613,14 +613,14 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
 
 void Isolate::ComputeLocation(MessageLocation* target) {
   *target = MessageLocation(Handle<Script>(heap_.empty_script()), -1, -1);
-  StackTraceFrameIterator it;
+  StackTraceFrameIterator it(this);
   if (!it.done()) {
     JavaScriptFrame* frame = it.frame();
     JSFunction* fun = JSFunction::cast(frame->function());
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
         !(Script::cast(script)->source()->IsUndefined())) {
-      int pos = frame->LookupCode(this)->SourcePosition(frame->pc());
+      int pos = frame->LookupCode()->SourcePosition(frame->pc());
       // Compute the location from the function and the reloc info.
       Handle<Script> casted_script(Script::cast(script));
       *target = MessageLocation(casted_script, pos, pos + 1);

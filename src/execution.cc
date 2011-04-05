@@ -711,7 +711,7 @@ Object* Execution::DebugBreakHelper() {
   }
 
   {
-    JavaScriptFrameIterator it;
+    JavaScriptFrameIterator it(isolate);
     ASSERT(!it.done());
     Object* fun = it.frame()->function();
     if (fun && fun->IsJSFunction()) {

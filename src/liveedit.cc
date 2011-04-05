@@ -1396,17 +1396,18 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   ASSERT(bottom_js_frame->is_java_script());
 
   // Check the nature of the top frame.
-  Code* pre_top_frame_code = pre_top_frame->LookupCode(Isolate::Current());
+  Isolate* isolate = Isolate::Current();
+  Code* pre_top_frame_code = pre_top_frame->LookupCode();
   if (pre_top_frame_code->is_inline_cache_stub() &&
       pre_top_frame_code->ic_state() == DEBUG_BREAK) {
     // OK, we can drop inline cache calls.
     *mode = Debug::FRAME_DROPPED_IN_IC_CALL;
   } else if (pre_top_frame_code ==
-             Isolate::Current()->debug()->debug_break_slot()) {
+             isolate->debug()->debug_break_slot()) {
     // OK, we can drop debug break slot.
     *mode = Debug::FRAME_DROPPED_IN_DEBUG_SLOT_CALL;
   } else if (pre_top_frame_code ==
-      Isolate::Current()->builtins()->builtin(
+      isolate->builtins()->builtin(
           Builtins::kFrameDropper_LiveEdit)) {
     // OK, we can drop our own code.
     *mode = Debug::FRAME_DROPPED_IN_DIRECT_CALL;
@@ -1570,8 +1571,8 @@ class InactiveThreadActivationsChecker : public ThreadVisitor {
       : shared_info_array_(shared_info_array), result_(result),
         has_blocked_functions_(false) {
   }
-  void VisitThread(ThreadLocalTop* top) {
-    for (StackFrameIterator it(top); !it.done(); it.Advance()) {
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+    for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       has_blocked_functions_ |= CheckActivation(
           shared_info_array_, result_, it.frame(),
           LiveEdit::FUNCTION_BLOCKED_ON_OTHER_STACK);
