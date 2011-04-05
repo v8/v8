@@ -1891,7 +1891,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
       array_type == kExternalFloatArray;
   LOperand* val = val_is_temp_register
       ? UseTempRegister(instr->value())
-      : UseRegister(instr->key());
+      : UseRegister(instr->value());
   LOperand* key = UseRegister(instr->key());
 
   return new LStoreKeyedSpecializedArrayElement(external_pointer,
