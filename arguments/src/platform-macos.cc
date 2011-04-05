@@ -48,8 +48,10 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
+#include <sys/sysctl.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 
 #undef MAP_TYPE
@@ -507,12 +509,79 @@ void Thread::Join() {
 }
 
 
+#ifdef V8_FAST_TLS_SUPPORTED
+
+static Atomic32 tls_base_offset_initialized = 0;
+intptr_t kMacTlsBaseOffset = 0;
+
+// It's safe to do the initialization more that once, but it has to be
+// done at least once.
+static void InitializeTlsBaseOffset() {
+  const size_t kBufferSize = 128;
+  char buffer[kBufferSize];
+  size_t buffer_size = kBufferSize;
+  int ctl_name[] = { CTL_KERN , KERN_OSRELEASE };
+  if (sysctl(ctl_name, 2, buffer, &buffer_size, NULL, 0) != 0) {
+    V8_Fatal(__FILE__, __LINE__, "V8 failed to get kernel version");
+  }
+  // The buffer now contains a string of the form XX.YY.ZZ, where
+  // XX is the major kernel version component.
+  // Make sure the buffer is 0-terminated.
+  buffer[kBufferSize - 1] = '\0';
+  char* period_pos = strchr(buffer, '.');
+  *period_pos = '\0';
+  int kernel_version_major =
+      static_cast<int>(strtol(buffer, NULL, 10));  // NOLINT
+  // The constants below are taken from pthreads.s from the XNU kernel
+  // sources archive at www.opensource.apple.com.
+  if (kernel_version_major < 11) {
+    // 8.x.x (Tiger), 9.x.x (Leopard), 10.x.x (Snow Leopard) have the
+    // same offsets.
+#if defined(V8_HOST_ARCH_IA32)
+    kMacTlsBaseOffset = 0x48;
+#else
+    kMacTlsBaseOffset = 0x60;
+#endif
+  } else {
+    // 11.x.x (Lion) changed the offset.
+    kMacTlsBaseOffset = 0;
+  }
+
+  Release_Store(&tls_base_offset_initialized, 1);
+}
+
+static void CheckFastTls(Thread::LocalStorageKey key) {
+  void* expected = reinterpret_cast<void*>(0x1234CAFE);
+  Thread::SetThreadLocal(key, expected);
+  void* actual = Thread::GetExistingThreadLocal(key);
+  if (expected != actual) {
+    V8_Fatal(__FILE__, __LINE__,
+             "V8 failed to initialize fast TLS on current kernel");
+  }
+  Thread::SetThreadLocal(key, NULL);
+}
+
+#endif  // V8_FAST_TLS_SUPPORTED
+
+
 Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
+#ifdef V8_FAST_TLS_SUPPORTED
+  bool check_fast_tls = false;
+  if (tls_base_offset_initialized == 0) {
+    check_fast_tls = true;
+    InitializeTlsBaseOffset();
+  }
+#endif
   pthread_key_t key;
   int result = pthread_key_create(&key, NULL);
   USE(result);
   ASSERT(result == 0);
-  return static_cast<LocalStorageKey>(key);
+  LocalStorageKey typed_key = static_cast<LocalStorageKey>(key);
+#ifdef V8_FAST_TLS_SUPPORTED
+  // If we just initialized fast TLS support, make sure it works.
+  if (check_fast_tls) CheckFastTls(typed_key);
+#endif
+  return typed_key;
 }
 
 

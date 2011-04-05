@@ -641,14 +641,16 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ neg(edx);
 
   // Allocate a new deoptimizer object.
-  __ PrepareCallCFunction(5, eax);
+  __ PrepareCallCFunction(6, eax);
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ mov(Operand(esp, 0 * kPointerSize), eax);  // Function.
   __ mov(Operand(esp, 1 * kPointerSize), Immediate(type()));  // Bailout type.
   __ mov(Operand(esp, 2 * kPointerSize), ebx);  // Bailout id.
   __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Code address or 0.
   __ mov(Operand(esp, 4 * kPointerSize), edx);  // Fp-to-sp delta.
-  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 5);
+  __ mov(Operand(esp, 5 * kPointerSize),
+         Immediate(ExternalReference::isolate_address()));
+  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
 
   // Preserve deoptimizer object in register eax and get the input
   // frame descriptor pointer.

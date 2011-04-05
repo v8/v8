@@ -508,10 +508,10 @@ class Mutex {
 
 
 // ----------------------------------------------------------------------------
-// ScopedLock/ScopedUnlock
+// ScopedLock
 //
-// Stack-allocated ScopedLocks/ScopedUnlocks provide block-scoped
-// locking and unlocking of a mutex.
+// Stack-allocated ScopedLocks provide block-scoped locking and
+// unlocking of a mutex.
 class ScopedLock {
  public:
   explicit ScopedLock(Mutex* mutex): mutex_(mutex) {

@@ -280,6 +280,9 @@ class RegExpBuilder: public ZoneObject {
   void FlushCharacters();
   void FlushText();
   void FlushTerms();
+  Zone* zone() { return zone_; }
+
+  Zone* zone_;
   bool pending_empty_;
   ZoneList<uc16>* characters_;
   BufferedZoneList<RegExpTree, 2> terms_;
@@ -389,6 +392,7 @@ class RegExpParser {
   };
 
   Isolate* isolate() { return isolate_; }
+  Zone* zone() { return isolate_->zone(); }
 
   uc32 current() { return current_; }
   bool has_more() { return has_more_; }
@@ -453,6 +457,7 @@ class Parser {
   };
 
   Isolate* isolate() { return isolate_; }
+  Zone* zone() { return isolate_->zone(); }
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(Handle<String> source,

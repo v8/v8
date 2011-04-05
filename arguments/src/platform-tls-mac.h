@@ -37,20 +37,20 @@ namespace internal {
 
 #define V8_FAST_TLS_SUPPORTED 1
 
+extern intptr_t kMacTlsBaseOffset;
+
 INLINE(intptr_t InternalGetExistingThreadLocal(intptr_t index));
 
 inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
-  // The constants below are taken from pthreads.s from the XNU kernel
-  // sources archive at www.opensource.apple.com.
   intptr_t result;
 #if defined(V8_HOST_ARCH_IA32)
-  asm("movl %%gs:0x48(,%1,4), %0;"
+  asm("movl %%gs:(%1,%2,4), %0;"
       :"=r"(result)  // Output must be a writable register.
-      :"0"(index));  // Input is the same as output.
+      :"r"(kMacTlsBaseOffset), "r"(index));
 #else
-  asm("movq %%gs:0x60(,%1,8), %0;"
+  asm("movq %%gs:(%1,%2,8), %0;"
       :"=r"(result)
-      :"0"(index));
+      :"r"(kMacTlsBaseOffset), "r"(index));
 #endif
   return result;
 }

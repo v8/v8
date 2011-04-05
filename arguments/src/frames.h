@@ -430,7 +430,7 @@ class FrameSummary BASE_EMBEDDED {
   Handle<Object> receiver() { return receiver_; }
   Handle<JSFunction> function() { return function_; }
   Handle<Code> code() { return code_; }
-  Address pc() { return reinterpret_cast<Address>(*code_) + offset_; }
+  Address pc() { return code_->address() + offset_; }
   int offset() { return offset_; }
   bool is_constructor() { return is_constructor_; }
 

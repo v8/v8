@@ -2019,7 +2019,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
 }
 
 
-void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
+void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
   Register result = ToRegister(instr->result());
   if (result.is(rax)) {
     __ load_rax(instr->hydrogen()->cell().location(),
@@ -2035,7 +2035,19 @@ void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
 }
 
 
-void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
+void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
+  ASSERT(ToRegister(instr->global_object()).is(rax));
+  ASSERT(ToRegister(instr->result()).is(rax));
+
+  __ Move(rcx, instr->name());
+  RelocInfo::Mode mode = instr->for_typeof() ? RelocInfo::CODE_TARGET :
+                                               RelocInfo::CODE_TARGET_CONTEXT;
+  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+  CallCode(ic, mode, instr);
+}
+
+
+void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   Register value = ToRegister(instr->InputAt(0));
   Register temp = ToRegister(instr->TempAt(0));
   ASSERT(!value.is(temp));
@@ -2055,6 +2067,16 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
     DeoptimizeIf(equal, instr->environment());
   }
   __ movq(Operand(temp, 0), value);
+}
+
+
+void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
+  ASSERT(ToRegister(instr->global_object()).is(rdx));
+  ASSERT(ToRegister(instr->value()).is(rax));
+
+  __ Move(rcx, instr->name());
+  Handle<Code> ic = isolate()->builtins()->StoreIC_Initialize();
+  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
 }
 
 
@@ -2732,7 +2754,6 @@ void LCodeGen::DoPower(LPower* instr) {
         ExternalReference::power_double_int_function(isolate()), 2);
   } else {
     ASSERT(exponent_type.IsTagged());
-    CpuFeatures::Scope scope(SSE2);
     Register right_reg = ToRegister(right);
 
     Label non_smi, call;

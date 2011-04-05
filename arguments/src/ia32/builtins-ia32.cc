@@ -1523,12 +1523,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  // We shouldn't be performing on-stack replacement in the first
-  // place if the CPU features we need for the optimized Crankshaft
-  // code aren't supported.
-  CpuFeatures* cpu_features = masm->isolate()->cpu_features();
-  cpu_features->Probe(false);
-  if (!cpu_features->IsSupported(SSE2)) {
+  CpuFeatures::TryForceFeatureScope scope(SSE2);
+  if (!CpuFeatures::IsSupported(SSE2)) {
     __ Abort("Unreachable code: Cannot optimize without SSE2 support.");
     return;
   }

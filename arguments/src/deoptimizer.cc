@@ -199,8 +199,7 @@ void Deoptimizer::HandleWeakDeoptimizedCode(
 }
 
 
-void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer,
-                                      Isolate* isolate) {
+void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
 }
 
@@ -934,7 +933,7 @@ LargeObjectChunk* Deoptimizer::CreateCode(BailoutType type) {
   // isn't meant to be serialized at all.
   ASSERT(!Serializer::enabled());
 
-  MacroAssembler masm(NULL, 16 * KB);
+  MacroAssembler masm(Isolate::Current(), NULL, 16 * KB);
   masm.set_emit_debug_code(false);
   GenerateDeoptimizationEntries(&masm, kNumberOfEntries, type);
   CodeDesc desc;
@@ -1192,6 +1191,105 @@ DeoptimizingCodeListNode::DeoptimizingCodeListNode(Code* code): next_(NULL) {
 DeoptimizingCodeListNode::~DeoptimizingCodeListNode() {
   GlobalHandles* global_handles = Isolate::Current()->global_handles();
   global_handles->Destroy(reinterpret_cast<Object**>(code_.location()));
+}
+
+
+// We can't intermix stack decoding and allocations because
+// deoptimization infrastracture is not GC safe.
+// Thus we build a temporary structure in malloced space.
+SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
+                                            DeoptimizationInputData* data,
+                                            JavaScriptFrame* frame) {
+  Translation::Opcode opcode =
+      static_cast<Translation::Opcode>(iterator->Next());
+
+  switch (opcode) {
+    case Translation::BEGIN:
+    case Translation::FRAME:
+      // Peeled off before getting here.
+      break;
+
+    case Translation::ARGUMENTS_OBJECT:
+      // This can be only emitted for local slots not for argument slots.
+      break;
+
+    case Translation::REGISTER:
+    case Translation::INT32_REGISTER:
+    case Translation::DOUBLE_REGISTER:
+    case Translation::DUPLICATE:
+      // We are at safepoint which corresponds to call.  All registers are
+      // saved by caller so there would be no live registers at this
+      // point. Thus these translation commands should not be used.
+      break;
+
+    case Translation::STACK_SLOT: {
+      int slot_index = iterator->Next();
+      Address slot_addr = SlotAddress(frame, slot_index);
+      return SlotRef(slot_addr, SlotRef::TAGGED);
+    }
+
+    case Translation::INT32_STACK_SLOT: {
+      int slot_index = iterator->Next();
+      Address slot_addr = SlotAddress(frame, slot_index);
+      return SlotRef(slot_addr, SlotRef::INT32);
+    }
+
+    case Translation::DOUBLE_STACK_SLOT: {
+      int slot_index = iterator->Next();
+      Address slot_addr = SlotAddress(frame, slot_index);
+      return SlotRef(slot_addr, SlotRef::DOUBLE);
+    }
+
+    case Translation::LITERAL: {
+      int literal_index = iterator->Next();
+      return SlotRef(data->LiteralArray()->get(literal_index));
+    }
+  }
+
+  UNREACHABLE();
+  return SlotRef();
+}
+
+
+void SlotRef::ComputeSlotMappingForArguments(JavaScriptFrame* frame,
+                                             int inlined_frame_index,
+                                             Vector<SlotRef>* args_slots) {
+  AssertNoAllocation no_gc;
+  int deopt_index = AstNode::kNoNumber;
+  DeoptimizationInputData* data =
+      static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);
+  TranslationIterator it(data->TranslationByteArray(),
+                         data->TranslationIndex(deopt_index)->value());
+  Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
+  ASSERT(opcode == Translation::BEGIN);
+  int frame_count = it.Next();
+  USE(frame_count);
+  ASSERT(frame_count > inlined_frame_index);
+  int frames_to_skip = inlined_frame_index;
+  while (true) {
+    opcode = static_cast<Translation::Opcode>(it.Next());
+    // Skip over operands to advance to the next opcode.
+    it.Skip(Translation::NumberOfOperandsFor(opcode));
+    if (opcode == Translation::FRAME) {
+      if (frames_to_skip == 0) {
+        // We reached the frame corresponding to the inlined function
+        // in question.  Process the translation commands for the
+        // arguments.
+        //
+        // Skip the translation command for the receiver.
+        it.Skip(Translation::NumberOfOperandsFor(
+            static_cast<Translation::Opcode>(it.Next())));
+        // Compute slots for arguments.
+        for (int i = 0; i < args_slots->length(); ++i) {
+          (*args_slots)[i] = ComputeSlotForNextArgument(&it, data, frame);
+        }
+        return;
+      }
+      frames_to_skip--;
+    }
+  }
+
+  UNREACHABLE();
 }
 
 

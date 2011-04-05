@@ -114,7 +114,7 @@ namespace internal {
 RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(
     Mode mode,
     int registers_to_save)
-    : masm_(NULL, kRegExpCodeSize),
+    : masm_(Isolate::Current(), NULL, kRegExpCodeSize),
       no_root_array_scope_(&masm_),
       code_relative_fixup_positions_(4),
       mode_(mode),
@@ -402,13 +402,14 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
 #endif
     __ push(backtrack_stackpointer());
 
-    static const int num_arguments = 3;
+    static const int num_arguments = 4;
     __ PrepareCallCFunction(num_arguments);
 
     // Put arguments into parameter registers. Parameters are
     //   Address byte_offset1 - Address captured substring's start.
     //   Address byte_offset2 - Address of current character position.
     //   size_t byte_length - length of capture in bytes(!)
+    //   Isolate* isolate
 #ifdef _WIN64
     // Compute and set byte_offset1 (start of capture).
     __ lea(rcx, Operand(rsi, rdx, times_1, 0));
@@ -416,6 +417,8 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     __ lea(rdx, Operand(rsi, rdi, times_1, 0));
     // Set byte_length.
     __ movq(r8, rbx);
+    // Isolate.
+    __ LoadAddress(r9, ExternalReference::isolate_address());
 #else  // AMD64 calling convention
     // Compute byte_offset2 (current position = rsi+rdi).
     __ lea(rax, Operand(rsi, rdi, times_1, 0));
@@ -425,6 +428,8 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     __ movq(rsi, rax);
     // Set byte_length.
     __ movq(rdx, rbx);
+    // Isolate.
+    __ LoadAddress(rcx, ExternalReference::isolate_address());
 #endif
     ExternalReference compare =
         ExternalReference::re_case_insensitive_compare_uc16(masm_.isolate());
@@ -919,16 +924,18 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 #endif
 
     // Call GrowStack(backtrack_stackpointer())
-    static const int num_arguments = 2;
+    static const int num_arguments = 3;
     __ PrepareCallCFunction(num_arguments);
 #ifdef _WIN64
-    // Microsoft passes parameters in rcx, rdx.
+    // Microsoft passes parameters in rcx, rdx, r8.
     // First argument, backtrack stackpointer, is already in rcx.
     __ lea(rdx, Operand(rbp, kStackHighEnd));  // Second argument
+    __ LoadAddress(r8, ExternalReference::isolate_address());
 #else
-    // AMD64 ABI passes parameters in rdi, rsi.
+    // AMD64 ABI passes parameters in rdi, rsi, rdx.
     __ movq(rdi, backtrack_stackpointer());   // First argument.
     __ lea(rsi, Operand(rbp, kStackHighEnd));  // Second argument.
+    __ LoadAddress(rdx, ExternalReference::isolate_address());
 #endif
     ExternalReference grow_stack =
         ExternalReference::re_grow_stack(masm_.isolate());
