@@ -11615,7 +11615,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
     if (ShowFrameInStackTrace(raw_frame, *caller, &seen_caller)) {
       frames_seen++;
       JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
-      List<FrameSummary> frames(3);  // Max 2 levels of inlining.
+      // Set initial size to the maximum inlining level + 1 for the outermost
+      // function.
+      List<FrameSummary> frames(Compiler::kMaxInliningLevels + 1);
       frame->Summarize(&frames);
       for (int i = frames.length() - 1; i >= 0; i--) {
         if (cursor + 4 > elements->length()) {

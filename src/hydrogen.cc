@@ -3931,11 +3931,16 @@ bool HGraphBuilder::TryInline(Call* expr) {
     return false;
   }
 
-  // Don't inline deeper than two calls.
+  // Don't inline deeper than kMaxInliningLevels calls.
   HEnvironment* env = environment();
-  if (env->outer() != NULL && env->outer()->outer() != NULL) {
-    TraceInline(target, "inline depth limit reached");
-    return false;
+  int current_level = 1;
+  while (env->outer() != NULL) {
+    if (current_level == Compiler::kMaxInliningLevels) {
+      TraceInline(target, "inline depth limit reached");
+      return false;
+    }
+    current_level++;
+    env = env->outer();
   }
 
   // Don't inline recursive functions.

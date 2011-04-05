@@ -239,6 +239,8 @@ class Compiler : public AllStatic {
   // give up.
   static const int kDefaultMaxOptCount = 10;
 
+  static const int kMaxInliningLevels = 3;
+
   // All routines return a SharedFunctionInfo.
   // If an error occurs an exception is raised and the return handle
   // contains NULL.

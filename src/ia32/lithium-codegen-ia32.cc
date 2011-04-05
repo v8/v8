@@ -2787,10 +2787,32 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
-  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
-  TranscendentalCacheStub stub(TranscendentalCache::LOG,
-                               TranscendentalCacheStub::UNTAGGED);
-  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr, false);
+  ASSERT(instr->InputAt(0)->Equals(instr->result()));
+  XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
+  NearLabel positive, done, zero, negative;
+  __ xorpd(xmm0, xmm0);
+  __ ucomisd(input_reg, xmm0);
+  __ j(above, &positive);
+  __ j(equal, &zero);
+  ExternalReference nan = ExternalReference::address_of_nan();
+  __ movdbl(input_reg, Operand::StaticVariable(nan));
+  __ jmp(&done);
+  __ bind(&zero);
+  __ push(Immediate(0xFFF00000));
+  __ push(Immediate(0));
+  __ movdbl(input_reg, Operand(esp, 0));
+  __ add(Operand(esp), Immediate(kDoubleSize));
+  __ jmp(&done);
+  __ bind(&positive);
+  __ fldln2();
+  __ sub(Operand(esp), Immediate(kDoubleSize));
+  __ movdbl(Operand(esp, 0), input_reg);
+  __ fld_d(Operand(esp, 0));
+  __ fyl2x();
+  __ fstp_d(Operand(esp, 0));
+  __ movdbl(input_reg, Operand(esp, 0));
+  __ add(Operand(esp), Immediate(kDoubleSize));
+  __ bind(&done);
 }
 
 

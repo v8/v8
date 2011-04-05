@@ -29,6 +29,7 @@
 
 #include "api.h"
 #include "bootstrapper.h"
+#include "compiler.h"
 #include "debug.h"
 #include "execution.h"
 #include "messages.h"
@@ -36,6 +37,7 @@
 #include "simulator.h"
 #include "string-stream.h"
 #include "vm-state-inl.h"
+
 
 // TODO(isolates): move to isolate.cc. This stuff is kept here to
 // simplify merging.
@@ -208,8 +210,9 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
   int frames_seen = 0;
   while (!it.done() && (frames_seen < limit)) {
     JavaScriptFrame* frame = it.frame();
-
-    List<FrameSummary> frames(3);  // Max 2 levels of inlining.
+    // Set initial size to the maximum inlining level + 1 for the outermost
+    // function.
+    List<FrameSummary> frames(Compiler::kMaxInliningLevels + 1);
     frame->Summarize(&frames);
     for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
       // Create a JSObject to hold the information for the StackFrame.
