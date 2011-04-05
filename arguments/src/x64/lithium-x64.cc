@@ -1614,8 +1614,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       bool needs_check = !instr->value()->type().IsSmi();
       if (needs_check) {
         LOperand* xmm_temp =
-            (instr->CanTruncateToInt32() &&
-             Isolate::Current()->cpu_features()->IsSupported(SSE3))
+            (instr->CanTruncateToInt32() && CpuFeatures::IsSupported(SSE3))
             ? NULL
             : FixedTemp(xmm1);
         LTaggedToI* res = new LTaggedToI(value, xmm_temp);
@@ -1718,18 +1717,33 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
-  LLoadGlobal* result = new LLoadGlobal;
+LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
+  LLoadGlobalCell* result = new LLoadGlobalCell;
   return instr->check_hole_value()
       ? AssignEnvironment(DefineAsRegister(result))
       : DefineAsRegister(result);
 }
 
 
-LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
-  LStoreGlobal* result = new LStoreGlobal(UseRegister(instr->value()),
-                                          TempRegister());
+LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
+  LOperand* global_object = UseFixed(instr->global_object(), rax);
+  LLoadGlobalGeneric* result = new LLoadGlobalGeneric(global_object);
+  return MarkAsCall(DefineFixed(result, rax), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
+  LStoreGlobalCell* result =
+      new LStoreGlobalCell(UseRegister(instr->value()), TempRegister());
   return instr->check_hole_value() ? AssignEnvironment(result) : result;
+}
+
+
+LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
+  LOperand* global_object = UseFixed(instr->global_object(), rdx);
+  LOperand* value = UseFixed(instr->value(), rax);
+  LStoreGlobalGeneric* result =  new LStoreGlobalGeneric(global_object, value);
+  return MarkAsCall(result, instr);
 }
 
 

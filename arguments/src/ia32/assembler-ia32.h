@@ -446,16 +446,15 @@ class Displacement BASE_EMBEDDED {
 //   } else {
 //     // Generate standard x87 floating point code.
 //   }
-class CpuFeatures {
+class CpuFeatures : public AllStatic {
  public:
-  // Detect features of the target CPU. If the portable flag is set,
-  // the method sets safe defaults if the serializer is enabled
-  // (snapshots must be portable).
-  void Probe(bool portable);
-  void Clear() { supported_ = 0; }
+  // Detect features of the target CPU. Set safe defaults if the serializer
+  // is enabled (snapshots must be portable).
+  static void Probe();
 
   // Check whether a feature is supported by the target CPU.
-  bool IsSupported(CpuFeature f) const {
+  static bool IsSupported(CpuFeature f) {
+    ASSERT(initialized_);
     if (f == SSE2 && !FLAG_enable_sse2) return false;
     if (f == SSE3 && !FLAG_enable_sse3) return false;
     if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
@@ -463,46 +462,85 @@ class CpuFeatures {
     if (f == RDTSC && !FLAG_enable_rdtsc) return false;
     return (supported_ & (static_cast<uint64_t>(1) << f)) != 0;
   }
+
+#ifdef DEBUG
   // Check whether a feature is currently enabled.
-  bool IsEnabled(CpuFeature f) const {
-    return (enabled_ & (static_cast<uint64_t>(1) << f)) != 0;
+  static bool IsEnabled(CpuFeature f) {
+    ASSERT(initialized_);
+    Isolate* isolate = Isolate::UncheckedCurrent();
+    if (isolate == NULL) {
+      // When no isolate is available, work as if we're running in
+      // release mode.
+      return IsSupported(f);
+    }
+    uint64_t enabled = isolate->enabled_cpu_features();
+    return (enabled & (static_cast<uint64_t>(1) << f)) != 0;
   }
+#endif
+
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
    public:
-    explicit Scope(CpuFeature f)
-        : cpu_features_(Isolate::Current()->cpu_features()),
-          isolate_(Isolate::Current()) {
+    explicit Scope(CpuFeature f) {
       uint64_t mask = static_cast<uint64_t>(1) << f;
-      ASSERT(cpu_features_->IsSupported(f));
+      ASSERT(CpuFeatures::IsSupported(f));
       ASSERT(!Serializer::enabled() ||
-          (cpu_features_->found_by_runtime_probing_ & mask) == 0);
-      old_enabled_ = cpu_features_->enabled_;
-      cpu_features_->enabled_ |= mask;
+             (CpuFeatures::found_by_runtime_probing_ & mask) == 0);
+      isolate_ = Isolate::UncheckedCurrent();
+      old_enabled_ = 0;
+      if (isolate_ != NULL) {
+        old_enabled_ = isolate_->enabled_cpu_features();
+        isolate_->set_enabled_cpu_features(old_enabled_ | mask);
+      }
     }
     ~Scope() {
-      ASSERT_EQ(Isolate::Current(), isolate_);
-      cpu_features_->enabled_ = old_enabled_;
+      ASSERT_EQ(Isolate::UncheckedCurrent(), isolate_);
+      if (isolate_ != NULL) {
+        isolate_->set_enabled_cpu_features(old_enabled_);
+      }
     }
    private:
-    uint64_t old_enabled_;
-    CpuFeatures* cpu_features_;
     Isolate* isolate_;
+    uint64_t old_enabled_;
 #else
    public:
     explicit Scope(CpuFeature f) {}
 #endif
   };
 
+  class TryForceFeatureScope BASE_EMBEDDED {
+   public:
+    explicit TryForceFeatureScope(CpuFeature f)
+        : old_supported_(CpuFeatures::supported_) {
+      if (CanForce()) {
+        CpuFeatures::supported_ |= (static_cast<uint64_t>(1) << f);
+      }
+    }
+
+    ~TryForceFeatureScope() {
+      if (CanForce()) {
+        CpuFeatures::supported_ = old_supported_;
+      }
+    }
+
+   private:
+    static bool CanForce() {
+      // It's only safe to temporarily force support of CPU features
+      // when there's only a single isolate, which is guaranteed when
+      // the serializer is enabled.
+      return Serializer::enabled();
+    }
+
+    const uint64_t old_supported_;
+  };
+
  private:
-  CpuFeatures();
-
-  uint64_t supported_;
-  uint64_t enabled_;
-  uint64_t found_by_runtime_probing_;
-
-  friend class Isolate;
+#ifdef DEBUG
+  static bool initialized_;
+#endif
+  static uint64_t supported_;
+  static uint64_t found_by_runtime_probing_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
@@ -535,7 +573,8 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(void* buffer, int buffer_size);
+  // TODO(vitalyr): the assembler does not need an isolate.
+  Assembler(Isolate* isolate, void* buffer, int buffer_size);
   ~Assembler();
 
   // Overrides the default provided by FLAG_debug_code.

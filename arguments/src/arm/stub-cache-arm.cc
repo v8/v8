@@ -953,7 +953,7 @@ static void StoreIntAsFloat(MacroAssembler* masm,
                             Register fval,
                             Register scratch1,
                             Register scratch2) {
-  if (masm->isolate()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     __ vmov(s0, ival);
     __ add(scratch1, dst, Operand(wordoffset, LSL, 2));
@@ -2048,7 +2048,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   //  -- sp[argc * 4]           : receiver
   // -----------------------------------
 
-  if (!masm()->isolate()->cpu_features()->IsSupported(VFP3)) {
+  if (!CpuFeatures::IsSupported(VFP3)) {
       return heap()->undefined_value();
   }
 
@@ -3509,7 +3509,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       __ ldr(value, MemOperand(r3, key, LSL, 1));
       break;
     case kExternalFloatArray:
-      if (masm()->isolate()->cpu_features()->IsSupported(VFP3)) {
+      if (CpuFeatures::IsSupported(VFP3)) {
         CpuFeatures::Scope scope(VFP3);
         __ add(r2, r3, Operand(key, LSL, 1));
         __ vldr(s0, r2, 0);
@@ -3548,7 +3548,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     // Now we can use r0 for the result as key is not needed any more.
     __ mov(r0, r5);
 
-    if (masm()->isolate()->cpu_features()->IsSupported(VFP3)) {
+    if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       __ vmov(s0, value);
       __ vcvt_f64_s32(d0, s0);
@@ -3563,7 +3563,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     // The test is different for unsigned int values. Since we need
     // the value to be in the range of a positive smi, we can't
     // handle either of the top two bits being set in the value.
-    if (masm()->isolate()->cpu_features()->IsSupported(VFP3)) {
+    if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       Label box_int, done;
       __ tst(value, Operand(0xC0000000));
@@ -3627,7 +3627,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
   } else if (array_type == kExternalFloatArray) {
     // For the floating-point array type, we need to always allocate a
     // HeapNumber.
-    if (masm()->isolate()->cpu_features()->IsSupported(VFP3)) {
+    if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
@@ -3820,7 +3820,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
     // The WebGL specification leaves the behavior of storing NaN and
     // +/-Infinity into integer arrays basically undefined. For more
     // reproducible behavior, convert these to zero.
-    if (masm()->isolate()->cpu_features()->IsSupported(VFP3)) {
+    if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
 
       if (array_type == kExternalFloatArray) {

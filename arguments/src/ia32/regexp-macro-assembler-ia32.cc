@@ -99,7 +99,7 @@ namespace internal {
 RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(
     Mode mode,
     int registers_to_save)
-    : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
+    : masm_(new MacroAssembler(Isolate::Current(), NULL, kRegExpCodeSize)),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -372,14 +372,18 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ push(backtrack_stackpointer());
     __ push(ebx);
 
-    static const int argument_count = 3;
+    static const int argument_count = 4;
     __ PrepareCallCFunction(argument_count, ecx);
     // Put arguments into allocated stack area, last argument highest on stack.
     // Parameters are
     //   Address byte_offset1 - Address captured substring's start.
     //   Address byte_offset2 - Address of current character position.
     //   size_t byte_length - length of capture in bytes(!)
+    //   Isolate* isolate
 
+    // Set isolate.
+    __ mov(Operand(esp, 3 * kPointerSize),
+           Immediate(ExternalReference::isolate_address()));
     // Set byte_length.
     __ mov(Operand(esp, 2 * kPointerSize), ebx);
     // Set byte_offset2.
@@ -838,8 +842,10 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     __ push(edi);
 
     // Call GrowStack(backtrack_stackpointer())
-    static const int num_arguments = 2;
+    static const int num_arguments = 3;
     __ PrepareCallCFunction(num_arguments, ebx);
+    __ mov(Operand(esp, 2 * kPointerSize),
+           Immediate(ExternalReference::isolate_address()));
     __ lea(eax, Operand(ebp, kStackHighEnd));
     __ mov(Operand(esp, 1 * kPointerSize), eax);
     __ mov(Operand(esp, 0 * kPointerSize), backtrack_stackpointer());

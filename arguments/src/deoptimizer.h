@@ -192,7 +192,7 @@ class Deoptimizer : public Malloced {
 
   void InsertHeapNumberValues(int index, JavaScriptFrame* frame);
 
-  static void ComputeOutputFrames(Deoptimizer* deoptimizer, Isolate* isolate);
+  static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
   static Address GetDeoptimizationEntry(int id, BailoutType type);
   static int GetDeoptimizationId(Address addr, BailoutType type);
@@ -549,6 +549,78 @@ class DeoptimizingCodeListNode : public Malloced {
 
   // Next pointer for linked list.
   DeoptimizingCodeListNode* next_;
+};
+
+
+class SlotRef BASE_EMBEDDED {
+ public:
+  enum SlotRepresentation {
+    UNKNOWN,
+    TAGGED,
+    INT32,
+    DOUBLE,
+    LITERAL
+  };
+
+  SlotRef()
+      : addr_(NULL), representation_(UNKNOWN) { }
+
+  SlotRef(Address addr, SlotRepresentation representation)
+      : addr_(addr), representation_(representation) { }
+
+  explicit SlotRef(Object* literal)
+      : literal_(literal), representation_(LITERAL) { }
+
+  Handle<Object> GetValue() {
+    switch (representation_) {
+      case TAGGED:
+        return Handle<Object>(Memory::Object_at(addr_));
+
+      case INT32: {
+        int value = Memory::int32_at(addr_);
+        if (Smi::IsValid(value)) {
+          return Handle<Object>(Smi::FromInt(value));
+        } else {
+          return Isolate::Current()->factory()->NewNumberFromInt(value);
+        }
+      }
+
+      case DOUBLE: {
+        double value = Memory::double_at(addr_);
+        return Isolate::Current()->factory()->NewNumber(value);
+      }
+
+      case LITERAL:
+        return literal_;
+
+      default:
+        UNREACHABLE();
+        return Handle<Object>::null();
+    }
+  }
+
+  static void ComputeSlotMappingForArguments(JavaScriptFrame* frame,
+                                             int inlined_frame_index,
+                                             Vector<SlotRef>* args_slots);
+
+ private:
+  Address addr_;
+  Handle<Object> literal_;
+  SlotRepresentation representation_;
+
+  static Address SlotAddress(JavaScriptFrame* frame, int slot_index) {
+    if (slot_index >= 0) {
+      const int offset = JavaScriptFrameConstants::kLocal0Offset;
+      return frame->fp() + offset - (slot_index * kPointerSize);
+    } else {
+      const int offset = JavaScriptFrameConstants::kLastParameterOffset;
+      return frame->fp() + offset - ((slot_index + 1) * kPointerSize);
+    }
+  }
+
+  static SlotRef ComputeSlotForNextArgument(TranslationIterator* iterator,
+                                            DeoptimizationInputData* data,
+                                            JavaScriptFrame* frame);
 };
 
 

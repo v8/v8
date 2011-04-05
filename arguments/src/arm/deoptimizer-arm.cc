@@ -586,14 +586,16 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Allocate a new deoptimizer object.
   // Pass four arguments in r0 to r3 and fifth argument on stack.
-  __ PrepareCallCFunction(5, r5);
+  __ PrepareCallCFunction(6, r5);
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ mov(r1, Operand(type()));  // bailout type,
   // r2: bailout id already loaded.
   // r3: code address or 0 already loaded.
   __ str(r4, MemOperand(sp, 0 * kPointerSize));  // Fp-to-sp delta.
+  __ mov(r5, Operand(ExternalReference::isolate_address()));
+  __ str(r5, MemOperand(sp, 1 * kPointerSize));  // Isolate.
   // Call Deoptimizer::New().
-  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 5);
+  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
 
   // Preserve "deoptimizer" object in register r0 and get the input
   // frame descriptor pointer to r1 (deoptimizer->input_);

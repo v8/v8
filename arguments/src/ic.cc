@@ -1143,6 +1143,16 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 MaybeObject* KeyedLoadIC::Load(State state,
                                Handle<Object> object,
                                Handle<Object> key) {
+  // Check for values that can be converted into a symbol.
+  // TODO(1295): Remove this code.
+  HandleScope scope(isolate());
+  if (key->IsHeapNumber() &&
+      isnan(HeapNumber::cast(*key)->value())) {
+    key = isolate()->factory()->nan_symbol();
+  } else if (key->IsUndefined()) {
+    key = isolate()->factory()->undefined_symbol();
+  }
+
   if (key->IsSymbol()) {
     Handle<String> name = Handle<String>::cast(key);
 

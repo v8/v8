@@ -53,6 +53,8 @@ class CPU : public AllStatic {
   // Initializes the cpu architecture support. Called once at VM startup.
   static void Setup();
 
+  static bool SupportsCrankshaft();
+
   // Flush instruction cache.
   static void FlushICache(void* start, size_t size);
 

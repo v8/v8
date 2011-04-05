@@ -453,6 +453,9 @@ class AstContext {
   // the instruction as value.
   virtual void ReturnInstruction(HInstruction* instr, int ast_id) = 0;
 
+  void set_for_typeof(bool for_typeof) { for_typeof_ = for_typeof; }
+  bool is_for_typeof() { return for_typeof_; }
+
  protected:
   AstContext(HGraphBuilder* owner, Expression::Context kind);
   virtual ~AstContext();
@@ -469,6 +472,7 @@ class AstContext {
   HGraphBuilder* owner_;
   Expression::Context kind_;
   AstContext* outer_;
+  bool for_typeof_;
 };
 
 
@@ -543,6 +547,8 @@ class FunctionState BASE_EMBEDDED {
     delete test_context_;
     test_context_ = NULL;
   }
+
+  FunctionState* outer() { return outer_; }
 
  private:
   HGraphBuilder* owner_;
@@ -735,6 +741,7 @@ class HGraphBuilder: public AstVisitor {
   void Bind(Variable* var, HValue* value) { environment()->Bind(var, value); }
 
   void VisitForValue(Expression* expr);
+  void VisitForTypeOf(Expression* expr);
   void VisitForEffect(Expression* expr);
   void VisitForControl(Expression* expr,
                        HBasicBlock* true_block,
@@ -770,9 +777,13 @@ class HGraphBuilder: public AstVisitor {
   HBasicBlock* CreateLoopHeaderBlock();
 
   // Helpers for flow graph construction.
-  void LookupGlobalPropertyCell(Variable* var,
-                                LookupResult* lookup,
-                                bool is_store);
+  enum GlobalPropertyAccess {
+    kUseCell,
+    kUseGeneric
+  };
+  GlobalPropertyAccess LookupGlobalProperty(Variable* var,
+                                            LookupResult* lookup,
+                                            bool is_store);
 
   bool TryArgumentsAccess(Property* expr);
   bool TryCallApply(Call* expr);

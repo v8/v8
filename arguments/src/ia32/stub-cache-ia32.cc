@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1921,7 +1921,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  if (!isolate()->cpu_features()->IsSupported(SSE2)) {
+  if (!CpuFeatures::IsSupported(SSE2)) {
     return isolate()->heap()->undefined_value();
   }
 
@@ -3292,7 +3292,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
       int arg_number = shared->GetThisPropertyAssignmentArgument(i);
       __ mov(ebx, edi);
       __ cmp(eax, arg_number);
-      if (isolate()->cpu_features()->IsSupported(CMOV)) {
+      if (CpuFeatures::IsSupported(CMOV)) {
         CpuFeatures::Scope use_cmov(CMOV);
         __ cmov(above, ebx, Operand(ecx, arg_number * -kPointerSize));
       } else {
@@ -3611,10 +3611,10 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
       // processors that don't support SSE2. The code in IntegerConvert
       // (code-stubs-ia32.cc) is roughly what is needed here though the
       // conversion failure case does not need to be handled.
-      if (isolate()->cpu_features()->IsSupported(SSE2)) {
+      if (CpuFeatures::IsSupported(SSE2)) {
         if (array_type != kExternalIntArray &&
             array_type != kExternalUnsignedIntArray) {
-          ASSERT(isolate()->cpu_features()->IsSupported(SSE2));
+          ASSERT(CpuFeatures::IsSupported(SSE2));
           CpuFeatures::Scope scope(SSE2);
           __ cvttsd2si(ecx, FieldOperand(eax, HeapNumber::kValueOffset));
           // ecx: untagged integer value
@@ -3629,6 +3629,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
                 __ bind(&done);
               }
               __ mov_b(Operand(edi, ebx, times_1, 0), ecx);
+              break;
             case kExternalByteArray:
             case kExternalUnsignedByteArray:
               __ mov_b(Operand(edi, ebx, times_1, 0), ecx);
@@ -3642,7 +3643,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
               break;
           }
         } else {
-          if (isolate()->cpu_features()->IsSupported(SSE3)) {
+          if (CpuFeatures::IsSupported(SSE3)) {
             CpuFeatures::Scope scope(SSE3);
             // fisttp stores values as signed integers. To represent the
             // entire range of int and unsigned int arrays, store as a
@@ -3655,7 +3656,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
             __ pop(ecx);
             __ add(Operand(esp), Immediate(kPointerSize));
           } else {
-            ASSERT(isolate()->cpu_features()->IsSupported(SSE2));
+            ASSERT(CpuFeatures::IsSupported(SSE2));
             CpuFeatures::Scope scope(SSE2);
             // We can easily implement the correct rounding behavior for the
             // range [0, 2^31-1]. For the time being, to keep this code simple,

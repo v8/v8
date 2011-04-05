@@ -408,7 +408,8 @@ DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor);
 // The stub compiler compiles stubs for the stub cache.
 class StubCompiler BASE_EMBEDDED {
  public:
-  StubCompiler() : scope_(), masm_(NULL, 256), failure_(NULL) { }
+  StubCompiler()
+      : scope_(), masm_(Isolate::Current(), NULL, 256), failure_(NULL) { }
 
   MUST_USE_RESULT MaybeObject* CompileCallInitialize(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* CompileCallPreMonomorphic(Code::Flags flags);

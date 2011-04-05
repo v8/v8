@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -112,6 +112,7 @@ class SourceGroup {
         v8::Handle<v8::String> source = ReadFile(arg);
         if (source.IsEmpty()) {
           printf("Error reading '%s'\n", arg);
+          continue;
         }
         if (!ExecuteString(source, file_name, false, true)) {
           ExitShell(1);

@@ -72,11 +72,11 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // Setup V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
-#define SETUP() \
-  InitializeVM(); \
-  v8::HandleScope scope; \
+#define SETUP()                                           \
+  InitializeVM();                                         \
+  v8::HandleScope scope;                                  \
   byte *buffer = reinterpret_cast<byte*>(malloc(4*1024)); \
-  Assembler assm(buffer, 4*1024); \
+  Assembler assm(Isolate::Current(), buffer, 4*1024);     \
   bool failure = false;
 
 
@@ -270,7 +270,7 @@ TEST(Type0) {
           "13a06000       movne r6, #0");
 
   // mov -> movw.
-  if (Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+  if (CpuFeatures::IsSupported(ARMv7)) {
     COMPARE(mov(r5, Operand(0x01234), LeaveCC, ne),
             "13015234       movwne r5, #4660");
     // We only disassemble one instruction so the eor instruction is not here.
@@ -360,7 +360,7 @@ TEST(Type1) {
 TEST(Type3) {
   SETUP();
 
-  if (Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+  if (CpuFeatures::IsSupported(ARMv7)) {
     COMPARE(ubfx(r0, r1, 5, 10),
             "e7e902d1       ubfx r0, r1, #5, #10");
     COMPARE(ubfx(r1, r0, 5, 10),
@@ -415,7 +415,7 @@ TEST(Type3) {
 TEST(Vfp) {
   SETUP();
 
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     COMPARE(vmov(d0, d1),
             "eeb00b41       vmov.f64 d0, d1");

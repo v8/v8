@@ -355,6 +355,18 @@ ZoneMapList* TypeFeedbackOracle::CollectReceiverTypes(int position,
 }
 
 
+void TypeFeedbackOracle::SetInfo(int position, Object* target) {
+  MaybeObject* maybe_result = dictionary_->AtNumberPut(position, target);
+  USE(maybe_result);
+#ifdef DEBUG
+  Object* result;
+  // Dictionary has been allocated with sufficient size for all elements.
+  ASSERT(maybe_result->ToObject(&result));
+  ASSERT(*dictionary_ == result);
+#endif
+}
+
+
 void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
@@ -371,14 +383,14 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
   int length = code_positions.length();
   ASSERT(source_positions.length() == length);
   for (int i = 0; i < length; i++) {
-    HandleScope loop_scope(isolate);
+    AssertNoAllocation no_allocation;
     RelocInfo info(code->instruction_start() + code_positions[i],
                    RelocInfo::CODE_TARGET, 0);
-    Handle<Code> target(Code::GetCodeFromTargetAddress(info.target_address()));
+    Code* target = Code::GetCodeFromTargetAddress(info.target_address());
     int position = source_positions[i];
     InlineCacheState state = target->ic_state();
     Code::Kind kind = target->kind();
-    Handle<Object> value;
+
     if (kind == Code::BINARY_OP_IC ||
         kind == Code::TYPE_RECORDING_BINARY_OP_IC ||
         kind == Code::COMPARE_IC) {
@@ -387,35 +399,28 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
       // recorded for all binary ICs.
       int entry = dictionary_->FindEntry(position);
       if (entry == NumberDictionary::kNotFound) {
-        value = target;
+        SetInfo(position, target);
       }
     } else if (state == MONOMORPHIC) {
       if (kind == Code::KEYED_EXTERNAL_ARRAY_LOAD_IC ||
           kind == Code::KEYED_EXTERNAL_ARRAY_STORE_IC) {
-        value = target;
+        SetInfo(position, target);
       } else if (target->kind() != Code::CALL_IC ||
           target->check_type() == RECEIVER_MAP_CHECK) {
         Map* map = target->FindFirstMap();
         if (map == NULL) {
-          value = target;
+          SetInfo(position, target);
         } else {
-          value = Handle<Map>(map);
+          SetInfo(position, map);
         }
       } else {
         ASSERT(target->kind() == Code::CALL_IC);
         CheckType check = target->check_type();
         ASSERT(check != RECEIVER_MAP_CHECK);
-        value = Handle<Object>(Smi::FromInt(check));
+        SetInfo(position, Smi::FromInt(check));
       }
     } else if (state == MEGAMORPHIC) {
-      value = target;
-    }
-
-    if (!value.is_null()) {
-      Handle<NumberDictionary> new_dict =
-          isolate->factory()->DictionaryAtNumberPut(
-              dictionary_, position, value);
-      dictionary_ = loop_scope.CloseAndEscape(new_dict);
+      SetInfo(position, target);
     }
   }
   // Allocate handle in the parent scope.

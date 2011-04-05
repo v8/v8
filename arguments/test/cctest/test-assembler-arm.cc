@@ -58,7 +58,7 @@ TEST(0) {
   InitializeVM();
   v8::HandleScope scope;
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
 
   __ add(r0, r0, Operand(r1));
   __ mov(pc, Operand(lr));
@@ -84,7 +84,7 @@ TEST(1) {
   InitializeVM();
   v8::HandleScope scope;
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
   Label L, C;
 
   __ mov(r1, Operand(r0));
@@ -121,7 +121,7 @@ TEST(2) {
   InitializeVM();
   v8::HandleScope scope;
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
   Label L, C;
 
   __ mov(r1, Operand(r0));
@@ -174,7 +174,7 @@ TEST(3) {
   } T;
   T t;
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
   Label L, C;
 
   __ mov(ip, Operand(sp));
@@ -241,11 +241,11 @@ TEST(4) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
   Label L, C;
 
 
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
 
     __ mov(ip, Operand(sp));
@@ -357,9 +357,9 @@ TEST(5) {
   InitializeVM();
   v8::HandleScope scope;
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
 
-  if (Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+  if (CpuFeatures::IsSupported(ARMv7)) {
     CpuFeatures::Scope scope(ARMv7);
     // On entry, r0 = 0xAAAAAAAA = 0b10..10101010.
     __ ubfx(r0, r0, 1, 12);  // 0b00..010101010101 = 0x555
@@ -393,9 +393,9 @@ TEST(6) {
   InitializeVM();
   v8::HandleScope scope;
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
 
-  if (Isolate::Current()->cpu_features()->IsSupported(ARMv7)) {
+  if (CpuFeatures::IsSupported(ARMv7)) {
     CpuFeatures::Scope scope(ARMv7);
     __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
     __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
@@ -436,9 +436,9 @@ static void TestRoundingMode(VCVTTypes types,
   InitializeVM();
   v8::HandleScope scope;
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
 
-  if (Isolate::Current()->cpu_features()->IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
 
     Label wrong_exception;

@@ -84,7 +84,6 @@ class V8 : public AllStatic {
   static void TearDown();
   static bool IsRunning() { return is_running_; }
   static bool UseCrankshaft() { return use_crankshaft_; }
-  static void DisableCrankshaft() { use_crankshaft_ = false; }
   // To be dead you have to have lived
   // TODO(isolates): move IsDead to Isolate.
   static bool IsDead() { return has_fatal_error_ || has_been_disposed_; }
@@ -101,12 +100,15 @@ class V8 : public AllStatic {
   // use a separate random state for internal random number
   // generation.
   static uint32_t RandomPrivate(Isolate* isolate);
-  static Object* FillHeapNumberWithRandom(Object* heap_number);
+  static Object* FillHeapNumberWithRandom(Object* heap_number,
+                                          Isolate* isolate);
 
   // Idle notification directly from the API.
   static bool IdleNotification();
 
  private:
+  static void InitializeOncePerProcess();
+
   // True if engine is currently running
   static bool is_running_;
   // True if V8 has ever been run

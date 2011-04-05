@@ -379,6 +379,7 @@ class TestCase(object):
 
   def Run(self):
     self.BeforeRun()
+    result = "exception"
     try:
       result = self.RunCommand(self.GetCommand())
     finally:
@@ -583,7 +584,9 @@ class TestSuite(object):
 
 # Use this to run several variants of the tests, e.g.:
 # VARIANT_FLAGS = [[], ['--always_compact', '--noflush_code']]
-VARIANT_FLAGS = [[], ['--stress-opt', '--always-opt'], ['--nocrankshaft']]
+VARIANT_FLAGS = [[],
+                 ['--stress-opt', '--always-opt'],
+                 ['--nocrankshaft']]
 
 
 class TestRepository(TestSuite):
@@ -1316,7 +1319,7 @@ def GetSpecialCommandProcessor(value):
     return ExpandCommand
 
 
-BUILT_IN_TESTS = ['mjsunit', 'cctest', 'message']
+BUILT_IN_TESTS = ['mjsunit', 'cctest', 'message', 'preparser']
 
 
 def GetSuites(test_root):
@@ -1409,9 +1412,6 @@ def Main():
   globally_unused_rules = None
   for path in paths:
     for mode in options.mode:
-      if not exists(context.GetVm(mode)):
-        print "Can't find shell executable: '%s'" % context.GetVm(mode)
-        continue
       env = {
         'mode': mode,
         'system': utils.GuessOS(),

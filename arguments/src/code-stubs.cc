@@ -95,7 +95,7 @@ Handle<Code> CodeStub::GetCode() {
     HandleScope scope(isolate);
 
     // Generate the new code.
-    MacroAssembler masm(NULL, 256);
+    MacroAssembler masm(isolate, NULL, 256);
     GenerateCode(&masm);
 
     // Create the code object.
@@ -132,7 +132,7 @@ MaybeObject* CodeStub::TryGetCode() {
   Code* code;
   if (!FindCodeInCache(&code)) {
     // Generate the new code.
-    MacroAssembler masm(NULL, 256);
+    MacroAssembler masm(Isolate::Current(), NULL, 256);
     GenerateCode(&masm);
     Heap* heap = masm.isolate()->heap();
 

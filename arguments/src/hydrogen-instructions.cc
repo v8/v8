@@ -726,7 +726,7 @@ void HTypeofIs::PrintDataTo(StringStream* stream) {
 
 void HChange::PrintDataTo(StringStream* stream) {
   HUnaryOperation::PrintDataTo(stream);
-  stream->Add(" %s to %s", from_.Mnemonic(), to_.Mnemonic());
+  stream->Add(" %s to %s", from_.Mnemonic(), to().Mnemonic());
 
   if (CanTruncateToInt32()) stream->Add(" truncating-int32");
   if (CheckFlag(kBailoutOnMinusZero)) stream->Add(" -0?");
@@ -1342,14 +1342,25 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
 }
 
 
-void HLoadGlobal::PrintDataTo(StringStream* stream) {
+void HLoadGlobalCell::PrintDataTo(StringStream* stream) {
   stream->Add("[%p]", *cell());
   if (check_hole_value()) stream->Add(" (deleteable/read-only)");
 }
 
 
-void HStoreGlobal::PrintDataTo(StringStream* stream) {
+void HLoadGlobalGeneric::PrintDataTo(StringStream* stream) {
+  stream->Add("%o ", *name());
+}
+
+
+void HStoreGlobalCell::PrintDataTo(StringStream* stream) {
   stream->Add("[%p] = ", *cell());
+  value()->PrintNameTo(stream);
+}
+
+
+void HStoreGlobalGeneric::PrintDataTo(StringStream* stream) {
+  stream->Add("%o = ", *name());
   value()->PrintNameTo(stream);
 }
 
