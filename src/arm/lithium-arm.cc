@@ -2077,8 +2077,6 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
     }
   }
 
-  ASSERT(env->length() == instr->environment_length());
-
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.
   if (pending_deoptimization_ast_id_ == instr->ast_id()) {

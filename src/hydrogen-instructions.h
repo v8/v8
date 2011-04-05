@@ -975,10 +975,9 @@ class HChange: public HUnaryOperation {
 
 class HSimulate: public HInstruction {
  public:
-  HSimulate(int ast_id, int pop_count, int environment_length)
+  HSimulate(int ast_id, int pop_count)
       : ast_id_(ast_id),
         pop_count_(pop_count),
-        environment_length_(environment_length),
         values_(2),
         assigned_indexes_(2) {}
   virtual ~HSimulate() {}
@@ -992,7 +991,6 @@ class HSimulate: public HInstruction {
     ast_id_ = id;
   }
 
-  int environment_length() const { return environment_length_; }
   int pop_count() const { return pop_count_; }
   const ZoneList<HValue*>* values() const { return &values_; }
   int GetAssignedIndexAt(int index) const {
@@ -1038,7 +1036,6 @@ class HSimulate: public HInstruction {
   }
   int ast_id_;
   int pop_count_;
-  int environment_length_;
   ZoneList<HValue*> values_;
   ZoneList<int> assigned_indexes_;
 };

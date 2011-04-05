@@ -140,8 +140,7 @@ HSimulate* HBasicBlock::CreateSimulate(int id) {
   int push_count = environment->push_count();
   int pop_count = environment->pop_count();
 
-  int length = environment->length();
-  HSimulate* instr = new HSimulate(id, pop_count, length);
+  HSimulate* instr = new HSimulate(id, pop_count);
   for (int i = push_count - 1; i >= 0; --i) {
     instr->AddPushedValue(environment->ExpressionStackAt(i));
   }
