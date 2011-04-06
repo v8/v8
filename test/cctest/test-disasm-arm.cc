@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -522,6 +522,23 @@ TEST(Vfp) {
             "aef1aa10       vmrsge r10, FPSCR");
     COMPARE(vmrs(pc),
             "eef1fa10       vmrs APSR, FPSCR");
+
+    COMPARE(vstm(ia, r0, d1, d3),
+            "ec801b06       vstmia r0, {d1-d3}");
+    COMPARE(vldm(ia, r1, d2, d5),
+            "ec912b08       vldmia r1, {d2-d5}");
+    COMPARE(vstm(ia, r2, d0, d15),
+            "ec820b20       vstmia r2, {d0-d15}");
+    COMPARE(vldm(ia, r3, d0, d15),
+            "ec930b20       vldmia r3, {d0-d15}");
+    COMPARE(vstm(ia, r4, s1, s3),
+            "ecc40a03       vstmia r4, {s1-s3}");
+    COMPARE(vldm(ia, r5, s2, s5),
+            "ec951a04       vldmia r5, {s2-s5}");
+    COMPARE(vstm(ia, r6, s0, s31),
+            "ec860a20       vstmia r6, {s0-s31}");
+    COMPARE(vldm(ia, r7, s0, s31),
+            "ec970a20       vldmia r7, {s0-s31}");
   }
 
   VERIFY_RUN();
