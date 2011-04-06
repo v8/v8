@@ -280,6 +280,9 @@ static void CreateTraceCallerFunction(const char* func_name,
 // StackTracer uses Isolate::c_entry_fp as a starting point for stack
 // walking.
 TEST(CFromJSStackTrace) {
+  // BUG(1303) Inlining of JSFuncDoTrace() in JSTrace below breaks this test.
+  i::FLAG_use_inlining = false;
+
   TickSample sample;
   InitTraceEnv(&sample);
 

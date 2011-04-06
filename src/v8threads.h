@@ -78,7 +78,7 @@ class ThreadLocalTop;
 class ThreadVisitor {
  public:
   // ThreadLocalTop may be only available during this call.
-  virtual void VisitThread(ThreadLocalTop* top) = 0;
+  virtual void VisitThread(Isolate* isolate, ThreadLocalTop* top) = 0;
 
  protected:
   virtual ~ThreadVisitor() {}

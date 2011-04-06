@@ -367,11 +367,11 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
     // For eval scripts add information on the function from which eval was
     // called.
     if (info->is_eval()) {
-      StackTraceFrameIterator it;
+      StackTraceFrameIterator it(isolate);
       if (!it.done()) {
         script->set_eval_from_shared(
             JSFunction::cast(it.frame()->function())->shared());
-        Code* code = it.frame()->LookupCode(isolate);
+        Code* code = it.frame()->LookupCode();
         int offset = static_cast<int>(
             it.frame()->pc() - code->instruction_start());
         script->set_eval_from_instructions_offset(Smi::FromInt(offset));

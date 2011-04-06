@@ -1738,15 +1738,24 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
+LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
   if (instr->check_hole_value()) {
     LOperand* temp = TempRegister();
     LOperand* value = UseRegister(instr->value());
-    return AssignEnvironment(new LStoreGlobal(value, temp));
+    return AssignEnvironment(new LStoreGlobalCell(value, temp));
   } else {
     LOperand* value = UseRegisterAtStart(instr->value());
-    return new LStoreGlobal(value, NULL);
+    return new LStoreGlobalCell(value, NULL);
   }
+}
+
+
+LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
+  LOperand* global_object = UseFixed(instr->global_object(), r1);
+  LOperand* value = UseFixed(instr->value(), r0);
+  LStoreGlobalGeneric* result =
+      new LStoreGlobalGeneric(global_object, value);
+  return MarkAsCall(result, instr);
 }
 
 
@@ -2067,8 +2076,6 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
       env->Push(value);
     }
   }
-
-  ASSERT(env->length() == instr->environment_length());
 
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.

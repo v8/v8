@@ -681,7 +681,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetHiddenPrototype) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsConstructCall) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 0);
-  JavaScriptFrameIterator it;
+  JavaScriptFrameIterator it(isolate);
   return isolate->heap()->ToBoolean(it.frame()->IsConstructor());
 }
 
@@ -4484,7 +4484,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   ASSERT(args.length() == 1);
 
   // Compute the frame holding the arguments.
-  JavaScriptFrameIterator it;
+  JavaScriptFrameIterator it(isolate);
   it.AdvanceToArgumentsFrame();
   JavaScriptFrame* frame = it.frame();
 
@@ -7323,7 +7323,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   ASSERT(isolate->heap()->IsAllocationAllowed());
   int frames = deoptimizer->output_count();
 
-  JavaScriptFrameIterator it;
+  JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = NULL;
   for (int i = 0; i < frames; i++) {
     if (i != 0) it.Advance();
@@ -7425,7 +7425,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     // indirectly recursive and (b) an optimized invocation has been
     // deoptimized so that we are currently in an unoptimized activation.
     // Check for optimized activations of this function.
-    JavaScriptFrameIterator it;
+    JavaScriptFrameIterator it(isolate);
     while (succeeded && !it.done()) {
       JavaScriptFrame* frame = it.frame();
       succeeded = !frame->is_optimized() || frame->function() != *function;
@@ -7437,10 +7437,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   if (succeeded) {
     // The top JS function is this one, the PC is somewhere in the
     // unoptimized code.
-    JavaScriptFrameIterator it;
+    JavaScriptFrameIterator it(isolate);
     JavaScriptFrame* frame = it.frame();
     ASSERT(frame->function() == *function);
-    ASSERT(frame->LookupCode(isolate) == *unoptimized);
+    ASSERT(frame->LookupCode() == *unoptimized);
     ASSERT(unoptimized->contains(frame->pc()));
 
     // Use linear search of the unoptimized code's stack check table to find
@@ -8001,7 +8001,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrint) {
   if (args[0]->IsString()) {
     // If we have a string, assume it's a code "marker"
     // and print some interesting cpu debugging info.
-    JavaScriptFrameIterator it;
+    JavaScriptFrameIterator it(isolate);
     JavaScriptFrame* frame = it.frame();
     PrintF("fp = %p, sp = %p, caller_sp = %p: ",
            frame->fp(), frame->sp(), frame->caller_sp());
@@ -9337,7 +9337,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameCount) {
     // If there is no JavaScript stack frame count is 0.
     return Smi::FromInt(0);
   }
-  for (JavaScriptFrameIterator it(id); !it.done(); it.Advance()) n++;
+  for (JavaScriptFrameIterator it(isolate, id); !it.done(); it.Advance()) n++;
   return Smi::FromInt(n);
 }
 
@@ -9390,7 +9390,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     return heap->undefined_value();
   }
   int count = 0;
-  JavaScriptFrameIterator it(id);
+  JavaScriptFrameIterator it(isolate, id);
   for (; !it.done(); it.Advance()) {
     if (count == index) break;
     count++;
@@ -9398,7 +9398,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   if (it.done()) return heap->undefined_value();
 
   bool is_optimized_frame =
-      it.frame()->LookupCode(isolate)->kind() == Code::OPTIMIZED_FUNCTION;
+      it.frame()->LookupCode()->kind() == Code::OPTIMIZED_FUNCTION;
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -9413,7 +9413,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
 
   // Find source position.
   int position =
-      it.frame()->LookupCode(isolate)->SourcePosition(it.frame()->pc());
+      it.frame()->LookupCode()->SourcePosition(it.frame()->pc());
 
   // Check for constructor frame.
   bool constructor = it.frame()->IsConstructor();
@@ -9475,7 +9475,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // to the frame information.
   Handle<Object> return_value = isolate->factory()->undefined_value();
   if (at_return) {
-    StackFrameIterator it2;
+    StackFrameIterator it2(isolate);
     Address internal_frame_sp = NULL;
     while (!it2.done()) {
       if (it2.frame()->is_internal()) {
@@ -10008,7 +10008,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeCount) {
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
-  JavaScriptFrameIterator it(id);
+  JavaScriptFrameIterator it(isolate, id);
   JavaScriptFrame* frame = it.frame();
 
   // Count the visible scopes.
@@ -10048,7 +10048,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeDetails) {
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
-  JavaScriptFrameIterator frame_it(id);
+  JavaScriptFrameIterator frame_it(isolate, id);
   JavaScriptFrame* frame = frame_it.frame();
 
   // Find the requested scope.
@@ -10536,7 +10536,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
-  JavaScriptFrameIterator it(id);
+  JavaScriptFrameIterator it(isolate, id);
   JavaScriptFrame* frame = it.frame();
   Handle<JSFunction> function(JSFunction::cast(frame->function()));
   Handle<SerializedScopeInfo> scope_info(function->shared()->scope_info());
@@ -11604,7 +11604,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
   Handle<FixedArray> elements =
       factory->NewFixedArrayWithHoles(initial_size * 4);
 
-  StackFrameIterator iter;
+  StackFrameIterator iter(isolate);
   // If the caller parameter is a function we skip frames until we're
   // under it before starting to collect.
   bool seen_caller = !caller->IsJSFunction();
@@ -11615,7 +11615,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
     if (ShowFrameInStackTrace(raw_frame, *caller, &seen_caller)) {
       frames_seen++;
       JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
-      List<FrameSummary> frames(3);  // Max 2 levels of inlining.
+      // Set initial size to the maximum inlining level + 1 for the outermost
+      // function.
+      List<FrameSummary> frames(Compiler::kMaxInliningLevels + 1);
       frame->Summarize(&frames);
       for (int i = frames.length() - 1; i >= 0; i--) {
         if (cursor + 4 > elements->length()) {

@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 #include "v8.h"
 
@@ -2034,6 +2034,88 @@ void Assembler::vstr(const SwVfpRegister src,
   vldr(src, operand.rn(), operand.offset(), cond);
 }
 
+
+void  Assembler::vldm(BlockAddrMode am,
+                      Register base,
+                      DwVfpRegister first,
+                      DwVfpRegister last,
+                      Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-626.
+  // cond(31-28) | 110(27-25)| PUDW1(24-20) | Rbase(19-16) |
+  // first(15-12) | 1010(11-8) | (count * 2)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT_LE(first.code(), last.code());
+  ASSERT(am == ia || am == ia_w || am == db_w);
+  ASSERT(!base.is(pc));
+
+  int sd, d;
+  first.split_code(&sd, &d);
+  int count = last.code() - first.code() + 1;
+  emit(cond | B27 | B26 | am | d*B22 | B20 | base.code()*B16 | sd*B12 |
+       0xB*B8 | count*2);
+}
+
+
+void  Assembler::vstm(BlockAddrMode am,
+                      Register base,
+                      DwVfpRegister first,
+                      DwVfpRegister last,
+                      Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-784.
+  // cond(31-28) | 110(27-25)| PUDW0(24-20) | Rbase(19-16) |
+  // first(15-12) | 1011(11-8) | (count * 2)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT_LE(first.code(), last.code());
+  ASSERT(am == ia || am == ia_w || am == db_w);
+  ASSERT(!base.is(pc));
+
+  int sd, d;
+  first.split_code(&sd, &d);
+  int count = last.code() - first.code() + 1;
+  emit(cond | B27 | B26 | am | d*B22 | base.code()*B16 | sd*B12 |
+       0xB*B8 | count*2);
+}
+
+void  Assembler::vldm(BlockAddrMode am,
+                      Register base,
+                      SwVfpRegister first,
+                      SwVfpRegister last,
+                      Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-626.
+  // cond(31-28) | 110(27-25)| PUDW1(24-20) | Rbase(19-16) |
+  // first(15-12) | 1010(11-8) | (count/2)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT_LE(first.code(), last.code());
+  ASSERT(am == ia || am == ia_w || am == db_w);
+  ASSERT(!base.is(pc));
+
+  int sd, d;
+  first.split_code(&sd, &d);
+  int count = last.code() - first.code() + 1;
+  emit(cond | B27 | B26 | am | d*B22 | B20 | base.code()*B16 | sd*B12 |
+       0xA*B8 | count);
+}
+
+
+void  Assembler::vstm(BlockAddrMode am,
+                      Register base,
+                      SwVfpRegister first,
+                      SwVfpRegister last,
+                      Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-784.
+  // cond(31-28) | 110(27-25)| PUDW0(24-20) | Rbase(19-16) |
+  // first(15-12) | 1011(11-8) | (count/2)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT_LE(first.code(), last.code());
+  ASSERT(am == ia || am == ia_w || am == db_w);
+  ASSERT(!base.is(pc));
+
+  int sd, d;
+  first.split_code(&sd, &d);
+  int count = last.code() - first.code() + 1;
+  emit(cond | B27 | B26 | am | d*B22 | base.code()*B16 | sd*B12 |
+       0xA*B8 | count);
+}
 
 static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
   uint64_t i;

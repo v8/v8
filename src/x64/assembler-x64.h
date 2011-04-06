@@ -1589,8 +1589,6 @@ class Assembler : public AssemblerBase {
   RelocInfoWriter reloc_info_writer;
 
   List< Handle<Code> > code_targets_;
-  // push-pop elimination
-  byte* last_pc_;
 
   PositionsRecorder positions_recorder_;
 

@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 // A light-weight ARM Assembler
 // Generates user mode instructions for the ARM architecture up to version 5
@@ -994,6 +994,30 @@ class Assembler : public AssemblerBase {
   void vstr(const SwVfpRegister src,
             const MemOperand& dst,
             const Condition cond = al);
+
+  void vldm(BlockAddrMode am,
+            Register base,
+            DwVfpRegister first,
+            DwVfpRegister last,
+            Condition cond = al);
+
+  void vstm(BlockAddrMode am,
+            Register base,
+            DwVfpRegister first,
+            DwVfpRegister last,
+            Condition cond = al);
+
+  void vldm(BlockAddrMode am,
+            Register base,
+            SwVfpRegister first,
+            SwVfpRegister last,
+            Condition cond = al);
+
+  void vstm(BlockAddrMode am,
+            Register base,
+            SwVfpRegister first,
+            SwVfpRegister last,
+            Condition cond = al);
 
   void vmov(const DwVfpRegister dst,
             double imm,

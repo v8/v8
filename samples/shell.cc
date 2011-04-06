@@ -65,6 +65,14 @@ v8::Handle<v8::Value> Read(const v8::Arguments& args);
 v8::Handle<v8::Value> Load(const v8::Arguments& args);
 v8::Handle<v8::Value> Quit(const v8::Arguments& args);
 v8::Handle<v8::Value> Version(const v8::Arguments& args);
+v8::Handle<v8::Value> Int8Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Uint8Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Int16Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Uint16Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Int32Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Uint32Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Float32Array(const v8::Arguments& args);
+v8::Handle<v8::Value> PixelArray(const v8::Arguments& args);
 v8::Handle<v8::String> ReadFile(const char* name);
 void ReportException(v8::TryCatch* handler);
 
@@ -335,6 +343,25 @@ v8::Persistent<v8::Context> CreateShellContext() {
   global->Set(v8::String::New("quit"), v8::FunctionTemplate::New(Quit));
   // Bind the 'version' function
   global->Set(v8::String::New("version"), v8::FunctionTemplate::New(Version));
+
+  // Bind the handlers for external arrays.
+  global->Set(v8::String::New("Int8Array"),
+              v8::FunctionTemplate::New(Int8Array));
+  global->Set(v8::String::New("Uint8Array"),
+              v8::FunctionTemplate::New(Uint8Array));
+  global->Set(v8::String::New("Int16Array"),
+              v8::FunctionTemplate::New(Int16Array));
+  global->Set(v8::String::New("Uint16Array"),
+              v8::FunctionTemplate::New(Uint16Array));
+  global->Set(v8::String::New("Int32Array"),
+              v8::FunctionTemplate::New(Int32Array));
+  global->Set(v8::String::New("Uint32Array"),
+              v8::FunctionTemplate::New(Uint32Array));
+  global->Set(v8::String::New("Float32Array"),
+              v8::FunctionTemplate::New(Float32Array));
+  global->Set(v8::String::New("PixelArray"),
+              v8::FunctionTemplate::New(PixelArray));
+
   return v8::Context::New(NULL, global);
 }
 
@@ -415,6 +442,74 @@ v8::Handle<v8::Value> Quit(const v8::Arguments& args) {
 
 v8::Handle<v8::Value> Version(const v8::Arguments& args) {
   return v8::String::New(v8::V8::GetVersion());
+}
+
+
+void ExternalArrayWeakCallback(v8::Persistent<v8::Value> object, void* data) {
+  free(data);
+  object.Dispose();
+}
+
+
+v8::Handle<v8::Value> CreateExternalArray(const v8::Arguments& args,
+                                          v8::ExternalArrayType type,
+                                          int element_size) {
+  if (args.Length() != 1) {
+    return v8::ThrowException(
+        v8::String::New("Array constructor needs one parameter."));
+  }
+  int length = args[0]->Int32Value();
+  void* data = malloc(length * element_size);
+  memset(data, 0, length * element_size);
+  v8::Handle<v8::Object> array = v8::Object::New();
+  v8::Persistent<v8::Object> persistent_array =
+      v8::Persistent<v8::Object>::New(array);
+  persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
+  array->SetIndexedPropertiesToExternalArrayData(data, type, length);
+  return array;
+}
+
+
+v8::Handle<v8::Value> Int8Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalByteArray, sizeof(int8_t));
+}
+
+
+v8::Handle<v8::Value> Uint8Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalUnsignedByteArray,
+                             sizeof(uint8_t));
+}
+
+
+v8::Handle<v8::Value> Int16Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalShortArray, sizeof(int16_t));
+}
+
+
+v8::Handle<v8::Value> Uint16Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalUnsignedShortArray,
+                             sizeof(uint16_t));
+}
+
+v8::Handle<v8::Value> Int32Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalIntArray, sizeof(int32_t));
+}
+
+
+v8::Handle<v8::Value> Uint32Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalUnsignedIntArray,
+                             sizeof(uint32_t));
+}
+
+
+v8::Handle<v8::Value> Float32Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalFloatArray,
+                             sizeof(float));  // NOLINT
+}
+
+
+v8::Handle<v8::Value> PixelArray(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalPixelArray, sizeof(uint8_t));
 }
 
 

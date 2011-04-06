@@ -749,12 +749,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
   // Optionally save all double registers.
   if (save_doubles) {
-    sub(sp, sp, Operand(DwVfpRegister::kNumRegisters * kDoubleSize));
-    const int offset = -2 * kPointerSize;
-    for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
-      DwVfpRegister reg = DwVfpRegister::from_code(i);
-      vstr(reg, fp, offset - ((i + 1) * kDoubleSize));
-    }
+    DwVfpRegister first = d0;
+    DwVfpRegister last =
+        DwVfpRegister::from_code(DwVfpRegister::kNumRegisters - 1);
+    vstm(db_w, sp, first, last);
     // Note that d0 will be accessible at
     //   fp - 2 * kPointerSize - DwVfpRegister::kNumRegisters * kDoubleSize,
     // since the sp slot and code slot were pushed after the fp.
@@ -811,11 +809,13 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     Register argument_count) {
   // Optionally restore all double registers.
   if (save_doubles) {
-    for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
-      DwVfpRegister reg = DwVfpRegister::from_code(i);
-      const int offset = -2 * kPointerSize;
-      vldr(reg, fp, offset - ((i + 1) * kDoubleSize));
-    }
+    // Calculate the stack location of the saved doubles and restore them.
+    const int offset = 2 * kPointerSize;
+    sub(r3, fp, Operand(offset + DwVfpRegister::kNumRegisters * kDoubleSize));
+    DwVfpRegister first = d0;
+    DwVfpRegister last =
+        DwVfpRegister::from_code(DwVfpRegister::kNumRegisters - 1);
+    vldm(ia, r3, first, last);
   }
 
   // Clear top frame.

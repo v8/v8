@@ -1224,7 +1224,13 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
 
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   BuiltinFunctionId op = instr->op();
-  if (op == kMathLog || op == kMathSin || op == kMathCos) {
+  if (op == kMathLog) {
+    ASSERT(instr->representation().IsDouble());
+    ASSERT(instr->value()->representation().IsDouble());
+    LOperand* input = UseRegisterAtStart(instr->value());
+    LUnaryMathOperation* result = new LUnaryMathOperation(input);
+    return DefineSameAsFirst(result);
+  } else if (op == kMathSin || op == kMathCos) {
     LOperand* input = UseFixedDouble(instr->value(), xmm1);
     LUnaryMathOperation* result = new LUnaryMathOperation(input);
     return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
@@ -1761,9 +1767,20 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
-  LStoreGlobal* result = new LStoreGlobal(UseRegisterAtStart(instr->value()));
+LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
+  LStoreGlobalCell* result =
+      new LStoreGlobalCell(UseRegisterAtStart(instr->value()));
   return instr->check_hole_value() ? AssignEnvironment(result) : result;
+}
+
+
+LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
+  LOperand* context = UseFixed(instr->context(), esi);
+  LOperand* global_object = UseFixed(instr->global_object(), edx);
+  LOperand* value = UseFixed(instr->value(), eax);
+  LStoreGlobalGeneric* result =
+      new LStoreGlobalGeneric(context, global_object, value);
+  return MarkAsCall(result, instr);
 }
 
 
@@ -2117,7 +2134,6 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
       env->Push(value);
     }
   }
-  ASSERT(env->length() == instr->environment_length());
 
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.

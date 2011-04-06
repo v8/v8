@@ -1613,10 +1613,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LOperand* value = UseRegister(instr->value());
       bool needs_check = !instr->value()->type().IsSmi();
       if (needs_check) {
-        LOperand* xmm_temp =
-            (instr->CanTruncateToInt32() && CpuFeatures::IsSupported(SSE3))
-            ? NULL
-            : FixedTemp(xmm1);
+        LOperand* xmm_temp = instr->CanTruncateToInt32() ? NULL
+                                                         : FixedTemp(xmm1);
         LTaggedToI* res = new LTaggedToI(value, xmm_temp);
         return AssignEnvironment(DefineSameAsFirst(res));
       } else {
@@ -1732,10 +1730,18 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
-  LStoreGlobal* result = new LStoreGlobal(UseRegister(instr->value()),
-                                          TempRegister());
+LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
+  LStoreGlobalCell* result =
+      new LStoreGlobalCell(UseRegister(instr->value()), TempRegister());
   return instr->check_hole_value() ? AssignEnvironment(result) : result;
+}
+
+
+LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
+  LOperand* global_object = UseFixed(instr->global_object(), rdx);
+  LOperand* value = UseFixed(instr->value(), rax);
+  LStoreGlobalGeneric* result =  new LStoreGlobalGeneric(global_object, value);
+  return MarkAsCall(result, instr);
 }
 
 
@@ -1883,7 +1889,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
       array_type == kExternalFloatArray;
   LOperand* val = val_is_temp_register
       ? UseTempRegister(instr->value())
-      : UseRegister(instr->key());
+      : UseRegister(instr->value());
   LOperand* key = UseRegister(instr->key());
 
   return new LStoreKeyedSpecializedArrayElement(external_pointer,
@@ -2064,7 +2070,6 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
       env->Push(value);
     }
   }
-  ASSERT(env->length() == instr->environment_length());
 
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -39,7 +39,8 @@ using namespace v8::internal;
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 typedef Object* (*F2)(int x, int y, int p2, int p3, int p4);
-typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
+typedef Object* (*F3)(void* p0, int p1, int p2, int p3, int p4);
+typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
 
 
 static v8::Persistent<v8::Context> env;
@@ -606,6 +607,342 @@ TEST(7) {
   TestRoundingMode(u32_f64, RN, (kMaxUInt + 0.49), kMaxUInt);
   TestRoundingMode(u32_f64, RN, (kMaxUInt + 0.5), kMaxUInt, true);
   TestRoundingMode(u32_f64, RN, (kMaxUInt + 1.0), kMaxUInt, true);
+}
+
+TEST(8) {
+  // Test VFP multi load/store with ia_w.
+  InitializeVM();
+  v8::HandleScope scope;
+
+  typedef struct {
+    double a;
+    double b;
+    double c;
+    double d;
+    double e;
+    double f;
+    double g;
+    double h;
+  } D;
+  D d;
+
+  typedef struct {
+    float a;
+    float b;
+    float c;
+    float d;
+    float e;
+    float f;
+    float g;
+    float h;
+  } F;
+  F f;
+
+  // Create a function that uses vldm/vstm to move some double and
+  // single precision values around in memory.
+  Assembler assm(Isolate::Current(), NULL, 0);
+
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+
+    __ mov(ip, Operand(sp));
+    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ sub(fp, ip, Operand(4));
+
+    __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+    __ vldm(ia_w, r4, d0, d3);
+    __ vldm(ia_w, r4, d4, d7);
+
+    __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+    __ vstm(ia_w, r4, d6, d7);
+    __ vstm(ia_w, r4, d0, d5);
+
+    __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+    __ vldm(ia_w, r4, s0, s3);
+    __ vldm(ia_w, r4, s4, s7);
+
+    __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+    __ vstm(ia_w, r4, s6, s7);
+    __ vstm(ia_w, r4, s0, s5);
+
+    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Object* code = HEAP->CreateCode(
+        desc,
+        Code::ComputeFlags(Code::STUB),
+        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+    CHECK(code->IsCode());
+#ifdef DEBUG
+    Code::cast(code)->Print();
+#endif
+    F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+    d.a = 1.1;
+    d.b = 2.2;
+    d.c = 3.3;
+    d.d = 4.4;
+    d.e = 5.5;
+    d.f = 6.6;
+    d.g = 7.7;
+    d.h = 8.8;
+
+    f.a = 1.0;
+    f.b = 2.0;
+    f.c = 3.0;
+    f.d = 4.0;
+    f.e = 5.0;
+    f.f = 6.0;
+    f.g = 7.0;
+    f.h = 8.0;
+
+    Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+    USE(dummy);
+
+    CHECK_EQ(7.7, d.a);
+    CHECK_EQ(8.8, d.b);
+    CHECK_EQ(1.1, d.c);
+    CHECK_EQ(2.2, d.d);
+    CHECK_EQ(3.3, d.e);
+    CHECK_EQ(4.4, d.f);
+    CHECK_EQ(5.5, d.g);
+    CHECK_EQ(6.6, d.h);
+
+    CHECK_EQ(7.0, f.a);
+    CHECK_EQ(8.0, f.b);
+    CHECK_EQ(1.0, f.c);
+    CHECK_EQ(2.0, f.d);
+    CHECK_EQ(3.0, f.e);
+    CHECK_EQ(4.0, f.f);
+    CHECK_EQ(5.0, f.g);
+    CHECK_EQ(6.0, f.h);
+  }
+}
+
+
+TEST(9) {
+  // Test VFP multi load/store with ia.
+  InitializeVM();
+  v8::HandleScope scope;
+
+  typedef struct {
+    double a;
+    double b;
+    double c;
+    double d;
+    double e;
+    double f;
+    double g;
+    double h;
+  } D;
+  D d;
+
+  typedef struct {
+    float a;
+    float b;
+    float c;
+    float d;
+    float e;
+    float f;
+    float g;
+    float h;
+  } F;
+  F f;
+
+  // Create a function that uses vldm/vstm to move some double and
+  // single precision values around in memory.
+  Assembler assm(Isolate::Current(), NULL, 0);
+
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+
+    __ mov(ip, Operand(sp));
+    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ sub(fp, ip, Operand(4));
+
+    __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+    __ vldm(ia, r4, d0, d3);
+    __ add(r4, r4, Operand(4 * 8));
+    __ vldm(ia, r4, d4, d7);
+
+    __ add(r4, r0, Operand(OFFSET_OF(D, a)));
+    __ vstm(ia, r4, d6, d7);
+    __ add(r4, r4, Operand(2 * 8));
+    __ vstm(ia, r4, d0, d5);
+
+    __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+    __ vldm(ia, r4, s0, s3);
+    __ add(r4, r4, Operand(4 * 4));
+    __ vldm(ia, r4, s4, s7);
+
+    __ add(r4, r1, Operand(OFFSET_OF(F, a)));
+    __ vstm(ia, r4, s6, s7);
+    __ add(r4, r4, Operand(2 * 4));
+    __ vstm(ia, r4, s0, s5);
+
+    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Object* code = HEAP->CreateCode(
+        desc,
+        Code::ComputeFlags(Code::STUB),
+        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+    CHECK(code->IsCode());
+#ifdef DEBUG
+    Code::cast(code)->Print();
+#endif
+    F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+    d.a = 1.1;
+    d.b = 2.2;
+    d.c = 3.3;
+    d.d = 4.4;
+    d.e = 5.5;
+    d.f = 6.6;
+    d.g = 7.7;
+    d.h = 8.8;
+
+    f.a = 1.0;
+    f.b = 2.0;
+    f.c = 3.0;
+    f.d = 4.0;
+    f.e = 5.0;
+    f.f = 6.0;
+    f.g = 7.0;
+    f.h = 8.0;
+
+    Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+    USE(dummy);
+
+    CHECK_EQ(7.7, d.a);
+    CHECK_EQ(8.8, d.b);
+    CHECK_EQ(1.1, d.c);
+    CHECK_EQ(2.2, d.d);
+    CHECK_EQ(3.3, d.e);
+    CHECK_EQ(4.4, d.f);
+    CHECK_EQ(5.5, d.g);
+    CHECK_EQ(6.6, d.h);
+
+    CHECK_EQ(7.0, f.a);
+    CHECK_EQ(8.0, f.b);
+    CHECK_EQ(1.0, f.c);
+    CHECK_EQ(2.0, f.d);
+    CHECK_EQ(3.0, f.e);
+    CHECK_EQ(4.0, f.f);
+    CHECK_EQ(5.0, f.g);
+    CHECK_EQ(6.0, f.h);
+  }
+}
+
+
+TEST(10) {
+  // Test VFP multi load/store with db_w.
+  InitializeVM();
+  v8::HandleScope scope;
+
+  typedef struct {
+    double a;
+    double b;
+    double c;
+    double d;
+    double e;
+    double f;
+    double g;
+    double h;
+  } D;
+  D d;
+
+  typedef struct {
+    float a;
+    float b;
+    float c;
+    float d;
+    float e;
+    float f;
+    float g;
+    float h;
+  } F;
+  F f;
+
+  // Create a function that uses vldm/vstm to move some double and
+  // single precision values around in memory.
+  Assembler assm(Isolate::Current(), NULL, 0);
+
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+
+    __ mov(ip, Operand(sp));
+    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ sub(fp, ip, Operand(4));
+
+    __ add(r4, r0, Operand(OFFSET_OF(D, h) + 8));
+    __ vldm(db_w, r4, d4, d7);
+    __ vldm(db_w, r4, d0, d3);
+
+    __ add(r4, r0, Operand(OFFSET_OF(D, h) + 8));
+    __ vstm(db_w, r4, d0, d5);
+    __ vstm(db_w, r4, d6, d7);
+
+    __ add(r4, r1, Operand(OFFSET_OF(F, h) + 4));
+    __ vldm(db_w, r4, s4, s7);
+    __ vldm(db_w, r4, s0, s3);
+
+    __ add(r4, r1, Operand(OFFSET_OF(F, h) + 4));
+    __ vstm(db_w, r4, s0, s5);
+    __ vstm(db_w, r4, s6, s7);
+
+    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Object* code = HEAP->CreateCode(
+        desc,
+        Code::ComputeFlags(Code::STUB),
+        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+    CHECK(code->IsCode());
+#ifdef DEBUG
+    Code::cast(code)->Print();
+#endif
+    F4 fn = FUNCTION_CAST<F4>(Code::cast(code)->entry());
+    d.a = 1.1;
+    d.b = 2.2;
+    d.c = 3.3;
+    d.d = 4.4;
+    d.e = 5.5;
+    d.f = 6.6;
+    d.g = 7.7;
+    d.h = 8.8;
+
+    f.a = 1.0;
+    f.b = 2.0;
+    f.c = 3.0;
+    f.d = 4.0;
+    f.e = 5.0;
+    f.f = 6.0;
+    f.g = 7.0;
+    f.h = 8.0;
+
+    Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+    USE(dummy);
+
+    CHECK_EQ(7.7, d.a);
+    CHECK_EQ(8.8, d.b);
+    CHECK_EQ(1.1, d.c);
+    CHECK_EQ(2.2, d.d);
+    CHECK_EQ(3.3, d.e);
+    CHECK_EQ(4.4, d.f);
+    CHECK_EQ(5.5, d.g);
+    CHECK_EQ(6.6, d.h);
+
+    CHECK_EQ(7.0, f.a);
+    CHECK_EQ(8.0, f.b);
+    CHECK_EQ(1.0, f.c);
+    CHECK_EQ(2.0, f.d);
+    CHECK_EQ(3.0, f.e);
+    CHECK_EQ(4.0, f.f);
+    CHECK_EQ(5.0, f.g);
+    CHECK_EQ(6.0, f.h);
+  }
 }
 
 #undef __

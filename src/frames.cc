@@ -39,9 +39,6 @@
 namespace v8 {
 namespace internal {
 
-
-int SafeStackFrameIterator::active_count_ = 0;
-
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
 class StackHandlerIterator BASE_EMBEDDED {
@@ -73,23 +70,34 @@ class StackHandlerIterator BASE_EMBEDDED {
 
 #define INITIALIZE_SINGLETON(type, field) field##_(this),
 StackFrameIterator::StackFrameIterator()
-    : STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
+    : isolate_(Isolate::Current()),
+      STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
       frame_(NULL), handler_(NULL),
-      thread_(Isolate::Current()->thread_local_top()),
+      thread_(isolate_->thread_local_top()),
       fp_(NULL), sp_(NULL), advance_(&StackFrameIterator::AdvanceWithHandler) {
   Reset();
 }
-StackFrameIterator::StackFrameIterator(ThreadLocalTop* t)
-    : STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
+StackFrameIterator::StackFrameIterator(Isolate* isolate)
+    : isolate_(isolate),
+      STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
+      frame_(NULL), handler_(NULL),
+      thread_(isolate_->thread_local_top()),
+      fp_(NULL), sp_(NULL), advance_(&StackFrameIterator::AdvanceWithHandler) {
+  Reset();
+}
+StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t)
+    : isolate_(isolate),
+      STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
       frame_(NULL), handler_(NULL), thread_(t),
       fp_(NULL), sp_(NULL), advance_(&StackFrameIterator::AdvanceWithHandler) {
   Reset();
 }
 StackFrameIterator::StackFrameIterator(Isolate* isolate,
                                        bool use_top, Address fp, Address sp)
-    : STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
+    : isolate_(isolate),
+      STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
       frame_(NULL), handler_(NULL),
-      thread_(use_top ? isolate->thread_local_top() : NULL),
+      thread_(use_top ? isolate_->thread_local_top() : NULL),
       fp_(use_top ? NULL : fp), sp_(sp),
       advance_(use_top ? &StackFrameIterator::AdvanceWithHandler :
                &StackFrameIterator::AdvanceWithoutHandler) {
@@ -147,7 +155,7 @@ void StackFrameIterator::Reset() {
     state.sp = sp_;
     state.pc_address =
         reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp_));
-    type = StackFrame::ComputeType(&state);
+    type = StackFrame::ComputeType(isolate(), &state);
   }
   if (SingletonFor(type) == NULL) return;
   frame_ = SingletonFor(type, &state);
@@ -188,6 +196,12 @@ StackTraceFrameIterator::StackTraceFrameIterator() {
 }
 
 
+StackTraceFrameIterator::StackTraceFrameIterator(Isolate* isolate)
+    : JavaScriptFrameIterator(isolate) {
+  if (!done() && !IsValidFrame()) Advance();
+}
+
+
 void StackTraceFrameIterator::Advance() {
   while (true) {
     JavaScriptFrameIterator::Advance();
@@ -221,16 +235,34 @@ bool SafeStackFrameIterator::ExitFrameValidator::IsValidFP(Address fp) {
 }
 
 
+SafeStackFrameIterator::ActiveCountMaintainer::ActiveCountMaintainer(
+    Isolate* isolate)
+    : isolate_(isolate) {
+  isolate_->set_safe_stack_iterator_counter(
+      isolate_->safe_stack_iterator_counter() + 1);
+}
+
+
+SafeStackFrameIterator::ActiveCountMaintainer::~ActiveCountMaintainer() {
+  isolate_->set_safe_stack_iterator_counter(
+      isolate_->safe_stack_iterator_counter() - 1);
+}
+
+
 SafeStackFrameIterator::SafeStackFrameIterator(
     Isolate* isolate,
     Address fp, Address sp, Address low_bound, Address high_bound) :
-    maintainer_(),
+    maintainer_(isolate),
     stack_validator_(low_bound, high_bound),
     is_valid_top_(IsValidTop(isolate, low_bound, high_bound)),
     is_valid_fp_(IsWithinBounds(low_bound, high_bound, fp)),
     is_working_iterator_(is_valid_top_ || is_valid_fp_),
     iteration_done_(!is_working_iterator_),
     iterator_(isolate, is_valid_top_, is_valid_fp_ ? fp : NULL, sp) {
+}
+
+bool SafeStackFrameIterator::is_active(Isolate* isolate) {
+  return isolate->safe_stack_iterator_counter() > 0;
 }
 
 
@@ -333,10 +365,10 @@ void SafeStackTraceFrameIterator::Advance() {
 #endif
 
 
-Code* StackFrame::GetSafepointData(Address pc,
+Code* StackFrame::GetSafepointData(Isolate* isolate,
+                                   Address pc,
                                    SafepointEntry* safepoint_entry,
                                    unsigned* stack_slots) {
-  Isolate* isolate = Isolate::Current();
   PcToCodeCache::PcToCodeCacheEntry* entry =
       isolate->pc_to_code_cache()->GetCacheEntry(pc);
   SafepointEntry cached_safepoint_entry = entry->safepoint_entry;
@@ -377,7 +409,7 @@ void StackFrame::IteratePc(ObjectVisitor* v,
 }
 
 
-StackFrame::Type StackFrame::ComputeType(State* state) {
+StackFrame::Type StackFrame::ComputeType(Isolate* isolate, State* state) {
   ASSERT(state->fp != NULL);
   if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
     return ARGUMENTS_ADAPTOR;
@@ -392,9 +424,8 @@ StackFrame::Type StackFrame::ComputeType(State* state) {
     // frames as normal JavaScript frames to avoid having to look
     // into the heap to determine the state. This is safe as long
     // as nobody tries to GC...
-    if (SafeStackFrameIterator::is_active()) return JAVA_SCRIPT;
-    Code::Kind kind = GetContainingCode(Isolate::Current(),
-                                        *(state->pc_address))->kind();
+    if (SafeStackFrameIterator::is_active(isolate)) return JAVA_SCRIPT;
+    Code::Kind kind = GetContainingCode(isolate, *(state->pc_address))->kind();
     ASSERT(kind == Code::FUNCTION || kind == Code::OPTIMIZED_FUNCTION);
     return (kind == Code::OPTIMIZED_FUNCTION) ? OPTIMIZED : JAVA_SCRIPT;
   }
@@ -405,7 +436,7 @@ StackFrame::Type StackFrame::ComputeType(State* state) {
 
 StackFrame::Type StackFrame::GetCallerState(State* state) const {
   ComputeCallerState(state);
-  return ComputeType(state);
+  return ComputeType(isolate(), state);
 }
 
 
@@ -465,7 +496,7 @@ void ExitFrame::SetCallerFp(Address caller_fp) {
 void ExitFrame::Iterate(ObjectVisitor* v) const {
   // The arguments are traversed as part of the expression stack of
   // the calling frame.
-  IteratePc(v, pc_address(), LookupCode(Isolate::Current()));
+  IteratePc(v, pc_address(), LookupCode());
   v->VisitPointer(&code_slot());
 }
 
@@ -539,13 +570,13 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
 
   // Make sure that we're not doing "safe" stack frame iteration. We cannot
   // possibly find pointers in optimized frames in that state.
-  ASSERT(!SafeStackFrameIterator::is_active());
+  ASSERT(!SafeStackFrameIterator::is_active(isolate()));
 
   // Compute the safepoint information.
   unsigned stack_slots = 0;
   SafepointEntry safepoint_entry;
   Code* code = StackFrame::GetSafepointData(
-      pc(), &safepoint_entry, &stack_slots);
+      isolate(), pc(), &safepoint_entry, &stack_slots);
   unsigned slot_space = stack_slots * kPointerSize;
 
   // Visit the outgoing parameters. This is usually dealt with by the
@@ -640,8 +671,8 @@ Code* JavaScriptFrame::unchecked_code() const {
 
 Address JavaScriptFrame::GetCallerStackPointer() const {
   int arguments;
-  if (SafeStackFrameIterator::is_active() ||
-      HEAP->gc_state() != Heap::NOT_IN_GC) {
+  if (SafeStackFrameIterator::is_active(isolate()) ||
+      isolate()->heap()->gc_state() != Heap::NOT_IN_GC) {
     // If the we are currently iterating the safe stack the
     // arguments for frames are traversed as if they were
     // expression stack elements of the calling frame. The reason for
@@ -670,7 +701,7 @@ void JavaScriptFrame::GetFunctions(List<JSFunction*>* functions) {
 
 void JavaScriptFrame::Summarize(List<FrameSummary>* functions) {
   ASSERT(functions->length() == 0);
-  Code* code_pointer = LookupCode(Isolate::Current());
+  Code* code_pointer = LookupCode();
   int offset = static_cast<int>(pc() - code_pointer->address());
   FrameSummary summary(receiver(),
                        JSFunction::cast(function()),
@@ -789,7 +820,7 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
   // back to a slow search in this case to find the original optimized
   // code object.
   if (!code->contains(pc())) {
-    code = Isolate::Current()->pc_to_code_cache()->GcSafeFindCodeForPc(pc());
+    code = isolate()->pc_to_code_cache()->GcSafeFindCodeForPc(pc());
   }
   ASSERT(code != NULL);
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
@@ -850,7 +881,7 @@ Address InternalFrame::GetCallerStackPointer() const {
 
 
 Code* ArgumentsAdaptorFrame::unchecked_code() const {
-  return Isolate::Current()->builtins()->builtin(
+  return isolate()->builtins()->builtin(
       Builtins::kArgumentsAdaptorTrampoline);
 }
 
@@ -1045,14 +1076,14 @@ void EntryFrame::Iterate(ObjectVisitor* v) const {
   ASSERT(!it.done());
   StackHandler* handler = it.handler();
   ASSERT(handler->is_entry());
-  handler->Iterate(v, LookupCode(Isolate::Current()));
+  handler->Iterate(v, LookupCode());
 #ifdef DEBUG
   // Make sure that the entry frame does not contain more than one
   // stack handler.
   it.Advance();
   ASSERT(it.done());
 #endif
-  IteratePc(v, pc_address(), LookupCode(Isolate::Current()));
+  IteratePc(v, pc_address(), LookupCode());
 }
 
 
@@ -1069,7 +1100,7 @@ void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
     v->VisitPointers(base, reinterpret_cast<Object**>(address));
     base = reinterpret_cast<Object**>(address + StackHandlerConstants::kSize);
     // Traverse the pointers in the handler itself.
-    handler->Iterate(v, LookupCode(Isolate::Current()));
+    handler->Iterate(v, LookupCode());
   }
   v->VisitPointers(base, limit);
 }
@@ -1077,7 +1108,7 @@ void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
 
 void JavaScriptFrame::Iterate(ObjectVisitor* v) const {
   IterateExpressions(v);
-  IteratePc(v, pc_address(), LookupCode(Isolate::Current()));
+  IteratePc(v, pc_address(), LookupCode());
   IterateArguments(v);
 }
 
@@ -1096,7 +1127,7 @@ void InternalFrame::Iterate(ObjectVisitor* v) const {
   // Internal frames only have object pointers on the expression stack
   // as they never have any arguments.
   IterateExpressions(v);
-  IteratePc(v, pc_address(), LookupCode(Isolate::Current()));
+  IteratePc(v, pc_address(), LookupCode());
 }
 
 

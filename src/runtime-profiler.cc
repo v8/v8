@@ -258,7 +258,7 @@ void RuntimeProfiler::OptimizeNow() {
   JSFunction* samples[kSamplerFrameCount];
   int sample_count = 0;
   int frame_count = 0;
-  for (JavaScriptFrameIterator it;
+  for (JavaScriptFrameIterator it(isolate_);
        frame_count++ < kSamplerFrameCount && !it.done();
        it.Advance()) {
     JavaScriptFrame* frame = it.frame();

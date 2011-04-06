@@ -148,7 +148,8 @@ class LChunkBuilder;
   V(Simulate)                                  \
   V(StackCheck)                                \
   V(StoreContextSlot)                          \
-  V(StoreGlobal)                               \
+  V(StoreGlobalCell)                           \
+  V(StoreGlobalGeneric)                        \
   V(StoreKeyedFastElement)                     \
   V(StoreKeyedSpecializedArrayElement)         \
   V(StoreKeyedGeneric)                         \
@@ -932,7 +933,7 @@ class HChange: public HUnaryOperation {
           Representation from,
           Representation to,
           bool is_truncating)
-      : HUnaryOperation(value), from_(from), to_(to) {
+      : HUnaryOperation(value), from_(from) {
     ASSERT(!from.IsNone() && !to.IsNone());
     ASSERT(!from.Equals(to));
     set_representation(to);
@@ -947,7 +948,7 @@ class HChange: public HUnaryOperation {
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
   Representation from() const { return from_; }
-  Representation to() const { return to_; }
+  Representation to() const { return representation(); }
   virtual Representation RequiredInputRepresentation(int index) const {
     return from_;
   }
@@ -969,16 +970,14 @@ class HChange: public HUnaryOperation {
 
  private:
   Representation from_;
-  Representation to_;
 };
 
 
 class HSimulate: public HInstruction {
  public:
-  HSimulate(int ast_id, int pop_count, int environment_length)
+  HSimulate(int ast_id, int pop_count)
       : ast_id_(ast_id),
         pop_count_(pop_count),
-        environment_length_(environment_length),
         values_(2),
         assigned_indexes_(2) {}
   virtual ~HSimulate() {}
@@ -992,7 +991,6 @@ class HSimulate: public HInstruction {
     ast_id_ = id;
   }
 
-  int environment_length() const { return environment_length_; }
   int pop_count() const { return pop_count_; }
   const ZoneList<HValue*>* values() const { return &values_; }
   int GetAssignedIndexAt(int index) const {
@@ -1038,7 +1036,6 @@ class HSimulate: public HInstruction {
   }
   int ast_id_;
   int pop_count_;
-  int environment_length_;
   ZoneList<HValue*> values_;
   ZoneList<int> assigned_indexes_;
 };
@@ -2879,11 +2876,11 @@ class HLoadGlobalGeneric: public HBinaryOperation {
 };
 
 
-class HStoreGlobal: public HUnaryOperation {
+class HStoreGlobalCell: public HUnaryOperation {
  public:
-  HStoreGlobal(HValue* value,
-               Handle<JSGlobalPropertyCell> cell,
-               bool check_hole_value)
+  HStoreGlobalCell(HValue* value,
+                   Handle<JSGlobalPropertyCell> cell,
+                   bool check_hole_value)
       : HUnaryOperation(value),
         cell_(cell),
         check_hole_value_(check_hole_value) {
@@ -2898,11 +2895,43 @@ class HStoreGlobal: public HUnaryOperation {
   }
   virtual void PrintDataTo(StringStream* stream);
 
-  DECLARE_CONCRETE_INSTRUCTION(StoreGlobal, "store_global")
+  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store_global_cell")
 
  private:
   Handle<JSGlobalPropertyCell> cell_;
   bool check_hole_value_;
+};
+
+
+class HStoreGlobalGeneric: public HTemplateInstruction<3> {
+ public:
+  HStoreGlobalGeneric(HValue* context,
+                      HValue* global_object,
+                      Handle<Object> name,
+                      HValue* value)
+      : name_(name) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, global_object);
+    SetOperandAt(2, value);
+    set_representation(Representation::Tagged());
+    SetAllSideEffects();
+  }
+
+  HValue* context() { return OperandAt(0); }
+  HValue* global_object() { return OperandAt(1); }
+  Handle<Object> name() const { return name_; }
+  HValue* value() { return OperandAt(2); }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreGlobalGeneric, "store_global_generic")
+
+ private:
+  Handle<Object> name_;
 };
 
 

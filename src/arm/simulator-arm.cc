@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1504,36 +1504,34 @@ static int count_bits(int bit_vector) {
 }
 
 
-// Addressing Mode 4 - Load and Store Multiple
-void Simulator::HandleRList(Instruction* instr, bool load) {
+void Simulator::ProcessPUW(Instruction* instr,
+                           int num_regs,
+                           int reg_size,
+                           intptr_t* start_address,
+                           intptr_t* end_address) {
   int rn = instr->RnValue();
   int32_t rn_val = get_register(rn);
-  int rlist = instr->RlistValue();
-  int num_regs = count_bits(rlist);
-
-  intptr_t start_address = 0;
-  intptr_t end_address = 0;
   switch (instr->PUField()) {
     case da_x: {
       UNIMPLEMENTED();
       break;
     }
     case ia_x: {
-      start_address = rn_val;
-      end_address = rn_val + (num_regs * 4) - 4;
-      rn_val = rn_val + (num_regs * 4);
+      *start_address = rn_val;
+      *end_address = rn_val + (num_regs * reg_size) - reg_size;
+      rn_val = rn_val + (num_regs * reg_size);
       break;
     }
     case db_x: {
-      start_address = rn_val - (num_regs * 4);
-      end_address = rn_val - 4;
-      rn_val = start_address;
+      *start_address = rn_val - (num_regs * reg_size);
+      *end_address = rn_val - reg_size;
+      rn_val = *start_address;
       break;
     }
     case ib_x: {
-      start_address = rn_val + 4;
-      end_address = rn_val + (num_regs * 4);
-      rn_val = end_address;
+      *start_address = rn_val + reg_size;
+      *end_address = rn_val + (num_regs * reg_size);
+      rn_val = *end_address;
       break;
     }
     default: {
@@ -1544,6 +1542,17 @@ void Simulator::HandleRList(Instruction* instr, bool load) {
   if (instr->HasW()) {
     set_register(rn, rn_val);
   }
+}
+
+// Addressing Mode 4 - Load and Store Multiple
+void Simulator::HandleRList(Instruction* instr, bool load) {
+  int rlist = instr->RlistValue();
+  int num_regs = count_bits(rlist);
+
+  intptr_t start_address = 0;
+  intptr_t end_address = 0;
+  ProcessPUW(instr, num_regs, kPointerSize, &start_address, &end_address);
+
   intptr_t* address = reinterpret_cast<intptr_t*>(start_address);
   int reg = 0;
   while (rlist != 0) {
@@ -1559,6 +1568,57 @@ void Simulator::HandleRList(Instruction* instr, bool load) {
     rlist >>= 1;
   }
   ASSERT(end_address == ((intptr_t)address) - 4);
+}
+
+
+// Addressing Mode 6 - Load and Store Multiple Coprocessor registers.
+void Simulator::HandleVList(Instruction* instr) {
+  VFPRegPrecision precision =
+      (instr->SzValue() == 0) ? kSinglePrecision : kDoublePrecision;
+  int operand_size = (precision == kSinglePrecision) ? 4 : 8;
+
+  bool load = (instr->VLValue() == 0x1);
+
+  int vd;
+  int num_regs;
+  vd = instr->VFPDRegValue(precision);
+  if (precision == kSinglePrecision) {
+    num_regs = instr->Immed8Value();
+  } else {
+    num_regs = instr->Immed8Value() / 2;
+  }
+
+  intptr_t start_address = 0;
+  intptr_t end_address = 0;
+  ProcessPUW(instr, num_regs, operand_size, &start_address, &end_address);
+
+  intptr_t* address = reinterpret_cast<intptr_t*>(start_address);
+  for (int reg = vd; reg < vd + num_regs; reg++) {
+    if (precision == kSinglePrecision) {
+      if (load) {
+        set_s_register_from_sinteger(
+            reg, ReadW(reinterpret_cast<int32_t>(address), instr));
+      } else {
+        WriteW(reinterpret_cast<int32_t>(address),
+               get_sinteger_from_s_register(reg), instr);
+      }
+      address += 1;
+    } else {
+      if (load) {
+        set_s_register_from_sinteger(
+            2 * reg, ReadW(reinterpret_cast<int32_t>(address), instr));
+        set_s_register_from_sinteger(
+            2 * reg + 1, ReadW(reinterpret_cast<int32_t>(address + 1), instr));
+      } else {
+        WriteW(reinterpret_cast<int32_t>(address),
+               get_sinteger_from_s_register(2 * reg), instr);
+        WriteW(reinterpret_cast<int32_t>(address + 1),
+               get_sinteger_from_s_register(2 * reg + 1), instr);
+      }
+      address += 2;
+    }
+  }
+  ASSERT_EQ(((intptr_t)address) - operand_size, end_address);
 }
 
 
@@ -2945,9 +3005,17 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
         }
         break;
       }
+      case 0x4:
+      case 0x5:
+      case 0x6:
+      case 0x7:
+      case 0x9:
+      case 0xB:
+        // Load/store multiple single from memory: vldm/vstm.
+        HandleVList(instr);
+        break;
       default:
         UNIMPLEMENTED();  // Not used by V8.
-        break;
     }
   } else if (instr->CoprocessorValue() == 0xB) {
     switch (instr->OpcodeValue()) {
@@ -2994,9 +3062,14 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
         }
         break;
       }
+      case 0x4:
+      case 0x5:
+      case 0x9:
+        // Load/store multiple double from memory: vldm/vstm.
+        HandleVList(instr);
+        break;
       default:
         UNIMPLEMENTED();  // Not used by V8.
-        break;
     }
   } else {
     UNIMPLEMENTED();  // Not used by V8.

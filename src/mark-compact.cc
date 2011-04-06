@@ -890,8 +890,8 @@ class CodeMarkingVisitor : public ThreadVisitor {
   explicit CodeMarkingVisitor(MarkCompactCollector* collector)
       : collector_(collector) {}
 
-  void VisitThread(ThreadLocalTop* top) {
-    for (StackFrameIterator it(top); !it.done(); it.Advance()) {
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+    for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       collector_->MarkObject(it.frame()->unchecked_code());
     }
   }

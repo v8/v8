@@ -2055,7 +2055,7 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 }
 
 
-void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
+void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   Register value = ToRegister(instr->InputAt(0));
   Operand cell_operand = Operand::Cell(instr->hydrogen()->cell());
 
@@ -2070,6 +2070,17 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 
   // Store the value.
   __ mov(cell_operand, value);
+}
+
+
+void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
+  ASSERT(ToRegister(instr->context()).is(esi));
+  ASSERT(ToRegister(instr->global_object()).is(edx));
+  ASSERT(ToRegister(instr->value()).is(eax));
+
+  __ mov(ecx, instr->name());
+  Handle<Code> ic = isolate()->builtins()->StoreIC_Initialize();
+  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
 }
 
 
@@ -2776,10 +2787,32 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
-  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
-  TranscendentalCacheStub stub(TranscendentalCache::LOG,
-                               TranscendentalCacheStub::UNTAGGED);
-  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr, false);
+  ASSERT(instr->InputAt(0)->Equals(instr->result()));
+  XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
+  NearLabel positive, done, zero, negative;
+  __ xorpd(xmm0, xmm0);
+  __ ucomisd(input_reg, xmm0);
+  __ j(above, &positive);
+  __ j(equal, &zero);
+  ExternalReference nan = ExternalReference::address_of_nan();
+  __ movdbl(input_reg, Operand::StaticVariable(nan));
+  __ jmp(&done);
+  __ bind(&zero);
+  __ push(Immediate(0xFFF00000));
+  __ push(Immediate(0));
+  __ movdbl(input_reg, Operand(esp, 0));
+  __ add(Operand(esp), Immediate(kDoubleSize));
+  __ jmp(&done);
+  __ bind(&positive);
+  __ fldln2();
+  __ sub(Operand(esp), Immediate(kDoubleSize));
+  __ movdbl(Operand(esp, 0), input_reg);
+  __ fld_d(Operand(esp, 0));
+  __ fyl2x();
+  __ fstp_d(Operand(esp, 0));
+  __ movdbl(input_reg, Operand(esp, 0));
+  __ add(Operand(esp), Immediate(kDoubleSize));
+  __ bind(&done);
 }
 
 

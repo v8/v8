@@ -141,6 +141,8 @@ class HBasicBlock: public ZoneObject {
   bool IsInlineReturnTarget() const { return is_inline_return_target_; }
   void MarkAsInlineReturnTarget() { is_inline_return_target_ = true; }
 
+  inline Zone* zone();
+
 #ifdef DEBUG
   void Verify();
 #endif
@@ -200,6 +202,9 @@ class HLoopInformation: public ZoneObject {
 class HGraph: public ZoneObject {
  public:
   explicit HGraph(CompilationInfo* info);
+
+  Isolate* isolate() { return isolate_; }
+  Zone* zone() { return isolate_->zone(); }
 
   const ZoneList<HBasicBlock*>* blocks() const { return &blocks_; }
   const ZoneList<HPhi*>* phi_list() const { return phi_list_; }
@@ -281,8 +286,6 @@ class HGraph: public ZoneObject {
   void InitializeInferredTypes(int from_inclusive, int to_inclusive);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
 
-  Isolate* isolate() { return isolate_; }
-
   Isolate* isolate_;
   int next_block_id_;
   HBasicBlock* entry_block_;
@@ -299,6 +302,9 @@ class HGraph: public ZoneObject {
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
+
+
+Zone* HBasicBlock::zone() { return graph_->zone(); }
 
 
 class HEnvironment: public ZoneObject {
@@ -461,6 +467,8 @@ class AstContext {
   virtual ~AstContext();
 
   HGraphBuilder* owner() const { return owner_; }
+
+  inline Zone* zone();
 
   // We want to be able to assert, in a context-specific way, that the stack
   // height makes sense when the context is filled.
@@ -630,7 +638,8 @@ class HGraphBuilder: public AstVisitor {
         break_scope_(NULL),
         graph_(NULL),
         current_block_(NULL),
-        inlined_count_(0) {
+        inlined_count_(0),
+        zone_(info->isolate()->zone()) {
     // This is not initialized in the initializer list because the
     // constructor for the initial state relies on function_state_ == NULL
     // to know it's the initial state.
@@ -874,6 +883,7 @@ class HGraphBuilder: public AstVisitor {
                                 Handle<Map> receiver_map,
                                 bool smi_and_map_check);
 
+  Zone* zone() { return zone_; }
 
   // The translation state of the currently-being-translated function.
   FunctionState* function_state_;
@@ -893,11 +903,16 @@ class HGraphBuilder: public AstVisitor {
 
   int inlined_count_;
 
+  Zone* zone_;
+
   friend class FunctionState;  // Pushes and pops the state stack.
   friend class AstContext;  // Pushes and pops the AST context stack.
 
   DISALLOW_COPY_AND_ASSIGN(HGraphBuilder);
 };
+
+
+Zone* AstContext::zone() { return owner_->zone(); }
 
 
 class HValueMap: public ZoneObject {
@@ -922,7 +937,10 @@ class HValueMap: public ZoneObject {
   }
 
   HValue* Lookup(HValue* value) const;
-  HValueMap* Copy() const { return new HValueMap(this); }
+
+  HValueMap* Copy(Zone* zone) const {
+    return new(zone) HValueMap(this);
+  }
 
  private:
   // A linked list of HValue* values.  Stored in arrays.
