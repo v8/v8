@@ -7323,14 +7323,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   ASSERT(isolate->heap()->IsAllocationAllowed());
   int frames = deoptimizer->output_count();
 
+  deoptimizer->MaterializeHeapNumbers();
+  delete deoptimizer;
+
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = NULL;
-  for (int i = 0; i < frames; i++) {
-    if (i != 0) it.Advance();
-    frame = it.frame();
-    deoptimizer->InsertHeapNumberValues(frames - i - 1, frame);
-  }
-  delete deoptimizer;
+  for (int i = 0; i < frames - 1; i++) it.Advance();
+  frame = it.frame();
 
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
