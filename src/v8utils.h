@@ -120,7 +120,9 @@ inline Vector< Handle<Object> > HandleVector(v8::internal::Handle<T>* elms,
 // Memory
 
 // Copies data from |src| to |dst|.  The data spans MUST not overlap.
-inline void CopyWords(Object** dst, Object** src, int num_words) {
+template <typename T>
+inline void CopyWords(T* dst, T* src, int num_words) {
+  STATIC_ASSERT(sizeof(T) == kPointerSize);
   ASSERT(Min(dst, src) + num_words <= Max(dst, src));
   ASSERT(num_words > 0);
 

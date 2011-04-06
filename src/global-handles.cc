@@ -558,28 +558,25 @@ void GlobalHandles::Print() {
 void GlobalHandles::AddObjectGroup(Object*** handles,
                                    size_t length,
                                    v8::RetainedObjectInfo* info) {
-  ObjectGroup* new_entry = new ObjectGroup(length, info);
-  for (size_t i = 0; i < length; ++i) {
-    new_entry->objects_.Add(handles[i]);
+  if (length == 0) {
+    if (info != NULL) info->Dispose();
+    return;
   }
-  object_groups_.Add(new_entry);
+  object_groups_.Add(ObjectGroup::New(handles, length, info));
 }
 
 
-void GlobalHandles::AddImplicitReferences(HeapObject* parent,
+void GlobalHandles::AddImplicitReferences(HeapObject** parent,
                                           Object*** children,
                                           size_t length) {
-  ImplicitRefGroup* new_entry = new ImplicitRefGroup(parent, length);
-  for (size_t i = 0; i < length; ++i) {
-    new_entry->children_.Add(children[i]);
-  }
-  implicit_ref_groups_.Add(new_entry);
+  if (length == 0) return;
+  implicit_ref_groups_.Add(ImplicitRefGroup::New(parent, children, length));
 }
 
 
 void GlobalHandles::RemoveObjectGroups() {
   for (int i = 0; i < object_groups_.length(); i++) {
-    delete object_groups_.at(i);
+    object_groups_.at(i)->Dispose();
   }
   object_groups_.Clear();
 }
@@ -587,7 +584,7 @@ void GlobalHandles::RemoveObjectGroups() {
 
 void GlobalHandles::RemoveImplicitRefGroups() {
   for (int i = 0; i < implicit_ref_groups_.length(); i++) {
-    delete implicit_ref_groups_.at(i);
+    implicit_ref_groups_.at(i)->Dispose();
   }
   implicit_ref_groups_.Clear();
 }

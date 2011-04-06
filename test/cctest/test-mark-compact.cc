@@ -299,8 +299,8 @@ static void WeakPointerCallback(v8::Persistent<v8::Value> handle, void* id) {
 }
 
 TEST(ObjectGroups) {
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
   InitializeVM();
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
 
   NumberOfWeakCalls = 0;
   v8::HandleScope handle_scope;
@@ -308,9 +308,9 @@ TEST(ObjectGroups) {
   Handle<Object> g1s1 =
       global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g1s2 =
-    global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
   Handle<Object> g1c1 =
-    global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
   global_handles->MakeWeak(g1s1.location(),
                            reinterpret_cast<void*>(1234),
                            &WeakPointerCallback);
@@ -349,11 +349,11 @@ TEST(ObjectGroups) {
     Object** g2_objects[] = { g2s1.location(), g2s2.location() };
     Object** g2_children[] = { g2c1.location() };
     global_handles->AddObjectGroup(g1_objects, 2, NULL);
-    global_handles->AddImplicitReferences(HeapObject::cast(*g1s1),
-                                          g1_children, 1);
+    global_handles->AddImplicitReferences(
+        Handle<HeapObject>::cast(g1s1).location(), g1_children, 1);
     global_handles->AddObjectGroup(g2_objects, 2, NULL);
-    global_handles->AddImplicitReferences(HeapObject::cast(*g2s2),
-                                          g2_children, 1);
+    global_handles->AddImplicitReferences(
+        Handle<HeapObject>::cast(g2s2).location(), g2_children, 1);
   }
   // Do a full GC
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
@@ -377,11 +377,11 @@ TEST(ObjectGroups) {
     Object** g2_objects[] = { g2s1.location(), g2s2.location() };
     Object** g2_children[] = { g2c1.location() };
     global_handles->AddObjectGroup(g1_objects, 2, NULL);
-    global_handles->AddImplicitReferences(HeapObject::cast(*g1s1),
-                                         g1_children, 1);
+    global_handles->AddImplicitReferences(
+        Handle<HeapObject>::cast(g1s1).location(), g1_children, 1);
     global_handles->AddObjectGroup(g2_objects, 2, NULL);
-    global_handles->AddImplicitReferences(HeapObject::cast(*g2s2),
-                                         g2_children, 1);
+    global_handles->AddImplicitReferences(
+        Handle<HeapObject>::cast(g2s2).location(), g2_children, 1);
   }
 
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
@@ -399,4 +399,46 @@ TEST(ObjectGroups) {
 
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
   CHECK_EQ(7, NumberOfWeakCalls);
+}
+
+
+class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
+ public:
+  TestRetainedObjectInfo() : has_been_disposed_(false) {}
+
+  bool has_been_disposed() { return has_been_disposed_; }
+
+  virtual void Dispose() {
+    ASSERT(!has_been_disposed_);
+    has_been_disposed_ = true;
+  }
+
+  virtual bool IsEquivalent(v8::RetainedObjectInfo* other) {
+    return other == this;
+  }
+
+  virtual intptr_t GetHash() { return 0; }
+
+  virtual const char* GetLabel() { return "whatever"; }
+
+ private:
+  bool has_been_disposed_;
+};
+
+
+TEST(EmptyObjectGroups) {
+  InitializeVM();
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
+
+  v8::HandleScope handle_scope;
+
+  Handle<Object> object =
+      global_handles->Create(HEAP->AllocateFixedArray(1)->ToObjectChecked());
+
+  TestRetainedObjectInfo info;
+  global_handles->AddObjectGroup(NULL, 0, &info);
+  ASSERT(info.has_been_disposed());
+
+  global_handles->AddImplicitReferences(
+        Handle<HeapObject>::cast(object).location(), NULL, 0);
 }
