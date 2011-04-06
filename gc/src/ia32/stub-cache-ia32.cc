@@ -1464,7 +1464,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
       Label exit, attempt_to_grow_elements;
-      Label with_write_barrier;
+      NearLabel with_write_barrier;
 
       // Get the array's length into eax and calculate new length.
       __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
@@ -1498,23 +1498,19 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       __ bind(&with_write_barrier);
 
-      __ IncrementalMarkingRecordWrite(ebx,
-                                       ecx,
-                                       edx,
-                                       OMIT_SMI_CHECK,
-                                       PRESERVE_OBJECT,
-                                       DESTROY_VALUE,
-                                       PRESERVE_SCRATCH);
+      __ RecordWrite(
+          ebx, edx, ecx, EMIT_REMEMBERED_SET, kDontSaveFPRegs, OMIT_SMI_CHECK);
 
-      __ InNewSpace(ebx, ecx, equal, &exit);
-
-      __ RecordWriteHelper(ebx, edx, ecx, kDontSaveFPRegs);
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&attempt_to_grow_elements);
       if (!FLAG_inline_new) {
         __ jmp(&call_builtin);
       }
+
+      // We could be lucky and the elements array could be at the top of
+      // new-space.  In this case we can just grow it in place by moving the
+      // allocation pointer up.
 
       ExternalReference new_space_allocation_top =
           ExternalReference::new_space_allocation_top_address();
@@ -1547,13 +1543,13 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
                Immediate(Factory::the_hole_value()));
       }
 
-      __ IncrementalMarkingRecordWrite(ebx,
-                                       ecx,
-                                       edx,
-                                       INLINE_SMI_CHECK,
-                                       PRESERVE_OBJECT,
-                                       DESTROY_VALUE,
-                                       DESTROY_SCRATCH);
+      // We know the elements array is in new space so we don't need the
+      // remembered set, but we just pushed a value onto it so we may have to
+      // tell the incremental marker to rescan the object that we just grew.  We
+      // don't need to worry about the holes because they are in old space and
+      // already marked black.
+      __ mov(edi, ebx);
+      __ RecordWrite(edi, edx, ecx, OMIT_REMEMBERED_SET, kDontSaveFPRegs);
 
       // Restore receiver to edx as finish sequence assumes it's here.
       __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
@@ -2621,13 +2617,8 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ j(zero, &done);
 
   __ mov(ecx, eax);
-  __ IncrementalMarkingRecordWrite(ebx,
-                                   ecx,
-                                   edx,
-                                   INLINE_SMI_CHECK,
-                                   DESTROY_OBJECT,
-                                   DESTROY_VALUE,
-                                   DESTROY_SCRATCH);
+  // Cells are always in the remembered set.
+  __ RecordWrite(ebx, edx, ecx, OMIT_REMEMBERED_SET, kDontSaveFPRegs);
 
   // Return the value (register eax).
   __ bind(&done);

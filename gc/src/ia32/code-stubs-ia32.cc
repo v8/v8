@@ -6464,19 +6464,38 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void IncrementalMarkingRecordWriteStub::Generate(MacroAssembler* masm) {
-  if (IncrementalMarking::IsStopped()) {
-    __ ret(0);
-  } else {
-    __ nop();
+void RecordWriteStub::Generate(MacroAssembler* masm) {
+  NearLabel skip_incremental_part;
+  __ jmp(&skip_incremental_part);
+  if (!IncrementalMarking::IsStopped()) {
+    ASSERT(masm->get_opcode(-2) == kSkipIncrementalPartInstruction);
+    masm->set_opcode(-2, kTwoByteNopInstruction);
   }
 
-  __ IncrementalMarkingRecordWriteHelper(object_,
-                                         value_,
-                                         scratch_,
-                                         object_mode_,
-                                         value_mode_,
-                                         scratch_mode_);
+  // If we are also emitting the remembered set code in this stub then we have
+  // the object we are writing into in the 'object' register and the slot in
+  // the 'address' register.  We insert a primitive test here to ensure that
+  // this is the case.  Otherwise the 'address' register is merely a scratch
+  // register.
+  if (FLAG_debug_code && emit_remembered_set_ == EMIT_REMEMBERED_SET) {
+    NearLabel ok;
+    __ cmp(address_, Operand(object_));
+    __ j(above_equal, &ok);
+    __ int3();
+    __ bind(&ok);
+  }
+
+  __ IncrementalMarkingRecordWriteHelper(object_, value_, address_);
+
+  __ bind(&skip_incremental_part);
+
+  if (emit_remembered_set_ == EMIT_REMEMBERED_SET) {
+    Register scratch = value_;
+    NearLabel done;
+    __ InNewSpace(object_, scratch, equal, &done);
+    __ RememberedSetHelper(object_, address_, scratch, save_fp_regs_mode_);
+    __ bind(&done);
+  }
   __ ret(0);
 }
 

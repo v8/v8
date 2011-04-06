@@ -46,7 +46,7 @@ namespace internal {
   V(Compare)                             \
   V(CompareIC)                           \
   V(MathPow)                             \
-  V(IncrementalMarkingRecordWrite)       \
+  V(RecordWrite)                         \
   V(StoreBufferOverflow)                 \
   V(RegExpExec)                          \
   V(TranscendentalCache)                 \

@@ -3093,8 +3093,11 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ InNewSpace(elements, temp, equal, &new_space);
 
   __ mov(object, elements);
-  __ RecordWriteHelper(object, index_1, temp, kDontSaveFPRegs);
-  __ RecordWriteHelper(elements, index_2, temp, kDontSaveFPRegs);
+  // Since we are swapping two objects, the incremental marker is not disturbed,
+  // so we don't call the stub that handles this.  TODO(gc): Optimize by
+  // checking the scan_on_scavenge flag, probably by calling the stub.
+  __ RememberedSetHelper(object, index_1, temp, kDontSaveFPRegs);
+  __ RememberedSetHelper(elements, index_2, temp, kDontSaveFPRegs);
 
   __ bind(&new_space);
 

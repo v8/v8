@@ -7831,9 +7831,18 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   // Possible optimization: do a check that both values are Smis
   // (or them and test against Smi mask.)
 
+  // Since we are swapping two objects, the incremental marker is not disturbed,
+  // so we don't call the stub that handles this.  TODO(gc): Optimize by
+  // checking the scan_on_scavenge flag, probably by calling the stub.
   __ mov(tmp2.reg(), tmp1.reg());
-  __ RecordWriteHelper(tmp2.reg(), index1.reg(), object.reg(), kDontSaveFPRegs);
-  __ RecordWriteHelper(tmp1.reg(), index2.reg(), object.reg(), kDontSaveFPRegs);
+  __ RememberedSetHelper(tmp2.reg(),
+                         index1.reg(),
+                         object.reg(),
+                         kDontSaveFPRegs);
+  __ RememberedSetHelper(tmp1.reg(),
+                         index2.reg(),
+                         object.reg(),
+                         kDontSaveFPRegs);
   __ bind(&done);
 
   deferred->BindExit();
@@ -9786,10 +9795,12 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     __ InNewSpace(receiver.reg(), value.reg(), equal, &skip_write_barrier);
     int delta_to_record_write = masm_->SizeOfCodeGeneratedSince(&patch_site);
     __ lea(scratch.reg(), Operand(receiver.reg(), offset));
-    __ RecordWriteHelper(receiver.reg(),
-                         scratch.reg(),
-                         value.reg(),
-                         kDontSaveFPRegs);
+    // This code does not work with the incremental marker!  Luckily this file
+    // is going away soon.
+    __ RememberedSetHelper(receiver.reg(),
+                           scratch.reg(),
+                           value.reg(),
+                           kDontSaveFPRegs);
     if (FLAG_debug_code) {
       __ mov(receiver.reg(), Immediate(BitCast<int32_t>(kZapValue)));
       __ mov(value.reg(), Immediate(BitCast<int32_t>(kZapValue)));

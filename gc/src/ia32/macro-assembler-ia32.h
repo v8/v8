@@ -53,10 +53,11 @@ typedef Operand MemOperand;
 class JumpTarget;
 class PostCallGenerator;
 
+enum EmitRememberedSet { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 enum ObjectMode { PRESERVE_OBJECT, DESTROY_OBJECT };
 enum ValueMode { PRESERVE_VALUE, DESTROY_VALUE };
-enum ScratchMode { PRESERVE_SCRATCH, DESTROY_SCRATCH };
+enum AddressMode { PRESERVE_ADDRESS, DESTROY_ADDRESS };
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
@@ -68,28 +69,15 @@ class MacroAssembler: public Assembler {
 
   void IncrementalMarkingRecordWriteHelper(Register object,
                                            Register value,
-                                           Register scratch,
-                                           ObjectMode object_mode,
-                                           ValueMode value_mode,
-                                           ScratchMode scratch_mode);
-
-
-  void IncrementalMarkingRecordWrite(Register object,
-                                     Register value,
-                                     Register scratch,
-                                     SmiCheck smi_check,
-                                     ObjectMode object_mode,
-                                     ValueMode value_mode,
-                                     ScratchMode scratch_mode);
-
+                                           Register address);
 
   // For page containing |object| mark region covering |addr| dirty.
-  // RecordWriteHelper only works if the object is not in new
+  // RememberedSetHelper only works if the object is not in new
   // space.
-  void RecordWriteHelper(Register object,
-                         Register addr,
-                         Register scratch,
-                         SaveFPRegsMode save_fp);
+  void RememberedSetHelper(Register object,
+                           Register addr,
+                           Register scratch,
+                           SaveFPRegsMode save_fp);
 
   // Check if object is in new space.
   // scratch can be object itself, but it will be clobbered.
@@ -120,7 +108,9 @@ class MacroAssembler: public Assembler {
   void RecordWrite(Register object,
                    Register address,
                    Register value,
-                   SaveFPRegsMode save_fp);
+                   EmitRememberedSet emit_remembered_set,
+                   SaveFPRegsMode save_fp,
+                   SmiCheck smi_check = INLINE_SMI_CHECK);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------

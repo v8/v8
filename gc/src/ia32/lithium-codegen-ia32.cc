@@ -2033,7 +2033,7 @@ void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
 
 void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
   Register object = ToRegister(instr->temp1());
-  Register scratch = ToRegister(instr->temp2());
+  Register address = ToRegister(instr->temp2());
   Register value = ToRegister(instr->InputAt(0));
   Handle<JSGlobalPropertyCell> cell_handle(instr->hydrogen()->cell());
 
@@ -2048,15 +2048,12 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 
   // Store the value.
   __ mov(object, Immediate(cell_handle));
-  __ mov(FieldOperand(object, JSGlobalPropertyCell::kValueOffset), value);
+  __ lea(address, FieldOperand(object, JSGlobalPropertyCell::kValueOffset));
+  __ mov(Operand(address, 0), value);
 
-  __ IncrementalMarkingRecordWrite(object,
-                                   value,
-                                   scratch,
-                                   INLINE_SMI_CHECK,
-                                   DESTROY_OBJECT,
-                                   DESTROY_VALUE,
-                                   DESTROY_SCRATCH);
+
+  // Cells are always in the remembered set.
+  __ RecordWrite(object, address, value, OMIT_REMEMBERED_SET, kSaveFPRegs);
 }
 
 
@@ -2878,7 +2875,7 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
                         key,
                         times_pointer_size,
                         FixedArray::kHeaderSize));
-    __ RecordWrite(elements, key, value, kSaveFPRegs);
+    __ RecordWrite(elements, key, value, EMIT_REMEMBERED_SET, kSaveFPRegs);
   }
 }
 

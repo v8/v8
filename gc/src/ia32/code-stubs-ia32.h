@@ -505,27 +505,31 @@ class NumberToStringStub: public CodeStub {
 };
 
 
-class IncrementalMarkingRecordWriteStub: public CodeStub {
+class RecordWriteStub: public CodeStub {
  public:
-  IncrementalMarkingRecordWriteStub(Register object,
-                                    Register value,
-                                    Register scratch,
-                                    ObjectMode object_mode,
-                                    ValueMode value_mode,
-                                    ScratchMode scratch_mode)
+  RecordWriteStub(Register object,
+                  Register value,
+                  Register address,
+                  EmitRememberedSet emit_remembered_set,
+                  SaveFPRegsMode fp_mode)
       : object_(object),
         value_(value),
-        scratch_(scratch),
-        object_mode_(object_mode),
-        value_mode_(value_mode),
-        scratch_mode_(scratch_mode) {
+        address_(address),
+        emit_remembered_set_(emit_remembered_set),
+        save_fp_regs_mode_(fp_mode) {
   }
 
+  static const byte kTwoByteNopInstruction = 0x3c;           // Cmpb al, #imm8.
+  static const byte kSkipIncrementalPartInstruction = 0xeb;  // Jmp #imm8.
 
   static byte GetInstruction(bool enable) {
-    static const byte kNopInstruction = 0x90;
-    static const byte kRet0Instruction = 0xc3;
-    return enable ? kNopInstruction : kRet0Instruction;
+    // Can't use ternary operator here, because gcc makes an undefined
+    // reference to a static const int.
+    if (enable) {
+      return kTwoByteNopInstruction;
+    } else {
+      return kSkipIncrementalPartInstruction;
+    }
   }
 
   static void Patch(Code* stub, bool enable) {
@@ -536,30 +540,27 @@ class IncrementalMarkingRecordWriteStub: public CodeStub {
  private:
   void Generate(MacroAssembler* masm);
 
-  Major MajorKey() { return IncrementalMarkingRecordWrite; }
+  Major MajorKey() { return RecordWrite; }
 
   int MinorKey() {
     return ObjectBits::encode(object_.code()) |
         ValueBits::encode(value_.code()) |
-        ScratchBits::encode(scratch_.code()) |
-        ObjectModeBits::encode(object_mode_) |
-        ValueModeBits::encode(value_mode_) |
-        ScratchModeBits::encode(scratch_mode_);
+        AddressBits::encode(address_.code()) |
+        EmitRememberedSetBits::encode(emit_remembered_set_) |
+        SaveFPRegsModeBits::encode(save_fp_regs_mode_);
   }
 
   class ObjectBits: public BitField<int, 0, 3> {};
   class ValueBits: public BitField<int, 3, 3> {};
-  class ScratchBits: public BitField<int, 6, 3> {};
-  class ObjectModeBits: public BitField<ObjectMode, 9, 1> {};
-  class ValueModeBits: public BitField<ValueMode, 10, 1> {};
-  class ScratchModeBits: public BitField<ScratchMode, 11, 1> {};
+  class AddressBits: public BitField<int, 6, 3> {};
+  class EmitRememberedSetBits: public BitField<EmitRememberedSet, 9, 1> {};
+  class SaveFPRegsModeBits: public BitField<SaveFPRegsMode, 10, 1> {};
 
   Register object_;
   Register value_;
-  Register scratch_;
-  ObjectMode object_mode_;
-  ValueMode value_mode_;
-  ScratchMode scratch_mode_;
+  Register address_;
+  EmitRememberedSet emit_remembered_set_;
+  SaveFPRegsMode save_fp_regs_mode_;
 };
 
 

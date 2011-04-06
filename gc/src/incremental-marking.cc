@@ -169,10 +169,10 @@ static void PatchIncrementalMarkingRecordWriteStubs(bool enable) {
       uint32_t key = NumberToUint32(k);
 
       if (CodeStub::MajorKeyFromKey(key) ==
-          CodeStub::IncrementalMarkingRecordWrite) {
+          CodeStub::RecordWrite) {
         Object* e = stubs->ValueAt(i);
         if (e->IsCode()) {
-          IncrementalMarkingRecordWriteStub::Patch(Code::cast(e), enable);
+          RecordWriteStub::Patch(Code::cast(e), enable);
         }
       }
     }

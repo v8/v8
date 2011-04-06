@@ -52,12 +52,9 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 void MacroAssembler::IncrementalMarkingRecordWriteHelper(
     Register object,
     Register value,
-    Register scratch,
-    ObjectMode object_mode,
-    ValueMode value_mode,
-    ScratchMode scratch_mode) {
-  ASSERT(!object.is(scratch));
-  ASSERT(!value.is(scratch));
+    Register address) {
+  ASSERT(!object.is(address));
+  ASSERT(!value.is(address));
   ASSERT(!value.is(object));
 
   bool preserve[Register::kNumRegisters];
@@ -67,9 +64,9 @@ void MacroAssembler::IncrementalMarkingRecordWriteHelper(
   preserve[eax.code()] = true;
   preserve[ecx.code()] = true;
   preserve[edx.code()] = true;
-  preserve[object.code()] = (object_mode == PRESERVE_OBJECT);
-  preserve[value.code()] = (value_mode == PRESERVE_VALUE);
-  preserve[scratch.code()] = (scratch_mode == PRESERVE_SCRATCH);
+  preserve[object.code()] = true;
+  preserve[value.code()] = true;
+  preserve[address.code()] = true;
 
   for (int i = 0; i < Register::kNumRegisters; i++) {
     if (preserve[i]) push(Register::from_code(i));
@@ -77,7 +74,7 @@ void MacroAssembler::IncrementalMarkingRecordWriteHelper(
 
   // TODO(gc) we are assuming that xmm registers are not modified by
   // the C function we are calling.
-  PrepareCallCFunction(2, scratch);
+  PrepareCallCFunction(2, address);
   mov(Operand(esp, 0 * kPointerSize), object);
   mov(Operand(esp, 1 * kPointerSize), value);
   CallCFunction(
@@ -89,42 +86,15 @@ void MacroAssembler::IncrementalMarkingRecordWriteHelper(
 }
 
 
-void MacroAssembler::IncrementalMarkingRecordWrite(Register object,
-                                                   Register value,
-                                                   Register scratch,
-                                                   SmiCheck smi_check,
-                                                   ObjectMode object_mode,
-                                                   ValueMode value_mode,
-                                                   ScratchMode scratch_mode) {
-  if (FLAG_incremental_marking) {
-    Label done;
-
-    if (smi_check == INLINE_SMI_CHECK) {
-      ASSERT_EQ(0, kSmiTag);
-      test(value, Immediate(kSmiTagMask));
-      j(zero, &done);
-    }
-
-    IncrementalMarkingRecordWriteStub stub(
-        object, value, scratch, object_mode, value_mode, scratch_mode);
-    CallStub(&stub);
-
-    if (smi_check == INLINE_SMI_CHECK) {
-      bind(&done);
-    }
-  }
-}
-
-
-void MacroAssembler::RecordWriteHelper(Register object,
-                                       Register addr,
-                                       Register scratch,
-                                       SaveFPRegsMode save_fp) {
+void MacroAssembler::RememberedSetHelper(Register object,
+                                         Register addr,
+                                         Register scratch,
+                                         SaveFPRegsMode save_fp) {
   if (emit_debug_code()) {
     // Check that the object is not in new space.
     Label not_in_new_space;
     InNewSpace(object, scratch, not_equal, &not_in_new_space);
-    Abort("new-space object passed to RecordWriteHelper");
+    Abort("new-space object passed to RememberedSetHelper");
     bind(&not_in_new_space);
   }
 
@@ -152,27 +122,16 @@ void MacroAssembler::RecordWriteHelper(Register object,
 void MacroAssembler::RecordWrite(Register object,
                                  int offset,
                                  Register value,
-                                 Register scratch,
+                                 Register dst,
                                  SaveFPRegsMode save_fp) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
-  Label done;
+  NearLabel done;
 
   // Skip barrier if writing a smi.
   ASSERT_EQ(0, kSmiTag);
   test(value, Immediate(kSmiTagMask));
   j(zero, &done);
-
-  IncrementalMarkingRecordWrite(object,
-                                value,
-                                scratch,
-                                OMIT_SMI_CHECK,
-                                PRESERVE_OBJECT,
-                                DESTROY_VALUE,
-                                (offset == 0) ? PRESERVE_SCRATCH
-                                              : DESTROY_SCRATCH);
-
-  InNewSpace(object, value, equal, &done);
 
   // The offset is relative to a tagged or untagged HeapObject pointer,
   // so either offset or offset + kHeapObjectTag must be a
@@ -180,8 +139,9 @@ void MacroAssembler::RecordWrite(Register object,
   ASSERT(IsAligned(offset, kPointerSize) ||
          IsAligned(offset + kHeapObjectTag, kPointerSize));
 
-  Register dst = scratch;
   if (offset != 0) {
+    // If offset is unspecified, then dst is a scratch register.  We use it
+    // to store the address of the cell that is being stored to.
     lea(dst, Operand(object, offset));
   } else {
     // Array access: calculate the destination address in the same manner as
@@ -192,7 +152,8 @@ void MacroAssembler::RecordWrite(Register object,
     lea(dst, Operand(object, dst, times_half_pointer_size,
                      FixedArray::kHeaderSize - kHeapObjectTag));
   }
-  RecordWriteHelper(object, dst, value, save_fp);
+
+  RecordWrite(object, dst, value, EMIT_REMEMBERED_SET, save_fp, OMIT_SMI_CHECK);
 
   bind(&done);
 
@@ -201,7 +162,7 @@ void MacroAssembler::RecordWrite(Register object,
   if (emit_debug_code()) {
     mov(object, Immediate(BitCast<int32_t>(kZapValue)));
     mov(value, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(scratch, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(dst, Immediate(BitCast<int32_t>(kZapValue)));
   }
 }
 
@@ -209,29 +170,30 @@ void MacroAssembler::RecordWrite(Register object,
 void MacroAssembler::RecordWrite(Register object,
                                  Register address,
                                  Register value,
-                                 SaveFPRegsMode save_fp) {
+                                 EmitRememberedSet emit_remembered_set,
+                                 SaveFPRegsMode fp_mode,
+                                 SmiCheck smi_check) {
+  if (emit_remembered_set == OMIT_REMEMBERED_SET &&
+      FLAG_incremental_marking == false) {
+    return;
+  }
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
-  Label done;
+  NearLabel done;
 
-  // Skip barrier if writing a smi.
-  ASSERT_EQ(0, kSmiTag);
-  test(value, Immediate(kSmiTagMask));
-  j(zero, &done);
+  if (smi_check == INLINE_SMI_CHECK) {
+    // Skip barrier if writing a smi.
+    ASSERT_EQ(0, kSmiTag);
+    test(value, Immediate(kSmiTagMask));
+    j(zero, &done);
+  }
 
-  IncrementalMarkingRecordWrite(object,
-                                value,
-                                address,
-                                OMIT_SMI_CHECK,
-                                PRESERVE_OBJECT,
-                                DESTROY_VALUE,
-                                PRESERVE_SCRATCH);
+  RecordWriteStub stub(object, value, address, emit_remembered_set, fp_mode);
+  CallStub(&stub);
 
-  InNewSpace(object, value, equal, &done);
-
-  RecordWriteHelper(object, address, value, save_fp);
-
-  bind(&done);
+  if (smi_check == INLINE_SMI_CHECK) {
+    bind(&done);
+  }
 
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.

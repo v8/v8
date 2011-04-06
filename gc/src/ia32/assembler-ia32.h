@@ -966,6 +966,18 @@ class Assembler : public Malloced {
 
   int pc_offset() const { return pc_ - buffer_; }
 
+  // Used for patching the code stream while it is being emitted.
+  inline byte get_opcode(int offset) {
+    ASSERT(offset < 0);
+    ASSERT(pc_ + offset >= buffer_);
+    return pc_[offset];
+  }
+  inline void set_opcode(int offset, byte opcode) {
+    ASSERT(offset < 0);
+    ASSERT(pc_ + offset >= buffer_);
+    pc_[offset] = opcode;
+  }
+
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
   // an instruction or relocation information.
@@ -997,6 +1009,7 @@ class Assembler : public Malloced {
   void emit_sse_operand(Register dst, XMMRegister src);
 
   byte* addr_at(int pos)  { return buffer_ + pos; }
+
  private:
   byte byte_at(int pos)  { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
