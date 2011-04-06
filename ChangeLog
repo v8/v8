@@ -1,3 +1,10 @@
+2011-04-06: Version 3.2.8
+
+        Exposed WebGL typed array constructors in the shell sample.
+
+        Performance improvements on all platforms.
+
+
 2011-04-04: Version 3.2.7
 
         Disabled the original 'classic' V8 code generator.  Crankshaft is
