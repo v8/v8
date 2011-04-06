@@ -1422,12 +1422,23 @@ void TypeRecordingBinaryOpStub::GenerateCallRuntimeCode(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
-  Label not_smi;
+  Label call_runtime;
+  if (result_type_ == TRBinaryOpIC::UNINITIALIZED ||
+      result_type_ == TRBinaryOpIC::SMI) {
+    // Only allow smi results.
+    GenerateSmiCode(masm, NULL, NO_HEAPNUMBER_RESULTS);
+  } else {
+    // Allow heap number result and don't make a transition if a heap number
+    // cannot be allocated.
+    GenerateSmiCode(masm, &call_runtime, ALLOW_HEAPNUMBER_RESULTS);
+  }
 
-  GenerateSmiCode(masm, &not_smi, NO_HEAPNUMBER_RESULTS);
-
-  __ bind(&not_smi);
+  // Code falls through if the result is not returned as either a smi or heap
+  // number.
   GenerateTypeTransition(masm);
+
+  __ bind(&call_runtime);
+  GenerateCallRuntimeCode(masm);
 }
 
 
