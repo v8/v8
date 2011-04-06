@@ -9820,6 +9820,10 @@ class ScopeIterator {
       at_local_ = index < 0;
     } else if (context_->is_function_context()) {
       at_local_ = true;
+    } else if (context_->closure() != *function_) {
+      // The context_ is a with block from the outer function.
+      ASSERT(context_->has_extension());
+      at_local_ = true;
     }
   }
 

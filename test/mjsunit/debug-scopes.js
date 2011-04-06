@@ -144,6 +144,10 @@ function CheckScopeContent(content, number, exec_state) {
   if (!scope.scopeObject().property('.catch-var').isUndefined()) {
     scope_size--;
   }
+  // Skip property with empty name.
+  if (!scope.scopeObject().property('').isUndefined()) {
+    scope_size--;
+  }
 
   if (count != scope_size) {
     print('Names found in scope:');
@@ -607,6 +611,43 @@ closure_7(1, 2)()
 EndTest();
 
 
+// Closure that may be optimized out.
+BeginTest("Closure 8");
+function closure_8() {
+  (function inner(x) {
+    debugger;
+  })(2);
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x: 2}, 0, exec_state);
+}
+closure_8();
+EndTest();
+
+
+BeginTest("Closure 9");
+function closure_9() {
+  eval("var y = 1;");
+  eval("var z = 1;");
+  (function inner(x) {
+    y++; 
+    z++;
+    debugger;
+  })(2);
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Closure,
+                   debug.ScopeType.Global], exec_state);
+}
+closure_9();
+EndTest();
+
+
 // Test a mixture of scopes.
 BeginTest("The full monty");
 function the_full_monty(a, b) {
@@ -652,6 +693,81 @@ listener_delegate = function(exec_state) {
 }
 the_full_monty(1, 2)()
 EndTest();
+
+
+BeginTest("Closure inside With 1");
+function closure_in_with_1() {
+  with({x:1}) {
+    (function inner(x) {
+      debugger;
+    })(2);
+  }
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.With,
+                   debug.ScopeType.Closure,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x: 2}, 0, exec_state);
+}
+closure_in_with_1();
+EndTest();
+
+
+BeginTest("Closure inside With 2");
+function closure_in_with_2() {
+  with({x:1}) {
+    (function inner(x) {
+      with({x:3}) {
+        debugger;
+      }
+    })(2);
+  }
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.With,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.With,
+                   debug.ScopeType.Closure,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x: 3}, 0, exec_state);
+  CheckScopeContent({x: 2}, 1, exec_state);
+  CheckScopeContent({x: 1}, 2, exec_state);
+}
+closure_in_with_2();
+EndTest();
+
+
+BeginTest("Closure inside With 3");
+function createClosure(a) {
+   var b = a + 1;
+   return function closure() {
+     var c = b;
+     (function inner(x) {
+       with({x:c}) {
+         debugger;
+       }
+     })(2);
+   }
+}
+
+function closure_in_with_3() {
+  var f = createClosure(0);
+  f();
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.With,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Closure,
+                   debug.ScopeType.Closure,
+                   debug.ScopeType.Global], exec_state);
+}
+closure_in_with_3();
+EndTest();
+
 
 // Test global scope.
 BeginTest("Global");
