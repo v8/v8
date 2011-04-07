@@ -1618,7 +1618,7 @@ void Simulator::HandleVList(Instruction* instr) {
       address += 2;
     }
   }
-  ASSERT_EQ(((intptr_t)address) - operand_size, end_address);
+  ASSERT(reinterpret_cast<intptr_t>(address) - operand_size == end_address);
 }
 
 
