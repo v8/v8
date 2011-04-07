@@ -101,7 +101,9 @@ class MessageHandler {
       Handle<JSArray> stack_frames);
 
   // Report a formatted message (needs JS allocation).
-  static void ReportMessage(MessageLocation* loc, Handle<Object> message);
+  static void ReportMessage(Isolate* isolate,
+                            MessageLocation* loc,
+                            Handle<Object> message);
 
   static void DefaultMessageReport(const MessageLocation* loc,
                                    Handle<Object> message_obj);
