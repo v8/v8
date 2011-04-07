@@ -1,4 +1,4 @@
-// Copyright 2007-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -11495,7 +11495,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
     array->set(i, static_cast<ElementType>(i));
   }
   result = CompileRun("function ee_load_test_func(sum) {"
-                      " for (var i=0;i<40;++i)"
+                      " for (var i = 0; i < 40; ++i)"
                       "   sum += ext_array[i];"
                       " return sum;"
                       "}"
@@ -11508,7 +11508,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
 
   // Test crankshaft external array stores
   result = CompileRun("function ee_store_test_func(sum) {"
-                      " for (var i=0;i<40;++i)"
+                      " for (var i = 0; i < 40; ++i)"
                       "   sum += ext_array[i] = i;"
                       " return sum;"
                       "}"
@@ -11518,6 +11518,39 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                       "}"
                       "sum;");
   CHECK_EQ(7800000, result->Int32Value());
+
+  for (int i = 0; i < kElementCount; i++) {
+    array->set(i, static_cast<ElementType>(i));
+  }
+  // Test complex assignments
+  result = CompileRun("function ee_op_test_complex_func(sum) {"
+                      " for (var i = 0; i < 40; ++i) {"
+                      "   sum += (ext_array[i] += 1);"
+                      "   sum += (ext_array[i] -= 1);"
+                      " } "
+                      " return sum;"
+                      "}"
+                      "sum=0;"
+                      "for (var i=0;i<10000;++i) {"
+                      "  sum=ee_op_test_complex_func(sum);"
+                      "}"
+                      "sum;");
+  CHECK_EQ(16000000, result->Int32Value());
+
+  // Test count operations
+  result = CompileRun("function ee_op_test_count_func(sum) {"
+                      " for (var i = 0; i < 40; ++i) {"
+                      "   sum += (++ext_array[i]);"
+                      "   sum += (--ext_array[i]);"
+                      " } "
+                      " return sum;"
+                      "}"
+                      "sum=0;"
+                      "for (var i=0;i<10000;++i) {"
+                      "  sum=ee_op_test_count_func(sum);"
+                      "}"
+                      "sum;");
+  CHECK_EQ(16000000, result->Int32Value());
 
   result = CompileRun("ext_array[3] = 33;"
                       "delete ext_array[3];"

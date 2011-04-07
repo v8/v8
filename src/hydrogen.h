@@ -845,6 +845,10 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildLoadKeyedGeneric(HValue* object,
                                       HValue* key);
 
+  HInstruction* BuildLoadKeyed(HValue* obj,
+                               HValue* key,
+                               Property* prop);
+
   HInstruction* BuildLoadNamed(HValue* object,
                                Property* prop,
                                Handle<Map> map,
@@ -874,7 +878,12 @@ class HGraphBuilder: public AstVisitor {
       HValue* object,
       HValue* key,
       HValue* val,
-      Assignment* expr);
+      Expression* expr);
+
+  HInstruction* BuildStoreKeyed(HValue* object,
+                                HValue* key,
+                                HValue* value,
+                                Expression* assignment);
 
   HValue* BuildContextChainWalk(Variable* var);
 

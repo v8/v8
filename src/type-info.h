@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -239,18 +239,18 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   TypeFeedbackOracle(Handle<Code> code, Handle<Context> global_context);
 
   bool LoadIsMonomorphic(Property* expr);
-  bool StoreIsMonomorphic(Assignment* expr);
+  bool StoreIsMonomorphic(Expression* expr);
   bool CallIsMonomorphic(Call* expr);
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
-  Handle<Map> StoreMonomorphicReceiverType(Assignment* expr);
+  Handle<Map> StoreMonomorphicReceiverType(Expression* expr);
 
   ZoneMapList* LoadReceiverTypes(Property* expr, Handle<String> name);
   ZoneMapList* StoreReceiverTypes(Assignment* expr, Handle<String> name);
   ZoneMapList* CallReceiverTypes(Call* expr, Handle<String> name);
 
   ExternalArrayType GetKeyedLoadExternalArrayType(Property* expr);
-  ExternalArrayType GetKeyedStoreExternalArrayType(Assignment* expr);
+  ExternalArrayType GetKeyedStoreExternalArrayType(Expression* expr);
 
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);

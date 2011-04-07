@@ -2383,12 +2383,13 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
     __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
     __ cmp(scratch, ip);
     __ b(eq, &done);
-    __ LoadRoot(ip, Heap::kExternalPixelArrayMapRootIndex);
-    __ cmp(scratch, ip);
-    __ b(eq, &done);
     __ LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
     __ cmp(scratch, ip);
-    __ Check(eq, "Check for fast elements failed.");
+    __ ldr(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
+    __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+    __ sub(scratch, scratch, Operand(FIRST_EXTERNAL_ARRAY_TYPE));
+    __ cmp(scratch, Operand(kExternalArrayTypeCount));
+    __ Check(cc, "Check for fast elements failed.");
     __ bind(&done);
   }
 }
@@ -2441,14 +2442,51 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 
 void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     LLoadKeyedSpecializedArrayElement* instr) {
-  ASSERT(instr->array_type() == kExternalPixelArray);
-
   Register external_pointer = ToRegister(instr->external_pointer());
   Register key = ToRegister(instr->key());
-  Register result = ToRegister(instr->result());
-
-  // Load the result.
-  __ ldrb(result, MemOperand(external_pointer, key));
+  ExternalArrayType array_type = instr->array_type();
+  if (array_type == kExternalFloatArray) {
+    if (CpuFeatures::IsSupported(VFP3)) {
+      CpuFeatures::Scope scope(VFP3);
+      DwVfpRegister result(ToDoubleRegister(instr->result()));
+      __ add(scratch0(), external_pointer, Operand(key, LSL, 2));
+      __ vldr(result, scratch0(), 0);
+    } else {
+      Register result(ToRegister(instr->result()));
+      __ ldr(result, MemOperand(external_pointer, key, LSL, 2));
+    }
+  } else {
+    Register result(ToRegister(instr->result()));
+    switch (array_type) {
+      case kExternalByteArray:
+        __ ldrsb(result, MemOperand(external_pointer, key));
+        break;
+      case kExternalUnsignedByteArray:
+      case kExternalPixelArray:
+        __ ldrb(result, MemOperand(external_pointer, key));
+        break;
+      case kExternalShortArray:
+        __ ldrsh(result, MemOperand(external_pointer, key, LSL, 1));
+        break;
+      case kExternalUnsignedShortArray:
+        __ ldrh(result, MemOperand(external_pointer, key, LSL, 1));
+        break;
+      case kExternalIntArray:
+        __ ldr(result, MemOperand(external_pointer, key, LSL, 2));
+        break;
+      case kExternalUnsignedIntArray:
+        __ ldr(result, MemOperand(external_pointer, key, LSL, 2));
+        __ cmp(result, Operand(0x80000000));
+        // TODO(danno): we could be more clever here, perhaps having a special
+        // version of the stub that detects if the overflow case actually
+        // happens, and generate code that returns a double rather than int.
+        DeoptimizeIf(cs, instr->environment());
+        break;
+      case kExternalFloatArray:
+        UNREACHABLE();
+        break;
+    }
+  }
 }
 
 
@@ -3112,15 +3150,45 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
 
 void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     LStoreKeyedSpecializedArrayElement* instr) {
-  ASSERT(instr->array_type() == kExternalPixelArray);
 
   Register external_pointer = ToRegister(instr->external_pointer());
   Register key = ToRegister(instr->key());
-  Register value = ToRegister(instr->value());
-
-  // Clamp the value to [0..255].
-  __ Usat(value, 8, Operand(value));
-  __ strb(value, MemOperand(external_pointer, key, LSL, 0));
+  ExternalArrayType array_type = instr->array_type();
+  if (array_type == kExternalFloatArray) {
+    if (CpuFeatures::IsSupported(VFP3)) {
+      CpuFeatures::Scope scope(VFP3);
+      DwVfpRegister value(ToDoubleRegister(instr->value()));
+      __ add(scratch0(), external_pointer, Operand(key, LSL, 2));
+      __ vstr(value, scratch0(), 0);
+    } else {
+      Register value(ToRegister(instr->value()));
+      __ str(value, MemOperand(external_pointer, key, LSL, 2));
+    }
+  } else {
+    Register value(ToRegister(instr->value()));
+    switch (array_type) {
+      case kExternalPixelArray:
+        // Clamp the value to [0..255].
+        __ Usat(value, 8, Operand(value));
+        __ strb(value, MemOperand(external_pointer, key));
+        break;
+      case kExternalByteArray:
+      case kExternalUnsignedByteArray:
+        __ strb(value, MemOperand(external_pointer, key));
+        break;
+      case kExternalShortArray:
+      case kExternalUnsignedShortArray:
+        __ strh(value, MemOperand(external_pointer, key, LSL, 1));
+        break;
+      case kExternalIntArray:
+      case kExternalUnsignedIntArray:
+        __ str(value, MemOperand(external_pointer, key, LSL, 2));
+        break;
+      case kExternalFloatArray:
+        UNREACHABLE();
+        break;
+    }
+  }
 }
 
 

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -89,7 +89,7 @@ bool TypeFeedbackOracle::LoadIsMonomorphic(Property* expr) {
 }
 
 
-bool TypeFeedbackOracle::StoreIsMonomorphic(Assignment* expr) {
+bool TypeFeedbackOracle::StoreIsMonomorphic(Expression* expr) {
   Handle<Object> map_or_code(GetInfo(expr->position()));
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
@@ -119,7 +119,7 @@ Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
 }
 
 
-Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Assignment* expr) {
+Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Expression* expr) {
   ASSERT(StoreIsMonomorphic(expr));
   Handle<HeapObject> map_or_code(
       Handle<HeapObject>::cast(GetInfo(expr->position())));
@@ -178,7 +178,7 @@ ExternalArrayType TypeFeedbackOracle::GetKeyedLoadExternalArrayType(
 }
 
 ExternalArrayType TypeFeedbackOracle::GetKeyedStoreExternalArrayType(
-    Assignment* expr) {
+    Expression* expr) {
   Handle<Object> stub = GetInfo(expr->position());
   ASSERT(stub->IsCode());
   return Code::cast(*stub)->external_array_type();

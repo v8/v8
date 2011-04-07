@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -549,7 +549,7 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   } else if (is_monomorphic_) {
     monomorphic_receiver_type_ = oracle->LoadMonomorphicReceiverType(this);
     if (monomorphic_receiver_type_->has_external_array_elements()) {
-      SetExternalArrayType(oracle->GetKeyedLoadExternalArrayType(this));
+      set_external_array_type(oracle->GetKeyedLoadExternalArrayType(this));
     }
   }
 }
@@ -569,7 +569,19 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     // Record receiver type for monomorphic keyed loads.
     monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
     if (monomorphic_receiver_type_->has_external_array_elements()) {
-      SetExternalArrayType(oracle->GetKeyedStoreExternalArrayType(this));
+      set_external_array_type(oracle->GetKeyedStoreExternalArrayType(this));
+    }
+  }
+}
+
+
+void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  is_monomorphic_ = oracle->StoreIsMonomorphic(this);
+  if (is_monomorphic_) {
+    // Record receiver type for monomorphic keyed loads.
+    monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
+    if (monomorphic_receiver_type_->has_external_array_elements()) {
+      set_external_array_type(oracle->GetKeyedStoreExternalArrayType(this));
     }
   }
 }

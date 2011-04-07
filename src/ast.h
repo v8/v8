@@ -221,6 +221,11 @@ class Expression: public AstNode {
 
   Expression() : bitfields_(0) {}
 
+  virtual int position() const {
+    UNREACHABLE();
+    return 0;
+  }
+
   virtual Expression* AsExpression()  { return this; }
 
   virtual bool IsTrivial() { return false; }
@@ -317,6 +322,14 @@ class Expression: public AstNode {
     bitfields_ |= NumBitOpsField::encode(num_bit_ops);
   }
 
+  ExternalArrayType external_array_type() const {
+    return ExternalArrayTypeField::decode(bitfields_);
+  }
+  void set_external_array_type(ExternalArrayType array_type) {
+    bitfields_ &= ~ExternalArrayTypeField::mask();
+    bitfields_ |= ExternalArrayTypeField::encode(array_type);
+  }
+
  private:
   static const int kMaxNumBitOps = (1 << 5) - 1;
 
@@ -329,6 +342,7 @@ class Expression: public AstNode {
   class ToInt32Field : public BitField<bool, 2, 1> {};
   class NumBitOpsField : public BitField<int, 3, 5> {};
   class LoopConditionField: public BitField<bool, 8, 1> {};
+  class ExternalArrayTypeField: public BitField<ExternalArrayType, 9, 4> {};
 };
 
 
@@ -695,7 +709,7 @@ class CaseClause: public ZoneObject {
   JumpTarget* body_target() { return &body_target_; }
   ZoneList<Statement*>* statements() const { return statements_; }
 
-  int position() { return position_; }
+  int position() const { return position_; }
   void set_position(int pos) { position_ = pos; }
 
   int EntryId() { return entry_id_; }
@@ -1245,7 +1259,7 @@ class Property: public Expression {
 
   Expression* obj() const { return obj_; }
   Expression* key() const { return key_; }
-  int position() const { return pos_; }
+  virtual int position() const { return pos_; }
   bool is_synthetic() const { return type_ == SYNTHETIC; }
 
   bool IsStringLength() const { return is_string_length_; }
@@ -1258,11 +1272,6 @@ class Property: public Expression {
     is_arguments_access_ = is_arguments_access;
   }
   bool is_arguments_access() const { return is_arguments_access_; }
-
-  ExternalArrayType GetExternalArrayType() const { return array_type_; }
-  void SetExternalArrayType(ExternalArrayType array_type) {
-    array_type_ = array_type;
-  }
 
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
@@ -1287,7 +1296,6 @@ class Property: public Expression {
   bool is_function_prototype_ : 1;
   bool is_arguments_access_ : 1;
   Handle<Map> monomorphic_receiver_type_;
-  ExternalArrayType array_type_;
 };
 
 
@@ -1309,7 +1317,7 @@ class Call: public Expression {
 
   Expression* expression() const { return expression_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
-  int position() { return pos_; }
+  virtual int position() const { return pos_; }
 
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual ZoneMapList* GetReceiverTypes() { return receiver_types_; }
@@ -1387,7 +1395,7 @@ class CallNew: public Expression {
 
   Expression* expression() const { return expression_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
-  int position() { return pos_; }
+  virtual int position() const { return pos_; }
 
  private:
   Expression* expression_;
@@ -1470,7 +1478,7 @@ class BinaryOperation: public Expression {
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
-  int position() const { return pos_; }
+  virtual int position() const { return pos_; }
 
   // Bailout support.
   int RightId() const { return right_id_; }
@@ -1507,11 +1515,17 @@ class CountOperation: public Expression {
   }
 
   Expression* expression() const { return expression_; }
-  int position() const { return pos_; }
+  virtual int position() const { return pos_; }
 
   virtual void MarkAsStatement() { is_prefix_ = true; }
 
   virtual bool IsInlineable() const;
+
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  virtual bool IsMonomorphic() { return is_monomorphic_; }
+  virtual Handle<Map> GetMonomorphicReceiverType() {
+    return monomorphic_receiver_type_;
+  }
 
   // Bailout support.
   int AssignmentId() const { return assignment_id_; }
@@ -1520,10 +1534,12 @@ class CountOperation: public Expression {
  private:
   Token::Value op_;
   bool is_prefix_;
+  bool is_monomorphic_;
   Expression* expression_;
   int pos_;
   int assignment_id_;
   int count_id_;
+  Handle<Map> monomorphic_receiver_type_;
 };
 
 
@@ -1542,7 +1558,7 @@ class CompareOperation: public Expression {
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
-  int position() const { return pos_; }
+  virtual int position() const { return pos_; }
 
   virtual bool IsInlineable() const;
 
@@ -1637,7 +1653,7 @@ class Assignment: public Expression {
   Token::Value op() const { return op_; }
   Expression* target() const { return target_; }
   Expression* value() const { return value_; }
-  int position() { return pos_; }
+  virtual int position() const { return pos_; }
   BinaryOperation* binary_operation() const { return binary_operation_; }
 
   // This check relies on the definition order of token in token.h.
@@ -1659,10 +1675,6 @@ class Assignment: public Expression {
   virtual Handle<Map> GetMonomorphicReceiverType() {
     return monomorphic_receiver_type_;
   }
-  ExternalArrayType GetExternalArrayType() const { return array_type_; }
-  void SetExternalArrayType(ExternalArrayType array_type) {
-    array_type_ = array_type;
-  }
 
   // Bailout support.
   int CompoundLoadId() const { return compound_load_id_; }
@@ -1683,7 +1695,6 @@ class Assignment: public Expression {
   bool is_monomorphic_;
   ZoneMapList* receiver_types_;
   Handle<Map> monomorphic_receiver_type_;
-  ExternalArrayType array_type_;
 };
 
 
@@ -1695,7 +1706,7 @@ class Throw: public Expression {
   DECLARE_NODE_TYPE(Throw)
 
   Expression* exception() const { return exception_; }
-  int position() const { return pos_; }
+  virtual int position() const { return pos_; }
 
  private:
   Expression* exception_;

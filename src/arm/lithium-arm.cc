@@ -1840,21 +1840,20 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
 
 LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
     HLoadKeyedSpecializedArrayElement* instr) {
-  // TODO(danno): Add support for other external array types.
-  if (instr->array_type() != kExternalPixelArray) {
-    Abort("unsupported load for external array type.");
-    return NULL;
-  }
-
-  ASSERT(instr->representation().IsInteger32());
+  ExternalArrayType array_type = instr->array_type();
+  Representation representation(instr->representation());
+  ASSERT((representation.IsInteger32() && array_type != kExternalFloatArray) ||
+         (representation.IsDouble() && array_type == kExternalFloatArray));
   ASSERT(instr->key()->representation().IsInteger32());
-  LOperand* external_pointer =
-      UseRegisterAtStart(instr->external_pointer());
-  LOperand* key = UseRegisterAtStart(instr->key());
+  LOperand* external_pointer = UseRegister(instr->external_pointer());
+  LOperand* key = UseRegister(instr->key());
   LLoadKeyedSpecializedArrayElement* result =
-      new LLoadKeyedSpecializedArrayElement(external_pointer,
-                                            key);
-  return DefineAsRegister(result);
+      new LLoadKeyedSpecializedArrayElement(external_pointer, key);
+  LInstruction* load_instr = DefineAsRegister(result);
+  // An unsigned int array load might overflow and cause a deopt, make sure it
+  // has an environment.
+  return (array_type == kExternalUnsignedIntArray) ?
+      AssignEnvironment(load_instr) : load_instr;
 }
 
 
@@ -1889,23 +1888,24 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
 
 LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
     HStoreKeyedSpecializedArrayElement* instr) {
-  // TODO(danno): Add support for other external array types.
-  if (instr->array_type() != kExternalPixelArray) {
-    Abort("unsupported store for external array type.");
-    return NULL;
-  }
-
-  ASSERT(instr->value()->representation().IsInteger32());
+  Representation representation(instr->value()->representation());
+  ExternalArrayType array_type = instr->array_type();
+  ASSERT((representation.IsInteger32() && array_type != kExternalFloatArray) ||
+         (representation.IsDouble() && array_type == kExternalFloatArray));
   ASSERT(instr->external_pointer()->representation().IsExternal());
   ASSERT(instr->key()->representation().IsInteger32());
 
   LOperand* external_pointer = UseRegister(instr->external_pointer());
-  LOperand* value = UseTempRegister(instr->value());  // changed by clamp.
+  bool val_is_temp_register = array_type == kExternalPixelArray ||
+      array_type == kExternalFloatArray;
+  LOperand* val = val_is_temp_register
+      ? UseTempRegister(instr->value())
+      : UseRegister(instr->value());
   LOperand* key = UseRegister(instr->key());
 
   return new LStoreKeyedSpecializedArrayElement(external_pointer,
                                                 key,
-                                                value);
+                                                val);
 }
 
 
