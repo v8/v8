@@ -3778,10 +3778,10 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // is and instance of the function and anything else to
   // indicate that the value is not an instance.
 
-  static const int kOffsetToMapCheckValue = 5;
-  static const int kOffsetToResultValue = 21;
+  static const int kOffsetToMapCheckValue = 2;
+  static const int kOffsetToResultValue = 18;
   // The last 4 bytes of the instruction sequence
-  //   movq(rax, FieldOperand(rdi, HeapObject::kMapOffset)
+  //   movq(rdi, FieldOperand(rax, HeapObject::kMapOffset))
   //   Move(kScratchRegister, FACTORY->the_hole_value())
   // in front of the hole value address.
   static const unsigned int kWordBeforeMapCheckValue = 0xBA49FF78;
@@ -3847,7 +3847,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     if (FLAG_debug_code) {
       __ movl(rdi, Immediate(kWordBeforeMapCheckValue));
       __ cmpl(Operand(kScratchRegister, kOffsetToMapCheckValue - 4), rdi);
-      __ Assert(equal, "InstanceofStub unexpected call site cache.");
+      __ Assert(equal, "InstanceofStub unexpected call site cache (check).");
     }
   }
 
@@ -3884,7 +3884,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     if (FLAG_debug_code) {
       __ movl(rax, Immediate(kWordBeforeResultValue));
       __ cmpl(Operand(kScratchRegister, kOffsetToResultValue - 4), rax);
-      __ Assert(equal, "InstanceofStub unexpected call site cache.");
+      __ Assert(equal, "InstanceofStub unexpected call site cache (mov).");
     }
     __ xorl(rax, rax);
   }
