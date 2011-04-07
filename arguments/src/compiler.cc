@@ -750,6 +750,7 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   function_info->set_strict_mode(lit->strict_mode());
   function_info->set_uses_arguments(lit->scope()->arguments() != NULL);
+  function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
 }
 
 

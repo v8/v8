@@ -3063,6 +3063,10 @@ BOOL_ACCESSORS(SharedFunctionInfo,
                compiler_hints,
                uses_arguments,
                kUsesArguments)
+BOOL_ACCESSORS(SharedFunctionInfo,
+               compiler_hints,
+               has_duplicate_parameters,
+               kHasDuplicateParameters)
 
 
 #if V8_HOST_ARCH_32_BIT

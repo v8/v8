@@ -1706,7 +1706,8 @@ class FunctionLiteral: public Expression {
                   int start_position,
                   int end_position,
                   bool is_expression,
-                  bool contains_loops)
+                  bool contains_loops,
+                  bool has_duplicate_parameters)
       : name_(name),
         scope_(scope),
         body_(body),
@@ -1718,11 +1719,13 @@ class FunctionLiteral: public Expression {
         num_parameters_(num_parameters),
         start_position_(start_position),
         end_position_(end_position),
-        is_expression_(is_expression),
-        contains_loops_(contains_loops),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(HEAP->empty_string()),
-        pretenure_(false) { }
+        is_expression_(is_expression),
+        contains_loops_(contains_loops),
+        pretenure_(false),
+        has_duplicate_parameters_(has_duplicate_parameters) {
+  }
 
   DECLARE_NODE_TYPE(FunctionLiteral)
 
@@ -1762,6 +1765,8 @@ class FunctionLiteral: public Expression {
   bool pretenure() { return pretenure_; }
   void set_pretenure(bool value) { pretenure_ = value; }
 
+  bool has_duplicate_parameters() { return has_duplicate_parameters_; }
+
  private:
   Handle<String> name_;
   Scope* scope_;
@@ -1773,12 +1778,13 @@ class FunctionLiteral: public Expression {
   int num_parameters_;
   int start_position_;
   int end_position_;
+  int function_token_position_;
+  Handle<String> inferred_name_;
   bool is_expression_;
   bool contains_loops_;
   bool strict_mode_;
-  int function_token_position_;
-  Handle<String> inferred_name_;
   bool pretenure_;
+  bool has_duplicate_parameters_;
 };
 
 

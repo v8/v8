@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -665,7 +665,8 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
           0,
           source->length(),
           false,
-          lexical_scope.ContainsLoops());
+          lexical_scope.ContainsLoops(),
+          false);
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
     }
@@ -3545,6 +3546,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     Scanner::Location name_loc = Scanner::NoLocation();
     Scanner::Location dupe_loc = Scanner::NoLocation();
     Scanner::Location reserved_loc = Scanner::NoLocation();
+    bool has_duplicate_parameters = false;
 
     bool done = (peek() == Token::RPAREN);
     while (!done) {
@@ -3557,6 +3559,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         name_loc = scanner().location();
       }
       if (!dupe_loc.IsValid() && top_scope_->IsDeclared(param_name)) {
+        has_duplicate_parameters = true;
         dupe_loc = scanner().location();
       }
       if (!reserved_loc.IsValid() && is_reserved) {
@@ -3688,17 +3691,18 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
 
     FunctionLiteral* function_literal =
         new(zone()) FunctionLiteral(name,
-                            top_scope_,
-                            body,
-                            materialized_literal_count,
-                            expected_property_count,
-                            only_simple_this_property_assignments,
-                            this_property_assignments,
-                            num_parameters,
-                            start_pos,
-                            end_pos,
-                            function_name->length() > 0,
-                            lexical_scope.ContainsLoops());
+                                    top_scope_,
+                                    body,
+                                    materialized_literal_count,
+                                    expected_property_count,
+                                    only_simple_this_property_assignments,
+                                    this_property_assignments,
+                                    num_parameters,
+                                    start_pos,
+                                    end_pos,
+                                    function_name->length() > 0,
+                                    lexical_scope.ContainsLoops(),
+                                    has_duplicate_parameters);
     function_literal->set_function_token_position(function_token_position);
 
     if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);
