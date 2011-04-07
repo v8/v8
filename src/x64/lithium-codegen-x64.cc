@@ -3392,7 +3392,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
     __ cvttsd2siq(input_reg, xmm0);
     __ Set(kScratchRegister, V8_UINT64_C(0x8000000000000000));
-    __ cmpl(input_reg, kScratchRegister);
+    __ cmpq(input_reg, kScratchRegister);
     DeoptimizeIf(equal, instr->environment());
   } else {
     // Deoptimize if we don't have a heap number.
@@ -3457,7 +3457,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     // the JS bitwise operations.
     __ cvttsd2siq(result_reg, input_reg);
     __ movq(kScratchRegister, V8_INT64_C(0x8000000000000000), RelocInfo::NONE);
-    __ cmpl(result_reg, kScratchRegister);
+    __ cmpq(result_reg, kScratchRegister);
       DeoptimizeIf(equal, instr->environment());
   } else {
     __ cvttsd2si(result_reg, input_reg);
