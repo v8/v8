@@ -2410,6 +2410,7 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
     __ b(eq, &done);
     __ LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
     __ cmp(scratch, ip);
+    __ b(eq, &done);
     __ ldr(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
     __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
     __ sub(scratch, scratch, Operand(FIRST_EXTERNAL_ARRAY_TYPE));
