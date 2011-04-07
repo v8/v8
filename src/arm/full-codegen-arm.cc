@@ -30,7 +30,7 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "code-stubs.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "compiler.h"
 #include "debug.h"
 #include "full-codegen.h"
@@ -824,7 +824,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   // Compile all the tests with branches to their bodies.
   for (int i = 0; i < clauses->length(); i++) {
     CaseClause* clause = clauses->at(i);
-    clause->body_target()->entry_label()->Unuse();
+    clause->body_target()->Unuse();
 
     // The default is not a test, but remember it as final fall through.
     if (clause->is_default()) {
@@ -851,7 +851,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
       __ cmp(r1, r0);
       __ b(ne, &next_test);
       __ Drop(1);  // Switch value is no longer needed.
-      __ b(clause->body_target()->entry_label());
+      __ b(clause->body_target());
       __ bind(&slow_case);
     }
 
@@ -862,7 +862,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     __ cmp(r0, Operand(0));
     __ b(ne, &next_test);
     __ Drop(1);  // Switch value is no longer needed.
-    __ b(clause->body_target()->entry_label());
+    __ b(clause->body_target());
   }
 
   // Discard the test value and jump to the default if present, otherwise to
@@ -872,14 +872,14 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   if (default_clause == NULL) {
     __ b(nested_statement.break_target());
   } else {
-    __ b(default_clause->body_target()->entry_label());
+    __ b(default_clause->body_target());
   }
 
   // Compile all the case bodies.
   for (int i = 0; i < clauses->length(); i++) {
     Comment cmnt(masm_, "[ Case body");
     CaseClause* clause = clauses->at(i);
-    __ bind(clause->body_target()->entry_label());
+    __ bind(clause->body_target());
     PrepareForBailoutForId(clause->EntryId(), NO_REGISTERS);
     VisitStatements(clause->statements());
   }

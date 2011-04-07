@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -42,7 +42,6 @@
 #include "string-stream.h"
 
 #include "ast-inl.h"
-#include "jump-target-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1909,7 +1908,7 @@ Block* Parser::WithHelper(Expression* obj,
                           bool is_catch_block,
                           bool* ok) {
   // Parse the statement and collect escaping labels.
-  ZoneList<BreakTarget*>* target_list = new ZoneList<BreakTarget*>(0);
+  ZoneList<Label*>* target_list = new ZoneList<Label*>(0);
   TargetCollector collector(target_list);
   Statement* stat;
   { Target target(&this->target_stack_, &collector);
@@ -2055,7 +2054,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   Expect(Token::TRY, CHECK_OK);
 
-  ZoneList<BreakTarget*>* target_list = new ZoneList<BreakTarget*>(0);
+  ZoneList<Label*>* target_list = new ZoneList<Label*>(0);
   TargetCollector collector(target_list);
   Block* try_block;
 
@@ -2078,7 +2077,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   // then we will need to collect jump targets from the catch block. Since
   // we don't know yet if there will be a finally block, we always collect
   // the jump targets.
-  ZoneList<BreakTarget*>* catch_target_list = new ZoneList<BreakTarget*>(0);
+  ZoneList<Label*>* catch_target_list = new ZoneList<Label*>(0);
   TargetCollector catch_collector(catch_target_list);
   bool has_catch = false;
   if (tok == Token::CATCH) {
@@ -2178,7 +2177,6 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   }
 
   Expression* cond = ParseExpression(true, CHECK_OK);
-  if (cond != NULL) cond->set_is_loop_condition(true);
   Expect(Token::RPAREN, CHECK_OK);
 
   // Allow do-statements to be terminated with and without
@@ -2203,7 +2201,6 @@ WhileStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   Expression* cond = ParseExpression(true, CHECK_OK);
-  if (cond != NULL) cond->set_is_loop_condition(true);
   Expect(Token::RPAREN, CHECK_OK);
   Statement* body = ParseStatement(NULL, CHECK_OK);
 
@@ -2285,7 +2282,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   Expression* cond = NULL;
   if (peek() != Token::SEMICOLON) {
     cond = ParseExpression(true, CHECK_OK);
-    if (cond != NULL) cond->set_is_loop_condition(true);
   }
   Expect(Token::SEMICOLON, CHECK_OK);
 
@@ -3947,7 +3943,7 @@ IterationStatement* Parser::LookupContinueTarget(Handle<String> label,
 }
 
 
-void Parser::RegisterTargetUse(BreakTarget* target, Target* stop) {
+void Parser::RegisterTargetUse(Label* target, Target* stop) {
   // Register that a break target found at the given stop in the
   // target stack has been used from the top of the target stack. Add
   // the break target to any TargetCollectors passed on the stack.

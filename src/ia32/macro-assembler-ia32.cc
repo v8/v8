@@ -30,7 +30,7 @@
 #if defined(V8_TARGET_ARCH_IA32)
 
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "debug.h"
 #include "runtime.h"
 #include "serialize.h"
@@ -1027,19 +1027,6 @@ void MacroAssembler::CopyBytes(Register source,
   j(not_zero, &short_loop);
 
   bind(&done);
-}
-
-
-void MacroAssembler::NegativeZeroTest(CodeGenerator* cgen,
-                                      Register result,
-                                      Register op,
-                                      JumpTarget* then_target) {
-  JumpTarget ok;
-  test(result, Operand(result));
-  ok.Branch(not_zero, taken);
-  test(op, Operand(op));
-  then_target->Branch(sign, not_taken);
-  ok.Bind();
 }
 
 

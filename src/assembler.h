@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 #ifndef V8_ASSEMBLER_H_
 #define V8_ASSEMBLER_H_
@@ -111,7 +111,6 @@ class Label BASE_EMBEDDED {
   friend class Assembler;
   friend class RegexpAssembler;
   friend class Displacement;
-  friend class ShadowTarget;
   friend class RegExpMacroAssemblerIrregexp;
 };
 

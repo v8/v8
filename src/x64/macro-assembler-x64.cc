@@ -30,7 +30,7 @@
 #if defined(V8_TARGET_ARCH_X64)
 
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "assembler-x64.h"
 #include "macro-assembler-x64.h"
 #include "serialize.h"

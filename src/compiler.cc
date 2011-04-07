@@ -30,7 +30,7 @@
 #include "compiler.h"
 
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "compilation-cache.h"
 #include "data-flow.h"
 #include "debug.h"

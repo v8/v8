@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -35,25 +35,7 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// Implementation StaticType.
-
-
-const char* StaticType::Type2String(StaticType* type) {
-  switch (type->kind_) {
-    case UNKNOWN:
-      return "UNKNOWN";
-    case LIKELY_SMI:
-      return "LIKELY_SMI";
-    default:
-      UNREACHABLE();
-  }
-  return "UNREACHABLE";
-}
-
-
-// ----------------------------------------------------------------------------
 // Implementation Variable.
-
 
 const char* Variable::Mode2String(Mode mode) {
   switch (mode) {

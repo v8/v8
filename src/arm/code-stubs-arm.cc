@@ -1780,6 +1780,30 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
+const char* GenericBinaryOpStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int len = 100;
+  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(len);
+  if (name_ == NULL) return "OOM";
+  const char* op_name = Token::Name(op_);
+  const char* overwrite_name;
+  switch (mode_) {
+    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
+    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
+    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
+    default: overwrite_name = "UnknownOverwrite"; break;
+  }
+
+  OS::SNPrintF(Vector<char>(name_, len),
+               "GenericBinaryOpStub_%s_%s%s_%s",
+               op_name,
+               overwrite_name,
+               specialized_on_rhs_ ? "_ConstantRhs" : "",
+               BinaryOpIC::GetName(runtime_operands_type_));
+  return name_;
+}
+
+
 // We fall into this code if the operands were Smis, but the result was
 // not (eg. overflow).  We branch into this code (to the not_smi label) if
 // the operands were not both Smi.  The operands are in r0 and r1.  In order

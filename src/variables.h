@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -32,46 +32,6 @@
 
 namespace v8 {
 namespace internal {
-
-// Variables and AST expression nodes can track their "type" to enable
-// optimizations and removal of redundant checks when generating code.
-
-class StaticType {
- public:
-  enum Kind {
-    UNKNOWN,
-    LIKELY_SMI
-  };
-
-  StaticType() : kind_(UNKNOWN) {}
-
-  bool Is(Kind kind) const { return kind_ == kind; }
-
-  bool IsKnown() const { return !Is(UNKNOWN); }
-  bool IsUnknown() const { return Is(UNKNOWN); }
-  bool IsLikelySmi() const { return Is(LIKELY_SMI); }
-
-  void CopyFrom(StaticType* other) {
-    kind_ = other->kind_;
-  }
-
-  static const char* Type2String(StaticType* type);
-
-  // LIKELY_SMI accessors
-  void SetAsLikelySmi() {
-    kind_ = LIKELY_SMI;
-  }
-
-  void SetAsLikelySmiIfUnknown() {
-    if (IsUnknown()) {
-      SetAsLikelySmi();
-    }
-  }
-
- private:
-  Kind kind_;
-};
-
 
 // The AST refers to variables via VariableProxies - placeholders for the actual
 // variables. Variables themselves are never directly referred to from the AST,
@@ -181,8 +141,6 @@ class Variable: public ZoneObject {
   Expression* rewrite() const { return rewrite_; }
   void set_rewrite(Expression* expr) { rewrite_ = expr; }
 
-  StaticType* type() { return &type_; }
-
  private:
   Scope* scope_;
   Handle<String> name_;
@@ -190,9 +148,6 @@ class Variable: public ZoneObject {
   Kind kind_;
 
   Variable* local_if_not_shadowed_;
-
-  // Static type information
-  StaticType type_;
 
   // Code generation.
   // rewrite_ is usually a Slot or a Property, but may be any expression.

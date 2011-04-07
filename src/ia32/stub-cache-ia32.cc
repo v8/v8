@@ -30,7 +30,7 @@
 #if defined(V8_TARGET_ARCH_IA32)
 
 #include "ic-inl.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "stub-cache.h"
 
 namespace v8 {

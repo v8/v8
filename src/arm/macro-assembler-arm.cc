@@ -32,7 +32,7 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "debug.h"
 #include "runtime.h"
 
