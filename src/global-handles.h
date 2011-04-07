@@ -52,7 +52,7 @@ class ObjectGroup {
         malloc(OFFSET_OF(ObjectGroup, objects_[length])));
     group->length_ = length;
     group->info_ = info;
-    CopyWords(group->objects_, handles, length);
+    CopyWords(group->objects_, handles, static_cast<int>(length));
     return group;
   }
 
@@ -85,7 +85,7 @@ class ImplicitRefGroup {
         malloc(OFFSET_OF(ImplicitRefGroup, children_[length])));
     group->parent_ = parent;
     group->length_ = length;
-    CopyWords(group->children_, children, length);
+    CopyWords(group->children_, children, static_cast<int>(length));
     return group;
   }
 
