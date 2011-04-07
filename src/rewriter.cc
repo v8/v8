@@ -432,11 +432,6 @@ void AstOptimizer::VisitUnaryOperation(UnaryOperation* node) {
 }
 
 
-void AstOptimizer::VisitIncrementOperation(IncrementOperation* node) {
-  UNREACHABLE();
-}
-
-
 void AstOptimizer::VisitCountOperation(CountOperation* node) {
   // Count operations assume that they work on Smis.
   node->expression()->set_no_negative_zero(node->is_prefix() ?
@@ -939,11 +934,6 @@ void Processor::VisitCallRuntime(CallRuntime* node) {
 
 void Processor::VisitUnaryOperation(UnaryOperation* node) {
   USE(node);
-  UNREACHABLE();
-}
-
-
-void Processor::VisitIncrementOperation(IncrementOperation* node) {
   UNREACHABLE();
 }
 

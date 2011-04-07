@@ -376,11 +376,6 @@ void PrettyPrinter::VisitUnaryOperation(UnaryOperation* node) {
 }
 
 
-void PrettyPrinter::VisitIncrementOperation(IncrementOperation* node) {
-  UNREACHABLE();
-}
-
-
 void PrettyPrinter::VisitCountOperation(CountOperation* node) {
   Print("(");
   if (node->is_prefix()) Print("%s", Token::String(node->op()));
@@ -1056,11 +1051,6 @@ void AstPrinter::VisitUnaryOperation(UnaryOperation* node) {
 }
 
 
-void AstPrinter::VisitIncrementOperation(IncrementOperation* node) {
-  UNREACHABLE();
-}
-
-
 void AstPrinter::VisitCountOperation(CountOperation* node) {
   EmbeddedVector<char, 128> buf;
   if (node->type()->IsKnown()) {
@@ -1458,11 +1448,6 @@ void JsonAstBuilder::VisitUnaryOperation(UnaryOperation* expr) {
     AddAttribute("op", Token::Name(expr->op()));
   }
   Visit(expr->expression());
-}
-
-
-void JsonAstBuilder::VisitIncrementOperation(IncrementOperation* expr) {
-  UNREACHABLE();
 }
 
 

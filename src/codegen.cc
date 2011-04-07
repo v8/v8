@@ -358,11 +358,6 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
 }
 
 
-void CodeGenerator::VisitIncrementOperation(IncrementOperation* expr) {
-  UNREACHABLE();
-}
-
-
 // Lookup table for code generators for special runtime calls which are
 // generated inline.
 #define INLINE_FUNCTION_GENERATOR_ADDRESS(Name, argc, ressize)          \

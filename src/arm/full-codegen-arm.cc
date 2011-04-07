@@ -3885,7 +3885,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   if (assign_type == VARIABLE) {
     PrepareForBailout(expr->expression(), TOS_REG);
   } else {
-    PrepareForBailout(expr->increment(), TOS_REG);
+    PrepareForBailoutForId(expr->CountId(), TOS_REG);
   }
 
   // Call ToNumber only if operand is not a smi.

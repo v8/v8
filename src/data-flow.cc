@@ -490,12 +490,6 @@ void AssignedVariablesAnalyzer::VisitUnaryOperation(UnaryOperation* expr) {
 }
 
 
-void AssignedVariablesAnalyzer::VisitIncrementOperation(
-    IncrementOperation* expr) {
-  UNREACHABLE();
-}
-
-
 void AssignedVariablesAnalyzer::VisitCountOperation(CountOperation* expr) {
   ASSERT(av_.IsEmpty());
   if (expr->is_prefix()) MarkIfTrivial(expr->expression());

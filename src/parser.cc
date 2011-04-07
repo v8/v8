@@ -2593,9 +2593,10 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     }
 
     int position = scanner().location().beg_pos;
-    IncrementOperation* increment =
-        new(zone()) IncrementOperation(op, expression);
-    return new(zone()) CountOperation(true /* prefix */, increment, position);
+    return new(zone()) CountOperation(op,
+                                      true /* prefix */,
+                                      expression,
+                                      position);
 
   } else {
     return ParsePostfixExpression(ok);
@@ -2627,10 +2628,11 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
 
     Token::Value next = Next();
     int position = scanner().location().beg_pos;
-    IncrementOperation* increment =
-        new(zone()) IncrementOperation(next, expression);
     expression =
-        new(zone()) CountOperation(false /* postfix */, increment, position);
+        new(zone()) CountOperation(next,
+                                   false /* postfix */,
+                                   expression,
+                                   position);
   }
   return expression;
 }

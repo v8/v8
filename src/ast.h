@@ -88,7 +88,6 @@ namespace internal {
   V(CallNew)                                    \
   V(CallRuntime)                                \
   V(UnaryOperation)                             \
-  V(IncrementOperation)                         \
   V(CountOperation)                             \
   V(BinaryOperation)                            \
   V(CompareOperation)                           \
@@ -1487,45 +1486,27 @@ class BinaryOperation: public Expression {
 };
 
 
-class IncrementOperation: public Expression {
- public:
-  IncrementOperation(Token::Value op, Expression* expr)
-      : op_(op), expression_(expr) {
-    ASSERT(Token::IsCountOp(op));
-  }
-
-  DECLARE_NODE_TYPE(IncrementOperation)
-
-  Token::Value op() const { return op_; }
-  bool is_increment() { return op_ == Token::INC; }
-  Expression* expression() const { return expression_; }
-
- private:
-  Token::Value op_;
-  Expression* expression_;
-  int pos_;
-};
-
-
 class CountOperation: public Expression {
  public:
-  CountOperation(bool is_prefix, IncrementOperation* increment, int pos)
-      : is_prefix_(is_prefix), increment_(increment), pos_(pos),
-        assignment_id_(GetNextId()) {
-  }
+  CountOperation(Token::Value op, bool is_prefix, Expression* expr, int pos)
+      : op_(op),
+        is_prefix_(is_prefix),
+        expression_(expr),
+        pos_(pos),
+        assignment_id_(GetNextId()),
+        count_id_(GetNextId()) { }
 
   DECLARE_NODE_TYPE(CountOperation)
 
   bool is_prefix() const { return is_prefix_; }
   bool is_postfix() const { return !is_prefix_; }
 
-  Token::Value op() const { return increment_->op(); }
+  Token::Value op() const { return op_; }
   Token::Value binary_op() {
     return (op() == Token::INC) ? Token::ADD : Token::SUB;
   }
 
-  Expression* expression() const { return increment_->expression(); }
-  IncrementOperation* increment() const { return increment_; }
+  Expression* expression() const { return expression_; }
   int position() const { return pos_; }
 
   virtual void MarkAsStatement() { is_prefix_ = true; }
@@ -1534,12 +1515,15 @@ class CountOperation: public Expression {
 
   // Bailout support.
   int AssignmentId() const { return assignment_id_; }
+  int CountId() const { return count_id_; }
 
  private:
+  Token::Value op_;
   bool is_prefix_;
-  IncrementOperation* increment_;
+  Expression* expression_;
   int pos_;
   int assignment_id_;
+  int count_id_;
 };
 
 

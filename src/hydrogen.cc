@@ -4612,13 +4612,6 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
 }
 
 
-void HGraphBuilder::VisitIncrementOperation(IncrementOperation* expr) {
-  // IncrementOperation is never visited by the visitor. It only
-  // occurs as a subexpression of CountOperation.
-  UNREACHABLE();
-}
-
-
 HInstruction* HGraphBuilder::BuildIncrement(HValue* value, bool increment) {
   HConstant* delta = increment
       ? graph_->GetConstant1()
@@ -4630,8 +4623,7 @@ HInstruction* HGraphBuilder::BuildIncrement(HValue* value, bool increment) {
 
 
 void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
-  IncrementOperation* increment = expr->increment();
-  Expression* target = increment->expression();
+  Expression* target = expr->expression();
   VariableProxy* proxy = target->AsVariableProxy();
   Variable* var = proxy->AsVariable();
   Property* prop = target->AsProperty();
@@ -4692,7 +4684,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
         load = BuildLoadNamedGeneric(obj, prop);
       }
       PushAndAdd(load);
-      if (load->HasSideEffects()) AddSimulate(increment->id());
+      if (load->HasSideEffects()) AddSimulate(expr->CountId());
 
       HValue* before = Pop();
       // There is no deoptimization to after the increment, so we don't need
@@ -4733,7 +4725,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
           ? BuildLoadKeyedFastElement(obj, key, prop)
           : BuildLoadKeyedGeneric(obj, key);
       PushAndAdd(load);
-      if (load->HasSideEffects()) AddSimulate(increment->id());
+      if (load->HasSideEffects()) AddSimulate(expr->CountId());
 
       HValue* before = Pop();
       // There is no deoptimization to after the increment, so we don't need

@@ -213,12 +213,6 @@ void BreakableStatementChecker::VisitThrow(Throw* expr) {
 }
 
 
-void BreakableStatementChecker::VisitIncrementOperation(
-    IncrementOperation* expr) {
-  UNREACHABLE();
-}
-
-
 void BreakableStatementChecker::VisitProperty(Property* expr) {
   // Property load is breakable.
   is_breakable_ = true;
@@ -1354,11 +1348,6 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
   VisitForStackValue(expr->exception());
   __ CallRuntime(Runtime::kThrow, 1);
   // Never returns here.
-}
-
-
-void FullCodeGenerator::VisitIncrementOperation(IncrementOperation* expr) {
-  UNREACHABLE();
 }
 
 
