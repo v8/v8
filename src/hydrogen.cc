@@ -582,7 +582,7 @@ HGraph::HGraph(CompilationInfo* info)
       phi_list_(NULL) {
   start_environment_ =
       new(zone()) HEnvironment(NULL, info->scope(), info->closure());
-  start_environment_->set_ast_id(info->function()->id());
+  start_environment_->set_ast_id(AstNode::kFunctionEntryId);
   entry_block_ = CreateBasicBlock();
   entry_block_->SetInitialEnvironment(start_environment_);
 }
@@ -2203,7 +2203,7 @@ HGraph* HGraphBuilder::CreateGraph() {
     HEnvironment* initial_env = environment()->CopyWithoutHistory();
     HBasicBlock* body_entry = CreateBasicBlock(initial_env);
     current_block()->Goto(body_entry);
-    body_entry->SetJoinId(info()->function()->id());
+    body_entry->SetJoinId(AstNode::kFunctionEntryId);
     set_current_block(body_entry);
     VisitStatements(info()->function()->body());
     if (HasStackOverflow()) return NULL;
@@ -5663,7 +5663,7 @@ HEnvironment* HEnvironment::CopyForInlining(Handle<JSFunction> target,
     inner->SetValueAt(local_base + i, undefined);
   }
 
-  inner->set_ast_id(function->id());
+  inner->set_ast_id(AstNode::kFunctionEntryId);
   return inner;
 }
 

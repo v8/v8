@@ -132,6 +132,7 @@ class AstNode: public ZoneObject {
 #undef DECLARE_TYPE_ENUM
 
   static const int kNoNumber = -1;
+  static const int kFunctionEntryId = 2;  // Using 0 could disguise errors.
 
   AstNode() : id_(GetNextId()) {
     Isolate* isolate = Isolate::Current();
@@ -1661,8 +1662,7 @@ class FunctionLiteral: public Expression {
                   int num_parameters,
                   int start_position,
                   int end_position,
-                  bool is_expression,
-                  bool contains_loops)
+                  bool is_expression)
       : name_(name),
         scope_(scope),
         body_(body),
@@ -1675,7 +1675,6 @@ class FunctionLiteral: public Expression {
         start_position_(start_position),
         end_position_(end_position),
         is_expression_(is_expression),
-        contains_loops_(contains_loops),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(HEAP->empty_string()),
         pretenure_(false) { }
@@ -1690,7 +1689,6 @@ class FunctionLiteral: public Expression {
   int start_position() const { return start_position_; }
   int end_position() const { return end_position_; }
   bool is_expression() const { return is_expression_; }
-  bool contains_loops() const { return contains_loops_; }
   bool strict_mode() const;
 
   int materialized_literal_count() { return materialized_literal_count_; }
@@ -1730,7 +1728,6 @@ class FunctionLiteral: public Expression {
   int start_position_;
   int end_position_;
   bool is_expression_;
-  bool contains_loops_;
   bool strict_mode_;
   int function_token_position_;
   Handle<String> inferred_name_;
