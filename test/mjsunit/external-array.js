@@ -38,3 +38,24 @@ for (var i = 0; i < 1000000; i++) {
 
 assertEquals(0, a[0]);
 assertEquals(0, a[1]);
+
+// Test the correct behavior of the |length| property (which is read-only).
+a = new Int32Array(42);
+assertEquals(42, a.length);
+a.length = 2;
+assertEquals(42, a.length);
+assertTrue(delete a.length);
+a.length = 2
+assertEquals(2, a.length);
+
+// Test the correct behavior of the |BYTES_PER_ELEMENT| property (which is
+// "constant", but not read-only).
+a = new Int32Array(2);
+assertEquals(4, a.BYTES_PER_ELEMENT);
+a.BYTES_PER_ELEMENT = 42;
+assertEquals(42, a.BYTES_PER_ELEMENT);
+a = new Uint8Array(2);
+assertEquals(1, a.BYTES_PER_ELEMENT);
+a = new Int16Array(2);
+assertEquals(2, a.BYTES_PER_ELEMENT);
+
