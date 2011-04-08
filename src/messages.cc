@@ -56,11 +56,6 @@ void MessageHandler::DefaultMessageReport(const MessageLocation* loc,
 }
 
 
-void MessageHandler::ReportMessage(const char* msg) {
-  PrintF("%s\n", msg);
-}
-
-
 Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     const char* type,
     MessageLocation* loc,
@@ -113,7 +108,7 @@ void MessageHandler::ReportMessage(Isolate* isolate,
   // to report a message as they are due to unhandled exceptions thrown in
   // message callbacks.
   if (isolate->in_exception_reporting()) {
-    ReportMessage("uncaught exception thrown while reporting");
+    PrintF("uncaught exception thrown while reporting\n");
     return;
   }
   isolate->set_in_exception_reporting(true);

@@ -89,9 +89,6 @@ class MessageLocation {
 // of message listeners registered in an environment
 class MessageHandler {
  public:
-  // Report a message (w/o JS heap allocation).
-  static void ReportMessage(const char* msg);
-
   // Returns a message object for the API to use.
   static Handle<JSMessageObject> MakeMessageObject(
       const char* type,

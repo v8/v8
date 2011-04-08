@@ -534,19 +534,19 @@ Failure* Isolate::StackOverflow() {
   // the message for stack overflow exceptions which is very likely to
   // double fault with another stack overflow exception, we use a
   // precomputed message.
-  DoThrow(*exception, NULL, kStackOverflowMessage);
+ DoThrow(*exception, NULL);
   return Failure::Exception();
 }
 
 
 Failure* Isolate::TerminateExecution() {
-  DoThrow(heap_.termination_exception(), NULL, NULL);
+  DoThrow(heap_.termination_exception(), NULL);
   return Failure::Exception();
 }
 
 
 Failure* Isolate::Throw(Object* exception, MessageLocation* location) {
-  DoThrow(exception, location, NULL);
+  DoThrow(exception, location);
   return Failure::Exception();
 }
 
@@ -664,9 +664,7 @@ bool Isolate::ShouldReportException(bool* can_be_caught_externally,
 }
 
 
-void Isolate::DoThrow(MaybeObject* exception,
-                      MessageLocation* location,
-                      const char* message) {
+void Isolate::DoThrow(MaybeObject* exception, MessageLocation* location) {
   ASSERT(!has_pending_exception());
 
   HandleScope scope;
@@ -723,7 +721,6 @@ void Isolate::DoThrow(MaybeObject* exception,
 
   // Save the message for reporting if the the exception remains uncaught.
   thread_local_top()->has_pending_message_ = report_exception;
-  thread_local_top()->pending_message_ = message;
   if (!message_obj.is_null()) {
     thread_local_top()->pending_message_obj_ = *message_obj;
     if (location != NULL) {
@@ -811,9 +808,7 @@ void Isolate::ReportPendingMessages() {
   } else {
     if (thread_local_top_.has_pending_message_) {
       thread_local_top_.has_pending_message_ = false;
-      if (thread_local_top_.pending_message_ != NULL) {
-        MessageHandler::ReportMessage(thread_local_top_.pending_message_);
-      } else if (!thread_local_top_.pending_message_obj_->IsTheHole()) {
+      if (!thread_local_top_.pending_message_obj_->IsTheHole()) {
         HandleScope scope;
         Handle<Object> message_obj(thread_local_top_.pending_message_obj_);
         if (thread_local_top_.pending_message_script_ != NULL) {

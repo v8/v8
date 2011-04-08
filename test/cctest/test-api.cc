@@ -2663,6 +2663,21 @@ TEST(APIThrowMessageAndVerboseTryCatch) {
 }
 
 
+TEST(APIStackOverflowAndVerboseTryCatch) {
+  message_received = false;
+  v8::HandleScope scope;
+  v8::V8::AddMessageListener(receive_message);
+  LocalContext context;
+  v8::TryCatch try_catch;
+  try_catch.SetVerbose(true);
+  Local<Value> result = CompileRun("function foo() { foo(); } foo();");
+  CHECK(try_catch.HasCaught());
+  CHECK(result.IsEmpty());
+  CHECK(message_received);
+  v8::V8::RemoveMessageListeners(receive_message);
+}
+
+
 THREADED_TEST(ExternalScriptException) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();

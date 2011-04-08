@@ -179,7 +179,6 @@ class ThreadLocalTop BASE_EMBEDDED {
   int thread_id_;
   MaybeObject* pending_exception_;
   bool has_pending_message_;
-  const char* pending_message_;
   Object* pending_message_obj_;
   Script* pending_message_script_;
   int pending_message_start_pos_;
@@ -515,7 +514,6 @@ class Isolate {
   }
   void clear_pending_message() {
     thread_local_top_.has_pending_message_ = false;
-    thread_local_top_.pending_message_ = NULL;
     thread_local_top_.pending_message_obj_ = heap_.the_hole_value();
     thread_local_top_.pending_message_script_ = NULL;
   }
@@ -675,9 +673,7 @@ class Isolate {
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
   Failure* PromoteScheduledException();
-  void DoThrow(MaybeObject* exception,
-               MessageLocation* location,
-               const char* message);
+  void DoThrow(MaybeObject* exception, MessageLocation* location);
   // Checks if exception should be reported and finds out if it's
   // caught externally.
   bool ShouldReportException(bool* can_be_caught_externally,
