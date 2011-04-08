@@ -1050,6 +1050,23 @@ HConstant* HConstant::CopyToTruncatedInt32() const {
 }
 
 
+bool HConstant::ToBoolean() const {
+  // Converts the constant's boolean value according to
+  // ECMAScript section 9.2 ToBoolean conversion.
+  if (HasInteger32Value()) return Integer32Value() != 0;
+  if (HasDoubleValue()) {
+    double v = DoubleValue();
+    return v != 0 && !isnan(v);
+  }
+  if (handle()->IsTrue()) return true;
+  if (handle()->IsFalse()) return false;
+  if (handle()->IsUndefined()) return false;
+  if (handle()->IsNull()) return false;
+  if (handle()->IsString() &&
+      String::cast(*handle())->length() == 0) return false;
+  return true;
+}
+
 void HConstant::PrintDataTo(StringStream* stream) {
   handle()->ShortPrint(stream);
 }

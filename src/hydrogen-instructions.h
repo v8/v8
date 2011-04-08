@@ -1961,6 +1961,8 @@ class HConstant: public HTemplateInstruction<0> {
   }
   bool HasStringValue() const { return handle_->IsString(); }
 
+  bool ToBoolean() const;
+
   virtual intptr_t Hashcode() {
     ASSERT(!HEAP->allow_allocation(false));
     return reinterpret_cast<intptr_t>(*handle());
