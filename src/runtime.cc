@@ -7820,8 +7820,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
     // The property exists in the extension context.
     context_ext = Handle<JSObject>::cast(holder);
   } else {
-    // The property was not found. It needs to be stored in the global context.
+    // The property was not found.
     ASSERT(attributes == ABSENT);
+
+    if (strict_mode == kStrictMode) {
+      // Throw in strict mode (assignment to undefined variable).
+      Handle<Object> error =
+        isolate->factory()->NewReferenceError(
+            "not_defined", HandleVector(&name, 1));
+      return isolate->Throw(*error);
+    }
+    // In non-strict mode, the property is stored in the global context.
     attributes = NONE;
     context_ext = Handle<JSObject>(isolate->context()->global());
   }

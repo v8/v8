@@ -2981,7 +2981,12 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             HValue* value = Pop();
             Handle<String> name = Handle<String>::cast(key->handle());
             HStoreNamedGeneric* store =
-                new(zone()) HStoreNamedGeneric(context, literal, name, value);
+                new(zone()) HStoreNamedGeneric(
+                                context,
+                                literal,
+                                name,
+                                value,
+                                function_strict_mode());
             AddInstruction(store);
             AddSimulate(key->id());
           } else {
@@ -3122,7 +3127,12 @@ HInstruction* HGraphBuilder::BuildStoreNamedGeneric(HValue* object,
                                                     HValue* value) {
   HContext* context = new(zone()) HContext;
   AddInstruction(context);
-  return new(zone()) HStoreNamedGeneric(context, object, name, value);
+  return new(zone()) HStoreNamedGeneric(
+                         context,
+                         object,
+                         name,
+                         value,
+                         function_strict_mode());
 }
 
 
@@ -3300,7 +3310,8 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
         new(zone()) HStoreGlobalGeneric(context,
                                         global_object,
                                         var->name(),
-                                        value);
+                                        value,
+                                        function_strict_mode());
     instr->set_position(position);
     AddInstruction(instr);
     ASSERT(instr->HasSideEffects());
@@ -3628,7 +3639,12 @@ HInstruction* HGraphBuilder::BuildStoreKeyedGeneric(HValue* object,
                                                     HValue* value) {
   HContext* context = new(zone()) HContext;
   AddInstruction(context);
-  return new(zone()) HStoreKeyedGeneric(context, object, key, value);
+  return new(zone()) HStoreKeyedGeneric(
+                         context,
+                         object,
+                         key,
+                         value,
+                         function_strict_mode());
 }
 
 

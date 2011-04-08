@@ -1728,7 +1728,6 @@ class FunctionLiteral: public Expression {
   int start_position_;
   int end_position_;
   bool is_expression_;
-  bool strict_mode_;
   int function_token_position_;
   Handle<String> inferred_name_;
   bool pretenure_;
