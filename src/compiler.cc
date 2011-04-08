@@ -784,7 +784,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     }
   }
 
-  GDBJIT(AddCode(name,
+  GDBJIT(AddCode(Handle<String>(shared->DebugName()),
                  Handle<Script>(info->script()),
                  Handle<Code>(info->code())));
 }
