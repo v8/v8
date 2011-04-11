@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // This is a regression test for overlapping key and value registers.
 function f(a) {
   a[0] = 0;
@@ -32,9 +34,11 @@ function f(a) {
 }
 
 var a = new Int32Array(2);
-for (var i = 0; i < 1000000; i++) {
+for (var i = 0; i < 5; i++) {
   f(a);
 }
+%OptimizeFunctionOnNextCall(f);
+f(a);
 
 assertEquals(0, a[0]);
 assertEquals(0, a[1]);

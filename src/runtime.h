@@ -84,7 +84,8 @@ namespace internal {
   F(LazyRecompile, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyOSR, 0, 1) \
-  F(DeoptimizeFunction, 1, 1)             \
+  F(DeoptimizeFunction, 1, 1) \
+  F(OptimizeFunctionOnNextCall, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \

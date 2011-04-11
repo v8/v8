@@ -4526,6 +4526,9 @@ class JSFunction: public JSObject {
   // Tells whether or not this function has been optimized.
   inline bool IsOptimized();
 
+  // Tells whether or not this function can be optimized.
+  inline bool IsOptimizable();
+
   // Mark this function for lazy recompilation. The function will be
   // recompiled the next time it is executed.
   void MarkForLazyRecompilation();

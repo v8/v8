@@ -3309,6 +3309,11 @@ bool JSFunction::IsOptimized() {
 }
 
 
+bool JSFunction::IsOptimizable() {
+  return code()->kind() == Code::FUNCTION && code()->optimizable();
+}
+
+
 bool JSFunction::IsMarkedForLazyRecompilation() {
   return code() == GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile);
 }
