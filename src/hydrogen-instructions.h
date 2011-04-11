@@ -1961,6 +1961,8 @@ class HConstant: public HTemplateInstruction<0> {
   }
   bool HasStringValue() const { return handle_->IsString(); }
 
+  bool ToBoolean() const;
+
   virtual intptr_t Hashcode() {
     ASSERT(!HEAP->allow_allocation(false));
     return reinterpret_cast<intptr_t>(*handle());
@@ -2908,8 +2910,10 @@ class HStoreGlobalGeneric: public HTemplateInstruction<3> {
   HStoreGlobalGeneric(HValue* context,
                       HValue* global_object,
                       Handle<Object> name,
-                      HValue* value)
-      : name_(name) {
+                      HValue* value,
+                      bool strict_mode)
+      : name_(name),
+        strict_mode_(strict_mode) {
     SetOperandAt(0, context);
     SetOperandAt(1, global_object);
     SetOperandAt(2, value);
@@ -2921,6 +2925,7 @@ class HStoreGlobalGeneric: public HTemplateInstruction<3> {
   HValue* global_object() { return OperandAt(1); }
   Handle<Object> name() const { return name_; }
   HValue* value() { return OperandAt(2); }
+  bool strict_mode() { return strict_mode_; }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -2932,6 +2937,7 @@ class HStoreGlobalGeneric: public HTemplateInstruction<3> {
 
  private:
   Handle<Object> name_;
+  bool strict_mode_;
 };
 
 
@@ -3263,8 +3269,10 @@ class HStoreNamedGeneric: public HTemplateInstruction<3> {
   HStoreNamedGeneric(HValue* context,
                      HValue* object,
                      Handle<String> name,
-                     HValue* value)
-      : name_(name) {
+                     HValue* value,
+                     bool strict_mode)
+      : name_(name),
+        strict_mode_(strict_mode) {
     SetOperandAt(0, object);
     SetOperandAt(1, value);
     SetOperandAt(2, context);
@@ -3275,6 +3283,7 @@ class HStoreNamedGeneric: public HTemplateInstruction<3> {
   HValue* value() { return OperandAt(1); }
   HValue* context() { return OperandAt(2); }
   Handle<String> name() { return name_; }
+  bool strict_mode() { return strict_mode_; }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -3286,6 +3295,7 @@ class HStoreNamedGeneric: public HTemplateInstruction<3> {
 
  private:
   Handle<String> name_;
+  bool strict_mode_;
 };
 
 
@@ -3363,7 +3373,9 @@ class HStoreKeyedGeneric: public HTemplateInstruction<4> {
   HStoreKeyedGeneric(HValue* context,
                      HValue* object,
                      HValue* key,
-                     HValue* value) {
+                     HValue* value,
+                     bool strict_mode)
+      : strict_mode_(strict_mode) {
     SetOperandAt(0, object);
     SetOperandAt(1, key);
     SetOperandAt(2, value);
@@ -3375,6 +3387,7 @@ class HStoreKeyedGeneric: public HTemplateInstruction<4> {
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
   HValue* context() { return OperandAt(3); }
+  bool strict_mode() { return strict_mode_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -3383,6 +3396,9 @@ class HStoreKeyedGeneric: public HTemplateInstruction<4> {
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store_keyed_generic")
+
+ private:
+  bool strict_mode_;
 };
 
 

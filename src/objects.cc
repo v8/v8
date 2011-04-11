@@ -2518,7 +2518,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
 
   DescriptorArray* descs = map_of_this->instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    PropertyDetails details = descs->GetDetails(i);
+    PropertyDetails details(descs->GetDetails(i));
     switch (details.type()) {
       case CONSTANT_FUNCTION: {
         PropertyDetails d =
@@ -6491,7 +6491,6 @@ const char* Code::Kind2String(Kind kind) {
     case KEYED_EXTERNAL_ARRAY_STORE_IC: return "KEYED_EXTERNAL_ARRAY_STORE_IC";
     case CALL_IC: return "CALL_IC";
     case KEYED_CALL_IC: return "KEYED_CALL_IC";
-    case BINARY_OP_IC: return "BINARY_OP_IC";
     case TYPE_RECORDING_BINARY_OP_IC: return "TYPE_RECORDING_BINARY_OP_IC";
     case COMPARE_IC: return "COMPARE_IC";
   }
@@ -6865,6 +6864,22 @@ MaybeObject* JSObject::SetPrototype(Object* value,
   // Silently ignore the change if value is not a JSObject or null.
   // SpiderMonkey behaves this way.
   if (!value->IsJSObject() && !value->IsNull()) return value;
+
+  // From 8.6.2 Object Internal Methods
+  // ...
+  // In addition, if [[Extensible]] is false the value of the [[Class]] and
+  // [[Prototype]] internal properties of the object may not be modified.
+  // ...
+  // Implementation specific extensions that modify [[Class]], [[Prototype]]
+  // or [[Extensible]] must not violate the invariants defined in the preceding
+  // paragraph.
+  if (!this->map()->is_extensible()) {
+    HandleScope scope;
+    Handle<Object> handle(this, heap->isolate());
+    return heap->isolate()->Throw(
+        *FACTORY->NewTypeError("non_extensible_proto",
+                               HandleVector<Object>(&handle, 1)));
+  }
 
   // Before we can set the prototype we need to be sure
   // prototype cycles are prevented.
@@ -8086,7 +8101,7 @@ int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
     DescriptorArray* descs = map()->instance_descriptors();
     int result = 0;
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
-      PropertyDetails details = descs->GetDetails(i);
+      PropertyDetails details(descs->GetDetails(i));
       if (details.IsProperty() && (details.attributes() & filter) == 0) {
         result++;
       }
@@ -9653,7 +9668,7 @@ void NumberDictionary::RemoveNumberEntries(uint32_t from, uint32_t to) {
     if (key->IsNumber()) {
       uint32_t number = static_cast<uint32_t>(key->Number());
       if (from <= number && number < to) {
-        SetEntry(i, sentinel, sentinel, Smi::FromInt(0));
+        SetEntry(i, sentinel, sentinel);
         removed_entries++;
       }
     }
@@ -9673,7 +9688,7 @@ Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
   if (details.IsDontDelete() && mode != JSObject::FORCE_DELETION) {
     return heap->false_value();
   }
-  SetEntry(entry, heap->null_value(), heap->null_value(), Smi::FromInt(0));
+  SetEntry(entry, heap->null_value(), heap->null_value());
   HashTable<Shape, Key>::ElementRemoved();
   return heap->true_value();
 }

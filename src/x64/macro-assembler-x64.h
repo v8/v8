@@ -323,6 +323,16 @@ class MacroAssembler: public Assembler {
                                            Register src,
                                            int power);
 
+  // Perform the logical or of two smi values and return a smi value.
+  // If either argument is not a smi, jump to on_not_smis and retain
+  // the original values of source registers. The destination register
+  // may be changed if it's not one of the source registers.
+  template <typename LabelType>
+  void SmiOrIfSmis(Register dst,
+                   Register src1,
+                   Register src2,
+                   LabelType* on_not_smis);
+
 
   // Simple comparison of smis.  Both sides must be known smis to use these,
   // otherwise use Cmp.
@@ -1083,6 +1093,10 @@ class MacroAssembler: public Assembler {
   void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
   bool allow_stub_calls() { return allow_stub_calls_; }
 
+  static int SafepointRegisterStackIndex(Register reg) {
+    return SafepointRegisterStackIndex(reg.code());
+  }
+
  private:
   // Order general registers are pushed by Pushad.
   // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.
@@ -1782,6 +1796,24 @@ void MacroAssembler::JumpUnlessBothNonNegativeSmi(Register src1,
                                                   LabelType* on_not_both_smi) {
   Condition both_smi = CheckBothNonNegativeSmi(src1, src2);
   j(NegateCondition(both_smi), on_not_both_smi);
+}
+
+
+template <typename LabelType>
+void MacroAssembler::SmiOrIfSmis(Register dst, Register src1, Register src2,
+                                 LabelType* on_not_smis) {
+  if (dst.is(src1) || dst.is(src2)) {
+    ASSERT(!src1.is(kScratchRegister));
+    ASSERT(!src2.is(kScratchRegister));
+    movq(kScratchRegister, src1);
+    or_(kScratchRegister, src2);
+    JumpIfNotSmi(kScratchRegister, on_not_smis);
+    movq(dst, kScratchRegister);
+  } else {
+    movq(dst, src1);
+    or_(dst, src2);
+    JumpIfNotSmi(dst, on_not_smis);
+  }
 }
 
 

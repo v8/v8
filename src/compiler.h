@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,7 +30,6 @@
 
 #include "ast.h"
 #include "frame-element.h"
-#include "register-allocator.h"
 #include "zone.h"
 
 namespace v8 {
@@ -53,7 +52,7 @@ class CompilationInfo BASE_EMBEDDED {
   bool is_lazy() const { return (flags_ & IsLazy::mask()) != 0; }
   bool is_eval() const { return (flags_ & IsEval::mask()) != 0; }
   bool is_global() const { return (flags_ & IsGlobal::mask()) != 0; }
-  bool is_strict() const { return (flags_ & IsStrict::mask()) != 0; }
+  bool is_strict_mode() const { return (flags_ & IsStrictMode::mask()) != 0; }
   bool is_in_loop() const { return (flags_ & IsInLoop::mask()) != 0; }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
@@ -74,11 +73,11 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(!is_lazy());
     flags_ |= IsGlobal::encode(true);
   }
-  void MarkAsStrict() {
-    flags_ |= IsStrict::encode(true);
+  void MarkAsStrictMode() {
+    flags_ |= IsStrictMode::encode(true);
   }
   StrictModeFlag StrictMode() {
-    return is_strict() ? kStrictMode : kNonStrictMode;
+    return is_strict_mode() ? kStrictMode : kNonStrictMode;
   }
   void MarkAsInLoop() {
     ASSERT(is_lazy());
@@ -165,7 +164,7 @@ class CompilationInfo BASE_EMBEDDED {
   void Initialize(Mode mode) {
     mode_ = V8::UseCrankshaft() ? mode : NONOPT;
     if (!shared_info_.is_null() && shared_info_->strict_mode()) {
-      MarkAsStrict();
+      MarkAsStrictMode();
     }
   }
 
@@ -185,7 +184,7 @@ class CompilationInfo BASE_EMBEDDED {
   // Flags that can be set for lazy compilation.
   class IsInLoop: public BitField<bool, 3, 1> {};
   // Strict mode - used in eager compilation.
-  class IsStrict: public BitField<bool, 4, 1> {};
+  class IsStrictMode: public BitField<bool, 4, 1> {};
   // Native syntax (%-stuff) allowed?
   class IsNativesSyntaxAllowed: public BitField<bool, 5, 1> {};
 

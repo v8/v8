@@ -72,6 +72,7 @@ void ThreadLocalTop::Initialize() {
   int id = Isolate::Current()->thread_manager()->CurrentId();
   thread_id_ = (id == 0) ? ThreadManager::kInvalidId : id;
   external_caught_exception_ = false;
+  in_exception_reporting_ = false;
   failed_access_check_callback_ = NULL;
   save_context_ = NULL;
   catcher_ = NULL;
@@ -533,19 +534,19 @@ Failure* Isolate::StackOverflow() {
   // the message for stack overflow exceptions which is very likely to
   // double fault with another stack overflow exception, we use a
   // precomputed message.
-  DoThrow(*exception, NULL, kStackOverflowMessage);
+  DoThrow(*exception, NULL);
   return Failure::Exception();
 }
 
 
 Failure* Isolate::TerminateExecution() {
-  DoThrow(heap_.termination_exception(), NULL, NULL);
+  DoThrow(heap_.termination_exception(), NULL);
   return Failure::Exception();
 }
 
 
 Failure* Isolate::Throw(Object* exception, MessageLocation* location) {
-  DoThrow(exception, location, NULL);
+  DoThrow(exception, location);
   return Failure::Exception();
 }
 
@@ -663,9 +664,7 @@ bool Isolate::ShouldReportException(bool* can_be_caught_externally,
 }
 
 
-void Isolate::DoThrow(MaybeObject* exception,
-                      MessageLocation* location,
-                      const char* message) {
+void Isolate::DoThrow(MaybeObject* exception, MessageLocation* location) {
   ASSERT(!has_pending_exception());
 
   HandleScope scope;
@@ -722,7 +721,6 @@ void Isolate::DoThrow(MaybeObject* exception,
 
   // Save the message for reporting if the the exception remains uncaught.
   thread_local_top()->has_pending_message_ = report_exception;
-  thread_local_top()->pending_message_ = message;
   if (!message_obj.is_null()) {
     thread_local_top()->pending_message_obj_ = *message_obj;
     if (location != NULL) {
@@ -794,55 +792,36 @@ bool Isolate::IsExternallyCaught() {
 
 void Isolate::ReportPendingMessages() {
   ASSERT(has_pending_exception());
+  PropagatePendingExceptionToExternalTryCatch();
+
   // If the pending exception is OutOfMemoryException set out_of_memory in
   // the global context.  Note: We have to mark the global context here
   // since the GenerateThrowOutOfMemory stub cannot make a RuntimeCall to
   // set it.
-  bool external_caught = IsExternallyCaught();
-  thread_local_top()->external_caught_exception_ = external_caught;
-  HandleScope scope(this);
-  if (thread_local_top()->pending_exception_ ==
-      Failure::OutOfMemoryException()) {
+  HandleScope scope;
+  if (thread_local_top_.pending_exception_ == Failure::OutOfMemoryException()) {
     context()->mark_out_of_memory();
-  } else if (thread_local_top()->pending_exception_ ==
-             heap_.termination_exception()) {
-    if (external_caught) {
-      try_catch_handler()->can_continue_ = false;
-      try_catch_handler()->exception_ = heap_.null_value();
-    }
+  } else if (thread_local_top_.pending_exception_ ==
+             heap()->termination_exception()) {
+    // Do nothing: if needed, the exception has been already propagated to
+    // v8::TryCatch.
   } else {
-    // At this point all non-object (failure) exceptions have
-    // been dealt with so this shouldn't fail.
-    Object* pending_exception_object = pending_exception()->ToObjectUnchecked();
-    Handle<Object> exception(pending_exception_object);
-    thread_local_top()->external_caught_exception_ = false;
-    if (external_caught) {
-      try_catch_handler()->can_continue_ = true;
-      try_catch_handler()->exception_ = thread_local_top()->pending_exception_;
-      if (!thread_local_top()->pending_message_obj_->IsTheHole()) {
-        try_catch_handler()->message_ =
-            thread_local_top()->pending_message_obj_;
-      }
-    }
-    if (thread_local_top()->has_pending_message_) {
-      thread_local_top()->has_pending_message_ = false;
-      if (thread_local_top()->pending_message_ != NULL) {
-        MessageHandler::ReportMessage(thread_local_top()->pending_message_);
-      } else if (!thread_local_top()->pending_message_obj_->IsTheHole()) {
-        Handle<Object> message_obj(thread_local_top()->pending_message_obj_);
-        if (thread_local_top()->pending_message_script_ != NULL) {
-          Handle<Script> script(thread_local_top()->pending_message_script_);
-          int start_pos = thread_local_top()->pending_message_start_pos_;
-          int end_pos = thread_local_top()->pending_message_end_pos_;
+    if (thread_local_top_.has_pending_message_) {
+      thread_local_top_.has_pending_message_ = false;
+      if (!thread_local_top_.pending_message_obj_->IsTheHole()) {
+        HandleScope scope;
+        Handle<Object> message_obj(thread_local_top_.pending_message_obj_);
+        if (thread_local_top_.pending_message_script_ != NULL) {
+          Handle<Script> script(thread_local_top_.pending_message_script_);
+          int start_pos = thread_local_top_.pending_message_start_pos_;
+          int end_pos = thread_local_top_.pending_message_end_pos_;
           MessageLocation location(script, start_pos, end_pos);
-          MessageHandler::ReportMessage(&location, message_obj);
+          MessageHandler::ReportMessage(this, &location, message_obj);
         } else {
-          MessageHandler::ReportMessage(NULL, message_obj);
+          MessageHandler::ReportMessage(this, NULL, message_obj);
         }
       }
     }
-    thread_local_top()->external_caught_exception_ = external_caught;
-    set_pending_exception(*exception);
   }
   clear_pending_message();
 }
@@ -854,6 +833,9 @@ void Isolate::TraceException(bool flag) {
 
 
 bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
+  ASSERT(has_pending_exception());
+  PropagatePendingExceptionToExternalTryCatch();
+
   // Allways reschedule out of memory exceptions.
   if (!is_out_of_memory()) {
     bool is_termination_exception =
@@ -966,7 +948,7 @@ char* Isolate::RestoreThread(char* from) {
   memcpy(reinterpret_cast<char*>(thread_local_top()), from,
          sizeof(ThreadLocalTop));
   // This might be just paranoia, but it seems to be needed in case a
-  // thread_local_ is restored on a separate OS thread.
+  // thread_local_top_ is restored on a separate OS thread.
 #ifdef USE_SIMULATOR
 #ifdef V8_TARGET_ARCH_ARM
   thread_local_top()->simulator_ = Simulator::current(this);

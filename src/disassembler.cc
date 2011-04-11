@@ -28,7 +28,7 @@
 #include "v8.h"
 
 #include "code-stubs.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "disasm.h"
@@ -282,7 +282,8 @@ static int DecodeIt(FILE* f,
         } else {
           out.AddFormatted(" %s", Code::Kind2String(kind));
         }
-      } else if (rmode == RelocInfo::RUNTIME_ENTRY) {
+      } else if (rmode == RelocInfo::RUNTIME_ENTRY &&
+                 Isolate::Current()->deoptimizer_data() != NULL) {
         // A runtime entry reloinfo might be a deoptimization bailout.
         Address addr = relocinfo.target_address();
         int id = Deoptimizer::GetDeoptimizationId(addr, Deoptimizer::EAGER);

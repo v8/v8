@@ -106,7 +106,7 @@ class VirtualFrame : public ZoneObject {
   inline VirtualFrame();
 
   // Construct an invalid virtual frame, used by JumpTargets.
-  inline VirtualFrame(InvalidVirtualFrameInitializer* dummy);
+  explicit inline VirtualFrame(InvalidVirtualFrameInitializer* dummy);
 
   // Construct a virtual frame as a clone of an existing one.
   explicit inline VirtualFrame(VirtualFrame* original);

@@ -32,7 +32,7 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "debug.h"
 #include "runtime.h"
 
@@ -839,11 +839,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
 }
 
 void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
-#if !defined(USE_ARM_EABI)
-  UNREACHABLE();
-#else
   vmov(dst, r0, r1);
-#endif
 }
 
 

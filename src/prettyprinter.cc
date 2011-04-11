@@ -376,11 +376,6 @@ void PrettyPrinter::VisitUnaryOperation(UnaryOperation* node) {
 }
 
 
-void PrettyPrinter::VisitIncrementOperation(IncrementOperation* node) {
-  UNREACHABLE();
-}
-
-
 void PrettyPrinter::VisitCountOperation(CountOperation* node) {
   Print("(");
   if (node->is_prefix()) Print("%s", Token::String(node->op()));
@@ -609,16 +604,6 @@ class IndentedScope BASE_EMBEDDED {
   IndentedScope(AstPrinter* printer, const char* txt, AstNode* node = NULL)
       : ast_printer_(printer) {
     ast_printer_->PrintIndented(txt);
-    if (node != NULL && node->AsExpression() != NULL) {
-      Expression* expr = node->AsExpression();
-      bool printed_first = false;
-      if ((expr->type() != NULL) && (expr->type()->IsKnown())) {
-        ast_printer_->Print(" (type = ");
-        ast_printer_->Print(StaticType::Type2String(expr->type()));
-        printed_first = true;
-      }
-      if (printed_first) ast_printer_->Print(")");
-    }
     ast_printer_->Print("\n");
     ast_printer_->inc_indent();
   }
@@ -664,18 +649,13 @@ void AstPrinter::PrintLiteralIndented(const char* info,
 
 void AstPrinter::PrintLiteralWithModeIndented(const char* info,
                                               Variable* var,
-                                              Handle<Object> value,
-                                              StaticType* type) {
+                                              Handle<Object> value) {
   if (var == NULL) {
     PrintLiteralIndented(info, value, true);
   } else {
     EmbeddedVector<char, 256> buf;
     int pos = OS::SNPrintF(buf, "%s (mode = %s", info,
                            Variable::Mode2String(var->mode()));
-    if (type->IsKnown()) {
-      pos += OS::SNPrintF(buf + pos, ", type = %s",
-                          StaticType::Type2String(type));
-    }
     OS::SNPrintF(buf + pos, ")");
     PrintLiteralIndented(buf.start(), value, true);
   }
@@ -732,8 +712,7 @@ void AstPrinter::PrintParameters(Scope* scope) {
     IndentedScope indent(this, "PARAMS");
     for (int i = 0; i < scope->num_parameters(); i++) {
       PrintLiteralWithModeIndented("VAR", scope->parameter(i),
-                                   scope->parameter(i)->name(),
-                                   scope->parameter(i)->type());
+                                   scope->parameter(i)->name());
     }
   }
 }
@@ -777,8 +756,7 @@ void AstPrinter::VisitDeclaration(Declaration* node) {
     // var or const declarations
     PrintLiteralWithModeIndented(Variable::Mode2String(node->mode()),
                                  node->proxy()->AsVariable(),
-                                 node->proxy()->name(),
-                                 node->proxy()->AsVariable()->type());
+                                 node->proxy()->name());
   } else {
     // function declarations
     PrintIndented("FUNCTION ");
@@ -996,8 +974,7 @@ void AstPrinter::VisitSlot(Slot* node) {
 
 
 void AstPrinter::VisitVariableProxy(VariableProxy* node) {
-  PrintLiteralWithModeIndented("VAR PROXY", node->AsVariable(), node->name(),
-                               node->type());
+  PrintLiteralWithModeIndented("VAR PROXY", node->AsVariable(), node->name());
   Variable* var = node->var();
   if (var != NULL && var->rewrite() != NULL) {
     IndentedScope indent(this);
@@ -1056,22 +1033,10 @@ void AstPrinter::VisitUnaryOperation(UnaryOperation* node) {
 }
 
 
-void AstPrinter::VisitIncrementOperation(IncrementOperation* node) {
-  UNREACHABLE();
-}
-
-
 void AstPrinter::VisitCountOperation(CountOperation* node) {
   EmbeddedVector<char, 128> buf;
-  if (node->type()->IsKnown()) {
-    OS::SNPrintF(buf, "%s %s (type = %s)",
-                 (node->is_prefix() ? "PRE" : "POST"),
-                 Token::Name(node->op()),
-                 StaticType::Type2String(node->type()));
-  } else {
-    OS::SNPrintF(buf, "%s %s", (node->is_prefix() ? "PRE" : "POST"),
-                 Token::Name(node->op()));
-  }
+  OS::SNPrintF(buf, "%s %s", (node->is_prefix() ? "PRE" : "POST"),
+               Token::Name(node->op()));
   PrintIndentedVisit(buf.start(), node->expression());
 }
 
@@ -1458,11 +1423,6 @@ void JsonAstBuilder::VisitUnaryOperation(UnaryOperation* expr) {
     AddAttribute("op", Token::Name(expr->op()));
   }
   Visit(expr->expression());
-}
-
-
-void JsonAstBuilder::VisitIncrementOperation(IncrementOperation* expr) {
-  UNREACHABLE();
 }
 
 

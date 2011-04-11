@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,10 +28,10 @@
 #include "v8.h"
 
 #include "ast.h"
-#include "jump-target-inl.h"
 #include "parser.h"
 #include "scopes.h"
 #include "string-stream.h"
+#include "type-info.h"
 
 namespace v8 {
 namespace internal {
@@ -291,86 +291,13 @@ void ObjectLiteral::CalculateEmitStore() {
 }
 
 
-void TargetCollector::AddTarget(BreakTarget* target) {
+void TargetCollector::AddTarget(Label* target) {
   // Add the label to the collector, but discard duplicates.
   int length = targets_->length();
   for (int i = 0; i < length; i++) {
     if (targets_->at(i) == target) return;
   }
   targets_->Add(target);
-}
-
-
-bool Expression::GuaranteedSmiResult() {
-  BinaryOperation* node = AsBinaryOperation();
-  if (node == NULL) return false;
-  Token::Value op = node->op();
-  switch (op) {
-    case Token::COMMA:
-    case Token::OR:
-    case Token::AND:
-    case Token::ADD:
-    case Token::SUB:
-    case Token::MUL:
-    case Token::DIV:
-    case Token::MOD:
-    case Token::BIT_XOR:
-    case Token::SHL:
-      return false;
-      break;
-    case Token::BIT_OR:
-    case Token::BIT_AND: {
-      Literal* left = node->left()->AsLiteral();
-      Literal* right = node->right()->AsLiteral();
-      if (left != NULL && left->handle()->IsSmi()) {
-        int value = Smi::cast(*left->handle())->value();
-        if (op == Token::BIT_OR && ((value & 0xc0000000) == 0xc0000000)) {
-          // Result of bitwise or is always a negative Smi.
-          return true;
-        }
-        if (op == Token::BIT_AND && ((value & 0xc0000000) == 0)) {
-          // Result of bitwise and is always a positive Smi.
-          return true;
-        }
-      }
-      if (right != NULL && right->handle()->IsSmi()) {
-        int value = Smi::cast(*right->handle())->value();
-        if (op == Token::BIT_OR && ((value & 0xc0000000) == 0xc0000000)) {
-          // Result of bitwise or is always a negative Smi.
-          return true;
-        }
-        if (op == Token::BIT_AND && ((value & 0xc0000000) == 0)) {
-          // Result of bitwise and is always a positive Smi.
-          return true;
-        }
-      }
-      return false;
-      break;
-    }
-    case Token::SAR:
-    case Token::SHR: {
-      Literal* right = node->right()->AsLiteral();
-       if (right != NULL && right->handle()->IsSmi()) {
-        int value = Smi::cast(*right->handle())->value();
-        if ((value & 0x1F) > 1 ||
-            (op == Token::SAR && (value & 0x1F) == 1)) {
-          return true;
-        }
-       }
-       return false;
-       break;
-    }
-    default:
-      UNREACHABLE();
-      break;
-  }
-  return false;
-}
-
-
-void Expression::CopyAnalysisResultsFrom(Expression* other) {
-  bitfields_ = other->bitfields_;
-  type_ = other->type_;
 }
 
 
@@ -416,7 +343,6 @@ BinaryOperation::BinaryOperation(Assignment* assignment) {
   left_ = assignment->target();
   right_ = assignment->value();
   pos_ = assignment->position();
-  CopyAnalysisResultsFrom(assignment);
 }
 
 
@@ -549,7 +475,7 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   } else if (is_monomorphic_) {
     monomorphic_receiver_type_ = oracle->LoadMonomorphicReceiverType(this);
     if (monomorphic_receiver_type_->has_external_array_elements()) {
-      SetExternalArrayType(oracle->GetKeyedLoadExternalArrayType(this));
+      set_external_array_type(oracle->GetKeyedLoadExternalArrayType(this));
     }
   }
 }
@@ -569,7 +495,19 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     // Record receiver type for monomorphic keyed loads.
     monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
     if (monomorphic_receiver_type_->has_external_array_elements()) {
-      SetExternalArrayType(oracle->GetKeyedStoreExternalArrayType(this));
+      set_external_array_type(oracle->GetKeyedStoreExternalArrayType(this));
+    }
+  }
+}
+
+
+void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  is_monomorphic_ = oracle->StoreIsMonomorphic(this);
+  if (is_monomorphic_) {
+    // Record receiver type for monomorphic keyed loads.
+    monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
+    if (monomorphic_receiver_type_->has_external_array_elements()) {
+      set_external_array_type(oracle->GetKeyedStoreExternalArrayType(this));
     }
   }
 }

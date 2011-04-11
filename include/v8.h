@@ -3296,7 +3296,7 @@ class V8EXPORT Context {
    */
   class Scope {
    public:
-    inline Scope(Handle<Context> context) : context_(context) {
+    explicit inline Scope(Handle<Context> context) : context_(context) {
       context_->Enter();
     }
     inline ~Scope() { context_->Exit(); }

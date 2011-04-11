@@ -1,3 +1,22 @@
+2011-04-11: Version 3.2.9
+
+        Removed support for ABI prior to EABI on ARM.
+
+        Fixed multiple crash bugs.
+
+        Added GCMole to the repository, a simple static analysis tool that
+        searches for GC-unsafe evaluation order dependent callsites.
+
+        Made preparser API be exported in shared libraries.
+
+        Fixed multiple issues in EcmaScript 5 strict mode implementation.
+
+        Fixed mutable __proto__ property if object is not extensible
+        (Issue 1309).
+
+        Fixed auto suspension of the sampler thread.
+
+
 2011-04-06: Version 3.2.8
 
         Exposed WebGL typed array constructors in the shell sample.

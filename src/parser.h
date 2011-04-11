@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -655,7 +655,7 @@ class Parser {
   BreakableStatement* LookupBreakTarget(Handle<String> label, bool* ok);
   IterationStatement* LookupContinueTarget(Handle<String> label, bool* ok);
 
-  void RegisterTargetUse(BreakTarget* target, Target* stop);
+  void RegisterTargetUse(Label* target, Target* stop);
 
   // Factory methods.
 

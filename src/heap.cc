@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,7 +30,7 @@
 #include "accessors.h"
 #include "api.h"
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "compilation-cache.h"
 #include "debug.h"
 #include "heap-profiler.h"
@@ -3231,7 +3231,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   // Fill these accessors into the dictionary.
   DescriptorArray* descs = map->instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    PropertyDetails details = descs->GetDetails(i);
+    PropertyDetails details(descs->GetDetails(i));
     ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
     PropertyDetails d =
         PropertyDetails(details.attributes(), CALLBACKS, details.index());

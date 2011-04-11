@@ -30,7 +30,7 @@
 #include "compiler.h"
 
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "compilation-cache.h"
 #include "data-flow.h"
 #include "debug.h"
@@ -567,7 +567,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     CompilationInfo info(script);
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
-    if (strict_mode == kStrictMode) info.MarkAsStrict();
+    if (strict_mode == kStrictMode) info.MarkAsStrictMode();
     info.SetCallingContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
@@ -603,6 +603,12 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
     // rest of the function into account to avoid overlap with the lazy
     // parsing statistics.
     HistogramTimerScope timer(isolate->counters()->compile_lazy());
+
+    // After parsing we know function's strict mode. Remember it.
+    if (info->function()->strict_mode()) {
+      shared->set_strict_mode(true);
+      info->MarkAsStrictMode();
+    }
 
     // Compile the code.
     if (!MakeCode(info)) {
@@ -784,7 +790,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     }
   }
 
-  GDBJIT(AddCode(name,
+  GDBJIT(AddCode(Handle<String>(shared->DebugName()),
                  Handle<Script>(info->script()),
                  Handle<Code>(info->code())));
 }

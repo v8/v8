@@ -42,37 +42,66 @@ namespace internal {
 // An object group is treated like a single JS object: if one of object in
 // the group is alive, all objects in the same group are considered alive.
 // An object group is used to simulate object relationship in a DOM tree.
-class ObjectGroup : public Malloced {
+class ObjectGroup {
  public:
-  ObjectGroup() : objects_(4) {}
-  ObjectGroup(size_t capacity, v8::RetainedObjectInfo* info)
-      : objects_(static_cast<int>(capacity)),
-        info_(info) { }
-  ~ObjectGroup();
+  static ObjectGroup* New(Object*** handles,
+                          size_t length,
+                          v8::RetainedObjectInfo* info) {
+    ASSERT(length > 0);
+    ObjectGroup* group = reinterpret_cast<ObjectGroup*>(
+        malloc(OFFSET_OF(ObjectGroup, objects_[length])));
+    group->length_ = length;
+    group->info_ = info;
+    CopyWords(group->objects_, handles, static_cast<int>(length));
+    return group;
+  }
 
-  List<Object**> objects_;
+  void Dispose() {
+    free(this);
+  }
+
+  size_t length_;
   v8::RetainedObjectInfo* info_;
+  Object** objects_[1];  // Variable sized array.
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(ObjectGroup);
+  void* operator new(size_t size);
+  void operator delete(void* p);
+  ~ObjectGroup();
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ObjectGroup);
 };
 
 
 // An implicit references group consists of two parts: a parent object and
 // a list of children objects.  If the parent is alive, all the children
 // are alive too.
-class ImplicitRefGroup : public Malloced {
+class ImplicitRefGroup {
  public:
-  ImplicitRefGroup() : children_(4) {}
-  ImplicitRefGroup(HeapObject* parent, size_t capacity)
-      : parent_(parent),
-        children_(static_cast<int>(capacity)) { }
+  static ImplicitRefGroup* New(HeapObject** parent,
+                               Object*** children,
+                               size_t length) {
+    ASSERT(length > 0);
+    ImplicitRefGroup* group = reinterpret_cast<ImplicitRefGroup*>(
+        malloc(OFFSET_OF(ImplicitRefGroup, children_[length])));
+    group->parent_ = parent;
+    group->length_ = length;
+    CopyWords(group->children_, children, static_cast<int>(length));
+    return group;
+  }
 
-  HeapObject* parent_;
-  List<Object**> children_;
+  void Dispose() {
+    free(this);
+  }
+
+  HeapObject** parent_;
+  size_t length_;
+  Object** children_[1];  // Variable sized array.
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(ImplicitRefGroup);
+  void* operator new(size_t size);
+  void operator delete(void* p);
+  ~ImplicitRefGroup();
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ImplicitRefGroup);
 };
 
 
@@ -154,7 +183,7 @@ class GlobalHandles {
   // Add an implicit references' group.
   // Should be only used in GC callback function before a collection.
   // All groups are destroyed after a mark-compact collection.
-  void AddImplicitReferences(HeapObject* parent,
+  void AddImplicitReferences(HeapObject** parent,
                              Object*** children,
                              size_t length);
 

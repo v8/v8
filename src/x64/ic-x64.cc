@@ -29,7 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_X64)
 
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "ic-inl.h"
 #include "runtime.h"
 #include "stub-cache.h"

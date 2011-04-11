@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "compiler.h"
 #include "debug.h"
 #include "full-codegen.h"
@@ -210,12 +210,6 @@ void BreakableStatementChecker::VisitAssignment(Assignment* expr) {
 void BreakableStatementChecker::VisitThrow(Throw* expr) {
   // Throw is breakable if the expression is.
   Visit(expr->exception());
-}
-
-
-void BreakableStatementChecker::VisitIncrementOperation(
-    IncrementOperation* expr) {
-  UNREACHABLE();
 }
 
 
@@ -1354,11 +1348,6 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
   VisitForStackValue(expr->exception());
   __ CallRuntime(Runtime::kThrow, 1);
   // Never returns here.
-}
-
-
-void FullCodeGenerator::VisitIncrementOperation(IncrementOperation* expr) {
-  UNREACHABLE();
 }
 
 

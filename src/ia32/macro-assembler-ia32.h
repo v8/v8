@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -50,7 +50,6 @@ enum AllocationFlags {
 typedef Operand MemOperand;
 
 // Forward declaration.
-class JumpTarget;
 class PostCallGenerator;
 
 // MacroAssembler implements a collection of frequently used macros.
@@ -424,12 +423,6 @@ class MacroAssembler: public Assembler {
   // Check if result is zero and op is negative.
   void NegativeZeroTest(Register result, Register op, Label* then_label);
 
-  // Check if result is zero and op is negative in code using jump targets.
-  void NegativeZeroTest(CodeGenerator* cgen,
-                        Register result,
-                        Register op,
-                        JumpTarget* then_target);
-
   // Check if result is zero and any of op1 and op2 are negative.
   // Register scratch is destroyed, and it must be different from op2.
   void NegativeZeroTest(Register result, Register op1, Register op2,
@@ -641,6 +634,10 @@ class MacroAssembler: public Assembler {
                                            Register scratch1,
                                            Register scratch2,
                                            Label* on_not_flat_ascii_strings);
+
+  static int SafepointRegisterStackIndex(Register reg) {
+    return SafepointRegisterStackIndex(reg.code());
+  }
 
  private:
   bool generating_stub_;

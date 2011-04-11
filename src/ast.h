@@ -31,7 +31,6 @@
 #include "execution.h"
 #include "factory.h"
 #include "jsregexp.h"
-#include "jump-target.h"
 #include "runtime.h"
 #include "token.h"
 #include "variables.h"
@@ -88,7 +87,6 @@ namespace internal {
   V(CallNew)                                    \
   V(CallRuntime)                                \
   V(UnaryOperation)                             \
-  V(IncrementOperation)                         \
   V(CountOperation)                             \
   V(BinaryOperation)                            \
   V(CompareOperation)                           \
@@ -134,6 +132,7 @@ class AstNode: public ZoneObject {
 #undef DECLARE_TYPE_ENUM
 
   static const int kNoNumber = -1;
+  static const int kFunctionEntryId = 2;  // Using 0 could disguise errors.
 
   AstNode() : id_(GetNextId()) {
     Isolate* isolate = Isolate::Current();
@@ -220,7 +219,12 @@ class Expression: public AstNode {
     kTest
   };
 
-  Expression() : bitfields_(0) {}
+  Expression() {}
+
+  virtual int position() const {
+    UNREACHABLE();
+    return 0;
+  }
 
   virtual Expression* AsExpression()  { return this; }
 
@@ -266,70 +270,15 @@ class Expression: public AstNode {
     return Handle<Map>();
   }
 
-  // Static type information for this expression.
-  StaticType* type() { return &type_; }
-
-  // True if the expression is a loop condition.
-  bool is_loop_condition() const {
-    return LoopConditionField::decode(bitfields_);
+  ExternalArrayType external_array_type() const {
+    return external_array_type_;
   }
-  void set_is_loop_condition(bool flag) {
-    bitfields_ = (bitfields_ & ~LoopConditionField::mask()) |
-        LoopConditionField::encode(flag);
-  }
-
-  // The value of the expression is guaranteed to be a smi, because the
-  // top operation is a bit operation with a mask, or a shift.
-  bool GuaranteedSmiResult();
-
-  // AST analysis results.
-  void CopyAnalysisResultsFrom(Expression* other);
-
-  // True if the expression rooted at this node can be compiled by the
-  // side-effect free compiler.
-  bool side_effect_free() { return SideEffectFreeField::decode(bitfields_); }
-  void set_side_effect_free(bool is_side_effect_free) {
-    bitfields_ &= ~SideEffectFreeField::mask();
-    bitfields_ |= SideEffectFreeField::encode(is_side_effect_free);
-  }
-
-  // Will the use of this expression treat -0 the same as 0 in all cases?
-  // If so, we can return 0 instead of -0 if we want to, to optimize code.
-  bool no_negative_zero() { return NoNegativeZeroField::decode(bitfields_); }
-  void set_no_negative_zero(bool no_negative_zero) {
-    bitfields_ &= ~NoNegativeZeroField::mask();
-    bitfields_ |= NoNegativeZeroField::encode(no_negative_zero);
-  }
-
-  // Will ToInt32 (ECMA 262-3 9.5) or ToUint32 (ECMA 262-3 9.6)
-  // be applied to the value of this expression?
-  // If so, we may be able to optimize the calculation of the value.
-  bool to_int32() { return ToInt32Field::decode(bitfields_); }
-  void set_to_int32(bool to_int32) {
-    bitfields_ &= ~ToInt32Field::mask();
-    bitfields_ |= ToInt32Field::encode(to_int32);
-  }
-
-  // How many bitwise logical or shift operators are used in this expression?
-  int num_bit_ops() { return NumBitOpsField::decode(bitfields_); }
-  void set_num_bit_ops(int num_bit_ops) {
-    bitfields_ &= ~NumBitOpsField::mask();
-    num_bit_ops = Min(num_bit_ops, kMaxNumBitOps);
-    bitfields_ |= NumBitOpsField::encode(num_bit_ops);
+  void set_external_array_type(ExternalArrayType array_type) {
+    external_array_type_ = array_type;
   }
 
  private:
-  static const int kMaxNumBitOps = (1 << 5) - 1;
-
-  uint32_t bitfields_;
-  StaticType type_;
-
-  // Using template BitField<type, start, size>.
-  class SideEffectFreeField : public BitField<bool, 0, 1> {};
-  class NoNegativeZeroField : public BitField<bool, 1, 1> {};
-  class ToInt32Field : public BitField<bool, 2, 1> {};
-  class NumBitOpsField : public BitField<int, 3, 5> {};
-  class LoopConditionField: public BitField<bool, 8, 1> {};
+  ExternalArrayType external_array_type_;
 };
 
 
@@ -360,7 +309,7 @@ class BreakableStatement: public Statement {
   virtual BreakableStatement* AsBreakableStatement() { return this; }
 
   // Code generation
-  BreakTarget* break_target() { return &break_target_; }
+  Label* break_target() { return &break_target_; }
 
   // Testers.
   bool is_target_for_anonymous() const { return type_ == TARGET_FOR_ANONYMOUS; }
@@ -375,7 +324,7 @@ class BreakableStatement: public Statement {
  private:
   ZoneStringList* labels_;
   Type type_;
-  BreakTarget break_target_;
+  Label break_target_;
   int entry_id_;
   int exit_id_;
 };
@@ -446,7 +395,7 @@ class IterationStatement: public BreakableStatement {
   virtual int ContinueId() const = 0;
 
   // Code generation
-  BreakTarget* continue_target()  { return &continue_target_; }
+  Label* continue_target()  { return &continue_target_; }
 
  protected:
   explicit inline IterationStatement(ZoneStringList* labels);
@@ -457,7 +406,7 @@ class IterationStatement: public BreakableStatement {
 
  private:
   Statement* body_;
-  BreakTarget continue_target_;
+  Label continue_target_;
   int osr_entry_id_;
 };
 
@@ -693,10 +642,10 @@ class CaseClause: public ZoneObject {
     CHECK(!is_default());
     return label_;
   }
-  JumpTarget* body_target() { return &body_target_; }
+  Label* body_target() { return &body_target_; }
   ZoneList<Statement*>* statements() const { return statements_; }
 
-  int position() { return position_; }
+  int position() const { return position_; }
   void set_position(int pos) { position_ = pos; }
 
   int EntryId() { return entry_id_; }
@@ -708,7 +657,7 @@ class CaseClause: public ZoneObject {
 
  private:
   Expression* label_;
-  JumpTarget body_target_;
+  Label body_target_;
   ZoneList<Statement*>* statements_;
   int position_;
   enum CompareTypeFeedback { NONE, SMI_ONLY, OBJECT_ONLY };
@@ -781,23 +730,23 @@ class IfStatement: public Statement {
 // stack in the compiler; this should probably be reworked.
 class TargetCollector: public AstNode {
  public:
-  explicit TargetCollector(ZoneList<BreakTarget*>* targets)
+  explicit TargetCollector(ZoneList<Label*>* targets)
       : targets_(targets) {
   }
 
   // Adds a jump target to the collector. The collector stores a pointer not
   // a copy of the target to make binding work, so make sure not to pass in
   // references to something on the stack.
-  void AddTarget(BreakTarget* target);
+  void AddTarget(Label* target);
 
   // Virtual behaviour. TargetCollectors are never part of the AST.
   virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
   virtual TargetCollector* AsTargetCollector() { return this; }
 
-  ZoneList<BreakTarget*>* targets() { return targets_; }
+  ZoneList<Label*>* targets() { return targets_; }
 
  private:
-  ZoneList<BreakTarget*>* targets_;
+  ZoneList<Label*>* targets_;
 };
 
 
@@ -806,16 +755,16 @@ class TryStatement: public Statement {
   explicit TryStatement(Block* try_block)
       : try_block_(try_block), escaping_targets_(NULL) { }
 
-  void set_escaping_targets(ZoneList<BreakTarget*>* targets) {
+  void set_escaping_targets(ZoneList<Label*>* targets) {
     escaping_targets_ = targets;
   }
 
   Block* try_block() const { return try_block_; }
-  ZoneList<BreakTarget*>* escaping_targets() const { return escaping_targets_; }
+  ZoneList<Label*>* escaping_targets() const { return escaping_targets_; }
 
  private:
   Block* try_block_;
-  ZoneList<BreakTarget*>* escaping_targets_;
+  ZoneList<Label*>* escaping_targets_;
 };
 
 
@@ -1246,7 +1195,7 @@ class Property: public Expression {
 
   Expression* obj() const { return obj_; }
   Expression* key() const { return key_; }
-  int position() const { return pos_; }
+  virtual int position() const { return pos_; }
   bool is_synthetic() const { return type_ == SYNTHETIC; }
 
   bool IsStringLength() const { return is_string_length_; }
@@ -1259,11 +1208,6 @@ class Property: public Expression {
     is_arguments_access_ = is_arguments_access;
   }
   bool is_arguments_access() const { return is_arguments_access_; }
-
-  ExternalArrayType GetExternalArrayType() const { return array_type_; }
-  void SetExternalArrayType(ExternalArrayType array_type) {
-    array_type_ = array_type;
-  }
 
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
@@ -1288,7 +1232,6 @@ class Property: public Expression {
   bool is_function_prototype_ : 1;
   bool is_arguments_access_ : 1;
   Handle<Map> monomorphic_receiver_type_;
-  ExternalArrayType array_type_;
 };
 
 
@@ -1310,7 +1253,7 @@ class Call: public Expression {
 
   Expression* expression() const { return expression_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
-  int position() { return pos_; }
+  virtual int position() const { return pos_; }
 
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual ZoneMapList* GetReceiverTypes() { return receiver_types_; }
@@ -1388,7 +1331,7 @@ class CallNew: public Expression {
 
   Expression* expression() const { return expression_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
-  int position() { return pos_; }
+  virtual int position() const { return pos_; }
 
  private:
   Expression* expression_;
@@ -1471,7 +1414,7 @@ class BinaryOperation: public Expression {
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
-  int position() const { return pos_; }
+  virtual int position() const { return pos_; }
 
   // Bailout support.
   int RightId() const { return right_id_; }
@@ -1487,59 +1430,52 @@ class BinaryOperation: public Expression {
 };
 
 
-class IncrementOperation: public Expression {
- public:
-  IncrementOperation(Token::Value op, Expression* expr)
-      : op_(op), expression_(expr) {
-    ASSERT(Token::IsCountOp(op));
-  }
-
-  DECLARE_NODE_TYPE(IncrementOperation)
-
-  Token::Value op() const { return op_; }
-  bool is_increment() { return op_ == Token::INC; }
-  Expression* expression() const { return expression_; }
-
- private:
-  Token::Value op_;
-  Expression* expression_;
-  int pos_;
-};
-
-
 class CountOperation: public Expression {
  public:
-  CountOperation(bool is_prefix, IncrementOperation* increment, int pos)
-      : is_prefix_(is_prefix), increment_(increment), pos_(pos),
-        assignment_id_(GetNextId()) {
-  }
+  CountOperation(Token::Value op, bool is_prefix, Expression* expr, int pos)
+      : op_(op),
+        is_prefix_(is_prefix),
+        expression_(expr),
+        pos_(pos),
+        assignment_id_(GetNextId()),
+        count_id_(GetNextId()) { }
 
   DECLARE_NODE_TYPE(CountOperation)
 
   bool is_prefix() const { return is_prefix_; }
   bool is_postfix() const { return !is_prefix_; }
 
-  Token::Value op() const { return increment_->op(); }
+  Token::Value op() const { return op_; }
   Token::Value binary_op() {
     return (op() == Token::INC) ? Token::ADD : Token::SUB;
   }
 
-  Expression* expression() const { return increment_->expression(); }
-  IncrementOperation* increment() const { return increment_; }
-  int position() const { return pos_; }
+  Expression* expression() const { return expression_; }
+  virtual int position() const { return pos_; }
 
   virtual void MarkAsStatement() { is_prefix_ = true; }
 
   virtual bool IsInlineable() const;
 
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  virtual bool IsMonomorphic() { return is_monomorphic_; }
+  virtual Handle<Map> GetMonomorphicReceiverType() {
+    return monomorphic_receiver_type_;
+  }
+
   // Bailout support.
   int AssignmentId() const { return assignment_id_; }
+  int CountId() const { return count_id_; }
 
  private:
+  Token::Value op_;
   bool is_prefix_;
-  IncrementOperation* increment_;
+  bool is_monomorphic_;
+  Expression* expression_;
   int pos_;
   int assignment_id_;
+  int count_id_;
+  Handle<Map> monomorphic_receiver_type_;
 };
 
 
@@ -1558,7 +1494,7 @@ class CompareOperation: public Expression {
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
-  int position() const { return pos_; }
+  virtual int position() const { return pos_; }
 
   virtual bool IsInlineable() const;
 
@@ -1653,7 +1589,7 @@ class Assignment: public Expression {
   Token::Value op() const { return op_; }
   Expression* target() const { return target_; }
   Expression* value() const { return value_; }
-  int position() { return pos_; }
+  virtual int position() const { return pos_; }
   BinaryOperation* binary_operation() const { return binary_operation_; }
 
   // This check relies on the definition order of token in token.h.
@@ -1675,10 +1611,6 @@ class Assignment: public Expression {
   virtual Handle<Map> GetMonomorphicReceiverType() {
     return monomorphic_receiver_type_;
   }
-  ExternalArrayType GetExternalArrayType() const { return array_type_; }
-  void SetExternalArrayType(ExternalArrayType array_type) {
-    array_type_ = array_type;
-  }
 
   // Bailout support.
   int CompoundLoadId() const { return compound_load_id_; }
@@ -1699,7 +1631,6 @@ class Assignment: public Expression {
   bool is_monomorphic_;
   ZoneMapList* receiver_types_;
   Handle<Map> monomorphic_receiver_type_;
-  ExternalArrayType array_type_;
 };
 
 
@@ -1711,7 +1642,7 @@ class Throw: public Expression {
   DECLARE_NODE_TYPE(Throw)
 
   Expression* exception() const { return exception_; }
-  int position() const { return pos_; }
+  virtual int position() const { return pos_; }
 
  private:
   Expression* exception_;
@@ -1731,8 +1662,7 @@ class FunctionLiteral: public Expression {
                   int num_parameters,
                   int start_position,
                   int end_position,
-                  bool is_expression,
-                  bool contains_loops)
+                  bool is_expression)
       : name_(name),
         scope_(scope),
         body_(body),
@@ -1745,7 +1675,6 @@ class FunctionLiteral: public Expression {
         start_position_(start_position),
         end_position_(end_position),
         is_expression_(is_expression),
-        contains_loops_(contains_loops),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(HEAP->empty_string()),
         pretenure_(false) { }
@@ -1760,7 +1689,6 @@ class FunctionLiteral: public Expression {
   int start_position() const { return start_position_; }
   int end_position() const { return end_position_; }
   bool is_expression() const { return is_expression_; }
-  bool contains_loops() const { return contains_loops_; }
   bool strict_mode() const;
 
   int materialized_literal_count() { return materialized_literal_count_; }
@@ -1800,8 +1728,6 @@ class FunctionLiteral: public Expression {
   int start_position_;
   int end_position_;
   bool is_expression_;
-  bool contains_loops_;
-  bool strict_mode_;
   int function_token_position_;
   Handle<String> inferred_name_;
   bool pretenure_;

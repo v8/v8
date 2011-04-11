@@ -167,7 +167,6 @@ void BreakLocationIterator::Next() {
       Address target = original_rinfo()->target_address();
       Code* code = Code::GetCodeFromTargetAddress(target);
       if ((code->is_inline_cache_stub() &&
-           !code->is_binary_op_stub() &&
            !code->is_type_recording_binary_op_stub() &&
            !code->is_compare_ic_stub()) ||
           RelocInfo::IsConstructCall(rmode())) {
@@ -810,7 +809,7 @@ bool Debug::CompileDebuggerScript(int index) {
     Handle<Object> message = MessageHandler::MakeMessageObject(
         "error_loading_debugger", NULL, Vector<Handle<Object> >::empty(),
         Handle<String>(), Handle<JSArray>());
-    MessageHandler::ReportMessage(NULL, message);
+    MessageHandler::ReportMessage(Isolate::Current(), NULL, message);
     return false;
   }
 

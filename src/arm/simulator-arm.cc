@@ -938,12 +938,7 @@ void Simulator::set_d_register_from_double(int dreg, const double& dbl) {
   // 2*sreg and 2*sreg+1.
   char buffer[2 * sizeof(vfp_register[0])];
   memcpy(buffer, &dbl, 2 * sizeof(vfp_register[0]));
-#ifndef BIG_ENDIAN_FLOATING_POINT
   memcpy(&vfp_register[dreg * 2], buffer, 2 * sizeof(vfp_register[0]));
-#else
-  memcpy(&vfp_register[dreg * 2], &buffer[4], sizeof(vfp_register[0]));
-  memcpy(&vfp_register[dreg * 2 + 1], &buffer[0], sizeof(vfp_register[0]));
-#endif
 }
 
 
@@ -980,12 +975,7 @@ double Simulator::get_double_from_d_register(int dreg) {
   // Read the bits from the unsigned integer vfp_register[] array
   // into the double precision floating point value and return it.
   char buffer[2 * sizeof(vfp_register[0])];
-#ifdef BIG_ENDIAN_FLOATING_POINT
-  memcpy(&buffer[0], &vfp_register[2 * dreg + 1], sizeof(vfp_register[0]));
-  memcpy(&buffer[4], &vfp_register[2 * dreg], sizeof(vfp_register[0]));
-#else
   memcpy(buffer, &vfp_register[2 * dreg], 2 * sizeof(vfp_register[0]));
-#endif
   memcpy(&dm_val, buffer, 2 * sizeof(vfp_register[0]));
   return(dm_val);
 }
@@ -1618,7 +1608,7 @@ void Simulator::HandleVList(Instruction* instr) {
       address += 2;
     }
   }
-  ASSERT_EQ(((intptr_t)address) - operand_size, end_address);
+  ASSERT(reinterpret_cast<intptr_t>(address) - operand_size == end_address);
 }
 
 

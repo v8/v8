@@ -30,7 +30,7 @@
 #if defined(V8_TARGET_ARCH_IA32)
 
 #include "code-stubs.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "compiler.h"
 #include "debug.h"
 #include "full-codegen.h"
@@ -231,7 +231,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     }
 
     { Comment cmnt(masm_, "[ Stack check");
-      PrepareForBailout(info->function(), NO_REGISTERS);
+      PrepareForBailoutForId(AstNode::kFunctionEntryId, NO_REGISTERS);
       NearLabel ok;
       ExternalReference stack_limit =
           ExternalReference::address_of_stack_limit(isolate());
@@ -773,7 +773,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   // Compile all the tests with branches to their bodies.
   for (int i = 0; i < clauses->length(); i++) {
     CaseClause* clause = clauses->at(i);
-    clause->body_target()->entry_label()->Unuse();
+    clause->body_target()->Unuse();
 
     // The default is not a test, but remember it as final fall through.
     if (clause->is_default()) {
@@ -801,7 +801,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
       __ cmp(edx, Operand(eax));
       __ j(not_equal, &next_test);
       __ Drop(1);  // Switch value is no longer needed.
-      __ jmp(clause->body_target()->entry_label());
+      __ jmp(clause->body_target());
       __ bind(&slow_case);
     }
 
@@ -812,7 +812,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     __ test(eax, Operand(eax));
     __ j(not_equal, &next_test);
     __ Drop(1);  // Switch value is no longer needed.
-    __ jmp(clause->body_target()->entry_label());
+    __ jmp(clause->body_target());
   }
 
   // Discard the test value and jump to the default if present, otherwise to
@@ -822,14 +822,14 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   if (default_clause == NULL) {
     __ jmp(nested_statement.break_target());
   } else {
-    __ jmp(default_clause->body_target()->entry_label());
+    __ jmp(default_clause->body_target());
   }
 
   // Compile all the case bodies.
   for (int i = 0; i < clauses->length(); i++) {
     Comment cmnt(masm_, "[ Case body");
     CaseClause* clause = clauses->at(i);
-    __ bind(clause->body_target()->entry_label());
+    __ bind(clause->body_target());
     PrepareForBailoutForId(clause->EntryId(), NO_REGISTERS);
     VisitStatements(clause->statements());
   }
@@ -3835,7 +3835,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   if (assign_type == VARIABLE) {
     PrepareForBailout(expr->expression(), TOS_REG);
   } else {
-    PrepareForBailout(expr->increment(), TOS_REG);
+    PrepareForBailoutForId(expr->CountId(), TOS_REG);
   }
 
   // Call ToNumber only if operand is not a smi.

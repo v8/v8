@@ -1774,7 +1774,7 @@ bool DescriptorArray::IsDontEnum(int descriptor_number) {
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(GetKey(descriptor_number),
              GetValue(descriptor_number),
-             GetDetails(descriptor_number));
+             PropertyDetails(GetDetails(descriptor_number)));
 }
 
 
@@ -2573,7 +2573,6 @@ int Code::arguments_count() {
 
 int Code::major_key() {
   ASSERT(kind() == STUB ||
-         kind() == BINARY_OP_IC ||
          kind() == TYPE_RECORDING_BINARY_OP_IC ||
          kind() == COMPARE_IC);
   return READ_BYTE_FIELD(this, kStubMajorKeyOffset);
@@ -2582,7 +2581,6 @@ int Code::major_key() {
 
 void Code::set_major_key(int major) {
   ASSERT(kind() == STUB ||
-         kind() == BINARY_OP_IC ||
          kind() == TYPE_RECORDING_BINARY_OP_IC ||
          kind() == COMPARE_IC);
   ASSERT(0 <= major && major < 256);
@@ -2688,18 +2686,6 @@ ExternalArrayType Code::external_array_type() {
 void Code::set_external_array_type(ExternalArrayType value) {
   ASSERT(is_external_array_load_stub() || is_external_array_store_stub());
   WRITE_BYTE_FIELD(this, kExternalArrayTypeOffset, value);
-}
-
-
-byte Code::binary_op_type() {
-  ASSERT(is_binary_op_stub());
-  return READ_BYTE_FIELD(this, kBinaryOpTypeOffset);
-}
-
-
-void Code::set_binary_op_type(byte value) {
-  ASSERT(is_binary_op_stub());
-  WRITE_BYTE_FIELD(this, kBinaryOpTypeOffset, value);
 }
 
 
@@ -3952,6 +3938,15 @@ void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
   int rest_value = flag()->value() & ~AttributesField::mask();
   set_flag(Smi::FromInt(rest_value | AttributesField::encode(attributes)));
 }
+
+
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::SetEntry(int entry,
+                                      Object* key,
+                                      Object* value) {
+  SetEntry(entry, key, value, PropertyDetails(Smi::FromInt(0)));
+}
+
 
 template<typename Shape, typename Key>
 void Dictionary<Shape, Key>::SetEntry(int entry,

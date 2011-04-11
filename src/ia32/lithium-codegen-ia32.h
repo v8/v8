@@ -61,7 +61,8 @@ class LCodeGen BASE_EMBEDDED {
         deferred_(8),
         osr_pc_offset_(-1),
         deoptimization_reloc_size(),
-        resolver_(this) {
+        resolver_(this),
+        expected_safepoint_kind_(Safepoint::kSimple) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
@@ -129,7 +130,7 @@ class LCodeGen BASE_EMBEDDED {
   bool is_aborted() const { return status_ == ABORTED; }
 
   int strict_mode_flag() const {
-    return info()->is_strict() ? kStrictMode : kNonStrictMode;
+    return info()->is_strict_mode() ? kStrictMode : kNonStrictMode;
   }
 
   LChunk* chunk() const { return chunk_; }
@@ -164,15 +165,43 @@ class LCodeGen BASE_EMBEDDED {
   bool GenerateRelocPadding();
   bool GenerateSafepointTable();
 
-  void CallCode(Handle<Code> code, RelocInfo::Mode mode, LInstruction* instr,
-                bool adjusted = true);
-  void CallRuntime(const Runtime::Function* fun, int argc, LInstruction* instr,
-                   bool adjusted = true);
-  void CallRuntime(Runtime::FunctionId id, int argc, LInstruction* instr,
-                   bool adjusted = true) {
+  enum ContextMode {
+    RESTORE_CONTEXT,
+    CONTEXT_ADJUSTED
+  };
+
+  enum SafepointMode {
+    RECORD_SIMPLE_SAFEPOINT,
+    RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS
+  };
+
+  void CallCode(Handle<Code> code,
+                RelocInfo::Mode mode,
+                LInstruction* instr,
+                ContextMode context_mode);
+
+  void CallCodeGeneric(Handle<Code> code,
+                       RelocInfo::Mode mode,
+                       LInstruction* instr,
+                       ContextMode context_mode,
+                       SafepointMode safepoint_mode);
+
+  void CallRuntime(const Runtime::Function* fun,
+                   int argc,
+                   LInstruction* instr,
+                   ContextMode context_mode);
+
+  void CallRuntime(Runtime::FunctionId id,
+                   int argc,
+                   LInstruction* instr,
+                   ContextMode context_mode) {
     const Runtime::Function* function = Runtime::FunctionForId(id);
-    CallRuntime(function, argc, instr, adjusted);
+    CallRuntime(function, argc, instr, context_mode);
   }
+
+  void CallRuntimeFromDeferred(Runtime::FunctionId id,
+                               int argc,
+                               LInstruction* instr);
 
   // Generate a direct call to a known function.  Expects the function
   // to be in edi.
@@ -182,7 +211,9 @@ class LCodeGen BASE_EMBEDDED {
 
   void LoadHeapObject(Register result, Handle<HeapObject> object);
 
-  void RegisterLazyDeoptimization(LInstruction* instr);
+  void RegisterLazyDeoptimization(LInstruction* instr,
+                                  SafepointMode safepoint_mode);
+
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
 
@@ -280,6 +311,27 @@ class LCodeGen BASE_EMBEDDED {
 
   // Compiler from a set of parallel moves to a sequential list of moves.
   LGapResolver resolver_;
+
+  Safepoint::Kind expected_safepoint_kind_;
+
+  class PushSafepointRegistersScope BASE_EMBEDDED {
+   public:
+    explicit PushSafepointRegistersScope(LCodeGen* codegen)
+        : codegen_(codegen) {
+      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
+      codegen_->masm_->PushSafepointRegisters();
+      codegen_->expected_safepoint_kind_ = Safepoint::kWithRegisters;
+    }
+
+    ~PushSafepointRegistersScope() {
+      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
+      codegen_->masm_->PopSafepointRegisters();
+      codegen_->expected_safepoint_kind_ = Safepoint::kSimple;
+    }
+
+   private:
+    LCodeGen* codegen_;
+  };
 
   friend class LDeferredCode;
   friend class LEnvironment;

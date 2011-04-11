@@ -582,7 +582,7 @@ HGraph::HGraph(CompilationInfo* info)
       phi_list_(NULL) {
   start_environment_ =
       new(zone()) HEnvironment(NULL, info->scope(), info->closure());
-  start_environment_->set_ast_id(info->function()->id());
+  start_environment_->set_ast_id(AstNode::kFunctionEntryId);
   entry_block_ = CreateBasicBlock();
   entry_block_->SetInitialEnvironment(start_environment_);
 }
@@ -2203,7 +2203,7 @@ HGraph* HGraphBuilder::CreateGraph() {
     HEnvironment* initial_env = environment()->CopyWithoutHistory();
     HBasicBlock* body_entry = CreateBasicBlock(initial_env);
     current_block()->Goto(body_entry);
-    body_entry->SetJoinId(info()->function()->id());
+    body_entry->SetJoinId(AstNode::kFunctionEntryId);
     set_current_block(body_entry);
     VisitStatements(info()->function()->body());
     if (HasStackOverflow()) return NULL;
@@ -2981,7 +2981,12 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             HValue* value = Pop();
             Handle<String> name = Handle<String>::cast(key->handle());
             HStoreNamedGeneric* store =
-                new(zone()) HStoreNamedGeneric(context, literal, name, value);
+                new(zone()) HStoreNamedGeneric(
+                                context,
+                                literal,
+                                name,
+                                value,
+                                function_strict_mode());
             AddInstruction(store);
             AddSimulate(key->id());
           } else {
@@ -3122,7 +3127,12 @@ HInstruction* HGraphBuilder::BuildStoreNamedGeneric(HValue* object,
                                                     HValue* value) {
   HContext* context = new(zone()) HContext;
   AddInstruction(context);
-  return new(zone()) HStoreNamedGeneric(context, object, name, value);
+  return new(zone()) HStoreNamedGeneric(
+                         context,
+                         object,
+                         name,
+                         value,
+                         function_strict_mode());
 }
 
 
@@ -3264,26 +3274,8 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     value = Pop();
     HValue* key = Pop();
     HValue* object = Pop();
-
-    if (expr->IsMonomorphic()) {
-      Handle<Map> receiver_type(expr->GetMonomorphicReceiverType());
-      // An object has either fast elements or external array elements, but
-      // never both. Pixel array maps that are assigned to pixel array elements
-      // are always created with the fast elements flag cleared.
-      if (receiver_type->has_external_array_elements()) {
-        instr = BuildStoreKeyedSpecializedArrayElement(object,
-                                                       key,
-                                                       value,
-                                                       expr);
-      } else if (receiver_type->has_fast_elements()) {
-        instr = BuildStoreKeyedFastElement(object, key, value, expr);
-      }
-    }
-    if (instr == NULL) {
-      instr = BuildStoreKeyedGeneric(object, key, value);
-    }
+    instr = BuildStoreKeyed(object, key, value, expr);
   }
-
   Push(value);
   instr->set_position(expr->position());
   AddInstruction(instr);
@@ -3318,7 +3310,8 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
         new(zone()) HStoreGlobalGeneric(context,
                                         global_object,
                                         var->name(),
-                                        value);
+                                        value,
+                                        function_strict_mode());
     instr->set_position(position);
     AddInstruction(instr);
     ASSERT(instr->HasSideEffects());
@@ -3402,11 +3395,7 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       HValue* obj = environment()->ExpressionStackAt(1);
       HValue* key = environment()->ExpressionStackAt(0);
 
-      bool is_fast_elements = prop->IsMonomorphic() &&
-          prop->GetMonomorphicReceiverType()->has_fast_elements();
-      HInstruction* load = is_fast_elements
-          ? BuildLoadKeyedFastElement(obj, key, prop)
-          : BuildLoadKeyedGeneric(obj, key);
+      HInstruction* load = BuildLoadKeyed(obj, key, prop);
       PushAndAdd(load);
       if (load->HasSideEffects()) AddSimulate(expr->CompoundLoadId());
 
@@ -3418,9 +3407,8 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       PushAndAdd(instr);
       if (instr->HasSideEffects()) AddSimulate(operation->id());
 
-      HInstruction* store = is_fast_elements
-          ? BuildStoreKeyedFastElement(obj, key, instr, prop)
-          : BuildStoreKeyedGeneric(obj, key, instr);
+      expr->RecordTypeFeedback(oracle());
+      HInstruction* store = BuildStoreKeyed(obj, key, instr, expr);
       AddInstruction(store);
       // Drop the simulated receiver, key, and value.  Return the value.
       Drop(3);
@@ -3623,8 +3611,26 @@ HInstruction* HGraphBuilder::BuildLoadKeyedSpecializedArrayElement(
   AddInstruction(external_elements);
   HLoadKeyedSpecializedArrayElement* pixel_array_value =
       new(zone()) HLoadKeyedSpecializedArrayElement(
-          external_elements, key, expr->GetExternalArrayType());
+          external_elements, key, expr->external_array_type());
   return pixel_array_value;
+}
+
+
+HInstruction* HGraphBuilder::BuildLoadKeyed(HValue* obj,
+                                            HValue* key,
+                                            Property* prop) {
+  if (prop->IsMonomorphic()) {
+    Handle<Map> receiver_type(prop->GetMonomorphicReceiverType());
+    // An object has either fast elements or pixel array elements, but never
+    // both. Pixel array maps that are assigned to pixel array elements are
+    // always created with the fast elements flag cleared.
+    if (receiver_type->has_external_array_elements()) {
+      return BuildLoadKeyedSpecializedArrayElement(obj, key, prop);
+    } else if (receiver_type->has_fast_elements()) {
+      return BuildLoadKeyedFastElement(obj, key, prop);
+    }
+  }
+  return BuildLoadKeyedGeneric(obj, key);
 }
 
 
@@ -3633,7 +3639,12 @@ HInstruction* HGraphBuilder::BuildStoreKeyedGeneric(HValue* object,
                                                     HValue* value) {
   HContext* context = new(zone()) HContext;
   AddInstruction(context);
-  return new(zone()) HStoreKeyedGeneric(context, object, key, value);
+  return new(zone()) HStoreKeyedGeneric(
+                         context,
+                         object,
+                         key,
+                         value,
+                         function_strict_mode());
 }
 
 
@@ -3665,7 +3676,7 @@ HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
     HValue* object,
     HValue* key,
     HValue* val,
-    Assignment* expr) {
+    Expression* expr) {
   ASSERT(expr->IsMonomorphic());
   AddInstruction(new(zone()) HCheckNonSmi(object));
   Handle<Map> map = expr->GetMonomorphicReceiverType();
@@ -3684,7 +3695,29 @@ HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
       external_elements,
       key,
       val,
-      expr->GetExternalArrayType());
+      expr->external_array_type());
+}
+
+
+HInstruction* HGraphBuilder::BuildStoreKeyed(HValue* object,
+                                             HValue* key,
+                                             HValue* value,
+                                             Expression* expr) {
+  if (expr->IsMonomorphic()) {
+    Handle<Map> receiver_type(expr->GetMonomorphicReceiverType());
+    // An object has either fast elements or external array elements, but
+    // never both. Pixel array maps that are assigned to pixel array elements
+    // are always created with the fast elements flag cleared.
+    if (receiver_type->has_external_array_elements()) {
+      return BuildStoreKeyedSpecializedArrayElement(object,
+                                                    key,
+                                                    value,
+                                                    expr);
+    } else if (receiver_type->has_fast_elements()) {
+      return BuildStoreKeyedFastElement(object, key, value, expr);
+    }
+  }
+  return BuildStoreKeyedGeneric(object, key, value);
 }
 
 
@@ -3775,21 +3808,7 @@ void HGraphBuilder::VisitProperty(Property* expr) {
 
     HValue* key = Pop();
     HValue* obj = Pop();
-
-    if (expr->IsMonomorphic()) {
-      Handle<Map> receiver_type(expr->GetMonomorphicReceiverType());
-      // An object has either fast elements or pixel array elements, but never
-      // both. Pixel array maps that are assigned to pixel array elements are
-      // always created with the fast elements flag cleared.
-      if (receiver_type->has_external_array_elements()) {
-        instr = BuildLoadKeyedSpecializedArrayElement(obj, key, expr);
-      } else if (receiver_type->has_fast_elements()) {
-        instr = BuildLoadKeyedFastElement(obj, key, expr);
-      }
-    }
-    if (instr == NULL) {
-      instr = BuildLoadKeyedGeneric(obj, key);
-    }
+    instr = BuildLoadKeyed(obj, key, expr);
   }
   instr->set_position(expr->position());
   ast_context()->ReturnInstruction(instr, expr->id());
@@ -4612,13 +4631,6 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
 }
 
 
-void HGraphBuilder::VisitIncrementOperation(IncrementOperation* expr) {
-  // IncrementOperation is never visited by the visitor. It only
-  // occurs as a subexpression of CountOperation.
-  UNREACHABLE();
-}
-
-
 HInstruction* HGraphBuilder::BuildIncrement(HValue* value, bool increment) {
   HConstant* delta = increment
       ? graph_->GetConstant1()
@@ -4630,8 +4642,7 @@ HInstruction* HGraphBuilder::BuildIncrement(HValue* value, bool increment) {
 
 
 void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
-  IncrementOperation* increment = expr->increment();
-  Expression* target = increment->expression();
+  Expression* target = expr->expression();
   VariableProxy* proxy = target->AsVariableProxy();
   Variable* var = proxy->AsVariable();
   Property* prop = target->AsProperty();
@@ -4692,7 +4703,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
         load = BuildLoadNamedGeneric(obj, prop);
       }
       PushAndAdd(load);
-      if (load->HasSideEffects()) AddSimulate(increment->id());
+      if (load->HasSideEffects()) AddSimulate(expr->CountId());
 
       HValue* before = Pop();
       // There is no deoptimization to after the increment, so we don't need
@@ -4726,14 +4737,9 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       HValue* obj = environment()->ExpressionStackAt(1);
       HValue* key = environment()->ExpressionStackAt(0);
 
-      bool is_fast_elements = prop->IsMonomorphic() &&
-          prop->GetMonomorphicReceiverType()->has_fast_elements();
-
-      HInstruction* load = is_fast_elements
-          ? BuildLoadKeyedFastElement(obj, key, prop)
-          : BuildLoadKeyedGeneric(obj, key);
+      HInstruction* load = BuildLoadKeyed(obj, key, prop);
       PushAndAdd(load);
-      if (load->HasSideEffects()) AddSimulate(increment->id());
+      if (load->HasSideEffects()) AddSimulate(expr->CountId());
 
       HValue* before = Pop();
       // There is no deoptimization to after the increment, so we don't need
@@ -4741,9 +4747,8 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       HInstruction* after = BuildIncrement(before, inc);
       AddInstruction(after);
 
-      HInstruction* store = is_fast_elements
-          ? BuildStoreKeyedFastElement(obj, key, after, prop)
-          : BuildStoreKeyedGeneric(obj, key, after);
+      expr->RecordTypeFeedback(oracle());
+      HInstruction* store = BuildStoreKeyed(obj, key, after, expr);
       AddInstruction(store);
 
       // Drop the key from the bailout environment.  Overwrite the receiver
@@ -5674,7 +5679,7 @@ HEnvironment* HEnvironment::CopyForInlining(Handle<JSFunction> target,
     inner->SetValueAt(local_base + i, undefined);
   }
 
-  inner->set_ast_id(function->id());
+  inner->set_ast_id(AstNode::kFunctionEntryId);
   return inner;
 }
 

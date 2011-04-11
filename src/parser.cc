@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -42,7 +42,6 @@
 #include "string-stream.h"
 
 #include "ast-inl.h"
-#include "jump-target-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -463,7 +462,7 @@ class TargetScope BASE_EMBEDDED {
 // Parser's scope stack. The constructor sets the parser's top scope
 // to the incoming scope, and the destructor resets it.
 //
-// Additionlaly, it stores transient information used during parsing.
+// Additionally, it stores transient information used during parsing.
 // These scopes are not kept around after parsing or referenced by syntax
 // trees so they can be stack-allocated and hence used by the pre-parser.
 
@@ -497,9 +496,6 @@ class LexicalScope BASE_EMBEDDED {
   void AddProperty() { expected_property_count_++; }
   int expected_property_count() { return expected_property_count_; }
 
-  void AddLoop() { loop_count_++; }
-  bool ContainsLoops() const { return loop_count_ > 0; }
-
  private:
   // Captures the number of literals that need materialization in the
   // function.  Includes regexp literals, and boilerplate for object
@@ -514,15 +510,13 @@ class LexicalScope BASE_EMBEDDED {
   bool only_simple_this_property_assignments_;
   Handle<FixedArray> this_property_assignments_;
 
-  // Captures the number of loops inside the scope.
-  int loop_count_;
-
   // Bookkeeping
   Parser* parser_;
   // Previous values
   LexicalScope* lexical_scope_parent_;
   Scope* previous_scope_;
   int previous_with_nesting_level_;
+  unsigned previous_ast_node_id_;
 };
 
 
@@ -531,14 +525,15 @@ LexicalScope::LexicalScope(Parser* parser, Scope* scope, Isolate* isolate)
     expected_property_count_(0),
     only_simple_this_property_assignments_(false),
     this_property_assignments_(isolate->factory()->empty_fixed_array()),
-    loop_count_(0),
     parser_(parser),
     lexical_scope_parent_(parser->lexical_scope_),
     previous_scope_(parser->top_scope_),
-    previous_with_nesting_level_(parser->with_nesting_level_) {
+    previous_with_nesting_level_(parser->with_nesting_level_),
+    previous_ast_node_id_(isolate->ast_node_id()) {
   parser->top_scope_ = scope;
   parser->lexical_scope_ = this;
   parser->with_nesting_level_ = 0;
+  isolate->set_ast_node_id(AstNode::kFunctionEntryId + 1);
 }
 
 
@@ -547,6 +542,7 @@ LexicalScope::~LexicalScope() {
   parser_->top_scope_ = previous_scope_;
   parser_->lexical_scope_ = lexical_scope_parent_;
   parser_->with_nesting_level_ = previous_with_nesting_level_;
+  parser_->isolate()->set_ast_node_id(previous_ast_node_id_);
 }
 
 
@@ -664,8 +660,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
           0,
           0,
           source->length(),
-          false,
-          lexical_scope.ContainsLoops());
+          false);
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
     }
@@ -1909,7 +1904,7 @@ Block* Parser::WithHelper(Expression* obj,
                           bool is_catch_block,
                           bool* ok) {
   // Parse the statement and collect escaping labels.
-  ZoneList<BreakTarget*>* target_list = new ZoneList<BreakTarget*>(0);
+  ZoneList<Label*>* target_list = new ZoneList<Label*>(0);
   TargetCollector collector(target_list);
   Statement* stat;
   { Target target(&this->target_stack_, &collector);
@@ -2055,7 +2050,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   Expect(Token::TRY, CHECK_OK);
 
-  ZoneList<BreakTarget*>* target_list = new ZoneList<BreakTarget*>(0);
+  ZoneList<Label*>* target_list = new ZoneList<Label*>(0);
   TargetCollector collector(target_list);
   Block* try_block;
 
@@ -2078,7 +2073,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   // then we will need to collect jump targets from the catch block. Since
   // we don't know yet if there will be a finally block, we always collect
   // the jump targets.
-  ZoneList<BreakTarget*>* catch_target_list = new ZoneList<BreakTarget*>(0);
+  ZoneList<Label*>* catch_target_list = new ZoneList<Label*>(0);
   TargetCollector catch_collector(catch_target_list);
   bool has_catch = false;
   if (tok == Token::CATCH) {
@@ -2163,7 +2158,6 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   // DoStatement ::
   //   'do' Statement 'while' '(' Expression ')' ';'
 
-  lexical_scope_->AddLoop();
   DoWhileStatement* loop = new(zone()) DoWhileStatement(labels);
   Target target(&this->target_stack_, loop);
 
@@ -2178,7 +2172,6 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   }
 
   Expression* cond = ParseExpression(true, CHECK_OK);
-  if (cond != NULL) cond->set_is_loop_condition(true);
   Expect(Token::RPAREN, CHECK_OK);
 
   // Allow do-statements to be terminated with and without
@@ -2196,14 +2189,12 @@ WhileStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
   // WhileStatement ::
   //   'while' '(' Expression ')' Statement
 
-  lexical_scope_->AddLoop();
   WhileStatement* loop = new(zone()) WhileStatement(labels);
   Target target(&this->target_stack_, loop);
 
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   Expression* cond = ParseExpression(true, CHECK_OK);
-  if (cond != NULL) cond->set_is_loop_condition(true);
   Expect(Token::RPAREN, CHECK_OK);
   Statement* body = ParseStatement(NULL, CHECK_OK);
 
@@ -2216,7 +2207,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   // ForStatement ::
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
 
-  lexical_scope_->AddLoop();
   Statement* init = NULL;
 
   Expect(Token::FOR, CHECK_OK);
@@ -2285,7 +2275,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   Expression* cond = NULL;
   if (peek() != Token::SEMICOLON) {
     cond = ParseExpression(true, CHECK_OK);
-    if (cond != NULL) cond->set_is_loop_condition(true);
   }
   Expect(Token::SEMICOLON, CHECK_OK);
 
@@ -2593,9 +2582,10 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     }
 
     int position = scanner().location().beg_pos;
-    IncrementOperation* increment =
-        new(zone()) IncrementOperation(op, expression);
-    return new(zone()) CountOperation(true /* prefix */, increment, position);
+    return new(zone()) CountOperation(op,
+                                      true /* prefix */,
+                                      expression,
+                                      position);
 
   } else {
     return ParsePostfixExpression(ok);
@@ -2627,10 +2617,11 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
 
     Token::Value next = Next();
     int position = scanner().location().beg_pos;
-    IncrementOperation* increment =
-        new(zone()) IncrementOperation(next, expression);
     expression =
-        new(zone()) CountOperation(false /* postfix */, increment, position);
+        new(zone()) CountOperation(next,
+                                   false /* postfix */,
+                                   expression,
+                                   position);
   }
   return expression;
 }
@@ -3532,16 +3523,22 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
   }
 
   int num_parameters = 0;
+  Scope* scope = NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
+  ZoneList<Statement*>* body = new ZoneList<Statement*>(8);
+  int materialized_literal_count;
+  int expected_property_count;
+  int start_pos;
+  int end_pos;
+  bool only_simple_this_property_assignments;
+  Handle<FixedArray> this_property_assignments;
   // Parse function body.
-  { Scope* scope =
-        NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
-    LexicalScope lexical_scope(this, scope, isolate());
+  { LexicalScope lexical_scope(this, scope, isolate());
     top_scope_->SetScopeName(name);
 
     //  FormalParameterList ::
     //    '(' (Identifier)*[','] ')'
     Expect(Token::LPAREN, CHECK_OK);
-    int start_pos = scanner().location().beg_pos;
+    start_pos = scanner().location().beg_pos;
     Scanner::Location name_loc = Scanner::NoLocation();
     Scanner::Location dupe_loc = Scanner::NoLocation();
     Scanner::Location reserved_loc = Scanner::NoLocation();
@@ -3578,7 +3575,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     Expect(Token::RPAREN, CHECK_OK);
 
     Expect(Token::LBRACE, CHECK_OK);
-    ZoneList<Statement*>* body = new ZoneList<Statement*>(8);
 
     // If we have a named function expression, we add a local variable
     // declaration to the body of the function with the name of the
@@ -3606,11 +3602,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     parenthesized_function_ = false;  // The bit was set for this function only.
 
     int function_block_pos = scanner().location().beg_pos;
-    int materialized_literal_count;
-    int expected_property_count;
-    int end_pos;
-    bool only_simple_this_property_assignments;
-    Handle<FixedArray> this_property_assignments;
     if (is_lazily_compiled && pre_data() != NULL) {
       FunctionEntry entry = pre_data()->GetFunctionEntry(function_block_pos);
       if (!entry.is_valid()) {
@@ -3685,25 +3676,24 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       }
       CheckOctalLiteral(start_pos, end_pos, CHECK_OK);
     }
-
-    FunctionLiteral* function_literal =
-        new(zone()) FunctionLiteral(name,
-                            top_scope_,
-                            body,
-                            materialized_literal_count,
-                            expected_property_count,
-                            only_simple_this_property_assignments,
-                            this_property_assignments,
-                            num_parameters,
-                            start_pos,
-                            end_pos,
-                            function_name->length() > 0,
-                            lexical_scope.ContainsLoops());
-    function_literal->set_function_token_position(function_token_position);
-
-    if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);
-    return function_literal;
   }
+
+  FunctionLiteral* function_literal =
+      new(zone()) FunctionLiteral(name,
+                                  scope,
+                                  body,
+                                  materialized_literal_count,
+                                  expected_property_count,
+                                  only_simple_this_property_assignments,
+                                  this_property_assignments,
+                                  num_parameters,
+                                  start_pos,
+                                  end_pos,
+                                  (function_name->length() > 0));
+  function_literal->set_function_token_position(function_token_position);
+
+  if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);
+  return function_literal;
 }
 
 
@@ -3945,7 +3935,7 @@ IterationStatement* Parser::LookupContinueTarget(Handle<String> label,
 }
 
 
-void Parser::RegisterTargetUse(BreakTarget* target, Target* stop) {
+void Parser::RegisterTargetUse(Label* target, Target* stop) {
   // Register that a break target found at the given stop in the
   // target stack has been used from the top of the target stack. Add
   // the break target to any TargetCollectors passed on the stack.

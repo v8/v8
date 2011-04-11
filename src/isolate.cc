@@ -701,6 +701,33 @@ void Isolate::InitializeThreadLocal() {
 }
 
 
+void Isolate::PropagatePendingExceptionToExternalTryCatch() {
+  ASSERT(has_pending_exception());
+
+  bool external_caught = IsExternallyCaught();
+  thread_local_top_.external_caught_exception_ = external_caught;
+
+  if (!external_caught) return;
+
+  if (thread_local_top_.pending_exception_ == Failure::OutOfMemoryException()) {
+    // Do not propagate OOM exception: we should kill VM asap.
+  } else if (thread_local_top_.pending_exception_ ==
+             heap()->termination_exception()) {
+    try_catch_handler()->can_continue_ = false;
+    try_catch_handler()->exception_ = heap()->null_value();
+  } else {
+    // At this point all non-object (failure) exceptions have
+    // been dealt with so this shouldn't fail.
+    ASSERT(!pending_exception()->IsFailure());
+    try_catch_handler()->can_continue_ = true;
+    try_catch_handler()->exception_ = pending_exception();
+    if (!thread_local_top_.pending_message_obj_->IsTheHole()) {
+      try_catch_handler()->message_ = thread_local_top_.pending_message_obj_;
+    }
+  }
+}
+
+
 bool Isolate::Init(Deserializer* des) {
   ASSERT(state_ != INITIALIZED);
 

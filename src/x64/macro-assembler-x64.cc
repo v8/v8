@@ -30,7 +30,7 @@
 #if defined(V8_TARGET_ARCH_X64)
 
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "assembler-x64.h"
 #include "macro-assembler-x64.h"
 #include "serialize.h"
@@ -1320,6 +1320,7 @@ void MacroAssembler::SmiAndConstant(Register dst, Register src, Smi* constant) {
 
 void MacroAssembler::SmiOr(Register dst, Register src1, Register src2) {
   if (!dst.is(src1)) {
+    ASSERT(!src1.is(src2));
     movq(dst, src1);
   }
   or_(dst, src2);
@@ -1340,6 +1341,7 @@ void MacroAssembler::SmiOrConstant(Register dst, Register src, Smi* constant) {
 
 void MacroAssembler::SmiXor(Register dst, Register src1, Register src2) {
   if (!dst.is(src1)) {
+    ASSERT(!src1.is(src2));
     movq(dst, src1);
   }
   xor_(dst, src2);

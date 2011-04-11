@@ -1120,9 +1120,9 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       return new LIsConstructCallAndBranch(TempRegister());
     } else {
       if (v->IsConstant()) {
-        if (HConstant::cast(v)->handle()->IsTrue()) {
+        if (HConstant::cast(v)->ToBoolean()) {
           return new LGoto(instr->FirstSuccessor()->block_id());
-        } else if (HConstant::cast(v)->handle()->IsFalse()) {
+        } else {
           return new LGoto(instr->SecondSuccessor()->block_id());
         }
       }

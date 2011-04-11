@@ -947,16 +947,6 @@ class Assembler : public AssemblerBase {
   void ldc2(Coprocessor coproc, CRegister crd, Register base, int option,
             LFlag l = Short);  // v5 and above
 
-  void stc(Coprocessor coproc, CRegister crd, const MemOperand& dst,
-           LFlag l = Short, Condition cond = al);
-  void stc(Coprocessor coproc, CRegister crd, Register base, int option,
-           LFlag l = Short, Condition cond = al);
-
-  void stc2(Coprocessor coproc, CRegister crd, const MemOperand& dst,
-            LFlag l = Short);  // v5 and above
-  void stc2(Coprocessor coproc, CRegister crd, Register base, int option,
-            LFlag l = Short);  // v5 and above
-
   // Support for VFP.
   // All these APIs support S0 to S31 and D0 to D15.
   // Currently these APIs do not support extended D registers, i.e, D16 to D31.

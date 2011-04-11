@@ -53,8 +53,8 @@ class Consts {
 class NeanderObject {
  public:
   explicit NeanderObject(int size);
-  inline NeanderObject(v8::internal::Handle<v8::internal::Object> obj);
-  inline NeanderObject(v8::internal::Object* obj);
+  explicit inline NeanderObject(v8::internal::Handle<v8::internal::Object> obj);
+  explicit inline NeanderObject(v8::internal::Object* obj);
   inline v8::internal::Object* get(int index);
   inline void set(int index, v8::internal::Object* value);
   inline v8::internal::Handle<v8::internal::JSObject> value() { return value_; }
@@ -69,7 +69,7 @@ class NeanderObject {
 class NeanderArray {
  public:
   NeanderArray();
-  inline NeanderArray(v8::internal::Handle<v8::internal::Object> obj);
+  explicit inline NeanderArray(v8::internal::Handle<v8::internal::Object> obj);
   inline v8::internal::Handle<v8::internal::JSObject> value() {
     return obj_.value();
   }

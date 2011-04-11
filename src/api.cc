@@ -2580,6 +2580,9 @@ bool v8::Object::SetPrototype(Handle<Value> value) {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+  // We do not allow exceptions thrown while setting the prototype
+  // to propagate outside.
+  TryCatch try_catch;
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result = i::SetPrototype(self, value_obj);
   has_pending_exception = result.is_null();
@@ -2792,6 +2795,26 @@ bool v8::Object::HasIndexedLookupInterceptor() {
 }
 
 
+static Local<Value> GetPropertyByLookup(i::Isolate* isolate,
+                                        i::Handle<i::JSObject> receiver,
+                                        i::Handle<i::String> name,
+                                        i::LookupResult* lookup) {
+  if (!lookup->IsProperty()) {
+    // No real property was found.
+    return Local<Value>();
+  }
+
+  // If the property being looked up is a callback, it can throw
+  // an exception.
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> result = i::GetProperty(receiver, name, lookup);
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+
+  return Utils::ToLocal(result);
+}
+
+
 Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
       Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
@@ -2803,17 +2826,7 @@ Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::LookupResult lookup;
   self_obj->LookupRealNamedPropertyInPrototypes(*key_obj, &lookup);
-  if (lookup.IsProperty()) {
-    PropertyAttributes attributes;
-    i::Object* property =
-        self_obj->GetProperty(*self_obj,
-                              &lookup,
-                              *key_obj,
-                              &attributes)->ToObjectUnchecked();
-    i::Handle<i::Object> result(property);
-    return Utils::ToLocal(result);
-  }
-  return Local<Value>();  // No real property was found in prototype chain.
+  return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
 }
 
 
@@ -2826,17 +2839,7 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::LookupResult lookup;
   self_obj->LookupRealNamedProperty(*key_obj, &lookup);
-  if (lookup.IsProperty()) {
-    PropertyAttributes attributes;
-    i::Object* property =
-        self_obj->GetProperty(*self_obj,
-                              &lookup,
-                              *key_obj,
-                              &attributes)->ToObjectUnchecked();
-    i::Handle<i::Object> result(property);
-    return Utils::ToLocal(result);
-  }
-  return Local<Value>();  // No real property was found in prototype chain.
+  return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
 }
 
 
@@ -4473,7 +4476,7 @@ void V8::AddImplicitReferences(Persistent<Object> parent,
   if (IsDeadCheck(isolate, "v8::V8::AddImplicitReferences()")) return;
   STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
   isolate->global_handles()->AddImplicitReferences(
-      *Utils::OpenHandle(*parent),
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*parent)).location(),
       reinterpret_cast<i::Object***>(children), length);
 }
 

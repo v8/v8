@@ -130,9 +130,11 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
       js_ratio_(0),
       sampler_window_position_(0),
       optimize_soon_list_(NULL),
-      state_window_position_(0) {
-  state_counts_[0] = kStateWindowSize;
-  state_counts_[1] = 0;
+      state_window_position_(0),
+      state_window_ticks_(0) {
+  state_counts_[IN_NON_JS_STATE] = kStateWindowSize;
+  state_counts_[IN_JS_STATE] = 0;
+  STATIC_ASSERT(IN_NON_JS_STATE == 0);
   memset(state_window_, 0, sizeof(state_window_));
   ClearSampleBuffer();
 }
@@ -344,8 +346,12 @@ void RuntimeProfiler::UpdateStateRatio(SamplerState current_state) {
   ASSERT(IsPowerOf2(kStateWindowSize));
   state_window_position_ = (state_window_position_ + 1) &
       (kStateWindowSize - 1);
+  // Note: to calculate correct ratio we have to track how many valid
+  // ticks are actually in the state window, because on profiler
+  // startup this number can be less than the window size.
+  state_window_ticks_ = Min(kStateWindowSize, state_window_ticks_ + 1);
   NoBarrier_Store(&js_ratio_, state_counts_[IN_JS_STATE] * 100 /
-                  kStateWindowSize);
+                  state_window_ticks_);
 }
 #endif
 

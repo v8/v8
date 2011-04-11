@@ -7323,14 +7323,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   ASSERT(isolate->heap()->IsAllocationAllowed());
   int frames = deoptimizer->output_count();
 
+  deoptimizer->MaterializeHeapNumbers();
+  delete deoptimizer;
+
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = NULL;
-  for (int i = 0; i < frames; i++) {
-    if (i != 0) it.Advance();
-    frame = it.frame();
-    deoptimizer->InsertHeapNumberValues(frames - i - 1, frame);
-  }
-  delete deoptimizer;
+  for (int i = 0; i < frames - 1; i++) it.Advance();
+  frame = it.frame();
 
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
@@ -7821,8 +7820,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
     // The property exists in the extension context.
     context_ext = Handle<JSObject>::cast(holder);
   } else {
-    // The property was not found. It needs to be stored in the global context.
+    // The property was not found.
     ASSERT(attributes == ABSENT);
+
+    if (strict_mode == kStrictMode) {
+      // Throw in strict mode (assignment to undefined variable).
+      Handle<Object> error =
+        isolate->factory()->NewReferenceError(
+            "not_defined", HandleVector(&name, 1));
+      return isolate->Throw(*error);
+    }
+    // In non-strict mode, the property is stored in the global context.
     attributes = NONE;
     context_ext = Handle<JSObject>(isolate->context()->global());
   }
@@ -9820,6 +9828,10 @@ class ScopeIterator {
           StackSlotIndex(isolate_->heap()->result_symbol());
       at_local_ = index < 0;
     } else if (context_->is_function_context()) {
+      at_local_ = true;
+    } else if (context_->closure() != *function_) {
+      // The context_ is a with block from the outer function.
+      ASSERT(context_->has_extension());
       at_local_ = true;
     }
   }

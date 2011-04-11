@@ -28,12 +28,9 @@
 #ifndef V8_ARM_CONSTANTS_ARM_H_
 #define V8_ARM_CONSTANTS_ARM_H_
 
-// The simulator emulates the EABI so we define the USE_ARM_EABI macro if we
-// are not running on real ARM hardware.  One reason for this is that the
-// old ABI uses fp registers in the calling convention and the simulator does
-// not simulate fp registers or coroutine instructions.
-#if defined(__ARM_EABI__) || !defined(__arm__)
-# define USE_ARM_EABI 1
+// ARM EABI is required.
+#if defined(__arm__) && !defined(__ARM_EABI__)
+#error ARM EABI support is required.
 #endif
 
 // This means that interwork-compatible jump instructions are generated.  We

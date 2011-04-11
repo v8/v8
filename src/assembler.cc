@@ -492,7 +492,8 @@ void RelocInfo::Print(FILE* out) {
            target_address());
   } else if (IsPosition(rmode_)) {
     PrintF(out, "  (%" V8_PTR_PREFIX "d)", data());
-  } else if (rmode_ == RelocInfo::RUNTIME_ENTRY) {
+  } else if (rmode_ == RelocInfo::RUNTIME_ENTRY &&
+             Isolate::Current()->deoptimizer_data() != NULL) {
     // Depotimization bailouts are stored as runtime entries.
     int id = Deoptimizer::GetDeoptimizationId(
         target_address(), Deoptimizer::EAGER);

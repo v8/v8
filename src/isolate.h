@@ -179,7 +179,6 @@ class ThreadLocalTop BASE_EMBEDDED {
   int thread_id_;
   MaybeObject* pending_exception_;
   bool has_pending_message_;
-  const char* pending_message_;
   Object* pending_message_obj_;
   Script* pending_message_script_;
   int pending_message_start_pos_;
@@ -189,6 +188,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   // unify them later.
   MaybeObject* scheduled_exception_;
   bool external_caught_exception_;
+  // True if unhandled message is being currently reported by
+  // MessageHandler::ReportMessage.
+  bool in_exception_reporting_;
   SaveContext* save_context_;
   v8::TryCatch* catcher_;
 
@@ -495,6 +497,9 @@ class Isolate {
   bool external_caught_exception() {
     return thread_local_top_.external_caught_exception_;
   }
+  void set_external_caught_exception(bool value) {
+    thread_local_top_.external_caught_exception_ = value;
+  }
   void set_pending_exception(MaybeObject* exception) {
     thread_local_top_.pending_exception_ = exception;
   }
@@ -509,7 +514,6 @@ class Isolate {
   }
   void clear_pending_message() {
     thread_local_top_.has_pending_message_ = false;
-    thread_local_top_.pending_message_ = NULL;
     thread_local_top_.pending_message_obj_ = heap_.the_hole_value();
     thread_local_top_.pending_message_script_ = NULL;
   }
@@ -521,6 +525,18 @@ class Isolate {
   }
   bool* external_caught_exception_address() {
     return &thread_local_top_.external_caught_exception_;
+  }
+  bool in_exception_reporting() {
+    return thread_local_top_.in_exception_reporting_;
+  }
+  void set_in_exception_reporting(bool value) {
+    thread_local_top_.in_exception_reporting_ = value;
+  }
+  v8::TryCatch* catcher() {
+    return thread_local_top_.catcher_;
+  }
+  void set_catcher(v8::TryCatch* catcher) {
+    thread_local_top_.catcher_ = catcher;
   }
 
   MaybeObject** scheduled_exception_address() {
@@ -592,6 +608,27 @@ class Isolate {
   // JavaScript code.  If an exception is scheduled true is returned.
   bool OptionalRescheduleException(bool is_bottom_call);
 
+  class ExceptionScope {
+   public:
+    explicit ExceptionScope(Isolate* isolate) :
+      // Scope currently can only be used for regular exceptions, not
+      // failures like OOM or termination exception.
+      isolate_(isolate),
+      pending_exception_(isolate_->pending_exception()->ToObjectUnchecked()),
+      catcher_(isolate_->catcher())
+    { }
+
+    ~ExceptionScope() {
+      isolate_->set_catcher(catcher_);
+      isolate_->set_pending_exception(*pending_exception_);
+    }
+
+   private:
+    Isolate* isolate_;
+    Handle<Object> pending_exception_;
+    v8::TryCatch* catcher_;
+  };
+
   void SetCaptureStackTraceForUncaughtExceptions(
       bool capture,
       int frame_limit,
@@ -636,9 +673,7 @@ class Isolate {
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
   Failure* PromoteScheduledException();
-  void DoThrow(MaybeObject* exception,
-               MessageLocation* location,
-               const char* message);
+  void DoThrow(MaybeObject* exception, MessageLocation* location);
   // Checks if exception should be reported and finds out if it's
   // caught externally.
   bool ShouldReportException(bool* can_be_caught_externally,
@@ -1022,6 +1057,8 @@ class Isolate {
                            ThreadLocalTop* archived_thread_data);
 
   void FillCache();
+
+  void PropagatePendingExceptionToExternalTryCatch();
 
   int stack_trace_nesting_level_;
   StringStream* incomplete_message_;

@@ -25,37 +25,74 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// This is a regression test for overlapping key and value registers.
-function f(a) {
-  a[0] = 0;
-  a[1] = 0;
+var global = 0;
+var MAX = 1000000;
+
+// Attempt to inline strcit in non-strict.
+
+function strictToBeInlined(n) {
+  "use strict";
+  global = "strict";
+  if (n == MAX) { undefined_variable_strict = "value"; }
 }
 
-var a = new Int32Array(2);
-for (var i = 0; i < 1000000; i++) {
-  f(a);
+function nonstrictCallStrict(n) {
+  strictToBeInlined(n);
 }
 
-assertEquals(0, a[0]);
-assertEquals(0, a[1]);
+(function testInlineStrictInNonStrict() {
+  for (var i = 0; i <= MAX; i ++) {
+    try {
+      nonstrictCallStrict(i);
+    } catch (e) {
+      assertInstanceof(e, ReferenceError);
+      assertEquals(MAX, i);
+      return;
+    }
+  }
+  fail("ReferenceError after MAX iterations", "no exception");
+})();
 
-// Test the correct behavior of the |length| property (which is read-only).
-a = new Int32Array(42);
-assertEquals(42, a.length);
-a.length = 2;
-assertEquals(42, a.length);
-assertTrue(delete a.length);
-a.length = 2
-assertEquals(2, a.length);
+// Attempt to inline non-strict in strict.
 
-// Test the correct behavior of the |BYTES_PER_ELEMENT| property (which is
-// "constant", but not read-only).
-a = new Int32Array(2);
-assertEquals(4, a.BYTES_PER_ELEMENT);
-a.BYTES_PER_ELEMENT = 42;
-assertEquals(42, a.BYTES_PER_ELEMENT);
-a = new Uint8Array(2);
-assertEquals(1, a.BYTES_PER_ELEMENT);
-a = new Int16Array(2);
-assertEquals(2, a.BYTES_PER_ELEMENT);
+function nonstrictToBeInlined(n) {
+  global = "nonstrict";
+  if (n == MAX) { undefined_variable_nonstrict = "The nonstrict value"; }
+}
 
+function strictCallNonStrict(n) {
+  "use strict";
+  nonstrictToBeInlined(n);
+}
+
+(function testInlineNonStrictInStrict() {
+  for (var i = 0; i <= MAX; i ++) {
+    try {
+      strictCallNonStrict(i);
+    } catch (e) {
+      fail("no exception", "exception");
+    }
+  }
+  assertEquals("The nonstrict value", undefined_variable_nonstrict);
+})();
+
+// Optimize strict function.
+
+function strictAssignToUndefined(n) {
+  "use strict";
+  global = "strict";
+  if (n == MAX) { undefined_variable_strict_2 = "value"; }
+}
+
+(function testOptimizeStrictAssignToUndefined() {
+  for (var i = 0; i <= MAX; i ++) {
+    try {
+      strictAssignToUndefined(i);
+    } catch (e) {
+      assertInstanceof(e, ReferenceError);
+      assertEquals(MAX, i);
+      return;
+    }
+  }
+  fail("ReferenceError after MAX iterations", "no exception");
+})();

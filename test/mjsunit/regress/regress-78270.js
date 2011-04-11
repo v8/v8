@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,25 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-
-#include "codegen-inl.h"
-#include "register-allocator-inl.h"
-#include "virtual-frame-inl.h"
-
-namespace v8 {
-namespace internal {
-
-// -------------------------------------------------------------------------
-// VirtualFrame implementation.
-
-// Specialization of List::ResizeAdd to non-inlined version for FrameElements.
-// The function ResizeAdd becomes a real function, whose implementation is the
-// inlined ResizeAddInternal.
-template <>
-void List<FrameElement,
-          FreeStoreAllocationPolicy>::ResizeAdd(const FrameElement& element) {
-  ResizeAddInternal(element);
+for (var i = 0; i < 10000; i++) {
+  try {
+    var object = { };
+    function g(f0) {
+      var f0 = (object instanceof encodeURI)('foo');
+    }
+    g(75);
+  } catch (g) {
+  }
 }
-
-} }  // namespace v8::internal

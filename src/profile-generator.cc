@@ -2295,7 +2295,7 @@ void NativeObjectsExplorer::FillRetainedObjects() {
     ObjectGroup* group = groups->at(i);
     if (group->info_ == NULL) continue;
     List<HeapObject*>* list = GetListMaybeDisposeInfo(group->info_);
-    for (int j = 0; j < group->objects_.length(); ++j) {
+    for (size_t j = 0; j < group->length_; ++j) {
       HeapObject* obj = HeapObject::cast(*group->objects_[j]);
       list->Add(obj);
       in_groups_.Insert(obj);

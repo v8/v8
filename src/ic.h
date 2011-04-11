@@ -53,7 +53,6 @@ namespace internal {
   ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)                       \
-  ICU(BinaryOp_Patch)                                 \
   ICU(TypeRecordingBinaryOp_Patch)                    \
   ICU(CompareIC_Miss)
 //
@@ -574,30 +573,6 @@ class KeyedStoreIC: public IC {
   static bool PatchInlinedStore(Address address, Object* map);
 
   friend class IC;
-};
-
-
-class BinaryOpIC: public IC {
- public:
-
-  enum TypeInfo {
-    UNINIT_OR_SMI,
-    DEFAULT,  // Initial state. When first executed, patches to one
-              // of the following states depending on the operands types.
-    HEAP_NUMBERS,  // Both arguments are HeapNumbers.
-    STRINGS,  // At least one of the arguments is String.
-    GENERIC   // Non-specialized case (processes any type combination).
-  };
-
-  explicit BinaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
-
-  void patch(Code* code);
-
-  static const char* GetName(TypeInfo type_info);
-
-  static State ToState(TypeInfo type_info);
-
-  static TypeInfo GetTypeInfo(Object* left, Object* right);
 };
 
 

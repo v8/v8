@@ -31,7 +31,7 @@
 
 #include "api.h"
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "debug.h"
 #include "runtime-profiler.h"
 #include "simulator.h"
