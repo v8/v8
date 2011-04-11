@@ -221,7 +221,7 @@ class Factory : public AllStatic {
   static Handle<JSObject> NewJSObjectFromMap(Handle<Map> map);
 
   // JS arrays are pretenured when allocated by the parser.
-  static Handle<JSArray> NewJSArray(int init_length,
+  static Handle<JSArray> NewJSArray(int capacity,
                                     PretenureFlag pretenure = NOT_TENURED);
 
   static Handle<JSArray> NewJSArrayWithElements(
@@ -231,7 +231,9 @@ class Factory : public AllStatic {
   static Handle<JSFunction> NewFunction(Handle<String> name,
                                         Handle<Object> prototype);
 
-  static Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name);
+  static Handle<JSFunction> NewFunctionWithoutPrototype(
+      Handle<String> name,
+      StrictModeFlag strict_mode);
 
   static Handle<JSFunction> NewFunction(Handle<Object> super, bool is_global);
 
@@ -407,7 +409,8 @@ class Factory : public AllStatic {
                                               Handle<Object> prototype);
 
   static Handle<JSFunction> NewFunctionWithoutPrototypeHelper(
-      Handle<String> name);
+      Handle<String> name,
+      StrictModeFlag strict_mode);
 
   static Handle<DescriptorArray> CopyAppendCallbackDescriptors(
       Handle<DescriptorArray> array,

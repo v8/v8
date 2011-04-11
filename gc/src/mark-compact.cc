@@ -1418,10 +1418,39 @@ void MarkCompactCollector::MarkObjectGroups() {
         MarkObject(heap_object, mark);
       }
     }
+
     // Once the entire group has been colored grey, set the object group
     // to NULL so it won't be processed again.
-    delete object_groups->at(i);
+    delete entry;
     object_groups->at(i) = NULL;
+  }
+}
+
+
+void MarkCompactCollector::MarkImplicitRefGroups() {
+  List<ImplicitRefGroup*>* ref_groups = GlobalHandles::ImplicitRefGroups();
+
+  for (int i = 0; i < ref_groups->length(); i++) {
+    ImplicitRefGroup* entry = ref_groups->at(i);
+    if (entry == NULL) continue;
+
+    if (!IsMarked(entry->parent_)) continue;
+
+    List<Object**>& children = entry->children_;
+    // A parent object is marked, so mark as gray all child white heap
+    // objects.
+    for (int j = 0; j < children.length(); ++j) {
+      if ((*children[j])->IsHeapObject()) {
+        HeapObject* child = HeapObject::cast(*children[j]);
+        MarkBit mark = Marking::MarkBitFrom(child);
+        MarkObject(child, mark);
+      }
+    }
+
+    // Once the entire group has been colored gray, set the  group
+    // to NULL so it won't be processed again.
+    delete entry;
+    ref_groups->at(i) = NULL;
   }
 }
 
@@ -1501,11 +1530,12 @@ void MarkCompactCollector::ProcessMarkingStack() {
 }
 
 
-void MarkCompactCollector::ProcessObjectGroups() {
+void MarkCompactCollector::ProcessExternalMarking() {
   bool work_to_do = true;
   ASSERT(marking_stack.is_empty());
   while (work_to_do) {
     MarkObjectGroups();
+    MarkImplicitRefGroups();
     work_to_do = !marking_stack.is_empty();
     ProcessMarkingStack();
   }
@@ -1536,10 +1566,9 @@ void MarkCompactCollector::MarkLiveObjects() {
   MarkRoots(&root_visitor);
 
   // The objects reachable from the roots are marked, yet unreachable
-  // objects are unmarked.  Mark objects reachable from object groups
-  // containing at least one marked object, and continue until no new
-  // objects are reachable from the object groups.
-  ProcessObjectGroups();
+  // objects are unmarked.  Mark objects reachable due to host
+  // application specific logic.
+  ProcessExternalMarking();
 
   // The objects reachable from the roots or object groups are marked,
   // yet unreachable objects are unmarked.  Mark objects reachable
@@ -1555,9 +1584,9 @@ void MarkCompactCollector::MarkLiveObjects() {
     EmptyMarkingStack();
   }
 
-  // Repeat the object groups to mark unmarked groups reachable from the
-  // weak roots.
-  ProcessObjectGroups();
+  // Repeat host application specific marking to mark unmarked objects
+  // reachable from the weak roots.
+  ProcessExternalMarking();
 
   AfterMarking();
 }
@@ -1580,6 +1609,7 @@ void MarkCompactCollector::AfterMarking() {
 
   // Remove object groups after marking phase.
   GlobalHandles::RemoveObjectGroups();
+  GlobalHandles::RemoveImplicitRefGroups();
 
   // Flush code from collected candidates.
   if (FLAG_flush_code) {

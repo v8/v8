@@ -541,13 +541,33 @@ List<ObjectGroup*>* GlobalHandles::ObjectGroups() {
   return &groups;
 }
 
-void GlobalHandles::AddGroup(Object*** handles,
-                             size_t length,
-                             v8::RetainedObjectInfo* info) {
+
+void GlobalHandles::AddObjectGroup(Object*** handles,
+                                   size_t length,
+                                   v8::RetainedObjectInfo* info) {
   ObjectGroup* new_entry = new ObjectGroup(length, info);
-  for (size_t i = 0; i < length; ++i)
+  for (size_t i = 0; i < length; ++i) {
     new_entry->objects_.Add(handles[i]);
+  }
   ObjectGroups()->Add(new_entry);
+}
+
+
+List<ImplicitRefGroup*>* GlobalHandles::ImplicitRefGroups() {
+  // Lazily initialize the list to avoid startup time static constructors.
+  static List<ImplicitRefGroup*> groups(4);
+  return &groups;
+}
+
+
+void GlobalHandles::AddImplicitReferences(HeapObject* parent,
+                                          Object*** children,
+                                          size_t length) {
+  ImplicitRefGroup* new_entry = new ImplicitRefGroup(parent, length);
+  for (size_t i = 0; i < length; ++i) {
+    new_entry->children_.Add(children[i]);
+  }
+  ImplicitRefGroups()->Add(new_entry);
 }
 
 
@@ -558,5 +578,15 @@ void GlobalHandles::RemoveObjectGroups() {
   }
   object_groups->Clear();
 }
+
+
+void GlobalHandles::RemoveImplicitRefGroups() {
+  List<ImplicitRefGroup*>* ref_groups = ImplicitRefGroups();
+  for (int i = 0; i< ref_groups->length(); i++) {
+    delete ref_groups->at(i);
+  }
+  ref_groups->Clear();
+}
+
 
 } }  // namespace v8::internal

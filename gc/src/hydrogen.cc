@@ -113,6 +113,21 @@ void HBasicBlock::AddInstruction(HInstruction* instr) {
 }
 
 
+HDeoptimize* HBasicBlock::CreateDeoptimize() {
+  ASSERT(HasEnvironment());
+  HEnvironment* environment = last_environment();
+
+  HDeoptimize* instr = new HDeoptimize(environment->length());
+
+  for (int i = 0; i < environment->length(); i++) {
+    HValue* val = environment->values()->at(i);
+    instr->AddEnvironmentValue(val);
+  }
+
+  return instr;
+}
+
+
 HSimulate* HBasicBlock::CreateSimulate(int id) {
   ASSERT(HasEnvironment());
   HEnvironment* environment = last_environment();
@@ -2472,6 +2487,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   }
 
   VISIT_FOR_VALUE(stmt->tag());
+  AddSimulate(stmt->EntryId());
   HValue* tag_value = Pop();
   HBasicBlock* first_test_block = current_block();
 
@@ -2487,15 +2503,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     // Unconditionally deoptimize on the first non-smi compare.
     clause->RecordTypeFeedback(oracle());
     if (!clause->IsSmiCompare()) {
-      if (current_block() == first_test_block) {
-        // If the first test is the one that deopts and if the tag value is
-        // a phi, we need to have some use of that phi to prevent phi
-        // elimination from removing it.  This HSimulate is such a use.
-        Push(tag_value);
-        AddSimulate(stmt->EntryId());
-        Drop(1);
-      }
-      current_block()->Finish(new HDeoptimize());
+      current_block()->FinishExitWithDeoptimization();
       set_current_block(NULL);
       break;
     }
@@ -3115,7 +3123,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExit(new HDeoptimize);
+    current_block()->FinishExitWithDeoptimization();
   } else {
     HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
     instr->set_position(expr->position());
@@ -3463,7 +3471,7 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExit(new HDeoptimize);
+    current_block()->FinishExitWithDeoptimization();
   } else {
     HInstruction* instr = BuildLoadNamedGeneric(object, expr);
     instr->set_position(expr->position());
@@ -3828,7 +3836,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExit(new HDeoptimize);
+    current_block()->FinishExitWithDeoptimization();
   } else {
     HContext* context = new HContext;
     AddInstruction(context);
@@ -4216,13 +4224,6 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
 }
 
 
-static bool HasCustomCallGenerator(Handle<JSFunction> function) {
-  SharedFunctionInfo* info = function->shared();
-  return info->HasBuiltinFunctionId() &&
-      CallStubCompiler::HasCustomCallGenerator(info->builtin_function_id());
-}
-
-
 void HGraphBuilder::VisitCall(Call* expr) {
   Expression* callee = expr->expression();
   int argument_count = expr->arguments()->length() + 1;  // Plus receiver.
@@ -4280,13 +4281,11 @@ void HGraphBuilder::VisitCall(Call* expr) {
         return;
       }
 
-      if (HasCustomCallGenerator(expr->target()) ||
-          CallOptimization(*expr->target()).is_simple_api_call() ||
+      if (CallStubCompiler::HasCustomCallGenerator(*expr->target()) ||
           expr->check_type() != RECEIVER_MAP_CHECK) {
         // When the target has a custom call IC generator, use the IC,
-        // because it is likely to generate better code.  Similarly, we
-        // generate better call stubs for some API functions.
-        // Also use the IC when a primitive receiver check is required.
+        // because it is likely to generate better code.  Also use the IC
+        // when a primitive receiver check is required.
         HContext* context = new HContext;
         AddInstruction(context);
         call = PreProcessCall(new HCallNamed(context, name, argument_count));
@@ -4533,7 +4532,12 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
       VisitForEffect(expr->expression());
     }
 
-  } else if (op == Token::BIT_NOT || op == Token::SUB) {
+  } else if (op == Token::TYPEOF) {
+    VISIT_FOR_VALUE(expr->expression());
+    HValue* value = Pop();
+    ast_context()->ReturnInstruction(new HTypeof(value), expr->id());
+
+  } else {
     VISIT_FOR_VALUE(expr->expression());
     HValue* value = Pop();
     HInstruction* instr = NULL;
@@ -4542,19 +4546,16 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
         instr = new HBitNot(value);
         break;
       case Token::SUB:
-        instr = new HMul(graph_->GetConstantMinus1(), value);
+        instr = new HMul(value, graph_->GetConstantMinus1());
+        break;
+      case Token::ADD:
+        instr = new HMul(value, graph_->GetConstant1());
         break;
       default:
-        UNREACHABLE();
+        BAILOUT("Value: unsupported unary operation");
         break;
     }
     ast_context()->ReturnInstruction(instr, expr->id());
-  } else if (op == Token::TYPEOF) {
-    VISIT_FOR_VALUE(expr->expression());
-    HValue* value = Pop();
-    ast_context()->ReturnInstruction(new HTypeof(value), expr->id());
-  } else {
-    BAILOUT("Value: unsupported unary operation");
   }
 }
 

@@ -451,9 +451,11 @@ void DisassemblerX64::AppendToBuffer(const char* format, ...) {
 
 int DisassemblerX64::PrintRightOperandHelper(
     byte* modrmp,
-    RegisterNameMapping register_name) {
+    RegisterNameMapping direct_register_name) {
   int mod, regop, rm;
   get_modrm(*modrmp, &mod, &regop, &rm);
+  RegisterNameMapping register_name = (mod == 3) ? direct_register_name :
+      &DisassemblerX64::NameOfCPURegister;
   switch (mod) {
     case 0:
       if ((rm & 7) == 5) {
@@ -1028,7 +1030,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       } else if (opcode == 0x6F) {
         AppendToBuffer("movdqa %s,",
                        NameOfXMMRegister(regop));
-        current += PrintRightOperand(current);
+        current += PrintRightXMMOperand(current);
       } else if (opcode == 0x7E) {
         AppendToBuffer("mov%c ",
                        rex_w() ? 'q' : 'd');
@@ -1036,7 +1038,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         AppendToBuffer(", %s", NameOfXMMRegister(regop));
       } else if (opcode == 0x7F) {
         AppendToBuffer("movdqa ");
-        current += PrintRightOperand(current);
+        current += PrintRightXMMOperand(current);
         AppendToBuffer(", %s", NameOfXMMRegister(regop));
       } else {
         const char* mnemonic = "?";
@@ -1068,11 +1070,11 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
       if (opcode == 0x11) {
-        current += PrintRightOperand(current);
+        current += PrintRightXMMOperand(current);
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
       } else {
         AppendToBuffer("%s,", NameOfXMMRegister(regop));
-        current += PrintRightOperand(current);
+        current += PrintRightXMMOperand(current);
       }
     } else if (opcode == 0x2A) {
       // CVTSI2SD: integer to XMM double conversion.
@@ -1435,19 +1437,26 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
       {
         bool is_byte = *data == 0xC6;
         data++;
-
-        AppendToBuffer("mov%c ", is_byte ? 'b' : operand_size_code());
-        data += PrintRightOperand(data);
-        int32_t imm = is_byte ? *data : *reinterpret_cast<int32_t*>(data);
-        AppendToBuffer(",0x%x", imm);
-        data += is_byte ? 1 : 4;
+        if (is_byte) {
+          AppendToBuffer("movb ");
+          data += PrintRightByteOperand(data);
+          int32_t imm = *data;
+          AppendToBuffer(",0x%x", imm);
+          data++;
+        } else {
+          AppendToBuffer("mov%c ", operand_size_code());
+          data += PrintRightOperand(data);
+          int32_t imm = *reinterpret_cast<int32_t*>(data);
+          AppendToBuffer(",0x%x", imm);
+          data += 4;
+        }
       }
         break;
 
       case 0x80: {
         data++;
         AppendToBuffer("cmpb ");
-        data += PrintRightOperand(data);
+        data += PrintRightByteOperand(data);
         int32_t imm = *data;
         AppendToBuffer(",0x%x", imm);
         data++;
@@ -1461,9 +1470,15 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         int mod, regop, rm;
         data++;
         get_modrm(*data, &mod, &regop, &rm);
-        AppendToBuffer("mov%c ", is_byte ? 'b' : operand_size_code());
-        data += PrintRightOperand(data);
-        AppendToBuffer(",%s", NameOfCPURegister(regop));
+        if (is_byte) {
+          AppendToBuffer("movb ");
+          data += PrintRightByteOperand(data);
+          AppendToBuffer(",%s", NameOfByteCPURegister(regop));
+        } else {
+          AppendToBuffer("mov%c ", operand_size_code());
+          data += PrintRightOperand(data);
+          AppendToBuffer(",%s", NameOfCPURegister(regop));
+        }
       }
         break;
 
@@ -1493,7 +1508,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         get_modrm(*data, &mod, &regop, &rm);
         if (regop == 1) {
           AppendToBuffer("decb ");
-          data += PrintRightOperand(data);
+          data += PrintRightByteOperand(data);
         } else {
           UnimplementedInstruction();
         }

@@ -198,7 +198,9 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     //   function, receiver address, parameter count.
     // The stub will rewrite receiver and parameter count if the previous
     // stack frame was an arguments adapter frame.
-    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    ArgumentsAccessStub stub(
+        is_strict_mode() ? ArgumentsAccessStub::NEW_STRICT
+                         : ArgumentsAccessStub::NEW_NON_STRICT);
     __ CallStub(&stub);
 
     Variable* arguments_shadow = scope()->arguments_shadow();
@@ -1039,10 +1041,10 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
   // doesn't just get a copy of the existing unoptimized code.
   if (!FLAG_always_opt &&
       !FLAG_prepare_always_opt &&
+      !pretenure &&
       scope()->is_function_scope() &&
-      info->num_literals() == 0 &&
-      !pretenure) {
-    FastNewClosureStub stub;
+      info->num_literals() == 0) {
+    FastNewClosureStub stub(info->strict_mode() ? kStrictMode : kNonStrictMode);
     __ Push(info);
     __ CallStub(&stub);
   } else {

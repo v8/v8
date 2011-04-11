@@ -1034,11 +1034,13 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void SetInternalReference(HeapObject* parent_obj,
                             HeapEntry* parent,
                             const char* reference_name,
-                            Object* child);
+                            Object* child,
+                            int field_offset = -1);
   void SetInternalReference(HeapObject* parent_obj,
                             HeapEntry* parent,
                             int index,
-                            Object* child);
+                            Object* child,
+                            int field_offset = -1);
   void SetHiddenReference(HeapObject* parent_obj,
                           HeapEntry* parent,
                           int index,
@@ -1046,7 +1048,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void SetPropertyReference(HeapObject* parent_obj,
                             HeapEntry* parent,
                             String* reference_name,
-                            Object* child);
+                            Object* child,
+                            int field_offset = -1);
   void SetPropertyShortcutReference(HeapObject* parent_obj,
                                     HeapEntry* parent,
                                     String* reference_name,
@@ -1060,9 +1063,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapSnapshot* snapshot_;
   HeapSnapshotsCollection* collection_;
   SnapshottingProgressReportingInterface* progress_;
-  // Used during references extraction to mark heap objects that
-  // are references via non-hidden properties.
-  HeapObjectsSet known_references_;
   SnapshotFillerInterface* filler_;
 
   static HeapObject* const kGcRootsObject;

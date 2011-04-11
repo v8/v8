@@ -605,7 +605,9 @@ void CodeGenerator::StoreArgumentsObject(bool initial) {
     frame_->EmitPushRoot(Heap::kArgumentsMarkerRootIndex);
   } else {
     frame_->SpillAll();
-    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    ArgumentsAccessStub stub(is_strict_mode()
+        ? ArgumentsAccessStub::NEW_STRICT
+        : ArgumentsAccessStub::NEW_NON_STRICT);
     __ ldr(r2, frame_->Function());
     // The receiver is below the arguments, the return address, and the
     // frame pointer on the stack.
@@ -1163,7 +1165,7 @@ void DeferredInlineSmiOperation::GenerateNonSmiInput() {
   }
   // Check that the *signed* result fits in a smi. Not necessary for AND, SAR
   // if the shift if more than 0 or SHR if the shit is more than 1.
-  if (!( (op_ == Token::AND) ||
+  if (!( (op_ == Token::AND && value_ >= 0) ||
         ((op_ == Token::SAR) && (shift_value > 0)) ||
         ((op_ == Token::SHR) && (shift_value > 1)))) {
     __ add(r3, int32, Operand(0x40000000), SetCC);
@@ -1424,8 +1426,10 @@ void CodeGenerator::SmiOperation(Token::Value op,
           default: UNREACHABLE();
         }
         deferred->BindExit();
-        TypeInfo result_type =
-            (op == Token::BIT_AND) ? TypeInfo::Smi() : TypeInfo::Integer32();
+        TypeInfo result_type = TypeInfo::Integer32();
+        if (op == Token::BIT_AND && int_value >= 0) {
+          result_type = TypeInfo::Smi();
+        }
         frame_->EmitPush(tos, result_type);
       }
       break;
@@ -3116,10 +3120,11 @@ void CodeGenerator::InstantiateFunction(
     bool pretenure) {
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() &&
-      function_info->num_literals() == 0 &&
-      !pretenure) {
-    FastNewClosureStub stub;
+  if (!pretenure &&
+      scope()->is_function_scope() &&
+      function_info->num_literals() == 0) {
+    FastNewClosureStub stub(
+        function_info->strict_mode() ? kStrictMode : kNonStrictMode);
     frame_->EmitPush(Operand(function_info));
     frame_->SpillAll();
     frame_->CallStub(&stub, 1);

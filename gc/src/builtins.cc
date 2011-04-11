@@ -648,7 +648,7 @@ BUILTIN(ArraySlice) {
     }
     elms = FixedArray::cast(JSObject::cast(receiver)->elements());
     Object* len_obj = JSObject::cast(receiver)
-        ->InObjectPropertyAt(Heap::arguments_length_index);
+        ->InObjectPropertyAt(Heap::kArgumentsLengthIndex);
     if (!len_obj->IsSmi()) {
       return CallJsBuiltin("ArraySlice", args);
     }
@@ -963,6 +963,38 @@ BUILTIN(ArrayConcat) {
   result_array->set_elements(result_elms);
 
   return result_array;
+}
+
+
+// -----------------------------------------------------------------------------
+// Strict mode poison pills
+
+
+BUILTIN(StrictArgumentsCallee) {
+  HandleScope scope;
+  return Top::Throw(*Factory::NewTypeError("strict_arguments_callee",
+                                           HandleVector<Object>(NULL, 0)));
+}
+
+
+BUILTIN(StrictArgumentsCaller) {
+  HandleScope scope;
+  return Top::Throw(*Factory::NewTypeError("strict_arguments_caller",
+                                           HandleVector<Object>(NULL, 0)));
+}
+
+
+BUILTIN(StrictFunctionCaller) {
+  HandleScope scope;
+  return Top::Throw(*Factory::NewTypeError("strict_function_caller",
+                                            HandleVector<Object>(NULL, 0)));
+}
+
+
+BUILTIN(StrictFunctionArguments) {
+  HandleScope scope;
+  return Top::Throw(*Factory::NewTypeError("strict_function_arguments",
+                                            HandleVector<Object>(NULL, 0)));
 }
 
 

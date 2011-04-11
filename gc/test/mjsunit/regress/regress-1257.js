@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,44 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+function g(y) { assertEquals(y, 12); }
 
-#ifndef V8_CODEGEN_INL_H_
-#define V8_CODEGEN_INL_H_
+var X = 0;
 
-#include "codegen.h"
-#include "compiler.h"
-#include "register-allocator-inl.h"
-
-#if V8_TARGET_ARCH_IA32
-#include "ia32/codegen-ia32-inl.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/codegen-x64-inl.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/codegen-arm-inl.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/codegen-mips-inl.h"
-#else
-#error Unsupported target architecture.
-#endif
-
-
-namespace v8 {
-namespace internal {
-
-Handle<Script> CodeGenerator::script() { return info_->script(); }
-
-bool CodeGenerator::is_eval() { return info_->is_eval(); }
-
-Scope* CodeGenerator::scope() { return info_->function()->scope(); }
-
-bool CodeGenerator::is_strict_mode() {
-  return info_->function()->strict_mode();
+function foo () {
+  var cnt = 0;
+  var l = -1;
+  var x = 0;
+  while (1) switch (l) {
+      case -1:
+        var y = x + 12;
+        l = 0;
+        break;
+      case 0:
+        // Loop for to hit OSR.
+        if (cnt++ < 10000000) {
+          l = 0;
+          break;
+        } else {
+          l = 1;
+          break;
+        }
+      case 1:
+        // This case will contain deoptimization
+        // because it has no type feedback.
+        g(y);
+        return;
+    };
 }
 
-StrictModeFlag CodeGenerator::strict_mode_flag() {
-  return is_strict_mode() ? kStrictMode : kNonStrictMode;
-}
-
-} }  // namespace v8::internal
-
-#endif  // V8_CODEGEN_INL_H_
+foo();
