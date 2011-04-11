@@ -431,8 +431,7 @@ void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
     if (true_label_ != fall_through_) __ b(true_label_);
   } else if (lit->IsString()) {
     if (String::cast(*lit)->length() == 0) {
-    if (false_label_ != fall_through_) __ b(false_label_);
-      __ b(false_label_);
+      if (false_label_ != fall_through_) __ b(false_label_);
     } else {
       if (true_label_ != fall_through_) __ b(true_label_);
     }
