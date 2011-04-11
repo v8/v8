@@ -3231,7 +3231,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   // Fill these accessors into the dictionary.
   DescriptorArray* descs = map->instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    PropertyDetails details = descs->GetDetails(i);
+    PropertyDetails details(descs->GetDetails(i));
     ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
     PropertyDetails d =
         PropertyDetails(details.attributes(), CALLBACKS, details.index());

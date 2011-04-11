@@ -272,7 +272,7 @@ class LCodeGen BASE_EMBEDDED {
   void EmitPushConstantOperand(LOperand* operand);
 
   struct JumpTableEntry {
-    inline JumpTableEntry(Address entry)
+    explicit inline JumpTableEntry(Address entry)
         : label(),
           address(entry) { }
     Label label;

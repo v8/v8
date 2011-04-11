@@ -1447,7 +1447,7 @@ class RegExpEngine: public AllStatic {
 
 class OffsetsVector {
  public:
-  inline OffsetsVector(int num_registers)
+  explicit inline OffsetsVector(int num_registers)
       : offsets_vector_length_(num_registers) {
     if (offsets_vector_length_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
       vector_ = NewArray<int>(offsets_vector_length_);

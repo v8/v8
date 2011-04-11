@@ -2518,7 +2518,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
 
   DescriptorArray* descs = map_of_this->instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    PropertyDetails details = descs->GetDetails(i);
+    PropertyDetails details(descs->GetDetails(i));
     switch (details.type()) {
       case CONSTANT_FUNCTION: {
         PropertyDetails d =
@@ -8101,7 +8101,7 @@ int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
     DescriptorArray* descs = map()->instance_descriptors();
     int result = 0;
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
-      PropertyDetails details = descs->GetDetails(i);
+      PropertyDetails details(descs->GetDetails(i));
       if (details.IsProperty() && (details.attributes() & filter) == 0) {
         result++;
       }
@@ -9668,7 +9668,7 @@ void NumberDictionary::RemoveNumberEntries(uint32_t from, uint32_t to) {
     if (key->IsNumber()) {
       uint32_t number = static_cast<uint32_t>(key->Number());
       if (from <= number && number < to) {
-        SetEntry(i, sentinel, sentinel, Smi::FromInt(0));
+        SetEntry(i, sentinel, sentinel);
         removed_entries++;
       }
     }
@@ -9688,7 +9688,7 @@ Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
   if (details.IsDontDelete() && mode != JSObject::FORCE_DELETION) {
     return heap->false_value();
   }
-  SetEntry(entry, heap->null_value(), heap->null_value(), Smi::FromInt(0));
+  SetEntry(entry, heap->null_value(), heap->null_value());
   HashTable<Shape, Key>::ElementRemoved();
   return heap->true_value();
 }

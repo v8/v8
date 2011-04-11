@@ -1774,7 +1774,7 @@ bool DescriptorArray::IsDontEnum(int descriptor_number) {
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(GetKey(descriptor_number),
              GetValue(descriptor_number),
-             GetDetails(descriptor_number));
+             PropertyDetails(GetDetails(descriptor_number)));
 }
 
 
@@ -3938,6 +3938,15 @@ void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
   int rest_value = flag()->value() & ~AttributesField::mask();
   set_flag(Smi::FromInt(rest_value | AttributesField::encode(attributes)));
 }
+
+
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::SetEntry(int entry,
+                                      Object* key,
+                                      Object* value) {
+  SetEntry(entry, key, value, PropertyDetails(Smi::FromInt(0)));
+}
+
 
 template<typename Shape, typename Key>
 void Dictionary<Shape, Key>::SetEntry(int entry,

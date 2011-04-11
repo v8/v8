@@ -220,7 +220,7 @@ class ContextSlotCache {
       ASSERT(index == this->index());
     }
 
-    inline Value(uint32_t value) : value_(value) {}
+    explicit inline Value(uint32_t value) : value_(value) {}
 
     uint32_t raw() { return value_; }
 

@@ -167,7 +167,7 @@ class PropertyDetails BASE_EMBEDDED {
   }
 
   // Conversion for storing details as Object*.
-  inline PropertyDetails(Smi* smi);
+  explicit inline PropertyDetails(Smi* smi);
   inline Smi* AsSmi();
 
   PropertyType type() { return TypeField::decode(value_); }
@@ -2569,6 +2569,9 @@ class Dictionary: public HashTable<Shape, Key> {
   Object* SlowReverseLookup(Object* value);
 
   // Sets the entry to (key, value) pair.
+  inline void SetEntry(int entry,
+                       Object* key,
+                       Object* value);
   inline void SetEntry(int entry,
                        Object* key,
                        Object* value,
@@ -5147,7 +5150,7 @@ enum RobustnessFlag {ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL};
 
 class StringHasher {
  public:
-  inline StringHasher(int length);
+  explicit inline StringHasher(int length);
 
   // Returns true if the hash of this string can be computed without
   // looking at the contents.
@@ -5894,7 +5897,7 @@ class StringInputBuffer: public unibrow::InputBuffer<String, String*, 1024> {
  public:
   virtual void Seek(unsigned pos);
   inline StringInputBuffer(): unibrow::InputBuffer<String, String*, 1024>() {}
-  inline StringInputBuffer(String* backing):
+  explicit inline StringInputBuffer(String* backing):
       unibrow::InputBuffer<String, String*, 1024>(backing) {}
 };
 
@@ -5905,7 +5908,7 @@ class SafeStringInputBuffer
   virtual void Seek(unsigned pos);
   inline SafeStringInputBuffer()
       : unibrow::InputBuffer<String, String**, 256>() {}
-  inline SafeStringInputBuffer(String** backing)
+  explicit inline SafeStringInputBuffer(String** backing)
       : unibrow::InputBuffer<String, String**, 256>(backing) {}
 };
 
