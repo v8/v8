@@ -308,13 +308,9 @@ class ConvertToDoubleStub : public CodeStub {
 
 
 void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
-#ifndef BIG_ENDIAN_FLOATING_POINT
-  Register exponent = result1_;
-  Register mantissa = result2_;
-#else
   Register exponent = result2_;
   Register mantissa = result1_;
-#endif
+
   Label not_special;
   // Convert from Smi to integer.
   __ mov(source_, Operand(source_, ASR, kSmiTagSize));
@@ -951,18 +947,10 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   // Call C routine that may not cause GC or other trouble.
   __ CallCFunction(ExternalReference::double_fp_operation(op, masm->isolate()),
                    4);
-  // Store answer in the overwritable heap number.
-#if !defined(USE_ARM_EABI)
-  // Double returned in fp coprocessor register 0 and 1, encoded as
-  // register cr8.  Offsets must be divisible by 4 for coprocessor so we
-  // need to substract the tag from heap_number_result.
-  __ sub(scratch, heap_number_result, Operand(kHeapObjectTag));
-  __ stc(p1, cr8, MemOperand(scratch, HeapNumber::kValueOffset));
-#else
-  // Double returned in registers 0 and 1.
+  // Store answer in the overwritable heap number. Double returned in
+  // registers r0 and r1.
   __ Strd(r0, r1, FieldMemOperand(heap_number_result,
                                   HeapNumber::kValueOffset));
-#endif
   // Place heap_number_result in r0 and return to the pushed return address.
   __ mov(r0, Operand(heap_number_result));
   __ pop(pc);
@@ -2047,17 +2035,9 @@ void GenericBinaryOpStub::HandleBinaryOpSlowCases(
         // save.
         __ CallCFunction(
             ExternalReference::double_fp_operation(op_, masm->isolate()), 4);
-        // Store answer in the overwritable heap number.
-    #if !defined(USE_ARM_EABI)
-        // Double returned in fp coprocessor register 0 and 1, encoded as
-        // register cr8.  Offsets must be divisible by 4 for coprocessor so we
-        // need to substract the tag from r5.
-        __ sub(r4, r5, Operand(kHeapObjectTag));
-        __ stc(p1, cr8, MemOperand(r4, HeapNumber::kValueOffset));
-    #else
-        // Double returned in registers 0 and 1.
+        // Store answer in the overwritable heap number. Double
+        // returned in registers r0 and r1.
         __ Strd(r0, r1, FieldMemOperand(r5, HeapNumber::kValueOffset));
-    #endif
         __ mov(r0, Operand(r5));
         // And we are done.
         __ pop(pc);

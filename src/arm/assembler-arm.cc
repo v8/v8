@@ -1824,45 +1824,6 @@ void Assembler::ldc2(Coprocessor coproc,
 }
 
 
-void Assembler::stc(Coprocessor coproc,
-                    CRegister crd,
-                    const MemOperand& dst,
-                    LFlag l,
-                    Condition cond) {
-  addrmod5(cond | B27 | B26 | l | coproc*B8, crd, dst);
-}
-
-
-void Assembler::stc(Coprocessor coproc,
-                    CRegister crd,
-                    Register rn,
-                    int option,
-                    LFlag l,
-                    Condition cond) {
-  // Unindexed addressing.
-  ASSERT(is_uint8(option));
-  emit(cond | B27 | B26 | U | l | rn.code()*B16 | crd.code()*B12 |
-       coproc*B8 | (option & 255));
-}
-
-
-void Assembler::stc2(Coprocessor
-                     coproc, CRegister crd,
-                     const MemOperand& dst,
-                     LFlag l) {  // v5 and above
-  stc(coproc, crd, dst, l, kSpecialCondition);
-}
-
-
-void Assembler::stc2(Coprocessor coproc,
-                     CRegister crd,
-                     Register rn,
-                     int option,
-                     LFlag l) {  // v5 and above
-  stc(coproc, crd, rn, option, l, kSpecialCondition);
-}
-
-
 // Support for VFP.
 
 void Assembler::vldr(const DwVfpRegister dst,

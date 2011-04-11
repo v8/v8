@@ -193,11 +193,7 @@ void V8::InitializeOncePerProcess() {
   // Setup the platform OS support.
   OS::Setup();
 
-#if defined(V8_TARGET_ARCH_ARM) && !defined(USE_ARM_EABI)
-  use_crankshaft_ = false;
-#else
   use_crankshaft_ = FLAG_crankshaft;
-#endif
 
   if (Serializer::enabled()) {
     use_crankshaft_ = false;
