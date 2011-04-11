@@ -147,11 +147,11 @@ bool ThreadManager::RestoreThread() {
   // First check whether the current thread has been 'lazily archived', ie
   // not archived at all.  If that is the case we put the state storage we
   // had prepared back in the free list, since we didn't need it after all.
-  if (lazily_archived_thread_.IsSelf()) {
-    lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
+  if (lazily_archived_thread_.Equals(ThreadId::Current())) {
+    lazily_archived_thread_ = ThreadId::Invalid();
     ASSERT(Isolate::CurrentPerIsolateThreadData()->thread_state() ==
            lazily_archived_thread_state_);
-    lazily_archived_thread_state_->set_id(kInvalidId);
+    lazily_archived_thread_state_->set_id(ThreadId::Invalid());
     lazily_archived_thread_state_->LinkInto(ThreadState::FREE_LIST);
     lazily_archived_thread_state_ = NULL;
     Isolate::CurrentPerIsolateThreadData()->set_thread_state(NULL);
@@ -190,7 +190,7 @@ bool ThreadManager::RestoreThread() {
     isolate_->stack_guard()->TerminateExecution();
     state->set_terminate_on_restore(false);
   }
-  state->set_id(kInvalidId);
+  state->set_id(ThreadId::Invalid());
   state->Unlink();
   state->LinkInto(ThreadState::FREE_LIST);
   return true;
@@ -199,13 +199,13 @@ bool ThreadManager::RestoreThread() {
 
 void ThreadManager::Lock() {
   mutex_->Lock();
-  mutex_owner_.Initialize(ThreadHandle::SELF);
+  mutex_owner_ = ThreadId::Current();
   ASSERT(IsLockedByCurrentThread());
 }
 
 
 void ThreadManager::Unlock() {
-  mutex_owner_.Initialize(ThreadHandle::INVALID);
+  mutex_owner_ = ThreadId::Invalid();
   mutex_->Unlock();
 }
 
@@ -224,7 +224,7 @@ static int ArchiveSpacePerThread() {
 
 
 ThreadState::ThreadState(ThreadManager* thread_manager)
-    : id_(ThreadManager::kInvalidId),
+    : id_(ThreadId::Invalid()),
       terminate_on_restore_(false),
       next_(this),
       previous_(this),
@@ -282,8 +282,8 @@ ThreadState* ThreadState::Next() {
 // defined as 0.)
 ThreadManager::ThreadManager()
     : mutex_(OS::CreateMutex()),
-      mutex_owner_(ThreadHandle::INVALID),
-      lazily_archived_thread_(ThreadHandle::INVALID),
+      mutex_owner_(ThreadId::Invalid()),
+      lazily_archived_thread_(ThreadId::Invalid()),
       lazily_archived_thread_state_(NULL),
       free_anchor_(NULL),
       in_use_anchor_(NULL) {
@@ -298,16 +298,16 @@ ThreadManager::~ThreadManager() {
 
 
 void ThreadManager::ArchiveThread() {
-  ASSERT(!lazily_archived_thread_.IsValid());
+  ASSERT(lazily_archived_thread_.Equals(ThreadId::Invalid()));
   ASSERT(!IsArchived());
   ThreadState* state = GetFreeThreadState();
   state->Unlink();
   Isolate::CurrentPerIsolateThreadData()->set_thread_state(state);
-  lazily_archived_thread_.Initialize(ThreadHandle::SELF);
+  lazily_archived_thread_ = ThreadId::Current();
   lazily_archived_thread_state_ = state;
-  ASSERT(state->id() == kInvalidId);
+  ASSERT(state->id().Equals(ThreadId::Invalid()));
   state->set_id(CurrentId());
-  ASSERT(state->id() != kInvalidId);
+  ASSERT(!state->id().Equals(ThreadId::Invalid()));
 }
 
 
@@ -326,7 +326,7 @@ void ThreadManager::EagerlyArchiveThread() {
   to = isolate_->stack_guard()->ArchiveStackGuard(to);
   to = isolate_->regexp_stack()->ArchiveStack(to);
   to = isolate_->bootstrapper()->ArchiveState(to);
-  lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
+  lazily_archived_thread_ = ThreadId::Invalid();
   lazily_archived_thread_state_ = NULL;
 }
 
@@ -373,16 +373,16 @@ void ThreadManager::IterateArchivedThreads(ThreadVisitor* v) {
 }
 
 
-int ThreadManager::CurrentId() {
-  return Thread::GetThreadLocalInt(Isolate::thread_id_key());
+ThreadId ThreadManager::CurrentId() {
+  return ThreadId::Current();
 }
 
 
-void ThreadManager::TerminateExecution(int thread_id) {
+void ThreadManager::TerminateExecution(ThreadId thread_id) {
   for (ThreadState* state = FirstThreadStateInUse();
        state != NULL;
        state = state->Next()) {
-    if (thread_id == state->id()) {
+    if (thread_id.Equals(state->id())) {
       state->set_terminate_on_restore(true);
     }
   }

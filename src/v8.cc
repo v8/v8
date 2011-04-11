@@ -63,8 +63,8 @@ bool V8::Initialize(Deserializer* des) {
   }
 
   ASSERT(i::Isolate::CurrentPerIsolateThreadData() != NULL);
-  ASSERT(i::Isolate::CurrentPerIsolateThreadData()->thread_id() ==
-         i::Thread::GetThreadLocalInt(i::Isolate::thread_id_key()));
+  ASSERT(i::Isolate::CurrentPerIsolateThreadData()->thread_id().Equals(
+           i::ThreadId::Current()));
   ASSERT(i::Isolate::CurrentPerIsolateThreadData()->isolate() ==
          i::Isolate::Current());
 

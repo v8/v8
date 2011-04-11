@@ -1496,38 +1496,9 @@ static unsigned int __stdcall ThreadEntry(void* arg) {
   // This is also initialized by the last parameter to _beginthreadex() but we
   // don't know which thread will run first (the original thread or the new
   // one) so we initialize it here too.
-  thread->thread_handle_data()->tid_ = GetCurrentThreadId();
   Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return 0;
-}
-
-
-// Initialize thread handle to invalid handle.
-ThreadHandle::ThreadHandle(ThreadHandle::Kind kind) {
-  data_ = new PlatformData(kind);
-}
-
-
-ThreadHandle::~ThreadHandle() {
-  delete data_;
-}
-
-
-// The thread is running if it has the same id as the current thread.
-bool ThreadHandle::IsSelf() const {
-  return GetCurrentThreadId() == data_->tid_;
-}
-
-
-// Test for invalid thread handle.
-bool ThreadHandle::IsValid() const {
-  return data_->tid_ != kNoThreadId;
-}
-
-
-void ThreadHandle::Initialize(ThreadHandle::Kind kind) {
-  data_->Initialize(kind);
 }
 
 
@@ -1542,8 +1513,7 @@ class Thread::PlatformData : public Malloced {
 // handle until it is started.
 
 Thread::Thread(Isolate* isolate, const Options& options)
-    : ThreadHandle(ThreadHandle::INVALID),
-      isolate_(isolate),
+    : isolate_(isolate),
       stack_size_(options.stack_size) {
   data_ = new PlatformData(kNoThread);
   set_name(options.name);
@@ -1551,8 +1521,7 @@ Thread::Thread(Isolate* isolate, const Options& options)
 
 
 Thread::Thread(Isolate* isolate, const char* name)
-    : ThreadHandle(ThreadHandle::INVALID),
-      isolate_(isolate),
+    : isolate_(isolate),
       stack_size_(0) {
   data_ = new PlatformData(kNoThread);
   set_name(name);

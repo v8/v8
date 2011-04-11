@@ -354,40 +354,6 @@ class VirtualMemory {
   size_t size_;  // Size of the virtual memory.
 };
 
-
-// ----------------------------------------------------------------------------
-// ThreadHandle
-//
-// A ThreadHandle represents a thread identifier for a thread. The ThreadHandle
-// does not own the underlying os handle. Thread handles can be used for
-// refering to threads and testing equality.
-
-class ThreadHandle {
- public:
-  enum Kind { SELF, INVALID };
-  explicit ThreadHandle(Kind kind);
-
-  // Destructor.
-  ~ThreadHandle();
-
-  // Test for thread running.
-  bool IsSelf() const;
-
-  // Test for valid thread handle.
-  bool IsValid() const;
-
-  // Get platform-specific data.
-  class PlatformData;
-  PlatformData* thread_handle_data() { return data_; }
-
-  // Initialize the handle to kind
-  void Initialize(Kind kind);
-
- private:
-  PlatformData* data_;  // Captures platform dependent data.
-};
-
-
 // ----------------------------------------------------------------------------
 // Thread
 //
@@ -396,7 +362,7 @@ class ThreadHandle {
 // thread. The Thread object should not be deallocated before the thread has
 // terminated.
 
-class Thread: public ThreadHandle {
+class Thread {
  public:
   // Opaque data type for thread-local storage keys.
   // LOCAL_STORAGE_KEY_MIN_VALUE and LOCAL_STORAGE_KEY_MAX_VALUE are specified
@@ -468,11 +434,15 @@ class Thread: public ThreadHandle {
   // The thread name length is limited to 16 based on Linux's implementation of
   // prctl().
   static const int kMaxThreadNameLength = 16;
+
+  class PlatformData;
+  PlatformData* data() { return data_; }
+
  private:
   void set_name(const char *name);
 
-  class PlatformData;
   PlatformData* data_;
+
   Isolate* isolate_;
   char name_[kMaxThreadNameLength];
   int stack_size_;

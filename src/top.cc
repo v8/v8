@@ -69,8 +69,7 @@ void ThreadLocalTop::Initialize() {
 #endif
   try_catch_handler_address_ = NULL;
   context_ = NULL;
-  int id = Isolate::Current()->thread_manager()->CurrentId();
-  thread_id_ = (id == 0) ? ThreadManager::kInvalidId : id;
+  thread_id_ = ThreadId::Current();
   external_caught_exception_ = false;
   failed_access_check_callback_ = NULL;
   save_context_ = NULL;

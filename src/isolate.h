@@ -136,6 +136,53 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 #endif
 
 
+// Platform-independent, reliable thread identifier.
+class ThreadId {
+ public:
+  // Creates an invalid ThreadId.
+  ThreadId() : id_(kInvalidId) {}
+
+  // Returns ThreadId for current thread.
+  static ThreadId Current() { return ThreadId(GetCurrentThreadId()); }
+
+  // Returns invalid ThreadId (guaranteed not to be equal to any thread).
+  static ThreadId Invalid() { return ThreadId(kInvalidId); }
+
+  // Compares ThreadIds for equality.
+  INLINE(bool Equals(const ThreadId& other) const) {
+    return id_ == other.id_;
+  }
+
+  // Checks whether this ThreadId refers to any thread.
+  INLINE(bool IsValid() const) {
+    return id_ != kInvalidId;
+  }
+
+  // Converts ThreadId to an integer representation
+  // (required for public API: V8::V8::GetCurrentThreadId).
+  int ToInteger() const { return id_; }
+
+  // Converts ThreadId to an integer representation
+  // (required for public API: V8::V8::TerminateExecution).
+  static ThreadId FromInteger(int id) { return ThreadId(id); }
+
+ private:
+  static const int kInvalidId = -1;
+
+  explicit ThreadId(int id) : id_(id) {}
+
+  static int AllocateThreadId();
+
+  static int GetCurrentThreadId();
+
+  int id_;
+
+  static Atomic32 highest_thread_id_;
+
+  friend class Isolate;
+};
+
+
 class ThreadLocalTop BASE_EMBEDDED {
  public:
   // Initialize the thread data.
@@ -176,7 +223,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // The context where the current execution method is created and for variable
   // lookups.
   Context* context_;
-  int thread_id_;
+  ThreadId thread_id_;
   MaybeObject* pending_exception_;
   bool has_pending_message_;
   Object* pending_message_obj_;
@@ -329,8 +376,6 @@ class Isolate {
  public:
   ~Isolate();
 
-  typedef int ThreadId;
-
   // A thread has a PerIsolateThreadData instance for each isolate that it has
   // entered. That instance is allocated when the isolate is initially entered
   // and reused on subsequent entries.
@@ -363,7 +408,7 @@ class Isolate {
 #endif
 
     bool Matches(Isolate* isolate, ThreadId thread_id) const {
-      return isolate_ == isolate && thread_id_ == thread_id;
+      return isolate_ == isolate && thread_id_.Equals(thread_id);
     }
 
    private:
@@ -455,9 +500,6 @@ class Isolate {
     return thread_id_key_;
   }
 
-  // Atomically allocates a new thread ID.
-  static ThreadId AllocateThreadId();
-
   // If a client attempts to create a Locker without specifying an isolate,
   // we assume that the client is using legacy behavior. Set up the current
   // thread to be inside the implicit isolate (or fail a check if we have
@@ -483,8 +525,8 @@ class Isolate {
   }
 
   // Access to current thread id.
-  int thread_id() { return thread_local_top_.thread_id_; }
-  void set_thread_id(int id) { thread_local_top_.thread_id_ = id; }
+  ThreadId thread_id() { return thread_local_top_.thread_id_; }
+  void set_thread_id(ThreadId id) { thread_local_top_.thread_id_ = id; }
 
   // Interface to pending exception.
   MaybeObject* pending_exception() {
@@ -996,7 +1038,6 @@ class Isolate {
   static Thread::LocalStorageKey thread_id_key_;
   static Isolate* default_isolate_;
   static ThreadDataTable* thread_data_table_;
-  static ThreadId highest_thread_id_;
 
   bool PreInit();
 
@@ -1156,6 +1197,7 @@ class Isolate {
 
   friend class ExecutionAccess;
   friend class IsolateInitializer;
+  friend class ThreadId;
   friend class v8::Isolate;
   friend class v8::Locker;
 

@@ -7635,7 +7635,6 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor(), isolate);
   Handle<Object> this_handle(receiver, isolate);
   Handle<JSObject> holder_handle(this, isolate);
-
   if (!interceptor->getter()->IsUndefined()) {
     v8::IndexedPropertyGetter getter =
         v8::ToCData<v8::IndexedPropertyGetter>(interceptor->getter());

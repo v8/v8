@@ -299,9 +299,9 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 }
 
 
-class ThreadHandle::PlatformData : public Malloced {
+class Thread::PlatformData : public Malloced {
  public:
-  explicit PlatformData(ThreadHandle::Kind kind) {
+  PlatformData() {
     UNIMPLEMENTED();
   }
 
@@ -309,39 +309,8 @@ class ThreadHandle::PlatformData : public Malloced {
 };
 
 
-ThreadHandle::ThreadHandle(Kind kind) {
-  UNIMPLEMENTED();
-  // Shared setup follows.
-  data_ = new PlatformData(kind);
-}
-
-
-void ThreadHandle::Initialize(ThreadHandle::Kind kind) {
-  UNIMPLEMENTED();
-}
-
-
-ThreadHandle::~ThreadHandle() {
-  UNIMPLEMENTED();
-  // Shared tear down follows.
-  delete data_;
-}
-
-
-bool ThreadHandle::IsSelf() const {
-  UNIMPLEMENTED();
-  return false;
-}
-
-
-bool ThreadHandle::IsValid() const {
-  UNIMPLEMENTED();
-  return false;
-}
-
-
 Thread::Thread(Isolate* isolate, const Options& options)
-    : ThreadHandle(ThreadHandle::INVALID),
+    : data_(new PlatformData()),
       isolate_(isolate),
       stack_size_(options.stack_size) {
   set_name(options.name);
@@ -350,7 +319,7 @@ Thread::Thread(Isolate* isolate, const Options& options)
 
 
 Thread::Thread(Isolate* isolate, const char* name)
-    : ThreadHandle(ThreadHandle::INVALID),
+    : data_(new PlatformData()),
       isolate_(isolate),
       stack_size_(0) {
   set_name(name);
@@ -359,6 +328,7 @@ Thread::Thread(Isolate* isolate, const char* name)
 
 
 Thread::~Thread() {
+  delete data_;
   UNIMPLEMENTED();
 }
 
