@@ -564,7 +564,7 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
     // jump entry if this is the case.
     if (jump_table_.is_empty() ||
         jump_table_.last().address != entry) {
-      jump_table_.Add(entry);
+      jump_table_.Add(JumpTableEntry(entry));
     }
     __ j(cc, &jump_table_.last().label);
   }
