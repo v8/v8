@@ -8671,18 +8671,21 @@ static Handle<Value> ThrowingCallbackWithTryCatch(const Arguments& args) {
 }
 
 
+static int call_depth;
+
+
 static void WithTryCatch(Handle<Message> message, Handle<Value> data) {
   TryCatch try_catch;
 }
 
 
 static void ThrowFromJS(Handle<Message> message, Handle<Value> data) {
-  CompileRun("throw 'ThrowInJS';");
+  if (--call_depth) CompileRun("throw 'ThrowInJS';");
 }
 
 
 static void ThrowViaApi(Handle<Message> message, Handle<Value> data) {
-  ThrowException(v8_str("ThrowViaApi"));
+  if (--call_depth) ThrowException(v8_str("ThrowViaApi"));
 }
 
 
@@ -8708,6 +8711,7 @@ THREADED_TEST(ExceptionsDoNotPropagatePastTryCatch) {
     if (callback != NULL) {
       V8::AddMessageListener(callback);
     }
+    call_depth = 5;
     ExpectFalse(
         "var thrown = false;\n"
         "try { func(); } catch(e) { thrown = true; }\n"
