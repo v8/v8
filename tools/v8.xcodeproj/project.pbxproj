@@ -856,6 +856,11 @@
 		89F3605A12DCDF6400ACF8A6 /* lithium-codegen-x64.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "lithium-codegen-x64.cc"; path = "x64/lithium-codegen-x64.cc"; sourceTree = "<group>"; };
 		89FB0E360F8E531900B04B3C /* d8-posix.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-posix.cc"; path = "../src/d8-posix.cc"; sourceTree = "<group>"; };
 		89FB0E370F8E531900B04B3C /* d8-windows.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-windows.cc"; path = "../src/d8-windows.cc"; sourceTree = "<group>"; };
+		89FE7C0513532165008662BD /* date.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = date.js; sourceTree = "<group>"; };
+		89FE7C0613532165008662BD /* debug-debugger.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "debug-debugger.js"; sourceTree = "<group>"; };
+		89FE7C0713532165008662BD /* liveedit-debugger.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "liveedit-debugger.js"; sourceTree = "<group>"; };
+		89FE7C0813532165008662BD /* mirror-debugger.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "mirror-debugger.js"; sourceTree = "<group>"; };
+		89FE7C0913532165008662BD /* regexp.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = regexp.js; sourceTree = "<group>"; };
 		9C1F8E1D133906180068B362 /* small-pointer-list.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "small-pointer-list.h"; sourceTree = "<group>"; };
 		9C76176D133FB7740057370B /* platform-tls-mac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "platform-tls-mac.h"; sourceTree = "<group>"; };
 		9C8E8061133CF772004058A5 /* platform-tls.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "platform-tls.h"; sourceTree = "<group>"; };
@@ -1298,6 +1303,11 @@
 		897FF0D80E719ABA00D62E90 /* js */ = {
 			isa = PBXGroup;
 			children = (
+				89FE7C0513532165008662BD /* date.js */,
+				89FE7C0613532165008662BD /* debug-debugger.js */,
+				89FE7C0713532165008662BD /* liveedit-debugger.js */,
+				89FE7C0813532165008662BD /* mirror-debugger.js */,
+				89FE7C0913532165008662BD /* regexp.js */,
 				897FF1A60E719BC100D62E90 /* apinatives.js */,
 				897FF1A70E719BC100D62E90 /* array.js */,
 				897FF1AA0E719BC100D62E90 /* math.js */,
