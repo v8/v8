@@ -3234,7 +3234,6 @@ class Code: public HeapObject {
     STORE_IC,
     KEYED_STORE_IC,
     KEYED_EXTERNAL_ARRAY_STORE_IC,
-    BINARY_OP_IC,
     TYPE_RECORDING_BINARY_OP_IC,
     COMPARE_IC,
     // No more than 16 kinds. The value currently encoded in four bits in
@@ -3303,7 +3302,6 @@ class Code: public HeapObject {
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
   inline bool is_call_stub() { return kind() == CALL_IC; }
   inline bool is_keyed_call_stub() { return kind() == KEYED_CALL_IC; }
-  inline bool is_binary_op_stub() { return kind() == BINARY_OP_IC; }
   inline bool is_type_recording_binary_op_stub() {
     return kind() == TYPE_RECORDING_BINARY_OP_IC;
   }
@@ -3360,10 +3358,6 @@ class Code: public HeapObject {
   // array that the code stub is specialized for.
   inline ExternalArrayType external_array_type();
   inline void set_external_array_type(ExternalArrayType value);
-
-  // [binary op type]: For all BINARY_OP_IC.
-  inline byte binary_op_type();
-  inline void set_binary_op_type(byte value);
 
   // [type-recording binary op type]: For all TYPE_RECORDING_BINARY_OP_IC.
   inline byte type_recording_binary_op_type();

@@ -244,22 +244,7 @@ TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
-  if (code->is_binary_op_stub()) {
-    BinaryOpIC::TypeInfo type = static_cast<BinaryOpIC::TypeInfo>(
-        code->binary_op_type());
-    switch (type) {
-      case BinaryOpIC::UNINIT_OR_SMI:
-        return TypeInfo::Smi();
-      case BinaryOpIC::DEFAULT:
-        return (expr->op() == Token::DIV || expr->op() == Token::MUL)
-            ? TypeInfo::Double()
-            : TypeInfo::Integer32();
-      case BinaryOpIC::HEAP_NUMBERS:
-        return TypeInfo::Double();
-      default:
-        return unknown;
-    }
-  } else if (code->is_type_recording_binary_op_stub()) {
+  if (code->is_type_recording_binary_op_stub()) {
     TRBinaryOpIC::TypeInfo type = static_cast<TRBinaryOpIC::TypeInfo>(
         code->type_recording_binary_op_type());
     TRBinaryOpIC::TypeInfo result_type = static_cast<TRBinaryOpIC::TypeInfo>(
@@ -391,8 +376,7 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
     InlineCacheState state = target->ic_state();
     Code::Kind kind = target->kind();
 
-    if (kind == Code::BINARY_OP_IC ||
-        kind == Code::TYPE_RECORDING_BINARY_OP_IC ||
+    if (kind == Code::TYPE_RECORDING_BINARY_OP_IC ||
         kind == Code::COMPARE_IC) {
       // TODO(kasperl): Avoid having multiple ICs with the same
       // position by making sure that we have position information
@@ -446,9 +430,7 @@ void TypeFeedbackOracle::CollectPositions(Code* code,
       if (target->is_inline_cache_stub()) {
         InlineCacheState state = target->ic_state();
         Code::Kind kind = target->kind();
-        if (kind == Code::BINARY_OP_IC) {
-          if (target->binary_op_type() == BinaryOpIC::GENERIC) continue;
-        } else if (kind == Code::TYPE_RECORDING_BINARY_OP_IC) {
+        if (kind == Code::TYPE_RECORDING_BINARY_OP_IC) {
           if (target->type_recording_binary_op_type() ==
               TRBinaryOpIC::GENERIC) {
             continue;

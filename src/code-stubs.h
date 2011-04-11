@@ -37,7 +37,6 @@ namespace internal {
 // as only the stubs up to and including Instanceof allows nested stub calls.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
-  V(GenericBinaryOp)                     \
   V(TypeRecordingBinaryOp)               \
   V(StringAdd)                           \
   V(SubString)                           \
@@ -50,7 +49,6 @@ namespace internal {
   V(Instanceof)                          \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
-  V(IntegerMod)                          \
   V(StackCheck)                          \
   V(FastNewClosure)                      \
   V(FastNewContext)                      \
@@ -164,10 +162,10 @@ class CodeStub BASE_EMBEDDED {
   // lazily generated function should be fully optimized or not.
   virtual InLoopFlag InLoop() { return NOT_IN_LOOP; }
 
-  // GenericBinaryOpStub needs to override this.
+  // TypeRecordingBinaryOpStub needs to override this.
   virtual int GetCodeKind();
 
-  // GenericBinaryOpStub needs to override this.
+  // TypeRecordingBinaryOpStub needs to override this.
   virtual InlineCacheState GetICState() {
     return UNINITIALIZED;
   }

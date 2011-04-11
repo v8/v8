@@ -6491,7 +6491,6 @@ const char* Code::Kind2String(Kind kind) {
     case KEYED_EXTERNAL_ARRAY_STORE_IC: return "KEYED_EXTERNAL_ARRAY_STORE_IC";
     case CALL_IC: return "CALL_IC";
     case KEYED_CALL_IC: return "KEYED_CALL_IC";
-    case BINARY_OP_IC: return "BINARY_OP_IC";
     case TYPE_RECORDING_BINARY_OP_IC: return "TYPE_RECORDING_BINARY_OP_IC";
     case COMPARE_IC: return "COMPARE_IC";
   }

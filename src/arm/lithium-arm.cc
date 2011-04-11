@@ -1329,7 +1329,7 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     return DoArithmeticD(Token::DIV, instr);
   } else if (instr->representation().IsInteger32()) {
     // TODO(1042) The fixed register allocation
-    // is needed because we call GenericBinaryOpStub from
+    // is needed because we call TypeRecordingBinaryOpStub from
     // the generated code, which requires registers r0
     // and r1 to be used. We should remove that
     // when we provide a native implementation.
