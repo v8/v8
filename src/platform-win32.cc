@@ -1468,24 +1468,6 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 
 // Definition of invalid thread handle and id.
 static const HANDLE kNoThread = INVALID_HANDLE_VALUE;
-static const DWORD kNoThreadId = 0;
-
-
-class ThreadHandle::PlatformData : public Malloced {
- public:
-  explicit PlatformData(ThreadHandle::Kind kind) {
-    Initialize(kind);
-  }
-
-  void Initialize(ThreadHandle::Kind kind) {
-    switch (kind) {
-      case ThreadHandle::SELF: tid_ = GetCurrentThreadId(); break;
-      case ThreadHandle::INVALID: tid_ = kNoThreadId; break;
-    }
-  }
-  DWORD tid_;  // Win32 thread identifier.
-};
-
 
 // Entry point for threads. The supplied argument is a pointer to the thread
 // object. The entry function dispatches to the run method in the thread
@@ -1551,8 +1533,7 @@ void Thread::Start() {
                      ThreadEntry,
                      this,
                      0,
-                     reinterpret_cast<unsigned int*>(
-                         &thread_handle_data()->tid_)));
+                     NULL));
   ASSERT(IsValid());
 }
 
