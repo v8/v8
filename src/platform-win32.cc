@@ -1534,7 +1534,6 @@ void Thread::Start() {
                      this,
                      0,
                      NULL));
-  ASSERT(IsValid());
 }
 
 
