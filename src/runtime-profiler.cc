@@ -114,6 +114,11 @@ Atomic32 RuntimeProfiler::state_ = 0;
 Semaphore* RuntimeProfiler::semaphore_ = OS::CreateSemaphore(0);
 #endif
 
+#ifdef DEBUG
+bool RuntimeProfiler::has_been_globally_setup_ = false;
+#endif
+bool RuntimeProfiler::enabled_ = false;
+
 
 RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
     : isolate_(isolate),
@@ -134,8 +139,12 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
 }
 
 
-bool RuntimeProfiler::IsEnabled() {
-  return V8::UseCrankshaft() && FLAG_opt;
+void RuntimeProfiler::GlobalSetup() {
+  ASSERT(!has_been_globally_setup_);
+  enabled_ = V8::UseCrankshaft() && FLAG_opt;
+#ifdef DEBUG
+  has_been_globally_setup_ = true;
+#endif
 }
 
 
@@ -363,6 +372,7 @@ void RuntimeProfiler::NotifyTick() {
 
 
 void RuntimeProfiler::Setup() {
+  ASSERT(has_been_globally_setup_);
   ClearSampleBuffer();
   // If the ticker hasn't already started, make sure to do so to get
   // the ticks for the runtime profiler.

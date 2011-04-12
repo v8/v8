@@ -204,6 +204,8 @@ void V8::InitializeOncePerProcess() {
     use_crankshaft_ = false;
   }
 
+  RuntimeProfiler::GlobalSetup();
+
   // Peephole optimization might interfere with deoptimization.
   FLAG_peephole_optimization = !use_crankshaft_;
 }
