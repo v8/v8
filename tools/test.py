@@ -117,6 +117,8 @@ class ProgressIndicator(object):
         start = time.time()
         output = case.Run()
         case.duration = (time.time() - start)
+      except BreakNowException:
+        self.terminate = True
       except IOError, e:
         assert self.terminate
         return
@@ -318,6 +320,12 @@ PROGRESS_INDICATORS = {
 # --- F r a m e w o r k ---
 # -------------------------
 
+class BreakNowException(Exception):
+  def __init__(self, value):
+    self.value = value
+  def __str__(self):
+    return repr(self.value)
+
 
 class CommandOutput(object):
 
@@ -379,9 +387,12 @@ class TestCase(object):
 
   def Run(self):
     self.BeforeRun()
-    result = "exception"
+    result = None;
     try:
       result = self.RunCommand(self.GetCommand())
+    except:
+      self.terminate = True;
+      raise BreakNowException("Used pressed CTRL+C or IO went wrong")
     finally:
       self.AfterRun(result)
     return result
@@ -702,7 +713,12 @@ class Context(object):
 
 def RunTestCases(cases_to_run, progress, tasks):
   progress = PROGRESS_INDICATORS[progress](cases_to_run)
-  return progress.Run(tasks)
+  result = 0;
+  try:
+    result = progress.Run(tasks)
+  except Exception, e:
+    print "\n", e
+  return result
 
 
 def BuildRequirements(context, requirements, mode, scons_flags):
