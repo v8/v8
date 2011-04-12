@@ -274,7 +274,7 @@ class Representation {
     return kind_ == other.kind_;
   }
 
-  Kind kind() const { return kind_; }
+  Kind kind() const { return static_cast<Kind>(kind_); }
   bool IsNone() const { return kind_ == kNone; }
   bool IsTagged() const { return kind_ == kTagged; }
   bool IsInteger32() const { return kind_ == kInteger32; }
@@ -288,7 +288,10 @@ class Representation {
  private:
   explicit Representation(Kind k) : kind_(k) { }
 
-  Kind kind_;
+  // Make sure kind fits in int8.
+  STATIC_ASSERT(kNumRepresentations <= (1 << kBitsPerByte));
+
+  int8_t kind_;
 };
 
 
@@ -395,9 +398,12 @@ class HType {
     kUninitialized = 0x1fff  // 0001 1111 1111 1111
   };
 
+  // Make sure type fits in int16.
+  STATIC_ASSERT(kUninitialized < (1 << (2 * kBitsPerByte)));
+
   explicit HType(Type t) : type_(t) { }
 
-  Type type_;
+  int16_t type_;
 };
 
 
@@ -611,8 +617,8 @@ class HValue: public ZoneObject {
   int id_;
 
   Representation representation_;
-  SmallPointerList<HValue> uses_;
   HType type_;
+  SmallPointerList<HValue> uses_;
   Range* range_;
   int flags_;
 
