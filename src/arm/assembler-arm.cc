@@ -59,12 +59,12 @@ static uint64_t CpuFeaturesImpliedByCompiler() {
 #endif  // def CAN_USE_ARMV7_INSTRUCTIONS
   // If the compiler is allowed to use VFP then we can use VFP too in our code
   // generation even when generating snapshots.  This won't work for cross
-  // compilation.
+  // compilation. VFPv3 implies ARMv7, see ARM DDI 0406B, page A1-6.
 #if defined(__VFP_FP__) && !defined(__SOFTFP__)
-  answer |= 1u << VFP3;
+  answer |= 1u << VFP3 | 1u << ARMv7;
 #endif  // defined(__VFP_FP__) && !defined(__SOFTFP__)
 #ifdef CAN_USE_VFP_INSTRUCTIONS
-  answer |= 1u << VFP3;
+  answer |= 1u << VFP3 | 1u << ARMv7;
 #endif  // def CAN_USE_VFP_INSTRUCTIONS
   return answer;
 }
@@ -77,9 +77,10 @@ void CpuFeatures::Probe() {
   initialized_ = true;
 #endif
 #ifndef __arm__
-  // For the simulator=arm build, use VFP when FLAG_enable_vfp3 is enabled.
+  // For the simulator=arm build, use VFP when FLAG_enable_vfp3 is
+  // enabled. VFPv3 implies ARMv7, see ARM DDI 0406B, page A1-6.
   if (FLAG_enable_vfp3) {
-    supported_ |= 1u << VFP3;
+    supported_ |= 1u << VFP3 | 1u << ARMv7;
   }
   // For the simulator=arm build, use ARMv7 when FLAG_enable_armv7 is enabled
   if (FLAG_enable_armv7) {
@@ -93,10 +94,11 @@ void CpuFeatures::Probe() {
   }
 
   if (OS::ArmCpuHasFeature(VFP3)) {
-    // This implementation also sets the VFP flags if
-    // runtime detection of VFP returns true.
-    supported_ |= 1u << VFP3;
-    found_by_runtime_probing_ |= 1u << VFP3;
+    // This implementation also sets the VFP flags if runtime
+    // detection of VFP returns true. VFPv3 implies ARMv7, see ARM DDI
+    // 0406B, page A1-6.
+    supported_ |= 1u << VFP3 | 1u << ARMv7;
+    found_by_runtime_probing_ |= 1u << VFP3 | 1u << ARMv7;
   }
 
   if (OS::ArmCpuHasFeature(ARMv7)) {
