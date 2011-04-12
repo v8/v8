@@ -28,6 +28,8 @@
 #ifndef V8_GLOBAL_HANDLES_H_
 #define V8_GLOBAL_HANDLES_H_
 
+#include "../include/v8-profiler.h"
+
 #include "list-inl.h"
 
 namespace v8 {
@@ -57,6 +59,7 @@ class ObjectGroup {
   }
 
   void Dispose() {
+    if (info_ != NULL) info_->Dispose();
     free(this);
   }
 
