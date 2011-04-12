@@ -96,7 +96,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // rax: number of arguments
   __ bind(&non_function_call);
   // Set expected number of arguments to zero (not changing rax).
-  __ movq(rbx, Immediate(0));
+  __ Set(rbx, 0);
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
@@ -1372,7 +1372,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(rax, Operand(rbp, rax, times_pointer_size, offset));
-    __ movq(rcx, Immediate(-1));  // account for receiver
+    __ Set(rcx, -1);  // account for receiver
 
     Label copy;
     __ bind(&copy);
@@ -1391,7 +1391,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(rdi, Operand(rbp, rax, times_pointer_size, offset));
-    __ movq(rcx, Immediate(-1));  // account for receiver
+    __ Set(rcx, -1);  // account for receiver
 
     Label copy;
     __ bind(&copy);

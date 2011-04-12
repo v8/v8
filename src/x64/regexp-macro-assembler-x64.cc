@@ -762,7 +762,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ j(above_equal, &stack_ok);
   // Exit with OutOfMemory exception. There is not enough space on the stack
   // for our working registers.
-  __ movq(rax, Immediate(EXCEPTION));
+  __ Set(rax, EXCEPTION);
   __ jmp(&exit_label_);
 
   __ bind(&stack_limit_hit);
@@ -799,7 +799,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     // Fill saved registers with initial value = start offset - 1
     // Fill in stack push order, to avoid accessing across an unwritten
     // page (a problem on Windows).
-    __ movq(rcx, Immediate(kRegisterZero));
+    __ Set(rcx, kRegisterZero);
     Label init_loop;
     __ bind(&init_loop);
     __ movq(Operand(rbp, rcx, times_1, 0), rax);
@@ -829,7 +829,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   LoadCurrentCharacterUnchecked(-1, 1);  // Load previous char.
   __ jmp(&start_label_);
   __ bind(&at_start);
-  __ movq(current_character(), Immediate('\n'));
+  __ Set(current_character(), '\n');
   __ jmp(&start_label_);
 
 
@@ -857,7 +857,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
         __ movl(Operand(rbx, i * kIntSize), rax);
       }
     }
-    __ movq(rax, Immediate(SUCCESS));
+    __ Set(rax, SUCCESS);
   }
 
   // Exit and return rax
@@ -959,7 +959,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     // If any of the code above needed to exit with an exception.
     __ bind(&exit_with_exception);
     // Exit with Result EXCEPTION(-1) to signal thrown exception.
-    __ movq(rax, Immediate(EXCEPTION));
+    __ Set(rax, EXCEPTION);
     __ jmp(&exit_label_);
   }
 
