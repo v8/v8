@@ -36,7 +36,8 @@ namespace internal {
 
 class I18NExtension : public v8::Extension {
  public:
-  I18NExtension() : v8::Extension("v8/i18n", kSource) {}
+  I18NExtension();
+
   virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
       v8::Handle<v8::String> name);
 
@@ -55,7 +56,6 @@ class I18NExtension : public v8::Extension {
   static I18NExtension* get();
 
  private:
-  static const char* const kSource;
   static I18NExtension* extension_;
 };
 
