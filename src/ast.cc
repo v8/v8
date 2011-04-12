@@ -367,32 +367,7 @@ bool Slot::IsInlineable() const {
 }
 
 
-bool ForStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool WhileStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool DoWhileStatement::IsInlineable() const {
-  return false;
-}
-
-
 bool ForInStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool ContinueStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool BreakStatement::IsInlineable() const {
   return false;
 }
 
@@ -468,6 +443,36 @@ bool SharedFunctionInfoLiteral::IsInlineable() const {
 bool ValidLeftHandSideSentinel::IsInlineable() const {
   UNREACHABLE();
   return false;
+}
+
+
+bool ForStatement::IsInlineable() const {
+  return (init() == NULL || init()->IsInlineable())
+      && (cond() == NULL || cond()->IsInlineable())
+      && (next() == NULL || next()->IsInlineable())
+      && body()->IsInlineable();
+}
+
+
+bool WhileStatement::IsInlineable() const {
+  return cond()->IsInlineable()
+      && body()->IsInlineable();
+}
+
+
+bool DoWhileStatement::IsInlineable() const {
+  return cond()->IsInlineable()
+      && body()->IsInlineable();
+}
+
+
+bool ContinueStatement::IsInlineable() const {
+  return true;
+}
+
+
+bool BreakStatement::IsInlineable() const {
+  return true;
 }
 
 
