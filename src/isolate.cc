@@ -1,4 +1,4 @@
-// Copyright 2006-2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -433,7 +433,7 @@ Isolate::Isolate()
       context_slot_cache_(NULL),
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
-      scanner_constants_(NULL),
+      unicode_cache_(NULL),
       in_use_list_(0),
       free_list_(0),
       preallocated_storage_preallocated_(false),
@@ -568,8 +568,8 @@ Isolate::~Isolate() {
   producer_heap_profile_ = NULL;
 #endif
 
-  delete scanner_constants_;
-  scanner_constants_ = NULL;
+  delete unicode_cache_;
+  unicode_cache_ = NULL;
 
   delete regexp_stack_;
   regexp_stack_ = NULL;
@@ -676,7 +676,7 @@ bool Isolate::PreInit() {
   keyed_lookup_cache_ = new KeyedLookupCache();
   context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();
-  scanner_constants_ = new ScannerConstants();
+  unicode_cache_ = new UnicodeCache();
   pc_to_code_cache_ = new PcToCodeCache(this);
   write_input_buffer_ = new StringInputBuffer();
   global_handles_ = new GlobalHandles(this);

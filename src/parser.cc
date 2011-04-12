@@ -576,7 +576,7 @@ Parser::Parser(Handle<Script> script,
     : isolate_(script->GetIsolate()),
       symbol_cache_(pre_data ? pre_data->symbol_count() : 0),
       script_(script),
-      scanner_(isolate_->scanner_constants()),
+      scanner_(isolate_->unicode_cache()),
       top_scope_(NULL),
       with_nesting_level_(0),
       lexical_scope_(NULL),
@@ -2894,7 +2894,8 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::NUMBER: {
       Consume(Token::NUMBER);
       ASSERT(scanner().is_literal_ascii());
-      double value = StringToDouble(scanner().literal_ascii_string(),
+      double value = StringToDouble(isolate()->unicode_cache(),
+                                    scanner().literal_ascii_string(),
                                     ALLOW_HEX | ALLOW_OCTALS);
       result = NewNumberLiteral(value);
       break;
@@ -3392,7 +3393,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       case Token::NUMBER: {
         Consume(Token::NUMBER);
         ASSERT(scanner().is_literal_ascii());
-        double value = StringToDouble(scanner().literal_ascii_string(),
+        double value = StringToDouble(isolate()->unicode_cache(),
+                                      scanner().literal_ascii_string(),
                                       ALLOW_HEX | ALLOW_OCTALS);
         key = NewNumberLiteral(value);
         break;
@@ -5056,7 +5058,7 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
                                   bool allow_lazy,
                                   ParserRecorder* recorder) {
   Isolate* isolate = Isolate::Current();
-  V8JavaScriptScanner scanner(isolate->scanner_constants());
+  V8JavaScriptScanner scanner(isolate->unicode_cache());
   scanner.Initialize(source);
   intptr_t stack_limit = isolate->stack_guard()->real_climit();
   if (!preparser::PreParser::PreParseProgram(&scanner,

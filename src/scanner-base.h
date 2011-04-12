@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -119,11 +119,11 @@ class UC16CharacterStream {
 };
 
 
-class ScannerConstants {
+class UnicodeCache {
 // ---------------------------------------------------------------------
-// Constants used by scanners.
+// Caching predicates used by scanners.
  public:
-  ScannerConstants() {}
+  UnicodeCache() {}
   typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
 
   StaticResource<Utf8Decoder>* utf8_decoder() {
@@ -135,8 +135,6 @@ class ScannerConstants {
   bool IsLineTerminator(unibrow::uchar c) { return kIsLineTerminator.get(c); }
   bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
 
-  bool IsIdentifier(unibrow::CharacterStream* buffer);
-
  private:
 
   unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
@@ -145,8 +143,9 @@ class ScannerConstants {
   unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
   StaticResource<Utf8Decoder> utf8_decoder_;
 
-  DISALLOW_COPY_AND_ASSIGN(ScannerConstants);
+  DISALLOW_COPY_AND_ASSIGN(UnicodeCache);
 };
+
 
 // ----------------------------------------------------------------------------
 // LiteralBuffer -  Collector of chars of literals.
@@ -272,7 +271,7 @@ class Scanner {
     bool complete_;
   };
 
-  explicit Scanner(ScannerConstants* scanner_contants);
+  explicit Scanner(UnicodeCache* scanner_contants);
 
   // Returns the current token again.
   Token::Value current_token() { return current_.token; }
@@ -427,7 +426,7 @@ class Scanner {
     return source_->pos() - kCharacterLookaheadBufferSize;
   }
 
-  ScannerConstants* scanner_constants_;
+  UnicodeCache* unicode_cache_;
 
   // Buffers collecting literal strings, numbers, etc.
   LiteralBuffer literal_buffer1_;
@@ -473,7 +472,7 @@ class JavaScriptScanner : public Scanner {
     bool complete_;
   };
 
-  explicit JavaScriptScanner(ScannerConstants* scanner_contants);
+  explicit JavaScriptScanner(UnicodeCache* scanner_contants);
 
   // Returns the next token.
   Token::Value Next();

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -72,7 +72,7 @@ class PreallocatedMemoryThread;
 class ProducerHeapProfile;
 class RegExpStack;
 class SaveContext;
-class ScannerConstants;
+class UnicodeCache;
 class StringInputBuffer;
 class StringTracker;
 class StubCache;
@@ -819,8 +819,8 @@ class Isolate {
   }
   Zone* zone() { return &zone_; }
 
-  ScannerConstants* scanner_constants() {
-    return scanner_constants_;
+  UnicodeCache* unicode_cache() {
+    return unicode_cache_;
   }
 
   PcToCodeCache* pc_to_code_cache() { return pc_to_code_cache_; }
@@ -1122,7 +1122,7 @@ class Isolate {
   DescriptorLookupCache* descriptor_lookup_cache_;
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
-  ScannerConstants* scanner_constants_;
+  UnicodeCache* unicode_cache_;
   Zone zone_;
   PreallocatedStorage in_use_list_;
   PreallocatedStorage free_list_;

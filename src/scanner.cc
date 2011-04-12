@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -345,8 +345,8 @@ void V8JavaScriptScanner::Initialize(UC16CharacterStream* source) {
 // ----------------------------------------------------------------------------
 // JsonScanner
 
-JsonScanner::JsonScanner(ScannerConstants* scanner_constants)
-    : Scanner(scanner_constants) { }
+JsonScanner::JsonScanner(UnicodeCache* unicode_cache)
+    : Scanner(unicode_cache) { }
 
 
 void JsonScanner::Initialize(UC16CharacterStream* source) {
@@ -560,7 +560,8 @@ Token::Value JsonScanner::ScanJsonNumber() {
   }
   literal.Complete();
   ASSERT_NOT_NULL(next_.literal_chars);
-  number_ = StringToDouble(next_.literal_chars->ascii_literal(),
+  number_ = StringToDouble(unicode_cache_,
+                           next_.literal_chars->ascii_literal(),
                            NO_FLAGS,  // Hex, octal or trailing junk.
                            OS::nan_value());
   return Token::NUMBER;
@@ -575,7 +576,7 @@ Token::Value JsonScanner::ScanJsonIdentifier(const char* text,
     Advance();
     text++;
   }
-  if (scanner_constants_->IsIdentifierPart(c0_)) return Token::ILLEGAL;
+  if (unicode_cache_->IsIdentifierPart(c0_)) return Token::ILLEGAL;
   literal.Complete();
   return token;
 }

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -4680,7 +4680,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToNumber) {
   }
 
   // Slower case.
-  return isolate->heap()->NumberFromDouble(StringToDouble(subject, ALLOW_HEX));
+  return isolate->heap()->NumberFromDouble(
+      StringToDouble(isolate->unicode_cache(), subject, ALLOW_HEX));
 }
 
 
@@ -5179,7 +5180,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseInt) {
   s->TryFlatten();
 
   RUNTIME_ASSERT(radix == 0 || (2 <= radix && radix <= 36));
-  double value = StringToInt(s, radix);
+  double value = StringToInt(isolate->unicode_cache(), s, radix);
   return isolate->heap()->NumberFromDouble(value);
 }
 
@@ -5189,7 +5190,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseFloat) {
   CONVERT_CHECKED(String, str, args[0]);
 
   // ECMA-262 section 15.1.2.3, empty string is NaN
-  double value = StringToDouble(str, ALLOW_TRAILING_JUNK, OS::nan_value());
+  double value = StringToDouble(isolate->unicode_cache(),
+                                str, ALLOW_TRAILING_JUNK, OS::nan_value());
 
   // Create a number object from the value.
   return isolate->heap()->NumberFromDouble(value);
@@ -8079,10 +8081,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateParseString) {
   RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
   bool result;
   if (str->IsAsciiRepresentation()) {
-    result = DateParser::Parse(str->ToAsciiVector(), output_array);
+    result = DateParser::Parse(str->ToAsciiVector(),
+                               output_array,
+                               isolate->unicode_cache());
   } else {
     ASSERT(str->IsTwoByteRepresentation());
-    result = DateParser::Parse(str->ToUC16Vector(), output_array);
+    result = DateParser::Parse(str->ToUC16Vector(),
+                               output_array,
+                               isolate->unicode_cache());
   }
 
   if (result) {
