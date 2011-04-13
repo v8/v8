@@ -3961,7 +3961,11 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
         PrintF("Trying to inline the polymorphic call to %s\n",
                *name->ToCString());
       }
-      if (!FLAG_polymorphic_inlining || !TryInline(expr)) {
+      if (FLAG_polymorphic_inlining && TryInline(expr)) {
+        // Trying to inline will signal that we should bailout from the
+        // entire compilation by setting stack overflow on the visitor.
+        if (HasStackOverflow()) return;
+      } else {
         HCallConstantFunction* call =
             new(zone()) HCallConstantFunction(expr->target(), argument_count);
         call->set_position(expr->position());
@@ -4514,9 +4518,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
                IsGlobalObject());
         environment()->SetExpressionStackAt(receiver_index, global_receiver);
 
-        if (TryInline(expr)) {
-          return;
-        }
+        if (TryInline(expr)) return;
         call = PreProcessCall(new(zone()) HCallKnownGlobal(expr->target(),
                                                            argument_count));
       } else {
