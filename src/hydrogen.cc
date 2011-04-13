@@ -4460,7 +4460,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
       }
     } else if (types != NULL && types->length() > 1) {
       ASSERT(expr->check_type() == RECEIVER_MAP_CHECK);
-      HandlePolymorphicCallNamed(expr, receiver, types, name)
+      HandlePolymorphicCallNamed(expr, receiver, types, name);
       return;
 
     } else {
