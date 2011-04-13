@@ -147,6 +147,7 @@ class TypeRecordingBinaryOpStub: public CodeStub {
                            Label* not_numbers,
                            Label* gc_required);
   void GenerateSmiCode(MacroAssembler* masm,
+                       Label* use_runtime,
                        Label* gc_required,
                        SmiCodeGenerateHeapNumberResults heapnumber_results);
   void GenerateLoadArguments(MacroAssembler* masm);

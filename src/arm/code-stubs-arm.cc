@@ -308,8 +308,8 @@ class ConvertToDoubleStub : public CodeStub {
 
 
 void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
-  Register exponent = result2_;
-  Register mantissa = result1_;
+  Register exponent = result1_;
+  Register mantissa = result2_;
 
   Label not_special;
   // Convert from Smi to integer.
@@ -517,7 +517,7 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
     ConvertToDoubleStub stub1(r3, r2, scratch1, scratch2);
     __ push(lr);
     __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
-    // Write Smi from r1 to r1 and r0 in double format.  r9 is scratch.
+    // Write Smi from r1 to r1 and r0 in double format.
     __ mov(scratch1, Operand(r1));
     ConvertToDoubleStub stub2(r1, r0, scratch1, scratch2);
     __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
@@ -682,51 +682,51 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
   } else {
     Label fewer_than_20_useful_bits;
     // Expected output:
-    // |         dst1            |         dst2            |
+    // |         dst2            |         dst1            |
     // | s |   exp   |              mantissa               |
 
     // Check for zero.
     __ cmp(scratch1, Operand(0));
-    __ mov(dst1, scratch1);
     __ mov(dst2, scratch1);
+    __ mov(dst1, scratch1);
     __ b(eq, &done);
 
     // Preload the sign of the value.
-    __ and_(dst1, scratch1, Operand(HeapNumber::kSignMask), SetCC);
+    __ and_(dst2, scratch1, Operand(HeapNumber::kSignMask), SetCC);
     // Get the absolute value of the object (as an unsigned integer).
     __ rsb(scratch1, scratch1, Operand(0), SetCC, mi);
 
     // Get mantisssa[51:20].
 
     // Get the position of the first set bit.
-    __ CountLeadingZeros(dst2, scratch1, scratch2);
-    __ rsb(dst2, dst2, Operand(31));
+    __ CountLeadingZeros(dst1, scratch1, scratch2);
+    __ rsb(dst1, dst1, Operand(31));
 
     // Set the exponent.
-    __ add(scratch2, dst2, Operand(HeapNumber::kExponentBias));
-    __ Bfi(dst1, scratch2, scratch2,
+    __ add(scratch2, dst1, Operand(HeapNumber::kExponentBias));
+    __ Bfi(dst2, scratch2, scratch2,
         HeapNumber::kExponentShift, HeapNumber::kExponentBits);
 
     // Clear the first non null bit.
     __ mov(scratch2, Operand(1));
-    __ bic(scratch1, scratch1, Operand(scratch2, LSL, dst2));
+    __ bic(scratch1, scratch1, Operand(scratch2, LSL, dst1));
 
-    __ cmp(dst2, Operand(HeapNumber::kMantissaBitsInTopWord));
+    __ cmp(dst1, Operand(HeapNumber::kMantissaBitsInTopWord));
     // Get the number of bits to set in the lower part of the mantissa.
-    __ sub(scratch2, dst2, Operand(HeapNumber::kMantissaBitsInTopWord), SetCC);
+    __ sub(scratch2, dst1, Operand(HeapNumber::kMantissaBitsInTopWord), SetCC);
     __ b(mi, &fewer_than_20_useful_bits);
     // Set the higher 20 bits of the mantissa.
-    __ orr(dst1, dst1, Operand(scratch1, LSR, scratch2));
+    __ orr(dst2, dst2, Operand(scratch1, LSR, scratch2));
     __ rsb(scratch2, scratch2, Operand(32));
-    __ mov(dst2, Operand(scratch1, LSL, scratch2));
+    __ mov(dst1, Operand(scratch1, LSL, scratch2));
     __ b(&done);
 
     __ bind(&fewer_than_20_useful_bits);
-    __ rsb(scratch2, dst2, Operand(HeapNumber::kMantissaBitsInTopWord));
+    __ rsb(scratch2, dst1, Operand(HeapNumber::kMantissaBitsInTopWord));
     __ mov(scratch2, Operand(scratch1, LSL, scratch2));
-    __ orr(dst1, dst1, scratch2);
-    // Set dst2 to 0.
-    __ mov(dst2, Operand(0));
+    __ orr(dst2, dst2, scratch2);
+    // Set dst1 to 0.
+    __ mov(dst1, Operand(0));
   }
 
   __ b(&done);
@@ -2062,6 +2062,9 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
                                                          op_,
                                                          result,
                                                          scratch1);
+        if (FLAG_debug_code) {
+          __ stop("Unreachable code.");
+        }
       }
       break;
     }
@@ -2191,6 +2194,7 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
 // requested the code falls through. If number allocation is requested but a
 // heap number cannot be allocated the code jumps to the lable gc_required.
 void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
+    Label* use_runtime,
     Label* gc_required,
     SmiCodeGenerateHeapNumberResults allow_heapnumber_results) {
   Label not_smis;
@@ -2212,7 +2216,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
   // If heap number results are possible generate the result in an allocated
   // heap number.
   if (allow_heapnumber_results == ALLOW_HEAPNUMBER_RESULTS) {
-    GenerateFPOperation(masm, true, NULL, gc_required);
+    GenerateFPOperation(masm, true, use_runtime, gc_required);
   }
   __ bind(&not_smis);
 }
@@ -2224,11 +2228,14 @@ void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   if (result_type_ == TRBinaryOpIC::UNINITIALIZED ||
       result_type_ == TRBinaryOpIC::SMI) {
     // Only allow smi results.
-    GenerateSmiCode(masm, NULL, NO_HEAPNUMBER_RESULTS);
+    GenerateSmiCode(masm, &call_runtime, NULL, NO_HEAPNUMBER_RESULTS);
   } else {
     // Allow heap number result and don't make a transition if a heap number
     // cannot be allocated.
-    GenerateSmiCode(masm, &call_runtime, ALLOW_HEAPNUMBER_RESULTS);
+    GenerateSmiCode(masm,
+                    &call_runtime,
+                    &call_runtime,
+                    ALLOW_HEAPNUMBER_RESULTS);
   }
 
   // Code falls through if the result is not returned as either a smi or heap
@@ -2415,6 +2422,9 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         // Call the C function to handle the double operation.
         FloatingPointHelper::CallCCodeForDoubleOperation(
             masm, op_, heap_number_result, scratch1);
+        if (FLAG_debug_code) {
+          __ stop("Unreachable code.");
+        }
       }
 
       break;
@@ -2501,16 +2511,16 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       __ Ret();
 
       __ bind(&return_heap_number);
+      heap_number_result = r5;
+      GenerateHeapResultAllocation(masm,
+                                   heap_number_result,
+                                   heap_number_map,
+                                   scratch1,
+                                   scratch2,
+                                   &call_runtime);
+
       if (CpuFeatures::IsSupported(VFP3)) {
         CpuFeatures::Scope scope(VFP3);
-        heap_number_result = r5;
-        GenerateHeapResultAllocation(masm,
-                                     heap_number_result,
-                                     heap_number_map,
-                                     scratch1,
-                                     scratch2,
-                                     &call_runtime);
-
         if (op_ != Token::SHR) {
           // Convert the result to a floating point value.
           __ vmov(double_scratch.low(), r2);
@@ -2529,6 +2539,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       } else {
         // Tail call that writes the int32 in r2 to the heap number in r0, using
         // r3 as scratch. r0 is preserved and returned.
+        __ mov(r0, r5);
         WriteInt32ToHeapNumberStub stub(r2, r0, r3);
         __ TailCallStub(&stub);
       }
@@ -2595,7 +2606,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
   Label call_runtime, call_string_add_or_runtime;
 
-  GenerateSmiCode(masm, &call_runtime, ALLOW_HEAPNUMBER_RESULTS);
+  GenerateSmiCode(masm, &call_runtime, &call_runtime, ALLOW_HEAPNUMBER_RESULTS);
 
   GenerateFPOperation(masm, false, &call_string_add_or_runtime, &call_runtime);
 
