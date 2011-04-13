@@ -159,7 +159,7 @@ class AstNode: public ZoneObject {
   virtual Slot* AsSlot() { return NULL; }
 
   // True if the node is simple enough for us to inline calls containing it.
-  virtual bool IsInlineable() const { return false; }
+  virtual bool IsInlineable() const = 0;
 
   static int Count() { return Isolate::Current()->ast_node_count(); }
   static void ResetIds() { Isolate::Current()->set_ast_node_id(0); }
@@ -291,6 +291,7 @@ class ValidLeftHandSideSentinel: public Expression {
  public:
   virtual bool IsValidLeftHandSide() { return true; }
   virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
+  virtual bool IsInlineable() const;
 };
 
 
@@ -375,6 +376,7 @@ class Declaration: public AstNode {
   VariableProxy* proxy() const { return proxy_; }
   Variable::Mode mode() const { return mode_; }
   FunctionLiteral* fun() const { return fun_; }  // may be NULL
+  virtual bool IsInlineable() const;
 
  private:
   VariableProxy* proxy_;
@@ -433,6 +435,8 @@ class DoWhileStatement: public IterationStatement {
   virtual int ContinueId() const { return continue_id_; }
   int BackEdgeId() const { return back_edge_id_; }
 
+  virtual bool IsInlineable() const;
+
  private:
   Expression* cond_;
   int condition_position_;
@@ -459,6 +463,7 @@ class WhileStatement: public IterationStatement {
   void set_may_have_function_literal(bool value) {
     may_have_function_literal_ = value;
   }
+  virtual bool IsInlineable() const;
 
   // Bailout support.
   virtual int ContinueId() const { return EntryId(); }
@@ -506,6 +511,7 @@ class ForStatement: public IterationStatement {
   bool is_fast_smi_loop() { return loop_variable_ != NULL; }
   Variable* loop_variable() { return loop_variable_; }
   void set_loop_variable(Variable* var) { loop_variable_ = var; }
+  virtual bool IsInlineable() const;
 
  private:
   Statement* init_;
@@ -533,6 +539,7 @@ class ForInStatement: public IterationStatement {
 
   Expression* each() const { return each_; }
   Expression* enumerable() const { return enumerable_; }
+  virtual bool IsInlineable() const;
 
   // Bailout support.
   int AssignmentId() const { return assignment_id_; }
@@ -573,6 +580,7 @@ class ContinueStatement: public Statement {
   DECLARE_NODE_TYPE(ContinueStatement)
 
   IterationStatement* target() const { return target_; }
+  virtual bool IsInlineable() const;
 
  private:
   IterationStatement* target_;
@@ -587,6 +595,7 @@ class BreakStatement: public Statement {
   DECLARE_NODE_TYPE(BreakStatement)
 
   BreakableStatement* target() const { return target_; }
+  virtual bool IsInlineable() const;
 
  private:
   BreakableStatement* target_;
@@ -618,6 +627,7 @@ class WithEnterStatement: public Statement {
   Expression* expression() const { return expression_; }
 
   bool is_catch_block() const { return is_catch_block_; }
+  virtual bool IsInlineable() const;
 
  private:
   Expression* expression_;
@@ -628,6 +638,8 @@ class WithEnterStatement: public Statement {
 class WithExitStatement: public Statement {
  public:
   WithExitStatement() { }
+
+  virtual bool IsInlineable() const;
 
   DECLARE_NODE_TYPE(WithExitStatement)
 };
@@ -679,6 +691,7 @@ class SwitchStatement: public BreakableStatement {
 
   Expression* tag() const { return tag_; }
   ZoneList<CaseClause*>* cases() const { return cases_; }
+  virtual bool IsInlineable() const;
 
  private:
   Expression* tag_;
@@ -744,6 +757,7 @@ class TargetCollector: public AstNode {
   virtual TargetCollector* AsTargetCollector() { return this; }
 
   ZoneList<Label*>* targets() { return targets_; }
+  virtual bool IsInlineable() const;
 
  private:
   ZoneList<Label*>* targets_;
@@ -761,6 +775,7 @@ class TryStatement: public Statement {
 
   Block* try_block() const { return try_block_; }
   ZoneList<Label*>* escaping_targets() const { return escaping_targets_; }
+  virtual bool IsInlineable() const;
 
  private:
   Block* try_block_;
@@ -782,6 +797,7 @@ class TryCatchStatement: public TryStatement {
 
   VariableProxy* catch_var() const { return catch_var_; }
   Block* catch_block() const { return catch_block_; }
+  virtual bool IsInlineable() const;
 
  private:
   VariableProxy* catch_var_;
@@ -798,6 +814,7 @@ class TryFinallyStatement: public TryStatement {
   DECLARE_NODE_TYPE(TryFinallyStatement)
 
   Block* finally_block() const { return finally_block_; }
+  virtual bool IsInlineable() const;
 
  private:
   Block* finally_block_;
@@ -807,6 +824,7 @@ class TryFinallyStatement: public TryStatement {
 class DebuggerStatement: public Statement {
  public:
   DECLARE_NODE_TYPE(DebuggerStatement)
+  virtual bool IsInlineable() const;
 };
 
 
@@ -814,7 +832,7 @@ class EmptyStatement: public Statement {
  public:
   DECLARE_NODE_TYPE(EmptyStatement)
 
-  virtual bool IsInlineable() const { return true; }
+  virtual bool IsInlineable() const;
 };
 
 
@@ -825,7 +843,6 @@ class Literal: public Expression {
   DECLARE_NODE_TYPE(Literal)
 
   virtual bool IsTrivial() { return true; }
-  virtual bool IsInlineable() const { return true; }
   virtual bool IsSmiLiteral() { return handle_->IsSmi(); }
 
   // Check if this literal is identical to the other literal.
@@ -864,6 +881,7 @@ class Literal: public Expression {
   }
 
   Handle<Object> handle() const { return handle_; }
+  virtual bool IsInlineable() const;
 
  private:
   Handle<Object> handle_;
@@ -885,6 +903,7 @@ class MaterializedLiteral: public Expression {
   bool is_simple() const { return is_simple_; }
 
   int depth() const { return depth_; }
+  virtual bool IsInlineable() const;
 
  private:
   int literal_index_;
@@ -1034,6 +1053,7 @@ class CatchExtensionObject: public Expression {
 
   Literal* key() const { return key_; }
   VariableProxy* value() const { return value_; }
+  virtual bool IsInlineable() const;
 
  private:
   Literal* key_;
@@ -1160,6 +1180,7 @@ class Slot: public Expression {
   Type type() const { return type_; }
   int index() const { return index_; }
   bool is_arguments() const { return var_->is_arguments(); }
+  virtual bool IsInlineable() const;
 
  private:
   Variable* var_;
@@ -1643,6 +1664,7 @@ class Throw: public Expression {
 
   Expression* exception() const { return exception_; }
   virtual int position() const { return pos_; }
+  virtual bool IsInlineable() const;
 
  private:
   Expression* exception_;
@@ -1715,6 +1737,7 @@ class FunctionLiteral: public Expression {
 
   bool pretenure() { return pretenure_; }
   void set_pretenure(bool value) { pretenure_ = value; }
+  virtual bool IsInlineable() const;
 
  private:
   Handle<String> name_;
@@ -1745,6 +1768,7 @@ class SharedFunctionInfoLiteral: public Expression {
   Handle<SharedFunctionInfo> shared_function_info() const {
     return shared_function_info_;
   }
+  virtual bool IsInlineable() const;
 
  private:
   Handle<SharedFunctionInfo> shared_function_info_;
@@ -1754,6 +1778,7 @@ class SharedFunctionInfoLiteral: public Expression {
 class ThisFunction: public Expression {
  public:
   DECLARE_NODE_TYPE(ThisFunction)
+  virtual bool IsInlineable() const;
 };
 
 

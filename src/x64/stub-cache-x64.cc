@@ -399,7 +399,7 @@ static void CompileCallLoadPropertyWithInterceptor(MacroAssembler* masm,
   ExternalReference ref =
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
                         masm->isolate());
-  __ movq(rax, Immediate(5));
+  __ Set(rax, 5);
   __ LoadAddress(rbx, ref);
 
   CEntryStub stub(1);

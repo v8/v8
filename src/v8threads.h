@@ -43,8 +43,8 @@ class ThreadState {
   void Unlink();
 
   // Id of thread.
-  void set_id(int id) { id_ = id; }
-  int id() { return id_; }
+  void set_id(ThreadId id) { id_ = id; }
+  ThreadId id() { return id_; }
 
   // Should the thread be terminated when it is restored?
   bool terminate_on_restore() { return terminate_on_restore_; }
@@ -59,7 +59,7 @@ class ThreadState {
 
   void AllocateSpace();
 
-  int id_;
+  ThreadId id_;
   bool terminate_on_restore_;
   char* data_;
   ThreadState* next_;
@@ -97,17 +97,18 @@ class ThreadManager {
 
   void Iterate(ObjectVisitor* v);
   void IterateArchivedThreads(ThreadVisitor* v);
-  bool IsLockedByCurrentThread() { return mutex_owner_.IsSelf(); }
+  bool IsLockedByCurrentThread() {
+    return mutex_owner_.Equals(ThreadId::Current());
+  }
 
-  int CurrentId();
+  ThreadId CurrentId();
 
-  void TerminateExecution(int thread_id);
+  void TerminateExecution(ThreadId thread_id);
 
   // Iterate over in-use states.
   ThreadState* FirstThreadStateInUse();
   ThreadState* GetFreeThreadState();
 
-  static const int kInvalidId = -1;
  private:
   ThreadManager();
   ~ThreadManager();
@@ -115,8 +116,8 @@ class ThreadManager {
   void EagerlyArchiveThread();
 
   Mutex* mutex_;
-  ThreadHandle mutex_owner_;
-  ThreadHandle lazily_archived_thread_;
+  ThreadId mutex_owner_;
+  ThreadId lazily_archived_thread_;
   ThreadState* lazily_archived_thread_state_;
 
   // In the following two lists there is always at least one object on the list.

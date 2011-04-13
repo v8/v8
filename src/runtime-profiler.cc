@@ -107,18 +107,17 @@ void PendingListNode::WeakCallback(v8::Persistent<v8::Value>, void* data) {
 }
 
 
-static bool IsOptimizable(JSFunction* function) {
-  Code* code = function->code();
-  return code->kind() == Code::FUNCTION && code->optimizable();
-}
-
-
 Atomic32 RuntimeProfiler::state_ = 0;
 // TODO(isolates): Create the semaphore lazily and clean it up when no
 // longer required.
 #ifdef ENABLE_LOGGING_AND_PROFILING
 Semaphore* RuntimeProfiler::semaphore_ = OS::CreateSemaphore(0);
 #endif
+
+#ifdef DEBUG
+bool RuntimeProfiler::has_been_globally_setup_ = false;
+#endif
+bool RuntimeProfiler::enabled_ = false;
 
 
 RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
@@ -140,13 +139,17 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
 }
 
 
-bool RuntimeProfiler::IsEnabled() {
-  return V8::UseCrankshaft() && FLAG_opt;
+void RuntimeProfiler::GlobalSetup() {
+  ASSERT(!has_been_globally_setup_);
+  enabled_ = V8::UseCrankshaft() && FLAG_opt;
+#ifdef DEBUG
+  has_been_globally_setup_ = true;
+#endif
 }
 
 
 void RuntimeProfiler::Optimize(JSFunction* function, bool eager, int delay) {
-  ASSERT(IsOptimizable(function));
+  ASSERT(function->IsOptimizable());
   if (FLAG_trace_opt) {
     PrintF("[marking (%s) ", eager ? "eagerly" : "lazily");
     function->PrintName();
@@ -245,7 +248,7 @@ void RuntimeProfiler::OptimizeNow() {
     if (current->IsValid()) {
       Handle<JSFunction> function = current->function();
       int delay = current->Delay();
-      if (IsOptimizable(*function)) {
+      if (function->IsOptimizable()) {
         Optimize(*function, true, delay);
       }
     }
@@ -290,7 +293,7 @@ void RuntimeProfiler::OptimizeNow() {
     }
 
     // Do not record non-optimizable functions.
-    if (!IsOptimizable(function)) continue;
+    if (!function->IsOptimizable()) continue;
     samples[sample_count++] = function;
 
     int function_size = function->shared()->SourceSize();
@@ -330,7 +333,7 @@ void RuntimeProfiler::OptimizeNow() {
 
 
 void RuntimeProfiler::OptimizeSoon(JSFunction* function) {
-  if (!IsOptimizable(function)) return;
+  if (!function->IsOptimizable()) return;
   PendingListNode* node = new PendingListNode(function);
   node->set_next(optimize_soon_list_);
   optimize_soon_list_ = node;
@@ -369,6 +372,7 @@ void RuntimeProfiler::NotifyTick() {
 
 
 void RuntimeProfiler::Setup() {
+  ASSERT(has_been_globally_setup_);
   ClearSampleBuffer();
   // If the ticker hasn't already started, make sure to do so to get
   // the ticks for the runtime profiler.

@@ -665,7 +665,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ PrepareCallCFunction(6);
   __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ movq(arg1, rax);
-  __ movq(arg2, Immediate(type()));
+  __ Set(arg2, type());
   // Args 3 and 4 are already in the right registers.
 
   // On windows put the arguments on the stack (PrepareCallCFunction

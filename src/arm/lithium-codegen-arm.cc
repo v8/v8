@@ -2474,15 +2474,11 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
   Register key = ToRegister(instr->key());
   ExternalArrayType array_type = instr->array_type();
   if (array_type == kExternalFloatArray) {
-    if (CpuFeatures::IsSupported(VFP3)) {
-      CpuFeatures::Scope scope(VFP3);
-      DwVfpRegister result(ToDoubleRegister(instr->result()));
-      __ add(scratch0(), external_pointer, Operand(key, LSL, 2));
-      __ vldr(result, scratch0(), 0);
-    } else {
-      Register result(ToRegister(instr->result()));
-      __ ldr(result, MemOperand(external_pointer, key, LSL, 2));
-    }
+    CpuFeatures::Scope scope(VFP3);
+    DwVfpRegister result(ToDoubleRegister(instr->result()));
+    __ add(scratch0(), external_pointer, Operand(key, LSL, 2));
+    __ vldr(result.low(), scratch0(), 0);
+    __ vcvt_f64_f32(result, result.low());
   } else {
     Register result(ToRegister(instr->result()));
     switch (array_type) {
@@ -3182,15 +3178,11 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
   Register key = ToRegister(instr->key());
   ExternalArrayType array_type = instr->array_type();
   if (array_type == kExternalFloatArray) {
-    if (CpuFeatures::IsSupported(VFP3)) {
-      CpuFeatures::Scope scope(VFP3);
-      DwVfpRegister value(ToDoubleRegister(instr->value()));
-      __ add(scratch0(), external_pointer, Operand(key, LSL, 2));
-      __ vstr(value, scratch0(), 0);
-    } else {
-      Register value(ToRegister(instr->value()));
-      __ str(value, MemOperand(external_pointer, key, LSL, 2));
-    }
+    CpuFeatures::Scope scope(VFP3);
+    DwVfpRegister value(ToDoubleRegister(instr->value()));
+    __ add(scratch0(), external_pointer, Operand(key, LSL, 2));
+    __ vcvt_f32_f64(double_scratch0().low(), value);
+    __ vstr(double_scratch0().low(), scratch0(), 0);
   } else {
     Register value(ToRegister(instr->value()));
     switch (array_type) {

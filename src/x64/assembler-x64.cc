@@ -99,7 +99,7 @@ void CpuFeatures::Probe() {
   // ecx:edx. Temporarily enable CPUID support because we know it's
   // safe here.
   __ bind(&cpuid);
-  __ movq(rax, Immediate(1));
+  __ movl(rax, Immediate(1));
   supported_ = kDefaultCpuFeatures | (1 << CPUID);
   { Scope fscope(CPUID);
     __ cpuid();
@@ -1398,7 +1398,12 @@ void Assembler::leave() {
 
 void Assembler::movb(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
-  emit_rex_32(dst, src);
+  if (dst.code() > 3) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(dst, src);
+  } else {
+    emit_optional_rex_32(dst, src);
+  }
   emit(0x8A);
   emit_operand(dst, src);
 }
@@ -1406,16 +1411,21 @@ void Assembler::movb(Register dst, const Operand& src) {
 
 void Assembler::movb(Register dst, Immediate imm) {
   EnsureSpace ensure_space(this);
-  emit_rex_32(dst);
-  emit(0xC6);
-  emit_modrm(0x0, dst);
+  if (dst.code() > 3) {
+    emit_rex_32(dst);
+  }
+  emit(0xB0 + dst.low_bits());
   emit(imm.value_);
 }
 
 
 void Assembler::movb(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
-  emit_rex_32(src, dst);
+  if (src.code() > 3) {
+    emit_rex_32(src, dst);
+  } else {
+    emit_optional_rex_32(src, dst);
+  }
   emit(0x88);
   emit_operand(src, dst);
 }
@@ -1465,16 +1475,15 @@ void Assembler::movl(const Operand& dst, Immediate value) {
   emit_optional_rex_32(dst);
   emit(0xC7);
   emit_operand(0x0, dst);
-  emit(value);  // Only 32-bit immediates are possible, not 8-bit immediates.
+  emit(value);
 }
 
 
 void Assembler::movl(Register dst, Immediate value) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst);
-  emit(0xC7);
-  emit_modrm(0x0, dst);
-  emit(value);  // Only 32-bit immediates are possible, not 8-bit immediates.
+  emit(0xB8 + dst.low_bits());
+  emit(value);
 }
 
 

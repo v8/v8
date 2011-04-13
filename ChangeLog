@@ -1,3 +1,10 @@
+2011-04-13: Version 3.2.10
+
+        Fixed bug in external float arrays on ARM (issue 1323).
+
+        Minor performance improvements and bug fixes.
+
+
 2011-04-11: Version 3.2.9
 
         Removed support for ABI prior to EABI on ARM.

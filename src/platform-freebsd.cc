@@ -391,18 +391,8 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 }
 
 
-class ThreadHandle::PlatformData : public Malloced {
+class Thread::PlatformData : public Malloced {
  public:
-  explicit PlatformData(ThreadHandle::Kind kind) {
-    Initialize(kind);
-  }
-
-  void Initialize(ThreadHandle::Kind kind) {
-    switch (kind) {
-      case ThreadHandle::SELF: thread_ = pthread_self(); break;
-      case ThreadHandle::INVALID: thread_ = kNoThread; break;
-    }
-  }
   pthread_t thread_;  // Thread handle for pthread.
 };
 
@@ -433,7 +423,7 @@ bool ThreadHandle::IsValid() const {
 
 
 Thread::Thread(Isolate* isolate, const Options& options)
-    : ThreadHandle(ThreadHandle::INVALID),
+    : data_(new PlatformData),
       isolate_(isolate),
       stack_size_(options.stack_size) {
   set_name(options.name);
@@ -441,7 +431,7 @@ Thread::Thread(Isolate* isolate, const Options& options)
 
 
 Thread::Thread(Isolate* isolate, const char* name)
-    : ThreadHandle(ThreadHandle::INVALID),
+    : data_(new PlatformData),
       isolate_(isolate),
       stack_size_(0) {
   set_name(name);
@@ -449,6 +439,7 @@ Thread::Thread(Isolate* isolate, const char* name)
 
 
 Thread::~Thread() {
+  delete data_;
 }
 
 
@@ -457,7 +448,7 @@ static void* ThreadEntry(void* arg) {
   // This is also initialized by the first argument to pthread_create() but we
   // don't know which thread will run first (the original thread or the new
   // one) so we initialize it here too.
-  thread->thread_handle_data()->thread_ = pthread_self();
+  thread_->data_->thread_ = pthread_self();
   ASSERT(thread->IsValid());
   Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();

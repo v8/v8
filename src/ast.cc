@@ -349,6 +349,143 @@ BinaryOperation::BinaryOperation(Assignment* assignment) {
 // ----------------------------------------------------------------------------
 // Inlining support
 
+bool Declaration::IsInlineable() const {
+  UNREACHABLE();
+  return false;
+}
+
+
+bool TargetCollector::IsInlineable() const {
+  UNREACHABLE();
+  return false;
+}
+
+
+bool Slot::IsInlineable() const {
+  UNREACHABLE();
+  return false;
+}
+
+
+bool ForInStatement::IsInlineable() const {
+  return false;
+}
+
+
+bool WithEnterStatement::IsInlineable() const {
+  return false;
+}
+
+
+bool WithExitStatement::IsInlineable() const {
+  return false;
+}
+
+
+bool SwitchStatement::IsInlineable() const {
+  return false;
+}
+
+
+bool TryStatement::IsInlineable() const {
+  return false;
+}
+
+
+bool TryCatchStatement::IsInlineable() const {
+  return false;
+}
+
+
+bool TryFinallyStatement::IsInlineable() const {
+  return false;
+}
+
+
+bool CatchExtensionObject::IsInlineable() const {
+  return false;
+}
+
+
+bool DebuggerStatement::IsInlineable() const {
+  return false;
+}
+
+
+bool Throw::IsInlineable() const {
+  // TODO(1143): Make functions containing throw inlineable.
+  return false;
+}
+
+
+bool MaterializedLiteral::IsInlineable() const {
+  // TODO(1322): Allow materialized literals.
+  return false;
+}
+
+
+bool FunctionLiteral::IsInlineable() const {
+  // TODO(1322): Allow materialized literals.
+  return false;
+}
+
+
+bool ThisFunction::IsInlineable() const {
+  return false;
+}
+
+
+bool SharedFunctionInfoLiteral::IsInlineable() const {
+  return false;
+}
+
+
+bool ValidLeftHandSideSentinel::IsInlineable() const {
+  UNREACHABLE();
+  return false;
+}
+
+
+bool ForStatement::IsInlineable() const {
+  return (init() == NULL || init()->IsInlineable())
+      && (cond() == NULL || cond()->IsInlineable())
+      && (next() == NULL || next()->IsInlineable())
+      && body()->IsInlineable();
+}
+
+
+bool WhileStatement::IsInlineable() const {
+  return cond()->IsInlineable()
+      && body()->IsInlineable();
+}
+
+
+bool DoWhileStatement::IsInlineable() const {
+  return cond()->IsInlineable()
+      && body()->IsInlineable();
+}
+
+
+bool ContinueStatement::IsInlineable() const {
+  return true;
+}
+
+
+bool BreakStatement::IsInlineable() const {
+  return true;
+}
+
+
+bool EmptyStatement::IsInlineable() const {
+  return true;
+}
+
+
+bool Literal::IsInlineable() const {
+  return true;
+}
+
+
 bool Block::IsInlineable() const {
   const int count = statements_.length();
   for (int i = 0; i < count; ++i) {
@@ -364,8 +501,9 @@ bool ExpressionStatement::IsInlineable() const {
 
 
 bool IfStatement::IsInlineable() const {
-  return condition()->IsInlineable() && then_statement()->IsInlineable() &&
-      else_statement()->IsInlineable();
+  return condition()->IsInlineable()
+      && then_statement()->IsInlineable()
+      && else_statement()->IsInlineable();
 }
 
 

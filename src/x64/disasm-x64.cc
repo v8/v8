@@ -652,6 +652,9 @@ int DisassemblerX64::PrintImmediateOp(byte* data) {
     case 2:
       mnem = "adc";
       break;
+    case 3:
+      mnem = "sbb";
+      break;
     case 4:
       mnem = "and";
       break;
@@ -1502,7 +1505,39 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data++;
       }
         break;
-
+      case 0xB0:
+      case 0xB1:
+      case 0xB2:
+      case 0xB3:
+      case 0xB4:
+      case 0xB5:
+      case 0xB6:
+      case 0xB7:
+      case 0xB8:
+      case 0xB9:
+      case 0xBA:
+      case 0xBB:
+      case 0xBC:
+      case 0xBD:
+      case 0xBE:
+      case 0xBF: {
+        // mov reg8,imm8 or mov reg32,imm32
+        byte opcode = *data;
+        data++;
+        bool is_32bit = (opcode >= 0xB8);
+        int reg = (opcode & 0x7) | (rex_b() ? 8 : 0);
+        if (is_32bit) {
+          AppendToBuffer("mov%c %s, ",
+                         operand_size_code(),
+                         NameOfCPURegister(reg));
+          data += PrintImmediate(data, DOUBLEWORD_SIZE);
+        } else {
+          AppendToBuffer("movb %s, ",
+                         NameOfByteCPURegister(reg));
+          data += PrintImmediate(data, BYTE_SIZE);
+        }
+        break;
+      }
       case 0xFE: {
         data++;
         int mod, regop, rm;
@@ -1513,9 +1548,8 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         } else {
           UnimplementedInstruction();
         }
-      }
         break;
-
+      }
       case 0x68:
         AppendToBuffer("push 0x%x", *reinterpret_cast<int32_t*>(data + 1));
         data += 5;

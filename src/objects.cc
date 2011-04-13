@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1279,6 +1279,22 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
 }
 
 
+static bool IsIdentifier(UnicodeCache* cache,
+                         unibrow::CharacterStream* buffer) {
+  // Checks whether the buffer contains an identifier (no escape).
+  if (!buffer->has_more()) return false;
+  if (!cache->IsIdentifierStart(buffer->GetNext())) {
+    return false;
+  }
+  while (buffer->has_more()) {
+    if (!cache->IsIdentifierPart(buffer->GetNext())) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
 MaybeObject* JSObject::AddFastProperty(String* name,
                                        Object* value,
                                        PropertyAttributes attributes) {
@@ -1288,7 +1304,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   // hidden symbols) and is not a real identifier.
   Isolate* isolate = GetHeap()->isolate();
   StringInputBuffer buffer(name);
-  if (!isolate->scanner_constants()->IsIdentifier(&buffer)
+  if (!IsIdentifier(isolate->unicode_cache(), &buffer)
       && name != isolate->heap()->hidden_symbol()) {
     Object* obj;
     { MaybeObject* maybe_obj =
@@ -5423,8 +5439,8 @@ bool String::MarkAsUndetectable() {
 bool String::IsEqualTo(Vector<const char> str) {
   Isolate* isolate = GetIsolate();
   int slen = length();
-  Access<ScannerConstants::Utf8Decoder>
-      decoder(isolate->scanner_constants()->utf8_decoder());
+  Access<UnicodeCache::Utf8Decoder>
+      decoder(isolate->unicode_cache()->utf8_decoder());
   decoder->Reset(str.start(), str.length());
   int i;
   for (i = 0; i < slen && decoder->has_more(); i++) {
@@ -7635,7 +7651,6 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor(), isolate);
   Handle<Object> this_handle(receiver, isolate);
   Handle<JSObject> holder_handle(this, isolate);
-
   if (!interceptor->getter()->IsUndefined()) {
     v8::IndexedPropertyGetter getter =
         v8::ToCData<v8::IndexedPropertyGetter>(interceptor->getter());

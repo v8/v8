@@ -788,10 +788,10 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
 void MacroAssembler::Set(Register dst, int64_t x) {
   if (x == 0) {
     xorl(dst, dst);
-  } else if (is_int32(x)) {
-    movq(dst, Immediate(static_cast<int32_t>(x)));
   } else if (is_uint32(x)) {
     movl(dst, Immediate(static_cast<uint32_t>(x)));
+  } else if (is_int32(x)) {
+    movq(dst, Immediate(static_cast<int32_t>(x)));
   } else {
     movq(dst, x, RelocInfo::NONE);
   }
@@ -801,7 +801,7 @@ void MacroAssembler::Set(const Operand& dst, int64_t x) {
   if (is_int32(x)) {
     movq(dst, Immediate(static_cast<int32_t>(x)));
   } else {
-    movq(kScratchRegister, x, RelocInfo::NONE);
+    Set(kScratchRegister, x);
     movq(dst, kScratchRegister);
   }
 }
@@ -1814,7 +1814,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
     // Set external caught exception to false.
     ExternalReference external_caught(
         Isolate::k_external_caught_exception_address, isolate());
-    movq(rax, Immediate(false));
+    Set(rax, static_cast<int64_t>(false));
     Store(external_caught, rax);
 
     // Set pending exception and rax to out of memory exception.
@@ -2002,7 +2002,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     Operand counter_operand = ExternalOperand(ExternalReference(counter));
-    movq(counter_operand, Immediate(value));
+    movl(counter_operand, Immediate(value));
   }
 }
 
@@ -2220,8 +2220,8 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   const int kFrameAlignment = OS::ActivationFrameAlignment();
   if (kFrameAlignment > 0) {
     ASSERT(IsPowerOf2(kFrameAlignment));
-    movq(kScratchRegister, Immediate(-kFrameAlignment));
-    and_(rsp, kScratchRegister);
+    ASSERT(is_int8(kFrameAlignment));
+    and_(rsp, Immediate(-kFrameAlignment));
   }
 
   // Patch the saved entry sp.

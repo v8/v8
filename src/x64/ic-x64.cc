@@ -1010,7 +1010,7 @@ static void GenerateCallMiss(MacroAssembler* masm, int argc, IC::UtilityId id) {
 
   // Call the entry.
   CEntryStub stub(1);
-  __ movq(rax, Immediate(2));
+  __ Set(rax, 2);
   __ LoadAddress(rbx, ExternalReference(IC_Utility(id), masm->isolate()));
   __ CallStub(&stub);
 

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -159,8 +159,8 @@ class InputStreamUTF16Buffer : public UC16CharacterStream {
 
 class StandAloneJavaScriptScanner : public JavaScriptScanner {
  public:
-  explicit StandAloneJavaScriptScanner(ScannerConstants* scanner_constants)
-      : JavaScriptScanner(scanner_constants) { }
+  explicit StandAloneJavaScriptScanner(UnicodeCache* unicode_cache)
+      : JavaScriptScanner(unicode_cache) { }
 
   void Initialize(UC16CharacterStream* source) {
     source_ = source;
@@ -192,8 +192,8 @@ UnicodeInputStream::~UnicodeInputStream() { }
 PreParserData Preparse(UnicodeInputStream* input, size_t max_stack) {
   internal::InputStreamUTF16Buffer buffer(input);
   uintptr_t stack_limit = reinterpret_cast<uintptr_t>(&buffer) - max_stack;
-  internal::ScannerConstants scanner_constants;
-  internal::StandAloneJavaScriptScanner scanner(&scanner_constants);
+  internal::UnicodeCache unicode_cache;
+  internal::StandAloneJavaScriptScanner scanner(&unicode_cache);
   scanner.Initialize(&buffer);
   internal::CompleteParserRecorder recorder;
   preparser::PreParser::PreParseResult result =

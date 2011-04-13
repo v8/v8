@@ -31,6 +31,7 @@
 #include <string>
 
 #include "break-iterator.h"
+#include "natives.h"
 #include "unicode/locid.h"
 #include "unicode/uloc.h"
 
@@ -39,73 +40,19 @@ namespace internal {
 
 I18NExtension* I18NExtension::extension_ = NULL;
 
-// TODO(cira): maybe move JS code to a .js file and generata cc files from it?
-// TODO(cira): Remove v8 prefix from v8Locale once we have stable API.
-const char* const I18NExtension::kSource =
-  "v8Locale = function(optLocale) {"
-  "  native function NativeJSLocale();"
-  "  var properties = NativeJSLocale(optLocale);"
-  "  this.locale = properties.locale;"
-  "  this.language = properties.language;"
-  "  this.script = properties.script;"
-  "  this.region = properties.region;"
-  "};"
-  "v8Locale.availableLocales = function() {"
-  "  native function NativeJSAvailableLocales();"
-  "  return NativeJSAvailableLocales();"
-  "};"
-  "v8Locale.prototype.maximizedLocale = function() {"
-  "  native function NativeJSMaximizedLocale();"
-  "  return new v8Locale(NativeJSMaximizedLocale(this.locale));"
-  "};"
-  "v8Locale.prototype.minimizedLocale = function() {"
-  "  native function NativeJSMinimizedLocale();"
-  "  return new v8Locale(NativeJSMinimizedLocale(this.locale));"
-  "};"
-  "v8Locale.prototype.displayLocale_ = function(displayLocale) {"
-  "  var result = this.locale;"
-  "  if (displayLocale !== undefined) {"
-  "    result = displayLocale.locale;"
-  "  }"
-  "  return result;"
-  "};"
-  "v8Locale.prototype.displayLanguage = function(optDisplayLocale) {"
-  "  var displayLocale = this.displayLocale_(optDisplayLocale);"
-  "  native function NativeJSDisplayLanguage();"
-  "  return NativeJSDisplayLanguage(this.locale, displayLocale);"
-  "};"
-  "v8Locale.prototype.displayScript = function(optDisplayLocale) {"
-  "  var displayLocale = this.displayLocale_(optDisplayLocale);"
-  "  native function NativeJSDisplayScript();"
-  "  return NativeJSDisplayScript(this.locale, displayLocale);"
-  "};"
-  "v8Locale.prototype.displayRegion = function(optDisplayLocale) {"
-  "  var displayLocale = this.displayLocale_(optDisplayLocale);"
-  "  native function NativeJSDisplayRegion();"
-  "  return NativeJSDisplayRegion(this.locale, displayLocale);"
-  "};"
-  "v8Locale.prototype.displayName = function(optDisplayLocale) {"
-  "  var displayLocale = this.displayLocale_(optDisplayLocale);"
-  "  native function NativeJSDisplayName();"
-  "  return NativeJSDisplayName(this.locale, displayLocale);"
-  "};"
-  "v8Locale.v8BreakIterator = function(locale, type) {"
-  "  native function NativeJSBreakIterator();"
-  "  var iterator = NativeJSBreakIterator(locale, type);"
-  "  iterator.type = type;"
-  "  return iterator;"
-  "};"
-  "v8Locale.v8BreakIterator.BreakType = {"
-  "  'unknown': -1,"
-  "  'none': 0,"
-  "  'number': 100,"
-  "  'word': 200,"
-  "  'kana': 300,"
-  "  'ideo': 400"
-  "};"
-  "v8Locale.prototype.v8CreateBreakIterator = function(type) {"
-  "  return new v8Locale.v8BreakIterator(this.locale, type);"
-  "};";
+// Returns a pointer to static string containing the actual
+// JavaScript code generated from i18n.js file.
+static const char* GetScriptSource() {
+  int index = NativesCollection<I18N>::GetIndex("i18n");
+  Vector<const char> script_data =
+      NativesCollection<I18N>::GetScriptSource(index);
+
+  return script_data.start();
+}
+
+I18NExtension::I18NExtension()
+    : v8::Extension("v8/i18n", GetScriptSource()) {
+}
 
 v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
     v8::Handle<v8::String> name) {

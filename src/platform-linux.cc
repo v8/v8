@@ -92,9 +92,10 @@ void OS::Setup() {
 
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
 #if (defined(__VFP_FP__) && !defined(__SOFTFP__))
-  // Here gcc is telling us that we are on an ARM and gcc is assuming that we
-  // have VFP3 instructions.  If gcc can assume it then so can we.
-  return 1u << VFP3;
+  // Here gcc is telling us that we are on an ARM and gcc is assuming
+  // that we have VFP3 instructions.  If gcc can assume it then so can
+  // we. VFPv3 implies ARMv7, see ARM DDI 0406B, page A1-6.
+  return 1u << VFP3 | 1u << ARMv7;
 #elif CAN_USE_ARMV7_INSTRUCTIONS
   return 1u << ARMv7;
 #elif(defined(__mips_hard_float) && __mips_hard_float != 0)
@@ -588,50 +589,15 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 }
 
 
-class ThreadHandle::PlatformData : public Malloced {
+class Thread::PlatformData : public Malloced {
  public:
-  explicit PlatformData(ThreadHandle::Kind kind) {
-    Initialize(kind);
-  }
-
-  void Initialize(ThreadHandle::Kind kind) {
-    switch (kind) {
-      case ThreadHandle::SELF: thread_ = pthread_self(); break;
-      case ThreadHandle::INVALID: thread_ = kNoThread; break;
-    }
-  }
+  PlatformData() : thread_(kNoThread) {}
 
   pthread_t thread_;  // Thread handle for pthread.
 };
 
-
-ThreadHandle::ThreadHandle(Kind kind) {
-  data_ = new PlatformData(kind);
-}
-
-
-void ThreadHandle::Initialize(ThreadHandle::Kind kind) {
-  data_->Initialize(kind);
-}
-
-
-ThreadHandle::~ThreadHandle() {
-  delete data_;
-}
-
-
-bool ThreadHandle::IsSelf() const {
-  return pthread_equal(data_->thread_, pthread_self());
-}
-
-
-bool ThreadHandle::IsValid() const {
-  return data_->thread_ != kNoThread;
-}
-
-
 Thread::Thread(Isolate* isolate, const Options& options)
-    : ThreadHandle(ThreadHandle::INVALID),
+    : data_(new PlatformData()),
       isolate_(isolate),
       stack_size_(options.stack_size) {
   set_name(options.name);
@@ -639,7 +605,7 @@ Thread::Thread(Isolate* isolate, const Options& options)
 
 
 Thread::Thread(Isolate* isolate, const char* name)
-    : ThreadHandle(ThreadHandle::INVALID),
+    : data_(new PlatformData()),
       isolate_(isolate),
       stack_size_(0) {
   set_name(name);
@@ -647,6 +613,7 @@ Thread::Thread(Isolate* isolate, const char* name)
 
 
 Thread::~Thread() {
+  delete data_;
 }
 
 
@@ -658,8 +625,8 @@ static void* ThreadEntry(void* arg) {
   prctl(PR_SET_NAME,
         reinterpret_cast<unsigned long>(thread->name()),  // NOLINT
         0, 0, 0);
-  thread->thread_handle_data()->thread_ = pthread_self();
-  ASSERT(thread->IsValid());
+  thread->data()->thread_ = pthread_self();
+  ASSERT(thread->data()->thread_ != kNoThread);
   Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return NULL;
@@ -680,13 +647,13 @@ void Thread::Start() {
     pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
     attr_ptr = &attr;
   }
-  pthread_create(&thread_handle_data()->thread_, attr_ptr, ThreadEntry, this);
-  ASSERT(IsValid());
+  pthread_create(&data_->thread_, attr_ptr, ThreadEntry, this);
+  ASSERT(data_->thread_ != kNoThread);
 }
 
 
 void Thread::Join() {
-  pthread_join(thread_handle_data()->thread_, NULL);
+  pthread_join(data_->thread_, NULL);
 }
 
 

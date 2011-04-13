@@ -56,11 +56,17 @@ function h(z2, y2) {
   return f(local_y, local_z); /* f should be inlined into h */
 }
 
-for (var i = 0; i < 100000; i++) f(2, 3);
+for (var i = 0; i < 5; i++) f(2, 3);
+%OptimizeFunctionOnNextCall(f);
+f(2, 3);
 
-for (var i = 0; i < 100000; i++) g(3, 2);
+for (var i = 0; i < 5; i++) g(3, 2);
+%OptimizeFunctionOnNextCall(g);
+g(3, 2);
 
-for (var i = 0; i < 100000; i++) h(6, 4);
+for (var i = 0; i < 5; i++) h(6, 4);
+%OptimizeFunctionOnNextCall(h);
+h(6, 4);
 
 // Check that %_IsConstructCall returns correct value when inlined
 var NON_CONSTRUCT_MARKER = {};
@@ -76,4 +82,6 @@ function bar(x, y, z) {
   assertEquals(construct, CONSTRUCT_MARKER);
 }
 
-for (var i = 0; i < 100000; i++) new bar(1, 2, 3);
+for (var i = 0; i < 5; i++) new bar(1, 2, 3);
+%OptimizeFunctionOnNextCall(bar);
+bar(1, 2, 3);

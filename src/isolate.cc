@@ -1,4 +1,4 @@
-// Copyright 2006-2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -54,6 +54,21 @@
 namespace v8 {
 namespace internal {
 
+Atomic32 ThreadId::highest_thread_id_ = 0;
+
+int ThreadId::AllocateThreadId() {
+  int new_id = NoBarrier_AtomicIncrement(&highest_thread_id_, 1);
+  return new_id;
+}
+
+int ThreadId::GetCurrentThreadId() {
+  int thread_id = Thread::GetThreadLocalInt(Isolate::thread_id_key_);
+  if (thread_id == 0) {
+    thread_id = AllocateThreadId();
+    Thread::SetThreadLocalInt(Isolate::thread_id_key_, thread_id);
+  }
+  return thread_id;
+}
 
 // Create a dummy thread that will wait forever on a semaphore. The only
 // purpose for this thread is to have some stack area to save essential data
@@ -245,7 +260,6 @@ Thread::LocalStorageKey Isolate::thread_id_key_;
 Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 Mutex* Isolate::process_wide_mutex_ = OS::CreateMutex();
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
-Isolate::ThreadId Isolate::highest_thread_id_ = 0;
 
 
 class IsolateInitializer {
@@ -265,20 +279,12 @@ static IsolateInitializer* EnsureDefaultIsolateAllocated() {
 static IsolateInitializer* static_initializer = EnsureDefaultIsolateAllocated();
 
 
-Isolate::ThreadId Isolate::AllocateThreadId() {
-  ThreadId new_id;
-  {
-    ScopedLock lock(process_wide_mutex_);
-    new_id = ++highest_thread_id_;
-  }
-  return new_id;
-}
+
 
 
 Isolate::PerIsolateThreadData* Isolate::AllocatePerIsolateThreadData(
     ThreadId thread_id) {
-  ASSERT(thread_id != 0);
-  ASSERT(Thread::GetThreadLocalInt(thread_id_key_) == thread_id);
+  ASSERT(!thread_id.Equals(ThreadId::Invalid()));
   PerIsolateThreadData* per_thread = new PerIsolateThreadData(this, thread_id);
   {
     ScopedLock lock(process_wide_mutex_);
@@ -292,11 +298,7 @@ Isolate::PerIsolateThreadData* Isolate::AllocatePerIsolateThreadData(
 
 Isolate::PerIsolateThreadData*
     Isolate::FindOrAllocatePerThreadDataForThisThread() {
-  ThreadId thread_id = Thread::GetThreadLocalInt(thread_id_key_);
-  if (thread_id == 0) {
-    thread_id = AllocateThreadId();
-    Thread::SetThreadLocalInt(thread_id_key_, thread_id);
-  }
+  ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = NULL;
   {
     ScopedLock lock(process_wide_mutex_);
@@ -361,7 +363,8 @@ Isolate::ThreadDataTable::ThreadDataTable()
 
 
 Isolate::PerIsolateThreadData*
-    Isolate::ThreadDataTable::Lookup(Isolate* isolate, ThreadId thread_id) {
+    Isolate::ThreadDataTable::Lookup(Isolate* isolate,
+                                     ThreadId thread_id) {
   for (PerIsolateThreadData* data = list_; data != NULL; data = data->next_) {
     if (data->Matches(isolate, thread_id)) return data;
   }
@@ -383,7 +386,8 @@ void Isolate::ThreadDataTable::Remove(PerIsolateThreadData* data) {
 }
 
 
-void Isolate::ThreadDataTable::Remove(Isolate* isolate, ThreadId thread_id) {
+void Isolate::ThreadDataTable::Remove(Isolate* isolate,
+                                      ThreadId thread_id) {
   PerIsolateThreadData* data = Lookup(isolate, thread_id);
   if (data != NULL) {
     Remove(data);
@@ -429,7 +433,7 @@ Isolate::Isolate()
       context_slot_cache_(NULL),
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
-      scanner_constants_(NULL),
+      unicode_cache_(NULL),
       in_use_list_(0),
       free_list_(0),
       preallocated_storage_preallocated_(false),
@@ -564,8 +568,8 @@ Isolate::~Isolate() {
   producer_heap_profile_ = NULL;
 #endif
 
-  delete scanner_constants_;
-  scanner_constants_ = NULL;
+  delete unicode_cache_;
+  unicode_cache_ = NULL;
 
   delete regexp_stack_;
   regexp_stack_ = NULL;
@@ -672,7 +676,7 @@ bool Isolate::PreInit() {
   keyed_lookup_cache_ = new KeyedLookupCache();
   context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();
-  scanner_constants_ = new ScannerConstants();
+  unicode_cache_ = new UnicodeCache();
   pc_to_code_cache_ = new PcToCodeCache(this);
   write_input_buffer_ = new StringInputBuffer();
   global_handles_ = new GlobalHandles(this);
@@ -833,8 +837,8 @@ void Isolate::Enter() {
       ASSERT(Current() == this);
       ASSERT(entry_stack_ != NULL);
       ASSERT(entry_stack_->previous_thread_data == NULL ||
-             entry_stack_->previous_thread_data->thread_id() ==
-                 Thread::GetThreadLocalInt(thread_id_key_));
+             entry_stack_->previous_thread_data->thread_id().Equals(
+                 ThreadId::Current()));
       // Same thread re-enters the isolate, no need to re-init anything.
       entry_stack_->entry_count++;
       return;
@@ -872,8 +876,8 @@ void Isolate::Enter() {
 void Isolate::Exit() {
   ASSERT(entry_stack_ != NULL);
   ASSERT(entry_stack_->previous_thread_data == NULL ||
-         entry_stack_->previous_thread_data->thread_id() ==
-             Thread::GetThreadLocalInt(thread_id_key_));
+         entry_stack_->previous_thread_data->thread_id().Equals(
+             ThreadId::Current()));
 
   if (--entry_stack_->entry_count > 0) return;
 

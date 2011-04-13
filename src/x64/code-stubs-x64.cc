@@ -273,7 +273,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
   // Return 1/0 for true/false in rax.
   __ bind(&true_result);
-  __ movq(rax, Immediate(1));
+  __ Set(rax, 1);
   __ ret(1 * kPointerSize);
   __ bind(&false_result);
   __ Set(rax, 0);
@@ -1281,7 +1281,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ bind(&check_undefined_arg1);
   __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
   __ j(not_equal, conversion_failure);
-  __ movl(r8, Immediate(0));
+  __ Set(r8, 0);
   __ jmp(&load_arg2);
 
   __ bind(&arg1_is_object);
@@ -1301,7 +1301,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ bind(&check_undefined_arg2);
   __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
   __ j(not_equal, conversion_failure);
-  __ movl(rcx, Immediate(0));
+  __ Set(rcx, 0);
   __ jmp(&done);
 
   __ bind(&arg2_is_object);
@@ -1458,7 +1458,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ j(not_equal, &slow);
     // Operand is a float, negate its value by flipping sign bit.
     __ movq(rdx, FieldOperand(rax, HeapNumber::kValueOffset));
-    __ movq(kScratchRegister, Immediate(0x01));
+    __ Set(kScratchRegister, 0x01);
     __ shl(kScratchRegister, Immediate(63));
     __ xor_(rdx, kScratchRegister);  // Flip sign.
     // rdx is value to store.
@@ -1530,7 +1530,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ movq(rax, Operand(rsp, 1 * kPointerSize));
 
   // Save 1 in xmm3 - we need this several times later on.
-  __ movl(rcx, Immediate(1));
+  __ Set(rcx, 1);
   __ cvtlsi2sd(xmm3, rcx);
 
   Label exponent_nonsmi;
@@ -3253,7 +3253,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
       __ cmpl(Operand(kScratchRegister, kOffsetToResultValue - 4), rax);
       __ Assert(equal, "InstanceofStub unexpected call site cache (mov).");
     }
-    __ xorl(rax, rax);
+    __ Set(rax, 0);
   }
   __ ret(2 * kPointerSize + extra_stack_space);
 
@@ -4112,7 +4112,7 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
   // if (hash == 0) hash = 27;
   Label hash_not_zero;
   __ j(not_zero, &hash_not_zero);
-  __ movl(hash, Immediate(27));
+  __ Set(hash, 27);
   __ bind(&hash_not_zero);
 }
 
@@ -4308,7 +4308,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
     // Use scratch3 as loop index, min_length as limit and scratch2
     // for computation.
     const Register index = scratch3;
-    __ movl(index, Immediate(0));  // Index into strings.
+    __ Set(index, 0);  // Index into strings.
     __ bind(&loop);
     // Compare characters.
     // TODO(lrn): Could we load more than one character at a time?

@@ -149,7 +149,7 @@ bool LCodeGen::GeneratePrologue() {
   int slots = StackSlotCount();
   if (slots > 0) {
     if (FLAG_debug_code) {
-      __ movl(rax, Immediate(slots));
+      __ Set(rax, slots);
       __ movq(kScratchRegister, kSlotsZapValue, RelocInfo::NONE);
       Label loop;
       __ bind(&loop);
@@ -1099,7 +1099,7 @@ void LCodeGen::DoSubI(LSubI* instr) {
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
   ASSERT(instr->result()->IsRegister());
-  __ movl(ToRegister(instr->result()), Immediate(instr->value()));
+  __ Set(ToRegister(instr->result()), instr->value());
 }
 
 
@@ -1514,10 +1514,11 @@ void LCodeGen::DoIsNull(LIsNull* instr) {
 
   __ CompareRoot(reg, Heap::kNullValueRootIndex);
   if (instr->is_strict()) {
+    ASSERT(Heap::kTrueValueRootIndex >= 0);
     __ movl(result, Immediate(Heap::kTrueValueRootIndex));
     NearLabel load;
     __ j(equal, &load);
-    __ movl(result, Immediate(Heap::kFalseValueRootIndex));
+    __ Set(result, Heap::kFalseValueRootIndex);
     __ bind(&load);
     __ LoadRootIndexed(result, result, 0);
   } else {
@@ -1976,11 +1977,11 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
     __ Push(instr->function());
 
     Register temp = ToRegister(instr->TempAt(0));
-    static const int kAdditionalDelta = 13;
+    static const int kAdditionalDelta = 10;
     int delta =
         masm_->SizeOfCodeGeneratedSince(map_check) + kAdditionalDelta;
-    __ movq(temp, Immediate(delta));
-    __ push(temp);
+    ASSERT(delta >= 0);
+    __ push_imm32(delta);
 
     // We are pushing three values on the stack but recording a
     // safepoint with two arguments because stub is going to
@@ -1992,6 +1993,8 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                     RECORD_SAFEPOINT_WITH_REGISTERS,
                     2);
     ASSERT(delta == masm_->SizeOfCodeGeneratedSince(map_check));
+    // Move result to a register that survives the end of the
+    // PushSafepointRegisterScope.
     __ movq(kScratchRegister, rax);
   }
   __ testq(kScratchRegister, kScratchRegister);
@@ -2426,14 +2429,14 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
   } else {
     __ cmpq(rbp, ToOperand(instr->InputAt(0)));
   }
-  __ movq(result, Immediate(scope()->num_parameters()));
+  __ movl(result, Immediate(scope()->num_parameters()));
   __ j(equal, &done);
 
   // Arguments adaptor frame present. Get argument length from there.
   __ movq(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ movq(result, Operand(result,
-                          ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ SmiToInteger32(result, result);
+  __ SmiToInteger32(result,
+                    Operand(result,
+                            ArgumentsAdaptorFrameConstants::kLengthOffset));
 
   // Argument length is in result register.
   __ bind(&done);
@@ -3415,7 +3418,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     // conversions.
     __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
     DeoptimizeIf(not_equal, instr->environment());
-    __ movl(input_reg, Immediate(0));
+    __ Set(input_reg, 0);
     __ jmp(&done);
 
     __ bind(&heap_number);

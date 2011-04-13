@@ -3386,8 +3386,8 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
   const uc32 kMaxSupportedChar = 0xFFFF;
   // Count the number of characters in the UTF-8 string and check if
   // it is an ASCII string.
-  Access<ScannerConstants::Utf8Decoder>
-      decoder(isolate_->scanner_constants()->utf8_decoder());
+  Access<UnicodeCache::Utf8Decoder>
+      decoder(isolate_->unicode_cache()->utf8_decoder());
   decoder->Reset(string.start(), string.length());
   int chars = 0;
   while (decoder->has_more()) {

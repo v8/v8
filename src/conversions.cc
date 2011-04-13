@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -109,11 +109,11 @@ static const double JUNK_STRING_VALUE = OS::nan_value();
 
 // Returns true if a nonspace found and false if the end has reached.
 template <class Iterator, class EndMark>
-static inline bool AdvanceToNonspace(ScannerConstants* scanner_constants,
+static inline bool AdvanceToNonspace(UnicodeCache* unicode_cache,
                                      Iterator* current,
                                      EndMark end) {
   while (*current != end) {
-    if (!scanner_constants->IsWhiteSpace(**current)) return true;
+    if (!unicode_cache->IsWhiteSpace(**current)) return true;
     ++*current;
   }
   return false;
@@ -134,7 +134,7 @@ static double SignedZero(bool negative) {
 
 // Parsing integers with radix 2, 4, 8, 16, 32. Assumes current != end.
 template <int radix_log_2, class Iterator, class EndMark>
-static double InternalStringToIntDouble(ScannerConstants* scanner_constants,
+static double InternalStringToIntDouble(UnicodeCache* unicode_cache,
                                         Iterator current,
                                         EndMark end,
                                         bool negative,
@@ -161,7 +161,7 @@ static double InternalStringToIntDouble(ScannerConstants* scanner_constants,
       digit = static_cast<char>(*current) - 'A' + 10;
     } else {
       if (allow_trailing_junk ||
-          !AdvanceToNonspace(scanner_constants, &current, end)) {
+          !AdvanceToNonspace(unicode_cache, &current, end)) {
         break;
       } else {
         return JUNK_STRING_VALUE;
@@ -193,7 +193,7 @@ static double InternalStringToIntDouble(ScannerConstants* scanner_constants,
       }
 
       if (!allow_trailing_junk &&
-          AdvanceToNonspace(scanner_constants, &current, end)) {
+          AdvanceToNonspace(unicode_cache, &current, end)) {
         return JUNK_STRING_VALUE;
       }
 
@@ -237,14 +237,14 @@ static double InternalStringToIntDouble(ScannerConstants* scanner_constants,
 
 
 template <class Iterator, class EndMark>
-static double InternalStringToInt(ScannerConstants* scanner_constants,
+static double InternalStringToInt(UnicodeCache* unicode_cache,
                                   Iterator current,
                                   EndMark end,
                                   int radix) {
   const bool allow_trailing_junk = true;
   const double empty_string_val = JUNK_STRING_VALUE;
 
-  if (!AdvanceToNonspace(scanner_constants, &current, end)) {
+  if (!AdvanceToNonspace(unicode_cache, &current, end)) {
     return empty_string_val;
   }
 
@@ -254,12 +254,12 @@ static double InternalStringToInt(ScannerConstants* scanner_constants,
   if (*current == '+') {
     // Ignore leading sign; skip following spaces.
     ++current;
-    if (!AdvanceToNonspace(scanner_constants, &current, end)) {
+    if (!AdvanceToNonspace(unicode_cache, &current, end)) {
       return JUNK_STRING_VALUE;
     }
   } else if (*current == '-') {
     ++current;
-    if (!AdvanceToNonspace(scanner_constants, &current, end)) {
+    if (!AdvanceToNonspace(unicode_cache, &current, end)) {
       return JUNK_STRING_VALUE;
     }
     negative = true;
@@ -312,21 +312,21 @@ static double InternalStringToInt(ScannerConstants* scanner_constants,
     switch (radix) {
       case 2:
         return InternalStringToIntDouble<1>(
-            scanner_constants, current, end, negative, allow_trailing_junk);
+            unicode_cache, current, end, negative, allow_trailing_junk);
       case 4:
         return InternalStringToIntDouble<2>(
-            scanner_constants, current, end, negative, allow_trailing_junk);
+            unicode_cache, current, end, negative, allow_trailing_junk);
       case 8:
         return InternalStringToIntDouble<3>(
-            scanner_constants, current, end, negative, allow_trailing_junk);
+            unicode_cache, current, end, negative, allow_trailing_junk);
 
       case 16:
         return InternalStringToIntDouble<4>(
-            scanner_constants, current, end, negative, allow_trailing_junk);
+            unicode_cache, current, end, negative, allow_trailing_junk);
 
       case 32:
         return InternalStringToIntDouble<5>(
-            scanner_constants, current, end, negative, allow_trailing_junk);
+            unicode_cache, current, end, negative, allow_trailing_junk);
       default:
         UNREACHABLE();
     }
@@ -352,7 +352,7 @@ static double InternalStringToInt(ScannerConstants* scanner_constants,
     }
 
     if (!allow_trailing_junk &&
-        AdvanceToNonspace(scanner_constants, &current, end)) {
+        AdvanceToNonspace(unicode_cache, &current, end)) {
       return JUNK_STRING_VALUE;
     }
 
@@ -418,7 +418,7 @@ static double InternalStringToInt(ScannerConstants* scanner_constants,
   } while (!done);
 
   if (!allow_trailing_junk &&
-      AdvanceToNonspace(scanner_constants, &current, end)) {
+      AdvanceToNonspace(unicode_cache, &current, end)) {
     return JUNK_STRING_VALUE;
   }
 
@@ -432,7 +432,7 @@ static double InternalStringToInt(ScannerConstants* scanner_constants,
 // 2. *current - gets the current character in the sequence.
 // 3. ++current (advances the position).
 template <class Iterator, class EndMark>
-static double InternalStringToDouble(ScannerConstants* scanner_constants,
+static double InternalStringToDouble(UnicodeCache* unicode_cache,
                                      Iterator current,
                                      EndMark end,
                                      int flags,
@@ -445,7 +445,7 @@ static double InternalStringToDouble(ScannerConstants* scanner_constants,
   // 'parsing_done'.
   // 4. 'current' is not dereferenced after the 'parsing_done' label.
   // 5. Code before 'parsing_done' may rely on 'current != end'.
-  if (!AdvanceToNonspace(scanner_constants, &current, end)) {
+  if (!AdvanceToNonspace(unicode_cache, &current, end)) {
     return empty_string_val;
   }
 
@@ -483,7 +483,7 @@ static double InternalStringToDouble(ScannerConstants* scanner_constants,
     }
 
     if (!allow_trailing_junk &&
-        AdvanceToNonspace(scanner_constants, &current, end)) {
+        AdvanceToNonspace(unicode_cache, &current, end)) {
       return JUNK_STRING_VALUE;
     }
 
@@ -505,7 +505,7 @@ static double InternalStringToDouble(ScannerConstants* scanner_constants,
         return JUNK_STRING_VALUE;  // "0x".
       }
 
-      return InternalStringToIntDouble<4>(scanner_constants,
+      return InternalStringToIntDouble<4>(unicode_cache,
                                           current,
                                           end,
                                           negative,
@@ -643,7 +643,7 @@ static double InternalStringToDouble(ScannerConstants* scanner_constants,
   }
 
   if (!allow_trailing_junk &&
-      AdvanceToNonspace(scanner_constants, &current, end)) {
+      AdvanceToNonspace(unicode_cache, &current, end)) {
     return JUNK_STRING_VALUE;
   }
 
@@ -651,7 +651,7 @@ static double InternalStringToDouble(ScannerConstants* scanner_constants,
   exponent += insignificant_digits;
 
   if (octal) {
-    return InternalStringToIntDouble<3>(scanner_constants,
+    return InternalStringToIntDouble<3>(unicode_cache,
                                         buffer,
                                         buffer + buffer_pos,
                                         negative,
@@ -671,23 +671,22 @@ static double InternalStringToDouble(ScannerConstants* scanner_constants,
 }
 
 
-double StringToDouble(String* str, int flags, double empty_string_val) {
-  ScannerConstants* scanner_constants =
-      Isolate::Current()->scanner_constants();
+double StringToDouble(UnicodeCache* unicode_cache,
+                      String* str, int flags, double empty_string_val) {
   StringShape shape(str);
   if (shape.IsSequentialAscii()) {
     const char* begin = SeqAsciiString::cast(str)->GetChars();
     const char* end = begin + str->length();
-    return InternalStringToDouble(scanner_constants, begin, end, flags,
+    return InternalStringToDouble(unicode_cache, begin, end, flags,
                                   empty_string_val);
   } else if (shape.IsSequentialTwoByte()) {
     const uc16* begin = SeqTwoByteString::cast(str)->GetChars();
     const uc16* end = begin + str->length();
-    return InternalStringToDouble(scanner_constants, begin, end, flags,
+    return InternalStringToDouble(unicode_cache, begin, end, flags,
                                   empty_string_val);
   } else {
     StringInputBuffer buffer(str);
-    return InternalStringToDouble(scanner_constants,
+    return InternalStringToDouble(unicode_cache,
                                   StringInputBufferIterator(&buffer),
                                   StringInputBufferIterator::EndMarker(),
                                   flags,
@@ -696,21 +695,21 @@ double StringToDouble(String* str, int flags, double empty_string_val) {
 }
 
 
-double StringToInt(String* str, int radix) {
-  ScannerConstants* scanner_constants =
-      Isolate::Current()->scanner_constants();
+double StringToInt(UnicodeCache* unicode_cache,
+                   String* str,
+                   int radix) {
   StringShape shape(str);
   if (shape.IsSequentialAscii()) {
     const char* begin = SeqAsciiString::cast(str)->GetChars();
     const char* end = begin + str->length();
-    return InternalStringToInt(scanner_constants, begin, end, radix);
+    return InternalStringToInt(unicode_cache, begin, end, radix);
   } else if (shape.IsSequentialTwoByte()) {
     const uc16* begin = SeqTwoByteString::cast(str)->GetChars();
     const uc16* end = begin + str->length();
-    return InternalStringToInt(scanner_constants, begin, end, radix);
+    return InternalStringToInt(unicode_cache, begin, end, radix);
   } else {
     StringInputBuffer buffer(str);
-    return InternalStringToInt(scanner_constants,
+    return InternalStringToInt(unicode_cache,
                                StringInputBufferIterator(&buffer),
                                StringInputBufferIterator::EndMarker(),
                                radix);
@@ -718,22 +717,20 @@ double StringToInt(String* str, int radix) {
 }
 
 
-double StringToDouble(const char* str, int flags, double empty_string_val) {
-  ScannerConstants* scanner_constants =
-      Isolate::Current()->scanner_constants();
+double StringToDouble(UnicodeCache* unicode_cache,
+                      const char* str, int flags, double empty_string_val) {
   const char* end = str + StrLength(str);
-  return InternalStringToDouble(scanner_constants, str, end, flags,
+  return InternalStringToDouble(unicode_cache, str, end, flags,
                                 empty_string_val);
 }
 
 
-double StringToDouble(Vector<const char> str,
+double StringToDouble(UnicodeCache* unicode_cache,
+                      Vector<const char> str,
                       int flags,
                       double empty_string_val) {
-  ScannerConstants* scanner_constants =
-      Isolate::Current()->scanner_constants();
   const char* end = str.start() + str.length();
-  return InternalStringToDouble(scanner_constants, str.start(), end, flags,
+  return InternalStringToDouble(unicode_cache, str.start(), end, flags,
                                 empty_string_val);
 }
 

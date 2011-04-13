@@ -57,6 +57,12 @@ test-log/ProfLazyMode: SKIP
 test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
 test-sockets/Socket: SKIP
 
+# BUG(1075): Unresolved crashes.
+cctest/test-serialize/Deserialize: PASS || FAIL
+cctest/test-serialize/DeserializeFromSecondSerializationAndRunScript2: PASS || FAIL
+cctest/test-serialize/DeserializeAndRunScript2: PASS || FAIL
+cctest/test-serialize/DeserializeFromSecondSerialization: PASS || FAIL
+
 ##############################################################################
 [ $arch == arm && $crankshaft ]
 

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,17 +27,24 @@
 
 // Flags: --allow-natives-syntax
 
-// Test that bailing out of the optimized compilation doesn't mess with
-// the labels in the AST.
-function f(x) {
-  switch (x) {
-    case "foo": return 87;
-    case "bar": return 42;
-  }
-  return 99;
+// Regression test for load/store operating with wrong number of bits.
+function get(a, index) {
+  return a[index];
 }
 
-for (var i = 0; i < 5; i++) f("foo");
-%OptimizeFunctionOnNextCall(f);
-f("foo");
-assertEquals(42, f("bar"));
+var a = new Float32Array(2);
+a[0] = 2.5;
+a[1] = 3.5;
+for (var i = 0; i < 5; i++) get(a, 0);
+%OptimizeFunctionOnNextCall(get);
+assertEquals(2.5, get(a, 0));
+assertEquals(3.5, get(a, 1));
+
+function set(a, index, value) {
+  a[index] = value;
+}
+for (var i = 0; i < 5; i++) set(a, 0, 4.5);
+%OptimizeFunctionOnNextCall(set);
+set(a, 0, 4.5);
+assertEquals(4.5, a[0]);
+assertEquals(3.5, a[1]);
