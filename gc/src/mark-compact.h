@@ -231,13 +231,11 @@ class MarkCompactCollector: public AllStatic {
   static const uint32_t kSingleFreeEncoding = 0;
   static const uint32_t kMultiFreeEncoding = 1;
 
-#ifdef DEBUG
   static bool IsMarked(Object* obj) {
     ASSERT(obj->IsHeapObject());
     HeapObject* heap_object = HeapObject::cast(obj);
     return Marking::MarkBitFrom(heap_object).Get();
   }
-#endif
 
  private:
 #ifdef DEBUG
