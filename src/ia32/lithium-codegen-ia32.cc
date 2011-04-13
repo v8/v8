@@ -2707,25 +2707,16 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
 
+  Label below_half, done;
   // xmm_scratch = 0.5
   ExternalReference one_half = ExternalReference::address_of_one_half();
   __ movdbl(xmm_scratch, Operand::StaticVariable(one_half));
 
+  __ ucomisd(xmm_scratch, input_reg);
+  __ j(above, &below_half);
   // input = input + 0.5
   __ addsd(input_reg, xmm_scratch);
 
-  // We need to return -0 for the input range [-0.5, 0[, otherwise
-  // compute Math.floor(value + 0.5).
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    __ ucomisd(input_reg, xmm_scratch);
-    DeoptimizeIf(below_equal, instr->environment());
-  } else {
-    // If we don't need to bailout on -0, we check only bailout
-    // on negative inputs.
-    __ xorpd(xmm_scratch, xmm_scratch);  // Zero the register.
-    __ ucomisd(input_reg, xmm_scratch);
-    DeoptimizeIf(below, instr->environment());
-  }
 
   // Compute Math.floor(value + 0.5).
   // Use truncating instruction (OK because input is positive).
@@ -2734,6 +2725,27 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   // Overflow is signalled with minint.
   __ cmp(output_reg, 0x80000000u);
   DeoptimizeIf(equal, instr->environment());
+  __ jmp(&done);
+
+  __ bind(&below_half);
+
+  // We return 0 for the input range [+0, 0.5[, or [-0.5, 0.5[ if
+  // we can ignore the difference between a result of -0 and +0.
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    // If the sign is positive, we return +0.
+    __ movmskpd(output_reg, input_reg);
+    __ test(output_reg, Immediate(1));
+    DeoptimizeIf(not_zero, instr->environment());
+  } else {
+    // If the input is >= -0.5, we return +0.
+    __ mov(output_reg, Immediate(0xBF000000));
+    __ movd(xmm_scratch, Operand(output_reg));
+    __ cvtss2sd(xmm_scratch, xmm_scratch);
+    __ ucomisd(input_reg, xmm_scratch);
+    DeoptimizeIf(below, instr->environment());
+  }
+  __ Set(output_reg, Immediate(0));
+  __ bind(&done);
 }
 
 
