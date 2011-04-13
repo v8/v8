@@ -52,9 +52,11 @@ static inline bool IsPowerOf2(T x) {
 
 
 // X must be a power of 2.  Returns the number of trailing zeros.
-static inline int WhichPowerOf2(uint32_t x) {
+template <typename T>
+static inline int WhichPowerOf2(T x) {
   ASSERT(IsPowerOf2(x));
   ASSERT(x != 0);
+  if (x < 0) return 31;
   int bits = 0;
 #ifdef DEBUG
   int original_x = x;
