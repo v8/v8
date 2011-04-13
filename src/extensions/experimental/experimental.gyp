@@ -41,6 +41,8 @@
         'break-iterator.h',
         'i18n-extension.cc',
         'i18n-extension.h',
+	'i18n-locale.cc',
+	'i18n-locale.h',
 	'<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
       ],
       'include_dirs': [
