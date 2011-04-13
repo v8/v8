@@ -62,7 +62,7 @@ debug-liveedit-patch-positions-replace: SKIP
 [ $arch == arm ]
 
 # Code is bugged. Remove this when fixed.
-math-round: FAIL
+math-round: PASS || FAIL
 
 # Slow tests which times out in debug mode.
 try: PASS, SKIP if $mode == debug
