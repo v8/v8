@@ -728,9 +728,13 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
     intptr_t old_gen_size = PromotedSpaceSize();
     old_gen_promotion_limit_ =
-        old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
+        old_gen_size +
+        Max(kMinimumPromotionLimit, old_gen_size / 3) +
+        new_space()->Capacity();
     old_gen_allocation_limit_ =
-        old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
+        old_gen_size +
+        Max(kMinimumAllocationLimit, old_gen_size / 2) +
+        new_space()->Capacity();
 
     if (high_survival_rate_during_scavenges &&
         IsStableOrIncreasingSurvivalTrend()) {
