@@ -853,6 +853,11 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     // We require a fully initialized and entered isolate.
     return;
   }
+  if (v8::Locker::IsActive() &&
+      !isolate->thread_manager()->IsLockedByCurrentThread()) {
+    return;
+  }
+
   Sampler* sampler = isolate->logger()->sampler();
   if (sampler == NULL || !sampler->IsActive()) return;
 
