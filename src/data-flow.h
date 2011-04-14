@@ -335,44 +335,6 @@ class WorkList BASE_EMBEDDED {
   List<T*> queue_;
 };
 
-
-// Computes the set of assigned variables and annotates variables proxies
-// that are trivial sub-expressions and for-loops where the loop variable
-// is guaranteed to be a smi.
-class AssignedVariablesAnalyzer : public AstVisitor {
- public:
-  static bool Analyze(CompilationInfo* info);
-
- private:
-  AssignedVariablesAnalyzer(CompilationInfo* info, int bits);
-  bool Analyze();
-
-  Variable* FindSmiLoopVariable(ForStatement* stmt);
-
-  int BitIndex(Variable* var);
-
-  void RecordAssignedVar(Variable* var);
-
-  void MarkIfTrivial(Expression* expr);
-
-  // Visits an expression saving the accumulator before, clearing
-  // it before visting and restoring it after visiting.
-  void ProcessExpression(Expression* expr);
-
-  // AST node visit functions.
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
-  AST_NODE_LIST(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
-  CompilationInfo* info_;
-
-  // Accumulator for assigned variables set.
-  BitVector av_;
-
-  DISALLOW_COPY_AND_ASSIGN(AssignedVariablesAnalyzer);
-};
-
-
 } }  // namespace v8::internal
 
 
