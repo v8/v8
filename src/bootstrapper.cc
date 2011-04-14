@@ -353,7 +353,9 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
 Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
     PrototypePropertyMode prototypeMode) {
   Handle<DescriptorArray> descriptors =
-      factory()->NewDescriptorArray(prototypeMode == DONT_ADD_PROTOTYPE ? 4 : 5);
+      factory()->NewDescriptorArray(prototypeMode == DONT_ADD_PROTOTYPE
+                                    ? 4
+                                    : 5);
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
@@ -498,7 +500,9 @@ Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
     Handle<FixedArray> arguments,
     Handle<FixedArray> caller) {
   Handle<DescriptorArray> descriptors =
-      factory()->NewDescriptorArray(prototypeMode == DONT_ADD_PROTOTYPE ? 4 : 5);
+      factory()->NewDescriptorArray(prototypeMode == DONT_ADD_PROTOTYPE
+                                    ? 4
+                                    : 5);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(
       DONT_ENUM | DONT_DELETE | READ_ONLY);
 
@@ -1245,10 +1249,11 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
 }
 
 
-#define INSTALL_NATIVE(Type, name, var)                                        \
-  Handle<String> var##_name = factory()->LookupAsciiSymbol(name);                \
-  Object* var##_native =                                                       \
-      global_context()->builtins()->GetPropertyNoExceptionThrown(*var##_name); \
+#define INSTALL_NATIVE(Type, name, var)                                       \
+  Handle<String> var##_name = factory()->LookupAsciiSymbol(name);             \
+  Object* var##_native =                                                      \
+      global_context()->builtins()->GetPropertyNoExceptionThrown(             \
+           *var##_name);                                                      \
   global_context()->set_##var(Type::cast(var##_native));
 
 
@@ -1311,7 +1316,7 @@ bool Genesis::InstallNatives() {
 
   // Create a bridge function that has context in the global context.
   Handle<JSFunction> bridge =
-      factory()->NewFunction(factory()->empty_symbol(), 
+      factory()->NewFunction(factory()->empty_symbol(),
                              factory()->undefined_value());
   ASSERT(bridge->context() == *isolate()->global_context());
 
