@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,6 +28,7 @@
 #include "i18n-extension.h"
 
 #include "break-iterator.h"
+#include "collator.h"
 #include "i18n-locale.h"
 #include "natives.h"
 
@@ -70,6 +71,8 @@ v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
     return v8::FunctionTemplate::New(I18NLocale::JSDisplayName);
   } else if (name->Equals(v8::String::New("NativeJSBreakIterator"))) {
     return v8::FunctionTemplate::New(BreakIterator::JSBreakIterator);
+  } else if (name->Equals(v8::String::New("NativeJSCollator"))) {
+    return v8::FunctionTemplate::New(Collator::JSCollator);
   }
 
   return v8::Handle<v8::FunctionTemplate>();

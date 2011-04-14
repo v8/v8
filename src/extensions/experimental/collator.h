@@ -25,30 +25,45 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
-#define V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
+#ifndef V8_EXTENSIONS_EXPERIMENTAL_COLLATOR_H
+#define V8_EXTENSIONS_EXPERIMENTAL_COLLATOR_H_
 
 #include <v8.h>
+
+#include "unicode/uversion.h"
+
+namespace U_ICU_NAMESPACE {
+class Collator;
+class UnicodeString;
+}
 
 namespace v8 {
 namespace internal {
 
-
-class I18NExtension : public v8::Extension {
+class Collator {
  public:
-  I18NExtension();
+  static v8::Handle<v8::Value> JSCollator(const v8::Arguments& args);
 
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
-      v8::Handle<v8::String> name);
+  // Helper methods for various bindings.
 
-  // V8 code prefers Register, while Chrome and WebKit use get kind of methods.
-  static void Register();
-  static I18NExtension* get();
+  // Unpacks collator object from corresponding JavaScript object.
+  static icu::Collator* UnpackCollator(v8::Handle<v8::Object> obj);
+
+  // Release memory we allocated for the Collator once the JS object that
+  // holds the pointer gets garbage collected.
+  static void DeleteCollator(v8::Persistent<v8::Value> object, void* param);
+
+  // Compare two strings and returns -1, 0 and 1 depending on
+  // whether string1 is smaller than, equal to or larger than string2.
+  static v8::Handle<v8::Value> CollatorCompare(const v8::Arguments& args);
 
  private:
-  static I18NExtension* extension_;
+  Collator() {}
+
+  static v8::Persistent<v8::FunctionTemplate> collator_template_;
 };
 
 } }  // namespace v8::internal
 
-#endif  // V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
+#endif  // V8_EXTENSIONS_EXPERIMENTAL_COLLATOR
+

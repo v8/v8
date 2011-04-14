@@ -39,11 +39,13 @@
       'sources': [
         'break-iterator.cc',
         'break-iterator.h',
+        'collator.cc',
+        'collator.h',
         'i18n-extension.cc',
         'i18n-extension.h',
-	'i18n-locale.cc',
-	'i18n-locale.h',
-	'<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
+        'i18n-locale.cc',
+        'i18n-locale.h',
+        '<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
       ],
       'include_dirs': [
         '<(icu_src_dir)/public/common',
@@ -51,7 +53,7 @@
       ],
       'dependencies': [
         '<(icu_src_dir)/icu.gyp:*',
-	'js2c_i18n#host',
+        'js2c_i18n#host',
         '../../../tools/gyp/v8.gyp:v8',
       ],
     },
@@ -61,28 +63,28 @@
       'toolsets': ['host'],
       'variables': {
         'library_files': [
-	  'i18n.js'
-	],
+          'i18n.js'
+        ],
       },
       'actions': [
         {
-	  'action_name': 'js2c_i18n',
-	  'inputs': [
-	    '../../../tools/js2c.py',
-	    '<@(library_files)',
-	  ],
-	  'outputs': [
-	    '<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
-	    '<(SHARED_INTERMEDIATE_DIR)/i18n-js-empty.cc'
-	  ],
-	  'action': [
-	    'python',
-	    '../../../tools/js2c.py',
-	    '<@(_outputs)',
-	    'I18N',
-	    '<@(library_files)'
-	  ],
-	},
+          'action_name': 'js2c_i18n',
+          'inputs': [
+            '../../../tools/js2c.py',
+            '<@(library_files)',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
+            '<(SHARED_INTERMEDIATE_DIR)/i18n-js-empty.cc'
+          ],
+          'action': [
+            'python',
+            '../../../tools/js2c.py',
+            '<@(_outputs)',
+            'I18N',
+            '<@(library_files)'
+          ],
+        },
       ],
     },
   ],  # targets

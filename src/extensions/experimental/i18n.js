@@ -101,3 +101,16 @@ v8Locale.v8BreakIterator.BreakType = {
 v8Locale.prototype.v8CreateBreakIterator = function(type) {
   return new v8Locale.v8BreakIterator(this.locale, type);
 };
+
+// TODO(jungshik): Set |collator.options| to actually recognized / resolved
+// values.
+v8Locale.Collator = function(locale, options) {
+  native function NativeJSCollator();
+  var collator = NativeJSCollator(locale,
+      options === undefined ? {} : options);
+  return collator;
+};
+
+v8Locale.prototype.createCollator = function(options) {
+  return new v8Locale.Collator(this.locale, options);
+};
