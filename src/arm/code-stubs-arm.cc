@@ -3678,7 +3678,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ b(ne, &slow);
 
   // Null is not instance of anything.
-  __ cmp(scratch, Operand(FACTORY->null_value()));
+  __ cmp(scratch, Operand(masm->isolate()->factory()->null_value()));
   __ b(ne, &object_not_null);
   __ mov(r0, Operand(Smi::FromInt(1)));
   __ Ret(HasArgsInRegisters() ? 0 : 2);
@@ -4176,7 +4176,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   __ bind(&failure);
   // For failure and exception return null.
-  __ mov(r0, Operand(FACTORY->null_value()));
+  __ mov(r0, Operand(masm->isolate()->factory()->null_value()));
   __ add(sp, sp, Operand(4 * kPointerSize));
   __ Ret();
 
@@ -4247,6 +4247,8 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   const int kMaxInlineLength = 100;
   Label slowcase;
   Label done;
+  Factory* factory = masm->isolate()->factory();
+
   __ ldr(r1, MemOperand(sp, kPointerSize * 2));
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -4281,7 +4283,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // Interleave operations for better latency.
   __ ldr(r2, ContextOperand(cp, Context::GLOBAL_INDEX));
   __ add(r3, r0, Operand(JSRegExpResult::kSize));
-  __ mov(r4, Operand(FACTORY->empty_fixed_array()));
+  __ mov(r4, Operand(factory->empty_fixed_array()));
   __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalContextOffset));
   __ str(r3, FieldMemOperand(r0, JSObject::kElementsOffset));
   __ ldr(r2, ContextOperand(r2, Context::REGEXP_RESULT_MAP_INDEX));
@@ -4302,13 +4304,13 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // r5: Number of elements in array, untagged.
 
   // Set map.
-  __ mov(r2, Operand(FACTORY->fixed_array_map()));
+  __ mov(r2, Operand(factory->fixed_array_map()));
   __ str(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
   // Set FixedArray length.
   __ mov(r6, Operand(r5, LSL, kSmiTagSize));
   __ str(r6, FieldMemOperand(r3, FixedArray::kLengthOffset));
   // Fill contents of fixed-array with the-hole.
-  __ mov(r2, Operand(FACTORY->the_hole_value()));
+  __ mov(r2, Operand(factory->the_hole_value()));
   __ add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   // Fill fixed array elements with hole.
   // r0: JSArray, tagged.

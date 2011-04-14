@@ -2330,9 +2330,10 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   // Heap::GetNumberStringCache.
   Label is_smi;
   Label load_result_from_cache;
+  Factory* factory = masm->isolate()->factory();
   if (!object_is_smi) {
     __ JumpIfSmi(object, &is_smi);
-    __ CheckMap(object, FACTORY->heap_number_map(), not_found, true);
+    __ CheckMap(object, factory->heap_number_map(), not_found, true);
 
     STATIC_ASSERT(8 == kDoubleSize);
     __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
@@ -2419,6 +2420,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
 
   Label check_unequal_objects, done;
+  Factory* factory = masm->isolate()->factory();
 
   // Compare two smis if required.
   if (include_smi_compare_) {
@@ -2466,7 +2468,6 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // Note: if cc_ != equal, never_nan_nan_ is not used.
     // We cannot set rax to EQUAL until just before return because
     // rax must be unchanged on jump to not_identical.
-
     if (never_nan_nan_ && (cc_ == equal)) {
       __ Set(rax, EQUAL);
       __ ret(0);
@@ -2474,7 +2475,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       NearLabel heap_number;
       // If it's not a heap number, then return equal for (in)equality operator.
       __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
-             FACTORY->heap_number_map());
+             factory->heap_number_map());
       __ j(equal, &heap_number);
       if (cc_ != equal) {
         // Call runtime on identical JSObjects.  Otherwise return equal.
@@ -2519,7 +2520,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
         // Check if the non-smi operand is a heap number.
         __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
-               FACTORY->heap_number_map());
+               factory->heap_number_map());
         // If heap number, handle it in the slow case.
         __ j(equal, &slow);
         // Return non-equal.  ebx (the lower half of rbx) is not zero.
@@ -3450,10 +3451,11 @@ void StringCharCodeAtGenerator::GenerateSlow(
     MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
   __ Abort("Unexpected fallthrough to CharCodeAt slow case");
 
+  Factory* factory = masm->isolate()->factory();
   // Index is not a smi.
   __ bind(&index_not_smi_);
   // If index is a heap number, try converting it to an integer.
-  __ CheckMap(index_, FACTORY->heap_number_map(), index_not_number_, true);
+  __ CheckMap(index_, factory->heap_number_map(), index_not_number_, true);
   call_helper.BeforeCall(masm);
   __ push(object_);
   __ push(index_);

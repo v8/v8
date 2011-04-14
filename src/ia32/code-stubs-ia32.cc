@@ -1120,23 +1120,25 @@ void TypeRecordingBinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
     GenerateAddStrings(masm);
   }
 
+  Factory* factory = masm->isolate()->factory();
+
   // Convert odd ball arguments to numbers.
   NearLabel check, done;
-  __ cmp(edx, FACTORY->undefined_value());
+  __ cmp(edx, factory->undefined_value());
   __ j(not_equal, &check);
   if (Token::IsBitOp(op_)) {
     __ xor_(edx, Operand(edx));
   } else {
-    __ mov(edx, Immediate(FACTORY->nan_value()));
+    __ mov(edx, Immediate(factory->nan_value()));
   }
   __ jmp(&done);
   __ bind(&check);
-  __ cmp(eax, FACTORY->undefined_value());
+  __ cmp(eax, factory->undefined_value());
   __ j(not_equal, &done);
   if (Token::IsBitOp(op_)) {
     __ xor_(eax, Operand(eax));
   } else {
-    __ mov(eax, Immediate(FACTORY->nan_value()));
+    __ mov(eax, Immediate(factory->nan_value()));
   }
   __ bind(&done);
 
