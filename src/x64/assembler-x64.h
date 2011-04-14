@@ -1336,6 +1336,15 @@ class Assembler : public AssemblerBase {
   void ucomisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, const Operand& src);
 
+  enum RoundingMode {
+    kRoundToNearest = 0x0,
+    kRoundDown      = 0x1,
+    kRoundUp        = 0x2,
+    kRoundToZero    = 0x3
+  };
+
+  void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+
   void movmskpd(Register dst, XMMRegister src);
 
   // The first argument is the reg field, the second argument is the r/m field.

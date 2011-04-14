@@ -32,6 +32,8 @@ function testRound(expect, input) {
     return Math.round(input);
   }
   assertEquals(expect, doRound(input));
+  assertEquals(expect, doRound(input));
+  assertEquals(expect, doRound(input));
   %OptimizeFunctionOnNextCall(doRound);
   assertEquals(expect, doRound(input));
 }

@@ -2698,21 +2698,36 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
-  __ xorpd(xmm_scratch, xmm_scratch);  // Zero the register.
-  __ ucomisd(input_reg, xmm_scratch);
 
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    DeoptimizeIf(below_equal, instr->environment());
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatures::Scope scope(SSE4_1);
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      // Deoptimize if minus zero.
+      __ movq(output_reg, input_reg);
+      __ subq(output_reg, Immediate(1));
+      DeoptimizeIf(overflow, instr->environment());
+    }
+    __ roundsd(xmm_scratch, input_reg, Assembler::kRoundDown);
+    __ cvttsd2si(output_reg, xmm_scratch);
+    __ cmpl(output_reg, Immediate(0x80000000));
+    DeoptimizeIf(equal, instr->environment());
   } else {
-    DeoptimizeIf(below, instr->environment());
+    __ xorpd(xmm_scratch, xmm_scratch);  // Zero the register.
+    __ ucomisd(input_reg, xmm_scratch);
+
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      DeoptimizeIf(below_equal, instr->environment());
+    } else {
+      DeoptimizeIf(below, instr->environment());
+    }
+
+    // Use truncating instruction (OK because input is positive).
+    __ cvttsd2si(output_reg, input_reg);
+
+    // Overflow is signalled with minint.
+    __ cmpl(output_reg, Immediate(0x80000000));
+    DeoptimizeIf(equal, instr->environment());
   }
-
-  // Use truncating instruction (OK because input is positive).
-  __ cvttsd2si(output_reg, input_reg);
-
-  // Overflow is signalled with minint.
-  __ cmpl(output_reg, Immediate(0x80000000));
-  DeoptimizeIf(equal, instr->environment());
 }
 
 

@@ -1021,6 +1021,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += PrintRightOperand(current);
         AppendToBuffer(", %s, %d", NameOfCPURegister(regop), (*current) & 3);
         current += 1;
+      } else if (third_byte == 0x0b) {
+        get_modrm(*current, &mod, &regop, &rm);
+         // roundsd xmm, xmm/m64, imm8
+        AppendToBuffer("roundsd %s, ", NameOfCPURegister(regop));
+        current += PrintRightOperand(current);
+        AppendToBuffer(", %d", (*current) & 3);
+        current += 1;
       } else {
         UnimplementedInstruction();
       }

@@ -31,15 +31,24 @@ function MjsUnitAssertionError(message) {
   this.stack = new Error("").stack;
 }
 
-MjsUnitAssertionError.prototype.toString = function () {
-  return this.message;
-}
-
 /*
  * This file is included in all mini jsunit test cases.  The test
  * framework expects lines that signal failed tests to start with
  * the f-word and ignore all other lines.
  */
+
+
+MjsUnitAssertionError.prototype.toString = function () {
+  return this.message;
+};
+
+
+function classOf(object) {
+  var string = Object.prototype.toString.call(object);
+  // String has format [object <ClassName>].
+  return string.substring(8, string.length - 1);
+}
+
 
 function MjsUnitToString(value) {
   switch (typeof value) {
@@ -47,21 +56,20 @@ function MjsUnitToString(value) {
       return JSON.stringify(value);
     case "number":
       if (value === 0 && (1 / value) < 0) return "-0";
+      // FALLTHROUGH.
     case "boolean":
-    case "null":
     case "undefined":
     case "function":
       return String(value);
     case "object":
       if (value === null) return "null";
-      var clazz = Object.prototype.toString.call(value);
-      clazz = clazz.substring(8, clazz.length - 1);
-      switch (clazz) {
+      var objectClass = classOf(value);
+      switch (objectClass) {
         case "Number":
         case "String":
         case "Boolean":
         case "Date":
-          return clazz + "(" + MjsUnitToString(value.valueOf()) + ")";
+          return objectClass + "(" + MjsUnitToString(value.valueOf()) + ")";
         case "RegExp":
           return value.toString();
         case "Array":
@@ -69,7 +77,7 @@ function MjsUnitToString(value) {
         case "Object":
           break;
         default:
-          return clazz + "()";
+          return objectClass + "()";
       }
       // [[Class]] is "Object".
       var constructor = value.constructor.name;
@@ -102,11 +110,13 @@ function fail(expected, found, name_opt) {
 
 function deepObjectEquals(a, b) {
   var aProps = [];
-  for (var key in a)
+  for (var key in a) {
     aProps.push(key);
+  }
   var bProps = [];
-  for (var key in b)
+  for (key in b) {
     bProps.push(key);
+  }
   aProps.sort();
   bProps.sort();
   if (!deepEquals(aProps, bProps))
@@ -129,14 +139,16 @@ function deepEquals(a, b) {
     return true;
   }
   if (a == null || b == null) return false;
-  if (a.constructor === RegExp || b.constructor === RegExp) {
-    return (a.constructor === b.constructor) && (a.toString() === b.toString());
+  var aClass = classOf(a);
+  var bClass = classOf(b);
+  if (aClass === "RegExp" || bClass === "RegExp") {
+    return (aClass === bClass) && (a.toString() === b.toString());
   }
   if ((typeof a) !== 'object' || (typeof b) !== 'object' ||
       (a === null) || (b === null))
     return false;
-  if (a.constructor === Array) {
-    if (b.constructor !== Array)
+  if (aClass === "Array") {
+    if (bClass !== "Array")
       return false;
     if (a.length != b.length)
       return false;
@@ -149,6 +161,8 @@ function deepEquals(a, b) {
       }
     }
     return true;
+  } else if (bClass == "Array") {
+    return false;
   } else {
     return deepObjectEquals(a, b);
   }

@@ -2863,6 +2863,21 @@ void Assembler::ucomisd(XMMRegister dst, const Operand& src) {
 }
 
 
+void Assembler::roundsd(XMMRegister dst, XMMRegister src,
+                        Assembler::RoundingMode mode) {
+  ASSERT(CpuFeatures::IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0f);
+  emit(0x3a);
+  emit(0x0b);
+  emit_sse_operand(dst, src);
+  // Mask precision exeption.
+  emit(static_cast<byte>(mode) | 0x8);
+}
+
+
 void Assembler::movmskpd(Register dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0x66);
