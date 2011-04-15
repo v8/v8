@@ -185,6 +185,10 @@ class ThreadId {
 
 class ThreadLocalTop BASE_EMBEDDED {
  public:
+  // Does early low-level initialization that does not depend on the
+  // isolate being present.
+  ThreadLocalTop();
+
   // Initialize the thread data.
   void Initialize();
 
@@ -264,6 +268,8 @@ class ThreadLocalTop BASE_EMBEDDED {
   v8::FailedAccessCheckCallback failed_access_check_callback_;
 
  private:
+  void InitializeInternal();
+
   Address try_catch_handler_address_;
 };
 
