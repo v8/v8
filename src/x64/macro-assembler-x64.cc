@@ -1248,12 +1248,17 @@ void MacroAssembler::SmiAdd(Register dst,
                             Register src2) {
   // No overflow checking. Use only when it's known that
   // overflowing is impossible.
-  ASSERT(!dst.is(src2));
   if (!dst.is(src1)) {
-    movq(dst, src1);
+    if (emit_debug_code()) {
+      movq(kScratchRegister, src1);
+      addq(kScratchRegister, src2);
+      Check(no_overflow, "Smi addition overflow");
+    }
+    lea(dst, Operand(src1, src2, times_1, 0));
+  } else {
+    addq(dst, src2);
+    Assert(no_overflow, "Smi addition overflow");
   }
-  addq(dst, src2);
-  Assert(no_overflow, "Smi addition overflow");
 }
 
 

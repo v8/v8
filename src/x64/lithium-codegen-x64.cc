@@ -1111,7 +1111,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   // Use xor to produce +0.0 in a fast and compact way, but avoid to
   // do so if the constant is -0.0.
   if (int_val == 0) {
-    __ xorpd(res, res);
+    __ xorps(res, res);
   } else {
     Register tmp = ToRegister(instr->TempAt(0));
     __ Set(tmp, int_val);
@@ -1223,12 +1223,12 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       break;
     case Token::MOD:
       __ PrepareCallCFunction(2);
-      __ movsd(xmm0, left);
+      __ movaps(xmm0, left);
       ASSERT(right.is(xmm1));
       __ CallCFunction(
           ExternalReference::double_fp_operation(Token::MOD, isolate()), 2);
       __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-      __ movsd(result, xmm0);
+      __ movaps(result, xmm0);
       break;
     default:
       UNREACHABLE();
@@ -1287,7 +1287,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
     EmitBranch(true_block, false_block, not_zero);
   } else if (r.IsDouble()) {
     XMMRegister reg = ToDoubleRegister(instr->InputAt(0));
-    __ xorpd(xmm0, xmm0);
+    __ xorps(xmm0, xmm0);
     __ ucomisd(reg, xmm0);
     EmitBranch(true_block, false_block, not_equal);
   } else {
@@ -1322,7 +1322,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
       // HeapNumber => false iff +0, -0, or NaN. These three cases set the
       // zero flag when compared to zero using ucomisd.
-      __ xorpd(xmm0, xmm0);
+      __ xorps(xmm0, xmm0);
       __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
       __ j(zero, false_label);
       __ jmp(true_label);
@@ -2671,7 +2671,7 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
   if (r.IsDouble()) {
     XMMRegister scratch = xmm0;
     XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
-    __ xorpd(scratch, scratch);
+    __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
     __ andpd(input_reg, scratch);
   } else if (r.IsInteger32()) {
@@ -2708,7 +2708,7 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
     __ cmpl(output_reg, Immediate(0x80000000));
     DeoptimizeIf(equal, instr->environment());
   } else {
-    __ xorpd(xmm_scratch, xmm_scratch);  // Zero the register.
+    __ xorps(xmm_scratch, xmm_scratch);  // Zero the register.
     __ ucomisd(input_reg, xmm_scratch);
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
@@ -2784,7 +2784,7 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
   XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
   ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
-  __ xorpd(xmm_scratch, xmm_scratch);
+  __ xorps(xmm_scratch, xmm_scratch);
   __ addsd(input_reg, xmm_scratch);  // Convert -0 to +0.
   __ sqrtsd(input_reg, input_reg);
 }
@@ -2800,7 +2800,7 @@ void LCodeGen::DoPower(LPower* instr) {
   if (exponent_type.IsDouble()) {
     __ PrepareCallCFunction(2);
     // Move arguments to correct registers
-    __ movsd(xmm0, left_reg);
+    __ movaps(xmm0, left_reg);
     ASSERT(ToDoubleRegister(right).is(xmm1));
     __ CallCFunction(
         ExternalReference::power_double_double_function(isolate()), 2);
@@ -2808,7 +2808,7 @@ void LCodeGen::DoPower(LPower* instr) {
     __ PrepareCallCFunction(2);
     // Move arguments to correct registers: xmm0 and edi (not rdi).
     // On Windows, the registers are xmm0 and edx.
-    __ movsd(xmm0, left_reg);
+    __ movaps(xmm0, left_reg);
 #ifdef _WIN64
     ASSERT(ToRegister(right).is(rdx));
 #else
@@ -2834,13 +2834,13 @@ void LCodeGen::DoPower(LPower* instr) {
     __ bind(&call);
     __ PrepareCallCFunction(2);
     // Move arguments to correct registers xmm0 and xmm1.
-    __ movsd(xmm0, left_reg);
+    __ movaps(xmm0, left_reg);
     // Right argument is already in xmm1.
     __ CallCFunction(
         ExternalReference::power_double_double_function(isolate()), 2);
   }
   // Return value is in xmm0.
-  __ movsd(result_reg, xmm0);
+  __ movaps(result_reg, xmm0);
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
@@ -3422,7 +3422,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   DeoptimizeIf(not_equal, env);
 
   // Convert undefined to NaN. Compute NaN as 0/0.
-  __ xorpd(result_reg, result_reg);
+  __ xorps(result_reg, result_reg);
   __ divsd(result_reg, result_reg);
   __ jmp(&done);
 

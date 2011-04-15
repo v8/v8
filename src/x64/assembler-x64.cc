@@ -2540,6 +2540,24 @@ void Assembler::movq(Register dst, XMMRegister src) {
 }
 
 
+void Assembler::movq(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  if (dst.low_bits() == 4) {
+    // Avoid unnecessary SIB byte.
+    emit(0xf3);
+    emit_optional_rex_32(dst, src);
+    emit(0x0F);
+    emit(0x7e);
+    emit_sse_operand(dst, src);
+  } else {
+    emit(0x66);
+    emit_optional_rex_32(src, dst);
+    emit(0x0F);
+    emit(0xD6);
+    emit_sse_operand(src, dst);
+  }
+}
+
 void Assembler::movdqa(const Operand& dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0x66);
@@ -2600,6 +2618,42 @@ void Assembler::movsd(XMMRegister dst, const Operand& src) {
   emit(0x0F);
   emit(0x10);  // load
   emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movaps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  if (src.low_bits() == 4) {
+    // Try to avoid an unnecessary SIB byte.
+    emit_optional_rex_32(src, dst);
+    emit(0x0F);
+    emit(0x29);
+    emit_sse_operand(src, dst);
+  } else {
+    emit_optional_rex_32(dst, src);
+    emit(0x0F);
+    emit(0x28);
+    emit_sse_operand(dst, src);
+  }
+}
+
+
+void Assembler::movapd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  if (src.low_bits() == 4) {
+    // Try to avoid an unnecessary SIB byte.
+    emit(0x66);
+    emit_optional_rex_32(src, dst);
+    emit(0x0F);
+    emit(0x29);
+    emit_sse_operand(src, dst);
+  } else {
+    emit(0x66);
+    emit_optional_rex_32(dst, src);
+    emit(0x0F);
+    emit(0x28);
+    emit_sse_operand(dst, src);
+  }
 }
 
 
@@ -2826,6 +2880,15 @@ void Assembler::orpd(XMMRegister dst, XMMRegister src) {
 void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x57);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::xorps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0x57);

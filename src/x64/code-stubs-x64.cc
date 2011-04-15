@@ -266,7 +266,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &true_result);
   // HeapNumber => false iff +0, -0, or NaN.
   // These three cases set the zero flag when compared to zero using ucomisd.
-  __ xorpd(xmm0, xmm0);
+  __ xorps(xmm0, xmm0);
   __ ucomisd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
   __ j(zero, &false_result);
   // Fall through to |true_result|.
@@ -1602,7 +1602,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ bind(&no_neg);
 
   // Load xmm1 with 1.
-  __ movsd(xmm1, xmm3);
+  __ movaps(xmm1, xmm3);
   NearLabel while_true;
   NearLabel no_multiply;
 
@@ -1620,8 +1620,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ j(positive, &allocate_return);
   // Special case if xmm1 has reached infinity.
   __ divsd(xmm3, xmm1);
-  __ movsd(xmm1, xmm3);
-  __ xorpd(xmm0, xmm0);
+  __ movaps(xmm1, xmm3);
+  __ xorps(xmm0, xmm0);
   __ ucomisd(xmm0, xmm1);
   __ j(equal, &call_runtime);
 
@@ -1669,11 +1669,11 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // Calculates reciprocal of square root.
   // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
-  __ xorpd(xmm1, xmm1);
+  __ xorps(xmm1, xmm1);
   __ addsd(xmm1, xmm0);
   __ sqrtsd(xmm1, xmm1);
   __ divsd(xmm3, xmm1);
-  __ movsd(xmm1, xmm3);
+  __ movaps(xmm1, xmm3);
   __ jmp(&allocate_return);
 
   // Test for 0.5.
@@ -1686,8 +1686,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &call_runtime);
   // Calculates square root.
   // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
-  __ xorpd(xmm1, xmm1);
-  __ addsd(xmm1, xmm0);
+  __ xorps(xmm1, xmm1);
+  __ addsd(xmm1, xmm0);  // Convert -0 to 0.
   __ sqrtsd(xmm1, xmm1);
 
   __ bind(&allocate_return);

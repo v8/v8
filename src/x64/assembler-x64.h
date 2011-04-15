@@ -1291,14 +1291,23 @@ class Assembler : public AssemblerBase {
   void movd(Register dst, XMMRegister src);
   void movq(XMMRegister dst, Register src);
   void movq(Register dst, XMMRegister src);
+  void movq(XMMRegister dst, XMMRegister src);
   void extractps(Register dst, XMMRegister src, byte imm8);
 
-  void movsd(const Operand& dst, XMMRegister src);
+  // Don't use this unless it's important to keep the
+  // top half of the destination register unchanged.
+  // Used movaps when moving double values and movq for integer
+  // values in xmm registers.
   void movsd(XMMRegister dst, XMMRegister src);
+
+  void movsd(const Operand& dst, XMMRegister src);
   void movsd(XMMRegister dst, const Operand& src);
 
   void movdqa(const Operand& dst, XMMRegister src);
   void movdqa(XMMRegister dst, const Operand& src);
+
+  void movapd(XMMRegister dst, XMMRegister src);
+  void movaps(XMMRegister dst, XMMRegister src);
 
   void movss(XMMRegister dst, const Operand& src);
   void movss(const Operand& dst, XMMRegister src);
@@ -1331,6 +1340,7 @@ class Assembler : public AssemblerBase {
   void andpd(XMMRegister dst, XMMRegister src);
   void orpd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
+  void xorps(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
   void ucomisd(XMMRegister dst, XMMRegister src);
