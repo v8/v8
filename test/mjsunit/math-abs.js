@@ -35,13 +35,13 @@ function zero() {
 function test() {
   assertEquals(0, Math.abs(0));
   assertEquals(0, Math.abs(zero()));
-  assertEquals(1/0, 1/Math.abs(-0));  // 0 == -0, so we use reciprocals.
+  assertEquals(0, Math.abs(-0));
   assertEquals(Infinity, Math.abs(Infinity));
   assertEquals(Infinity, Math.abs(-Infinity));
-  assertNaN(Math.abs(NaN));
-  assertNaN(Math.abs(-NaN));
-  assertEquals('Infinity', Math.abs(Number('+Infinity').toString()));
-  assertEquals('Infinity', Math.abs(Number('-Infinity').toString()));
+  assertEquals(NaN, Math.abs(NaN));
+  assertEquals(NaN, Math.abs(-NaN));
+  assertEquals('Infinity', Math.abs(Number('+Infinity')).toString());
+  assertEquals('Infinity', Math.abs(Number('-Infinity')).toString());
   assertEquals('NaN', Math.abs(NaN).toString());
   assertEquals('NaN', Math.abs(-NaN).toString());
 
@@ -85,8 +85,8 @@ function test() {
   assertEquals(two_31 - 1, Math.abs(two_31 - 1));
   assertEquals(two_31 - 1, Math.abs(-two_31 + 1));
 
-  assertNaN(Math.abs("not a number"));
-  assertNaN(Math.abs([1, 2, 3]));
+  assertEquals(NaN, Math.abs("not a number"));
+  assertEquals(NaN, Math.abs([1, 2, 3]));
   assertEquals(42, Math.abs({valueOf: function() { return 42; } }));
   assertEquals(42, Math.abs({valueOf: function() { return -42; } }));
 }
