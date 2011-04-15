@@ -1990,14 +1990,13 @@ class HConstant: public HTemplateInstruction<0> {
 
  private:
   Handle<Object> handle_;
-  HType constant_type_;
 
   // The following two values represent the int32 and the double value of the
   // given constant if there is a lossless conversion between the constant
   // and the specific representation.
-  bool has_int32_value_;
+  bool has_int32_value_ : 1;
+  bool has_double_value_ : 1;
   int32_t int32_value_;
-  bool has_double_value_;
   double double_value_;
 };
 
