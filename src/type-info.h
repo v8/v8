@@ -36,18 +36,18 @@ namespace v8 {
 namespace internal {
 
 //         Unknown
-//           |   |
-//           |   \--------------|
-//      Primitive             Non-primitive
-//           |   \--------|     |
-//         Number      String   |
-//         /    |         |     |
-//    Double  Integer32   |    /
-//        |      |       /    /
-//        |     Smi     /    /
-//        |      |     /    /
-//        |      |    /    /
-//        Uninitialized.--/
+//           |   \____________
+//           |                |
+//      Primitive       Non-primitive
+//           |   \_______     |
+//           |           |    |
+//        Number       String |
+//         /   \         |    |
+//    Double  Integer32  |   /
+//        |      |      /   /
+//        |     Smi    /   /
+//        |      |    / __/
+//        Uninitialized.
 
 class TypeInfo {
  public:
@@ -263,21 +263,21 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   TypeInfo SwitchType(CaseClause* clause);
 
  private:
-  ZoneMapList* CollectReceiverTypes(int position,
+  ZoneMapList* CollectReceiverTypes(unsigned ast_id,
                                     Handle<String> name,
                                     Code::Flags flags);
 
-  void SetInfo(int position, Object* target);
+  void SetInfo(unsigned ast_id, Object* target);
 
   void PopulateMap(Handle<Code> code);
 
-  void CollectPositions(Code* code,
-                        List<int>* code_positions,
-                        List<int>* source_positions);
+  void CollectIds(Code* code,
+                  List<int>* code_positions,
+                  List<unsigned>* ast_ids);
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
-  Handle<Object> GetInfo(int pos);
+  Handle<Object> GetInfo(unsigned ast_id);
 
   Handle<Context> global_context_;
   Handle<NumberDictionary> dictionary_;

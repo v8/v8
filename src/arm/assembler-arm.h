@@ -1166,6 +1166,10 @@ class Assembler : public AssemblerBase {
   // Mark address of a debug break slot.
   void RecordDebugBreakSlot();
 
+  // Record the AST id of the CallIC being compiled, so that it can be placed
+  // in the relocation information.
+  void RecordAstId(unsigned ast_id) { ast_id_for_reloc_info_ = ast_id; }
+
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
@@ -1223,6 +1227,11 @@ class Assembler : public AssemblerBase {
   void CheckConstPool(bool force_emit, bool require_jump);
 
  protected:
+  // Relocation for a type-recording IC has the AST id added to it.  This
+  // member variable is a way to pass the information from the call site to
+  // the relocation info.
+  unsigned ast_id_for_reloc_info_;
+
   bool emit_debug_code() const { return emit_debug_code_; }
 
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
