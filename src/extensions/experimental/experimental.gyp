@@ -75,6 +75,7 @@
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
+            '<(SHARED_INTERMEDIATE_DIR)/i18n-empty-js.cc'
           ],
           'action': [
             'python',
