@@ -1397,7 +1397,7 @@ class LCallConstantFunction: public LTemplateInstruction<1, 0, 0> {
 
 class LInvokeFunction: public LTemplateInstruction<1, 1, 0> {
  public:
-  LInvokeFunction(LOperand* function) {
+  explicit LInvokeFunction(LOperand* function) {
     inputs_[0] = function;
   }
 
