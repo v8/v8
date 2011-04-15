@@ -91,7 +91,7 @@ bool LCodeGen::GenerateCode() {
 
 void LCodeGen::FinishCode(Handle<Code> code) {
   ASSERT(is_done());
-  code->set_stack_slots(StackSlotCount());
+  code->set_stack_slots(GetStackSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
   PopulateDeoptimizationData(code);
   Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(code);
@@ -149,7 +149,7 @@ bool LCodeGen::GeneratePrologue() {
   __ add(fp, sp, Operand(2 * kPointerSize));  // Adjust FP to point to saved FP.
 
   // Reserve space for the stack slots needed by the code.
-  int slots = StackSlotCount();
+  int slots = GetStackSlotCount();
   if (slots > 0) {
     if (FLAG_debug_code) {
       __ mov(r0, Operand(slots));
@@ -263,7 +263,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
 bool LCodeGen::GenerateSafepointTable() {
   ASSERT(is_done());
-  safepoints_.Emit(masm(), StackSlotCount());
+  safepoints_.Emit(masm(), GetStackSlotCount());
   return !is_aborted();
 }
 
@@ -459,7 +459,7 @@ void LCodeGen::AddToTranslation(Translation* translation,
     translation->StoreDoubleStackSlot(op->index());
   } else if (op->IsArgument()) {
     ASSERT(is_tagged);
-    int src_index = StackSlotCount() + op->index();
+    int src_index = GetStackSlotCount() + op->index();
     translation->StoreStackSlot(src_index);
   } else if (op->IsRegister()) {
     Register reg = ToRegister(op);
@@ -2180,7 +2180,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ push(r0);
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
-  int32_t sp_delta = (ParameterCount() + 1) * kPointerSize;
+  int32_t sp_delta = (GetParameterCount() + 1) * kPointerSize;
   __ mov(sp, fp);
   __ ldm(ia_w, sp, fp.bit() | lr.bit());
   __ add(sp, sp, Operand(sp_delta));
@@ -3022,6 +3022,21 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
       Abort("Unimplemented type of LUnaryMathOperation.");
       UNREACHABLE();
   }
+}
+
+
+void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
+  ASSERT(ToRegister(instr->function()).is(r1));
+  ASSERT(instr->HasPointerMap());
+  ASSERT(instr->HasDeoptimizationEnvironment());
+  LPointerMap* pointers = instr->pointer_map();
+  LEnvironment* env = instr->deoptimization_environment();
+  RecordPosition(pointers->position());
+  RegisterEnvironmentForDeoptimization(env);
+  SafepointGenerator generator(this, pointers, env->deoptimization_index());
+  ParameterCount count(instr->arity());
+  __ InvokeFunction(r1, count, CALL_FUNCTION, &generator);
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
 

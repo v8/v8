@@ -106,6 +106,7 @@ class LCodeGen;
   V(InstanceOfAndBranch)                        \
   V(InstanceOfKnownGlobal)                      \
   V(Integer32ToDouble)                          \
+  V(InvokeFunction)                             \
   V(IsNull)                                     \
   V(IsNullAndBranch)                            \
   V(IsObject)                                   \
@@ -1409,6 +1410,23 @@ class LCallConstantFunction: public LTemplateInstruction<1, 0, 0> {
   virtual void PrintDataTo(StringStream* stream);
 
   Handle<JSFunction> function() { return hydrogen()->function(); }
+  int arity() const { return hydrogen()->argument_count() - 1; }
+};
+
+
+class LInvokeFunction: public LTemplateInstruction<1, 1, 0> {
+ public:
+  LInvokeFunction(LOperand* function) {
+    inputs_[0] = function;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(InvokeFunction, "invoke-function")
+  DECLARE_HYDROGEN_ACCESSOR(InvokeFunction)
+
+  LOperand* function() { return inputs_[0]; }
+
+  virtual void PrintDataTo(StringStream* stream);
+
   int arity() const { return hydrogen()->argument_count() - 1; }
 };
 

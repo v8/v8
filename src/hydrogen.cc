@@ -5540,7 +5540,21 @@ void HGraphBuilder::GenerateSwapElements(CallRuntime* call) {
 
 // Fast call for custom callbacks.
 void HGraphBuilder::GenerateCallFunction(CallRuntime* call) {
-  return Bailout("inlined runtime function: CallFunction");
+  // 1 ~ The function to call is not itself an argument to the call.
+  int arg_count = call->arguments()->length() - 1;
+  ASSERT(arg_count >= 1);  // There's always at least a receiver.
+
+  for (int i = 0; i < arg_count; ++i) {
+    CHECK_ALIVE(VisitArgument(call->arguments()->at(i)));
+  }
+  CHECK_ALIVE(VisitForValue(call->arguments()->last()));
+  HValue* function = Pop();
+  HContext* context = new HContext;
+  AddInstruction(context);
+  HInvokeFunction* result =
+      new(zone()) HInvokeFunction(context, function, arg_count);
+  Drop(arg_count);
+  ast_context()->ReturnInstruction(result, call->id());
 }
 
 

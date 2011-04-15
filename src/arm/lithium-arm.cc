@@ -300,6 +300,13 @@ void LStoreContextSlot::PrintDataTo(StringStream* stream) {
 }
 
 
+void LInvokeFunction::PrintDataTo(StringStream* stream) {
+  stream->Add("= ");
+  InputAt(0)->PrintTo(stream);
+  stream->Add(" #%d / ", arity());
+}
+
+
 void LCallKeyed::PrintDataTo(StringStream* stream) {
   stream->Add("[r2] #%d / ", arity());
 }
@@ -1208,6 +1215,14 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
     HCallConstantFunction* instr) {
   argument_count_ -= instr->argument_count();
   return MarkAsCall(DefineFixed(new LCallConstantFunction, r0), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
+  LOperand* function = UseFixed(instr->function(), r1);
+  argument_count_ -= instr->argument_count();
+  LInvokeFunction* result = new LInvokeFunction(function);
+  return MarkAsCall(DefineFixed(result, r0), instr, CANNOT_DEOPTIMIZE_EAGERLY);
 }
 
 

@@ -114,6 +114,7 @@ class LChunkBuilder;
   V(HasCachedArrayIndex)                       \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
+  V(InvokeFunction)                            \
   V(IsNull)                                    \
   V(IsObject)                                  \
   V(IsSmi)                                     \
@@ -1241,6 +1242,23 @@ class HBinaryCall: public HCall<2> {
   HValue* second() { return OperandAt(1); }
 
   DECLARE_INSTRUCTION(BinaryCall)
+};
+
+
+class HInvokeFunction: public HBinaryCall {
+ public:
+  HInvokeFunction(HValue* context, HValue* function, int argument_count)
+      : HBinaryCall(context, function, argument_count) {
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  HValue* context() { return first(); }
+  HValue* function() { return second(); }
+
+  DECLARE_CONCRETE_INSTRUCTION(InvokeFunction, "invoke_function")
 };
 
 

@@ -3087,15 +3087,14 @@ void FullCodeGenerator::EmitMathSqrt(ZoneList<Expression*>* args) {
 void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
   ASSERT(args->length() >= 2);
 
-  int arg_count = args->length() - 2;  // For receiver and function.
-  VisitForStackValue(args->at(0));  // Receiver.
-  for (int i = 0; i < arg_count; i++) {
-    VisitForStackValue(args->at(i + 1));
+  int arg_count = args->length() - 2;  // 2 ~ receiver and function.
+  for (int i = 0; i < arg_count + 1; ++i) {
+    VisitForStackValue(args->at(i));
   }
-  VisitForAccumulatorValue(args->at(arg_count + 1));  // Function.
+  VisitForAccumulatorValue(args->last());  // Function.
 
-  // InvokeFunction requires function in edi. Move it in there.
-  if (!result_register().is(edi)) __ mov(edi, result_register());
+  // InvokeFunction requires the function in edi. Move it in there.
+  __ mov(edi, result_register());
   ParameterCount count(arg_count);
   __ InvokeFunction(edi, count, CALL_FUNCTION);
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));

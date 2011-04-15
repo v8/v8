@@ -3161,15 +3161,14 @@ void FullCodeGenerator::EmitMathSqrt(ZoneList<Expression*>* args) {
 void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
   ASSERT(args->length() >= 2);
 
-  int arg_count = args->length() - 2;  // For receiver and function.
-  VisitForStackValue(args->at(0));  // Receiver.
-  for (int i = 0; i < arg_count; i++) {
-    VisitForStackValue(args->at(i + 1));
+  int arg_count = args->length() - 2;  // 2 ~ receiver and function.
+  for (int i = 0; i < arg_count + 1; i++) {
+    VisitForStackValue(args->at(i));
   }
-  VisitForAccumulatorValue(args->at(arg_count + 1));  // Function.
+  VisitForAccumulatorValue(args->last());  // Function.
 
-  // InvokeFunction requires function in r1. Move it in there.
-  if (!result_register().is(r1)) __ mov(r1, result_register());
+  // InvokeFunction requires the function in r1. Move it in there.
+  __ mov(r1, result_register());
   ParameterCount count(arg_count);
   __ InvokeFunction(r1, count, CALL_FUNCTION);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));

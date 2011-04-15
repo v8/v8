@@ -91,7 +91,7 @@ bool LCodeGen::GenerateCode() {
 
 void LCodeGen::FinishCode(Handle<Code> code) {
   ASSERT(is_done());
-  code->set_stack_slots(StackSlotCount());
+  code->set_stack_slots(GetStackSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
   PopulateDeoptimizationData(code);
   Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(code);
@@ -146,7 +146,7 @@ bool LCodeGen::GeneratePrologue() {
   __ push(rdi);  // Callee's JS function.
 
   // Reserve space for the stack slots needed by the code.
-  int slots = StackSlotCount();
+  int slots = GetStackSlotCount();
   if (slots > 0) {
     if (FLAG_debug_code) {
       __ Set(rax, slots);
@@ -290,7 +290,7 @@ bool LCodeGen::GenerateSafepointTable() {
   while (byte_count-- > 0) {
     __ int3();
   }
-  safepoints_.Emit(masm(), StackSlotCount());
+  safepoints_.Emit(masm(), GetStackSlotCount());
   return !is_aborted();
 }
 
@@ -418,7 +418,7 @@ void LCodeGen::AddToTranslation(Translation* translation,
     translation->StoreDoubleStackSlot(op->index());
   } else if (op->IsArgument()) {
     ASSERT(is_tagged);
-    int src_index = StackSlotCount() + op->index();
+    int src_index = GetStackSlotCount() + op->index();
     translation->StoreStackSlot(src_index);
   } else if (op->IsRegister()) {
     Register reg = ToRegister(op);
@@ -2058,7 +2058,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
   __ movq(rsp, rbp);
   __ pop(rbp);
-  __ Ret((ParameterCount() + 1) * kPointerSize, rcx);
+  __ Ret((GetParameterCount() + 1) * kPointerSize, rcx);
 }
 
 
@@ -2507,6 +2507,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
                                          env->deoptimization_index());
   v8::internal::ParameterCount actual(rax);
   __ InvokeFunction(function, actual, CALL_FUNCTION, &safepoint_generator);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -2518,7 +2519,7 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
 
 void LCodeGen::DoContext(LContext* instr) {
   Register result = ToRegister(instr->result());
-  __ movq(result, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ movq(result, rsi);
 }
 
 
@@ -2897,6 +2898,21 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
     default:
       UNREACHABLE();
   }
+}
+
+
+void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
+  ASSERT(ToRegister(instr->function()).is(rdi));
+  ASSERT(instr->HasPointerMap());
+  ASSERT(instr->HasDeoptimizationEnvironment());
+  LPointerMap* pointers = instr->pointer_map();
+  LEnvironment* env = instr->deoptimization_environment();
+  RecordPosition(pointers->position());
+  RegisterEnvironmentForDeoptimization(env);
+  SafepointGenerator generator(this, pointers, env->deoptimization_index());
+  ParameterCount count(instr->arity());
+  __ InvokeFunction(rdi, count, CALL_FUNCTION, &generator);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 
