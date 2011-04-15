@@ -2682,7 +2682,9 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
     Register input_reg = ToRegister(instr->InputAt(0));
     // Smi check.
     __ JumpIfNotSmi(input_reg, deferred->entry());
+    __ SmiToInteger32(input_reg, input_reg);
     EmitIntegerMathAbs(instr);
+    __ Integer32ToSmi(input_reg, input_reg);
     __ bind(deferred->exit());
   }
 }
