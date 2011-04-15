@@ -45,20 +45,16 @@
 namespace v8 {
 namespace internal {
 
-v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
-  return TRY_CATCH_FROM_ADDRESS(try_catch_handler_address());
+ThreadLocalTop::ThreadLocalTop() {
+  InitializeInternal();
 }
 
 
-void ThreadLocalTop::Initialize() {
+void ThreadLocalTop::InitializeInternal() {
   c_entry_fp_ = 0;
   handler_ = 0;
 #ifdef USE_SIMULATOR
-#ifdef V8_TARGET_ARCH_ARM
-  simulator_ = Simulator::current(Isolate::Current());
-#elif V8_TARGET_ARCH_MIPS
-  simulator_ = Simulator::current(Isolate::Current());
-#endif
+  simulator_ = NULL;
 #endif
 #ifdef ENABLE_LOGGING_AND_PROFILING
   js_entry_sp_ = NULL;
@@ -69,11 +65,29 @@ void ThreadLocalTop::Initialize() {
 #endif
   try_catch_handler_address_ = NULL;
   context_ = NULL;
-  thread_id_ = ThreadId::Current();
+  thread_id_ = ThreadId::Invalid();
   external_caught_exception_ = false;
   failed_access_check_callback_ = NULL;
   save_context_ = NULL;
   catcher_ = NULL;
+}
+
+
+void ThreadLocalTop::Initialize() {
+  InitializeInternal();
+#ifdef USE_SIMULATOR
+#ifdef V8_TARGET_ARCH_ARM
+  simulator_ = Simulator::current(Isolate::Current());
+#elif V8_TARGET_ARCH_MIPS
+  simulator_ = Simulator::current(Isolate::Current());
+#endif
+#endif
+  thread_id_ = ThreadId::Current();
+}
+
+
+v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
+  return TRY_CATCH_FROM_ADDRESS(try_catch_handler_address());
 }
 
 
