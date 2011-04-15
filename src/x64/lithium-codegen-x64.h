@@ -268,8 +268,9 @@ class LCodeGen BASE_EMBEDDED {
                      Handle<Map> type,
                      Handle<String> name);
 
-  // Emits code for pushing a constant operand.
-  void EmitPushConstantOperand(LOperand* operand);
+  // Emits code for pushing either a tagged constant, a (non-double)
+  // register, or a stack slot operand.
+  void EmitPushTaggedOperand(LOperand* operand);
 
   struct JumpTableEntry {
     explicit inline JumpTableEntry(Address entry)

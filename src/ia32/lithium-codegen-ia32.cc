@@ -3308,6 +3308,22 @@ void LCodeGen::DoStringLength(LStringLength* instr) {
 }
 
 
+void LCodeGen::DoStringAdd(LStringAdd* instr) {
+  if (instr->left()->IsConstantOperand()) {
+    __ push(ToImmediate(instr->left()));
+  } else {
+    __ push(ToOperand(instr->left()));
+  }
+  if (instr->right()->IsConstantOperand()) {
+    __ push(ToImmediate(instr->right()));
+  } else {
+    __ push(ToOperand(instr->right()));
+  }
+  StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr, RESTORE_CONTEXT);
+}
+
+
 void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
   LOperand* input = instr->InputAt(0);
   ASSERT(input->IsRegister() || input->IsStackSlot());

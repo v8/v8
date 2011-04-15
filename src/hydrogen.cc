@@ -4888,10 +4888,21 @@ HStringCharCodeAt* HGraphBuilder::BuildStringCharCodeAt(HValue* string,
 HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
                                                   HValue* left,
                                                   HValue* right) {
+  TypeInfo info = oracle()->BinaryType(expr);
   HInstruction* instr = NULL;
   switch (expr->op()) {
     case Token::ADD:
-      instr = new(zone()) HAdd(left, right);
+      if (info.IsString()) {
+        AddInstruction(new(zone()) HCheckNonSmi(left));
+        AddInstruction(new(zone()) HCheckInstanceType(
+            left, FIRST_STRING_TYPE, LAST_STRING_TYPE));
+        AddInstruction(new(zone()) HCheckNonSmi(right));
+        AddInstruction(new(zone()) HCheckInstanceType(
+            right, FIRST_STRING_TYPE, LAST_STRING_TYPE));
+        instr = new(zone()) HStringAdd(left, right);
+      } else {
+        instr = new(zone()) HAdd(left, right);
+      }
       break;
     case Token::SUB:
       instr = new(zone()) HSub(left, right);
@@ -4926,7 +4937,6 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
     default:
       UNREACHABLE();
   }
-  TypeInfo info = oracle()->BinaryType(expr);
   // If we hit an uninitialized binary op stub we will get type info
   // for a smi operation. If one of the operands is a constant string
   // do not generate code assuming it is a smi operation.

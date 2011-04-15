@@ -1990,6 +1990,7 @@ const char* TRBinaryOpIC::GetName(TypeInfo type_info) {
     case INT32: return "Int32s";
     case HEAP_NUMBER: return "HeapNumbers";
     case ODDBALL: return "Oddball";
+    case BOTH_STRING: return "BothStrings";
     case STRING: return "Strings";
     case GENERIC: return "Generic";
     default: return "Invalid";
@@ -2005,6 +2006,7 @@ TRBinaryOpIC::State TRBinaryOpIC::ToState(TypeInfo type_info) {
     case INT32:
     case HEAP_NUMBER:
     case ODDBALL:
+    case BOTH_STRING:
     case STRING:
       return MONOMORPHIC;
     case GENERIC:
@@ -2019,11 +2021,16 @@ TRBinaryOpIC::TypeInfo TRBinaryOpIC::JoinTypes(TRBinaryOpIC::TypeInfo x,
                                                TRBinaryOpIC::TypeInfo y) {
   if (x == UNINITIALIZED) return y;
   if (y == UNINITIALIZED) return x;
-  if (x == STRING && y == STRING) return STRING;
-  if (x == STRING || y == STRING) return GENERIC;
-  if (x >= y) return x;
+  if (x == y) return x;
+  if (x == BOTH_STRING && y == STRING) return STRING;
+  if (x == STRING && y == BOTH_STRING) return STRING;
+  if (x == STRING || x == BOTH_STRING || y == STRING || y == BOTH_STRING) {
+    return GENERIC;
+  }
+  if (x > y) return x;
   return y;
 }
+
 
 TRBinaryOpIC::TypeInfo TRBinaryOpIC::GetTypeInfo(Handle<Object> left,
                                                  Handle<Object> right) {
@@ -2046,9 +2053,11 @@ TRBinaryOpIC::TypeInfo TRBinaryOpIC::GetTypeInfo(Handle<Object> left,
     return HEAP_NUMBER;
   }
 
-  if (left_type.IsString() || right_type.IsString()) {
-    // Patching for fast string ADD makes sense even if only one of the
-    // arguments is a string.
+  // Patching for fast string ADD makes sense even if only one of the
+  // arguments is a string.
+  if (left_type.IsString())  {
+    return right_type.IsString() ? BOTH_STRING : STRING;
+  } else if (right_type.IsString()) {
     return STRING;
   }
 
@@ -2081,11 +2090,11 @@ RUNTIME_FUNCTION(MaybeObject*, TypeRecordingBinaryOp_Patch) {
   TRBinaryOpIC::TypeInfo type = TRBinaryOpIC::GetTypeInfo(left, right);
   type = TRBinaryOpIC::JoinTypes(type, previous_type);
   TRBinaryOpIC::TypeInfo result_type = TRBinaryOpIC::UNINITIALIZED;
-  if (type == TRBinaryOpIC::STRING && op != Token::ADD) {
+  if ((type == TRBinaryOpIC::STRING || type == TRBinaryOpIC::BOTH_STRING) &&
+      op != Token::ADD) {
     type = TRBinaryOpIC::GENERIC;
   }
-  if (type == TRBinaryOpIC::SMI &&
-      previous_type == TRBinaryOpIC::SMI) {
+  if (type == TRBinaryOpIC::SMI && previous_type == TRBinaryOpIC::SMI) {
     if (op == Token::DIV || op == Token::MUL || kSmiValueSize == 32) {
       // Arithmetic on two Smi inputs has yielded a heap number.
       // That is the only way to get here from the Smi stub.
@@ -2097,8 +2106,7 @@ RUNTIME_FUNCTION(MaybeObject*, TypeRecordingBinaryOp_Patch) {
       result_type = TRBinaryOpIC::INT32;
     }
   }
-  if (type == TRBinaryOpIC::INT32 &&
-      previous_type == TRBinaryOpIC::INT32) {
+  if (type == TRBinaryOpIC::INT32 && previous_type == TRBinaryOpIC::INT32) {
     // We must be here because an operation on two INT32 types overflowed.
     result_type = TRBinaryOpIC::HEAP_NUMBER;
   }

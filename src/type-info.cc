@@ -275,6 +275,8 @@ TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
         return TypeInfo::Integer32();
       case TRBinaryOpIC::HEAP_NUMBER:
         return TypeInfo::Double();
+      case TRBinaryOpIC::BOTH_STRING:
+        return TypeInfo::String();
       case TRBinaryOpIC::STRING:
       case TRBinaryOpIC::GENERIC:
         return unknown;

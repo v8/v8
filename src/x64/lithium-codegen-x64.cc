@@ -2512,14 +2512,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
 void LCodeGen::DoPushArgument(LPushArgument* instr) {
   LOperand* argument = instr->InputAt(0);
-  if (argument->IsConstantOperand()) {
-    EmitPushConstantOperand(argument);
-  } else if (argument->IsRegister()) {
-    __ push(ToRegister(argument));
-  } else {
-    ASSERT(!argument->IsDoubleRegister());
-    __ push(ToOperand(argument));
-  }
+  EmitPushTaggedOperand(argument);
 }
 
 
@@ -3110,6 +3103,14 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
       ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
       : isolate()->builtins()->KeyedStoreIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
+}
+
+
+void LCodeGen::DoStringAdd(LStringAdd* instr) {
+  EmitPushTaggedOperand(instr->left());
+  EmitPushTaggedOperand(instr->right());
+  StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -3772,14 +3773,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
 
 void LCodeGen::DoTypeof(LTypeof* instr) {
   LOperand* input = instr->InputAt(0);
-  if (input->IsConstantOperand()) {
-    __ Push(ToHandle(LConstantOperand::cast(input)));
-  } else if (input->IsRegister()) {
-    __ push(ToRegister(input));
-  } else {
-    ASSERT(input->IsStackSlot());
-    __ push(ToOperand(input));
-  }
+  EmitPushTaggedOperand(input);
   CallRuntime(Runtime::kTypeof, 1, instr);
 }
 
@@ -3807,19 +3801,14 @@ void LCodeGen::DoTypeofIs(LTypeofIs* instr) {
 }
 
 
-void LCodeGen::EmitPushConstantOperand(LOperand* operand) {
-  ASSERT(operand->IsConstantOperand());
-  LConstantOperand* const_op = LConstantOperand::cast(operand);
-  Handle<Object> literal = chunk_->LookupLiteral(const_op);
-  Representation r = chunk_->LookupLiteralRepresentation(const_op);
-  if (r.IsInteger32()) {
-    ASSERT(literal->IsNumber());
-    __ push(Immediate(static_cast<int32_t>(literal->Number())));
-  } else if (r.IsDouble()) {
-    Abort("unsupported double immediate");
+void LCodeGen::EmitPushTaggedOperand(LOperand* operand) {
+  ASSERT(!operand->IsDoubleRegister());
+  if (operand->IsConstantOperand()) {
+    __ Push(ToHandle(LConstantOperand::cast(operand)));
+  } else if (operand->IsRegister()) {
+    __ push(ToRegister(operand));
   } else {
-    ASSERT(r.IsTagged());
-    __ Push(literal);
+    __ push(ToOperand(operand));
   }
 }
 
@@ -3965,20 +3954,8 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
 void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   LOperand* obj = instr->object();
   LOperand* key = instr->key();
-  // Push object.
-  if (obj->IsRegister()) {
-    __ push(ToRegister(obj));
-  } else {
-    __ push(ToOperand(obj));
-  }
-  // Push key.
-  if (key->IsConstantOperand()) {
-    EmitPushConstantOperand(key);
-  } else if (key->IsRegister()) {
-    __ push(ToRegister(key));
-  } else {
-    __ push(ToOperand(key));
-  }
+  EmitPushTaggedOperand(obj);
+  EmitPushTaggedOperand(key);
   ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
   LPointerMap* pointers = instr->pointer_map();
   LEnvironment* env = instr->deoptimization_environment();
