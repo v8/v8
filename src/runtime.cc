@@ -10485,7 +10485,7 @@ static Handle<Context> CopyWithContextChain(Handle<Context> context_chain,
   // Recursively copy the with contexts.
   Handle<Context> previous(context_chain->previous());
   Handle<JSObject> extension(JSObject::cast(context_chain->extension()));
-  Handle<Context> context = CopyWithContextChain(function_context, previous);
+  Handle<Context> context = CopyWithContextChain(previous, function_context);
   return context->GetIsolate()->factory()->NewWithContext(
       context, extension, context_chain->IsCatchContext());
 }
