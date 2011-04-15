@@ -61,6 +61,7 @@
       'variables': {
         'js_files': [
           'd8.js',
+          'macros.py',
         ],
       },
       'actions': [
@@ -72,7 +73,6 @@
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
-            '<(SHARED_INTERMEDIATE_DIR)/d8-js-empty.cc',
           ],
           'action': [
             'python',

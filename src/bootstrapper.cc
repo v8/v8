@@ -200,6 +200,7 @@ class Genesis BASE_EMBEDDED {
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
   bool InstallNatives();
+  bool InstallExperimentalNatives();
   void InstallBuiltinFunctionIds();
   void InstallJSFunctionResultCaches();
   void InitializeNormalizedMapCaches();
@@ -246,6 +247,7 @@ class Genesis BASE_EMBEDDED {
       Handle<FixedArray> caller);
 
   static bool CompileBuiltin(Isolate* isolate, int index);
+  static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
   static bool CompileNative(Vector<const char> name, Handle<String> source);
   static bool CompileScriptCached(Vector<const char> name,
                                   Handle<String> source,
@@ -1175,6 +1177,15 @@ bool Genesis::CompileBuiltin(Isolate* isolate, int index) {
 }
 
 
+bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
+  Vector<const char> name = ExperimentalNatives::GetScriptName(index);
+  Factory* factory = isolate->factory();
+  Handle<String> source_code =
+      factory->NewStringFromAscii(ExperimentalNatives::GetScriptSource(index));
+  return CompileNative(name, source_code);
+}
+
+
 bool Genesis::CompileNative(Vector<const char> name, Handle<String> source) {
   HandleScope scope;
   Isolate* isolate = source->GetIsolate();
@@ -1510,7 +1521,6 @@ bool Genesis::InstallNatives() {
   for (int i = Natives::GetDebuggerCount();
        i < Natives::GetBuiltinsCount();
        i++) {
-    Vector<const char> name = Natives::GetScriptName(i);
     if (!CompileBuiltin(isolate(), i)) return false;
     // TODO(ager): We really only need to install the JS builtin
     // functions on the builtins object after compiling and running
@@ -1624,6 +1634,18 @@ bool Genesis::InstallNatives() {
   builtins->Verify();
 #endif
 
+  return true;
+}
+
+
+bool Genesis::InstallExperimentalNatives() {
+  if (FLAG_harmony_proxies) {
+    for (int i = ExperimentalNatives::GetDebuggerCount();
+         i < ExperimentalNatives::GetBuiltinsCount();
+         i++) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
+  }
   return true;
 }
 
@@ -2107,6 +2129,9 @@ Genesis::Genesis(Isolate* isolate,
     if (!ConfigureGlobalObjects(global_template)) return;
     isolate->counters()->contexts_created_from_scratch()->Increment();
   }
+
+  // Install experimental natives.
+  if (!InstallExperimentalNatives()) return;
 
   result_ = global_context_;
 }

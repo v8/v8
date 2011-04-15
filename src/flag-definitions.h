@@ -96,6 +96,9 @@ private:
 //
 #define FLAG FLAG_FULL
 
+// Flags for experimental language features.
+DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
+
 // Flags for Crankshaft.
 #ifdef V8_TARGET_ARCH_MIPS
   DEFINE_bool(crankshaft, false, "use crankshaft")
