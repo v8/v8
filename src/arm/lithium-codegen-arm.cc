@@ -2861,9 +2861,49 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
 void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
-  Register scratch1 = scratch0();
-  Register scratch2 = result;
-  __ EmitVFPTruncate(kRoundToNearest,
+  Register scratch1 = result;
+  Register scratch2 = scratch0();
+  Label done, check_sign_on_zero;
+
+  // Extract exponent bits.
+  __ vmov(scratch1, input.high());
+  __ ubfx(scratch2,
+          scratch1,
+          HeapNumber::kExponentShift,
+          HeapNumber::kExponentBits);
+
+  // If the number is in ]-0.5, +0.5[, the result is +/- 0.
+  __ cmp(scratch2, Operand(HeapNumber::kExponentBias - 2));
+  __ mov(result, Operand(0), LeaveCC, le);
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ b(le, &check_sign_on_zero);
+  } else {
+    __ b(le, &done);
+  }
+
+  // The following conversion will not work with numbers
+  // outside of ]-2^32, 2^32[.
+  __ cmp(scratch2, Operand(HeapNumber::kExponentBias + 32));
+  DeoptimizeIf(ge, instr->environment());
+
+  // Save the original sign for later comparison.
+  __ and_(scratch2, scratch1, Operand(HeapNumber::kSignMask));
+
+  __ vmov(double_scratch0(), 0.5);
+  __ vadd(input, input, double_scratch0());
+
+  // Check sign of the result: if the sign changed, the input
+  // value was in ]0.5, 0[ and the result should be -0.
+  __ vmov(scratch1, input.high());
+  __ eor(scratch1, scratch1, Operand(scratch2), SetCC);
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    DeoptimizeIf(mi, instr->environment());
+  } else {
+    __ mov(result, Operand(0), LeaveCC, mi);
+    __ b(mi, &done);
+  }
+
+  __ EmitVFPTruncate(kRoundToMinusInf,
                      double_scratch0().low(),
                      input,
                      scratch1,
@@ -2873,14 +2913,14 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // Test for -0.
-    Label done;
     __ cmp(result, Operand(0));
     __ b(ne, &done);
+    __ bind(&check_sign_on_zero);
     __ vmov(scratch1, input.high());
     __ tst(scratch1, Operand(HeapNumber::kSignMask));
     DeoptimizeIf(ne, instr->environment());
-    __ bind(&done);
   }
+  __ bind(&done);
 }
 
 
