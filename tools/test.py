@@ -462,7 +462,7 @@ def Win32SetErrorMode(mode):
   prev_error_mode = SEM_INVALID_VALUE
   try:
     import ctypes
-    prev_error_mode = ctypes.windll.kernel32.SetErrorMode(mode);
+    prev_error_mode = ctypes.windll.kernel32.SetErrorMode(mode)
   except ImportError:
     pass
   return prev_error_mode
@@ -470,16 +470,16 @@ def Win32SetErrorMode(mode):
 def RunProcess(context, timeout, args, **rest):
   if context.verbose: print "#", " ".join(args)
   popen_args = args
-  prev_error_mode = SEM_INVALID_VALUE;
+  prev_error_mode = SEM_INVALID_VALUE
   if utils.IsWindows():
     popen_args = '"' + subprocess.list2cmdline(args) + '"'
     if context.suppress_dialogs:
       # Try to change the error mode to avoid dialogs on fatal errors. Don't
       # touch any existing error mode flags by merging the existing error mode.
       # See http://blogs.msdn.com/oldnewthing/archive/2004/07/27/198410.aspx.
-      error_mode = SEM_NOGPFAULTERRORBOX;
-      prev_error_mode = Win32SetErrorMode(error_mode);
-      Win32SetErrorMode(error_mode | prev_error_mode);
+      error_mode = SEM_NOGPFAULTERRORBOX
+      prev_error_mode = Win32SetErrorMode(error_mode)
+      Win32SetErrorMode(error_mode | prev_error_mode)
   process = subprocess.Popen(
     shell = utils.IsWindows(),
     args = popen_args,
@@ -527,7 +527,7 @@ def CheckedUnlink(name):
       os.unlink(name)
       return
     except OSError, e:
-      retry_count += 1;
+      retry_count += 1
       time.sleep(retry_count * 0.1)
   PrintError("os.unlink() " + str(e))
 
