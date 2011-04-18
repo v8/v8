@@ -297,6 +297,11 @@ debug-debugger.js
 '''.split()
 
 
+EXPERIMENTAL_LIBRARY_FILES = '''
+proxy.js
+'''.split()
+
+
 def Abort(message):
   print message
   sys.exit(1)
@@ -321,8 +326,15 @@ def ConfigureObjectFiles():
   # compile it.
   library_files = [s for s in LIBRARY_FILES]
   library_files.append('macros.py')
-  libraries_src, libraries_empty_src = env.JS2C(['libraries.cc', 'libraries-empty.cc'], library_files, TYPE='CORE')
+  libraries_src = env.JS2C(['libraries.cc'], library_files, TYPE='CORE')
   libraries_obj = context.ConfigureObject(env, libraries_src, CPPPATH=['.'])
+
+  # Combine the experimental JavaScript library files into a C++ file
+  # and compile it.
+  experimental_library_files = [ s for s in EXPERIMENTAL_LIBRARY_FILES ]
+  experimental_library_files.append('macros.py')
+  experimental_libraries_src = env.JS2C(['experimental-libraries.cc'], experimental_library_files, TYPE='EXPERIMENTAL')
+  experimental_libraries_obj = context.ConfigureObject(env, experimental_libraries_src, CPPPATH=['.'])
 
   source_objs = context.ConfigureObject(env, source_files)
   non_snapshot_files = [source_objs]
@@ -340,7 +352,7 @@ def ConfigureObjectFiles():
   mksnapshot_env = env.Copy()
   mksnapshot_env.Replace(**context.flags['mksnapshot'])
   mksnapshot_src = 'mksnapshot.cc'
-  mksnapshot = mksnapshot_env.Program('mksnapshot', [mksnapshot_src, libraries_obj, non_snapshot_files, empty_snapshot_obj], PDB='mksnapshot.exe.pdb')
+  mksnapshot = mksnapshot_env.Program('mksnapshot', [mksnapshot_src, libraries_obj, experimental_libraries_obj,  non_snapshot_files, empty_snapshot_obj], PDB='mksnapshot.exe.pdb')
   if context.use_snapshot:
     if context.build_snapshot:
       snapshot_cc = env.Snapshot('snapshot.cc', mksnapshot, LOGFILE=File('snapshot.log').abspath)
@@ -349,7 +361,7 @@ def ConfigureObjectFiles():
     snapshot_obj = context.ConfigureObject(env, snapshot_cc, CPPPATH=['.'])
   else:
     snapshot_obj = empty_snapshot_obj
-  library_objs = [non_snapshot_files, libraries_obj, snapshot_obj]
+  library_objs = [non_snapshot_files, libraries_obj, experimental_libraries_obj, snapshot_obj]
   return (library_objs, d8_objs, [mksnapshot], preparser_objs)
 
 

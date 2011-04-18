@@ -141,8 +141,8 @@ class LCodeGen BASE_EMBEDDED {
                        Register input,
                        Register temporary);
 
-  int StackSlotCount() const { return chunk()->spill_slot_count(); }
-  int ParameterCount() const { return scope()->num_parameters(); }
+  int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
+  int GetParameterCount() const { return scope()->num_parameters(); }
 
   void Abort(const char* format, ...);
   void Comment(const char* format, ...);
@@ -268,8 +268,9 @@ class LCodeGen BASE_EMBEDDED {
                      Handle<Map> type,
                      Handle<String> name);
 
-  // Emits code for pushing a constant operand.
-  void EmitPushConstantOperand(LOperand* operand);
+  // Emits code for pushing either a tagged constant, a (non-double)
+  // register, or a stack slot operand.
+  void EmitPushTaggedOperand(LOperand* operand);
 
   struct JumpTableEntry {
     explicit inline JumpTableEntry(Address entry)

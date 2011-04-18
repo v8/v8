@@ -304,73 +304,27 @@ void CallICBase::Clear(Address address, Code* target) {
 }
 
 
-void KeyedLoadIC::ClearInlinedVersion(Address address) {
-  // Insert null as the map to check for to make sure the map check fails
-  // sending control flow to the IC instead of the inlined version.
-  PatchInlinedLoad(address, HEAP->null_value());
-}
-
-
 void KeyedLoadIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   // Make sure to also clear the map used in inline fast cases.  If we
   // do not clear these maps, cached code can keep objects alive
   // through the embedded maps.
-  ClearInlinedVersion(address);
   SetTargetAtAddress(address, initialize_stub());
-}
-
-
-void LoadIC::ClearInlinedVersion(Address address) {
-  // Reset the map check of the inlined inobject property load (if
-  // present) to guarantee failure by holding an invalid map (the null
-  // value).  The offset can be patched to anything.
-  Heap* heap = HEAP;
-  PatchInlinedLoad(address, heap->null_value(), 0);
-  PatchInlinedContextualLoad(address,
-                             heap->null_value(),
-                             heap->null_value(),
-                             true);
 }
 
 
 void LoadIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
-  ClearInlinedVersion(address);
   SetTargetAtAddress(address, initialize_stub());
-}
-
-
-void StoreIC::ClearInlinedVersion(Address address) {
-  // Reset the map check of the inlined inobject property store (if
-  // present) to guarantee failure by holding an invalid map (the null
-  // value).  The offset can be patched to anything.
-  PatchInlinedStore(address, HEAP->null_value(), 0);
 }
 
 
 void StoreIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
-  ClearInlinedVersion(address);
   SetTargetAtAddress(address,
       (target->extra_ic_state() == kStrictMode)
         ? initialize_stub_strict()
         : initialize_stub());
-}
-
-
-void KeyedStoreIC::ClearInlinedVersion(Address address) {
-  // Insert null as the elements map to check for.  This will make
-  // sure that the elements fast-case map check fails so that control
-  // flows to the IC instead of the inlined version.
-  PatchInlinedStore(address, HEAP->null_value());
-}
-
-
-void KeyedStoreIC::RestoreInlinedVersion(Address address) {
-  // Restore the fast-case elements map check so that the inlined
-  // version can be used again.
-  PatchInlinedStore(address, HEAP->fixed_array_map());
 }
 
 
@@ -873,9 +827,6 @@ MaybeObject* LoadIC::Load(State state,
 #endif
       if (state == PREMONOMORPHIC) {
         if (object->IsString()) {
-          Map* map = HeapObject::cast(*object)->map();
-          const int offset = String::kLengthOffset;
-          PatchInlinedLoad(address(), map, offset);
           set_target(isolate()->builtins()->builtin(
               Builtins::kLoadIC_StringLength));
         } else {
@@ -903,9 +854,6 @@ MaybeObject* LoadIC::Load(State state,
       if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
 #endif
       if (state == PREMONOMORPHIC) {
-        Map* map = HeapObject::cast(*object)->map();
-        const int offset = JSArray::kLengthOffset;
-        PatchInlinedLoad(address(), map, offset);
         set_target(isolate()->builtins()->builtin(
             Builtins::kLoadIC_ArrayLength));
       } else {
@@ -946,63 +894,6 @@ MaybeObject* LoadIC::Load(State state,
       return ReferenceError("not_defined", name);
     }
     LOG(isolate(), SuspectReadEvent(*name, *object));
-  }
-
-  bool can_be_inlined_precheck =
-      FLAG_use_ic &&
-      lookup.IsProperty() &&
-      lookup.IsCacheable() &&
-      lookup.holder() == *object &&
-      !object->IsAccessCheckNeeded();
-
-  bool can_be_inlined =
-      can_be_inlined_precheck &&
-      state == PREMONOMORPHIC &&
-      lookup.type() == FIELD;
-
-  bool can_be_inlined_contextual =
-      can_be_inlined_precheck &&
-      state == UNINITIALIZED &&
-      lookup.holder()->IsGlobalObject() &&
-      lookup.type() == NORMAL;
-
-  if (can_be_inlined) {
-    Map* map = lookup.holder()->map();
-    // Property's index in the properties array.  If negative we have
-    // an inobject property.
-    int index = lookup.GetFieldIndex() - map->inobject_properties();
-    if (index < 0) {
-      // Index is an offset from the end of the object.
-      int offset = map->instance_size() + (index * kPointerSize);
-      if (PatchInlinedLoad(address(), map, offset)) {
-        set_target(megamorphic_stub());
-        TRACE_IC_NAMED("[LoadIC : inline patch %s]\n", name);
-        return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
-      } else {
-        TRACE_IC_NAMED("[LoadIC : no inline patch %s (patching failed)]\n",
-                       name);
-      }
-    } else {
-      TRACE_IC_NAMED("[LoadIC : no inline patch %s (not inobject)]\n", name);
-    }
-  } else if (can_be_inlined_contextual) {
-    Map* map = lookup.holder()->map();
-    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(
-        lookup.holder()->property_dictionary()->ValueAt(
-            lookup.GetDictionaryEntry()));
-    if (PatchInlinedContextualLoad(address(),
-                                   map,
-                                   cell,
-                                   lookup.IsDontDelete())) {
-      set_target(megamorphic_stub());
-      TRACE_IC_NAMED("[LoadIC : inline contextual patch %s]\n", name);
-      ASSERT(cell->value() != isolate()->heap()->the_hole_value());
-      return cell->value();
-    }
-  } else {
-    if (FLAG_use_ic && state == PREMONOMORPHIC) {
-      TRACE_IC_NAMED("[LoadIC : no inline patch %s (not inlinable)]\n", name);
-    }
   }
 
   // Update inline cache and stub cache.
@@ -1294,18 +1185,6 @@ MaybeObject* KeyedLoadIC::Load(State state,
 #ifdef DEBUG
     TraceIC("KeyedLoadIC", key, state, target());
 #endif  // DEBUG
-
-    // For JSObjects with fast elements that are not value wrappers
-    // and that do not have indexed interceptors, we initialize the
-    // inlined fast case (if present) by patching the inlined map
-    // check.
-    if (object->IsJSObject() &&
-        !object->IsJSValue() &&
-        !JSObject::cast(*object)->HasIndexedInterceptor() &&
-        JSObject::cast(*object)->HasFastElements()) {
-      Map* map = JSObject::cast(*object)->map();
-      PatchInlinedLoad(address(), map);
-    }
   }
 
   // Get the property.
@@ -1471,57 +1350,7 @@ MaybeObject* StoreIC::Store(State state,
     LookupResult lookup;
 
     if (LookupForWrite(*receiver, *name, &lookup)) {
-      bool can_be_inlined =
-          state == UNINITIALIZED &&
-          lookup.IsProperty() &&
-          lookup.holder() == *receiver &&
-          lookup.type() == FIELD &&
-          !receiver->IsAccessCheckNeeded();
-
-      if (can_be_inlined) {
-        Map* map = lookup.holder()->map();
-        // Property's index in the properties array.  If negative we have
-        // an inobject property.
-        int index = lookup.GetFieldIndex() - map->inobject_properties();
-        if (index < 0) {
-          // Index is an offset from the end of the object.
-          int offset = map->instance_size() + (index * kPointerSize);
-          if (PatchInlinedStore(address(), map, offset)) {
-            set_target((strict_mode == kStrictMode)
-                         ? megamorphic_stub_strict()
-                         : megamorphic_stub());
-#ifdef DEBUG
-            if (FLAG_trace_ic) {
-              PrintF("[StoreIC : inline patch %s]\n", *name->ToCString());
-            }
-#endif
-            return receiver->SetProperty(*name, *value, NONE, strict_mode);
-#ifdef DEBUG
-
-          } else {
-            if (FLAG_trace_ic) {
-              PrintF("[StoreIC : no inline patch %s (patching failed)]\n",
-                     *name->ToCString());
-            }
-          }
-        } else {
-          if (FLAG_trace_ic) {
-            PrintF("[StoreIC : no inline patch %s (not inobject)]\n",
-                   *name->ToCString());
-          }
-        }
-      } else {
-        if (state == PREMONOMORPHIC) {
-          if (FLAG_trace_ic) {
-            PrintF("[StoreIC : no inline patch %s (not inlinable)]\n",
-                   *name->ToCString());
-#endif
-          }
-        }
-      }
-
-      // If no inlined store ic was patched, generate a stub for this
-      // store.
+      // Generate a stub for this store.
       UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
     } else {
       // Strict mode doesn't allow setting non-existent global property
@@ -1990,6 +1819,7 @@ const char* TRBinaryOpIC::GetName(TypeInfo type_info) {
     case INT32: return "Int32s";
     case HEAP_NUMBER: return "HeapNumbers";
     case ODDBALL: return "Oddball";
+    case BOTH_STRING: return "BothStrings";
     case STRING: return "Strings";
     case GENERIC: return "Generic";
     default: return "Invalid";
@@ -2005,6 +1835,7 @@ TRBinaryOpIC::State TRBinaryOpIC::ToState(TypeInfo type_info) {
     case INT32:
     case HEAP_NUMBER:
     case ODDBALL:
+    case BOTH_STRING:
     case STRING:
       return MONOMORPHIC;
     case GENERIC:
@@ -2019,11 +1850,16 @@ TRBinaryOpIC::TypeInfo TRBinaryOpIC::JoinTypes(TRBinaryOpIC::TypeInfo x,
                                                TRBinaryOpIC::TypeInfo y) {
   if (x == UNINITIALIZED) return y;
   if (y == UNINITIALIZED) return x;
-  if (x == STRING && y == STRING) return STRING;
-  if (x == STRING || y == STRING) return GENERIC;
-  if (x >= y) return x;
+  if (x == y) return x;
+  if (x == BOTH_STRING && y == STRING) return STRING;
+  if (x == STRING && y == BOTH_STRING) return STRING;
+  if (x == STRING || x == BOTH_STRING || y == STRING || y == BOTH_STRING) {
+    return GENERIC;
+  }
+  if (x > y) return x;
   return y;
 }
+
 
 TRBinaryOpIC::TypeInfo TRBinaryOpIC::GetTypeInfo(Handle<Object> left,
                                                  Handle<Object> right) {
@@ -2046,9 +1882,11 @@ TRBinaryOpIC::TypeInfo TRBinaryOpIC::GetTypeInfo(Handle<Object> left,
     return HEAP_NUMBER;
   }
 
-  if (left_type.IsString() || right_type.IsString()) {
-    // Patching for fast string ADD makes sense even if only one of the
-    // arguments is a string.
+  // Patching for fast string ADD makes sense even if only one of the
+  // arguments is a string.
+  if (left_type.IsString())  {
+    return right_type.IsString() ? BOTH_STRING : STRING;
+  } else if (right_type.IsString()) {
     return STRING;
   }
 
@@ -2081,11 +1919,11 @@ RUNTIME_FUNCTION(MaybeObject*, TypeRecordingBinaryOp_Patch) {
   TRBinaryOpIC::TypeInfo type = TRBinaryOpIC::GetTypeInfo(left, right);
   type = TRBinaryOpIC::JoinTypes(type, previous_type);
   TRBinaryOpIC::TypeInfo result_type = TRBinaryOpIC::UNINITIALIZED;
-  if (type == TRBinaryOpIC::STRING && op != Token::ADD) {
+  if ((type == TRBinaryOpIC::STRING || type == TRBinaryOpIC::BOTH_STRING) &&
+      op != Token::ADD) {
     type = TRBinaryOpIC::GENERIC;
   }
-  if (type == TRBinaryOpIC::SMI &&
-      previous_type == TRBinaryOpIC::SMI) {
+  if (type == TRBinaryOpIC::SMI && previous_type == TRBinaryOpIC::SMI) {
     if (op == Token::DIV || op == Token::MUL || kSmiValueSize == 32) {
       // Arithmetic on two Smi inputs has yielded a heap number.
       // That is the only way to get here from the Smi stub.
@@ -2097,8 +1935,7 @@ RUNTIME_FUNCTION(MaybeObject*, TypeRecordingBinaryOp_Patch) {
       result_type = TRBinaryOpIC::INT32;
     }
   }
-  if (type == TRBinaryOpIC::INT32 &&
-      previous_type == TRBinaryOpIC::INT32) {
+  if (type == TRBinaryOpIC::INT32 && previous_type == TRBinaryOpIC::INT32) {
     // We must be here because an operation on two INT32 types overflowed.
     result_type = TRBinaryOpIC::HEAP_NUMBER;
   }

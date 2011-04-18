@@ -425,9 +425,9 @@ void MacroAssembler::Abort(const char* msg) {
 }
 
 
-void MacroAssembler::CallStub(CodeStub* stub) {
+void MacroAssembler::CallStub(CodeStub* stub, unsigned ast_id) {
   ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
 }
 
 
@@ -650,6 +650,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   Label leave_exit_frame;
   Label write_back;
 
+  Factory* factory = isolate()->factory();
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address();
   const int kNextOffset = 0;
@@ -697,7 +698,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
 
   // Check if the function scheduled an exception.
   movq(rsi, scheduled_exception_address);
-  Cmp(Operand(rsi, 0), FACTORY->the_hole_value());
+  Cmp(Operand(rsi, 0), factory->the_hole_value());
   j(not_equal, &promote_scheduled_exception);
 
   LeaveApiExitFrame();
@@ -712,7 +713,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
 
   bind(&empty_result);
   // It was zero; the result is undefined.
-  Move(rax, FACTORY->undefined_value());
+  Move(rax, factory->undefined_value());
   jmp(&prologue);
 
   // HandleScope limit has changed. Delete allocated extensions.
@@ -1247,12 +1248,17 @@ void MacroAssembler::SmiAdd(Register dst,
                             Register src2) {
   // No overflow checking. Use only when it's known that
   // overflowing is impossible.
-  ASSERT(!dst.is(src2));
   if (!dst.is(src1)) {
-    movq(dst, src1);
+    if (emit_debug_code()) {
+      movq(kScratchRegister, src1);
+      addq(kScratchRegister, src2);
+      Check(no_overflow, "Smi addition overflow");
+    }
+    lea(dst, Operand(src1, src2, times_1, 0));
+  } else {
+    addq(dst, src2);
+    Assert(no_overflow, "Smi addition overflow");
   }
-  addq(dst, src2);
-  Assert(no_overflow, "Smi addition overflow");
 }
 
 
@@ -1604,12 +1610,14 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 }
 
 
-void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
+void MacroAssembler::Call(Handle<Code> code_object,
+                          RelocInfo::Mode rmode,
+                          unsigned ast_id) {
 #ifdef DEBUG
   int end_position = pc_offset() + CallSize(code_object);
 #endif
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  call(code_object, rmode);
+  call(code_object, rmode, ast_id);
 #ifdef DEBUG
   CHECK_EQ(end_position, pc_offset());
 #endif
@@ -1895,7 +1903,7 @@ void MacroAssembler::AbortIfNotNumber(Register object) {
   Condition is_smi = CheckSmi(object);
   j(is_smi, &ok);
   Cmp(FieldOperand(object, HeapObject::kMapOffset),
-      FACTORY->heap_number_map());
+      isolate()->factory()->heap_number_map());
   Assert(equal, "Operand not a number");
   bind(&ok);
 }
@@ -2152,7 +2160,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(kScratchRegister);
   if (emit_debug_code()) {
     movq(kScratchRegister,
-         FACTORY->undefined_value(),
+         isolate()->factory()->undefined_value(),
          RelocInfo::EMBEDDED_OBJECT);
     cmpq(Operand(rsp, 0), kScratchRegister);
     Check(not_equal, "code object not properly patched");
@@ -2320,7 +2328,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // Check the context is a global context.
   if (emit_debug_code()) {
     Cmp(FieldOperand(scratch, HeapObject::kMapOffset),
-        FACTORY->global_context_map());
+        isolate()->factory()->global_context_map());
     Check(equal, "JSGlobalObject::global_context should be a global context.");
   }
 
@@ -2822,7 +2830,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   movq(map, FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
   if (emit_debug_code()) {
     Label ok, fail;
-    CheckMap(map, FACTORY->meta_map(), &fail, false);
+    CheckMap(map, isolate()->factory()->meta_map(), &fail, false);
     jmp(&ok);
     bind(&fail);
     Abort("Global functions must have initial map");

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,6 +25,45 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// See http://code.google.com/p/v8/issues/detail?id=187
+// Flags: --allow-natives-syntax
 
-assertEquals(["f", undefined], "foo".match(/(?:(?=(f)o)fx|)./));
+// Test inlined functions contain throw.
+function doThrow() {
+  throw "uha";
+}
+
+function f(x) {
+  if (x == 42) throw doThrow();
+  if (x == 43) throw "wow";
+  return x == 0;
+}
+
+function g(x) {
+  return f(x);
+}
+
+for (var i = 0; i < 5; i++) g(0);
+%OptimizeFunctionOnNextCall(g);
+assertEquals(true, g(0));
+
+try {
+  g(42);
+} catch(e) {
+  assertEquals("uha", e);
+}
+
+// Test inlining in a test context.
+function h(x) {
+  return f(x) ? "yes" : "no";
+}
+
+for (var i = 0; i < 5; i++) h(0);
+%OptimizeFunctionOnNextCall(h);
+assertEquals("yes", h(0));
+
+try {
+  h(43);
+} catch(e) {
+  assertEquals("wow", e);
+}
+

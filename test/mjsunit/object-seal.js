@@ -91,7 +91,7 @@ assertEquals("foobar", desc.value);
 // Since writable is not affected by seal we should still be able to
 // update the values.
 obj.x = "43";
-assertEquals(43, obj.x);
+assertEquals("43", obj.x);
 
 // Test on accessors.
 var obj2 = {};
@@ -142,7 +142,7 @@ assertFalse(Object.isSealed(arr));
 Object.seal(arr);
 assertTrue(Object.isSealed(arr));
 assertFalse(Object.isExtensible(arr));
-// Since the values in the array is still writable this object 
+// Since the values in the array is still writable this object
 // is not frozen.
 assertFalse(Object.isFrozen(arr));
 
@@ -186,5 +186,5 @@ Object.preventExtensions(obj4);
 assertFalse(Object.isSealed(obj4));
 
 // Make sure that Object.seal returns the sealed object.
-var obj4 = {}
-assertTrue(obj4 === Object.seal(obj4))
+var obj4 = {};
+assertTrue(obj4 === Object.seal(obj4));

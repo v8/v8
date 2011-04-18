@@ -57,7 +57,7 @@ class SputnikTestCase(test.TestCase):
 
   def AfterRun(self, result):
     # Dispose the temporary file if everything looks okay.
-    if not result.HasPreciousOutput(): self.tmpfile.Dispose()
+    if result is None or not result.HasPreciousOutput(): self.tmpfile.Dispose()
     self.tmpfile = None
 
   def GetCommand(self):

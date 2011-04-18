@@ -98,14 +98,15 @@ class LCodeGen;
   V(GlobalObject)                               \
   V(GlobalReceiver)                             \
   V(Goto)                                       \
-  V(HasInstanceType)                            \
-  V(HasInstanceTypeAndBranch)                   \
   V(HasCachedArrayIndex)                        \
   V(HasCachedArrayIndexAndBranch)               \
+  V(HasInstanceType)                            \
+  V(HasInstanceTypeAndBranch)                   \
   V(InstanceOf)                                 \
   V(InstanceOfAndBranch)                        \
   V(InstanceOfKnownGlobal)                      \
   V(Integer32ToDouble)                          \
+  V(InvokeFunction)                             \
   V(IsNull)                                     \
   V(IsNullAndBranch)                            \
   V(IsObject)                                   \
@@ -152,6 +153,7 @@ class LCodeGen;
   V(StoreKeyedSpecializedArrayElement)          \
   V(StoreNamedField)                            \
   V(StoreNamedGeneric)                          \
+  V(StringAdd)                                  \
   V(StringCharCodeAt)                           \
   V(StringCharFromCode)                         \
   V(StringLength)                               \
@@ -1393,6 +1395,23 @@ class LCallConstantFunction: public LTemplateInstruction<1, 0, 0> {
 };
 
 
+class LInvokeFunction: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LInvokeFunction(LOperand* function) {
+    inputs_[0] = function;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(InvokeFunction, "invoke-function")
+  DECLARE_HYDROGEN_ACCESSOR(InvokeFunction)
+
+  LOperand* function() { return inputs_[0]; }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  int arity() const { return hydrogen()->argument_count() - 1; }
+};
+
+
 class LCallKeyed: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LCallKeyed(LOperand* key) {
@@ -1681,6 +1700,21 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 3, 0> {
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
   bool strict_mode() { return hydrogen()->strict_mode(); }
+};
+
+
+class LStringAdd: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LStringAdd(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringAdd, "string-add")
+  DECLARE_HYDROGEN_ACCESSOR(StringAdd)
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
 };
 
 

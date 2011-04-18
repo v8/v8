@@ -77,7 +77,7 @@ bool LCodeGen::GenerateCode() {
 
 void LCodeGen::FinishCode(Handle<Code> code) {
   ASSERT(is_done());
-  code->set_stack_slots(StackSlotCount());
+  code->set_stack_slots(GetStackSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
   PopulateDeoptimizationData(code);
   Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(code);
@@ -132,7 +132,7 @@ bool LCodeGen::GeneratePrologue() {
   __ push(edi);  // Callee's JS function.
 
   // Reserve space for the stack slots needed by the code.
-  int slots = StackSlotCount();
+  int slots = GetStackSlotCount();
   if (slots > 0) {
     if (FLAG_debug_code) {
       __ mov(Operand(eax), Immediate(slots));
@@ -254,7 +254,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
 bool LCodeGen::GenerateSafepointTable() {
   ASSERT(is_done());
-  safepoints_.Emit(masm(), StackSlotCount());
+  safepoints_.Emit(masm(), GetStackSlotCount());
   return !is_aborted();
 }
 
@@ -386,7 +386,7 @@ void LCodeGen::AddToTranslation(Translation* translation,
     translation->StoreDoubleStackSlot(op->index());
   } else if (op->IsArgument()) {
     ASSERT(is_tagged);
-    int src_index = StackSlotCount() + op->index();
+    int src_index = GetStackSlotCount() + op->index();
     translation->StoreStackSlot(src_index);
   } else if (op->IsRegister()) {
     Register reg = ToRegister(op);
@@ -2057,7 +2057,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
   __ mov(esp, ebp);
   __ pop(ebp);
-  __ Ret((ParameterCount() + 1) * kPointerSize, ecx);
+  __ Ret((GetParameterCount() + 1) * kPointerSize, ecx);
 }
 
 
@@ -2493,7 +2493,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   SafepointGenerator safepoint_generator(this,
                                          pointers,
                                          env->deoptimization_index());
-  v8::internal::ParameterCount actual(eax);
+  ParameterCount actual(eax);
   __ InvokeFunction(function, actual, CALL_FUNCTION, &safepoint_generator);
 }
 
@@ -2707,25 +2707,16 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
 
+  Label below_half, done;
   // xmm_scratch = 0.5
   ExternalReference one_half = ExternalReference::address_of_one_half();
   __ movdbl(xmm_scratch, Operand::StaticVariable(one_half));
 
+  __ ucomisd(xmm_scratch, input_reg);
+  __ j(above, &below_half);
   // input = input + 0.5
   __ addsd(input_reg, xmm_scratch);
 
-  // We need to return -0 for the input range [-0.5, 0[, otherwise
-  // compute Math.floor(value + 0.5).
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    __ ucomisd(input_reg, xmm_scratch);
-    DeoptimizeIf(below_equal, instr->environment());
-  } else {
-    // If we don't need to bailout on -0, we check only bailout
-    // on negative inputs.
-    __ xorpd(xmm_scratch, xmm_scratch);  // Zero the register.
-    __ ucomisd(input_reg, xmm_scratch);
-    DeoptimizeIf(below, instr->environment());
-  }
 
   // Compute Math.floor(value + 0.5).
   // Use truncating instruction (OK because input is positive).
@@ -2734,6 +2725,27 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   // Overflow is signalled with minint.
   __ cmp(output_reg, 0x80000000u);
   DeoptimizeIf(equal, instr->environment());
+  __ jmp(&done);
+
+  __ bind(&below_half);
+
+  // We return 0 for the input range [+0, 0.5[, or [-0.5, 0.5[ if
+  // we can ignore the difference between a result of -0 and +0.
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    // If the sign is positive, we return +0.
+    __ movmskpd(output_reg, input_reg);
+    __ test(output_reg, Immediate(1));
+    DeoptimizeIf(not_zero, instr->environment());
+  } else {
+    // If the input is >= -0.5, we return +0.
+    __ mov(output_reg, Immediate(0xBF000000));
+    __ movd(xmm_scratch, Operand(output_reg));
+    __ cvtss2sd(xmm_scratch, xmm_scratch);
+    __ ucomisd(input_reg, xmm_scratch);
+    DeoptimizeIf(below, instr->environment());
+  }
+  __ Set(output_reg, Immediate(0));
+  __ bind(&done);
 }
 
 
@@ -2890,6 +2902,21 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
     default:
       UNREACHABLE();
   }
+}
+
+
+void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
+  ASSERT(ToRegister(instr->context()).is(esi));
+  ASSERT(ToRegister(instr->function()).is(edi));
+  ASSERT(instr->HasPointerMap());
+  ASSERT(instr->HasDeoptimizationEnvironment());
+  LPointerMap* pointers = instr->pointer_map();
+  LEnvironment* env = instr->deoptimization_environment();
+  RecordPosition(pointers->position());
+  RegisterEnvironmentForDeoptimization(env);
+  SafepointGenerator generator(this, pointers, env->deoptimization_index());
+  ParameterCount count(instr->arity());
+  __ InvokeFunction(edi, count, CALL_FUNCTION, &generator);
 }
 
 
@@ -3293,6 +3320,22 @@ void LCodeGen::DoStringLength(LStringLength* instr) {
   Register string = ToRegister(instr->string());
   Register result = ToRegister(instr->result());
   __ mov(result, FieldOperand(string, String::kLengthOffset));
+}
+
+
+void LCodeGen::DoStringAdd(LStringAdd* instr) {
+  if (instr->left()->IsConstantOperand()) {
+    __ push(ToImmediate(instr->left()));
+  } else {
+    __ push(ToOperand(instr->left()));
+  }
+  if (instr->right()->IsConstantOperand()) {
+    __ push(ToImmediate(instr->right()));
+  } else {
+    __ push(ToOperand(instr->right()));
+  }
+  StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr, RESTORE_CONTEXT);
 }
 
 

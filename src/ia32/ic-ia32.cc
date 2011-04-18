@@ -371,12 +371,6 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
 }
 
 
-// The offset from the inlined patch site to the start of the
-// inlined load instruction.  It is 7 bytes (test eax, imm) plus
-// 6 bytes (jne slow_label).
-const int LoadIC::kOffsetToLoadInstruction = 13;
-
-
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : receiver
@@ -1273,172 +1267,6 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
-  if (V8::UseCrankshaft()) return false;
-
-  // The address of the instruction following the call.
-  Address test_instruction_address =
-      address + Assembler::kCallTargetAddressOffset;
-  // If the instruction following the call is not a test eax, nothing
-  // was inlined.
-  if (*test_instruction_address != Assembler::kTestEaxByte) return false;
-
-  Address delta_address = test_instruction_address + 1;
-  // The delta to the start of the map check instruction.
-  int delta = *reinterpret_cast<int*>(delta_address);
-
-  // The map address is the last 4 bytes of the 7-byte
-  // operand-immediate compare instruction, so we add 3 to get the
-  // offset to the last 4 bytes.
-  Address map_address = test_instruction_address + delta + 3;
-  *(reinterpret_cast<Object**>(map_address)) = map;
-
-  // The offset is in the last 4 bytes of a six byte
-  // memory-to-register move instruction, so we add 2 to get the
-  // offset to the last 4 bytes.
-  Address offset_address =
-      test_instruction_address + delta + kOffsetToLoadInstruction + 2;
-  *reinterpret_cast<int*>(offset_address) = offset - kHeapObjectTag;
-  return true;
-}
-
-
-// One byte opcode for mov ecx,0xXXXXXXXX.
-// Marks inlined contextual loads using all kinds of cells. Generated
-// code has the hole check:
-//   mov reg, <cell>
-//   mov reg, (<cell>, value offset)
-//   cmp reg, <the hole>
-//   je  slow
-//   ;; use reg
-static const byte kMovEcxByte = 0xB9;
-
-// One byte opcode for mov edx,0xXXXXXXXX.
-// Marks inlined contextual loads using only "don't delete"
-// cells. Generated code doesn't have the hole check:
-//   mov reg, <cell>
-//   mov reg, (<cell>, value offset)
-//   ;; use reg
-static const byte kMovEdxByte = 0xBA;
-
-bool LoadIC::PatchInlinedContextualLoad(Address address,
-                                        Object* map,
-                                        Object* cell,
-                                        bool is_dont_delete) {
-  if (V8::UseCrankshaft()) return false;
-
-  // The address of the instruction following the call.
-  Address mov_instruction_address =
-      address + Assembler::kCallTargetAddressOffset;
-  // If the instruction following the call is not a mov ecx/edx,
-  // nothing was inlined.
-  byte b = *mov_instruction_address;
-  if (b != kMovEcxByte && b != kMovEdxByte) return false;
-  // If we don't have the hole check generated, we can only support
-  // "don't delete" cells.
-  if (b == kMovEdxByte && !is_dont_delete) return false;
-
-  Address delta_address = mov_instruction_address + 1;
-  // The delta to the start of the map check instruction.
-  int delta = *reinterpret_cast<int*>(delta_address);
-
-  // The map address is the last 4 bytes of the 7-byte
-  // operand-immediate compare instruction, so we add 3 to get the
-  // offset to the last 4 bytes.
-  Address map_address = mov_instruction_address + delta + 3;
-  *(reinterpret_cast<Object**>(map_address)) = map;
-
-  // The cell is in the last 4 bytes of a five byte mov reg, imm32
-  // instruction, so we add 1 to get the offset to the last 4 bytes.
-  Address offset_address =
-      mov_instruction_address + delta + kOffsetToLoadInstruction + 1;
-  *reinterpret_cast<Object**>(offset_address) = cell;
-  return true;
-}
-
-
-bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
-  if (V8::UseCrankshaft()) return false;
-
-  // The address of the instruction following the call.
-  Address test_instruction_address =
-      address + Assembler::kCallTargetAddressOffset;
-
-  // If the instruction following the call is not a test eax, nothing
-  // was inlined.
-  if (*test_instruction_address != Assembler::kTestEaxByte) return false;
-
-  // Extract the encoded deltas from the test eax instruction.
-  Address encoded_offsets_address = test_instruction_address + 1;
-  int encoded_offsets = *reinterpret_cast<int*>(encoded_offsets_address);
-  int delta_to_map_check = -(encoded_offsets & 0xFFFF);
-  int delta_to_record_write = encoded_offsets >> 16;
-
-  // Patch the map to check. The map address is the last 4 bytes of
-  // the 7-byte operand-immediate compare instruction.
-  Address map_check_address = test_instruction_address + delta_to_map_check;
-  Address map_address = map_check_address + 3;
-  *(reinterpret_cast<Object**>(map_address)) = map;
-
-  // Patch the offset in the store instruction. The offset is in the
-  // last 4 bytes of a six byte register-to-memory move instruction.
-  Address offset_address =
-      map_check_address + StoreIC::kOffsetToStoreInstruction + 2;
-  // The offset should have initial value (kMaxInt - 1), cleared value
-  // (-1) or we should be clearing the inlined version.
-  ASSERT(*reinterpret_cast<int*>(offset_address) == kMaxInt - 1 ||
-         *reinterpret_cast<int*>(offset_address) == -1 ||
-         (offset == 0 && map == HEAP->null_value()));
-  *reinterpret_cast<int*>(offset_address) = offset - kHeapObjectTag;
-
-  // Patch the offset in the write-barrier code. The offset is the
-  // last 4 bytes of a six byte lea instruction.
-  offset_address = map_check_address + delta_to_record_write + 2;
-  // The offset should have initial value (kMaxInt), cleared value
-  // (-1) or we should be clearing the inlined version.
-  ASSERT(*reinterpret_cast<int*>(offset_address) == kMaxInt ||
-         *reinterpret_cast<int*>(offset_address) == -1 ||
-         (offset == 0 && map == HEAP->null_value()));
-  *reinterpret_cast<int*>(offset_address) = offset - kHeapObjectTag;
-
-  return true;
-}
-
-
-static bool PatchInlinedMapCheck(Address address, Object* map) {
-  if (V8::UseCrankshaft()) return false;
-
-  Address test_instruction_address =
-      address + Assembler::kCallTargetAddressOffset;
-  // The keyed load has a fast inlined case if the IC call instruction
-  // is immediately followed by a test instruction.
-  if (*test_instruction_address != Assembler::kTestEaxByte) return false;
-
-  // Fetch the offset from the test instruction to the map cmp
-  // instruction.  This offset is stored in the last 4 bytes of the 5
-  // byte test instruction.
-  Address delta_address = test_instruction_address + 1;
-  int delta = *reinterpret_cast<int*>(delta_address);
-  // Compute the map address.  The map address is in the last 4 bytes
-  // of the 7-byte operand-immediate compare instruction, so we add 3
-  // to the offset to get the map address.
-  Address map_address = test_instruction_address + delta + 3;
-  // Patch the map check.
-  *(reinterpret_cast<Object**>(map_address)) = map;
-  return true;
-}
-
-
-bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
-  return PatchInlinedMapCheck(address, map);
-}
-
-
-bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
-  return PatchInlinedMapCheck(address, map);
-}
-
-
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : key
@@ -1517,12 +1345,6 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
       ExternalReference(IC_Utility(kStoreIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
-
-
-// The offset from the inlined patch site to the start of the inlined
-// store instruction.  It is 7 bytes (test reg, imm) plus 6 bytes (jne
-// slow_label).
-const int StoreIC::kOffsetToStoreInstruction = 13;
 
 
 void StoreIC::GenerateArrayLength(MacroAssembler* masm) {

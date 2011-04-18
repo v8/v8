@@ -67,6 +67,7 @@ class ArmDebugger {
   Simulator* sim_;
 
   int32_t GetRegisterValue(int regnum);
+  double GetRegisterPairDoubleValue(int regnum);
   double GetVFPDoubleRegisterValue(int regnum);
   bool GetValue(const char* desc, int32_t* value);
   bool GetVFPSingleValue(const char* desc, float* value);
@@ -165,6 +166,11 @@ int32_t ArmDebugger::GetRegisterValue(int regnum) {
   } else {
     return sim_->get_register(regnum);
   }
+}
+
+
+double ArmDebugger::GetRegisterPairDoubleValue(int regnum) {
+  return sim_->get_double_from_register_pair(regnum);
 }
 
 
@@ -305,14 +311,22 @@ void ArmDebugger::Debug() {
         // Leave the debugger shell.
         done = true;
       } else if ((strcmp(cmd, "p") == 0) || (strcmp(cmd, "print") == 0)) {
-        if (argc == 2) {
+        if (argc == 2 || (argc == 3 && strcmp(arg2, "fp") == 0)) {
           int32_t value;
           float svalue;
           double dvalue;
           if (strcmp(arg1, "all") == 0) {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
-              PrintF("%3s: 0x%08x %10d\n", Registers::Name(i), value, value);
+              PrintF("%3s: 0x%08x %10d", Registers::Name(i), value, value);
+              if ((argc == 3 && strcmp(arg2, "fp") == 0) &&
+                  i < 8 &&
+                  (i % 2) == 0) {
+                dvalue = GetRegisterPairDoubleValue(i);
+                PrintF(" (%f)\n", dvalue);
+              } else {
+                PrintF("\n");
+              }
             }
             for (int i = 0; i < kNumVFPDoubleRegisters; i++) {
               dvalue = GetVFPDoubleRegisterValue(i);
@@ -550,6 +564,7 @@ void ArmDebugger::Debug() {
         PrintF("print <register>\n");
         PrintF("  print register content (alias 'p')\n");
         PrintF("  use register name 'all' to print all registers\n");
+        PrintF("  add argument 'fp' to print register pair double values\n");
         PrintF("printobject <register>\n");
         PrintF("  print an object from a register (alias 'po')\n");
         PrintF("flags\n");
@@ -870,6 +885,19 @@ int32_t Simulator::get_register(int reg) const {
   if (reg >= num_registers) return 0;
   // End stupid code.
   return registers_[reg] + ((reg == pc) ? Instruction::kPCReadOffset : 0);
+}
+
+
+double Simulator::get_double_from_register_pair(int reg) {
+  ASSERT((reg >= 0) && (reg < num_registers) && ((reg % 2) == 0));
+
+  double dm_val = 0.0;
+  // Read the bits from the unsigned integer register_[] array
+  // into the double precision floating point value and return it.
+  char buffer[2 * sizeof(vfp_register[0])];
+  memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
+  memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
+  return(dm_val);
 }
 
 

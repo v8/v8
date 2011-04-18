@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -40,16 +40,6 @@ class I18NExtension : public v8::Extension {
 
   virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
       v8::Handle<v8::String> name);
-
-  // Implementations of window.Locale methods.
-  static v8::Handle<v8::Value> JSLocale(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSAvailableLocales(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSMaximizedLocale(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSMinimizedLocale(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSDisplayLanguage(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSDisplayScript(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSDisplayRegion(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSDisplayName(const v8::Arguments& args);
 
   // V8 code prefers Register, while Chrome and WebKit use get kind of methods.
   static void Register();

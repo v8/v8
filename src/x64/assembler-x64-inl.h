@@ -61,9 +61,15 @@ void Assembler::emitw(uint16_t x) {
 }
 
 
-void Assembler::emit_code_target(Handle<Code> target, RelocInfo::Mode rmode) {
+void Assembler::emit_code_target(Handle<Code> target,
+                                 RelocInfo::Mode rmode,
+                                 unsigned ast_id) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  RecordRelocInfo(rmode);
+  if (rmode == RelocInfo::CODE_TARGET && ast_id != kNoASTId) {
+    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, ast_id);
+  } else {
+    RecordRelocInfo(rmode);
+  }
   int current = code_targets_.length();
   if (current > 0 && code_targets_.last().is_identical_to(target)) {
     // Optimization if we keep jumping to the same code target.

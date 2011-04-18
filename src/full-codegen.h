@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -445,12 +445,13 @@ class FullCodeGenerator: public AstVisitor {
 
   // Apply the compound assignment operator. Expects the left operand on top
   // of the stack and the right one in the accumulator.
-  void EmitBinaryOp(Token::Value op,
+  void EmitBinaryOp(BinaryOperation* expr,
+                    Token::Value op,
                     OverwriteMode mode);
 
   // Helper functions for generating inlined smi code for certain
   // binary operations.
-  void EmitInlineSmiBinaryOp(Expression* expr,
+  void EmitInlineSmiBinaryOp(BinaryOperation* expr,
                              Token::Value op,
                              OverwriteMode mode,
                              Expression* left,
@@ -512,12 +513,16 @@ class FullCodeGenerator: public AstVisitor {
   static Register context_register();
 
   // Helper for calling an IC stub.
-  void EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode);
+  void EmitCallIC(Handle<Code> ic,
+                  RelocInfo::Mode mode,
+                  unsigned ast_id);
 
   // Calling an IC stub with a patch site. Passing NULL for patch_site
   // or non NULL patch_site which is not activated indicates no inlined smi code
   // and emits a nop after the IC call.
-  void EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site);
+  void EmitCallIC(Handle<Code> ic,
+                  JumpPatchSite* patch_site,
+                  unsigned ast_id);
 
   // Set fields in the stack frame. Offsets are the frame pointer relative
   // offsets defined in, e.g., StandardFrameConstants.

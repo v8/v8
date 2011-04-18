@@ -266,7 +266,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &true_result);
   // HeapNumber => false iff +0, -0, or NaN.
   // These three cases set the zero flag when compared to zero using ucomisd.
-  __ xorpd(xmm0, xmm0);
+  __ xorps(xmm0, xmm0);
   __ ucomisd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
   __ j(zero, &false_result);
   // Fall through to |true_result|.
@@ -371,6 +371,9 @@ void TypeRecordingBinaryOpStub::Generate(MacroAssembler* masm) {
       break;
     case TRBinaryOpIC::ODDBALL:
       GenerateOddballStub(masm);
+      break;
+    case TRBinaryOpIC::BOTH_STRING:
+      GenerateBothStringStub(masm);
       break;
     case TRBinaryOpIC::STRING:
       GenerateStringStub(masm);
@@ -767,6 +770,36 @@ void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
   GenerateStringAddCode(masm);
   // Try to add arguments as strings, otherwise, transition to the generic
   // TRBinaryOpIC type.
+  GenerateTypeTransition(masm);
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
+  Label call_runtime;
+  ASSERT(operands_type_ == TRBinaryOpIC::BOTH_STRING);
+  ASSERT(op_ == Token::ADD);
+  // If both arguments are strings, call the string add stub.
+  // Otherwise, do a transition.
+
+  // Registers containing left and right operands respectively.
+  Register left = rdx;
+  Register right = rax;
+
+  // Test if left operand is a string.
+  __ JumpIfSmi(left, &call_runtime);
+  __ CmpObjectType(left, FIRST_NONSTRING_TYPE, rcx);
+  __ j(above_equal, &call_runtime);
+
+  // Test if right operand is a string.
+  __ JumpIfSmi(right, &call_runtime);
+  __ CmpObjectType(right, FIRST_NONSTRING_TYPE, rcx);
+  __ j(above_equal, &call_runtime);
+
+  StringAddStub string_add_stub(NO_STRING_CHECK_IN_STUB);
+  GenerateRegisterArgsPush(masm);
+  __ TailCallStub(&string_add_stub);
+
+  __ bind(&call_runtime);
   GenerateTypeTransition(masm);
 }
 
@@ -1569,7 +1602,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ bind(&no_neg);
 
   // Load xmm1 with 1.
-  __ movsd(xmm1, xmm3);
+  __ movaps(xmm1, xmm3);
   NearLabel while_true;
   NearLabel no_multiply;
 
@@ -1587,8 +1620,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ j(positive, &allocate_return);
   // Special case if xmm1 has reached infinity.
   __ divsd(xmm3, xmm1);
-  __ movsd(xmm1, xmm3);
-  __ xorpd(xmm0, xmm0);
+  __ movaps(xmm1, xmm3);
+  __ xorps(xmm0, xmm0);
   __ ucomisd(xmm0, xmm1);
   __ j(equal, &call_runtime);
 
@@ -1636,11 +1669,11 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // Calculates reciprocal of square root.
   // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
-  __ xorpd(xmm1, xmm1);
+  __ xorps(xmm1, xmm1);
   __ addsd(xmm1, xmm0);
   __ sqrtsd(xmm1, xmm1);
   __ divsd(xmm3, xmm1);
-  __ movsd(xmm1, xmm3);
+  __ movaps(xmm1, xmm3);
   __ jmp(&allocate_return);
 
   // Test for 0.5.
@@ -1653,8 +1686,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &call_runtime);
   // Calculates square root.
   // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
-  __ xorpd(xmm1, xmm1);
-  __ addsd(xmm1, xmm0);
+  __ xorps(xmm1, xmm1);
+  __ addsd(xmm1, xmm0);  // Convert -0 to 0.
   __ sqrtsd(xmm1, xmm1);
 
   __ bind(&allocate_return);
@@ -2330,9 +2363,10 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   // Heap::GetNumberStringCache.
   Label is_smi;
   Label load_result_from_cache;
+  Factory* factory = masm->isolate()->factory();
   if (!object_is_smi) {
     __ JumpIfSmi(object, &is_smi);
-    __ CheckMap(object, FACTORY->heap_number_map(), not_found, true);
+    __ CheckMap(object, factory->heap_number_map(), not_found, true);
 
     STATIC_ASSERT(8 == kDoubleSize);
     __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
@@ -2419,6 +2453,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
 
   Label check_unequal_objects, done;
+  Factory* factory = masm->isolate()->factory();
 
   // Compare two smis if required.
   if (include_smi_compare_) {
@@ -2466,7 +2501,6 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // Note: if cc_ != equal, never_nan_nan_ is not used.
     // We cannot set rax to EQUAL until just before return because
     // rax must be unchanged on jump to not_identical.
-
     if (never_nan_nan_ && (cc_ == equal)) {
       __ Set(rax, EQUAL);
       __ ret(0);
@@ -2474,7 +2508,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       NearLabel heap_number;
       // If it's not a heap number, then return equal for (in)equality operator.
       __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
-             FACTORY->heap_number_map());
+             factory->heap_number_map());
       __ j(equal, &heap_number);
       if (cc_ != equal) {
         // Call runtime on identical JSObjects.  Otherwise return equal.
@@ -2519,7 +2553,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
         // Check if the non-smi operand is a heap number.
         __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
-               FACTORY->heap_number_map());
+               factory->heap_number_map());
         // If heap number, handle it in the slow case.
         __ j(equal, &slow);
         // Return non-equal.  ebx (the lower half of rbx) is not zero.
@@ -3450,10 +3484,11 @@ void StringCharCodeAtGenerator::GenerateSlow(
     MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
   __ Abort("Unexpected fallthrough to CharCodeAt slow case");
 
+  Factory* factory = masm->isolate()->factory();
   // Index is not a smi.
   __ bind(&index_not_smi_);
   // If index is a heap number, try converting it to an integer.
-  __ CheckMap(index_, FACTORY->heap_number_map(), index_not_number_, true);
+  __ CheckMap(index_, factory->heap_number_map(), index_not_number_, true);
   call_helper.BeforeCall(masm);
   __ push(object_);
   __ push(index_);
