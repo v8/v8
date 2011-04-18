@@ -1,3 +1,17 @@
+2011-04-18: Version 3.3.0
+
+        Fixed bug in floating point rounding in Crankshaft on ARM
+        (issue 958)
+
+        Fixed a number of issues with running without VFPv3 support on ARM
+        (issue 1315)
+
+        Introduced v8Locale.Collator, a partial implementation of Collator
+        per last ECMAScript meeting + mailing list.
+
+        Minor performance improvements and bug fixes.
+
+
 2011-04-13: Version 3.2.10
 
         Fixed bug in external float arrays on ARM (issue 1323).
