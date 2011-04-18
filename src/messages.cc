@@ -131,7 +131,7 @@ void MessageHandler::ReportMessage(Isolate* isolate,
       Handle<Object> callback_data(listener.get(1));
       {
         // Do not allow exceptions to propagate.
-        v8::TryCatch tryCatch;
+        v8::TryCatch try_catch;
         callback(api_message_obj, v8::Utils::ToLocal(callback_data));
       }
       if (isolate->has_scheduled_exception()) {

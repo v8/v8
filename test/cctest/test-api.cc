@@ -8711,6 +8711,8 @@ THREADED_TEST(ExceptionsDoNotPropagatePastTryCatch) {
     if (callback != NULL) {
       V8::AddMessageListener(callback);
     }
+    // Some small number to control number of times message handler should
+    // throw an exception.
     call_depth = 5;
     ExpectFalse(
         "var thrown = false;\n"
