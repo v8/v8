@@ -1282,12 +1282,13 @@ void Simulator::SetVFlag(bool val) {
 
 
 // Calculate C flag value for additions.
-bool Simulator::CarryFrom(int32_t left, int32_t right) {
+bool Simulator::CarryFrom(int32_t left, int32_t right, int32_t carry) {
   uint32_t uleft = static_cast<uint32_t>(left);
   uint32_t uright = static_cast<uint32_t>(right);
   uint32_t urest  = 0xffffffffU - uleft;
 
-  return (uright > urest);
+  return (uright > urest) ||
+         (carry && (((uright + 1) > urest) || (uright > (urest - 1))));
 }
 
 
@@ -2209,8 +2210,15 @@ void Simulator::DecodeType01(Instruction* instr) {
       }
 
       case ADC: {
-        Format(instr, "adc'cond's 'rd, 'rn, 'shift_rm");
-        Format(instr, "adc'cond's 'rd, 'rn, 'imm");
+        // Format(instr, "adc'cond's 'rd, 'rn, 'shift_rm");
+        // Format(instr, "adc'cond's 'rd, 'rn, 'imm");
+        alu_out = rn_val + shifter_operand + GetCarry();
+        set_register(rd, alu_out);
+        if (instr->HasS()) {
+          SetNZFlags(alu_out);
+          SetCFlag(CarryFrom(rn_val, shifter_operand, GetCarry()));
+          SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, true));
+        }
         break;
       }
 
