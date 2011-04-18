@@ -2901,28 +2901,28 @@ void HGraphBuilder::VisitSharedFunctionInfoLiteral(
 
 
 void HGraphBuilder::VisitConditional(Conditional* expr) {
-  HSubgraph* then_graph = CreateEmptySubgraph();
-  HSubgraph* else_graph = CreateEmptySubgraph();
+  HSubgraph* true_graph = CreateEmptySubgraph();
+  HSubgraph* false_graph = CreateEmptySubgraph();
   VISIT_FOR_CONTROL(expr->condition(),
-                    then_graph->entry_block(),
-                    else_graph->entry_block());
+                    true_graph->entry_block(),
+                    false_graph->entry_block());
 
   // Visit the true and false subexpressions in the same AST context as the
   // whole expression.
-  then_graph->entry_block()->SetJoinId(expr->ThenId());
-  { SubgraphScope scope(this, then_graph);
+  true_graph->entry_block()->SetJoinId(expr->ThenId());
+  { SubgraphScope scope(this, true_graph);
     Visit(expr->then_expression());
     CHECK_BAILOUT;
   }
 
-  else_graph->entry_block()->SetJoinId(expr->ElseId());
-  { SubgraphScope scope(this, else_graph);
+  false_graph->entry_block()->SetJoinId(expr->ElseId());
+  { SubgraphScope scope(this, false_graph);
     Visit(expr->else_expression());
     CHECK_BAILOUT;
   }
 
   if (!ast_context()->IsTest()) {
-    subgraph()->AppendJoin(then_graph, else_graph, expr);
+    subgraph()->AppendJoin(true_graph, false_graph, expr);
   }
 }
 
