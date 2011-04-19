@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 
 // A light-weight IA32 Assembler.
 
@@ -311,12 +311,8 @@ void Assembler::emit(Handle<Object> handle) {
 }
 
 
-void Assembler::emit(uint32_t x, RelocInfo::Mode rmode, unsigned id) {
-  if (rmode == RelocInfo::CODE_TARGET && id != kNoASTId) {
-    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, static_cast<intptr_t>(id));
-  } else if (rmode != RelocInfo::NONE) {
-    RecordRelocInfo(rmode);
-  }
+void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
+  if (rmode != RelocInfo::NONE) RecordRelocInfo(rmode);
   emit(x);
 }
 

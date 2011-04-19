@@ -42,7 +42,7 @@
 namespace v8 {
 namespace internal {
 
-const unsigned kNoASTId = -1;
+
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.
 
@@ -209,11 +209,10 @@ class RelocInfo BASE_EMBEDDED {
 
   enum Mode {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
-    CODE_TARGET,  // Code target which is not any of the above.
-    CODE_TARGET_WITH_ID,
     CONSTRUCT_CALL,  // code target that is a call to a JavaScript constructor.
     CODE_TARGET_CONTEXT,  // Code target used for contextual loads and stores.
     DEBUG_BREAK,  // Code target for the debugger statement.
+    CODE_TARGET,  // Code target which is not any of the above.
     EMBEDDED_OBJECT,
     GLOBAL_PROPERTY_CELL,
 
@@ -229,12 +228,10 @@ class RelocInfo BASE_EMBEDDED {
 
     // add more as needed
     // Pseudo-types
-    NUMBER_OF_MODES,  // There are at most 14 modes with noncompact encoding.
+    NUMBER_OF_MODES,  // must be no greater than 14 - see RelocInfoWriter
     NONE,  // never recorded
-    LAST_CODE_ENUM = DEBUG_BREAK,
-    LAST_GCED_ENUM = GLOBAL_PROPERTY_CELL,
-    // Modes <= LAST_COMPACT_ENUM are guaranteed to have compact encoding.
-    LAST_COMPACT_ENUM = CODE_TARGET_WITH_ID
+    LAST_CODE_ENUM = CODE_TARGET,
+    LAST_GCED_ENUM = GLOBAL_PROPERTY_CELL
   };
 
 
@@ -364,8 +361,7 @@ class RelocInfo BASE_EMBEDDED {
 
   static const int kCodeTargetMask = (1 << (LAST_CODE_ENUM + 1)) - 1;
   static const int kPositionMask = 1 << POSITION | 1 << STATEMENT_POSITION;
-  static const int kDataMask =
-      (1 << CODE_TARGET_WITH_ID) | kPositionMask | (1 << COMMENT);
+  static const int kDebugMask = kPositionMask | 1 << COMMENT;
   static const int kApplyMask;  // Modes affected by apply. Depends on arch.
 
  private:
@@ -384,14 +380,9 @@ class RelocInfo BASE_EMBEDDED {
 // lower addresses.
 class RelocInfoWriter BASE_EMBEDDED {
  public:
-  RelocInfoWriter() : pos_(NULL),
-                      last_pc_(NULL),
-                      last_id_(0),
-                      last_position_(0) {}
-  RelocInfoWriter(byte* pos, byte* pc) : pos_(pos),
-                                         last_pc_(pc),
-                                         last_id_(0),
-                                         last_position_(0) {}
+  RelocInfoWriter() : pos_(NULL), last_pc_(NULL), last_data_(0) {}
+  RelocInfoWriter(byte* pos, byte* pc) : pos_(pos), last_pc_(pc),
+                                         last_data_(0) {}
 
   byte* pos() const { return pos_; }
   byte* last_pc() const { return last_pc_; }
@@ -416,15 +407,13 @@ class RelocInfoWriter BASE_EMBEDDED {
   inline uint32_t WriteVariableLengthPCJump(uint32_t pc_delta);
   inline void WriteTaggedPC(uint32_t pc_delta, int tag);
   inline void WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag);
-  inline void WriteExtraTaggedIntData(int data_delta, int top_tag);
   inline void WriteExtraTaggedData(intptr_t data_delta, int top_tag);
   inline void WriteTaggedData(intptr_t data_delta, int tag);
   inline void WriteExtraTag(int extra_tag, int top_tag);
 
   byte* pos_;
   byte* last_pc_;
-  int last_id_;
-  int last_position_;
+  intptr_t last_data_;
   DISALLOW_COPY_AND_ASSIGN(RelocInfoWriter);
 };
 
@@ -466,13 +455,12 @@ class RelocIterator: public Malloced {
   int GetTopTag();
   void ReadTaggedPC();
   void AdvanceReadPC();
-  void AdvanceReadId();
-  void AdvanceReadPosition();
   void AdvanceReadData();
   void AdvanceReadVariableLengthPCJump();
-  int GetLocatableTypeTag();
-  void ReadTaggedId();
-  void ReadTaggedPosition();
+  int GetPositionTypeTag();
+  void ReadTaggedData();
+
+  static RelocInfo::Mode DebugInfoModeFromTag(int tag);
 
   // If the given mode is wanted, set it in rinfo_ and return true.
   // Else return false. Used for efficiently skipping unwanted modes.
@@ -485,8 +473,6 @@ class RelocIterator: public Malloced {
   RelocInfo rinfo_;
   bool done_;
   int mode_mask_;
-  int last_id_;
-  int last_position_;
   DISALLOW_COPY_AND_ASSIGN(RelocIterator);
 };
 

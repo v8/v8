@@ -69,8 +69,8 @@ TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
 }
 
 
-Handle<Object> TypeFeedbackOracle::GetInfo(unsigned ast_id) {
-  int entry = dictionary_->FindEntry(ast_id);
+Handle<Object> TypeFeedbackOracle::GetInfo(int pos) {
+  int entry = dictionary_->FindEntry(pos);
   return entry != NumberDictionary::kNotFound
       ? Handle<Object>(dictionary_->ValueAt(entry))
       : Isolate::Current()->factory()->undefined_value();
@@ -78,7 +78,7 @@ Handle<Object> TypeFeedbackOracle::GetInfo(unsigned ast_id) {
 
 
 bool TypeFeedbackOracle::LoadIsMonomorphic(Property* expr) {
-  Handle<Object> map_or_code(GetInfo(expr->id()));
+  Handle<Object> map_or_code(GetInfo(expr->position()));
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code(Code::cast(*map_or_code));
@@ -90,7 +90,7 @@ bool TypeFeedbackOracle::LoadIsMonomorphic(Property* expr) {
 
 
 bool TypeFeedbackOracle::StoreIsMonomorphic(Expression* expr) {
-  Handle<Object> map_or_code(GetInfo(expr->id()));
+  Handle<Object> map_or_code(GetInfo(expr->position()));
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code(Code::cast(*map_or_code));
@@ -102,7 +102,7 @@ bool TypeFeedbackOracle::StoreIsMonomorphic(Expression* expr) {
 
 
 bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
-  Handle<Object> value = GetInfo(expr->id());
+  Handle<Object> value = GetInfo(expr->position());
   return value->IsMap() || value->IsSmi();
 }
 
@@ -110,7 +110,7 @@ bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
 Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
   ASSERT(LoadIsMonomorphic(expr));
   Handle<Object> map_or_code(
-      Handle<HeapObject>::cast(GetInfo(expr->id())));
+      Handle<HeapObject>::cast(GetInfo(expr->position())));
   if (map_or_code->IsCode()) {
     Handle<Code> code(Code::cast(*map_or_code));
     return Handle<Map>(code->FindFirstMap());
@@ -122,7 +122,7 @@ Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
 Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Expression* expr) {
   ASSERT(StoreIsMonomorphic(expr));
   Handle<HeapObject> map_or_code(
-      Handle<HeapObject>::cast(GetInfo(expr->id())));
+      Handle<HeapObject>::cast(GetInfo(expr->position())));
   if (map_or_code->IsCode()) {
     Handle<Code> code(Code::cast(*map_or_code));
     return Handle<Map>(code->FindFirstMap());
@@ -134,14 +134,14 @@ Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Expression* expr) {
 ZoneMapList* TypeFeedbackOracle::LoadReceiverTypes(Property* expr,
                                                    Handle<String> name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, NORMAL);
-  return CollectReceiverTypes(expr->id(), name, flags);
+  return CollectReceiverTypes(expr->position(), name, flags);
 }
 
 
 ZoneMapList* TypeFeedbackOracle::StoreReceiverTypes(Assignment* expr,
                                                     Handle<String> name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, NORMAL);
-  return CollectReceiverTypes(expr->id(), name, flags);
+  return CollectReceiverTypes(expr->position(), name, flags);
 }
 
 
@@ -158,12 +158,12 @@ ZoneMapList* TypeFeedbackOracle::CallReceiverTypes(Call* expr,
                                                     OWN_MAP,
                                                     NOT_IN_LOOP,
                                                     arity);
-  return CollectReceiverTypes(expr->id(), name, flags);
+  return CollectReceiverTypes(expr->position(), name, flags);
 }
 
 
 CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
-  Handle<Object> value = GetInfo(expr->id());
+  Handle<Object> value = GetInfo(expr->position());
   if (!value->IsSmi()) return RECEIVER_MAP_CHECK;
   CheckType check = static_cast<CheckType>(Smi::cast(*value)->value());
   ASSERT(check != RECEIVER_MAP_CHECK);
@@ -172,14 +172,14 @@ CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
 
 ExternalArrayType TypeFeedbackOracle::GetKeyedLoadExternalArrayType(
     Property* expr) {
-  Handle<Object> stub = GetInfo(expr->id());
+  Handle<Object> stub = GetInfo(expr->position());
   ASSERT(stub->IsCode());
   return Code::cast(*stub)->external_array_type();
 }
 
 ExternalArrayType TypeFeedbackOracle::GetKeyedStoreExternalArrayType(
     Expression* expr) {
-  Handle<Object> stub = GetInfo(expr->id());
+  Handle<Object> stub = GetInfo(expr->position());
   ASSERT(stub->IsCode());
   return Code::cast(*stub)->external_array_type();
 }
@@ -207,13 +207,13 @@ Handle<JSObject> TypeFeedbackOracle::GetPrototypeForPrimitiveCheck(
 
 
 bool TypeFeedbackOracle::LoadIsBuiltin(Property* expr, Builtins::Name id) {
-  return *GetInfo(expr->id()) ==
+  return *GetInfo(expr->position()) ==
       Isolate::Current()->builtins()->builtin(id);
 }
 
 
 TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
-  Handle<Object> object = GetInfo(expr->id());
+  Handle<Object> object = GetInfo(expr->position());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
@@ -240,7 +240,7 @@ TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
 
 
 TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
-  Handle<Object> object = GetInfo(expr->id());
+  Handle<Object> object = GetInfo(expr->position());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
@@ -289,7 +289,7 @@ TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
 
 
 TypeInfo TypeFeedbackOracle::SwitchType(CaseClause* clause) {
-  Handle<Object> object = GetInfo(clause->label()->id());
+  Handle<Object> object = GetInfo(clause->position());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
@@ -315,11 +315,11 @@ TypeInfo TypeFeedbackOracle::SwitchType(CaseClause* clause) {
 }
 
 
-ZoneMapList* TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
+ZoneMapList* TypeFeedbackOracle::CollectReceiverTypes(int position,
                                                       Handle<String> name,
                                                       Code::Flags flags) {
   Isolate* isolate = Isolate::Current();
-  Handle<Object> object = GetInfo(ast_id);
+  Handle<Object> object = GetInfo(position);
   if (object->IsUndefined() || object->IsSmi()) return NULL;
 
   if (*object == isolate->builtins()->builtin(Builtins::kStoreIC_GlobalProxy)) {
@@ -342,9 +342,8 @@ ZoneMapList* TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
 }
 
 
-void TypeFeedbackOracle::SetInfo(unsigned ast_id, Object* target) {
-  ASSERT(dictionary_->FindEntry(ast_id) == NumberDictionary::kNotFound);
-  MaybeObject* maybe_result = dictionary_->AtNumberPut(ast_id, target);
+void TypeFeedbackOracle::SetInfo(int position, Object* target) {
+  MaybeObject* maybe_result = dictionary_->AtNumberPut(position, target);
   USE(maybe_result);
 #ifdef DEBUG
   Object* result;
@@ -361,47 +360,53 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
 
   const int kInitialCapacity = 16;
   List<int> code_positions(kInitialCapacity);
-  List<unsigned> ast_ids(kInitialCapacity);
-  CollectIds(*code, &code_positions, &ast_ids);
+  List<int> source_positions(kInitialCapacity);
+  CollectPositions(*code, &code_positions, &source_positions);
 
   ASSERT(dictionary_.is_null());  // Only initialize once.
   dictionary_ = isolate->factory()->NewNumberDictionary(
       code_positions.length());
 
-  const int length = code_positions.length();
-  ASSERT(ast_ids.length() == length);
+  int length = code_positions.length();
+  ASSERT(source_positions.length() == length);
   for (int i = 0; i < length; i++) {
     AssertNoAllocation no_allocation;
     RelocInfo info(code->instruction_start() + code_positions[i],
                    RelocInfo::CODE_TARGET, 0);
     Code* target = Code::GetCodeFromTargetAddress(info.target_address());
-    unsigned id = ast_ids[i];
+    int position = source_positions[i];
     InlineCacheState state = target->ic_state();
     Code::Kind kind = target->kind();
 
     if (kind == Code::TYPE_RECORDING_BINARY_OP_IC ||
         kind == Code::COMPARE_IC) {
-      SetInfo(id, target);
+      // TODO(kasperl): Avoid having multiple ICs with the same
+      // position by making sure that we have position information
+      // recorded for all binary ICs.
+      int entry = dictionary_->FindEntry(position);
+      if (entry == NumberDictionary::kNotFound) {
+        SetInfo(position, target);
+      }
     } else if (state == MONOMORPHIC) {
       if (kind == Code::KEYED_EXTERNAL_ARRAY_LOAD_IC ||
           kind == Code::KEYED_EXTERNAL_ARRAY_STORE_IC) {
-        SetInfo(id, target);
-      } else if (kind != Code::CALL_IC ||
-                 target->check_type() == RECEIVER_MAP_CHECK) {
+        SetInfo(position, target);
+      } else if (target->kind() != Code::CALL_IC ||
+          target->check_type() == RECEIVER_MAP_CHECK) {
         Map* map = target->FindFirstMap();
         if (map == NULL) {
-          SetInfo(id, target);
+          SetInfo(position, target);
         } else {
-          SetInfo(id, map);
+          SetInfo(position, map);
         }
       } else {
         ASSERT(target->kind() == Code::CALL_IC);
         CheckType check = target->check_type();
         ASSERT(check != RECEIVER_MAP_CHECK);
-        SetInfo(id,  Smi::FromInt(check));
+        SetInfo(position, Smi::FromInt(check));
       }
     } else if (state == MEGAMORPHIC) {
-      SetInfo(id, target);
+      SetInfo(position, target);
     }
   }
   // Allocate handle in the parent scope.
@@ -409,31 +414,41 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
 }
 
 
-void TypeFeedbackOracle::CollectIds(Code* code,
-                                    List<int>* code_positions,
-                                    List<unsigned>* ast_ids) {
+void TypeFeedbackOracle::CollectPositions(Code* code,
+                                          List<int>* code_positions,
+                                          List<int>* source_positions) {
   AssertNoAllocation no_allocation;
-  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID);
+  int position = 0;
+  // Because the ICs we use for global variables access in the full
+  // code generator do not have any meaningful positions, we avoid
+  // collecting those by filtering out contextual code targets.
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+      RelocInfo::kPositionMask;
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
-    ASSERT(RelocInfo::IsCodeTarget(info->rmode()));
-    Code* target = Code::GetCodeFromTargetAddress(info->target_address());
-    if (target->is_inline_cache_stub()) {
-      InlineCacheState state = target->ic_state();
-      Code::Kind kind = target->kind();
-      if (kind == Code::TYPE_RECORDING_BINARY_OP_IC) {
-        if (target->type_recording_binary_op_type() ==
-            TRBinaryOpIC::GENERIC) {
-          continue;
+    RelocInfo::Mode mode = info->rmode();
+    if (RelocInfo::IsCodeTarget(mode)) {
+      Code* target = Code::GetCodeFromTargetAddress(info->target_address());
+      if (target->is_inline_cache_stub()) {
+        InlineCacheState state = target->ic_state();
+        Code::Kind kind = target->kind();
+        if (kind == Code::TYPE_RECORDING_BINARY_OP_IC) {
+          if (target->type_recording_binary_op_type() ==
+              TRBinaryOpIC::GENERIC) {
+            continue;
+          }
+        } else if (kind == Code::COMPARE_IC) {
+          if (target->compare_state() == CompareIC::GENERIC) continue;
+        } else {
+          if (state != MONOMORPHIC && state != MEGAMORPHIC) continue;
         }
-      } else if (kind == Code::COMPARE_IC) {
-        if (target->compare_state() == CompareIC::GENERIC) continue;
-      } else {
-        if (state != MONOMORPHIC && state != MEGAMORPHIC) continue;
+        code_positions->Add(
+            static_cast<int>(info->pc() - code->instruction_start()));
+        source_positions->Add(position);
       }
-      code_positions->Add(
-          static_cast<int>(info->pc() - code->instruction_start()));
-      ast_ids->Add(static_cast<unsigned>(info->data()));
+    } else {
+      ASSERT(RelocInfo::IsPosition(mode));
+      position = static_cast<int>(info->data());
     }
   }
 }

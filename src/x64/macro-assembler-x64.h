@@ -692,9 +692,7 @@ class MacroAssembler: public Assembler {
 
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
-  void Call(Handle<Code> code_object,
-            RelocInfo::Mode rmode,
-            unsigned ast_id = kNoASTId);
+  void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   // The size of the code generated for different call instructions.
   int CallSize(Address destination, RelocInfo::Mode rmode) {
@@ -934,7 +932,7 @@ class MacroAssembler: public Assembler {
   // Runtime calls
 
   // Call a code stub.
-  void CallStub(CodeStub* stub, unsigned ast_id = kNoASTId);
+  void CallStub(CodeStub* stub);
 
   // Call a code stub and return the code object called.  Try to generate
   // the code if necessary.  Do not perform a GC but instead return a retry

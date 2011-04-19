@@ -1183,9 +1183,7 @@ class Assembler : public AssemblerBase {
   // Calls
   // Call near relative 32-bit displacement, relative to next instruction.
   void call(Label* L);
-  void call(Handle<Code> target,
-            RelocInfo::Mode rmode,
-            unsigned ast_id = kNoASTId);
+  void call(Handle<Code> target, RelocInfo::Mode rmode);
 
   // Calls directly to the given address using a relative offset.
   // Should only ever be used in Code objects for calls within the
@@ -1429,9 +1427,7 @@ class Assembler : public AssemblerBase {
   inline void emitl(uint32_t x);
   inline void emitq(uint64_t x, RelocInfo::Mode rmode);
   inline void emitw(uint16_t x);
-  inline void emit_code_target(Handle<Code> target,
-                               RelocInfo::Mode rmode,
-                               unsigned ast_id = kNoASTId);
+  inline void emit_code_target(Handle<Code> target, RelocInfo::Mode rmode);
   void emit(Immediate x) { emitl(x.value_); }
 
   // Emits a REX prefix that encodes a 64-bit operand size and

@@ -1104,9 +1104,9 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 }
 
 
-void MacroAssembler::CallStub(CodeStub* stub, unsigned ast_id) {
+void MacroAssembler::CallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
-  call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
+  call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 

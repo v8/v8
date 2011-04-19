@@ -148,9 +148,8 @@ int MacroAssembler::CallSize(
 }
 
 
-void MacroAssembler::Call(intptr_t target,
-                          RelocInfo::Mode rmode,
-                          Condition cond) {
+void MacroAssembler::Call(
+    intptr_t target, RelocInfo::Mode rmode, Condition cond) {
   // Block constant pool for the call instruction sequence.
   BlockConstPoolScope block_const_pool(this);
 #ifdef DEBUG
@@ -215,31 +214,8 @@ int MacroAssembler::CallSize(
 }
 
 
-void MacroAssembler::CallWithAstId(Handle<Code> code,
-                                   RelocInfo::Mode rmode,
-                                   unsigned ast_id,
-                                   Condition cond) {
-#ifdef DEBUG
-  int pre_position = pc_offset();
-#endif
-
-  ASSERT(rmode == RelocInfo::CODE_TARGET_WITH_ID);
-  ASSERT(ast_id != kNoASTId);
-  ASSERT(ast_id_for_reloc_info_ == kNoASTId);
-  ast_id_for_reloc_info_ = ast_id;
-  // 'code' is always generated ARM code, never THUMB code
-  Call(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
-
-#ifdef DEBUG
-  int post_position = pc_offset();
-  CHECK_EQ(pre_position + CallSize(code, rmode, cond), post_position);
-#endif
-}
-
-
-void MacroAssembler::Call(Handle<Code> code,
-                          RelocInfo::Mode rmode,
-                          Condition cond) {
+void MacroAssembler::Call(
+    Handle<Code> code, RelocInfo::Mode rmode, Condition cond) {
 #ifdef DEBUG
   int pre_position = pc_offset();
 #endif

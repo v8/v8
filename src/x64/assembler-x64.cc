@@ -869,14 +869,12 @@ void Assembler::call(Label* L) {
 }
 
 
-void Assembler::call(Handle<Code> target,
-                     RelocInfo::Mode rmode,
-                     unsigned ast_id) {
+void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);
-  emit_code_target(target, rmode, ast_id);
+  emit_code_target(target, rmode);
 }
 
 

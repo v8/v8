@@ -848,9 +848,7 @@ class Assembler : public AssemblerBase {
   void call(Label* L);
   void call(byte* entry, RelocInfo::Mode rmode);
   void call(const Operand& adr);
-  void call(Handle<Code> code,
-            RelocInfo::Mode rmode,
-            unsigned ast_id = kNoASTId);
+  void call(Handle<Code> code, RelocInfo::Mode rmode);
 
   // Jumps
   void jmp(Label* L);  // unconditional jump to L
@@ -1072,9 +1070,7 @@ class Assembler : public AssemblerBase {
   void GrowBuffer();
   inline void emit(uint32_t x);
   inline void emit(Handle<Object> handle);
-  inline void emit(uint32_t x,
-                   RelocInfo::Mode rmode,
-                   unsigned ast_id = kNoASTId);
+  inline void emit(uint32_t x, RelocInfo::Mode rmode);
   inline void emit(const Immediate& x);
   inline void emit_w(const Immediate& x);
 

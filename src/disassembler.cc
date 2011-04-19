@@ -282,9 +282,6 @@ static int DecodeIt(FILE* f,
         } else {
           out.AddFormatted(" %s", Code::Kind2String(kind));
         }
-        if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-          out.AddFormatted(" (id = %d)", static_cast<int>(relocinfo.data()));
-        }
       } else if (rmode == RelocInfo::RUNTIME_ENTRY &&
                  Isolate::Current()->deoptimizer_data() != NULL) {
         // A runtime entry reloinfo might be a deoptimization bailout.
