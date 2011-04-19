@@ -39,12 +39,6 @@ namespace internal {
 // Forward declarations.
 class LCodeGen;
 
-#define LITHIUM_ALL_INSTRUCTION_LIST(V)         \
-  V(ControlInstruction)                         \
-  V(Call)                                       \
-  LITHIUM_CONCRETE_INSTRUCTION_LIST(V)
-
-
 #define LITHIUM_CONCRETE_INSTRUCTION_LIST(V)    \
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
@@ -171,18 +165,14 @@ class LCodeGen;
   V(ValueOf)
 
 
-#define DECLARE_INSTRUCTION(type)                \
-  virtual bool Is##type() const { return true; } \
-  static L##type* cast(LInstruction* instr) {    \
-    ASSERT(instr->Is##type());                   \
-    return reinterpret_cast<L##type*>(instr);    \
+#define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
+  virtual Opcode opcode() const { return LInstruction::k##type; } \
+  virtual void CompileToNative(LCodeGen* generator);              \
+  virtual const char* Mnemonic() const { return mnemonic; }       \
+  static L##type* cast(LInstruction* instr) {                     \
+    ASSERT(instr->Is##type());                                    \
+    return reinterpret_cast<L##type*>(instr);                     \
   }
-
-
-#define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)        \
-  virtual void CompileToNative(LCodeGen* generator);        \
-  virtual const char* Mnemonic() const { return mnemonic; } \
-  DECLARE_INSTRUCTION(type)
 
 
 #define DECLARE_HYDROGEN_ACCESSOR(type)     \
@@ -206,10 +196,21 @@ class LInstruction: public ZoneObject {
   virtual void PrintDataTo(StringStream* stream) = 0;
   virtual void PrintOutputOperandTo(StringStream* stream) = 0;
 
+  enum Opcode {
+    // Declare a unique enum value for each instruction.
+  #define DECLARE_OPCODE(type) k##type,
+    LITHIUM_CONCRETE_INSTRUCTION_LIST(DECLARE_OPCODE)
+    kNumberOfInstructions
+  #undef DECLARE_OPCODE
+  };
+
+  virtual Opcode opcode() const = 0;
+
   // Declare virtual type testers.
-#define DECLARE_DO(type) virtual bool Is##type() const { return false; }
-  LITHIUM_ALL_INSTRUCTION_LIST(DECLARE_DO)
-#undef DECLARE_DO
+#define DECLARE_PREDICATE(type) \
+  bool Is##type() const { return opcode() == k##type; }
+  LITHIUM_CONCRETE_INSTRUCTION_LIST(DECLARE_PREDICATE)
+#undef DECLARE_PREDICATE
 
   virtual bool IsControl() const { return false; }
   virtual void SetBranchTargets(int true_block_id, int false_block_id) { }
@@ -455,7 +456,6 @@ class LUnknownOSRValue: public LTemplateInstruction<1, 0, 0> {
 template<int I, int T>
 class LControlInstruction: public LTemplateInstruction<0, I, T> {
  public:
-  DECLARE_INSTRUCTION(ControlInstruction)
   virtual bool IsControl() const { return true; }
 
   int true_block_id() const { return true_block_id_; }
@@ -1106,6 +1106,7 @@ class LArithmeticD: public LTemplateInstruction<1, 2, 0> {
 
   Token::Value op() const { return op_; }
 
+  virtual Opcode opcode() const { return LInstruction::kArithmeticD; }
   virtual void CompileToNative(LCodeGen* generator);
   virtual const char* Mnemonic() const;
 
@@ -1122,6 +1123,7 @@ class LArithmeticT: public LTemplateInstruction<1, 2, 0> {
     inputs_[1] = right;
   }
 
+  virtual Opcode opcode() const { return LInstruction::kArithmeticT; }
   virtual void CompileToNative(LCodeGen* generator);
   virtual const char* Mnemonic() const;
 
@@ -2209,7 +2211,6 @@ class LChunkBuilder BASE_EMBEDDED {
 };
 
 #undef DECLARE_HYDROGEN_ACCESSOR
-#undef DECLARE_INSTRUCTION
 #undef DECLARE_CONCRETE_INSTRUCTION
 
 } }  // namespace v8::internal
