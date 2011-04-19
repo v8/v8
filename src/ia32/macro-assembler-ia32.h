@@ -452,7 +452,7 @@ class MacroAssembler: public Assembler {
   // Runtime calls
 
   // Call a code stub.  Generate the code if necessary.
-  void CallStub(CodeStub* stub, unsigned ast_id = kNoASTId);
+  void CallStub(CodeStub* stub);
 
   // Call a code stub and return the code object called.  Try to generate
   // the code if necessary.  Do not perform a GC but instead return a retry

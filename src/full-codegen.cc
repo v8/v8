@@ -744,7 +744,7 @@ void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
       if (ShouldInlineSmiCase(op)) {
         EmitInlineSmiBinaryOp(expr, op, mode, left, right);
       } else {
-        EmitBinaryOp(expr, op, mode);
+        EmitBinaryOp(op, mode);
       }
       break;
     }
