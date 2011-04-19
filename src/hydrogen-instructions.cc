@@ -317,6 +317,17 @@ intptr_t HValue::Hashcode() {
 }
 
 
+const char* HValue::Mnemonic() const {
+  switch (opcode()) {
+#define MAKE_CASE(type) case k##type: return #type;
+    HYDROGEN_CONCRETE_INSTRUCTION_LIST(MAKE_CASE)
+#undef MAKE_CASE
+    case kPhi: return "Phi";
+    default: return "";
+  }
+}
+
+
 void HValue::SetOperandAt(int index, HValue* value) {
   ASSERT(value == NULL || !value->representation().IsNone());
   RegisterUse(index, value);
