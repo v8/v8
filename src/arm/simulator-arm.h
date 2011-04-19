@@ -155,6 +155,7 @@ class Simulator {
   // instruction.
   void set_register(int reg, int32_t value);
   int32_t get_register(int reg) const;
+  double get_double_from_register_pair(int reg);
   void set_dw_register(int dreg, const int* dbl);
 
   // Support for VFP.
