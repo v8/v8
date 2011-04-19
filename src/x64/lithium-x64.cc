@@ -133,7 +133,6 @@ void OperandContainer<T, N>::PrintOperandsTo(StringStream* stream) {
 
 
 void LLabel::PrintDataTo(StringStream* stream) {
-  LGap::PrintDataTo(stream);
   LLabel* rep = replacement();
   if (rep != NULL) {
     stream->Add(" Dead block replaced with B%d", rep->block_id());
@@ -147,7 +146,6 @@ bool LGap::IsRedundant() const {
       return false;
     }
   }
-
   return true;
 }
 
@@ -387,7 +385,6 @@ void LChunk::MarkEmptyBlocks() {
     if (last_instr->IsGoto()) {
       LGoto* goto_instr = LGoto::cast(last_instr);
       if (!goto_instr->include_stack_check() &&
-          label->IsRedundant() &&
           !label->is_loop_header()) {
         bool can_eliminate = true;
         for (int i = first + 1; i < last && can_eliminate; ++i) {
