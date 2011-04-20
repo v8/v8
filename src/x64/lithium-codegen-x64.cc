@@ -690,6 +690,7 @@ void LCodeGen::DoLabel(LLabel* label) {
   }
   __ bind(label->label());
   current_block_ = label->block_id();
+  LCodeGen::DoGap(label);
 }
 
 

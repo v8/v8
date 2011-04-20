@@ -407,17 +407,17 @@ class LDeoptimize: public LTemplateInstruction<0, 0, 0> {
 };
 
 
-class LLabel: public LTemplateInstruction<0, 0, 0> {
+class LLabel: public LGap {
  public:
   explicit LLabel(HBasicBlock* block)
-      : block_(block), replacement_(NULL) { }
+      : LGap(block), replacement_(NULL) { }
 
   DECLARE_CONCRETE_INSTRUCTION(Label, "label")
 
   virtual void PrintDataTo(StringStream* stream);
 
-  int block_id() const { return block_->block_id(); }
-  bool is_loop_header() const { return block_->IsLoopHeader(); }
+  int block_id() const { return block()->block_id(); }
+  bool is_loop_header() const { return block()->IsLoopHeader(); }
   Label* label() { return &label_; }
   LLabel* replacement() const { return replacement_; }
   void set_replacement(LLabel* label) { replacement_ = label; }
@@ -425,7 +425,6 @@ class LLabel: public LTemplateInstruction<0, 0, 0> {
 
  private:
   Label label_;
-  HBasicBlock* block_;
   LLabel* replacement_;
 };
 
@@ -2022,10 +2021,6 @@ class LChunk: public ZoneObject {
     HBasicBlock* block = graph_->blocks()->at(block_id);
     int first_instruction = block->first_instruction_index();
     return LLabel::cast(instructions_[first_instruction]);
-  }
-  LGap* GetFirstGap(HBasicBlock* block) const {
-    int first_instruction = block->first_instruction_index();
-    return LGap::cast(instructions_[first_instruction + 1]);
   }
   int LookupDestination(int block_id) const {
     LLabel* cur = GetLabel(block_id);

@@ -1047,10 +1047,9 @@ void LAllocator::ResolvePhis(HBasicBlock* block) {
       }
     }
 
-    // Insert spill-move in the first section of the first gap.
     LiveRange* live_range = LiveRangeFor(phi->id());
-    LGap* gap = chunk_->GetFirstGap(phi->block());
-    gap->GetOrCreateParallelMove(LGap::BEFORE)->
+    LLabel* label = chunk_->GetLabel(phi->block()->block_id());
+    label->GetOrCreateParallelMove(LGap::START)->
         AddMove(phi_operand, live_range->GetSpillOperand());
     live_range->SetSpillStartIndex(phi->block()->first_instruction_index());
   }
@@ -1123,12 +1122,12 @@ void LAllocator::ResolveControlFlow(LiveRange* range,
     LOperand* pred_op = pred_cover->CreateAssignedOperand();
     LOperand* cur_op = cur_cover->CreateAssignedOperand();
     if (!pred_op->Equals(cur_op)) {
+      LGap* gap = NULL;
       if (block->predecessors()->length() == 1) {
-        LGap* gap = chunk_->GetFirstGap(block);
-        gap->GetOrCreateParallelMove(LGap::BEFORE)->AddMove(pred_op, cur_op);
+        gap = GapAt(block->first_instruction_index());
       } else {
         ASSERT(pred->end()->SecondSuccessor() == NULL);
-        LGap* gap = GetLastGap(pred);
+        gap = GetLastGap(pred);
 
         // We are going to insert a move before the branch instruction.
         // Some branch instructions (e.g. loops' back edges)
@@ -1144,8 +1143,8 @@ void LAllocator::ResolveControlFlow(LiveRange* range,
             branch->pointer_map()->RecordPointer(cur_op);
           }
         }
-        gap->GetOrCreateParallelMove(LGap::START)->AddMove(pred_op, cur_op);
       }
+      gap->GetOrCreateParallelMove(LGap::START)->AddMove(pred_op, cur_op);
     }
   }
 }
