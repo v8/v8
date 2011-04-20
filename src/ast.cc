@@ -413,7 +413,7 @@ bool DebuggerStatement::IsInlineable() const {
 
 
 bool Throw::IsInlineable() const {
-  return true;
+  return exception()->IsInlineable();
 }
 
 

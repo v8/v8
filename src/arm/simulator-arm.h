@@ -223,12 +223,16 @@ class Simulator {
   void SetNZFlags(int32_t val);
   void SetCFlag(bool val);
   void SetVFlag(bool val);
-  bool CarryFrom(int32_t left, int32_t right);
+  bool CarryFrom(int32_t left, int32_t right, int32_t carry = 0);
   bool BorrowFrom(int32_t left, int32_t right);
   bool OverflowFrom(int32_t alu_out,
                     int32_t left,
                     int32_t right,
                     bool addition);
+
+  inline int GetCarry() {
+    return c_flag_ ? 1 : 0;
+  };
 
   // Support for VFP.
   void Compute_FPSCR_Flags(double val1, double val2);

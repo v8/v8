@@ -3614,10 +3614,13 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
   LOperand* input = instr->InputAt(0);
   ASSERT(input->IsRegister() && input->Equals(instr->result()));
   if (instr->needs_check()) {
-    __ tst(ToRegister(input), Operand(kSmiTagMask));
-    DeoptimizeIf(ne, instr->environment());
+    ASSERT(kHeapObjectTag == 1);
+    // If the input is a HeapObject, SmiUntag will set the carry flag.
+    __ SmiUntag(ToRegister(input), SetCC);
+    DeoptimizeIf(cs, instr->environment());
+  } else {
+    __ SmiUntag(ToRegister(input));
   }
-  __ SmiUntag(ToRegister(input));
 }
 
 
@@ -3687,6 +3690,12 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   ASSERT(!scratch2.is(input_reg) && !scratch2.is(scratch1));
 
   Label done;
+
+  // The input was optimistically untagged; revert it.
+  // The carry flag is set when we reach this deferred code as we just executed
+  // SmiUntag(heap_object, SetCC)
+  ASSERT(kHeapObjectTag == 1);
+  __ adc(input_reg, input_reg, Operand(input_reg));
 
   // Heap number map check.
   __ ldr(scratch1, FieldMemOperand(input_reg, HeapObject::kMapOffset));
@@ -3760,13 +3769,12 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
 
   DeferredTaggedToI* deferred = new DeferredTaggedToI(this, instr);
 
-  // Smi check.
-  __ tst(input_reg, Operand(kSmiTagMask));
-  __ b(ne, deferred->entry());
-
-  // Smi to int32 conversion
-  __ SmiUntag(input_reg);  // Untag smi.
-
+  // Optimistically untag the input.
+  // If the input is a HeapObject, SmiUntag will set the carry flag.
+  __ SmiUntag(input_reg, SetCC);
+  // Branch to deferred code if the input was tagged.
+  // The deferred code will take care of restoring the tag.
+  __ b(cs, deferred->entry());
   __ bind(deferred->exit());
 }
 

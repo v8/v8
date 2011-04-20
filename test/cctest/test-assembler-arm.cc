@@ -945,4 +945,69 @@ TEST(10) {
   }
 }
 
+
+TEST(11) {
+  // Test instructions using the carry flag.
+  InitializeVM();
+  v8::HandleScope scope;
+
+  typedef struct {
+    int32_t a;
+    int32_t b;
+    int32_t c;
+    int32_t d;
+  } I;
+  I i;
+
+  i.a = 0xabcd0001;
+  i.b = 0xabcd0000;
+
+  Assembler assm(Isolate::Current(), NULL, 0);
+
+  // Test HeapObject untagging.
+  __ ldr(r1, MemOperand(r0, OFFSET_OF(I, a)));
+  __ mov(r1, Operand(r1, ASR, 1), SetCC);
+  __ adc(r1, r1, Operand(r1), LeaveCC, cs);
+  __ str(r1, MemOperand(r0, OFFSET_OF(I, a)));
+
+  __ ldr(r2, MemOperand(r0, OFFSET_OF(I, b)));
+  __ mov(r2, Operand(r2, ASR, 1), SetCC);
+  __ adc(r2, r2, Operand(r2), LeaveCC, cs);
+  __ str(r2, MemOperand(r0, OFFSET_OF(I, b)));
+
+  // Test corner cases.
+  __ mov(r1, Operand(0xffffffff));
+  __ mov(r2, Operand(0));
+  __ mov(r3, Operand(r1, ASR, 1), SetCC);  // Set the carry.
+  __ adc(r3, r1, Operand(r2));
+  __ str(r3, MemOperand(r0, OFFSET_OF(I, c)));
+
+  __ mov(r1, Operand(0xffffffff));
+  __ mov(r2, Operand(0));
+  __ mov(r3, Operand(r2, ASR, 1), SetCC);  // Unset the carry.
+  __ adc(r3, r1, Operand(r2));
+  __ str(r3, MemOperand(r0, OFFSET_OF(I, d)));
+
+  __ mov(pc, Operand(lr));
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Object* code = HEAP->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+  CHECK(code->IsCode());
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  Object* dummy = CALL_GENERATED_CODE(f, &i, 0, 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(0xabcd0001, i.a);
+  CHECK_EQ(static_cast<int32_t>(0xabcd0000) >> 1, i.b);
+  CHECK_EQ(0x00000000, i.c);
+  CHECK_EQ(0xffffffff, i.d);
+}
+
 #undef __

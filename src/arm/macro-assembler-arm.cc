@@ -83,7 +83,7 @@ void MacroAssembler::Jump(Register target, Condition cond) {
 void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
                           Condition cond) {
 #if USE_BX
-  mov(ip, Operand(target, rmode), LeaveCC, cond);
+  mov(ip, Operand(target, rmode));
   bx(ip, cond);
 #else
   mov(pc, Operand(target, rmode), LeaveCC, cond);
@@ -167,7 +167,7 @@ void MacroAssembler::Call(
   // we have to do it explicitly.
   positions_recorder()->WriteRecordedPositions();
 
-  mov(ip, Operand(target, rmode), LeaveCC, cond);
+  mov(ip, Operand(target, rmode));
   blx(ip, cond);
 
   ASSERT(kCallTargetAddressOffset == 2 * kInstrSize);
@@ -2863,7 +2863,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   Call(function);
   int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
                                0 : num_arguments - kRegisterPassedArguments;
-  if (OS::ActivationFrameAlignment() > kPointerSize) {
+  if (ActivationFrameAlignment() > kPointerSize) {
     ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {
     add(sp, sp, Operand(stack_passed_arguments * sizeof(kPointerSize)));

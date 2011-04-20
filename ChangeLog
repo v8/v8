@@ -1,3 +1,12 @@
+2011-04-20: Version 3.3.1
+
+        Reduced V8 binary size by removing virtual functions from hydrogen.
+
+        Fixed crash bug on x64.
+
+        Performance improvements on ARM and IA32.
+
+
 2011-04-18: Version 3.3.0
 
         Fixed bug in floating point rounding in Crankshaft on ARM
