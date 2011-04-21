@@ -529,7 +529,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
                                              Register dst2,
                                              Register scratch2,
                                              SwVfpRegister single_scratch) {
-  ASSERT(!smi_scratch.is(scratch2));
+  ASSERT(!int_scratch.is(scratch2));
 
   Label done;
 
