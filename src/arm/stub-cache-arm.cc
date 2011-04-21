@@ -3517,6 +3517,18 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
         __ ldr(value, MemOperand(r3, key, LSL, 1));
       }
       break;
+    case kExternalDoubleArray:
+      if (CpuFeatures::IsSupported(VFP3)) {
+        CpuFeatures::Scope scope(VFP3);
+        __ add(r2, r3, Operand(key, LSL, 2));
+        __ vldr(d0, r2, 0);
+      } else {
+        __ add(r4, r3, Operand(key, LSL, 2));
+        // r4: pointer to the beginning of the double we want to load.
+        __ ldr(r2, MemOperand(r4, 0));
+        __ ldr(r3, MemOperand(r4, Register::kSizeInBytes));
+      }
+      break;
     default:
       UNREACHABLE();
       break;
@@ -3524,9 +3536,12 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
 
   // For integer array types:
   // r2: value
-  // For floating-point array type
+  // For float array type:
   // s0: value (if VFP3 is supported)
   // r2: value (if VFP3 is not supported)
+  // For double array type:
+  // d0: value (if VFP3 is supported)
+  // r2/r3: value (if VFP3 is not supported)
 
   if (array_type == kExternalIntArray) {
     // For the Int and UnsignedInt array types, we need to see whether
@@ -3694,6 +3709,31 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       __ mov(r0, r3);
       __ Ret();
     }
+  } else if (array_type == kExternalDoubleArray) {
+    if (CpuFeatures::IsSupported(VFP3)) {
+      CpuFeatures::Scope scope(VFP3);
+      // Allocate a HeapNumber for the result. Don't use r0 and r1 as
+      // AllocateHeapNumber clobbers all registers - also when jumping due to
+      // exhausted young space.
+      __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
+      __ sub(r1, r2, Operand(kHeapObjectTag));
+      __ vstr(d0, r1, HeapNumber::kValueOffset);
+
+      __ mov(r0, r2);
+      __ Ret();
+    } else {
+      // Allocate a HeapNumber for the result. Don't use r0 and r1 as
+      // AllocateHeapNumber clobbers all registers - also when jumping due to
+      // exhausted young space.
+      __ LoadRoot(r7, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(r4, r5, r6, r7, &slow);
+
+      __ str(r2, FieldMemOperand(r4, HeapNumber::kMantissaOffset));
+      __ str(r3, FieldMemOperand(r4, HeapNumber::kExponentOffset));
+      __ mov(r0, r4);
+      __ Ret();
+    }
 
   } else {
     // Tag integer as smi and return it.
@@ -3797,6 +3837,27 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
       // Perform int-to-float conversion and store to memory.
       StoreIntAsFloat(masm(), r3, r4, r5, r6, r7, r9);
       break;
+    case kExternalDoubleArray:
+      __ add(r3, r3, Operand(r4, LSL, 3));
+      // r3: effective address of the double element
+      FloatingPointHelper::Destination destination;
+      if (CpuFeatures::IsSupported(VFP3)) {
+        destination = FloatingPointHelper::kVFPRegisters;
+      } else {
+        destination = FloatingPointHelper::kCoreRegisters;
+      }
+      FloatingPointHelper::ConvertIntToDouble(
+          masm(), r5, destination,
+          d0, r6, r7,  // These are: double_dst, dst1, dst2.
+          r4, s2);  // These are: scratch2, single_scratch.
+      if (destination == FloatingPointHelper::kVFPRegisters) {
+        CpuFeatures::Scope scope(VFP3);
+        __ vstr(d0, r3, 0);
+      } else {
+        __ str(r6, MemOperand(r3, 0));
+        __ str(r7, MemOperand(r3, Register::kSizeInBytes));
+      }
+      break;
     default:
       UNREACHABLE();
       break;
@@ -3831,6 +3892,11 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
         __ add(r5, r3, Operand(r4, LSL, 2));
         __ vcvt_f32_f64(s0, d0);
         __ vstr(s0, r5, 0);
+      } else if (array_type == kExternalDoubleArray) {
+        __ sub(r5, r0, Operand(kHeapObjectTag));
+        __ vldr(d0, r5, HeapNumber::kValueOffset);
+        __ add(r5, r3, Operand(r4, LSL, 3));
+        __ vstr(d0, r5, 0);
       } else {
         // Need to perform float-to-int conversion.
         // Test for NaN or infinity (both give zero).
@@ -3933,6 +3999,12 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
         __ orr(r9, r9, Operand(r5, LSL, kMantissaInHiWordShift));
         __ orr(r5, r9, Operand(r6, LSR, kMantissaInLoWordShift));
         __ b(&done);
+      } else if (array_type == kExternalDoubleArray) {
+        __ add(r7, r3, Operand(r4, LSL, 3));
+        // r7: effective address of destination element.
+        __ str(r6, MemOperand(r7, 0));
+        __ str(r5, MemOperand(r7, Register::kSizeInBytes));
+        __ Ret();
       } else {
         bool is_signed_type = IsElementTypeSigned(array_type);
         int meaningfull_bits = is_signed_type ? (kBitsPerInt - 1) : kBitsPerInt;

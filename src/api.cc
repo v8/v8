@@ -3161,6 +3161,8 @@ ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
       return kExternalUnsignedIntArray;
     case i::EXTERNAL_FLOAT_ARRAY_TYPE:
       return kExternalFloatArray;
+    case i::EXTERNAL_DOUBLE_ARRAY_TYPE:
+      return kExternalDoubleArray;
     case i::EXTERNAL_PIXEL_ARRAY_TYPE:
       return kExternalPixelArray;
     default:

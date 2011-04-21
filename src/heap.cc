@@ -1800,6 +1800,12 @@ bool Heap::CreateInitialMaps() {
   }
   set_external_float_array_map(Map::cast(obj));
 
+  { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_DOUBLE_ARRAY_TYPE,
+                                         ExternalArray::kAlignedSize);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_external_double_array_map(Map::cast(obj));
+
   { MaybeObject* maybe_obj = AllocateMap(CODE_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
@@ -2288,6 +2294,8 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
       return kExternalUnsignedIntArrayMapRootIndex;
     case kExternalFloatArray:
       return kExternalFloatArrayMapRootIndex;
+    case kExternalDoubleArray:
+      return kExternalDoubleArrayMapRootIndex;
     case kExternalPixelArray:
       return kExternalPixelArrayMapRootIndex;
     default:

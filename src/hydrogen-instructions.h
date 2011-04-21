@@ -3246,7 +3246,8 @@ class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
                                     ExternalArrayType array_type)
       : HBinaryOperation(external_elements, key),
         array_type_(array_type) {
-    if (array_type == kExternalFloatArray) {
+    if (array_type == kExternalFloatArray ||
+        array_type == kExternalDoubleArray) {
       set_representation(Representation::Double());
     } else {
       set_representation(Representation::Integer32());
@@ -3438,7 +3439,8 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
     if (index == 0) {
       return Representation::External();
     } else {
-      if (index == 2 && array_type() == kExternalFloatArray) {
+      if (index == 2 && (array_type() == kExternalFloatArray ||
+                         array_type() == kExternalDoubleArray)) {
         return Representation::Double();
       } else {
         return Representation::Integer32();

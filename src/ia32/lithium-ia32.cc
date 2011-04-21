@@ -1888,8 +1888,11 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
     HLoadKeyedSpecializedArrayElement* instr) {
   ExternalArrayType array_type = instr->array_type();
   Representation representation(instr->representation());
-  ASSERT((representation.IsInteger32() && array_type != kExternalFloatArray) ||
-         (representation.IsDouble() && array_type == kExternalFloatArray));
+  ASSERT(
+      (representation.IsInteger32() && (array_type != kExternalFloatArray &&
+                                        array_type != kExternalDoubleArray)) ||
+      (representation.IsDouble() && (array_type == kExternalFloatArray ||
+                                     array_type == kExternalDoubleArray)));
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* external_pointer = UseRegister(instr->external_pointer());
   LOperand* key = UseRegister(instr->key());
@@ -1938,8 +1941,11 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
     HStoreKeyedSpecializedArrayElement* instr) {
   Representation representation(instr->value()->representation());
   ExternalArrayType array_type = instr->array_type();
-  ASSERT((representation.IsInteger32() && array_type != kExternalFloatArray) ||
-         (representation.IsDouble() && array_type == kExternalFloatArray));
+  ASSERT(
+      (representation.IsInteger32() && (array_type != kExternalFloatArray &&
+                                        array_type != kExternalDoubleArray)) ||
+      (representation.IsDouble() && (array_type == kExternalFloatArray ||
+                                     array_type == kExternalDoubleArray)));
   ASSERT(instr->external_pointer()->representation().IsExternal());
   ASSERT(instr->key()->representation().IsInteger32());
 

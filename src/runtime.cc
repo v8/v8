@@ -8603,43 +8603,48 @@ static void CollectElementIndices(Handle<JSObject> object,
       int dense_elements_length;
       switch (kind) {
         case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
-        dense_elements_length =
-            ExternalPixelArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalPixelArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_BYTE_ELEMENTS: {
-        dense_elements_length =
-            ExternalByteArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalByteArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
-        dense_elements_length =
-            ExternalUnsignedByteArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalUnsignedByteArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_SHORT_ELEMENTS: {
-        dense_elements_length =
-            ExternalShortArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalShortArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
-        dense_elements_length =
-            ExternalUnsignedShortArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalUnsignedShortArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_INT_ELEMENTS: {
-        dense_elements_length =
-            ExternalIntArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalIntArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-        dense_elements_length =
-            ExternalUnsignedIntArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalUnsignedIntArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_FLOAT_ELEMENTS: {
-        dense_elements_length =
-            ExternalFloatArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalFloatArray::cast(object->elements())->length();
+          break;
+        }
+        case JSObject::EXTERNAL_DOUBLE_ELEMENTS: {
+          dense_elements_length =
+              ExternalDoubleArray::cast(object->elements())->length();
           break;
         }
         default:
@@ -8770,6 +8775,11 @@ static bool IterateElements(Isolate* isolate,
     }
     case JSObject::EXTERNAL_FLOAT_ELEMENTS: {
       IterateExternalArrayElements<ExternalFloatArray, float>(
+          isolate, receiver, false, false, visitor);
+      break;
+    }
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS: {
+      IterateExternalArrayElements<ExternalDoubleArray, double>(
           isolate, receiver, false, false, visitor);
       break;
     }

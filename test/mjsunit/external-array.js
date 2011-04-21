@@ -63,3 +63,28 @@ assertEquals(1, a.BYTES_PER_ELEMENT);
 a = new Int16Array(2);
 assertEquals(2, a.BYTES_PER_ELEMENT);
 
+// Test Float64Arrays.
+function get(a, index) {
+  return a[index];
+}
+function set(a, index, value) {
+  a[index] = value;
+}
+
+var array = new Float64Array(2);
+for (var i = 0; i < 5; i++) {
+  set(array, 0, 2.5);
+  assertEquals(2.5, array[0]);
+}
+%OptimizeFunctionOnNextCall(set);
+set(array, 0, 2.5);
+assertEquals(2.5, array[0]);
+set(array, 1, 3.5);
+assertEquals(3.5, array[1]);
+for (var i = 0; i < 5; i++) {
+  assertEquals(2.5, get(array, 0));
+  assertEquals(3.5, array[1]);
+}
+%OptimizeFunctionOnNextCall(get);
+assertEquals(2.5, get(array, 0));
+assertEquals(3.5, get(array, 1));

@@ -523,6 +523,7 @@ enum InstanceType {
   EXTERNAL_INT_ARRAY_TYPE,
   EXTERNAL_UNSIGNED_INT_ARRAY_TYPE,
   EXTERNAL_FLOAT_ARRAY_TYPE,
+  EXTERNAL_DOUBLE_ARRAY_TYPE,
   EXTERNAL_PIXEL_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
   FILLER_TYPE,  // LAST_DATA_TYPE
 
@@ -691,6 +692,7 @@ class MaybeObject BASE_EMBEDDED {
   V(ExternalIntArray)                          \
   V(ExternalUnsignedIntArray)                  \
   V(ExternalFloatArray)                        \
+  V(ExternalDoubleArray)                       \
   V(ExternalPixelArray)                        \
   V(ByteArray)                                 \
   V(JSObject)                                  \
@@ -1336,6 +1338,7 @@ class JSObject: public HeapObject {
     EXTERNAL_INT_ELEMENTS,
     EXTERNAL_UNSIGNED_INT_ELEMENTS,
     EXTERNAL_FLOAT_ELEMENTS,
+    EXTERNAL_DOUBLE_ELEMENTS,
     EXTERNAL_PIXEL_ELEMENTS
   };
 
@@ -1377,6 +1380,7 @@ class JSObject: public HeapObject {
   inline bool HasExternalIntElements();
   inline bool HasExternalUnsignedIntElements();
   inline bool HasExternalFloatElements();
+  inline bool HasExternalDoubleElements();
   inline bool AllowsSetElementsLength();
   inline NumberDictionary* element_dictionary();  // Gets slow elements.
   // Requires: this->HasFastElements().
@@ -3090,6 +3094,34 @@ class ExternalFloatArray: public ExternalArray {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalFloatArray);
+};
+
+
+class ExternalDoubleArray: public ExternalArray {
+ public:
+  // Setter and getter.
+  inline double get(int index);
+  inline void set(int index, double value);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
+  MaybeObject* SetValue(uint32_t index, Object* value);
+
+  // Casting.
+  static inline ExternalDoubleArray* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  inline void ExternalDoubleArrayPrint() {
+    ExternalDoubleArrayPrint(stdout);
+  }
+  void ExternalDoubleArrayPrint(FILE* out);
+#endif  // OBJECT_PRINT
+#ifdef DEBUG
+  void ExternalDoubleArrayVerify();
+#endif  // DEBUG
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalDoubleArray);
 };
 
 

@@ -406,6 +406,13 @@ bool Object::IsExternalFloatArray() {
 }
 
 
+bool Object::IsExternalDoubleArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_DOUBLE_ARRAY_TYPE;
+}
+
+
 bool MaybeObject::IsFailure() {
   return HAS_FAILURE_TAG(this);
 }
@@ -1901,6 +1908,7 @@ CAST_ACCESSOR(ExternalUnsignedShortArray)
 CAST_ACCESSOR(ExternalIntArray)
 CAST_ACCESSOR(ExternalUnsignedIntArray)
 CAST_ACCESSOR(ExternalFloatArray)
+CAST_ACCESSOR(ExternalDoubleArray)
 CAST_ACCESSOR(ExternalPixelArray)
 CAST_ACCESSOR(Struct)
 
@@ -2311,6 +2319,20 @@ float ExternalFloatArray::get(int index) {
 void ExternalFloatArray::set(int index, float value) {
   ASSERT((index >= 0) && (index < this->length()));
   float* ptr = static_cast<float*>(external_pointer());
+  ptr[index] = value;
+}
+
+
+double ExternalDoubleArray::get(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  double* ptr = static_cast<double*>(external_pointer());
+  return ptr[index];
+}
+
+
+void ExternalDoubleArray::set(int index, double value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  double* ptr = static_cast<double*>(external_pointer());
   ptr[index] = value;
 }
 
@@ -3638,14 +3660,18 @@ JSObject::ElementsKind JSObject::GetElementsKind() {
         return EXTERNAL_INT_ELEMENTS;
       case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
         return EXTERNAL_UNSIGNED_INT_ELEMENTS;
+      case EXTERNAL_FLOAT_ARRAY_TYPE:
+        return EXTERNAL_FLOAT_ELEMENTS;
+      case EXTERNAL_DOUBLE_ARRAY_TYPE:
+        return EXTERNAL_DOUBLE_ELEMENTS;
       case EXTERNAL_PIXEL_ARRAY_TYPE:
         return EXTERNAL_PIXEL_ELEMENTS;
       default:
         break;
     }
   }
-  ASSERT(array->map()->instance_type() == EXTERNAL_FLOAT_ARRAY_TYPE);
-  return EXTERNAL_FLOAT_ELEMENTS;
+  UNREACHABLE();
+  return DICTIONARY_ELEMENTS;
 }
 
 
@@ -3686,6 +3712,8 @@ EXTERNAL_ELEMENTS_CHECK(UnsignedInt,
                         EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)
 EXTERNAL_ELEMENTS_CHECK(Float,
                         EXTERNAL_FLOAT_ARRAY_TYPE)
+EXTERNAL_ELEMENTS_CHECK(Double,
+                        EXTERNAL_DOUBLE_ARRAY_TYPE)
 EXTERNAL_ELEMENTS_CHECK(Pixel, EXTERNAL_PIXEL_ARRAY_TYPE)
 
 

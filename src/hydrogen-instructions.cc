@@ -1287,6 +1287,9 @@ void HLoadKeyedSpecializedArrayElement::PrintDataTo(
     case kExternalFloatArray:
       stream->Add("float");
       break;
+    case kExternalDoubleArray:
+      stream->Add("double");
+      break;
     case kExternalPixelArray:
       stream->Add("pixel");
       break;
@@ -1363,6 +1366,9 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
       break;
     case kExternalFloatArray:
       stream->Add("float");
+      break;
+    case kExternalDoubleArray:
+      stream->Add("double");
       break;
     case kExternalPixelArray:
       stream->Add("pixel");

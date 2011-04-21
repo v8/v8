@@ -555,6 +555,8 @@ ExternalArrayType ElementsKindToExternalArrayType(JSObject::ElementsKind kind) {
       return kExternalUnsignedIntArray;
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
       return kExternalFloatArray;
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+      return kExternalDoubleArray;
     case JSObject::EXTERNAL_PIXEL_ELEMENTS:
       return kExternalPixelArray;
     default:
@@ -582,6 +584,8 @@ String* ExternalArrayTypeToStubName(Heap* heap,
         return heap->KeyedStoreExternalUnsignedIntArray_symbol();
       case kExternalFloatArray:
         return heap->KeyedStoreExternalFloatArray_symbol();
+      case kExternalDoubleArray:
+        return heap->KeyedStoreExternalDoubleArray_symbol();
       case kExternalPixelArray:
         return heap->KeyedStoreExternalPixelArray_symbol();
       default:
@@ -604,6 +608,8 @@ String* ExternalArrayTypeToStubName(Heap* heap,
         return heap->KeyedLoadExternalUnsignedIntArray_symbol();
       case kExternalFloatArray:
         return heap->KeyedLoadExternalFloatArray_symbol();
+      case kExternalDoubleArray:
+        return heap->KeyedLoadExternalDoubleArray_symbol();
       case kExternalPixelArray:
         return heap->KeyedLoadExternalPixelArray_symbol();
       default:

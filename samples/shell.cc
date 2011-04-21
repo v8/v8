@@ -72,6 +72,7 @@ v8::Handle<v8::Value> Uint16Array(const v8::Arguments& args);
 v8::Handle<v8::Value> Int32Array(const v8::Arguments& args);
 v8::Handle<v8::Value> Uint32Array(const v8::Arguments& args);
 v8::Handle<v8::Value> Float32Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Float64Array(const v8::Arguments& args);
 v8::Handle<v8::Value> PixelArray(const v8::Arguments& args);
 v8::Handle<v8::String> ReadFile(const char* name);
 void ReportException(v8::TryCatch* handler);
@@ -359,6 +360,8 @@ v8::Persistent<v8::Context> CreateShellContext() {
               v8::FunctionTemplate::New(Uint32Array));
   global->Set(v8::String::New("Float32Array"),
               v8::FunctionTemplate::New(Float32Array));
+  global->Set(v8::String::New("Float64Array"),
+              v8::FunctionTemplate::New(Float64Array));
   global->Set(v8::String::New("PixelArray"),
               v8::FunctionTemplate::New(PixelArray));
 
@@ -509,6 +512,12 @@ v8::Handle<v8::Value> Uint32Array(const v8::Arguments& args) {
 v8::Handle<v8::Value> Float32Array(const v8::Arguments& args) {
   return CreateExternalArray(args, v8::kExternalFloatArray,
                              sizeof(float));  // NOLINT
+}
+
+
+v8::Handle<v8::Value> Float64Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalDoubleArray,
+                             sizeof(double));  // NOLINT
 }
 
 

@@ -3397,6 +3397,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     case kExternalFloatArray:
       __ fld_s(Operand(ebx, ecx, times_4, 0));
       break;
+    case kExternalDoubleArray:
+      __ fld_d(Operand(ebx, ecx, times_8, 0));
+      break;
     default:
       UNREACHABLE();
       break;
@@ -3454,7 +3457,8 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     __ mov(eax, ecx);
     __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
     __ ret(0);
-  } else if (array_type == kExternalFloatArray) {
+  } else if (array_type == kExternalFloatArray ||
+             array_type == kExternalDoubleArray) {
     // For the floating-point array type, we need to always allocate a
     // HeapNumber.
     __ AllocateHeapNumber(ecx, ebx, edi, &failed_allocation);
@@ -3569,11 +3573,16 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
       __ mov(Operand(edi, ebx, times_4, 0), ecx);
       break;
     case kExternalFloatArray:
+    case kExternalDoubleArray:
       // Need to perform int-to-float conversion.
       __ push(ecx);
       __ fild_s(Operand(esp, 0));
       __ pop(ecx);
-      __ fstp_s(Operand(edi, ebx, times_4, 0));
+      if (array_type == kExternalFloatArray) {
+        __ fstp_s(Operand(edi, ebx, times_4, 0));
+      } else {  // array_type == kExternalDoubleArray.
+        __ fstp_d(Operand(edi, ebx, times_8, 0));
+      }
       break;
     default:
       UNREACHABLE();
@@ -3602,6 +3611,10 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
     if (array_type == kExternalFloatArray) {
       __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
       __ fstp_s(Operand(edi, ebx, times_4, 0));
+      __ ret(0);
+    } else if (array_type == kExternalDoubleArray) {
+      __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
+      __ fstp_d(Operand(edi, ebx, times_8, 0));
       __ ret(0);
     } else {
       // Perform float-to-int conversion with truncation (round-to-zero)
