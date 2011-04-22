@@ -176,7 +176,10 @@ static Vector<const char> kRegexp = CStrVector("regexp");
 
 bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   ASSERT(type != NULL);
-  if (!LOGGER->is_logging() && !CpuProfiler::is_profiling()) return false;
+  Isolate* isolate = Isolate::Current();
+  if (!isolate->logger()->is_logging() && !CpuProfiler::is_profiling(isolate)) {
+    return false;
+  }
   Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
   if (FLAG_log_regexp) {
     if (name->IsEqualTo(kRegexp))

@@ -1347,7 +1347,7 @@ class ScavengingVisitor : public StaticVisitorBase {
 #if defined(ENABLE_LOGGING_AND_PROFILING)
       Isolate* isolate = heap->isolate();
       if (isolate->logger()->is_logging() ||
-          isolate->cpu_profiler()->is_profiling()) {
+          CpuProfiler::is_profiling(isolate)) {
         if (target->IsSharedFunctionInfo()) {
           PROFILE(isolate, SharedFunctionInfoMoveEvent(
               source->address(), target->address()));
@@ -1522,8 +1522,8 @@ void Heap::SwitchScavengingVisitorsTableIfProfilingWasEnabled() {
     return;
   }
 
-  if (isolate()->logger()->is_logging() ||
-      isolate()->cpu_profiler()->is_profiling() ||
+  if (isolate()->logger()->is_logging() |
+      CpuProfiler::is_profiling(isolate()) ||
       (isolate()->heap_profiler() != NULL &&
        isolate()->heap_profiler()->is_profiling())) {
     // If one of the isolates is doing scavenge at this moment of time
