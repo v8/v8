@@ -113,7 +113,7 @@ void VirtualFrame::AllocateStackSlots() {
     // them later.  First sync everything above the stack pointer so we can
     // use pushes to allocate and initialize the locals.
     SyncRange(stack_pointer_ + 1, element_count() - 1);
-    Handle<Object> undefined = Factory::undefined_value();
+    Handle<Object> undefined = FACTORY->undefined_value();
     FrameElement initial_value =
         FrameElement::ConstantElement(undefined, FrameElement::SYNCED);
     if (count < kLocalVarBound) {
@@ -1019,7 +1019,7 @@ void VirtualFrame::SyncRange(int begin, int end) {
 //------------------------------------------------------------------------------
 // Virtual frame stub and IC calling functions.
 
-Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+Result VirtualFrame::CallRuntime(const Runtime::Function* f, int arg_count) {
   PrepareForCall(arg_count, arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(f, arg_count);
@@ -1115,7 +1115,8 @@ void VirtualFrame::MoveResultsToRegisters(Result* a,
 Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
   // Name and receiver are on the top of the frame.  Both are dropped.
   // The IC expects name in rcx and receiver in rax.
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::LoadIC_Initialize));
   Result name = Pop();
   Result receiver = Pop();
   PrepareForCall(0, 0);
@@ -1132,7 +1133,8 @@ Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
   PrepareForCall(0, 0);
   MoveResultsToRegisters(&key, &receiver, rax, rdx);
 
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::KeyedLoadIC_Initialize));
   return RawCallCodeObject(ic, mode);
 }
 
@@ -1142,7 +1144,7 @@ Result VirtualFrame::CallStoreIC(Handle<String> name,
                                  StrictModeFlag strict_mode) {
   // Value and (if not contextual) receiver are on top of the frame.
   // The IC expects name in rcx, value in rax, and receiver in rdx.
-  Handle<Code> ic(Builtins::builtin(
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
       (strict_mode == kStrictMode) ? Builtins::StoreIC_Initialize_Strict
                                    : Builtins::StoreIC_Initialize));
   Result value = Pop();
@@ -1208,7 +1210,7 @@ Result VirtualFrame::CallKeyedStoreIC(StrictModeFlag strict_mode) {
     receiver.Unuse();
   }
 
-  Handle<Code> ic(Builtins::builtin(
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
       (strict_mode == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
                                    : Builtins::KeyedStoreIC_Initialize));
   return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
@@ -1222,7 +1224,8 @@ Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
   // and dropped by the call.  The IC expects the name in rcx and the rest
   // on the stack, and drops them all.
   InLoopFlag in_loop = loop_nesting > 0 ? IN_LOOP : NOT_IN_LOOP;
-  Handle<Code> ic = StubCache::ComputeCallInitialize(arg_count, in_loop);
+  Handle<Code> ic =
+      ISOLATE->stub_cache()->ComputeCallInitialize(arg_count, in_loop);
   Result name = Pop();
   // Spill args, receiver, and function.  The call will drop args and
   // receiver.
@@ -1241,7 +1244,7 @@ Result VirtualFrame::CallKeyedCallIC(RelocInfo::Mode mode,
   // on the stack, and drops them all.
   InLoopFlag in_loop = loop_nesting > 0 ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic =
-      StubCache::ComputeKeyedCallInitialize(arg_count, in_loop);
+      ISOLATE->stub_cache()->ComputeKeyedCallInitialize(arg_count, in_loop);
   Result name = Pop();
   // Spill args, receiver, and function.  The call will drop args and
   // receiver.
@@ -1256,7 +1259,8 @@ Result VirtualFrame::CallConstructor(int arg_count) {
   // Arguments, receiver, and function are on top of the frame.  The
   // IC expects arg count in rax, function in rdi, and the arguments
   // and receiver on the stack.
-  Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
+  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
+      Builtins::JSConstructCall));
   // Duplicate the function before preparing the frame.
   PushElementAt(arg_count);
   Result function = Pop();

@@ -119,12 +119,13 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   // a non-live object in the extra space at the end of the former reloc info.
   Address junk_address = reloc_info->address() + reloc_info->Size();
   ASSERT(junk_address <= reloc_end_address);
-  Heap::CreateFillerObjectAt(junk_address, reloc_end_address - junk_address);
+  HEAP->CreateFillerObjectAt(junk_address, reloc_end_address - junk_address);
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
-  node->set_next(deoptimizing_code_list_);
-  deoptimizing_code_list_ = node;
+  DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
+  node->set_next(data->deoptimizing_code_list_);
+  data->deoptimizing_code_list_ = node;
 
   // Set the code for the function to non-optimized version.
   function->ReplaceCode(function->shared()->code());
@@ -173,7 +174,8 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   *(call_target_address - 2) = 0x90;  // nop
   Assembler::set_target_address_at(call_target_address,
                                    replacement_code->entry());
-  IncrementalMarking::RecordWrite(unoptimized_code, replacement_code);
+  // TODO(gc) ISOLATES MERGE
+  HEAP->incremental_marking()->RecordWrite(unoptimized_code, replacement_code);
 }
 
 
@@ -192,7 +194,8 @@ void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
   *(call_target_address - 2) = 0x07;  // offset
   Assembler::set_target_address_at(call_target_address,
                                    check_code->entry());
-  IncrementalMarking::RecordWriteOf(check_code);
+  // TODO(gc) ISOLATES MERGE
+  HEAP->incremental_marking()->RecordWriteOf(check_code);
 }
 
 
@@ -327,7 +330,8 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
         optimized_code_->entry() + pc_offset);
     output_[0]->SetPc(pc);
   }
-  Code* continuation = Builtins::builtin(Builtins::NotifyOSR);
+  Code* continuation =
+      Isolate::Current()->builtins()->builtin(Builtins::NotifyOSR);
   output_[0]->SetContinuation(
       reinterpret_cast<uint32_t>(continuation->entry()));
 
@@ -494,9 +498,10 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
 
   // Set the continuation for the topmost frame.
   if (is_topmost) {
+    Builtins* builtins = isolate_->builtins();
     Code* continuation = (bailout_type_ == EAGER)
-        ? Builtins::builtin(Builtins::NotifyDeoptimized)
-        : Builtins::builtin(Builtins::NotifyLazyDeoptimized);
+        ? builtins->builtin(Builtins::NotifyDeoptimized)
+        : builtins->builtin(Builtins::NotifyLazyDeoptimized);
     output_frame->SetContinuation(
         reinterpret_cast<uint32_t>(continuation->entry()));
   }

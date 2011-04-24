@@ -822,7 +822,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
            && StackHandlerConstants::kPCOffset == 3 * kPointerSize
            && StackHandlerConstants::kNextOffset == 0 * kPointerSize);
     // Save the current handler as the next handler.
-    LoadExternalReference(t2, ExternalReference(Top::k_handler_address));
+    LoadExternalReference(t2, ExternalReference(Isolate::k_handler_address));
     lw(t1, MemOperand(t2));
 
     addiu(sp, sp, -StackHandlerConstants::kSize);
@@ -848,7 +848,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     li(t0, Operand(StackHandler::ENTRY));
 
     // Save the current handler as the next handler.
-    LoadExternalReference(t2, ExternalReference(Top::k_handler_address));
+    LoadExternalReference(t2, ExternalReference(Isolate::k_handler_address));
     lw(t1, MemOperand(t2));
 
     addiu(sp, sp, -StackHandlerConstants::kSize);
@@ -1270,9 +1270,9 @@ void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode,
   }
 
   // Save the frame pointer and the context in top.
-  LoadExternalReference(t0, ExternalReference(Top::k_c_entry_fp_address));
+  LoadExternalReference(t0, ExternalReference(Isolate::k_c_entry_fp_address));
   sw(fp, MemOperand(t0));
-  LoadExternalReference(t0, ExternalReference(Top::k_context_address));
+  LoadExternalReference(t0, ExternalReference(Isolate::k_context_address));
   sw(cp, MemOperand(t0));
 
   // Setup argc and the builtin function in callee-saved registers.
@@ -1283,11 +1283,11 @@ void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode,
 
 void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode) {
   // Clear top frame.
-  LoadExternalReference(t0, ExternalReference(Top::k_c_entry_fp_address));
+  LoadExternalReference(t0, ExternalReference(Isolate::k_c_entry_fp_address));
   sw(zero_reg, MemOperand(t0));
 
   // Restore current context from top and clear it in debug mode.
-  LoadExternalReference(t0, ExternalReference(Top::k_context_address));
+  LoadExternalReference(t0, ExternalReference(Isolate::k_context_address));
   lw(cp, MemOperand(t0));
 #ifdef DEBUG
   sw(a3, MemOperand(t0));

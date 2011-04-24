@@ -92,7 +92,9 @@ void RelocInfo::set_target_address(Address target, Code* code) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   if (code != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
-    IncrementalMarking::RecordWrite(code, HeapObject::cast(target_code));
+    // TODO(gc) ISOLATES MERGE code should have heap.
+    code->GetHeap()->incremental_marking()->RecordWrite(
+        code, HeapObject::cast(target_code));
   }
   Assembler::set_target_address_at(pc_, target);
 }
@@ -121,7 +123,9 @@ void RelocInfo::set_target_object(Object* target, Code* code) {
   Memory::Object_at(pc_) = target;
   CPU::FlushICache(pc_, sizeof(Address));
   if (code != NULL && target->IsHeapObject()) {
-    IncrementalMarking::RecordWrite(code, HeapObject::cast(target));
+    // TODO(gc) ISOLATES MERGE code object should have heap() accessor.
+    code->GetHeap()->incremental_marking()->RecordWrite(
+        code, HeapObject::cast(target));
   }
 }
 
@@ -154,7 +158,10 @@ void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell, Code* code) {
   Address address = cell->address() + JSGlobalPropertyCell::kValueOffset;
   Memory::Address_at(pc_) = address;
   CPU::FlushICache(pc_, sizeof(Address));
-  if (code != NULL) IncrementalMarking::RecordWrite(code, cell);
+  if (code != NULL) {
+    // TODO(gc) ISOLATES MERGE code object should have heap() accessor.
+    code->GetHeap()->incremental_marking()->RecordWrite(code, cell);
+  }
 }
 
 
@@ -212,11 +219,12 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitExternalReference(target_reference_address());
     CPU::FlushICache(pc_, sizeof(Address));
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  } else if (Debug::has_break_points() &&
-             ((RelocInfo::IsJSReturn(mode) &&
+  // TODO(isolates): Get a cached isolate below.
+  } else if (((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
-              IsPatchedDebugBreakSlotSequence()))) {
+              IsPatchedDebugBreakSlotSequence())) &&
+             Isolate::Current()->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {
@@ -226,10 +234,10 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
 
 
 template<typename StaticVisitor>
-void RelocInfo::Visit() {
+void RelocInfo::Visit(Heap* heap) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    StaticVisitor::VisitPointer(target_object_address());
+    StaticVisitor::VisitPointer(heap, target_object_address());
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     StaticVisitor::VisitCodeTarget(this);
@@ -239,7 +247,7 @@ void RelocInfo::Visit() {
     StaticVisitor::VisitExternalReference(target_reference_address());
     CPU::FlushICache(pc_, sizeof(Address));
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  } else if (Debug::has_break_points() &&
+  } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
@@ -274,7 +282,7 @@ Immediate::Immediate(Label* internal_offset) {
 Immediate::Immediate(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  ASSERT(!Heap::InNewSpace(obj));
+  ASSERT(!HEAP->InNewSpace(obj));
   if (obj->IsHeapObject()) {
     x_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
@@ -307,7 +315,7 @@ void Assembler::emit(uint32_t x) {
 void Assembler::emit(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  ASSERT(!Heap::InNewSpace(obj));
+  ASSERT(!HEAP->InNewSpace(obj));
   if (obj->IsHeapObject()) {
     emit(reinterpret_cast<intptr_t>(handle.location()),
          RelocInfo::EMBEDDED_OBJECT);

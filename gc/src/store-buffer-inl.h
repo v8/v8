@@ -34,16 +34,16 @@ namespace v8 {
 namespace internal {
 
 Address StoreBuffer::TopAddress() {
-  return reinterpret_cast<Address>(Heap::store_buffer_top_address());
+  return reinterpret_cast<Address>(heap_->store_buffer_top_address());
 }
 
 
 void StoreBuffer::Mark(Address addr) {
-  ASSERT(!Heap::cell_space()->Contains(addr));
-  ASSERT(!Heap::code_space()->Contains(addr));
-  Address* top = reinterpret_cast<Address*>(Heap::store_buffer_top());
+  ASSERT(!heap_->cell_space()->Contains(addr));
+  ASSERT(!heap_->code_space()->Contains(addr));
+  Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
   *top++ = addr;
-  Heap::public_set_store_buffer_top(top);
+  heap_->public_set_store_buffer_top(top);
   if ((reinterpret_cast<uintptr_t>(top) & kStoreBufferOverflowBit) != 0) {
     ASSERT(top == limit_);
     Compact();
@@ -55,10 +55,10 @@ void StoreBuffer::Mark(Address addr) {
 
 void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
   if (store_buffer_rebuilding_enabled_) {
-    ASSERT(!Heap::cell_space()->Contains(addr));
-    ASSERT(!Heap::code_space()->Contains(addr));
-    ASSERT(!Heap::old_data_space()->Contains(addr));
-    ASSERT(!Heap::new_space()->Contains(addr));
+    ASSERT(!heap_->cell_space()->Contains(addr));
+    ASSERT(!heap_->code_space()->Contains(addr));
+    ASSERT(!heap_->old_data_space()->Contains(addr));
+    ASSERT(!heap_->new_space()->Contains(addr));
     Address* top = old_top_;
     *top++ = addr;
     old_top_ = top;
@@ -66,7 +66,8 @@ void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
     old_buffer_is_filtered_ = false;
     if (top >= old_limit_) {
       ASSERT(callback_ != NULL);
-      (*callback_)(MemoryChunk::FromAnyPointerAddress(addr),
+      (*callback_)(heap_,
+                   MemoryChunk::FromAnyPointerAddress(addr),
                    kStoreBufferFullEvent);
     }
   }

@@ -134,14 +134,16 @@ class ExternalTwoByteStringUC16CharacterStream: public UC16CharacterStream {
 
 class V8JavaScriptScanner : public JavaScriptScanner {
  public:
-  V8JavaScriptScanner();
+  explicit V8JavaScriptScanner(Isolate* isolate)
+      : JavaScriptScanner(isolate) {}
+
   void Initialize(UC16CharacterStream* source);
 };
 
 
 class JsonScanner : public Scanner {
  public:
-  JsonScanner();
+  explicit JsonScanner(Isolate* isolate);
 
   void Initialize(UC16CharacterStream* source);
 

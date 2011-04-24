@@ -340,13 +340,17 @@ bool ThreadHandle::IsValid() const {
 }
 
 
-Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
+Thread::Thread(Isolate* isolate)
+    : ThreadHandle(ThreadHandle::INVALID),
+      isolate_(isolate) {
   set_name("v8:<unknown>");
   UNIMPLEMENTED();
 }
 
 
-Thread::Thread(const char* name) : ThreadHandle(ThreadHandle::INVALID) {
+Thread::Thread(Isolate* isolate, const char* name)
+    : ThreadHandle(ThreadHandle::INVALID),
+      isolate_(isolate) {
   set_name(name);
   UNIMPLEMENTED();
 }

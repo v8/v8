@@ -69,10 +69,10 @@ TEST(AssemblerIa320) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc,
-                                  Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value()))->
-      ToObjectChecked();
+  Object* code = HEAP->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef OBJECT_PRINT
   Code::cast(code)->Print();
@@ -107,10 +107,10 @@ TEST(AssemblerIa321) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc,
-                                  Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value()))->
-      ToObjectChecked();
+  Object* code = HEAP->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef OBJECT_PRINT
   Code::cast(code)->Print();
@@ -144,16 +144,15 @@ TEST(AssemblerIa322) {
   __ ret(0);
 
   // some relocated stuff here, not executed
-  __ mov(eax, Factory::true_value());
+  __ mov(eax, FACTORY->true_value());
   __ jmp(NULL, RelocInfo::RUNTIME_ENTRY);
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(
+  Object* code = HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(Heap::undefined_value()))->ToObjectChecked();
-
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef OBJECT_PRINT
   Code::cast(code)->Print();
@@ -168,7 +167,7 @@ TEST(AssemblerIa322) {
 typedef int (*F3)(float x);
 
 TEST(AssemblerIa323) {
-  if (!CpuFeatures::IsSupported(SSE2)) return;
+  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) return;
 
   InitializeVM();
   v8::HandleScope scope;
@@ -176,7 +175,7 @@ TEST(AssemblerIa323) {
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
 
-  CHECK(CpuFeatures::IsSupported(SSE2));
+  CHECK(Isolate::Current()->cpu_features()->IsSupported(SSE2));
   { CpuFeatures::Scope fscope(SSE2);
     __ cvttss2si(eax, Operand(esp, 4));
     __ ret(0);
@@ -184,10 +183,10 @@ TEST(AssemblerIa323) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(Heap::CreateCode(
+  Code* code = Code::cast(HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(Heap::undefined_value()))->ToObjectChecked());
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
   // don't print the code - our disassembler can't handle cvttss2si
   // instead print bytes
   Disassembler::Dump(stdout,
@@ -203,7 +202,7 @@ TEST(AssemblerIa323) {
 typedef int (*F4)(double x);
 
 TEST(AssemblerIa324) {
-  if (!CpuFeatures::IsSupported(SSE2)) return;
+  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) return;
 
   InitializeVM();
   v8::HandleScope scope;
@@ -211,17 +210,17 @@ TEST(AssemblerIa324) {
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
 
-  CHECK(CpuFeatures::IsSupported(SSE2));
+  CHECK(Isolate::Current()->cpu_features()->IsSupported(SSE2));
   CpuFeatures::Scope fscope(SSE2);
   __ cvttsd2si(eax, Operand(esp, 4));
   __ ret(0);
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(Heap::CreateCode(
+  Code* code = Code::cast(HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(Heap::undefined_value()))->ToObjectChecked());
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
   // don't print the code - our disassembler can't handle cvttsd2si
   // instead print bytes
   Disassembler::Dump(stdout,
@@ -247,10 +246,10 @@ TEST(AssemblerIa325) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(Heap::CreateCode(
+  Code* code = Code::cast(HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(Heap::undefined_value()))->ToObjectChecked());
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
   F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = f();
   CHECK_EQ(42, res);
@@ -260,11 +259,11 @@ TEST(AssemblerIa325) {
 typedef double (*F5)(double x, double y);
 
 TEST(AssemblerIa326) {
-  if (!CpuFeatures::IsSupported(SSE2)) return;
+  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) return;
 
   InitializeVM();
   v8::HandleScope scope;
-  CHECK(CpuFeatures::IsSupported(SSE2));
+  CHECK(Isolate::Current()->cpu_features()->IsSupported(SSE2));
   CpuFeatures::Scope fscope(SSE2);
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
@@ -284,10 +283,10 @@ TEST(AssemblerIa326) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(Heap::CreateCode(
+  Code* code = Code::cast(HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(Heap::undefined_value()))->ToObjectChecked());
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
 #ifdef DEBUG
   ::printf("\n---\n");
   // don't print the code - our disassembler can't handle SSE instructions
@@ -306,11 +305,11 @@ TEST(AssemblerIa326) {
 typedef double (*F6)(int x);
 
 TEST(AssemblerIa328) {
-  if (!CpuFeatures::IsSupported(SSE2)) return;
+  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) return;
 
   InitializeVM();
   v8::HandleScope scope;
-  CHECK(CpuFeatures::IsSupported(SSE2));
+  CHECK(Isolate::Current()->cpu_features()->IsSupported(SSE2));
   CpuFeatures::Scope fscope(SSE2);
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
@@ -324,10 +323,10 @@ TEST(AssemblerIa328) {
   __ ret(0);
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(Heap::CreateCode(
+  Code* code = Code::cast(HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(Heap::undefined_value()))->ToObjectChecked());
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
   CHECK(code->IsCode());
 #ifdef OBJECT_PRINT
   Code::cast(code)->Print();
@@ -379,10 +378,10 @@ TEST(AssemblerIa329) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(Heap::CreateCode(
+  Code* code = Code::cast(HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(Heap::undefined_value()))->ToObjectChecked());
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
   CHECK(code->IsCode());
 #ifdef OBJECT_PRINT
   Code::cast(code)->Print();

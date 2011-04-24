@@ -29,6 +29,7 @@
 #define V8_MARK_COMPACT_H_
 
 #include "compiler-intrinsics.h"
+#include "spaces.h"
 
 namespace v8 {
 namespace internal {
@@ -39,69 +40,36 @@ namespace internal {
 typedef bool (*IsAliveFunction)(HeapObject* obj, int* size, int* offset);
 
 // Forward declarations.
-class RootMarkingVisitor;
+class CodeFlusher;
+class GCTracer;
 class MarkingVisitor;
+class RootMarkingVisitor;
 
 
 class Marking {
  public:
-  static inline MarkBit MarkBitFrom(HeapObject* obj) {
+  explicit Marking(Heap* heap)
+      : heap_(heap),
+        new_space_bitmap_(NULL) {
+  }
+
+  inline MarkBit MarkBitFromNewSpace(HeapObject* obj);
+
+  static inline MarkBit MarkBitFromOldSpace(HeapObject* obj);
+
+  inline MarkBit MarkBitFrom(Address addr);
+
+  inline MarkBit MarkBitFrom(HeapObject* obj) {
     return MarkBitFrom(reinterpret_cast<Address>(obj));
   }
 
-  static inline MarkBit MarkBitFromNewSpace(HeapObject* obj) {
-    ASSERT(Heap::InNewSpace(obj));
-    uint32_t index = Heap::new_space()->AddressToMarkbitIndex(
-        reinterpret_cast<Address>(obj));
-    return new_space_bitmap_->MarkBitFromIndex(index);
-  }
+  inline void ClearRange(Address addr, int size);
 
-  static inline MarkBit MarkBitFromOldSpace(HeapObject* obj) {
-    ASSERT(!Heap::InNewSpace(obj));
-    ASSERT(obj->IsHeapObject());
-    Address addr = reinterpret_cast<Address>(obj);
-    Page *p = Page::FromAddress(addr);
-    return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr));
-  }
+  void TransferMark(Address old_start, Address new_start);
 
-  static inline MarkBit MarkBitFrom(Address addr) {
-    if (Heap::InNewSpace(addr)) {
-      uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
-      return new_space_bitmap_->MarkBitFromIndex(index);
-    } else {
-      Page *p = Page::FromAddress(addr);
-      return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr),
-                                             p->ContainsOnlyData());
-    }
-  }
+  bool Setup();
 
-  static void ClearRange(Address addr, int size) {
-    if (Heap::InNewSpace(addr)) {
-      uint32_t index = Heap::new_space()->AddressToMarkbitIndex(addr);
-      new_space_bitmap_->ClearRange(index, size >> kPointerSizeLog2);
-    } else {
-      Page *p = Page::FromAddress(addr);
-      p->markbits()->ClearRange(p->FastAddressToMarkbitIndex(addr),
-                                size >> kPointerSizeLog2);
-    }
-  }
-
-  // Find first marked object in the given cell with index cell_index on
-  // the given page.
-  INLINE(static Address FirstMarkedObject(Page* page,
-                                          uint32_t cell_index,
-                                          uint32_t cell)) {
-    ASSERT(cell != 0);
-    uint32_t bit = CompilerIntrinsics::CountTrailingZeros(cell);
-    return page->MarkbitIndexToAddress(
-        Page::MarkbitsBitmap::CellToIndex(cell_index) + bit);
-  }
-
-  static void TransferMark(Address old_start, Address new_start);
-
-  static bool Setup();
-
-  static void TearDown();
+  void TearDown();
 
  private:
   class BitmapStorageDescriptor {
@@ -147,22 +115,81 @@ class Marking {
 
   typedef Bitmap<BitmapStorageDescriptor> NewSpaceMarkbitsBitmap;
 
-  static NewSpaceMarkbitsBitmap* new_space_bitmap_;
+  Heap* heap_;
+  NewSpaceMarkbitsBitmap* new_space_bitmap_;
 };
+
+// ----------------------------------------------------------------------------
+// Marking stack for tracing live objects.
+
+class MarkingStack {
+ public:
+  MarkingStack() : low_(NULL), top_(NULL), high_(NULL), overflowed_(false) { }
+
+  void Initialize(Address low, Address high) {
+    top_ = low_ = reinterpret_cast<HeapObject**>(low);
+    high_ = reinterpret_cast<HeapObject**>(high);
+    overflowed_ = false;
+  }
+
+  bool is_full() const { return top_ >= high_; }
+
+  bool is_empty() const { return top_ <= low_; }
+
+  bool overflowed() const { return overflowed_; }
+
+  void clear_overflowed() { overflowed_ = false; }
+
+  // Push the (marked) object on the marking stack if there is room,
+  // otherwise mark the object as overflowed and wait for a rescan of the
+  // heap.
+  void Push(HeapObject* object) {
+    CHECK(object->IsHeapObject());
+    if (is_full()) {
+      object->SetOverflow();
+      overflowed_ = true;
+    } else {
+      *(top_++) = object;
+    }
+  }
+
+  HeapObject* Pop() {
+    ASSERT(!is_empty());
+    HeapObject* object = *(--top_);
+    CHECK(object->IsHeapObject());
+    return object;
+  }
+
+  HeapObject** low() { return low_; }
+  HeapObject** top() { return top_; }
+  void set_top(HeapObject** top) { top_ = top; }
+
+ private:
+  HeapObject** low_;
+  HeapObject** top_;
+  HeapObject** high_;
+  bool overflowed_;
+
+  DISALLOW_COPY_AND_ASSIGN(MarkingStack);
+};
+
 
 // -------------------------------------------------------------------------
 // Mark-Compact collector
 //
 // All methods are static.
 
-class MarkCompactCollector: public AllStatic {
+class OverflowedObjectsScanner;
+
+class MarkCompactCollector {
  public:
   // Type of functions to compute forwarding addresses of objects in
   // compacted spaces.  Given an object and its size, return a (non-failure)
   // Object* that will be the object after forwarding.  There is a separate
   // allocation function for each (compactable) space based on the location
   // of the object before compaction.
-  typedef MaybeObject* (*AllocationFunction)(HeapObject* object,
+  typedef MaybeObject* (*AllocationFunction)(Heap* heap,
+                                             HeapObject* object,
                                              int object_size);
 
   // Type of functions to encode the forwarding address for an object.
@@ -173,7 +200,8 @@ class MarkCompactCollector: public AllStatic {
   // page as input, and is updated to contain the offset to be used for the
   // next live object in the same page.  For spaces using a different
   // encoding (ie, contiguous spaces), the offset parameter is ignored.
-  typedef void (*EncodingFunction)(HeapObject* old_object,
+  typedef void (*EncodingFunction)(Heap* heap,
+                                   HeapObject* old_object,
                                    int object_size,
                                    Object* new_object,
                                    int* offset);
@@ -181,29 +209,31 @@ class MarkCompactCollector: public AllStatic {
   // Type of functions to process non-live objects.
   typedef void (*ProcessNonLiveFunction)(HeapObject* object);
 
+  // Pointer to member function, used in IterateLiveObjects.
+  typedef int (MarkCompactCollector::*LiveObjectCallback)(HeapObject* obj);
+
   // Set the global force_compaction flag, it must be called before Prepare
   // to take effect.
-  static void SetFlags(int flags) {
-    force_compaction_ = ((flags & Heap::kForceCompactionMask) != 0);
-    sweep_precisely_ = ((flags & Heap::kMakeHeapIterableMask) != 0);
-  }
+  inline void SetFlags(int flags);
 
-  static bool PreciseSweepingRequired() { return sweep_precisely_; }
+  inline bool PreciseSweepingRequired() {
+    return sweep_precisely_;
+  }
 
   static void Initialize();
 
   // Prepares for GC by resetting relocation info in old and map spaces and
   // choosing spaces to compact.
-  static void Prepare(GCTracer* tracer);
+  void Prepare(GCTracer* tracer);
 
   // Performs a global garbage collection.
-  static void CollectGarbage();
+  void CollectGarbage();
 
   // True if the last full GC performed heap compaction.
-  static bool HasCompacted() { return compacting_collection_; }
+  bool HasCompacted() { return compacting_collection_; }
 
   // True after the Prepare phase if the compaction is taking place.
-  static bool IsCompacting() {
+  bool IsCompacting() {
 #ifdef DEBUG
     // For the purposes of asserts we don't want this to keep returning true
     // after the collection is completed.
@@ -215,12 +245,12 @@ class MarkCompactCollector: public AllStatic {
 
   // During a full GC, there is a stack-allocated GCTracer that is used for
   // bookkeeping information.  Return a pointer to that tracer.
-  static GCTracer* tracer() { return tracer_; }
+  GCTracer* tracer() { return tracer_; }
 
 #ifdef DEBUG
   // Checks whether performing mark-compact collection.
-  static bool in_use() { return state_ > PREPARE_GC; }
-  static bool are_map_pointers_encoded() { return state_ == UPDATE_POINTERS; }
+  bool in_use() { return state_ > PREPARE_GC; }
+  bool are_map_pointers_encoded() { return state_ == UPDATE_POINTERS; }
 #endif
 
   // Determine type of object and emit deletion log event.
@@ -231,13 +261,18 @@ class MarkCompactCollector: public AllStatic {
   static const uint32_t kSingleFreeEncoding = 0;
   static const uint32_t kMultiFreeEncoding = 1;
 
-  static bool IsMarked(Object* obj) {
-    ASSERT(obj->IsHeapObject());
-    HeapObject* heap_object = HeapObject::cast(obj);
-    return Marking::MarkBitFrom(heap_object).Get();
-  }
+  inline bool IsMarked(Object* obj);
+
+  inline Heap* heap() const { return heap_; }
+
+  CodeFlusher* code_flusher() { return code_flusher_; }
+  inline bool is_code_flushing_enabled() const { return code_flusher_ != NULL; }
+  void EnableCodeFlushing(bool enable);
 
  private:
+  MarkCompactCollector();
+  ~MarkCompactCollector();
+
 #ifdef DEBUG
   enum CollectorState {
     IDLE,
@@ -250,28 +285,32 @@ class MarkCompactCollector: public AllStatic {
   };
 
   // The current stage of the collector.
-  static CollectorState state_;
+  CollectorState state_;
 #endif
 
   // Global flag that forces a compaction.
-  static bool force_compaction_;
+  bool force_compaction_;
 
   // Global flag that forces sweeping to be precise, so we can traverse the
   // heap.
-  static bool sweep_precisely_;
+  bool sweep_precisely_;
 
   // Global flag indicating whether spaces were compacted on the last GC.
-  static bool compacting_collection_;
+  bool compacting_collection_;
 
   // Global flag indicating whether spaces will be compacted on the next GC.
-  static bool compact_on_next_gc_;
+  bool compact_on_next_gc_;
+
+  // The number of objects left marked at the end of the last completed full
+  // GC (expected to be zero).
+  int previous_marked_count_;
 
   // A pointer to the current stack-allocated GC tracer object during a full
   // collection (NULL before and after).
-  static GCTracer* tracer_;
+  GCTracer* tracer_;
 
   // Finishes GC, performs heap verification if enabled.
-  static void Finish();
+  void Finish();
 
   // -----------------------------------------------------------------------
   // Phase 1: Marking live objects.
@@ -289,88 +328,70 @@ class MarkCompactCollector: public AllStatic {
   friend class CodeMarkingVisitor;
   friend class SharedFunctionInfoMarkingVisitor;
 
-  static void PrepareForCodeFlushing();
+  void PrepareForCodeFlushing();
 
   // Marking operations for objects reachable from roots.
-  static void MarkLiveObjects();
+  void MarkLiveObjects();
 
-  static void AfterMarking();
+  void AfterMarking();
 
+  INLINE(void MarkObject(HeapObject* obj, MarkBit mark_bit));
 
-  INLINE(static void MarkObject(HeapObject* obj, MarkBit mark_bit)) {
-    ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
-    if (!mark_bit.Get()) {
-      mark_bit.Set();
-      tracer_->increment_marked_count();
-#ifdef DEBUG
-      UpdateLiveObjectCount(obj);
-#endif
-      ProcessNewlyMarkedObject(obj);
-    }
-  }
+  INLINE(void SetMark(HeapObject* obj, MarkBit mark_bit));
 
-  INLINE(static void SetMark(HeapObject* obj, MarkBit mark_bit)) {
-    ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
-    mark_bit.Set();
-    tracer_->increment_marked_count();
-#ifdef DEBUG
-    UpdateLiveObjectCount(obj);
-#endif
-  }
-
-  static void ProcessNewlyMarkedObject(HeapObject* obj);
+  void ProcessNewlyMarkedObject(HeapObject* obj);
 
   // Creates back pointers for all map transitions, stores them in
   // the prototype field.  The original prototype pointers are restored
   // in ClearNonLiveTransitions().  All JSObject maps
   // connected by map transitions have the same prototype object, which
   // is why we can use this field temporarily for back pointers.
-  static void CreateBackPointers();
+  void CreateBackPointers();
 
   // Mark a Map and its DescriptorArray together, skipping transitions.
-  static void MarkMapContents(Map* map);
-  static void MarkDescriptorArray(DescriptorArray* descriptors);
+  void MarkMapContents(Map* map);
+  void MarkDescriptorArray(DescriptorArray* descriptors);
 
   // Mark the heap roots and all objects reachable from them.
-  static void MarkRoots(RootMarkingVisitor* visitor);
+  void MarkRoots(RootMarkingVisitor* visitor);
 
   // Mark the symbol table specially.  References to symbols from the
   // symbol table are weak.
-  static void MarkSymbolTable();
+  void MarkSymbolTable();
 
   // Mark objects in object groups that have at least one object in the
   // group marked.
-  static void MarkObjectGroups();
+  void MarkObjectGroups();
 
   // Mark objects in implicit references groups if their parent object
   // is marked.
-  static void MarkImplicitRefGroups();
+  void MarkImplicitRefGroups();
 
   // Mark all objects which are reachable due to host application
   // logic like object groups or implicit references' groups.
-  static void ProcessExternalMarking();
+  void ProcessExternalMarking();
 
   // Mark objects reachable (transitively) from objects in the marking stack
   // or overflowed in the heap.
-  static void ProcessMarkingStack();
+  void ProcessMarkingStack();
 
   // Mark objects reachable (transitively) from objects in the marking
   // stack.  This function empties the marking stack, but may leave
   // overflowed objects in the heap, in which case the marking stack's
   // overflow flag will be set.
-  static void EmptyMarkingStack();
+  void EmptyMarkingStack();
 
   // Refill the marking stack with overflowed objects from the heap.  This
   // function either leaves the marking stack full or clears the overflow
   // flag on the marking stack.
-  static void RefillMarkingStack();
+  void RefillMarkingStack();
 
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
   static bool IsUnmarkedHeapObject(Object** p);
 
 #ifdef DEBUG
-  static void UpdateLiveObjectCount(HeapObject* obj);
+  void UpdateLiveObjectCount(HeapObject* obj);
 #endif
 
   // Test whether a (possibly marked) object is a Map.
@@ -378,7 +399,7 @@ class MarkCompactCollector: public AllStatic {
 
   // Map transitions from a live map to a dead map must be killed.
   // We replace them with a null descriptor, with the same key.
-  static void ClearNonLiveTransitions();
+  void ClearNonLiveTransitions();
 
   // -----------------------------------------------------------------------
   // Phase 2: Sweeping to clear mark bits and free non-live objects for
@@ -391,27 +412,28 @@ class MarkCompactCollector: public AllStatic {
   //          evacuation.
   //
 
+
   // Iterates live objects in a space, passes live objects
   // to a callback function which returns the heap size of the object.
   // Returns the number of live objects iterated.
-  static int IterateLiveObjects(NewSpace* space, HeapObjectCallback size_f);
-  static int IterateLiveObjects(PagedSpace* space, HeapObjectCallback size_f);
+  int IterateLiveObjects(NewSpace* space, LiveObjectCallback size_f);
+  int IterateLiveObjects(PagedSpace* space, LiveObjectCallback size_f);
 
   // Iterates the live objects between a range of addresses, returning the
   // number of live objects.
-  static int IterateLiveObjectsInRange(Address start, Address end,
-                                       HeapObjectCallback size_func);
+  int IterateLiveObjectsInRange(Address start, Address end,
+                                LiveObjectCallback size_func);
 
   // If we are not compacting the heap, we simply sweep the spaces except
   // for the large object space, clearing mark bits and adding unmarked
   // regions to each space's free list.
-  static void SweepSpaces();
+  void SweepSpaces();
 
-  static void SweepNewSpace(NewSpace* space);
+  void SweepNewSpace(NewSpace* space);
 
   enum SweeperType { CONSERVATIVE, PRECISE };
 
-  static void SweepSpace(PagedSpace* space, SweeperType sweeper);
+  void SweepSpace(PagedSpace* space, SweeperType sweeper);
 
 #ifdef DEBUG
   // -----------------------------------------------------------------------
@@ -420,28 +442,28 @@ class MarkCompactCollector: public AllStatic {
   // mark-sweep collection.
 
   // Size of live objects in Heap::to_space_.
-  static int live_young_objects_size_;
+  int live_young_objects_size_;
 
   // Size of live objects in Heap::old_pointer_space_.
-  static int live_old_pointer_objects_size_;
+  int live_old_pointer_objects_size_;
 
   // Size of live objects in Heap::old_data_space_.
-  static int live_old_data_objects_size_;
+  int live_old_data_objects_size_;
 
   // Size of live objects in Heap::code_space_.
-  static int live_code_objects_size_;
+  int live_code_objects_size_;
 
   // Size of live objects in Heap::map_space_.
-  static int live_map_objects_size_;
+  int live_map_objects_size_;
 
   // Size of live objects in Heap::cell_space_.
-  static int live_cell_objects_size_;
+  int live_cell_objects_size_;
 
   // Size of live objects in Heap::lo_space_.
-  static int live_lo_objects_size_;
+  int live_lo_objects_size_;
 
   // Number of live bytes in this collection.
-  static int live_bytes_;
+  int live_bytes_;
 
   friend class MarkObjectVisitor;
   static void VisitObject(HeapObject* obj);
@@ -449,6 +471,13 @@ class MarkCompactCollector: public AllStatic {
   friend class UnmarkObjectVisitor;
   static void UnmarkObject(HeapObject* obj);
 #endif
+
+  Heap* heap_;
+  MarkingStack marking_stack_;
+  CodeFlusher* code_flusher_;
+
+  friend class Heap;
+  friend class OverflowedObjectsScanner;
 };
 
 

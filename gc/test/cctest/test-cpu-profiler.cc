@@ -23,7 +23,7 @@ using i::TokenEnumerator;
 TEST(StartStop) {
   CpuProfilesCollection profiles;
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(&generator);
+  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
   while (!processor.running()) {
     i::Thread::YieldCPU();
@@ -87,7 +87,7 @@ TEST(CodeEvents) {
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(&generator);
+  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
   while (!processor.running()) {
     i::Thread::YieldCPU();
@@ -96,11 +96,11 @@ TEST(CodeEvents) {
   // Enqueue code creation events.
   i::HandleScope scope;
   const char* aaa_str = "aaa";
-  i::Handle<i::String> aaa_name = i::Factory::NewStringFromAscii(
+  i::Handle<i::String> aaa_name = FACTORY->NewStringFromAscii(
       i::Vector<const char>(aaa_str, i::StrLength(aaa_str)));
   processor.CodeCreateEvent(i::Logger::FUNCTION_TAG,
                             *aaa_name,
-                            i::Heap::empty_string(),
+                            HEAP->empty_string(),
                             0,
                             ToAddress(0x1000),
                             0x100,
@@ -151,7 +151,7 @@ TEST(TickEvents) {
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(&generator);
+  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
   while (!processor.running()) {
     i::Thread::YieldCPU();

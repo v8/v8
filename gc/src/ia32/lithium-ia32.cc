@@ -1633,8 +1633,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LOperand* value = UseRegister(instr->value());
       bool needs_check = !instr->value()->type().IsSmi();
       if (needs_check) {
+        CpuFeatures* cpu_features = Isolate::Current()->cpu_features();
         LOperand* xmm_temp =
-            (instr->CanTruncateToInt32() && CpuFeatures::IsSupported(SSE3))
+            (instr->CanTruncateToInt32() && !cpu_features->IsSupported(SSE3))
             ? NULL
             : FixedTemp(xmm1);
         LTaggedToI* res = new LTaggedToI(value, xmm_temp);
@@ -1655,7 +1656,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsInteger32());
       bool needs_temp = instr->CanTruncateToInt32() &&
-          !CpuFeatures::IsSupported(SSE3);
+          !Isolate::Current()->cpu_features()->IsSupported(SSE3);
       LOperand* value = needs_temp ?
           UseTempRegister(instr->value()) : UseRegister(instr->value());
       LOperand* temp = needs_temp ? TempRegister() : NULL;

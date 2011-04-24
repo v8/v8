@@ -34,20 +34,24 @@
 namespace v8 {
 namespace internal {
 
-Address* StoreBuffer::start_ = NULL;
-Address* StoreBuffer::limit_ = NULL;
-Address* StoreBuffer::old_start_ = NULL;
-Address* StoreBuffer::old_limit_ = NULL;
-Address* StoreBuffer::old_top_ = NULL;
-uintptr_t* StoreBuffer::hash_map_1_ = NULL;
-uintptr_t* StoreBuffer::hash_map_2_ = NULL;
-VirtualMemory* StoreBuffer::virtual_memory_ = NULL;
-bool StoreBuffer::old_buffer_is_sorted_ = false;
-bool StoreBuffer::old_buffer_is_filtered_ = false;
-bool StoreBuffer::during_gc_ = false;
-bool StoreBuffer::may_move_store_buffer_entries_ = true;
-bool StoreBuffer::store_buffer_rebuilding_enabled_ = false;
-StoreBufferCallback StoreBuffer::callback_ = NULL;
+StoreBuffer::StoreBuffer(Heap* heap)
+    : heap_(heap),
+      start_(NULL),
+      limit_(NULL),
+      old_start_(NULL),
+      old_limit_(NULL),
+      old_top_(NULL),
+      old_buffer_is_sorted_(false),
+      old_buffer_is_filtered_(false),
+      during_gc_(false),
+      store_buffer_rebuilding_enabled_(false),
+      callback_(NULL),
+      may_move_store_buffer_entries_(true),
+      virtual_memory_(NULL),
+      hash_map_1_(NULL),
+      hash_map_2_(NULL) {
+}
+
 
 void StoreBuffer::Setup() {
   virtual_memory_ = new VirtualMemory(kStoreBufferSize * 3);
@@ -75,13 +79,13 @@ void StoreBuffer::Setup() {
   virtual_memory_->Commit(reinterpret_cast<Address>(start_),
                           kStoreBufferSize,
                           false);  // Not executable.
-  Heap::public_set_store_buffer_top(start_);
+  heap_->public_set_store_buffer_top(start_);
 
   hash_map_1_ = new uintptr_t[kHashMapLength];
   hash_map_2_ = new uintptr_t[kHashMapLength];
 
-  Heap::AddGCPrologueCallback(&GCPrologue, kGCTypeAll);
-  Heap::AddGCEpilogueCallback(&GCEpilogue, kGCTypeAll);
+  heap_->AddGCPrologueCallback(&GCPrologue, kGCTypeAll);
+  heap_->AddGCEpilogueCallback(&GCEpilogue, kGCTypeAll);
 
   ZapHashTables();
 }
@@ -94,7 +98,12 @@ void StoreBuffer::TearDown() {
   delete[] old_start_;
   old_start_ = old_top_ = old_limit_ = NULL;
   start_ = limit_ = NULL;
-  Heap::public_set_store_buffer_top(start_);
+  heap_->public_set_store_buffer_top(start_);
+}
+
+
+void StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
+  isolate->heap()->store_buffer()->Compact();
 }
 
 
@@ -134,7 +143,7 @@ void StoreBuffer::Uniq() {
   for (Address* read = old_start_; read < old_top_; read++) {
     Address current = *read;
     if (current != previous) {
-      if (Heap::InNewSpace(*reinterpret_cast<Object**>(current))) {
+      if (heap_->InNewSpace(*reinterpret_cast<Object**>(current))) {
         *write++ = current;
       }
     }
@@ -306,7 +315,7 @@ bool StoreBuffer::CellIsInStoreBuffer(Address cell_address) {
       *in_store_buffer_1_element_cache == cell_address) {
     return true;
   }
-  Address* top = reinterpret_cast<Address*>(Heap::store_buffer_top());
+  Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
   for (Address* current = top - 1; current >= start_; current--) {
     if (*current == cell_address) {
       in_store_buffer_1_element_cache = current;
@@ -335,8 +344,9 @@ void StoreBuffer::ZapHashTables() {
 
 
 void StoreBuffer::GCPrologue(GCType type, GCCallbackFlags flags) {
-  ZapHashTables();
-  during_gc_ = true;
+  // TODO(gc) ISOLATES MERGE
+  HEAP->store_buffer()->ZapHashTables();
+  HEAP->store_buffer()->during_gc_ = true;
 }
 
 
@@ -345,8 +355,9 @@ void StoreBuffer::Verify() {
 
 
 void StoreBuffer::GCEpilogue(GCType type, GCCallbackFlags flags) {
-  during_gc_ = false;
-  Verify();
+  // TODO(gc) ISOLATES MERGE
+  HEAP->store_buffer()->during_gc_ = false;
+  HEAP->store_buffer()->Verify();
 }
 
 
@@ -359,7 +370,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback callback) {
   Address* limit = old_top_;
   old_top_ = old_start_;
   {
-    DontMoveStoreBufferEntriesScope scope;
+    DontMoveStoreBufferEntriesScope scope(this);
     for (Address* current = old_start_; current < limit; current++) {
 #ifdef DEBUG
       Address* saved_top = old_top_;
@@ -368,7 +379,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback callback) {
       Object* object = *cell;
       // May be invalid if object is not in new space.
       HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
-      if (Heap::InFromSpace(object)) {
+      if (heap_->InFromSpace(object)) {
         callback(reinterpret_cast<HeapObject**>(cell), heap_object);
       }
       ASSERT(old_top_ == saved_top + 1 || old_top_ == saved_top);
@@ -385,25 +396,25 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback callback) {
   // remove the flag from the page.
   if (some_pages_to_scan) {
     if (callback_ != NULL) {
-      (*callback_)(NULL, kStoreBufferStartScanningPagesEvent);
+      (*callback_)(heap_, NULL, kStoreBufferStartScanningPagesEvent);
     }
     PointerChunkIterator it;
     MemoryChunk* chunk;
     while ((chunk = it.next()) != NULL) {
       if (chunk->scan_on_scavenge()) {
         if (callback_ != NULL) {
-          (*callback_)(chunk, kStoreBufferScanningPageEvent);
+          (*callback_)(heap_, chunk, kStoreBufferScanningPageEvent);
         }
-        if (chunk->owner() == Heap::lo_space()) {
+        if (chunk->owner() == heap_->lo_space()) {
           LargePage* large_page = reinterpret_cast<LargePage*>(chunk);
           HeapObject* array = large_page->GetObject();
           ASSERT(array->IsFixedArray());
           Address start = array->address();
           Address object_end = start + array->Size();
-          Heap::IteratePointersToNewSpace(start, object_end, callback);
+          heap_->IteratePointersToNewSpace(heap_, start, object_end, callback);
         } else {
           Page* page = reinterpret_cast<Page*>(chunk);
-          Heap::IteratePointersOnPage(
+          heap_->IteratePointersOnPage(
               reinterpret_cast<PagedSpace*>(page->owner()),
               &Heap::IteratePointersToNewSpace,
               callback,
@@ -411,20 +422,20 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback callback) {
         }
       }
     }
-    (*callback_)(NULL, kStoreBufferScanningPageEvent);
+    (*callback_)(heap_, NULL, kStoreBufferScanningPageEvent);
   }
 }
 
 
 void StoreBuffer::Compact() {
-  Address* top = reinterpret_cast<Address*>(Heap::store_buffer_top());
+  Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
 
   if (top == start_) return;
 
   // There's no check of the limit in the loop below so we check here for
   // the worst case (compaction doesn't eliminate any pointers).
   ASSERT(top <= limit_);
-  Heap::public_set_store_buffer_top(start_);
+  heap_->public_set_store_buffer_top(start_);
   if (top - start_ > old_limit_ - old_top_) {
     HandleFullness();
   }
@@ -434,9 +445,9 @@ void StoreBuffer::Compact() {
   // duplicates will remain.  We have two hash tables with different hash
   // functions to reduce the number of unnecessary clashes.
   for (Address* current = start_; current < top; current++) {
-    ASSERT(!Heap::cell_space()->Contains(*current));
-    ASSERT(!Heap::code_space()->Contains(*current));
-    ASSERT(!Heap::old_data_space()->Contains(*current));
+    ASSERT(!heap_->cell_space()->Contains(*current));
+    ASSERT(!heap_->code_space()->Contains(*current));
+    ASSERT(!heap_->old_data_space()->Contains(*current));
     uintptr_t int_addr = reinterpret_cast<uintptr_t>(*current);
     // Shift out the last bits including any tags.
     int_addr >>= kPointerSizeLog2;
@@ -462,7 +473,7 @@ void StoreBuffer::Compact() {
     *old_top_++ = reinterpret_cast<Address>(int_addr << kPointerSizeLog2);
     ASSERT(old_top_ <= old_limit_);
   }
-  Counters::store_buffer_compactions.Increment();
+  COUNTERS->store_buffer_compactions()->Increment();
   CheckForFullBuffer();
 }
 

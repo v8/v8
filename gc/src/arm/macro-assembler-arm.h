@@ -709,7 +709,7 @@ class MacroAssembler: public Assembler {
                                                Condition cond = al);
 
   // Call a runtime routine.
-  void CallRuntime(Runtime::Function* f, int num_arguments);
+  void CallRuntime(const Runtime::Function* f, int num_arguments);
   void CallRuntimeSaveDoubles(Runtime::FunctionId id);
 
   // Convenience function: Same as above, but takes the fid instead.
@@ -753,7 +753,7 @@ class MacroAssembler: public Assembler {
   // return address (unless this is somehow accounted for by the called
   // function).
   void CallCFunction(ExternalReference function, int num_arguments);
-  void CallCFunction(Register function, int num_arguments);
+  void CallCFunction(Register function, Register scratch, int num_arguments);
 
   void GetCFunctionDoubleResult(const DoubleRegister dst);
 
@@ -935,6 +935,11 @@ class MacroAssembler: public Assembler {
 
 
  private:
+  void CallCFunctionHelper(Register function,
+                           ExternalReference function_reference,
+                           Register scratch,
+                           int num_arguments);
+
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   int CallSize(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);

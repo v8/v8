@@ -45,7 +45,7 @@ v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
   if (args.Length() >= 1 && args[0]->IsBoolean()) {
     if (args[0]->BooleanValue()) flags |= Heap::kForceCompactionMask;
   }
-  Heap::CollectAllGarbage(flags);
+  HEAP->CollectAllGarbage(flags);
   return v8::Undefined();
 }
 

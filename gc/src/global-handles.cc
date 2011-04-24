@@ -35,6 +35,12 @@
 namespace v8 {
 namespace internal {
 
+
+ObjectGroup::~ObjectGroup() {
+  if (info_ != NULL) info_->Dispose();
+}
+
+
 class GlobalHandles::Node : public Malloced {
  public:
 
@@ -58,7 +64,7 @@ class GlobalHandles::Node : public Malloced {
   }
 
   ~Node() {
-    if (state_ != DESTROYED) Destroy();
+    if (state_ != DESTROYED) Destroy(Isolate::Current()->global_handles());
 #ifdef DEBUG
     // Zap the values for eager trapping.
     object_ = NULL;
@@ -67,11 +73,11 @@ class GlobalHandles::Node : public Malloced {
 #endif
   }
 
-  void Destroy() {
+  void Destroy(GlobalHandles* global_handles) {
     if (state_ == WEAK || IsNearDeath()) {
-      GlobalHandles::number_of_weak_handles_--;
+      global_handles->number_of_weak_handles_--;
       if (object_->IsJSGlobalObject()) {
-        GlobalHandles::number_of_global_object_weak_handles_--;
+        global_handles->number_of_global_object_weak_handles_--;
       }
     }
     state_ = DESTROYED;
@@ -102,13 +108,15 @@ class GlobalHandles::Node : public Malloced {
   Handle<Object> handle() { return Handle<Object>(&object_); }
 
   // Make this handle weak.
-  void MakeWeak(void* parameter, WeakReferenceCallback callback) {
-    LOG(HandleEvent("GlobalHandle::MakeWeak", handle().location()));
+  void MakeWeak(GlobalHandles* global_handles, void* parameter,
+                WeakReferenceCallback callback) {
+    LOG(global_handles->isolate(),
+        HandleEvent("GlobalHandle::MakeWeak", handle().location()));
     ASSERT(state_ != DESTROYED);
     if (state_ != WEAK && !IsNearDeath()) {
-      GlobalHandles::number_of_weak_handles_++;
+      global_handles->number_of_weak_handles_++;
       if (object_->IsJSGlobalObject()) {
-        GlobalHandles::number_of_global_object_weak_handles_++;
+        global_handles->number_of_global_object_weak_handles_++;
       }
     }
     state_ = WEAK;
@@ -116,13 +124,14 @@ class GlobalHandles::Node : public Malloced {
     callback_ = callback;
   }
 
-  void ClearWeakness() {
-    LOG(HandleEvent("GlobalHandle::ClearWeakness", handle().location()));
+  void ClearWeakness(GlobalHandles* global_handles) {
+    LOG(global_handles->isolate(),
+        HandleEvent("GlobalHandle::ClearWeakness", handle().location()));
     ASSERT(state_ != DESTROYED);
     if (state_ == WEAK || IsNearDeath()) {
-      GlobalHandles::number_of_weak_handles_--;
+      global_handles->number_of_weak_handles_--;
       if (object_->IsJSGlobalObject()) {
-        GlobalHandles::number_of_global_object_weak_handles_--;
+        global_handles->number_of_global_object_weak_handles_--;
       }
     }
     state_ = NORMAL;
@@ -159,12 +168,13 @@ class GlobalHandles::Node : public Malloced {
   // Returns the callback for this weak handle.
   WeakReferenceCallback callback() { return callback_; }
 
-  bool PostGarbageCollectionProcessing() {
+  bool PostGarbageCollectionProcessing(Isolate* isolate,
+                                       GlobalHandles* global_handles) {
     if (state_ != Node::PENDING) return false;
-    LOG(HandleEvent("GlobalHandle::Processing", handle().location()));
+    LOG(isolate, HandleEvent("GlobalHandle::Processing", handle().location()));
     WeakReferenceCallback func = callback();
     if (func == NULL) {
-      Destroy();
+      Destroy(global_handles);
       return false;
     }
     void* par = parameter();
@@ -176,9 +186,9 @@ class GlobalHandles::Node : public Malloced {
       // Forbid reuse of destroyed nodes as they might be already deallocated.
       // It's fine though to reuse nodes that were destroyed in weak callback
       // as those cannot be deallocated until we are back from the callback.
-      set_first_free(NULL);
-      if (first_deallocated()) {
-        first_deallocated()->set_next(head());
+      global_handles->set_first_free(NULL);
+      if (global_handles->first_deallocated()) {
+        global_handles->first_deallocated()->set_next(global_handles->head());
       }
       // Check that we are not passing a finalized external string to
       // the callback.
@@ -187,7 +197,7 @@ class GlobalHandles::Node : public Malloced {
       ASSERT(!object_->IsExternalTwoByteString() ||
              ExternalTwoByteString::cast(object_)->resource() != NULL);
       // Leaving V8.
-      VMState state(EXTERNAL);
+      VMState state(isolate, EXTERNAL);
       func(object, par);
     }
     // Absense of explicit cleanup or revival of weak handle
@@ -230,7 +240,7 @@ class GlobalHandles::Node : public Malloced {
 };
 
 
-class GlobalHandles::Pool BASE_EMBEDDED {
+class GlobalHandles::Pool {
   public:
     Pool() {
       current_ = new Chunk();
@@ -288,11 +298,27 @@ class GlobalHandles::Pool BASE_EMBEDDED {
 };
 
 
-static GlobalHandles::Pool pool_;
+GlobalHandles::GlobalHandles(Isolate* isolate)
+    : isolate_(isolate),
+      number_of_weak_handles_(0),
+      number_of_global_object_weak_handles_(0),
+      head_(NULL),
+      first_free_(NULL),
+      first_deallocated_(NULL),
+      pool_(new Pool()),
+      post_gc_processing_count_(0),
+      object_groups_(4) {
+}
+
+
+GlobalHandles::~GlobalHandles() {
+  delete pool_;
+  pool_ = 0;
+}
 
 
 Handle<Object> GlobalHandles::Create(Object* value) {
-  Counters::global_handles.Increment();
+  isolate_->counters()->global_handles()->Increment();
   Node* result;
   if (first_free()) {
     // Take the first node in the free list.
@@ -306,7 +332,7 @@ Handle<Object> GlobalHandles::Create(Object* value) {
     set_head(result);
   } else {
     // Allocate a new node.
-    result = pool_.Allocate();
+    result = pool_->Allocate();
     result->set_next(head());
     set_head(result);
   }
@@ -316,10 +342,10 @@ Handle<Object> GlobalHandles::Create(Object* value) {
 
 
 void GlobalHandles::Destroy(Object** location) {
-  Counters::global_handles.Decrement();
+  isolate_->counters()->global_handles()->Decrement();
   if (location == NULL) return;
   Node* node = Node::FromLocation(location);
-  node->Destroy();
+  node->Destroy(this);
   // Link the destroyed.
   node->set_next_free(first_free());
   set_first_free(node);
@@ -329,12 +355,12 @@ void GlobalHandles::Destroy(Object** location) {
 void GlobalHandles::MakeWeak(Object** location, void* parameter,
                              WeakReferenceCallback callback) {
   ASSERT(callback != NULL);
-  Node::FromLocation(location)->MakeWeak(parameter, callback);
+  Node::FromLocation(location)->MakeWeak(this, parameter, callback);
 }
 
 
 void GlobalHandles::ClearWeakness(Object** location) {
-  Node::FromLocation(location)->ClearWeakness();
+  Node::FromLocation(location)->ClearWeakness(this);
 }
 
 
@@ -381,27 +407,26 @@ void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback f) {
     if (current->state_ == Node::WEAK) {
       if (f(&current->object_)) {
         current->state_ = Node::PENDING;
-        LOG(HandleEvent("GlobalHandle::Pending", current->handle().location()));
+        LOG(isolate_,
+            HandleEvent("GlobalHandle::Pending", current->handle().location()));
       }
     }
   }
 }
 
 
-int post_gc_processing_count = 0;
-
 bool GlobalHandles::PostGarbageCollectionProcessing() {
   // Process weak global handle callbacks. This must be done after the
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
   // At the same time deallocate all DESTROYED nodes.
-  ASSERT(Heap::gc_state() == Heap::NOT_IN_GC);
-  const int initial_post_gc_processing_count = ++post_gc_processing_count;
+  ASSERT(isolate_->heap()->gc_state() == Heap::NOT_IN_GC);
+  const int initial_post_gc_processing_count = ++post_gc_processing_count_;
   bool next_gc_likely_to_collect_more = false;
   Node** p = &head_;
   while (*p != NULL) {
-    if ((*p)->PostGarbageCollectionProcessing()) {
-      if (initial_post_gc_processing_count != post_gc_processing_count) {
+    if ((*p)->PostGarbageCollectionProcessing(isolate_, this)) {
+      if (initial_post_gc_processing_count != post_gc_processing_count_) {
         // Weak callback triggered another GC and another round of
         // PostGarbageCollection processing.  The current node might
         // have been deleted in that round, so we need to bail out (or
@@ -466,16 +491,9 @@ void GlobalHandles::TearDown() {
   set_head(NULL);
   set_first_free(NULL);
   set_first_deallocated(NULL);
-  pool_.Release();
+  pool_->Release();
 }
 
-
-int GlobalHandles::number_of_weak_handles_ = 0;
-int GlobalHandles::number_of_global_object_weak_handles_ = 0;
-
-GlobalHandles::Node* GlobalHandles::head_ = NULL;
-GlobalHandles::Node* GlobalHandles::first_free_ = NULL;
-GlobalHandles::Node* GlobalHandles::first_deallocated_ = NULL;
 
 void GlobalHandles::RecordStats(HeapStats* stats) {
   *stats->global_handle_count = 0;
@@ -535,11 +553,6 @@ void GlobalHandles::Print() {
 
 #endif
 
-List<ObjectGroup*>* GlobalHandles::ObjectGroups() {
-  // Lazily initialize the list to avoid startup time static constructors.
-  static List<ObjectGroup*> groups(4);
-  return &groups;
-}
 
 
 void GlobalHandles::AddObjectGroup(Object*** handles,
@@ -549,14 +562,7 @@ void GlobalHandles::AddObjectGroup(Object*** handles,
   for (size_t i = 0; i < length; ++i) {
     new_entry->objects_.Add(handles[i]);
   }
-  ObjectGroups()->Add(new_entry);
-}
-
-
-List<ImplicitRefGroup*>* GlobalHandles::ImplicitRefGroups() {
-  // Lazily initialize the list to avoid startup time static constructors.
-  static List<ImplicitRefGroup*> groups(4);
-  return &groups;
+  object_groups_.Add(new_entry);
 }
 
 
@@ -567,25 +573,23 @@ void GlobalHandles::AddImplicitReferences(HeapObject* parent,
   for (size_t i = 0; i < length; ++i) {
     new_entry->children_.Add(children[i]);
   }
-  ImplicitRefGroups()->Add(new_entry);
+  implicit_ref_groups_.Add(new_entry);
 }
 
 
 void GlobalHandles::RemoveObjectGroups() {
-  List<ObjectGroup*>* object_groups = ObjectGroups();
-  for (int i = 0; i< object_groups->length(); i++) {
-    delete object_groups->at(i);
+  for (int i = 0; i < object_groups_.length(); i++) {
+    delete object_groups_.at(i);
   }
-  object_groups->Clear();
+  object_groups_.Clear();
 }
 
 
 void GlobalHandles::RemoveImplicitRefGroups() {
-  List<ImplicitRefGroup*>* ref_groups = ImplicitRefGroups();
-  for (int i = 0; i< ref_groups->length(); i++) {
-    delete ref_groups->at(i);
+  for (int i = 0; i < implicit_ref_groups_.length(); i++) {
+    delete implicit_ref_groups_.at(i);
   }
-  ref_groups->Clear();
+  implicit_ref_groups_.Clear();
 }
 
 

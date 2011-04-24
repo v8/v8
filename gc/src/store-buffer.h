@@ -43,15 +43,19 @@ typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
 
 // Used to implement the write barrier by collecting addresses of pointers
 // between spaces.
-class StoreBuffer : public AllStatic {
+class StoreBuffer {
  public:
-  static inline Address TopAddress();
+  explicit StoreBuffer(Heap* heap);
 
-  static void Setup();
-  static void TearDown();
+  static void StoreBufferOverflow(Isolate* isolate);
+
+  inline Address TopAddress();
+
+  void Setup();
+  void TearDown();
 
   // This is used by the mutator to enter addresses into the store buffer.
-  static inline void Mark(Address addr);
+  inline void Mark(Address addr);
 
   // This is used by the heap traversal to enter the addresses into the store
   // buffer that should still be in the store buffer after GC.  It enters
@@ -67,12 +71,12 @@ class StoreBuffer : public AllStatic {
   // exempt from the store buffer and process the promotion queue.  These steps
   // can overflow this buffer.  We check for this and on overflow we call the
   // callback set up with the StoreBufferRebuildScope object.
-  static inline void EnterDirectlyIntoStoreBuffer(Address addr);
+  inline void EnterDirectlyIntoStoreBuffer(Address addr);
 
   // Iterates over all pointers that go from old space to new space.  It will
   // delete the store buffer as it starts so the callback should reenter
   // surviving old-to-new pointers into the store buffer to rebuild it.
-  static void IteratePointersToNewSpace(ObjectSlotCallback callback);
+  void IteratePointersToNewSpace(ObjectSlotCallback callback);
 
   static const int kStoreBufferOverflowBit = 1 << 16;
   static const int kStoreBufferSize = kStoreBufferOverflowBit;
@@ -81,68 +85,70 @@ class StoreBuffer : public AllStatic {
   static const int kHashMapLengthLog2 = 12;
   static const int kHashMapLength = 1 << kHashMapLengthLog2;
 
-  static void Compact();
+  void Compact();
   static void GCPrologue(GCType type, GCCallbackFlags flags);
   static void GCEpilogue(GCType type, GCCallbackFlags flags);
 
-  static Object*** Limit() { return reinterpret_cast<Object***>(old_limit_); }
-  static Object*** Start() { return reinterpret_cast<Object***>(old_start_); }
-  static Object*** Top() { return reinterpret_cast<Object***>(old_top_); }
-  static void SetTop(Object*** top) {
+  Object*** Limit() { return reinterpret_cast<Object***>(old_limit_); }
+  Object*** Start() { return reinterpret_cast<Object***>(old_start_); }
+  Object*** Top() { return reinterpret_cast<Object***>(old_top_); }
+  void SetTop(Object*** top) {
     ASSERT(top >= Start());
     ASSERT(top <= Limit());
     old_top_ = reinterpret_cast<Address*>(top);
   }
 
-  static bool old_buffer_is_sorted() { return old_buffer_is_sorted_; }
-  static bool old_buffer_is_filtered() { return old_buffer_is_filtered_; }
+  bool old_buffer_is_sorted() { return old_buffer_is_sorted_; }
+  bool old_buffer_is_filtered() { return old_buffer_is_filtered_; }
 
   // Goes through the store buffer removing pointers to things that have
   // been promoted.  Rebuilds the store buffer completely if it overflowed.
-  static void SortUniq();
+  void SortUniq();
 
-  static void HandleFullness();
-  static void Verify();
+  void HandleFullness();
+  void Verify();
 
-  static bool PrepareForIteration();
+  bool PrepareForIteration();
 
 #ifdef DEBUG
-  static void Clean();
+  void Clean();
   // Slow, for asserts only.
-  static bool CellIsInStoreBuffer(Address cell);
+  bool CellIsInStoreBuffer(Address cell);
 #endif
 
  private:
+  Heap* heap_;
+
   // The store buffer is divided up into a new buffer that is constantly being
   // filled by mutator activity and an old buffer that is filled with the data
   // from the new buffer after compression.
-  static Address* start_;
-  static Address* limit_;
+  Address* start_;
+  Address* limit_;
 
-  static Address* old_start_;
-  static Address* old_limit_;
-  static Address* old_top_;
+  Address* old_start_;
+  Address* old_limit_;
+  Address* old_top_;
 
-  static bool old_buffer_is_sorted_;
-  static bool old_buffer_is_filtered_;
-  static bool during_gc_;
+  bool old_buffer_is_sorted_;
+  bool old_buffer_is_filtered_;
+  bool during_gc_;
   // The garbage collector iterates over many pointers to new space that are not
   // handled by the store buffer.  This flag indicates whether the pointers
   // found by the callbacks should be added to the store buffer or not.
-  static bool store_buffer_rebuilding_enabled_;
-  static StoreBufferCallback callback_;
-  static bool may_move_store_buffer_entries_;
+  bool store_buffer_rebuilding_enabled_;
+  StoreBufferCallback callback_;
+  bool may_move_store_buffer_entries_;
 
-  static VirtualMemory* virtual_memory_;
-  static uintptr_t* hash_map_1_;
-  static uintptr_t* hash_map_2_;
+  VirtualMemory* virtual_memory_;
+  uintptr_t* hash_map_1_;
+  uintptr_t* hash_map_2_;
 
-  static void CheckForFullBuffer();
-  static void Uniq();
-  static void ZapHashTables();
-  static bool HashTablesAreZapped();
-  static void FilterScanOnScavengeEntries();
-  static void ExemptPopularPages(int prime_sample_step, int threshold);
+  void CheckForFullBuffer();
+  void Uniq();
+  void ZapHashTables();
+  bool HashTablesAreZapped();
+  void FilterScanOnScavengeEntries();
+  void ExemptPopularPages(int prime_sample_step, int threshold);
 
   friend class StoreBufferRebuildScope;
   friend class DontMoveStoreBufferEntriesScope;
@@ -151,21 +157,27 @@ class StoreBuffer : public AllStatic {
 
 class StoreBufferRebuildScope {
  public:
-  explicit StoreBufferRebuildScope(StoreBufferCallback callback)
-      : stored_state_(StoreBuffer::store_buffer_rebuilding_enabled_),
-        stored_callback_(StoreBuffer::callback_) {
-    StoreBuffer::store_buffer_rebuilding_enabled_ = true;
-    StoreBuffer::callback_ = callback;
-    (*callback)(NULL, kStoreBufferScanningPageEvent);
+  explicit StoreBufferRebuildScope(Heap* heap,
+                                   StoreBuffer* store_buffer,
+                                   StoreBufferCallback callback)
+      : heap_(heap),
+        store_buffer_(store_buffer),
+        stored_state_(store_buffer->store_buffer_rebuilding_enabled_),
+        stored_callback_(store_buffer->callback_) {
+    store_buffer_->store_buffer_rebuilding_enabled_ = true;
+    store_buffer_->callback_ = callback;
+    (*callback)(heap, NULL, kStoreBufferScanningPageEvent);
   }
 
   ~StoreBufferRebuildScope() {
-    StoreBuffer::callback_ = stored_callback_;
-    StoreBuffer::store_buffer_rebuilding_enabled_ = stored_state_;
-    StoreBuffer::CheckForFullBuffer();
+    store_buffer_->callback_ = stored_callback_;
+    store_buffer_->store_buffer_rebuilding_enabled_ = stored_state_;
+    store_buffer_->CheckForFullBuffer();
   }
 
  private:
+  Heap* heap_;
+  StoreBuffer* store_buffer_;
   bool stored_state_;
   StoreBufferCallback stored_callback_;
 };
@@ -173,16 +185,18 @@ class StoreBufferRebuildScope {
 
 class DontMoveStoreBufferEntriesScope {
  public:
-  DontMoveStoreBufferEntriesScope() :
-      stored_state_(StoreBuffer::may_move_store_buffer_entries_) {
-    StoreBuffer::may_move_store_buffer_entries_ = false;
+  explicit DontMoveStoreBufferEntriesScope(StoreBuffer* store_buffer)
+      : store_buffer_(store_buffer),
+        stored_state_(store_buffer->may_move_store_buffer_entries_) {
+    store_buffer_->may_move_store_buffer_entries_ = false;
   }
 
   ~DontMoveStoreBufferEntriesScope() {
-    StoreBuffer::may_move_store_buffer_entries_ = stored_state_;
+    store_buffer_->may_move_store_buffer_entries_ = stored_state_;
   }
 
  private:
+  StoreBuffer* store_buffer_;
   bool stored_state_;
 };
 

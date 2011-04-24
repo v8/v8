@@ -71,6 +71,8 @@ TEST(Page) {
   Address page_start = RoundUp(start, Page::kPageSize);
 
   Page* p = Page::FromAddress(page_start);
+  // Initialized Page has heap pointer, normally set by memory_allocator.
+  p->heap_ = HEAP;
   CHECK(p->address() == page_start);
   CHECK(p->is_valid());
 
@@ -97,13 +99,19 @@ TEST(Page) {
 
 
 TEST(MemoryAllocator) {
-  CHECK(Heap::ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(Heap::MaxReserved(), Heap::MaxExecutableSize()));
+  OS::Setup();
+  Isolate* isolate = Isolate::Current();
+  CHECK(HEAP->ConfigureHeapDefault());
+  CHECK(isolate->memory_allocator()->Setup(HEAP->MaxReserved(),
+                                           HEAP->MaxExecutableSize()));
 
   int total_pages = 0;
-  OldSpace faked_space(Heap::MaxReserved(), OLD_POINTER_SPACE, NOT_EXECUTABLE);
+  OldSpace faked_space(HEAP,
+                       HEAP->MaxReserved(),
+                       OLD_POINTER_SPACE,
+                       NOT_EXECUTABLE);
   Page* first_page =
-      MemoryAllocator::AllocatePage(&faked_space, NOT_EXECUTABLE);
+      isolate->memory_allocator()->AllocatePage(&faked_space, NOT_EXECUTABLE);
   first_page->InsertAfter(faked_space.anchor()->prev_page());
   CHECK(first_page->is_valid());
   CHECK(first_page->next_page() == faked_space.anchor());
@@ -115,7 +123,7 @@ TEST(MemoryAllocator) {
 
   // Again, we should get n or n - 1 pages.
   Page* other =
-      MemoryAllocator::AllocatePage(&faked_space, NOT_EXECUTABLE);
+      isolate->memory_allocator()->AllocatePage(&faked_space, NOT_EXECUTABLE);
   CHECK(other->is_valid());
   total_pages++;
   other->InsertAfter(first_page);
@@ -128,19 +136,21 @@ TEST(MemoryAllocator) {
 
   Page* second_page = first_page->next_page();
   CHECK(second_page->is_valid());
-  MemoryAllocator::Free(first_page);
-  MemoryAllocator::Free(second_page);
-  MemoryAllocator::TearDown();
+  isolate->memory_allocator()->Free(first_page);
+  isolate->memory_allocator()->Free(second_page);
+  isolate->memory_allocator()->TearDown();
 }
 
 
 TEST(NewSpace) {
-  CHECK(Heap::ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(Heap::MaxReserved(), Heap::MaxExecutableSize()));
+  OS::Setup();
+  CHECK(HEAP->ConfigureHeapDefault());
+  CHECK(Isolate::Current()->memory_allocator()->Setup(
+      HEAP->MaxReserved(), HEAP->MaxExecutableSize()));
 
-  NewSpace new_space;
+  NewSpace new_space(HEAP);
 
-  CHECK(new_space.Setup(Heap::ReservedSemiSpaceSize()));
+  CHECK(new_space.Setup(HEAP->ReservedSemiSpaceSize()));
   CHECK(new_space.HasBeenSetup());
 
   while (new_space.Available() >= Page::kMaxHeapObjectSize) {
@@ -150,15 +160,18 @@ TEST(NewSpace) {
   }
 
   new_space.TearDown();
-  MemoryAllocator::TearDown();
+  Isolate::Current()->memory_allocator()->TearDown();
 }
 
 
 TEST(OldSpace) {
-  CHECK(Heap::ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(Heap::MaxReserved(), Heap::MaxExecutableSize()));
+  OS::Setup();
+  CHECK(HEAP->ConfigureHeapDefault());
+  CHECK(Isolate::Current()->memory_allocator()->Setup(
+      HEAP->MaxReserved(), HEAP->MaxExecutableSize()));
 
-  OldSpace* s = new OldSpace(Heap::MaxOldGenerationSize(),
+  OldSpace* s = new OldSpace(HEAP,
+                             HEAP->MaxOldGenerationSize(),
                              OLD_POINTER_SPACE,
                              NOT_EXECUTABLE);
   CHECK(s != NULL);
@@ -171,24 +184,23 @@ TEST(OldSpace) {
 
   s->TearDown();
   delete s;
-  MemoryAllocator::TearDown();
+  Isolate::Current()->memory_allocator()->TearDown();
 }
 
 
 TEST(LargeObjectSpace) {
-  CHECK(Heap::Setup(false));
+  OS::Setup();
+  CHECK(HEAP->Setup(false));
 
-  LargeObjectSpace* lo = Heap::lo_space();
+  LargeObjectSpace* lo = HEAP->lo_space();
   CHECK(lo != NULL);
 
-  Map* faked_map = reinterpret_cast<Map*>(HeapObject::FromAddress(0));
   int lo_size = Page::kPageSize;
 
   Object* obj = lo->AllocateRaw(lo_size)->ToObjectUnchecked();
   CHECK(obj->IsHeapObject());
 
   HeapObject* ho = HeapObject::cast(obj);
-  ho->set_map(faked_map);
 
   CHECK(lo->Contains(HeapObject::cast(obj)));
 
@@ -201,7 +213,6 @@ TEST(LargeObjectSpace) {
     { MaybeObject* maybe_obj = lo->AllocateRaw(lo_size);
       if (!maybe_obj->ToObject(&obj)) break;
     }
-    HeapObject::cast(obj)->set_map(faked_map);
     CHECK(lo->Available() < available);
   };
 
@@ -209,5 +220,5 @@ TEST(LargeObjectSpace) {
 
   CHECK(lo->AllocateRaw(lo_size)->IsFailure());
 
-  Heap::TearDown();
+  HEAP->TearDown();
 }

@@ -135,7 +135,10 @@ class AstNode: public ZoneObject {
 
   static const int kNoNumber = -1;
 
-  AstNode() : id_(GetNextId()) { count_++; }
+  AstNode() : id_(GetNextId()) {
+    Isolate* isolate = Isolate::Current();
+    isolate->set_ast_node_count(isolate->ast_node_count() + 1);
+  }
 
   virtual ~AstNode() { }
 
@@ -159,21 +162,25 @@ class AstNode: public ZoneObject {
   // True if the node is simple enough for us to inline calls containing it.
   virtual bool IsInlineable() const { return false; }
 
-  static int Count() { return count_; }
-  static void ResetIds() { current_id_ = 0; }
+  static int Count() { return Isolate::Current()->ast_node_count(); }
+  static void ResetIds() { Isolate::Current()->set_ast_node_id(0); }
   unsigned id() const { return id_; }
 
  protected:
-  static unsigned GetNextId() { return current_id_++; }
+  static unsigned GetNextId() {
+    Isolate* isolate = Isolate::Current();
+    unsigned tmp = isolate->ast_node_id();
+    isolate->set_ast_node_id(tmp + 1);
+    return tmp;
+  }
   static unsigned ReserveIdRange(int n) {
-    unsigned tmp = current_id_;
-    current_id_ += n;
+    Isolate* isolate = Isolate::Current();
+    unsigned tmp = isolate->ast_node_id();
+    isolate->set_ast_node_id(tmp + n);
     return tmp;
   }
 
  private:
-  static unsigned current_id_;
-  static unsigned count_;
   unsigned id_;
 
   friend class CaseClause;  // Generates AST IDs.
@@ -335,10 +342,6 @@ class ValidLeftHandSideSentinel: public Expression {
  public:
   virtual bool IsValidLeftHandSide() { return true; }
   virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
-  static ValidLeftHandSideSentinel* instance() { return &instance_; }
-
- private:
-  static ValidLeftHandSideSentinel instance_;
 };
 
 
@@ -898,10 +901,17 @@ class Literal: public Expression {
   virtual bool ToBooleanIsFalse() { return handle_->ToBoolean()->IsFalse(); }
 
   // Identity testers.
-  bool IsNull() const { return handle_.is_identical_to(Factory::null_value()); }
-  bool IsTrue() const { return handle_.is_identical_to(Factory::true_value()); }
+  bool IsNull() const {
+    ASSERT(!handle_.is_null());
+    return handle_->IsNull();
+  }
+  bool IsTrue() const {
+    ASSERT(!handle_.is_null());
+    return handle_->IsTrue();
+  }
   bool IsFalse() const {
-    return handle_.is_identical_to(Factory::false_value());
+    ASSERT(!handle_.is_null());
+    return handle_->IsFalse();
   }
 
   Handle<Object> handle() const { return handle_; }
@@ -1138,15 +1148,11 @@ class VariableProxy: public Expression {
 class VariableProxySentinel: public VariableProxy {
  public:
   virtual bool IsValidLeftHandSide() { return !is_this(); }
-  static VariableProxySentinel* this_proxy() { return &this_proxy_; }
-  static VariableProxySentinel* identifier_proxy() {
-    return &identifier_proxy_;
-  }
 
  private:
   explicit VariableProxySentinel(bool is_this) : VariableProxy(is_this) { }
-  static VariableProxySentinel this_proxy_;
-  static VariableProxySentinel identifier_proxy_;
+
+  friend class AstSentinels;
 };
 
 
@@ -1253,10 +1259,6 @@ class Property: public Expression {
     return monomorphic_receiver_type_;
   }
 
-  // Returns a property singleton property access on 'this'.  Used
-  // during preparsing.
-  static Property* this_property() { return &this_property_; }
-
  private:
   Expression* obj_;
   Expression* key_;
@@ -1272,9 +1274,6 @@ class Property: public Expression {
   bool is_arguments_access_ : 1;
   Handle<Map> monomorphic_receiver_type_;
   ExternalArrayType array_type_;
-
-  // Dummy property used during preparsing.
-  static Property this_property_;
 };
 
 
@@ -1312,8 +1311,6 @@ class Call: public Expression {
   // Bailout support.
   int ReturnId() const { return return_id_; }
 
-  static Call* sentinel() { return &sentinel_; }
-
 #ifdef DEBUG
   // Used to assert that the FullCodeGenerator records the return site.
   bool return_is_recorded_;
@@ -1332,8 +1329,36 @@ class Call: public Expression {
   Handle<JSGlobalPropertyCell> cell_;
 
   int return_id_;
+};
 
-  static Call sentinel_;
+
+class AstSentinels {
+ public:
+  ~AstSentinels() { }
+
+  // Returns a property singleton property access on 'this'.  Used
+  // during preparsing.
+  Property* this_property() { return &this_property_; }
+  VariableProxySentinel* this_proxy() { return &this_proxy_; }
+  VariableProxySentinel* identifier_proxy() { return &identifier_proxy_; }
+  ValidLeftHandSideSentinel* valid_left_hand_side_sentinel() {
+    return &valid_left_hand_side_sentinel_;
+  }
+  Call* call_sentinel() { return &call_sentinel_; }
+  EmptyStatement* empty_statement() { return &empty_statement_; }
+
+ private:
+  AstSentinels();
+  VariableProxySentinel this_proxy_;
+  VariableProxySentinel identifier_proxy_;
+  ValidLeftHandSideSentinel valid_left_hand_side_sentinel_;
+  Property this_property_;
+  Call call_sentinel_;
+  EmptyStatement empty_statement_;
+
+  friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(AstSentinels);
 };
 
 
@@ -1364,7 +1389,7 @@ class CallNew: public Expression {
 class CallRuntime: public Expression {
  public:
   CallRuntime(Handle<String> name,
-              Runtime::Function* function,
+              const Runtime::Function* function,
               ZoneList<Expression*>* arguments)
       : name_(name), function_(function), arguments_(arguments) { }
 
@@ -1373,13 +1398,13 @@ class CallRuntime: public Expression {
   virtual bool IsInlineable() const;
 
   Handle<String> name() const { return name_; }
-  Runtime::Function* function() const { return function_; }
+  const Runtime::Function* function() const { return function_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
   bool is_jsruntime() const { return function_ == NULL; }
 
  private:
   Handle<String> name_;
-  Runtime::Function* function_;
+  const Runtime::Function* function_;
   ZoneList<Expression*>* arguments_;
 };
 
@@ -1707,7 +1732,7 @@ class FunctionLiteral: public Expression {
         is_expression_(is_expression),
         contains_loops_(contains_loops),
         function_token_position_(RelocInfo::kNoPosition),
-        inferred_name_(Heap::empty_string()),
+        inferred_name_(HEAP->empty_string()),
         try_full_codegen_(false),
         pretenure_(false) { }
 
@@ -2188,6 +2213,7 @@ class AstVisitor BASE_EMBEDDED {
  private:
   bool stack_overflow_;
 };
+
 
 } }  // namespace v8::internal
 

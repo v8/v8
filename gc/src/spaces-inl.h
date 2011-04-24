@@ -28,6 +28,7 @@
 #ifndef V8_SPACES_INL_H_
 #define V8_SPACES_INL_H_
 
+#include "isolate.h"
 #include "memory.h"
 #include "spaces.h"
 
@@ -113,11 +114,13 @@ void MemoryAllocator::UnprotectChunkFromPage(Page* page) {
 
 // --------------------------------------------------------------------------
 // PagedSpace
-Page* Page::Initialize(MemoryChunk* chunk,
+Page* Page::Initialize(Heap* heap,
+                       MemoryChunk* chunk,
                        Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
-  MemoryChunk::Initialize(reinterpret_cast<Address>(chunk),
+  MemoryChunk::Initialize(heap,
+                          reinterpret_cast<Address>(chunk),
                           kPageSize,
                           executable,
                           owner);
@@ -139,7 +142,8 @@ MemoryChunk* MemoryChunk::FromAnyPointerAddress(Address addr) {
   MemoryChunk* maybe = reinterpret_cast<MemoryChunk*>(
       OffsetFrom(addr) & ~Page::kPageAlignmentMask);
   if (maybe->owner() != NULL) return maybe;
-  LargeObjectIterator iterator(Heap::lo_space());
+  // TODO(gc) ISOLATESMERGE HEAP
+  LargeObjectIterator iterator(HEAP->lo_space());
   for (HeapObject* o = iterator.next(); o != NULL; o = iterator.next()) {
     // Fixed arrays are the only pointer-containing objects in large object
     // space.
@@ -155,11 +159,12 @@ MemoryChunk* MemoryChunk::FromAnyPointerAddress(Address addr) {
 }
 
 
+// TODO(gc) ISOLATESMERGE HEAP
 PointerChunkIterator::PointerChunkIterator()
     : state_(kOldPointerState),
-      old_pointer_iterator_(Heap::old_pointer_space()),
-      map_iterator_(Heap::map_space()),
-      lo_iterator_(Heap::lo_space()) { }
+      old_pointer_iterator_(HEAP->old_pointer_space()),
+      map_iterator_(HEAP->map_space()),
+      lo_iterator_(HEAP->lo_space()) { }
 
 
 Page* Page::next_page() {
@@ -247,10 +252,15 @@ MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes) {
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   int bytes_allocated = new_top - top_on_previous_step_;
-  IncrementalMarking::Step(bytes_allocated);
+  heap()->incremental_marking()->Step(bytes_allocated);
   top_on_previous_step_ = new_top;
 
   return obj;
+}
+
+
+intptr_t LargeObjectSpace::Available() {
+  return ObjectSizeFor(heap()->isolate()->memory_allocator()->Available());
 }
 
 
@@ -267,9 +277,10 @@ void NewSpace::ShrinkStringAtAllocationBoundary(String* string, int length) {
 
 
 bool FreeListNode::IsFreeListNode(HeapObject* object) {
-  return object->map() == Heap::raw_unchecked_free_space_map()
-      || object->map() == Heap::raw_unchecked_one_pointer_filler_map()
-      || object->map() == Heap::raw_unchecked_two_pointer_filler_map();
+  // TODO(gc) ISOLATES MERGE
+  return object->map() == HEAP->raw_unchecked_free_space_map()
+      || object->map() == HEAP->raw_unchecked_one_pointer_filler_map()
+      || object->map() == HEAP->raw_unchecked_two_pointer_filler_map();
 }
 
 } }  // namespace v8::internal

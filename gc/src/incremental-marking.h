@@ -37,6 +37,7 @@ namespace v8 {
 namespace internal {
 
 
+// TODO(gc) rename into IncrementalMarker after merge.
 class IncrementalMarking : public AllStatic {
  public:
   enum State {
@@ -45,30 +46,34 @@ class IncrementalMarking : public AllStatic {
     COMPLETE
   };
 
-  static State state() {
+  explicit IncrementalMarking(Heap* heap);
+
+  State state() {
     ASSERT(state_ == STOPPED || FLAG_incremental_marking);
     return state_;
   }
 
-  static bool should_hurry() { return should_hurry_; }
+  bool should_hurry() { return should_hurry_; }
 
-  static inline bool IsStopped() { return state() == STOPPED; }
+  inline bool IsStopped() { return state() == STOPPED; }
 
-  static bool WorthActivating();
+  inline bool IsMarking() { return state() == MARKING; }
 
-  static void Start();
+  bool WorthActivating();
 
-  static void Stop();
+  void Start();
 
-  static void PrepareForScavenge();
+  void Stop();
 
-  static void UpdateMarkingStackAfterScavenge();
+  void PrepareForScavenge();
 
-  static void Hurry();
+  void UpdateMarkingStackAfterScavenge();
 
-  static void Finalize();
+  void Hurry();
 
-  static void MarkingComplete();
+  void Finalize();
+
+  void MarkingComplete();
 
   // It's hard to know how much work the incremental marker should do to make
   // progress in the face of the mutator creating new work for it.  We start
@@ -83,9 +88,9 @@ class IncrementalMarking : public AllStatic {
   // This is how much we increase the marking/allocating factor by.
   static const intptr_t kAllocationMarkingFactorSpeedup = 4;
 
-  static void Step(intptr_t allocated);
+  void Step(intptr_t allocated);
 
-  static inline void RestartIfNotMarking() {
+  inline void RestartIfNotMarking() {
     if (state_ == COMPLETE) {
       state_ = MARKING;
       if (FLAG_trace_incremental_marking) {
@@ -94,39 +99,13 @@ class IncrementalMarking : public AllStatic {
     }
   }
 
-  static inline void RecordWrite(HeapObject* obj, Object* value) {
-    if (!IsStopped() && value->IsHeapObject()) {
-      MarkBit value_bit = Marking::MarkBitFrom(HeapObject::cast(value));
-      if (IsWhite(value_bit)) {
-        MarkBit obj_bit = Marking::MarkBitFrom(obj);
-        if (IsBlack(obj_bit)) {
-          BlackToGreyAndPush(obj, obj_bit);
-          RestartIfNotMarking();
-        }
-      }
-    }
-  }
+  static void RecordWriteFromCode(HeapObject* obj,
+                                  Object* value,
+                                  Isolate* isolate);
 
-  static inline void RecordWriteOf(HeapObject* value) {
-    if (state_ != STOPPED) {
-      MarkBit value_bit = Marking::MarkBitFrom(value);
-      if (IsWhite(value_bit)) {
-        WhiteToGreyAndPush(value, value_bit);
-        RestartIfNotMarking();
-      }
-    }
-  }
-
-
-  static inline void RecordWrites(HeapObject* obj) {
-    if (!IsStopped()) {
-      MarkBit obj_bit = Marking::MarkBitFrom(obj);
-      if (IsBlack(obj_bit)) {
-        BlackToGreyAndPush(obj, obj_bit);
-        RestartIfNotMarking();
-      }
-    }
-  }
+  inline void RecordWrite(HeapObject* obj, Object* value);
+  inline void RecordWriteOf(HeapObject* value);
+  inline void RecordWrites(HeapObject* obj);
 
   // Impossible markbits: 01
   static inline bool IsImpossible(MarkBit mark_bit) {
@@ -151,42 +130,20 @@ class IncrementalMarking : public AllStatic {
     return mark_bit.Get() && mark_bit.Next().Get();
   }
 
-  static inline void BlackToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
-    ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
-    ASSERT(obj->Size() >= 2*kPointerSize);
-    ASSERT(!IsStopped());
-    ASSERT(IsBlack(mark_bit));
-    mark_bit.Next().Set();
-    ASSERT(IsGrey(mark_bit));
+  inline void BlackToGreyAndPush(HeapObject* obj, MarkBit mark_bit);
 
-    marking_stack_.Push(obj);
-    ASSERT(!marking_stack_.overflowed());
-  }
+  inline void WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit);
 
-  static inline void WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
-    WhiteToGrey(obj, mark_bit);
-    marking_stack_.Push(obj);
-    ASSERT(!marking_stack_.overflowed());
-  }
+  inline void WhiteToGrey(HeapObject* obj, MarkBit mark_bit);
 
-  static inline void WhiteToGrey(HeapObject* obj, MarkBit mark_bit) {
-    ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
-    ASSERT(obj->Size() >= 2*kPointerSize);
-    ASSERT(!IsStopped());
-    ASSERT(IsWhite(mark_bit));
-    mark_bit.Set();
-    mark_bit.Next().Set();
-    ASSERT(IsGrey(mark_bit));
-  }
-
-  static inline void MarkBlack(MarkBit mark_bit) {
+  inline void MarkBlack(MarkBit mark_bit) {
     mark_bit.Set();
     mark_bit.Next().Clear();
     ASSERT(IsBlack(mark_bit));
   }
 
   // Does white->black or grey->grey
-  static inline void MarkBlackOrKeepGrey(MarkBit mark_bit) {
+  inline void MarkBlackOrKeepGrey(MarkBit mark_bit) {
     ASSERT(!IsImpossible(mark_bit));
     if (mark_bit.Get()) return;
     mark_bit.Set();
@@ -209,39 +166,38 @@ class IncrementalMarking : public AllStatic {
     IMPOSSIBLE_COLOR
   };
 
-  static inline ObjectColor Color(HeapObject* obj) {
-    MarkBit mark_bit = Marking::MarkBitFrom(obj);
-    if (IsBlack(mark_bit)) return BLACK_OBJECT;
-    if (IsWhite(mark_bit)) return WHITE_OBJECT;
-    if (IsGrey(mark_bit)) return GREY_OBJECT;
-    UNREACHABLE();
-    return IMPOSSIBLE_COLOR;
-  }
+  inline ObjectColor Color(HeapObject* obj);
 
-  static inline int steps_count() {
+  inline int steps_count() {
     return steps_count_;
   }
 
-  static inline double steps_took() {
+  inline double steps_took() {
     return steps_took_;
   }
 
  private:
-  static void set_should_hurry(bool val) { should_hurry_ = val; }
-  static void ResetStepCounters() {
+  void set_should_hurry(bool val) {
+    should_hurry_ = val;
+  }
+
+  void ResetStepCounters() {
     steps_count_ = 0;
     steps_took_ = 0;
     allocation_marking_factor_ = kInitialAllocationMarkingFactor;
   }
 
 
-  static State state_;
-  static MarkingStack marking_stack_;
+  Heap* heap_;
 
-  static int steps_count_;
-  static double steps_took_;
-  static bool should_hurry_;
-  static intptr_t allocation_marking_factor_;
+  State state_;
+  MarkingStack marking_stack_;
+
+  int steps_count_;
+  double steps_took_;
+  bool should_hurry_;
+  intptr_t allocation_marking_factor_;
+  intptr_t allocated_;
 };
 
 } }  // namespace v8::internal
