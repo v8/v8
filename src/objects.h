@@ -649,6 +649,13 @@ class MaybeObject BASE_EMBEDDED {
     return reinterpret_cast<Object*>(this);
   }
 
+  template<typename T>
+  inline bool To(T** obj) {
+    if (IsFailure()) return false;
+    *obj = T::cast(reinterpret_cast<Object*>(this));
+    return true;
+  }
+
 #ifdef OBJECT_PRINT
   // Prints this object with details.
   inline void Print() {
@@ -3744,6 +3751,16 @@ class Map: public HeapObject {
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
 
+  // [prototype transitions]: cache of prototype transitions.
+  // Prototype transition is a transition that happens
+  // when we change object's prototype to a new one.
+  // Cache format:
+  //    0: finger - index of the first free cell in the cache
+  //    1 + 2 * i: prototype
+  //    2 + 2 * i: target map
+  DECL_ACCESSORS(prototype_transitions, FixedArray)
+  inline FixedArray* unchecked_prototype_transitions();
+
   // Lookup in the map's instance descriptors and fill out the result
   // with the given holder if the name is found. The holder may be
   // NULL when this function is used from the compiler.
@@ -3843,6 +3860,12 @@ class Map: public HeapObject {
 
   void TraverseTransitionTree(TraverseCallback callback, void* data);
 
+  static const int kMaxCachedPrototypeTransitions = 256;
+
+  Object* GetPrototypeTransition(Object* prototype);
+
+  MaybeObject* PutPrototypeTransition(Object* prototype, Map* map);
+
   static const int kMaxPreAllocatedPropertyFields = 255;
 
   // Layout description.
@@ -3853,14 +3876,16 @@ class Map: public HeapObject {
   static const int kInstanceDescriptorsOffset =
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
-  static const int kPadStart = kCodeCacheOffset + kPointerSize;
+  static const int kPrototypeTransitionsOffset =
+      kCodeCacheOffset + kPointerSize;
+  static const int kPadStart = kPrototypeTransitionsOffset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
   // being continiously allocated.
   static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
   static const int kPointerFieldsEndOffset =
-      Map::kCodeCacheOffset + kPointerSize;
+      Map::kPrototypeTransitionsOffset + kPointerSize;
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;

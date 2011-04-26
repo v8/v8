@@ -1077,6 +1077,12 @@ void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
 
 
 void MarkCompactCollector::MarkMapContents(Map* map) {
+  // Mark prototype transitions array but don't push it into marking stack.
+  // This will make references from it weak. We will clean dead prototype
+  // transitions in ClearNonLiveTransitions.
+  FixedArray* prototype_transitions = map->unchecked_prototype_transitions();
+  if (!prototype_transitions->IsMarked()) SetMark(prototype_transitions);
+
   MarkDescriptorArray(reinterpret_cast<DescriptorArray*>(
       *HeapObject::RawField(map, Map::kInstanceDescriptorsOffset)));
 
@@ -1494,7 +1500,7 @@ bool MarkCompactCollector::SafeIsMap(HeapObject* object) {
 
 
 void MarkCompactCollector::ClearNonLiveTransitions() {
-  HeapObjectIterator map_iterator(heap() ->map_space(), &SizeOfMarkedObject);
+  HeapObjectIterator map_iterator(heap()->map_space(), &SizeOfMarkedObject);
   // Iterate over the map space, setting map transitions that go from
   // a marked map to an unmarked map to null transitions.  At the same time,
   // set all the prototype fields of maps back to their original value,
@@ -1520,6 +1526,41 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
       // from SharedFunctionInfo during the mark phase.
       // Since it survived the GC, reattach it now.
       map->unchecked_constructor()->unchecked_shared()->AttachInitialMap(map);
+    }
+
+    // Clear dead prototype transitions.
+    FixedArray* prototype_transitions = map->unchecked_prototype_transitions();
+    if (prototype_transitions->length() > 0) {
+      int finger = Smi::cast(prototype_transitions->get(0))->value();
+      int new_finger = 1;
+      for (int i = 1; i < finger; i += 2) {
+        Object* prototype = prototype_transitions->get(i);
+        Object* cached_map = prototype_transitions->get(i + 1);
+        if (HeapObject::cast(prototype)->IsMarked() &&
+            HeapObject::cast(cached_map)->IsMarked()) {
+          if (new_finger != i) {
+            prototype_transitions->set_unchecked(heap_,
+                                                 new_finger,
+                                                 prototype,
+                                                 UPDATE_WRITE_BARRIER);
+            prototype_transitions->set_unchecked(heap_,
+                                                 new_finger + 1,
+                                                 cached_map,
+                                                 SKIP_WRITE_BARRIER);
+          }
+          new_finger += 2;
+        }
+      }
+
+      // Fill slots that became free with undefined value.
+      Object* undefined = heap()->raw_unchecked_undefined_value();
+      for (int i = new_finger; i < finger; i++) {
+        prototype_transitions->set_unchecked(heap_,
+                                             i,
+                                             undefined,
+                                             SKIP_WRITE_BARRIER);
+      }
+      prototype_transitions->set_unchecked(0, Smi::FromInt(new_finger));
     }
 
     // Follow the chain of back pointers to find the prototype.
