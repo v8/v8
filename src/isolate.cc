@@ -327,10 +327,12 @@ void Isolate::EnsureDefaultIsolate() {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 Debugger* Isolate::GetDefaultIsolateDebugger() {
   EnsureDefaultIsolate();
   return default_isolate_->debugger();
 }
+#endif
 
 
 StackGuard* Isolate::GetDefaultIsolateStackGuard() {

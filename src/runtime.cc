@@ -7298,13 +7298,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
   // If the function is not optimizable or debugger is active continue using the
   // code from the full compiler.
   if (!function->shared()->code()->optimizable() ||
-      isolate->debug()->has_break_points()) {
+      isolate->DebuggerHasBreakPoints()) {
     if (FLAG_trace_opt) {
       PrintF("[failed to optimize ");
       function->PrintName();
       PrintF(": is code optimizable: %s, is debugger enabled: %s]\n",
           function->shared()->code()->optimizable() ? "T" : "F",
-          isolate->debug()->has_break_points() ? "T" : "F");
+          isolate->DebuggerHasBreakPoints() ? "T" : "F");
     }
     function->ReplaceCode(function->shared()->code());
     return function->code();

@@ -419,8 +419,8 @@ static const char* TypeToString(InstanceType type) {
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return #NAME;
   STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
+    default: return "UNKNOWN";
   }
-  return "UNKNOWN";
 }
 
 
