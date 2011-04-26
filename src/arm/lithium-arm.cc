@@ -2142,4 +2142,12 @@ LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoIn(HIn* instr) {
+  LOperand* key = UseRegisterAtStart(instr->key());
+  LOperand* object = UseRegisterAtStart(instr->object());
+  LIn* result = new LIn(key, object);
+  return MarkAsCall(DefineFixed(result, r0), instr);
+}
+
+
 } }  // namespace v8::internal

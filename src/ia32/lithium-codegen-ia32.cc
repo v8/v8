@@ -4218,6 +4218,35 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 }
 
 
+void LCodeGen::DoIn(LIn* instr) {
+  LOperand* obj = instr->object();
+  LOperand* key = instr->key();
+  if (key->IsConstantOperand()) {
+    __ push(ToImmediate(key));
+  } else {
+    __ push(ToOperand(key));
+  }
+  if (obj->IsConstantOperand()) {
+    __ push(ToImmediate(obj));
+  } else {
+    __ push(ToOperand(obj));
+  }
+  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
+  LPointerMap* pointers = instr->pointer_map();
+  LEnvironment* env = instr->deoptimization_environment();
+  RecordPosition(pointers->position());
+  RegisterEnvironmentForDeoptimization(env);
+  // Create safepoint generator that will also ensure enough space in the
+  // reloc info for patching in deoptimization (since this is invoking a
+  // builtin)
+  SafepointGenerator safepoint_generator(this,
+                                         pointers,
+                                         env->deoptimization_index());
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION, &safepoint_generator);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

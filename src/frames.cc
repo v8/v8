@@ -938,6 +938,10 @@ void JavaScriptFrame::Print(StringStream* accumulator,
     accumulator->Add("\n");
     return;
   }
+  if (is_optimized()) {
+    accumulator->Add(" {\n// optimized frame\n}\n");
+    return;
+  }
   accumulator->Add(" {\n");
 
   // Compute the number of locals and expression stack elements.

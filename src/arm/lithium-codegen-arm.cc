@@ -4257,6 +4257,22 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
 }
 
 
+void LCodeGen::DoIn(LIn* instr) {
+  Register obj = ToRegister(instr->object());
+  Register key = ToRegister(instr->key());
+  __ Push(key, obj);
+  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
+  LPointerMap* pointers = instr->pointer_map();
+  LEnvironment* env = instr->deoptimization_environment();
+  RecordPosition(pointers->position());
+  RegisterEnvironmentForDeoptimization(env);
+  SafepointGenerator safepoint_generator(this,
+                                         pointers,
+                                         env->deoptimization_index());
+  __ InvokeBuiltin(Builtins::IN, CALL_JS, &safepoint_generator);
+}
+
+
 void LCodeGen::DoStackCheck(LStackCheck* instr) {
   // Perform stack overflow check.
   Label ok;
@@ -4284,6 +4300,8 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
   ASSERT(osr_pc_offset_ == -1);
   osr_pc_offset_ = masm()->pc_offset();
 }
+
+
 
 
 #undef __

@@ -3998,6 +3998,26 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
 }
 
 
+void LCodeGen::DoIn(LIn* instr) {
+  LOperand* obj = instr->object();
+  LOperand* key = instr->key();
+  EmitPushTaggedOperand(key);
+  EmitPushTaggedOperand(obj);
+  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
+  LPointerMap* pointers = instr->pointer_map();
+  LEnvironment* env = instr->deoptimization_environment();
+  RecordPosition(pointers->position());
+  RegisterEnvironmentForDeoptimization(env);
+  // Create safepoint generator that will also ensure enough space in the
+  // reloc info for patching in deoptimization (since this is invoking a
+  // builtin)
+  SafepointGenerator safepoint_generator(this,
+                                         pointers,
+                                         env->deoptimization_index());
+  __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION, &safepoint_generator);
+}
+
+
 void LCodeGen::DoStackCheck(LStackCheck* instr) {
   // Perform stack overflow check.
   NearLabel done;

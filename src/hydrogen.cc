@@ -5105,7 +5105,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       instr = new(zone()) HInstanceOfKnownGlobal(left, target);
     }
   } else if (op == Token::IN) {
-    return Bailout("Unsupported comparison: in");
+    instr = new(zone()) HIn(left, right);
   } else if (type_info.IsNonPrimitive()) {
     switch (op) {
       case Token::EQ:

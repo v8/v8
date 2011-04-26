@@ -1611,6 +1611,13 @@ HValue* HAdd::EnsureAndPropagateNotMinusZero(BitVector* visited) {
 }
 
 
+void HIn::PrintDataTo(StringStream* stream) {
+  key()->PrintNameTo(stream);
+  stream->Add(" ");
+  object()->PrintNameTo(stream);
+}
+
+
 // Node-specific verification code is only included in debug mode.
 #ifdef DEBUG
 

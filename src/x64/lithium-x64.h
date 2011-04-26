@@ -102,6 +102,7 @@ class LCodeGen;
   V(HasCachedArrayIndexAndBranch)               \
   V(HasInstanceType)                            \
   V(HasInstanceTypeAndBranch)                   \
+  V(In)                                         \
   V(InstanceOf)                                 \
   V(InstanceOfAndBranch)                        \
   V(InstanceOfKnownGlobal)                      \
@@ -827,6 +828,20 @@ class LCmpTAndBranch: public LControlInstruction<2, 0> {
   DECLARE_HYDROGEN_ACCESSOR(Compare)
 
   Token::Value op() const { return hydrogen()->token(); }
+};
+
+
+class LIn: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LIn(LOperand* key, LOperand* object) {
+    inputs_[0] = key;
+    inputs_[1] = object;
+  }
+
+  LOperand* key() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(In, "in")
 };
 
 

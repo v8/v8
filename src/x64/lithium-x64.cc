@@ -2136,6 +2136,15 @@ LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
   return NULL;
 }
 
+
+LInstruction* LChunkBuilder::DoIn(HIn* instr) {
+  LOperand* key = UseOrConstantAtStart(instr->key());
+  LOperand* object = UseOrConstantAtStart(instr->object());
+  LIn* result = new LIn(key, object);
+  return MarkAsCall(DefineFixed(result, rax), instr);
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_X64

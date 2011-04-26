@@ -104,6 +104,7 @@ class LChunkBuilder;
   V(Goto)                                      \
   V(HasInstanceType)                           \
   V(HasCachedArrayIndex)                       \
+  V(In)                                        \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
   V(InvokeFunction)                            \
@@ -3778,6 +3779,32 @@ class HDeleteProperty: public HBinaryOperation {
 
   HValue* object() { return left(); }
   HValue* key() { return right(); }
+};
+
+
+class HIn: public HTemplateInstruction<2> {
+ public:
+  HIn(HValue* key, HValue* object) {
+    SetOperandAt(0, key);
+    SetOperandAt(1, object);
+    set_representation(Representation::Tagged());
+    SetAllSideEffects();
+  }
+
+  HValue* key() { return OperandAt(0); }
+  HValue* object() { return OperandAt(1); }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  virtual HType CalculateInferredType() {
+    return HType::Boolean();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(In)
 };
 
 #undef DECLARE_INSTRUCTION
