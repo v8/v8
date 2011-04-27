@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -805,8 +805,9 @@ void Deserializer::ReadChunk(Object** current,
         if (where == kNewObject && how == kPlain && within == kStartOfObject) {\
           ASSIGN_DEST_SPACE(space_number)                                      \
           ReadObject(space_number, dest_space, current);                       \
-          emit_write_barrier =                                                 \
-            (space_number == NEW_SPACE && source_space != NEW_SPACE);          \
+          emit_write_barrier = (space_number == NEW_SPACE &&                   \
+                                source_space != NEW_SPACE &&                   \
+                                source_space != CELL_SPACE);                   \
         } else {                                                               \
           Object* new_object = NULL;  /* May not be a real Object pointer. */  \
           if (where == kNewObject) {                                           \
@@ -825,14 +826,16 @@ void Deserializer::ReadChunk(Object** current,
                 Decode(reference_id);                                          \
             new_object = reinterpret_cast<Object*>(address);                   \
           } else if (where == kBackref) {                                      \
-            emit_write_barrier =                                               \
-              (space_number == NEW_SPACE && source_space != NEW_SPACE);        \
+            emit_write_barrier = (space_number == NEW_SPACE &&                 \
+                                  source_space != NEW_SPACE &&                 \
+                                  source_space != CELL_SPACE);                 \
             new_object = GetAddressFromEnd(data & kSpaceMask);                 \
           } else {                                                             \
             ASSERT(where == kFromStart);                                       \
             if (offset_from_start == kUnknownOffsetFromStart) {                \
-              emit_write_barrier =                                             \
-                (space_number == NEW_SPACE && source_space != NEW_SPACE);      \
+              emit_write_barrier = (space_number == NEW_SPACE &&               \
+                                    source_space != NEW_SPACE &&               \
+                                    source_space != CELL_SPACE);               \
               new_object = GetAddressFromStart(data & kSpaceMask);             \
             } else {                                                           \
               Address object_address = pages_[space_number][0] +               \
