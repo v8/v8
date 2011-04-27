@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -142,9 +142,12 @@ class MacroAssembler: public Assembler {
             Condition cond = al);
 
   void Call(Label* target);
+
+  // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Handle<Object> value);
-  // May do nothing if the registers are identical.
   void Move(Register dst, Register src);
+  void Move(DoubleRegister dst, DoubleRegister src);
+
   // Jumps to the label at the index given by the Smi in "index".
   void SmiJumpTable(Register index, Vector<Label*> targets);
   // Load an object from the root table.
@@ -740,15 +743,32 @@ class MacroAssembler: public Assembler {
                        int num_arguments,
                        int result_size);
 
+  int CalculateStackPassedWords(int num_reg_arguments,
+                                int num_double_arguments);
+
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, non-register arguments must be stored in
   // sp[0], sp[4], etc., not pushed. The argument count assumes all arguments
-  // are word sized.
+  // are word sized. If double arguments are used, this function assumes that
+  // all double arguments are stored before core registers; otherwise the
+  // correct alignment of the double values is not guaranteed.
   // Some compilers/platforms require the stack to be aligned when calling
   // C++ code.
   // Needs a scratch register to do some arithmetic. This register will be
   // trashed.
-  void PrepareCallCFunction(int num_arguments, Register scratch);
+  void PrepareCallCFunction(int num_reg_arguments,
+                            int num_double_registers,
+                            Register scratch);
+  void PrepareCallCFunction(int num_reg_arguments,
+                            Register scratch);
+
+  // There are two ways of passing double arguments on ARM, depending on
+  // whether soft or hard floating point ABI is used. These functions
+  // abstract parameter passing for the three different ways we call
+  // C functions from generated code.
+  void SetCallCDoubleArguments(DoubleRegister dreg);
+  void SetCallCDoubleArguments(DoubleRegister dreg1, DoubleRegister dreg2);
+  void SetCallCDoubleArguments(DoubleRegister dreg, Register reg);
 
   // Calls a C function and cleans up the space for arguments allocated
   // by PrepareCallCFunction. The called function is not allowed to trigger a
@@ -757,6 +777,12 @@ class MacroAssembler: public Assembler {
   // function).
   void CallCFunction(ExternalReference function, int num_arguments);
   void CallCFunction(Register function, Register scratch, int num_arguments);
+  void CallCFunction(ExternalReference function,
+                     int num_reg_arguments,
+                     int num_double_arguments);
+  void CallCFunction(Register function, Register scratch,
+                     int num_reg_arguments,
+                     int num_double_arguments);
 
   void GetCFunctionDoubleResult(const DoubleRegister dst);
 
@@ -954,7 +980,8 @@ class MacroAssembler: public Assembler {
   void CallCFunctionHelper(Register function,
                            ExternalReference function_reference,
                            Register scratch,
-                           int num_arguments);
+                           int num_reg_arguments,
+                           int num_double_arguments);
 
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   int CallSize(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);

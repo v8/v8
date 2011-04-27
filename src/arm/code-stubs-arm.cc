@@ -830,14 +830,26 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   // Push the current return address before the C call. Return will be
   // through pop(pc) below.
   __ push(lr);
-  __ PrepareCallCFunction(4, scratch);  // Two doubles are 4 arguments.
+  __ PrepareCallCFunction(0, 2, scratch);
+  if (FLAG_hardfloat) {
+    ASSERT(CpuFeatures::IsSupported(VFP3));
+    CpuFeatures::Scope scope(VFP3);
+    __ vmov(d0, r0, r1);
+    __ vmov(d1, r2, r3);
+  }
   // Call C routine that may not cause GC or other trouble.
   __ CallCFunction(ExternalReference::double_fp_operation(op, masm->isolate()),
-                   4);
+                   0, 2);
   // Store answer in the overwritable heap number. Double returned in
-  // registers r0 and r1.
-  __ Strd(r0, r1, FieldMemOperand(heap_number_result,
-                                  HeapNumber::kValueOffset));
+  // registers r0 and r1 or in d0.
+  if (FLAG_hardfloat) {
+    CpuFeatures::Scope scope(VFP3);
+    __ vstr(d0,
+            FieldMemOperand(heap_number_result, HeapNumber::kValueOffset));
+  } else {
+    __ Strd(r0, r1, FieldMemOperand(heap_number_result,
+                                    HeapNumber::kValueOffset));
+  }
   // Place heap_number_result in r0 and return to the pushed return address.
   __ mov(r0, Operand(heap_number_result));
   __ pop(pc);
@@ -1179,8 +1191,15 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm,
     // Call a native function to do a comparison between two non-NaNs.
     // Call C routine that may not cause GC or other trouble.
     __ push(lr);
-    __ PrepareCallCFunction(4, r5);  // Two doubles count as 4 arguments.
-    __ CallCFunction(ExternalReference::compare_doubles(masm->isolate()), 4);
+    __ PrepareCallCFunction(0, 2, r5);
+    if (FLAG_hardfloat) {
+      ASSERT(CpuFeatures::IsSupported(VFP3));
+      CpuFeatures::Scope scope(VFP3);
+      __ vmov(d0, r0, r1);
+      __ vmov(d1, r2, r3);
+    }
+    __ CallCFunction(ExternalReference::compare_doubles(masm->isolate()),
+                     0, 2);
     __ pop(pc);  // Return.
   }
 }
@@ -2834,17 +2853,24 @@ void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
   Isolate* isolate = masm->isolate();
 
   __ push(lr);
-  __ PrepareCallCFunction(2, scratch);
-  __ vmov(r0, r1, d2);
+  __ PrepareCallCFunction(0, 1, scratch);
+  if (FLAG_hardfloat) {
+    __ vmov(d0, d2);
+  } else {
+    __ vmov(r0, r1, d2);
+  }
   switch (type_) {
     case TranscendentalCache::SIN:
-      __ CallCFunction(ExternalReference::math_sin_double_function(isolate), 2);
+      __ CallCFunction(ExternalReference::math_sin_double_function(isolate),
+          0, 1);
       break;
     case TranscendentalCache::COS:
-      __ CallCFunction(ExternalReference::math_cos_double_function(isolate), 2);
+      __ CallCFunction(ExternalReference::math_cos_double_function(isolate),
+          0, 1);
       break;
     case TranscendentalCache::LOG:
-      __ CallCFunction(ExternalReference::math_log_double_function(isolate), 2);
+      __ CallCFunction(ExternalReference::math_log_double_function(isolate),
+          0, 1);
       break;
     default:
       UNIMPLEMENTED();
@@ -3061,11 +3087,11 @@ void MathPowStub::Generate(MacroAssembler* masm) {
                           heapnumbermap,
                           &call_runtime);
     __ push(lr);
-    __ PrepareCallCFunction(3, scratch);
-    __ mov(r2, exponent);
-    __ vmov(r0, r1, double_base);
+    __ PrepareCallCFunction(1, 1, scratch);
+    __ SetCallCDoubleArguments(double_base, exponent);
     __ CallCFunction(
-        ExternalReference::power_double_int_function(masm->isolate()), 3);
+        ExternalReference::power_double_int_function(masm->isolate()),
+        1, 1);
     __ pop(lr);
     __ GetCFunctionDoubleResult(double_result);
     __ vstr(double_result,
@@ -3091,11 +3117,11 @@ void MathPowStub::Generate(MacroAssembler* masm) {
                           heapnumbermap,
                           &call_runtime);
     __ push(lr);
-    __ PrepareCallCFunction(4, scratch);
-    __ vmov(r0, r1, double_base);
-    __ vmov(r2, r3, double_exponent);
+    __ PrepareCallCFunction(0, 2, scratch);
+    __ SetCallCDoubleArguments(double_base, double_exponent);
     __ CallCFunction(
-        ExternalReference::power_double_double_function(masm->isolate()), 4);
+        ExternalReference::power_double_double_function(masm->isolate()),
+        0, 2);
     __ pop(lr);
     __ GetCFunctionDoubleResult(double_result);
     __ vstr(double_result,
@@ -3139,8 +3165,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   if (do_gc) {
     // Passing r0.
-    __ PrepareCallCFunction(1, r1);
-    __ CallCFunction(ExternalReference::perform_gc_function(isolate), 1);
+    __ PrepareCallCFunction(1, 0, r1);
+    __ CallCFunction(ExternalReference::perform_gc_function(isolate),
+        1, 0);
   }
 
   ExternalReference scope_depth =

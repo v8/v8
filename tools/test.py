@@ -1229,6 +1229,8 @@ def BuildOptions():
                     default=1, type="int")
   result.add_option("--noprof", help="Disable profiling support",
                     default=False)
+  result.add_option("--hardfloat", help="use hardware floating point ABI",
+                    default=False, action="store_true")
   return result
 
 
@@ -1271,6 +1273,11 @@ def ProcessOptions(options):
   if options.noprof:
     options.scons_flags.append("prof=off")
     options.scons_flags.append("profilingsupport=off")
+  if options.hardfloat:
+    if options.special_command:
+      options.special_command += " --hardfloat"
+    else:
+      options.special_command = "@--hardfloat"
   return True
 
 

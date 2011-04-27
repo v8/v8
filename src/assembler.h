@@ -501,9 +501,21 @@ class ExternalReference BASE_EMBEDDED {
     // MaybeObject* f(v8::internal::Arguments).
     BUILTIN_CALL,  // default
 
+    // Builtin that takes float arguments and returns an int.
+    // int f(double, double).
+    BUILTIN_COMPARE_CALL,
+
     // Builtin call that returns floating point.
     // double f(double, double).
-    FP_RETURN_CALL,
+    BUILTIN_FP_FP_CALL,
+
+    // Builtin call that returns floating point.
+    // double f(double).
+    BUILTIN_FP_CALL,
+
+    // Builtin call that returns floating point.
+    // double f(double, int).
+    BUILTIN_FP_INT_CALL,
 
     // Direct call to API function callback.
     // Handle<Value> f(v8::Arguments&)

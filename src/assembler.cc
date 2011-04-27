@@ -887,7 +887,7 @@ ExternalReference ExternalReference::math_sin_double_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(math_sin_double),
-                                    FP_RETURN_CALL));
+                                    BUILTIN_FP_CALL));
 }
 
 
@@ -895,7 +895,7 @@ ExternalReference ExternalReference::math_cos_double_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(math_cos_double),
-                                    FP_RETURN_CALL));
+                                    BUILTIN_FP_CALL));
 }
 
 
@@ -903,7 +903,7 @@ ExternalReference ExternalReference::math_log_double_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(math_log_double),
-                                    FP_RETURN_CALL));
+                                    BUILTIN_FP_CALL));
 }
 
 
@@ -946,7 +946,7 @@ ExternalReference ExternalReference::power_double_double_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(power_double_double),
-                                    FP_RETURN_CALL));
+                                    BUILTIN_FP_FP_CALL));
 }
 
 
@@ -954,7 +954,7 @@ ExternalReference ExternalReference::power_double_int_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(power_double_int),
-                                    FP_RETURN_CALL));
+                                    BUILTIN_FP_INT_CALL));
 }
 
 
@@ -987,17 +987,16 @@ ExternalReference ExternalReference::double_fp_operation(
     default:
       UNREACHABLE();
   }
-  // Passing true as 2nd parameter indicates that they return an fp value.
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(function),
-                                    FP_RETURN_CALL));
+                                    BUILTIN_FP_FP_CALL));
 }
 
 
 ExternalReference ExternalReference::compare_doubles(Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(native_compare_doubles),
-                                    BUILTIN_CALL));
+                                    BUILTIN_COMPARE_CALL));
 }
 
 
