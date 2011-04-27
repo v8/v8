@@ -39,7 +39,7 @@
 #include "parser.h"
 #include "unicode-inl.h"
 
-static const bool kLogThreading = true;
+static const bool kLogThreading = false;
 
 static bool IsNaN(double x) {
 #ifdef WIN32
