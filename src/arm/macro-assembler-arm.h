@@ -105,7 +105,13 @@ class MacroAssembler: public Assembler {
   int CallSize(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   int CallSize(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
-  void Call(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
+  void Call(Handle<Code> code,
+            RelocInfo::Mode rmode,
+            Condition cond = al);
+  void CallWithAstId(Handle<Code> code,
+            RelocInfo::Mode rmode,
+            unsigned ast_id,
+            Condition cond = al);
   void Ret(Condition cond = al);
 
   // Emit code to discard a non-negative number of pointer-sized elements
@@ -985,7 +991,9 @@ class MacroAssembler: public Assembler {
 
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   int CallSize(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
-  void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
+  void Call(intptr_t target,
+            RelocInfo::Mode rmode,
+            Condition cond = al);
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,

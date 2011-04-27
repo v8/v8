@@ -1147,6 +1147,7 @@ CaseClause::CaseClause(Expression* label,
       statements_(statements),
       position_(pos),
       compare_type_(NONE),
+      compare_id_(AstNode::GetNextId()),
       entry_id_(AstNode::GetNextId()) {
 }
 

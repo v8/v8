@@ -661,6 +661,7 @@ class CaseClause: public ZoneObject {
   void set_position(int pos) { position_ = pos; }
 
   int EntryId() { return entry_id_; }
+  int CompareId() { return compare_id_; }
 
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
@@ -674,6 +675,7 @@ class CaseClause: public ZoneObject {
   int position_;
   enum CompareTypeFeedback { NONE, SMI_ONLY, OBJECT_ONLY };
   CompareTypeFeedback compare_type_;
+  int compare_id_;
   int entry_id_;
 };
 
