@@ -77,6 +77,68 @@
           }],
         ],
       },
-    }],
+    }],  # 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"'
+    ['OS=="win"', {
+      'target_defaults': {
+        'defines': [
+          'WIN32',
+          '_CRT_SECURE_NO_DEPRECATE',
+          '_CRT_NONSTDC_NO_DEPRECATE',
+        ],
+        'conditions': [
+          ['component=="static_library"', {
+            'defines': [
+              '_HAS_EXCEPTIONS=0',
+            ],
+          }],
+        ],        
+        'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
+        'msvs_disabled_warnings': [4355, 4800],
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'MinimalRebuild': 'false',
+            'BufferSecurityCheck': 'true',
+            'EnableFunctionLevelLinking': 'true',
+            'RuntimeTypeInfo': 'false',
+            'WarningLevel': '3',
+            'WarnAsError': 'true',
+            'DebugInformationFormat': '3',
+            'Detect64BitPortabilityProblems': 'false',
+            'conditions': [
+              [ 'msvs_multi_core_compile', {
+                'AdditionalOptions': ['/MP'],
+              }],
+              ['component=="shared_library"', {
+                'ExceptionHandling': '1',  # /EHsc
+              }, {
+                'ExceptionHandling': '0',
+              }],
+            ],
+          },
+          'VCLibrarianTool': {
+            'AdditionalOptions': ['/ignore:4221'],
+          },
+          'VCLinkerTool': {
+            'AdditionalDependencies': [
+              'ws2_32.lib',
+            ],
+            'GenerateDebugInformation': 'true',
+            'MapFileName': '$(OutDir)\\$(TargetName).map',
+            'ImportLibrary': '$(OutDir)\\lib\\$(TargetName).lib',
+            'FixedBaseAddress': '1',
+            # LinkIncremental values:
+            #   0 == default
+            #   1 == /INCREMENTAL:NO
+            #   2 == /INCREMENTAL
+            'LinkIncremental': '1',
+            # SubSystem values:
+            #   0 == not set
+            #   1 == /SUBSYSTEM:CONSOLE
+            #   2 == /SUBSYSTEM:WINDOWS
+            'SubSystem': '1',
+          },
+        },
+      },
+    }]
   ],
 }
