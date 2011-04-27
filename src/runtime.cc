@@ -2713,7 +2713,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
     end = RegExpImpl::GetCapture(match_info_array, 1);
   }
 
-  int length = subject->length();
+  int length = subject_handle->length();
   int new_length = length - (end - start);
   if (new_length == 0) {
     return isolate->heap()->empty_string();
@@ -7298,13 +7298,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
   // If the function is not optimizable or debugger is active continue using the
   // code from the full compiler.
   if (!function->shared()->code()->optimizable() ||
-      isolate->debug()->has_break_points()) {
+      isolate->DebuggerHasBreakPoints()) {
     if (FLAG_trace_opt) {
       PrintF("[failed to optimize ");
       function->PrintName();
       PrintF(": is code optimizable: %s, is debugger enabled: %s]\n",
           function->shared()->code()->optimizable() ? "T" : "F",
-          isolate->debug()->has_break_points() ? "T" : "F");
+          isolate->DebuggerHasBreakPoints() ? "T" : "F");
     }
     function->ReplaceCode(function->shared()->code());
     return function->code();
@@ -8603,43 +8603,48 @@ static void CollectElementIndices(Handle<JSObject> object,
       int dense_elements_length;
       switch (kind) {
         case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
-        dense_elements_length =
-            ExternalPixelArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalPixelArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_BYTE_ELEMENTS: {
-        dense_elements_length =
-            ExternalByteArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalByteArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
-        dense_elements_length =
-            ExternalUnsignedByteArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalUnsignedByteArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_SHORT_ELEMENTS: {
-        dense_elements_length =
-            ExternalShortArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalShortArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
-        dense_elements_length =
-            ExternalUnsignedShortArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalUnsignedShortArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_INT_ELEMENTS: {
-        dense_elements_length =
-            ExternalIntArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalIntArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-        dense_elements_length =
-            ExternalUnsignedIntArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalUnsignedIntArray::cast(object->elements())->length();
           break;
         }
         case JSObject::EXTERNAL_FLOAT_ELEMENTS: {
-        dense_elements_length =
-            ExternalFloatArray::cast(object->elements())->length();
+          dense_elements_length =
+              ExternalFloatArray::cast(object->elements())->length();
+          break;
+        }
+        case JSObject::EXTERNAL_DOUBLE_ELEMENTS: {
+          dense_elements_length =
+              ExternalDoubleArray::cast(object->elements())->length();
           break;
         }
         default:
@@ -8770,6 +8775,11 @@ static bool IterateElements(Isolate* isolate,
     }
     case JSObject::EXTERNAL_FLOAT_ELEMENTS: {
       IterateExternalArrayElements<ExternalFloatArray, float>(
+          isolate, receiver, false, false, visitor);
+      break;
+    }
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS: {
+      IterateExternalArrayElements<ExternalDoubleArray, double>(
           isolate, receiver, false, false, visitor);
       break;
     }

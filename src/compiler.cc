@@ -664,7 +664,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
           // version of the function right away - unless the debugger is
           // active as it makes no sense to compile optimized code then.
           if (FLAG_always_opt &&
-              !Isolate::Current()->debug()->has_break_points()) {
+              !Isolate::Current()->DebuggerHasBreakPoints()) {
             CompilationInfo optimized(function);
             optimized.SetOptimizing(AstNode::kNoNumber);
             return CompileLazy(&optimized);
@@ -767,7 +767,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
-  if (info->isolate()->logger()->is_logging() || CpuProfiler::is_profiling()) {
+  if (info->isolate()->logger()->is_logging() ||
+      CpuProfiler::is_profiling(info->isolate())) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
     if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))

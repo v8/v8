@@ -2479,6 +2479,11 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     __ add(scratch0(), external_pointer, Operand(key, LSL, 2));
     __ vldr(result.low(), scratch0(), 0);
     __ vcvt_f64_f32(result, result.low());
+  } else if (array_type == kExternalDoubleArray) {
+    CpuFeatures::Scope scope(VFP3);
+    DwVfpRegister result(ToDoubleRegister(instr->result()));
+    __ add(scratch0(), external_pointer, Operand(key, LSL, 3));
+    __ vldr(result, scratch0(), 0);
   } else {
     Register result(ToRegister(instr->result()));
     switch (array_type) {
@@ -2507,6 +2512,7 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
         DeoptimizeIf(cs, instr->environment());
         break;
       case kExternalFloatArray:
+      case kExternalDoubleArray:
         UNREACHABLE();
         break;
     }
@@ -3232,12 +3238,18 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
   Register external_pointer = ToRegister(instr->external_pointer());
   Register key = ToRegister(instr->key());
   ExternalArrayType array_type = instr->array_type();
+
   if (array_type == kExternalFloatArray) {
     CpuFeatures::Scope scope(VFP3);
     DwVfpRegister value(ToDoubleRegister(instr->value()));
     __ add(scratch0(), external_pointer, Operand(key, LSL, 2));
     __ vcvt_f32_f64(double_scratch0().low(), value);
     __ vstr(double_scratch0().low(), scratch0(), 0);
+  } else if (array_type == kExternalDoubleArray) {
+    CpuFeatures::Scope scope(VFP3);
+    DwVfpRegister value(ToDoubleRegister(instr->value()));
+    __ add(scratch0(), external_pointer, Operand(key, LSL, 3));
+    __ vstr(value, scratch0(), 0);
   } else {
     Register value(ToRegister(instr->value()));
     switch (array_type) {
@@ -3259,6 +3271,7 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
         __ str(value, MemOperand(external_pointer, key, LSL, 2));
         break;
       case kExternalFloatArray:
+      case kExternalDoubleArray:
         UNREACHABLE();
         break;
     }
@@ -4244,6 +4257,22 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
 }
 
 
+void LCodeGen::DoIn(LIn* instr) {
+  Register obj = ToRegister(instr->object());
+  Register key = ToRegister(instr->key());
+  __ Push(key, obj);
+  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
+  LPointerMap* pointers = instr->pointer_map();
+  LEnvironment* env = instr->deoptimization_environment();
+  RecordPosition(pointers->position());
+  RegisterEnvironmentForDeoptimization(env);
+  SafepointGenerator safepoint_generator(this,
+                                         pointers,
+                                         env->deoptimization_index());
+  __ InvokeBuiltin(Builtins::IN, CALL_JS, &safepoint_generator);
+}
+
+
 void LCodeGen::DoStackCheck(LStackCheck* instr) {
   // Perform stack overflow check.
   Label ok;
@@ -4271,6 +4300,8 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
   ASSERT(osr_pc_offset_ == -1);
   osr_pc_offset_ = masm()->pc_offset();
 }
+
+
 
 
 #undef __

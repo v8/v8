@@ -121,6 +121,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case EXTERNAL_INT_ARRAY_TYPE:
     case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
     case EXTERNAL_FLOAT_ARRAY_TYPE:
+    case EXTERNAL_DOUBLE_ARRAY_TYPE:
       return GetVisitorIdForSize(kVisitDataObject,
                                  kVisitDataObjectGeneric,
                                  instance_size);

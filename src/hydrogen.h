@@ -277,11 +277,10 @@ class HGraph: public ZoneObject {
   void InsertTypeConversions(HInstruction* instr);
   void PropagateMinusZeroChecks(HValue* value, BitVector* visited);
   void InsertRepresentationChangeForUse(HValue* value,
-                                        HValue* use,
+                                        HValue* use_value,
+                                        int use_index,
                                         Representation to);
-  void InsertRepresentationChangesForValue(HValue* current,
-                                           ZoneList<HValue*>* value_list,
-                                           ZoneList<Representation>* rep_list);
+  void InsertRepresentationChangesForValue(HValue* value);
   void InferTypes(ZoneList<HValue*>* worklist);
   void InitializeInferredTypes(int from_inclusive, int to_inclusive);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);

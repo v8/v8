@@ -36,13 +36,6 @@ root_dir = dirname(File('SConstruct').rfile().abspath)
 sys.path.insert(0, join(root_dir, 'tools'))
 import js2c, utils
 
-# ANDROID_TOP is the top of the Android checkout, fetched from the environment
-# variable 'TOP'.   You will also need to set the CXX, CC, AR and RANLIB
-# environment variables to the cross-compiling tools.
-ANDROID_TOP = os.environ.get('TOP')
-if ANDROID_TOP is None:
-  ANDROID_TOP=""
-
 # ARM_TARGET_LIB is the path to the dynamic library to use on the target
 # machine if cross-compiling to an arm machine. You will also need to set
 # the additional cross-compiling environment variables to the cross compiler.
@@ -57,50 +50,6 @@ else:
 
 GCC_EXTRA_CCFLAGS = []
 GCC_DTOA_EXTRA_CCFLAGS = []
-
-ANDROID_FLAGS = ['-march=armv7-a',
-                 '-mtune=cortex-a8',
-                 '-mfloat-abi=softfp',
-                 '-mfpu=vfp',
-                 '-fpic',
-                 '-mthumb-interwork',
-                 '-funwind-tables',
-                 '-fstack-protector',
-                 '-fno-short-enums',
-                 '-fmessage-length=0',
-                 '-finline-functions',
-                 '-fno-inline-functions-called-once',
-                 '-fgcse-after-reload',
-                 '-frerun-cse-after-loop',
-                 '-frename-registers',
-                 '-fomit-frame-pointer',
-                 '-finline-limit=64',
-                 '-DCAN_USE_VFP_INSTRUCTIONS=1',
-                 '-DCAN_USE_ARMV7_INSTRUCTIONS=1',
-                 '-DCAN_USE_UNALIGNED_ACCESSES=1',
-                 '-MD']
-
-ANDROID_INCLUDES = [ANDROID_TOP + '/bionic/libc/arch-arm/include',
-                    ANDROID_TOP + '/bionic/libc/include',
-                    ANDROID_TOP + '/bionic/libstdc++/include',
-                    ANDROID_TOP + '/bionic/libc/kernel/common',
-                    ANDROID_TOP + '/bionic/libc/kernel/arch-arm',
-                    ANDROID_TOP + '/bionic/libm/include',
-                    ANDROID_TOP + '/bionic/libm/include/arch/arm',
-                    ANDROID_TOP + '/bionic/libthread_db/include',
-                    ANDROID_TOP + '/frameworks/base/include',
-                    ANDROID_TOP + '/system/core/include']
-
-ANDROID_LINKFLAGS = ['-nostdlib',
-                     '-Bdynamic',
-                     '-Wl,-T,' + ANDROID_TOP + '/build/core/armelf.x',
-                     '-Wl,-dynamic-linker,/system/bin/linker',
-                     '-Wl,--gc-sections',
-                     '-Wl,-z,nocopyreloc',
-                     '-Wl,-rpath-link=' + ANDROID_TOP + '/out/target/product/generic/obj/lib',
-                     ANDROID_TOP + '/out/target/product/generic/obj/lib/crtbegin_dynamic.o',
-                     ANDROID_TOP + '/prebuilt/linux-x86/toolchain/arm-eabi-4.4.0/lib/gcc/arm-eabi/4.4.0/interwork/libgcc.a',
-                     ANDROID_TOP + '/out/target/product/generic/obj/lib/crtend_android.o'];
 
 LIBRARY_FLAGS = {
   'all': {
@@ -199,14 +148,6 @@ LIBRARY_FLAGS = {
     'os:win32': {
       'CCFLAGS':      ['-DWIN32'],
       'CXXFLAGS':     ['-DWIN32'],
-    },
-    'os:android': {
-      'CPPDEFINES':   ['ANDROID', '__ARM_ARCH_5__', '__ARM_ARCH_5T__',
-                       '__ARM_ARCH_5E__', '__ARM_ARCH_5TE__'],
-      'CCFLAGS':      ANDROID_FLAGS,
-      'WARNINGFLAGS': ['-Wall', '-Wno-unused', '-Werror=return-type',
-                       '-Wstrict-aliasing=2'],
-      'CPPPATH':      ANDROID_INCLUDES,
     },
     'arch:ia32': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_IA32'],
@@ -456,19 +397,6 @@ CCTEST_EXTRA_FLAGS = {
     'os:win32': {
       'LIBS': ['winmm', 'ws2_32']
     },
-    'os:android': {
-      'CPPDEFINES':   ['ANDROID', '__ARM_ARCH_5__', '__ARM_ARCH_5T__',
-                       '__ARM_ARCH_5E__', '__ARM_ARCH_5TE__'],
-      'CCFLAGS':      ANDROID_FLAGS,
-      'CPPPATH':      ANDROID_INCLUDES,
-      'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib',
-                      ANDROID_TOP + '/prebuilt/linux-x86/toolchain/arm-eabi-4.4.0/lib/gcc/arm-eabi/4.4.0/interwork'],
-      'LINKFLAGS':    ANDROID_LINKFLAGS,
-      'LIBS':         ['log', 'c', 'stdc++', 'm', 'gcc'],
-      'mode:release': {
-        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
-      }
-    },
     'arch:arm': {
       'LINKFLAGS':   ARM_LINK_FLAGS
     },
@@ -522,19 +450,6 @@ SAMPLE_FLAGS = {
     },
     'os:win32': {
       'LIBS':         ['winmm', 'ws2_32']
-    },
-    'os:android': {
-      'CPPDEFINES':   ['ANDROID', '__ARM_ARCH_5__', '__ARM_ARCH_5T__',
-                       '__ARM_ARCH_5E__', '__ARM_ARCH_5TE__'],
-      'CCFLAGS':      ANDROID_FLAGS,
-      'CPPPATH':      ANDROID_INCLUDES,
-      'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib',
-                      ANDROID_TOP + '/prebuilt/linux-x86/toolchain/arm-eabi-4.4.0/lib/gcc/arm-eabi/4.4.0/interwork'],
-      'LINKFLAGS':    ANDROID_LINKFLAGS,
-      'LIBS':         ['log', 'c', 'stdc++', 'm', 'gcc'],
-      'mode:release': {
-        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
-      }
     },
     'arch:arm': {
       'LINKFLAGS':   ARM_LINK_FLAGS
@@ -644,19 +559,6 @@ PREPARSER_FLAGS = {
     },
     'os:win32': {
       'LIBS':         ['winmm', 'ws2_32']
-    },
-    'os:android': {
-      'CPPDEFINES':   ['ANDROID', '__ARM_ARCH_5__', '__ARM_ARCH_5T__',
-                       '__ARM_ARCH_5E__', '__ARM_ARCH_5TE__'],
-      'CCFLAGS':      ANDROID_FLAGS,
-      'CPPPATH':      ANDROID_INCLUDES,
-      'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib',
-                      ANDROID_TOP + '/prebuilt/linux-x86/toolchain/arm-eabi-4.4.0/lib/gcc/arm-eabi/4.4.0/interwork'],
-      'LINKFLAGS':    ANDROID_LINKFLAGS,
-      'LIBS':         ['log', 'c', 'stdc++', 'm', 'gcc'],
-      'mode:release': {
-        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
-      }
     },
     'arch:arm': {
       'LINKFLAGS':   ARM_LINK_FLAGS
@@ -797,12 +699,6 @@ D8_FLAGS = {
     },
     'os:openbsd': {
       'LIBS': ['pthread'],
-    },
-    'os:android': {
-      'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib',
-                      ANDROID_TOP + '/prebuilt/linux-x86/toolchain/arm-eabi-4.4.0/lib/gcc/arm-eabi/4.4.0/interwork'],
-      'LINKFLAGS':    ANDROID_LINKFLAGS,
-      'LIBS':         ['log', 'c', 'stdc++', 'm', 'gcc'],
     },
     'os:win32': {
       'LIBS': ['winmm', 'ws2_32'],

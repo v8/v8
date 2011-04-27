@@ -25,66 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+#ifndef V8_ISOLATE_INL_H_
+#define V8_ISOLATE_INL_H_
 
-// This is a regression test for overlapping key and value registers.
-function f(a) {
-  a[0] = 0;
-  a[1] = 0;
+#include "isolate.h"
+
+#include "debug.h"
+
+namespace v8 {
+namespace internal {
+
+
+bool Isolate::DebuggerHasBreakPoints() {
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  return debug()->has_break_points();
+#else
+  return false;
+#endif
 }
 
-var a = new Int32Array(2);
-for (var i = 0; i < 5; i++) {
-  f(a);
-}
-%OptimizeFunctionOnNextCall(f);
-f(a);
 
-assertEquals(0, a[0]);
-assertEquals(0, a[1]);
+} }  // namespace v8::internal
 
-// Test the correct behavior of the |length| property (which is read-only).
-a = new Int32Array(42);
-assertEquals(42, a.length);
-a.length = 2;
-assertEquals(42, a.length);
-assertTrue(delete a.length);
-a.length = 2
-assertEquals(2, a.length);
-
-// Test the correct behavior of the |BYTES_PER_ELEMENT| property (which is
-// "constant", but not read-only).
-a = new Int32Array(2);
-assertEquals(4, a.BYTES_PER_ELEMENT);
-a.BYTES_PER_ELEMENT = 42;
-assertEquals(42, a.BYTES_PER_ELEMENT);
-a = new Uint8Array(2);
-assertEquals(1, a.BYTES_PER_ELEMENT);
-a = new Int16Array(2);
-assertEquals(2, a.BYTES_PER_ELEMENT);
-
-// Test Float64Arrays.
-function get(a, index) {
-  return a[index];
-}
-function set(a, index, value) {
-  a[index] = value;
-}
-
-var array = new Float64Array(2);
-for (var i = 0; i < 5; i++) {
-  set(array, 0, 2.5);
-  assertEquals(2.5, array[0]);
-}
-%OptimizeFunctionOnNextCall(set);
-set(array, 0, 2.5);
-assertEquals(2.5, array[0]);
-set(array, 1, 3.5);
-assertEquals(3.5, array[1]);
-for (var i = 0; i < 5; i++) {
-  assertEquals(2.5, get(array, 0));
-  assertEquals(3.5, array[1]);
-}
-%OptimizeFunctionOnNextCall(get);
-assertEquals(2.5, get(array, 0));
-assertEquals(3.5, get(array, 1));
+#endif  // V8_ISOLATE_INL_H_

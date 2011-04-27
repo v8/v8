@@ -72,6 +72,7 @@ namespace internal {
 struct Register {
   static const int kNumRegisters = 16;
   static const int kNumAllocatableRegisters = 8;
+  static const int kSizeInBytes = 4;
 
   static int ToAllocationIndex(Register reg) {
     ASSERT(reg.code() < kNumAllocatableRegisters);

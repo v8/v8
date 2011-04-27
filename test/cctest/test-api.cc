@@ -39,7 +39,7 @@
 #include "parser.h"
 #include "unicode-inl.h"
 
-static const bool kLogThreading = true;
+static const bool kLogThreading = false;
 
 static bool IsNaN(double x) {
 #ifdef WIN32
@@ -11380,6 +11380,9 @@ static int ExternalArrayElementSize(v8::ExternalArrayType array_type) {
     case v8::kExternalFloatArray:
       return 4;
       break;
+    case v8::kExternalDoubleArray:
+      return 8;
+      break;
     default:
       UNREACHABLE();
       return -1;
@@ -11569,7 +11572,8 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   CHECK_EQ(
       2, static_cast<int>(jsobj->GetElement(6)->ToObjectChecked()->Number()));
 
-  if (array_type != v8::kExternalFloatArray) {
+  if (array_type != v8::kExternalFloatArray &&
+      array_type != v8::kExternalDoubleArray) {
     // Though the specification doesn't state it, be explicit about
     // converting NaNs and +/-Infinity to zero.
     result = CompileRun("for (var i = 0; i < 8; i++) {"
@@ -11966,6 +11970,14 @@ THREADED_TEST(ExternalFloatArray) {
 }
 
 
+THREADED_TEST(ExternalDoubleArray) {
+  ExternalArrayTestHelper<i::ExternalDoubleArray, double>(
+      v8::kExternalDoubleArray,
+      -500,
+      500);
+}
+
+
 THREADED_TEST(ExternalArrays) {
   TestExternalByteArray();
   TestExternalUnsignedByteArray();
@@ -12003,6 +12015,7 @@ THREADED_TEST(ExternalArrayInfo) {
   ExternalArrayInfoTestHelper(v8::kExternalIntArray);
   ExternalArrayInfoTestHelper(v8::kExternalUnsignedIntArray);
   ExternalArrayInfoTestHelper(v8::kExternalFloatArray);
+  ExternalArrayInfoTestHelper(v8::kExternalDoubleArray);
   ExternalArrayInfoTestHelper(v8::kExternalPixelArray);
 }
 

@@ -2338,6 +2338,9 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     XMMRegister result(ToDoubleRegister(instr->result()));
     __ movss(result, Operand(external_pointer, key, times_4, 0));
     __ cvtss2sd(result, result);
+  } else if (array_type == kExternalDoubleArray) {
+    __ movdbl(ToDoubleRegister(instr->result()),
+              Operand(external_pointer, key, times_8, 0));
   } else {
     Register result(ToRegister(instr->result()));
     switch (array_type) {
@@ -2366,6 +2369,7 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
         DeoptimizeIf(negative, instr->environment());
         break;
       case kExternalFloatArray:
+      case kExternalDoubleArray:
         UNREACHABLE();
         break;
     }
@@ -3047,6 +3051,9 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
   if (array_type == kExternalFloatArray) {
     __ cvtsd2ss(xmm0, ToDoubleRegister(instr->value()));
     __ movss(Operand(external_pointer, key, times_4, 0), xmm0);
+  } else if (array_type == kExternalDoubleArray) {
+    __ movdbl(Operand(external_pointer, key, times_8, 0),
+              ToDoubleRegister(instr->value()));
   } else {
     Register value = ToRegister(instr->value());
     switch (array_type) {
@@ -3081,6 +3088,7 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
         __ mov(Operand(external_pointer, key, times_4, 0), value);
         break;
       case kExternalFloatArray:
+      case kExternalDoubleArray:
         UNREACHABLE();
         break;
     }
@@ -4207,6 +4215,35 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
   RegisterEnvironmentForDeoptimization(environment);
   ASSERT(osr_pc_offset_ == -1);
   osr_pc_offset_ = masm()->pc_offset();
+}
+
+
+void LCodeGen::DoIn(LIn* instr) {
+  LOperand* obj = instr->object();
+  LOperand* key = instr->key();
+  if (key->IsConstantOperand()) {
+    __ push(ToImmediate(key));
+  } else {
+    __ push(ToOperand(key));
+  }
+  if (obj->IsConstantOperand()) {
+    __ push(ToImmediate(obj));
+  } else {
+    __ push(ToOperand(obj));
+  }
+  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
+  LPointerMap* pointers = instr->pointer_map();
+  LEnvironment* env = instr->deoptimization_environment();
+  RecordPosition(pointers->position());
+  RegisterEnvironmentForDeoptimization(env);
+  // Create safepoint generator that will also ensure enough space in the
+  // reloc info for patching in deoptimization (since this is invoking a
+  // builtin)
+  SafepointGenerator safepoint_generator(this,
+                                         pointers,
+                                         env->deoptimization_index());
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION, &safepoint_generator);
 }
 
 

@@ -171,7 +171,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   // Debug::has_break_points().
   ASSERT(function->IsMarkedForLazyRecompilation());
   if (!FLAG_use_osr ||
-      isolate_->debug()->has_break_points() ||
+      isolate_->DebuggerHasBreakPoints() ||
       function->IsBuiltin()) {
     return;
   }

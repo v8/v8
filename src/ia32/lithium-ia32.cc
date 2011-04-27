@@ -852,24 +852,22 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     right = UseFixed(right_value, ecx);
   }
 
-  // Shift operations can only deoptimize if we do a logical shift
-  // by 0 and the result cannot be truncated to int32.
-  bool can_deopt = (op == Token::SHR && constant_value == 0);
-  if (can_deopt) {
-    bool can_truncate = true;
-    for (int i = 0; i < instr->uses()->length(); i++) {
-      if (!instr->uses()->at(i)->CheckFlag(HValue::kTruncatingToInt32)) {
-        can_truncate = false;
+  // Shift operations can only deoptimize if we do a logical shift by 0 and
+  // the result cannot be truncated to int32.
+  bool may_deopt = (op == Token::SHR && constant_value == 0);
+  bool does_deopt = false;
+  if (may_deopt) {
+    for (HUseIterator it(instr->uses()); !it.Done(); it.Advance()) {
+      if (!it.value()->CheckFlag(HValue::kTruncatingToInt32)) {
+        does_deopt = true;
         break;
       }
     }
-    can_deopt = !can_truncate;
   }
 
-  LShiftI* result = new LShiftI(op, left, right, can_deopt);
-  return can_deopt
-      ? AssignEnvironment(DefineSameAsFirst(result))
-      : DefineSameAsFirst(result);
+  LInstruction* result =
+      DefineSameAsFirst(new LShiftI(op, left, right, does_deopt));
+  return does_deopt ? AssignEnvironment(result) : result;
 }
 
 
@@ -1890,8 +1888,11 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
     HLoadKeyedSpecializedArrayElement* instr) {
   ExternalArrayType array_type = instr->array_type();
   Representation representation(instr->representation());
-  ASSERT((representation.IsInteger32() && array_type != kExternalFloatArray) ||
-         (representation.IsDouble() && array_type == kExternalFloatArray));
+  ASSERT(
+      (representation.IsInteger32() && (array_type != kExternalFloatArray &&
+                                        array_type != kExternalDoubleArray)) ||
+      (representation.IsDouble() && (array_type == kExternalFloatArray ||
+                                     array_type == kExternalDoubleArray)));
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* external_pointer = UseRegister(instr->external_pointer());
   LOperand* key = UseRegister(instr->key());
@@ -1940,8 +1941,11 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
     HStoreKeyedSpecializedArrayElement* instr) {
   Representation representation(instr->value()->representation());
   ExternalArrayType array_type = instr->array_type();
-  ASSERT((representation.IsInteger32() && array_type != kExternalFloatArray) ||
-         (representation.IsDouble() && array_type == kExternalFloatArray));
+  ASSERT(
+      (representation.IsInteger32() && (array_type != kExternalFloatArray &&
+                                        array_type != kExternalDoubleArray)) ||
+      (representation.IsDouble() && (array_type == kExternalFloatArray ||
+                                     array_type == kExternalDoubleArray)));
   ASSERT(instr->external_pointer()->representation().IsExternal());
   ASSERT(instr->key()->representation().IsInteger32());
 
@@ -2198,6 +2202,14 @@ LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
   HEnvironment* outer = current_block_->last_environment()->outer();
   current_block_->UpdateEnvironment(outer);
   return NULL;
+}
+
+
+LInstruction* LChunkBuilder::DoIn(HIn* instr) {
+  LOperand* key = UseOrConstantAtStart(instr->key());
+  LOperand* object = UseOrConstantAtStart(instr->object());
+  LIn* result = new LIn(key, object);
+  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 

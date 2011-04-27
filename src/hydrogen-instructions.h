@@ -104,6 +104,7 @@ class LChunkBuilder;
   V(Goto)                                      \
   V(HasInstanceType)                           \
   V(HasCachedArrayIndex)                       \
+  V(In)                                        \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
   V(InvokeFunction)                            \
@@ -403,6 +404,62 @@ class HType {
 };
 
 
+class HUseListNode: public ZoneObject {
+ public:
+  HUseListNode(HValue* value, int index, HUseListNode* tail)
+      : tail_(tail), value_(value), index_(index) {
+  }
+
+  HUseListNode* tail() const { return tail_; }
+  HValue* value() const { return value_; }
+  int index() const { return index_; }
+
+  void set_tail(HUseListNode* list) { tail_ = list; }
+
+#ifdef DEBUG
+  void Zap() {
+    tail_ = reinterpret_cast<HUseListNode*>(1);
+    value_ = NULL;
+    index_ = -1;
+  }
+#endif
+
+ private:
+  HUseListNode* tail_;
+  HValue* value_;
+  int index_;
+};
+
+
+// We reuse use list nodes behind the scenes as uses are added and deleted.
+// This class is the safe way to iterate uses while deleting them.
+class HUseIterator BASE_EMBEDDED {
+ public:
+  bool Done() { return current_ == NULL; }
+  void Advance();
+
+  HValue* value() {
+    ASSERT(!Done());
+    return value_;
+  }
+
+  int index() {
+    ASSERT(!Done());
+    return index_;
+  }
+
+ private:
+  explicit HUseIterator(HUseListNode* head);
+
+  HUseListNode* current_;
+  HUseListNode* next_;
+  HValue* value_;
+  int index_;
+
+  friend class HValue;
+};
+
+
 class HValue: public ZoneObject {
  public:
   static const int kNoNumber = -1;
@@ -473,6 +530,7 @@ class HValue: public ZoneObject {
   HValue() : block_(NULL),
              id_(kNoNumber),
              type_(HType::Tagged()),
+             use_list_(NULL),
              range_(NULL),
              flags_(0) {}
   virtual ~HValue() {}
@@ -483,7 +541,7 @@ class HValue: public ZoneObject {
   int id() const { return id_; }
   void set_id(int id) { id_ = id; }
 
-  SmallPointerList<HValue>* uses() { return &uses_; }
+  HUseIterator uses() const { return HUseIterator(use_list_); }
 
   virtual bool EmitAtUses() { return false; }
   Representation representation() const { return representation_; }
@@ -498,7 +556,7 @@ class HValue: public ZoneObject {
 
   HType type() const { return type_; }
   void set_type(HType type) {
-    ASSERT(uses_.length() == 0);
+    ASSERT(HasNoUses());
     type_ = type;
   }
 
@@ -524,16 +582,13 @@ class HValue: public ZoneObject {
   virtual HValue* OperandAt(int index) = 0;
   void SetOperandAt(int index, HValue* value);
 
-  int LookupOperandIndex(int occurrence_index, HValue* op);
-  bool UsesMultipleTimes(HValue* op);
-
-  void ReplaceAndDelete(HValue* other);
-  void ReplaceValue(HValue* other);
-  void ReplaceAtUse(HValue* use, HValue* other);
-  void ReplaceFirstAtUse(HValue* use, HValue* other, Representation r);
-  bool HasNoUses() const { return uses_.is_empty(); }
+  void DeleteAndReplaceWith(HValue* other);
+  bool HasNoUses() const { return use_list_ == NULL; }
+  bool HasMultipleUses() const {
+    return use_list_ != NULL && use_list_->tail() != NULL;
+  }
+  int UseCount() const;
   void ClearOperands();
-  void Delete();
 
   int flags() const { return flags_; }
   void SetFlag(Flag f) { flags_ |= (1 << f); }
@@ -611,7 +666,12 @@ class HValue: public ZoneObject {
     return ChangesFlagsMask() & ~(1 << kChangesOsrEntries);
   }
 
-  void InternalReplaceAtUse(HValue* use, HValue* other);
+  // Remove the matching use from the use list if present.  Returns the
+  // removed list node or NULL.
+  HUseListNode* RemoveUse(HValue* value, int index);
+
+  void ReplaceAllUsesWith(HValue* other);
+
   void RegisterUse(int index, HValue* new_value);
 
   HBasicBlock* block_;
@@ -622,7 +682,7 @@ class HValue: public ZoneObject {
 
   Representation representation_;
   HType type_;
-  SmallPointerList<HValue> uses_;
+  HUseListNode* use_list_;
   Range* range_;
   int flags_;
 
@@ -2257,7 +2317,7 @@ class HCompare: public HBinaryOperation {
   void SetInputRepresentation(Representation r);
 
   virtual bool EmitAtUses() {
-    return !HasSideEffects() && (uses()->length() <= 1);
+    return !HasSideEffects() && !HasMultipleUses();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -2299,7 +2359,7 @@ class HCompareJSObjectEq: public HBinaryOperation {
   }
 
   virtual bool EmitAtUses() {
-    return !HasSideEffects() && (uses()->length() <= 1);
+    return !HasSideEffects() && !HasMultipleUses();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -2322,7 +2382,7 @@ class HUnaryPredicate: public HUnaryOperation {
   }
 
   virtual bool EmitAtUses() {
-    return !HasSideEffects() && (uses()->length() <= 1);
+    return !HasSideEffects() && !HasMultipleUses();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -2382,7 +2442,7 @@ class HIsConstructCall: public HTemplateInstruction<0> {
   }
 
   virtual bool EmitAtUses() {
-    return !HasSideEffects() && (uses()->length() <= 1);
+    return !HasSideEffects() && !HasMultipleUses();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -2504,7 +2564,7 @@ class HInstanceOf: public HTemplateInstruction<3> {
   HValue* right() { return OperandAt(2); }
 
   virtual bool EmitAtUses() {
-    return !HasSideEffects() && (uses()->length() <= 1);
+    return !HasSideEffects() && !HasMultipleUses();
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -3187,7 +3247,8 @@ class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
                                     ExternalArrayType array_type)
       : HBinaryOperation(external_elements, key),
         array_type_(array_type) {
-    if (array_type == kExternalFloatArray) {
+    if (array_type == kExternalFloatArray ||
+        array_type == kExternalDoubleArray) {
       set_representation(Representation::Double());
     } else {
       set_representation(Representation::Integer32());
@@ -3379,7 +3440,8 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
     if (index == 0) {
       return Representation::External();
     } else {
-      if (index == 2 && array_type() == kExternalFloatArray) {
+      if (index == 2 && (array_type() == kExternalFloatArray ||
+                         array_type() == kExternalDoubleArray)) {
         return Representation::Double();
       } else {
         return Representation::Integer32();
@@ -3717,6 +3779,32 @@ class HDeleteProperty: public HBinaryOperation {
 
   HValue* object() { return left(); }
   HValue* key() { return right(); }
+};
+
+
+class HIn: public HTemplateInstruction<2> {
+ public:
+  HIn(HValue* key, HValue* object) {
+    SetOperandAt(0, key);
+    SetOperandAt(1, object);
+    set_representation(Representation::Tagged());
+    SetAllSideEffects();
+  }
+
+  HValue* key() { return OperandAt(0); }
+  HValue* object() { return OperandAt(1); }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  virtual HType CalculateInferredType() {
+    return HType::Boolean();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(In)
 };
 
 #undef DECLARE_INSTRUCTION

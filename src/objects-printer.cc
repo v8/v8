@@ -114,6 +114,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case EXTERNAL_FLOAT_ARRAY_TYPE:
       ExternalFloatArray::cast(this)->ExternalFloatArrayPrint(out);
       break;
+    case EXTERNAL_DOUBLE_ARRAY_TYPE:
+      ExternalDoubleArray::cast(this)->ExternalDoubleArrayPrint(out);
+      break;
     case FILLER_TYPE:
       PrintF(out, "filler");
       break;
@@ -214,6 +217,11 @@ void ExternalUnsignedIntArray::ExternalUnsignedIntArrayPrint(FILE* out) {
 
 void ExternalFloatArray::ExternalFloatArrayPrint(FILE* out) {
   PrintF(out, "external float array");
+}
+
+
+void ExternalDoubleArray::ExternalDoubleArrayPrint(FILE* out) {
+  PrintF(out, "external double array");
 }
 
 
@@ -330,6 +338,13 @@ void JSObject::PrintElements(FILE* out) {
       }
       break;
     }
+    case EXTERNAL_DOUBLE_ELEMENTS: {
+      ExternalDoubleArray* p = ExternalDoubleArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        PrintF(out, "  %d: %f\n", i, p->get(i));
+      }
+      break;
+    }
     case DICTIONARY_ELEMENTS:
       elements()->Print(out);
       break;
@@ -383,6 +398,7 @@ static const char* TypeToString(InstanceType type) {
     case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
       return "EXTERNAL_UNSIGNED_INT_ARRAY";
     case EXTERNAL_FLOAT_ARRAY_TYPE: return "EXTERNAL_FLOAT_ARRAY";
+    case EXTERNAL_DOUBLE_ARRAY_TYPE: return "EXTERNAL_DOUBLE_ARRAY";
     case FILLER_TYPE: return "FILLER";
     case JS_OBJECT_TYPE: return "JS_OBJECT";
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE: return "JS_CONTEXT_EXTENSION_OBJECT";
@@ -403,8 +419,8 @@ static const char* TypeToString(InstanceType type) {
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return #NAME;
   STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
+    default: return "UNKNOWN";
   }
-  return "UNKNOWN";
 }
 
 

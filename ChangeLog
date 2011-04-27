@@ -1,3 +1,16 @@
+2011-04-27: Version 3.3.2
+
+        Fixed crash bug on ARM with no VFP3 hardware.
+
+        Fixed compilation of V8 without debugger support.
+
+        Improved performance on JSLint.
+
+        Added support Float64 WebGL arrays.
+
+        Fixed crash bug in regexp replace.
+
+	
 2011-04-20: Version 3.3.1
 
         Reduced V8 binary size by removing virtual functions from hydrogen.

@@ -294,7 +294,6 @@ class HashMap;
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
-  V(uint64_t, enabled_cpu_features, 0)                                         \
   V(v8::Debug::EventCallback, debug_event_callback, NULL)                      \
   V(DebuggerAgent*, debugger_agent_instance, NULL)
 #else
@@ -370,6 +369,7 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   V(unsigned, ast_node_count, 0)                                               \
   /* SafeStackFrameIterator activations count. */                              \
   V(int, safe_stack_iterator_counter, 0)                                       \
+  V(uint64_t, enabled_cpu_features, 0)                                         \
   ISOLATE_PLATFORM_INIT_LIST(V)                                                \
   ISOLATE_LOGGING_INIT_LIST(V)                                                 \
   ISOLATE_DEBUGGER_INIT_LIST(V)
@@ -486,9 +486,11 @@ class Isolate {
   // Safe to call multiple times.
   static void EnsureDefaultIsolate();
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Get the debugger from the default isolate. Preinitializes the
   // default isolate if needed.
   static Debugger* GetDefaultIsolateDebugger();
+#endif
 
   // Get the stack guard from the default isolate. Preinitializes the
   // default isolate if needed.
@@ -911,6 +913,8 @@ class Isolate {
   Debugger* debugger() { return debugger_; }
   Debug* debug() { return debug_; }
 #endif
+
+  inline bool DebuggerHasBreakPoints();
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   ProducerHeapProfile* producer_heap_profile() {

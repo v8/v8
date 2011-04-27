@@ -644,7 +644,7 @@ void HGraph::Canonicalize() {
     HInstruction* instr = blocks()->at(i)->first();
     while (instr != NULL) {
       HValue* value = instr->Canonicalize();
-      if (value != instr) instr->ReplaceAndDelete(value);
+      if (value != instr) instr->DeleteAndReplaceWith(value);
       instr = instr->next();
     }
   }
@@ -726,9 +726,9 @@ void HGraph::AssignDominators() {
 void HGraph::EliminateRedundantPhis() {
   HPhase phase("Redundant phi elimination", this);
 
-  // Worklist of phis that can potentially be eliminated. Initialized
-  // with all phi nodes. When elimination of a phi node modifies
-  // another phi node the modified phi node is added to the worklist.
+  // Worklist of phis that can potentially be eliminated. Initialized with
+  // all phi nodes. When elimination of a phi node modifies another phi node
+  // the modified phi node is added to the worklist.
   ZoneList<HPhi*> worklist(blocks_.length());
   for (int i = 0; i < blocks_.length(); ++i) {
     worklist.AddAll(*blocks_[i]->phis());
@@ -742,18 +742,14 @@ void HGraph::EliminateRedundantPhis() {
     if (block == NULL) continue;
 
     // Get replacement value if phi is redundant.
-    HValue* value = phi->GetRedundantReplacement();
+    HValue* replacement = phi->GetRedundantReplacement();
 
-    if (value != NULL) {
-      // Iterate through uses finding the ones that should be
-      // replaced.
-      SmallPointerList<HValue>* uses = phi->uses();
-      while (!uses->is_empty()) {
-        HValue* use = uses->RemoveLast();
-        if (use != NULL) {
-          phi->ReplaceAtUse(use, value);
-          if (use->IsPhi()) worklist.Add(HPhi::cast(use));
-        }
+    if (replacement != NULL) {
+      // Iterate through the uses and replace them all.
+      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+        HValue* value = it.value();
+        value->SetOperandAt(it.index(), replacement);
+        if (value->IsPhi()) worklist.Add(HPhi::cast(value));
       }
       block->RemovePhi(phi);
     }
@@ -831,8 +827,8 @@ void HGraph::InferTypes(ZoneList<HValue*>* worklist) {
     HValue* current = worklist->RemoveLast();
     in_worklist.Remove(current->id());
     if (current->UpdateInferredType()) {
-      for (int j = 0; j < current->uses()->length(); j++) {
-        HValue* use = current->uses()->at(j);
+      for (HUseIterator it(current->uses()); !it.Done(); it.Advance()) {
+        HValue* use = it.value();
         if (!in_worklist.Contains(use->id())) {
           in_worklist.Add(use->id());
           worklist->Add(use);
@@ -1445,7 +1441,7 @@ void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block, HValueMap* map) {
                  instr->Mnemonic(),
                  other->id(),
                  other->Mnemonic());
-        instr->ReplaceAndDelete(other);
+        instr->DeleteAndReplaceWith(other);
       } else {
         map->Add(instr);
       }
@@ -1529,12 +1525,12 @@ void HInferRepresentation::InferBasedOnInputs(HValue* current) {
 }
 
 
-void HInferRepresentation::AddDependantsToWorklist(HValue* current) {
-  for (int i = 0; i < current->uses()->length(); ++i) {
-    AddToWorklist(current->uses()->at(i));
+void HInferRepresentation::AddDependantsToWorklist(HValue* value) {
+  for (HUseIterator it(value->uses()); !it.Done(); it.Advance()) {
+    AddToWorklist(it.value());
   }
-  for (int i = 0; i < current->OperandCount(); ++i) {
-    AddToWorklist(current->OperandAt(i));
+  for (int i = 0; i < value->OperandCount(); ++i) {
+    AddToWorklist(value->OperandAt(i));
   }
 }
 
@@ -1543,37 +1539,30 @@ void HInferRepresentation::AddDependantsToWorklist(HValue* current) {
 // given as the parameter has a benefit in terms of less necessary type
 // conversions. If there is a benefit, then the representation of the value is
 // specialized.
-void HInferRepresentation::InferBasedOnUses(HValue* current) {
-  Representation r = current->representation();
-  if (r.IsSpecialization() || current->HasNoUses()) return;
-  ASSERT(current->CheckFlag(HValue::kFlexibleRepresentation));
-  Representation new_rep = TryChange(current);
+void HInferRepresentation::InferBasedOnUses(HValue* value) {
+  Representation r = value->representation();
+  if (r.IsSpecialization() || value->HasNoUses()) return;
+  ASSERT(value->CheckFlag(HValue::kFlexibleRepresentation));
+  Representation new_rep = TryChange(value);
   if (!new_rep.IsNone()) {
-    if (!current->representation().Equals(new_rep)) {
-      current->ChangeRepresentation(new_rep);
-      AddDependantsToWorklist(current);
+    if (!value->representation().Equals(new_rep)) {
+      value->ChangeRepresentation(new_rep);
+      AddDependantsToWorklist(value);
     }
   }
 }
 
 
-Representation HInferRepresentation::TryChange(HValue* current) {
+Representation HInferRepresentation::TryChange(HValue* value) {
   // Array of use counts for each representation.
-  int use_count[Representation::kNumRepresentations];
-  for (int i = 0; i < Representation::kNumRepresentations; i++) {
-    use_count[i] = 0;
-  }
+  int use_count[Representation::kNumRepresentations] = { 0 };
 
-  for (int i = 0; i < current->uses()->length(); ++i) {
-    HValue* use = current->uses()->at(i);
-    int index = use->LookupOperandIndex(0, current);
-    Representation req_rep = use->RequiredInputRepresentation(index);
-    if (req_rep.IsNone()) continue;
-    if (use->IsPhi()) {
-      HPhi* phi = HPhi::cast(use);
-      phi->AddIndirectUsesTo(&use_count[0]);
-    }
-    use_count[req_rep.kind()]++;
+  for (HUseIterator it(value->uses()); !it.Done(); it.Advance()) {
+    HValue* use = it.value();
+    Representation rep = use->RequiredInputRepresentation(it.index());
+    if (rep.IsNone()) continue;
+    if (use->IsPhi()) HPhi::cast(use)->AddIndirectUsesTo(&use_count[0]);
+    ++use_count[rep.kind()];
   }
   int tagged_count = use_count[Representation::kTagged];
   int double_count = use_count[Representation::kDouble];
@@ -1581,7 +1570,7 @@ Representation HInferRepresentation::TryChange(HValue* current) {
   int non_tagged_count = double_count + int32_count;
 
   // If a non-loop phi has tagged uses, don't convert it to untagged.
-  if (current->IsPhi() && !current->block()->IsLoopHeader()) {
+  if (value->IsPhi() && !value->block()->IsLoopHeader()) {
     if (tagged_count > 0) return Representation::None();
   }
 
@@ -1602,41 +1591,39 @@ Representation HInferRepresentation::TryChange(HValue* current) {
 void HInferRepresentation::Analyze() {
   HPhase phase("Infer representations", graph_);
 
-  // (1) Initialize bit vectors and count real uses. Each phi
-  // gets a bit-vector of length <number of phis>.
+  // (1) Initialize bit vectors and count real uses. Each phi gets a
+  // bit-vector of length <number of phis>.
   const ZoneList<HPhi*>* phi_list = graph_->phi_list();
-  int num_phis = phi_list->length();
-  ScopedVector<BitVector*> connected_phis(num_phis);
-  for (int i = 0; i < num_phis; i++) {
+  int phi_count = phi_list->length();
+  ScopedVector<BitVector*> connected_phis(phi_count);
+  for (int i = 0; i < phi_count; ++i) {
     phi_list->at(i)->InitRealUses(i);
-    connected_phis[i] = new(zone()) BitVector(num_phis);
+    connected_phis[i] = new(zone()) BitVector(phi_count);
     connected_phis[i]->Add(i);
   }
 
-  // (2) Do a fixed point iteration to find the set of connected phis.
-  // A phi is connected to another phi if its value is used either
-  // directly or indirectly through a transitive closure of the def-use
-  // relation.
+  // (2) Do a fixed point iteration to find the set of connected phis.  A
+  // phi is connected to another phi if its value is used either directly or
+  // indirectly through a transitive closure of the def-use relation.
   bool change = true;
   while (change) {
     change = false;
-    for (int i = 0; i < num_phis; i++) {
+    for (int i = 0; i < phi_count; ++i) {
       HPhi* phi = phi_list->at(i);
-      for (int j = 0; j < phi->uses()->length(); j++) {
-        HValue* use = phi->uses()->at(j);
+      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+        HValue* use = it.value();
         if (use->IsPhi()) {
-          int phi_use = HPhi::cast(use)->phi_id();
-          if (connected_phis[i]->UnionIsChanged(*connected_phis[phi_use])) {
-            change = true;
-          }
+          int id = HPhi::cast(use)->phi_id();
+          change = change ||
+              connected_phis[i]->UnionIsChanged(*connected_phis[id]);
         }
       }
     }
   }
 
-  // (3) Sum up the non-phi use counts of all connected phis.
-  // Don't include the non-phi uses of the phi itself.
-  for (int i = 0; i < num_phis; i++) {
+  // (3) Sum up the non-phi use counts of all connected phis.  Don't include
+  // the non-phi uses of the phi itself.
+  for (int i = 0; i < phi_count; ++i) {
     HPhi* phi = phi_list->at(i);
     for (BitVector::Iterator it(connected_phis.at(i));
          !it.Done();
@@ -1746,17 +1733,16 @@ void HGraph::PropagateMinusZeroChecks(HValue* value, BitVector* visited) {
 
 
 void HGraph::InsertRepresentationChangeForUse(HValue* value,
-                                              HValue* use,
+                                              HValue* use_value,
+                                              int use_index,
                                               Representation to) {
   // Insert the representation change right before its use. For phi-uses we
   // insert at the end of the corresponding predecessor.
   HInstruction* next = NULL;
-  if (use->IsPhi()) {
-    int index = 0;
-    while (use->OperandAt(index) != value) ++index;
-    next = use->block()->predecessors()->at(index)->end();
+  if (use_value->IsPhi()) {
+    next = use_value->block()->predecessors()->at(use_index)->end();
   } else {
-    next = HInstruction::cast(use);
+    next = HInstruction::cast(use_value);
   }
 
   // For constants we try to make the representation change at compile
@@ -1764,7 +1750,7 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   // information we treat constants like normal instructions and insert the
   // change instructions for them.
   HInstruction* new_value = NULL;
-  bool is_truncating = use->CheckFlag(HValue::kTruncatingToInt32);
+  bool is_truncating = use_value->CheckFlag(HValue::kTruncatingToInt32);
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     // Try to create a new copy of the constant with the new representation.
@@ -1779,89 +1765,26 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   }
 
   new_value->InsertBefore(next);
-  value->ReplaceFirstAtUse(use, new_value, to);
+  use_value->SetOperandAt(use_index, new_value);
 }
 
 
-int CompareConversionUses(HValue* a,
-                          HValue* b,
-                          Representation a_rep,
-                          Representation b_rep) {
-  if (a_rep.kind() > b_rep.kind()) {
-    // Make sure specializations are separated in the result array.
-    return 1;
-  }
-  // Put truncating conversions before non-truncating conversions.
-  bool a_truncate = a->CheckFlag(HValue::kTruncatingToInt32);
-  bool b_truncate = b->CheckFlag(HValue::kTruncatingToInt32);
-  if (a_truncate != b_truncate) {
-    return a_truncate ? -1 : 1;
-  }
-  // Sort by increasing block ID.
-  return a->block()->block_id() - b->block()->block_id();
-}
-
-
-void HGraph::InsertRepresentationChangesForValue(
-    HValue* current,
-    ZoneList<HValue*>* to_convert,
-    ZoneList<Representation>* to_convert_reps) {
-  Representation r = current->representation();
+void HGraph::InsertRepresentationChangesForValue(HValue* value) {
+  Representation r = value->representation();
   if (r.IsNone()) return;
-  if (current->uses()->is_empty()) return;
+  if (value->HasNoUses()) return;
 
-  // Collect the representation changes in a sorted list.  This allows
-  // us to avoid duplicate changes without searching the list.
-  ASSERT(to_convert->is_empty());
-  ASSERT(to_convert_reps->is_empty());
-  for (int i = 0; i < current->uses()->length(); ++i) {
-    HValue* use = current->uses()->at(i);
-    // The occurrences index means the index within the operand array of "use"
-    // at which "current" is used. While iterating through the use array we
-    // also have to iterate over the different occurrence indices.
-    int occurrence_index = 0;
-    if (use->UsesMultipleTimes(current)) {
-      occurrence_index = current->uses()->CountOccurrences(use, 0, i - 1);
-      if (FLAG_trace_representation) {
-        PrintF("Instruction %d is used multiple times at %d; occurrence=%d\n",
-               current->id(),
-               use->id(),
-               occurrence_index);
-      }
-    }
-    int operand_index = use->LookupOperandIndex(occurrence_index, current);
-    Representation req = use->RequiredInputRepresentation(operand_index);
+  for (HUseIterator it(value->uses()); !it.Done(); it.Advance()) {
+    HValue* use_value = it.value();
+    int use_index = it.index();
+    Representation req = use_value->RequiredInputRepresentation(use_index);
     if (req.IsNone() || req.Equals(r)) continue;
-    int index = 0;
-    while (index < to_convert->length() &&
-           CompareConversionUses(to_convert->at(index),
-                                 use,
-                                 to_convert_reps->at(index),
-                                 req) < 0) {
-      ++index;
-    }
-    if (FLAG_trace_representation) {
-      PrintF("Inserting a representation change to %s of %d for use at %d\n",
-             req.Mnemonic(),
-             current->id(),
-             use->id());
-    }
-    to_convert->InsertAt(index, use);
-    to_convert_reps->InsertAt(index, req);
+    InsertRepresentationChangeForUse(value, use_value, use_index, req);
   }
-
-  for (int i = 0; i < to_convert->length(); ++i) {
-    HValue* use = to_convert->at(i);
-    Representation r_to = to_convert_reps->at(i);
-    InsertRepresentationChangeForUse(current, use, r_to);
+  if (value->HasNoUses()) {
+    ASSERT(value->IsConstant());
+    value->DeleteAndReplaceWith(NULL);
   }
-
-  if (current->uses()->is_empty()) {
-    ASSERT(current->IsConstant());
-    current->Delete();
-  }
-  to_convert->Rewind(0);
-  to_convert_reps->Rewind(0);
 }
 
 
@@ -1886,8 +1809,8 @@ void HGraph::InsertRepresentationChanges() {
     for (int i = 0; i < phi_list()->length(); i++) {
       HPhi* phi = phi_list()->at(i);
       if (!phi->CheckFlag(HValue::kTruncatingToInt32)) continue;
-      for (int j = 0; j < phi->uses()->length(); j++) {
-        HValue* use = phi->uses()->at(j);
+      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+        HValue* use = it.value();
         if (!use->CheckFlag(HValue::kTruncatingToInt32)) {
           phi->ClearFlag(HValue::kTruncatingToInt32);
           change = true;
@@ -1897,19 +1820,17 @@ void HGraph::InsertRepresentationChanges() {
     }
   }
 
-  ZoneList<HValue*> value_list(4);
-  ZoneList<Representation> rep_list(4);
   for (int i = 0; i < blocks_.length(); ++i) {
     // Process phi instructions first.
-    for (int j = 0; j < blocks_[i]->phis()->length(); j++) {
-      HPhi* phi = blocks_[i]->phis()->at(j);
-      InsertRepresentationChangesForValue(phi, &value_list, &rep_list);
+    const ZoneList<HPhi*>* phis = blocks_[i]->phis();
+    for (int j = 0; j < phis->length(); j++) {
+      InsertRepresentationChangesForValue(phis->at(j));
     }
 
     // Process normal instructions.
     HInstruction* current = blocks_[i]->first();
     while (current != NULL) {
-      InsertRepresentationChangesForValue(current, &value_list, &rep_list);
+      InsertRepresentationChangesForValue(current);
       current = current->next();
     }
   }
@@ -5184,7 +5105,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       instr = new(zone()) HInstanceOfKnownGlobal(left, target);
     }
   } else if (op == Token::IN) {
-    return Bailout("Unsupported comparison: in");
+    instr = new(zone()) HIn(left, right);
   } else if (type_info.IsNonPrimitive()) {
     switch (op) {
       case Token::EQ:
@@ -5943,7 +5864,7 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
       HInstruction* instruction = current->first();
       while (instruction != NULL) {
         int bci = 0;
-        int uses = instruction->uses()->length();
+        int uses = instruction->UseCount();
         trace_.Add("%d %d ", bci, uses);
         instruction->PrintNameTo(&trace_);
         trace_.Add(" ");

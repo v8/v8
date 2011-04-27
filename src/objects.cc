@@ -1045,6 +1045,10 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<ExternalFloatArray[%u]>",
                        ExternalFloatArray::cast(this)->length());
       break;
+    case EXTERNAL_DOUBLE_ARRAY_TYPE:
+      accumulator->Add("<ExternalDoubleArray[%u]>",
+                       ExternalDoubleArray::cast(this)->length());
+      break;
     case SHARED_FUNCTION_INFO_TYPE:
       accumulator->Add("<SharedFunctionInfo>");
       break;
@@ -1174,6 +1178,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case EXTERNAL_INT_ARRAY_TYPE:
     case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
     case EXTERNAL_FLOAT_ARRAY_TYPE:
+    case EXTERNAL_DOUBLE_ARRAY_TYPE:
       break;
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
@@ -2848,6 +2853,7 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
       // Pixel and external array elements cannot be deleted. Just
       // silently ignore here.
       break;
@@ -2967,6 +2973,7 @@ bool JSObject::ReferencesObject(Object* obj) {
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
       // Raw pixels and external arrays do not reference other
       // objects.
       break;
@@ -3238,6 +3245,7 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
       case EXTERNAL_INT_ELEMENTS:
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_DOUBLE_ELEMENTS:
         // Ignore getters and setters on pixel and external array
         // elements.
         return heap->undefined_value();
@@ -3464,6 +3472,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
       case EXTERNAL_INT_ELEMENTS:
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_DOUBLE_ELEMENTS:
         // Ignore getters and setters on pixel and external array
         // elements.
         return isolate->heap()->undefined_value();
@@ -6874,6 +6883,49 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
 }
 
 
+Object* Map::GetPrototypeTransition(Object* prototype) {
+  FixedArray* cache = prototype_transitions();
+  int capacity = cache->length();
+  if (capacity == 0) return NULL;
+  int finger = Smi::cast(cache->get(0))->value();
+  for (int i = 1; i < finger; i += 2) {
+    if (cache->get(i) == prototype) return cache->get(i + 1);
+  }
+  return NULL;
+}
+
+
+MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
+  // Don't cache prototype transition if this map is shared.
+  if (is_shared() || !FLAG_cache_prototype_transitions) return this;
+
+  FixedArray* cache = prototype_transitions();
+
+  int capacity = cache->length();
+
+  int finger = (capacity == 0) ? 1 : Smi::cast(cache->get(0))->value();
+
+  if (finger >= capacity) {
+    if (capacity > kMaxCachedPrototypeTransitions) return this;
+
+    FixedArray* new_cache;
+    { MaybeObject* maybe_cache = heap()->AllocateFixedArray(finger * 2 + 1);
+      if (!maybe_cache->To<FixedArray>(&new_cache)) return maybe_cache;
+    }
+
+    for (int i = 1; i < capacity; i++) new_cache->set(i, cache->get(i));
+    cache = new_cache;
+    set_prototype_transitions(cache);
+  }
+
+  cache->set(finger, prototype);
+  cache->set(finger + 1, map);
+  cache->set(0, Smi::FromInt(finger + 2));
+
+  return cache;
+}
+
+
 MaybeObject* JSObject::SetPrototype(Object* value,
                                     bool skip_hidden_prototypes) {
   Heap* heap = GetHeap();
@@ -6924,11 +6976,25 @@ MaybeObject* JSObject::SetPrototype(Object* value,
   }
 
   // Set the new prototype of the object.
-  Object* new_map;
-  { MaybeObject* maybe_new_map = real_receiver->map()->CopyDropTransitions();
-    if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
+  Map* map = real_receiver->map();
+
+  // Nothing to do if prototype is already set.
+  if (map->prototype() == value) return value;
+
+  Object* new_map = map->GetPrototypeTransition(value);
+  if (new_map == NULL) {
+    { MaybeObject* maybe_new_map = map->CopyDropTransitions();
+      if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
+    }
+
+    { MaybeObject* maybe_new_cache =
+          map->PutPrototypeTransition(value, Map::cast(new_map));
+      if (maybe_new_cache->IsFailure()) return maybe_new_cache;
+    }
+
+    Map::cast(new_map)->set_prototype(value);
   }
-  Map::cast(new_map)->set_prototype(value);
+  ASSERT(Map::cast(new_map)->prototype() == value);
   real_receiver->set_map(Map::cast(new_map));
 
   heap->ClearInstanceofCache();
@@ -6963,7 +7029,8 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS: {
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS: {
       ExternalArray* array = ExternalArray::cast(elements());
       if (index < static_cast<uint32_t>(array->length())) {
         return true;
@@ -7085,7 +7152,8 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS: {
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS: {
       ExternalArray* array = ExternalArray::cast(elements());
       if (index < static_cast<uint32_t>(array->length())) return FAST_ELEMENT;
       break;
@@ -7144,7 +7212,8 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS: {
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS: {
       ExternalArray* array = ExternalArray::cast(elements());
       if (index < static_cast<uint32_t>(array->length())) {
         return true;
@@ -7465,6 +7534,10 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
       ExternalFloatArray* array = ExternalFloatArray::cast(elements());
       return array->SetValue(index, value);
     }
+    case EXTERNAL_DOUBLE_ELEMENTS: {
+      ExternalDoubleArray* array = ExternalDoubleArray::cast(elements());
+      return array->SetValue(index, value);
+    }
     case DICTIONARY_ELEMENTS: {
       // Insert element in the dictionary.
       FixedArray* elms = FixedArray::cast(elements());
@@ -7606,7 +7679,8 @@ MaybeObject* JSObject::GetElementPostInterceptor(Object* receiver,
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS: {
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS: {
       MaybeObject* maybe_value = GetExternalElement(index);
       Object* value;
       if (!maybe_value->ToObject(&value)) return maybe_value;
@@ -7708,7 +7782,8 @@ MaybeObject* JSObject::GetElementWithReceiver(Object* receiver,
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS: {
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS: {
       MaybeObject* maybe_value = GetExternalElement(index);
       Object* value;
       if (!maybe_value->ToObject(&value)) return maybe_value;
@@ -7811,6 +7886,14 @@ MaybeObject* JSObject::GetExternalElement(uint32_t index) {
       }
       break;
     }
+    case EXTERNAL_DOUBLE_ELEMENTS: {
+      ExternalDoubleArray* array = ExternalDoubleArray::cast(elements());
+      if (index < static_cast<uint32_t>(array->length())) {
+        double value = array->get(index);
+        return GetHeap()->AllocateHeapNumber(value);
+      }
+      break;
+    }
     case FAST_ELEMENTS:
     case DICTIONARY_ELEMENTS:
       UNREACHABLE();
@@ -7840,7 +7923,8 @@ bool JSObject::HasDenseElements() {
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS: {
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS: {
       return true;
     }
     case DICTIONARY_ELEMENTS: {
@@ -8077,7 +8161,8 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS: {
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS: {
       ExternalArray* array = ExternalArray::cast(elements());
       return index < static_cast<uint32_t>(array->length());
     }
@@ -8318,7 +8403,8 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS: {
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS: {
       int length = ExternalArray::cast(elements())->length();
       while (counter < length) {
         if (storage != NULL) {
@@ -9230,6 +9316,26 @@ MaybeObject* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
     set(index, cast_value);
   }
   return heap->AllocateHeapNumber(cast_value);
+}
+
+
+MaybeObject* ExternalDoubleArray::SetValue(uint32_t index, Object* value) {
+  double double_value = 0;
+  Heap* heap = GetHeap();
+  if (index < static_cast<uint32_t>(length())) {
+    if (value->IsSmi()) {
+      int int_value = Smi::cast(value)->value();
+      double_value = static_cast<double>(int_value);
+    } else if (value->IsHeapNumber()) {
+      double_value = HeapNumber::cast(value)->value();
+    } else {
+      // Clamp undefined to zero (default). All other types have been
+      // converted to a number type further up in the call chain.
+      ASSERT(value->IsUndefined());
+    }
+    set(index, double_value);
+  }
+  return heap->AllocateHeapNumber(double_value);
 }
 
 

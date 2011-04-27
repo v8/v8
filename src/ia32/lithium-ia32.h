@@ -103,6 +103,7 @@ class LCodeGen;
   V(HasCachedArrayIndexAndBranch)               \
   V(HasInstanceType)                            \
   V(HasInstanceTypeAndBranch)                   \
+  V(In)                                         \
   V(InstanceOf)                                 \
   V(InstanceOfAndBranch)                        \
   V(InstanceOfKnownGlobal)                      \
@@ -2042,6 +2043,20 @@ class LOsrEntry: public LTemplateInstruction<0, 0, 0> {
 class LStackCheck: public LTemplateInstruction<0, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(StackCheck, "stack-check")
+};
+
+
+class LIn: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LIn(LOperand* key, LOperand* object) {
+    inputs_[0] = key;
+    inputs_[1] = object;
+  }
+
+  LOperand* key() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(In, "in")
 };
 
 

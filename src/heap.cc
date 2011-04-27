@@ -1347,7 +1347,7 @@ class ScavengingVisitor : public StaticVisitorBase {
 #if defined(ENABLE_LOGGING_AND_PROFILING)
       Isolate* isolate = heap->isolate();
       if (isolate->logger()->is_logging() ||
-          isolate->cpu_profiler()->is_profiling()) {
+          CpuProfiler::is_profiling(isolate)) {
         if (target->IsSharedFunctionInfo()) {
           PROFILE(isolate, SharedFunctionInfoMoveEvent(
               source->address(), target->address()));
@@ -1522,8 +1522,8 @@ void Heap::SwitchScavengingVisitorsTableIfProfilingWasEnabled() {
     return;
   }
 
-  if (isolate()->logger()->is_logging() ||
-      isolate()->cpu_profiler()->is_profiling() ||
+  if (isolate()->logger()->is_logging() |
+      CpuProfiler::is_profiling(isolate()) ||
       (isolate()->heap_profiler() != NULL &&
        isolate()->heap_profiler()->is_profiling())) {
     // If one of the isolates is doing scavenge at this moment of time
@@ -1594,6 +1594,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_pre_allocated_property_fields(0);
   map->set_instance_descriptors(empty_descriptor_array());
   map->set_code_cache(empty_fixed_array());
+  map->set_prototype_transitions(empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2((1 << Map::kIsExtensible) | (1 << Map::kHasFastElements));
@@ -1686,12 +1687,15 @@ bool Heap::CreateInitialMaps() {
   // Fix the instance_descriptors for the existing maps.
   meta_map()->set_instance_descriptors(empty_descriptor_array());
   meta_map()->set_code_cache(empty_fixed_array());
+  meta_map()->set_prototype_transitions(empty_fixed_array());
 
   fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
   fixed_array_map()->set_code_cache(empty_fixed_array());
+  fixed_array_map()->set_prototype_transitions(empty_fixed_array());
 
   oddball_map()->set_instance_descriptors(empty_descriptor_array());
   oddball_map()->set_code_cache(empty_fixed_array());
+  oddball_map()->set_prototype_transitions(empty_fixed_array());
 
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
@@ -1799,6 +1803,12 @@ bool Heap::CreateInitialMaps() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_external_float_array_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_DOUBLE_ARRAY_TYPE,
+                                         ExternalArray::kAlignedSize);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_external_double_array_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateMap(CODE_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -2288,6 +2298,8 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
       return kExternalUnsignedIntArrayMapRootIndex;
     case kExternalFloatArray:
       return kExternalFloatArrayMapRootIndex;
+    case kExternalDoubleArray:
+      return kExternalDoubleArrayMapRootIndex;
     case kExternalPixelArray:
       return kExternalPixelArrayMapRootIndex;
     default:

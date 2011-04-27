@@ -288,14 +288,16 @@ void CpuProfiler::StartProfiling(String* title) {
 
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
-  return is_profiling() ?
-      Isolate::Current()->cpu_profiler()->StopCollectingProfile(title) : NULL;
+  Isolate* isolate = Isolate::Current();
+  return is_profiling(isolate) ?
+      isolate->cpu_profiler()->StopCollectingProfile(title) : NULL;
 }
 
 
 CpuProfile* CpuProfiler::StopProfiling(Object* security_token, String* title) {
-  return is_profiling() ?
-      Isolate::Current()->cpu_profiler()->StopCollectingProfile(
+  Isolate* isolate = Isolate::Current();
+  return is_profiling(isolate) ?
+      isolate->cpu_profiler()->StopCollectingProfile(
           security_token, title) : NULL;
 }
 
@@ -336,8 +338,9 @@ TickSample* CpuProfiler::TickSampleEvent(Isolate* isolate) {
 void CpuProfiler::DeleteAllProfiles() {
   Isolate* isolate = Isolate::Current();
   ASSERT(isolate->cpu_profiler() != NULL);
-  if (is_profiling())
+  if (is_profiling(isolate)) {
     isolate->cpu_profiler()->StopProcessor();
+  }
   isolate->cpu_profiler()->ResetProfiles();
 }
 

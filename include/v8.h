@@ -1445,6 +1445,7 @@ enum ExternalArrayType {
   kExternalIntArray,
   kExternalUnsignedIntArray,
   kExternalFloatArray,
+  kExternalDoubleArray,
   kExternalPixelArray
 };
 
@@ -3584,7 +3585,7 @@ class Internals {
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
-  static const int kJSObjectType = 0xa0;
+  static const int kJSObjectType = 0xa1;
   static const int kFirstNonstringType = 0x80;
   static const int kProxyType = 0x85;
 

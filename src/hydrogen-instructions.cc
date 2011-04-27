@@ -264,31 +264,60 @@ HType HType::TypeFromValue(Handle<Object> value) {
 }
 
 
-int HValue::LookupOperandIndex(int occurrence_index, HValue* op) {
-  for (int i = 0; i < OperandCount(); ++i) {
-    if (OperandAt(i) == op) {
-      if (occurrence_index == 0) return i;
-      --occurrence_index;
-    }
-  }
-  return -1;
-}
-
-
 bool HValue::IsDefinedAfter(HBasicBlock* other) const {
   return block()->block_id() > other->block_id();
 }
 
 
-bool HValue::UsesMultipleTimes(HValue* op) {
-  bool seen = false;
-  for (int i = 0; i < OperandCount(); ++i) {
-    if (OperandAt(i) == op) {
-      if (seen) return true;
-      seen = true;
-    }
+HUseIterator::HUseIterator(HUseListNode* head) : next_(head) {
+  Advance();
+}
+
+
+void HUseIterator::Advance() {
+  current_ = next_;
+  if (current_ != NULL) {
+    next_ = current_->tail();
+    value_ = current_->value();
+    index_ = current_->index();
   }
-  return false;
+}
+
+
+int HValue::UseCount() const {
+  int count = 0;
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) ++count;
+  return count;
+}
+
+
+HUseListNode* HValue::RemoveUse(HValue* value, int index) {
+  HUseListNode* previous = NULL;
+  HUseListNode* current = use_list_;
+  while (current != NULL) {
+    if (current->value() == value && current->index() == index) {
+      if (previous == NULL) {
+        use_list_ = current->tail();
+      } else {
+        previous->set_tail(current->tail());
+      }
+      break;
+    }
+
+    previous = current;
+    current = current->tail();
+  }
+
+#ifdef DEBUG
+  // Do not reuse use list nodes in debug mode, zap them.
+  if (current != NULL) {
+    HUseListNode* temp =
+        new HUseListNode(current->value(), current->index(), NULL);
+    current->Zap();
+    current = temp;
+  }
+#endif
+  return current;
 }
 
 
@@ -335,64 +364,31 @@ void HValue::SetOperandAt(int index, HValue* value) {
 }
 
 
-void HValue::ReplaceAndDelete(HValue* other) {
-  if (other != NULL) ReplaceValue(other);
-  Delete();
-}
-
-
-void HValue::ReplaceValue(HValue* other) {
-  for (int i = 0; i < uses_.length(); ++i) {
-    HValue* use = uses_[i];
-    ASSERT(!use->block()->IsStartBlock());
-    InternalReplaceAtUse(use, other);
-    other->uses_.Add(use);
-  }
-  uses_.Rewind(0);
-}
-
-
-void HValue::ClearOperands() {
-  for (int i = 0; i < OperandCount(); ++i) {
-    SetOperandAt(i, NULL);
-  }
-}
-
-
-void HValue::Delete() {
+void HValue::DeleteAndReplaceWith(HValue* other) {
+  // We replace all uses first, so Delete can assert that there are none.
+  if (other != NULL) ReplaceAllUsesWith(other);
   ASSERT(HasNoUses());
   ClearOperands();
   DeleteFromGraph();
 }
 
 
-void HValue::ReplaceAtUse(HValue* use, HValue* other) {
-  for (int i = 0; i < use->OperandCount(); ++i) {
-    if (use->OperandAt(i) == this) {
-      use->SetOperandAt(i, other);
-    }
+void HValue::ReplaceAllUsesWith(HValue* other) {
+  while (use_list_ != NULL) {
+    HUseListNode* list_node = use_list_;
+    HValue* value = list_node->value();
+    ASSERT(!value->block()->IsStartBlock());
+    value->InternalSetOperandAt(list_node->index(), other);
+    use_list_ = list_node->tail();
+    list_node->set_tail(other->use_list_);
+    other->use_list_ = list_node;
   }
 }
 
 
-void HValue::ReplaceFirstAtUse(HValue* use, HValue* other, Representation r) {
-  for (int i = 0; i < use->OperandCount(); ++i) {
-    if (use->RequiredInputRepresentation(i).Equals(r) &&
-        use->OperandAt(i) == this) {
-      use->SetOperandAt(i, other);
-      return;
-    }
-  }
-}
-
-
-void HValue::InternalReplaceAtUse(HValue* use, HValue* other) {
-  for (int i = 0; i < use->OperandCount(); ++i) {
-    if (use->OperandAt(i) == this) {
-      // Call internal method that does not update use lists. The caller is
-      // responsible for doing so.
-      use->InternalSetOperandAt(i, other);
-    }
+void HValue::ClearOperands() {
+  for (int i = 0; i < OperandCount(); ++i) {
+    SetOperandAt(i, NULL);
   }
 }
 
@@ -427,9 +423,20 @@ bool HValue::UpdateInferredType() {
 void HValue::RegisterUse(int index, HValue* new_value) {
   HValue* old_value = OperandAt(index);
   if (old_value == new_value) return;
-  if (old_value != NULL) old_value->uses_.RemoveElement(this);
+
+  HUseListNode* removed = NULL;
+  if (old_value != NULL) {
+    removed = old_value->RemoveUse(this, index);
+  }
+
   if (new_value != NULL) {
-    new_value->uses_.Add(this);
+    if (removed == NULL) {
+      new_value->use_list_ =
+          new HUseListNode(this, index, new_value->use_list_);
+    } else {
+      removed->set_tail(new_value->use_list_);
+      new_value->use_list_ = removed;
+    }
   }
 }
 
@@ -926,7 +933,7 @@ void HPhi::PrintTo(StringStream* stream) {
     stream->Add(" ");
   }
   stream->Add(" uses%d_%di_%dd_%dt]",
-              uses()->length(),
+              UseCount(),
               int32_non_phi_uses() + int32_indirect_uses(),
               double_non_phi_uses() + double_indirect_uses(),
               tagged_non_phi_uses() + tagged_indirect_uses());
@@ -944,8 +951,8 @@ void HPhi::AddInput(HValue* value) {
 
 
 bool HPhi::HasRealUses() {
-  for (int i = 0; i < uses()->length(); i++) {
-    if (!uses()->at(i)->IsPhi()) return true;
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    if (!it.value()->IsPhi()) return true;
   }
   return false;
 }
@@ -978,12 +985,11 @@ void HPhi::DeleteFromGraph() {
 void HPhi::InitRealUses(int phi_id) {
   // Initialize real uses.
   phi_id_ = phi_id;
-  for (int j = 0; j < uses()->length(); j++) {
-    HValue* use = uses()->at(j);
-    if (!use->IsPhi()) {
-      int index = use->LookupOperandIndex(0, this);
-      Representation req_rep = use->RequiredInputRepresentation(index);
-      non_phi_uses_[req_rep.kind()]++;
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    HValue* value = it.value();
+    if (!value->IsPhi()) {
+      Representation rep = value->RequiredInputRepresentation(it.index());
+      ++non_phi_uses_[rep.kind()];
     }
   }
 }
@@ -1281,6 +1287,9 @@ void HLoadKeyedSpecializedArrayElement::PrintDataTo(
     case kExternalFloatArray:
       stream->Add("float");
       break;
+    case kExternalDoubleArray:
+      stream->Add("double");
+      break;
     case kExternalPixelArray:
       stream->Add("pixel");
       break;
@@ -1357,6 +1366,9 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
       break;
     case kExternalFloatArray:
       stream->Add("float");
+      break;
+    case kExternalDoubleArray:
+      stream->Add("double");
       break;
     case kExternalPixelArray:
       stream->Add("pixel");
@@ -1596,6 +1608,13 @@ HValue* HAdd::EnsureAndPropagateNotMinusZero(BitVector* visited) {
     return left();
   }
   return NULL;
+}
+
+
+void HIn::PrintDataTo(StringStream* stream) {
+  key()->PrintNameTo(stream);
+  stream->Add(" ");
+  object()->PrintNameTo(stream);
 }
 
 
