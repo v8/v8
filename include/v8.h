@@ -1,4 +1,4 @@
-// Copyright 2007-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1588,6 +1588,7 @@ class Object : public Value {
   V8EXPORT void SetPointerInInternalField(int index, void* value);
 
   // Testers for local properties.
+  V8EXPORT bool HasOwnProperty(Handle<String> key);
   V8EXPORT bool HasRealNamedProperty(Handle<String> key);
   V8EXPORT bool HasRealIndexedProperty(uint32_t index);
   V8EXPORT bool HasRealNamedCallbackProperty(Handle<String> key);

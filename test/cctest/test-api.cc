@@ -202,8 +202,6 @@ THREADED_TEST(ReceiverSignature) {
 }
 
 
-
-
 THREADED_TEST(ArgumentSignature) {
   v8::HandleScope scope;
   LocalContext env;
@@ -13910,4 +13908,118 @@ THREADED_TEST(CreationContext) {
   context1.Dispose();
   context2.Dispose();
   context3.Dispose();
+}
+
+
+Handle<Value> HasOwnPropertyIndexedPropertyGetter(uint32_t index,
+                                                  const AccessorInfo& info) {
+  if (index == 42) return v8_str("yes");
+  return Handle<v8::Integer>();
+}
+
+
+Handle<Value> HasOwnPropertyNamedPropertyGetter(Local<String> property,
+                                                const AccessorInfo& info) {
+  if (property->Equals(v8_str("foo"))) return v8_str("yes");
+  return Handle<Value>();
+}
+
+
+Handle<v8::Integer> HasOwnPropertyIndexedPropertyQuery(
+    uint32_t index, const AccessorInfo& info) {
+  if (index == 42) return v8_num(1).As<v8::Integer>();
+  return Handle<v8::Integer>();
+}
+
+
+Handle<v8::Integer> HasOwnPropertyNamedPropertyQuery(
+    Local<String> property, const AccessorInfo& info) {
+  if (property->Equals(v8_str("foo"))) return v8_num(1).As<v8::Integer>();
+  return Handle<v8::Integer>();
+}
+
+
+Handle<v8::Integer> HasOwnPropertyNamedPropertyQuery2(
+    Local<String> property, const AccessorInfo& info) {
+  if (property->Equals(v8_str("bar"))) return v8_num(1).As<v8::Integer>();
+  return Handle<v8::Integer>();
+}
+
+
+Handle<Value> HasOwnPropertyAccessorGetter(Local<String> property,
+                                           const AccessorInfo& info) {
+  return v8_str("yes");
+}
+
+
+TEST(HasOwnProperty) {
+  v8::HandleScope scope;
+  LocalContext env;
+  { // Check normal properties and defined getters.
+    Handle<Value> value = CompileRun(
+        "function Foo() {"
+        "    this.foo = 11;"
+        "    this.__defineGetter__('baz', function() { return 1; });"
+        "};"
+        "function Bar() { "
+        "    this.bar = 13;"
+        "    this.__defineGetter__('bla', function() { return 2; });"
+        "};"
+        "Bar.prototype = new Foo();"
+        "new Bar();");
+    CHECK(value->IsObject());
+    Handle<Object> object = value->ToObject();
+    CHECK(object->Has(v8_str("foo")));
+    CHECK(!object->HasOwnProperty(v8_str("foo")));
+    CHECK(object->HasOwnProperty(v8_str("bar")));
+    CHECK(object->Has(v8_str("baz")));
+    CHECK(!object->HasOwnProperty(v8_str("baz")));
+    CHECK(object->HasOwnProperty(v8_str("bla")));
+  }
+  { // Check named getter interceptors.
+    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    templ->SetNamedPropertyHandler(HasOwnPropertyNamedPropertyGetter);
+    Handle<Object> instance = templ->NewInstance();
+    CHECK(!instance->HasOwnProperty(v8_str("42")));
+    CHECK(instance->HasOwnProperty(v8_str("foo")));
+    CHECK(!instance->HasOwnProperty(v8_str("bar")));
+  }
+  { // Check indexed getter interceptors.
+    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    templ->SetIndexedPropertyHandler(HasOwnPropertyIndexedPropertyGetter);
+    Handle<Object> instance = templ->NewInstance();
+    CHECK(instance->HasOwnProperty(v8_str("42")));
+    CHECK(!instance->HasOwnProperty(v8_str("43")));
+    CHECK(!instance->HasOwnProperty(v8_str("foo")));
+  }
+  { // Check named query interceptors.
+    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    templ->SetNamedPropertyHandler(0, 0, HasOwnPropertyNamedPropertyQuery);
+    Handle<Object> instance = templ->NewInstance();
+    CHECK(instance->HasOwnProperty(v8_str("foo")));
+    CHECK(!instance->HasOwnProperty(v8_str("bar")));
+  }
+  { // Check indexed query interceptors.
+    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    templ->SetIndexedPropertyHandler(0, 0, HasOwnPropertyIndexedPropertyQuery);
+    Handle<Object> instance = templ->NewInstance();
+    CHECK(instance->HasOwnProperty(v8_str("42")));
+    CHECK(!instance->HasOwnProperty(v8_str("41")));
+  }
+  { // Check callbacks.
+    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    templ->SetAccessor(v8_str("foo"), HasOwnPropertyAccessorGetter);
+    Handle<Object> instance = templ->NewInstance();
+    CHECK(instance->HasOwnProperty(v8_str("foo")));
+    CHECK(!instance->HasOwnProperty(v8_str("bar")));
+  }
+  { // Check that query wins on disagreement.
+    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    templ->SetNamedPropertyHandler(HasOwnPropertyNamedPropertyGetter,
+                                   0,
+                                   HasOwnPropertyNamedPropertyQuery2);
+    Handle<Object> instance = templ->NewInstance();
+    CHECK(!instance->HasOwnProperty(v8_str("foo")));
+    CHECK(instance->HasOwnProperty(v8_str("bar")));
+  }
 }

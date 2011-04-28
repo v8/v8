@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -2748,6 +2748,15 @@ bool Object::SetAccessor(Handle<String> name,
                                                      settings, attributes);
   i::Handle<i::Object> result = i::SetAccessor(Utils::OpenHandle(this), info);
   return !result.is_null() && !result->IsUndefined();
+}
+
+
+bool v8::Object::HasOwnProperty(Handle<String> key) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::HasOwnProperty()",
+             return false);
+  return Utils::OpenHandle(this)->HasLocalProperty(
+      *Utils::OpenHandle(*key));
 }
 
 
