@@ -838,8 +838,8 @@ BUILTIN(ArraySplice) {
       const int delta = actual_delete_count - item_count;
 
       if (actual_start > 0) {
-        Object** start = elms->data_start();
-        memmove(start + delta, start, actual_start * kPointerSize);
+        AssertNoAllocation no_gc;
+        MoveElements(heap, &no_gc, elms, delta, elms, 0, actual_start);
       }
 
       elms = LeftTrimFixedArray(heap, elms, delta);
