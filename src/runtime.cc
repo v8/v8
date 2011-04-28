@@ -8244,10 +8244,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
   if (!context->IsGlobalContext()) {
     // 'eval' is not bound in the global context. Just call the function
     // with the given arguments. This is not necessarily the global eval.
-    if (receiver->IsContext()) {
-      context = Handle<Context>::cast(receiver);
-      receiver = Handle<Object>(context->get(index), isolate);
-    } else if (receiver->IsJSContextExtensionObject()) {
+    if (receiver->IsContext() || receiver->IsJSContextExtensionObject()) {
       receiver = Handle<JSObject>(
           isolate->context()->global()->global_receiver(), isolate);
     }
