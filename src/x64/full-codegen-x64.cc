@@ -2056,7 +2056,7 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
 }
 
 
-void FullCodeGenerator::EmitCallWithStub(Call* expr) {
+void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   // Code common for calls using the call stub.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -2068,7 +2068,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-  CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_VALUE);
+  CallFunctionStub stub(arg_count, in_loop, flags);
   __ CallStub(&stub);
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2203,12 +2203,14 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Push function.
       __ push(rax);
       // Push global receiver.
-        __ movq(rbx, GlobalObjectOperand());
-        __ push(FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
-        __ bind(&call);
+      __ movq(rbx, GlobalObjectOperand());
+      __ push(FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
+      __ bind(&call);
     }
 
-    EmitCallWithStub(expr);
+    // The receiver is either the global receiver or a JSObject found by
+    // LoadContextSlot.
+    EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
   } else if (fun->AsProperty() != NULL) {
     // Call to an object property.
     Property* prop = fun->AsProperty();
@@ -2246,7 +2248,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         // Push Global receiver.
         __ movq(rcx, GlobalObjectOperand());
         __ push(FieldOperand(rcx, GlobalObject::kGlobalReceiverOffset));
-        EmitCallWithStub(expr);
+        EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
       } else {
         { PreservePositionScope scope(masm()->positions_recorder());
           VisitForStackValue(prop->obj());
@@ -2262,7 +2264,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     __ movq(rbx, GlobalObjectOperand());
     __ push(FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
     // Emit function call.
-    EmitCallWithStub(expr);
+    EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
   }
 
 #ifdef DEBUG

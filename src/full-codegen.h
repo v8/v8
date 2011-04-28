@@ -395,7 +395,7 @@ class FullCodeGenerator: public AstVisitor {
   void EmitReturnSequence();
 
   // Platform-specific code sequences for calls
-  void EmitCallWithStub(Call* expr);
+  void EmitCallWithStub(Call* expr, CallFunctionFlags flags);
   void EmitCallWithIC(Call* expr, Handle<Object> name, RelocInfo::Mode mode);
   void EmitKeyedCallWithIC(Call* expr, Expression* key, RelocInfo::Mode mode);
 

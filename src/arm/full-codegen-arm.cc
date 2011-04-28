@@ -2160,7 +2160,7 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
 }
 
 
-void FullCodeGenerator::EmitCallWithStub(Call* expr) {
+void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   // Code common for calls using the call stub.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -2172,7 +2172,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-  CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_VALUE);
+  CallFunctionStub stub(arg_count, in_loop, flags);
   __ CallStub(&stub);
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2318,7 +2318,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ bind(&call);
     }
 
-    EmitCallWithStub(expr);
+    // The receiver is either the global receiver or a JSObject found by
+    // LoadContextSlot.
+    EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
   } else if (fun->AsProperty() != NULL) {
     // Call to an object property.
     Property* prop = fun->AsProperty();
@@ -2354,7 +2356,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         __ ldr(r1, GlobalObjectOperand());
         __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
         __ Push(r0, r1);  // Function, receiver.
-        EmitCallWithStub(expr);
+        EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
       } else {
         { PreservePositionScope scope(masm()->positions_recorder());
           VisitForStackValue(prop->obj());
@@ -2371,7 +2373,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
     __ push(r1);
     // Emit function call.
-    EmitCallWithStub(expr);
+    EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
   }
 
 #ifdef DEBUG
