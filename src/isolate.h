@@ -871,14 +871,6 @@ class Isolate {
 
   RuntimeState* runtime_state() { return &runtime_state_; }
 
-  StringInputBuffer* liveedit_compare_substrings_buf1() {
-    return &liveedit_compare_substrings_buf1_;
-  }
-
-  StringInputBuffer* liveedit_compare_substrings_buf2() {
-    return &liveedit_compare_substrings_buf2_;
-  }
-
   StaticResource<SafeStringInputBuffer>* compiler_safe_string_input_buffer() {
     return &compiler_safe_string_input_buffer_;
   }
@@ -1144,8 +1136,6 @@ class Isolate {
   ThreadManager* thread_manager_;
   AstSentinels* ast_sentinels_;
   RuntimeState runtime_state_;
-  StringInputBuffer liveedit_compare_substrings_buf1_;
-  StringInputBuffer liveedit_compare_substrings_buf2_;
   StaticResource<SafeStringInputBuffer> compiler_safe_string_input_buffer_;
   Builtins builtins_;
   StringTracker* string_tracker_;
