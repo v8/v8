@@ -37,6 +37,7 @@ namespace internal {
 // as only the stubs up to and including Instanceof allows nested stub calls.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
+  V(TypeRecordingUnaryOp)                \
   V(TypeRecordingBinaryOp)               \
   V(StringAdd)                           \
   V(SubString)                           \

@@ -71,6 +71,93 @@ class ToBooleanStub: public CodeStub {
 };
 
 
+class TypeRecordingUnaryOpStub: public CodeStub {
+ public:
+  TypeRecordingUnaryOpStub(Token::Value op, UnaryOverwriteMode mode)
+      : op_(op),
+        mode_(mode),
+        operand_type_(TRUnaryOpIC::UNINITIALIZED),
+        name_(NULL) {
+  }
+
+  TypeRecordingUnaryOpStub(
+      int key,
+      TRUnaryOpIC::TypeInfo operand_type)
+      : op_(OpBits::decode(key)),
+        mode_(ModeBits::decode(key)),
+        operand_type_(operand_type),
+        name_(NULL) {
+  }
+
+ private:
+  Token::Value op_;
+  UnaryOverwriteMode mode_;
+
+  // Operand type information determined at runtime.
+  TRUnaryOpIC::TypeInfo operand_type_;
+
+  char* name_;
+
+  const char* GetName();
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("TypeRecordingUnaryOpStub %d (op %s), "
+           "(mode %d, runtime_type_info %s)\n",
+           MinorKey(),
+           Token::String(op_),
+           static_cast<int>(mode_),
+           TRUnaryOpIC::GetName(operand_type_));
+  }
+#endif
+
+  class ModeBits: public BitField<UnaryOverwriteMode, 0, 1> {};
+  class OpBits: public BitField<Token::Value, 1, 7> {};
+  class OperandTypeInfoBits: public BitField<TRUnaryOpIC::TypeInfo, 8, 3> {};
+
+  Major MajorKey() { return TypeRecordingUnaryOp; }
+  int MinorKey() {
+    return ModeBits::encode(mode_)
+           | OpBits::encode(op_)
+           | OperandTypeInfoBits::encode(operand_type_);
+  }
+
+  // Note: A lot of the helper functions below will vanish when we use virtual
+  // function instead of switch more often.
+  void Generate(MacroAssembler* masm);
+
+  void GenerateTypeTransition(MacroAssembler* masm);
+
+  void GenerateSmiStub(MacroAssembler* masm);
+  void GenerateSmiStubSub(MacroAssembler* masm);
+  void GenerateSmiStubBitNot(MacroAssembler* masm);
+  void GenerateSmiCodeSub(MacroAssembler* masm, NearLabel* non_smi,
+                          Label* slow);
+  void GenerateSmiCodeBitNot(MacroAssembler* masm, NearLabel* non_smi);
+
+  void GenerateHeapNumberStub(MacroAssembler* masm);
+  void GenerateHeapNumberStubSub(MacroAssembler* masm);
+  void GenerateHeapNumberStubBitNot(MacroAssembler* masm);
+  void GenerateHeapNumberCodeSub(MacroAssembler* masm, Label* slow);
+  void GenerateHeapNumberCodeBitNot(MacroAssembler* masm, Label* slow);
+
+  void GenerateGenericStub(MacroAssembler* masm);
+  void GenerateGenericStubSub(MacroAssembler* masm);
+  void GenerateGenericStubBitNot(MacroAssembler* masm);
+  void GenerateGenericCodeFallback(MacroAssembler* masm);
+
+  virtual int GetCodeKind() { return Code::TYPE_RECORDING_UNARY_OP_IC; }
+
+  virtual InlineCacheState GetICState() {
+    return TRUnaryOpIC::ToState(operand_type_);
+  }
+
+  virtual void FinishCode(Code* code) {
+    code->set_type_recording_unary_op_type(operand_type_);
+  }
+};
+
+
 class TypeRecordingBinaryOpStub: public CodeStub {
  public:
   TypeRecordingBinaryOpStub(Token::Value op, OverwriteMode mode)

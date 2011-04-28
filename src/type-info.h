@@ -227,6 +227,7 @@ enum StringStubFeedback {
 
 // Forward declarations.
 class Assignment;
+class UnaryOperation;
 class BinaryOperation;
 class Call;
 class CompareOperation;
@@ -258,6 +259,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   bool LoadIsBuiltin(Property* expr, Builtins::Name id);
 
   // Get type information for arithmetic operations and compares.
+  TypeInfo UnaryType(UnaryOperation* expr);
   TypeInfo BinaryType(BinaryOperation* expr);
   TypeInfo CompareType(CompareOperation* expr);
   TypeInfo SwitchType(CaseClause* clause);

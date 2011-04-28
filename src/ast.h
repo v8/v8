@@ -1392,8 +1392,8 @@ class CallRuntime: public Expression {
 
 class UnaryOperation: public Expression {
  public:
-  UnaryOperation(Token::Value op, Expression* expression)
-      : op_(op), expression_(expression) {
+  UnaryOperation(Token::Value op, Expression* expression, int pos)
+      : op_(op), expression_(expression), pos_(pos) {
     ASSERT(Token::IsUnaryOp(op));
   }
 
@@ -1405,10 +1405,12 @@ class UnaryOperation: public Expression {
 
   Token::Value op() const { return op_; }
   Expression* expression() const { return expression_; }
+  virtual int position() const { return pos_; }
 
  private:
   Token::Value op_;
   Expression* expression_;
+  int pos_;
 };
 
 

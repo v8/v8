@@ -2484,7 +2484,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
         x = NewCompareNode(cmp, x, y, position);
         if (cmp != op) {
           // The comparison was negated - add a NOT.
-          x = new(zone()) UnaryOperation(Token::NOT, x);
+          x = new(zone()) UnaryOperation(Token::NOT, x, position);
         }
 
       } else {
@@ -2534,6 +2534,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
   Token::Value op = peek();
   if (Token::IsUnaryOp(op)) {
     op = Next();
+    int position = scanner().location().beg_pos;
     Expression* expression = ParseUnaryExpression(CHECK_OK);
 
     // Compute some expressions involving only number literals.
@@ -2561,7 +2562,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       }
     }
 
-    return new(zone()) UnaryOperation(op, expression);
+    return new(zone()) UnaryOperation(op, expression, position);
 
   } else if (Token::IsCountOp(op)) {
     op = Next();

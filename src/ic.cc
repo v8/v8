@@ -282,6 +282,7 @@ void IC::Clear(Address address) {
       return KeyedStoreIC::Clear(address, target);
     case Code::CALL_IC: return CallIC::Clear(address, target);
     case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
+    case Code::TYPE_RECORDING_UNARY_OP_IC:
     case Code::TYPE_RECORDING_BINARY_OP_IC:
     case Code::COMPARE_IC:
       // Clearing these is tricky and does not
@@ -1807,6 +1808,55 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Miss) {
 }
 
 
+void TRUnaryOpIC::patch(Code* code) {
+  set_target(code);
+}
+
+
+const char* TRUnaryOpIC::GetName(TypeInfo type_info) {
+  switch (type_info) {
+    case UNINITIALIZED: return "Uninitialized";
+    case SMI: return "Smi";
+    case HEAP_NUMBER: return "HeapNumbers";
+    case GENERIC: return "Generic";
+    default: return "Invalid";
+  }
+}
+
+
+TRUnaryOpIC::State TRUnaryOpIC::ToState(TypeInfo type_info) {
+  switch (type_info) {
+    case UNINITIALIZED:
+      return ::v8::internal::UNINITIALIZED;
+    case SMI:
+    case HEAP_NUMBER:
+      return MONOMORPHIC;
+    case GENERIC:
+      return MEGAMORPHIC;
+  }
+  UNREACHABLE();
+  return ::v8::internal::UNINITIALIZED;
+}
+
+TRUnaryOpIC::TypeInfo TRUnaryOpIC::GetTypeInfo(Handle<Object> operand) {
+  ::v8::internal::TypeInfo operand_type =
+      ::v8::internal::TypeInfo::TypeFromValue(operand);
+  if (operand_type.IsSmi()) {
+    return SMI;
+  } else if (operand_type.IsNumber()) {
+    return HEAP_NUMBER;
+  } else {
+    return GENERIC;
+  }
+}
+
+
+TRUnaryOpIC::TypeInfo TRUnaryOpIC::JoinTypes(TRUnaryOpIC::TypeInfo x,
+                                             TRUnaryOpIC::TypeInfo y) {
+  return x >= y ? x : y;
+}
+
+
 void TRBinaryOpIC::patch(Code* code) {
   set_target(code);
 }
@@ -1897,6 +1947,62 @@ TRBinaryOpIC::TypeInfo TRBinaryOpIC::GetTypeInfo(Handle<Object> left,
   return GENERIC;
 }
 
+
+// defined in code-stubs-<arch>.cc
+// Only needed to remove dependency of ic.cc on code-stubs-<arch>.h.
+Handle<Code> GetTypeRecordingUnaryOpStub(int key,
+                                         TRUnaryOpIC::TypeInfo type_info);
+
+
+RUNTIME_FUNCTION(MaybeObject*, TypeRecordingUnaryOp_Patch) {
+  ASSERT(args.length() == 4);
+
+  HandleScope scope(isolate);
+  Handle<Object> operand = args.at<Object>(0);
+  int key = Smi::cast(args[1])->value();
+  Token::Value op = static_cast<Token::Value>(Smi::cast(args[2])->value());
+  TRUnaryOpIC::TypeInfo previous_type =
+      static_cast<TRUnaryOpIC::TypeInfo>(Smi::cast(args[3])->value());
+
+  TRUnaryOpIC::TypeInfo type = TRUnaryOpIC::GetTypeInfo(operand);
+  type = TRUnaryOpIC::JoinTypes(type, previous_type);
+
+  Handle<Code> code = GetTypeRecordingUnaryOpStub(key, type);
+  if (!code.is_null()) {
+    if (FLAG_trace_ic) {
+      PrintF("[TypeRecordingUnaryOpIC (%s->%s)#%s]\n",
+             TRUnaryOpIC::GetName(previous_type),
+             TRUnaryOpIC::GetName(type),
+             Token::Name(op));
+    }
+    TRUnaryOpIC ic(isolate);
+    ic.patch(*code);
+  }
+
+  Handle<JSBuiltinsObject> builtins = Handle<JSBuiltinsObject>(
+      isolate->thread_local_top()->context_->builtins(), isolate);
+  Object* builtin = NULL;  // Initialization calms down the compiler.
+  switch (op) {
+    case Token::SUB:
+      builtin = builtins->javascript_builtin(Builtins::UNARY_MINUS);
+      break;
+    case Token::BIT_NOT:
+      builtin = builtins->javascript_builtin(Builtins::BIT_NOT);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  Handle<JSFunction> builtin_function(JSFunction::cast(builtin), isolate);
+
+  bool caught_exception;
+  Handle<Object> result = Execution::Call(builtin_function, operand, 0, NULL,
+                                          &caught_exception);
+  if (caught_exception) {
+    return Failure::Exception();
+  }
+  return *result;
+}
 
 // defined in code-stubs-<arch>.cc
 // Only needed to remove dependency of ic.cc on code-stubs-<arch>.h.

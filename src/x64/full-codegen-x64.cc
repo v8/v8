@@ -3714,50 +3714,34 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       break;
     }
 
-    case Token::SUB: {
-      Comment cmt(masm_, "[ UnaryOperation (SUB)");
-      bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
-      UnaryOverwriteMode overwrite =
-          can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-      GenericUnaryOpStub stub(Token::SUB, overwrite, NO_UNARY_FLAGS);
-      // GenericUnaryOpStub expects the argument to be in the
-      // accumulator register rax.
-      VisitForAccumulatorValue(expr->expression());
-      __ CallStub(&stub);
-      context()->Plug(rax);
+    case Token::SUB:
+      EmitUnaryOperation(expr, "[ UnaryOperation (SUB)");
       break;
-    }
 
-    case Token::BIT_NOT: {
-      Comment cmt(masm_, "[ UnaryOperation (BIT_NOT)");
-      // The generic unary operation stub expects the argument to be
-      // in the accumulator register rax.
-      VisitForAccumulatorValue(expr->expression());
-      Label done;
-      bool inline_smi_case = ShouldInlineSmiCase(expr->op());
-      if (inline_smi_case) {
-        Label call_stub;
-        __ JumpIfNotSmi(rax, &call_stub);
-        __ SmiNot(rax, rax);
-        __ jmp(&done);
-        __ bind(&call_stub);
-      }
-      bool overwrite = expr->expression()->ResultOverwriteAllowed();
-      UnaryOverwriteMode mode =
-          overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-      UnaryOpFlags flags = inline_smi_case
-          ? NO_UNARY_SMI_CODE_IN_STUB
-          : NO_UNARY_FLAGS;
-      GenericUnaryOpStub stub(Token::BIT_NOT, mode, flags);
-      __ CallStub(&stub);
-      __ bind(&done);
-      context()->Plug(rax);
+    case Token::BIT_NOT:
+      EmitUnaryOperation(expr, "[ UnaryOperation (BIT_NOT)");
       break;
-    }
 
     default:
       UNREACHABLE();
   }
+}
+
+
+void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
+                                           const char* comment) {
+  // TODO(svenpanne): Allowing format strings in Comment would be nice here...
+  Comment cmt(masm_, comment);
+  bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
+  UnaryOverwriteMode overwrite =
+      can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
+  TypeRecordingUnaryOpStub stub(expr->op(), overwrite);
+  // TypeRecordingUnaryOpStub expects the argument to be in the
+  // accumulator register rax.
+  VisitForAccumulatorValue(expr->expression());
+  SetSourcePosition(expr->position());
+  EmitCallIC(stub.GetCode(), NULL, expr->id());
+  context()->Plug(rax);
 }
 
 

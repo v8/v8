@@ -536,6 +536,9 @@ class FullCodeGenerator: public AstVisitor {
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
+
+  void EmitUnaryOperation(UnaryOperation* expr, const char* comment);
+
   // Handles the shortcutted logical binary operations in VisitBinaryOperation.
   void EmitLogicalOperation(BinaryOperation* expr);
 

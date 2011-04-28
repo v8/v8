@@ -239,6 +239,25 @@ TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
 }
 
 
+TypeInfo TypeFeedbackOracle::UnaryType(UnaryOperation* expr) {
+  Handle<Object> object = GetInfo(expr->position());
+  TypeInfo unknown = TypeInfo::Unknown();
+  if (!object->IsCode()) return unknown;
+  Handle<Code> code = Handle<Code>::cast(object);
+  ASSERT(code->is_type_recording_unary_op_stub());
+  TRUnaryOpIC::TypeInfo type = static_cast<TRUnaryOpIC::TypeInfo>(
+      code->type_recording_unary_op_type());
+  switch (type) {
+    case TRUnaryOpIC::SMI:
+      return TypeInfo::Smi();
+    case TRUnaryOpIC::HEAP_NUMBER:
+      return TypeInfo::Double();
+    default:
+      return unknown;
+  }
+}
+
+
 TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
   Handle<Object> object = GetInfo(expr->id());
   TypeInfo unknown = TypeInfo::Unknown();

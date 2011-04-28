@@ -1316,6 +1316,7 @@ void Logger::LogCodeObject(Object* object) {
       case Code::FUNCTION:
       case Code::OPTIMIZED_FUNCTION:
         return;  // We log this later using LogCompiledFunctions.
+      case Code::TYPE_RECORDING_UNARY_OP_IC:   // fall through
       case Code::TYPE_RECORDING_BINARY_OP_IC:   // fall through
       case Code::COMPARE_IC:  // fall through
       case Code::STUB:
