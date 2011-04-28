@@ -1411,6 +1411,9 @@ static const char* DropFrames(Vector<StackFrame*> frames,
           Builtins::kFrameDropper_LiveEdit)) {
     // OK, we can drop our own code.
     *mode = Debug::FRAME_DROPPED_IN_DIRECT_CALL;
+  } else if (pre_top_frame_code ==
+      isolate->builtins()->builtin(Builtins::kReturn_DebugBreak)) {
+    *mode = Debug::FRAME_DROPPED_IN_RETURN_CALL;
   } else if (pre_top_frame_code->kind() == Code::STUB &&
       pre_top_frame_code->major_key()) {
     // Entry from our unit tests, it's fine, we support this case.
