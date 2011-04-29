@@ -53,7 +53,6 @@
 
 #define LOG_API(isolate, expr) LOG(isolate, ApiEntryCall(expr))
 
-// TODO(isolates): avoid repeated TLS reads in function prologues.
 #ifdef ENABLE_VMSTATE_TRACKING
 #define ENTER_V8(isolate)                                        \
   ASSERT((isolate)->IsInitialized());                           \
@@ -290,6 +289,7 @@ static inline bool EnsureInitializedForIsolate(i::Isolate* isolate,
   if (isolate != NULL) {
     if (isolate->IsInitialized()) return true;
   }
+  ASSERT(isolate == i::Isolate::Current());
   return ApiCheck(InitializeHelper(), location, "Error initializing V8");
 }
 
@@ -5687,9 +5687,8 @@ void HandleScopeImplementer::FreeThreadResources() {
 
 
 char* HandleScopeImplementer::ArchiveThread(char* storage) {
-  Isolate* isolate = Isolate::Current();
   v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
+      isolate_->handle_scope_data();
   handle_scope_data_ = *current;
   memcpy(storage, this, sizeof(*this));
 
@@ -5707,7 +5706,7 @@ int HandleScopeImplementer::ArchiveSpacePerThread() {
 
 char* HandleScopeImplementer::RestoreThread(char* storage) {
   memcpy(this, storage, sizeof(*this));
-  *Isolate::Current()->handle_scope_data() = handle_scope_data_;
+  *isolate_->handle_scope_data() = handle_scope_data_;
   return storage + ArchiveSpacePerThread();
 }
 
@@ -5733,7 +5732,7 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
 
 void HandleScopeImplementer::Iterate(ObjectVisitor* v) {
   v8::ImplementationUtilities::HandleScopeData* current =
-      Isolate::Current()->handle_scope_data();
+      isolate_->handle_scope_data();
   handle_scope_data_ = *current;
   IterateThis(v);
 }
