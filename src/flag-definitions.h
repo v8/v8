@@ -144,8 +144,6 @@ DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
-DEFINE_bool(hardfloat, false,
-            "use hardware floating point ABI")
 DEFINE_bool(debug_code, false,
             "generate extra code (assertions) for debugging")
 DEFINE_bool(code_comments, false, "emit comments in code disassembly")

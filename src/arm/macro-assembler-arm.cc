@@ -872,7 +872,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
 }
 
 void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
-  if (FLAG_hardfloat) {
+  if (use_eabi_hardfloat()) {
     Move(dst, d0);
   } else {
     vmov(dst, r0, r1);
@@ -2835,7 +2835,7 @@ static const int kRegisterPassedArguments = 4;
 int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
                                               int num_double_arguments) {
   int stack_passed_words = 0;
-  if (FLAG_hardfloat) {
+  if (use_eabi_hardfloat()) {
     // In the hard floating point calling convention, we can use
     // all double registers to pass doubles.
     if (num_double_arguments > DoubleRegister::kNumRegisters) {
@@ -2882,7 +2882,7 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
 
 
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
-  if (FLAG_hardfloat) {
+  if (use_eabi_hardfloat()) {
     Move(d0, dreg);
   } else {
     vmov(r0, r1, dreg);
@@ -2892,7 +2892,7 @@ void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
 
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg1,
                                              DoubleRegister dreg2) {
-  if (FLAG_hardfloat) {
+  if (use_eabi_hardfloat()) {
     if (dreg2.is(d0)) {
       ASSERT(!dreg1.is(d1));
       Move(d1, dreg2);
@@ -2910,7 +2910,7 @@ void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg1,
 
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg,
                                              Register reg) {
-  if (FLAG_hardfloat) {
+  if (use_eabi_hardfloat()) {
     Move(d0, dreg);
     Move(r0, reg);
   } else {

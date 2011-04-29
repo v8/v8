@@ -294,6 +294,10 @@ class OS {
   // Support runtime detection of VFP3 on ARM CPUs.
   static bool ArmCpuHasFeature(CpuFeature feature);
 
+  // Support runtime detection of whether the hard float option of the
+  // EABI is used.
+  static bool ArmUsingHardFloat();
+
   // Support runtime detection of FPU on MIPS CPUs.
   static bool MipsCpuHasFeature(CpuFeature feature);
 

@@ -200,6 +200,15 @@ class Simulator {
   // below (bad_lr, end_sim_pc).
   bool has_bad_pc() const;
 
+  // EABI variant for double arguments in use.
+  bool use_eabi_hardfloat() {
+#if USE_EABI_HARDFLOAT
+    return true;
+#else
+    return false;
+#endif
+  }
+
  private:
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute

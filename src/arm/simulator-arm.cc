@@ -1012,7 +1012,7 @@ double Simulator::get_double_from_d_register(int dreg) {
 // For use in calls that take two double values, constructed either
 // from r0-r3 or d0 and d1.
 void Simulator::GetFpArgs(double* x, double* y) {
-  if (FLAG_hardfloat) {
+  if (use_eabi_hardfloat()) {
     *x = vfp_register[0];
     *y = vfp_register[1];
   } else {
@@ -1031,7 +1031,7 @@ void Simulator::GetFpArgs(double* x, double* y) {
 // For use in calls that take one double value, constructed either
 // from r0 and r1 or d0.
 void Simulator::GetFpArgs(double* x) {
-  if (FLAG_hardfloat) {
+  if (use_eabi_hardfloat()) {
     *x = vfp_register[0];
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
@@ -1047,7 +1047,7 @@ void Simulator::GetFpArgs(double* x) {
 // For use in calls that take two double values, constructed either
 // from r0-r3 or d0 and d1.
 void Simulator::GetFpArgs(double* x, int32_t* y) {
-  if (FLAG_hardfloat) {
+  if (use_eabi_hardfloat()) {
     *x = vfp_register[0];
     *y = registers_[1];
   } else {
@@ -1066,7 +1066,7 @@ void Simulator::GetFpArgs(double* x, int32_t* y) {
 
 // The return value is either in r0/r1 or d0.
 void Simulator::SetFpResult(const double& result) {
-  if (FLAG_hardfloat) {
+  if (use_eabi_hardfloat()) {
     char buffer[2 * sizeof(vfp_register[0])];
     memcpy(buffer, &result, sizeof(buffer));
     // Copy result to d0.
@@ -1738,7 +1738,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
          (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
          (redirection->type() == ExternalReference::BUILTIN_FP_CALL) ||
          (redirection->type() == ExternalReference::BUILTIN_FP_INT_CALL);
-      if (FLAG_hardfloat) {
+      if (use_eabi_hardfloat()) {
         // With the hard floating point calling convention, double
         // arguments are passed in VFP registers. Fetch the arguments
         // from there and call the builtin using soft floating point

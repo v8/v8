@@ -154,6 +154,18 @@ LIBRARY_FLAGS = {
       },
       'unalignedaccesses:off' : {
         'CPPDEFINES' : ['CAN_USE_UNALIGNED_ACCESSES=0']
+      },
+      'armeabi:softfloat' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=softfp'],
+        }
+      },
+      'armeabi:hardfloat' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1', 'CAN_USE_VFP_INSTRUCTIONS'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=hard'],
+        }
       }
     },
     'simulator:arm': {
@@ -286,6 +298,11 @@ V8_EXTRA_FLAGS = {
     'os:macos': {
       'WARNINGFLAGS': ['-pedantic']
     },
+    'arch:arm': {
+      # This is to silence warnings about ABI changes that some versions of the
+      # CodeSourcery G++ tool chain produce for each occurrence of varargs.
+      'WARNINGFLAGS': ['-Wno-abi']
+    },
     'disassembler:on': {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
     }
@@ -369,7 +386,10 @@ CCTEST_EXTRA_FLAGS = {
   },
   'gcc': {
     'all': {
-      'LIBPATH': [abspath('.')]
+      'LIBPATH':      [abspath('.')],
+      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
+      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'LINKFLAGS':    ['$CCFLAGS'],
     },
     'os:linux': {
       'LIBS':         ['pthread'],
@@ -419,8 +439,10 @@ SAMPLE_FLAGS = {
   },
   'gcc': {
     'all': {
-      'LIBPATH': ['.'],
-      'CCFLAGS': ['-fno-rtti', '-fno-exceptions']
+      'LIBPATH':      ['.'],
+      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
+      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'LINKFLAGS':    ['$CCFLAGS'],
     },
     'os:linux': {
       'LIBS':         ['pthread'],
@@ -445,7 +467,19 @@ SAMPLE_FLAGS = {
       'LIBS':         ['winmm', 'ws2_32']
     },
     'arch:arm': {
-      'LINKFLAGS':   ARM_LINK_FLAGS
+      'LINKFLAGS':   ARM_LINK_FLAGS,
+      'armeabi:softfloat' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=softfp'],
+        }
+      },
+      'armeabi:hardfloat' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1', 'CAN_USE_VFP_INSTRUCTIONS'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=hard'],
+        }
+      }
     },
     'arch:ia32': {
       'CCFLAGS':      ['-m32'],
@@ -547,14 +581,26 @@ PREPARSER_FLAGS = {
   },
   'gcc': {
     'all': {
-      'LIBPATH': ['.'],
-      'CCFLAGS': ['-fno-rtti', '-fno-exceptions']
+      'LIBPATH':      ['.'],
+      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
+      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'LINKFLAGS':    ['$CCFLAGS'],
     },
     'os:win32': {
       'LIBS':         ['winmm', 'ws2_32']
     },
     'arch:arm': {
-      'LINKFLAGS':   ARM_LINK_FLAGS
+      'LINKFLAGS':   ARM_LINK_FLAGS,
+      'armeabi:softfloat' : {
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=softfp'],
+        }
+      },
+      'armeabi:hardfloat' : {
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=hard'],
+        }
+      }
     },
     'arch:ia32': {
       'CCFLAGS':      ['-m32'],
@@ -674,6 +720,11 @@ PREPARSER_FLAGS = {
 
 D8_FLAGS = {
   'gcc': {
+    'all': {
+      'CCFLAGS': ['$DIALECTFLAGS', '$WARNINGFLAGS'],
+      'CXXFLAGS': ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'LINKFLAGS': ['$CCFLAGS'],
+    },
     'console:readline': {
       'LIBS': ['readline']
     },
@@ -909,6 +960,11 @@ SIMPLE_OPTIONS = {
     'values': ['off', 'instrument', 'optimize'],
     'default': 'off',
     'help': 'select profile guided optimization variant',
+  },
+  'armeabi': {
+    'values': ['hardfloat', 'softfloat'],
+    'default': 'softfloat',
+    'help': 'generate calling conventiont according to selected ARM EABI variant'
   },
   'mipsabi': {
     'values': ['hardfloat', 'softfloat', 'none'],

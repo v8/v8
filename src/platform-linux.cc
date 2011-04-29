@@ -87,6 +87,25 @@ void OS::Setup() {
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
+
+#ifdef __arm__
+  // When running on ARM hardware check that the EABI used by V8 and
+  // by the C code is the same.
+  bool hard_float = OS::ArmUsingHardFloat();
+  if (hard_float) {
+#if !USE_EABI_HARDFLOAT
+    PrintF("ERROR: Binary compiled with -mfloat-abi=hard but without "
+           "-DUSE_EABI_HARDFLOAT\n");
+    exit(1);
+#endif
+  } else {
+#if USE_EABI_HARDFLOAT
+    PrintF("ERROR: Binary not compiled with -mfloat-abi=hard but with "
+           "-DUSE_EABI_HARDFLOAT\n");
+    exit(1);
+#endif
+  }
+#endif
 }
 
 
@@ -142,6 +161,7 @@ static bool CPUInfoContainsString(const char * search_string) {
   return false;
 }
 
+
 bool OS::ArmCpuHasFeature(CpuFeature feature) {
   const char* search_string = NULL;
   // Simple detection of VFP at runtime for Linux.
@@ -176,6 +196,28 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
   }
 
   return false;
+}
+
+
+// Simple helper function to detect whether the C code is compiled with
+// option -mfloat-abi=hard. The register d0 is loaded with 1.0 and the register
+// pair r0, r1 is loaded with 0.0. If -mfloat-abi=hard is pased to GCC then
+// calling this will return 1.0 and otherwise 0.0.
+static void ArmUsingHardFloatHelper() {
+  asm("mov r0, #0");
+  asm("mov r1, #0");
+  asm("movt r1, #16368");
+  asm("vmov d0, r0, r1");
+  asm("mov r0, #0");
+  asm("mov r1, #0");
+}
+
+
+bool OS::ArmUsingHardFloat() {
+  // Cast helper function from returning void to returning double.
+  typedef double (*F)();
+  F f = FUNCTION_CAST<F>(FUNCTION_ADDR(ArmUsingHardFloatHelper));
+  return f() == 1.0;
 }
 #endif  // def __arm__
 
