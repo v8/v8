@@ -4256,7 +4256,7 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   SafepointGenerator safepoint_generator(this,
                                          pointers,
                                          env->deoptimization_index());
-  __ InvokeBuiltin(Builtins::DELETE, CALL_JS, &safepoint_generator);
+  __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, &safepoint_generator);
 }
 
 
@@ -4272,7 +4272,7 @@ void LCodeGen::DoIn(LIn* instr) {
   SafepointGenerator safepoint_generator(this,
                                          pointers,
                                          env->deoptimization_index());
-  __ InvokeBuiltin(Builtins::IN, CALL_JS, &safepoint_generator);
+  __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION, &safepoint_generator);
 }
 
 

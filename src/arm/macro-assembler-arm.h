@@ -55,12 +55,6 @@ static inline Operand SmiUntagOperand(Register object) {
 const Register cp = { 8 };  // JavaScript context pointer
 const Register roots = { 10 };  // Roots array pointer.
 
-enum InvokeJSFlags {
-  CALL_JS,
-  JUMP_JS
-};
-
-
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
   // No special flags.
@@ -807,7 +801,7 @@ class MacroAssembler: public Assembler {
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id,
-                     InvokeJSFlags flags,
+                     InvokeFlag flag,
                      CallWrapper* call_wrapper = NULL);
 
   // Store the code object for the given builtin in the target register and

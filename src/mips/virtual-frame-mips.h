@@ -295,7 +295,7 @@ class VirtualFrame : public ZoneObject {
   // Invoke builtin given the number of arguments it expects on (and
   // removes from) the stack.
   void InvokeBuiltin(Builtins::JavaScript id,
-                     InvokeJSFlags flag,
+                     InvokeFlag flag,
                      int arg_count);
 
   // Call load IC. Receiver is on the stack and is consumed. Result is returned

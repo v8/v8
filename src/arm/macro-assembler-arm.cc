@@ -2313,15 +2313,15 @@ MaybeObject* MacroAssembler::TryJumpToExternalReference(
 
 
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
-                                   InvokeJSFlags flags,
+                                   InvokeFlag flag,
                                    CallWrapper* call_wrapper) {
   GetBuiltinEntry(r2, id);
-  if (flags == CALL_JS) {
+  if (flag == CALL_FUNCTION) {
     if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(r2));
     Call(r2);
     if (call_wrapper != NULL) call_wrapper->AfterCall();
   } else {
-    ASSERT(flags == JUMP_JS);
+    ASSERT(flag == JUMP_FUNCTION);
     Jump(r2);
   }
 }
