@@ -251,6 +251,12 @@ static inline uint32_t ComputeIntegerHash(uint32_t key) {
 }
 
 
+static inline uint32_t ComputePointerHash(void* ptr) {
+  return ComputeIntegerHash(
+      static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)));
+}
+
+
 // ----------------------------------------------------------------------------
 // Miscellaneous
 

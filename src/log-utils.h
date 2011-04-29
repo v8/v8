@@ -154,8 +154,8 @@ class Log {
   // mutex_ should be acquired before using output_handle_ or output_buffer_.
   FILE* output_handle_;
 
-  // Used when low-level profiling is active to save code object contents.
-  FILE* output_code_handle_;
+  // Used when low-level profiling is active.
+  FILE* ll_output_handle_;
 
   LogDynamicBuffer* output_buffer_;
 
