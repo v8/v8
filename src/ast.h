@@ -1427,9 +1427,6 @@ class BinaryOperation: public Expression {
         : AstNode::kNoNumber;
   }
 
-  // Create the binary operation corresponding to a compound assignment.
-  explicit BinaryOperation(Assignment* assignment);
-
   DECLARE_NODE_TYPE(BinaryOperation)
 
   virtual bool IsInlineable() const;
