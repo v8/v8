@@ -1770,9 +1770,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       intptr_t external =
           reinterpret_cast<intptr_t>(redirection->external_function());
       if (fp_call) {
-        SimulatorRuntimeFPCall target =
-            reinterpret_cast<SimulatorRuntimeFPCall>(external);
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+          SimulatorRuntimeFPCall target =
+              reinterpret_cast<SimulatorRuntimeFPCall>(external);
           double dval0, dval1;
           int32_t ival;
           switch (redirection->type()) {
@@ -1785,7 +1785,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           case ExternalReference::BUILTIN_FP_CALL:
             GetFpArgs(&dval0);
             PrintF("Call to host function at %p with arg %f",
-                FUNCTION_ADDR(target), dval1);
+                FUNCTION_ADDR(target), dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
             GetFpArgs(&dval0, &ival);
@@ -1802,9 +1802,22 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        double result = target(arg0, arg1, arg2, arg3);
         if (redirection->type() != ExternalReference::BUILTIN_COMPARE_CALL) {
+          SimulatorRuntimeFPCall target =
+              reinterpret_cast<SimulatorRuntimeFPCall>(external);
+          double result = target(arg0, arg1, arg2, arg3);
           SetFpResult(result);
+        } else {
+          SimulatorRuntimeCall target =
+              reinterpret_cast<SimulatorRuntimeCall>(external);
+          int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
+          int32_t lo_res = static_cast<int32_t>(result);
+          int32_t hi_res = static_cast<int32_t>(result >> 32);
+          if (::v8::internal::FLAG_trace_sim) {
+            PrintF("Returned %08x\n", lo_res);
+          }
+          set_register(r0, lo_res);
+          set_register(r1, hi_res);
         }
       } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
         SimulatorRuntimeDirectApiCall target =
