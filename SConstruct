@@ -1,4 +1,4 @@
-# Copyright 2010 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -155,13 +155,19 @@ LIBRARY_FLAGS = {
       'unalignedaccesses:off' : {
         'CPPDEFINES' : ['CAN_USE_UNALIGNED_ACCESSES=0']
       },
-      'armeabi:softfloat' : {
+      'armeabi:soft' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=soft'],
+        }
+      },
+      'armeabi:softfp' : {
         'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=softfp'],
         }
       },
-      'armeabi:hardfloat' : {
+      'armeabi:hard' : {
         'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1', 'CAN_USE_VFP_INSTRUCTIONS'],
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=hard'],
@@ -476,13 +482,19 @@ SAMPLE_FLAGS = {
     },
     'arch:arm': {
       'LINKFLAGS':   ARM_LINK_FLAGS,
-      'armeabi:softfloat' : {
+      'armeabi:soft' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=soft'],
+        }
+      },
+      'armeabi:softfp' : {
         'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=softfp'],
         }
       },
-      'armeabi:hardfloat' : {
+      'armeabi:hard' : {
         'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1', 'CAN_USE_VFP_INSTRUCTIONS'],
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=hard'],
@@ -605,12 +617,18 @@ PREPARSER_FLAGS = {
     },
     'arch:arm': {
       'LINKFLAGS':   ARM_LINK_FLAGS,
-      'armeabi:softfloat' : {
+      'armeabi:soft' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=soft'],
+        }
+      },
+      'armeabi:softfp' : {
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=softfp'],
         }
       },
-      'armeabi:hardfloat' : {
+      'armeabi:hard' : {
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=hard'],
         }
@@ -976,8 +994,8 @@ SIMPLE_OPTIONS = {
     'help': 'select profile guided optimization variant',
   },
   'armeabi': {
-    'values': ['hardfloat', 'softfloat'],
-    'default': 'softfloat',
+    'values': ['hard', 'softfp', 'soft'],
+    'default': 'softfp',
     'help': 'generate calling conventiont according to selected ARM EABI variant'
   },
   'mipsabi': {

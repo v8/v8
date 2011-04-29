@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -205,10 +205,32 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
 // calling this will return 1.0 and otherwise 0.0.
 static void ArmUsingHardFloatHelper() {
   asm("mov r0, #0");
-  asm("mov r1, #0");
-  asm("movt r1, #16368");
+#if defined(__VFP_FP__) && !defined(__SOFTFP__)
+  // Load 0x3ff00000 into r1 using instructions available in both ARM
+  // and Thumb mode.
+  asm("mov r1, #3");
+  asm("mov r2, #255");
+  asm("lsl r1, r1, #8");
+  asm("orr r1, r1, r2");
+  asm("lsl r1, r1, #16");
+  // For vmov d0, r0, r1 use ARM mode.
+#ifdef __thumb__
+  asm volatile(
+    "@   Enter ARM Mode  \n\t"
+    "    adr r3, 1f      \n\t"
+    "    bx  r3          \n\t"
+    "    .ALIGN 4        \n\t"
+    "    .ARM            \n"
+    "1:  vmov d0, r0, r1 \n\t"
+    "@   Enter THUMB Mode\n\t"
+    "    adr r3, 2f+1    \n\t"
+    "    bx  r3          \n\t"
+    "    .THUMB          \n"
+    "2:                  \n\t");
+#else
   asm("vmov d0, r0, r1");
-  asm("mov r0, #0");
+#endif  // __thumb__
+#endif  // defined(__VFP_FP__) && !defined(__SOFTFP__)
   asm("mov r1, #0");
 }
 
