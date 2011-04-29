@@ -231,6 +231,7 @@ class UnaryOperation;
 class BinaryOperation;
 class Call;
 class CompareOperation;
+class CountOperation;
 class CompilationInfo;
 class Property;
 class CaseClause;
@@ -263,6 +264,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   TypeInfo BinaryType(BinaryOperation* expr);
   TypeInfo CompareType(CompareOperation* expr);
   TypeInfo SwitchType(CaseClause* clause);
+  TypeInfo IncrementType(CountOperation* expr);
 
  private:
   ZoneMapList* CollectReceiverTypes(unsigned ast_id,

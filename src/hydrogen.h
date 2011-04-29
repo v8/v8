@@ -831,7 +831,9 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildBinaryOperation(BinaryOperation* expr,
                                      HValue* left,
                                      HValue* right);
-  HInstruction* BuildIncrement(HValue* value, bool increment);
+  HInstruction* BuildIncrement(HValue* value,
+                               bool increment,
+                               CountOperation* expr);
   HLoadNamedField* BuildLoadNamedField(HValue* object,
                                        Property* expr,
                                        Handle<Map> type,

@@ -4653,12 +4653,18 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
 }
 
 
-HInstruction* HGraphBuilder::BuildIncrement(HValue* value, bool increment) {
+HInstruction* HGraphBuilder::BuildIncrement(HValue* value,
+                                            bool increment,
+                                            CountOperation* expr) {
   HConstant* delta = increment
       ? graph_->GetConstant1()
       : graph_->GetConstantMinus1();
   HInstruction* instr = new(zone()) HAdd(value, delta);
-  AssumeRepresentation(instr,  Representation::Integer32());
+  Representation rep = ToRepresentation(oracle()->IncrementType(expr));
+  if (rep.IsTagged()) {
+    rep = Representation::Integer32();
+  }
+  AssumeRepresentation(instr, rep);
   return instr;
 }
 
@@ -4681,7 +4687,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
     // element for postfix operations in a non-effect context.
     bool has_extra = expr->is_postfix() && !ast_context()->IsEffect();
     HValue* before = has_extra ? Top() : Pop();
-    HInstruction* after = BuildIncrement(before, inc);
+    HInstruction* after = BuildIncrement(before, inc, expr);
     AddInstruction(after);
     Push(after);
 
@@ -4733,7 +4739,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       HValue* before = Pop();
       // There is no deoptimization to after the increment, so we don't need
       // to simulate the expression stack after this instruction.
-      HInstruction* after = BuildIncrement(before, inc);
+      HInstruction* after = BuildIncrement(before, inc, expr);
       AddInstruction(after);
 
       HInstruction* store = BuildStoreNamed(obj, after, prop);
@@ -4769,7 +4775,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       HValue* before = Pop();
       // There is no deoptimization to after the increment, so we don't need
       // to simulate the expression stack after this instruction.
-      HInstruction* after = BuildIncrement(before, inc);
+      HInstruction* after = BuildIncrement(before, inc, expr);
       AddInstruction(after);
 
       expr->RecordTypeFeedback(oracle());

@@ -334,6 +334,35 @@ TypeInfo TypeFeedbackOracle::SwitchType(CaseClause* clause) {
 }
 
 
+TypeInfo TypeFeedbackOracle::IncrementType(CountOperation* expr) {
+  Handle<Object> object = GetInfo(expr->CountId());
+  TypeInfo unknown = TypeInfo::Unknown();
+  if (!object->IsCode()) return unknown;
+  Handle<Code> code = Handle<Code>::cast(object);
+  if (!code->is_type_recording_binary_op_stub()) return unknown;
+
+  TRBinaryOpIC::TypeInfo type = static_cast<TRBinaryOpIC::TypeInfo>(
+      code->type_recording_binary_op_type());
+  switch (type) {
+    case TRBinaryOpIC::UNINITIALIZED:
+    case TRBinaryOpIC::SMI:
+      return TypeInfo::Smi();
+    case TRBinaryOpIC::INT32:
+      return TypeInfo::Integer32();
+    case TRBinaryOpIC::HEAP_NUMBER:
+      return TypeInfo::Double();
+    case TRBinaryOpIC::BOTH_STRING:
+    case TRBinaryOpIC::STRING:
+    case TRBinaryOpIC::GENERIC:
+      return unknown;
+    default:
+      return unknown;
+  }
+  UNREACHABLE();
+  return unknown;
+}
+
+
 ZoneMapList* TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
                                                       Handle<String> name,
                                                       Code::Flags flags) {
