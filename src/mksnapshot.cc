@@ -206,9 +206,15 @@ class CppByteSink : public PartialSnapshotSink {
     int length = partial_sink_.Position();
     fprintf(fp_, "};\n\n");
     fprintf(fp_, "const int Snapshot::context_size_ = %d;\n",  length);
+#ifdef COMPRESS_STARTUP_DATA_BZ2
     fprintf(fp_,
             "const int Snapshot::context_raw_size_ = %d;\n",
             partial_sink_.raw_size());
+#else
+    fprintf(fp_,
+            "const int Snapshot::context_raw_size_ = "
+            "Snapshot::context_size_;\n");    
+#endif
     fprintf(fp_, "const byte Snapshot::context_data_[] = {\n");
     partial_sink_.Print(fp_);
     fprintf(fp_, "};\n\n");
