@@ -1303,7 +1303,10 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // to the corresponding activation frame at runtime if necessary.
   // For instance declarations inside an eval scope need to be added
   // to the calling function context.
-  if (top_scope_->is_function_scope()) {
+  // Similarly, strict mode eval scope does not leak variable declarations to
+  // the caller's scope so we declare all locals, too.
+  if (top_scope_->is_function_scope() ||
+      top_scope_->is_strict_mode_eval_scope()) {
     // Declare the variable in the function scope.
     var = top_scope_->LocalLookup(name);
     if (var == NULL) {

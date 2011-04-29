@@ -211,6 +211,9 @@ class Scope: public ZoneObject {
   bool is_function_scope() const { return type_ == FUNCTION_SCOPE; }
   bool is_global_scope() const { return type_ == GLOBAL_SCOPE; }
   bool is_strict_mode() const { return strict_mode_; }
+  bool is_strict_mode_eval_scope() const {
+    return is_eval_scope() && is_strict_mode();
+  }
 
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }

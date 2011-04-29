@@ -1179,3 +1179,10 @@ function CheckPillDescriptor(func, name) {
     assertEquals(test(i), true);
   }
 })();
+
+
+(function TestStrictModeEval() {
+  "use strict";
+  eval("var eval_local = 10;");
+  assertThrows(function() { return eval_local; }, ReferenceError);
+})();
