@@ -426,11 +426,6 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
-void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
 bool CEntryStub::NeedsImmovableCode() {
   return true;
 }
