@@ -213,7 +213,7 @@ class CppByteSink : public PartialSnapshotSink {
 #else
     fprintf(fp_,
             "const int Snapshot::context_raw_size_ = "
-            "Snapshot::context_size_;\n");    
+            "Snapshot::context_size_;\n");
 #endif
     fprintf(fp_, "const byte Snapshot::context_data_[] = {\n");
     partial_sink_.Print(fp_);
