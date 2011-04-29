@@ -132,6 +132,7 @@ namespace internal {
   F(StringAdd, 2, 1) \
   F(StringBuilderConcat, 3, 1) \
   F(StringBuilderJoin, 3, 1) \
+  F(SparseJoinWithSeparator, 3, 1)            \
   \
   /* Bit operations */ \
   F(NumberOr, 2, 1) \
