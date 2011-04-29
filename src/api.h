@@ -399,9 +399,8 @@ class StringTracker {
 ISOLATED_CLASS HandleScopeImplementer {
  public:
 
-  explicit HandleScopeImplementer(Isolate* isolate)
-      : isolate_(isolate),
-        blocks_(0),
+  HandleScopeImplementer()
+      : blocks_(0),
         entered_contexts_(0),
         saved_contexts_(0),
         spare_(NULL),
@@ -467,7 +466,6 @@ ISOLATED_CLASS HandleScopeImplementer {
     ASSERT(call_depth_ == 0);
   }
 
-  Isolate* isolate_;
   List<internal::Object**> blocks_;
   // Used as a stack to keep track of entered contexts.
   List<Handle<Object> > entered_contexts_;
