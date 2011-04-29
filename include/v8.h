@@ -2641,6 +2641,18 @@ class V8EXPORT Isolate {
 };
 
 
+class StartupData {
+ public:
+  enum CompressionAlgorithm {
+    kUncompressed,
+    kBZip2
+  };
+
+  const char* data;
+  int compressed_size;
+  int raw_size;
+};
+
 /**
  * Container class for static utility functions.
  */
@@ -2668,6 +2680,26 @@ class V8EXPORT V8 {
    * fatal errors such as out-of-memory situations.
    */
   static bool IsDead();
+
+  /**
+   * The following 4 functions are to be used when V8 is built with
+   * the 'compress_startup_data' flag enabled. In this case, the
+   * embedder must decompress startup data prior to initializing V8.
+   *
+   * This is how interaction with V8 should look like:
+   *   int compressed_data_count = v8::V8::GetCompressedStartupDataCount();
+   *   v8::StartupData* compressed_data =
+   *     new v8::StartupData[compressed_data_count];
+   *   v8::V8::GetCompressedStartupData(compressed_data);
+   *   ... decompress data (compressed_data can be updated in-place) ...
+   *   v8::V8::SetDecompressedStartupData(compressed_data);
+   *   ... now V8 can be initialized
+   *   ... make sure the decompressed data stays valid until V8 shutdown
+   */
+  static StartupData::CompressionAlgorithm GetCompressedStartupDataAlgorithm();
+  static int GetCompressedStartupDataCount();
+  static void GetCompressedStartupData(StartupData* compressed_data);
+  static void SetDecompressedStartupData(StartupData* decompressed_data);
 
   /**
    * Adds a message listener.

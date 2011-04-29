@@ -213,6 +213,9 @@ LIBRARY_FLAGS = {
     },
     'gdbjit:on': {
       'CPPDEFINES':   ['ENABLE_GDB_JIT_INTERFACE']
+    },
+    'compress_startup_data:bz2': {
+      'CPPDEFINES':   ['COMPRESS_STARTUP_DATA_BZ2']
     }
   },
   'msvc': {
@@ -354,6 +357,11 @@ MKSNAPSHOT_EXTRA_FLAGS = {
     },
     'os:win32': {
       'LIBS': ['winmm', 'ws2_32'],
+    },
+    'compress_startup_data:bz2': {
+      'os:linux': {
+        'LIBS': ['bz2']
+      }
     },
   },
   'msvc': {
@@ -511,6 +519,12 @@ SAMPLE_FLAGS = {
     'mode:debug': {
       'CCFLAGS':      ['-g', '-O0'],
       'CPPDEFINES':   ['DEBUG']
+    },
+    'compress_startup_data:bz2': {
+      'CPPDEFINES':   ['COMPRESS_STARTUP_DATA_BZ2'],
+      'os:linux': {
+        'LIBS':       ['bz2']
+      }
     },
   },
   'msvc': {
@@ -975,7 +989,12 @@ SIMPLE_OPTIONS = {
     'values': ['mips32r2', 'mips32r1'],
     'default': 'mips32r2',
     'help': 'mips variant'
-  }
+  },
+  'compress_startup_data': {
+    'values': ['off', 'bz2'],
+    'default': 'off',
+    'help': 'compress startup data (snapshot) [Linux only]'
+  },
 }
 
 ALL_OPTIONS = dict(PLATFORM_OPTIONS, **SIMPLE_OPTIONS)
@@ -1098,6 +1117,8 @@ def VerifyOptions(env):
     print env['arch']
     print env['simulator']
     Abort("Option unalignedaccesses only supported for the ARM architecture.")
+  if env['os'] != 'linux' and env['compress_startup_data'] != 'off':
+    Abort("Startup data compression is only available on Linux")
   for (name, option) in ALL_OPTIONS.iteritems():
     if (not name in env):
       message = ("A value for option %s must be specified (%s)." %

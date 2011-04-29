@@ -30,6 +30,7 @@
     'use_system_v8%': 0,
     'msvs_use_common_release': 0,
     'gcc_version%': 'unknown',
+    'v8_compress_startup_data%': 'false',
     'v8_target_arch%': '<(target_arch)',
     'v8_use_snapshot%': 'true',
     'v8_use_liveobjectlist%': 'false',
@@ -74,6 +75,11 @@
               'INSPECTOR',
               'OBJECT_PRINT',
               'LIVEOBJECTLIST',
+            ],
+          }],
+         ['v8_compress_startup_data=="bz2"', {
+            'defines': [
+              'COMPRESS_STARTUP_DATA_BZ2',
             ],
           }],
         ],
@@ -651,7 +657,14 @@
                   'libraries': [
                     # Needed for clock_gettime() used by src/platform-linux.cc.
                     '-lrt',
-                ]},
+                  ],
+                  'conditions': [
+                    ['v8_compress_startup_data=="bz2"', {
+                      'libraries': [
+                        '-lbz2',
+                    ]}],
+                  ],
+                },
                 'sources': [
                   '../../src/platform-linux.cc',
                   '../../src/platform-posix.cc'
@@ -785,7 +798,11 @@
             ['v8_target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
               'cflags': ['-m32'],
               'ldflags': ['-m32'],
-            }]
+            }],
+            ['v8_compress_startup_data=="bz2"', {
+              'libraries': [
+                '-lbz2',
+              ]}],
           ]
         },
         {
@@ -802,6 +819,10 @@
               # This could be gotten by not setting chromium_code, if that's OK.
               'defines': ['_CRT_SECURE_NO_WARNINGS'],
             }],
+            ['v8_compress_startup_data=="bz2"', {
+              'libraries': [
+                '-lbz2',
+              ]}],
           ],
         },
       ],
