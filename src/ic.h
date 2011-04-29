@@ -328,7 +328,8 @@ class LoadIC: public IC {
 class KeyedLoadIC: public IC {
  public:
   explicit KeyedLoadIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {
-    ASSERT(target()->is_keyed_load_stub());
+    ASSERT(target()->is_keyed_load_stub() || 
+           target()->is_external_array_load_stub());
   }
 
   MUST_USE_RESULT MaybeObject* Load(State state,
