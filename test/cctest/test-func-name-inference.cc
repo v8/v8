@@ -1,4 +1,4 @@
-// Copyright 2007-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -296,7 +296,7 @@ TEST(MultipleAssignments) {
 TEST(PassedAsConstructorParameter) {
   InitializeVM();
   v8::HandleScope scope;
-  
+
   v8::Handle<v8::Script> script = Compile(
       "function Foo() {}\n"
       "var foo = new Foo(function() { return 1; })");
@@ -307,7 +307,7 @@ TEST(PassedAsConstructorParameter) {
 TEST(FactoryHashmap) {
   InitializeVM();
   v8::HandleScope scope;
-  
+
   v8::Handle<v8::Script> script = Compile(
       "function createMyObj() {\n"
       "  var obj = {};\n"
@@ -323,7 +323,7 @@ TEST(FactoryHashmap) {
 TEST(FactoryHashmapVariable) {
   InitializeVM();
   v8::HandleScope scope;
-  
+
   v8::Handle<v8::Script> script = Compile(
       "function createMyObj() {\n"
       "  var obj = {};\n"
@@ -342,7 +342,7 @@ TEST(FactoryHashmapVariable) {
 TEST(FactoryHashmapConditional) {
   InitializeVM();
   v8::HandleScope scope;
-  
+
   v8::Handle<v8::Script> script = Compile(
       "function createMyObj() {\n"
       "  var obj = {};\n"
