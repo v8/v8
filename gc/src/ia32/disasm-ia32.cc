@@ -117,6 +117,19 @@ static ByteMnemonic short_immediate_instr[] = {
 };
 
 
+// Generally we don't want to generate these because they are subject to partial
+// register stalls.  They are included for completeness and because the cmp
+// variant is used by the RecordWrite stub.  Because it does not update the
+// register it is npt subject to partial register stalls.
+static ByteMnemonic byte_immediate_instr[] = {
+  {0x0c, "or", UNSET_OP_ORDER},
+  {0x24, "and", UNSET_OP_ORDER},
+  {0x34, "xor", UNSET_OP_ORDER},
+  {0x3c, "cmp", UNSET_OP_ORDER},
+  {-1, "", UNSET_OP_ORDER}
+};
+
+
 static const char* jump_conditional_mnem[] = {
   /*0*/ "jo", "jno", "jc", "jnc",
   /*4*/ "jz", "jnz", "jna", "ja",
@@ -149,7 +162,8 @@ enum InstructionType {
   REGISTER_INSTR,
   MOVE_REG_INSTR,
   CALL_JUMP_INSTR,
-  SHORT_IMMEDIATE_INSTR
+  SHORT_IMMEDIATE_INSTR,
+  BYTE_IMMEDIATE_INSTR
 };
 
 
@@ -198,6 +212,7 @@ void InstructionTable::Init() {
   CopyTable(zero_operands_instr, ZERO_OPERANDS_INSTR);
   CopyTable(call_jump_instr, CALL_JUMP_INSTR);
   CopyTable(short_immediate_instr, SHORT_IMMEDIATE_INSTR);
+  CopyTable(byte_immediate_instr, BYTE_IMMEDIATE_INSTR);
   AddJumpConditionalShort();
   SetTableRange(REGISTER_INSTR, 0x40, 0x47, "inc");
   SetTableRange(REGISTER_INSTR, 0x48, 0x4F, "dec");
@@ -911,6 +926,12 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
       break;
     }
 
+    case BYTE_IMMEDIATE_INSTR: {
+      AppendToBuffer("%s al, 0x%x", idesc.mnem, data[1]);
+      data += 2;
+      break;
+    }
+
     case NO_INSTR:
       processed = false;
       break;
@@ -1324,11 +1345,6 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
 
       case 0xA8:
         AppendToBuffer("test al,0x%x", *reinterpret_cast<uint8_t*>(data+1));
-        data += 2;
-        break;
-
-      case 0x2C:
-        AppendToBuffer("subb eax,0x%x", *reinterpret_cast<uint8_t*>(data+1));
         data += 2;
         break;
 

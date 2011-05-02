@@ -878,6 +878,14 @@ class Heap {
   // ensure correct callback for weak global handles.
   void PerformScavenge();
 
+  inline void increment_scan_on_scavenge_pages() {
+    scan_on_scavenge_pages_++;
+  }
+
+  inline void decrement_scan_on_scavenge_pages() {
+    scan_on_scavenge_pages_--;
+  }
+
   PromotionQueue* promotion_queue() { return &promotion_queue_; }
 
 #ifdef DEBUG
@@ -1322,6 +1330,8 @@ class Heap {
 
   // For keeping track of context disposals.
   int contexts_disposed_;
+
+  int scan_on_scavenge_pages_;
 
 #if defined(V8_TARGET_ARCH_X64)
   static const int kMaxObjectSizeInNewSpace = 1024*KB;

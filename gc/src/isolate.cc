@@ -656,6 +656,12 @@ bool Isolate::Init(Deserializer* des) {
   // Setup the platform OS support.
   OS::Setup();
 
+  // If the serializer is enabled we will use only the platform to determine
+  // the CPU.  We can do that without generating probe code, so we don't need
+  // the heap to be set up first.  We move up the detection to here so that
+  // the builtins can make use of the information.
+  if (Serializer::enabled()) CPU::Setup();
+
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
 #if defined(V8_TARGET_ARCH_ARM)
@@ -719,7 +725,7 @@ bool Isolate::Init(Deserializer* des) {
   // Setup the CPU support. Must be done after heap setup and after
   // any deserialization because we have to have the initial heap
   // objects in place for creating the code object used for probing.
-  CPU::Setup();
+  if (!Serializer::enabled()) CPU::Setup();
 
   deoptimizer_data_ = new DeoptimizerData;
   runtime_profiler_ = new RuntimeProfiler(this);

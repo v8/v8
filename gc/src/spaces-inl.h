@@ -138,6 +138,16 @@ bool PagedSpace::Contains(Address addr) {
 }
 
 
+void MemoryChunk::set_scan_on_scavenge(bool scan) {
+  if (scan) {
+    if (!scan_on_scavenge_) heap_->increment_scan_on_scavenge_pages();
+  } else {
+    if (scan_on_scavenge_) heap_->decrement_scan_on_scavenge_pages();
+  }
+  scan_on_scavenge_ = scan;
+}
+
+
 MemoryChunk* MemoryChunk::FromAnyPointerAddress(Address addr) {
   MemoryChunk* maybe = reinterpret_cast<MemoryChunk*>(
       OffsetFrom(addr) & ~Page::kPageAlignmentMask);

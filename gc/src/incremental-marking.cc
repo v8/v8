@@ -34,6 +34,10 @@
 namespace v8 {
 namespace internal {
 
+const char* IncrementalMarking::kWhiteBitPattern = "00";
+const char* IncrementalMarking::kBlackBitPattern = "10";
+const char* IncrementalMarking::kGreyBitPattern = "11";
+const char* IncrementalMarking::kImpossibleBitPattern = "01";
 
 IncrementalMarking::IncrementalMarking(Heap* heap)
     : heap_(heap),
@@ -340,6 +344,7 @@ void IncrementalMarking::Finalize() {
   ResetStepCounters();
   PatchIncrementalMarkingRecordWriteStubs(false);
   ASSERT(marking_stack_.is_empty());
+  ISOLATE->stack_guard()->Continue(GC_REQUEST);
 }
 
 

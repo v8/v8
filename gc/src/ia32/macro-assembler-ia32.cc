@@ -86,18 +86,10 @@ void MacroAssembler::IncrementalMarkingRecordWriteHelper(
 }
 
 
-void MacroAssembler::RememberedSetHelper(Register object,
-                                         Register addr,
+void MacroAssembler::RememberedSetHelper(Register addr,
                                          Register scratch,
                                          SaveFPRegsMode save_fp) {
-  if (emit_debug_code()) {
-    // Check that the object is not in new space.
-    Label not_in_new_space;
-    InNewSpace(object, scratch, not_equal, &not_in_new_space);
-    Abort("new-space object passed to RememberedSetHelper");
-    bind(&not_in_new_space);
-  }
-
+  NearLabel done;
   // Load store buffer top.
   ExternalReference store_buffer = ExternalReference::store_buffer_top();
   mov(scratch, Operand::StaticVariable(store_buffer));
@@ -108,24 +100,33 @@ void MacroAssembler::RememberedSetHelper(Register object,
   // Write back new top of buffer.
   mov(Operand::StaticVariable(store_buffer), scratch);
   // Call stub on end of buffer.
-  NearLabel no_overflow;
   // Check for end of buffer.
   test(scratch, Immediate(StoreBuffer::kStoreBufferOverflowBit));
-  j(equal, &no_overflow);
+  j(equal, &done);
   StoreBufferOverflowStub store_buffer_overflow =
       StoreBufferOverflowStub(save_fp);
   CallStub(&store_buffer_overflow);
-  bind(&no_overflow);
+  bind(&done);
 }
 
 
-void MacroAssembler::RecordWrite(Register object,
-                                 int offset,
-                                 Register value,
-                                 Register dst,
-                                 SaveFPRegsMode save_fp) {
+void MacroAssembler::RecordWriteArray(Register object,
+                                      Register value,
+                                      Register index,
+                                      SaveFPRegsMode save_fp) {
+  ASSERT(!object.is(value));
+  ASSERT(!object.is(index));
+  ASSERT(!value.is(index));
+  if (emit_debug_code()) {
+    NearLabel ok;
+    test(object, Immediate(kSmiTagMask));
+    j(not_zero, &ok);
+    int3();
+    bind(&ok);
+  }
+
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of Smis and stores into young gen.
+  // catch stores of Smis.
   NearLabel done;
 
   // Skip barrier if writing a smi.
@@ -133,24 +134,65 @@ void MacroAssembler::RecordWrite(Register object,
   test(value, Immediate(kSmiTagMask));
   j(zero, &done);
 
-  // The offset is relative to a tagged or untagged HeapObject pointer,
-  // so either offset or offset + kHeapObjectTag must be a
-  // multiple of kPointerSize.
-  ASSERT(IsAligned(offset, kPointerSize) ||
-         IsAligned(offset + kHeapObjectTag, kPointerSize));
+  // Array access: calculate the destination address in the same manner as
+  // KeyedStoreIC::GenerateGeneric.  Multiply a smi by 2 to get an offset
+  // into an array of words.
+  ASSERT_EQ(1, kSmiTagSize);
+  ASSERT_EQ(0, kSmiTag);
+  Register dst = index;
+  lea(dst, Operand(object, index, times_half_pointer_size,
+                   FixedArray::kHeaderSize - kHeapObjectTag));
 
-  if (offset != 0) {
-    // If offset is unspecified, then dst is a scratch register.  We use it
-    // to store the address of the cell that is being stored to.
-    lea(dst, Operand(object, offset));
-  } else {
-    // Array access: calculate the destination address in the same manner as
-    // KeyedStoreIC::GenerateGeneric.  Multiply a smi by 2 to get an offset
-    // into an array of words.
-    ASSERT_EQ(1, kSmiTagSize);
-    ASSERT_EQ(0, kSmiTag);
-    lea(dst, Operand(object, dst, times_half_pointer_size,
-                     FixedArray::kHeaderSize - kHeapObjectTag));
+  RecordWrite(object, dst, value, EMIT_REMEMBERED_SET, save_fp, OMIT_SMI_CHECK);
+
+  bind(&done);
+
+  // Clobber all input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (emit_debug_code()) {
+    mov(object, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(value, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(index, Immediate(BitCast<int32_t>(kZapValue)));
+  }
+}
+
+
+void MacroAssembler::RecordWriteField(Register object,
+                                      int offset,
+                                      Register value,
+                                      Register dst,
+                                      SaveFPRegsMode save_fp) {
+  ASSERT(!object.is(value));
+  ASSERT(!object.is(dst));
+  ASSERT(!value.is(dst));
+  if (emit_debug_code()) {
+    NearLabel ok;
+    test(object, Immediate(kSmiTagMask));
+    j(not_zero, &ok);
+    int3();
+    bind(&ok);
+  }
+
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis.
+  NearLabel done;
+
+  // Skip barrier if writing a smi.
+  ASSERT_EQ(0, kSmiTag);
+  test(value, Immediate(kSmiTagMask));
+  j(zero, &done);
+
+  // Although the object register is tagged, the offset is relative to the start
+  // of the object, so offset must be a multiple of kPointerSize.
+  ASSERT(IsAligned(offset, kPointerSize));
+
+  lea(dst, FieldOperand(object, offset));
+  if (emit_debug_code()) {
+    NearLabel ok;
+    test_b(Operand(dst), (1 << kPointerSizeLog2) - 1);
+    j(zero, &ok);
+    int3();
+    bind(&ok);
   }
 
   RecordWrite(object, dst, value, EMIT_REMEMBERED_SET, save_fp, OMIT_SMI_CHECK);
@@ -173,6 +215,17 @@ void MacroAssembler::RecordWrite(Register object,
                                  EmitRememberedSet emit_remembered_set,
                                  SaveFPRegsMode fp_mode,
                                  SmiCheck smi_check) {
+  ASSERT(!object.is(value));
+  ASSERT(!object.is(address));
+  ASSERT(!value.is(address));
+  if (emit_debug_code()) {
+    NearLabel ok;
+    test(object, Immediate(kSmiTagMask));
+    j(not_zero, &ok);
+    int3();
+    bind(&ok);
+  }
+
   if (emit_remembered_set == OMIT_REMEMBERED_SET &&
       FLAG_incremental_marking == false) {
     return;
@@ -180,6 +233,14 @@ void MacroAssembler::RecordWrite(Register object,
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
   NearLabel done;
+
+  if (emit_debug_code()) {
+    NearLabel ok;
+    test(object, Immediate(kSmiTagMask));
+    j(not_zero, &ok);
+    int3();
+    bind(&ok);
+  }
 
   if (smi_check == INLINE_SMI_CHECK) {
     // Skip barrier if writing a smi.
@@ -2073,6 +2134,17 @@ void MacroAssembler::CallCFunction(Register function,
   } else {
     add(Operand(esp), Immediate(num_arguments * sizeof(int32_t)));
   }
+}
+
+
+bool Aliasing(Register r1, Register r2, Register r3, Register r4) {
+  if (r1.is(r2)) return true;
+  if (r1.is(r3)) return true;
+  if (r1.is(r4)) return true;
+  if (r2.is(r3)) return true;
+  if (r2.is(r4)) return true;
+  if (r3.is(r4)) return true;
+  return false;
 }
 
 

@@ -34,6 +34,7 @@
 #include "compiler.h"
 #include "debug.h"
 #include "full-codegen.h"
+#include "macro-assembler-ia32-inl.h"
 #include "parser.h"
 #include "scopes.h"
 #include "stub-cache.h"
@@ -173,7 +174,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
         // registers, so we have use a third register to avoid
         // clobbering esi.
         __ mov(ecx, esi);
-        __ RecordWrite(ecx, context_offset, eax, ebx, kDontSaveFPRegs);
+        __ RecordWriteContextSlot(ecx,
+                                  context_offset,
+                                  eax,
+                                  ebx,
+                                  kDontSaveFPRegs);
       }
     }
   }
@@ -608,7 +613,7 @@ void FullCodeGenerator::Move(Slot* dst,
   if (dst->type() == Slot::CONTEXT) {
     int offset = Context::SlotOffset(dst->index());
     ASSERT(!scratch1.is(esi) && !src.is(esi) && !scratch2.is(esi));
-    __ RecordWrite(scratch1, offset, src, scratch2, kDontSaveFPRegs);
+    __ RecordWriteContextSlot(scratch1, offset, src, scratch2, kDontSaveFPRegs);
   }
 }
 
@@ -682,7 +687,11 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
           __ mov(ContextOperand(esi, slot->index()), result_register());
           int offset = Context::SlotOffset(slot->index());
           __ mov(ebx, esi);
-          __ RecordWrite(ebx, offset, result_register(), ecx, kDontSaveFPRegs);
+          __ RecordWriteContextSlot(ebx,
+                                    offset,
+                                    result_register(),
+                                    ecx,
+                                    kDontSaveFPRegs);
         }
         break;
 
@@ -1477,7 +1486,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ mov(FieldOperand(ebx, offset), result_register());
 
     // Update the write barrier for the array store.
-    __ RecordWrite(ebx, offset, result_register(), ecx, kDontSaveFPRegs);
+    __ RecordWriteField(ebx, offset, result_register(), ecx, kDontSaveFPRegs);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
@@ -1855,7 +1864,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ mov(ContextOperand(ecx, slot->index()), eax);
         int offset = Context::SlotOffset(slot->index());
         __ mov(edx, eax);  // Preserve the stored value in eax.
-        __ RecordWrite(ecx, offset, edx, ebx, kDontSaveFPRegs);
+        __ RecordWriteContextSlot(ecx, offset, edx, ebx, kDontSaveFPRegs);
         break;
       }
       case Slot::LOOKUP:
@@ -1887,7 +1896,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         // register arguments.
         __ mov(edx, eax);
         int offset = Context::SlotOffset(slot->index());
-        __ RecordWrite(ecx, offset, edx, ebx, kDontSaveFPRegs);
+        __ RecordWriteContextSlot(ecx, offset, edx, ebx, kDontSaveFPRegs);
         break;
       }
 
@@ -2822,7 +2831,7 @@ void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
   // Update the write barrier.  Save the value as it will be
   // overwritten by the write barrier code and is needed afterward.
   __ mov(edx, eax);
-  __ RecordWrite(ebx, JSValue::kValueOffset, edx, ecx, kDontSaveFPRegs);
+  __ RecordWriteField(ebx, JSValue::kValueOffset, edx, ecx, kDontSaveFPRegs);
 
   __ bind(&done);
   context()->Plug(eax);
@@ -3105,17 +3114,18 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ mov(Operand(index_2, 0), object);
   __ mov(Operand(index_1, 0), temp);
 
-  Label new_space;
-  __ InNewSpace(elements, temp, equal, &new_space);
+  NearLabel no_remembered_set;
+  __ InNewSpace(elements, temp, equal, &no_remembered_set);
+  __ HasScanOnScavenge(elements, temp, &no_remembered_set);
 
   __ mov(object, elements);
   // Since we are swapping two objects, the incremental marker is not disturbed,
   // so we don't call the stub that handles this.  TODO(gc): Optimize by
   // checking the scan_on_scavenge flag, probably by calling the stub.
-  __ RememberedSetHelper(object, index_1, temp, kDontSaveFPRegs);
-  __ RememberedSetHelper(elements, index_2, temp, kDontSaveFPRegs);
+  __ RememberedSetHelper(index_1, temp, kDontSaveFPRegs);
+  __ RememberedSetHelper(index_2, temp, kDontSaveFPRegs);
 
-  __ bind(&new_space);
+  __ bind(&no_remembered_set);
 
   // We are done. Drop elements from the stack, and return undefined.
   __ add(Operand(esp), Immediate(3 * kPointerSize));

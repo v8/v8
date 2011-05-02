@@ -340,7 +340,8 @@ class MemoryChunk {
   }
 
   bool scan_on_scavenge() { return scan_on_scavenge_; }
-  void set_scan_on_scavenge(bool scan) { scan_on_scavenge_ = scan; }
+  void initialize_scan_on_scavenge(bool scan) { scan_on_scavenge_ = scan; }
+  inline void set_scan_on_scavenge(bool scan);
 
   int store_buffer_counter() { return store_buffer_counter_; }
   void set_store_buffer_counter(int counter) {
@@ -445,6 +446,9 @@ class MemoryChunk {
   void Unlink();
 
   inline Heap* heap() { return heap_; }
+
+  static const int kFlagsOffset = kPointerSize * 3;
+  static const int kScanOnScavengeOffset = kPointerSize * 6;
 
  protected:
   MemoryChunk* next_chunk_;

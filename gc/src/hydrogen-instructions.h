@@ -2899,8 +2899,7 @@ class HLoadContextSlot: public HUnaryOperation {
 
 
 static inline bool StoringValueNeedsWriteBarrier(HValue* value) {
-  return !value->type().IsSmi() &&
-      !(value->IsConstant() && HConstant::cast(value)->InOldSpace());
+  return !value->type().IsSmi();
 }
 
 

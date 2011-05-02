@@ -97,6 +97,7 @@ Heap::Heap()
       always_allocate_scope_depth_(0),
       linear_allocation_scope_depth_(0),
       contexts_disposed_(0),
+      scan_on_scavenge_pages_(0),
       new_space_(this),
       old_pointer_space_(NULL),
       old_data_space_(NULL),
@@ -5011,6 +5012,8 @@ bool Heap::Setup(bool create_heap_objects) {
   if (lo_space_ == NULL) return false;
   if (!lo_space_->Setup()) return false;
 
+  if (!marking()->Setup()) return false;
+
   if (create_heap_objects) {
     // Create initial maps.
     if (!CreateInitialMaps()) return false;
@@ -5029,8 +5032,6 @@ bool Heap::Setup(bool create_heap_objects) {
   // This should be called only after initial objects have been created.
   isolate_->producer_heap_profile()->Setup();
 #endif
-
-  if (!marking()->Setup()) return false;
 
   store_buffer()->Setup();
 

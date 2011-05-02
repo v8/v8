@@ -207,7 +207,11 @@ bool LCodeGen::GeneratePrologue() {
         // registers, so we have to use a third register to avoid
         // clobbering esi.
         __ mov(ecx, esi);
-        __ RecordWrite(ecx, context_offset, eax, ebx, kDontSaveFPRegs);
+        __ RecordWriteContextSlot(ecx,
+                                  context_offset,
+                                  eax,
+                                  ebx,
+                                  kDontSaveFPRegs);
       }
     }
     Comment(";;; End allocate local context");
@@ -2113,7 +2117,7 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   if (instr->needs_write_barrier()) {
     Register temp = ToRegister(instr->TempAt(0));
     int offset = Context::SlotOffset(instr->slot_index());
-    __ RecordWrite(context, offset, value, temp, kSaveFPRegs);
+    __ RecordWriteContextSlot(context, offset, value, temp, kSaveFPRegs);
   }
 }
 
@@ -2842,7 +2846,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     if (instr->needs_write_barrier()) {
       Register temp = ToRegister(instr->TempAt(0));
       // Update the write barrier for the object for in-object properties.
-      __ RecordWrite(object, offset, value, temp, kSaveFPRegs);
+      __ RecordWriteField(object, offset, value, temp, kSaveFPRegs);
     }
   } else {
     Register temp = ToRegister(instr->TempAt(0));
@@ -2851,7 +2855,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     if (instr->needs_write_barrier()) {
       // Update the write barrier for the properties array.
       // object is used as a scratch register.
-      __ RecordWrite(temp, offset, value, object, kSaveFPRegs);
+      __ RecordWriteField(temp, offset, value, object, kSaveFPRegs);
     }
   }
 }

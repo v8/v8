@@ -516,19 +516,22 @@ class RecordWriteStub: public CodeStub {
         value_(value),
         address_(address),
         emit_remembered_set_(emit_remembered_set),
-        save_fp_regs_mode_(fp_mode) {
+        save_fp_regs_mode_(fp_mode),
+        regs_(object,   // An input reg.
+              address,  // An input reg.
+              value) {  // One scratch reg.
   }
 
-  static const byte kTwoByteNopInstruction = 0x3c;           // Cmpb al, #imm8.
-  static const byte kSkipIncrementalPartInstruction = 0xeb;  // Jmp #imm8.
+  static const byte kTwoByteNopInstruction = 0x3c;          // Cmpb al, #imm8.
+  static const byte kSkipNonIncrementalPartInstruction = 0xeb;  // Jmp #imm8.
 
   static byte GetInstruction(bool enable) {
     // Can't use ternary operator here, because gcc makes an undefined
     // reference to a static const int.
     if (enable) {
-      return kTwoByteNopInstruction;
+      return kSkipNonIncrementalPartInstruction;
     } else {
-      return kSkipIncrementalPartInstruction;
+      return kTwoByteNopInstruction;
     }
   }
 
@@ -538,7 +541,157 @@ class RecordWriteStub: public CodeStub {
   }
 
  private:
+  // This is a helper class for freeing up 3 scratch registers, where the third
+  // is always ecx (needed for shift operations).  The input is two registers
+  // that must be preserved and one scratch register provided by the caller.
+  class RegisterAllocation {
+   public:
+    RegisterAllocation(Register object,
+                       Register address,
+                       Register scratch0)
+        : object_orig_(object),
+          address_orig_(address),
+          scratch0_orig_(scratch0),
+          object_(object),
+          address_(address),
+          scratch0_(scratch0) {
+      ASSERT(!Aliasing(scratch0, object, address, no_reg));
+      scratch1_ = GetRegThatIsNotEcxOr(object_, address_, scratch0_);
+      if (scratch0.is(ecx)) {
+        scratch0_ = GetRegThatIsNotEcxOr(object_, address_, scratch1_);
+      }
+      if (object.is(ecx)) {
+        object_ = GetRegThatIsNotEcxOr(address_, scratch0_, scratch1_);
+      }
+      if (address.is(ecx)) {
+        address_ = GetRegThatIsNotEcxOr(object_, scratch0_, scratch1_);
+      }
+      ASSERT(!Aliasing(scratch0_, object_, address_, ecx));
+    }
+
+    void Save(MacroAssembler* masm) {
+      ASSERT(!address_orig_.is(object_));
+      ASSERT(object_.is(object_orig_) || address_.is(address_orig_));
+      ASSERT(!Aliasing(object_, address_, scratch1_, scratch0_));
+      ASSERT(!Aliasing(object_orig_, address_, scratch1_, scratch0_));
+      ASSERT(!Aliasing(object_, address_orig_, scratch1_, scratch0_));
+      // We don't have to save scratch0_orig_ because it was given to us as
+      // a scratch register.  But if we had to switch to a different reg then
+      // we should save the new scratch0_.
+      if (!scratch0_.is(scratch0_orig_)) masm->push(scratch0_);
+      if (!ecx.is(scratch0_orig_) &&
+          !ecx.is(object_orig_) &&
+          !ecx.is(address_orig_)) {
+        masm->push(ecx);
+      }
+      masm->push(scratch1_);
+      if (!address_.is(address_orig_)) {
+        masm->push(address_);
+        masm->mov(address_, address_orig_);
+      }
+      if (!object_.is(object_orig_)) {
+        masm->push(object_);
+        masm->mov(object_, object_orig_);
+      }
+    }
+
+    void Restore(MacroAssembler* masm) {
+      // These will have been preserved the entire time, so we just need to move
+      // them back.  Only in one case is the orig_ reg different from the plain
+      // one, since only one of them can alias with ecx.
+      if (!object_.is(object_orig_)) {
+        masm->mov(object_orig_, object_);
+        masm->pop(object_);
+      }
+      if (!address_.is(address_orig_)) {
+        masm->mov(address_orig_, address_);
+        masm->pop(address_);
+      }
+      masm->pop(scratch1_);
+      if (!ecx.is(scratch0_orig_) &&
+          !ecx.is(object_orig_) &&
+          !ecx.is(address_orig_)) {
+        masm->pop(ecx);
+      }
+      if (!scratch0_.is(scratch0_orig_)) masm->pop(scratch0_);
+    }
+
+    // If we have to call into C then we need to save and restore all caller-
+    // saved registers that were not already preserved.  The caller saved
+    // registers are eax, ecx and adx.  The three scratch registers (incl. ecx)
+    // will be restored by other means so we don't bother pushing them here.
+    void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
+      if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->push(eax);
+      if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->push(edx);
+      if (mode == kSaveFPRegs) {
+        CpuFeatures::Scope scope(SSE2);
+        masm->sub(Operand(esp),
+                   Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));
+        // Save all XMM registers except XMM0.
+        for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
+          XMMRegister reg = XMMRegister::from_code(i);
+          masm->movdbl(Operand(esp, (i - 1) * kDoubleSize), reg);
+        }
+      }
+    }
+
+    inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
+                                           SaveFPRegsMode mode) {
+      if (mode == kSaveFPRegs) {
+        CpuFeatures::Scope scope(SSE2);
+        // Restore all XMM registers except XMM0.
+        for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
+          XMMRegister reg = XMMRegister::from_code(i);
+          masm->movdbl(reg, Operand(esp, (i - 1) * kDoubleSize));
+        }
+        masm->add(Operand(esp),
+                  Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));
+      }
+      if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->pop(edx);
+      if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->pop(eax);
+    }
+
+    inline Register object() { return object_; }
+    inline Register address() { return address_; }
+    inline Register scratch0() { return scratch0_; }
+    inline Register scratch1() { return scratch1_; }
+
+   private:
+    Register object_orig_;
+    Register address_orig_;
+    Register scratch0_orig_;
+    Register object_;
+    Register address_;
+    Register scratch0_;
+    Register scratch1_;
+    // Third scratch register is always ecx.
+
+    Register GetRegThatIsNotEcxOr(Register r1,
+                                  Register r2,
+                                  Register r3) {
+      for (int i = 0; i < Register::kNumAllocatableRegisters; i++) {
+        Register candidate = Register::FromAllocationIndex(i);
+        if (candidate.is(ecx)) continue;
+        if (candidate.is(r1)) continue;
+        if (candidate.is(r2)) continue;
+        if (candidate.is(r3)) continue;
+        return candidate;
+      }
+      UNREACHABLE();
+      return no_reg;
+    }
+    friend class RecordWriteStub;
+  };
+
   void Generate(MacroAssembler* masm);
+  void GenerateIncremental(MacroAssembler* masm);
+  void GenerateIncrementalValueIsInNewSpace(MacroAssembler* masm);
+  void GenerateIncrementalValueIsInNewSpaceObjectIsInOldSpaceRememberedSet(
+        MacroAssembler* masm);
+  void GenerateIncrementalValueIsInNewSpaceObjectIsInOldSpaceNoRememberedSet(
+        MacroAssembler* masm,
+        Label* value_in_new_space_object_is_black_no_remembered_set);
+  void GenerateIncrementalValueIsInOldSpace(MacroAssembler* masm);
 
   Major MajorKey() { return RecordWrite; }
 
@@ -561,6 +714,8 @@ class RecordWriteStub: public CodeStub {
   Register address_;
   EmitRememberedSet emit_remembered_set_;
   SaveFPRegsMode save_fp_regs_mode_;
+  Label slow_;
+  RegisterAllocation regs_;
 };
 
 

@@ -59,6 +59,8 @@ enum ObjectMode { PRESERVE_OBJECT, DESTROY_OBJECT };
 enum ValueMode { PRESERVE_VALUE, DESTROY_VALUE };
 enum AddressMode { PRESERVE_ADDRESS, DESTROY_ADDRESS };
 
+bool Aliasing(Register r1, Register r2, Register r3, Register r4);
+
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
  public:
@@ -74,8 +76,7 @@ class MacroAssembler: public Assembler {
   // For page containing |object| mark region covering |addr| dirty.
   // RememberedSetHelper only works if the object is not in new
   // space.
-  void RememberedSetHelper(Register object,
-                           Register addr,
+  void RememberedSetHelper(Register addr,
                            Register scratch,
                            SaveFPRegsMode save_fp);
 
@@ -87,18 +88,99 @@ class MacroAssembler: public Assembler {
                   Condition cc,  // equal for new space, not_equal otherwise.
                   LabelType* branch);
 
-  // For page containing |object| mark region covering [object+offset]
-  // dirty. |object| is the object being stored into, |value| is the
-  // object being stored. If offset is zero, then the scratch register
-  // contains the array index into the elements array represented as a
-  // Smi. All registers are clobbered by the operation. RecordWrite
+  // Check if old-space object is on a scan-on-scavenge page.
+  template <typename LabelType>
+  void HasScanOnScavenge(Register object,
+                         Register scratch,
+                         LabelType* scan_on_scavenge);
+
+  // Check if an object has a given incremental marking colour.  Also uses ecx!
+  // The colour bits are found by splitting the address at the bit offset
+  // indicated by the mask: bits that are zero in the mask are used for the
+  // address of the bitmap, and bits that are one in the mask are used for the
+  // index of the bit.
+  template <typename LabelType>
+  void HasColour(Register object,
+                 Register scratch0,
+                 Register scratch1,
+                 LabelType* has_colour,
+                 uint32_t mask,
+                 int header_size,
+                 int first_bit,
+                 int second_bit,
+                 bool in_new_space);
+
+  template <typename LabelType>
+  void InOldSpaceIsBlack(Register object,
+                         Register scratch0,
+                         Register scratch1,
+                         LabelType* is_black);
+
+  template <typename LabelType>
+  void InNewSpaceIsBlack(Register object,
+                         Register scratch0,
+                         Register scratch1,
+                         LabelType* is_black);
+
+  // Checks the colour of an object.  If the object is already grey or black
+  // then we just fall through, since it is already live.  If it is white and
+  // we can determine that it doesn't need to be scanned, then we just mark it
+  // black and fall through.  For the rest we jump to the label so the
+  // incremental marker can fix its assumptions.
+  template <typename LabelType>
+  void EnsureNotWhite(Register object,
+                      Register scratch1,
+                      Register scratch2,
+                      LabelType* object_is_white_and_not_data,
+                      bool in_new_space);
+
+  // Checks whether an object is data-only, ie it does need to be scanned by the
+  // garbage collector.
+  template <typename LabelType>
+  void IsDataObject(Register value,
+                    Register scratch,
+                    LabelType* not_data_object,
+                    bool in_new_space);
+
+  // Notify the garbage collector that we wrote a pointer into an object.
+  // |object| is the object being stored into, |value| is the object being
+  // stored.  All registers are clobbered by the operation.  RecordWriteField
+  // filters out smis so it does not update the write barrier if the value is a
+  // smi.  The offset is the offset from the start of the object, not the offset
+  // from the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
+  void RecordWriteField(Register object,
+                        int offset,
+                        Register value,
+                        Register scratch,
+                        SaveFPRegsMode save_fp);
+
+  // As above, but the offset has the tag presubtracted.  For use with
+  // Operand(reg, off).
+  inline void RecordWriteContextSlot(Register context,
+                                     int offset,
+                                     Register value,
+                                     Register scratch,
+                                     SaveFPRegsMode save_fp) {
+    RecordWriteField(context,
+                     offset + kHeapObjectTag,
+                     value,
+                     scratch,
+                     save_fp);
+  }
+
+
+
+
+  // Notify the garbage collector that we wrote a pointer into a fixed array.
+  // |array| is the array being stored into, |value| is the
+  // object being stored.  |index| is the array index represented as a
+  // Smi. All registers are clobbered by the operation RecordWriteArray
   // filters out smis so it does not update the write barrier if the
   // value is a smi.
-  void RecordWrite(Register object,
-                   int offset,
-                   Register value,
-                   Register scratch,
-                   SaveFPRegsMode save_fp);
+  void RecordWriteArray(Register array,
+                        Register value,
+                        Register index,
+                        SaveFPRegsMode save_fp);
 
   // For page containing |object| mark region covering |address|
   // dirty. |object| is the object being stored into, |value| is the
@@ -687,6 +769,15 @@ class MacroAssembler: public Assembler {
                                                     Register scratch,
                                                     bool gc_allowed);
 
+  // Helper for finding the mark bits for an address.  Afterwards, the
+  // bitmap register points at the word with the mark bits and the mask
+  // the position of the first bit.  Uses ecx as scratch and leaves addr_reg
+  // unchanged.
+  inline void MarkBits(Register addr_reg,
+                       Register bitmap_reg,
+                       Register mask_reg,
+                       int32_t high_mask,
+                       bool in_new_space);
 
   // Compute memory operands for safepoint stack slots.
   Operand SafepointRegisterSlot(Register reg);
@@ -706,7 +797,7 @@ void MacroAssembler::InNewSpace(Register object,
   ASSERT(cc == equal || cc == not_equal);
   if (Serializer::enabled()) {
     // Can't do arithmetic on external references if it might get serialized.
-    mov(scratch, Operand(object));
+    Move(scratch, object);
     // The mask isn't really an address.  We load it as an external reference in
     // case the size of the new space is different between the snapshot maker
     // and the running system.
@@ -716,7 +807,11 @@ void MacroAssembler::InNewSpace(Register object,
   } else {
     int32_t new_space_start = reinterpret_cast<int32_t>(
         ExternalReference::new_space_start().address());
-    lea(scratch, Operand(object, -new_space_start));
+    if (object.is(scratch)) {
+      sub(Operand(scratch), Immediate(new_space_start));
+    } else {
+      lea(scratch, Operand(object, -new_space_start));
+    }
     and_(scratch, HEAP->NewSpaceMask());
     j(cc, branch);
   }

@@ -1031,7 +1031,7 @@ void LAllocator::ResolvePhis(HBasicBlock* block) {
       // We are going to insert a move before the branch instruction.
       // Some branch instructions (e.g. loops' back edges)
       // can potentially cause a GC so they have a pointer map.
-      // By insterting a move we essentially create a copy of a
+      // By inserting a move we essentially create a copy of a
       // value which is invisible to PopulatePointerMaps(), because we store
       // it into a location different from the operand of a live range
       // covering a branch instruction.
@@ -1130,7 +1130,7 @@ void LAllocator::ResolveControlFlow(LiveRange* range,
         // We are going to insert a move before the branch instruction.
         // Some branch instructions (e.g. loops' back edges)
         // can potentially cause a GC so they have a pointer map.
-        // By insterting a move we essentially create a copy of a
+        // By inserting a move we essentially create a copy of a
         // value which is invisible to PopulatePointerMaps(), because we store
         // it into a location different from the operand of a live range
         // covering a branch instruction.

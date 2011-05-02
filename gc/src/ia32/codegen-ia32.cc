@@ -271,11 +271,11 @@ void CodeGenerator::Generate(CompilationInfo* info) {
           ASSERT(scratch.is_valid());
           frame_->Spill(context.reg());
           frame_->Spill(value.reg());
-          __ RecordWrite(context.reg(),
-                         offset,
-                         value.reg(),
-                         scratch.reg(),
-                         kDontSaveFPRegs);
+          __ RecordWriteField(context.reg(),
+                              offset,
+                              value.reg(),
+                              scratch.reg(),
+                              kDontSaveFPRegs);
         }
       }
     }
@@ -5340,11 +5340,11 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
       Result temp = allocator_->Allocate();
       ASSERT(temp.is_valid());
-      __ RecordWrite(start.reg(),
-                     offset,
-                     value.reg(),
-                     temp.reg(),
-                     kDontSaveFPRegs);
+      __ RecordWriteField(start.reg(),
+                          offset,
+                          value.reg(),
+                          temp.reg(),
+                          kDontSaveFPRegs);
       // The results start, value, and temp are unused by going out of
       // scope.
     }
@@ -5749,11 +5749,11 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     frame_->Spill(prop_value.reg());  // Overwritten by the write barrier.
     Result scratch = allocator_->Allocate();
     ASSERT(scratch.is_valid());
-    __ RecordWrite(elements.reg(),
-                   offset,
-                   prop_value.reg(),
-                   scratch.reg(),
-                   kDontSaveFPRegs);
+    __ RecordWriteField(elements.reg(),
+                        offset,
+                        prop_value.reg(),
+                        scratch.reg(),
+                        kDontSaveFPRegs);
   }
 }
 
@@ -7386,8 +7386,11 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   // The object register is also overwritten by the write barrier and
   // possibly aliased in the frame.
   frame_->Spill(object.reg());
-  __ RecordWrite(object.reg(), JSValue::kValueOffset, duplicate_value.reg(),
-                 scratch.reg(), kDontSaveFPRegs);
+  __ RecordWriteField(object.reg(),
+                      JSValue::kValueOffset,
+                      duplicate_value.reg(),
+                      scratch.reg(),
+                      kDontSaveFPRegs);
   duplicate_value.Unuse();
 
   object.Unuse();
@@ -7661,7 +7664,7 @@ void DeferredSearchCache::Generate() {
   __ mov(FieldOperand(ecx, JSFunctionResultCache::kFingerOffset), edx);
   // Store key.
   __ mov(CodeGenerator::FixedArrayElementOperand(ecx, edx), ebx);
-  __ RecordWrite(ecx, 0, ebx, edx, kDontSaveFPRegs);
+  __ RecordWriteArray(ecx, ebx, edx, kDontSaveFPRegs);
 
   // Store value.
   __ pop(ecx);  // restore the cache.
@@ -7669,7 +7672,7 @@ void DeferredSearchCache::Generate() {
   __ add(Operand(edx), Immediate(Smi::FromInt(1)));
   __ mov(ebx, eax);
   __ mov(CodeGenerator::FixedArrayElementOperand(ecx, edx), ebx);
-  __ RecordWrite(ecx, 0, ebx, edx, kDontSaveFPRegs);
+  __ RecordWriteArray(ecx, ebx, edx, kDontSaveFPRegs);
 
   if (!dst_.is(eax)) {
     __ mov(dst_, eax);
@@ -7843,14 +7846,9 @@ void CodeGenerator::GenerateSwapElements(ZoneList<Expression*>* args) {
   // so we don't call the stub that handles this.  TODO(gc): Optimize by
   // checking the scan_on_scavenge flag, probably by calling the stub.
   __ mov(tmp2.reg(), tmp1.reg());
-  __ RememberedSetHelper(tmp2.reg(),
-                         index1.reg(),
-                         object.reg(),
-                         kDontSaveFPRegs);
-  __ RememberedSetHelper(tmp1.reg(),
-                         index2.reg(),
-                         object.reg(),
-                         kDontSaveFPRegs);
+  __ int3();
+  __ RememberedSetHelper(index1.reg(), eax, kDontSaveFPRegs);
+  __ RememberedSetHelper(index2.reg(), eax, kDontSaveFPRegs);
   __ bind(&done);
 
   deferred->BindExit();
@@ -9801,24 +9799,18 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
       __ mov(receiver.reg(), Operand(value.reg()));
     }
 
-    // Update the write barrier. To save instructions in the inlined
-    // version we do not filter smis.
-    Label skip_write_barrier;
-    __ InNewSpace(receiver.reg(), value.reg(), equal, &skip_write_barrier);
     int delta_to_record_write = masm_->SizeOfCodeGeneratedSince(&patch_site);
     __ lea(scratch.reg(), Operand(receiver.reg(), offset));
-    // This code does not work with the incremental marker!  Luckily this file
-    // is going away soon.
-    __ RememberedSetHelper(receiver.reg(),
-                           scratch.reg(),
-                           value.reg(),
-                           kDontSaveFPRegs);
+    __ RecordWrite(receiver.reg(),
+                   scratch.reg(),
+                   value.reg(),
+                   EMIT_REMEMBERED_SET,
+                   kDontSaveFPRegs);
     if (FLAG_debug_code) {
       __ mov(receiver.reg(), Immediate(BitCast<int32_t>(kZapValue)));
       __ mov(value.reg(), Immediate(BitCast<int32_t>(kZapValue)));
       __ mov(scratch.reg(), Immediate(BitCast<int32_t>(kZapValue)));
     }
-    __ bind(&skip_write_barrier);
     value.Unuse();
     scratch.Unuse();
     receiver.Unuse();

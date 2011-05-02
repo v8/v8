@@ -365,6 +365,13 @@ class Operand BASE_EMBEDDED {
   // Returns true if this Operand is a wrapper for the specified register.
   bool is_reg(Register reg) const;
 
+  // Returns true if this Operand is a wrapper for one register.
+  bool is_reg_only() const;
+
+  // Asserts that this Operand is a wrapper for one register and returns the
+  // register.
+  Register reg() const;
+
  private:
   byte buf_[6];
   // The number of bytes in buf_.
@@ -761,8 +768,6 @@ class Assembler : public Malloced {
   void shr(Register dst, uint8_t imm8);
   void shr_cl(Register dst);
 
-  void subb(const Operand& dst, int8_t imm8);
-  void subb(Register dst, const Operand& src);
   void sub(const Operand& dst, const Immediate& x);
   void sub(Register dst, const Operand& src);
   void sub(const Operand& dst, Register src);

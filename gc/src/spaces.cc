@@ -415,7 +415,9 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->flags_ = 0;
   chunk->set_owner(owner);
   chunk->markbits()->Clear();
-  chunk->set_scan_on_scavenge(false);
+  chunk->initialize_scan_on_scavenge(false);
+  ASSERT(OFFSET_OF(MemoryChunk, scan_on_scavenge_) == kScanOnScavengeOffset);
+  ASSERT(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
 
   if (executable == EXECUTABLE) chunk->SetFlag(IS_EXECUTABLE);
 

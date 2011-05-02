@@ -577,6 +577,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference new_space_start();
   static ExternalReference new_space_mask();
   static ExternalReference heap_always_allocate_scope_depth();
+  static ExternalReference new_space_mark_bits();
 
   // Write barrier.
   static ExternalReference store_buffer_top();

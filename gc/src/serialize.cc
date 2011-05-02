@@ -386,110 +386,114 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       11,
       "Heap::NewSpaceMask()");
-  Add(ExternalReference::heap_always_allocate_scope_depth().address(),
+  Add(ExternalReference::new_space_mark_bits().address(),
       UNCLASSIFIED,
       12,
+      "Marking::new_space_bitmap()");
+  Add(ExternalReference::heap_always_allocate_scope_depth().address(),
+      UNCLASSIFIED,
+      13,
       "Heap::always_allocate_scope_depth()");
   Add(ExternalReference::new_space_allocation_limit_address().address(),
       UNCLASSIFIED,
-      13,
+      14,
       "Heap::NewSpaceAllocationLimitAddress()");
   Add(ExternalReference::new_space_allocation_top_address().address(),
       UNCLASSIFIED,
-      14,
+      15,
       "Heap::NewSpaceAllocationTopAddress()");
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Add(ExternalReference::debug_break().address(),
       UNCLASSIFIED,
-      15,
+      16,
       "Debug::Break()");
   Add(ExternalReference::debug_step_in_fp_address().address(),
       UNCLASSIFIED,
-      16,
+      17,
       "Debug::step_in_fp_addr()");
 #endif
   Add(ExternalReference::double_fp_operation(Token::ADD).address(),
       UNCLASSIFIED,
-      17,
+      18,
       "add_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::SUB).address(),
       UNCLASSIFIED,
-      18,
+      19,
       "sub_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::MUL).address(),
       UNCLASSIFIED,
-      19,
+      20,
       "mul_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::DIV).address(),
       UNCLASSIFIED,
-      20,
+      21,
       "div_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::MOD).address(),
       UNCLASSIFIED,
-      21,
+      22,
       "mod_two_doubles");
   Add(ExternalReference::compare_doubles().address(),
       UNCLASSIFIED,
-      22,
+      23,
       "compare_doubles");
 #ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16().address(),
       UNCLASSIFIED,
-      23,
+      24,
       "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()");
   Add(ExternalReference::re_check_stack_guard_state().address(),
       UNCLASSIFIED,
-      24,
+      25,
       "RegExpMacroAssembler*::CheckStackGuardState()");
   Add(ExternalReference::re_grow_stack().address(),
       UNCLASSIFIED,
-      25,
+      26,
       "NativeRegExpMacroAssembler::GrowStack()");
   Add(ExternalReference::re_word_character_map().address(),
       UNCLASSIFIED,
-      26,
+      27,
       "NativeRegExpMacroAssembler::word_character_map");
 #endif  // V8_INTERPRETED_REGEXP
   // Keyed lookup cache.
   Add(ExternalReference::keyed_lookup_cache_keys().address(),
       UNCLASSIFIED,
-      27,
+      28,
       "KeyedLookupCache::keys()");
   Add(ExternalReference::keyed_lookup_cache_field_offsets().address(),
       UNCLASSIFIED,
-      28,
+      29,
       "KeyedLookupCache::field_offsets()");
   Add(ExternalReference::transcendental_cache_array_address().address(),
       UNCLASSIFIED,
-      29,
+      30,
       "TranscendentalCache::caches()");
   Add(ExternalReference::handle_scope_next_address().address(),
       UNCLASSIFIED,
-      30,
+      31,
       "HandleScope::next");
   Add(ExternalReference::handle_scope_limit_address().address(),
       UNCLASSIFIED,
-      31,
+      32,
       "HandleScope::limit");
   Add(ExternalReference::handle_scope_level_address().address(),
       UNCLASSIFIED,
-      32,
+      33,
       "HandleScope::level");
   Add(ExternalReference::new_deoptimizer_function().address(),
       UNCLASSIFIED,
-      33,
+      34,
       "Deoptimizer::New()");
   Add(ExternalReference::compute_output_frames_function().address(),
       UNCLASSIFIED,
-      34,
+      35,
       "Deoptimizer::ComputeOutputFrames()");
   Add(ExternalReference::address_of_min_int().address(),
       UNCLASSIFIED,
-      35,
+      36,
       "LDoubleConstant::min_int");
   Add(ExternalReference::address_of_one_half().address(),
       UNCLASSIFIED,
-      36,
+      37,
       "LDoubleConstant::one_half");
   Add(ExternalReference::isolate_address().address(),
       UNCLASSIFIED,

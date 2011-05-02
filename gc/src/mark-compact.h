@@ -59,6 +59,11 @@ class Marking {
 
   inline MarkBit MarkBitFrom(Address addr);
 
+  // For embedding in generated code.
+  inline Address new_space_bitmap() {
+    return reinterpret_cast<Address>(new_space_bitmap_);
+  }
+
   inline MarkBit MarkBitFrom(HeapObject* obj) {
     return MarkBitFrom(reinterpret_cast<Address>(obj));
   }

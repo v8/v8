@@ -839,7 +839,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 
   // Update write barrier for the elements array address.
   __ mov(edx, Operand(eax));
-  __ RecordWrite(edi, 0, edx, ecx, kDontSaveFPRegs);
+  __ RecordWriteArray(edi, edx, ecx, kDontSaveFPRegs);
   __ ret(0);
 }
 

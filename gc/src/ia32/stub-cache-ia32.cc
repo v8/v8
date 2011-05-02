@@ -817,7 +817,11 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
     __ mov(name_reg, Operand(eax));
-    __ RecordWrite(receiver_reg, offset, name_reg, scratch, kDontSaveFPRegs);
+    __ RecordWriteField(receiver_reg,
+                        offset,
+                        name_reg,
+                        scratch,
+                        kDontSaveFPRegs);
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
@@ -828,7 +832,11 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
     __ mov(name_reg, Operand(eax));
-    __ RecordWrite(scratch, offset, name_reg, receiver_reg, kDontSaveFPRegs);
+    __ RecordWriteField(scratch,
+                        offset,
+                        name_reg,
+                        receiver_reg,
+                        kDontSaveFPRegs);
   }
 
   // Return the value (register eax).
@@ -2651,8 +2659,14 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ j(zero, &done);
 
   __ mov(ecx, eax);
+  __ lea(edx, cell_operand);
   // Cells are always in the remembered set.
-  __ RecordWrite(ebx, edx, ecx, OMIT_REMEMBERED_SET, kDontSaveFPRegs);
+  __ RecordWrite(ebx,  // Object.
+                 edx,  // Address.
+                 ecx,  // Value.
+                 OMIT_REMEMBERED_SET,
+                 kDontSaveFPRegs,
+                 OMIT_SMI_CHECK);
 
   // Return the value (register eax).
   __ bind(&done);
@@ -2753,7 +2767,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
   // the value in register eax.
   __ mov(edx, Operand(eax));
   __ mov(FieldOperand(edi, ecx, times_2, FixedArray::kHeaderSize), eax);
-  __ RecordWrite(edi, 0, edx, ecx, kDontSaveFPRegs);
+  __ RecordWriteArray(edi, edx, ecx, kDontSaveFPRegs);
 
   // Done.
   __ ret(0);

@@ -58,12 +58,12 @@ CpuFeatures::CpuFeatures()
 // The Probe method needs executable memory, so it uses Heap::CreateCode.
 // Allocation failure is silent and leads to safe default.
 void CpuFeatures::Probe(bool portable) {
-  ASSERT(HEAP->HasBeenSetup());
   ASSERT(supported_ == 0);
   if (portable && Serializer::enabled()) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
     return;  // No features if we might serialize.
   }
+  ASSERT(HEAP->HasBeenSetup());
 
   Assembler assm(NULL, 0);
   Label cpuid, done;
@@ -283,6 +283,18 @@ bool Operand::is_reg(Register reg) const {
   return ((buf_[0] & 0xF8) == 0xC0)  // addressing mode is register only.
       && ((buf_[0] & 0x07) == reg.code());  // register codes match.
 }
+
+
+bool Operand::is_reg_only() const {
+  return (buf_[0] & 0xF8) == 0xC0;  // Addressing mode is register only.
+}
+
+
+Register Operand::reg() const {
+  ASSERT(is_reg_only());
+  return Register::from_code(buf_[0] & 0x07);
+}
+
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
@@ -908,8 +920,12 @@ void Assembler::and_(const Operand& dst, Register src) {
 void Assembler::cmpb(const Operand& op, int8_t imm8) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0x80);
-  emit_operand(edi, op);  // edi == 7
+  if (op.is_reg(eax)) {
+    EMIT(0x3C);
+  } else {
+    EMIT(0x80);
+    emit_operand(edi, op);  // edi == 7
+  }
   EMIT(imm8);
 }
 
@@ -1276,19 +1292,6 @@ void Assembler::shr_cl(Register dst) {
 }
 
 
-void Assembler::subb(const Operand& op, int8_t imm8) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  if (op.is_reg(eax)) {
-    EMIT(0x2c);
-  } else {
-    EMIT(0x80);
-    emit_operand(ebp, op);  // ebp == 5
-  }
-  EMIT(imm8);
-}
-
-
 void Assembler::sub(const Operand& dst, const Immediate& x) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1300,15 +1303,6 @@ void Assembler::sub(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x2B);
-  emit_operand(dst, src);
-}
-
-
-void Assembler::subb(Register dst, const Operand& src) {
-  ASSERT(dst.code() < 4);
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  EMIT(0x2A);
   emit_operand(dst, src);
 }
 
@@ -1374,6 +1368,10 @@ void Assembler::test(const Operand& op, const Immediate& imm) {
 
 
 void Assembler::test_b(const Operand& op, uint8_t imm8) {
+  if (op.is_reg_only() && op.reg().code() >= 4) {
+    test(op, Immediate(imm8));
+    return;
+  }
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xF6);

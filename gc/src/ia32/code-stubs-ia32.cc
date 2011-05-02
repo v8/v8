@@ -31,8 +31,9 @@
 
 #include "code-stubs.h"
 #include "bootstrapper.h"
-#include "jsregexp.h"
 #include "isolate.h"
+#include "jsregexp.h"
+#include "macro-assembler-ia32-inl.h"
 #include "regexp-macro-assembler.h"
 
 namespace v8 {
@@ -4055,15 +4056,19 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(FieldOperand(ebx, RegExpImpl::kLastSubjectOffset), eax);
   __ mov(ecx, ebx);
-  __ RecordWrite(ecx,
-                 RegExpImpl::kLastSubjectOffset,
-                 eax,
-                 edi,
-                 kDontSaveFPRegs);
+  __ RecordWriteField(ecx,
+                      RegExpImpl::kLastSubjectOffset,
+                      eax,
+                      edi,
+                      kDontSaveFPRegs);
   __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(FieldOperand(ebx, RegExpImpl::kLastInputOffset), eax);
   __ mov(ecx, ebx);
-  __ RecordWrite(ecx, RegExpImpl::kLastInputOffset, eax, edi, kDontSaveFPRegs);
+  __ RecordWriteField(ecx,
+                      RegExpImpl::kLastInputOffset,
+                      eax,
+                      edi,
+                      kDontSaveFPRegs);
 
   // Get the static offsets vector filled by the native regexp code.
   ExternalReference address_of_static_offsets_vector =
@@ -6493,43 +6498,247 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 }
 
 
+// Takes the input in 3 registers: address_ value_ and object_.  A pointer to
+// the value has just been written into the object, now this stub makes sure
+// we keep the GC informed.  The word in the object where the value has been
+// written is in the address register.
 void RecordWriteStub::Generate(MacroAssembler* masm) {
-  NearLabel skip_incremental_part;
-  __ jmp(&skip_incremental_part);
-
-  // TODO(gc) ISOLATES MERGE
-  // TODO(gc) possible bug, figure out what happens if GC is triggered
-  // (incremental marking starts) during allocation of code object for this
-  // stub. Looks like this stub will not be patched.
-  if (!HEAP->incremental_marking()->IsStopped()) {
-    ASSERT(masm->get_opcode(-2) == kSkipIncrementalPartInstruction);
+  NearLabel skip_non_incremental_part;
+  __ jmp(&skip_non_incremental_part);
+  if (HEAP->incremental_marking()->IsStopped()) {
+    ASSERT(masm->get_opcode(-2) == kSkipNonIncrementalPartInstruction);
     masm->set_opcode(-2, kTwoByteNopInstruction);
   }
 
-  // If we are also emitting the remembered set code in this stub then we have
-  // the object we are writing into in the 'object' register and the slot in
-  // the 'address' register.  We insert a primitive test here to ensure that
-  // this is the case.  Otherwise the 'address' register is merely a scratch
-  // register.
-  if (FLAG_debug_code && emit_remembered_set_ == EMIT_REMEMBERED_SET) {
-    NearLabel ok;
-    __ cmp(address_, Operand(object_));
-    __ j(above_equal, &ok);
+  if (FLAG_debug_code) {
+    NearLabel ok, bad;
+    __ cmp(value_, Operand(address_, 0));
+    __ j(equal, &ok);
+    __ bind(&bad);
     __ int3();
     __ bind(&ok);
+
+    __ test(object_, Immediate(kSmiTagMask));
+    __ j(zero, &bad);
+    __ test(address_, Immediate(kSmiTagMask));
+    __ j(not_zero, &bad);
+    __ test(value_, Immediate(kSmiTagMask));
+    __ j(zero, &bad);
   }
-
-  __ IncrementalMarkingRecordWriteHelper(object_, value_, address_);
-
-  __ bind(&skip_incremental_part);
 
   if (emit_remembered_set_ == EMIT_REMEMBERED_SET) {
-    Register scratch = value_;
-    NearLabel done;
-    __ InNewSpace(object_, scratch, equal, &done);
-    __ RememberedSetHelper(object_, address_, scratch, save_fp_regs_mode_);
-    __ bind(&done);
+    NearLabel skip;
+    __ InNewSpace(address_, value_, equal, &skip);
+    __ HasScanOnScavenge(object_, value_, &skip);
+    __ RememberedSetHelper(address_, value_, save_fp_regs_mode_);
+    __ bind(&skip);
   }
+  __ ret(0);
+
+  __ bind(&skip_non_incremental_part);
+
+  GenerateIncremental(masm);
+}
+
+
+void RecordWriteStub::GenerateIncremental(MacroAssembler* masm) {
+  regs_.Save(masm);
+
+  Label value_in_old_space;
+
+  __ InNewSpace(value_, regs_.scratch0(), not_equal, &value_in_old_space);
+  // After this point the value_ register may have been overwritten since it is
+  // also one of the scratch registers.
+
+  GenerateIncrementalValueIsInNewSpace(masm);
+
+  __ bind(&value_in_old_space);
+  GenerateIncrementalValueIsInOldSpace(masm);
+
+  __ bind(&slow_);
+  // Inform the incremental marker, but don't bother with the remembered set.
+  regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode_);
+  // TODO(gc) we are assuming that xmm registers are not modified by
+  // the C function we are calling.
+  __ PrepareCallCFunction(2, regs_.scratch0());
+  __ mov(Operand(esp, 0 * kPointerSize), regs_.object());
+  __ mov(regs_.scratch0(), Operand(regs_.address(), 0));
+  __ mov(Operand(esp, 1 * kPointerSize), regs_.scratch0());  // Value.
+  // TODO(gc): Create a fast version of this C function that does not duplicate
+  // the checks done in the stub.
+  __ CallCFunction(
+      ExternalReference::incremental_marking_record_write_function(), 2);
+  regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode_);
+  regs_.Restore(masm);
+  __ ret(0);
+}
+
+
+void RecordWriteStub::GenerateIncrementalValueIsInNewSpace(
+    MacroAssembler* masm) {
+  Label both_in_new_space;
+  Label value_in_new_space_object_is_black_no_remembered_set;
+
+  // The value is in new space.  Check the object.
+  __ InNewSpace(regs_.object(), regs_.scratch0(), equal, &both_in_new_space);
+
+  // Value is in new space, object is in old space.  Could we be lucky and find
+  // the scan_on_scavenge flag on the object's page?
+  if (emit_remembered_set_ == EMIT_REMEMBERED_SET) {
+    Label scan_on_scavenge;
+    __ HasScanOnScavenge(regs_.object(), regs_.scratch0(), &scan_on_scavenge);
+    GenerateIncrementalValueIsInNewSpaceObjectIsInOldSpaceRememberedSet(masm);
+    __ bind(&scan_on_scavenge);
+  }
+  // This function will also bind the label.
+  GenerateIncrementalValueIsInNewSpaceObjectIsInOldSpaceNoRememberedSet(
+      masm, &value_in_new_space_object_is_black_no_remembered_set);
+
+  __ bind(&both_in_new_space);
+  __ InNewSpaceIsBlack(regs_.object(),
+                       regs_.scratch0(),
+                       regs_.scratch1(),
+                       &value_in_new_space_object_is_black_no_remembered_set);
+  regs_.Restore(masm);
+  __ ret(0);
+}
+
+
+void RecordWriteStub::
+    GenerateIncrementalValueIsInNewSpaceObjectIsInOldSpaceRememberedSet(
+        MacroAssembler* masm) {
+  NearLabel object_is_black, must_inform_both;
+  Label must_inform_both_far;
+
+  __ jmp(&must_inform_both_far);
+
+  // Lets look at the colour of the object:  If it is not black we don't have to
+  // inform the incremental marker.
+  __ InOldSpaceIsBlack(regs_.object(),
+                       regs_.scratch0(),
+                       regs_.scratch1(),
+                       &object_is_black);
+  regs_.Restore(masm);
+  __ RememberedSetHelper(address_, value_, save_fp_regs_mode_);
+  __ ret(0);
+
+  __ bind(&object_is_black);
+
+  __ mov(regs_.scratch0(), Operand(regs_.address(), 0));
+  __ push(regs_.object());
+  __ EnsureNotWhite(regs_.scratch0(),  // The value.
+                    regs_.scratch1(),  // Scratch.
+                    regs_.object(),  // Scratch.
+                    &must_inform_both,
+                    true);  // In new space.
+  __ pop(regs_.object());
+  regs_.Restore(masm);
+  __ RememberedSetHelper(address_, value_, save_fp_regs_mode_);
+  __ ret(0);
+
+  __ bind(&must_inform_both);
+  // Both the incremental marker and the the remembered set have to be informed.
+  __ pop(regs_.object());
+  __ bind(&must_inform_both_far);
+  regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode_);
+  // TODO(gc) we are assuming that xmm registers are not modified by
+  // the C function we are calling.
+  __ PrepareCallCFunction(2, regs_.scratch0());
+  __ mov(Operand(esp, 0 * kPointerSize), regs_.object());
+  __ mov(regs_.scratch0(), Operand(regs_.address(), 0));
+  __ mov(Operand(esp, 1 * kPointerSize), regs_.scratch0());  // Value.
+  __ CallCFunction(
+      ExternalReference::incremental_marking_record_write_function(), 2);
+  regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode_);
+  regs_.Restore(masm);
+  __ RememberedSetHelper(address_, value_, save_fp_regs_mode_);
+  __ ret(0);
+}
+
+
+void RecordWriteStub::
+    GenerateIncrementalValueIsInNewSpaceObjectIsInOldSpaceNoRememberedSet(
+        MacroAssembler* masm,
+        Label* value_in_new_space_object_is_black_no_remembered_set) {
+  NearLabel object_is_black, inform_incremental_marker;
+
+  __ jmp(&slow_);
+
+  __ InOldSpaceIsBlack(regs_.object(),
+                       regs_.scratch0(),
+                       regs_.scratch1(),
+                       &object_is_black);
+  regs_.Restore(masm);
+  __ ret(0);
+
+  __ bind(&object_is_black);
+  __ bind(value_in_new_space_object_is_black_no_remembered_set);
+
+  // Reload the value from the word in the object.
+  __ mov(regs_.scratch0(), Operand(regs_.address(), 0));
+
+  // We need one more scratch register in this case.  Use the object register.
+  __ push(regs_.object());
+
+  // Make sure the value is not white.  If we can't do that, jump to the label.
+  __ EnsureNotWhite(regs_.scratch0(),  // The value.
+                    regs_.scratch1(),  // Scratch.
+                    regs_.object(),    // Scratch.
+                    &inform_incremental_marker,
+                    true);  // In new space.
+  __ pop(regs_.object());
+  regs_.Restore(masm);
+  __ ret(0);
+
+  __ bind(&inform_incremental_marker);
+  __ pop(regs_.object());
+
+  __ jmp(&slow_);
+}
+
+
+void RecordWriteStub::GenerateIncrementalValueIsInOldSpace(
+    MacroAssembler* masm) {
+  NearLabel value_is_white;
+  Label value_in_old_space_and_white_object_in_new_space;
+  // If the value is in old space then the remembered set doesn't care.  We may
+  // be able to avoid logging anything if the incremental marker doesn't care
+  // either.
+  __ mov(regs_.scratch0(), Operand(regs_.address(), 0));
+  __ push(regs_.object());
+  __ EnsureNotWhite(regs_.scratch0(),  // The value.
+                    regs_.scratch1(),  // Scratch.
+                    regs_.object(),    // Scratch.
+                    &value_is_white,
+                    false);  // In old space.
+  __ pop(regs_.object());
+  regs_.Restore(masm);
+  __ ret(0);
+
+  // The value is in old space and white.  We have to find out which space the
+  // object is in in order to find its colour.
+  __ bind(&value_is_white);
+  __ pop(regs_.object());
+  __ InNewSpace(regs_.object(),
+                regs_.scratch0(),
+                equal,
+                &value_in_old_space_and_white_object_in_new_space);
+
+  // Both in old space, value is white and can't be marked.
+  __ InOldSpaceIsBlack(regs_.object(),
+                       regs_.scratch0(),
+                       regs_.scratch1(),
+                       &slow_);
+  regs_.Restore(masm);
+  __ ret(0);
+
+  // Object in new space, value in old space and white and can't be marked.
+  __ bind(&value_in_old_space_and_white_object_in_new_space);
+  __ InNewSpaceIsBlack(regs_.object(),
+                       regs_.scratch0(),
+                       regs_.scratch1(),
+                       &slow_);
+  regs_.Restore(masm);
   __ ret(0);
 }
 

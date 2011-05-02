@@ -108,24 +108,32 @@ class IncrementalMarking : public AllStatic {
   inline void RecordWrites(HeapObject* obj);
 
   // Impossible markbits: 01
+  static const char* kImpossibleBitPattern;
   static inline bool IsImpossible(MarkBit mark_bit) {
+    ASSERT(strcmp(kImpossibleBitPattern, "01") == 0);
     return !mark_bit.Get() && mark_bit.Next().Get();
   }
 
   // Black markbits: 10 - this is required by the sweeper.
+  static const char* kBlackBitPattern;
   static inline bool IsBlack(MarkBit mark_bit) {
+    ASSERT(strcmp(kBlackBitPattern, "10") == 0);
     ASSERT(!IsImpossible(mark_bit));
     return mark_bit.Get() && !mark_bit.Next().Get();
   }
 
   // White markbits: 00 - this is required by the mark bit clearer.
+  static const char* kWhiteBitPattern;
   static inline bool IsWhite(MarkBit mark_bit) {
+    ASSERT(strcmp(kWhiteBitPattern, "00") == 0);
     ASSERT(!IsImpossible(mark_bit));
     return !mark_bit.Get();
   }
 
   // Grey markbits: 11
+  static const char* kGreyBitPattern;
   static inline bool IsGrey(MarkBit mark_bit) {
+    ASSERT(strcmp(kGreyBitPattern, "11") == 0);
     ASSERT(!IsImpossible(mark_bit));
     return mark_bit.Get() && mark_bit.Next().Get();
   }

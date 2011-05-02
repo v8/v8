@@ -710,6 +710,11 @@ ExternalReference ExternalReference::new_space_start() {
 }
 
 
+ExternalReference ExternalReference::new_space_mark_bits() {
+  return ExternalReference(HEAP->marking()->new_space_bitmap());
+}
+
+
 ExternalReference ExternalReference::store_buffer_top() {
   return ExternalReference(HEAP->store_buffer()->TopAddress());
 }
