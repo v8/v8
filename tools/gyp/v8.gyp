@@ -193,19 +193,34 @@
             {
               'dependencies': ['v8_nosnapshot'],
             }],
-            ['OS=="win" and component=="shared_library"', {
+            ['component=="shared_library"', {
               'type': '<(component)',
               'sources': [
+                # Note: on non-Windows we still build this file so that gyp
+                # has some sources to link into the component.
                 '../../src/v8dll-main.cc',
               ],
-              'defines': [
-                'BUILDING_V8_SHARED'
+              'conditions': [
+                ['OS=="win"', {
+                  'defines': [
+                    'BUILDING_V8_SHARED',
+                  ],
+                  'direct_dependent_settings': {
+                    'defines': [
+                      'USING_V8_SHARED',
+                    ],
+                  },
+                }, {
+                  'defines': [
+                    'V8_SHARED',
+                  ],
+                  'direct_dependent_settings': {
+                    'defines': [
+                      'V8_SHARED',
+                    ],
+                  },
+                }],
               ],
-              'direct_dependent_settings': {
-                'defines': [
-                  'USING_V8_SHARED',
-                ],
-              },
             },
             {
               'type': 'none',
@@ -221,9 +236,27 @@
           'target_name': 'v8_snapshot',
           'type': '<(library)',
           'conditions': [
-            ['OS=="win" and component=="shared_library"', {
-              'defines': [
-                'BUILDING_V8_SHARED',
+            ['component=="shared_library"', {
+              'conditions': [
+                ['OS=="win"', {
+                  'defines': [
+                    'BUILDING_V8_SHARED',
+                  ],
+                  'direct_dependent_settings': {
+                    'defines': [
+                      'USING_V8_SHARED',
+                    ],
+                  },
+                }, {
+                  'defines': [
+                    'V8_SHARED',
+                  ],
+                  'direct_dependent_settings': {
+                    'defines': [
+                      'V8_SHARED',
+                    ],
+                  },
+                }],
               ],
             }],
           ],
@@ -276,9 +309,10 @@
               'cflags': ['-m32'],
               'ldflags': ['-m32'],
             }],
-            ['OS=="win" and component=="shared_library"', {
+            ['component=="shared_library"', {
               'defines': [
                 'BUILDING_V8_SHARED',
+                'V8_SHARED',
               ],
             }],
           ]
@@ -708,9 +742,10 @@
                 'libraries': [ '-lwinmm.lib' ],
               },
             }],
-            ['OS=="win" and component=="shared_library"', {
+            ['component=="shared_library"', {
               'defines': [
-                'BUILDING_V8_SHARED'
+                'BUILDING_V8_SHARED',
+                'V8_SHARED',
               ],
             }],
           ],

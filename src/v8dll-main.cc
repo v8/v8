@@ -25,9 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <windows.h>
-
 #include "../include/v8.h"
+
+#ifdef WIN32
+#include <windows.h>
 
 extern "C" {
 BOOL WINAPI DllMain(HANDLE hinstDLL,
@@ -37,3 +38,4 @@ BOOL WINAPI DllMain(HANDLE hinstDLL,
   return TRUE;
 }
 }
+#endif
