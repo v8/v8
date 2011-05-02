@@ -710,9 +710,8 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
   __ j(not_equal, slow);
 
   if (mode_ == UNARY_OVERWRITE) {
-    __ mov(edx, FieldOperand(eax, HeapNumber::kExponentOffset));
-    __ xor_(edx, HeapNumber::kSignMask);  // Flip sign.
-    __ mov(FieldOperand(eax, HeapNumber::kExponentOffset), edx);
+    __ xor_(FieldOperand(eax, HeapNumber::kExponentOffset),
+            Immediate(HeapNumber::kSignMask));  // Flip sign.
   } else {
     __ mov(edx, Operand(eax));
     // edx: operand

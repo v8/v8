@@ -535,29 +535,33 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
                  Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, slow);
 
-  // Operand is a float, negate its value by flipping sign bit.
-  __ movq(rdx, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ Set(kScratchRegister, 0x01);
-  __ shl(kScratchRegister, Immediate(63));
-  __ xor_(rdx, kScratchRegister);  // Flip sign.
-  // rdx is value to store.
+  // Operand is a float, negate its value by flipping the sign bit.
   if (mode_ == UNARY_OVERWRITE) {
-    __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rdx);
+    __ Set(kScratchRegister, 0x01);
+    __ shl(kScratchRegister, Immediate(63));
+    __ xor_(FieldOperand(rax, HeapNumber::kValueOffset), kScratchRegister);
   } else {
+    // Allocate a heap number before calculating the answer,
+    // so we don't have an untagged double around during GC.
     Label slow_allocate_heapnumber, heapnumber_allocated;
     __ AllocateHeapNumber(rcx, rbx, &slow_allocate_heapnumber);
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
     __ EnterInternalFrame();
-    __ push(rdx);
+    __ push(rax);
     __ CallRuntime(Runtime::kNumberAlloc, 0);
     __ movq(rcx, rax);
-    __ pop(rdx);
+    __ pop(rax);
     __ LeaveInternalFrame();
-
     __ bind(&heapnumber_allocated);
     // rcx: allocated 'empty' number
+
+    // Copy the double value to the new heap number, flipping the sign.
+    __ movq(rdx, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ Set(kScratchRegister, 0x01);
+    __ shl(kScratchRegister, Immediate(63));
+    __ xor_(rdx, kScratchRegister);  // Flip sign.
     __ movq(FieldOperand(rcx, HeapNumber::kValueOffset), rdx);
     __ movq(rax, rcx);
   }
