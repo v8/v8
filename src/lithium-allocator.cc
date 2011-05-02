@@ -2029,12 +2029,12 @@ LifetimePosition LAllocator::FindOptimalSplitPos(LifetimePosition start,
   // We have no choice
   if (start_instr == end_instr) return end;
 
-  HBasicBlock* end_block = GetBlock(start);
-  HBasicBlock* start_block = GetBlock(end);
+  HBasicBlock* start_block = GetBlock(start);
+  HBasicBlock* end_block = GetBlock(end);
 
   if (end_block == start_block) {
-    // The interval is split in the same basic block. Split at latest possible
-    // position.
+    // The interval is split in the same basic block. Split at the latest
+    // possible position.
     return end;
   }
 
@@ -2045,7 +2045,9 @@ LifetimePosition LAllocator::FindOptimalSplitPos(LifetimePosition start,
     block = block->parent_loop_header();
   }
 
-  if (block == end_block) return end;
+  // We did not find any suitable outer loop. Split at the latest possible
+  // position unless end_block is a loop header itself.
+  if (block == end_block && !end_block->IsLoopHeader()) return end;
 
   return LifetimePosition::FromInstructionIndex(
       block->first_instruction_index());
