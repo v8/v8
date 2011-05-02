@@ -29,6 +29,9 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		58DA027E136ECC87007399A4 /* experimental-libraries.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58DA027D136ECC87007399A4 /* experimental-libraries.cc */; };
+		58DA027F136ECC87007399A4 /* experimental-libraries.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58DA027D136ECC87007399A4 /* experimental-libraries.cc */; };
+		58DA0280136ECC87007399A4 /* experimental-libraries.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58DA027D136ECC87007399A4 /* experimental-libraries.cc */; };
 		8900116C0E71CA2300F91F35 /* libraries.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8900116B0E71CA2300F91F35 /* libraries.cc */; };
 		890A13FE0EE9C47F00E49346 /* interpreter-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */; };
 		890A14010EE9C4B000E49346 /* regexp-macro-assembler-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C700EE466D000B48DEB /* regexp-macro-assembler-arm.cc */; };
@@ -526,6 +529,7 @@
 
 /* Begin PBXFileReference section */
 		22A76C900FF259E600FDC694 /* log-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "log-inl.h"; sourceTree = "<group>"; };
+		58DA027D136ECC87007399A4 /* experimental-libraries.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "experimental-libraries.cc"; sourceTree = "<group>"; };
 		8900116B0E71CA2300F91F35 /* libraries.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libraries.cc; sourceTree = "<group>"; };
 		891C92FD1334226000FF4757 /* lithium-allocator-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "lithium-allocator-inl.h"; sourceTree = "<group>"; };
 		891C92FE133422EB00FF4757 /* isolate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = isolate.h; sourceTree = "<group>"; };
@@ -1365,6 +1369,7 @@
 		89A9C1630E71C8E300BE6CCA /* generated */ = {
 			isa = PBXGroup;
 			children = (
+				58DA027D136ECC87007399A4 /* experimental-libraries.cc */,
 				893988320F2A3B8B007D5254 /* d8-js.cc */,
 				8900116B0E71CA2300F91F35 /* libraries.cc */,
 			);
@@ -1682,7 +1687,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"d8.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nD8_CC=\"${V8_GENERATED_SOURCES_DIR}/d8-js.cc\"\nD8_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/d8-js-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${D8_CC}.new\" \\\n  \"${D8_EMPTY_CC}.new\" \\\n  \"D8\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${D8_CC}.new\" \"${D8_CC}\" >& /dev/null ; then\n  mv \"${D8_CC}.new\" \"${D8_CC}\"\nelse\n  rm \"${D8_CC}.new\"\nfi\n\nif ! diff -q \"${D8_EMPTY_CC}.new\" \"${D8_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${D8_EMPTY_CC}.new\" \"${D8_EMPTY_CC}\"\nelse\n  rm \"${D8_EMPTY_CC}.new\"\nfi\n";
+			shellScript = "set -ex\nJS_FILES=\"d8.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nD8_CC=\"${V8_GENERATED_SOURCES_DIR}/d8-js.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${D8_CC}.new\" \\\n  \"D8\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${D8_CC}.new\" \"${D8_CC}\" >& /dev/null ; then\n  mv \"${D8_CC}.new\" \"${D8_CC}\"\nelse\n  rm \"${D8_CC}.new\"\nfi";
 		};
 		8956922812D4ED240072C313 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1695,7 +1700,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-debugger.js\"\\\n\" liveedit-debugger.js\"\\\n\" mirror-debugger.js\"\\\n\" date.js\"\\\n\" json.js\"\\\n\" regexp.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
+			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-debugger.js\"\\\n\" liveedit-debugger.js\"\\\n\" mirror-debugger.js\"\\\n\" date.js\"\\\n\" json.js\"\\\n\" regexp.js\"\\\n\" macros.py\"\n\nEXPERIMENTAL_LIBRARY_FILES=\"proxy.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nfor i in ${EXPERIMENTAL_JS_FILES} ; do\n  NATIVE_EXPERIMENTAL_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nEXPERIMENTAL_LIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/experimental-libraries.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${EXPERIMENTAL_LIBRARIES_CC}.new\" \\\n  \"EXPERIMENTAL\" \\\n  ${NATIVE_EXPERIMENTAL_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${EXPERIMENTAL_LIBRARIES_CC}.new\" \"${EXPERIMENTAL_LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${EXPERIMENTAL_LIBRARIES_CC}.new\" \"${EXPERIMENTAL_LIBRARIES_CC}\"\nelse\n  rm \"${EXPERIMENTAL_LIBRARIES_CC}.new\"\nfi";
 		};
 		897C77CE12B68E3D000767A8 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1708,7 +1713,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"d8.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nD8_CC=\"${V8_GENERATED_SOURCES_DIR}/d8-js.cc\"\nD8_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/d8-js-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${D8_CC}.new\" \\\n  \"${D8_EMPTY_CC}.new\" \\\n  \"D8\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${D8_CC}.new\" \"${D8_CC}\" >& /dev/null ; then\n  mv \"${D8_CC}.new\" \"${D8_CC}\"\nelse\n  rm \"${D8_CC}.new\"\nfi\n\nif ! diff -q \"${D8_EMPTY_CC}.new\" \"${D8_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${D8_EMPTY_CC}.new\" \"${D8_EMPTY_CC}\"\nelse\n  rm \"${D8_EMPTY_CC}.new\"\nfi\n";
+			shellScript = "set -ex\nJS_FILES=\"d8.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nD8_CC=\"${V8_GENERATED_SOURCES_DIR}/d8-js.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${D8_CC}.new\" \\\n  \"D8\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${D8_CC}.new\" \"${D8_CC}\" >& /dev/null ; then\n  mv \"${D8_CC}.new\" \"${D8_CC}\"\nelse\n  rm \"${D8_CC}.new\"\nfi";
 		};
 		89B91BC312D4F02A002FF4BC /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1721,7 +1726,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"d8.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nD8_CC=\"${V8_GENERATED_SOURCES_DIR}/d8-js.cc\"\nD8_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/d8-js-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${D8_CC}.new\" \\\n  \"${D8_EMPTY_CC}.new\" \\\n  \"D8\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${D8_CC}.new\" \"${D8_CC}\" >& /dev/null ; then\n  mv \"${D8_CC}.new\" \"${D8_CC}\"\nelse\n  rm \"${D8_CC}.new\"\nfi\n\nif ! diff -q \"${D8_EMPTY_CC}.new\" \"${D8_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${D8_EMPTY_CC}.new\" \"${D8_EMPTY_CC}\"\nelse\n  rm \"${D8_EMPTY_CC}.new\"\nfi\n";
+			shellScript = "set -ex\nJS_FILES=\"d8.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nD8_CC=\"${V8_GENERATED_SOURCES_DIR}/d8-js.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${D8_CC}.new\" \\\n  \"D8\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${D8_CC}.new\" \"${D8_CC}\" >& /dev/null ; then\n  mv \"${D8_CC}.new\" \"${D8_CC}\"\nelse\n  rm \"${D8_CC}.new\"\nfi";
 		};
 		89EA6FB50E71AA1F00F59E1B /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1734,7 +1739,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-debugger.js\"\\\n\" liveedit-debugger.js\"\\\n\" mirror-debugger.js\"\\\n\" date.js\"\\\n\" json.js\"\\\n\" regexp.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
+			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-debugger.js\"\\\n\" liveedit-debugger.js\"\\\n\" mirror-debugger.js\"\\\n\" date.js\"\\\n\" json.js\"\\\n\" regexp.js\"\\\n\" macros.py\"\n\nEXPERIMENTAL_LIBRARY_FILES=\"proxy.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nfor i in ${EXPERIMENTAL_JS_FILES} ; do\n  NATIVE_EXPERIMENTAL_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nEXPERIMENTAL_LIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/experimental-libraries.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${EXPERIMENTAL_LIBRARIES_CC}.new\" \\\n  \"EXPERIMENTAL\" \\\n  ${NATIVE_EXPERIMENTAL_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${EXPERIMENTAL_LIBRARIES_CC}.new\" \"${EXPERIMENTAL_LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${EXPERIMENTAL_LIBRARIES_CC}.new\" \"${EXPERIMENTAL_LIBRARIES_CC}\"\nelse\n  rm \"${EXPERIMENTAL_LIBRARIES_CC}.new\"\nfi";
 		};
 		89F23C3D0E78D5B2006B2466 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1747,7 +1752,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-debugger.js\"\\\n\" liveedit-debugger.js\"\\\n\" mirror-debugger.js\"\\\n\" date.js\"\\\n\" json.js\"\\\n\" regexp.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
+			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-debugger.js\"\\\n\" liveedit-debugger.js\"\\\n\" mirror-debugger.js\"\\\n\" date.js\"\\\n\" json.js\"\\\n\" regexp.js\"\\\n\" macros.py\"\n\nEXPERIMENTAL_LIBRARY_FILES=\"proxy.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nfor i in ${EXPERIMENTAL_JS_FILES} ; do\n  NATIVE_EXPERIMENTAL_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nEXPERIMENTAL_LIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/experimental-libraries.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${EXPERIMENTAL_LIBRARIES_CC}.new\" \\\n  \"EXPERIMENTAL\" \\\n  ${NATIVE_EXPERIMENTAL_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${EXPERIMENTAL_LIBRARIES_CC}.new\" \"${EXPERIMENTAL_LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${EXPERIMENTAL_LIBRARIES_CC}.new\" \"${EXPERIMENTAL_LIBRARIES_CC}\"\nelse\n  rm \"${EXPERIMENTAL_LIBRARIES_CC}.new\"\nfi";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1890,6 +1895,7 @@
 				89D7DDDF12E8DE09001E2B82 /* inspector.cc in Sources */,
 				8924315C12F8539900906AB2 /* lithium-gap-resolver-x64.cc in Sources */,
 				895D5B551334212D00254083 /* isolate.cc in Sources */,
+				58DA0280136ECC87007399A4 /* experimental-libraries.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2018,6 +2024,7 @@
 				89D7DDDA12E8DE09001E2B82 /* gdb-jit.cc in Sources */,
 				89D7DDDB12E8DE09001E2B82 /* inspector.cc in Sources */,
 				895D5B531334212D00254083 /* isolate.cc in Sources */,
+				58DA027E136ECC87007399A4 /* experimental-libraries.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2186,6 +2193,7 @@
 				89D7DDDD12E8DE09001E2B82 /* inspector.cc in Sources */,
 				896FA1E5130F93D300042054 /* lithium-gap-resolver-arm.cc in Sources */,
 				895D5B541334212D00254083 /* isolate.cc in Sources */,
+				58DA027F136ECC87007399A4 /* experimental-libraries.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2353,6 +2361,8 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
 					NDEBUG,
+					ENABLE_VMSTATE_TRACKING,
+					ENABLE_LOGGING_AND_PROFILING,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
@@ -2379,6 +2389,8 @@
 					DEBUG,
 					V8_ENABLE_CHECKS,
 					OBJECT_PRINT,
+					ENABLE_VMSTATE_TRACKING,
+					ENABLE_LOGGING_AND_PROFILING,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;
@@ -2393,6 +2405,8 @@
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
 					V8_TARGET_ARCH_IA32,
 					NDEBUG,
+					ENABLE_VMSTATE_TRACKING,
+					ENABLE_LOGGING_AND_PROFILING,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;
@@ -2409,6 +2423,7 @@
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
 					ENABLE_DISASSEMBLER,
 					V8_TARGET_ARCH_X64,
+					ENABLE_VMSTATE_TRACKING,
 					ENABLE_LOGGING_AND_PROFILING,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
@@ -2427,6 +2442,8 @@
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
 					V8_TARGET_ARCH_X64,
 					NDEBUG,
+					ENABLE_VMSTATE_TRACKING,
+					ENABLE_LOGGING_AND_PROFILING,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;
@@ -2443,6 +2460,7 @@
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
 					ENABLE_DISASSEMBLER,
 					V8_TARGET_ARCH_IA32,
+					ENABLE_VMSTATE_TRACKING,
 					ENABLE_LOGGING_AND_PROFILING,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
@@ -2460,6 +2478,8 @@
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
 					V8_TARGET_ARCH_IA32,
 					NDEBUG,
+					ENABLE_VMSTATE_TRACKING,
+					ENABLE_LOGGING_AND_PROFILING,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;
@@ -2477,6 +2497,8 @@
 					DEBUG,
 					V8_ENABLE_CHECKS,
 					OBJECT_PRINT,
+					ENABLE_VMSTATE_TRACKING,
+					ENABLE_LOGGING_AND_PROFILING,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;
@@ -2491,6 +2513,8 @@
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
 					V8_TARGET_ARCH_IA32,
 					NDEBUG,
+					ENABLE_VMSTATE_TRACKING,
+					ENABLE_LOGGING_AND_PROFILING,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;
@@ -2558,6 +2582,8 @@
 					DEBUG,
 					V8_ENABLE_CHECKS,
 					OBJECT_PRINT,
+					ENABLE_VMSTATE_TRACKING,
+					ENABLE_LOGGING_AND_PROFILING,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;
@@ -2573,6 +2599,8 @@
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
 					V8_TARGET_ARCH_X64,
 					NDEBUG,
+					ENABLE_VMSTATE_TRACKING,
+					ENABLE_LOGGING_AND_PROFILING,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
 				HEADER_SEARCH_PATHS = ../src;
@@ -2588,6 +2616,7 @@
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
 					V8_TARGET_ARCH_ARM,
 					ENABLE_DISASSEMBLER,
+					ENABLE_VMSTATE_TRACKING,
 					ENABLE_LOGGING_AND_PROFILING,
 					ENABLE_DEBUGGER_SUPPORT,
 				);
