@@ -1186,18 +1186,18 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     }  // else no immediate displacement.
     AppendToBuffer("nop");
 
-  } else if (opcode == 28) {
+  } else if (opcode == 0x28) {
     // movaps xmm, xmm/m128
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("movaps %s, ", NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
 
-  } else if (opcode == 29) {
+  } else if (opcode == 0x29) {
     // movaps xmm/m128, xmm
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);
-    AppendToBuffer("movaps");
+    AppendToBuffer("movaps ");
     current += PrintRightXMMOperand(current);
     AppendToBuffer(", %s", NameOfXMMRegister(regop));
 
@@ -1212,8 +1212,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     byte_size_operand_ = idesc.byte_size_operation;
     current += PrintOperands(idesc.mnem, idesc.op_order_, current);
 
-  } else if (opcode == 57) {
-    // xoprps xmm, xmm/m128
+  } else if (opcode == 0x57) {
+    // xorps xmm, xmm/m128
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("xorps %s, ", NameOfXMMRegister(regop));

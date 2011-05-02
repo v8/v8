@@ -989,6 +989,11 @@ Object* Debug::Break(Arguments args) {
   } else if (thread_local_.frame_drop_mode_ ==
       FRAME_DROPPED_IN_DIRECT_CALL) {
     // Nothing to do, after_break_target is not used here.
+  } else if (thread_local_.frame_drop_mode_ ==
+      FRAME_DROPPED_IN_RETURN_CALL) {
+    Code* plain_return = isolate_->builtins()->builtin(
+        Builtins::kFrameDropper_LiveEdit);
+    thread_local_.after_break_target_ = plain_return->entry();
   } else {
     UNREACHABLE();
   }

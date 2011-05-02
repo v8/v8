@@ -53,6 +53,7 @@ namespace internal {
   ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)                       \
+  ICU(TypeRecordingUnaryOp_Patch)                     \
   ICU(TypeRecordingBinaryOp_Patch)                    \
   ICU(CompareIC_Miss)
 //
@@ -327,7 +328,8 @@ class LoadIC: public IC {
 class KeyedLoadIC: public IC {
  public:
   explicit KeyedLoadIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {
-    ASSERT(target()->is_keyed_load_stub());
+    ASSERT(target()->is_keyed_load_stub() ||
+           target()->is_external_array_load_stub());
   }
 
   MUST_USE_RESULT MaybeObject* Load(State state,
@@ -526,6 +528,32 @@ class KeyedStoreIC: public IC {
   static void Clear(Address address, Code* target);
 
   friend class IC;
+};
+
+
+class TRUnaryOpIC: public IC {
+ public:
+
+  // sorted: increasingly more unspecific (ignoring UNINITIALIZED)
+  // TODO(svenpanne) Using enums+switch is an antipattern, use a class instead.
+  enum TypeInfo {
+    UNINITIALIZED,
+    SMI,
+    HEAP_NUMBER,
+    GENERIC
+  };
+
+  explicit TRUnaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
+
+  void patch(Code* code);
+
+  static const char* GetName(TypeInfo type_info);
+
+  static State ToState(TypeInfo type_info);
+
+  static TypeInfo GetTypeInfo(Handle<Object> operand);
+
+  static TypeInfo JoinTypes(TypeInfo x, TypeInfo y);
 };
 
 

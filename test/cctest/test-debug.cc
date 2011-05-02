@@ -501,7 +501,11 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   CHECK(Debug::HasDebugInfo(shared));
   TestBreakLocationIterator it1(Debug::GetDebugInfo(shared));
   it1.FindBreakLocationFromPosition(position);
-  CHECK_EQ(mode, it1.it()->rinfo()->rmode());
+  v8::internal::RelocInfo::Mode actual_mode = it1.it()->rinfo()->rmode();
+  if (actual_mode == v8::internal::RelocInfo::CODE_TARGET_WITH_ID) {
+    actual_mode = v8::internal::RelocInfo::CODE_TARGET;
+  }
+  CHECK_EQ(mode, actual_mode);
   if (mode != v8::internal::RelocInfo::JS_RETURN) {
     CHECK_EQ(debug_break,
         Code::GetCodeFromTargetAddress(it1.it()->rinfo()->target_address()));
@@ -516,7 +520,11 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   CHECK(debug->EnsureDebugInfo(shared));
   TestBreakLocationIterator it2(Debug::GetDebugInfo(shared));
   it2.FindBreakLocationFromPosition(position);
-  CHECK_EQ(mode, it2.it()->rinfo()->rmode());
+  actual_mode = it2.it()->rinfo()->rmode();
+  if (actual_mode == v8::internal::RelocInfo::CODE_TARGET_WITH_ID) {
+    actual_mode = v8::internal::RelocInfo::CODE_TARGET;
+  }
+  CHECK_EQ(mode, actual_mode);
   if (mode == v8::internal::RelocInfo::JS_RETURN) {
     CHECK(!Debug::IsDebugBreakAtReturn(it2.it()->rinfo()));
   }

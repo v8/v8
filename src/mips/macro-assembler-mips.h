@@ -59,11 +59,6 @@ const Register fp = s8_fp;  // Alias fp
 const Register condReg1 = s4;
 const Register condReg2 = s5;
 
-enum InvokeJSFlags {
-  CALL_JS,
-  JUMP_JS
-};
-
 
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
@@ -775,7 +770,7 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id,
-                     InvokeJSFlags flags,
+                     InvokeFlag flag,
                      PostCallGenerator* post_call_generator = NULL);
 
   // Store the code object for the given builtin in the target register and

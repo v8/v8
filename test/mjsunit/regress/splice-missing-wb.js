@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,30 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Used for building without snapshots.
+// Flags: --expose-gc
 
-#include "v8.h"
+// Create array large enough to span several page regions.
+var a = new Array(500);
 
-#include "snapshot.h"
+// Fill it with values.
+for (var i = 0; i < a.length; i++) a[i] = {idx:i};
 
-namespace v8 {
-namespace internal {
+// Force it into oldspace.
+gc();
+gc();
 
-const byte Snapshot::data_[] = { 0 };
-const byte* Snapshot::raw_data_ = NULL;
-const int Snapshot::size_ = 0;
-const int Snapshot::raw_size_ = 0;
-const byte Snapshot::context_data_[] = { 0 };
-const byte* Snapshot::context_raw_data_ = NULL;
-const int Snapshot::context_size_ = 0;
-const int Snapshot::context_raw_size_ = 0;
+// Array should be in old space now. Store young object into array.
+// Region will be marked.
+a[0] = {idx:0};
 
-const int Snapshot::new_space_used_ = 0;
-const int Snapshot::pointer_space_used_ = 0;
-const int Snapshot::data_space_used_ = 0;
-const int Snapshot::code_space_used_ = 0;
-const int Snapshot::map_space_used_ = 0;
-const int Snapshot::cell_space_used_ = 0;
-const int Snapshot::large_space_used_ = 0;
+// Delete elements a[2] .. a[201]. Internally we will use
+// trimming of backing store. a[0] a[1] will be moved to
+// memory location previously occupied by a[200] a[201].
+a.splice(2, 200);
 
-} }  // namespace v8::internal
+// Force gc and heap verification.
+gc();
+
+// Try accessing a[0].idx. It will segfault if write-barrier was accidentally
+// omitted.
+assertEquals(0, a[0].idx);
+assertEquals(1, a[1].idx);
+assertEquals(202, a[2].idx);

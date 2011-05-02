@@ -148,8 +148,9 @@ int MacroAssembler::CallSize(
 }
 
 
-void MacroAssembler::Call(
-    intptr_t target, RelocInfo::Mode rmode, Condition cond) {
+void MacroAssembler::Call(intptr_t target,
+                          RelocInfo::Mode rmode,
+                          Condition cond) {
   // Block constant pool for the call instruction sequence.
   BlockConstPoolScope block_const_pool(this);
 #ifdef DEBUG
@@ -214,8 +215,31 @@ int MacroAssembler::CallSize(
 }
 
 
-void MacroAssembler::Call(
-    Handle<Code> code, RelocInfo::Mode rmode, Condition cond) {
+void MacroAssembler::CallWithAstId(Handle<Code> code,
+                                   RelocInfo::Mode rmode,
+                                   unsigned ast_id,
+                                   Condition cond) {
+#ifdef DEBUG
+  int pre_position = pc_offset();
+#endif
+
+  ASSERT(rmode == RelocInfo::CODE_TARGET_WITH_ID);
+  ASSERT(ast_id != kNoASTId);
+  ASSERT(ast_id_for_reloc_info_ == kNoASTId);
+  ast_id_for_reloc_info_ = ast_id;
+  // 'code' is always generated ARM code, never THUMB code
+  Call(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
+
+#ifdef DEBUG
+  int post_position = pc_offset();
+  CHECK_EQ(pre_position + CallSize(code, rmode, cond), post_position);
+#endif
+}
+
+
+void MacroAssembler::Call(Handle<Code> code,
+                          RelocInfo::Mode rmode,
+                          Condition cond) {
 #ifdef DEBUG
   int pre_position = pc_offset();
 #endif
@@ -282,6 +306,15 @@ void MacroAssembler::Move(Register dst, Handle<Object> value) {
 void MacroAssembler::Move(Register dst, Register src) {
   if (!dst.is(src)) {
     mov(dst, src);
+  }
+}
+
+
+void MacroAssembler::Move(DoubleRegister dst, DoubleRegister src) {
+  ASSERT(CpuFeatures::IsSupported(VFP3));
+  CpuFeatures::Scope scope(VFP3);
+  if (!dst.is(src)) {
+    vmov(dst, src);
   }
 }
 
@@ -839,7 +872,11 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
 }
 
 void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
-  vmov(dst, r0, r1);
+  if (use_eabi_hardfloat()) {
+    Move(dst, d0);
+  } else {
+    vmov(dst, r0, r1);
+  }
 }
 
 
@@ -2276,15 +2313,15 @@ MaybeObject* MacroAssembler::TryJumpToExternalReference(
 
 
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
-                                   InvokeJSFlags flags,
+                                   InvokeFlag flag,
                                    CallWrapper* call_wrapper) {
   GetBuiltinEntry(r2, id);
-  if (flags == CALL_JS) {
+  if (flag == CALL_FUNCTION) {
     if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(r2));
     Call(r2);
     if (call_wrapper != NULL) call_wrapper->AfterCall();
   } else {
-    ASSERT(flags == JUMP_JS);
+    ASSERT(flag == JUMP_FUNCTION);
     Jump(r2);
   }
 }
@@ -2794,12 +2831,36 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
 
 static const int kRegisterPassedArguments = 4;
 
-void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
-  int frame_alignment = ActivationFrameAlignment();
 
+int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
+                                              int num_double_arguments) {
+  int stack_passed_words = 0;
+  if (use_eabi_hardfloat()) {
+    // In the hard floating point calling convention, we can use
+    // all double registers to pass doubles.
+    if (num_double_arguments > DoubleRegister::kNumRegisters) {
+      stack_passed_words +=
+          2 * (num_double_arguments - DoubleRegister::kNumRegisters);
+    }
+  } else {
+    // In the soft floating point calling convention, every double
+    // argument is passed using two registers.
+    num_reg_arguments += 2 * num_double_arguments;
+  }
   // Up to four simple arguments are passed in registers r0..r3.
-  int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
-                               0 : num_arguments - kRegisterPassedArguments;
+  if (num_reg_arguments > kRegisterPassedArguments) {
+    stack_passed_words += num_reg_arguments - kRegisterPassedArguments;
+  }
+  return stack_passed_words;
+}
+
+
+void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
+                                          int num_double_arguments,
+                                          Register scratch) {
+  int frame_alignment = ActivationFrameAlignment();
+  int stack_passed_arguments = CalculateStackPassedWords(
+      num_reg_arguments, num_double_arguments);
   if (frame_alignment > kPointerSize) {
     // Make stack end at alignment and make room for num_arguments - 4 words
     // and the original value of sp.
@@ -2814,25 +2875,92 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
 }
 
 
+void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
+                                          Register scratch) {
+  PrepareCallCFunction(num_reg_arguments, 0, scratch);
+}
+
+
+void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
+  if (use_eabi_hardfloat()) {
+    Move(d0, dreg);
+  } else {
+    vmov(r0, r1, dreg);
+  }
+}
+
+
+void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg1,
+                                             DoubleRegister dreg2) {
+  if (use_eabi_hardfloat()) {
+    if (dreg2.is(d0)) {
+      ASSERT(!dreg1.is(d1));
+      Move(d1, dreg2);
+      Move(d0, dreg1);
+    } else {
+      Move(d0, dreg1);
+      Move(d1, dreg2);
+    }
+  } else {
+    vmov(r0, r1, dreg1);
+    vmov(r2, r3, dreg2);
+  }
+}
+
+
+void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg,
+                                             Register reg) {
+  if (use_eabi_hardfloat()) {
+    Move(d0, dreg);
+    Move(r0, reg);
+  } else {
+    Move(r2, reg);
+    vmov(r0, r1, dreg);
+  }
+}
+
+
+void MacroAssembler::CallCFunction(ExternalReference function,
+                                   int num_reg_arguments,
+                                   int num_double_arguments) {
+  CallCFunctionHelper(no_reg,
+                      function,
+                      ip,
+                      num_reg_arguments,
+                      num_double_arguments);
+}
+
+
+void MacroAssembler::CallCFunction(Register function,
+                                     Register scratch,
+                                     int num_reg_arguments,
+                                     int num_double_arguments) {
+  CallCFunctionHelper(function,
+                      ExternalReference::the_hole_value_location(isolate()),
+                      scratch,
+                      num_reg_arguments,
+                      num_double_arguments);
+}
+
+
 void MacroAssembler::CallCFunction(ExternalReference function,
                                    int num_arguments) {
-  CallCFunctionHelper(no_reg, function, ip, num_arguments);
+  CallCFunction(function, num_arguments, 0);
 }
+
 
 void MacroAssembler::CallCFunction(Register function,
                                    Register scratch,
                                    int num_arguments) {
-  CallCFunctionHelper(function,
-                      ExternalReference::the_hole_value_location(isolate()),
-                      scratch,
-                      num_arguments);
+  CallCFunction(function, scratch, num_arguments, 0);
 }
 
 
 void MacroAssembler::CallCFunctionHelper(Register function,
                                          ExternalReference function_reference,
                                          Register scratch,
-                                         int num_arguments) {
+                                         int num_reg_arguments,
+                                         int num_double_arguments) {
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
@@ -2861,8 +2989,8 @@ void MacroAssembler::CallCFunctionHelper(Register function,
     function = scratch;
   }
   Call(function);
-  int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
-                               0 : num_arguments - kRegisterPassedArguments;
+  int stack_passed_arguments = CalculateStackPassedWords(
+      num_reg_arguments, num_double_arguments);
   if (ActivationFrameAlignment() > kPointerSize) {
     ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {

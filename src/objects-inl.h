@@ -2609,6 +2609,7 @@ int Code::major_key() {
 
 void Code::set_major_key(int major) {
   ASSERT(kind() == STUB ||
+         kind() == TYPE_RECORDING_UNARY_OP_IC ||
          kind() == TYPE_RECORDING_BINARY_OP_IC ||
          kind() == COMPARE_IC);
   ASSERT(0 <= major && major < 256);
@@ -2714,6 +2715,18 @@ ExternalArrayType Code::external_array_type() {
 void Code::set_external_array_type(ExternalArrayType value) {
   ASSERT(is_external_array_load_stub() || is_external_array_store_stub());
   WRITE_BYTE_FIELD(this, kExternalArrayTypeOffset, value);
+}
+
+
+byte Code::type_recording_unary_op_type() {
+  ASSERT(is_type_recording_unary_op_stub());
+  return READ_BYTE_FIELD(this, kUnaryOpTypeOffset);
+}
+
+
+void Code::set_type_recording_unary_op_type(byte value) {
+  ASSERT(is_type_recording_unary_op_stub());
+  WRITE_BYTE_FIELD(this, kUnaryOpTypeOffset, value);
 }
 
 

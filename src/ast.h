@@ -661,6 +661,7 @@ class CaseClause: public ZoneObject {
   void set_position(int pos) { position_ = pos; }
 
   int EntryId() { return entry_id_; }
+  int CompareId() { return compare_id_; }
 
   // Type feedback information.
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
@@ -674,6 +675,7 @@ class CaseClause: public ZoneObject {
   int position_;
   enum CompareTypeFeedback { NONE, SMI_ONLY, OBJECT_ONLY };
   CompareTypeFeedback compare_type_;
+  int compare_id_;
   int entry_id_;
 };
 
@@ -1390,8 +1392,8 @@ class CallRuntime: public Expression {
 
 class UnaryOperation: public Expression {
  public:
-  UnaryOperation(Token::Value op, Expression* expression)
-      : op_(op), expression_(expression) {
+  UnaryOperation(Token::Value op, Expression* expression, int pos)
+      : op_(op), expression_(expression), pos_(pos) {
     ASSERT(Token::IsUnaryOp(op));
   }
 
@@ -1403,10 +1405,12 @@ class UnaryOperation: public Expression {
 
   Token::Value op() const { return op_; }
   Expression* expression() const { return expression_; }
+  virtual int position() const { return pos_; }
 
  private:
   Token::Value op_;
   Expression* expression_;
+  int pos_;
 };
 
 
@@ -1422,9 +1426,6 @@ class BinaryOperation: public Expression {
         ? static_cast<int>(GetNextId())
         : AstNode::kNoNumber;
   }
-
-  // Create the binary operation corresponding to a compound assignment.
-  explicit BinaryOperation(Assignment* assignment);
 
   DECLARE_NODE_TYPE(BinaryOperation)
 

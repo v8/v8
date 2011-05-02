@@ -80,7 +80,7 @@ class List {
   INLINE(int length() const) { return length_; }
   INLINE(int capacity() const) { return capacity_; }
 
-  Vector<T> ToVector() { return Vector<T>(data_, length_); }
+  Vector<T> ToVector() const { return Vector<T>(data_, length_); }
 
   Vector<const T> ToConstVector() { return Vector<const T>(data_, length_); }
 
@@ -90,6 +90,9 @@ class List {
 
   // Add all the elements from the argument list to this list.
   void AddAll(const List<T, P>& other);
+
+  // Add all the elements from the vector to this list.
+  void AddAll(const Vector<T>& other);
 
   // Inserts the element at the specific index.
   void InsertAt(int index, const T& element);

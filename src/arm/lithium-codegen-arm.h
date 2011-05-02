@@ -115,6 +115,7 @@ class LCodeGen BASE_EMBEDDED {
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
+  void DoGap(LGap* instr);
 
   // Emit frame translation commands for an environment.
   void WriteTranslation(LEnvironment* environment, Translation* translation);

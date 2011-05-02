@@ -1,3 +1,23 @@
+2011-05-02: Version 3.3.3
+
+        Added support for generating Visual Studio solution and project files
+        using GYP.
+
+        Implemented support for ARM EABI calling convention variation where
+        floating-point arguments are passed in registers (hardfloat).
+
+        Added Object::HasOwnProperty() to the API.
+
+        Added support for compressing startup data to reduce binary size. This
+        includes build time support and an API for the embedder to decompress
+        the startup data before initializing V8.
+
+        Reduced the profiling hooks overhead from >400% to 25% when using
+        ll_prof.
+
+        Performance improvements and bug fixes on all platforms.
+
+
 2011-04-27: Version 3.3.2
 
         Fixed crash bug on ARM with no VFP3 hardware.
@@ -10,7 +30,7 @@
 
         Fixed crash bug in regexp replace.
 
-	
+
 2011-04-20: Version 3.3.1
 
         Reduced V8 binary size by removing virtual functions from hydrogen.

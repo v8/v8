@@ -126,7 +126,7 @@ Log::Log(Logger* logger)
   : write_to_file_(false),
     is_stopped_(false),
     output_handle_(NULL),
-    output_code_handle_(NULL),
+    ll_output_handle_(NULL),
     output_buffer_(NULL),
     mutex_(NULL),
     message_buffer_(NULL),
@@ -168,7 +168,7 @@ void Log::Initialize() {
 
   bool start_logging = FLAG_log || FLAG_log_runtime || FLAG_log_api
       || FLAG_log_code || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
-      || FLAG_log_regexp || FLAG_log_state_changes;
+      || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof;
 
   bool open_log_file = start_logging || FLAG_prof_lazy;
 
@@ -233,7 +233,12 @@ void Log::OpenStdout() {
 }
 
 
-static const char kCodeLogExt[] = ".code";
+// Extension added to V8 log file name to get the low-level log name.
+static const char kLowLevelLogExt[] = ".ll";
+
+// File buffer size of the low-level log. We don't use the default to
+// minimize the associated overhead.
+static const int kLowLevelLogBufferSize = 2 * MB;
 
 
 void Log::OpenFile(const char* name) {
@@ -241,14 +246,13 @@ void Log::OpenFile(const char* name) {
   output_handle_ = OS::FOpen(name, OS::LogFileOpenMode);
   write_to_file_ = true;
   if (FLAG_ll_prof) {
-    // Open a file for logging the contents of code objects so that
-    // they can be disassembled later.
-    size_t name_len = strlen(name);
-    ScopedVector<char> code_name(
-        static_cast<int>(name_len + sizeof(kCodeLogExt)));
-    memcpy(code_name.start(), name, name_len);
-    memcpy(code_name.start() + name_len, kCodeLogExt, sizeof(kCodeLogExt));
-    output_code_handle_ = OS::FOpen(code_name.start(), OS::LogFileOpenMode);
+    // Open the low-level log file.
+    size_t len = strlen(name);
+    ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLowLevelLogExt)));
+    memcpy(ll_name.start(), name, len);
+    memcpy(ll_name.start() + len, kLowLevelLogExt, sizeof(kLowLevelLogExt));
+    ll_output_handle_ = OS::FOpen(ll_name.start(), OS::LogFileOpenMode);
+    setvbuf(ll_output_handle_, NULL, _IOFBF, kLowLevelLogBufferSize);
   }
 }
 
@@ -266,8 +270,8 @@ void Log::Close() {
   if (write_to_file_) {
     if (output_handle_ != NULL) fclose(output_handle_);
     output_handle_ = NULL;
-    if (output_code_handle_ != NULL) fclose(output_code_handle_);
-    output_code_handle_ = NULL;
+    if (ll_output_handle_ != NULL) fclose(ll_output_handle_);
+    ll_output_handle_ = NULL;
   } else {
     delete output_buffer_;
     output_buffer_ = NULL;
@@ -361,6 +365,7 @@ void LogMessageBuilder::AppendAddress(Address addr) {
 
 
 void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
+  if (str == NULL) return;
   AssertNoAllocation no_heap_allocation;  // Ensure string stay valid.
   int len = str->length();
   if (len > 0x1000)

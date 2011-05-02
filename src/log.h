@@ -69,11 +69,12 @@ namespace internal {
 // tick profiler requires code events, so --prof implies --log-code.
 
 // Forward declarations.
-class Ticker;
+class HashMap;
+class LogMessageBuilder;
 class Profiler;
 class Semaphore;
 class SlidingStateWindow;
-class LogMessageBuilder;
+class Ticker;
 
 #undef LOG
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -95,6 +96,7 @@ class LogMessageBuilder;
   V(CODE_MOVING_GC,                 "code-moving-gc")           \
   V(SHARED_FUNC_MOVE_EVENT,         "sfi-move")                 \
   V(SNAPSHOT_POSITION_EVENT,        "snapshot-pos")             \
+  V(SNAPSHOT_CODE_NAME_EVENT,       "snapshot-code-name")       \
   V(TICK_EVENT,                     "tick")                     \
   V(REPEAT_META_EVENT,              "repeat")                   \
   V(BUILTIN_TAG,                    "Builtin")                  \
@@ -300,6 +302,9 @@ class Logger {
   void LogFailure();
 
  private:
+  class NameBuffer;
+  class NameMap;
+
   Logger();
   ~Logger();
 
@@ -326,8 +331,26 @@ class Logger {
   // Emits general information about generated code.
   void LogCodeInfo();
 
-  // Handles code creation when low-level profiling is active.
-  void LowLevelCodeCreateEvent(Code* code, LogMessageBuilder* msg);
+  void RegisterSnapshotCodeName(Code* code, const char* name, int name_size);
+
+  // Low-level logging support.
+
+  void LowLevelCodeCreateEvent(Code* code, const char* name, int name_size);
+
+  void LowLevelCodeMoveEvent(Address from, Address to);
+
+  void LowLevelCodeDeleteEvent(Address from);
+
+  void LowLevelSnapshotPositionEvent(Address addr, int pos);
+
+  void LowLevelLogWriteBytes(const char* bytes, int size);
+
+  template <typename T>
+  void LowLevelLogWriteStruct(const T& s) {
+    char tag = T::kTag;
+    LowLevelLogWriteBytes(reinterpret_cast<const char*>(&tag), sizeof(tag));
+    LowLevelLogWriteBytes(reinterpret_cast<const char*>(&s), sizeof(s));
+  }
 
   // Emits a profiler tick event. Used by the profiler thread.
   void TickEvent(TickSample* sample, bool overflow);
@@ -378,6 +401,10 @@ class Logger {
   int heap_profiler_nesting_;
 
   Log* log_;
+
+  NameBuffer* name_buffer_;
+
+  NameMap* address_to_name_map_;
 
   // Guards against multiple calls to TearDown() that can happen in some tests.
   // 'true' between Setup() and TearDown().

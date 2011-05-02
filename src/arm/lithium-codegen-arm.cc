@@ -739,7 +739,7 @@ void LCodeGen::DoLabel(LLabel* label) {
   }
   __ bind(label->label());
   current_block_ = label->block_id();
-  LCodeGen::DoGap(label);
+  DoGap(label);
 }
 
 
@@ -762,6 +762,11 @@ void LCodeGen::DoGap(LGap* gap) {
     int pc = masm()->pc_offset();
     safepoints_.SetPcAfterGap(pc);
   }
+}
+
+
+void LCodeGen::DoInstructionGap(LInstructionGap* instr) {
+  DoGap(instr);
 }
 
 
@@ -1340,11 +1345,11 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       // Save r0-r3 on the stack.
       __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit() | r3.bit());
 
-      __ PrepareCallCFunction(4, scratch0());
-      __ vmov(r0, r1, left);
-      __ vmov(r2, r3, right);
+      __ PrepareCallCFunction(0, 2, scratch0());
+      __ SetCallCDoubleArguments(left, right);
       __ CallCFunction(
-          ExternalReference::double_fp_operation(Token::MOD, isolate()), 4);
+          ExternalReference::double_fp_operation(Token::MOD, isolate()),
+          0, 2);
       // Move the result in the double result register.
       __ GetCFunctionDoubleResult(ToDoubleRegister(instr->result()));
 
@@ -2961,19 +2966,18 @@ void LCodeGen::DoPower(LPower* instr) {
   Representation exponent_type = instr->hydrogen()->right()->representation();
   if (exponent_type.IsDouble()) {
     // Prepare arguments and call C function.
-    __ PrepareCallCFunction(4, scratch);
-    __ vmov(r0, r1, ToDoubleRegister(left));
-    __ vmov(r2, r3, ToDoubleRegister(right));
+    __ PrepareCallCFunction(0, 2, scratch);
+    __ SetCallCDoubleArguments(ToDoubleRegister(left),
+                               ToDoubleRegister(right));
     __ CallCFunction(
-        ExternalReference::power_double_double_function(isolate()), 4);
+        ExternalReference::power_double_double_function(isolate()), 0, 2);
   } else if (exponent_type.IsInteger32()) {
     ASSERT(ToRegister(right).is(r0));
     // Prepare arguments and call C function.
-    __ PrepareCallCFunction(4, scratch);
-    __ mov(r2, ToRegister(right));
-    __ vmov(r0, r1, ToDoubleRegister(left));
+    __ PrepareCallCFunction(1, 1, scratch);
+    __ SetCallCDoubleArguments(ToDoubleRegister(left), ToRegister(right));
     __ CallCFunction(
-        ExternalReference::power_double_int_function(isolate()), 4);
+        ExternalReference::power_double_int_function(isolate()), 1, 1);
   } else {
     ASSERT(exponent_type.IsTagged());
     ASSERT(instr->hydrogen()->left()->representation().IsDouble());
@@ -3003,11 +3007,10 @@ void LCodeGen::DoPower(LPower* instr) {
 
     // Prepare arguments and call C function.
     __ bind(&call);
-    __ PrepareCallCFunction(4, scratch);
-    __ vmov(r0, r1, ToDoubleRegister(left));
-    __ vmov(r2, r3, result_reg);
+    __ PrepareCallCFunction(0, 2, scratch);
+    __ SetCallCDoubleArguments(ToDoubleRegister(left), result_reg);
     __ CallCFunction(
-        ExternalReference::power_double_double_function(isolate()), 4);
+        ExternalReference::power_double_double_function(isolate()), 0, 2);
   }
   // Store the result in the result register.
   __ GetCFunctionDoubleResult(result_reg);
@@ -4253,7 +4256,7 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   SafepointGenerator safepoint_generator(this,
                                          pointers,
                                          env->deoptimization_index());
-  __ InvokeBuiltin(Builtins::DELETE, CALL_JS, &safepoint_generator);
+  __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, &safepoint_generator);
 }
 
 
@@ -4269,7 +4272,7 @@ void LCodeGen::DoIn(LIn* instr) {
   SafepointGenerator safepoint_generator(this,
                                          pointers,
                                          env->deoptimization_index());
-  __ InvokeBuiltin(Builtins::IN, CALL_JS, &safepoint_generator);
+  __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION, &safepoint_generator);
 }
 
 

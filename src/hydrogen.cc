@@ -1943,6 +1943,9 @@ void EffectContext::ReturnValue(HValue* value) {
 void ValueContext::ReturnValue(HValue* value) {
   // The value is tracked in the bailout environment, and communicated
   // through the environment as the result of the expression.
+  if (!arguments_allowed() && value->CheckFlag(HValue::kIsArguments)) {
+    owner()->Bailout("bad value context for arguments value");
+  }
   owner()->Push(value);
 }
 
@@ -1959,6 +1962,9 @@ void EffectContext::ReturnInstruction(HInstruction* instr, int ast_id) {
 
 
 void ValueContext::ReturnInstruction(HInstruction* instr, int ast_id) {
+  if (!arguments_allowed() && instr->CheckFlag(HValue::kIsArguments)) {
+    owner()->Bailout("bad value context for arguments object value");
+  }
   owner()->AddInstruction(instr);
   owner()->Push(instr);
   if (instr->HasSideEffects()) owner()->AddSimulate(ast_id);
@@ -1985,6 +1991,9 @@ void TestContext::BuildBranch(HValue* value) {
   // property by always adding an empty block on the outgoing edges of this
   // branch.
   HGraphBuilder* builder = owner();
+  if (value->CheckFlag(HValue::kIsArguments)) {
+    builder->Bailout("arguments object value in a test context");
+  }
   HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
   HTest* test = new(zone()) HTest(value, empty_true, empty_false);
@@ -2026,14 +2035,14 @@ void HGraphBuilder::VisitForEffect(Expression* expr) {
 }
 
 
-void HGraphBuilder::VisitForValue(Expression* expr) {
-  ValueContext for_value(this);
+void HGraphBuilder::VisitForValue(Expression* expr, ArgumentsAllowedFlag flag) {
+  ValueContext for_value(this, flag);
   Visit(expr);
 }
 
 
 void HGraphBuilder::VisitForTypeOf(Expression* expr) {
-  ValueContext for_value(this);
+  ValueContext for_value(this, ARGUMENTS_NOT_ALLOWED);
   for_value.set_for_typeof(true);
   Visit(expr);
 }
@@ -2879,9 +2888,6 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   if (variable == NULL) {
     return Bailout("reference to rewritten variable");
   } else if (variable->IsStackAllocated()) {
-    if (environment()->Lookup(variable)->CheckFlag(HValue::kIsArguments)) {
-      return Bailout("unsupported context for arguments object");
-    }
     ast_context()->ReturnValue(environment()->Lookup(variable));
   } else if (variable->IsContextSlot()) {
     if (variable->mode() == Variable::CONST) {
@@ -3451,19 +3457,11 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
 
     // Handle the assignment.
     if (var->IsStackAllocated()) {
-      HValue* value = NULL;
-      // Handle stack-allocated variables on the right-hand side directly.
       // We do not allow the arguments object to occur in a context where it
       // may escape, but assignments to stack-allocated locals are
-      // permitted.  Handling such assignments here bypasses the check for
-      // the arguments object in VisitVariableProxy.
-      Variable* rhs_var = expr->value()->AsVariableProxy()->AsVariable();
-      if (rhs_var != NULL && rhs_var->IsStackAllocated()) {
-        value = environment()->Lookup(rhs_var);
-      } else {
-        CHECK_ALIVE(VisitForValue(expr->value()));
-        value = Pop();
-      }
+      // permitted.
+      CHECK_ALIVE(VisitForValue(expr->value(), ARGUMENTS_ALLOWED));
+      HValue* value = Pop();
       Bind(var, value);
       ast_context()->ReturnValue(value);
 
@@ -4653,12 +4651,18 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
 }
 
 
-HInstruction* HGraphBuilder::BuildIncrement(HValue* value, bool increment) {
+HInstruction* HGraphBuilder::BuildIncrement(HValue* value,
+                                            bool increment,
+                                            CountOperation* expr) {
   HConstant* delta = increment
       ? graph_->GetConstant1()
       : graph_->GetConstantMinus1();
   HInstruction* instr = new(zone()) HAdd(value, delta);
-  AssumeRepresentation(instr,  Representation::Integer32());
+  Representation rep = ToRepresentation(oracle()->IncrementType(expr));
+  if (rep.IsTagged()) {
+    rep = Representation::Integer32();
+  }
+  AssumeRepresentation(instr, rep);
   return instr;
 }
 
@@ -4681,7 +4685,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
     // element for postfix operations in a non-effect context.
     bool has_extra = expr->is_postfix() && !ast_context()->IsEffect();
     HValue* before = has_extra ? Top() : Pop();
-    HInstruction* after = BuildIncrement(before, inc);
+    HInstruction* after = BuildIncrement(before, inc, expr);
     AddInstruction(after);
     Push(after);
 
@@ -4733,7 +4737,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       HValue* before = Pop();
       // There is no deoptimization to after the increment, so we don't need
       // to simulate the expression stack after this instruction.
-      HInstruction* after = BuildIncrement(before, inc);
+      HInstruction* after = BuildIncrement(before, inc, expr);
       AddInstruction(after);
 
       HInstruction* store = BuildStoreNamed(obj, after, prop);
@@ -4769,7 +4773,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       HValue* before = Pop();
       // There is no deoptimization to after the increment, so we don't need
       // to simulate the expression stack after this instruction.
-      HInstruction* after = BuildIncrement(before, inc);
+      HInstruction* after = BuildIncrement(before, inc, expr);
       AddInstruction(after);
 
       expr->RecordTypeFeedback(oracle());

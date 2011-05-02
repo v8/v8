@@ -6159,6 +6159,135 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
   return answer;
 }
 
+template <typename Char>
+static void JoinSparseArrayWithSeparator(FixedArray* elements,
+                                         int elements_length,
+                                         uint32_t array_length,
+                                         String* separator,
+                                         Vector<Char> buffer) {
+  int previous_separator_position = 0;
+  int separator_length = separator->length();
+  int cursor = 0;
+  for (int i = 0; i < elements_length; i += 2) {
+    int position = NumberToInt32(elements->get(i));
+    String* string = String::cast(elements->get(i + 1));
+    int string_length = string->length();
+    if (string->length() > 0) {
+      while (previous_separator_position < position) {
+        String::WriteToFlat<Char>(separator, &buffer[cursor],
+                                  0, separator_length);
+        cursor += separator_length;
+        previous_separator_position++;
+      }
+      String::WriteToFlat<Char>(string, &buffer[cursor],
+                                0, string_length);
+      cursor += string->length();
+    }
+  }
+  if (separator_length > 0) {
+    // Array length must be representable as a signed 32-bit number,
+    // otherwise the total string length would have been too large.
+    ASSERT(array_length <= 0x7fffffff);  // Is int32_t.
+    int last_array_index = static_cast<int>(array_length - 1);
+    while (previous_separator_position < last_array_index) {
+      String::WriteToFlat<Char>(separator, &buffer[cursor],
+                                0, separator_length);
+      cursor += separator_length;
+      previous_separator_position++;
+    }
+  }
+  ASSERT(cursor <= buffer.length());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+  CONVERT_CHECKED(JSArray, elements_array, args[0]);
+  RUNTIME_ASSERT(elements_array->HasFastElements());
+  CONVERT_NUMBER_CHECKED(uint32_t, array_length, Uint32, args[1]);
+  CONVERT_CHECKED(String, separator, args[2]);
+  // elements_array is fast-mode JSarray of alternating positions
+  // (increasing order) and strings.
+  // array_length is length of original array (used to add separators);
+  // separator is string to put between elements. Assumed to be non-empty.
+
+  // Find total length of join result.
+  int string_length = 0;
+  bool is_ascii = true;
+  int max_string_length = SeqAsciiString::kMaxLength;
+  bool overflow = false;
+  CONVERT_NUMBER_CHECKED(int, elements_length,
+                         Int32, elements_array->length());
+  RUNTIME_ASSERT((elements_length & 1) == 0);  // Even length.
+  FixedArray* elements = FixedArray::cast(elements_array->elements());
+  for (int i = 0; i < elements_length; i += 2) {
+    RUNTIME_ASSERT(elements->get(i)->IsNumber());
+    CONVERT_CHECKED(String, string, elements->get(i + 1));
+    int length = string->length();
+    if (is_ascii && !string->IsAsciiRepresentation()) {
+      is_ascii = false;
+      max_string_length = SeqTwoByteString::kMaxLength;
+    }
+    if (length > max_string_length ||
+        max_string_length - length < string_length) {
+      overflow = true;
+      break;
+    }
+    string_length += length;
+  }
+  int separator_length = separator->length();
+  if (!overflow && separator_length > 0) {
+    if (array_length <= 0x7fffffffu) {
+      int separator_count = static_cast<int>(array_length) - 1;
+      int remaining_length = max_string_length - string_length;
+      if ((remaining_length / separator_length) >= separator_count) {
+        string_length += separator_length * (array_length - 1);
+      } else {
+        // Not room for the separators within the maximal string length.
+        overflow = true;
+      }
+    } else {
+      // Nonempty separator and at least 2^31-1 separators necessary
+      // means that the string is too large to create.
+      STATIC_ASSERT(String::kMaxLength < 0x7fffffff);
+      overflow = true;
+    }
+  }
+  if (overflow) {
+    // Throw OutOfMemory exception for creating too large a string.
+    V8::FatalProcessOutOfMemory("Array join result too large.");
+  }
+
+  if (is_ascii) {
+    MaybeObject* result_allocation =
+        isolate->heap()->AllocateRawAsciiString(string_length);
+    if (result_allocation->IsFailure()) return result_allocation;
+    SeqAsciiString* result_string =
+        SeqAsciiString::cast(result_allocation->ToObjectUnchecked());
+    JoinSparseArrayWithSeparator<char>(elements,
+                                       elements_length,
+                                       array_length,
+                                       separator,
+                                       Vector<char>(result_string->GetChars(),
+                                                    string_length));
+    return result_string;
+  } else {
+    MaybeObject* result_allocation =
+        isolate->heap()->AllocateRawTwoByteString(string_length);
+    if (result_allocation->IsFailure()) return result_allocation;
+    SeqTwoByteString* result_string =
+        SeqTwoByteString::cast(result_allocation->ToObjectUnchecked());
+    JoinSparseArrayWithSeparator<uc16>(elements,
+                                       elements_length,
+                                       array_length,
+                                       separator,
+                                       Vector<uc16>(result_string->GetChars(),
+                                                    string_length));
+    return result_string;
+  }
+}
+
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberOr) {
   NoHandleAllocation ha;
@@ -8244,10 +8373,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
   if (!context->IsGlobalContext()) {
     // 'eval' is not bound in the global context. Just call the function
     // with the given arguments. This is not necessarily the global eval.
-    if (receiver->IsContext()) {
-      context = Handle<Context>::cast(receiver);
-      receiver = Handle<Object>(context->get(index), isolate);
-    } else if (receiver->IsJSContextExtensionObject()) {
+    if (receiver->IsContext() || receiver->IsJSContextExtensionObject()) {
       receiver = Handle<JSObject>(
           isolate->context()->global()->global_receiver(), isolate);
     }

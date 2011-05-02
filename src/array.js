@@ -67,6 +67,25 @@ function GetSortedArrayKeys(array, intervals) {
 }
 
 
+function SparseJoinWithSeparator(array, len, convert, separator) {
+  var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, len));
+  var totalLength = 0;
+  var elements = new InternalArray(keys.length * 2);
+  var previousKey = -1;
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    if (key != previousKey) {  // keys may contain duplicates.
+      var e = array[key];
+      if (!IS_STRING(e)) e = convert(e);
+      elements[i * 2] = key;
+      elements[i * 2 + 1] = e;
+      previousKey = key;
+    }
+  }
+  return %SparseJoinWithSeparator(elements, len, separator);
+}
+
+
 // Optimized for sparse arrays if separator is ''.
 function SparseJoin(array, len, convert) {
   var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, len));
@@ -110,8 +129,12 @@ function Join(array, length, separator, convert) {
 
   // Attempt to convert the elements.
   try {
-    if (UseSparseVariant(array, length, is_array) && (separator.length == 0)) {
-      return SparseJoin(array, length, convert);
+    if (UseSparseVariant(array, length, is_array)) {
+      if (separator.length == 0) {
+        return SparseJoin(array, length, convert);
+      } else {
+        return SparseJoinWithSeparator(array, length, convert, separator);
+      }
     }
 
     // Fast case for one-element arrays.
@@ -129,10 +152,8 @@ function Join(array, length, separator, convert) {
       var elements_length = 0;
       for (var i = 0; i < length; i++) {
         var e = array[i];
-        if (!IS_UNDEFINED(e)) {
-          if (!IS_STRING(e)) e = convert(e);
-          elements[elements_length++] = e;
-        }
+        if (!IS_STRING(e)) e = convert(e);
+        elements[elements_length++] = e;
       }
       elements.length = elements_length;
       var result = %_FastAsciiArrayJoin(elements, '');
@@ -151,11 +172,12 @@ function Join(array, length, separator, convert) {
     } else {
       for (var i = 0; i < length; i++) {
         var e = array[i];
-        if (IS_NUMBER(e)) elements[i] = %_NumberToString(e);
-        else {
-          if (!IS_STRING(e)) e = convert(e);
+          if (IS_NUMBER(e)) {
+            e = %_NumberToString(e);
+          } else if (!IS_STRING(e)) {
+            e = convert(e);
+          }
           elements[i] = e;
-        }
       }
     }
     var result = %_FastAsciiArrayJoin(elements, separator);

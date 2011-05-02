@@ -1589,13 +1589,15 @@ void Assembler::call(const Operand& adr) {
 }
 
 
-void Assembler::call(Handle<Code> code, RelocInfo::Mode rmode) {
+void Assembler::call(Handle<Code> code,
+                     RelocInfo::Mode rmode,
+                     unsigned ast_id) {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE8);
-  emit(reinterpret_cast<intptr_t>(code.location()), rmode);
+  emit(reinterpret_cast<intptr_t>(code.location()), rmode, ast_id);
 }
 
 

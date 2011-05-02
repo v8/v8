@@ -28,6 +28,9 @@
 #include <v8.h>
 #include <v8-testing.h>
 #include <assert.h>
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+#include <bzlib.h>
+#endif
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
@@ -299,6 +302,31 @@ int main(int argc, char* argv[]) {
     }
   }
 
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+  ASSERT_EQ(v8::StartupData::kBZip2,
+            v8::V8::GetCompressedStartupDataAlgorithm());
+  int compressed_data_count = v8::V8::GetCompressedStartupDataCount();
+  v8::StartupData* compressed_data = new v8::StartupData[compressed_data_count];
+  v8::V8::GetCompressedStartupData(compressed_data);
+  for (int i = 0; i < compressed_data_count; ++i) {
+    char* decompressed = new char[compressed_data[i].raw_size];
+    unsigned int decompressed_size = compressed_data[i].raw_size;
+    int result =
+        BZ2_bzBuffToBuffDecompress(decompressed,
+                                   &decompressed_size,
+                                   const_cast<char*>(compressed_data[i].data),
+                                   compressed_data[i].compressed_size,
+                                   0, 1);
+    if (result != BZ_OK) {
+      fprintf(stderr, "bzip error code: %d\n", result);
+      exit(1);
+    }
+    compressed_data[i].data = decompressed;
+    compressed_data[i].raw_size = decompressed_size;
+  }
+  v8::V8::SetDecompressedStartupData(compressed_data);
+#endif  // COMPRESS_STARTUP_DATA_BZ2
+
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   int result = 0;
   if (FLAG_stress_opt || FLAG_stress_deopt) {
@@ -319,6 +347,14 @@ int main(int argc, char* argv[]) {
     result = RunMain(argc, argv);
   }
   v8::V8::Dispose();
+
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+  for (int i = 0; i < compressed_data_count; ++i) {
+    delete[] compressed_data[i].data;
+  }
+  delete[] compressed_data;
+#endif  // COMPRESS_STARTUP_DATA_BZ2
+
   return result;
 }
 

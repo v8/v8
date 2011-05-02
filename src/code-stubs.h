@@ -37,6 +37,7 @@ namespace internal {
 // as only the stubs up to and including Instanceof allows nested stub calls.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
+  V(TypeRecordingUnaryOp)                \
   V(TypeRecordingBinaryOp)               \
   V(StringAdd)                           \
   V(SubString)                           \
@@ -385,54 +386,6 @@ class InstanceofStub: public CodeStub {
 
   Flags flags_;
   char* name_;
-};
-
-
-enum NegativeZeroHandling {
-  kStrictNegativeZero,
-  kIgnoreNegativeZero
-};
-
-
-enum UnaryOpFlags {
-  NO_UNARY_FLAGS = 0,
-  NO_UNARY_SMI_CODE_IN_STUB = 1 << 0
-};
-
-
-class GenericUnaryOpStub : public CodeStub {
- public:
-  GenericUnaryOpStub(Token::Value op,
-                     UnaryOverwriteMode overwrite,
-                     UnaryOpFlags flags,
-                     NegativeZeroHandling negative_zero = kStrictNegativeZero)
-      : op_(op),
-        overwrite_(overwrite),
-        include_smi_code_((flags & NO_UNARY_SMI_CODE_IN_STUB) == 0),
-        negative_zero_(negative_zero) { }
-
- private:
-  Token::Value op_;
-  UnaryOverwriteMode overwrite_;
-  bool include_smi_code_;
-  NegativeZeroHandling negative_zero_;
-
-  class OverwriteField: public BitField<UnaryOverwriteMode, 0, 1> {};
-  class IncludeSmiCodeField: public BitField<bool, 1, 1> {};
-  class NegativeZeroField: public BitField<NegativeZeroHandling, 2, 1> {};
-  class OpField: public BitField<Token::Value, 3, kMinorBits - 3> {};
-
-  Major MajorKey() { return GenericUnaryOp; }
-  int MinorKey() {
-    return OpField::encode(op_) |
-        OverwriteField::encode(overwrite_) |
-        IncludeSmiCodeField::encode(include_smi_code_) |
-        NegativeZeroField::encode(negative_zero_);
-  }
-
-  void Generate(MacroAssembler* masm);
-
-  const char* GetName();
 };
 
 

@@ -374,6 +374,481 @@ class FloatingPointHelper : public AllStatic {
 };
 
 
+// Get the integer part of a heap number.  Surprisingly, all this bit twiddling
+// is faster than using the built-in instructions on floating point registers.
+// Trashes edi and ebx.  Dest is ecx.  Source cannot be ecx or one of the
+// trashed registers.
+static void IntegerConvert(MacroAssembler* masm,
+                           Register source,
+                           TypeInfo type_info,
+                           bool use_sse3,
+                           Label* conversion_failure) {
+  ASSERT(!source.is(ecx) && !source.is(edi) && !source.is(ebx));
+  Label done, right_exponent, normal_exponent;
+  Register scratch = ebx;
+  Register scratch2 = edi;
+  if (type_info.IsInteger32() && CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope scope(SSE2);
+    __ cvttsd2si(ecx, FieldOperand(source, HeapNumber::kValueOffset));
+    return;
+  }
+  if (!type_info.IsInteger32() || !use_sse3) {
+    // Get exponent word.
+    __ mov(scratch, FieldOperand(source, HeapNumber::kExponentOffset));
+    // Get exponent alone in scratch2.
+    __ mov(scratch2, scratch);
+    __ and_(scratch2, HeapNumber::kExponentMask);
+  }
+  if (use_sse3) {
+    CpuFeatures::Scope scope(SSE3);
+    if (!type_info.IsInteger32()) {
+      // Check whether the exponent is too big for a 64 bit signed integer.
+      static const uint32_t kTooBigExponent =
+          (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
+      __ cmp(Operand(scratch2), Immediate(kTooBigExponent));
+      __ j(greater_equal, conversion_failure);
+    }
+    // Load x87 register with heap number.
+    __ fld_d(FieldOperand(source, HeapNumber::kValueOffset));
+    // Reserve space for 64 bit answer.
+    __ sub(Operand(esp), Immediate(sizeof(uint64_t)));  // Nolint.
+    // Do conversion, which cannot fail because we checked the exponent.
+    __ fisttp_d(Operand(esp, 0));
+    __ mov(ecx, Operand(esp, 0));  // Load low word of answer into ecx.
+    __ add(Operand(esp), Immediate(sizeof(uint64_t)));  // Nolint.
+  } else {
+    // Load ecx with zero.  We use this either for the final shift or
+    // for the answer.
+    __ xor_(ecx, Operand(ecx));
+    // Check whether the exponent matches a 32 bit signed int that cannot be
+    // represented by a Smi.  A non-smi 32 bit integer is 1.xxx * 2^30 so the
+    // exponent is 30 (biased).  This is the exponent that we are fastest at and
+    // also the highest exponent we can handle here.
+    const uint32_t non_smi_exponent =
+        (HeapNumber::kExponentBias + 30) << HeapNumber::kExponentShift;
+    __ cmp(Operand(scratch2), Immediate(non_smi_exponent));
+    // If we have a match of the int32-but-not-Smi exponent then skip some
+    // logic.
+    __ j(equal, &right_exponent);
+    // If the exponent is higher than that then go to slow case.  This catches
+    // numbers that don't fit in a signed int32, infinities and NaNs.
+    __ j(less, &normal_exponent);
+
+    {
+      // Handle a big exponent.  The only reason we have this code is that the
+      // >>> operator has a tendency to generate numbers with an exponent of 31.
+      const uint32_t big_non_smi_exponent =
+          (HeapNumber::kExponentBias + 31) << HeapNumber::kExponentShift;
+      __ cmp(Operand(scratch2), Immediate(big_non_smi_exponent));
+      __ j(not_equal, conversion_failure);
+      // We have the big exponent, typically from >>>.  This means the number is
+      // in the range 2^31 to 2^32 - 1.  Get the top bits of the mantissa.
+      __ mov(scratch2, scratch);
+      __ and_(scratch2, HeapNumber::kMantissaMask);
+      // Put back the implicit 1.
+      __ or_(scratch2, 1 << HeapNumber::kExponentShift);
+      // Shift up the mantissa bits to take up the space the exponent used to
+      // take. We just orred in the implicit bit so that took care of one and
+      // we want to use the full unsigned range so we subtract 1 bit from the
+      // shift distance.
+      const int big_shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 1;
+      __ shl(scratch2, big_shift_distance);
+      // Get the second half of the double.
+      __ mov(ecx, FieldOperand(source, HeapNumber::kMantissaOffset));
+      // Shift down 21 bits to get the most significant 11 bits or the low
+      // mantissa word.
+      __ shr(ecx, 32 - big_shift_distance);
+      __ or_(ecx, Operand(scratch2));
+      // We have the answer in ecx, but we may need to negate it.
+      __ test(scratch, Operand(scratch));
+      __ j(positive, &done);
+      __ neg(ecx);
+      __ jmp(&done);
+    }
+
+    __ bind(&normal_exponent);
+    // Exponent word in scratch, exponent part of exponent word in scratch2.
+    // Zero in ecx.
+    // We know the exponent is smaller than 30 (biased).  If it is less than
+    // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
+    // it rounds to zero.
+    const uint32_t zero_exponent =
+        (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;
+    __ sub(Operand(scratch2), Immediate(zero_exponent));
+    // ecx already has a Smi zero.
+    __ j(less, &done);
+
+    // We have a shifted exponent between 0 and 30 in scratch2.
+    __ shr(scratch2, HeapNumber::kExponentShift);
+    __ mov(ecx, Immediate(30));
+    __ sub(ecx, Operand(scratch2));
+
+    __ bind(&right_exponent);
+    // Here ecx is the shift, scratch is the exponent word.
+    // Get the top bits of the mantissa.
+    __ and_(scratch, HeapNumber::kMantissaMask);
+    // Put back the implicit 1.
+    __ or_(scratch, 1 << HeapNumber::kExponentShift);
+    // Shift up the mantissa bits to take up the space the exponent used to
+    // take. We have kExponentShift + 1 significant bits int he low end of the
+    // word.  Shift them to the top bits.
+    const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
+    __ shl(scratch, shift_distance);
+    // Get the second half of the double. For some exponents we don't
+    // actually need this because the bits get shifted out again, but
+    // it's probably slower to test than just to do it.
+    __ mov(scratch2, FieldOperand(source, HeapNumber::kMantissaOffset));
+    // Shift down 22 bits to get the most significant 10 bits or the low
+    // mantissa word.
+    __ shr(scratch2, 32 - shift_distance);
+    __ or_(scratch2, Operand(scratch));
+    // Move down according to the exponent.
+    __ shr_cl(scratch2);
+    // Now the unsigned answer is in scratch2.  We need to move it to ecx and
+    // we may need to fix the sign.
+    NearLabel negative;
+    __ xor_(ecx, Operand(ecx));
+    __ cmp(ecx, FieldOperand(source, HeapNumber::kExponentOffset));
+    __ j(greater, &negative);
+    __ mov(ecx, scratch2);
+    __ jmp(&done);
+    __ bind(&negative);
+    __ sub(ecx, Operand(scratch2));
+    __ bind(&done);
+  }
+}
+
+
+Handle<Code> GetTypeRecordingUnaryOpStub(int key,
+                                         TRUnaryOpIC::TypeInfo type_info) {
+  TypeRecordingUnaryOpStub stub(key, type_info);
+  return stub.GetCode();
+}
+
+
+const char* TypeRecordingUnaryOpStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
+      kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+  const char* op_name = Token::Name(op_);
+  const char* overwrite_name = NULL;  // Make g++ happy.
+  switch (mode_) {
+    case UNARY_NO_OVERWRITE: overwrite_name = "Alloc"; break;
+    case UNARY_OVERWRITE: overwrite_name = "Overwrite"; break;
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "TypeRecordingUnaryOpStub_%s_%s_%s",
+               op_name,
+               overwrite_name,
+               TRUnaryOpIC::GetName(operand_type_));
+  return name_;
+}
+
+
+// TODO(svenpanne): Use virtual functions instead of switch.
+void TypeRecordingUnaryOpStub::Generate(MacroAssembler* masm) {
+  switch (operand_type_) {
+    case TRUnaryOpIC::UNINITIALIZED:
+      GenerateTypeTransition(masm);
+      break;
+    case TRUnaryOpIC::SMI:
+      GenerateSmiStub(masm);
+      break;
+    case TRUnaryOpIC::HEAP_NUMBER:
+      GenerateHeapNumberStub(masm);
+      break;
+    case TRUnaryOpIC::GENERIC:
+      GenerateGenericStub(masm);
+      break;
+  }
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
+  __ pop(ecx);  // Save return address.
+  __ push(eax);
+  // the argument is now on top.
+  // Push this stub's key. Although the operation and the type info are
+  // encoded into the key, the encoding is opaque, so push them too.
+  __ push(Immediate(Smi::FromInt(MinorKey())));
+  __ push(Immediate(Smi::FromInt(op_)));
+  __ push(Immediate(Smi::FromInt(operand_type_)));
+
+  __ push(ecx);  // Push return address.
+
+  // Patch the caller to an appropriate specialized stub and return the
+  // operation result to the caller of the stub.
+  __ TailCallExternalReference(
+      ExternalReference(IC_Utility(IC::kTypeRecordingUnaryOp_Patch),
+                        masm->isolate()),
+      4,
+      1);
+}
+
+
+// TODO(svenpanne): Use virtual functions instead of switch.
+void TypeRecordingUnaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
+  switch (op_) {
+    case Token::SUB:
+      GenerateSmiStubSub(masm);
+      break;
+    case Token::BIT_NOT:
+      GenerateSmiStubBitNot(masm);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiStubSub(MacroAssembler* masm) {
+  NearLabel non_smi;
+  Label undo, slow;
+  GenerateSmiCodeSub(masm, &non_smi, &undo, &slow);
+  __ bind(&undo);
+  GenerateSmiCodeUndo(masm);
+  __ bind(&non_smi);
+  __ bind(&slow);
+  GenerateTypeTransition(masm);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
+  NearLabel non_smi;
+  GenerateSmiCodeBitNot(masm, &non_smi);
+  __ bind(&non_smi);
+  GenerateTypeTransition(masm);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
+                                                  NearLabel* non_smi,
+                                                  Label* undo,
+                                                  Label* slow) {
+  // Check whether the value is a smi.
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(not_zero, non_smi);
+
+  // We can't handle -0 with smis, so use a type transition for that case.
+  __ test(eax, Operand(eax));
+  __ j(zero, slow);
+
+  // Try optimistic subtraction '0 - value', saving operand in eax for undo.
+  __ mov(edx, Operand(eax));
+  __ Set(eax, Immediate(0));
+  __ sub(eax, Operand(edx));
+  __ j(overflow, undo);
+  __ ret(0);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiCodeBitNot(MacroAssembler* masm,
+                                                     NearLabel* non_smi) {
+  // Check whether the value is a smi.
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(not_zero, non_smi);
+
+  // Flip bits and revert inverted smi-tag.
+  __ not_(eax);
+  __ and_(eax, ~kSmiTagMask);
+  __ ret(0);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiCodeUndo(MacroAssembler* masm) {
+  __ mov(eax, Operand(edx));
+}
+
+
+// TODO(svenpanne): Use virtual functions instead of switch.
+void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
+  switch (op_) {
+    case Token::SUB:
+      GenerateHeapNumberStubSub(masm);
+      break;
+    case Token::BIT_NOT:
+      GenerateHeapNumberStubBitNot(masm);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
+  NearLabel non_smi;
+  Label undo, slow;
+  GenerateSmiCodeSub(masm, &non_smi, &undo, &slow);
+  __ bind(&non_smi);
+  GenerateHeapNumberCodeSub(masm, &slow);
+  __ bind(&undo);
+  GenerateSmiCodeUndo(masm);
+  __ bind(&slow);
+  GenerateTypeTransition(masm);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateHeapNumberStubBitNot(
+    MacroAssembler* masm) {
+  NearLabel non_smi;
+  Label slow;
+  GenerateSmiCodeBitNot(masm, &non_smi);
+  __ bind(&non_smi);
+  GenerateHeapNumberCodeBitNot(masm, &slow);
+  __ bind(&slow);
+  GenerateTypeTransition(masm);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
+                                                         Label* slow) {
+  __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ cmp(edx, masm->isolate()->factory()->heap_number_map());
+  __ j(not_equal, slow);
+
+  if (mode_ == UNARY_OVERWRITE) {
+    __ xor_(FieldOperand(eax, HeapNumber::kExponentOffset),
+            Immediate(HeapNumber::kSignMask));  // Flip sign.
+  } else {
+    __ mov(edx, Operand(eax));
+    // edx: operand
+
+    Label slow_allocate_heapnumber, heapnumber_allocated;
+    __ AllocateHeapNumber(eax, ebx, ecx, &slow_allocate_heapnumber);
+    __ jmp(&heapnumber_allocated);
+
+    __ bind(&slow_allocate_heapnumber);
+    __ EnterInternalFrame();
+    __ push(edx);
+    __ CallRuntime(Runtime::kNumberAlloc, 0);
+    __ pop(edx);
+    __ LeaveInternalFrame();
+
+    __ bind(&heapnumber_allocated);
+    // eax: allocated 'empty' number
+    __ mov(ecx, FieldOperand(edx, HeapNumber::kExponentOffset));
+    __ xor_(ecx, HeapNumber::kSignMask);  // Flip sign.
+    __ mov(FieldOperand(eax, HeapNumber::kExponentOffset), ecx);
+    __ mov(ecx, FieldOperand(edx, HeapNumber::kMantissaOffset));
+    __ mov(FieldOperand(eax, HeapNumber::kMantissaOffset), ecx);
+  }
+  __ ret(0);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
+    MacroAssembler* masm,
+    Label* slow) {
+  __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ cmp(edx, masm->isolate()->factory()->heap_number_map());
+  __ j(not_equal, slow);
+
+  // Convert the heap number in eax to an untagged integer in ecx.
+  IntegerConvert(masm, eax, TypeInfo::Unknown(), CpuFeatures::IsSupported(SSE3),
+                 slow);
+
+  // Do the bitwise operation and check if the result fits in a smi.
+  NearLabel try_float;
+  __ not_(ecx);
+  __ cmp(ecx, 0xc0000000);
+  __ j(sign, &try_float);
+
+  // Tag the result as a smi and we're done.
+  STATIC_ASSERT(kSmiTagSize == 1);
+  __ lea(eax, Operand(ecx, times_2, kSmiTag));
+  __ ret(0);
+
+  // Try to store the result in a heap number.
+  __ bind(&try_float);
+  if (mode_ == UNARY_NO_OVERWRITE) {
+    Label slow_allocate_heapnumber, heapnumber_allocated;
+    __ AllocateHeapNumber(eax, edx, edi, &slow_allocate_heapnumber);
+    __ jmp(&heapnumber_allocated);
+
+    __ bind(&slow_allocate_heapnumber);
+    __ EnterInternalFrame();
+    __ push(ecx);
+    __ CallRuntime(Runtime::kNumberAlloc, 0);
+    __ pop(ecx);
+    __ LeaveInternalFrame();
+
+    __ bind(&heapnumber_allocated);
+  }
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    __ cvtsi2sd(xmm0, Operand(ecx));
+    __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
+  } else {
+    __ push(ecx);
+    __ fild_s(Operand(esp, 0));
+    __ pop(ecx);
+    __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+  }
+  __ ret(0);
+}
+
+
+// TODO(svenpanne): Use virtual functions instead of switch.
+void TypeRecordingUnaryOpStub::GenerateGenericStub(MacroAssembler* masm) {
+  switch (op_) {
+    case Token::SUB:
+      GenerateGenericStubSub(masm);
+      break;
+    case Token::BIT_NOT:
+      GenerateGenericStubBitNot(masm);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm)  {
+  NearLabel non_smi;
+  Label undo, slow;
+  GenerateSmiCodeSub(masm, &non_smi, &undo, &slow);
+  __ bind(&non_smi);
+  GenerateHeapNumberCodeSub(masm, &slow);
+  __ bind(&undo);
+  GenerateSmiCodeUndo(masm);
+  __ bind(&slow);
+  GenerateGenericCodeFallback(masm);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateGenericStubBitNot(MacroAssembler* masm) {
+  NearLabel non_smi;
+  Label slow;
+  GenerateSmiCodeBitNot(masm, &non_smi);
+  __ bind(&non_smi);
+  GenerateHeapNumberCodeBitNot(masm, &slow);
+  __ bind(&slow);
+  GenerateGenericCodeFallback(masm);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateGenericCodeFallback(
+    MacroAssembler* masm) {
+  // Handle the slow case by jumping to the corresponding JavaScript builtin.
+  __ pop(ecx);  // pop return address.
+  __ push(eax);
+  __ push(ecx);  // push return address
+  switch (op_) {
+    case Token::SUB:
+      __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
+      break;
+    case Token::BIT_NOT:
+      __ InvokeBuiltin(Builtins::BIT_NOT, JUMP_FUNCTION);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
 Handle<Code> GetTypeRecordingBinaryOpStub(int key,
     TRBinaryOpIC::TypeInfo type_info,
     TRBinaryOpIC::TypeInfo result_type_info) {
@@ -1934,151 +2409,6 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
 }
 
 
-// Get the integer part of a heap number.  Surprisingly, all this bit twiddling
-// is faster than using the built-in instructions on floating point registers.
-// Trashes edi and ebx.  Dest is ecx.  Source cannot be ecx or one of the
-// trashed registers.
-void IntegerConvert(MacroAssembler* masm,
-                    Register source,
-                    TypeInfo type_info,
-                    bool use_sse3,
-                    Label* conversion_failure) {
-  ASSERT(!source.is(ecx) && !source.is(edi) && !source.is(ebx));
-  Label done, right_exponent, normal_exponent;
-  Register scratch = ebx;
-  Register scratch2 = edi;
-  if (type_info.IsInteger32() && CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope scope(SSE2);
-    __ cvttsd2si(ecx, FieldOperand(source, HeapNumber::kValueOffset));
-    return;
-  }
-  if (!type_info.IsInteger32() || !use_sse3) {
-    // Get exponent word.
-    __ mov(scratch, FieldOperand(source, HeapNumber::kExponentOffset));
-    // Get exponent alone in scratch2.
-    __ mov(scratch2, scratch);
-    __ and_(scratch2, HeapNumber::kExponentMask);
-  }
-  if (use_sse3) {
-    CpuFeatures::Scope scope(SSE3);
-    if (!type_info.IsInteger32()) {
-      // Check whether the exponent is too big for a 64 bit signed integer.
-      static const uint32_t kTooBigExponent =
-          (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
-      __ cmp(Operand(scratch2), Immediate(kTooBigExponent));
-      __ j(greater_equal, conversion_failure);
-    }
-    // Load x87 register with heap number.
-    __ fld_d(FieldOperand(source, HeapNumber::kValueOffset));
-    // Reserve space for 64 bit answer.
-    __ sub(Operand(esp), Immediate(sizeof(uint64_t)));  // Nolint.
-    // Do conversion, which cannot fail because we checked the exponent.
-    __ fisttp_d(Operand(esp, 0));
-    __ mov(ecx, Operand(esp, 0));  // Load low word of answer into ecx.
-    __ add(Operand(esp), Immediate(sizeof(uint64_t)));  // Nolint.
-  } else {
-    // Load ecx with zero.  We use this either for the final shift or
-    // for the answer.
-    __ xor_(ecx, Operand(ecx));
-    // Check whether the exponent matches a 32 bit signed int that cannot be
-    // represented by a Smi.  A non-smi 32 bit integer is 1.xxx * 2^30 so the
-    // exponent is 30 (biased).  This is the exponent that we are fastest at and
-    // also the highest exponent we can handle here.
-    const uint32_t non_smi_exponent =
-        (HeapNumber::kExponentBias + 30) << HeapNumber::kExponentShift;
-    __ cmp(Operand(scratch2), Immediate(non_smi_exponent));
-    // If we have a match of the int32-but-not-Smi exponent then skip some
-    // logic.
-    __ j(equal, &right_exponent);
-    // If the exponent is higher than that then go to slow case.  This catches
-    // numbers that don't fit in a signed int32, infinities and NaNs.
-    __ j(less, &normal_exponent);
-
-    {
-      // Handle a big exponent.  The only reason we have this code is that the
-      // >>> operator has a tendency to generate numbers with an exponent of 31.
-      const uint32_t big_non_smi_exponent =
-          (HeapNumber::kExponentBias + 31) << HeapNumber::kExponentShift;
-      __ cmp(Operand(scratch2), Immediate(big_non_smi_exponent));
-      __ j(not_equal, conversion_failure);
-      // We have the big exponent, typically from >>>.  This means the number is
-      // in the range 2^31 to 2^32 - 1.  Get the top bits of the mantissa.
-      __ mov(scratch2, scratch);
-      __ and_(scratch2, HeapNumber::kMantissaMask);
-      // Put back the implicit 1.
-      __ or_(scratch2, 1 << HeapNumber::kExponentShift);
-      // Shift up the mantissa bits to take up the space the exponent used to
-      // take. We just orred in the implicit bit so that took care of one and
-      // we want to use the full unsigned range so we subtract 1 bit from the
-      // shift distance.
-      const int big_shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 1;
-      __ shl(scratch2, big_shift_distance);
-      // Get the second half of the double.
-      __ mov(ecx, FieldOperand(source, HeapNumber::kMantissaOffset));
-      // Shift down 21 bits to get the most significant 11 bits or the low
-      // mantissa word.
-      __ shr(ecx, 32 - big_shift_distance);
-      __ or_(ecx, Operand(scratch2));
-      // We have the answer in ecx, but we may need to negate it.
-      __ test(scratch, Operand(scratch));
-      __ j(positive, &done);
-      __ neg(ecx);
-      __ jmp(&done);
-    }
-
-    __ bind(&normal_exponent);
-    // Exponent word in scratch, exponent part of exponent word in scratch2.
-    // Zero in ecx.
-    // We know the exponent is smaller than 30 (biased).  If it is less than
-    // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
-    // it rounds to zero.
-    const uint32_t zero_exponent =
-        (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;
-    __ sub(Operand(scratch2), Immediate(zero_exponent));
-    // ecx already has a Smi zero.
-    __ j(less, &done);
-
-    // We have a shifted exponent between 0 and 30 in scratch2.
-    __ shr(scratch2, HeapNumber::kExponentShift);
-    __ mov(ecx, Immediate(30));
-    __ sub(ecx, Operand(scratch2));
-
-    __ bind(&right_exponent);
-    // Here ecx is the shift, scratch is the exponent word.
-    // Get the top bits of the mantissa.
-    __ and_(scratch, HeapNumber::kMantissaMask);
-    // Put back the implicit 1.
-    __ or_(scratch, 1 << HeapNumber::kExponentShift);
-    // Shift up the mantissa bits to take up the space the exponent used to
-    // take. We have kExponentShift + 1 significant bits int he low end of the
-    // word.  Shift them to the top bits.
-    const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
-    __ shl(scratch, shift_distance);
-    // Get the second half of the double. For some exponents we don't
-    // actually need this because the bits get shifted out again, but
-    // it's probably slower to test than just to do it.
-    __ mov(scratch2, FieldOperand(source, HeapNumber::kMantissaOffset));
-    // Shift down 22 bits to get the most significant 10 bits or the low
-    // mantissa word.
-    __ shr(scratch2, 32 - shift_distance);
-    __ or_(scratch2, Operand(scratch));
-    // Move down according to the exponent.
-    __ shr_cl(scratch2);
-    // Now the unsigned answer is in scratch2.  We need to move it to ecx and
-    // we may need to fix the sign.
-    NearLabel negative;
-    __ xor_(ecx, Operand(ecx));
-    __ cmp(ecx, FieldOperand(source, HeapNumber::kExponentOffset));
-    __ j(greater, &negative);
-    __ mov(ecx, scratch2);
-    __ jmp(&done);
-    __ bind(&negative);
-    __ sub(ecx, Operand(scratch2));
-    __ bind(&done);
-  }
-}
-
-
 // Input: edx, eax are the left and right objects of a bit op.
 // Output: eax, ecx are left and right integers for a bit op.
 void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm,
@@ -2421,140 +2751,6 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 void FloatingPointHelper::CheckFloatOperandsAreInt32(MacroAssembler* masm,
                                                      Label* non_int32) {
   return;
-}
-
-
-void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
-  Label slow, done, undo;
-
-  if (op_ == Token::SUB) {
-    if (include_smi_code_) {
-      // Check whether the value is a smi.
-      NearLabel try_float;
-      __ test(eax, Immediate(kSmiTagMask));
-      __ j(not_zero, &try_float, not_taken);
-
-      if (negative_zero_ == kStrictNegativeZero) {
-        // Go slow case if the value of the expression is zero
-        // to make sure that we switch between 0 and -0.
-        __ test(eax, Operand(eax));
-        __ j(zero, &slow, not_taken);
-      }
-
-      // The value of the expression is a smi that is not zero.  Try
-      // optimistic subtraction '0 - value'.
-      __ mov(edx, Operand(eax));
-      __ Set(eax, Immediate(0));
-      __ sub(eax, Operand(edx));
-      __ j(overflow, &undo, not_taken);
-      __ StubReturn(1);
-
-      // Try floating point case.
-      __ bind(&try_float);
-    } else if (FLAG_debug_code) {
-      __ AbortIfSmi(eax);
-    }
-
-    __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
-    __ cmp(edx, masm->isolate()->factory()->heap_number_map());
-    __ j(not_equal, &slow);
-    if (overwrite_ == UNARY_OVERWRITE) {
-      __ mov(edx, FieldOperand(eax, HeapNumber::kExponentOffset));
-      __ xor_(edx, HeapNumber::kSignMask);  // Flip sign.
-      __ mov(FieldOperand(eax, HeapNumber::kExponentOffset), edx);
-    } else {
-      __ mov(edx, Operand(eax));
-      // edx: operand
-      __ AllocateHeapNumber(eax, ebx, ecx, &undo);
-      // eax: allocated 'empty' number
-      __ mov(ecx, FieldOperand(edx, HeapNumber::kExponentOffset));
-      __ xor_(ecx, HeapNumber::kSignMask);  // Flip sign.
-      __ mov(FieldOperand(eax, HeapNumber::kExponentOffset), ecx);
-      __ mov(ecx, FieldOperand(edx, HeapNumber::kMantissaOffset));
-      __ mov(FieldOperand(eax, HeapNumber::kMantissaOffset), ecx);
-    }
-  } else if (op_ == Token::BIT_NOT) {
-    if (include_smi_code_) {
-      Label non_smi;
-      __ test(eax, Immediate(kSmiTagMask));
-      __ j(not_zero, &non_smi);
-      __ not_(eax);
-      __ and_(eax, ~kSmiTagMask);  // Remove inverted smi-tag.
-      __ ret(0);
-      __ bind(&non_smi);
-    } else if (FLAG_debug_code) {
-      __ AbortIfSmi(eax);
-    }
-
-    // Check if the operand is a heap number.
-    __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
-    __ cmp(edx, masm->isolate()->factory()->heap_number_map());
-    __ j(not_equal, &slow, not_taken);
-
-    // Convert the heap number in eax to an untagged integer in ecx.
-    IntegerConvert(masm,
-                   eax,
-                   TypeInfo::Unknown(),
-                   CpuFeatures::IsSupported(SSE3),
-                   &slow);
-
-    // Do the bitwise operation and check if the result fits in a smi.
-    NearLabel try_float;
-    __ not_(ecx);
-    __ cmp(ecx, 0xc0000000);
-    __ j(sign, &try_float, not_taken);
-
-    // Tag the result as a smi and we're done.
-    STATIC_ASSERT(kSmiTagSize == 1);
-    __ lea(eax, Operand(ecx, times_2, kSmiTag));
-    __ jmp(&done);
-
-    // Try to store the result in a heap number.
-    __ bind(&try_float);
-    if (overwrite_ == UNARY_NO_OVERWRITE) {
-      // Allocate a fresh heap number, but don't overwrite eax until
-      // we're sure we can do it without going through the slow case
-      // that needs the value in eax.
-      __ AllocateHeapNumber(ebx, edx, edi, &slow);
-      __ mov(eax, Operand(ebx));
-    }
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope use_sse2(SSE2);
-      __ cvtsi2sd(xmm0, Operand(ecx));
-      __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
-    } else {
-      __ push(ecx);
-      __ fild_s(Operand(esp, 0));
-      __ pop(ecx);
-      __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
-    }
-  } else {
-    UNIMPLEMENTED();
-  }
-
-  // Return from the stub.
-  __ bind(&done);
-  __ StubReturn(1);
-
-  // Restore eax and go slow case.
-  __ bind(&undo);
-  __ mov(eax, Operand(edx));
-
-  // Handle the slow case by jumping to the JavaScript builtin.
-  __ bind(&slow);
-  __ pop(ecx);  // pop return address.
-  __ push(eax);
-  __ push(ecx);  // push return address
-  switch (op_) {
-    case Token::SUB:
-      __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
-      break;
-    case Token::BIT_NOT:
-      __ InvokeBuiltin(Builtins::BIT_NOT, JUMP_FUNCTION);
-      break;
-    default:
-      UNREACHABLE();
-  }
 }
 
 

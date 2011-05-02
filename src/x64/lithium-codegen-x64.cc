@@ -690,7 +690,7 @@ void LCodeGen::DoLabel(LLabel* label) {
   }
   __ bind(label->label());
   current_block_ = label->block_id();
-  LCodeGen::DoGap(label);
+  DoGap(label);
 }
 
 
@@ -713,6 +713,11 @@ void LCodeGen::DoGap(LGap* gap) {
     int pc = masm()->pc_offset();
     safepoints_.SetPcAfterGap(pc);
   }
+}
+
+
+void LCodeGen::DoInstructionGap(LInstructionGap* instr) {
+  DoGap(instr);
 }
 
 
@@ -794,11 +799,13 @@ void LCodeGen::DoModI(LModI* instr) {
     __ andl(dividend, Immediate(divisor - 1));
     __ bind(&done);
   } else {
-    LOperand* right = instr->InputAt(1);
-    Register right_reg = ToRegister(right);
+    NearLabel done, remainder_eq_dividend, slow, do_subtraction, both_positive;
+    Register left_reg = ToRegister(instr->InputAt(0));
+    Register right_reg = ToRegister(instr->InputAt(1));
+    Register result_reg = ToRegister(instr->result());
 
-    ASSERT(ToRegister(instr->result()).is(rdx));
-    ASSERT(ToRegister(instr->InputAt(0)).is(rax));
+    ASSERT(left_reg.is(rax));
+    ASSERT(result_reg.is(rdx));
     ASSERT(!right_reg.is(rax));
     ASSERT(!right_reg.is(rdx));
 
@@ -808,6 +815,45 @@ void LCodeGen::DoModI(LModI* instr) {
       DeoptimizeIf(zero, instr->environment());
     }
 
+    __ testl(left_reg, left_reg);
+    __ j(zero, &remainder_eq_dividend);
+    __ j(sign, &slow);
+
+    __ testl(right_reg, right_reg);
+    __ j(not_sign, &both_positive);
+    // The sign of the divisor doesn't matter.
+    __ neg(right_reg);
+
+    __ bind(&both_positive);
+    // If the dividend is smaller than the nonnegative
+    // divisor, the dividend is the result.
+    __ cmpl(left_reg, right_reg);
+    __ j(less, &remainder_eq_dividend);
+
+    // Check if the divisor is a PowerOfTwo integer.
+    Register scratch = ToRegister(instr->TempAt(0));
+    __ movl(scratch, right_reg);
+    __ subl(scratch, Immediate(1));
+    __ testl(scratch, right_reg);
+    __ j(not_zero, &do_subtraction);
+    __ andl(left_reg, scratch);
+    __ jmp(&remainder_eq_dividend);
+
+    __ bind(&do_subtraction);
+    const int kUnfolds = 3;
+    // Try a few subtractions of the dividend.
+    __ movl(scratch, left_reg);
+    for (int i = 0; i < kUnfolds; i++) {
+      // Reduce the dividend by the divisor.
+      __ subl(left_reg, right_reg);
+      // Check if the dividend is less than the divisor.
+      __ cmpl(left_reg, right_reg);
+      __ j(less, &remainder_eq_dividend);
+    }
+    __ movl(left_reg, scratch);
+
+    // Slow case, using idiv instruction.
+    __ bind(&slow);
     // Sign extend eax to edx.
     // (We are using only the low 32 bits of the values.)
     __ cdq();
@@ -816,12 +862,12 @@ void LCodeGen::DoModI(LModI* instr) {
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       NearLabel positive_left;
       NearLabel done;
-      __ testl(rax, rax);
+      __ testl(left_reg, left_reg);
       __ j(not_sign, &positive_left);
       __ idivl(right_reg);
 
       // Test the remainder for 0, because then the result would be -0.
-      __ testl(rdx, rdx);
+      __ testl(result_reg, result_reg);
       __ j(not_zero, &done);
 
       DeoptimizeIf(no_condition, instr->environment());
@@ -831,6 +877,12 @@ void LCodeGen::DoModI(LModI* instr) {
     } else {
       __ idivl(right_reg);
     }
+    __ jmp(&done);
+
+    __ bind(&remainder_eq_dividend);
+    __ movl(result_reg, left_reg);
+
+    __ bind(&done);
   }
 }
 

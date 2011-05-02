@@ -268,17 +268,10 @@ void Comparator::CalculateDifference(Comparator::Input* input,
 }
 
 
-static bool CompareSubstrings(Isolate* isolate, Handle<String> s1, int pos1,
+static bool CompareSubstrings(Handle<String> s1, int pos1,
                               Handle<String> s2, int pos2, int len) {
-  StringInputBuffer& buf1 = *isolate->liveedit_compare_substrings_buf1();
-  StringInputBuffer& buf2 = *isolate->liveedit_compare_substrings_buf2();
-  buf1.Reset(*s1);
-  buf1.Seek(pos1);
-  buf2.Reset(*s2);
-  buf2.Seek(pos2);
   for (int i = 0; i < len; i++) {
-    ASSERT(buf1.has_more() && buf2.has_more());
-    if (buf1.GetNext() != buf2.GetNext()) {
+    if (s1->Get(i + pos1) != s2->Get(i + pos2)) {
       return false;
     }
   }
@@ -410,9 +403,9 @@ class LineEndsWrapper {
 // Represents 2 strings as 2 arrays of lines.
 class LineArrayCompareInput : public Comparator::Input {
  public:
-  LineArrayCompareInput(Isolate* isolate, Handle<String> s1, Handle<String> s2,
+  LineArrayCompareInput(Handle<String> s1, Handle<String> s2,
                         LineEndsWrapper line_ends1, LineEndsWrapper line_ends2)
-      : isolate_(isolate), s1_(s1), s2_(s2), line_ends1_(line_ends1),
+      : s1_(s1), s2_(s2), line_ends1_(line_ends1),
         line_ends2_(line_ends2) {
   }
   int getLength1() {
@@ -431,12 +424,11 @@ class LineArrayCompareInput : public Comparator::Input {
     if (len1 != len2) {
       return false;
     }
-    return CompareSubstrings(isolate_, s1_, line_start1, s2_, line_start2,
+    return CompareSubstrings(s1_, line_start1, s2_, line_start2,
                              len1);
   }
 
  private:
-  Isolate* isolate_;
   Handle<String> s1_;
   Handle<String> s2_;
   LineEndsWrapper line_ends1_;
@@ -492,11 +484,13 @@ class TokenizingLineArrayCompareOutput : public Comparator::Output {
 
 Handle<JSArray> LiveEdit::CompareStrings(Handle<String> s1,
                                          Handle<String> s2) {
+  s1 = FlattenGetString(s1);
+  s2 = FlattenGetString(s2);
+
   LineEndsWrapper line_ends1(s1);
   LineEndsWrapper line_ends2(s2);
 
-  LineArrayCompareInput
-      input(Isolate::Current(), s1, s2, line_ends1, line_ends2);
+  LineArrayCompareInput input(s1, s2, line_ends1, line_ends2);
   TokenizingLineArrayCompareOutput output(line_ends1, line_ends2, s1, s2);
 
   Comparator::CalculateDifference(&input, &output);
@@ -1411,6 +1405,9 @@ static const char* DropFrames(Vector<StackFrame*> frames,
           Builtins::kFrameDropper_LiveEdit)) {
     // OK, we can drop our own code.
     *mode = Debug::FRAME_DROPPED_IN_DIRECT_CALL;
+  } else if (pre_top_frame_code ==
+      isolate->builtins()->builtin(Builtins::kReturn_DebugBreak)) {
+    *mode = Debug::FRAME_DROPPED_IN_RETURN_CALL;
   } else if (pre_top_frame_code->kind() == Code::STUB &&
       pre_top_frame_code->major_key()) {
     // Entry from our unit tests, it's fine, we support this case.

@@ -425,9 +425,9 @@ void MacroAssembler::Abort(const char* msg) {
 }
 
 
-void MacroAssembler::CallStub(CodeStub* stub) {
+void MacroAssembler::CallStub(CodeStub* stub, unsigned ast_id) {
   ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
 }
 
 
@@ -1610,12 +1610,14 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 }
 
 
-void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
+void MacroAssembler::Call(Handle<Code> code_object,
+                          RelocInfo::Mode rmode,
+                          unsigned ast_id) {
 #ifdef DEBUG
   int end_position = pc_offset() + CallSize(code_object);
 #endif
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  call(code_object, rmode);
+  call(code_object, rmode, ast_id);
 #ifdef DEBUG
   CHECK_EQ(end_position, pc_offset());
 #endif

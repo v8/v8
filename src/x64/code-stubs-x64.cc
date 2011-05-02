@@ -322,6 +322,349 @@ class FloatingPointHelper : public AllStatic {
 };
 
 
+// Get the integer part of a heap number.
+// Overwrites the contents of rdi, rbx and rcx. Result cannot be rdi or rbx.
+void IntegerConvert(MacroAssembler* masm,
+                    Register result,
+                    Register source) {
+  // Result may be rcx. If result and source are the same register, source will
+  // be overwritten.
+  ASSERT(!result.is(rdi) && !result.is(rbx));
+  // TODO(lrn): When type info reaches here, if value is a 32-bit integer, use
+  // cvttsd2si (32-bit version) directly.
+  Register double_exponent = rbx;
+  Register double_value = rdi;
+  NearLabel done, exponent_63_plus;
+  // Get double and extract exponent.
+  __ movq(double_value, FieldOperand(source, HeapNumber::kValueOffset));
+  // Clear result preemptively, in case we need to return zero.
+  __ xorl(result, result);
+  __ movq(xmm0, double_value);  // Save copy in xmm0 in case we need it there.
+  // Double to remove sign bit, shift exponent down to least significant bits.
+  // and subtract bias to get the unshifted, unbiased exponent.
+  __ lea(double_exponent, Operand(double_value, double_value, times_1, 0));
+  __ shr(double_exponent, Immediate(64 - HeapNumber::kExponentBits));
+  __ subl(double_exponent, Immediate(HeapNumber::kExponentBias));
+  // Check whether the exponent is too big for a 63 bit unsigned integer.
+  __ cmpl(double_exponent, Immediate(63));
+  __ j(above_equal, &exponent_63_plus);
+  // Handle exponent range 0..62.
+  __ cvttsd2siq(result, xmm0);
+  __ jmp(&done);
+
+  __ bind(&exponent_63_plus);
+  // Exponent negative or 63+.
+  __ cmpl(double_exponent, Immediate(83));
+  // If exponent negative or above 83, number contains no significant bits in
+  // the range 0..2^31, so result is zero, and rcx already holds zero.
+  __ j(above, &done);
+
+  // Exponent in rage 63..83.
+  // Mantissa * 2^exponent contains bits in the range 2^0..2^31, namely
+  // the least significant exponent-52 bits.
+
+  // Negate low bits of mantissa if value is negative.
+  __ addq(double_value, double_value);  // Move sign bit to carry.
+  __ sbbl(result, result);  // And convert carry to -1 in result register.
+  // if scratch2 is negative, do (scratch2-1)^-1, otherwise (scratch2-0)^0.
+  __ addl(double_value, result);
+  // Do xor in opposite directions depending on where we want the result
+  // (depending on whether result is rcx or not).
+
+  if (result.is(rcx)) {
+    __ xorl(double_value, result);
+    // Left shift mantissa by (exponent - mantissabits - 1) to save the
+    // bits that have positional values below 2^32 (the extra -1 comes from the
+    // doubling done above to move the sign bit into the carry flag).
+    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
+    __ shll_cl(double_value);
+    __ movl(result, double_value);
+  } else {
+    // As the then-branch, but move double-value to result before shifting.
+    __ xorl(result, double_value);
+    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
+    __ shll_cl(result);
+  }
+
+  __ bind(&done);
+}
+
+
+Handle<Code> GetTypeRecordingUnaryOpStub(int key,
+                                         TRUnaryOpIC::TypeInfo type_info) {
+  TypeRecordingUnaryOpStub stub(key, type_info);
+  return stub.GetCode();
+}
+
+
+void TypeRecordingUnaryOpStub::Generate(MacroAssembler* masm) {
+  switch (operand_type_) {
+    case TRUnaryOpIC::UNINITIALIZED:
+      GenerateTypeTransition(masm);
+      break;
+    case TRUnaryOpIC::SMI:
+      GenerateSmiStub(masm);
+      break;
+    case TRUnaryOpIC::HEAP_NUMBER:
+      GenerateHeapNumberStub(masm);
+      break;
+    case TRUnaryOpIC::GENERIC:
+      GenerateGenericStub(masm);
+      break;
+  }
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
+  __ pop(rcx);  // Save return address.
+  __ push(rax);
+  // Left and right arguments are now on top.
+  // Push this stub's key. Although the operation and the type info are
+  // encoded into the key, the encoding is opaque, so push them too.
+  __ Push(Smi::FromInt(MinorKey()));
+  __ Push(Smi::FromInt(op_));
+  __ Push(Smi::FromInt(operand_type_));
+
+  __ push(rcx);  // Push return address.
+
+  // Patch the caller to an appropriate specialized stub and return the
+  // operation result to the caller of the stub.
+  __ TailCallExternalReference(
+      ExternalReference(IC_Utility(IC::kTypeRecordingUnaryOp_Patch),
+                        masm->isolate()),
+      4,
+      1);
+}
+
+
+// TODO(svenpanne): Use virtual functions instead of switch.
+void TypeRecordingUnaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
+  switch (op_) {
+    case Token::SUB:
+      GenerateSmiStubSub(masm);
+      break;
+    case Token::BIT_NOT:
+      GenerateSmiStubBitNot(masm);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiStubSub(MacroAssembler* masm) {
+  NearLabel non_smi;
+  Label slow;
+  GenerateSmiCodeSub(masm, &non_smi, &slow);
+  __ bind(&non_smi);
+  __ bind(&slow);
+  GenerateTypeTransition(masm);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
+  NearLabel non_smi;
+  GenerateSmiCodeBitNot(masm, &non_smi);
+  __ bind(&non_smi);
+  GenerateTypeTransition(masm);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
+                                                  NearLabel* non_smi,
+                                                  Label* slow) {
+  NearLabel done;
+  __ JumpIfNotSmi(rax, non_smi);
+  __ SmiNeg(rax, rax, &done);
+  __ jmp(slow);
+  __ bind(&done);
+  __ ret(0);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiCodeBitNot(MacroAssembler* masm,
+                                                     NearLabel* non_smi) {
+  __ JumpIfNotSmi(rax, non_smi);
+  __ SmiNot(rax, rax);
+  __ ret(0);
+}
+
+
+// TODO(svenpanne): Use virtual functions instead of switch.
+void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
+  switch (op_) {
+    case Token::SUB:
+      GenerateHeapNumberStubSub(masm);
+      break;
+    case Token::BIT_NOT:
+      GenerateHeapNumberStubBitNot(masm);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
+  NearLabel non_smi;
+  Label slow;
+  GenerateSmiCodeSub(masm, &non_smi, &slow);
+  __ bind(&non_smi);
+  GenerateHeapNumberCodeSub(masm, &slow);
+  __ bind(&slow);
+  GenerateTypeTransition(masm);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateHeapNumberStubBitNot(
+    MacroAssembler* masm) {
+  NearLabel non_smi;
+  Label slow;
+  GenerateSmiCodeBitNot(masm, &non_smi);
+  __ bind(&non_smi);
+  GenerateHeapNumberCodeBitNot(masm, &slow);
+  __ bind(&slow);
+  GenerateTypeTransition(masm);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
+                                                         Label* slow) {
+  // Check if the operand is a heap number.
+  __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, slow);
+
+  // Operand is a float, negate its value by flipping the sign bit.
+  if (mode_ == UNARY_OVERWRITE) {
+    __ Set(kScratchRegister, 0x01);
+    __ shl(kScratchRegister, Immediate(63));
+    __ xor_(FieldOperand(rax, HeapNumber::kValueOffset), kScratchRegister);
+  } else {
+    // Allocate a heap number before calculating the answer,
+    // so we don't have an untagged double around during GC.
+    Label slow_allocate_heapnumber, heapnumber_allocated;
+    __ AllocateHeapNumber(rcx, rbx, &slow_allocate_heapnumber);
+    __ jmp(&heapnumber_allocated);
+
+    __ bind(&slow_allocate_heapnumber);
+    __ EnterInternalFrame();
+    __ push(rax);
+    __ CallRuntime(Runtime::kNumberAlloc, 0);
+    __ movq(rcx, rax);
+    __ pop(rax);
+    __ LeaveInternalFrame();
+    __ bind(&heapnumber_allocated);
+    // rcx: allocated 'empty' number
+
+    // Copy the double value to the new heap number, flipping the sign.
+    __ movq(rdx, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ Set(kScratchRegister, 0x01);
+    __ shl(kScratchRegister, Immediate(63));
+    __ xor_(rdx, kScratchRegister);  // Flip sign.
+    __ movq(FieldOperand(rcx, HeapNumber::kValueOffset), rdx);
+    __ movq(rax, rcx);
+  }
+  __ ret(0);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
+    MacroAssembler* masm,
+    Label* slow) {
+  // Check if the operand is a heap number.
+  __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, slow);
+
+  // Convert the heap number in rax to an untagged integer in rcx.
+  IntegerConvert(masm, rax, rax);
+
+  // Do the bitwise operation and smi tag the result.
+  __ notl(rax);
+  __ Integer32ToSmi(rax, rax);
+  __ ret(0);
+}
+
+
+// TODO(svenpanne): Use virtual functions instead of switch.
+void TypeRecordingUnaryOpStub::GenerateGenericStub(MacroAssembler* masm) {
+  switch (op_) {
+    case Token::SUB:
+      GenerateGenericStubSub(masm);
+      break;
+    case Token::BIT_NOT:
+      GenerateGenericStubBitNot(masm);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm) {
+  NearLabel non_smi;
+  Label slow;
+  GenerateSmiCodeSub(masm, &non_smi, &slow);
+  __ bind(&non_smi);
+  GenerateHeapNumberCodeSub(masm, &slow);
+  __ bind(&slow);
+  GenerateGenericCodeFallback(masm);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateGenericStubBitNot(MacroAssembler* masm) {
+  NearLabel non_smi;
+  Label slow;
+  GenerateSmiCodeBitNot(masm, &non_smi);
+  __ bind(&non_smi);
+  GenerateHeapNumberCodeBitNot(masm, &slow);
+  __ bind(&slow);
+  GenerateGenericCodeFallback(masm);
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateGenericCodeFallback(
+    MacroAssembler* masm) {
+  // Handle the slow case by jumping to the JavaScript builtin.
+  __ pop(rcx);  // pop return address
+  __ push(rax);
+  __ push(rcx);  // push return address
+  switch (op_) {
+    case Token::SUB:
+      __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
+      break;
+    case Token::BIT_NOT:
+      __ InvokeBuiltin(Builtins::BIT_NOT, JUMP_FUNCTION);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+const char* TypeRecordingUnaryOpStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
+      kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+  const char* op_name = Token::Name(op_);
+  const char* overwrite_name = NULL;  // Make g++ happy.
+  switch (mode_) {
+    case UNARY_NO_OVERWRITE: overwrite_name = "Alloc"; break;
+    case UNARY_OVERWRITE: overwrite_name = "Overwrite"; break;
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "TypeRecordingUnaryOpStub_%s_%s_%s",
+               op_name,
+               overwrite_name,
+               TRUnaryOpIC::GetName(operand_type_));
+  return name_;
+}
+
+
 Handle<Code> GetTypeRecordingBinaryOpStub(int key,
     TRBinaryOpIC::TypeInfo type_info,
     TRBinaryOpIC::TypeInfo result_type_info) {
@@ -1199,74 +1542,6 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
 }
 
 
-// Get the integer part of a heap number.
-// Overwrites the contents of rdi, rbx and rcx. Result cannot be rdi or rbx.
-void IntegerConvert(MacroAssembler* masm,
-                    Register result,
-                    Register source) {
-  // Result may be rcx. If result and source are the same register, source will
-  // be overwritten.
-  ASSERT(!result.is(rdi) && !result.is(rbx));
-  // TODO(lrn): When type info reaches here, if value is a 32-bit integer, use
-  // cvttsd2si (32-bit version) directly.
-  Register double_exponent = rbx;
-  Register double_value = rdi;
-  NearLabel done, exponent_63_plus;
-  // Get double and extract exponent.
-  __ movq(double_value, FieldOperand(source, HeapNumber::kValueOffset));
-  // Clear result preemptively, in case we need to return zero.
-  __ xorl(result, result);
-  __ movq(xmm0, double_value);  // Save copy in xmm0 in case we need it there.
-  // Double to remove sign bit, shift exponent down to least significant bits.
-  // and subtract bias to get the unshifted, unbiased exponent.
-  __ lea(double_exponent, Operand(double_value, double_value, times_1, 0));
-  __ shr(double_exponent, Immediate(64 - HeapNumber::kExponentBits));
-  __ subl(double_exponent, Immediate(HeapNumber::kExponentBias));
-  // Check whether the exponent is too big for a 63 bit unsigned integer.
-  __ cmpl(double_exponent, Immediate(63));
-  __ j(above_equal, &exponent_63_plus);
-  // Handle exponent range 0..62.
-  __ cvttsd2siq(result, xmm0);
-  __ jmp(&done);
-
-  __ bind(&exponent_63_plus);
-  // Exponent negative or 63+.
-  __ cmpl(double_exponent, Immediate(83));
-  // If exponent negative or above 83, number contains no significant bits in
-  // the range 0..2^31, so result is zero, and rcx already holds zero.
-  __ j(above, &done);
-
-  // Exponent in rage 63..83.
-  // Mantissa * 2^exponent contains bits in the range 2^0..2^31, namely
-  // the least significant exponent-52 bits.
-
-  // Negate low bits of mantissa if value is negative.
-  __ addq(double_value, double_value);  // Move sign bit to carry.
-  __ sbbl(result, result);  // And convert carry to -1 in result register.
-  // if scratch2 is negative, do (scratch2-1)^-1, otherwise (scratch2-0)^0.
-  __ addl(double_value, result);
-  // Do xor in opposite directions depending on where we want the result
-  // (depending on whether result is rcx or not).
-
-  if (result.is(rcx)) {
-    __ xorl(double_value, result);
-    // Left shift mantissa by (exponent - mantissabits - 1) to save the
-    // bits that have positional values below 2^32 (the extra -1 comes from the
-    // doubling done above to move the sign bit into the carry flag).
-    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
-    __ shll_cl(double_value);
-    __ movl(result, double_value);
-  } else {
-    // As the then-branch, but move double-value to result before shifting.
-    __ xorl(result, double_value);
-    __ leal(rcx, Operand(double_exponent, -HeapNumber::kMantissaBits - 1));
-    __ shll_cl(result);
-  }
-
-  __ bind(&done);
-}
-
-
 // Input: rdx, rax are the left and right objects of a bit op.
 // Output: rax, rcx are left and right integers for a bit op.
 void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm) {
@@ -1461,91 +1736,6 @@ void FloatingPointHelper::NumbersToSmis(MacroAssembler* masm,
     __ jmp(on_success);
   } else {
     __ bind(&done);
-  }
-}
-
-
-void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
-  Label slow, done;
-
-  if (op_ == Token::SUB) {
-    if (include_smi_code_) {
-      // Check whether the value is a smi.
-      Label try_float;
-      __ JumpIfNotSmi(rax, &try_float);
-      if (negative_zero_ == kIgnoreNegativeZero) {
-        __ SmiCompare(rax, Smi::FromInt(0));
-        __ j(equal, &done);
-      }
-      __ SmiNeg(rax, rax, &done);
-      __ jmp(&slow);  // zero, if not handled above, and Smi::kMinValue.
-
-      // Try floating point case.
-      __ bind(&try_float);
-    } else if (FLAG_debug_code) {
-      __ AbortIfSmi(rax);
-    }
-
-    __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
-                   Heap::kHeapNumberMapRootIndex);
-    __ j(not_equal, &slow);
-    // Operand is a float, negate its value by flipping sign bit.
-    __ movq(rdx, FieldOperand(rax, HeapNumber::kValueOffset));
-    __ Set(kScratchRegister, 0x01);
-    __ shl(kScratchRegister, Immediate(63));
-    __ xor_(rdx, kScratchRegister);  // Flip sign.
-    // rdx is value to store.
-    if (overwrite_ == UNARY_OVERWRITE) {
-      __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rdx);
-    } else {
-      __ AllocateHeapNumber(rcx, rbx, &slow);
-      // rcx: allocated 'empty' number
-      __ movq(FieldOperand(rcx, HeapNumber::kValueOffset), rdx);
-      __ movq(rax, rcx);
-    }
-  } else if (op_ == Token::BIT_NOT) {
-    if (include_smi_code_) {
-      Label try_float;
-      __ JumpIfNotSmi(rax, &try_float);
-      __ SmiNot(rax, rax);
-      __ jmp(&done);
-      // Try floating point case.
-      __ bind(&try_float);
-    } else if (FLAG_debug_code) {
-      __ AbortIfSmi(rax);
-    }
-
-    // Check if the operand is a heap number.
-    __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
-                   Heap::kHeapNumberMapRootIndex);
-    __ j(not_equal, &slow);
-
-    // Convert the heap number in rax to an untagged integer in rcx.
-    IntegerConvert(masm, rax, rax);
-
-    // Do the bitwise operation and smi tag the result.
-    __ notl(rax);
-    __ Integer32ToSmi(rax, rax);
-  }
-
-  // Return from the stub.
-  __ bind(&done);
-  __ StubReturn(1);
-
-  // Handle the slow case by jumping to the JavaScript builtin.
-  __ bind(&slow);
-  __ pop(rcx);  // pop return address
-  __ push(rax);
-  __ push(rcx);  // push return address
-  switch (op_) {
-    case Token::SUB:
-      __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
-      break;
-    case Token::BIT_NOT:
-      __ InvokeBuiltin(Builtins::BIT_NOT, JUMP_FUNCTION);
-      break;
-    default:
-      UNREACHABLE();
   }
 }
 

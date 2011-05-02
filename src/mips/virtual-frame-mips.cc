@@ -128,7 +128,7 @@ void VirtualFrame::DebugBreak() {
 
 
 void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
-                                 InvokeJSFlags flags,
+                                 InvokeFlag flag,
                                  int arg_count) {
   UNIMPLEMENTED_MIPS();
 }

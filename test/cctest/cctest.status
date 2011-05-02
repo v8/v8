@@ -42,6 +42,14 @@ test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
 
 ##############################################################################
+# BUG(1354): Bad function name inference
+test-func-name-inference/FactoryHashmapConditional: FAIL
+test-func-name-inference/FactoryHashmapVariable: FAIL
+test-func-name-inference/FactoryHashmap: FAIL
+test-func-name-inference/MultipleAssignments: FAIL
+test-func-name-inference/PassedAsConstructorParameter: FAIL
+
+##############################################################################
 [ $arch == arm ]
 
 # We cannot assume that we can throw OutOfMemory exceptions in all situations.
@@ -95,6 +103,3 @@ test-sockets: SKIP
 test-strings: SKIP
 test-threads: SKIP
 test-thread-termination: SKIP
-
-##############################################################################
-# Tests that time out with Isolates

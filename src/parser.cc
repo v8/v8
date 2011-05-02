@@ -1303,7 +1303,10 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // to the corresponding activation frame at runtime if necessary.
   // For instance declarations inside an eval scope need to be added
   // to the calling function context.
-  if (top_scope_->is_function_scope()) {
+  // Similarly, strict mode eval scope does not leak variable declarations to
+  // the caller's scope so we declare all locals, too.
+  if (top_scope_->is_function_scope() ||
+      top_scope_->is_strict_mode_eval_scope()) {
     // Declare the variable in the function scope.
     var = top_scope_->LocalLookup(name);
     if (var == NULL) {
@@ -2484,7 +2487,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
         x = NewCompareNode(cmp, x, y, position);
         if (cmp != op) {
           // The comparison was negated - add a NOT.
-          x = new(zone()) UnaryOperation(Token::NOT, x);
+          x = new(zone()) UnaryOperation(Token::NOT, x, position);
         }
 
       } else {
@@ -2534,6 +2537,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
   Token::Value op = peek();
   if (Token::IsUnaryOp(op)) {
     op = Next();
+    int position = scanner().location().beg_pos;
     Expression* expression = ParseUnaryExpression(CHECK_OK);
 
     // Compute some expressions involving only number literals.
@@ -2561,7 +2565,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       }
     }
 
-    return new(zone()) UnaryOperation(op, expression);
+    return new(zone()) UnaryOperation(op, expression, position);
 
   } else if (Token::IsCountOp(op)) {
     op = Next();

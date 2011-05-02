@@ -1,4 +1,4 @@
-# Copyright 2010 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -101,17 +101,10 @@ LIBRARY_FLAGS = {
     'mode:debug': {
       'CCFLAGS':      ['-g', '-O0'],
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG'],
-      'os:android': {
-        'CCFLAGS':    ['-mthumb']
-      }
     },
     'mode:release': {
       'CCFLAGS':      ['-O3', '-fomit-frame-pointer', '-fdata-sections',
                        '-ffunction-sections'],
-      'os:android': {
-        'CCFLAGS':    ['-mthumb', '-Os'],
-        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
-      }
     },
     'os:linux': {
       'CCFLAGS':      ['-ansi'] + GCC_EXTRA_CCFLAGS,
@@ -161,6 +154,24 @@ LIBRARY_FLAGS = {
       },
       'unalignedaccesses:off' : {
         'CPPDEFINES' : ['CAN_USE_UNALIGNED_ACCESSES=0']
+      },
+      'armeabi:soft' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=soft'],
+        }
+      },
+      'armeabi:softfp' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=softfp'],
+        }
+      },
+      'armeabi:hard' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1', 'CAN_USE_VFP_INSTRUCTIONS'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=hard'],
+        }
       }
     },
     'simulator:arm': {
@@ -208,6 +219,9 @@ LIBRARY_FLAGS = {
     },
     'gdbjit:on': {
       'CPPDEFINES':   ['ENABLE_GDB_JIT_INTERFACE']
+    },
+    'compress_startup_data:bz2': {
+      'CPPDEFINES':   ['COMPRESS_STARTUP_DATA_BZ2']
     }
   },
   'msvc': {
@@ -293,6 +307,11 @@ V8_EXTRA_FLAGS = {
     'os:macos': {
       'WARNINGFLAGS': ['-pedantic']
     },
+    'arch:arm': {
+      # This is to silence warnings about ABI changes that some versions of the
+      # CodeSourcery G++ tool chain produce for each occurrence of varargs.
+      'WARNINGFLAGS': ['-Wno-abi']
+    },
     'disassembler:on': {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
     }
@@ -345,6 +364,11 @@ MKSNAPSHOT_EXTRA_FLAGS = {
     'os:win32': {
       'LIBS': ['winmm', 'ws2_32'],
     },
+    'compress_startup_data:bz2': {
+      'os:linux': {
+        'LIBS': ['bz2']
+      }
+    },
   },
   'msvc': {
     'all': {
@@ -376,7 +400,10 @@ CCTEST_EXTRA_FLAGS = {
   },
   'gcc': {
     'all': {
-      'LIBPATH': [abspath('.')]
+      'LIBPATH':      [abspath('.')],
+      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
+      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'LINKFLAGS':    ['$CCFLAGS'],
     },
     'os:linux': {
       'LIBS':         ['pthread'],
@@ -426,8 +453,10 @@ SAMPLE_FLAGS = {
   },
   'gcc': {
     'all': {
-      'LIBPATH': ['.'],
-      'CCFLAGS': ['-fno-rtti', '-fno-exceptions']
+      'LIBPATH':      ['.'],
+      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
+      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'LINKFLAGS':    ['$CCFLAGS'],
     },
     'os:linux': {
       'LIBS':         ['pthread'],
@@ -452,7 +481,25 @@ SAMPLE_FLAGS = {
       'LIBS':         ['winmm', 'ws2_32']
     },
     'arch:arm': {
-      'LINKFLAGS':   ARM_LINK_FLAGS
+      'LINKFLAGS':   ARM_LINK_FLAGS,
+      'armeabi:soft' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=soft'],
+        }
+      },
+      'armeabi:softfp' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=softfp'],
+        }
+      },
+      'armeabi:hard' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1', 'CAN_USE_VFP_INSTRUCTIONS'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=hard'],
+        }
+      }
     },
     'arch:ia32': {
       'CCFLAGS':      ['-m32'],
@@ -484,6 +531,12 @@ SAMPLE_FLAGS = {
     'mode:debug': {
       'CCFLAGS':      ['-g', '-O0'],
       'CPPDEFINES':   ['DEBUG']
+    },
+    'compress_startup_data:bz2': {
+      'CPPDEFINES':   ['COMPRESS_STARTUP_DATA_BZ2'],
+      'os:linux': {
+        'LIBS':       ['bz2']
+      }
     },
   },
   'msvc': {
@@ -554,14 +607,32 @@ PREPARSER_FLAGS = {
   },
   'gcc': {
     'all': {
-      'LIBPATH': ['.'],
-      'CCFLAGS': ['-fno-rtti', '-fno-exceptions']
+      'LIBPATH':      ['.'],
+      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
+      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'LINKFLAGS':    ['$CCFLAGS'],
     },
     'os:win32': {
       'LIBS':         ['winmm', 'ws2_32']
     },
     'arch:arm': {
-      'LINKFLAGS':   ARM_LINK_FLAGS
+      'LINKFLAGS':   ARM_LINK_FLAGS,
+      'armeabi:soft' : {
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=soft'],
+        }
+      },
+      'armeabi:softfp' : {
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=softfp'],
+        }
+      },
+      'armeabi:hard' : {
+        'simulator:none': {
+          'CCFLAGS':     ['-mfloat-abi=hard'],
+        }
+      }
     },
     'arch:ia32': {
       'CCFLAGS':      ['-m32'],
@@ -681,6 +752,11 @@ PREPARSER_FLAGS = {
 
 D8_FLAGS = {
   'gcc': {
+    'all': {
+      'CCFLAGS': ['$DIALECTFLAGS', '$WARNINGFLAGS'],
+      'CXXFLAGS': ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'LINKFLAGS': ['$CCFLAGS'],
+    },
     'console:readline': {
       'LIBS': ['readline']
     },
@@ -779,7 +855,7 @@ PLATFORM_OPTIONS = {
     'help': 'the architecture to build for'
   },
   'os': {
-    'values': ['freebsd', 'linux', 'macos', 'win32', 'android', 'openbsd', 'solaris', 'cygwin'],
+    'values': ['freebsd', 'linux', 'macos', 'win32', 'openbsd', 'solaris', 'cygwin'],
     'guess': GuessOS,
     'help': 'the os to build for'
   },
@@ -917,6 +993,11 @@ SIMPLE_OPTIONS = {
     'default': 'off',
     'help': 'select profile guided optimization variant',
   },
+  'armeabi': {
+    'values': ['hard', 'softfp', 'soft'],
+    'default': 'softfp',
+    'help': 'generate calling conventiont according to selected ARM EABI variant'
+  },
   'mipsabi': {
     'values': ['hardfloat', 'softfloat', 'none'],
     'default': 'hardfloat',
@@ -926,7 +1007,12 @@ SIMPLE_OPTIONS = {
     'values': ['mips32r2', 'mips32r1'],
     'default': 'mips32r2',
     'help': 'mips variant'
-  }
+  },
+  'compress_startup_data': {
+    'values': ['off', 'bz2'],
+    'default': 'off',
+    'help': 'compress startup data (snapshot) [Linux only]'
+  },
 }
 
 ALL_OPTIONS = dict(PLATFORM_OPTIONS, **SIMPLE_OPTIONS)
@@ -1049,6 +1135,8 @@ def VerifyOptions(env):
     print env['arch']
     print env['simulator']
     Abort("Option unalignedaccesses only supported for the ARM architecture.")
+  if env['os'] != 'linux' and env['compress_startup_data'] != 'off':
+    Abort("Startup data compression is only available on Linux")
   for (name, option) in ALL_OPTIONS.iteritems():
     if (not name in env):
       message = ("A value for option %s must be specified (%s)." %

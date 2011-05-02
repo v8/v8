@@ -449,7 +449,7 @@ void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 
 
 void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
-  LGap* gap = new LGap(block);
+  LInstructionGap* gap = new LInstructionGap(block);
   int index = -1;
   if (instr->IsControl()) {
     instructions_.Add(gap);

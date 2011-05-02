@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 #include "v8.h"
 
@@ -87,58 +87,85 @@ int Label::pos() const {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfoWriter and RelocIterator
 //
+// Relocation information is written backwards in memory, from high addresses
+// towards low addresses, byte by byte.  Therefore, in the encodings listed
+// below, the first byte listed it at the highest address, and successive
+// bytes in the record are at progressively lower addresses.
+//
 // Encoding
 //
 // The most common modes are given single-byte encodings.  Also, it is
 // easy to identify the type of reloc info and skip unwanted modes in
 // an iteration.
 //
-// The encoding relies on the fact that there are less than 14
-// different relocation modes.
+// The encoding relies on the fact that there are fewer than 14
+// different non-compactly encoded relocation modes.
 //
-// embedded_object:    [6 bits pc delta] 00
+// The first byte of a relocation record has a tag in its low 2 bits:
+// Here are the record schemes, depending on the low tag and optional higher
+// tags.
 //
-// code_taget:         [6 bits pc delta] 01
+// Low tag:
+//   00: embedded_object:      [6-bit pc delta] 00
 //
-// position:           [6 bits pc delta] 10,
-//                     [7 bits signed data delta] 0
+//   01: code_target:          [6-bit pc delta] 01
 //
-// statement_position: [6 bits pc delta] 10,
-//                     [7 bits signed data delta] 1
+//   10: short_data_record:    [6-bit pc delta] 10 followed by
+//                             [6-bit data delta] [2-bit data type tag]
 //
-// any nondata mode:   00 [4 bits rmode] 11,  // rmode: 0..13 only
-//                     00 [6 bits pc delta]
+//   11: long_record           [2-bit high tag][4 bit middle_tag] 11
+//                             followed by variable data depending on type.
 //
-// pc-jump:            00 1111 11,
-//                     00 [6 bits pc delta]
+//  2-bit data type tags, used in short_data_record and data_jump long_record:
+//   code_target_with_id: 00
+//   position:            01
+//   statement_position:  10
+//   comment:             11 (not used in short_data_record)
 //
-// pc-jump:            01 1111 11,
-// (variable length)   7 - 26 bit pc delta, written in chunks of 7
-//                     bits, the lowest 7 bits written first.
+//  Long record format:
+//    4-bit middle_tag:
+//      0000 - 1100 : Short record for RelocInfo::Mode middle_tag + 2
+//         (The middle_tag encodes rmode - RelocInfo::LAST_COMPACT_ENUM,
+//          and is between 0000 and 1100)
+//        The format is:
+//                              00 [4 bit middle_tag] 11 followed by
+//                              00 [6 bit pc delta]
 //
-// data-jump + pos:    00 1110 11,
-//                     signed intptr_t, lowest byte written first
+//      1101: not used (would allow one more relocation mode to be added)
+//      1110: long_data_record
+//        The format is:       [2-bit data_type_tag] 1110 11
+//                             signed intptr_t, lowest byte written first
+//                             (except data_type code_target_with_id, which
+//                             is followed by a signed int, not intptr_t.)
 //
-// data-jump + st.pos: 01 1110 11,
-//                     signed intptr_t, lowest byte written first
-//
-// data-jump + comm.:  10 1110 11,
-//                     signed intptr_t, lowest byte written first
-//
+//      1111: long_pc_jump
+//        The format is:
+//          pc-jump:             00 1111 11,
+//                               00 [6 bits pc delta]
+//        or
+//          pc-jump (variable length):
+//                               01 1111 11,
+//                               [7 bits data] 0
+//                                  ...
+//                               [7 bits data] 1
+//               (Bits 6..31 of pc delta, with leading zeroes
+//                dropped, and last non-zero chunk tagged with 1.)
+
+
 const int kMaxRelocModes = 14;
 
 const int kTagBits = 2;
 const int kTagMask = (1 << kTagBits) - 1;
 const int kExtraTagBits = 4;
-const int kPositionTypeTagBits = 1;
-const int kSmallDataBits = kBitsPerByte - kPositionTypeTagBits;
+const int kLocatableTypeTagBits = 2;
+const int kSmallDataBits = kBitsPerByte - kLocatableTypeTagBits;
 
 const int kEmbeddedObjectTag = 0;
 const int kCodeTargetTag = 1;
-const int kPositionTag = 2;
+const int kLocatableTag = 2;
 const int kDefaultTag = 3;
 
-const int kPCJumpTag = (1 << kExtraTagBits) - 1;
+const int kPCJumpExtraTag = (1 << kExtraTagBits) - 1;
 
 const int kSmallPCDeltaBits = kBitsPerByte - kTagBits;
 const int kSmallPCDeltaMask = (1 << kSmallPCDeltaBits) - 1;
@@ -152,11 +179,12 @@ const int kLastChunkTagMask = 1;
 const int kLastChunkTag = 1;
 
 
-const int kDataJumpTag = kPCJumpTag - 1;
+const int kDataJumpExtraTag = kPCJumpExtraTag - 1;
 
-const int kNonstatementPositionTag = 0;
-const int kStatementPositionTag = 1;
-const int kCommentTag = 2;
+const int kCodeWithIdTag = 0;
+const int kNonstatementPositionTag = 1;
+const int kStatementPositionTag = 2;
+const int kCommentTag = 3;
 
 
 uint32_t RelocInfoWriter::WriteVariableLengthPCJump(uint32_t pc_delta) {
@@ -164,7 +192,7 @@ uint32_t RelocInfoWriter::WriteVariableLengthPCJump(uint32_t pc_delta) {
   // Otherwise write a variable length PC jump for the bits that do
   // not fit in the kSmallPCDeltaBits bits.
   if (is_uintn(pc_delta, kSmallPCDeltaBits)) return pc_delta;
-  WriteExtraTag(kPCJumpTag, kVariableLengthPCJumpTopTag);
+  WriteExtraTag(kPCJumpExtraTag, kVariableLengthPCJumpTopTag);
   uint32_t pc_jump = pc_delta >> kSmallPCDeltaBits;
   ASSERT(pc_jump > 0);
   // Write kChunkBits size chunks of the pc_jump.
@@ -187,7 +215,7 @@ void RelocInfoWriter::WriteTaggedPC(uint32_t pc_delta, int tag) {
 
 
 void RelocInfoWriter::WriteTaggedData(intptr_t data_delta, int tag) {
-  *--pos_ = static_cast<byte>(data_delta << kPositionTypeTagBits | tag);
+  *--pos_ = static_cast<byte>(data_delta << kLocatableTypeTagBits | tag);
 }
 
 
@@ -206,11 +234,20 @@ void RelocInfoWriter::WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag) {
 }
 
 
+void RelocInfoWriter::WriteExtraTaggedIntData(int data_delta, int top_tag) {
+  WriteExtraTag(kDataJumpExtraTag, top_tag);
+  for (int i = 0; i < kIntSize; i++) {
+    *--pos_ = static_cast<byte>(data_delta);
+    // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
+    data_delta = data_delta >> kBitsPerByte;
+  }
+}
+
 void RelocInfoWriter::WriteExtraTaggedData(intptr_t data_delta, int top_tag) {
-  WriteExtraTag(kDataJumpTag, top_tag);
+  WriteExtraTag(kDataJumpExtraTag, top_tag);
   for (int i = 0; i < kIntptrSize; i++) {
     *--pos_ = static_cast<byte>(data_delta);
-  // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
+    // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
     data_delta = data_delta >> kBitsPerByte;
   }
 }
@@ -221,7 +258,8 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   byte* begin_pos = pos_;
 #endif
   ASSERT(rinfo->pc() - last_pc_ >= 0);
-  ASSERT(RelocInfo::NUMBER_OF_MODES <= kMaxRelocModes);
+  ASSERT(RelocInfo::NUMBER_OF_MODES - RelocInfo::LAST_COMPACT_ENUM <=
+         kMaxRelocModes);
   // Use unsigned delta-encoding for pc.
   uint32_t pc_delta = static_cast<uint32_t>(rinfo->pc() - last_pc_);
   RelocInfo::Mode rmode = rinfo->rmode();
@@ -232,35 +270,48 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   } else if (rmode == RelocInfo::CODE_TARGET) {
     WriteTaggedPC(pc_delta, kCodeTargetTag);
     ASSERT(begin_pos - pos_ <= RelocInfo::kMaxCallSize);
-  } else if (RelocInfo::IsPosition(rmode)) {
-    // Use signed delta-encoding for data.
-    intptr_t data_delta = rinfo->data() - last_data_;
-    int pos_type_tag = rmode == RelocInfo::POSITION ? kNonstatementPositionTag
-                                                    : kStatementPositionTag;
-    // Check if data is small enough to fit in a tagged byte.
-    // We cannot use is_intn because data_delta is not an int32_t.
-    if (data_delta >= -(1 << (kSmallDataBits-1)) &&
-        data_delta < 1 << (kSmallDataBits-1)) {
-      WriteTaggedPC(pc_delta, kPositionTag);
-      WriteTaggedData(data_delta, pos_type_tag);
-      last_data_ = rinfo->data();
+  } else if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
+    // Use signed delta-encoding for id.
+    ASSERT(static_cast<int>(rinfo->data()) == rinfo->data());
+    int id_delta = static_cast<int>(rinfo->data()) - last_id_;
+    // Check if delta is small enough to fit in a tagged byte.
+    if (is_intn(id_delta, kSmallDataBits)) {
+      WriteTaggedPC(pc_delta, kLocatableTag);
+      WriteTaggedData(id_delta, kCodeWithIdTag);
     } else {
       // Otherwise, use costly encoding.
-      WriteExtraTaggedPC(pc_delta, kPCJumpTag);
-      WriteExtraTaggedData(data_delta, pos_type_tag);
-      last_data_ = rinfo->data();
+      WriteExtraTaggedPC(pc_delta, kPCJumpExtraTag);
+      WriteExtraTaggedIntData(id_delta, kCodeWithIdTag);
     }
+    last_id_ = static_cast<int>(rinfo->data());
+  } else if (RelocInfo::IsPosition(rmode)) {
+    // Use signed delta-encoding for position.
+    ASSERT(static_cast<int>(rinfo->data()) == rinfo->data());
+    int pos_delta = static_cast<int>(rinfo->data()) - last_position_;
+    int pos_type_tag = (rmode == RelocInfo::POSITION) ? kNonstatementPositionTag
+                                                      : kStatementPositionTag;
+    // Check if delta is small enough to fit in a tagged byte.
+    if (is_intn(pos_delta, kSmallDataBits)) {
+      WriteTaggedPC(pc_delta, kLocatableTag);
+      WriteTaggedData(pos_delta, pos_type_tag);
+    } else {
+      // Otherwise, use costly encoding.
+      WriteExtraTaggedPC(pc_delta, kPCJumpExtraTag);
+      WriteExtraTaggedIntData(pos_delta, pos_type_tag);
+    }
+    last_position_ = static_cast<int>(rinfo->data());
   } else if (RelocInfo::IsComment(rmode)) {
     // Comments are normally not generated, so we use the costly encoding.
-    WriteExtraTaggedPC(pc_delta, kPCJumpTag);
-    WriteExtraTaggedData(rinfo->data() - last_data_, kCommentTag);
-    last_data_ = rinfo->data();
+    WriteExtraTaggedPC(pc_delta, kPCJumpExtraTag);
+    WriteExtraTaggedData(rinfo->data(), kCommentTag);
     ASSERT(begin_pos - pos_ >= RelocInfo::kMinRelocCommentSize);
   } else {
+    ASSERT(rmode > RelocInfo::LAST_COMPACT_ENUM);
+    int saved_mode = rmode - RelocInfo::LAST_COMPACT_ENUM;
     // For all other modes we simply use the mode as the extra tag.
     // None of these modes need a data component.
-    ASSERT(rmode < kPCJumpTag && rmode < kDataJumpTag);
-    WriteExtraTaggedPC(pc_delta, rmode);
+    ASSERT(saved_mode < kPCJumpExtraTag && saved_mode < kDataJumpExtraTag);
+    WriteExtraTaggedPC(pc_delta, saved_mode);
   }
   last_pc_ = rinfo->pc();
 #ifdef DEBUG
@@ -294,12 +345,32 @@ inline void RelocIterator::AdvanceReadPC() {
 }
 
 
+void RelocIterator::AdvanceReadId() {
+  int x = 0;
+  for (int i = 0; i < kIntSize; i++) {
+    x |= static_cast<int>(*--pos_) << i * kBitsPerByte;
+  }
+  last_id_ += x;
+  rinfo_.data_ = last_id_;
+}
+
+
+void RelocIterator::AdvanceReadPosition() {
+  int x = 0;
+  for (int i = 0; i < kIntSize; i++) {
+    x |= static_cast<int>(*--pos_) << i * kBitsPerByte;
+  }
+  last_position_ += x;
+  rinfo_.data_ = last_position_;
+}
+
+
 void RelocIterator::AdvanceReadData() {
   intptr_t x = 0;
   for (int i = 0; i < kIntptrSize; i++) {
     x |= static_cast<intptr_t>(*--pos_) << i * kBitsPerByte;
   }
-  rinfo_.data_ += x;
+  rinfo_.data_ = x;
 }
 
 
@@ -319,27 +390,33 @@ void RelocIterator::AdvanceReadVariableLengthPCJump() {
 }
 
 
-inline int RelocIterator::GetPositionTypeTag() {
-  return *pos_ & ((1 << kPositionTypeTagBits) - 1);
+inline int RelocIterator::GetLocatableTypeTag() {
+  return *pos_ & ((1 << kLocatableTypeTagBits) - 1);
 }
 
 
-inline void RelocIterator::ReadTaggedData() {
+inline void RelocIterator::ReadTaggedId() {
   int8_t signed_b = *pos_;
   // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
-  rinfo_.data_ += signed_b >> kPositionTypeTagBits;
+  last_id_ += signed_b >> kLocatableTypeTagBits;
+  rinfo_.data_ = last_id_;
 }
 
 
-inline RelocInfo::Mode RelocIterator::DebugInfoModeFromTag(int tag) {
-  if (tag == kStatementPositionTag) {
-    return RelocInfo::STATEMENT_POSITION;
-  } else if (tag == kNonstatementPositionTag) {
-    return RelocInfo::POSITION;
-  } else {
-    ASSERT(tag == kCommentTag);
-    return RelocInfo::COMMENT;
-  }
+inline void RelocIterator::ReadTaggedPosition() {
+  int8_t signed_b = *pos_;
+  // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
+  last_position_ += signed_b >> kLocatableTypeTagBits;
+  rinfo_.data_ = last_position_;
+}
+
+
+static inline RelocInfo::Mode GetPositionModeFromTag(int tag) {
+  ASSERT(tag == kNonstatementPositionTag ||
+         tag == kStatementPositionTag);
+  return (tag == kNonstatementPositionTag) ?
+         RelocInfo::POSITION :
+         RelocInfo::STATEMENT_POSITION;
 }
 
 
@@ -358,37 +435,64 @@ void RelocIterator::next() {
     } else if (tag == kCodeTargetTag) {
       ReadTaggedPC();
       if (SetMode(RelocInfo::CODE_TARGET)) return;
-    } else if (tag == kPositionTag) {
+    } else if (tag == kLocatableTag) {
       ReadTaggedPC();
       Advance();
-      // Check if we want source positions.
-      if (mode_mask_ & RelocInfo::kPositionMask) {
-        ReadTaggedData();
-        if (SetMode(DebugInfoModeFromTag(GetPositionTypeTag()))) return;
+      int locatable_tag = GetLocatableTypeTag();
+      if (locatable_tag == kCodeWithIdTag) {
+        if (SetMode(RelocInfo::CODE_TARGET_WITH_ID)) {
+          ReadTaggedId();
+          return;
+        }
+      } else {
+        // Compact encoding is never used for comments,
+        // so it must be a position.
+        ASSERT(locatable_tag == kNonstatementPositionTag ||
+               locatable_tag == kStatementPositionTag);
+        if (mode_mask_ & RelocInfo::kPositionMask) {
+          ReadTaggedPosition();
+          if (SetMode(GetPositionModeFromTag(locatable_tag))) return;
+        }
       }
     } else {
       ASSERT(tag == kDefaultTag);
       int extra_tag = GetExtraTag();
-      if (extra_tag == kPCJumpTag) {
+      if (extra_tag == kPCJumpExtraTag) {
         int top_tag = GetTopTag();
         if (top_tag == kVariableLengthPCJumpTopTag) {
           AdvanceReadVariableLengthPCJump();
         } else {
           AdvanceReadPC();
         }
-      } else if (extra_tag == kDataJumpTag) {
-        // Check if we want debug modes (the only ones with data).
-        if (mode_mask_ & RelocInfo::kDebugMask) {
-          int top_tag = GetTopTag();
-          AdvanceReadData();
-          if (SetMode(DebugInfoModeFromTag(top_tag))) return;
+      } else if (extra_tag == kDataJumpExtraTag) {
+        int locatable_tag = GetTopTag();
+        if (locatable_tag == kCodeWithIdTag) {
+          if (SetMode(RelocInfo::CODE_TARGET_WITH_ID)) {
+            AdvanceReadId();
+            return;
+          }
+          Advance(kIntSize);
+        } else if (locatable_tag != kCommentTag) {
+          ASSERT(locatable_tag == kNonstatementPositionTag ||
+                 locatable_tag == kStatementPositionTag);
+          if (mode_mask_ & RelocInfo::kPositionMask) {
+            AdvanceReadPosition();
+            if (SetMode(GetPositionModeFromTag(locatable_tag))) return;
+          } else {
+            Advance(kIntSize);
+          }
         } else {
-          // Otherwise, just skip over the data.
+          ASSERT(locatable_tag == kCommentTag);
+          if (SetMode(RelocInfo::COMMENT)) {
+            AdvanceReadData();
+            return;
+          }
           Advance(kIntptrSize);
         }
       } else {
         AdvanceReadPC();
-        if (SetMode(static_cast<RelocInfo::Mode>(extra_tag))) return;
+        int rmode = extra_tag + RelocInfo::LAST_COMPACT_ENUM;
+        if (SetMode(static_cast<RelocInfo::Mode>(rmode))) return;
       }
     }
   }
@@ -404,6 +508,8 @@ RelocIterator::RelocIterator(Code* code, int mode_mask) {
   end_ = code->relocation_start();
   done_ = false;
   mode_mask_ = mode_mask;
+  last_id_ = 0;
+  last_position_ = 0;
   if (mode_mask_ == 0) pos_ = end_;
   next();
 }
@@ -417,6 +523,8 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
   end_ = pos_ - desc.reloc_size;
   done_ = false;
   mode_mask_ = mode_mask;
+  last_id_ = 0;
+  last_position_ = 0;
   if (mode_mask_ == 0) pos_ = end_;
   next();
 }
@@ -444,6 +552,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "debug break";
     case RelocInfo::CODE_TARGET:
       return "code target";
+    case RelocInfo::CODE_TARGET_WITH_ID:
+      return "code target with id";
     case RelocInfo::GLOBAL_PROPERTY_CELL:
       return "global property cell";
     case RelocInfo::RUNTIME_ENTRY:
@@ -490,6 +600,9 @@ void RelocInfo::Print(FILE* out) {
     Code* code = Code::GetCodeFromTargetAddress(target_address());
     PrintF(out, " (%s)  (%p)", Code::Kind2String(code->kind()),
            target_address());
+    if (rmode_ == CODE_TARGET_WITH_ID) {
+      PrintF(" (id=%d)", static_cast<int>(data_));
+    }
   } else if (IsPosition(rmode_)) {
     PrintF(out, "  (%" V8_PTR_PREFIX "d)", data());
   } else if (rmode_ == RelocInfo::RUNTIME_ENTRY &&
@@ -523,6 +636,7 @@ void RelocInfo::Verify() {
 #endif
     case CONSTRUCT_CALL:
     case CODE_TARGET_CONTEXT:
+    case CODE_TARGET_WITH_ID:
     case CODE_TARGET: {
       // convert inline target address to code object
       Address addr = target_address();
@@ -887,7 +1001,7 @@ ExternalReference ExternalReference::math_sin_double_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(math_sin_double),
-                                    FP_RETURN_CALL));
+                                    BUILTIN_FP_CALL));
 }
 
 
@@ -895,7 +1009,7 @@ ExternalReference ExternalReference::math_cos_double_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(math_cos_double),
-                                    FP_RETURN_CALL));
+                                    BUILTIN_FP_CALL));
 }
 
 
@@ -903,7 +1017,7 @@ ExternalReference ExternalReference::math_log_double_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(math_log_double),
-                                    FP_RETURN_CALL));
+                                    BUILTIN_FP_CALL));
 }
 
 
@@ -946,7 +1060,7 @@ ExternalReference ExternalReference::power_double_double_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(power_double_double),
-                                    FP_RETURN_CALL));
+                                    BUILTIN_FP_FP_CALL));
 }
 
 
@@ -954,7 +1068,7 @@ ExternalReference ExternalReference::power_double_int_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(power_double_int),
-                                    FP_RETURN_CALL));
+                                    BUILTIN_FP_INT_CALL));
 }
 
 
@@ -987,17 +1101,16 @@ ExternalReference ExternalReference::double_fp_operation(
     default:
       UNREACHABLE();
   }
-  // Passing true as 2nd parameter indicates that they return an fp value.
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(function),
-                                    FP_RETURN_CALL));
+                                    BUILTIN_FP_FP_CALL));
 }
 
 
 ExternalReference ExternalReference::compare_doubles(Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(native_compare_doubles),
-                                    BUILTIN_CALL));
+                                    BUILTIN_COMPARE_CALL));
 }
 
 

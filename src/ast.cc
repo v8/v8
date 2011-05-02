@@ -337,15 +337,6 @@ bool BinaryOperation::ResultOverwriteAllowed() {
 }
 
 
-BinaryOperation::BinaryOperation(Assignment* assignment) {
-  ASSERT(assignment->is_compound());
-  op_ = assignment->binary_op();
-  left_ = assignment->target();
-  right_ = assignment->value();
-  pos_ = assignment->position();
-}
-
-
 // ----------------------------------------------------------------------------
 // Inlining support
 
@@ -1147,6 +1138,7 @@ CaseClause::CaseClause(Expression* label,
       statements_(statements),
       position_(pos),
       compare_type_(NONE),
+      compare_id_(AstNode::GetNextId()),
       entry_id_(AstNode::GetNextId()) {
 }
 

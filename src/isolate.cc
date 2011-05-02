@@ -818,7 +818,7 @@ bool Isolate::Init(Deserializer* des) {
 
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.
-  if (des != NULL && FLAG_log_code) {
+  if (des != NULL && (FLAG_log_code || FLAG_ll_prof)) {
     HandleScope scope;
     LOG(this, LogCodeObjects());
     LOG(this, LogCompiledFunctions());
