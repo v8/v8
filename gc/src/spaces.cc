@@ -391,6 +391,16 @@ void Page::InitializeAsAnchor(PagedSpace* owner) {
 }
 
 
+NewSpacePage* NewSpacePage::Initialize(Heap* heap, Address start) {
+  MemoryChunk* chunk = MemoryChunk::Initialize(heap,
+                                               start,
+                                               Page::kPageSize,
+                                               NOT_EXECUTABLE,
+                                               heap->new_space());
+  return static_cast<NewSpacePage*>(chunk);
+}
+
+
 MemoryChunk* MemoryChunk::Initialize(Heap* heap,
                                      Address base,
                                      size_t size,
@@ -1013,6 +1023,9 @@ bool SemiSpace::Commit() {
     return false;
   }
   committed_ = true;
+  // TODO(gc): When more than one page is present, initialize and
+  // chain them all.
+  current_page_ = NewSpacePage::Initialize(heap(), start_);
   return true;
 }
 
@@ -1040,11 +1053,16 @@ bool SemiSpace::Setup(Address start,
   // otherwise.  In the mark-compact collector, the memory region of the from
   // space is used as the marking stack. It requires contiguous memory
   // addresses.
+  ASSERT(maximum_capacity >= Page::kPageSize);
+  if (initial_capacity < Page::kPageSize) {
+    initial_capacity = Page::kPageSize;
+  } else {
+    initial_capacity &= ~Page::kPageAlignmentMask;
+  }
   initial_capacity_ = initial_capacity;
   capacity_ = initial_capacity;
   maximum_capacity_ = maximum_capacity;
   committed_ = false;
-
   start_ = start;
   address_mask_ = ~(maximum_capacity - 1);
   object_mask_ = address_mask_ | kHeapObjectTagMask;
@@ -1062,6 +1080,7 @@ void SemiSpace::TearDown() {
 
 
 bool SemiSpace::Grow() {
+  return false;  // TODO(gc): Temporary hack while semispaces are only one page.
   // Double the semispace size but only up to maximum capacity.
   int maximum_extra = maximum_capacity_ - capacity_;
   int extra = Min(RoundUp(capacity_, static_cast<int>(OS::AllocateAlignment())),
@@ -1076,6 +1095,7 @@ bool SemiSpace::Grow() {
 
 
 bool SemiSpace::GrowTo(int new_capacity) {
+  return false;  // TODO(gc): Temporary hack while semispaces are only one page.
   ASSERT(new_capacity <= maximum_capacity_);
   ASSERT(new_capacity > capacity_);
   size_t delta = new_capacity - capacity_;
@@ -1090,6 +1110,7 @@ bool SemiSpace::GrowTo(int new_capacity) {
 
 
 bool SemiSpace::ShrinkTo(int new_capacity) {
+  return false;  // TODO(gc): Temporary hack while semispaces are only one page.
   ASSERT(new_capacity >= initial_capacity_);
   ASSERT(new_capacity < capacity_);
   size_t delta = capacity_ - new_capacity;
@@ -1129,7 +1150,8 @@ SemiSpaceIterator::SemiSpaceIterator(NewSpace* space, Address start) {
 }
 
 
-void SemiSpaceIterator::Initialize(NewSpace* space, Address start,
+void SemiSpaceIterator::Initialize(NewSpace* space,
+                                   Address start,
                                    Address end,
                                    HeapObjectCallback size_func) {
   ASSERT(space->ToSpaceContains(start));
@@ -1137,6 +1159,9 @@ void SemiSpaceIterator::Initialize(NewSpace* space, Address start,
          && end <= space->ToSpaceHigh());
   space_ = &space->to_space_;
   current_ = start;
+  NewSpacePage* page = NewSpacePage::FromAddress(start);
+  current_page_limit_ = page->body() + page->body_size();
+  if (current_page_limit_ > end) current_page_limit_ = end;
   limit_ = end;
   size_func_ = size_func;
 }

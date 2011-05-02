@@ -1410,12 +1410,37 @@ class HistogramInfo: public NumberAndSizeInfo {
 #endif
 
 
+class NewSpacePage : public MemoryChunk {
+ public:
+  inline NewSpacePage* next_page() const {
+    return static_cast<NewSpacePage*>(next_chunk());
+  }
+
+  inline void set_next_page(NewSpacePage* page) {
+    set_next_chunk(page);
+  }
+ private:
+  // Finds the NewSpacePage containg the given address.
+  static NewSpacePage* FromAddress(Address address_in_page) {
+    Address page_start =
+        reinterpret_cast<Address>(reinterpret_cast<uintptr_t>(address_in_page) &
+                                  ~Page::kPageAlignmentMask);
+    return reinterpret_cast<NewSpacePage*>(page_start);
+  }
+
+  static NewSpacePage* Initialize(Heap* heap, Address start);
+
+  friend class SemiSpace;
+  friend class SemiSpaceIterator;
+};
+
+
 // -----------------------------------------------------------------------------
 // SemiSpace in young generation
 //
-// A semispace is a contiguous chunk of memory. The mark-compact collector
-// uses the memory in the from space as a marking stack when tracing live
-// objects.
+// A semispace is a contiguous chunk of memory holding page-like memory
+// chunks. The mark-compact collector  uses the memory of the first page in
+// the from space as a marking stack when tracing live objects.
 
 class SemiSpace : public Space {
  public:
@@ -1451,9 +1476,15 @@ class SemiSpace : public Space {
   bool ShrinkTo(int new_capacity);
 
   // Returns the start address of the space.
-  Address low() { return start_; }
+  Address low() {
+    return NewSpacePage::FromAddress(start_)->body();
+  }
+
   // Returns one past the end address of the space.
-  Address high() { return low() + capacity_; }
+  Address high() {
+    // TODO(gc): Change when there is more than one page.
+    return current_page_->body() + current_page_->body_size();
+  }
 
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
@@ -1493,6 +1524,9 @@ class SemiSpace : public Space {
   bool Commit();
   bool Uncommit();
 
+  NewSpacePage* first_page() { return NewSpacePage::FromAddress(start_); }
+  NewSpacePage* current_page() { return current_page_; }
+
 #ifdef ENABLE_HEAP_PROTECTION
   // Protect/unprotect the space by marking it read-only/writable.
   virtual void Protect() {}
@@ -1531,6 +1565,8 @@ class SemiSpace : public Space {
 
   bool committed_;
 
+  NewSpacePage* current_page_;
+
  public:
   TRACK_MEMORY("SemiSpace")
 };
@@ -1551,6 +1587,9 @@ class SemiSpaceIterator : public ObjectIterator {
   SemiSpaceIterator(NewSpace* space, Address start);
 
   HeapObject* next() {
+    if (current_ == current_page_limit_) {
+      // TODO(gc): Add something here when we have more than one page.
+    }
     if (current_ == limit_) return NULL;
 
     HeapObject* object = HeapObject::FromAddress(current_);
@@ -1573,6 +1612,8 @@ class SemiSpaceIterator : public ObjectIterator {
   SemiSpace* space_;
   // The current iteration point.
   Address current_;
+  // The end of the current page.
+  Address current_page_limit_;
   // The end of iteration.
   Address limit_;
   // The callback function.

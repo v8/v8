@@ -84,7 +84,7 @@ Heap::Heap()
 #else
       reserved_semispace_size_(4*MB),
       max_semispace_size_(4*MB),
-      initial_semispace_size_(512*KB),
+      initial_semispace_size_(1*MB),
       max_old_generation_size_(512*MB),
       max_executable_size_(128*MB),
       code_range_size_(0),
@@ -4644,7 +4644,12 @@ bool Heap::ConfigureHeap(intptr_t max_semispace_size,
                          intptr_t max_executable_size) {
   if (HasBeenSetup()) return false;
 
-  if (max_semispace_size > 0) max_semispace_size_ = max_semispace_size;
+  if (max_semispace_size > 0) {
+    if (max_semispace_size < Page::kPageSize) {
+      max_semispace_size = Page::kPageSize;
+    }
+    max_semispace_size_ = max_semispace_size;
+  }
 
   if (Snapshot::IsEnabled()) {
     // If we are using a snapshot we always reserve the default amount
