@@ -1139,7 +1139,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   // Use xor to produce +0.0 in a fast and compact way, but avoid to
   // do so if the constant is -0.0.
   if (BitCast<uint64_t, double>(v) == 0) {
-    __ xorpd(res, res);
+    __ xorps(res, res);
   } else {
     Register temp = ToRegister(instr->TempAt(0));
     uint64_t int_val = BitCast<uint64_t, double>(v);
@@ -1153,7 +1153,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
         __ Set(temp, Immediate(upper));
         __ pinsrd(res, Operand(temp), 1);
       } else {
-        __ xorpd(res, res);
+        __ xorps(res, res);
         __ Set(temp, Immediate(upper));
         __ pinsrd(res, Operand(temp), 1);
       }
@@ -1343,7 +1343,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
     EmitBranch(true_block, false_block, not_zero);
   } else if (r.IsDouble()) {
     XMMRegister reg = ToDoubleRegister(instr->InputAt(0));
-    __ xorpd(xmm0, xmm0);
+    __ xorps(xmm0, xmm0);
     __ ucomisd(reg, xmm0);
     EmitBranch(true_block, false_block, not_equal);
   } else {
@@ -2720,7 +2720,7 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
   if (r.IsDouble()) {
     XMMRegister  scratch = xmm0;
     XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
-    __ pxor(scratch, scratch);
+    __ xorps(scratch, scratch);
     __ subsd(scratch, input_reg);
     __ pand(input_reg, scratch);
   } else if (r.IsInteger32()) {
@@ -2742,7 +2742,7 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
-  __ xorpd(xmm_scratch, xmm_scratch);  // Zero the register.
+  __ xorps(xmm_scratch, xmm_scratch);  // Zero the register.
   __ ucomisd(input_reg, xmm_scratch);
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
@@ -2818,7 +2818,7 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
   XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
   ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
-  __ xorpd(xmm_scratch, xmm_scratch);
+  __ xorps(xmm_scratch, xmm_scratch);
   __ addsd(input_reg, xmm_scratch);  // Convert -0 to +0.
   __ sqrtsd(input_reg, input_reg);
 }
@@ -2888,7 +2888,7 @@ void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
   ASSERT(instr->InputAt(0)->Equals(instr->result()));
   XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
   NearLabel positive, done, zero, negative;
-  __ xorpd(xmm0, xmm0);
+  __ xorps(xmm0, xmm0);
   __ ucomisd(input_reg, xmm0);
   __ j(above, &positive);
   __ j(equal, &zero);

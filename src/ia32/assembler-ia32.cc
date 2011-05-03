@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been modified
 // significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 #include "v8.h"
 
@@ -2252,6 +2252,15 @@ void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x57);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::xorps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
   EMIT(0x0F);
   EMIT(0x57);
   emit_sse_operand(dst, src);

@@ -3597,7 +3597,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     __ cvttsd2siq(result_reg, input_reg);
     __ movq(kScratchRegister, V8_INT64_C(0x8000000000000000), RelocInfo::NONE);
     __ cmpq(result_reg, kScratchRegister);
-      DeoptimizeIf(equal, instr->environment());
+    DeoptimizeIf(equal, instr->environment());
   } else {
     __ cvttsd2si(result_reg, input_reg);
     __ cvtlsi2sd(xmm0, result_reg);

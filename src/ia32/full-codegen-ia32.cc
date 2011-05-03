@@ -2794,7 +2794,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
     __ movd(xmm1, Operand(ebx));
     __ movd(xmm0, Operand(eax));
     __ cvtss2sd(xmm1, xmm1);
-    __ pxor(xmm0, xmm1);
+    __ xorps(xmm0, xmm1);
     __ subsd(xmm0, xmm1);
     __ movdbl(FieldOperand(edi, HeapNumber::kValueOffset), xmm0);
   } else {

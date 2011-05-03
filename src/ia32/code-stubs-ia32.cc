@@ -2880,7 +2880,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // Calculates reciprocal of square root.
   // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
-  __ xorpd(xmm1, xmm1);
+  __ xorps(xmm1, xmm1);
   __ addsd(xmm1, xmm0);
   __ sqrtsd(xmm1, xmm1);
   __ divsd(xmm3, xmm1);
@@ -2897,7 +2897,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &call_runtime);
   // Calculates square root.
   // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
-  __ xorpd(xmm1, xmm1);
+  __ xorps(xmm1, xmm1);
   __ addsd(xmm1, xmm0);
   __ sqrtsd(xmm1, xmm1);
 
