@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1810,7 +1810,8 @@ void Map::LookupInDescriptors(JSObject* holder,
                               String* name,
                               LookupResult* result) {
   DescriptorArray* descriptors = instance_descriptors();
-  DescriptorLookupCache* cache = heap()->isolate()->descriptor_lookup_cache();
+  DescriptorLookupCache* cache =
+      GetHeap()->isolate()->descriptor_lookup_cache();
   int number = cache->Lookup(descriptors, name);
   if (number == DescriptorLookupCache::kAbsent) {
     number = descriptors->Search(name);
@@ -3577,11 +3578,11 @@ void Map::RemoveFromCodeCache(String* name, Code* code, int index) {
 
 void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
   Map* current = this;
-  Map* meta_map = heap()->meta_map();
+  Map* meta_map = GetHeap()->meta_map();
   while (current != meta_map) {
     DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
         *RawField(current, Map::kInstanceDescriptorsOffset));
-    if (d == heap()->empty_descriptor_array()) {
+    if (d == GetHeap()->empty_descriptor_array()) {
       Map* prev = current->map();
       current->set_map(meta_map);
       callback(current, data);
@@ -3608,7 +3609,7 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
       }
     }
     if (!map_done) continue;
-    *map_or_index_field = heap()->fixed_array_map();
+    *map_or_index_field = GetHeap()->fixed_array_map();
     Map* prev = current->map();
     current->set_map(meta_map);
     callback(current, data);
@@ -5944,7 +5945,7 @@ void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
     set_construction_count(kGenerousAllocationCount);
   }
   set_initial_map(map);
-  Builtins* builtins = map->heap()->isolate()->builtins();
+  Builtins* builtins = map->GetHeap()->isolate()->builtins();
   ASSERT_EQ(builtins->builtin(Builtins::JSConstructStubGeneric),
             construct_stub());
   set_construct_stub(builtins->builtin(Builtins::JSConstructStubCountdown));
@@ -5964,8 +5965,9 @@ void SharedFunctionInfo::DetachInitialMap() {
   // then StartInobjectTracking will be called again the next time the
   // constructor is called. The countdown will continue and (possibly after
   // several more GCs) CompleteInobjectSlackTracking will eventually be called.
-  set_initial_map(map->heap()->raw_unchecked_undefined_value());
-  Builtins* builtins = map->heap()->isolate()->builtins();
+  Heap* heap = map->GetHeap();
+  set_initial_map(heap->raw_unchecked_undefined_value());
+  Builtins* builtins = heap->isolate()->builtins();
   ASSERT_EQ(builtins->builtin(Builtins::JSConstructStubCountdown),
             *RawField(this, kConstructStubOffset));
   set_construct_stub(builtins->builtin(Builtins::JSConstructStubGeneric));
@@ -5981,7 +5983,7 @@ void SharedFunctionInfo::AttachInitialMap(Map* map) {
 
   // Resume inobject slack tracking.
   set_initial_map(map);
-  Builtins* builtins = map->heap()->isolate()->builtins();
+  Builtins* builtins = map->GetHeap()->isolate()->builtins();
   ASSERT_EQ(builtins->builtin(Builtins::JSConstructStubGeneric),
             *RawField(this, kConstructStubOffset));
   set_construct_stub(builtins->builtin(Builtins::JSConstructStubCountdown));
@@ -6013,7 +6015,7 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
   ASSERT(live_objects_may_exist() && IsInobjectSlackTrackingInProgress());
   Map* map = Map::cast(initial_map());
 
-  Heap* heap = map->heap();
+  Heap* heap = map->GetHeap();
   set_initial_map(heap->undefined_value());
   Builtins* builtins = heap->isolate()->builtins();
   ASSERT_EQ(builtins->builtin(Builtins::JSConstructStubCountdown),

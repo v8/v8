@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -212,7 +212,7 @@ class FlexibleBodyVisitor : public BodyVisitorBase<StaticVisitor> {
   static inline ReturnType Visit(Map* map, HeapObject* object) {
     int object_size = BodyDescriptor::SizeOf(map, object);
     BodyVisitorBase<StaticVisitor>::IteratePointers(
-        map->heap(),
+        map->GetHeap(),
         object,
         BodyDescriptor::kStartOffset,
         object_size);
@@ -223,7 +223,7 @@ class FlexibleBodyVisitor : public BodyVisitorBase<StaticVisitor> {
   static inline ReturnType VisitSpecialized(Map* map, HeapObject* object) {
     ASSERT(BodyDescriptor::SizeOf(map, object) == object_size);
     BodyVisitorBase<StaticVisitor>::IteratePointers(
-        map->heap(),
+        map->GetHeap(),
         object,
         BodyDescriptor::kStartOffset,
         object_size);
@@ -237,7 +237,7 @@ class FixedBodyVisitor : public BodyVisitorBase<StaticVisitor> {
  public:
   static inline ReturnType Visit(Map* map, HeapObject* object) {
     BodyVisitorBase<StaticVisitor>::IteratePointers(
-        map->heap(),
+        map->GetHeap(),
         object,
         BodyDescriptor::kStartOffset,
         BodyDescriptor::kEndOffset);

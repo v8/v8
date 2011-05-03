@@ -1405,7 +1405,7 @@ class ScavengingVisitor : public StaticVisitorBase {
            (object_size <= Page::kMaxHeapObjectSize));
     ASSERT(object->Size() == object_size);
 
-    Heap* heap = map->heap();
+    Heap* heap = map->GetHeap();
     if (heap->ShouldBePromoted(object->address(), object_size)) {
       MaybeObject* maybe_result;
 
@@ -1493,13 +1493,13 @@ class ScavengingVisitor : public StaticVisitorBase {
 
     if (marks_handling == IGNORE_MARKS &&
         ConsString::cast(object)->unchecked_second() ==
-        map->heap()->empty_string()) {
+        map->GetHeap()->empty_string()) {
       HeapObject* first =
           HeapObject::cast(ConsString::cast(object)->unchecked_first());
 
       *slot = first;
 
-      if (!map->heap()->InNewSpace(first)) {
+      if (!map->GetHeap()->InNewSpace(first)) {
         object->set_map_word(MapWord::FromForwardingAddress(first));
         return;
       }

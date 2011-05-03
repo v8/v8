@@ -546,7 +546,7 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   if ((type & kShortcutTypeMask) != kShortcutTypeTag) return object;
 
   Object* second = reinterpret_cast<ConsString*>(object)->unchecked_second();
-  Heap* heap = map->heap();
+  Heap* heap = map->GetHeap();
   if (second != heap->raw_unchecked_empty_string()) {
     return object;
   }
@@ -749,7 +749,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   static void VisitCode(Map* map, HeapObject* object) {
     reinterpret_cast<Code*>(object)->CodeIterateBody<StaticMarkingVisitor>(
-        map->heap());
+        map->GetHeap());
   }
 
   // Code flushing support.
@@ -895,7 +895,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   static void VisitSharedFunctionInfoAndFlushCode(Map* map,
                                                   HeapObject* object) {
-    MarkCompactCollector* collector = map->heap()->mark_compact_collector();
+    MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
     if (!collector->is_code_flushing_enabled()) {
       VisitSharedFunctionInfoGeneric(map, object);
       return;
@@ -906,7 +906,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   static void VisitSharedFunctionInfoAndFlushCodeGeneric(
       Map* map, HeapObject* object, bool known_flush_code_candidate) {
-    Heap* heap = map->heap();
+    Heap* heap = map->GetHeap();
     SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(object);
 
     if (shared->IsInobjectSlackTrackingInProgress()) shared->DetachInitialMap();
@@ -934,7 +934,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
 
   static void VisitJSFunctionAndFlushCode(Map* map, HeapObject* object) {
-    Heap* heap = map->heap();
+    Heap* heap = map->GetHeap();
     MarkCompactCollector* collector = heap->mark_compact_collector();
     if (!collector->is_code_flushing_enabled()) {
       VisitJSFunction(map, object);
@@ -996,7 +996,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitJSFunctionFields(Map* map,
                                            JSFunction* object,
                                            bool flush_code_candidate) {
-    Heap* heap = map->heap();
+    Heap* heap = map->GetHeap();
 
     VisitPointers(heap,
                   SLOT_ADDR(object, JSFunction::kPropertiesOffset),
@@ -1307,7 +1307,7 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
 
   Object** end_slot = HeapObject::RawField(map, Map::kPointerFieldsEndOffset);
 
-  StaticMarkingVisitor::VisitPointers(map->heap(), start_slot, end_slot);
+  StaticMarkingVisitor::VisitPointers(map->GetHeap(), start_slot, end_slot);
 }
 
 

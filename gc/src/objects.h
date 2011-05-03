@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -3724,9 +3724,6 @@ class Map: public HeapObject {
 
   inline int visitor_id();
   inline void set_visitor_id(int visitor_id);
-
-  // Returns the heap this map belongs to.
-  inline Heap* heap();
 
   typedef void (*TraverseCallback)(Map* map, void* data);
 

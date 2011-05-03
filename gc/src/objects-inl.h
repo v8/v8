@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1051,18 +1051,14 @@ void HeapObject::VerifySmiField(int offset) {
 
 
 Heap* HeapObject::GetHeap() {
-  // During GC, the map pointer in HeapObject is used in various ways that
-  // prevent us from retrieving Heap from the map.
-  // Assert that we are not in GC, implement GC code in a way that it doesn't
-  // pull heap from the map.
-  return map()->heap();
+  return MemoryChunk::FromAddress(address())->heap();
 }
 
 
 Isolate* HeapObject::GetIsolate() {
-  Isolate* i = GetHeap()->isolate();
-  ASSERT(i == Isolate::Current());
-  return i;
+  Isolate* isolate = MemoryChunk::FromAddress(address())->heap()->isolate();
+  ASSERT(isolate == Isolate::Current());
+  return isolate;
 }
 
 
@@ -1074,7 +1070,7 @@ Map* HeapObject::map() {
 void HeapObject::set_map(Map* value) {
   set_map_word(MapWord::FromMap(value));
   if (value != NULL) {
-    value->heap()->incremental_marking()->RecordWrite(this, value);
+    value->GetHeap()->incremental_marking()->RecordWrite(this, value);
   }
 }
 
@@ -2708,15 +2704,6 @@ Code* Code::GetCodeFromTargetAddress(Address address) {
   // marked.
   Code* result = reinterpret_cast<Code*>(code);
   return result;
-}
-
-
-Heap* Map::heap() {
-  // NOTE: address() helper is not used to save one instruction.
-  Heap* heap = Page::FromAddress(reinterpret_cast<Address>(this))->heap();
-  ASSERT(heap != NULL);
-  ASSERT(heap->isolate() == Isolate::Current());
-  return heap;
 }
 
 
