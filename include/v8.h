@@ -115,7 +115,7 @@ class Isolate;
 }
 
 
-// --- W e a k  H a n d l e s
+// --- Weak Handles ---
 
 
 /**
@@ -131,7 +131,7 @@ typedef void (*WeakReferenceCallback)(Persistent<Value> object,
                                       void* parameter);
 
 
-// --- H a n d l e s ---
+// --- Handles ---
 
 #define TYPE_CHECK(T, S)                                       \
   while (false) {                                              \
@@ -483,7 +483,7 @@ class V8EXPORT HandleScope {
 };
 
 
-// --- S p e c i a l   o b j e c t s ---
+// --- Special objects ---
 
 
 /**
@@ -841,7 +841,7 @@ class V8EXPORT StackFrame {
 };
 
 
-// --- V a l u e ---
+// --- Value ---
 
 
 /**
@@ -1783,7 +1783,7 @@ class External : public Value {
 };
 
 
-// --- T e m p l a t e s ---
+// --- Templates ---
 
 
 /**
@@ -2317,7 +2317,7 @@ class V8EXPORT TypeSwitch : public Data {
 };
 
 
-// --- E x t e n s i o n s ---
+// --- Extensions ---
 
 
 /**
@@ -2369,7 +2369,7 @@ class V8EXPORT DeclareExtension {
 };
 
 
-// --- S t a t i c s ---
+// --- Statics ---
 
 
 Handle<Primitive> V8EXPORT Undefined();
@@ -2410,7 +2410,7 @@ class V8EXPORT ResourceConstraints {
 bool V8EXPORT SetResourceConstraints(ResourceConstraints* constraints);
 
 
-// --- E x c e p t i o n s ---
+// --- Exceptions ---
 
 
 typedef void (*FatalErrorCallback)(const char* location, const char* message);
@@ -2441,7 +2441,7 @@ class V8EXPORT Exception {
 };
 
 
-// --- C o u n t e r s  C a l l b a c k s ---
+// --- Counters Callbacks ---
 
 typedef int* (*CounterLookupCallback)(const char* name);
 
@@ -2452,7 +2452,7 @@ typedef void* (*CreateHistogramCallback)(const char* name,
 
 typedef void (*AddHistogramSampleCallback)(void* histogram, int sample);
 
-// --- M e m o r y  A l l o c a t i o n   C a l l b a c k ---
+// --- Memory Allocation Callback ---
   enum ObjectSpace {
     kObjectSpaceNewSpace = 1 << 0,
     kObjectSpaceOldPointerSpace = 1 << 1,
@@ -2476,12 +2476,20 @@ typedef void (*MemoryAllocationCallback)(ObjectSpace space,
                                          AllocationAction action,
                                          int size);
 
-// --- F a i l e d A c c e s s C h e c k C a l l b a c k ---
+// --- Failed Access Check Callback ---
 typedef void (*FailedAccessCheckCallback)(Local<Object> target,
                                           AccessType type,
                                           Local<Value> data);
 
-// --- G a r b a g e C o l l e c t i o n  C a l l b a c k s
+// --- AllowCodeGenerationFromStrings callbacks ---
+
+/**
+ * Callback to check if code generation from strings is allowed. See
+ * Context::AllowCodeGenerationFromStrings.
+ */
+typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context);
+
+// --- Garbage Collection Callbacks ---
 
 /**
  * Applications can register callback functions which will be called
@@ -2660,6 +2668,13 @@ class V8EXPORT V8 {
  public:
   /** Set the callback to invoke in case of fatal errors. */
   static void SetFatalErrorHandler(FatalErrorCallback that);
+
+  /**
+   * Set the callback to invoke to check if code generation from
+   * strings should be allowed.
+   */
+  static void SetAllowCodeGenerationFromStringsCallback(
+      AllowCodeGenerationFromStringsCallback that);
 
   /**
    * Ignore out-of-memory exceptions.
@@ -3189,7 +3204,7 @@ class V8EXPORT TryCatch {
 };
 
 
-// --- C o n t e x t ---
+// --- Context ---
 
 
 /**
@@ -3323,6 +3338,21 @@ class V8EXPORT Context {
    */
   void SetData(Handle<String> data);
   Local<Value> GetData();
+
+  /**
+   * Control whether code generation from strings is allowed. Calling
+   * this method with false will disable 'eval' and the 'Function'
+   * constructor for code running in this context. If 'eval' or the
+   * 'Function' constructor are used an exception will be thrown.
+   *
+   * If code generation from strings is not allowed the
+   * V8::AllowCodeGenerationFromStrings callback will be invoked if
+   * set before blocking the call to 'eval' or the 'Function'
+   * constructor. If that callback returns true, the call will be
+   * allowed, otherwise an exception will be thrown. If no callback is
+   * set an exception will be thrown.
+   */
+  void AllowCodeGenerationFromStrings(bool allow);
 
   /**
    * Stack-allocated class which sets the execution context for all
@@ -3520,7 +3550,7 @@ class V8EXPORT ActivityControl {  // NOLINT
 };
 
 
-// --- I m p l e m e n t a t i o n ---
+// --- Implementation ---
 
 
 namespace internal {
