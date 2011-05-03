@@ -179,7 +179,6 @@ S11.1.5_A4.2: FAIL_OK
 S9.9_A1: FAIL_OK
 S9.9_A2: FAIL_OK
 
-
 ##################### SKIPPED TESTS #####################
 
 # These tests take a looong time to run in debug mode.
@@ -188,26 +187,6 @@ S15.1.3.1_A2.5_T1: PASS, SKIP if $mode == debug
 
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1196
 S8.7_A5_T2: FAIL
-
-# V8 bugs: http://code.google.com/p/v8/issues/detail?id=1198
-# V8 should not wrap this when calling builtin functions
-S15.2.4.3_A12: FAIL
-S15.2.4.7_A13: FAIL
-# Object.prototype.toString
-S15.2.4.2_A12: FAIL
-S15.2.4.2_A13: FAIL
-# Object.prototype.toLocaleString
-S15.2.4.3_A13: FAIL
-S15.2.4.4_A13: FAIL
-S15.2.4.4_A12: FAIL
-# Object.prototype.propertyIsEnumerable
-S15.2.4.7_A12: FAIL
-# Object.prototype.hasOwnProperty
-S15.2.4.5_A12: FAIL
-S15.2.4.5_A13: FAIL
-# Object.prototype.isPrototypeOf
-S15.2.4.6_A13: FAIL
-S15.2.4.6_A12: FAIL
 
 # Invalid test case (recent change adding var changes semantics)
 S8.3_A1_T1: FAIL
@@ -269,6 +248,7 @@ S15.9.5.9_A1_T2: FAIL_OK
 S11.4.3_A3.6: FAIL_OK
 S15.10.7_A3_T2: FAIL_OK
 S15.10.7_A3_T1: FAIL_OK
+
 
 [ $arch == arm ]
 
