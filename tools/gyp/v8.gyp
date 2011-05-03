@@ -32,6 +32,7 @@
     'gcc_version%': 'unknown',
     'v8_compress_startup_data%': 'false',
     'v8_target_arch%': '<(target_arch)',
+    'v8_can_use_vfp_instructions%': 'false',
     'v8_use_snapshot%': 'true',
     'v8_use_liveobjectlist%': 'false',
   },
@@ -55,6 +56,13 @@
               ['v8_target_arch=="arm"', {
                 'defines': [
                   'V8_TARGET_ARCH_ARM',
+                ],
+                'conditions': [
+                  [ 'v8_can_use_vfp_instructions=="true"', {
+                    'defines': [
+                      'CAN_USE_VFP_INSTRUCTIONS',
+                    ],
+                  }],
                 ],
               }],
               ['v8_target_arch=="ia32"', {

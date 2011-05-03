@@ -110,14 +110,7 @@ void OS::Setup() {
 
 
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
-#if (defined(__VFP_FP__) && !defined(__SOFTFP__))
-  // Here gcc is telling us that we are on an ARM and gcc is assuming
-  // that we have VFP3 instructions.  If gcc can assume it then so can
-  // we. VFPv3 implies ARMv7, see ARM DDI 0406B, page A1-6.
-  return 1u << VFP3 | 1u << ARMv7;
-#elif CAN_USE_ARMV7_INSTRUCTIONS
-  return 1u << ARMv7;
-#elif(defined(__mips_hard_float) && __mips_hard_float != 0)
+#if(defined(__mips_hard_float) && __mips_hard_float != 0)
     // Here gcc is telling us that we are on an MIPS and gcc is assuming that we
     // have FPU instructions.  If gcc can assume it then so can we.
     return 1u << FPU;
