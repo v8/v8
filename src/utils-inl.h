@@ -25,43 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CHAR_PREDICATES_H_
-#define V8_CHAR_PREDICATES_H_
+#ifndef V8_UTILS_INL_H_
+#define V8_UTILS_INL_H_
 
-#include "unicode.h"
+#include "list-inl.h"
 
 namespace v8 {
 namespace internal {
 
-// Unicode character predicates as defined by ECMA-262, 3rd,
-// used for lexical analysis.
-
-inline bool IsCarriageReturn(uc32 c);
-inline bool IsLineFeed(uc32 c);
-inline bool IsDecimalDigit(uc32 c);
-inline bool IsHexDigit(uc32 c);
-inline bool IsRegExpWord(uc32 c);
-inline bool IsRegExpNewline(uc32 c);
-
-struct IdentifierStart {
-  static inline bool Is(uc32 c) {
-    switch (c) {
-      case '$': case '_': case '\\': return true;
-      default: return unibrow::Letter::Is(c);
-    }
+template<typename T, int growth_factor, int max_growth>
+void Collector<T, growth_factor, max_growth>::Reset() {
+  for (int i = chunks_.length() - 1; i >= 0; i--) {
+    chunks_.at(i).Dispose();
   }
-};
-
-
-struct IdentifierPart {
-  static inline bool Is(uc32 c) {
-    return IdentifierStart::Is(c)
-        || unibrow::Number::Is(c)
-        || unibrow::CombiningMark::Is(c)
-        || unibrow::ConnectorPunctuation::Is(c);
-  }
-};
+  chunks_.Rewind(0);
+  index_ = 0;
+  size_ = 0;
+}
 
 } }  // namespace v8::internal
 
-#endif  // V8_CHAR_PREDICATES_H_
+#endif  // V8_UTILS_INL_H_

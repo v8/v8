@@ -1,14 +1,16 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 //
 // Tests for heap profiler
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "v8.h"
+
+#include "cctest.h"
 #include "heap-profiler.h"
 #include "snapshot.h"
 #include "string-stream.h"
-#include "cctest.h"
+#include "utils-inl.h"
 #include "zone-inl.h"
 #include "../include/v8-profiler.h"
 

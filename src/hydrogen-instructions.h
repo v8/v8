@@ -31,6 +31,7 @@
 #include "v8.h"
 
 #include "code-stubs.h"
+#include "data-flow.h"
 #include "small-pointer-list.h"
 #include "string-stream.h"
 #include "zone.h"

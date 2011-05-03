@@ -30,14 +30,13 @@
 #ifndef V8_SCANNER_BASE_H_
 #define V8_SCANNER_BASE_H_
 
-#include "globals.h"
-#include "checks.h"
 #include "allocation.h"
+#include "char-predicates.h"
+#include "checks.h"
+#include "globals.h"
 #include "token.h"
 #include "unicode-inl.h"
-#include "char-predicates.h"
 #include "utils.h"
-#include "list-inl.h"
 
 namespace v8 {
 namespace internal {

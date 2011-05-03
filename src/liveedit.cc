@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,8 +30,8 @@
 
 #include "liveedit.h"
 
-#include "compiler.h"
 #include "compilation-cache.h"
+#include "compiler.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "global-handles.h"

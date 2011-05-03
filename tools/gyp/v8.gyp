@@ -554,6 +554,7 @@
             '../../src/unicode-inl.h',
             '../../src/unicode.cc',
             '../../src/unicode.h',
+	    '../../src/utils-inl.h',
             '../../src/utils.cc',
             '../../src/utils.h',
             '../../src/v8-counters.cc',

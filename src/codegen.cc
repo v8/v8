@@ -34,7 +34,6 @@
 #include "prettyprinter.h"
 #include "rewriter.h"
 #include "runtime.h"
-#include "scopeinfo.h"
 #include "stub-cache.h"
 
 namespace v8 {
