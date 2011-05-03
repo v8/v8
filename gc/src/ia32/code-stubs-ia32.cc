@@ -6610,8 +6610,6 @@ void RecordWriteStub::
   NearLabel object_is_black, must_inform_both;
   Label must_inform_both_far;
 
-  __ jmp(&must_inform_both_far);
-
   // Lets look at the colour of the object:  If it is not black we don't have to
   // inform the incremental marker.
   __ InOldSpaceIsBlack(regs_.object(),
@@ -6661,8 +6659,6 @@ void RecordWriteStub::
         MacroAssembler* masm,
         Label* value_in_new_space_object_is_black_no_remembered_set) {
   NearLabel object_is_black, inform_incremental_marker;
-
-  __ jmp(&slow_);
 
   __ InOldSpaceIsBlack(regs_.object(),
                        regs_.scratch0(),
