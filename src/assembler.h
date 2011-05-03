@@ -852,9 +852,17 @@ class CallWrapper {
   virtual ~CallWrapper() { }
   // Called just before emitting a call. Argument is the size of the generated
   // call code.
-  virtual void BeforeCall(int call_size) = 0;
+  virtual void BeforeCall(int call_size) const = 0;
   // Called just after emitting a call, i.e., at the return site for the call.
-  virtual void AfterCall() = 0;
+  virtual void AfterCall() const = 0;
+};
+
+class NullCallWrapper : public CallWrapper {
+ public:
+  NullCallWrapper() { }
+  virtual ~NullCallWrapper() { }
+  virtual void BeforeCall(int call_size) const { }
+  virtual void AfterCall() const { }
 };
 
 } }  // namespace v8::internal

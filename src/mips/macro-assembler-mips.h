@@ -587,7 +587,7 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  CallWrapper* call_wrapper = NULL);
+                  const CallWrapper& call_wrapper = NullCallWrapper());
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
@@ -600,7 +600,7 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      CallWrapper* call_wrapper = NULL);
+                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
@@ -770,7 +770,7 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id,
                      InvokeFlag flag,
-                     CallWrapper* call_wrapper = NULL);
+                     const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Store the code object for the given builtin in the target register and
   // setup the function in a1.
@@ -953,7 +953,7 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                       Register code_reg,
                       Label* done,
                       InvokeFlag flag,
-                      CallWrapper* call_wrapper = NULL);
+                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Get the code for the given builtin. Returns if able to resolve
   // the function in the 'resolved' flag.

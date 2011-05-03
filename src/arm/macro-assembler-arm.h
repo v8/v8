@@ -350,7 +350,7 @@ class MacroAssembler: public Assembler {
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  CallWrapper* call_wrapper = NULL);
+                  const CallWrapper& call_wrapper = NullCallWrapper());
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
@@ -363,7 +363,7 @@ class MacroAssembler: public Assembler {
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      CallWrapper* call_wrapper = NULL);
+                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
@@ -799,7 +799,7 @@ class MacroAssembler: public Assembler {
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id,
                      InvokeFlag flag,
-                     CallWrapper* call_wrapper = NULL);
+                     const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Store the code object for the given builtin in the target register and
   // setup the function in r1.
@@ -1002,7 +1002,7 @@ class MacroAssembler: public Assembler {
                       Register code_reg,
                       Label* done,
                       InvokeFlag flag,
-                      CallWrapper* call_wrapper = NULL);
+                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);

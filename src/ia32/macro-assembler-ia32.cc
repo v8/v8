@@ -1435,7 +1435,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     const Operand& code_operand,
                                     NearLabel* done,
                                     InvokeFlag flag,
-                                    CallWrapper* call_wrapper) {
+                                    const CallWrapper& call_wrapper) {
   bool definitely_matches = false;
   Label invoke;
   if (expected.is_immediate()) {
@@ -1485,11 +1485,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     }
 
     if (flag == CALL_FUNCTION) {
-      if (call_wrapper != NULL) {
-        call_wrapper->BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
-      }
+      call_wrapper.BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
       call(adaptor, RelocInfo::CODE_TARGET);
-      if (call_wrapper != NULL) call_wrapper->AfterCall();
+      call_wrapper.AfterCall();
       jmp(done);
     } else {
       jmp(adaptor, RelocInfo::CODE_TARGET);
@@ -1503,14 +1501,14 @@ void MacroAssembler::InvokeCode(const Operand& code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
-                                CallWrapper* call_wrapper) {
+                                const CallWrapper& call_wrapper) {
   NearLabel done;
   InvokePrologue(expected, actual, Handle<Code>::null(), code,
                  &done, flag, call_wrapper);
   if (flag == CALL_FUNCTION) {
-    if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(code));
+    call_wrapper.BeforeCall(CallSize(code));
     call(code);
-    if (call_wrapper != NULL) call_wrapper->AfterCall();
+    call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     jmp(code);
@@ -1524,14 +1522,14 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& actual,
                                 RelocInfo::Mode rmode,
                                 InvokeFlag flag,
-                                CallWrapper* call_wrapper) {
+                                const CallWrapper& call_wrapper) {
   NearLabel done;
   Operand dummy(eax);
   InvokePrologue(expected, actual, code, dummy, &done, flag, call_wrapper);
   if (flag == CALL_FUNCTION) {
-    if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(code, rmode));
+    call_wrapper.BeforeCall(CallSize(code, rmode));
     call(code, rmode);
-    if (call_wrapper != NULL) call_wrapper->AfterCall();
+    call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     jmp(code, rmode);
@@ -1543,7 +1541,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 void MacroAssembler::InvokeFunction(Register fun,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    CallWrapper* call_wrapper) {
+                                    const CallWrapper& call_wrapper) {
   ASSERT(fun.is(edi));
   mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
@@ -1559,7 +1557,7 @@ void MacroAssembler::InvokeFunction(Register fun,
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    CallWrapper* call_wrapper) {
+                                    const CallWrapper& call_wrapper) {
   ASSERT(function->is_compiled());
   // Get the function and setup the context.
   mov(edi, Immediate(Handle<JSFunction>(function)));
@@ -1582,7 +1580,7 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
 
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
-                                   CallWrapper* call_wrapper) {
+                                   const CallWrapper& call_wrapper) {
   // Calls are not allowed in some stubs.
   ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
 

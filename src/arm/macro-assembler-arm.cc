@@ -886,7 +886,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Register code_reg,
                                     Label* done,
                                     InvokeFlag flag,
-                                    CallWrapper* call_wrapper) {
+                                    const CallWrapper& call_wrapper) {
   bool definitely_matches = false;
   Label regular_invoke;
 
@@ -941,11 +941,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     Handle<Code> adaptor =
         isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
-      if (call_wrapper != NULL) {
-        call_wrapper->BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
-      }
+      call_wrapper.BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
       Call(adaptor, RelocInfo::CODE_TARGET);
-      if (call_wrapper != NULL) call_wrapper->AfterCall();
+      call_wrapper.AfterCall();
       b(done);
     } else {
       Jump(adaptor, RelocInfo::CODE_TARGET);
@@ -959,15 +957,15 @@ void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
-                                CallWrapper* call_wrapper) {
+                                const CallWrapper& call_wrapper) {
   Label done;
 
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
                  call_wrapper);
   if (flag == CALL_FUNCTION) {
-    if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(code));
+    call_wrapper.BeforeCall(CallSize(code));
     Call(code);
-    if (call_wrapper != NULL) call_wrapper->AfterCall();
+    call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     Jump(code);
@@ -1002,7 +1000,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 void MacroAssembler::InvokeFunction(Register fun,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    CallWrapper* call_wrapper) {
+                                    const CallWrapper& call_wrapper) {
   // Contract with called JS functions requires that function is passed in r1.
   ASSERT(fun.is(r1));
 
@@ -2314,12 +2312,12 @@ MaybeObject* MacroAssembler::TryJumpToExternalReference(
 
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
-                                   CallWrapper* call_wrapper) {
+                                   const CallWrapper& call_wrapper) {
   GetBuiltinEntry(r2, id);
   if (flag == CALL_FUNCTION) {
-    if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(r2));
+    call_wrapper.BeforeCall(CallSize(r2));
     Call(r2);
-    if (call_wrapper != NULL) call_wrapper->AfterCall();
+    call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     Jump(r2);

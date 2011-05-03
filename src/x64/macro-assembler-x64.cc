@@ -755,7 +755,7 @@ MaybeObject* MacroAssembler::TryJumpToExternalReference(
 
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
-                                   CallWrapper* call_wrapper) {
+                                   const CallWrapper& call_wrapper) {
   // Calls are not allowed in some stubs.
   ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
 
@@ -2056,7 +2056,7 @@ void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
-                                CallWrapper* call_wrapper) {
+                                const CallWrapper& call_wrapper) {
   NearLabel done;
   InvokePrologue(expected,
                  actual,
@@ -2066,9 +2066,9 @@ void MacroAssembler::InvokeCode(Register code,
                  flag,
                  call_wrapper);
   if (flag == CALL_FUNCTION) {
-    if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(code));
+    call_wrapper.BeforeCall(CallSize(code));
     call(code);
-    if (call_wrapper != NULL) call_wrapper->AfterCall();
+    call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     jmp(code);
@@ -2082,7 +2082,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& actual,
                                 RelocInfo::Mode rmode,
                                 InvokeFlag flag,
-                                CallWrapper* call_wrapper) {
+                                const CallWrapper& call_wrapper) {
   NearLabel done;
   Register dummy = rax;
   InvokePrologue(expected,
@@ -2093,9 +2093,9 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                  flag,
                  call_wrapper);
   if (flag == CALL_FUNCTION) {
-    if (call_wrapper != NULL) call_wrapper->BeforeCall(CallSize(code));
+    call_wrapper.BeforeCall(CallSize(code));
     Call(code, rmode);
-    if (call_wrapper != NULL) call_wrapper->AfterCall();
+    call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     Jump(code, rmode);
@@ -2107,7 +2107,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    CallWrapper* call_wrapper) {
+                                    const CallWrapper& call_wrapper) {
   ASSERT(function.is(rdi));
   movq(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
@@ -2125,7 +2125,7 @@ void MacroAssembler::InvokeFunction(Register function,
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    CallWrapper* call_wrapper) {
+                                    const CallWrapper& call_wrapper) {
   ASSERT(function->is_compiled());
   // Get the function and setup the context.
   Move(rdi, Handle<JSFunction>(function));
