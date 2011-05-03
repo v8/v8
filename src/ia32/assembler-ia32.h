@@ -847,7 +847,9 @@ class Assembler : public AssemblerBase {
   // Calls
   void call(Label* L);
   void call(byte* entry, RelocInfo::Mode rmode);
+  int CallSize(const Operand& adr);
   void call(const Operand& adr);
+  int CallSize(Handle<Code> code, RelocInfo::Mode mode);
   void call(Handle<Code> code,
             RelocInfo::Mode rmode,
             unsigned ast_id = kNoASTId);

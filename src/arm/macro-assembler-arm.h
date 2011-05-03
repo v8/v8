@@ -33,9 +33,6 @@
 namespace v8 {
 namespace internal {
 
-// Forward declaration.
-class CallWrapper;
-
 // ----------------------------------------------------------------------------
 // Static helper functions
 
@@ -1064,21 +1061,6 @@ class CodePatcher {
   MacroAssembler masm_;  // Macro assembler used to generate the code.
 };
 #endif  // ENABLE_DEBUGGER_SUPPORT
-
-
-// Helper class for generating code or data associated with the code
-// right after a call instruction. As an example this can be used to
-// generate safepoint data after calls for crankshaft.
-class CallWrapper {
- public:
-  CallWrapper() { }
-  virtual ~CallWrapper() { }
-  // Called just before emitting a call. Argument is the size of the generated
-  // call code.
-  virtual void BeforeCall(int call_size) = 0;
-  // Called just after emitting a call, i.e., at the return site for the call.
-  virtual void AfterCall() = 0;
-};
 
 
 // -----------------------------------------------------------------------------

@@ -61,7 +61,6 @@ typedef Operand MemOperand;
 
 // Forward declaration.
 class JumpTarget;
-class CallWrapper;
 
 struct SmiIndex {
   SmiIndex(Register index_register, ScaleFactor scale)
@@ -1189,21 +1188,6 @@ class CodePatcher {
   byte* address_;  // The address of the code being patched.
   int size_;  // Number of bytes of the expected patch size.
   MacroAssembler masm_;  // Macro assembler used to generate the code.
-};
-
-
-// Helper class for generating code or data associated with the code
-// right before or after a call instruction. As an example this can be used to
-// generate safepoint data after calls for crankshaft.
-class CallWrapper {
- public:
-  CallWrapper() { }
-  virtual ~CallWrapper() { }
-  // Called just before emitting a call. Argument is the size of the generated
-  // call code.
-  virtual void BeforeCall(int call_size) = 0;
-  // Called just after emitting a call, i.e., at the return site for the call.
-  virtual void AfterCall() = 0;
 };
 
 

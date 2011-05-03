@@ -1580,12 +1580,24 @@ void Assembler::call(byte* entry, RelocInfo::Mode rmode) {
 }
 
 
+int Assembler::CallSize(const Operand& adr) {
+  // Call size is 1 (opcode) + adr.len_ (operand).
+  return 1 + adr.len_;
+}
+
+
 void Assembler::call(const Operand& adr) {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xFF);
   emit_operand(edx, adr);
+  ASSERT(pc_ - last_pc_ == CallSize(adr));
+}
+
+
+int Assembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
+  return 1 /* EMIT */ + sizeof(uint32_t) /* emit */;
 }
 
 
