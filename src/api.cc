@@ -3255,6 +3255,37 @@ int v8::Object::GetIndexedPropertiesExternalArrayDataLength() {
 }
 
 
+Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv, int argc,
+                                        v8::Handle<v8::Value> argv[]) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::CallAsFunction()",
+             return Local<v8::Value>());
+  LOG_API(isolate, "Object::CallAsFunction");
+  ENTER_V8(isolate);
+  HandleScope scope;
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
+  STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
+  i::Object*** args = reinterpret_cast<i::Object***>(argv);
+  i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>();
+  if (obj->IsJSFunction()) {
+    fun = i::Handle<i::JSFunction>::cast(obj);
+  } else {
+    EXCEPTION_PREAMBLE(isolate);
+    i::Handle<i::Object> delegate =
+        i::Execution::TryGetFunctionDelegate(obj, &has_pending_exception);
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+    fun = i::Handle<i::JSFunction>::cast(delegate);
+    recv_obj = obj;
+  }
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> returned =
+      i::Execution::Call(fun, recv_obj, argc, args, &has_pending_exception);
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+  return scope.Close(Utils::ToLocal(i::Handle<i::JSObject>::cast(returned)));
+}
+
+
 Local<v8::Object> Function::NewInstance() const {
   return NewInstance(0, NULL);
 }
