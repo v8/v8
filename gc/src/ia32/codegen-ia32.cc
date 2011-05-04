@@ -9804,10 +9804,8 @@ Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
     __ RecordWrite(receiver.reg(),
                    scratch.reg(),
                    value.reg(),
-                   EMIT_REMEMBERED_SET,
                    kDontSaveFPRegs);
     if (FLAG_debug_code) {
-      __ mov(receiver.reg(), Immediate(BitCast<int32_t>(kZapValue)));
       __ mov(value.reg(), Immediate(BitCast<int32_t>(kZapValue)));
       __ mov(scratch.reg(), Immediate(BitCast<int32_t>(kZapValue)));
     }

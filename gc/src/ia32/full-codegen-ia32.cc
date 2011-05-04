@@ -170,11 +170,8 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
         // Store it in the context.
         int context_offset = Context::SlotOffset(slot->index());
         __ mov(Operand(esi, context_offset), eax);
-        // Update the write barrier. This clobbers all involved
-        // registers, so we have use a third register to avoid
-        // clobbering esi.
-        __ mov(ecx, esi);
-        __ RecordWriteContextSlot(ecx,
+        // Update the write barrier. This clobbers eax and ebx.
+        __ RecordWriteContextSlot(esi,
                                   context_offset,
                                   eax,
                                   ebx,
@@ -686,8 +683,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
           VisitForAccumulatorValue(function);
           __ mov(ContextOperand(esi, slot->index()), result_register());
           int offset = Context::SlotOffset(slot->index());
-          __ mov(ebx, esi);
-          __ RecordWriteContextSlot(ebx,
+          __ RecordWriteContextSlot(esi,
                                     offset,
                                     result_register(),
                                     ecx,
@@ -1893,7 +1889,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ mov(target, eax);
 
         // The value of the assignment is in eax.  RecordWrite clobbers its
-        // register arguments.
+        // second and third register arguments.
         __ mov(edx, eax);
         int offset = Context::SlotOffset(slot->index());
         __ RecordWriteContextSlot(ecx, offset, edx, ebx, kDontSaveFPRegs);

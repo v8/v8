@@ -1511,7 +1511,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ bind(&with_write_barrier);
 
       __ RecordWrite(
-          ebx, edx, ecx, EMIT_REMEMBERED_SET, kDontSaveFPRegs, OMIT_SMI_CHECK);
+          ebx, edx, ecx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
       __ ret((argc + 1) * kPointerSize);
 
@@ -1560,8 +1560,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       // tell the incremental marker to rescan the object that we just grew.  We
       // don't need to worry about the holes because they are in old space and
       // already marked black.
-      __ mov(edi, ebx);
-      __ RecordWrite(edi, edx, ecx, OMIT_REMEMBERED_SET, kDontSaveFPRegs);
+      __ RecordWrite(ebx, edx, ecx, kDontSaveFPRegs, OMIT_REMEMBERED_SET);
 
       // Restore receiver to edx as finish sequence assumes it's here.
       __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
@@ -2664,8 +2663,8 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ RecordWrite(ebx,  // Object.
                  edx,  // Address.
                  ecx,  // Value.
-                 OMIT_REMEMBERED_SET,
                  kDontSaveFPRegs,
+                 OMIT_REMEMBERED_SET,
                  OMIT_SMI_CHECK);
 
   // Return the value (register eax).

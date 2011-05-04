@@ -148,24 +148,32 @@ class MacroAssembler: public Assembler {
   // filters out smis so it does not update the write barrier if the value is a
   // smi.  The offset is the offset from the start of the object, not the offset
   // from the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
-  void RecordWriteField(Register object,
-                        int offset,
-                        Register value,
-                        Register scratch,
-                        SaveFPRegsMode save_fp);
+  void RecordWriteField(
+      Register object,
+      int offset,
+      Register value,
+      Register scratch,
+      SaveFPRegsMode save_fp,
+      EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // As above, but the offset has the tag presubtracted.  For use with
   // Operand(reg, off).
-  inline void RecordWriteContextSlot(Register context,
-                                     int offset,
-                                     Register value,
-                                     Register scratch,
-                                     SaveFPRegsMode save_fp) {
+  inline void RecordWriteContextSlot(
+      Register context,
+      int offset,
+      Register value,
+      Register scratch,
+      SaveFPRegsMode save_fp,
+      EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK) {
     RecordWriteField(context,
                      offset + kHeapObjectTag,
                      value,
                      scratch,
-                     save_fp);
+                     save_fp,
+                     emit_remembered_set,
+                     smi_check);
   }
 
 
@@ -177,10 +185,13 @@ class MacroAssembler: public Assembler {
   // Smi. All registers are clobbered by the operation RecordWriteArray
   // filters out smis so it does not update the write barrier if the
   // value is a smi.
-  void RecordWriteArray(Register array,
-                        Register value,
-                        Register index,
-                        SaveFPRegsMode save_fp);
+  void RecordWriteArray(
+      Register array,
+      Register value,
+      Register index,
+      SaveFPRegsMode save_fp,
+      EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // For page containing |object| mark region covering |address|
   // dirty. |object| is the object being stored into, |value| is the
@@ -190,8 +201,8 @@ class MacroAssembler: public Assembler {
   void RecordWrite(Register object,
                    Register address,
                    Register value,
-                   EmitRememberedSet emit_remembered_set,
                    SaveFPRegsMode save_fp,
+                   EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
                    SmiCheck smi_check = INLINE_SMI_CHECK);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

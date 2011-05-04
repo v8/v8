@@ -268,7 +268,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 
   // Update write barrier. Make sure not to clobber the value.
   __ mov(r1, value);
-  __ RecordWrite(elements, r0, r1, EMIT_REMEMBERED_SET, kDontSaveFPRegs);
+  __ RecordWrite(elements, r0, r1, kDontSaveFPRegs);
 }
 
 

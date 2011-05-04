@@ -4055,16 +4055,14 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Store last subject and last input.
   __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(FieldOperand(ebx, RegExpImpl::kLastSubjectOffset), eax);
-  __ mov(ecx, ebx);
-  __ RecordWriteField(ecx,
+  __ RecordWriteField(ebx,
                       RegExpImpl::kLastSubjectOffset,
                       eax,
                       edi,
                       kDontSaveFPRegs);
   __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(FieldOperand(ebx, RegExpImpl::kLastInputOffset), eax);
-  __ mov(ecx, ebx);
-  __ RecordWriteField(ecx,
+  __ RecordWriteField(ebx,
                       RegExpImpl::kLastInputOffset,
                       eax,
                       edi,
@@ -6511,24 +6509,15 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
   }
 
   if (FLAG_debug_code) {
-    NearLabel ok, bad;
+    NearLabel ok;
     __ cmp(value_, Operand(address_, 0));
     __ j(equal, &ok);
-    __ bind(&bad);
-    __ int3();
+    __ Abort("Registers did not match in write barrier");
     __ bind(&ok);
-
-    __ test(object_, Immediate(kSmiTagMask));
-    __ j(zero, &bad);
-    __ test(address_, Immediate(kSmiTagMask));
-    __ j(not_zero, &bad);
-    __ test(value_, Immediate(kSmiTagMask));
-    __ j(zero, &bad);
   }
 
   if (emit_remembered_set_ == EMIT_REMEMBERED_SET) {
     NearLabel skip;
-    __ InNewSpace(address_, value_, equal, &skip);
     __ HasScanOnScavenge(object_, value_, &skip);
     __ RememberedSetHelper(address_, value_, save_fp_regs_mode_);
     __ bind(&skip);
@@ -6623,6 +6612,7 @@ void RecordWriteStub::
   __ bind(&object_is_black);
 
   __ mov(regs_.scratch0(), Operand(regs_.address(), 0));
+
   __ push(regs_.object());
   __ EnsureNotWhite(regs_.scratch0(),  // The value.
                     regs_.scratch1(),  // Scratch.

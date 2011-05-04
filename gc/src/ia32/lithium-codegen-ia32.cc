@@ -203,11 +203,8 @@ bool LCodeGen::GeneratePrologue() {
         // Store it in the context.
         int context_offset = Context::SlotOffset(slot->index());
         __ mov(Operand(esi, context_offset), eax);
-        // Update the write barrier. This clobbers all involved
-        // registers, so we have to use a third register to avoid
-        // clobbering esi.
-        __ mov(ecx, esi);
-        __ RecordWriteContextSlot(ecx,
+        // Update the write barrier. This clobbers eax and ebx.
+        __ RecordWriteContextSlot(esi,
                                   context_offset,
                                   eax,
                                   ebx,
@@ -2099,7 +2096,13 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
 
 
   // Cells are always in the remembered set.
-  __ RecordWrite(object, address, value, OMIT_REMEMBERED_SET, kSaveFPRegs);
+  __ RecordWriteField(object,
+                      JSGlobalPropertyCell::kValueOffset,
+                      value,
+                      address,
+                      kSaveFPRegs,
+                      OMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
 }
 
 
@@ -2926,7 +2929,7 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
                         key,
                         times_pointer_size,
                         FixedArray::kHeaderSize));
-    __ RecordWrite(elements, key, value, EMIT_REMEMBERED_SET, kSaveFPRegs);
+    __ RecordWrite(elements, key, value, kSaveFPRegs);
   }
 }
 

@@ -113,26 +113,19 @@ void MacroAssembler::RememberedSetHelper(Register addr,
 void MacroAssembler::RecordWriteArray(Register object,
                                       Register value,
                                       Register index,
-                                      SaveFPRegsMode save_fp) {
-  ASSERT(!object.is(value));
-  ASSERT(!object.is(index));
-  ASSERT(!value.is(index));
-  if (emit_debug_code()) {
-    NearLabel ok;
-    test(object, Immediate(kSmiTagMask));
-    j(not_zero, &ok);
-    int3();
-    bind(&ok);
-  }
-
+                                      SaveFPRegsMode save_fp,
+                                      EmitRememberedSet emit_remembered_set,
+                                      SmiCheck smi_check) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   NearLabel done;
 
   // Skip barrier if writing a smi.
-  ASSERT_EQ(0, kSmiTag);
-  test(value, Immediate(kSmiTagMask));
-  j(zero, &done);
+  if (smi_check == INLINE_SMI_CHECK) {
+    ASSERT_EQ(0, kSmiTag);
+    test(value, Immediate(kSmiTagMask));
+    j(zero, &done);
+  }
 
   // Array access: calculate the destination address in the same manner as
   // KeyedStoreIC::GenerateGeneric.  Multiply a smi by 2 to get an offset
@@ -143,47 +136,40 @@ void MacroAssembler::RecordWriteArray(Register object,
   lea(dst, Operand(object, index, times_half_pointer_size,
                    FixedArray::kHeaderSize - kHeapObjectTag));
 
-  RecordWrite(object, dst, value, EMIT_REMEMBERED_SET, save_fp, OMIT_SMI_CHECK);
+  RecordWrite(object, dst, value, save_fp, emit_remembered_set, OMIT_SMI_CHECK);
 
   bind(&done);
 
-  // Clobber all input registers when running with the debug-code flag
+  // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(object, Immediate(BitCast<int32_t>(kZapValue)));
     mov(value, Immediate(BitCast<int32_t>(kZapValue)));
     mov(index, Immediate(BitCast<int32_t>(kZapValue)));
   }
 }
 
 
-void MacroAssembler::RecordWriteField(Register object,
-                                      int offset,
-                                      Register value,
-                                      Register dst,
-                                      SaveFPRegsMode save_fp) {
-  ASSERT(!object.is(value));
-  ASSERT(!object.is(dst));
-  ASSERT(!value.is(dst));
-  if (emit_debug_code()) {
-    NearLabel ok;
-    test(object, Immediate(kSmiTagMask));
-    j(not_zero, &ok);
-    int3();
-    bind(&ok);
-  }
-
+void MacroAssembler::RecordWriteField(
+    Register object,
+    int offset,
+    Register value,
+    Register dst,
+    SaveFPRegsMode save_fp,
+    EmitRememberedSet emit_remembered_set,
+    SmiCheck smi_check) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   NearLabel done;
 
   // Skip barrier if writing a smi.
-  ASSERT_EQ(0, kSmiTag);
-  test(value, Immediate(kSmiTagMask));
-  j(zero, &done);
+  if (smi_check == INLINE_SMI_CHECK) {
+    ASSERT_EQ(0, kSmiTag);
+    test(value, Immediate(kSmiTagMask));
+    j(zero, &done);
+  }
 
   // Although the object register is tagged, the offset is relative to the start
-  // of the object, so offset must be a multiple of kPointerSize.
+  // of the object, so so offset must be a multiple of kPointerSize.
   ASSERT(IsAligned(offset, kPointerSize));
 
   lea(dst, FieldOperand(object, offset));
@@ -195,14 +181,13 @@ void MacroAssembler::RecordWriteField(Register object,
     bind(&ok);
   }
 
-  RecordWrite(object, dst, value, EMIT_REMEMBERED_SET, save_fp, OMIT_SMI_CHECK);
+  RecordWrite(object, dst, value, save_fp, emit_remembered_set, OMIT_SMI_CHECK);
 
   bind(&done);
 
-  // Clobber all input registers when running with the debug-code flag
+  // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(object, Immediate(BitCast<int32_t>(kZapValue)));
     mov(value, Immediate(BitCast<int32_t>(kZapValue)));
     mov(dst, Immediate(BitCast<int32_t>(kZapValue)));
   }
@@ -212,18 +197,14 @@ void MacroAssembler::RecordWriteField(Register object,
 void MacroAssembler::RecordWrite(Register object,
                                  Register address,
                                  Register value,
-                                 EmitRememberedSet emit_remembered_set,
                                  SaveFPRegsMode fp_mode,
+                                 EmitRememberedSet emit_remembered_set,
                                  SmiCheck smi_check) {
   ASSERT(!object.is(value));
   ASSERT(!object.is(address));
   ASSERT(!value.is(address));
   if (emit_debug_code()) {
-    NearLabel ok;
-    test(object, Immediate(kSmiTagMask));
-    j(not_zero, &ok);
-    int3();
-    bind(&ok);
+    AbortIfSmi(object);
   }
 
   if (emit_remembered_set == OMIT_REMEMBERED_SET &&
@@ -233,14 +214,6 @@ void MacroAssembler::RecordWrite(Register object,
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
   NearLabel done;
-
-  if (emit_debug_code()) {
-    NearLabel ok;
-    test(object, Immediate(kSmiTagMask));
-    j(not_zero, &ok);
-    int3();
-    bind(&ok);
-  }
 
   if (smi_check == INLINE_SMI_CHECK) {
     // Skip barrier if writing a smi.
@@ -256,10 +229,9 @@ void MacroAssembler::RecordWrite(Register object,
     bind(&done);
   }
 
-  // Clobber all input registers when running with the debug-code flag
+  // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(object, Immediate(BitCast<int32_t>(kZapValue)));
     mov(address, Immediate(BitCast<int32_t>(kZapValue)));
     mov(value, Immediate(BitCast<int32_t>(kZapValue)));
   }
