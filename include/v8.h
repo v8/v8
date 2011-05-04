@@ -1606,6 +1606,14 @@ class Object : public Value {
   V8EXPORT ExternalArrayType GetIndexedPropertiesExternalArrayDataType();
   V8EXPORT int GetIndexedPropertiesExternalArrayDataLength();
 
+  /**
+   * Call an Object as a function if a callback is set by the 
+   * ObjectTemplate::SetCallAsFunctionHandler method.
+   */
+  V8EXPORT Local<Value> CallAsFunction(Handle<Object> recv,
+                                       int argc,
+                                       Handle<Value> argv[]);
+
   V8EXPORT static Local<Object> New();
   static inline Object* Cast(Value* obj);
  private:
