@@ -25,71 +25,70 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(cira): Rename v8Locale into LocaleInfo once we have stable API.
-/**
- * LocaleInfo class is an aggregate class of all i18n API calls.
- * @param {Object} settings - localeID and regionID to create LocaleInfo from.
- *   {Array.<string>|string} settings.localeID -
- *     Unicode identifier of the locale.
- *     See http://unicode.org/reports/tr35/#BCP_47_Conformance
- *   {string} settings.regionID - ISO3166 region ID with addition of
- *     invalid, undefined and reserved region codes.
- * @constructor
- */
-v8Locale = function(settings) {
+// TODO(cira): Remove v8 prefix from v8Locale once we have stable API.
+v8Locale = function(optLocale) {
   native function NativeJSLocale();
+  var properties = NativeJSLocale(optLocale);
+  this.locale = properties.locale;
+  this.language = properties.language;
+  this.script = properties.script;
+  this.region = properties.region;
+};
 
-  // Assume user wanted to do v8Locale("sr");
-  if (typeof(settings) === "string") {
-    settings = {'localeID': settings};
+v8Locale.availableLocales = function() {
+  native function NativeJSAvailableLocales();
+  return NativeJSAvailableLocales();
+};
+
+v8Locale.prototype.maximizedLocale = function() {
+  native function NativeJSMaximizedLocale();
+  return new v8Locale(NativeJSMaximizedLocale(this.locale));
+};
+
+v8Locale.prototype.minimizedLocale = function() {
+  native function NativeJSMinimizedLocale();
+  return new v8Locale(NativeJSMinimizedLocale(this.locale));
+};
+
+v8Locale.prototype.displayLocale_ = function(displayLocale) {
+  var result = this.locale;
+  if (displayLocale !== undefined) {
+    result = displayLocale.locale;
   }
-
-  var properties = NativeJSLocale(
-      v8Locale.createSettingsOrDefault_(settings, {'localeID': 'root'}));
-
-  // Keep the resolved ICU locale ID around to avoid resolving localeID to
-  // ICU locale ID every time BreakIterator, Collator and so forth are called.
-  this.icuLocaleID_ = properties.icuLocaleID;
-  this.options = {'localeID': properties.localeID,
-                  'regionID': properties.regionID};
+  return result;
 };
 
-/**
- * Clones existing locale with possible overrides for some of the options.
- * @param {!Object} settings - overrides for current locale settings.
- * @returns {Object} - new LocaleInfo object.
- */
-v8Locale.prototype.derive = function(settings) {
-  return new v8Locale(
-      v8Locale.createSettingsOrDefault_(settings, this.options));
+v8Locale.prototype.displayLanguage = function(optDisplayLocale) {
+  var displayLocale = this.displayLocale_(optDisplayLocale);
+  native function NativeJSDisplayLanguage();
+  return NativeJSDisplayLanguage(this.locale, displayLocale);
 };
 
-/**
- * v8BreakIterator class implements locale aware segmenatation.
- * It is not part of EcmaScript proposal.
- * @param {Object} locale - locale object to pass to break
- *   iterator implementation.
- * @param {string} type - type of segmenatation:
- *   - character
- *   - word
- *   - sentence
- *   - line
- * @constructor
- */
+v8Locale.prototype.displayScript = function(optDisplayLocale) {
+  var displayLocale = this.displayLocale_(optDisplayLocale);
+  native function NativeJSDisplayScript();
+  return NativeJSDisplayScript(this.locale, displayLocale);
+};
+
+v8Locale.prototype.displayRegion = function(optDisplayLocale) {
+  var displayLocale = this.displayLocale_(optDisplayLocale);
+  native function NativeJSDisplayRegion();
+  return NativeJSDisplayRegion(this.locale, displayLocale);
+};
+
+v8Locale.prototype.displayName = function(optDisplayLocale) {
+  var displayLocale = this.displayLocale_(optDisplayLocale);
+  native function NativeJSDisplayName();
+  return NativeJSDisplayName(this.locale, displayLocale);
+};
+
 v8Locale.v8BreakIterator = function(locale, type) {
   native function NativeJSBreakIterator();
-
-  locale = v8Locale.createLocaleOrDefault_(locale);
-  // BCP47 ID would work in this case, but we use ICU locale for consistency.
-  var iterator = NativeJSBreakIterator(locale.icuLocaleID_, type);
+  var iterator = NativeJSBreakIterator(locale, type);
   iterator.type = type;
   return iterator;
 };
 
-/**
- * Type of the break we encountered during previous iteration.
- * @type{Enum}
- */
 v8Locale.v8BreakIterator.BreakType = {
   'unknown': -1,
   'none': 0,
@@ -99,82 +98,19 @@ v8Locale.v8BreakIterator.BreakType = {
   'ideo': 400
 };
 
-/**
- * Creates new v8BreakIterator based on current locale.
- * @param {string} - type of segmentation. See constructor.
- * @returns {Object} - new v8BreakIterator object.
- */
 v8Locale.prototype.v8CreateBreakIterator = function(type) {
-  return new v8Locale.v8BreakIterator(this, type);
+  return new v8Locale.v8BreakIterator(this.locale, type);
 };
 
 // TODO(jungshik): Set |collator.options| to actually recognized / resolved
 // values.
-/**
- * Collator class implements locale-aware sort.
- * @param {Object} locale - locale object to pass to collator implementation.
- * @param {Object} settings - collation flags:
- *   - ignoreCase
- *   - ignoreAccents
- *   - numeric
- * @constructor
- */
-v8Locale.Collator = function(locale, settings) {
+v8Locale.Collator = function(locale, options) {
   native function NativeJSCollator();
-
-  locale = v8Locale.createLocaleOrDefault_(locale);
-  var collator = NativeJSCollator(
-      locale.icuLocaleID_, v8Locale.createSettingsOrDefault_(settings, {}));
+  var collator = NativeJSCollator(locale,
+      options === undefined ? {} : options);
   return collator;
 };
 
-/**
- * Creates new Collator based on current locale.
- * @param {Object} - collation flags. See constructor.
- * @returns {Object} - new v8BreakIterator object.
- */
-v8Locale.prototype.createCollator = function(settings) {
-  return new v8Locale.Collator(this, settings);
-};
-
-/**
- * Merges user settings and defaults.
- * Settings that are not of object type are rejected.
- * Actual property values are not validated, but whitespace is trimmed if they
- * are strings.
- * @param {!Object} settings - user provided settings.
- * @param {!Object} defaults - default values for this type of settings.
- * @returns {Object} - valid settings object.
- */
-v8Locale.createSettingsOrDefault_ = function(settings, defaults) {
-  if (!settings || typeof(settings) !== 'object' ) {
-    return defaults;
-  }
-  for (var key in defaults) {
-    if (!settings.hasOwnProperty(key)) {
-      settings[key] = defaults[key];
-    }
-  }
-  // Clean up values, like trimming whitespace.
-  for (var key in settings) {
-    if (typeof(settings[key]) === "string") {
-      settings[key] = settings[key].trim();
-    }
-  }
-
-  return settings;
-};
-
-/**
- * If locale is valid (defined and of v8Locale type) we return it. If not
- * we create default locale and return it.
- * @param {!Object} locale - user provided locale.
- * @returns {Object} - v8Locale object.
- */
-v8Locale.createLocaleOrDefault_ = function(locale) {
-  if (!locale || !(locale instanceof v8Locale)) {
-    return new v8Locale();
-  } else {
-    return locale;
-  }
+v8Locale.prototype.createCollator = function(options) {
+  return new v8Locale.Collator(this.locale, options);
 };
