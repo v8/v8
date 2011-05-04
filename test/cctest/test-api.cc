@@ -1050,10 +1050,8 @@ THREADED_TEST(Date) {
   v8::HandleScope scope;
   LocalContext env;
   double PI = 3.1415926;
-  Local<Value> date = v8::Date::New(PI);
-  CHECK_EQ(3.0, date->NumberValue());
-  date.As<v8::Date>()->Set(v8_str("property"), v8::Integer::New(42));
-  CHECK_EQ(42, date.As<v8::Date>()->Get(v8_str("property"))->Int32Value());
+  Local<Value> date_obj = v8::Date::New(PI);
+  CHECK_EQ(3.0, date_obj->NumberValue());
 }
 
 
@@ -13802,11 +13800,6 @@ TEST(RegExp) {
 
   context->Global()->Set(v8_str("re"), re);
   ExpectTrue("re.test('FoobarbaZ')");
-
-  // RegExps are objects on which you can set properties.
-  re->Set(v8_str("property"), v8::Integer::New(32));
-  v8::Handle<v8::Value> value = CompileRun("re.property");
-  ASSERT_EQ(32, value->Int32Value());
 
   v8::TryCatch try_catch;
   re = v8::RegExp::New(v8_str("foo["), v8::RegExp::kNone);
