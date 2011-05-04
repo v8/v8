@@ -1744,9 +1744,13 @@ class NewSpace : public Space {
 
   void LowerInlineAllocationLimit(intptr_t step) {
     inline_alloction_limit_step_ = step;
-    allocation_info_.limit = Min(
-        allocation_info_.top + inline_alloction_limit_step_,
-        allocation_info_.limit);
+    if (step == 0) {
+      allocation_info_.limit = to_space_.high();
+    } else {
+      allocation_info_.limit = Min(
+          allocation_info_.top + inline_alloction_limit_step_,
+          allocation_info_.limit);
+    }
     top_on_previous_step_ = allocation_info_.top;
   }
 
@@ -1820,6 +1824,10 @@ class NewSpace : public Space {
   bool UncommitFromSpace() {
     if (!from_space_.is_committed()) return true;
     return from_space_.Uncommit();
+  }
+
+  inline intptr_t inline_alloction_limit_step() {
+    return inline_alloction_limit_step_;
   }
 
  private:

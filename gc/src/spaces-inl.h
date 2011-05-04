@@ -252,18 +252,18 @@ MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes) {
       allocation_info_.limit = Min(
           allocation_info_.limit + inline_alloction_limit_step_,
           high);
+      int bytes_allocated = new_top - top_on_previous_step_;
+      heap()->incremental_marking()->Step(bytes_allocated);
+      top_on_previous_step_ = new_top;
       return AllocateRawInternal(size_in_bytes);
+    } else {
+      return Failure::RetryAfterGC();
     }
-    return Failure::RetryAfterGC();
   }
 
   Object* obj = HeapObject::FromAddress(allocation_info_.top);
   allocation_info_.top = new_top;
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
-
-  int bytes_allocated = new_top - top_on_previous_step_;
-  heap()->incremental_marking()->Step(bytes_allocated);
-  top_on_previous_step_ = new_top;
 
   return obj;
 }

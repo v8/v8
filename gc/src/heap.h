@@ -880,10 +880,16 @@ class Heap {
 
   inline void increment_scan_on_scavenge_pages() {
     scan_on_scavenge_pages_++;
+    if (FLAG_trace_gc) {
+      PrintF("Scan-on-scavenge pages: %d\n", scan_on_scavenge_pages_);
+    }
   }
 
   inline void decrement_scan_on_scavenge_pages() {
     scan_on_scavenge_pages_--;
+    if (FLAG_trace_gc) {
+      PrintF("Scan-on-scavenge pages: %d\n", scan_on_scavenge_pages_);
+    }
   }
 
   PromotionQueue* promotion_queue() { return &promotion_queue_; }

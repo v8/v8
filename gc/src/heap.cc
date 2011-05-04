@@ -1073,6 +1073,9 @@ void Heap::Scavenge() {
   // Set age mark.
   new_space_.set_age_mark(new_space_.top());
 
+  new_space_.LowerInlineAllocationLimit(
+      new_space_.inline_alloction_limit_step());
+
   // Update how much has survived scavenge.
   IncrementYoungSurvivorsCounter(static_cast<int>(
       (PromotedSpaceSize() - survived_watermark) + new_space_.Size()));

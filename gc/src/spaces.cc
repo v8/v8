@@ -397,6 +397,7 @@ NewSpacePage* NewSpacePage::Initialize(Heap* heap, Address start) {
                                                Page::kPageSize,
                                                NOT_EXECUTABLE,
                                                heap->new_space());
+  chunk->initialize_scan_on_scavenge(true);
   return static_cast<NewSpacePage*>(chunk);
 }
 

@@ -39,7 +39,8 @@ MarkBit Marking::MarkBitFromNewSpace(HeapObject* obj) {
   ASSERT(heap_->InNewSpace(obj));
   uint32_t index = heap_->new_space()->AddressToMarkbitIndex(
       reinterpret_cast<Address>(obj));
-  return new_space_bitmap_->MarkBitFromIndex(index);
+  bool data_object = obj->map()->instance_type() == HEAP_NUMBER_TYPE;
+  return new_space_bitmap_->MarkBitFromIndex(index, data_object);
 }
 
 
@@ -48,7 +49,8 @@ MarkBit Marking::MarkBitFromOldSpace(HeapObject* obj) {
   ASSERT(obj->IsHeapObject());
   Address addr = reinterpret_cast<Address>(obj);
   Page *p = Page::FromAddress(addr);
-  return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr));
+  return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr),
+                                         p->ContainsOnlyData());
 }
 
 
