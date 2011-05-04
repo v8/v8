@@ -1349,87 +1349,6 @@ class Uint32 : public Integer {
 };
 
 
-/**
- * An instance of the built-in Date constructor (ECMA-262, 15.9).
- */
-class Date : public Value {
- public:
-  V8EXPORT static Local<Value> New(double time);
-
-  /**
-   * A specialization of Value::NumberValue that is more efficient
-   * because we know the structure of this object.
-   */
-  V8EXPORT double NumberValue() const;
-
-  static inline Date* Cast(v8::Value* obj);
-
-  /**
-   * Notification that the embedder has changed the time zone,
-   * daylight savings time, or other date / time configuration
-   * parameters.  V8 keeps a cache of various values used for
-   * date / time computation.  This notification will reset
-   * those cached values for the current context so that date /
-   * time configuration changes would be reflected in the Date
-   * object.
-   *
-   * This API should not be called more than needed as it will
-   * negatively impact the performance of date operations.
-   */
-  V8EXPORT static void DateTimeConfigurationChangeNotification();
-
- private:
-  V8EXPORT static void CheckCast(v8::Value* obj);
-};
-
-
-/**
- * An instance of the built-in RegExp constructor (ECMA-262, 15.10).
- */
-class RegExp : public Value {
- public:
-  /**
-   * Regular expression flag bits. They can be or'ed to enable a set
-   * of flags.
-   */
-  enum Flags {
-    kNone = 0,
-    kGlobal = 1,
-    kIgnoreCase = 2,
-    kMultiline = 4
-  };
-
-  /**
-   * Creates a regular expression from the given pattern string and
-   * the flags bit field. May throw a JavaScript exception as
-   * described in ECMA-262, 15.10.4.1.
-   *
-   * For example,
-   *   RegExp::New(v8::String::New("foo"),
-   *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
-   * is equivalent to evaluating "/foo/gm".
-   */
-  V8EXPORT static Local<RegExp> New(Handle<String> pattern,
-                                    Flags flags);
-
-  /**
-   * Returns the value of the source property: a string representing
-   * the regular expression.
-   */
-  V8EXPORT Local<String> GetSource() const;
-
-  /**
-   * Returns the flags bit field.
-   */
-  V8EXPORT Flags GetFlags() const;
-
-  static inline RegExp* Cast(v8::Value* obj);
-
- private:
-  V8EXPORT static void CheckCast(v8::Value* obj);
-};
-
-
 enum PropertyAttribute {
   None       = 0,
   ReadOnly   = 1 << 0,
@@ -1687,14 +1606,6 @@ class Object : public Value {
   V8EXPORT ExternalArrayType GetIndexedPropertiesExternalArrayDataType();
   V8EXPORT int GetIndexedPropertiesExternalArrayDataLength();
 
-  /**
-   * Call an Object as a function if a callback is set by the 
-   * ObjectTemplate::SetCallAsFunctionHandler method.
-   */
-  V8EXPORT Local<Value> CallAsFunction(Handle<Object> recv,
-                                       int argc,
-                                       Handle<Value> argv[]);
-
   V8EXPORT static Local<Object> New();
   static inline Object* Cast(Value* obj);
  private:
@@ -1761,6 +1672,87 @@ class Function : public Object {
  private:
   V8EXPORT Function();
   V8EXPORT static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of the built-in Date constructor (ECMA-262, 15.9).
+ */
+class Date : public Object {
+ public:
+  V8EXPORT static Local<Value> New(double time);
+
+  /**
+   * A specialization of Value::NumberValue that is more efficient
+   * because we know the structure of this object.
+   */
+  V8EXPORT double NumberValue() const;
+
+  static inline Date* Cast(v8::Value* obj);
+
+  /**
+   * Notification that the embedder has changed the time zone,
+   * daylight savings time, or other date / time configuration
+   * parameters.  V8 keeps a cache of various values used for
+   * date / time computation.  This notification will reset
+   * those cached values for the current context so that date /
+   * time configuration changes would be reflected in the Date
+   * object.
+   *
+   * This API should not be called more than needed as it will
+   * negatively impact the performance of date operations.
+   */
+  V8EXPORT static void DateTimeConfigurationChangeNotification();
+
+ private:
+  V8EXPORT static void CheckCast(v8::Value* obj);
+};
+
+
+/**
+ * An instance of the built-in RegExp constructor (ECMA-262, 15.10).
+ */
+class RegExp : public Object {
+ public:
+  /**
+   * Regular expression flag bits. They can be or'ed to enable a set
+   * of flags.
+   */
+  enum Flags {
+    kNone = 0,
+    kGlobal = 1,
+    kIgnoreCase = 2,
+    kMultiline = 4
+  };
+
+  /**
+   * Creates a regular expression from the given pattern string and
+   * the flags bit field. May throw a JavaScript exception as
+   * described in ECMA-262, 15.10.4.1.
+   *
+   * For example,
+   *   RegExp::New(v8::String::New("foo"),
+   *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
+   * is equivalent to evaluating "/foo/gm".
+   */
+  V8EXPORT static Local<RegExp> New(Handle<String> pattern,
+                                    Flags flags);
+
+  /**
+   * Returns the value of the source property: a string representing
+   * the regular expression.
+   */
+  V8EXPORT Local<String> GetSource() const;
+
+  /**
+   * Returns the flags bit field.
+   */
+  V8EXPORT Flags GetFlags() const;
+
+  static inline RegExp* Cast(v8::Value* obj);
+
+ private:
+  V8EXPORT static void CheckCast(v8::Value* obj);
 };
 
 

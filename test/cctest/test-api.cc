@@ -1050,8 +1050,10 @@ THREADED_TEST(Date) {
   v8::HandleScope scope;
   LocalContext env;
   double PI = 3.1415926;
-  Local<Value> date_obj = v8::Date::New(PI);
-  CHECK_EQ(3.0, date_obj->NumberValue());
+  Local<Value> date = v8::Date::New(PI);
+  CHECK_EQ(3.0, date->NumberValue());
+  date.As<v8::Date>()->Set(v8_str("property"), v8::Integer::New(42));
+  CHECK_EQ(42, date.As<v8::Date>()->Get(v8_str("property"))->Int32Value());
 }
 
 
@@ -6960,111 +6962,50 @@ THREADED_TEST(CallAsFunction) {
   v8::HandleScope scope;
   LocalContext context;
 
-  { Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New();
-    Local<ObjectTemplate> instance_template = t->InstanceTemplate();
-    instance_template->SetCallAsFunctionHandler(call_as_function);
-    Local<v8::Object> instance = t->GetFunction()->NewInstance();
-    context->Global()->Set(v8_str("obj"), instance);
-    v8::TryCatch try_catch;
-    Local<Value> value;
-    CHECK(!try_catch.HasCaught());
+  Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New();
+  Local<ObjectTemplate> instance_template = t->InstanceTemplate();
+  instance_template->SetCallAsFunctionHandler(call_as_function);
+  Local<v8::Object> instance = t->GetFunction()->NewInstance();
+  context->Global()->Set(v8_str("obj"), instance);
+  v8::TryCatch try_catch;
+  Local<Value> value;
+  CHECK(!try_catch.HasCaught());
 
-    value = CompileRun("obj(42)");
-    CHECK(!try_catch.HasCaught());
-    CHECK_EQ(42, value->Int32Value());
+  value = CompileRun("obj(42)");
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(42, value->Int32Value());
 
-    value = CompileRun("(function(o){return o(49)})(obj)");
-    CHECK(!try_catch.HasCaught());
-    CHECK_EQ(49, value->Int32Value());
+  value = CompileRun("(function(o){return o(49)})(obj)");
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(49, value->Int32Value());
 
-    // test special case of call as function
-    value = CompileRun("[obj]['0'](45)");
-    CHECK(!try_catch.HasCaught());
-    CHECK_EQ(45, value->Int32Value());
+  // test special case of call as function
+  value = CompileRun("[obj]['0'](45)");
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(45, value->Int32Value());
 
-    value = CompileRun("obj.call = Function.prototype.call;"
-                       "obj.call(null, 87)");
-    CHECK(!try_catch.HasCaught());
-    CHECK_EQ(87, value->Int32Value());
+  value = CompileRun("obj.call = Function.prototype.call;"
+                     "obj.call(null, 87)");
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(87, value->Int32Value());
 
-    // Regression tests for bug #1116356: Calling call through call/apply
-    // must work for non-function receivers.
-    const char* apply_99 = "Function.prototype.call.apply(obj, [this, 99])";
-    value = CompileRun(apply_99);
-    CHECK(!try_catch.HasCaught());
-    CHECK_EQ(99, value->Int32Value());
+  // Regression tests for bug #1116356: Calling call through call/apply
+  // must work for non-function receivers.
+  const char* apply_99 = "Function.prototype.call.apply(obj, [this, 99])";
+  value = CompileRun(apply_99);
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(99, value->Int32Value());
 
-    const char* call_17 = "Function.prototype.call.call(obj, this, 17)";
-    value = CompileRun(call_17);
-    CHECK(!try_catch.HasCaught());
-    CHECK_EQ(17, value->Int32Value());
+  const char* call_17 = "Function.prototype.call.call(obj, this, 17)";
+  value = CompileRun(call_17);
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(17, value->Int32Value());
 
-    // Check that the call-as-function handler can be called through
-    // new.
-    value = CompileRun("new obj(43)");
-    CHECK(!try_catch.HasCaught());
-    CHECK_EQ(-43, value->Int32Value());
-
-    // Check that the call-as-function handler can be called through
-    // the API.
-    v8::Handle<Value> args[] = { v8_num(28) };
-    value = instance->CallAsFunction(instance, 1, args);
-    CHECK(!try_catch.HasCaught());
-    CHECK_EQ(28, value->Int32Value());
-  }
-
-  { Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New();
-    Local<ObjectTemplate> instance_template = t->InstanceTemplate();
-    Local<v8::Object> instance = t->GetFunction()->NewInstance();
-    context->Global()->Set(v8_str("obj2"), instance);
-    v8::TryCatch try_catch;
-    Local<Value> value;
-    CHECK(!try_catch.HasCaught());
-
-    // Call an object without call-as-function handler through the JS
-    value = CompileRun("obj2(28)");
-    CHECK(value.IsEmpty());
-    CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value1(try_catch.Exception());
-    CHECK_EQ(*exception_value1,
-             "TypeError: Property 'obj2' of object "
-             "#<Object> is not a function");
-    try_catch.Reset();
-
-    // Call an object without call-as-function handler through the API
-    value = CompileRun("obj2(28)");
-    v8::Handle<Value> args[] = { v8_num(28) };
-    value = instance->CallAsFunction(instance, 1, args);
-    CHECK(value.IsEmpty());
-    CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value2(try_catch.Exception());
-    CHECK_EQ(*exception_value2, "TypeError: [object Object] is not a function");
-    try_catch.Reset();
-  }
-
-  { Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New();
-    Local<ObjectTemplate> instance_template = t->InstanceTemplate();
-    instance_template->SetCallAsFunctionHandler(ThrowValue);
-    Local<v8::Object> instance = t->GetFunction()->NewInstance();
-    context->Global()->Set(v8_str("obj3"), instance);
-    v8::TryCatch try_catch;
-    Local<Value> value;
-    CHECK(!try_catch.HasCaught());
-
-    // Catch the exception which is thrown by call-as-function handler
-    value = CompileRun("obj3(22)");
-    CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value1(try_catch.Exception());
-    CHECK_EQ(*exception_value1, "22");
-    try_catch.Reset();
-
-    v8::Handle<Value> args[] = { v8_num(23) };
-    value = instance->CallAsFunction(instance, 1, args);
-    CHECK(try_catch.HasCaught());
-    String::AsciiValue exception_value2(try_catch.Exception());
-    CHECK_EQ(*exception_value2, "23");
-    try_catch.Reset();
-  }
+  // Check that the call-as-function handler can be called through
+  // new.
+  value = CompileRun("new obj(43)");
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(-43, value->Int32Value());
 }
 
 
@@ -13800,6 +13741,11 @@ TEST(RegExp) {
 
   context->Global()->Set(v8_str("re"), re);
   ExpectTrue("re.test('FoobarbaZ')");
+
+  // RegExps are objects on which you can set properties.
+  re->Set(v8_str("property"), v8::Integer::New(32));
+  v8::Handle<v8::Value> value = CompileRun("re.property");
+  ASSERT_EQ(32, value->Int32Value());
 
   v8::TryCatch try_catch;
   re = v8::RegExp::New(v8_str("foo["), v8::RegExp::kNone);
