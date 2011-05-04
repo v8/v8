@@ -254,12 +254,12 @@ static double InternalStringToInt(UnicodeCache* unicode_cache,
   if (*current == '+') {
     // Ignore leading sign; skip following spaces.
     ++current;
-    if (!AdvanceToNonspace(unicode_cache, &current, end)) {
+    if (current == end) {
       return JUNK_STRING_VALUE;
     }
   } else if (*current == '-') {
     ++current;
-    if (!AdvanceToNonspace(unicode_cache, &current, end)) {
+    if (current == end) {
       return JUNK_STRING_VALUE;
     }
     negative = true;

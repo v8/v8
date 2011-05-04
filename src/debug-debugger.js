@@ -1335,7 +1335,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
   try {
     try {
       // Convert the JSON string to an object.
-      request = %CompileString('(' + json_request + ')')();
+      request = JSON.parse(json_request);
 
       // Create an initial response.
       response = this.createResponse(request);

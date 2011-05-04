@@ -26,15 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../include/v8stdint.h"
-#include "globals.h"
-#include "checks.h"
-#include "allocation.h"
-#include "utils.h"
-#include "list-inl.h"
-#include "hashmap.h"
 
 #include "preparse-data.h"
 
+#include "checks.h"
+#include "globals.h"
+#include "hashmap.h"
 
 namespace v8 {
 namespace internal {

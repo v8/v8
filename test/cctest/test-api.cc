@@ -1050,8 +1050,10 @@ THREADED_TEST(Date) {
   v8::HandleScope scope;
   LocalContext env;
   double PI = 3.1415926;
-  Local<Value> date_obj = v8::Date::New(PI);
-  CHECK_EQ(3.0, date_obj->NumberValue());
+  Local<Value> date = v8::Date::New(PI);
+  CHECK_EQ(3.0, date->NumberValue());
+  date.As<v8::Date>()->Set(v8_str("property"), v8::Integer::New(42));
+  CHECK_EQ(42, date.As<v8::Date>()->Get(v8_str("property"))->Int32Value());
 }
 
 
@@ -13740,6 +13742,11 @@ TEST(RegExp) {
   context->Global()->Set(v8_str("re"), re);
   ExpectTrue("re.test('FoobarbaZ')");
 
+  // RegExps are objects on which you can set properties.
+  re->Set(v8_str("property"), v8::Integer::New(32));
+  v8::Handle<v8::Value> value = CompileRun("re.property");
+  ASSERT_EQ(32, value->Int32Value());
+
   v8::TryCatch try_catch;
   re = v8::RegExp::New(v8_str("foo["), v8::RegExp::kNone);
   CHECK(re.IsEmpty());
@@ -14022,4 +14029,78 @@ TEST(HasOwnProperty) {
     CHECK(!instance->HasOwnProperty(v8_str("foo")));
     CHECK(instance->HasOwnProperty(v8_str("bar")));
   }
+}
+
+
+void CheckCodeGenerationAllowed() {
+  Handle<Value> result = CompileRun("eval('42')");
+  CHECK_EQ(42, result->Int32Value());
+  result = CompileRun("(function(e) { return e('42'); })(eval)");
+  CHECK_EQ(42, result->Int32Value());
+  result = CompileRun("execScript('42')");
+  CHECK(!result.IsEmpty());
+  result = CompileRun("var f = new Function('return 42'); f()");
+  CHECK_EQ(42, result->Int32Value());
+}
+
+
+void CheckCodeGenerationDisallowed() {
+  TryCatch try_catch;
+
+  Handle<Value> result = CompileRun("eval('42')");
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+
+  result = CompileRun("(function(e) { return e('42'); })(eval)");
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+
+  result = CompileRun("execScript('42')");
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+
+  result = CompileRun("var f = new Function('return 42'); f()");
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+}
+
+
+bool CodeGenerationAllowed(Local<Context> context) {
+  ApiTestFuzzer::Fuzz();
+  return true;
+}
+
+
+bool CodeGenerationDisallowed(Local<Context> context) {
+  ApiTestFuzzer::Fuzz();
+  return false;
+}
+
+
+THREADED_TEST(AllowCodeGenFromStrings) {
+  v8::HandleScope scope;
+  LocalContext context;
+
+  // eval, execScript and the Function constructor allowed by default.
+  CheckCodeGenerationAllowed();
+
+  // Disallow eval, execScript and the Function constructor.
+  context->AllowCodeGenerationFromStrings(false);
+  CheckCodeGenerationDisallowed();
+
+  // Allow again.
+  context->AllowCodeGenerationFromStrings(true);
+  CheckCodeGenerationAllowed();
+
+  // Disallow but setting a global callback that will allow the calls.
+  context->AllowCodeGenerationFromStrings(false);
+  V8::SetAllowCodeGenerationFromStringsCallback(&CodeGenerationAllowed);
+  CheckCodeGenerationAllowed();
+
+  // Set a callback that disallows the code generation.
+  V8::SetAllowCodeGenerationFromStringsCallback(&CodeGenerationDisallowed);
+  CheckCodeGenerationDisallowed();
 }

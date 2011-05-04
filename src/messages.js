@@ -142,6 +142,7 @@ function FormatMessage(message) {
     kMessages = {
       // Error
       cyclic_proto:                 ["Cyclic __proto__ value"],
+      code_gen_from_strings:        ["Code generation from strings disallowed for this context"],
       // TypeError
       unexpected_token:             ["Unexpected token ", "%0"],
       unexpected_token_number:      ["Unexpected number"],

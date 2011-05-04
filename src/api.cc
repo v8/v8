@@ -372,6 +372,13 @@ void V8::SetFatalErrorHandler(FatalErrorCallback that) {
 }
 
 
+void V8::SetAllowCodeGenerationFromStringsCallback(
+    AllowCodeGenerationFromStringsCallback callback) {
+  i::Isolate* isolate = EnterIsolateIfNeeded();
+  isolate->set_allow_code_gen_callback(callback);
+}
+
+
 #ifdef DEBUG
 void ImplementationUtilities::ZapHandleRange(i::Object** begin,
                                              i::Object** end) {
@@ -3915,6 +3922,20 @@ void Context::ReattachGlobal(Handle<Object> global_object) {
   isolate->bootstrapper()->ReattachGlobal(
       context,
       Utils::OpenHandle(*global_object));
+}
+
+
+void Context::AllowCodeGenerationFromStrings(bool allow) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::AllowCodeGenerationFromStrings()")) {
+    return;
+  }
+  ENTER_V8(isolate);
+  i::Object** ctx = reinterpret_cast<i::Object**>(this);
+  i::Handle<i::Context> context =
+      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  context->set_allow_code_gen_from_strings(
+      allow ? isolate->heap()->true_value() : isolate->heap()->false_value());
 }
 
 

@@ -31,6 +31,7 @@
 #include "v8.h"
 
 #include "code-stubs.h"
+#include "data-flow.h"
 #include "small-pointer-list.h"
 #include "string-stream.h"
 #include "zone.h"
@@ -553,6 +554,8 @@ class HValue: public ZoneObject {
     RepresentationChanged(r);
     representation_ = r;
   }
+
+  virtual bool IsConvertibleToInteger() const { return true; }
 
   HType type() const { return type_; }
   void set_type(HType type) {
@@ -1922,7 +1925,8 @@ class HPhi: public HValue {
       : inputs_(2),
         merged_index_(merged_index),
         phi_id_(-1),
-        is_live_(false) {
+        is_live_(false),
+        is_convertible_to_integer_(true) {
     for (int i = 0; i < Representation::kNumRepresentations; i++) {
       non_phi_uses_[i] = 0;
       indirect_uses_[i] = 0;
@@ -2000,6 +2004,14 @@ class HPhi: public HValue {
   }
   virtual Opcode opcode() const { return HValue::kPhi; }
 
+  virtual bool IsConvertibleToInteger() const {
+    return is_convertible_to_integer_;
+  }
+
+  void set_is_convertible_to_integer(bool b) {
+    is_convertible_to_integer_ = b;
+  }
+
  protected:
   virtual void DeleteFromGraph();
   virtual void InternalSetOperandAt(int index, HValue* value) {
@@ -2014,6 +2026,7 @@ class HPhi: public HValue {
   int indirect_uses_[Representation::kNumRepresentations];
   int phi_id_;
   bool is_live_;
+  bool is_convertible_to_integer_;
 };
 
 
@@ -2042,6 +2055,14 @@ class HConstant: public HTemplateInstruction<0> {
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
+  }
+
+  virtual bool IsConvertibleToInteger() const {
+    if (handle_->IsSmi()) return true;
+    if (handle_->IsHeapNumber() &&
+        (HeapNumber::cast(*handle_)->value() ==
+         static_cast<double>(NumberToInt32(*handle_)))) return true;
+    return false;
   }
 
   virtual bool EmitAtUses() { return !representation().IsDouble(); }

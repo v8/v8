@@ -847,7 +847,9 @@ class Assembler : public AssemblerBase {
   // Calls
   void call(Label* L);
   void call(byte* entry, RelocInfo::Mode rmode);
+  int CallSize(const Operand& adr);
   void call(const Operand& adr);
+  int CallSize(Handle<Code> code, RelocInfo::Mode mode);
   void call(Handle<Code> code,
             RelocInfo::Mode rmode,
             unsigned ast_id = kNoASTId);
@@ -952,6 +954,7 @@ class Assembler : public AssemblerBase {
   void mulsd(XMMRegister dst, XMMRegister src);
   void divsd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
+  void xorps(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
   void andpd(XMMRegister dst, XMMRegister src);

@@ -51,24 +51,30 @@ unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::found_by_runtime_probing_ = 0;
 
 
-#ifdef __arm__
+// Get the CPU features enabled by the build. For cross compilation the
+// preprocessor symbols CAN_USE_ARMV7_INSTRUCTIONS and CAN_USE_VFP_INSTRUCTIONS
+// can be defined to enable ARMv7 and VFPv3 instructions when building the
+// snapshot.
 static uint64_t CpuFeaturesImpliedByCompiler() {
   uint64_t answer = 0;
 #ifdef CAN_USE_ARMV7_INSTRUCTIONS
   answer |= 1u << ARMv7;
 #endif  // def CAN_USE_ARMV7_INSTRUCTIONS
+#ifdef CAN_USE_VFP_INSTRUCTIONS
+  answer |= 1u << VFP3 | 1u << ARMv7;
+#endif  // def CAN_USE_VFP_INSTRUCTIONS
+
+#ifdef __arm__
   // If the compiler is allowed to use VFP then we can use VFP too in our code
   // generation even when generating snapshots.  This won't work for cross
   // compilation. VFPv3 implies ARMv7, see ARM DDI 0406B, page A1-6.
 #if defined(__VFP_FP__) && !defined(__SOFTFP__)
   answer |= 1u << VFP3 | 1u << ARMv7;
 #endif  // defined(__VFP_FP__) && !defined(__SOFTFP__)
-#ifdef CAN_USE_VFP_INSTRUCTIONS
-  answer |= 1u << VFP3 | 1u << ARMv7;
-#endif  // def CAN_USE_VFP_INSTRUCTIONS
+#endif  // def __arm__
+
   return answer;
 }
-#endif  // def __arm__
 
 
 void CpuFeatures::Probe() {
@@ -76,6 +82,18 @@ void CpuFeatures::Probe() {
 #ifdef DEBUG
   initialized_ = true;
 #endif
+
+  // Get the features implied by the OS and the compiler settings. This is the
+  // minimal set of features which is also alowed for generated code in the
+  // snapshot.
+  supported_ |= OS::CpuFeaturesImpliedByPlatform();
+  supported_ |= CpuFeaturesImpliedByCompiler();
+
+  if (Serializer::enabled()) {
+    // No probing for features if we might serialize (generate snapshot).
+    return;
+  }
+
 #ifndef __arm__
   // For the simulator=arm build, use VFP when FLAG_enable_vfp3 is
   // enabled. VFPv3 implies ARMv7, see ARM DDI 0406B, page A1-6.
@@ -87,13 +105,8 @@ void CpuFeatures::Probe() {
     supported_ |= 1u << ARMv7;
   }
 #else  // def __arm__
-  if (Serializer::enabled()) {
-    supported_ |= OS::CpuFeaturesImpliedByPlatform();
-    supported_ |= CpuFeaturesImpliedByCompiler();
-    return;  // No features if we might serialize.
-  }
-
-  if (OS::ArmCpuHasFeature(VFP3)) {
+  // Probe for additional features not already known to be available.
+  if (!IsSupported(VFP3) && OS::ArmCpuHasFeature(VFP3)) {
     // This implementation also sets the VFP flags if runtime
     // detection of VFP returns true. VFPv3 implies ARMv7, see ARM DDI
     // 0406B, page A1-6.
@@ -101,7 +114,7 @@ void CpuFeatures::Probe() {
     found_by_runtime_probing_ |= 1u << VFP3 | 1u << ARMv7;
   }
 
-  if (OS::ArmCpuHasFeature(ARMv7)) {
+  if (!IsSupported(ARMv7) && OS::ArmCpuHasFeature(ARMv7)) {
     supported_ |= 1u << ARMv7;
     found_by_runtime_probing_ |= 1u << ARMv7;
   }

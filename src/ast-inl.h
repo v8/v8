@@ -31,6 +31,7 @@
 #include "v8.h"
 
 #include "ast.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {

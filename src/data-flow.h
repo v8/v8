@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,9 +36,6 @@
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class Node;
 
 class BitVector: public ZoneObject {
  public:
@@ -199,140 +196,6 @@ class BitVector: public ZoneObject {
   int length_;
   int data_length_;
   uint32_t* data_;
-};
-
-
-// An implementation of a sparse set whose elements are drawn from integers
-// in the range [0..universe_size[.  It supports constant-time Contains,
-// destructive Add, and destructuve Remove operations and linear-time (in
-// the number of elements) destructive Union.
-class SparseSet: public ZoneObject {
- public:
-  // Iterator for sparse set elements.  Elements should not be added or
-  // removed during iteration.
-  class Iterator BASE_EMBEDDED {
-   public:
-    explicit Iterator(SparseSet* target) : target_(target), current_(0) {
-      ASSERT(++target->iterator_count_ > 0);
-    }
-    ~Iterator() {
-      ASSERT(target_->iterator_count_-- > 0);
-    }
-    bool Done() const { return current_ >= target_->dense_.length(); }
-    void Advance() {
-      ASSERT(!Done());
-      ++current_;
-    }
-    int Current() {
-      ASSERT(!Done());
-      return target_->dense_[current_];
-    }
-
-   private:
-    SparseSet* target_;
-    int current_;
-
-    friend class SparseSet;
-  };
-
-  explicit SparseSet(int universe_size)
-      : dense_(4),
-        sparse_(ZONE->NewArray<int>(universe_size)) {
-#ifdef DEBUG
-    size_ = universe_size;
-    iterator_count_ = 0;
-#endif
-  }
-
-  bool Contains(int n) const {
-    ASSERT(0 <= n && n < size_);
-    int dense_index = sparse_[n];
-    return (0 <= dense_index) &&
-        (dense_index < dense_.length()) &&
-        (dense_[dense_index] == n);
-  }
-
-  void Add(int n) {
-    ASSERT(0 <= n && n < size_);
-    ASSERT(iterator_count_ == 0);
-    if (!Contains(n)) {
-      sparse_[n] = dense_.length();
-      dense_.Add(n);
-    }
-  }
-
-  void Remove(int n) {
-    ASSERT(0 <= n && n < size_);
-    ASSERT(iterator_count_ == 0);
-    if (Contains(n)) {
-      int dense_index = sparse_[n];
-      int last = dense_.RemoveLast();
-      if (dense_index < dense_.length()) {
-        dense_[dense_index] = last;
-        sparse_[last] = dense_index;
-      }
-    }
-  }
-
-  void Union(const SparseSet& other) {
-    for (int i = 0; i < other.dense_.length(); ++i) {
-      Add(other.dense_[i]);
-    }
-  }
-
- private:
-  // The set is implemented as a pair of a growable dense list and an
-  // uninitialized sparse array.
-  ZoneList<int> dense_;
-  int* sparse_;
-#ifdef DEBUG
-  int size_;
-  int iterator_count_;
-#endif
-};
-
-
-// Simple fixed-capacity list-based worklist (managed as a queue) of
-// pointers to T.
-template<typename T>
-class WorkList BASE_EMBEDDED {
- public:
-  // The worklist cannot grow bigger than size.  We keep one item empty to
-  // distinguish between empty and full.
-  explicit WorkList(int size)
-      : capacity_(size + 1), head_(0), tail_(0), queue_(capacity_) {
-    for (int i = 0; i < capacity_; i++) queue_.Add(NULL);
-  }
-
-  bool is_empty() { return head_ == tail_; }
-
-  bool is_full() {
-    // The worklist is full if head is at 0 and tail is at capacity - 1:
-    //   head == 0 && tail == capacity-1 ==> tail - head == capacity - 1
-    // or if tail is immediately to the left of head:
-    //   tail+1 == head  ==> tail - head == -1
-    int diff = tail_ - head_;
-    return (diff == -1 || diff == capacity_ - 1);
-  }
-
-  void Insert(T* item) {
-    ASSERT(!is_full());
-    queue_[tail_++] = item;
-    if (tail_ == capacity_) tail_ = 0;
-  }
-
-  T* Remove() {
-    ASSERT(!is_empty());
-    T* item = queue_[head_++];
-    if (head_ == capacity_) head_ = 0;
-    return item;
-  }
-
- private:
-  int capacity_;  // Including one empty slot.
-  int head_;      // Where the first item is.
-  int tail_;      // Where the next inserted item will go.
-  List<T*> queue_;
 };
 
 } }  // namespace v8::internal

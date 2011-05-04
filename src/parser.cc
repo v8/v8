@@ -28,7 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
-#include "ast.h"
+#include "ast-inl.h"
 #include "bootstrapper.h"
 #include "codegen.h"
 #include "compiler.h"
@@ -40,8 +40,6 @@
 #include "runtime.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
-
-#include "ast-inl.h"
 
 namespace v8 {
 namespace internal {

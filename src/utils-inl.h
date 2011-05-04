@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,43 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+#ifndef V8_UTILS_INL_H_
+#define V8_UTILS_INL_H_
 
-// Test overflow checks in optimized code.
-function testMul(a, b) {
-  a *= 2;
-  b *= 2;
-  if (a < 1 && b < 1) {
-    return a * b;
+#include "list-inl.h"
+
+namespace v8 {
+namespace internal {
+
+template<typename T, int growth_factor, int max_growth>
+void Collector<T, growth_factor, max_growth>::Reset() {
+  for (int i = chunks_.length() - 1; i >= 0; i--) {
+    chunks_.at(i).Dispose();
   }
+  chunks_.Rewind(0);
+  index_ = 0;
+  size_ = 0;
 }
 
-for (var i=0; i<5; i++) testMul(0,0);
-%OptimizeFunctionOnNextCall(testMul);
-assertEquals(4611686018427388000, testMul(-0x40000000, -0x40000000));
+} }  // namespace v8::internal
 
-function testAdd(a, b) {
-  a *= 2;
-  b *= 2;
-  if (a < 1 && b < 1) {
-    return a + b;
-  }
-}
-
-for (var i=0; i<5; i++) testAdd(0,0);
-%OptimizeFunctionOnNextCall(testAdd);
-assertEquals(-4294967296, testAdd(-0x40000000, -0x40000000));
-
-
-function testSub(a, b) {
-  a *= 2;
-  b *= 2;
-  if (b == 2) {print(a); print(b);}
-  if (a < 1 && b < 3) {
-    return a - b;
-  }
-}
-
-for (var i=0; i<5; i++) testSub(0,0);
-%OptimizeFunctionOnNextCall(testSub);
-assertEquals(-2147483650, testSub(-0x40000000, 1));
+#endif  // V8_UTILS_INL_H_

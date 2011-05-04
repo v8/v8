@@ -49,7 +49,7 @@ class SafepointGenerator : public CallWrapper {
         deoptimization_index_(deoptimization_index) { }
   virtual ~SafepointGenerator() { }
 
-  virtual void BeforeCall(int call_size) {
+  virtual void BeforeCall(int call_size) const {
     ASSERT(call_size >= 0);
     // Ensure that we have enough space after the previous safepoint position
     // for the jump generated there.
@@ -62,7 +62,7 @@ class SafepointGenerator : public CallWrapper {
     }
   }
 
-  virtual void AfterCall() {
+  virtual void AfterCall() const {
     codegen_->RecordSafepoint(pointers_, deoptimization_index_);
   }
 
@@ -2562,7 +2562,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
                                          pointers,
                                          env->deoptimization_index());
   v8::internal::ParameterCount actual(rax);
-  __ InvokeFunction(function, actual, CALL_FUNCTION, &safepoint_generator);
+  __ InvokeFunction(function, actual, CALL_FUNCTION, safepoint_generator);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
@@ -2969,7 +2969,7 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   RegisterEnvironmentForDeoptimization(env);
   SafepointGenerator generator(this, pointers, env->deoptimization_index());
   ParameterCount count(instr->arity());
-  __ InvokeFunction(rdi, count, CALL_FUNCTION, &generator);
+  __ InvokeFunction(rdi, count, CALL_FUNCTION, generator);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
@@ -3597,7 +3597,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     __ cvttsd2siq(result_reg, input_reg);
     __ movq(kScratchRegister, V8_INT64_C(0x8000000000000000), RelocInfo::NONE);
     __ cmpq(result_reg, kScratchRegister);
-      DeoptimizeIf(equal, instr->environment());
+    DeoptimizeIf(equal, instr->environment());
   } else {
     __ cvttsd2si(result_reg, input_reg);
     __ cvtlsi2sd(xmm0, result_reg);
@@ -4046,7 +4046,7 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
                                          pointers,
                                          env->deoptimization_index());
   __ Push(Smi::FromInt(strict_mode_flag()));
-  __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, &safepoint_generator);
+  __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, safepoint_generator);
 }
 
 
@@ -4066,7 +4066,7 @@ void LCodeGen::DoIn(LIn* instr) {
   SafepointGenerator safepoint_generator(this,
                                          pointers,
                                          env->deoptimization_index());
-  __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION, &safepoint_generator);
+  __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION, safepoint_generator);
 }
 
 

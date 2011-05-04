@@ -29,7 +29,6 @@
 #include "hydrogen.h"
 
 #include "codegen.h"
-#include "data-flow.h"
 #include "full-codegen.h"
 #include "hashmap.h"
 #include "lithium-allocator.h"
@@ -1575,14 +1574,12 @@ Representation HInferRepresentation::TryChange(HValue* value) {
   }
 
   if (non_tagged_count >= tagged_count) {
-    // More untagged than tagged.
-    if (double_count > 0) {
-      // There is at least one usage that is a double => guess that the
-      // correct representation is double.
-      return Representation::Double();
-    } else if (int32_count > 0) {
-      return Representation::Integer32();
+    if (int32_count > 0) {
+      if (!value->IsPhi() || value->IsConvertibleToInteger()) {
+        return Representation::Integer32();
+      }
     }
+    if (double_count > 0) return Representation::Double();
   }
   return Representation::None();
 }
@@ -1595,11 +1592,12 @@ void HInferRepresentation::Analyze() {
   // bit-vector of length <number of phis>.
   const ZoneList<HPhi*>* phi_list = graph_->phi_list();
   int phi_count = phi_list->length();
-  ScopedVector<BitVector*> connected_phis(phi_count);
+  ZoneList<BitVector*> connected_phis(phi_count);
   for (int i = 0; i < phi_count; ++i) {
     phi_list->at(i)->InitRealUses(i);
-    connected_phis[i] = new(zone()) BitVector(phi_count);
-    connected_phis[i]->Add(i);
+    BitVector* connected_set = new(zone()) BitVector(phi_count);
+    connected_set->Add(i);
+    connected_phis.Add(connected_set);
   }
 
   // (2) Do a fixed point iteration to find the set of connected phis.  A
@@ -1635,6 +1633,25 @@ void HInferRepresentation::Analyze() {
       }
     }
   }
+
+  // (4) Compute phis that definitely can't be converted to integer
+  // without deoptimization and mark them to avoid unnecessary deoptimization.
+  change = true;
+  while (change) {
+    change = false;
+    for (int i = 0; i < phi_count; ++i) {
+      HPhi* phi = phi_list->at(i);
+      for (int j = 0; j < phi->OperandCount(); ++j) {
+        if (phi->IsConvertibleToInteger() &&
+            !phi->OperandAt(j)->IsConvertibleToInteger()) {
+          phi->set_is_convertible_to_integer(false);
+          change = true;
+          break;
+        }
+      }
+    }
+  }
+
 
   for (int i = 0; i < graph_->blocks()->length(); ++i) {
     HBasicBlock* block = graph_->blocks()->at(i);

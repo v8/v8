@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been modified
 // significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 #include "v8.h"
 
@@ -1580,12 +1580,24 @@ void Assembler::call(byte* entry, RelocInfo::Mode rmode) {
 }
 
 
+int Assembler::CallSize(const Operand& adr) {
+  // Call size is 1 (opcode) + adr.len_ (operand).
+  return 1 + adr.len_;
+}
+
+
 void Assembler::call(const Operand& adr) {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xFF);
   emit_operand(edx, adr);
+  ASSERT(pc_ - last_pc_ == CallSize(adr));
+}
+
+
+int Assembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
+  return 1 /* EMIT */ + sizeof(uint32_t) /* emit */;
 }
 
 
@@ -2240,6 +2252,15 @@ void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x57);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::xorps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
   EMIT(0x0F);
   EMIT(0x57);
   emit_sse_operand(dst, src);

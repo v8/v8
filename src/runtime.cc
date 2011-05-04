@@ -46,13 +46,14 @@
 #include "liveobjectlist-inl.h"
 #include "parser.h"
 #include "platform.h"
-#include "runtime.h"
 #include "runtime-profiler.h"
+#include "runtime.h"
 #include "scopeinfo.h"
 #include "smart-pointer.h"
+#include "string-search.h"
 #include "stub-cache.h"
 #include "v8threads.h"
-#include "string-search.h"
+#include "vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -8285,13 +8286,41 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
 }
 
 
+bool CodeGenerationFromStringsAllowed(Isolate* isolate,
+                                      Handle<Context> context) {
+  if (context->allow_code_gen_from_strings()->IsFalse()) {
+    // Check with callback if set.
+    AllowCodeGenerationFromStringsCallback callback =
+        isolate->allow_code_gen_callback();
+    if (callback == NULL) {
+      // No callback set and code generation disallowed.
+      return false;
+    } else {
+      // Callback set. Let it decide if code generation is allowed.
+      VMState state(isolate, EXTERNAL);
+      return callback(v8::Utils::ToLocal(context));
+    }
+  }
+  return true;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
   HandleScope scope(isolate);
   ASSERT_EQ(1, args.length());
   CONVERT_ARG_CHECKED(String, source, 0);
 
-  // Compile source string in the global context.
+  // Extract global context.
   Handle<Context> context(isolate->context()->global_context());
+
+  // Check if global context allows code generation from
+  // strings. Throw an exception if it doesn't.
+  if (!CodeGenerationFromStringsAllowed(isolate, context)) {
+    return isolate->Throw(*isolate->factory()->NewError(
+        "code_gen_from_strings", HandleVector<Object>(NULL, 0)));
+  }
+
+  // Compile source string in the global context.
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(source,
                                                             context,
                                                             true,
@@ -8309,17 +8338,28 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
                                     Handle<String> source,
                                     Handle<Object> receiver,
                                     StrictModeFlag strict_mode) {
+  Handle<Context> context = Handle<Context>(isolate->context());
+  Handle<Context> global_context = Handle<Context>(context->global_context());
+
+  // Check if global context allows code generation from
+  // strings. Throw an exception if it doesn't.
+  if (!CodeGenerationFromStringsAllowed(isolate, global_context)) {
+    isolate->Throw(*isolate->factory()->NewError(
+        "code_gen_from_strings", HandleVector<Object>(NULL, 0)));
+    return MakePair(Failure::Exception(), NULL);
+  }
+
   // Deal with a normal eval call with a string argument. Compile it
   // and return the compiled function bound in the local context.
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source,
       Handle<Context>(isolate->context()),
-      isolate->context()->IsGlobalContext(),
+      context->IsGlobalContext(),
       strict_mode);
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
   Handle<JSFunction> compiled =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, Handle<Context>(isolate->context()), NOT_TENURED);
+          shared, context, NOT_TENURED);
   return MakePair(*compiled, *receiver);
 }
 

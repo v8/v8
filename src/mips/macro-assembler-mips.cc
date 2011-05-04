@@ -1658,6 +1658,18 @@ void MacroAssembler::Jump(const Operand& target,
 }
 
 
+int MacroAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
+  UNIMPLEMENTED_MIPS();
+  return 0;
+}
+
+
+int MacroAssembler::CallSize(Register reg) {
+  UNIMPLEMENTED_MIPS();
+  return 0;
+}
+
+
 // Note: To call gcc-compiled C code on mips, you must call thru t9.
 void MacroAssembler::Call(const Operand& target, BranchDelaySlot bdslot) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -2243,7 +2255,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Register code_reg,
                                     Label* done,
                                     InvokeFlag flag,
-                                    PostCallGenerator* post_call_generator) {
+                                    const CallWrapper& call_wrapper) {
   bool definitely_matches = false;
   Label regular_invoke;
 
@@ -2296,8 +2308,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     Handle<Code> adaptor =
         isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
+      call_wrapper.BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
       Call(adaptor, RelocInfo::CODE_TARGET);
-      if (post_call_generator != NULL) post_call_generator->Generate();
+      call_wrapper.AfterCall();
       jmp(done);
     } else {
       Jump(adaptor, RelocInfo::CODE_TARGET);
@@ -2311,11 +2324,11 @@ void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
-                                PostCallGenerator* post_call_generator) {
+                                const CallWrapper& call_wrapper) {
   Label done;
 
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
-                 post_call_generator);
+                 call_wrapper);
   if (flag == CALL_FUNCTION) {
     Call(code);
   } else {
@@ -2350,7 +2363,7 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    PostCallGenerator* post_call_generator) {
+                                    const CallWrapper& call_wrapper) {
   // Contract with called JS functions requires that function is passed in a1.
   ASSERT(function.is(a1));
   Register expected_reg = a2;
@@ -2365,7 +2378,7 @@ void MacroAssembler::InvokeFunction(Register function,
   lw(code_reg, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(expected_reg);
-  InvokeCode(code_reg, expected, actual, flag, post_call_generator);
+  InvokeCode(code_reg, expected, actual, flag, call_wrapper);
 }
 
 
@@ -2642,11 +2655,12 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
 
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
-                                   PostCallGenerator* post_call_generator) {
+                                   const CallWrapper& call_wrapper) {
   GetBuiltinEntry(t9, id);
   if (flag == CALL_FUNCTION) {
+    call_wrapper.BeforeCall(CallSize(t9));
     Call(t9);
-    if (post_call_generator != NULL) post_call_generator->Generate();
+    call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     Jump(t9);

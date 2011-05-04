@@ -843,6 +843,28 @@ static inline int NumberOfBitsSet(uint32_t x) {
 double power_double_int(double x, int y);
 double power_double_double(double x, double y);
 
+// Helper class for generating code or data associated with the code
+// right after a call instruction. As an example this can be used to
+// generate safepoint data after calls for crankshaft.
+class CallWrapper {
+ public:
+  CallWrapper() { }
+  virtual ~CallWrapper() { }
+  // Called just before emitting a call. Argument is the size of the generated
+  // call code.
+  virtual void BeforeCall(int call_size) const = 0;
+  // Called just after emitting a call, i.e., at the return site for the call.
+  virtual void AfterCall() const = 0;
+};
+
+class NullCallWrapper : public CallWrapper {
+ public:
+  NullCallWrapper() { }
+  virtual ~NullCallWrapper() { }
+  virtual void BeforeCall(int call_size) const { }
+  virtual void AfterCall() const { }
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_ASSEMBLER_H_

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,13 +28,14 @@
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 #include "v8.h"
+
+#include "profile-generator-inl.h"
+
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "scopeinfo.h"
 #include "unicode.h"
 #include "zone-inl.h"
-
-#include "profile-generator-inl.h"
 
 namespace v8 {
 namespace internal {

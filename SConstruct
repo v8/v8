@@ -162,7 +162,7 @@ LIBRARY_FLAGS = {
         }
       },
       'armeabi:softfp' : {
-        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0', 'CAN_USE_VFP_INSTRUCTIONS'],
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=softfp'],
         }

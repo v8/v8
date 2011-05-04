@@ -32,7 +32,6 @@
 
 #include "ast.h"
 #include "compiler.h"
-#include "data-flow.h"
 #include "hydrogen-instructions.h"
 #include "zone.h"
 
@@ -40,6 +39,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class BitVector;
 class HEnvironment;
 class HGraph;
 class HLoopInformation;

@@ -1,3 +1,17 @@
+2011-05-04: Version 3.3.4
+
+        Implemented API to disallow code generation from strings for a context
+        (issue 1258).
+
+        Fixed bug with whitespaces in parseInt (issue 955).
+
+        Fixed bug with == comparison of Date objects (issue 1356).
+
+        Added GYP variables for ARM code generation:
+        v8_can_use_vfp_instructions, v8_can_use_unaligned_accesses
+        and v8_use_arm_eabi_hardfloat.
+
+
 2011-05-02: Version 3.3.3
 
         Added support for generating Visual Studio solution and project files

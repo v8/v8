@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -582,14 +582,7 @@ class Collector {
   }
 
   // Resets the collector to be empty.
-  virtual void Reset() {
-    for (int i = chunks_.length() - 1; i >= 0; i--) {
-      chunks_.at(i).Dispose();
-    }
-    chunks_.Rewind(0);
-    index_ = 0;
-    size_ = 0;
-  }
+  virtual void Reset();
 
   // Total number of elements added to collector so far.
   inline int size() { return size_; }

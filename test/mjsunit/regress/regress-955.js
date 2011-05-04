@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,43 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// See: http://code.google.com/p/v8/issues/detail?id=955
 
-// Test overflow checks in optimized code.
-function testMul(a, b) {
-  a *= 2;
-  b *= 2;
-  if (a < 1 && b < 1) {
-    return a * b;
-  }
-}
+// Correctly parse signed numbers.
+assertEquals(-0, parseInt("-0"));
+assertEquals(0, parseInt("+0"));
 
-for (var i=0; i<5; i++) testMul(0,0);
-%OptimizeFunctionOnNextCall(testMul);
-assertEquals(4611686018427388000, testMul(-0x40000000, -0x40000000));
+// Don't allow whitespace after signs in parseInt.
+assertEquals(NaN, parseInt("- 0"));
+assertEquals(NaN, parseInt("+ 0"));
+assertEquals(NaN, parseInt("-\t0"));
+assertEquals(NaN, parseInt("+\t0"));
 
-function testAdd(a, b) {
-  a *= 2;
-  b *= 2;
-  if (a < 1 && b < 1) {
-    return a + b;
-  }
-}
-
-for (var i=0; i<5; i++) testAdd(0,0);
-%OptimizeFunctionOnNextCall(testAdd);
-assertEquals(-4294967296, testAdd(-0x40000000, -0x40000000));
-
-
-function testSub(a, b) {
-  a *= 2;
-  b *= 2;
-  if (b == 2) {print(a); print(b);}
-  if (a < 1 && b < 3) {
-    return a - b;
-  }
-}
-
-for (var i=0; i<5; i++) testSub(0,0);
-%OptimizeFunctionOnNextCall(testSub);
-assertEquals(-2147483650, testSub(-0x40000000, 1));
+// Do allow whitespace at start.
+assertEquals(-0, parseInt(" -0"));
+assertEquals(0, parseInt(" +0"));
+assertEquals(-0, parseInt("\t-0"));
+assertEquals(0, parseInt("\t+0"));

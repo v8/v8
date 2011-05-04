@@ -31,3 +31,5 @@ shell_g
 /tools/visual_studio/Release
 /xcodebuild/
 TAGS
+Makefile
+*.Makefile
