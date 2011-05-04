@@ -308,6 +308,8 @@ Zone* HBasicBlock::zone() { return graph_->zone(); }
 
 class HEnvironment: public ZoneObject {
  public:
+  enum CompilationPhase { HYDROGEN, LITHIUM };
+
   HEnvironment(HEnvironment* outer,
                Scope* scope,
                Handle<JSFunction> closure);
@@ -384,7 +386,7 @@ class HEnvironment: public ZoneObject {
   // instructions, otherwise they are the actual values.
   HEnvironment* CopyForInlining(Handle<JSFunction> target,
                                 FunctionLiteral* function,
-                                bool is_speculative,
+                                CompilationPhase compilation_phase,
                                 HConstant* undefined) const;
 
   void AddIncomingEdge(HBasicBlock* block, HEnvironment* other);
