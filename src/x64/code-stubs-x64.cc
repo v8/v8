@@ -4685,6 +4685,81 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
 }
 
 
+void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
+  ASSERT(state_ == CompareIC::STRINGS);
+  Label miss;
+
+  // Registers containing left and right operands respectively.
+  Register left = rdx;
+  Register right = rax;
+  Register tmp1 = rcx;
+  Register tmp2 = rbx;
+  Register tmp3 = rdi;
+  Register tmp4 = r8;
+
+  // Check that both operands are heap objects.
+  Condition cond = masm->CheckEitherSmi(left, right, tmp1);
+  __ j(cond, &miss);
+
+  // Check that both operands are strings. This leaves the instance
+  // types loaded in tmp1 and tmp2.
+  __ movq(tmp1, FieldOperand(left, HeapObject::kMapOffset));
+  __ movq(tmp2, FieldOperand(right, HeapObject::kMapOffset));
+  __ movzxbq(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
+  __ movzxbq(tmp2, FieldOperand(tmp2, Map::kInstanceTypeOffset));
+  __ movq(tmp3, tmp1);
+  STATIC_ASSERT(kNotStringTag != 0);
+  __ or_(tmp3, tmp2);
+  __ testl(tmp3, Immediate(kIsNotStringMask));
+  __ j(not_zero, &miss);
+
+  // Fast check for identical strings.
+  NearLabel not_same;
+  __ cmpq(left, right);
+  __ j(not_equal, &not_same);
+  STATIC_ASSERT(EQUAL == 0);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ Move(rax, Smi::FromInt(EQUAL));
+  __ ret(0);
+
+  // Handle not identical strings.
+  __ bind(&not_same);
+
+  // Check that both strings are symbols. If they are, we're done
+  // because we already know they are not identical.
+  NearLabel do_compare;
+  ASSERT(GetCondition() == equal);
+  STATIC_ASSERT(kSymbolTag != 0);
+  __ and_(tmp1, tmp2);
+  __ testl(tmp1, Immediate(kIsSymbolMask));
+  __ j(zero, &do_compare);
+  // Make sure rax is non-zero. At this point input operands are
+  // guaranteed to be non-zero.
+  ASSERT(right.is(rax));
+  __ ret(0);
+
+  // Check that both strings are sequential ASCII.
+  Label runtime;
+  __ bind(&do_compare);
+  __ JumpIfNotBothSequentialAsciiStrings(left, right, tmp1, tmp2, &runtime);
+
+  // Compare flat ASCII strings. Returns when done.
+  StringCompareStub::GenerateCompareFlatAsciiStrings(
+      masm, left, right, tmp1, tmp2, tmp3, tmp4);
+
+  // Handle more complex cases in runtime.
+  __ bind(&runtime);
+  __ pop(tmp1);  // Return address.
+  __ push(left);
+  __ push(right);
+  __ push(tmp1);
+  __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
 void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::OBJECTS);
   NearLabel miss;

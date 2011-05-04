@@ -197,6 +197,9 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
     case CompareIC::HEAP_NUMBERS:
       GenerateHeapNumbers(masm);
       break;
+    case CompareIC::STRINGS:
+      GenerateStrings(masm);
+      break;
     case CompareIC::OBJECTS:
       GenerateObjects(masm);
       break;

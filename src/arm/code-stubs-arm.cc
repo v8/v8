@@ -5903,6 +5903,71 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
 }
 
 
+void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
+  ASSERT(state_ == CompareIC::STRINGS);
+  Label miss;
+
+  // Registers containing left and right operands respectively.
+  Register left = r1;
+  Register right = r0;
+  Register tmp1 = r2;
+  Register tmp2 = r3;
+  Register tmp3 = r4;
+  Register tmp4 = r5;
+
+  // Check that both operands are heap objects.
+  __ JumpIfEitherSmi(left, right, &miss);
+
+  // Check that both operands are strings. This leaves the instance
+  // types loaded in tmp1 and tmp2.
+  __ ldr(tmp1, FieldMemOperand(left, HeapObject::kMapOffset));
+  __ ldr(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
+  __ ldrb(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
+  __ ldrb(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
+  STATIC_ASSERT(kNotStringTag != 0);
+  __ orr(tmp3, tmp1, tmp2);
+  __ tst(tmp3, Operand(kIsNotStringMask));
+  __ b(ne, &miss);
+
+  // Fast check for identical strings.
+  __ cmp(left, right);
+  STATIC_ASSERT(EQUAL == 0);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ mov(r0, Operand(Smi::FromInt(EQUAL)), LeaveCC, eq);
+  __ Ret(eq);
+
+  // Handle not identical strings.
+
+  // Check that both strings are symbols. If they are, we're done
+  // because we already know they are not identical.
+  ASSERT(GetCondition() == eq);
+  STATIC_ASSERT(kSymbolTag != 0);
+  __ and_(tmp3, tmp1, Operand(tmp2));
+  __ tst(tmp3, Operand(kIsSymbolMask));
+  // Make sure r0 is non-zero. At this point input operands are
+  // guaranteed to be non-zero.
+  ASSERT(right.is(r0));
+  __ Ret(ne);
+
+  // Check that both strings are sequential ASCII.
+  Label runtime;
+  __ JumpIfBothInstanceTypesAreNotSequentialAscii(tmp1, tmp2, tmp3, tmp4,
+                                                  &runtime);
+
+  // Compare flat ASCII strings. Returns when done.
+  StringCompareStub::GenerateCompareFlatAsciiStrings(
+      masm, left, right, tmp1, tmp2, tmp3, tmp4);
+
+  // Handle more complex cases in runtime.
+  __ bind(&runtime);
+  __ Push(left, right);
+  __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
 void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::OBJECTS);
   Label miss;
