@@ -1199,7 +1199,6 @@ function FunctionSourceString(func) {
   }
 
   var source = %FunctionGetSourceCode(func);
-  if (!IS_STRING(source)) return "NOT A string";
   if (!IS_STRING(source) || %FunctionIsBuiltin(func)) {
     var name = %FunctionGetName(func);
     if (name) {
