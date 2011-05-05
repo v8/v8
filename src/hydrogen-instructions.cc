@@ -1206,13 +1206,23 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* object,
     Handle<Map> map = types->at(i);
     LookupResult lookup;
     map->LookupInDescriptors(NULL, *name, &lookup);
-    if (lookup.IsProperty() && lookup.type() == FIELD) {
-      types_.Add(types->at(i));
-      int index = lookup.GetLocalFieldIndexFromMap(*map);
-      if (index < 0) {
-        SetFlag(kDependsOnInobjectFields);
-      } else {
-        SetFlag(kDependsOnBackingStoreFields);
+    if (lookup.IsProperty()) {
+      switch (lookup.type()) {
+        case FIELD: {
+          int index = lookup.GetLocalFieldIndexFromMap(*map);
+          if (index < 0) {
+            SetFlag(kDependsOnInobjectFields);
+          } else {
+            SetFlag(kDependsOnBackingStoreFields);
+          }
+          types_.Add(types->at(i));
+          break;
+        }
+        case CONSTANT_FUNCTION:
+          types_.Add(types->at(i));
+          break;
+        default:
+          break;
       }
     }
   }

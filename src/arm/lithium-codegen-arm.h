@@ -284,10 +284,10 @@ class LCodeGen BASE_EMBEDDED {
   // Caller should branch on equal condition.
   void EmitIsConstructCall(Register temp1, Register temp2);
 
-  void EmitLoadField(Register result,
-                     Register object,
-                     Handle<Map> type,
-                     Handle<String> name);
+  void EmitLoadFieldOrConstantFunction(Register result,
+                                       Register object,
+                                       Handle<Map> type,
+                                       Handle<String> name);
 
   LChunk* const chunk_;
   MacroAssembler* const masm_;
