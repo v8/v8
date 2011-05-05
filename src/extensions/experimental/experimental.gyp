@@ -45,6 +45,10 @@
         'i18n-extension.h',
         'i18n-locale.cc',
         'i18n-locale.h',
+        'i18n-utils.cc',
+        'i18n-utils.h',
+        'language-matcher.cc',
+        'language-matcher.h',
         '<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
       ],
       'include_dirs': [
