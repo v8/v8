@@ -1018,13 +1018,13 @@ void Simulator::GetFpArgs(double* x, double* y) {
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
-    char buffer[2 * sizeof(registers_[0])];
+    char buffer[sizeof(*x)];
     // Registers 0 and 1 -> x.
-    memcpy(buffer, registers_, sizeof(buffer));
-    memcpy(x, buffer, sizeof(buffer));
+    memcpy(buffer, registers_, sizeof(*x));
+    memcpy(x, buffer, sizeof(*x));
     // Registers 2 and 3 -> y.
-    memcpy(buffer, registers_ + 2, sizeof(buffer));
-    memcpy(y, buffer, sizeof(buffer));
+    memcpy(buffer, registers_ + 2, sizeof(*y));
+    memcpy(y, buffer, sizeof(*y));
   }
 }
 
@@ -1036,16 +1036,16 @@ void Simulator::GetFpArgs(double* x) {
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
-    char buffer[2 * sizeof(registers_[0])];
+    char buffer[sizeof(*x)];
     // Registers 0 and 1 -> x.
-    memcpy(buffer, registers_, sizeof(buffer));
-    memcpy(x, buffer, sizeof(buffer));
+    memcpy(buffer, registers_, sizeof(*x));
+    memcpy(x, buffer, sizeof(*x));
   }
 }
 
 
-// For use in calls that take two double values, constructed either
-// from r0-r3 or d0 and d1.
+// For use in calls that take one double value constructed either
+// from r0 and r1 or d0 and one integer value.
 void Simulator::GetFpArgs(double* x, int32_t* y) {
   if (use_eabi_hardfloat()) {
     *x = vfp_register[0];
@@ -1053,13 +1053,13 @@ void Simulator::GetFpArgs(double* x, int32_t* y) {
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
-    char buffer[2 * sizeof(registers_[0])];
+    char buffer[sizeof(*x)];
     // Registers 0 and 1 -> x.
-    memcpy(buffer, registers_, sizeof(buffer));
-    memcpy(x, buffer, sizeof(buffer));
-    // Registers 2 and 3 -> y.
-    memcpy(buffer, registers_ + 2, sizeof(buffer));
-    memcpy(y, buffer, sizeof(buffer));
+    memcpy(buffer, registers_, sizeof(*x));
+    memcpy(x, buffer, sizeof(*x));
+    // Register 2 -> y.
+    memcpy(buffer, registers_ + 2, sizeof(*y));
+    memcpy(y, buffer, sizeof(*y));
   }
 }
 
