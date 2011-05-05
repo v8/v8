@@ -212,14 +212,14 @@ static void PatchIncrementalMarkingRecordWriteStubs(bool enable) {
   }
 }
 
-static VirtualMemory* marking_stack_memory = NULL;
+static VirtualMemory* marking_deque_memory = NULL;
 
-static void EnsureMarkingStackIsCommitted() {
-  if (marking_stack_memory == NULL) {
-    marking_stack_memory = new VirtualMemory(4*MB);
-    marking_stack_memory->Commit(
-        reinterpret_cast<Address>(marking_stack_memory->address()),
-        marking_stack_memory->size(),
+static void EnsureMarkingDequeIsCommitted() {
+  if (marking_deque_memory == NULL) {
+    marking_deque_memory = new VirtualMemory(4*MB);
+    marking_deque_memory->Commit(
+        reinterpret_cast<Address>(marking_deque_memory->address()),
+        marking_deque_memory->size(),
         false);  // Not executable.
   }
 }
@@ -237,12 +237,12 @@ void IncrementalMarking::Start() {
 
   PatchIncrementalMarkingRecordWriteStubs(true);
 
-  EnsureMarkingStackIsCommitted();
+  EnsureMarkingDequeIsCommitted();
 
   // Initialize marking stack.
-  Address addr = static_cast<Address>(marking_stack_memory->address());
-  marking_stack_.Initialize(addr,
-                            addr + marking_stack_memory->size());
+  Address addr = static_cast<Address>(marking_deque_memory->address());
+  marking_deque_.Initialize(addr,
+                            addr + marking_deque_memory->size());
 
   // Clear markbits.
   Address new_space_low = heap_->new_space()->ToSpaceLow();
@@ -279,29 +279,33 @@ void IncrementalMarking::PrepareForScavenge() {
 }
 
 
-void IncrementalMarking::UpdateMarkingStackAfterScavenge() {
+void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
   if (IsStopped()) return;
 
-  HeapObject** current = marking_stack_.low();
-  HeapObject** top = marking_stack_.top();
-  HeapObject** new_top = current;
+  intptr_t current = marking_deque_.bottom();
+  intptr_t mask = marking_deque_.mask();
+  intptr_t limit = marking_deque_.top();
+  HeapObject** array = marking_deque_.array();
+  intptr_t new_top = current;
 
-  while (current < top) {
-    HeapObject* obj = *current++;
+  while (current != limit) {
+    HeapObject* obj = array[current];
+    current = ((current + 1) & mask);
     if (heap_->InNewSpace(obj)) {
       MapWord map_word = obj->map_word();
       if (map_word.IsForwardingAddress()) {
         HeapObject* dest = map_word.ToForwardingAddress();
         WhiteToGrey(dest, heap_->marking()->MarkBitFrom(dest));
-        *new_top++ = dest;
+        array[new_top] = dest;
+        new_top = ((new_top + 1) & mask);
         ASSERT(Color(obj) == Color(dest));
       }
     } else {
-      *new_top++ = obj;
+      array[new_top] = obj;
+      new_top = ((new_top + 1) & mask);
     }
   }
-
-  marking_stack_.set_top(new_top);
+  marking_deque_.set_top(new_top);
 }
 
 
@@ -316,8 +320,8 @@ void IncrementalMarking::Hurry() {
     // was stopped.
     Map* filler_map = heap_->one_pointer_filler_map();
     IncrementalMarkingMarkingVisitor marking_visitor(heap_, this);
-    while (!marking_stack_.is_empty()) {
-      HeapObject* obj = marking_stack_.Pop();
+    while (!marking_deque_.IsEmpty()) {
+      HeapObject* obj = marking_deque_.Pop();
 
       // Explicitly skip one word fillers. Incremental markbit patterns are
       // correct only for objects that occupy at least two words.
@@ -344,7 +348,7 @@ void IncrementalMarking::Finalize() {
   IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
   PatchIncrementalMarkingRecordWriteStubs(false);
-  ASSERT(marking_stack_.is_empty());
+  ASSERT(marking_deque_.IsEmpty());
   ISOLATE->stack_guard()->Continue(GC_REQUEST);
 }
 
@@ -384,8 +388,8 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
       Map* filler_map = heap_->one_pointer_filler_map();
       IncrementalMarkingMarkingVisitor marking_visitor(heap_, this);
       Marking* marking = heap_->marking();
-      while (!marking_stack_.is_empty() && bytes_to_process > 0) {
-        HeapObject* obj = marking_stack_.Pop();
+      while (!marking_deque_.IsEmpty() && bytes_to_process > 0) {
+        HeapObject* obj = marking_deque_.Pop();
 
         // Explicitly skip one word fillers. Incremental markbit patterns are
         // correct only for objects that occupy at least two words.
@@ -404,7 +408,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
         count++;
       }
       allocated_ = 0;
-      if (marking_stack_.is_empty()) MarkingComplete();
+      if (marking_deque_.IsEmpty()) MarkingComplete();
       if (FLAG_trace_incremental_marking || FLAG_trace_gc) {
         double end = OS::TimeCurrentMillis();
         steps_took_ += (end - start);

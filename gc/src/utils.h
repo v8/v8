@@ -160,6 +160,12 @@ static inline uint32_t RoundUpToPowerOf2(uint32_t x) {
 }
 
 
+static inline uint32_t RoundDownToPowerOf2(uint32_t x) {
+  uint32_t rounded_up = RoundUpToPowerOf2(x);
+  if (rounded_up > x) return rounded_up >> 1;
+  return rounded_up;
+}
+
 
 template <typename T, typename U>
 static inline bool IsAligned(T value, U alignment) {

@@ -40,7 +40,7 @@ void IncrementalMarking::RecordWrite(HeapObject* obj, Object* value) {
     if (IsWhite(value_bit)) {
       MarkBit obj_bit = heap_->marking()->MarkBitFrom(obj);
       if (IsBlack(obj_bit)) {
-        BlackToGreyAndPush(obj, obj_bit);
+        BlackToGreyAndUnshift(obj, obj_bit);
         RestartIfNotMarking();
       }
     }
@@ -63,14 +63,15 @@ void IncrementalMarking::RecordWrites(HeapObject* obj) {
   if (!IsStopped()) {
     MarkBit obj_bit = heap_->marking()->MarkBitFrom(obj);
     if (IsBlack(obj_bit)) {
-      BlackToGreyAndPush(obj, obj_bit);
+      BlackToGreyAndUnshift(obj, obj_bit);
       RestartIfNotMarking();
     }
   }
 }
 
 
-void IncrementalMarking::BlackToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
+void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
+                                               MarkBit mark_bit) {
   ASSERT(heap_->marking()->MarkBitFrom(obj) == mark_bit);
   ASSERT(obj->Size() >= 2*kPointerSize);
   ASSERT(!IsStopped());
@@ -78,15 +79,15 @@ void IncrementalMarking::BlackToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
   mark_bit.Next().Set();
   ASSERT(IsGrey(mark_bit));
 
-  marking_stack_.Push(obj);
-  ASSERT(!marking_stack_.overflowed());
+  marking_deque_.Unshift(obj);
+  ASSERT(!marking_deque_.overflowed());
 }
 
 
 void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
   WhiteToGrey(obj, mark_bit);
-  marking_stack_.Push(obj);
-  ASSERT(!marking_stack_.overflowed());
+  marking_deque_.Push(obj);
+  ASSERT(!marking_deque_.overflowed());
 }
 
 

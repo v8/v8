@@ -67,7 +67,7 @@ class IncrementalMarking : public AllStatic {
 
   void PrepareForScavenge();
 
-  void UpdateMarkingStackAfterScavenge();
+  void UpdateMarkingDequeAfterScavenge();
 
   void Hurry();
 
@@ -138,7 +138,7 @@ class IncrementalMarking : public AllStatic {
     return mark_bit.Get() && mark_bit.Next().Get();
   }
 
-  inline void BlackToGreyAndPush(HeapObject* obj, MarkBit mark_bit);
+  inline void BlackToGreyAndUnshift(HeapObject* obj, MarkBit mark_bit);
 
   inline void WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit);
 
@@ -199,7 +199,7 @@ class IncrementalMarking : public AllStatic {
   Heap* heap_;
 
   State state_;
-  MarkingStack marking_stack_;
+  MarkingDeque marking_deque_;
 
   int steps_count_;
   double steps_took_;

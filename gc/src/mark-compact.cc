@@ -1178,7 +1178,7 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
   heap_->isolate()->compilation_cache()->IterateFunctions(&visitor);
   heap_->isolate()->handle_scope_implementer()->Iterate(&visitor);
 
-  ProcessMarkingStack();
+  ProcessMarkingDeque();
 }
 
 
@@ -1217,7 +1217,7 @@ class RootMarkingVisitor : public ObjectVisitor {
 
     // Mark all the objects reachable from the map and body.  May leave
     // overflowed objects in the heap.
-    collector_->EmptyMarkingStack();
+    collector_->EmptyMarkingDeque();
   }
 
   MarkCompactCollector* collector_;
@@ -1287,10 +1287,10 @@ void MarkCompactCollector::ProcessNewlyMarkedObject(HeapObject* object) {
         map->instance_type() <= JS_FUNCTION_TYPE) {
       MarkMapContents(map);
     } else {
-      marking_stack_.Push(map);
+      marking_deque_.Push(map);
     }
   } else {
-    marking_stack_.Push(object);
+    marking_deque_.Push(object);
   }
 }
 
@@ -1345,14 +1345,14 @@ void MarkCompactCollector::MarkDescriptorArray(
         MarkBit mark = HEAP->marking()->MarkBitFrom(HeapObject::cast(object));
         if (!mark.Get()) {
           SetMark(HeapObject::cast(object), mark);
-          marking_stack_.Push(object);
+          marking_deque_.Push(object);
         }
       }
     }
   }
   // The DescriptorArray descriptors contains a pointer to its contents array,
   // but the contents array is already marked.
-  marking_stack_.Push(descriptors);
+  marking_deque_.Push(descriptors);
 }
 
 
@@ -1390,15 +1390,15 @@ static void ScanOverflowedObjects(T* it) {
 #if 0
   // The caller should ensure that the marking stack is initially not full,
   // so that we don't waste effort pointlessly scanning for objects.
-  ASSERT(!marking_stack.is_full());
+  ASSERT(!marking_deque.is_full());
 
   for (HeapObject* object = it->next(); object != NULL; object = it->next()) {
     if (object->IsOverflowed()) {
       object->ClearOverflow();
       ASSERT(HEAP->mark_compact_collector()->IsMarked(object));
       ASSERT(HEAP->Contains(object));
-      marking_stack.Push(object);
-      if (marking_stack.is_full()) return;
+      marking_deque.Push(object);
+      if (marking_deque.is_full()) return;
     }
   }
 #endif
@@ -1424,7 +1424,7 @@ void MarkCompactCollector::MarkSymbolTable() {
   // Explicitly mark the prefix.
   MarkingVisitor marker(heap_);
   symbol_table->IteratePrefix(&marker);
-  ProcessMarkingStack();
+  ProcessMarkingDeque();
 }
 
 
@@ -1437,9 +1437,9 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
   MarkSymbolTable();
 
   // There may be overflowed objects in the heap.  Visit them now.
-  while (marking_stack_.overflowed()) {
-    RefillMarkingStack();
-    EmptyMarkingStack();
+  while (marking_deque_.overflowed()) {
+    RefillMarkingDeque();
+    EmptyMarkingDeque();
   }
 }
 
@@ -1520,9 +1520,9 @@ void MarkCompactCollector::MarkImplicitRefGroups() {
 // Before: the marking stack contains zero or more heap object pointers.
 // After: the marking stack is empty, and all objects reachable from the
 // marking stack have been marked, or are overflowed in the heap.
-void MarkCompactCollector::EmptyMarkingStack() {
-  while (!marking_stack_.is_empty()) {
-    HeapObject* object = marking_stack_.Pop();
+void MarkCompactCollector::EmptyMarkingDeque() {
+  while (!marking_deque_.IsEmpty()) {
+    HeapObject* object = marking_deque_.Pop();
     ASSERT(object->IsHeapObject());
     ASSERT(heap_->Contains(object));
     ASSERT(IsMarked(object));
@@ -1542,42 +1542,42 @@ void MarkCompactCollector::EmptyMarkingStack() {
 // before sweeping completes.  If sweeping completes, there are no remaining
 // overflowed objects in the heap so the overflow flag on the markings stack
 // is cleared.
-void MarkCompactCollector::RefillMarkingStack() {
+void MarkCompactCollector::RefillMarkingDeque() {
   UNREACHABLE();
 
 #if 0
-  ASSERT(marking_stack_.overflowed());
+  ASSERT(marking_deque_.overflowed());
 
   SemiSpaceIterator new_it(HEAP->new_space(), &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &new_it);
-  if (marking_stack_.is_full()) return;
+  if (marking_deque_.is_full()) return;
 
   HeapObjectIterator old_pointer_it(HEAP->old_pointer_space(),
                                     &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &old_pointer_it);
-  if (marking_stack_.is_full()) return;
+  if (marking_deque_.is_full()) return;
 
   HeapObjectIterator old_data_it(HEAP->old_data_space(), &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &old_data_it);
-  if (marking_stack_.is_full()) return;
+  if (marking_deque_.is_full()) return;
 
   HeapObjectIterator code_it(HEAP->code_space(), &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &code_it);
-  if (marking_stack_.is_full()) return;
+  if (marking_deque_.is_full()) return;
 
   HeapObjectIterator map_it(HEAP->map_space(), &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &map_it);
-  if (marking_stack_.is_full()) return;
+  if (marking_deque_.is_full()) return;
 
   HeapObjectIterator cell_it(HEAP->cell_space(), &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &cell_it);
-  if (marking_stack_.is_full()) return;
+  if (marking_deque_.is_full()) return;
 
   LargeObjectIterator lo_it(HEAP->lo_space(), &OverflowObjectSize);
   OverflowedObjectsScanner::ScanOverflowedObjects(this, &lo_it);
-  if (marking_stack_.is_full()) return;
+  if (marking_deque_.is_full()) return;
 
-  marking_stack_.clear_overflowed();
+  marking_deque_.clear_overflowed();
 #endif
 }
 
@@ -1586,23 +1586,23 @@ void MarkCompactCollector::RefillMarkingStack() {
 // stack.  Before: the marking stack contains zero or more heap object
 // pointers.  After: the marking stack is empty and there are no overflowed
 // objects in the heap.
-void MarkCompactCollector::ProcessMarkingStack() {
-  EmptyMarkingStack();
-  while (marking_stack_.overflowed()) {
-    RefillMarkingStack();
-    EmptyMarkingStack();
+void MarkCompactCollector::ProcessMarkingDeque() {
+  EmptyMarkingDeque();
+  while (marking_deque_.overflowed()) {
+    RefillMarkingDeque();
+    EmptyMarkingDeque();
   }
 }
 
 
 void MarkCompactCollector::ProcessExternalMarking() {
   bool work_to_do = true;
-  ASSERT(marking_stack_.is_empty());
+  ASSERT(marking_deque_.IsEmpty());
   while (work_to_do) {
     MarkObjectGroups();
     MarkImplicitRefGroups();
-    work_to_do = !marking_stack_.is_empty();
-    ProcessMarkingStack();
+    work_to_do = !marking_deque_.IsEmpty();
+    ProcessMarkingDeque();
   }
 }
 
@@ -1620,10 +1620,10 @@ void MarkCompactCollector::MarkLiveObjects() {
 #endif
   // The to space contains live objects, the from space is used as a marking
   // stack.
-  marking_stack_.Initialize(heap_->new_space()->FromSpaceLow(),
+  marking_deque_.Initialize(heap_->new_space()->FromSpaceLow(),
                             heap_->new_space()->FromSpaceHigh());
 
-  ASSERT(!marking_stack_.overflowed());
+  ASSERT(!marking_deque_.overflowed());
 
   PrepareForCodeFlushing();
 
@@ -1645,9 +1645,9 @@ void MarkCompactCollector::MarkLiveObjects() {
       &IsUnmarkedHeapObject);
   // Then we mark the objects and process the transitive closure.
   heap_->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
-  while (marking_stack_.overflowed()) {
-    RefillMarkingStack();
-    EmptyMarkingStack();
+  while (marking_deque_.overflowed()) {
+    RefillMarkingDeque();
+    EmptyMarkingDeque();
   }
 
   // Repeat host application specific marking to mark unmarked objects

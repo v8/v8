@@ -398,6 +398,7 @@ NewSpacePage* NewSpacePage::Initialize(Heap* heap, Address start) {
                                                NOT_EXECUTABLE,
                                                heap->new_space());
   chunk->initialize_scan_on_scavenge(true);
+  chunk->set_in_new_space(true);
   return static_cast<NewSpacePage*>(chunk);
 }
 
@@ -417,7 +418,9 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->set_owner(owner);
   chunk->markbits()->Clear();
   chunk->initialize_scan_on_scavenge(false);
+  chunk->set_in_new_space(false);
   ASSERT(OFFSET_OF(MemoryChunk, scan_on_scavenge_) == kScanOnScavengeOffset);
+  ASSERT(OFFSET_OF(MemoryChunk, in_new_space_) == kInNewSpaceOffset);
   ASSERT(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
 
   if (executable == EXECUTABLE) chunk->SetFlag(IS_EXECUTABLE);

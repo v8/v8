@@ -1066,7 +1066,7 @@ void Heap::Scavenge() {
 
   LiveObjectList::UpdateReferencesForScavengeGC();
   isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
-  incremental_marking()->UpdateMarkingStackAfterScavenge();
+  incremental_marking()->UpdateMarkingDequeAfterScavenge();
 
   ASSERT(new_space_front == new_space_.top());
 

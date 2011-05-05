@@ -44,21 +44,21 @@ static void InitializeVM() {
 }
 
 
-TEST(MarkingStack) {
+TEST(MarkingDeque) {
   int mem_size = 20 * kPointerSize;
   byte* mem = NewArray<byte>(20*kPointerSize);
   Address low = reinterpret_cast<Address>(mem);
   Address high = low + mem_size;
-  MarkingStack s;
+  MarkingDeque s;
   s.Initialize(low, high);
 
   Address address = NULL;
-  while (!s.is_full()) {
+  while (!s.IsFull()) {
     s.Push(HeapObject::FromAddress(address));
     address += kPointerSize;
   }
 
-  while (!s.is_empty()) {
+  while (!s.IsEmpty()) {
     Address value = s.Pop()->address();
     address -= kPointerSize;
     CHECK_EQ(address, value);

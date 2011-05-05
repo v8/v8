@@ -125,21 +125,25 @@ class Marking {
 };
 
 // ----------------------------------------------------------------------------
-// Marking stack for tracing live objects.
+// Marking deque for tracing live objects.
 
-class MarkingStack {
+class MarkingDeque {
  public:
-  MarkingStack() : low_(NULL), top_(NULL), high_(NULL), overflowed_(false) { }
+  MarkingDeque()
+      : array_(NULL), top_(0), bottom_(0), mask_(0), overflowed_(false) { }
 
   void Initialize(Address low, Address high) {
-    top_ = low_ = reinterpret_cast<HeapObject**>(low);
-    high_ = reinterpret_cast<HeapObject**>(high);
+    HeapObject** obj_low = reinterpret_cast<HeapObject**>(low);
+    HeapObject** obj_high = reinterpret_cast<HeapObject**>(high);
+    array_ = obj_low;
+    mask_ = RoundDownToPowerOf2(obj_high - obj_low) - 1;
+    top_ = bottom_ = 0;
     overflowed_ = false;
   }
 
-  bool is_full() const { return top_ >= high_; }
+  inline bool IsFull() { return ((top_ + 1) & mask_) == bottom_; }
 
-  bool is_empty() const { return top_ <= low_; }
+  inline bool IsEmpty() { return top_ == bottom_; }
 
   bool overflowed() const { return overflowed_; }
 
@@ -148,34 +152,53 @@ class MarkingStack {
   // Push the (marked) object on the marking stack if there is room,
   // otherwise mark the object as overflowed and wait for a rescan of the
   // heap.
-  void Push(HeapObject* object) {
-    CHECK(object->IsHeapObject());
-    if (is_full()) {
+  inline void Push(HeapObject* object) {
+    ASSERT(object->IsHeapObject());
+    if (IsFull()) {
       object->SetOverflow();
       overflowed_ = true;
     } else {
-      *(top_++) = object;
+      array_[top_] = object;
+      top_ = ((top_ + 1) & mask_);
     }
   }
 
-  HeapObject* Pop() {
-    ASSERT(!is_empty());
-    HeapObject* object = *(--top_);
-    CHECK(object->IsHeapObject());
+  inline HeapObject* Pop() {
+    ASSERT(!IsEmpty());
+    top_ = ((top_ - 1) & mask_);
+    HeapObject* object = array_[top_];
+    ASSERT(object->IsHeapObject());
     return object;
   }
 
-  HeapObject** low() { return low_; }
-  HeapObject** top() { return top_; }
-  void set_top(HeapObject** top) { top_ = top; }
+  inline void Unshift(HeapObject* object) {
+    ASSERT(object->IsHeapObject());
+    if (IsFull()) {
+      object->SetOverflow();
+      overflowed_ = true;
+    } else {
+      bottom_ = ((bottom_ - 1) & mask_);
+      array_[bottom_] = object;
+    }
+  }
+
+  HeapObject** array() { return array_; }
+  intptr_t bottom() { return bottom_; }
+  intptr_t top() { return top_; }
+  intptr_t mask() { return mask_; }
+  void set_top(intptr_t top) { top_ = top; }
 
  private:
-  HeapObject** low_;
-  HeapObject** top_;
-  HeapObject** high_;
+  HeapObject** array_;
+  // array_[(top - 1) & mask_] is the top element in the deque.  The Deque is
+  // empty when top_ == bottom_.  It is full when top_ + 1 == bottom
+  // (mod mask + 1).
+  int top_;
+  int bottom_;
+  int mask_;
   bool overflowed_;
 
-  DISALLOW_COPY_AND_ASSIGN(MarkingStack);
+  DISALLOW_COPY_AND_ASSIGN(MarkingDeque);
 };
 
 
@@ -378,18 +401,18 @@ class MarkCompactCollector {
 
   // Mark objects reachable (transitively) from objects in the marking stack
   // or overflowed in the heap.
-  void ProcessMarkingStack();
+  void ProcessMarkingDeque();
 
   // Mark objects reachable (transitively) from objects in the marking
   // stack.  This function empties the marking stack, but may leave
   // overflowed objects in the heap, in which case the marking stack's
   // overflow flag will be set.
-  void EmptyMarkingStack();
+  void EmptyMarkingDeque();
 
   // Refill the marking stack with overflowed objects from the heap.  This
   // function either leaves the marking stack full or clears the overflow
   // flag on the marking stack.
-  void RefillMarkingStack();
+  void RefillMarkingDeque();
 
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
@@ -478,7 +501,7 @@ class MarkCompactCollector {
 #endif
 
   Heap* heap_;
-  MarkingStack marking_stack_;
+  MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
 
   friend class Heap;
