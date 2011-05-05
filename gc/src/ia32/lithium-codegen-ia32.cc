@@ -2102,7 +2102,7 @@ void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
                       address,
                       kSaveFPRegs,
                       OMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+                      INLINE_SMI_CHECK);
 }
 
 
