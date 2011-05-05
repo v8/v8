@@ -3901,12 +3901,20 @@ void CompareStub::Generate(MacroAssembler* masm) {
                                          &check_unequal_objects);
 
   // Inline comparison of ascii strings.
-  StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
+  if (cc_ == equal) {
+    StringCompareStub::GenerateFlatAsciiStringEquals(masm,
                                                      edx,
                                                      eax,
                                                      ecx,
-                                                     ebx,
-                                                     edi);
+                                                     ebx);
+  } else {
+    StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
+                                                       edx,
+                                                       eax,
+                                                       ecx,
+                                                       ebx,
+                                                       edi);
+  }
 #ifdef DEBUG
   __ Abort("Unexpected fall-through from string comparison");
 #endif
@@ -5602,6 +5610,60 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 }
 
 
+void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
+                                                      Register left,
+                                                      Register right,
+                                                      Register scratch1,
+                                                      Register scratch2) {
+  Register length = scratch1;
+
+  // Compare lengths.
+  NearLabel strings_not_equal, check_zero_length;
+  __ mov(length, FieldOperand(left, String::kLengthOffset));
+  __ cmp(length, FieldOperand(right, String::kLengthOffset));
+  __ j(equal, &check_zero_length);
+  __ bind(&strings_not_equal);
+  __ Set(eax, Immediate(Smi::FromInt(NOT_EQUAL)));
+  __ ret(0);
+
+  // Check if the length is zero.
+  NearLabel compare_chars;
+  __ bind(&check_zero_length);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ test(length, Operand(length));
+  __ j(not_zero, &compare_chars);
+  __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
+  __ ret(0);
+
+  // Compare characters.
+  __ bind(&compare_chars);
+
+  // Change index to run from -length to -1 by adding length to string
+  // start. This means that loop ends when index reaches zero, which
+  // doesn't need an additional compare.
+  __ SmiUntag(length);
+  __ lea(left,
+         FieldOperand(left, length, times_1, SeqAsciiString::kHeaderSize));
+  __ lea(right,
+         FieldOperand(right, length, times_1, SeqAsciiString::kHeaderSize));
+  __ neg(length);
+  Register index = length;  // index = -length;
+
+  // Compare loop.
+  NearLabel loop;
+  __ bind(&loop);
+  __ mov_b(scratch2, Operand(left, index, times_1, 0));
+  __ cmpb(scratch2, Operand(right, index, times_1, 0));
+  __ j(not_equal, &strings_not_equal);
+  __ add(Operand(index), Immediate(1));
+  __ j(not_zero, &loop);
+
+  // Characters are equal.
+  __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
+  __ ret(0);
+}
+
+
 void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                                         Register left,
                                                         Register right,
@@ -5808,6 +5870,7 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
 
 void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::STRINGS);
+  ASSERT(GetCondition() == equal);
   Label miss;
 
   // Registers containing left and right operands respectively.
@@ -5851,7 +5914,6 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   // Check that both strings are symbols. If they are, we're done
   // because we already know they are not identical.
   NearLabel do_compare;
-  ASSERT(GetCondition() == equal);
   STATIC_ASSERT(kSymbolTag != 0);
   __ and_(tmp1, Operand(tmp2));
   __ test(tmp1, Immediate(kIsSymbolMask));
@@ -5867,8 +5929,8 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   __ JumpIfNotBothSequentialAsciiStrings(left, right, tmp1, tmp2, &runtime);
 
   // Compare flat ASCII strings. Returns when done.
-  StringCompareStub::GenerateCompareFlatAsciiStrings(
-      masm, left, right, tmp1, tmp2, tmp3);
+  StringCompareStub::GenerateFlatAsciiStringEquals(
+      masm, left, right, tmp1, tmp2);
 
   // Handle more complex cases in runtime.
   __ bind(&runtime);
@@ -5876,7 +5938,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   __ push(left);
   __ push(right);
   __ push(tmp1);
-  __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+  __ TailCallRuntime(Runtime::kStringEquals, 2, 1);
 
   __ bind(&miss);
   GenerateMiss(masm);
