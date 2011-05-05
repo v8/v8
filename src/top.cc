@@ -77,9 +77,9 @@ void ThreadLocalTop::Initialize() {
   InitializeInternal();
 #ifdef USE_SIMULATOR
 #ifdef V8_TARGET_ARCH_ARM
-  simulator_ = Simulator::current(Isolate::Current());
+  simulator_ = Simulator::current(isolate_);
 #elif V8_TARGET_ARCH_MIPS
-  simulator_ = Simulator::current(Isolate::Current());
+  simulator_ = Simulator::current(isolate_);
 #endif
 #endif
   thread_id_ = ThreadId::Current();

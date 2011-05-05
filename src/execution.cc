@@ -296,7 +296,7 @@ void StackGuard::SetStackLimit(uintptr_t limit) {
   ExecutionAccess access(isolate_);
   // If the current limits are special (eg due to a pending interrupt) then
   // leave them alone.
-  uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(limit);
+  uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(isolate_, limit);
   if (thread_local_.jslimit_ == thread_local_.real_jslimit_) {
     thread_local_.jslimit_ = jslimit;
   }
@@ -452,7 +452,7 @@ void StackGuard::ThreadLocal::Clear() {
 }
 
 
-bool StackGuard::ThreadLocal::Initialize() {
+bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
   bool should_set_stack_limits = false;
   if (real_climit_ == kIllegalLimit) {
     // Takes the address of the limit variable in order to find out where
@@ -460,8 +460,8 @@ bool StackGuard::ThreadLocal::Initialize() {
     const uintptr_t kLimitSize = FLAG_stack_size * KB;
     uintptr_t limit = reinterpret_cast<uintptr_t>(&limit) - kLimitSize;
     ASSERT(reinterpret_cast<uintptr_t>(&limit) > kLimitSize);
-    real_jslimit_ = SimulatorStack::JsLimitFromCLimit(limit);
-    jslimit_ = SimulatorStack::JsLimitFromCLimit(limit);
+    real_jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
+    jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
     real_climit_ = limit;
     climit_ = limit;
     should_set_stack_limits = true;
@@ -480,9 +480,10 @@ void StackGuard::ClearThread(const ExecutionAccess& lock) {
 
 
 void StackGuard::InitThread(const ExecutionAccess& lock) {
-  if (thread_local_.Initialize()) isolate_->heap()->SetStackLimits();
-  uintptr_t stored_limit =
-      Isolate::CurrentPerIsolateThreadData()->stack_limit();
+  if (thread_local_.Initialize(isolate_)) isolate_->heap()->SetStackLimits();
+  Isolate::PerIsolateThreadData* per_thread =
+      isolate_->FindOrAllocatePerThreadDataForThisThread();
+  uintptr_t stored_limit = per_thread->stack_limit();
   // You should hold the ExecutionAccess lock when you call this.
   if (stored_limit != 0) {
     StackGuard::SetStackLimit(stored_limit);
@@ -705,13 +706,13 @@ static Object* RuntimePreempt() {
     isolate->debug()->PreemptionWhileInDebugger();
   } else {
     // Perform preemption.
-    v8::Unlocker unlocker;
+    v8::Unlocker unlocker(reinterpret_cast<v8::Isolate*>(isolate));
     Thread::YieldCPU();
   }
 #else
   { // NOLINT
     // Perform preemption.
-    v8::Unlocker unlocker;
+    v8::Unlocker unlocker(reinterpret_cast<v8::Isolate*>(isolate));
     Thread::YieldCPU();
   }
 #endif

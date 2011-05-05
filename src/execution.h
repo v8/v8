@@ -254,7 +254,7 @@ class StackGuard {
     void Clear();
 
     // Returns true if the heap's stack limits should be set, false if not.
-    bool Initialize();
+    bool Initialize(Isolate* isolate);
 
     // The stack limit is split into a JavaScript and a C++ stack limit. These
     // two are the same except when running on a simulator where the C++ and

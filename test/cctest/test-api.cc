@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "isolate.h"
 #include "compilation-cache.h"
 #include "execution.h"
 #include "snapshot.h"
@@ -13449,6 +13450,28 @@ TEST(MultipleIsolatesOnIndividualThreads) {
   isolate2->Dispose();
 }
 
+TEST(IsolateDifferentContexts) {
+  v8::Isolate* isolate = v8::Isolate::New();
+  Persistent<v8::Context> context;
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope;
+    context = v8::Context::New();
+    v8::Context::Scope context_scope(context);
+    Local<Value> v = CompileRun("2");
+    CHECK(v->IsNumber());
+    CHECK_EQ(2, static_cast<int>(v->NumberValue()));
+  }
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope;
+    context = v8::Context::New();
+    v8::Context::Scope context_scope(context);
+    Local<Value> v = CompileRun("22");
+    CHECK(v->IsNumber());
+    CHECK_EQ(22, static_cast<int>(v->NumberValue()));
+  }
+}
 
 class InitDefaultIsolateThread : public v8::internal::Thread {
  public:

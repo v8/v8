@@ -4957,8 +4957,7 @@ int Relocatable::ArchiveSpacePerThread() {
 
 
 // Archive statics that are thread local.
-char* Relocatable::ArchiveState(char* to) {
-  Isolate* isolate = Isolate::Current();
+char* Relocatable::ArchiveState(Isolate* isolate, char* to) {
   *reinterpret_cast<Relocatable**>(to) = isolate->relocatable_top();
   isolate->set_relocatable_top(NULL);
   return to + ArchiveSpacePerThread();
@@ -4966,8 +4965,7 @@ char* Relocatable::ArchiveState(char* to) {
 
 
 // Restore statics that are thread local.
-char* Relocatable::RestoreState(char* from) {
-  Isolate* isolate = Isolate::Current();
+char* Relocatable::RestoreState(Isolate* isolate, char* from) {
   isolate->set_relocatable_top(*reinterpret_cast<Relocatable**>(from));
   return from + ArchiveSpacePerThread();
 }

@@ -673,10 +673,11 @@ class ExternalReference BASE_EMBEDDED {
 
   // This lets you register a function that rewrites all external references.
   // Used by the ARM simulator to catch calls to external references.
-  static void set_redirector(ExternalReferenceRedirector* redirector) {
+  static void set_redirector(Isolate* isolate,
+                             ExternalReferenceRedirector* redirector) {
     // We can't stack them.
-    ASSERT(Isolate::Current()->external_reference_redirector() == NULL);
-    Isolate::Current()->set_external_reference_redirector(
+    ASSERT(isolate->external_reference_redirector() == NULL);
+    isolate->set_external_reference_redirector(
         reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
   }
 

@@ -93,6 +93,7 @@
         'test-list.cc',
         'test-liveedit.cc',
         'test-lock.cc',
+        'test-lockers.cc',
         'test-log.cc',
         'test-log-utils.cc',
         'test-mark-compact.cc',

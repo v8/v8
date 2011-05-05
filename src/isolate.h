@@ -224,6 +224,7 @@ class ThreadLocalTop BASE_EMBEDDED {
     ASSERT(try_catch_handler_address_ == NULL);
   }
 
+  Isolate* isolate_;
   // The context where the current execution method is created and for variable
   // lookups.
   Context* context_;
@@ -486,6 +487,10 @@ class Isolate {
   // example if you are using V8 from within the body of a static initializer.
   // Safe to call multiple times.
   static void EnsureDefaultIsolate();
+
+  // Find the PerThread for this particular (isolate, thread) combination
+  // If one does not yet exist, return null.
+  PerIsolateThreadData* FindPerThreadDataForThisThread();
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Get the debugger from the default isolate. Preinitializes the
@@ -1066,7 +1071,7 @@ class Isolate {
   // If one does not yet exist, allocate a new one.
   PerIsolateThreadData* FindOrAllocatePerThreadDataForThisThread();
 
-  // PreInits and returns a default isolate. Needed when a new thread tries
+// PreInits and returns a default isolate. Needed when a new thread tries
   // to create a Locker for the first time (the lock itself is in the isolate).
   static Isolate* GetDefaultIsolateForLocking();
 
@@ -1198,9 +1203,13 @@ class Isolate {
 
   friend class ExecutionAccess;
   friend class IsolateInitializer;
+  friend class ThreadManager;
+  friend class Simulator;
+  friend class StackGuard;
   friend class ThreadId;
   friend class v8::Isolate;
   friend class v8::Locker;
+  friend class v8::Unlocker;
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };

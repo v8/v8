@@ -738,20 +738,21 @@ void Simulator::CheckICache(v8::internal::HashMap* i_cache,
 }
 
 
-void Simulator::Initialize() {
-  if (Isolate::Current()->simulator_initialized()) return;
-  Isolate::Current()->set_simulator_initialized(true);
-  ::v8::internal::ExternalReference::set_redirector(&RedirectExternalReference);
+void Simulator::Initialize(Isolate* isolate) {
+  if (isolate->simulator_initialized()) return;
+  isolate->set_simulator_initialized(true);
+  ::v8::internal::ExternalReference::set_redirector(isolate,
+                                                    &RedirectExternalReference);
 }
 
 
-Simulator::Simulator() : isolate_(Isolate::Current()) {
+Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   i_cache_ = isolate_->simulator_i_cache();
   if (i_cache_ == NULL) {
     i_cache_ = new v8::internal::HashMap(&ICacheMatch);
     isolate_->set_simulator_i_cache(i_cache_);
   }
-  Initialize();
+  Initialize(isolate);
   // Setup simulator support first. Some of this information is needed to
   // setup the architecture state.
   stack_size_ = 1 * 1024*1024;  // allocate 1MB for stack
@@ -852,17 +853,14 @@ void* Simulator::RedirectExternalReference(void* external_function,
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =
-      Isolate::CurrentPerIsolateThreadData();
-  if (isolate_data == NULL) {
-    Isolate::EnterDefaultIsolate();
-    isolate_data = Isolate::CurrentPerIsolateThreadData();
-  }
+       isolate->FindOrAllocatePerThreadDataForThisThread();
+  ASSERT(isolate_data != NULL);
   ASSERT(isolate_data != NULL);
 
   Simulator* sim = isolate_data->simulator();
   if (sim == NULL) {
     // TODO(146): delete the simulator object when a thread/isolate goes away.
-    sim = new Simulator();
+    sim = new Simulator(isolate);
     isolate_data->set_simulator(sim);
   }
   return sim;
