@@ -976,7 +976,7 @@ void TypeRecordingBinaryOpStub::GenerateFloatingPointCode(
         // already loaded heap_number_map.
         __ AllocateInNewSpace(HeapNumber::kSize,
                               rax,
-                              rcx,
+                              rdx,
                               no_reg,
                               &allocation_failed,
                               TAG_OBJECT);
@@ -996,7 +996,7 @@ void TypeRecordingBinaryOpStub::GenerateFloatingPointCode(
         // We need tagged values in rdx and rax for the following code,
         // not int32 in rax and rcx.
         __ Integer32ToSmi(rax, rcx);
-        __ Integer32ToSmi(rdx, rax);
+        __ Integer32ToSmi(rdx, rbx);
         __ jmp(allocation_failure);
       }
       break;
