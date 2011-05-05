@@ -658,6 +658,15 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
              Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
     __ j(not_equal, &shift_arguments);
 
+    // Do not transform the receiver for natives.
+    // SharedFunctionInfo is already loaded into rbx.
+    __ movq(rbx, FieldOperand(rbx, SharedFunctionInfo::kScriptOffset));
+    __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
+    __ j(equal, &shift_arguments);
+    __ SmiCompare(FieldOperand(rbx, Script::kTypeOffset),
+               Smi::FromInt(Script::TYPE_NATIVE));
+    __ j(equal, &shift_arguments);
+
     // Compute the receiver in non-strict mode.
     __ movq(rbx, Operand(rsp, rax, times_pointer_size, 0));
     __ JumpIfSmi(rbx, &convert_to_object);
@@ -821,6 +830,15 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ testb(FieldOperand(rdx, SharedFunctionInfo::kStrictModeByteOffset),
            Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
   __ j(not_equal, &push_receiver);
+
+  // Do not transform the receiver for natives.
+  // SharedFunctionInfo is already loaded into rdx.
+  __ movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kScriptOffset));
+  __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
+  __ j(equal, &push_receiver);
+  __ SmiCompare(FieldOperand(rdx, Script::kTypeOffset),
+             Smi::FromInt(Script::TYPE_NATIVE));
+  __ j(equal, &push_receiver);
 
   // Compute the receiver in non-strict mode.
   __ JumpIfSmi(rbx, &call_to_object);

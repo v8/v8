@@ -1238,10 +1238,20 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     // Do not transform the receiver for strict mode functions.
     __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-    __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kCompilerHintsOffset));
-    __ tst(r2, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
+    __ ldr(r3, FieldMemOperand(r2, SharedFunctionInfo::kCompilerHintsOffset));
+    __ tst(r3, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
                              kSmiTagSize)));
     __ b(ne, &shift_arguments);
+
+    // Do not transform the receiver for native (shared already in r2).
+    __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kScriptOffset));
+    __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
+    __ cmp(r2, r3);
+    __ b(eq, &shift_arguments);
+    __ ldr(r2, FieldMemOperand(r2, Script::kTypeOffset));
+    __ mov(r2, Operand(r2, ASR, kSmiTagSize));
+    __ cmp(r2, Operand(Script::TYPE_NATIVE));
+    __ b(eq, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
     __ add(r2, sp, Operand(r0, LSL, kPointerSizeLog2));
@@ -1252,10 +1262,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ tst(r2, Operand(kSmiTagMask));
     __ b(eq, &convert_to_object);
 
-    __ LoadRoot(r3, Heap::kNullValueRootIndex);
+    // Heap::kUndefinedValueRootIndex is already in r3.
     __ cmp(r2, r3);
     __ b(eq, &use_global_receiver);
-    __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(r3, Heap::kNullValueRootIndex);
     __ cmp(r2, r3);
     __ b(eq, &use_global_receiver);
 
@@ -1416,10 +1426,20 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ ldr(r0, MemOperand(fp, kRecvOffset));
 
   // Do not transform the receiver for strict mode functions.
-  __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCompilerHintsOffset));
-  __ tst(r1, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
+  __ ldr(r2, FieldMemOperand(r1, SharedFunctionInfo::kCompilerHintsOffset));
+  __ tst(r2, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
                            kSmiTagSize)));
   __ b(ne, &push_receiver);
+
+  // Do not transform the receiver for native (shared already in r1).
+  __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kScriptOffset));
+  __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
+  __ cmp(r1, r2);
+  __ b(eq, &push_receiver);
+  __ ldr(r1, FieldMemOperand(r1, Script::kTypeOffset));
+  __ mov(r1, Operand(r1, ASR, kSmiTagSize));
+  __ cmp(r1, Operand(Script::TYPE_NATIVE));
+  __ b(eq, &push_receiver);
 
   // Compute the receiver in non-strict mode.
   __ tst(r0, Operand(kSmiTagMask));
@@ -1427,8 +1447,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ LoadRoot(r1, Heap::kNullValueRootIndex);
   __ cmp(r0, r1);
   __ b(eq, &use_global_receiver);
-  __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
-  __ cmp(r0, r1);
+  // Heap::kUndefinedValueRootIndex is already in r2.
+  __ cmp(r0, r2);
   __ b(eq, &use_global_receiver);
 
   // Check if the receiver is already a JavaScript object.
