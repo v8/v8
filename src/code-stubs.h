@@ -28,6 +28,7 @@
 #ifndef V8_CODE_STUBS_H_
 #define V8_CODE_STUBS_H_
 
+#include "allocation.h"
 #include "globals.h"
 
 namespace v8 {

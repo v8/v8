@@ -30,6 +30,7 @@
 
 #include <math.h>
 
+#include "allocation.h"
 #include "globals.h"
 #include "list.h"
 #include "mark-compact.h"

@@ -35,6 +35,7 @@
 #ifndef V8_ASSEMBLER_H_
 #define V8_ASSEMBLER_H_
 
+#include "allocation.h"
 #include "gdb-jit.h"
 #include "runtime.h"
 #include "token.h"

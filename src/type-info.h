@@ -28,6 +28,7 @@
 #ifndef V8_TYPE_INFO_H_
 #define V8_TYPE_INFO_H_
 
+#include "allocation.h"
 #include "globals.h"
 #include "zone.h"
 #include "zone-inl.h"

@@ -28,6 +28,7 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
+#include "allocation.h"
 #include "v8.h"
 #include "hashmap.h"
 

@@ -28,6 +28,7 @@
 #ifndef V8_AST_H_
 #define V8_AST_H_
 
+#include "allocation.h"
 #include "execution.h"
 #include "factory.h"
 #include "jsregexp.h"

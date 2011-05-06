@@ -28,6 +28,7 @@
 #ifndef V8_LOG_H_
 #define V8_LOG_H_
 
+#include "allocation.h"
 #include "platform.h"
 #include "log-utils.h"
 

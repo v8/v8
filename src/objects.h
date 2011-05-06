@@ -28,6 +28,7 @@
 #ifndef V8_OBJECTS_H_
 #define V8_OBJECTS_H_
 
+#include "allocation.h"
 #include "builtins.h"
 #include "smart-pointer.h"
 #include "unicode-inl.h"

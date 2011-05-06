@@ -28,6 +28,7 @@
 #ifndef V8_HANDLES_H_
 #define V8_HANDLES_H_
 
+#include "allocation.h"
 #include "apiutils.h"
 
 namespace v8 {

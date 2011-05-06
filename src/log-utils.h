@@ -28,6 +28,8 @@
 #ifndef V8_LOG_UTILS_H_
 #define V8_LOG_UTILS_H_
 
+#include "allocation.h"
+
 namespace v8 {
 namespace internal {
 
