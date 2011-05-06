@@ -1015,8 +1015,6 @@ LEnvironment* LChunkBuilder::CreateEnvironment(HEnvironment* hydrogen_env) {
                                           outer);
   int argument_index = 0;
   for (int i = 0; i < value_count; ++i) {
-    if (hydrogen_env->is_special_index(i)) continue;
-
     HValue* value = hydrogen_env->values()->at(i);
     LOperand* op = NULL;
     if (value->IsArgumentsObject()) {
