@@ -322,6 +322,7 @@ class HEnvironment: public ZoneObject {
     return &assigned_variables_;
   }
   int parameter_count() const { return parameter_count_; }
+  int specials_count() const { return specials_count_; }
   int local_count() const { return local_count_; }
   HEnvironment* outer() const { return outer_; }
   int pop_count() const { return pop_count_; }
@@ -331,12 +332,19 @@ class HEnvironment: public ZoneObject {
   void set_ast_id(int id) { ast_id_ = id; }
 
   int length() const { return values_.length(); }
+  bool is_special_index(int i) const {
+    return i >= parameter_count() && i < parameter_count() + specials_count();
+  }
 
   void Bind(Variable* variable, HValue* value) {
     Bind(IndexFor(variable), value);
   }
 
   void Bind(int index, HValue* value);
+
+  void BindContext(HValue* value) {
+    Bind(parameter_count(), value);
+  }
 
   HValue* Lookup(Variable* variable) const {
     return Lookup(IndexFor(variable));
@@ -346,6 +354,11 @@ class HEnvironment: public ZoneObject {
     HValue* result = values_[index];
     ASSERT(result != NULL);
     return result;
+  }
+
+  HValue* LookupContext() const {
+    // Return first special.
+    return Lookup(parameter_count());
   }
 
   void Push(HValue* value) {
@@ -367,6 +380,8 @@ class HEnvironment: public ZoneObject {
   void Drop(int count);
 
   HValue* Top() const { return ExpressionStackAt(0); }
+
+  bool ExpressionStackIsEmpty() const;
 
   HValue* ExpressionStackAt(int index_from_top) const {
     int index = length() - index_from_top - 1;
@@ -412,8 +427,6 @@ class HEnvironment: public ZoneObject {
   // True if index is included in the expression stack part of the environment.
   bool HasExpressionAt(int index) const;
 
-  bool ExpressionStackIsEmpty() const;
-
   void Initialize(int parameter_count, int local_count, int stack_height);
   void Initialize(const HEnvironment* other);
 
@@ -423,15 +436,18 @@ class HEnvironment: public ZoneObject {
   int IndexFor(Variable* variable) const {
     Slot* slot = variable->AsSlot();
     ASSERT(slot != NULL && slot->IsStackAllocated());
-    int shift = (slot->type() == Slot::PARAMETER) ? 1 : parameter_count_;
+    int shift = (slot->type() == Slot::PARAMETER)
+        ? 1
+        : parameter_count_ + specials_count_;
     return slot->index() + shift;
   }
 
   Handle<JSFunction> closure_;
-  // Value array [parameters] [locals] [temporaries].
+  // Value array [parameters] [specials] [locals] [temporaries].
   ZoneList<HValue*> values_;
   ZoneList<int> assigned_variables_;
   int parameter_count_;
+  int specials_count_;
   int local_count_;
   HEnvironment* outer_;
   int pop_count_;
