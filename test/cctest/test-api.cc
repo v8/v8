@@ -14391,3 +14391,20 @@ THREADED_TEST(AllowCodeGenFromStrings) {
   V8::SetAllowCodeGenerationFromStringsCallback(&CodeGenerationDisallowed);
   CheckCodeGenerationDisallowed();
 }
+
+
+static v8::Handle<Value> NonObjectThis(const v8::Arguments& args) {
+  return v8::Undefined();
+}
+
+
+THREADED_TEST(CallAPIFunctionOnNonObject) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Handle<FunctionTemplate> templ = v8::FunctionTemplate::New(NonObjectThis);
+  Handle<Function> function = templ->GetFunction();
+  context->Global()->Set(v8_str("f"), function);
+  TryCatch try_catch;
+  CompileRun("f.call(2)");
+  CHECK(try_catch.HasCaught());
+}

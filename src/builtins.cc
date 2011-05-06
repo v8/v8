@@ -1026,6 +1026,8 @@ static inline Object* TypeCheck(Heap* heap,
                                 Object** argv,
                                 FunctionTemplateInfo* info) {
   Object* recv = argv[0];
+  // API calls are only supported with JSObject receivers.
+  if (!recv->IsJSObject()) return heap->null_value();
   Object* sig_obj = info->signature();
   if (sig_obj->IsUndefined()) return recv;
   SignatureInfo* sig = SignatureInfo::cast(sig_obj);
