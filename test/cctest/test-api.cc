@@ -6747,6 +6747,200 @@ THREADED_TEST(Constructor) {
   CHECK(value->BooleanValue());
 }
 
+
+static Handle<Value> ConstructorCallback(const Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  Local<Object> This;
+
+  if (args.IsConstructCall()) {
+    Local<Object> Holder = args.Holder();
+    This = Object::New();
+    Local<Value> proto = Holder->GetPrototype();
+    if (proto->IsObject()) {
+      This->SetPrototype(proto);
+    }
+  } else {
+    This = args.This();
+  }
+
+  This->Set(v8_str("a"), args[0]);
+  return This;
+}
+
+
+static Handle<Value> FakeConstructorCallback(const Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  return args[0];
+}
+
+
+THREADED_TEST(ConstructorForObject) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    instance_template->SetCallAsFunctionHandler(ConstructorCallback);
+    Local<Object> instance = instance_template->NewInstance();
+    context->Global()->Set(v8_str("obj"), instance);
+    v8::TryCatch try_catch;
+    Local<Value> value;
+    CHECK(!try_catch.HasCaught());
+
+    // Call the Object's constructor with a 32-bit signed integer.
+    value = CompileRun("(function() { var o = new obj(28); return o.a; })()");
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsInt32());
+    CHECK_EQ(28, value->Int32Value());
+
+    Local<Value> args1[] = { v8_num(28) };
+    Local<Value> value_obj1 = instance->CallAsConstructor(1, args1);
+    CHECK(value_obj1->IsObject());
+    Local<Object> object1 = Local<Object>::Cast(value_obj1);
+    value = object1->Get(v8_str("a"));
+    CHECK(value->IsInt32());
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(28, value->Int32Value());
+
+    // Call the Object's constructor with a String.
+    value = CompileRun(
+        "(function() { var o = new obj('tipli'); return o.a; })()");
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsString());
+    String::AsciiValue string_value1(value->ToString());
+    CHECK_EQ("tipli", *string_value1);
+
+    Local<Value> args2[] = { v8_str("tipli") };
+    Local<Value> value_obj2 = instance->CallAsConstructor(1, args2);
+    CHECK(value_obj2->IsObject());
+    Local<Object> object2 = Local<Object>::Cast(value_obj2);
+    value = object2->Get(v8_str("a"));
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsString());
+    String::AsciiValue string_value2(value->ToString());
+    CHECK_EQ("tipli", *string_value2);
+
+    // Call the Object's constructor with a Boolean.
+    value = CompileRun("(function() { var o = new obj(true); return o.a; })()");
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsBoolean());
+    CHECK_EQ(true, value->BooleanValue());
+
+    Handle<Value> args3[] = { v8::Boolean::New(true) };
+    Local<Value> value_obj3 = instance->CallAsConstructor(1, args3);
+    CHECK(value_obj3->IsObject());
+    Local<Object> object3 = Local<Object>::Cast(value_obj3);
+    value = object3->Get(v8_str("a"));
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsBoolean());
+    CHECK_EQ(true, value->BooleanValue());
+
+    // Call the Object's constructor with undefined.
+    Handle<Value> args4[] = { v8::Undefined() };
+    Local<Value> value_obj4 = instance->CallAsConstructor(1, args4);
+    CHECK(value_obj4->IsObject());
+    Local<Object> object4 = Local<Object>::Cast(value_obj4);
+    value = object4->Get(v8_str("a"));
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsUndefined());
+
+    // Call the Object's constructor with null.
+    Handle<Value> args5[] = { v8::Null() };
+    Local<Value> value_obj5 = instance->CallAsConstructor(1, args5);
+    CHECK(value_obj5->IsObject());
+    Local<Object> object5 = Local<Object>::Cast(value_obj5);
+    value = object5->Get(v8_str("a"));
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsNull());
+  }
+
+  // Check exception handling when there is no constructor set for the Object.
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    Local<Object> instance = instance_template->NewInstance();
+    context->Global()->Set(v8_str("obj2"), instance);
+    v8::TryCatch try_catch;
+    Local<Value> value;
+    CHECK(!try_catch.HasCaught());
+
+    value = CompileRun("new obj2(28)");
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value1(try_catch.Exception());
+    CHECK_EQ("TypeError: object is not a function", *exception_value1);
+    try_catch.Reset();
+
+    Local<Value> args[] = { v8_num(29) };
+    value = instance->CallAsConstructor(1, args);
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value2(try_catch.Exception());
+    CHECK_EQ("TypeError: #<Object> is not a function", *exception_value2);
+    try_catch.Reset();
+  }
+
+  // Check the case when constructor throws exception.
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    instance_template->SetCallAsFunctionHandler(ThrowValue);
+    Local<Object> instance = instance_template->NewInstance();
+    context->Global()->Set(v8_str("obj3"), instance);
+    v8::TryCatch try_catch;
+    Local<Value> value;
+    CHECK(!try_catch.HasCaught());
+
+    value = CompileRun("new obj3(22)");
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value1(try_catch.Exception());
+    CHECK_EQ("22", *exception_value1);
+    try_catch.Reset();
+
+    Local<Value> args[] = { v8_num(23) };
+    value = instance->CallAsConstructor(1, args);
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value2(try_catch.Exception());
+    CHECK_EQ("23", *exception_value2);
+    try_catch.Reset();
+  }
+
+  // Check whether constructor returns with an object or non-object.
+  { Local<FunctionTemplate> function_template =
+        FunctionTemplate::New(FakeConstructorCallback);
+    Local<Function> function = function_template->GetFunction();
+    Local<Object> instance1 = function;
+    context->Global()->Set(v8_str("obj4"), instance1);
+    v8::TryCatch try_catch;
+    Local<Value> value;
+    CHECK(!try_catch.HasCaught());
+
+    CHECK(instance1->IsObject());
+    CHECK(instance1->IsFunction());
+
+    value = CompileRun("new obj4(28)");
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsObject());
+
+    Local<Value> args1[] = { v8_num(28) };
+    value = instance1->CallAsConstructor(1, args1);
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsObject());
+
+    Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    instance_template->SetCallAsFunctionHandler(FakeConstructorCallback);
+    Local<Object> instance2 = instance_template->NewInstance();
+    context->Global()->Set(v8_str("obj5"), instance2);
+    CHECK(!try_catch.HasCaught());
+
+    CHECK(instance2->IsObject());
+    CHECK(!instance2->IsFunction());
+
+    value = CompileRun("new obj5(28)");
+    CHECK(!try_catch.HasCaught());
+    CHECK(!value->IsObject());
+
+    Local<Value> args2[] = { v8_num(28) };
+    value = instance2->CallAsConstructor(1, args2);
+    CHECK(!try_catch.HasCaught());
+    CHECK(!value->IsObject());
+  }
+}
+
+
 THREADED_TEST(FunctionDescriptorException) {
   v8::HandleScope handle_scope;
   LocalContext context;
@@ -7029,9 +7223,8 @@ THREADED_TEST(CallAsFunction) {
     CHECK(value.IsEmpty());
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value1(try_catch.Exception());
-    CHECK_EQ(*exception_value1,
-             "TypeError: Property 'obj2' of object "
-             "#<Object> is not a function");
+    CHECK_EQ("TypeError: Property 'obj2' of object #<Object> is not a function",
+             *exception_value1);
     try_catch.Reset();
 
     // Call an object without call-as-function handler through the API
@@ -7041,7 +7234,7 @@ THREADED_TEST(CallAsFunction) {
     CHECK(value.IsEmpty());
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value2(try_catch.Exception());
-    CHECK_EQ(*exception_value2, "TypeError: [object Object] is not a function");
+    CHECK_EQ("TypeError: [object Object] is not a function", *exception_value2);
     try_catch.Reset();
   }
 
@@ -7058,14 +7251,14 @@ THREADED_TEST(CallAsFunction) {
     value = CompileRun("obj3(22)");
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value1(try_catch.Exception());
-    CHECK_EQ(*exception_value1, "22");
+    CHECK_EQ("22", *exception_value1);
     try_catch.Reset();
 
     v8::Handle<Value> args[] = { v8_num(23) };
     value = instance->CallAsFunction(instance, 1, args);
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value2(try_catch.Exception());
-    CHECK_EQ(*exception_value2, "23");
+    CHECK_EQ("23", *exception_value2);
     try_catch.Reset();
   }
 }

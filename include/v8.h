@@ -1614,6 +1614,14 @@ class Object : public Value {
                                        int argc,
                                        Handle<Value> argv[]);
 
+  /**
+   * Call an Object as a consturctor if a callback is set by the
+   * ObjectTemplate::SetCallAsFunctionHandler method.
+   * Note: This method behaves like the Function::NewInstance method.
+   */
+  V8EXPORT Local<Value> CallAsConstructor(int argc,
+                                          Handle<Value> argv[]);
+
   V8EXPORT static Local<Object> New();
   static inline Object* Cast(Value* obj);
  private:

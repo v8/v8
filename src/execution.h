@@ -146,6 +146,8 @@ class Execution : public AllStatic {
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as constructors.
   static Handle<Object> GetConstructorDelegate(Handle<Object> object);
+  static Handle<Object> TryGetConstructorDelegate(Handle<Object> object,
+                                                  bool* has_pending_exception);
 };
 
 

@@ -277,6 +277,34 @@ Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
 }
 
 
+Handle<Object> Execution::TryGetConstructorDelegate(
+    Handle<Object> object,
+    bool* has_pending_exception) {
+  ASSERT(!object->IsJSFunction());
+  Isolate* isolate = Isolate::Current();
+
+  // If you return a function from here, it will be called when an
+  // attempt is made to call the given object as a constructor.
+
+  // Objects created through the API can have an instance-call handler
+  // that should be used when calling the object as a function.
+  if (object->IsHeapObject() &&
+      HeapObject::cast(*object)->map()->has_instance_call_handler()) {
+    return Handle<JSFunction>(
+        isolate->global_context()->call_as_constructor_delegate());
+  }
+
+  // If the Object doesn't have an instance-call handler we should
+  // throw a non-callable exception.
+  i::Handle<i::Object> error_obj = isolate->factory()->NewTypeError(
+      "called_non_callable", i::HandleVector<i::Object>(&object, 1));
+  isolate->Throw(*error_obj);
+  *has_pending_exception = true;
+
+  return isolate->factory()->undefined_value();
+}
+
+
 bool StackGuard::IsStackOverflow() {
   ExecutionAccess access(isolate_);
   return (thread_local_.jslimit_ != kInterruptLimit &&
