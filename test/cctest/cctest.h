@@ -98,7 +98,11 @@ class ApiTestFuzzer: public v8::internal::Thread {
   // The ApiTestFuzzer is also a Thread, so it has a Run method.
   virtual void Run();
 
-  enum PartOfTest { FIRST_PART, SECOND_PART };
+  enum PartOfTest { FIRST_PART,
+                    SECOND_PART,
+                    THIRD_PART,
+                    FOURTH_PART,
+                    LAST_PART = FOURTH_PART };
 
   static void Setup(PartOfTest part);
   static void RunAllTests();

@@ -9008,11 +9008,10 @@ static unsigned linear_congruential_generator;
 void ApiTestFuzzer::Setup(PartOfTest part) {
   linear_congruential_generator = i::FLAG_testing_prng_seed;
   fuzzing_ = true;
-  int start = (part == FIRST_PART) ? 0 : (RegisterThreadedTest::count() >> 1);
-  int end = (part == FIRST_PART)
-      ? (RegisterThreadedTest::count() >> 1)
-      : RegisterThreadedTest::count();
-  active_tests_ = tests_being_run_ = end - start;
+  int count = RegisterThreadedTest::count();
+  int start =  count * part / (LAST_PART + 1);
+  int end = (count * (part + 1) / (LAST_PART + 1)) - 1;
+  active_tests_ = tests_being_run_ = end - start + 1;
   for (int i = 0; i < tests_being_run_; i++) {
     RegisterThreadedTest::nth(i)->fuzzer_ = new ApiTestFuzzer(
         i::Isolate::Current(), i + start);
@@ -9082,6 +9081,17 @@ TEST(Threading2) {
   ApiTestFuzzer::TearDown();
 }
 
+TEST(Threading3) {
+  ApiTestFuzzer::Setup(ApiTestFuzzer::THIRD_PART);
+  ApiTestFuzzer::RunAllTests();
+  ApiTestFuzzer::TearDown();
+}
+
+TEST(Threading4) {
+  ApiTestFuzzer::Setup(ApiTestFuzzer::FOURTH_PART);
+  ApiTestFuzzer::RunAllTests();
+  ApiTestFuzzer::TearDown();
+}
 
 void ApiTestFuzzer::CallTest() {
   if (kLogThreading)
