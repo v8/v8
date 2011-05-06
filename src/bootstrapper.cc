@@ -1253,8 +1253,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
                      ? top_context->builtins()
                      : top_context->global());
   bool has_pending_exception;
-  Handle<Object> result =
-      Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
+  Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
   if (has_pending_exception) return false;
   return true;
 }
