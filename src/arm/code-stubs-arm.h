@@ -346,10 +346,17 @@ class StringCompareStub: public CodeStub {
                                             Register scratch3);
 
  private:
-  Major MajorKey() { return StringCompare; }
-  int MinorKey() { return 0; }
+  virtual Major MajorKey() { return StringCompare; }
+  virtual int MinorKey() { return 0; }
+  virtual void Generate(MacroAssembler* masm);
 
-  void Generate(MacroAssembler* masm);
+  static void GenerateAsciiCharsCompareLoop(MacroAssembler* masm,
+                                            Register left,
+                                            Register right,
+                                            Register length,
+                                            Register scratch1,
+                                            Register scratch2,
+                                            Label* chars_not_equal);
 };
 
 

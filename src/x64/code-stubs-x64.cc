@@ -4523,26 +4523,9 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
 
   // Compare characters.
   __ bind(&compare_chars);
-
-  // Change index to run from -length to -1 by adding length to string
-  // start. This means that loop ends when index reaches zero, which
-  // doesn't need an additional compare.
-  __ SmiToInteger32(length, length);
-  __ lea(left,
-         FieldOperand(left, length, times_1, SeqAsciiString::kHeaderSize));
-  __ lea(right,
-         FieldOperand(right, length, times_1, SeqAsciiString::kHeaderSize));
-  __ neg(length);
-  Register index = length;  // index = -length;
-
-  // Compare loop.
-  NearLabel strings_not_equal, loop;
-  __ bind(&loop);
-  __ movb(scratch2, Operand(left, index, times_1, 0));
-  __ cmpb(scratch2, Operand(right, index, times_1, 0));
-  __ j(not_equal, &strings_not_equal);
-  __ addq(index, Immediate(1));
-  __ j(not_zero, &loop);
+  NearLabel strings_not_equal;
+  GenerateAsciiCharsCompareLoop(masm, left, right, length, scratch2,
+                                &strings_not_equal);
 
   // Characters are equal.
   __ Move(rax, Smi::FromInt(EQUAL));
@@ -4589,35 +4572,11 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   __ SmiTest(min_length);
   __ j(zero, &compare_lengths);
 
-  __ SmiToInteger32(min_length, min_length);
-
-  // Registers scratch2 and scratch3 are free.
+  // Compare loop.
   NearLabel result_not_equal;
-  Label loop;
-  {
-    // Check characters 0 .. min_length - 1 in a loop.
-    // Use scratch3 as loop index, min_length as limit and scratch2
-    // for computation.
-    const Register index = scratch3;
-    __ Set(index, 0);  // Index into strings.
-    __ bind(&loop);
-    // Compare characters.
-    // TODO(lrn): Could we load more than one character at a time?
-    __ movb(scratch2, FieldOperand(left,
-                                   index,
-                                   times_1,
-                                   SeqAsciiString::kHeaderSize));
-    // Increment index and use -1 modifier on next load to give
-    // the previous load extra time to complete.
-    __ addl(index, Immediate(1));
-    __ cmpb(scratch2, FieldOperand(right,
-                                   index,
-                                   times_1,
-                                   SeqAsciiString::kHeaderSize - 1));
-    __ j(not_equal, &result_not_equal);
-    __ cmpl(index, min_length);
-    __ j(not_equal, &loop);
-  }
+  GenerateAsciiCharsCompareLoop(masm, left, right, min_length, scratch2,
+                                &result_not_equal);
+
   // Completed loop without finding different characters.
   // Compare lengths (precomputed).
   __ bind(&compare_lengths);
@@ -4641,6 +4600,35 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   __ bind(&result_greater);
   __ Move(rax, Smi::FromInt(GREATER));
   __ ret(0);
+}
+
+
+void StringCompareStub::GenerateAsciiCharsCompareLoop(
+    MacroAssembler* masm,
+    Register left,
+    Register right,
+    Register length,
+    Register scratch,
+    NearLabel* chars_not_equal) {
+  // Change index to run from -length to -1 by adding length to string
+  // start. This means that loop ends when index reaches zero, which
+  // doesn't need an additional compare.
+  __ SmiToInteger32(length, length);
+  __ lea(left,
+         FieldOperand(left, length, times_1, SeqAsciiString::kHeaderSize));
+  __ lea(right,
+         FieldOperand(right, length, times_1, SeqAsciiString::kHeaderSize));
+  __ neg(length);
+  Register index = length;  // index = -length;
+
+  // Compare loop.
+  NearLabel loop;
+  __ bind(&loop);
+  __ movb(scratch, Operand(left, index, times_1, 0));
+  __ cmpb(scratch, Operand(right, index, times_1, 0));
+  __ j(not_equal, chars_not_equal);
+  __ addq(index, Immediate(1));
+  __ j(not_zero, &loop);
 }
 
 

@@ -5430,27 +5430,9 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
 
   // Compare characters.
   __ bind(&compare_chars);
-
-  // Change index to run from -length to -1 by adding length to string
-  // start. This means that loop ends when index reaches zero, which
-  // doesn't need an additional compare.
-  __ SmiUntag(length);
-  __ add(scratch2, length,
-         Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ add(left, left, Operand(scratch2));
-  __ add(right, right, Operand(scratch2));
-  __ rsb(length, length, Operand(0));
-  Register index = length;  // index = -length;
-
-  // Compare loop.
-  Label loop;
-  __ bind(&loop);
-  __ ldrb(scratch2, MemOperand(left, index));
-  __ ldrb(scratch3, MemOperand(right, index));
-  __ cmp(scratch2, scratch3);
-  __ b(ne, &strings_not_equal);
-  __ add(index, index, Operand(1), SetCC);
-  __ b(ne, &loop);
+  GenerateAsciiCharsCompareLoop(masm,
+                                left, right, length, scratch2, scratch3,
+                                &strings_not_equal);
 
   // Characters are equal.
   __ mov(r0, Operand(Smi::FromInt(EQUAL)));
@@ -5465,7 +5447,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                                         Register scratch2,
                                                         Register scratch3,
                                                         Register scratch4) {
-  Label compare_lengths;
+  Label result_not_equal, compare_lengths;
   // Find minimum length and length difference.
   __ ldr(scratch1, FieldMemOperand(left, String::kLengthOffset));
   __ ldr(scratch2, FieldMemOperand(right, String::kLengthOffset));
@@ -5477,43 +5459,53 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   __ tst(min_length, Operand(min_length));
   __ b(eq, &compare_lengths);
 
-  // Untag smi.
-  __ mov(min_length, Operand(min_length, ASR, kSmiTagSize));
+  // Compare loop.
+  GenerateAsciiCharsCompareLoop(masm,
+                                left, right, min_length, scratch2, scratch4,
+                                &result_not_equal);
 
-  // Setup registers so that we only need to increment one register
-  // in the loop.
-  __ add(scratch2, min_length,
-         Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ add(left, left, Operand(scratch2));
-  __ add(right, right, Operand(scratch2));
-  // Registers left and right points to the min_length character of strings.
-  __ rsb(min_length, min_length, Operand(-1));
-  Register index = min_length;
-  // Index starts at -min_length.
-
-  {
-    // Compare loop.
-    Label loop;
-    __ bind(&loop);
-    // Compare characters.
-    __ add(index, index, Operand(1), SetCC);
-    __ ldrb(scratch2, MemOperand(left, index), ne);
-    __ ldrb(scratch4, MemOperand(right, index), ne);
-    // Skip to compare lengths with eq condition true.
-    __ b(eq, &compare_lengths);
-    __ cmp(scratch2, scratch4);
-    __ b(eq, &loop);
-    // Fallthrough with eq condition false.
-  }
-  // Compare lengths -  strings up to min-length are equal.
+  // Compare lengths - strings up to min-length are equal.
   __ bind(&compare_lengths);
   ASSERT(Smi::FromInt(EQUAL) == static_cast<Smi*>(0));
-  // Use zero length_delta as result.
-  __ mov(r0, Operand(length_delta), SetCC, eq);
-  // Fall through to here if characters compare not-equal.
+  // Use length_delta as result if it's zero.
+  __ mov(r0, Operand(length_delta), SetCC);
+  __ bind(&result_not_equal);
+  // Conditionally update the result based either on length_delta or
+  // the last comparion performed in the loop above.
   __ mov(r0, Operand(Smi::FromInt(GREATER)), LeaveCC, gt);
   __ mov(r0, Operand(Smi::FromInt(LESS)), LeaveCC, lt);
   __ Ret();
+}
+
+
+void StringCompareStub::GenerateAsciiCharsCompareLoop(
+    MacroAssembler* masm,
+    Register left,
+    Register right,
+    Register length,
+    Register scratch1,
+    Register scratch2,
+    Label* chars_not_equal) {
+  // Change index to run from -length to -1 by adding length to string
+  // start. This means that loop ends when index reaches zero, which
+  // doesn't need an additional compare.
+  __ SmiUntag(length);
+  __ add(scratch1, length,
+         Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(left, left, Operand(scratch1));
+  __ add(right, right, Operand(scratch1));
+  __ rsb(length, length, Operand(0));
+  Register index = length;  // index = -length;
+
+  // Compare loop.
+  Label loop;
+  __ bind(&loop);
+  __ ldrb(scratch1, MemOperand(left, index));
+  __ ldrb(scratch2, MemOperand(right, index));
+  __ cmp(scratch1, scratch2);
+  __ b(ne, chars_not_equal);
+  __ add(index, index, Operand(1), SetCC);
+  __ b(ne, &loop);
 }
 
 
