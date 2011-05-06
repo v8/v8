@@ -32,6 +32,7 @@
 #include "ast.h"
 #include "scanner.h"
 #include "scopes.h"
+#include "preparse-data-format.h"
 #include "preparse-data.h"
 
 namespace v8 {

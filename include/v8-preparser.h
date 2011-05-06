@@ -66,7 +66,8 @@
 
 namespace v8 {
 
-
+// The result of preparsing is either a stack overflow error, or an opaque
+// blob of data that can be passed back into the parser.
 class V8EXPORT PreParserData {
  public:
   PreParserData(size_t size, const uint8_t* data)
