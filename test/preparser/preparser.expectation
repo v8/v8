@@ -3,10 +3,8 @@
 # the message and location expected in the exception.
 # Format:
 #   testname[:message[:beg_pos,end_pos]]
+strict-octal-number:strict_octal_literal
 strict-octal-string:strict_octal_literal
 strict-octal-regexp:strict_octal_literal
-strict-octal-directive-before:strict_octal_literal
-strict-octal-directive-after:strict_octal_literal
-
 strict-octal-use-strict-after:strict_octal_literal
 strict-octal-use-strict-before:strict_octal_literal

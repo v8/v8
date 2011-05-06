@@ -25,11 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Strict mode with octal escape in string/directive prologue prior to
-// "use strict" directive.
+// Strict mode with octal number literal.
 
 function foo() {
-  "use hello\040world";
   "use strict";
-  return true;
+  var x = 012;
+  return x;
 }

@@ -564,6 +564,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
   } else {
     // if the first character is '0' we must check for octals and hex
     if (c0_ == '0') {
+      int start_pos = source_pos();  // For reporting octal positions.
       AddLiteralCharAdvance();
 
       // either 0, 0exxx, 0Exxx, 0.xxx, an octal number, or a hex number
@@ -588,7 +589,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
           }
           if (c0_  < '0' || '7'  < c0_) {
             // Octal literal finished.
-            octal_pos_ = next_.location;
+            octal_pos_ = Location(start_pos, source_pos());
             break;
           }
           AddLiteralCharAdvance();
