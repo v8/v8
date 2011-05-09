@@ -6035,12 +6035,13 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 // must always call a backup property check that is complete.
 // This function is safe to call if the receiver has fast properties.
 // Name must be a symbol and receiver must be a heap object.
-void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
-                                                        Label* miss,
-                                                        Label* done,
-                                                        Register properties,
-                                                        String* name,
-                                                        Register r0) {
+MaybeObject* StringDictionaryLookupStub::GenerateNegativeLookup(
+    MacroAssembler* masm,
+    Label* miss,
+    Label* done,
+    Register properties,
+    String* name,
+    Register r0) {
   ASSERT(name->IsSymbol());
 
   // If names of slots in range from 1 to kProbes - 1 for the hash value are
@@ -6086,10 +6087,12 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
                                   StringDictionaryLookupStub::NEGATIVE_LOOKUP);
   __ push(Immediate(Handle<Object>(name)));
   __ push(Immediate(name->Hash()));
-  __ CallStub(&stub);
+  MaybeObject* result = masm->TryCallStub(&stub);
+  if (result->IsFailure()) return result;
   __ test(r0, Operand(r0));
   __ j(not_zero, miss);
   __ jmp(done);
+  return result;
 }
 
 

@@ -4907,12 +4907,13 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
-                                                        Label* miss,
-                                                        Label* done,
-                                                        Register properties,
-                                                        String* name,
-                                                        Register r0) {
+MaybeObject* StringDictionaryLookupStub::GenerateNegativeLookup(
+    MacroAssembler* masm,
+    Label* miss,
+    Label* done,
+    Register properties,
+    String* name,
+    Register r0) {
   // If names of slots in range from 1 to kProbes - 1 for the hash value are
   // not equal to the name and kProbes-th slot is not used (its name is the
   // undefined value), it guarantees the hash table doesn't contain the
@@ -4959,10 +4960,12 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
                                   StringDictionaryLookupStub::NEGATIVE_LOOKUP);
   __ Push(Handle<Object>(name));
   __ push(Immediate(name->Hash()));
-  __ CallStub(&stub);
+  MaybeObject* result = masm->TryCallStub(&stub);
+  if (result->IsFailure()) return result;
   __ testq(r0, r0);
   __ j(not_zero, miss);
   __ jmp(done);
+  return result;
 }
 
 

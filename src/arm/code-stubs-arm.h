@@ -620,13 +620,14 @@ class StringDictionaryLookupStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  static void GenerateNegativeLookup(MacroAssembler* masm,
-                                     Label* miss,
-                                     Label* done,
-                                     Register receiver,
-                                     Register properties,
-                                     String* name,
-                                     Register scratch0) ;
+  MUST_USE_RESULT static MaybeObject* GenerateNegativeLookup(
+      MacroAssembler* masm,
+      Label* miss,
+      Label* done,
+      Register receiver,
+      Register properties,
+      String* name,
+      Register scratch0);
 
   static void GeneratePositiveLookup(MacroAssembler* masm,
                                      Label* miss,
