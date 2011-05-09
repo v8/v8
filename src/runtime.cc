@@ -7554,6 +7554,29 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  if (!V8::UseCrankshaft()) {
+    return Smi::FromInt(4);  // 4 == "never".
+  }
+  if (FLAG_always_opt) {
+    return Smi::FromInt(3);  // 3 == "always".
+  }
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  return function->IsOptimized() ? Smi::FromInt(1)   // 1 == "yes".
+                                 : Smi::FromInt(2);  // 2 == "no".
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationCount) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  return Smi::FromInt(function->shared()->opt_count());
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
