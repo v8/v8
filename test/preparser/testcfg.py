@@ -110,6 +110,9 @@ class PreparserTestConfiguration(test.TestConfiguration):
     if exists(status_file):
       test.ReadConfigurationInto(status_file, sections, defs)
 
+  def VariantFlags(self):
+    return [[]];
+
 
 def GetConfiguration(context, root):
   return PreparserTestConfiguration(context, root)

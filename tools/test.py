@@ -392,7 +392,7 @@ class TestCase(object):
       result = self.RunCommand(self.GetCommand())
     except:
       self.terminate = True
-      raise BreakNowException("Used pressed CTRL+C or IO went wrong")
+      raise BreakNowException("User pressed CTRL+C or IO went wrong")
     finally:
       self.AfterRun(result)
     return result
@@ -566,6 +566,13 @@ def CarCdr(path):
     return (path[0], path[1:])
 
 
+# Use this to run several variants of the tests, e.g.:
+# VARIANT_FLAGS = [[], ['--always_compact', '--noflush_code']]
+VARIANT_FLAGS = [[],
+                 ['--stress-opt', '--always-opt'],
+                 ['--nocrankshaft']]
+
+
 class TestConfiguration(object):
 
   def __init__(self, context, root):
@@ -583,6 +590,11 @@ class TestConfiguration(object):
   def GetTestStatus(self, sections, defs):
     pass
 
+  def VariantFlags(self):
+    return VARIANT_FLAGS
+
+
+
 
 class TestSuite(object):
 
@@ -591,13 +603,6 @@ class TestSuite(object):
 
   def GetName(self):
     return self.name
-
-
-# Use this to run several variants of the tests, e.g.:
-# VARIANT_FLAGS = [[], ['--always_compact', '--noflush_code']]
-VARIANT_FLAGS = [[],
-                 ['--stress-opt', '--always-opt'],
-                 ['--nocrankshaft']]
 
 
 class TestRepository(TestSuite):
@@ -627,11 +632,10 @@ class TestRepository(TestSuite):
     return self.GetConfiguration(context).GetBuildRequirements()
 
   def AddTestsToList(self, result, current_path, path, context, mode):
-    for v in VARIANT_FLAGS:
+    for v in self.GetConfiguration(context).VariantFlags():
       tests = self.GetConfiguration(context).ListTests(current_path, path, mode, v)
       for t in tests: t.variant_flags = v
       result += tests
-
 
   def GetTestStatus(self, context, sections, defs):
     self.GetConfiguration(context).GetTestStatus(sections, defs)
