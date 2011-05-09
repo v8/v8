@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -203,74 +203,114 @@ void fail(v8::PreParserData* data, const char* message, ...) {
 };
 
 
+bool IsFlag(const char* arg) {
+  // Anything starting with '-' is considered a flag.
+  // It's summarily ignored for now.
+  return arg[0] == '-';
+}
+
+
+struct ExceptionExpectation {
+  ExceptionExpectation()
+      : throws(false), type(NULL), beg_pos(-1), end_pos(-1) { }
+  bool throws;
+  const char* type;
+  int beg_pos;
+  int end_pos;
+};
+
+
 void CheckException(v8::PreParserData* data,
-                    bool throws,
-                    const char* message,
-                    int beg_pos,
-                    int end_pos) {
+                    ExceptionExpectation* expects) {
   PreparseDataInterpreter reader(data->data(), data->size());
-  if (throws) {
+  if (expects->throws) {
     if (!reader.throws()) {
-      if (message == NULL) {
+      if (expects->type == NULL) {
         fail(data, "Didn't throw as expected\n");
       } else {
-        fail(data, "Didn't throw \"%s\" as expected\n", message);
+        fail(data, "Didn't throw \"%s\" as expected\n", expects->type);
       }
     }
-    if (message != NULL) {
+    if (expects->type != NULL) {
       const char* actual_message = reader.message();
-      if (strcmp(message, actual_message)) {
+      if (strcmp(expects->type, actual_message)) {
         fail(data, "Wrong error message. Expected <%s>, found <%s>\n",
-             message, actual_message);
+             expects->type, actual_message);
       }
     }
-    if (beg_pos >= 0) {
-      if (beg_pos != reader.beg_pos()) {
+    if (expects->beg_pos >= 0) {
+      if (expects->beg_pos != reader.beg_pos()) {
         fail(data, "Wrong error start position: Expected %i, found %i\n",
-             beg_pos, reader.beg_pos());
+             expects->beg_pos, reader.beg_pos());
       }
     }
-    if (end_pos >= 0) {
-      if (end_pos != reader.end_pos()) {
+    if (expects->end_pos >= 0) {
+      if (expects->end_pos != reader.end_pos()) {
         fail(data, "Wrong error end position: Expected %i, found %i\n",
-             end_pos, reader.end_pos());
+             expects->end_pos, reader.end_pos());
       }
     }
   } else if (reader.throws()) {
     const char* message = reader.message();
-    fail(data, "Throws unexpectedly with message: %s\n",
-         message);
+    fail(data, "Throws unexpectedly with message: %s\n", message);
   }
 }
 
-int main(int argc, char* argv[]) {
-  // Check for filename argument.
-  if (argc < 2) {
-    fail(NULL, "ERROR: No filename on command line.\n");
-  }
-  const char* filename = argv[1];
 
-  // Parse expectations.
-  bool throws = false;
-  const char* throws_message = NULL;
-  int throws_beg_pos = -1;
-  int throws_end_pos = -1;
-  // Check for throws argument.
-  if (argc > 2) {
-    if (strncmp("throws", argv[2], 6)) {
+ExceptionExpectation ParseExpectation(int argc, const char* argv[]) {
+  ExceptionExpectation expects;
+
+  // Parse exception expectations from (the remainder of) the command line.
+  int arg_index = 0;
+  // Skip any flags.
+  while (argc > arg_index && IsFlag(argv[arg_index])) arg_index++;
+  if (argc > arg_index) {
+    if (strncmp("throws", argv[arg_index], 7)) {
+      // First argument after filename, if present, must be the verbatim
+      // "throws", marking that the preparsing should fail with an exception.
       fail(NULL, "ERROR: Extra arguments not prefixed by \"throws\".\n");
     }
-    throws = true;
-    if (argc > 3) {
-      throws_message = argv[3];
-    }
-    if (argc > 4) {
-      throws_beg_pos = atoi(argv[4]);
-    }
-    if (argc > 5) {
-      throws_end_pos = atoi(argv[5]);
+    expects.throws = true;
+    do {
+      arg_index++;
+    } while (argc > arg_index && IsFlag(argv[arg_index]));
+    if (argc > arg_index) {
+      // Next argument is the exception type identifier.
+      expects.type = argv[arg_index];
+      do {
+        arg_index++;
+      } while (argc > arg_index && IsFlag(argv[arg_index]));
+      if (argc > arg_index) {
+        expects.beg_pos = atoi(argv[arg_index]);
+        do {
+          arg_index++;
+        } while (argc > arg_index && IsFlag(argv[arg_index]));
+        if (argc > arg_index) {
+          expects.end_pos = atoi(argv[arg_index]);
+        }
+      }
     }
   }
+  return expects;
+}
+
+
+int main(int argc, const char* argv[]) {
+  // Parse command line.
+  // Format:  preparser <scriptfile> ["throws" [<exn-type> [<start> [<end>]]]]
+  // Any flags on the line are ignored.
+
+  // Check for mandatory filename argument.
+  int arg_index = 1;
+  while (argc > arg_index && IsFlag(argv[arg_index])) arg_index++;
+  if (argc <= arg_index) {
+    fail(NULL, "ERROR: No filename on command line.\n");
+  }
+  const char* filename = argv[arg_index];
+  // Check remainder of command line for exception expectations.
+  arg_index++;
+  ExceptionExpectation expects =
+      ParseExpectation(argc - arg_index, argv + arg_index);
 
   // Open JS file.
   FILE* input = fopen(filename, "rb");
@@ -310,8 +350,7 @@ int main(int argc, char* argv[]) {
 
   // Check that the expected exception is thrown, if an exception is
   // expected.
-  CheckException(&data, throws, throws_message,
-                 throws_beg_pos, throws_end_pos);
+  CheckException(&data, &expects);
 
   return EXIT_SUCCESS;
 }
