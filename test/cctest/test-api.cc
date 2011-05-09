@@ -7264,6 +7264,49 @@ THREADED_TEST(CallAsFunction) {
 }
 
 
+// Check whether a non-function object is callable.
+THREADED_TEST(CallableObject) {
+  v8::HandleScope scope;
+  LocalContext context;
+
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    instance_template->SetCallAsFunctionHandler(call_as_function);
+    Local<Object> instance = instance_template->NewInstance();
+    v8::TryCatch try_catch;
+
+    CHECK(instance->IsCallable());
+    CHECK(!try_catch.HasCaught());
+  }
+
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    Local<Object> instance = instance_template->NewInstance();
+    v8::TryCatch try_catch;
+
+    CHECK(!instance->IsCallable());
+    CHECK(!try_catch.HasCaught());
+  }
+
+  { Local<FunctionTemplate> function_template =
+        FunctionTemplate::New(call_as_function);
+    Local<Function> function = function_template->GetFunction();
+    Local<Object> instance = function;
+    v8::TryCatch try_catch;
+
+    CHECK(instance->IsCallable());
+    CHECK(!try_catch.HasCaught());
+  }
+
+  { Local<FunctionTemplate> function_template = FunctionTemplate::New();
+    Local<Function> function = function_template->GetFunction();
+    Local<Object> instance = function;
+    v8::TryCatch try_catch;
+
+    CHECK(instance->IsCallable());
+    CHECK(!try_catch.HasCaught());
+  }
+}
+
+
 static int CountHandles() {
   return v8::HandleScope::NumberOfHandles();
 }

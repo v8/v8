@@ -3255,6 +3255,17 @@ int v8::Object::GetIndexedPropertiesExternalArrayDataLength() {
 }
 
 
+bool v8::Object::IsCallable() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::IsCallable()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  if (obj->IsJSFunction()) return true;
+  return i::Execution::GetFunctionDelegate(obj)->IsJSFunction();
+}
+
+
 Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv, int argc,
                                         v8::Handle<v8::Value> argv[]) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();

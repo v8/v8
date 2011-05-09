@@ -1607,6 +1607,13 @@ class Object : public Value {
   V8EXPORT int GetIndexedPropertiesExternalArrayDataLength();
 
   /**
+   * Checks whether a callback is set by the
+   * ObjectTemplate::SetCallAsFunctionHandler method.
+   * When an Object is callable this method returns true.
+   */
+  V8EXPORT bool IsCallable();
+
+  /**
    * Call an Object as a function if a callback is set by the 
    * ObjectTemplate::SetCallAsFunctionHandler method.
    */
