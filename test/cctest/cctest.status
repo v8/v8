@@ -92,6 +92,7 @@ test-deoptimization: SKIP
 test-func-name-inference: SKIP
 test-heap: SKIP
 test-heap-profiler: SKIP
+test-lockers: SKIP
 test-log: SKIP
 test-log-utils: SKIP
 test-mark-compact: SKIP

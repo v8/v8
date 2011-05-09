@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,7 +36,7 @@ namespace internal {
 
 
 // -----------------------------------------------------------------------------
-// Registers
+// Registers.
 
 
 // These register names are defined in a way to match the native disassembler
@@ -145,7 +145,7 @@ int FPURegisters::Number(const char* name) {
 
 
 // -----------------------------------------------------------------------------
-// Instruction
+// Instructions.
 
 bool Instruction::IsForbiddenInBranchDelay() const {
   const int op = OpcodeFieldRaw();
@@ -293,15 +293,15 @@ Instruction::Type Instruction::InstructionType() const {
           UNREACHABLE();
       };
       break;
-    case COP1:    // Coprocessor instructions
+    case COP1:    // Coprocessor instructions.
       switch (RsFieldRawNoAssert()) {
-        case BC1:   // branch on coprocessor condition
+        case BC1:   // Branch on coprocessor condition.
           return kImmediateType;
         default:
           return kRegisterType;
       };
       break;
-    // 16 bits Immediate type instructions. eg: addi dest, src, imm16
+    // 16 bits Immediate type instructions. eg: addi dest, src, imm16.
     case REGIMM:
     case BEQ:
     case BNE:
@@ -336,7 +336,7 @@ Instruction::Type Instruction::InstructionType() const {
     case SWC1:
     case SDC1:
       return kImmediateType;
-    // 26 bits immediate type instructions. eg: j imm26
+    // 26 bits immediate type instructions. eg: j imm26.
     case J:
     case JAL:
       return kJumpType;

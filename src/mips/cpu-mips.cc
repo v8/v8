@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -48,19 +48,25 @@ namespace internal {
 
 
 void CPU::Setup() {
-  CpuFeatures* cpu_features = Isolate::Current()->cpu_features();
-  cpu_features->Probe(true);
-  if (!cpu_features->IsSupported(FPU) || Serializer::enabled()) {
-    V8::DisableCrankshaft();
-  }
+  CpuFeatures::Probe();
+}
+
+
+bool CPU::SupportsCrankshaft() {
+  return CpuFeatures::IsSupported(FPU);
 }
 
 
 void CPU::FlushICache(void* start, size_t size) {
+  // Nothing to do, flushing no instructions.
+  if (size == 0) {
+    return;
+  }
+
 #if !defined (USE_SIMULATOR)
   int res;
 
-  // See http://www.linux-mips.org/wiki/Cacheflush_Syscall
+  // See http://www.linux-mips.org/wiki/Cacheflush_Syscall.
   res = syscall(__NR_cacheflush, start, size, ICACHE);
 
   if (res) {

@@ -59,7 +59,7 @@ static const RegList kCalleeSaved =
   // Saved temporaries.
   1 << 16 | 1 << 17 | 1 << 18 | 1 << 19 |
   1 << 20 | 1 << 21 | 1 << 22 | 1 << 23 |
-  // gp, sp, fp
+  // gp, sp, fp.
   1 << 28 | 1 << 29 | 1 << 30;
 
 static const int kNumCalleeSaved = 11;
@@ -135,7 +135,8 @@ class StandardFrameConstants : public AllStatic {
   static const int kRegularArgsSlotsSize = kRArgsSlotsSize;
 
   // C/C++ argument slots size.
-  static const int kCArgsSlotsSize = 4 * kPointerSize;
+  static const int kCArgSlotCount = 4;
+  static const int kCArgsSlotsSize = kCArgSlotCount * kPointerSize;
   // JS argument slots size.
   static const int kJSArgsSlotsSize = 0 * kPointerSize;
   // Assembly builtins argument slots size.

@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 
 #ifndef V8_MIPS_ASSEMBLER_MIPS_INL_H_
@@ -45,7 +45,7 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// Operand and MemOperand
+// Operand and MemOperand.
 
 Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
   rm_ = no_reg;
@@ -80,7 +80,7 @@ bool Operand::is_reg() const {
 
 
 // -----------------------------------------------------------------------------
-// RelocInfo
+// RelocInfo.
 
 void RelocInfo::apply(intptr_t delta) {
   // On MIPS we do not use pc relative addressing, so we don't need to patch the
@@ -254,23 +254,25 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     // RelocInfo is needed when pointer must be updated/serialized, such as
     // UpdatingVisitor in mark-compact.cc or Serializer in serialize.cc.
     // It is ignored by visitors that do not need it.
-    // Commenting out, to simplify arch-independednt changes.
+    // TODO(mips): Commenting out, to simplify arch-independent changes.
     // GC won't work like this, but this commit is for asm/disasm/sim.
     // visitor->VisitPointer(target_object_address(), this);
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(this);
+  } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
+    visitor->VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     // RelocInfo is needed when external-references must be serialized by
     // Serializer Visitor in serialize.cc. It is ignored by visitors that
     // do not need it.
-    // Commenting out, to simplify arch-independednt changes.
+    // TODO(mips): Commenting out, to simplify arch-independent changes.
     // Serializer won't work like this, but this commit is for asm/disasm/sim.
     // visitor->VisitExternalReference(target_reference_address(), this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // TODO(isolates): Get a cached isolate below.
   } else if (((RelocInfo::IsJSReturn(mode) &&
                IsPatchedReturnSequence()) ||
-             (RelocInfo::IsDebugBreakSlot(mode) &&
+              (RelocInfo::IsDebugBreakSlot(mode) &&
                IsPatchedDebugBreakSlotSequence())) &&
              Isolate::Current()->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
@@ -287,7 +289,9 @@ void RelocInfo::Visit(Heap* heap) {
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     StaticVisitor::VisitPointer(heap, target_object_address());
   } else if (RelocInfo::IsCodeTarget(mode)) {
-    StaticVisitor::VisitCodeTarget(this);
+    StaticVisitor::VisitCodeTarget(heap, this);
+  } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
+    StaticVisitor::VisitGlobalPropertyCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -296,7 +300,7 @@ void RelocInfo::Visit(Heap* heap) {
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
-    StaticVisitor::VisitDebugTarget(this);
+    StaticVisitor::VisitDebugTarget(heap, this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {
     StaticVisitor::VisitRuntimeEntry(this);
@@ -305,7 +309,7 @@ void RelocInfo::Visit(Heap* heap) {
 
 
 // -----------------------------------------------------------------------------
-// Assembler
+// Assembler.
 
 
 void Assembler::CheckBuffer() {
