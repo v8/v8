@@ -30,7 +30,7 @@
 
 #include "cpu.h"
 #include "debug.h"
-#include "memory.h"
+#include "v8memory.h"
 
 namespace v8 {
 namespace internal {
@@ -61,9 +61,15 @@ void Assembler::emitw(uint16_t x) {
 }
 
 
-void Assembler::emit_code_target(Handle<Code> target, RelocInfo::Mode rmode) {
+void Assembler::emit_code_target(Handle<Code> target,
+                                 RelocInfo::Mode rmode,
+                                 unsigned ast_id) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  RecordRelocInfo(rmode);
+  if (rmode == RelocInfo::CODE_TARGET && ast_id != kNoASTId) {
+    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, ast_id);
+  } else {
+    RecordRelocInfo(rmode);
+  }
   int current = code_targets_.length();
   if (current > 0 && code_targets_.last().is_identical_to(target)) {
     // Optimization if we keep jumping to the same code target.
@@ -393,9 +399,9 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitPointer(heap, target_object_address());
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
-    StaticVisitor::VisitCodeTarget(this);
+    StaticVisitor::VisitCodeTarget(heap, this);
   } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-    StaticVisitor::VisitGlobalPropertyCell(this);
+    StaticVisitor::VisitGlobalPropertyCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(target_reference_address());
     CPU::FlushICache(pc_, sizeof(Address));
@@ -405,7 +411,7 @@ void RelocInfo::Visit(Heap* heap) {
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
-    StaticVisitor::VisitDebugTarget(this);
+    StaticVisitor::VisitDebugTarget(heap, this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {
     StaticVisitor::VisitRuntimeEntry(this);

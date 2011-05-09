@@ -44,6 +44,11 @@ int Deoptimizer::patch_size() {
 }
 
 
+void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
+  // Nothing to do. No new relocation information is written for lazy
+  // deoptimization on ARM.
+}
+
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   HandleScope scope;
@@ -106,7 +111,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
-  DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
+  DeoptimizerData* data = code->GetIsolate()->deoptimizer_data();
   node->set_next(data->deoptimizing_code_list_);
   data->deoptimizing_code_list_ = node;
 
@@ -285,14 +290,33 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
 
   // There are no translation commands for the caller's pc and fp, the
   // context, and the function.  Set them up explicitly.
-  for (int i = 0; ok && i < 4; i++) {
+  for (int i =  StandardFrameConstants::kCallerPCOffset;
+       ok && i >=  StandardFrameConstants::kMarkerOffset;
+       i -= kPointerSize) {
     uint32_t input_value = input_->GetFrameSlot(input_offset);
     if (FLAG_trace_osr) {
-      PrintF("    [sp + %d] <- 0x%08x ; [sp + %d] (fixed part)\n",
+      const char* name = "UNKNOWN";
+      switch (i) {
+        case StandardFrameConstants::kCallerPCOffset:
+          name = "caller's pc";
+          break;
+        case StandardFrameConstants::kCallerFPOffset:
+          name = "fp";
+          break;
+        case StandardFrameConstants::kContextOffset:
+          name = "context";
+          break;
+        case StandardFrameConstants::kMarkerOffset:
+          name = "function";
+          break;
+      }
+      PrintF("    [sp + %d] <- 0x%08x ; [sp + %d] (fixed part - %s)\n",
              output_offset,
              input_value,
-             input_offset);
+             input_offset,
+             name);
     }
+
     output_[0]->SetFrameSlot(output_offset, input_->GetFrameSlot(input_offset));
     input_offset -= kPointerSize;
     output_offset -= kPointerSize;
@@ -318,8 +342,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
         optimized_code_->entry() + pc_offset);
     output_[0]->SetPc(pc);
   }
-  Code* continuation = Isolate::Current()->builtins()->builtin(
-    Builtins::NotifyOSR);
+  Code* continuation = isolate_->builtins()->builtin(Builtins::kNotifyOSR);
   output_[0]->SetContinuation(
       reinterpret_cast<uint32_t>(continuation->entry()));
 
@@ -498,8 +521,8 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   if (is_topmost) {
     Builtins* builtins = isolate_->builtins();
     Code* continuation = (bailout_type_ == EAGER)
-        ? builtins->builtin(Builtins::NotifyDeoptimized)
-        : builtins->builtin(Builtins::NotifyLazyDeoptimized);
+        ? builtins->builtin(Builtins::kNotifyDeoptimized)
+        : builtins->builtin(Builtins::kNotifyLazyDeoptimized);
     output_frame->SetContinuation(
         reinterpret_cast<uint32_t>(continuation->entry()));
   }
@@ -515,6 +538,9 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
 // easily ported.
 void Deoptimizer::EntryGenerator::Generate() {
   GeneratePrologue();
+
+  Isolate* isolate = masm()->isolate();
+
   CpuFeatures::Scope scope(VFP3);
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -562,14 +588,16 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Allocate a new deoptimizer object.
   // Pass four arguments in r0 to r3 and fifth argument on stack.
-  __ PrepareCallCFunction(5, r5);
+  __ PrepareCallCFunction(6, r5);
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ mov(r1, Operand(type()));  // bailout type,
   // r2: bailout id already loaded.
   // r3: code address or 0 already loaded.
   __ str(r4, MemOperand(sp, 0 * kPointerSize));  // Fp-to-sp delta.
+  __ mov(r5, Operand(ExternalReference::isolate_address()));
+  __ str(r5, MemOperand(sp, 1 * kPointerSize));  // Isolate.
   // Call Deoptimizer::New().
-  __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);
+  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
 
   // Preserve "deoptimizer" object in register r0 and get the input
   // frame descriptor pointer to r1 (deoptimizer->input_);
@@ -623,7 +651,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   // r0: deoptimizer object; r1: scratch.
   __ PrepareCallCFunction(1, r1);
   // Call Deoptimizer::ComputeOutputFrames().
-  __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
+  __ CallCFunction(
+      ExternalReference::compute_output_frames_function(isolate), 1);
   __ pop(r0);  // Restore deoptimizer object (class Deoptimizer).
 
   // Replace the current (input) frame with the output frames.
@@ -673,7 +702,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ pop(ip);  // remove lr
 
   // Set up the roots register.
-  ExternalReference roots_address = ExternalReference::roots_address();
+  ExternalReference roots_address = ExternalReference::roots_address(isolate);
   __ mov(r10, Operand(roots_address));
 
   __ pop(ip);  // remove pc

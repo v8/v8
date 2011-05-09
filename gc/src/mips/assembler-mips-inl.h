@@ -38,19 +38,11 @@
 
 #include "mips/assembler-mips.h"
 #include "cpu.h"
+#include "debug.h"
 
 
 namespace v8 {
 namespace internal {
-
-// -----------------------------------------------------------------------------
-// Condition
-
-Condition NegateCondition(Condition cc) {
-  ASSERT(cc != cc_always);
-  return static_cast<Condition>(cc ^ 1);
-}
-
 
 // -----------------------------------------------------------------------------
 // Operand and MemOperand
@@ -61,17 +53,13 @@ Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
   rmode_ = rmode;
 }
 
+
 Operand::Operand(const ExternalReference& f)  {
   rm_ = no_reg;
   imm32_ = reinterpret_cast<int32_t>(f.address());
   rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
-Operand::Operand(const char* s) {
-  rm_ = no_reg;
-  imm32_ = reinterpret_cast<int32_t>(s);
-  rmode_ = RelocInfo::EMBEDDED_STRING;
-}
 
 Operand::Operand(Smi* value) {
   rm_ = no_reg;
@@ -79,9 +67,11 @@ Operand::Operand(Smi* value) {
   rmode_ = RelocInfo::NONE;
 }
 
+
 Operand::Operand(Register rm) {
   rm_ = rm;
 }
+
 
 bool Operand::is_reg() const {
   return rm_.is_valid();
@@ -105,8 +95,29 @@ Address RelocInfo::target_address() {
 
 
 Address RelocInfo::target_address_address() {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
-  return reinterpret_cast<Address>(pc_);
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY
+                              || rmode_ == EMBEDDED_OBJECT
+                              || rmode_ == EXTERNAL_REFERENCE);
+  // Read the address of the word containing the target_address in an
+  // instruction stream.
+  // The only architecture-independent user of this function is the serializer.
+  // The serializer uses it to find out how many raw bytes of instruction to
+  // output before the next target.
+  // For an instructions like LUI/ORI where the target bits are mixed into the
+  // instruction bits, the size of the target will be zero, indicating that the
+  // serializer should not step forward in memory after a target is resolved
+  // and written.  In this case the target_address_address function should
+  // return the end of the instructions to be patched, allowing the
+  // deserializer to deserialize the instructions as raw bytes and put them in
+  // place, ready to be patched with the target. In our case, that is the
+  // address of the instruction that follows LUI/ORI instruction pair.
+  return reinterpret_cast<Address>(
+    pc_ + Assembler::kInstructionsFor32BitConstant * Assembler::kInstrSize);
+}
+
+
+int RelocInfo::target_address_size() {
+  return Assembler::kExternalTargetSize;
 }
 
 
@@ -130,8 +141,15 @@ Handle<Object> RelocInfo::target_object_handle(Assembler *origin) {
 
 
 Object** RelocInfo::target_object_address() {
+  // Provide a "natural pointer" to the embedded object,
+  // which can be de-referenced during heap iteration.
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return reinterpret_cast<Object**>(pc_);
+  // TODO(mips): Commenting out, to simplify arch-independent changes.
+  // GC won't work like this, but this commit is for asm/disasm/sim.
+  // reconstructed_obj_ptr_ =
+  //   reinterpret_cast<Object*>(Assembler::target_address_at(pc_));
+  // return &reconstructed_obj_ptr_;
+  return NULL;
 }
 
 
@@ -143,23 +161,55 @@ void RelocInfo::set_target_object(Object* target) {
 
 Address* RelocInfo::target_reference_address() {
   ASSERT(rmode_ == EXTERNAL_REFERENCE);
-  return reinterpret_cast<Address*>(pc_);
+  // TODO(mips): Commenting out, to simplify arch-independent changes.
+  // GC won't work like this, but this commit is for asm/disasm/sim.
+  // reconstructed_adr_ptr_ = Assembler::target_address_at(pc_);
+  // return &reconstructed_adr_ptr_;
+  return NULL;
+}
+
+
+Handle<JSGlobalPropertyCell> RelocInfo::target_cell_handle() {
+  ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
+  Address address = Memory::Address_at(pc_);
+  return Handle<JSGlobalPropertyCell>(
+      reinterpret_cast<JSGlobalPropertyCell**>(address));
+}
+
+
+JSGlobalPropertyCell* RelocInfo::target_cell() {
+  ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
+  Address address = Memory::Address_at(pc_);
+  Object* object = HeapObject::FromAddress(
+      address - JSGlobalPropertyCell::kValueOffset);
+  return reinterpret_cast<JSGlobalPropertyCell*>(object);
+}
+
+
+void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell) {
+  ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
+  Address address = cell->address() + JSGlobalPropertyCell::kValueOffset;
+  Memory::Address_at(pc_) = address;
 }
 
 
 Address RelocInfo::call_address() {
-  ASSERT(IsPatchedReturnSequence());
-  // The 2 instructions offset assumes patched return sequence.
-  ASSERT(IsJSReturn(rmode()));
-  return Memory::Address_at(pc_ + 2 * Assembler::kInstrSize);
+  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
+         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
+  // The pc_ offset of 0 assumes mips patched return sequence per
+  // debug-mips.cc BreakLocationIterator::SetDebugBreakAtReturn(), or
+  // debug break slot per BreakLocationIterator::SetDebugBreakAtSlot().
+  return Assembler::target_address_at(pc_);
 }
 
 
 void RelocInfo::set_call_address(Address target) {
-  ASSERT(IsPatchedReturnSequence());
-  // The 2 instructions offset assumes patched return sequence.
-  ASSERT(IsJSReturn(rmode()));
-  Memory::Address_at(pc_ + 2 * Assembler::kInstrSize) = target;
+  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
+         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
+  // The pc_ offset of 0 assumes mips patched return sequence per
+  // debug-mips.cc BreakLocationIterator::SetDebugBreakAtReturn(), or
+  // debug break slot per BreakLocationIterator::SetDebugBreakAtSlot().
+  Assembler::set_target_address_at(pc_, target);
 }
 
 
@@ -169,9 +219,8 @@ Object* RelocInfo::call_object() {
 
 
 Object** RelocInfo::call_object_address() {
-  ASSERT(IsPatchedReturnSequence());
-  // The 2 instructions offset assumes patched return sequence.
-  ASSERT(IsJSReturn(rmode()));
+  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
+         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   return reinterpret_cast<Object**>(pc_ + 2 * Assembler::kInstrSize);
 }
 
@@ -182,13 +231,76 @@ void RelocInfo::set_call_object(Object* target) {
 
 
 bool RelocInfo::IsPatchedReturnSequence() {
-#ifdef DEBUG
-  PrintF("%s - %d - %s : Checking for jal(r)",
-      __FILE__, __LINE__, __func__);
+  Instr instr0 = Assembler::instr_at(pc_);
+  Instr instr1 = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
+  Instr instr2 = Assembler::instr_at(pc_ + 2 * Assembler::kInstrSize);
+  bool patched_return = ((instr0 & kOpcodeMask) == LUI &&
+                         (instr1 & kOpcodeMask) == ORI &&
+                         (instr2 & kOpcodeMask) == SPECIAL &&
+                         (instr2 & kFunctionFieldMask) == JALR);
+  return patched_return;
+}
+
+
+bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
+  Instr current_instr = Assembler::instr_at(pc_);
+  return !Assembler::IsNop(current_instr, Assembler::DEBUG_BREAK_NOP);
+}
+
+
+void RelocInfo::Visit(ObjectVisitor* visitor) {
+  RelocInfo::Mode mode = rmode();
+  if (mode == RelocInfo::EMBEDDED_OBJECT) {
+    // RelocInfo is needed when pointer must be updated/serialized, such as
+    // UpdatingVisitor in mark-compact.cc or Serializer in serialize.cc.
+    // It is ignored by visitors that do not need it.
+    // Commenting out, to simplify arch-independednt changes.
+    // GC won't work like this, but this commit is for asm/disasm/sim.
+    // visitor->VisitPointer(target_object_address(), this);
+  } else if (RelocInfo::IsCodeTarget(mode)) {
+    visitor->VisitCodeTarget(this);
+  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
+    // RelocInfo is needed when external-references must be serialized by
+    // Serializer Visitor in serialize.cc. It is ignored by visitors that
+    // do not need it.
+    // Commenting out, to simplify arch-independednt changes.
+    // Serializer won't work like this, but this commit is for asm/disasm/sim.
+    // visitor->VisitExternalReference(target_reference_address(), this);
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // TODO(isolates): Get a cached isolate below.
+  } else if (((RelocInfo::IsJSReturn(mode) &&
+               IsPatchedReturnSequence()) ||
+             (RelocInfo::IsDebugBreakSlot(mode) &&
+               IsPatchedDebugBreakSlotSequence())) &&
+             Isolate::Current()->debug()->has_break_points()) {
+    visitor->VisitDebugTarget(this);
 #endif
-  return ((Assembler::instr_at(pc_) & kOpcodeMask) == SPECIAL) &&
-         (((Assembler::instr_at(pc_) & kFunctionFieldMask) == JAL) ||
-          ((Assembler::instr_at(pc_) & kFunctionFieldMask) == JALR));
+  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
+    visitor->VisitRuntimeEntry(this);
+  }
+}
+
+
+template<typename StaticVisitor>
+void RelocInfo::Visit(Heap* heap) {
+  RelocInfo::Mode mode = rmode();
+  if (mode == RelocInfo::EMBEDDED_OBJECT) {
+    StaticVisitor::VisitPointer(heap, target_object_address());
+  } else if (RelocInfo::IsCodeTarget(mode)) {
+    StaticVisitor::VisitCodeTarget(this);
+  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
+    StaticVisitor::VisitExternalReference(target_reference_address());
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  } else if (heap->isolate()->debug()->has_break_points() &&
+             ((RelocInfo::IsJSReturn(mode) &&
+              IsPatchedReturnSequence()) ||
+             (RelocInfo::IsDebugBreakSlot(mode) &&
+              IsPatchedDebugBreakSlotSequence()))) {
+    StaticVisitor::VisitDebugTarget(this);
+#endif
+  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
+    StaticVisitor::VisitRuntimeEntry(this);
+  }
 }
 
 
@@ -203,10 +315,18 @@ void Assembler::CheckBuffer() {
 }
 
 
+void Assembler::CheckTrampolinePoolQuick() {
+  if (pc_offset() >= next_buffer_check_) {
+    CheckTrampolinePool();
+  }
+}
+
+
 void Assembler::emit(Instr x) {
   CheckBuffer();
   *reinterpret_cast<Instr*>(pc_) = x;
   pc_ += kInstrSize;
+  CheckTrampolinePoolQuick();
 }
 
 

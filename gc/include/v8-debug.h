@@ -276,8 +276,12 @@ class EXPORT Debug {
   static void SetMessageHandler(MessageHandler handler,
                                 bool message_handler_thread = false);
   static void SetMessageHandler2(MessageHandler2 handler);
+
+  // If no isolate is provided the default isolate is
+  // used.
   static void SendCommand(const uint16_t* command, int length,
-                          ClientData* client_data = NULL);
+                          ClientData* client_data = NULL,
+                          Isolate* isolate = NULL);
 
   // Dispatch interface.
   static void SetHostDispatchHandler(HostDispatchHandler handler,

@@ -91,7 +91,7 @@ static MaybeObject* AllocateAfterFailures() {
   // Test that we can allocate in old pointer space and code space.
   CHECK(!heap->AllocateFixedArray(100, TENURED)->IsFailure());
   CHECK(!heap->CopyCode(Isolate::Current()->builtins()->builtin(
-      Builtins::Illegal))->IsFailure());
+      Builtins::kIllegal))->IsFailure());
 
   // Return success.
   return Smi::FromInt(42);
@@ -135,7 +135,7 @@ TEST(StressJS) {
   // something empty.
   FACTORY->NewJSObject(function);
   function->ReplaceCode(Isolate::Current()->builtins()->builtin(
-      Builtins::EmptyFunction));
+      Builtins::kEmptyFunction));
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map());
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
@@ -202,6 +202,7 @@ TEST(CodeRange) {
       size_t allocated = 0;
       Address base = Isolate::Current()->code_range()->
           AllocateRawMemory(requested, &allocated);
+      CHECK(base != NULL);
       blocks.Add(Block(base, static_cast<int>(allocated)));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);

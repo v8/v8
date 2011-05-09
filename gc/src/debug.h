@@ -228,7 +228,7 @@ class Debug {
   void PreemptionWhileInDebugger();
   void Iterate(ObjectVisitor* v);
 
-  static Object* Break(RUNTIME_CALLING_CONVENTION);
+  Object* Break(Arguments args);
   void SetBreakPoint(Handle<SharedFunctionInfo> shared,
                      Handle<Object> break_point_object,
                      int* source_position);
@@ -422,7 +422,8 @@ class Debug {
     FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
     // The top JS frame had been calling some C++ function. The return address
     // gets patched automatically.
-    FRAME_DROPPED_IN_DIRECT_CALL
+    FRAME_DROPPED_IN_DIRECT_CALL,
+    FRAME_DROPPED_IN_RETURN_CALL
   };
 
   void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
@@ -546,6 +547,9 @@ class Debug {
 
   DISALLOW_COPY_AND_ASSIGN(Debug);
 };
+
+
+DECLARE_RUNTIME_FUNCTION(Object*, Debug_Break);
 
 
 // Message delivered to the message handler callback. This is either a debugger
@@ -860,6 +864,7 @@ class EnterDebugger BASE_EMBEDDED {
   EnterDebugger()
       : isolate_(Isolate::Current()),
         prev_(isolate_->debug()->debugger_entry()),
+        it_(isolate_),
         has_js_frames_(!it_.done()),
         save_(isolate_) {
     Debug* debug = isolate_->debug();

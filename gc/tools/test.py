@@ -117,6 +117,8 @@ class ProgressIndicator(object):
         start = time.time()
         output = case.Run()
         case.duration = (time.time() - start)
+      except BreakNowException:
+        self.terminate = True
       except IOError, e:
         assert self.terminate
         return
@@ -318,6 +320,12 @@ PROGRESS_INDICATORS = {
 # --- F r a m e w o r k ---
 # -------------------------
 
+class BreakNowException(Exception):
+  def __init__(self, value):
+    self.value = value
+  def __str__(self):
+    return repr(self.value)
+
 
 class CommandOutput(object):
 
@@ -379,8 +387,12 @@ class TestCase(object):
 
   def Run(self):
     self.BeforeRun()
+    result = None
     try:
       result = self.RunCommand(self.GetCommand())
+    except:
+      self.terminate = True
+      raise BreakNowException("Used pressed CTRL+C or IO went wrong")
     finally:
       self.AfterRun(result)
     return result
@@ -422,7 +434,7 @@ class TestOutput(object):
              self.output.exit_code != -signal.SIGABRT
 
   def HasTimedOut(self):
-    return self.output.timed_out;
+    return self.output.timed_out
 
   def HasFailed(self):
     execution_failed = self.test.DidFail(self.output)
@@ -450,7 +462,7 @@ def Win32SetErrorMode(mode):
   prev_error_mode = SEM_INVALID_VALUE
   try:
     import ctypes
-    prev_error_mode = ctypes.windll.kernel32.SetErrorMode(mode);
+    prev_error_mode = ctypes.windll.kernel32.SetErrorMode(mode)
   except ImportError:
     pass
   return prev_error_mode
@@ -458,16 +470,16 @@ def Win32SetErrorMode(mode):
 def RunProcess(context, timeout, args, **rest):
   if context.verbose: print "#", " ".join(args)
   popen_args = args
-  prev_error_mode = SEM_INVALID_VALUE;
+  prev_error_mode = SEM_INVALID_VALUE
   if utils.IsWindows():
     popen_args = '"' + subprocess.list2cmdline(args) + '"'
     if context.suppress_dialogs:
       # Try to change the error mode to avoid dialogs on fatal errors. Don't
       # touch any existing error mode flags by merging the existing error mode.
       # See http://blogs.msdn.com/oldnewthing/archive/2004/07/27/198410.aspx.
-      error_mode = SEM_NOGPFAULTERRORBOX;
-      prev_error_mode = Win32SetErrorMode(error_mode);
-      Win32SetErrorMode(error_mode | prev_error_mode);
+      error_mode = SEM_NOGPFAULTERRORBOX
+      prev_error_mode = Win32SetErrorMode(error_mode)
+      Win32SetErrorMode(error_mode | prev_error_mode)
   process = subprocess.Popen(
     shell = utils.IsWindows(),
     args = popen_args,
@@ -515,7 +527,7 @@ def CheckedUnlink(name):
       os.unlink(name)
       return
     except OSError, e:
-      retry_count += 1;
+      retry_count += 1
       time.sleep(retry_count * 0.1)
   PrintError("os.unlink() " + str(e))
 
@@ -583,7 +595,9 @@ class TestSuite(object):
 
 # Use this to run several variants of the tests, e.g.:
 # VARIANT_FLAGS = [[], ['--always_compact', '--noflush_code']]
-VARIANT_FLAGS = [[], ['--stress-opt', '--always-opt'], ['--nocrankshaft']]
+VARIANT_FLAGS = [[],
+                 ['--stress-opt', '--always-opt'],
+                 ['--nocrankshaft']]
 
 
 class TestRepository(TestSuite):
@@ -614,7 +628,7 @@ class TestRepository(TestSuite):
 
   def AddTestsToList(self, result, current_path, path, context, mode):
     for v in VARIANT_FLAGS:
-      tests = self.GetConfiguration(context).ListTests(current_path, path, mode)
+      tests = self.GetConfiguration(context).ListTests(current_path, path, mode, v)
       for t in tests: t.variant_flags = v
       result += tests
 
@@ -637,7 +651,7 @@ class LiteralTestSuite(TestSuite):
         result += test.GetBuildRequirements(rest, context)
     return result
 
-  def ListTests(self, current_path, path, context, mode):
+  def ListTests(self, current_path, path, context, mode, variant_flags):
     (name, rest) = CarCdr(path)
     result = [ ]
     for test in self.tests:
@@ -699,7 +713,12 @@ class Context(object):
 
 def RunTestCases(cases_to_run, progress, tasks):
   progress = PROGRESS_INDICATORS[progress](cases_to_run)
-  return progress.Run(tasks)
+  result = 0
+  try:
+    result = progress.Run(tasks)
+  except Exception, e:
+    print "\n", e
+  return result
 
 
 def BuildRequirements(context, requirements, mode, scons_flags):
@@ -1316,7 +1335,7 @@ def GetSpecialCommandProcessor(value):
     return ExpandCommand
 
 
-BUILT_IN_TESTS = ['mjsunit', 'cctest', 'message']
+BUILT_IN_TESTS = ['mjsunit', 'cctest', 'message', 'preparser']
 
 
 def GetSuites(test_root):
@@ -1336,11 +1355,11 @@ def ShardTests(tests, options):
     print "shard-run not a valid number, should be in [1:shard-count]"
     print "defaulting back to running all tests"
     return tests
-  count = 0;
+  count = 0
   shard = []
   for test in tests:
     if count % options.shard_count == options.shard_run - 1:
-      shard.append(test);
+      shard.append(test)
     count += 1
   return shard
 
@@ -1409,9 +1428,6 @@ def Main():
   globally_unused_rules = None
   for path in paths:
     for mode in options.mode:
-      if not exists(context.GetVm(mode)):
-        print "Can't find shell executable: '%s'" % context.GetVm(mode)
-        continue
       env = {
         'mode': mode,
         'system': utils.GuessOS(),
@@ -1419,7 +1435,7 @@ def Main():
         'simulator': options.simulator,
         'crankshaft': options.crankshaft
       }
-      test_list = root.ListTests([], path, context, mode)
+      test_list = root.ListTests([], path, context, mode, [])
       unclassified_tests += test_list
       (cases, unused_rules, all_outcomes) = config.ClassifyTests(test_list, env)
       if globally_unused_rules is None:

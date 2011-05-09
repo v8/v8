@@ -476,7 +476,7 @@ void StoreBuffer::Compact() {
     *old_top_++ = reinterpret_cast<Address>(int_addr << kPointerSizeLog2);
     ASSERT(old_top_ <= old_limit_);
   }
-  COUNTERS->store_buffer_compactions()->Increment();
+  heap_->isolate()->counters()->store_buffer_compactions()->Increment();
   CheckForFullBuffer();
 }
 

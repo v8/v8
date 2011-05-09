@@ -64,7 +64,7 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
 
   // Validate that the name does not move on scavenge, and that we
   // can use identity checks instead of string equality checks.
-  ASSERT(!isolate_->heap()->InNewSpace(name));
+  ASSERT(!heap()->InNewSpace(name));
   ASSERT(name->IsSymbol());
 
   // The state bits are not important to the hash function because
@@ -84,7 +84,7 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
 
   // If the primary entry has useful data in it, we retire it to the
   // secondary cache before overwriting it.
-  if (hit != isolate_->builtins()->builtin(Builtins::Illegal)) {
+  if (hit != isolate_->builtins()->builtin(Builtins::kIllegal)) {
     Code::Flags primary_flags = Code::RemoveTypeFromFlags(hit->flags());
     int secondary_offset =
         SecondaryOffset(primary->key, primary_flags, primary_offset);
@@ -108,10 +108,10 @@ MaybeObject* StubCache::ComputeLoadNonexistent(String* name,
   // there are global objects involved, we need to check global
   // property cells in the stub and therefore the stub will be
   // specific to the name.
-  String* cache_name = isolate_->heap()->empty_string();
+  String* cache_name = heap()->empty_string();
   if (receiver->IsGlobalObject()) cache_name = name;
   JSObject* last = receiver;
-  while (last->GetPrototype() != isolate_->heap()->null_value()) {
+  while (last->GetPrototype() != heap()->null_value()) {
     last = JSObject::cast(last->GetPrototype());
     if (last->IsGlobalObject()) cache_name = name;
   }
@@ -245,7 +245,7 @@ MaybeObject* StubCache::ComputeLoadInterceptor(String* name,
 
 
 MaybeObject* StubCache::ComputeLoadNormal() {
-  return isolate_->builtins()->builtin(Builtins::LoadIC_Normal);
+  return isolate_->builtins()->builtin(Builtins::kLoadIC_Normal);
 }
 
 
@@ -466,7 +466,7 @@ MaybeObject* StubCache::ComputeKeyedLoadSpecialized(JSObject* receiver) {
   // keyed loads that are not array elements go through a generic builtin stub.
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, NORMAL);
-  String* name = isolate_->heap()->KeyedLoadSpecialized_symbol();
+  String* name = heap()->KeyedLoadSpecialized_symbol();
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     KeyedLoadStubCompiler compiler;
@@ -518,7 +518,7 @@ MaybeObject* StubCache::ComputeKeyedStoreSpecialized(
     StrictModeFlag strict_mode) {
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, NORMAL, strict_mode);
-  String* name = isolate_->heap()->KeyedStoreSpecialized_symbol();
+  String* name = heap()->KeyedStoreSpecialized_symbol();
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     KeyedStoreStubCompiler compiler(strict_mode);
@@ -555,6 +555,8 @@ ExternalArrayType ElementsKindToExternalArrayType(JSObject::ElementsKind kind) {
       return kExternalUnsignedIntArray;
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
       return kExternalFloatArray;
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+      return kExternalDoubleArray;
     case JSObject::EXTERNAL_PIXEL_ELEMENTS:
       return kExternalPixelArray;
     default:
@@ -563,26 +565,29 @@ ExternalArrayType ElementsKindToExternalArrayType(JSObject::ElementsKind kind) {
   }
 }
 
-String* ExternalArrayTypeToStubName(ExternalArrayType array_type,
+String* ExternalArrayTypeToStubName(Heap* heap,
+                                    ExternalArrayType array_type,
                                     bool is_store) {
   if (is_store) {
     switch (array_type) {
       case kExternalByteArray:
-        return HEAP->KeyedStoreExternalByteArray_symbol();
+        return heap->KeyedStoreExternalByteArray_symbol();
       case kExternalUnsignedByteArray:
-        return HEAP->KeyedStoreExternalUnsignedByteArray_symbol();
+        return heap->KeyedStoreExternalUnsignedByteArray_symbol();
       case kExternalShortArray:
-        return HEAP->KeyedStoreExternalShortArray_symbol();
+        return heap->KeyedStoreExternalShortArray_symbol();
       case kExternalUnsignedShortArray:
-        return HEAP->KeyedStoreExternalUnsignedShortArray_symbol();
+        return heap->KeyedStoreExternalUnsignedShortArray_symbol();
       case kExternalIntArray:
-        return HEAP->KeyedStoreExternalIntArray_symbol();
+        return heap->KeyedStoreExternalIntArray_symbol();
       case kExternalUnsignedIntArray:
-        return HEAP->KeyedStoreExternalUnsignedIntArray_symbol();
+        return heap->KeyedStoreExternalUnsignedIntArray_symbol();
       case kExternalFloatArray:
-        return HEAP->KeyedStoreExternalFloatArray_symbol();
+        return heap->KeyedStoreExternalFloatArray_symbol();
+      case kExternalDoubleArray:
+        return heap->KeyedStoreExternalDoubleArray_symbol();
       case kExternalPixelArray:
-        return HEAP->KeyedStoreExternalPixelArray_symbol();
+        return heap->KeyedStoreExternalPixelArray_symbol();
       default:
         UNREACHABLE();
         return NULL;
@@ -590,21 +595,23 @@ String* ExternalArrayTypeToStubName(ExternalArrayType array_type,
   } else {
     switch (array_type) {
       case kExternalByteArray:
-        return HEAP->KeyedLoadExternalByteArray_symbol();
+        return heap->KeyedLoadExternalByteArray_symbol();
       case kExternalUnsignedByteArray:
-        return HEAP->KeyedLoadExternalUnsignedByteArray_symbol();
+        return heap->KeyedLoadExternalUnsignedByteArray_symbol();
       case kExternalShortArray:
-        return HEAP->KeyedLoadExternalShortArray_symbol();
+        return heap->KeyedLoadExternalShortArray_symbol();
       case kExternalUnsignedShortArray:
-        return HEAP->KeyedLoadExternalUnsignedShortArray_symbol();
+        return heap->KeyedLoadExternalUnsignedShortArray_symbol();
       case kExternalIntArray:
-        return HEAP->KeyedLoadExternalIntArray_symbol();
+        return heap->KeyedLoadExternalIntArray_symbol();
       case kExternalUnsignedIntArray:
-        return HEAP->KeyedLoadExternalUnsignedIntArray_symbol();
+        return heap->KeyedLoadExternalUnsignedIntArray_symbol();
       case kExternalFloatArray:
-        return HEAP->KeyedLoadExternalFloatArray_symbol();
+        return heap->KeyedLoadExternalFloatArray_symbol();
+      case kExternalDoubleArray:
+        return heap->KeyedLoadExternalDoubleArray_symbol();
       case kExternalPixelArray:
-        return HEAP->KeyedLoadExternalPixelArray_symbol();
+        return heap->KeyedLoadExternalPixelArray_symbol();
       default:
         UNREACHABLE();
         return NULL;
@@ -627,7 +634,7 @@ MaybeObject* StubCache::ComputeKeyedLoadOrStoreExternalArray(
           strict_mode);
   ExternalArrayType array_type =
       ElementsKindToExternalArrayType(receiver->GetElementsKind());
-  String* name = ExternalArrayTypeToStubName(array_type, is_store);
+  String* name = ExternalArrayTypeToStubName(heap(), array_type, is_store);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     ExternalArrayStubCompiler compiler;
@@ -649,7 +656,7 @@ MaybeObject* StubCache::ComputeKeyedLoadOrStoreExternalArray(
     }
     Object* result;
     { MaybeObject* maybe_result =
-          receiver->map()->UpdateCodeCache(name, Code::cast(code));
+          receiver->UpdateMapCodeCache(name, Code::cast(code));
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
   }
@@ -659,8 +666,8 @@ MaybeObject* StubCache::ComputeKeyedLoadOrStoreExternalArray(
 
 MaybeObject* StubCache::ComputeStoreNormal(StrictModeFlag strict_mode) {
   return isolate_->builtins()->builtin((strict_mode == kStrictMode)
-                            ? Builtins::StoreIC_Normal_Strict
-                            : Builtins::StoreIC_Normal);
+                            ? Builtins::kStoreIC_Normal_Strict
+                            : Builtins::kStoreIC_Normal);
 }
 
 
@@ -759,7 +766,7 @@ MaybeObject* StubCache::ComputeKeyedStoreField(String* name,
           compiler.CompileStoreField(receiver, field_index, transition, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
-    PROFILE(isolate_,
+    PROFILE(isolate(),
             CodeCreateEvent(Logger::KEYED_STORE_IC_TAG,
                             Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC, name, Code::cast(code)));
@@ -917,7 +924,7 @@ MaybeObject* StubCache::ComputeCallInterceptor(int argc,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     ASSERT_EQ(flags, Code::cast(code)->flags());
-    PROFILE(isolate_,
+    PROFILE(isolate(),
             CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::CALL_IC, name, Code::cast(code)));
@@ -975,7 +982,7 @@ MaybeObject* StubCache::ComputeCallGlobal(int argc,
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     ASSERT_EQ(flags, Code::cast(code)->flags());
-    PROFILE(isolate_,
+    PROFILE(isolate(),
             CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG),
                             Code::cast(code), name));
     GDBJIT(AddCode(GDBJITInterface::CALL_IC, name, Code::cast(code)));
@@ -1046,8 +1053,8 @@ Code* StubCache::FindCallInitialize(int argc,
                                          Code::kNoExtraICState,
                                          NORMAL,
                                          argc);
-  Object* result = ProbeCache(isolate_, flags)->ToObjectUnchecked();
-  ASSERT(result != isolate_->heap()->undefined_value());
+  Object* result = ProbeCache(isolate(), flags)->ToObjectUnchecked();
+  ASSERT(result != heap()->undefined_value());
   // This might be called during the marking phase of the collector
   // hence the unchecked cast.
   return reinterpret_cast<Code*>(result);
@@ -1219,14 +1226,14 @@ MaybeObject* StubCache::ComputeCallDebugPrepareStepIn(int argc,
 
 void StubCache::Clear() {
   for (int i = 0; i < kPrimaryTableSize; i++) {
-    primary_[i].key = isolate_->heap()->empty_string();
+    primary_[i].key = heap()->empty_string();
     primary_[i].value = isolate_->builtins()->builtin(
-        Builtins::Illegal);
+        Builtins::kIllegal);
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
-    secondary_[j].key = isolate_->heap()->empty_string();
+    secondary_[j].key = heap()->empty_string();
     secondary_[j].value = isolate_->builtins()->builtin(
-        Builtins::Illegal);
+        Builtins::kIllegal);
   }
 }
 
@@ -1277,8 +1284,7 @@ void StubCache::CollectMatchingMaps(ZoneMapList* types,
 // StubCompiler implementation.
 
 
-MaybeObject* LoadCallbackProperty(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty) {
   ASSERT(args[0]->IsJSObject());
   ASSERT(args[1]->IsJSObject());
   AccessorInfo* callback = AccessorInfo::cast(args[3]);
@@ -1300,8 +1306,7 @@ MaybeObject* LoadCallbackProperty(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-MaybeObject* StoreCallbackProperty(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   JSObject* recv = JSObject::cast(args[0]);
   AccessorInfo* callback = AccessorInfo::cast(args[1]);
   Address setter_address = v8::ToCData<Address>(callback->setter());
@@ -1334,8 +1339,7 @@ static const int kAccessorInfoOffsetInInterceptorArgs = 2;
  * Returns |Heap::no_interceptor_result_sentinel()| if interceptor doesn't
  * provide any value for the given name.
  */
-MaybeObject* LoadPropertyWithInterceptorOnly(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
   Handle<String> name_handle = args.at<String>(0);
   Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(1);
   ASSERT(kAccessorInfoOffsetInInterceptorArgs == 2);
@@ -1434,8 +1438,7 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
  * Loads a property with an interceptor performing post interceptor
  * lookup if interceptor failed.
  */
-MaybeObject* LoadPropertyWithInterceptorForLoad(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad) {
   PropertyAttributes attr = NONE;
   Object* result;
   { MaybeObject* maybe_result = LoadWithInterceptor(&args, &attr);
@@ -1448,8 +1451,7 @@ MaybeObject* LoadPropertyWithInterceptorForLoad(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-MaybeObject* LoadPropertyWithInterceptorForCall(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall) {
   PropertyAttributes attr;
   MaybeObject* result = LoadWithInterceptor(&args, &attr);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
@@ -1460,8 +1462,7 @@ MaybeObject* LoadPropertyWithInterceptorForCall(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-MaybeObject* StoreInterceptorProperty(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
   ASSERT(args.length() == 4);
   JSObject* recv = JSObject::cast(args[0]);
   String* name = String::cast(args[1]);
@@ -1477,8 +1478,7 @@ MaybeObject* StoreInterceptorProperty(RUNTIME_CALLING_CONVENTION) {
 }
 
 
-MaybeObject* KeyedLoadPropertyWithInterceptor(RUNTIME_CALLING_CONVENTION) {
-  RUNTIME_GET_ISOLATE;
+RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor) {
   JSObject* receiver = JSObject::cast(args[0]);
   ASSERT(Smi::cast(args[1])->value() >= 0);
   uint32_t index = Smi::cast(args[1])->value();
@@ -1500,7 +1500,7 @@ MaybeObject* StubCompiler::CompileCallInitialize(Code::Flags flags) {
         GetCodeWithFlags(flags, "CompileCallInitialize");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_initialize_stubs()->Increment();
+  isolate()->counters()->call_initialize_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1527,7 +1527,7 @@ MaybeObject* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
         GetCodeWithFlags(flags, "CompileCallPreMonomorphic");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_premonomorphic_stubs()->Increment();
+  isolate()->counters()->call_premonomorphic_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1551,7 +1551,7 @@ MaybeObject* StubCompiler::CompileCallNormal(Code::Flags flags) {
   { MaybeObject* maybe_result = GetCodeWithFlags(flags, "CompileCallNormal");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_normal_stubs()->Increment();
+  isolate()->counters()->call_normal_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1576,7 +1576,7 @@ MaybeObject* StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
         GetCodeWithFlags(flags, "CompileCallMegamorphic");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_megamorphic_stubs()->Increment();
+  isolate()->counters()->call_megamorphic_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1600,7 +1600,7 @@ MaybeObject* StubCompiler::CompileCallMiss(Code::Flags flags) {
   { MaybeObject* maybe_result = GetCodeWithFlags(flags, "CompileCallMiss");
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  COUNTERS->call_megamorphic_stubs()->Increment();
+  isolate()->counters()->call_megamorphic_stubs()->Increment();
   Code* code = Code::cast(result);
   USE(code);
   PROFILE(isolate(),
@@ -1668,7 +1668,7 @@ MaybeObject* StubCompiler::GetCodeWithFlags(Code::Flags flags,
   // Create code object in the heap.
   CodeDesc desc;
   masm_.GetCode(&desc);
-  MaybeObject* result = HEAP->CreateCode(desc, flags, masm_.CodeObject());
+  MaybeObject* result = heap()->CreateCode(desc, flags, masm_.CodeObject());
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code_stubs && !result->IsFailure()) {
     Code::cast(result->ToObjectUnchecked())->Disassemble(name);

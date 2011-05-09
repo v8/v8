@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -49,7 +49,7 @@ namespace internal {
   (entry(p0, p1, p2, p3, p4))
 
 typedef int (*arm_regexp_matcher)(String*, int, const byte*, const byte*,
-                                  void*, int*, Address, int);
+                                  void*, int*, Address, int, Isolate*);
 
 
 // Call the generated regexp code directly. The code at the entry address
@@ -155,6 +155,7 @@ class Simulator {
   // instruction.
   void set_register(int reg, int32_t value);
   int32_t get_register(int reg) const;
+  double get_double_from_register_pair(int reg);
   void set_dw_register(int dreg, const int* dbl);
 
   // Support for VFP.
@@ -199,6 +200,15 @@ class Simulator {
   // below (bad_lr, end_sim_pc).
   bool has_bad_pc() const;
 
+  // EABI variant for double arguments in use.
+  bool use_eabi_hardfloat() {
+#if USE_EABI_HARDFLOAT
+    return true;
+#else
+    return false;
+#endif
+  }
+
  private:
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute
@@ -222,12 +232,16 @@ class Simulator {
   void SetNZFlags(int32_t val);
   void SetCFlag(bool val);
   void SetVFlag(bool val);
-  bool CarryFrom(int32_t left, int32_t right);
+  bool CarryFrom(int32_t left, int32_t right, int32_t carry = 0);
   bool BorrowFrom(int32_t left, int32_t right);
   bool OverflowFrom(int32_t alu_out,
                     int32_t left,
                     int32_t right,
                     bool addition);
+
+  inline int GetCarry() {
+    return c_flag_ ? 1 : 0;
+  };
 
   // Support for VFP.
   void Compute_FPSCR_Flags(double val1, double val2);
@@ -236,7 +250,13 @@ class Simulator {
   // Helper functions to decode common "addressing" modes
   int32_t GetShiftRm(Instruction* instr, bool* carry_out);
   int32_t GetImm(Instruction* instr, bool* carry_out);
+  void ProcessPUW(Instruction* instr,
+                  int num_regs,
+                  int operand_size,
+                  intptr_t* start_address,
+                  intptr_t* end_address);
   void HandleRList(Instruction* instr, bool load);
+  void HandleVList(Instruction* inst);
   void SoftwareInterrupt(Instruction* instr);
 
   // Stop helper functions.
@@ -299,9 +319,10 @@ class Simulator {
       void* external_function,
       v8::internal::ExternalReference::Type type);
 
-  // For use in calls that take two double values, constructed from r0, r1, r2
-  // and r3.
+  // For use in calls that take double value arguments.
   void GetFpArgs(double* x, double* y);
+  void GetFpArgs(double* x);
+  void GetFpArgs(double* x, int32_t* y);
   void SetFpResult(const double& result);
   void TrashCallerSaveRegisters();
 

@@ -85,6 +85,7 @@ namespace internal {
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyOSR, 0, 1) \
   F(DeoptimizeFunction, 1, 1) \
+  F(OptimizeFunctionOnNextCall, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \
@@ -131,6 +132,7 @@ namespace internal {
   F(StringAdd, 2, 1) \
   F(StringBuilderConcat, 3, 1) \
   F(StringBuilderJoin, 3, 1) \
+  F(SparseJoinWithSeparator, 3, 1)            \
   \
   /* Bit operations */ \
   F(NumberOr, 2, 1) \

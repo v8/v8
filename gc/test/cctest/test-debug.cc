@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -501,7 +501,11 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   CHECK(Debug::HasDebugInfo(shared));
   TestBreakLocationIterator it1(Debug::GetDebugInfo(shared));
   it1.FindBreakLocationFromPosition(position);
-  CHECK_EQ(mode, it1.it()->rinfo()->rmode());
+  v8::internal::RelocInfo::Mode actual_mode = it1.it()->rinfo()->rmode();
+  if (actual_mode == v8::internal::RelocInfo::CODE_TARGET_WITH_ID) {
+    actual_mode = v8::internal::RelocInfo::CODE_TARGET;
+  }
+  CHECK_EQ(mode, actual_mode);
   if (mode != v8::internal::RelocInfo::JS_RETURN) {
     CHECK_EQ(debug_break,
         Code::GetCodeFromTargetAddress(it1.it()->rinfo()->target_address()));
@@ -516,7 +520,11 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   CHECK(debug->EnsureDebugInfo(shared));
   TestBreakLocationIterator it2(Debug::GetDebugInfo(shared));
   it2.FindBreakLocationFromPosition(position);
-  CHECK_EQ(mode, it2.it()->rinfo()->rmode());
+  actual_mode = it2.it()->rinfo()->rmode();
+  if (actual_mode == v8::internal::RelocInfo::CODE_TARGET_WITH_ID) {
+    actual_mode = v8::internal::RelocInfo::CODE_TARGET;
+  }
+  CHECK_EQ(mode, actual_mode);
   if (mode == v8::internal::RelocInfo::JS_RETURN) {
     CHECK(!Debug::IsDebugBreakAtReturn(it2.it()->rinfo()));
   }
@@ -1022,13 +1030,13 @@ TEST(DebugStub) {
                           0,
                           v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
                           Isolate::Current()->builtins()->builtin(
-                              Builtins::StoreIC_DebugBreak));
+                              Builtins::kStoreIC_DebugBreak));
   CheckDebugBreakFunction(&env,
                           "function f3(){var a=x;}", "f3",
                           0,
                           v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
                           Isolate::Current()->builtins()->builtin(
-                              Builtins::LoadIC_DebugBreak));
+                              Builtins::kLoadIC_DebugBreak));
 
 // TODO(1240753): Make the test architecture independent or split
 // parts of the debugger into architecture dependent files. This
@@ -1042,7 +1050,7 @@ TEST(DebugStub) {
       0,
       v8::internal::RelocInfo::CODE_TARGET,
       Isolate::Current()->builtins()->builtin(
-          Builtins::KeyedStoreIC_DebugBreak));
+          Builtins::kKeyedStoreIC_DebugBreak));
   CheckDebugBreakFunction(
       &env,
       "function f5(){var index='propertyName'; var a={}; return a[index];}",
@@ -1050,7 +1058,7 @@ TEST(DebugStub) {
       0,
       v8::internal::RelocInfo::CODE_TARGET,
       Isolate::Current()->builtins()->builtin(
-          Builtins::KeyedLoadIC_DebugBreak));
+          Builtins::kKeyedLoadIC_DebugBreak));
 #endif
 
   // Check the debug break code stubs for call ICs with different number of
@@ -4721,7 +4729,7 @@ Barriers message_queue_barriers;
 class MessageQueueDebuggerThread : public v8::internal::Thread {
  public:
   explicit MessageQueueDebuggerThread(v8::internal::Isolate* isolate)
-      : Thread(isolate) { }
+      : Thread(isolate, "MessageQueueDebuggerThread") { }
   void Run();
 };
 
@@ -4972,13 +4980,15 @@ Barriers threaded_debugging_barriers;
 
 class V8Thread : public v8::internal::Thread {
  public:
-  explicit V8Thread(v8::internal::Isolate* isolate) : Thread(isolate) { }
+  explicit V8Thread(v8::internal::Isolate* isolate)
+      : Thread(isolate, "V8Thread") { }
   void Run();
 };
 
 class DebuggerThread : public v8::internal::Thread {
  public:
-  explicit DebuggerThread(v8::internal::Isolate* isolate) : Thread(isolate) { }
+  explicit DebuggerThread(v8::internal::Isolate* isolate)
+      : Thread(isolate, "DebuggerThread") { }
   void Run();
 };
 
@@ -5078,7 +5088,7 @@ TEST(ThreadedDebugging) {
 class BreakpointsV8Thread : public v8::internal::Thread {
  public:
   explicit BreakpointsV8Thread(v8::internal::Isolate* isolate)
-      : Thread(isolate) { }
+      : Thread(isolate, "BreakpointsV8Thread") { }
   void Run();
 };
 
@@ -5086,7 +5096,8 @@ class BreakpointsDebuggerThread : public v8::internal::Thread {
  public:
   explicit BreakpointsDebuggerThread(v8::internal::Isolate* isolate,
                                      bool global_evaluate)
-      : Thread(isolate), global_evaluate_(global_evaluate) {}
+      : Thread(isolate, "BreakpointsDebuggerThread"),
+        global_evaluate_(global_evaluate) {}
   void Run();
 
  private:
@@ -5647,14 +5658,14 @@ TEST(DebuggerClearMessageHandlerWhileActive) {
 class HostDispatchV8Thread : public v8::internal::Thread {
  public:
   explicit HostDispatchV8Thread(v8::internal::Isolate* isolate)
-      : Thread(isolate) { }
+      : Thread(isolate, "HostDispatchV8Thread") { }
   void Run();
 };
 
 class HostDispatchDebuggerThread : public v8::internal::Thread {
  public:
   explicit HostDispatchDebuggerThread(v8::internal::Isolate* isolate)
-      : Thread(isolate) { }
+      : Thread(isolate, "HostDispatchDebuggerThread") { }
   void Run();
 };
 
@@ -5753,14 +5764,14 @@ TEST(DebuggerHostDispatch) {
 class DebugMessageDispatchV8Thread : public v8::internal::Thread {
  public:
   explicit DebugMessageDispatchV8Thread(v8::internal::Isolate* isolate)
-      : Thread(isolate) { }
+      : Thread(isolate, "DebugMessageDispatchV8Thread") { }
   void Run();
 };
 
 class DebugMessageDispatchDebuggerThread : public v8::internal::Thread {
  public:
   explicit DebugMessageDispatchDebuggerThread(v8::internal::Isolate* isolate)
-      : Thread(isolate) { }
+      : Thread(isolate, "DebugMessageDispatchDebuggerThread") { }
   void Run();
 };
 
@@ -5863,7 +5874,10 @@ TEST(DebuggerAgent) {
 class DebuggerAgentProtocolServerThread : public i::Thread {
  public:
   explicit DebuggerAgentProtocolServerThread(i::Isolate* isolate, int port)
-      : Thread(isolate), port_(port), server_(NULL), client_(NULL),
+      : Thread(isolate, "DebuggerAgentProtocolServerThread"),
+        port_(port),
+        server_(NULL),
+        client_(NULL),
         listening_(OS::CreateSemaphore(0)) {
   }
   ~DebuggerAgentProtocolServerThread() {
@@ -6299,8 +6313,7 @@ static void ExecuteScriptForContextCheck() {
   v8::Persistent<v8::Context> context_1;
   v8::Handle<v8::ObjectTemplate> global_template =
       v8::Handle<v8::ObjectTemplate>();
-  v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>();
-  context_1 = v8::Context::New(NULL, global_template, global_object);
+  context_1 = v8::Context::New(NULL, global_template);
 
   // Default data value is undefined.
   CHECK(context_1->GetData()->IsUndefined());
@@ -6365,11 +6378,11 @@ static void DebugEvalContextCheckMessageHandler(
       const int kBufferSize = 1000;
       uint16_t buffer[kBufferSize];
       const char* eval_command =
-        "{\"seq\":0,"
-         "\"type\":\"request\","
-         "\"command\":\"evaluate\","
-         "arguments:{\"expression\":\"debugger;\","
-         "\"global\":true,\"disable_break\":false}}";
+          "{\"seq\":0,"
+          "\"type\":\"request\","
+          "\"command\":\"evaluate\","
+          "\"arguments\":{\"expression\":\"debugger;\","
+          "\"global\":true,\"disable_break\":false}}";
 
       // Send evaluate command.
       v8::Debug::SendCommand(buffer, AsciiToUtf16(eval_command, buffer));

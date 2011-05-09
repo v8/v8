@@ -397,7 +397,7 @@ static v8::Handle<Value> StackCheck(Local<String> name,
   for (int i = 0; !iter.done(); i++) {
     i::StackFrame* frame = iter.frame();
     CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
-    i::Code* code = frame->LookupCode(i::Isolate::Current());
+    i::Code* code = frame->LookupCode();
     CHECK(code->IsCode());
     i::Address pc = frame->pc();
     CHECK(code->contains(pc));

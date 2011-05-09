@@ -1,4 +1,4 @@
-// Copyright 2007-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -115,7 +115,7 @@ class Isolate;
 }
 
 
-// --- W e a k  H a n d l e s
+// --- Weak Handles ---
 
 
 /**
@@ -131,7 +131,7 @@ typedef void (*WeakReferenceCallback)(Persistent<Value> object,
                                       void* parameter);
 
 
-// --- H a n d l e s ---
+// --- Handles ---
 
 #define TYPE_CHECK(T, S)                                       \
   while (false) {                                              \
@@ -483,7 +483,7 @@ class V8EXPORT HandleScope {
 };
 
 
-// --- S p e c i a l   o b j e c t s ---
+// --- Special objects ---
 
 
 /**
@@ -841,7 +841,7 @@ class V8EXPORT StackFrame {
 };
 
 
-// --- V a l u e ---
+// --- Value ---
 
 
 /**
@@ -1349,87 +1349,6 @@ class Uint32 : public Integer {
 };
 
 
-/**
- * An instance of the built-in Date constructor (ECMA-262, 15.9).
- */
-class Date : public Value {
- public:
-  V8EXPORT static Local<Value> New(double time);
-
-  /**
-   * A specialization of Value::NumberValue that is more efficient
-   * because we know the structure of this object.
-   */
-  V8EXPORT double NumberValue() const;
-
-  static inline Date* Cast(v8::Value* obj);
-
-  /**
-   * Notification that the embedder has changed the time zone,
-   * daylight savings time, or other date / time configuration
-   * parameters.  V8 keeps a cache of various values used for
-   * date / time computation.  This notification will reset
-   * those cached values for the current context so that date /
-   * time configuration changes would be reflected in the Date
-   * object.
-   *
-   * This API should not be called more than needed as it will
-   * negatively impact the performance of date operations.
-   */
-  V8EXPORT static void DateTimeConfigurationChangeNotification();
-
- private:
-  V8EXPORT static void CheckCast(v8::Value* obj);
-};
-
-
-/**
- * An instance of the built-in RegExp constructor (ECMA-262, 15.10).
- */
-class RegExp : public Value {
- public:
-  /**
-   * Regular expression flag bits. They can be or'ed to enable a set
-   * of flags.
-   */
-  enum Flags {
-    kNone = 0,
-    kGlobal = 1,
-    kIgnoreCase = 2,
-    kMultiline = 4
-  };
-
-  /**
-   * Creates a regular expression from the given pattern string and
-   * the flags bit field. May throw a JavaScript exception as
-   * described in ECMA-262, 15.10.4.1.
-   *
-   * For example,
-   *   RegExp::New(v8::String::New("foo"),
-   *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
-   * is equivalent to evaluating "/foo/gm".
-   */
-  V8EXPORT static Local<RegExp> New(Handle<String> pattern,
-                                    Flags flags);
-
-  /**
-   * Returns the value of the source property: a string representing
-   * the regular expression.
-   */
-  V8EXPORT Local<String> GetSource() const;
-
-  /**
-   * Returns the flags bit field.
-   */
-  V8EXPORT Flags GetFlags() const;
-
-  static inline RegExp* Cast(v8::Value* obj);
-
- private:
-  V8EXPORT static void CheckCast(v8::Value* obj);
-};
-
-
 enum PropertyAttribute {
   None       = 0,
   ReadOnly   = 1 << 0,
@@ -1445,6 +1364,7 @@ enum ExternalArrayType {
   kExternalIntArray,
   kExternalUnsignedIntArray,
   kExternalFloatArray,
+  kExternalDoubleArray,
   kExternalPixelArray
 };
 
@@ -1587,6 +1507,7 @@ class Object : public Value {
   V8EXPORT void SetPointerInInternalField(int index, void* value);
 
   // Testers for local properties.
+  V8EXPORT bool HasOwnProperty(Handle<String> key);
   V8EXPORT bool HasRealNamedProperty(Handle<String> key);
   V8EXPORT bool HasRealIndexedProperty(uint32_t index);
   V8EXPORT bool HasRealNamedCallbackProperty(Handle<String> key);
@@ -1653,6 +1574,11 @@ class Object : public Value {
   V8EXPORT Local<Object> Clone();
 
   /**
+   * Returns the context in which the object was created.
+   */
+  V8EXPORT Local<Context> CreationContext();
+
+  /**
    * Set the backing store of the indexed properties to be managed by the
    * embedding layer. Access to the indexed properties will follow the rules
    * spelled out in CanvasPixelArray.
@@ -1679,6 +1605,14 @@ class Object : public Value {
   V8EXPORT void* GetIndexedPropertiesExternalArrayData();
   V8EXPORT ExternalArrayType GetIndexedPropertiesExternalArrayDataType();
   V8EXPORT int GetIndexedPropertiesExternalArrayDataLength();
+
+  /**
+   * Call an Object as a function if a callback is set by the 
+   * ObjectTemplate::SetCallAsFunctionHandler method.
+   */
+  V8EXPORT Local<Value> CallAsFunction(Handle<Object> recv,
+                                       int argc,
+                                       Handle<Value> argv[]);
 
   V8EXPORT static Local<Object> New();
   static inline Object* Cast(Value* obj);
@@ -1750,6 +1684,87 @@ class Function : public Object {
 
 
 /**
+ * An instance of the built-in Date constructor (ECMA-262, 15.9).
+ */
+class Date : public Object {
+ public:
+  V8EXPORT static Local<Value> New(double time);
+
+  /**
+   * A specialization of Value::NumberValue that is more efficient
+   * because we know the structure of this object.
+   */
+  V8EXPORT double NumberValue() const;
+
+  static inline Date* Cast(v8::Value* obj);
+
+  /**
+   * Notification that the embedder has changed the time zone,
+   * daylight savings time, or other date / time configuration
+   * parameters.  V8 keeps a cache of various values used for
+   * date / time computation.  This notification will reset
+   * those cached values for the current context so that date /
+   * time configuration changes would be reflected in the Date
+   * object.
+   *
+   * This API should not be called more than needed as it will
+   * negatively impact the performance of date operations.
+   */
+  V8EXPORT static void DateTimeConfigurationChangeNotification();
+
+ private:
+  V8EXPORT static void CheckCast(v8::Value* obj);
+};
+
+
+/**
+ * An instance of the built-in RegExp constructor (ECMA-262, 15.10).
+ */
+class RegExp : public Object {
+ public:
+  /**
+   * Regular expression flag bits. They can be or'ed to enable a set
+   * of flags.
+   */
+  enum Flags {
+    kNone = 0,
+    kGlobal = 1,
+    kIgnoreCase = 2,
+    kMultiline = 4
+  };
+
+  /**
+   * Creates a regular expression from the given pattern string and
+   * the flags bit field. May throw a JavaScript exception as
+   * described in ECMA-262, 15.10.4.1.
+   *
+   * For example,
+   *   RegExp::New(v8::String::New("foo"),
+   *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
+   * is equivalent to evaluating "/foo/gm".
+   */
+  V8EXPORT static Local<RegExp> New(Handle<String> pattern,
+                                    Flags flags);
+
+  /**
+   * Returns the value of the source property: a string representing
+   * the regular expression.
+   */
+  V8EXPORT Local<String> GetSource() const;
+
+  /**
+   * Returns the flags bit field.
+   */
+  V8EXPORT Flags GetFlags() const;
+
+  static inline RegExp* Cast(v8::Value* obj);
+
+ private:
+  V8EXPORT static void CheckCast(v8::Value* obj);
+};
+
+
+/**
  * A JavaScript value that wraps a C++ void*.  This type of value is
  * mainly used to associate C++ data structures with JavaScript
  * objects.
@@ -1776,7 +1791,7 @@ class External : public Value {
 };
 
 
-// --- T e m p l a t e s ---
+// --- Templates ---
 
 
 /**
@@ -2310,7 +2325,7 @@ class V8EXPORT TypeSwitch : public Data {
 };
 
 
-// --- E x t e n s i o n s ---
+// --- Extensions ---
 
 
 /**
@@ -2362,7 +2377,7 @@ class V8EXPORT DeclareExtension {
 };
 
 
-// --- S t a t i c s ---
+// --- Statics ---
 
 
 Handle<Primitive> V8EXPORT Undefined();
@@ -2403,7 +2418,7 @@ class V8EXPORT ResourceConstraints {
 bool V8EXPORT SetResourceConstraints(ResourceConstraints* constraints);
 
 
-// --- E x c e p t i o n s ---
+// --- Exceptions ---
 
 
 typedef void (*FatalErrorCallback)(const char* location, const char* message);
@@ -2434,7 +2449,7 @@ class V8EXPORT Exception {
 };
 
 
-// --- C o u n t e r s  C a l l b a c k s ---
+// --- Counters Callbacks ---
 
 typedef int* (*CounterLookupCallback)(const char* name);
 
@@ -2445,7 +2460,7 @@ typedef void* (*CreateHistogramCallback)(const char* name,
 
 typedef void (*AddHistogramSampleCallback)(void* histogram, int sample);
 
-// --- M e m o r y  A l l o c a t i o n   C a l l b a c k ---
+// --- Memory Allocation Callback ---
   enum ObjectSpace {
     kObjectSpaceNewSpace = 1 << 0,
     kObjectSpaceOldPointerSpace = 1 << 1,
@@ -2469,12 +2484,20 @@ typedef void (*MemoryAllocationCallback)(ObjectSpace space,
                                          AllocationAction action,
                                          int size);
 
-// --- F a i l e d A c c e s s C h e c k C a l l b a c k ---
+// --- Failed Access Check Callback ---
 typedef void (*FailedAccessCheckCallback)(Local<Object> target,
                                           AccessType type,
                                           Local<Value> data);
 
-// --- G a r b a g e C o l l e c t i o n  C a l l b a c k s
+// --- AllowCodeGenerationFromStrings callbacks ---
+
+/**
+ * Callback to check if code generation from strings is allowed. See
+ * Context::AllowCodeGenerationFromStrings.
+ */
+typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context);
+
+// --- Garbage Collection Callbacks ---
 
 /**
  * Applications can register callback functions which will be called
@@ -2634,6 +2657,18 @@ class V8EXPORT Isolate {
 };
 
 
+class StartupData {
+ public:
+  enum CompressionAlgorithm {
+    kUncompressed,
+    kBZip2
+  };
+
+  const char* data;
+  int compressed_size;
+  int raw_size;
+};
+
 /**
  * Container class for static utility functions.
  */
@@ -2641,6 +2676,13 @@ class V8EXPORT V8 {
  public:
   /** Set the callback to invoke in case of fatal errors. */
   static void SetFatalErrorHandler(FatalErrorCallback that);
+
+  /**
+   * Set the callback to invoke to check if code generation from
+   * strings should be allowed.
+   */
+  static void SetAllowCodeGenerationFromStringsCallback(
+      AllowCodeGenerationFromStringsCallback that);
 
   /**
    * Ignore out-of-memory exceptions.
@@ -2661,6 +2703,26 @@ class V8EXPORT V8 {
    * fatal errors such as out-of-memory situations.
    */
   static bool IsDead();
+
+  /**
+   * The following 4 functions are to be used when V8 is built with
+   * the 'compress_startup_data' flag enabled. In this case, the
+   * embedder must decompress startup data prior to initializing V8.
+   *
+   * This is how interaction with V8 should look like:
+   *   int compressed_data_count = v8::V8::GetCompressedStartupDataCount();
+   *   v8::StartupData* compressed_data =
+   *     new v8::StartupData[compressed_data_count];
+   *   v8::V8::GetCompressedStartupData(compressed_data);
+   *   ... decompress data (compressed_data can be updated in-place) ...
+   *   v8::V8::SetDecompressedStartupData(compressed_data);
+   *   ... now V8 can be initialized
+   *   ... make sure the decompressed data stays valid until V8 shutdown
+   */
+  static StartupData::CompressionAlgorithm GetCompressedStartupDataAlgorithm();
+  static int GetCompressedStartupDataCount();
+  static void GetCompressedStartupData(StartupData* compressed_data);
+  static void SetDecompressedStartupData(StartupData* decompressed_data);
 
   /**
    * Adds a message listener.
@@ -3150,7 +3212,7 @@ class V8EXPORT TryCatch {
 };
 
 
-// --- C o n t e x t ---
+// --- Context ---
 
 
 /**
@@ -3286,12 +3348,27 @@ class V8EXPORT Context {
   Local<Value> GetData();
 
   /**
+   * Control whether code generation from strings is allowed. Calling
+   * this method with false will disable 'eval' and the 'Function'
+   * constructor for code running in this context. If 'eval' or the
+   * 'Function' constructor are used an exception will be thrown.
+   *
+   * If code generation from strings is not allowed the
+   * V8::AllowCodeGenerationFromStrings callback will be invoked if
+   * set before blocking the call to 'eval' or the 'Function'
+   * constructor. If that callback returns true, the call will be
+   * allowed, otherwise an exception will be thrown. If no callback is
+   * set an exception will be thrown.
+   */
+  void AllowCodeGenerationFromStrings(bool allow);
+
+  /**
    * Stack-allocated class which sets the execution context for all
    * operations executed within a local scope.
    */
   class Scope {
    public:
-    inline Scope(Handle<Context> context) : context_(context) {
+    explicit inline Scope(Handle<Context> context) : context_(context) {
       context_->Enter();
     }
     inline ~Scope() { context_->Exit(); }
@@ -3481,7 +3558,7 @@ class V8EXPORT ActivityControl {  // NOLINT
 };
 
 
-// --- I m p l e m e n t a t i o n ---
+// --- Implementation ---
 
 
 namespace internal {
@@ -3579,7 +3656,7 @@ class Internals {
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
-  static const int kJSObjectType = 0xa1;
+  static const int kJSObjectType = 0xa2;
   static const int kFirstNonstringType = 0x80;
   static const int kProxyType = 0x85;
 

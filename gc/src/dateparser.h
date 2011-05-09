@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -49,7 +49,7 @@ class DateParser : public AllStatic {
   // [7]: UTC offset in seconds, or null value if no timezone specified
   // If parsing fails, return false (content of output array is not defined).
   template <typename Char>
-  static bool Parse(Vector<Char> str, FixedArray* output);
+  static bool Parse(Vector<Char> str, FixedArray* output, UnicodeCache* cache);
 
   enum {
     YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, MILLISECOND, UTC_OFFSET, OUTPUT_SIZE
@@ -67,11 +67,11 @@ class DateParser : public AllStatic {
   template <typename Char>
   class InputReader BASE_EMBEDDED {
    public:
-    explicit InputReader(Vector<Char> s)
+    InputReader(UnicodeCache* unicode_cache, Vector<Char> s)
         : index_(0),
           buffer_(s),
           has_read_number_(false),
-          scanner_constants_(Isolate::Current()->scanner_constants()) {
+          unicode_cache_(unicode_cache) {
       Next();
     }
 
@@ -122,7 +122,7 @@ class DateParser : public AllStatic {
     }
 
     bool SkipWhiteSpace() {
-      if (scanner_constants_->IsWhiteSpace(ch_)) {
+      if (unicode_cache_->IsWhiteSpace(ch_)) {
         Next();
         return true;
       }
@@ -158,7 +158,7 @@ class DateParser : public AllStatic {
     Vector<Char> buffer_;
     bool has_read_number_;
     uint32_t ch_;
-    ScannerConstants* scanner_constants_;
+    UnicodeCache* unicode_cache_;
   };
 
   enum KeywordType { INVALID, MONTH_NAME, TIME_ZONE_NAME, AM_PM };

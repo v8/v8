@@ -57,6 +57,12 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 }
 
 
+void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
+    MacroAssembler* masm, int index, Register prototype, Label* miss) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
 // Load a fast property out of a holder object (src). In-object properties
 // are loaded directly otherwise the property is loaded from the properties
 // fixed array.
@@ -75,6 +81,20 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
 }
 
 
+// Generate code to load the length from a string object and return the length.
+// If the receiver object is not a string or a wrapped string object the
+// execution continues at the miss label. The register containing the
+// receiver is potentially clobbered.
+void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
+                                            Register receiver,
+                                            Register scratch1,
+                                            Register scratch2,
+                                            Label* miss,
+                                            bool support_wrappers) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
 void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                                  Register receiver,
                                                  Register scratch1,
@@ -84,7 +104,7 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 }
 
 
-// Generate StoreField code, value is passed in r0 register.
+// Generate StoreField code, value is passed in a0 register.
 // After executing generated code, the receiver_reg and name_reg
 // may be clobbered.
 void StubCompiler::GenerateStoreField(MacroAssembler* masm,
@@ -104,8 +124,86 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 }
 
 
+class CallInterceptorCompiler BASE_EMBEDDED {
+ public:
+  CallInterceptorCompiler(StubCompiler* stub_compiler,
+                          const ParameterCount& arguments,
+                          Register name)
+      : stub_compiler_(stub_compiler),
+        arguments_(arguments),
+        name_(name) {}
+
+  void Compile(MacroAssembler* masm,
+               JSObject* object,
+               JSObject* holder,
+               String* name,
+               LookupResult* lookup,
+               Register receiver,
+               Register scratch1,
+               Register scratch2,
+               Register scratch3,
+               Label* miss) {
+    UNIMPLEMENTED_MIPS();
+  }
+
+ private:
+  void CompileCacheable(MacroAssembler* masm,
+                       JSObject* object,
+                       Register receiver,
+                       Register scratch1,
+                       Register scratch2,
+                       Register scratch3,
+                       JSObject* interceptor_holder,
+                       LookupResult* lookup,
+                       String* name,
+                       const CallOptimization& optimization,
+                       Label* miss_label) {
+    UNIMPLEMENTED_MIPS();
+  }
+
+  void CompileRegular(MacroAssembler* masm,
+                      JSObject* object,
+                      Register receiver,
+                      Register scratch1,
+                      Register scratch2,
+                      Register scratch3,
+                      String* name,
+                      JSObject* interceptor_holder,
+                      Label* miss_label) {
+    UNIMPLEMENTED_MIPS();
+  }
+
+  void LoadWithInterceptor(MacroAssembler* masm,
+                           Register receiver,
+                           Register holder,
+                           JSObject* holder_obj,
+                           Register scratch,
+                           Label* interceptor_succeeded) {
+    UNIMPLEMENTED_MIPS();
+  }
+
+  StubCompiler* stub_compiler_;
+  const ParameterCount& arguments_;
+  Register name_;
+};
+
+
 #undef __
 #define __ ACCESS_MASM(masm())
+
+
+Register StubCompiler::CheckPrototypes(JSObject* object,
+                                       Register object_reg,
+                                       JSObject* holder,
+                                       Register holder_reg,
+                                       Register scratch1,
+                                       Register scratch2,
+                                       String* name,
+                                       int save_at_depth,
+                                       Label* miss) {
+  UNIMPLEMENTED_MIPS();
+  return no_reg;
+}
 
 
 void StubCompiler::GenerateLoadField(JSObject* object,
@@ -113,6 +211,7 @@ void StubCompiler::GenerateLoadField(JSObject* object,
                                      Register receiver,
                                      Register scratch1,
                                      Register scratch2,
+                                     Register scratch3,
                                      int index,
                                      String* name,
                                      Label* miss) {
@@ -125,6 +224,7 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
                                         Register receiver,
                                         Register scratch1,
                                         Register scratch2,
+                                        Register scratch3,
                                         Object* value,
                                         String* name,
                                         Label* miss) {
@@ -132,282 +232,365 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
 }
 
 
-bool StubCompiler::GenerateLoadCallback(JSObject* object,
-                                        JSObject* holder,
-                                        Register receiver,
-                                        Register name_reg,
-                                        Register scratch1,
-                                        Register scratch2,
-                                        AccessorInfo* callback,
-                                        String* name,
-                                        Label* miss,
-                                        Failure** failure) {
+MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
+                                                JSObject* holder,
+                                                Register receiver,
+                                                Register name_reg,
+                                                Register scratch1,
+                                                Register scratch2,
+                                                Register scratch3,
+                                                AccessorInfo* callback,
+                                                String* name,
+                                                Label* miss) {
   UNIMPLEMENTED_MIPS();
-  __ break_(0x470);
-  return false;   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
 void StubCompiler::GenerateLoadInterceptor(JSObject* object,
-                                           JSObject* holder,
+                                           JSObject* interceptor_holder,
                                            LookupResult* lookup,
                                            Register receiver,
                                            Register name_reg,
                                            Register scratch1,
                                            Register scratch2,
+                                           Register scratch3,
                                            String* name,
                                            Label* miss) {
   UNIMPLEMENTED_MIPS();
-  __ break_(0x505);
 }
 
 
-Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
-  // Registers:
-  // a1: function
-  // ra: return address
-
-  // Enter an internal frame.
-  __ EnterInternalFrame();
-  // Preserve the function.
-  __ Push(a1);
-  // Setup aligned call.
-  __ SetupAlignedCall(t0, 1);
-  // Push the function on the stack as the argument to the runtime function.
-  __ Push(a1);
-  // Call the runtime function
-  __ CallRuntime(Runtime::kLazyCompile, 1);
-  __ ReturnFromAlignedCall();
-  // Calculate the entry point.
-  __ addiu(t9, v0, Code::kHeaderSize - kHeapObjectTag);
-  // Restore saved function.
-  __ Pop(a1);
-  // Tear down temporary frame.
-  __ LeaveInternalFrame();
-  // Do a tail-call of the compiled function.
-  __ Jump(t9);
-
-  return GetCodeWithFlags(flags, "LazyCompileStub");
-}
-
-
-Object* CallStubCompiler::CompileCallField(JSObject* object,
-                                           JSObject* holder,
-                                           int index,
-                                           String* name) {
+void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
 }
 
 
-Object* CallStubCompiler::CompileArrayPushCall(Object* object,
-                                               JSObject* holder,
-                                               JSFunction* function,
-                                               String* name,
-                                               CheckType check) {
+void CallStubCompiler::GenerateGlobalReceiverCheck(JSObject* object,
+                                                   JSObject* holder,
+                                                   String* name,
+                                                   Label* miss) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
 }
 
 
-Object* CallStubCompiler::CompileArrayPopCall(Object* object,
-                                              JSObject* holder,
-                                              JSFunction* function,
-                                              String* name,
-                                              CheckType check) {
+void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
+                                                    JSFunction* function,
+                                                    Label* miss) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
 }
 
 
-Object* CallStubCompiler::CompileCallConstant(Object* object,
-                                              JSObject* holder,
-                                              JSFunction* function,
-                                              String* name,
-                                              CheckType check) {
+MaybeObject* CallStubCompiler::GenerateMissBranch() {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
-                                                 JSObject* holder,
-                                                 String* name) {
-  UNIMPLEMENTED_MIPS();
-  __ break_(0x782);
-  return GetCode(INTERCEPTOR, name);
-}
-
-
-Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
-                                            GlobalObject* holder,
-                                            JSGlobalPropertyCell* cell,
-                                            JSFunction* function,
-                                            String* name) {
-  UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
-}
-
-
-Object* StoreStubCompiler::CompileStoreField(JSObject* object,
-                                             int index,
-                                             Map* transition,
-                                             String* name) {
-  UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
-}
-
-
-Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
-                                                AccessorInfo* callback,
+MaybeObject* CallStubCompiler::CompileCallField(JSObject* object,
+                                                JSObject* holder,
+                                                int index,
                                                 String* name) {
   UNIMPLEMENTED_MIPS();
-  __ break_(0x906);
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
+MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
+                                                    JSObject* holder,
+                                                    JSGlobalPropertyCell* cell,
+                                                    JSFunction* function,
+                                                    String* name) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
+                                                   JSObject* holder,
+                                                   JSGlobalPropertyCell* cell,
+                                                   JSFunction* function,
                                                    String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
-                                              JSGlobalPropertyCell* cell,
-                                              String* name) {
+MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
+    Object* object,
+    JSObject* holder,
+    JSGlobalPropertyCell* cell,
+    JSFunction* function,
+    String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* LoadStubCompiler::CompileLoadField(JSObject* object,
-                                           JSObject* holder,
-                                           int index,
-                                           String* name) {
+MaybeObject* CallStubCompiler::CompileStringCharAtCall(
+    Object* object,
+    JSObject* holder,
+    JSGlobalPropertyCell* cell,
+    JSFunction* function,
+    String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* LoadStubCompiler::CompileLoadCallback(String* name,
-                                              JSObject* object,
-                                              JSObject* holder,
-                                              AccessorInfo* callback) {
+MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
+    Object* object,
+    JSObject* holder,
+    JSGlobalPropertyCell* cell,
+    JSFunction* function,
+    String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
-                                              JSObject* holder,
-                                              Object* value,
-                                              String* name) {
+MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
+                                                    JSObject* holder,
+                                                    JSGlobalPropertyCell* cell,
+                                                    JSFunction* function,
+                                                    String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
-                                                 JSObject* holder,
-                                                 String* name) {
+MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
+                                                  JSObject* holder,
+                                                  JSGlobalPropertyCell* cell,
+                                                  JSFunction* function,
+                                                  String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
-                                            GlobalObject* holder,
-                                            JSGlobalPropertyCell* cell,
-                                            String* name,
-                                            bool is_dont_delete) {
+MaybeObject* CallStubCompiler::CompileFastApiCall(
+    const CallOptimization& optimization,
+    Object* object,
+    JSObject* holder,
+    JSGlobalPropertyCell* cell,
+    JSFunction* function,
+    String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
-                                                JSObject* receiver,
-                                                JSObject* holder,
-                                                int index) {
-  UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
-                                                   JSObject* receiver,
+MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
                                                    JSObject* holder,
-                                                   AccessorInfo* callback) {
+                                                   JSFunction* function,
+                                                   String* name,
+                                                   CheckType check) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
-                                                   JSObject* receiver,
-                                                   JSObject* holder,
-                                                   Object* value) {
-  UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
+MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
                                                       JSObject* holder,
                                                       String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
+MaybeObject* CallStubCompiler::CompileCallGlobal(JSObject* object,
+                                                 GlobalObject* holder,
+                                                 JSGlobalPropertyCell* cell,
+                                                 JSFunction* function,
+                                                 String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
-  UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
-}
-
-
-// TODO(1224671): implement the fast case.
-Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
-  UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
-}
-
-
-Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
+MaybeObject* StoreStubCompiler::CompileStoreField(JSObject* object,
                                                   int index,
                                                   Map* transition,
                                                   String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* ConstructStubCompiler::CompileConstructStub(
-    SharedFunctionInfo* shared) {
+MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
+                                                     AccessorInfo* callback,
+                                                     String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* ExternalArrayStubCompiler::CompileKeyedLoadStub(
-    ExternalArrayType array_type, Code::Flags flags) {
+MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
+                                                        String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
 }
 
 
-Object* ExternalArrayStubCompiler::CompileKeyedStoreStub(
-    ExternalArrayType array_type, Code::Flags flags) {
+MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
+                                                   JSGlobalPropertyCell* cell,
+                                                   String* name) {
   UNIMPLEMENTED_MIPS();
-  return reinterpret_cast<Object*>(NULL);   // UNIMPLEMENTED RETURN
+  return NULL;
+}
+
+
+MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
+                                                      JSObject* object,
+                                                      JSObject* last) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* LoadStubCompiler::CompileLoadField(JSObject* object,
+                                                JSObject* holder,
+                                                int index,
+                                                String* name) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* LoadStubCompiler::CompileLoadCallback(String* name,
+                                                   JSObject* object,
+                                                   JSObject* holder,
+                                                   AccessorInfo* callback) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* LoadStubCompiler::CompileLoadConstant(JSObject* object,
+                                                   JSObject* holder,
+                                                   Object* value,
+                                                   String* name) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
+                                                      JSObject* holder,
+                                                      String* name) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
+                                                 GlobalObject* holder,
+                                                 JSGlobalPropertyCell* cell,
+                                                 String* name,
+                                                 bool is_dont_delete) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* KeyedLoadStubCompiler::CompileLoadField(String* name,
+                                                     JSObject* receiver,
+                                                     JSObject* holder,
+                                                     int index) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* KeyedLoadStubCompiler::CompileLoadCallback(
+    String* name,
+    JSObject* receiver,
+    JSObject* holder,
+    AccessorInfo* callback) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
+                                                        JSObject* receiver,
+                                                        JSObject* holder,
+                                                        Object* value) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
+                                                           JSObject* holder,
+                                                           String* name) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
+                                                       int index,
+                                                       Map* transition,
+                                                       String* name) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
+    JSObject* receiver) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
+    JSObject* receiver_object,
+    ExternalArrayType array_type,
+    Code::Flags flags) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
+    JSObject* receiver_object,
+    ExternalArrayType array_type,
+    Code::Flags flags) {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
 }
 
 

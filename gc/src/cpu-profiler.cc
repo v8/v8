@@ -184,11 +184,13 @@ void ProfilerEventsProcessor::RegExpCodeCreateEvent(
 void ProfilerEventsProcessor::AddCurrentStack() {
   TickSampleEventRecord record;
   TickSample* sample = &record.sample;
-  sample->state = Isolate::Current()->current_vm_state();
+  Isolate* isolate = Isolate::Current();
+  sample->state = isolate->current_vm_state();
   sample->pc = reinterpret_cast<Address>(sample);  // Not NULL.
   sample->tos = NULL;
+  sample->has_external_callback = false;
   sample->frames_count = 0;
-  for (StackTraceFrameIterator it;
+  for (StackTraceFrameIterator it(isolate);
        !it.done() && sample->frames_count < TickSample::kMaxFramesCount;
        it.Advance()) {
     sample->stack[sample->frames_count++] = it.frame()->pc();
@@ -286,14 +288,16 @@ void CpuProfiler::StartProfiling(String* title) {
 
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
-  return is_profiling() ?
-      Isolate::Current()->cpu_profiler()->StopCollectingProfile(title) : NULL;
+  Isolate* isolate = Isolate::Current();
+  return is_profiling(isolate) ?
+      isolate->cpu_profiler()->StopCollectingProfile(title) : NULL;
 }
 
 
 CpuProfile* CpuProfiler::StopProfiling(Object* security_token, String* title) {
-  return is_profiling() ?
-      Isolate::Current()->cpu_profiler()->StopCollectingProfile(
+  Isolate* isolate = Isolate::Current();
+  return is_profiling(isolate) ?
+      isolate->cpu_profiler()->StopCollectingProfile(
           security_token, title) : NULL;
 }
 
@@ -331,6 +335,29 @@ TickSample* CpuProfiler::TickSampleEvent(Isolate* isolate) {
 }
 
 
+void CpuProfiler::DeleteAllProfiles() {
+  Isolate* isolate = Isolate::Current();
+  ASSERT(isolate->cpu_profiler() != NULL);
+  if (is_profiling(isolate)) {
+    isolate->cpu_profiler()->StopProcessor();
+  }
+  isolate->cpu_profiler()->ResetProfiles();
+}
+
+
+void CpuProfiler::DeleteProfile(CpuProfile* profile) {
+  ASSERT(Isolate::Current()->cpu_profiler() != NULL);
+  Isolate::Current()->cpu_profiler()->profiles_->RemoveProfile(profile);
+  delete profile;
+}
+
+
+bool CpuProfiler::HasDetachedProfiles() {
+  ASSERT(Isolate::Current()->cpu_profiler() != NULL);
+  return Isolate::Current()->cpu_profiler()->profiles_->HasDetachedProfiles();
+}
+
+
 void CpuProfiler::CallbackEvent(String* name, Address entry_point) {
   Isolate::Current()->cpu_profiler()->processor_->CallbackCreateEvent(
       Logger::CALLBACK_TAG, CodeEntry::kEmptyNamePrefix, name, entry_point);
@@ -346,10 +373,11 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
 
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                            Code* code, String* name) {
-  Isolate::Current()->cpu_profiler()->processor_->CodeCreateEvent(
+  Isolate* isolate = Isolate::Current();
+  isolate->cpu_profiler()->processor_->CodeCreateEvent(
       tag,
       name,
-      HEAP->empty_string(),
+      isolate->heap()->empty_string(),
       v8::CpuProfileNode::kNoLineNumberInfo,
       code->address(),
       code->ExecutableSize(),
@@ -361,10 +389,11 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                   Code* code,
                                   SharedFunctionInfo* shared,
                                   String* name) {
-  Isolate::Current()->cpu_profiler()->processor_->CodeCreateEvent(
+  Isolate* isolate = Isolate::Current();
+  isolate->cpu_profiler()->processor_->CodeCreateEvent(
       tag,
       name,
-      HEAP->empty_string(),
+      isolate->heap()->empty_string(),
       v8::CpuProfileNode::kNoLineNumberInfo,
       code->address(),
       code->ExecutableSize(),
@@ -441,6 +470,7 @@ CpuProfiler::CpuProfiler()
       token_enumerator_(new TokenEnumerator()),
       generator_(NULL),
       processor_(NULL),
+      need_to_stop_sampler_(false),
       is_profiling_(false) {
 }
 
@@ -450,6 +480,11 @@ CpuProfiler::~CpuProfiler() {
   delete profiles_;
 }
 
+
+void CpuProfiler::ResetProfiles() {
+  delete profiles_;
+  profiles_ = new CpuProfilesCollection();
+}
 
 void CpuProfiler::StartCollectingProfile(const char* title) {
   if (profiles_->StartProfiling(title, next_profile_uid_++)) {
@@ -466,27 +501,32 @@ void CpuProfiler::StartCollectingProfile(String* title) {
 
 void CpuProfiler::StartProcessorIfNotStarted() {
   if (processor_ == NULL) {
+    Isolate* isolate = Isolate::Current();
+
     // Disable logging when using the new implementation.
-    saved_logging_nesting_ = LOGGER->logging_nesting_;
-    LOGGER->logging_nesting_ = 0;
+    saved_logging_nesting_ = isolate->logger()->logging_nesting_;
+    isolate->logger()->logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
-    processor_ = new ProfilerEventsProcessor(Isolate::Current(), generator_);
+    processor_ = new ProfilerEventsProcessor(isolate, generator_);
     NoBarrier_Store(&is_profiling_, true);
     processor_->Start();
     // Enumerate stuff we already have in the heap.
-    if (HEAP->HasBeenSetup()) {
+    if (isolate->heap()->HasBeenSetup()) {
       if (!FLAG_prof_browser_mode) {
         bool saved_log_code_flag = FLAG_log_code;
         FLAG_log_code = true;
-        LOGGER->LogCodeObjects();
+        isolate->logger()->LogCodeObjects();
         FLAG_log_code = saved_log_code_flag;
       }
-      LOGGER->LogCompiledFunctions();
-      LOGGER->LogAccessorCallbacks();
+      isolate->logger()->LogCompiledFunctions();
+      isolate->logger()->LogAccessorCallbacks();
     }
     // Enable stack sampling.
-    Sampler* sampler = reinterpret_cast<Sampler*>(LOGGER->ticker_);
-    if (!sampler->IsActive()) sampler->Start();
+    Sampler* sampler = reinterpret_cast<Sampler*>(isolate->logger()->ticker_);
+    if (!sampler->IsActive()) {
+      sampler->Start();
+      need_to_stop_sampler_ = true;
+    }
     sampler->IncreaseProfilingDepth();
   }
 }
@@ -517,19 +557,26 @@ CpuProfile* CpuProfiler::StopCollectingProfile(Object* security_token,
 
 
 void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
-  if (profiles_->IsLastProfile(title)) {
-    Sampler* sampler = reinterpret_cast<Sampler*>(LOGGER->ticker_);
-    sampler->DecreaseProfilingDepth();
+  if (profiles_->IsLastProfile(title)) StopProcessor();
+}
+
+
+void CpuProfiler::StopProcessor() {
+  Logger* logger = Isolate::Current()->logger();
+  Sampler* sampler = reinterpret_cast<Sampler*>(logger->ticker_);
+  sampler->DecreaseProfilingDepth();
+  if (need_to_stop_sampler_) {
     sampler->Stop();
-    processor_->Stop();
-    processor_->Join();
-    delete processor_;
-    delete generator_;
-    processor_ = NULL;
-    NoBarrier_Store(&is_profiling_, false);
-    generator_ = NULL;
-    LOGGER->logging_nesting_ = saved_logging_nesting_;
+    need_to_stop_sampler_ = false;
   }
+  processor_->Stop();
+  processor_->Join();
+  delete processor_;
+  delete generator_;
+  processor_ = NULL;
+  NoBarrier_Store(&is_profiling_, false);
+  generator_ = NULL;
+  logger->logging_nesting_ = saved_logging_nesting_;
 }
 
 } }  // namespace v8::internal

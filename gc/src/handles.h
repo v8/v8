@@ -244,6 +244,11 @@ Handle<Object> GetProperty(Handle<JSObject> obj,
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key);
 
+Handle<Object> GetProperty(Handle<JSObject> obj,
+                           Handle<String> name,
+                           LookupResult* result);
+
+
 Handle<Object> GetElement(Handle<Object> obj,
                           uint32_t index);
 
@@ -366,25 +371,6 @@ class NoHandleAllocation BASE_EMBEDDED {
   int level_;
 #endif
 };
-
-
-// ----------------------------------------------------------------------------
-
-
-// Stack allocated wrapper call for optimizing adding multiple
-// properties to an object.
-class OptimizedObjectForAddingMultipleProperties BASE_EMBEDDED {
- public:
-  OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
-                                             int expected_property_count,
-                                             bool condition = true);
-  ~OptimizedObjectForAddingMultipleProperties();
- private:
-  bool has_been_transformed_;  // Tells whether the object has been transformed.
-  int unused_property_fields_;  // Captures the unused number of field.
-  Handle<JSObject> object_;    // The object being optimized.
-};
-
 
 } }  // namespace v8::internal
 

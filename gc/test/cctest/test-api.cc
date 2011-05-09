@@ -1,4 +1,4 @@
-// Copyright 2007-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -39,7 +39,7 @@
 #include "parser.h"
 #include "unicode-inl.h"
 
-static const bool kLogThreading = true;
+static const bool kLogThreading = false;
 
 static bool IsNaN(double x) {
 #ifdef WIN32
@@ -50,18 +50,26 @@ static bool IsNaN(double x) {
 }
 
 using ::v8::AccessorInfo;
+using ::v8::Arguments;
 using ::v8::Context;
 using ::v8::Extension;
 using ::v8::Function;
+using ::v8::FunctionTemplate;
+using ::v8::Handle;
 using ::v8::HandleScope;
 using ::v8::Local;
+using ::v8::Message;
+using ::v8::MessageCallback;
 using ::v8::Object;
 using ::v8::ObjectTemplate;
 using ::v8::Persistent;
 using ::v8::Script;
+using ::v8::StackTrace;
 using ::v8::String;
-using ::v8::Value;
+using ::v8::TryCatch;
+using ::v8::Undefined;
 using ::v8::V8;
+using ::v8::Value;
 
 namespace i = ::i;
 
@@ -192,8 +200,6 @@ THREADED_TEST(ReceiverSignature) {
   CHECK_EQ(2, signature_callback_count);
   CHECK(try_catch.HasCaught());
 }
-
-
 
 
 THREADED_TEST(ArgumentSignature) {
@@ -1044,8 +1050,10 @@ THREADED_TEST(Date) {
   v8::HandleScope scope;
   LocalContext env;
   double PI = 3.1415926;
-  Local<Value> date_obj = v8::Date::New(PI);
-  CHECK_EQ(3.0, date_obj->NumberValue());
+  Local<Value> date = v8::Date::New(PI);
+  CHECK_EQ(3.0, date->NumberValue());
+  date.As<v8::Date>()->Set(v8_str("property"), v8::Integer::New(42));
+  CHECK_EQ(42, date.As<v8::Date>()->Get(v8_str("property"))->Int32Value());
 }
 
 
@@ -2655,6 +2663,21 @@ TEST(APIThrowMessageAndVerboseTryCatch) {
 }
 
 
+TEST(APIStackOverflowAndVerboseTryCatch) {
+  message_received = false;
+  v8::HandleScope scope;
+  v8::V8::AddMessageListener(receive_message);
+  LocalContext context;
+  v8::TryCatch try_catch;
+  try_catch.SetVerbose(true);
+  Local<Value> result = CompileRun("function foo() { foo(); } foo();");
+  CHECK(try_catch.HasCaught());
+  CHECK(result.IsEmpty());
+  CHECK(message_received);
+  v8::V8::RemoveMessageListeners(receive_message);
+}
+
+
 THREADED_TEST(ExternalScriptException) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
@@ -3870,10 +3893,8 @@ THREADED_TEST(ExtensibleOnUndetectable) {
 
   source = v8_str("undetectable.y = 2000;");
   script = Script::Compile(source);
-  v8::TryCatch try_catch;
   Local<Value> result = script->Run();
-  CHECK(result.IsEmpty());
-  CHECK(try_catch.HasCaught());
+  ExpectBoolean("undetectable.y == undefined", true);
 }
 
 
@@ -4744,130 +4765,130 @@ THREADED_TEST(StringWrite) {
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, sizeof(utf8buf), &charlen);
-  CHECK_EQ(len, 9);
-  CHECK_EQ(charlen, 5);
-  CHECK_EQ(strcmp(utf8buf, "abc\303\260\342\230\203"), 0);
+  CHECK_EQ(9, len);
+  CHECK_EQ(5, charlen);
+  CHECK_EQ(0, strcmp(utf8buf, "abc\303\260\342\230\203"));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 8, &charlen);
-  CHECK_EQ(len, 8);
-  CHECK_EQ(charlen, 5);
-  CHECK_EQ(strncmp(utf8buf, "abc\303\260\342\230\203\1", 9), 0);
+  CHECK_EQ(8, len);
+  CHECK_EQ(5, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\342\230\203\1", 9));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 7, &charlen);
-  CHECK_EQ(len, 5);
-  CHECK_EQ(charlen, 4);
-  CHECK_EQ(strncmp(utf8buf, "abc\303\260\1", 5), 0);
+  CHECK_EQ(5, len);
+  CHECK_EQ(4, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\1", 5));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 6, &charlen);
-  CHECK_EQ(len, 5);
-  CHECK_EQ(charlen, 4);
-  CHECK_EQ(strncmp(utf8buf, "abc\303\260\1", 5), 0);
+  CHECK_EQ(5, len);
+  CHECK_EQ(4, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\1", 5));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 5, &charlen);
-  CHECK_EQ(len, 5);
-  CHECK_EQ(charlen, 4);
-  CHECK_EQ(strncmp(utf8buf, "abc\303\260\1", 5), 0);
+  CHECK_EQ(5, len);
+  CHECK_EQ(4, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\1", 5));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 4, &charlen);
-  CHECK_EQ(len, 3);
-  CHECK_EQ(charlen, 3);
-  CHECK_EQ(strncmp(utf8buf, "abc\1", 4), 0);
+  CHECK_EQ(3, len);
+  CHECK_EQ(3, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\1", 4));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 3, &charlen);
-  CHECK_EQ(len, 3);
-  CHECK_EQ(charlen, 3);
-  CHECK_EQ(strncmp(utf8buf, "abc\1", 4), 0);
+  CHECK_EQ(3, len);
+  CHECK_EQ(3, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\1", 4));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 2, &charlen);
-  CHECK_EQ(len, 2);
-  CHECK_EQ(charlen, 2);
-  CHECK_EQ(strncmp(utf8buf, "ab\1", 3), 0);
+  CHECK_EQ(2, len);
+  CHECK_EQ(2, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "ab\1", 3));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf);
-  CHECK_EQ(len, 5);
+  CHECK_EQ(5, len);
   len = str->Write(wbuf);
-  CHECK_EQ(len, 5);
-  CHECK_EQ(strcmp("abcde", buf), 0);
+  CHECK_EQ(5, len);
+  CHECK_EQ(0, strcmp("abcde", buf));
   uint16_t answer1[] = {'a', 'b', 'c', 'd', 'e', '\0'};
-  CHECK_EQ(StrCmp16(answer1, wbuf), 0);
+  CHECK_EQ(0, StrCmp16(answer1, wbuf));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 0, 4);
-  CHECK_EQ(len, 4);
+  CHECK_EQ(4, len);
   len = str->Write(wbuf, 0, 4);
-  CHECK_EQ(len, 4);
-  CHECK_EQ(strncmp("abcd\1", buf, 5), 0);
+  CHECK_EQ(4, len);
+  CHECK_EQ(0, strncmp("abcd\1", buf, 5));
   uint16_t answer2[] = {'a', 'b', 'c', 'd', 0x101};
-  CHECK_EQ(StrNCmp16(answer2, wbuf, 5), 0);
+  CHECK_EQ(0, StrNCmp16(answer2, wbuf, 5));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 0, 5);
-  CHECK_EQ(len, 5);
+  CHECK_EQ(5, len);
   len = str->Write(wbuf, 0, 5);
-  CHECK_EQ(len, 5);
-  CHECK_EQ(strncmp("abcde\1", buf, 6), 0);
+  CHECK_EQ(5, len);
+  CHECK_EQ(0, strncmp("abcde\1", buf, 6));
   uint16_t answer3[] = {'a', 'b', 'c', 'd', 'e', 0x101};
-  CHECK_EQ(StrNCmp16(answer3, wbuf, 6), 0);
+  CHECK_EQ(0, StrNCmp16(answer3, wbuf, 6));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 0, 6);
-  CHECK_EQ(len, 5);
+  CHECK_EQ(5, len);
   len = str->Write(wbuf, 0, 6);
-  CHECK_EQ(len, 5);
-  CHECK_EQ(strcmp("abcde", buf), 0);
+  CHECK_EQ(5, len);
+  CHECK_EQ(0, strcmp("abcde", buf));
   uint16_t answer4[] = {'a', 'b', 'c', 'd', 'e', '\0'};
-  CHECK_EQ(StrCmp16(answer4, wbuf), 0);
+  CHECK_EQ(0, StrCmp16(answer4, wbuf));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 4, -1);
-  CHECK_EQ(len, 1);
+  CHECK_EQ(1, len);
   len = str->Write(wbuf, 4, -1);
-  CHECK_EQ(len, 1);
-  CHECK_EQ(strcmp("e", buf), 0);
+  CHECK_EQ(1, len);
+  CHECK_EQ(0, strcmp("e", buf));
   uint16_t answer5[] = {'e', '\0'};
-  CHECK_EQ(StrCmp16(answer5, wbuf), 0);
+  CHECK_EQ(0, StrCmp16(answer5, wbuf));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 4, 6);
-  CHECK_EQ(len, 1);
+  CHECK_EQ(1, len);
   len = str->Write(wbuf, 4, 6);
-  CHECK_EQ(len, 1);
-  CHECK_EQ(strcmp("e", buf), 0);
-  CHECK_EQ(StrCmp16(answer5, wbuf), 0);
+  CHECK_EQ(1, len);
+  CHECK_EQ(0, strcmp("e", buf));
+  CHECK_EQ(0, StrCmp16(answer5, wbuf));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 4, 1);
-  CHECK_EQ(len, 1);
+  CHECK_EQ(1, len);
   len = str->Write(wbuf, 4, 1);
-  CHECK_EQ(len, 1);
-  CHECK_EQ(strncmp("e\1", buf, 2), 0);
+  CHECK_EQ(1, len);
+  CHECK_EQ(0, strncmp("e\1", buf, 2));
   uint16_t answer6[] = {'e', 0x101};
-  CHECK_EQ(StrNCmp16(answer6, wbuf, 2), 0);
+  CHECK_EQ(0, StrNCmp16(answer6, wbuf, 2));
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
   len = str->WriteAscii(buf, 3, 1);
-  CHECK_EQ(len, 1);
+  CHECK_EQ(1, len);
   len = str->Write(wbuf, 3, 1);
-  CHECK_EQ(len, 1);
-  CHECK_EQ(strncmp("d\1", buf, 2), 0);
+  CHECK_EQ(1, len);
+  CHECK_EQ(0, strncmp("d\1", buf, 2));
   uint16_t answer7[] = {'d', 0x101};
-  CHECK_EQ(StrNCmp16(answer7, wbuf, 2), 0);
+  CHECK_EQ(0, StrNCmp16(answer7, wbuf, 2));
 }
 
 
@@ -6941,50 +6962,111 @@ THREADED_TEST(CallAsFunction) {
   v8::HandleScope scope;
   LocalContext context;
 
-  Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New();
-  Local<ObjectTemplate> instance_template = t->InstanceTemplate();
-  instance_template->SetCallAsFunctionHandler(call_as_function);
-  Local<v8::Object> instance = t->GetFunction()->NewInstance();
-  context->Global()->Set(v8_str("obj"), instance);
-  v8::TryCatch try_catch;
-  Local<Value> value;
-  CHECK(!try_catch.HasCaught());
+  { Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New();
+    Local<ObjectTemplate> instance_template = t->InstanceTemplate();
+    instance_template->SetCallAsFunctionHandler(call_as_function);
+    Local<v8::Object> instance = t->GetFunction()->NewInstance();
+    context->Global()->Set(v8_str("obj"), instance);
+    v8::TryCatch try_catch;
+    Local<Value> value;
+    CHECK(!try_catch.HasCaught());
 
-  value = CompileRun("obj(42)");
-  CHECK(!try_catch.HasCaught());
-  CHECK_EQ(42, value->Int32Value());
+    value = CompileRun("obj(42)");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(42, value->Int32Value());
 
-  value = CompileRun("(function(o){return o(49)})(obj)");
-  CHECK(!try_catch.HasCaught());
-  CHECK_EQ(49, value->Int32Value());
+    value = CompileRun("(function(o){return o(49)})(obj)");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(49, value->Int32Value());
 
-  // test special case of call as function
-  value = CompileRun("[obj]['0'](45)");
-  CHECK(!try_catch.HasCaught());
-  CHECK_EQ(45, value->Int32Value());
+    // test special case of call as function
+    value = CompileRun("[obj]['0'](45)");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(45, value->Int32Value());
 
-  value = CompileRun("obj.call = Function.prototype.call;"
-                     "obj.call(null, 87)");
-  CHECK(!try_catch.HasCaught());
-  CHECK_EQ(87, value->Int32Value());
+    value = CompileRun("obj.call = Function.prototype.call;"
+                       "obj.call(null, 87)");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(87, value->Int32Value());
 
-  // Regression tests for bug #1116356: Calling call through call/apply
-  // must work for non-function receivers.
-  const char* apply_99 = "Function.prototype.call.apply(obj, [this, 99])";
-  value = CompileRun(apply_99);
-  CHECK(!try_catch.HasCaught());
-  CHECK_EQ(99, value->Int32Value());
+    // Regression tests for bug #1116356: Calling call through call/apply
+    // must work for non-function receivers.
+    const char* apply_99 = "Function.prototype.call.apply(obj, [this, 99])";
+    value = CompileRun(apply_99);
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(99, value->Int32Value());
 
-  const char* call_17 = "Function.prototype.call.call(obj, this, 17)";
-  value = CompileRun(call_17);
-  CHECK(!try_catch.HasCaught());
-  CHECK_EQ(17, value->Int32Value());
+    const char* call_17 = "Function.prototype.call.call(obj, this, 17)";
+    value = CompileRun(call_17);
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(17, value->Int32Value());
 
-  // Check that the call-as-function handler can be called through
-  // new.
-  value = CompileRun("new obj(43)");
-  CHECK(!try_catch.HasCaught());
-  CHECK_EQ(-43, value->Int32Value());
+    // Check that the call-as-function handler can be called through
+    // new.
+    value = CompileRun("new obj(43)");
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(-43, value->Int32Value());
+
+    // Check that the call-as-function handler can be called through
+    // the API.
+    v8::Handle<Value> args[] = { v8_num(28) };
+    value = instance->CallAsFunction(instance, 1, args);
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(28, value->Int32Value());
+  }
+
+  { Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New();
+    Local<ObjectTemplate> instance_template = t->InstanceTemplate();
+    Local<v8::Object> instance = t->GetFunction()->NewInstance();
+    context->Global()->Set(v8_str("obj2"), instance);
+    v8::TryCatch try_catch;
+    Local<Value> value;
+    CHECK(!try_catch.HasCaught());
+
+    // Call an object without call-as-function handler through the JS
+    value = CompileRun("obj2(28)");
+    CHECK(value.IsEmpty());
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value1(try_catch.Exception());
+    CHECK_EQ(*exception_value1,
+             "TypeError: Property 'obj2' of object "
+             "#<Object> is not a function");
+    try_catch.Reset();
+
+    // Call an object without call-as-function handler through the API
+    value = CompileRun("obj2(28)");
+    v8::Handle<Value> args[] = { v8_num(28) };
+    value = instance->CallAsFunction(instance, 1, args);
+    CHECK(value.IsEmpty());
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value2(try_catch.Exception());
+    CHECK_EQ(*exception_value2, "TypeError: [object Object] is not a function");
+    try_catch.Reset();
+  }
+
+  { Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New();
+    Local<ObjectTemplate> instance_template = t->InstanceTemplate();
+    instance_template->SetCallAsFunctionHandler(ThrowValue);
+    Local<v8::Object> instance = t->GetFunction()->NewInstance();
+    context->Global()->Set(v8_str("obj3"), instance);
+    v8::TryCatch try_catch;
+    Local<Value> value;
+    CHECK(!try_catch.HasCaught());
+
+    // Catch the exception which is thrown by call-as-function handler
+    value = CompileRun("obj3(22)");
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value1(try_catch.Exception());
+    CHECK_EQ(*exception_value1, "22");
+    try_catch.Reset();
+
+    v8::Handle<Value> args[] = { v8_num(23) };
+    value = instance->CallAsFunction(instance, 1, args);
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value2(try_catch.Exception());
+    CHECK_EQ(*exception_value2, "23");
+    try_catch.Reset();
+  }
 }
 
 
@@ -8576,6 +8658,134 @@ THREADED_TEST(NamedPropertyHandlerGetterAttributes) {
 }
 
 
+static Handle<Value> ThrowingGetter(Local<String> name,
+                                    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  ThrowException(Handle<Value>());
+  return Undefined();
+}
+
+
+THREADED_TEST(VariousGetPropertiesAndThrowingCallbacks) {
+  HandleScope scope;
+  LocalContext context;
+
+  Local<FunctionTemplate> templ = FunctionTemplate::New();
+  Local<ObjectTemplate> instance_templ = templ->InstanceTemplate();
+  instance_templ->SetAccessor(v8_str("f"), ThrowingGetter);
+
+  Local<Object> instance = templ->GetFunction()->NewInstance();
+
+  Local<Object> another = Object::New();
+  another->SetPrototype(instance);
+
+  Local<Object> with_js_getter = CompileRun(
+      "o = {};\n"
+      "o.__defineGetter__('f', function() { throw undefined; });\n"
+      "o\n").As<Object>();
+  CHECK(!with_js_getter.IsEmpty());
+
+  TryCatch try_catch;
+
+  Local<Value> result = instance->GetRealNamedProperty(v8_str("f"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(result.IsEmpty());
+
+  result = another->GetRealNamedProperty(v8_str("f"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(result.IsEmpty());
+
+  result = another->GetRealNamedPropertyInPrototypeChain(v8_str("f"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(result.IsEmpty());
+
+  result = another->Get(v8_str("f"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(result.IsEmpty());
+
+  result = with_js_getter->GetRealNamedProperty(v8_str("f"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(result.IsEmpty());
+
+  result = with_js_getter->Get(v8_str("f"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(result.IsEmpty());
+}
+
+
+static Handle<Value> ThrowingCallbackWithTryCatch(const Arguments& args) {
+  TryCatch try_catch;
+  // Verboseness is important: it triggers message delivery which can call into
+  // external code.
+  try_catch.SetVerbose(true);
+  CompileRun("throw 'from JS';");
+  CHECK(try_catch.HasCaught());
+  CHECK(!i::Isolate::Current()->has_pending_exception());
+  CHECK(!i::Isolate::Current()->has_scheduled_exception());
+  return Undefined();
+}
+
+
+static int call_depth;
+
+
+static void WithTryCatch(Handle<Message> message, Handle<Value> data) {
+  TryCatch try_catch;
+}
+
+
+static void ThrowFromJS(Handle<Message> message, Handle<Value> data) {
+  if (--call_depth) CompileRun("throw 'ThrowInJS';");
+}
+
+
+static void ThrowViaApi(Handle<Message> message, Handle<Value> data) {
+  if (--call_depth) ThrowException(v8_str("ThrowViaApi"));
+}
+
+
+static void WebKitLike(Handle<Message> message, Handle<Value> data) {
+  Handle<String> errorMessageString = message->Get();
+  CHECK(!errorMessageString.IsEmpty());
+  message->GetStackTrace();
+  message->GetScriptResourceName();
+}
+
+THREADED_TEST(ExceptionsDoNotPropagatePastTryCatch) {
+  HandleScope scope;
+  LocalContext context;
+
+  Local<Function> func =
+      FunctionTemplate::New(ThrowingCallbackWithTryCatch)->GetFunction();
+  context->Global()->Set(v8_str("func"), func);
+
+  MessageCallback callbacks[] =
+      { NULL, WebKitLike, ThrowViaApi, ThrowFromJS, WithTryCatch };
+  for (unsigned i = 0; i < sizeof(callbacks)/sizeof(callbacks[0]); i++) {
+    MessageCallback callback = callbacks[i];
+    if (callback != NULL) {
+      V8::AddMessageListener(callback);
+    }
+    // Some small number to control number of times message handler should
+    // throw an exception.
+    call_depth = 5;
+    ExpectFalse(
+        "var thrown = false;\n"
+        "try { func(); } catch(e) { thrown = true; }\n"
+        "thrown\n");
+    if (callback != NULL) {
+      V8::RemoveMessageListeners(callback);
+    }
+  }
+}
+
+
 static v8::Handle<Value> ParentGetter(Local<String> name,
                                       const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
@@ -9930,7 +10140,7 @@ class RegExpInterruptTest {
   class GCThread : public i::Thread {
    public:
     explicit GCThread(i::Isolate* isolate, RegExpInterruptTest* test)
-        : Thread(isolate), test_(test) {}
+        : Thread(isolate, "GCThread"), test_(test) {}
     virtual void Run() {
       test_->CollectGarbage();
     }
@@ -10052,7 +10262,7 @@ class ApplyInterruptTest {
   class GCThread : public i::Thread {
    public:
     explicit GCThread(i::Isolate* isolate, ApplyInterruptTest* test)
-        : Thread(isolate), test_(test) {}
+        : Thread(isolate, "GCThread"), test_(test) {}
     virtual void Run() {
       test_->CollectGarbage();
     }
@@ -10348,7 +10558,7 @@ class RegExpStringModificationTest {
    public:
     explicit MorphThread(i::Isolate* isolate,
                          RegExpStringModificationTest* test)
-        : Thread(isolate), test_(test) {}
+        : Thread(isolate, "MorphThread"), test_(test) {}
     virtual void Run() {
       test_->MorphString();
     }
@@ -11234,6 +11444,9 @@ static int ExternalArrayElementSize(v8::ExternalArrayType array_type) {
     case v8::kExternalFloatArray:
       return 4;
       break;
+    case v8::kExternalDoubleArray:
+      return 8;
+      break;
     default:
       UNREACHABLE();
       return -1;
@@ -11426,7 +11639,8 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   CHECK_EQ(
       2, static_cast<int>(jsobj->GetElement(6)->ToObjectChecked()->Number()));
 
-  if (array_type != v8::kExternalFloatArray) {
+  if (array_type != v8::kExternalFloatArray &&
+      array_type != v8::kExternalDoubleArray) {
     // Though the specification doesn't state it, be explicit about
     // converting NaNs and +/-Infinity to zero.
     result = CompileRun("for (var i = 0; i < 8; i++) {"
@@ -11497,6 +11711,68 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
     result = CompileRun(test_buf.start());
     CHECK_EQ(true, result->BooleanValue());
   }
+
+  // Test crankshaft external array loads
+  for (int i = 0; i < kElementCount; i++) {
+    array->set(i, static_cast<ElementType>(i));
+  }
+  result = CompileRun("function ee_load_test_func(sum) {"
+                      " for (var i = 0; i < 40; ++i)"
+                      "   sum += ext_array[i];"
+                      " return sum;"
+                      "}"
+                      "sum=0;"
+                      "for (var i=0;i<10000;++i) {"
+                      "  sum=ee_load_test_func(sum);"
+                      "}"
+                      "sum;");
+  CHECK_EQ(7800000, result->Int32Value());
+
+  // Test crankshaft external array stores
+  result = CompileRun("function ee_store_test_func(sum) {"
+                      " for (var i = 0; i < 40; ++i)"
+                      "   sum += ext_array[i] = i;"
+                      " return sum;"
+                      "}"
+                      "sum=0;"
+                      "for (var i=0;i<10000;++i) {"
+                      "  sum=ee_store_test_func(sum);"
+                      "}"
+                      "sum;");
+  CHECK_EQ(7800000, result->Int32Value());
+
+  for (int i = 0; i < kElementCount; i++) {
+    array->set(i, static_cast<ElementType>(i));
+  }
+  // Test complex assignments
+  result = CompileRun("function ee_op_test_complex_func(sum) {"
+                      " for (var i = 0; i < 40; ++i) {"
+                      "   sum += (ext_array[i] += 1);"
+                      "   sum += (ext_array[i] -= 1);"
+                      " } "
+                      " return sum;"
+                      "}"
+                      "sum=0;"
+                      "for (var i=0;i<10000;++i) {"
+                      "  sum=ee_op_test_complex_func(sum);"
+                      "}"
+                      "sum;");
+  CHECK_EQ(16000000, result->Int32Value());
+
+  // Test count operations
+  result = CompileRun("function ee_op_test_count_func(sum) {"
+                      " for (var i = 0; i < 40; ++i) {"
+                      "   sum += (++ext_array[i]);"
+                      "   sum += (--ext_array[i]);"
+                      " } "
+                      " return sum;"
+                      "}"
+                      "sum=0;"
+                      "for (var i=0;i<10000;++i) {"
+                      "  sum=ee_op_test_count_func(sum);"
+                      "}"
+                      "sum;");
+  CHECK_EQ(16000000, result->Int32Value());
 
   result = CompileRun("ext_array[3] = 33;"
                       "delete ext_array[3];"
@@ -11604,6 +11880,95 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
     free(large_array_data);
   }
 
+  // The "" property descriptor is overloaded to store information about
+  // the external array. Ensure that setting and accessing the "" property
+  // works (it should overwrite the information cached about the external
+  // array in the DescriptorArray) in various situations.
+  result = CompileRun("ext_array[''] = 23; ext_array['']");
+  CHECK_EQ(23, result->Int32Value());
+
+  // Property "" set after the external array is associated with the object.
+  {
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    obj2->Set(v8_str("ee_test_field"), v8::Int32::New(256));
+    obj2->Set(v8_str(""), v8::Int32::New(1503));
+    // Set the elements to be the external array.
+    obj2->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array['']");
+    CHECK_EQ(1503, result->Int32Value());
+  }
+
+  // Property "" set after the external array is associated with the object.
+  {
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    obj2->Set(v8_str("ee_test_field_2"), v8::Int32::New(256));
+    // Set the elements to be the external array.
+    obj2->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+    obj2->Set(v8_str(""), v8::Int32::New(1503));
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array['']");
+    CHECK_EQ(1503, result->Int32Value());
+  }
+
+  // Should reuse the map from previous test.
+  {
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    obj2->Set(v8_str("ee_test_field_2"), v8::Int32::New(256));
+    // Set the elements to be the external array. Should re-use the map
+    // from previous test.
+    obj2->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array['']");
+  }
+
+  // Property "" is a constant function that shouldn't not be interfered with
+  // when an external array is set.
+  {
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    // Start
+    obj2->Set(v8_str("ee_test_field3"), v8::Int32::New(256));
+
+    // Add a constant function to an object.
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array[''] = function() {return 1503;};"
+                        "ext_array['']();");
+
+    // Add an external array transition to the same map that
+    // has the constant transition.
+    v8::Handle<v8::Object> obj3 = v8::Object::New();
+    obj3->Set(v8_str("ee_test_field3"), v8::Int32::New(256));
+    obj3->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+    context->Global()->Set(v8_str("ext_array"), obj3);
+  }
+
+  // If a external array transition is in the map, it should get clobbered
+  // by a constant function.
+  {
+    // Add an external array transition.
+    v8::Handle<v8::Object> obj3 = v8::Object::New();
+    obj3->Set(v8_str("ee_test_field4"), v8::Int32::New(256));
+    obj3->SetIndexedPropertiesToExternalArrayData(array_data,
+                                                  array_type,
+                                                  kElementCount);
+
+    // Add a constant function to the same map that just got an external array
+    // transition.
+    v8::Handle<v8::Object> obj2 = v8::Object::New();
+    obj2->Set(v8_str("ee_test_field4"), v8::Int32::New(256));
+    context->Global()->Set(v8_str("ext_array"), obj2);
+    result = CompileRun("ext_array[''] = function() {return 1503;};"
+                        "ext_array['']();");
+  }
+
   free(array_data);
 }
 
@@ -11672,6 +12037,14 @@ THREADED_TEST(ExternalFloatArray) {
 }
 
 
+THREADED_TEST(ExternalDoubleArray) {
+  ExternalArrayTestHelper<i::ExternalDoubleArray, double>(
+      v8::kExternalDoubleArray,
+      -500,
+      500);
+}
+
+
 THREADED_TEST(ExternalArrays) {
   TestExternalByteArray();
   TestExternalUnsignedByteArray();
@@ -11709,6 +12082,7 @@ THREADED_TEST(ExternalArrayInfo) {
   ExternalArrayInfoTestHelper(v8::kExternalIntArray);
   ExternalArrayInfoTestHelper(v8::kExternalUnsignedIntArray);
   ExternalArrayInfoTestHelper(v8::kExternalFloatArray);
+  ExternalArrayInfoTestHelper(v8::kExternalDoubleArray);
   ExternalArrayInfoTestHelper(v8::kExternalPixelArray);
 }
 
@@ -12059,28 +12433,14 @@ THREADED_TEST(GetHeapStatistics) {
 
 static double DoubleFromBits(uint64_t value) {
   double target;
-#ifdef BIG_ENDIAN_FLOATING_POINT
-  const int kIntSize = 4;
-  // Somebody swapped the lower and higher half of doubles.
-  memcpy(&target, reinterpret_cast<char*>(&value) + kIntSize, kIntSize);
-  memcpy(reinterpret_cast<char*>(&target) + kIntSize, &value, kIntSize);
-#else
   memcpy(&target, &value, sizeof(target));
-#endif
   return target;
 }
 
 
 static uint64_t DoubleToBits(double value) {
   uint64_t target;
-#ifdef BIG_ENDIAN_FLOATING_POINT
-  const int kIntSize = 4;
-  // Somebody swapped the lower and higher half of doubles.
-  memcpy(&target, reinterpret_cast<char*>(&value) + kIntSize, kIntSize);
-  memcpy(reinterpret_cast<char*>(&target) + kIntSize, &value, kIntSize);
-#else
   memcpy(&target, &value, sizeof(target));
-#endif
   return target;
 }
 
@@ -13050,10 +13410,10 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
 class IsolateThread : public v8::internal::Thread {
  public:
   explicit IsolateThread(v8::Isolate* isolate, int fib_limit)
-    : Thread(NULL),
-      isolate_(isolate),
-      fib_limit_(fib_limit),
-      result_(0) { }
+      : Thread(NULL, "IsolateThread"),
+        isolate_(isolate),
+        fib_limit_(fib_limit),
+        result_(0) { }
 
   void Run() {
     result_ = CalcFibonacci(isolate_, fib_limit_);
@@ -13098,12 +13458,19 @@ TEST(MultipleIsolatesOnIndividualThreads) {
 
 class InitDefaultIsolateThread : public v8::internal::Thread {
  public:
-  enum TestCase { IgnoreOOM, SetResourceConstraints, SetFatalHandler };
+  enum TestCase {
+    IgnoreOOM,
+    SetResourceConstraints,
+    SetFatalHandler,
+    SetCounterFunction,
+    SetCreateHistogramFunction,
+    SetAddHistogramSampleFunction
+  };
 
   explicit InitDefaultIsolateThread(TestCase testCase)
-    : Thread(NULL),
-      testCase_(testCase),
-      result_(false) { }
+      : Thread(NULL, "InitDefaultIsolateThread"),
+        testCase_(testCase),
+        result_(false) { }
 
   void Run() {
     switch (testCase_) {
@@ -13122,6 +13489,18 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
 
     case SetFatalHandler:
       v8::V8::SetFatalErrorHandler(NULL);
+      break;
+
+    case SetCounterFunction:
+      v8::V8::SetCounterFunction(NULL);
+      break;
+
+    case SetCreateHistogramFunction:
+      v8::V8::SetCreateHistogramFunction(NULL);
+      break;
+
+    case SetAddHistogramSampleFunction:
+      v8::V8::SetAddHistogramSampleFunction(NULL);
       break;
     }
     result_ = true;
@@ -13152,6 +13531,18 @@ TEST(InitializeDefaultIsolateOnSecondaryThread2) {
 
 TEST(InitializeDefaultIsolateOnSecondaryThread3) {
   InitializeTestHelper(InitDefaultIsolateThread::SetFatalHandler);
+}
+
+TEST(InitializeDefaultIsolateOnSecondaryThread4) {
+  InitializeTestHelper(InitDefaultIsolateThread::SetCounterFunction);
+}
+
+TEST(InitializeDefaultIsolateOnSecondaryThread5) {
+  InitializeTestHelper(InitDefaultIsolateThread::SetCreateHistogramFunction);
+}
+
+TEST(InitializeDefaultIsolateOnSecondaryThread6) {
+  InitializeTestHelper(InitDefaultIsolateThread::SetAddHistogramSampleFunction);
 }
 
 
@@ -13418,6 +13809,11 @@ TEST(RegExp) {
   context->Global()->Set(v8_str("re"), re);
   ExpectTrue("re.test('FoobarbaZ')");
 
+  // RegExps are objects on which you can set properties.
+  re->Set(v8_str("property"), v8::Integer::New(32));
+  v8::Handle<v8::Value> value = CompileRun("re.property");
+  ASSERT_EQ(32, value->Int32Value());
+
   v8::TryCatch try_catch;
   re = v8::RegExp::New(v8_str("foo["), v8::RegExp::kNone);
   CHECK(re.IsEmpty());
@@ -13487,4 +13883,291 @@ TEST(DefinePropertyPostDetach) {
                  "})").As<Function>();
   context->DetachGlobal();
   define_property->Call(proxy, 0, NULL);
+}
+
+
+static void InstallContextId(v8::Handle<Context> context, int id) {
+  Context::Scope scope(context);
+  CompileRun("Object.prototype").As<Object>()->
+      Set(v8_str("context_id"), v8::Integer::New(id));
+}
+
+
+static void CheckContextId(v8::Handle<Object> object, int expected) {
+  CHECK_EQ(expected, object->Get(v8_str("context_id"))->Int32Value());
+}
+
+
+THREADED_TEST(CreationContext) {
+  HandleScope handle_scope;
+  Persistent<Context> context1 = Context::New();
+  InstallContextId(context1, 1);
+  Persistent<Context> context2 = Context::New();
+  InstallContextId(context2, 2);
+  Persistent<Context> context3 = Context::New();
+  InstallContextId(context3, 3);
+
+  Local<v8::FunctionTemplate> tmpl = v8::FunctionTemplate::New();
+
+  Local<Object> object1;
+  Local<Function> func1;
+  {
+    Context::Scope scope(context1);
+    object1 = Object::New();
+    func1 = tmpl->GetFunction();
+  }
+
+  Local<Object> object2;
+  Local<Function> func2;
+  {
+    Context::Scope scope(context2);
+    object2 = Object::New();
+    func2 = tmpl->GetFunction();
+  }
+
+  Local<Object> instance1;
+  Local<Object> instance2;
+
+  {
+    Context::Scope scope(context3);
+    instance1 = func1->NewInstance();
+    instance2 = func2->NewInstance();
+  }
+
+  CHECK(object1->CreationContext() == context1);
+  CheckContextId(object1, 1);
+  CHECK(func1->CreationContext() == context1);
+  CheckContextId(func1, 1);
+  CHECK(instance1->CreationContext() == context1);
+  CheckContextId(instance1, 1);
+  CHECK(object2->CreationContext() == context2);
+  CheckContextId(object2, 2);
+  CHECK(func2->CreationContext() == context2);
+  CheckContextId(func2, 2);
+  CHECK(instance2->CreationContext() == context2);
+  CheckContextId(instance2, 2);
+
+  {
+    Context::Scope scope(context1);
+    CHECK(object1->CreationContext() == context1);
+    CheckContextId(object1, 1);
+    CHECK(func1->CreationContext() == context1);
+    CheckContextId(func1, 1);
+    CHECK(instance1->CreationContext() == context1);
+    CheckContextId(instance1, 1);
+    CHECK(object2->CreationContext() == context2);
+    CheckContextId(object2, 2);
+    CHECK(func2->CreationContext() == context2);
+    CheckContextId(func2, 2);
+    CHECK(instance2->CreationContext() == context2);
+    CheckContextId(instance2, 2);
+  }
+
+  {
+    Context::Scope scope(context2);
+    CHECK(object1->CreationContext() == context1);
+    CheckContextId(object1, 1);
+    CHECK(func1->CreationContext() == context1);
+    CheckContextId(func1, 1);
+    CHECK(instance1->CreationContext() == context1);
+    CheckContextId(instance1, 1);
+    CHECK(object2->CreationContext() == context2);
+    CheckContextId(object2, 2);
+    CHECK(func2->CreationContext() == context2);
+    CheckContextId(func2, 2);
+    CHECK(instance2->CreationContext() == context2);
+    CheckContextId(instance2, 2);
+  }
+
+  context1.Dispose();
+  context2.Dispose();
+  context3.Dispose();
+}
+
+
+Handle<Value> HasOwnPropertyIndexedPropertyGetter(uint32_t index,
+                                                  const AccessorInfo& info) {
+  if (index == 42) return v8_str("yes");
+  return Handle<v8::Integer>();
+}
+
+
+Handle<Value> HasOwnPropertyNamedPropertyGetter(Local<String> property,
+                                                const AccessorInfo& info) {
+  if (property->Equals(v8_str("foo"))) return v8_str("yes");
+  return Handle<Value>();
+}
+
+
+Handle<v8::Integer> HasOwnPropertyIndexedPropertyQuery(
+    uint32_t index, const AccessorInfo& info) {
+  if (index == 42) return v8_num(1).As<v8::Integer>();
+  return Handle<v8::Integer>();
+}
+
+
+Handle<v8::Integer> HasOwnPropertyNamedPropertyQuery(
+    Local<String> property, const AccessorInfo& info) {
+  if (property->Equals(v8_str("foo"))) return v8_num(1).As<v8::Integer>();
+  return Handle<v8::Integer>();
+}
+
+
+Handle<v8::Integer> HasOwnPropertyNamedPropertyQuery2(
+    Local<String> property, const AccessorInfo& info) {
+  if (property->Equals(v8_str("bar"))) return v8_num(1).As<v8::Integer>();
+  return Handle<v8::Integer>();
+}
+
+
+Handle<Value> HasOwnPropertyAccessorGetter(Local<String> property,
+                                           const AccessorInfo& info) {
+  return v8_str("yes");
+}
+
+
+TEST(HasOwnProperty) {
+  v8::HandleScope scope;
+  LocalContext env;
+  { // Check normal properties and defined getters.
+    Handle<Value> value = CompileRun(
+        "function Foo() {"
+        "    this.foo = 11;"
+        "    this.__defineGetter__('baz', function() { return 1; });"
+        "};"
+        "function Bar() { "
+        "    this.bar = 13;"
+        "    this.__defineGetter__('bla', function() { return 2; });"
+        "};"
+        "Bar.prototype = new Foo();"
+        "new Bar();");
+    CHECK(value->IsObject());
+    Handle<Object> object = value->ToObject();
+    CHECK(object->Has(v8_str("foo")));
+    CHECK(!object->HasOwnProperty(v8_str("foo")));
+    CHECK(object->HasOwnProperty(v8_str("bar")));
+    CHECK(object->Has(v8_str("baz")));
+    CHECK(!object->HasOwnProperty(v8_str("baz")));
+    CHECK(object->HasOwnProperty(v8_str("bla")));
+  }
+  { // Check named getter interceptors.
+    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    templ->SetNamedPropertyHandler(HasOwnPropertyNamedPropertyGetter);
+    Handle<Object> instance = templ->NewInstance();
+    CHECK(!instance->HasOwnProperty(v8_str("42")));
+    CHECK(instance->HasOwnProperty(v8_str("foo")));
+    CHECK(!instance->HasOwnProperty(v8_str("bar")));
+  }
+  { // Check indexed getter interceptors.
+    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    templ->SetIndexedPropertyHandler(HasOwnPropertyIndexedPropertyGetter);
+    Handle<Object> instance = templ->NewInstance();
+    CHECK(instance->HasOwnProperty(v8_str("42")));
+    CHECK(!instance->HasOwnProperty(v8_str("43")));
+    CHECK(!instance->HasOwnProperty(v8_str("foo")));
+  }
+  { // Check named query interceptors.
+    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    templ->SetNamedPropertyHandler(0, 0, HasOwnPropertyNamedPropertyQuery);
+    Handle<Object> instance = templ->NewInstance();
+    CHECK(instance->HasOwnProperty(v8_str("foo")));
+    CHECK(!instance->HasOwnProperty(v8_str("bar")));
+  }
+  { // Check indexed query interceptors.
+    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    templ->SetIndexedPropertyHandler(0, 0, HasOwnPropertyIndexedPropertyQuery);
+    Handle<Object> instance = templ->NewInstance();
+    CHECK(instance->HasOwnProperty(v8_str("42")));
+    CHECK(!instance->HasOwnProperty(v8_str("41")));
+  }
+  { // Check callbacks.
+    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    templ->SetAccessor(v8_str("foo"), HasOwnPropertyAccessorGetter);
+    Handle<Object> instance = templ->NewInstance();
+    CHECK(instance->HasOwnProperty(v8_str("foo")));
+    CHECK(!instance->HasOwnProperty(v8_str("bar")));
+  }
+  { // Check that query wins on disagreement.
+    Handle<ObjectTemplate> templ = ObjectTemplate::New();
+    templ->SetNamedPropertyHandler(HasOwnPropertyNamedPropertyGetter,
+                                   0,
+                                   HasOwnPropertyNamedPropertyQuery2);
+    Handle<Object> instance = templ->NewInstance();
+    CHECK(!instance->HasOwnProperty(v8_str("foo")));
+    CHECK(instance->HasOwnProperty(v8_str("bar")));
+  }
+}
+
+
+void CheckCodeGenerationAllowed() {
+  Handle<Value> result = CompileRun("eval('42')");
+  CHECK_EQ(42, result->Int32Value());
+  result = CompileRun("(function(e) { return e('42'); })(eval)");
+  CHECK_EQ(42, result->Int32Value());
+  result = CompileRun("execScript('42')");
+  CHECK(!result.IsEmpty());
+  result = CompileRun("var f = new Function('return 42'); f()");
+  CHECK_EQ(42, result->Int32Value());
+}
+
+
+void CheckCodeGenerationDisallowed() {
+  TryCatch try_catch;
+
+  Handle<Value> result = CompileRun("eval('42')");
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+
+  result = CompileRun("(function(e) { return e('42'); })(eval)");
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+
+  result = CompileRun("execScript('42')");
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+
+  result = CompileRun("var f = new Function('return 42'); f()");
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+}
+
+
+bool CodeGenerationAllowed(Local<Context> context) {
+  ApiTestFuzzer::Fuzz();
+  return true;
+}
+
+
+bool CodeGenerationDisallowed(Local<Context> context) {
+  ApiTestFuzzer::Fuzz();
+  return false;
+}
+
+
+THREADED_TEST(AllowCodeGenFromStrings) {
+  v8::HandleScope scope;
+  LocalContext context;
+
+  // eval, execScript and the Function constructor allowed by default.
+  CheckCodeGenerationAllowed();
+
+  // Disallow eval, execScript and the Function constructor.
+  context->AllowCodeGenerationFromStrings(false);
+  CheckCodeGenerationDisallowed();
+
+  // Allow again.
+  context->AllowCodeGenerationFromStrings(true);
+  CheckCodeGenerationAllowed();
+
+  // Disallow but setting a global callback that will allow the calls.
+  context->AllowCodeGenerationFromStrings(false);
+  V8::SetAllowCodeGenerationFromStringsCallback(&CodeGenerationAllowed);
+  CheckCodeGenerationAllowed();
+
+  // Set a callback that disallows the code generation.
+  V8::SetAllowCodeGenerationFromStringsCallback(&CodeGenerationDisallowed);
+  CheckCodeGenerationDisallowed();
 }

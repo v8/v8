@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -107,18 +107,17 @@ void PendingListNode::WeakCallback(v8::Persistent<v8::Value>, void* data) {
 }
 
 
-static bool IsOptimizable(JSFunction* function) {
-  Code* code = function->code();
-  return code->kind() == Code::FUNCTION && code->optimizable();
-}
-
-
 Atomic32 RuntimeProfiler::state_ = 0;
 // TODO(isolates): Create the semaphore lazily and clean it up when no
 // longer required.
 #ifdef ENABLE_LOGGING_AND_PROFILING
 Semaphore* RuntimeProfiler::semaphore_ = OS::CreateSemaphore(0);
 #endif
+
+#ifdef DEBUG
+bool RuntimeProfiler::has_been_globally_setup_ = false;
+#endif
+bool RuntimeProfiler::enabled_ = false;
 
 
 RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
@@ -130,24 +129,31 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
       js_ratio_(0),
       sampler_window_position_(0),
       optimize_soon_list_(NULL),
-      state_window_position_(0) {
-  state_counts_[0] = kStateWindowSize;
-  state_counts_[1] = 0;
+      state_window_position_(0),
+      state_window_ticks_(0) {
+  state_counts_[IN_NON_JS_STATE] = kStateWindowSize;
+  state_counts_[IN_JS_STATE] = 0;
+  STATIC_ASSERT(IN_NON_JS_STATE == 0);
   memset(state_window_, 0, sizeof(state_window_));
   ClearSampleBuffer();
 }
 
 
-bool RuntimeProfiler::IsEnabled() {
-  return V8::UseCrankshaft() && FLAG_opt;
+void RuntimeProfiler::GlobalSetup() {
+  ASSERT(!has_been_globally_setup_);
+  enabled_ = V8::UseCrankshaft() && FLAG_opt;
+#ifdef DEBUG
+  has_been_globally_setup_ = true;
+#endif
 }
 
 
 void RuntimeProfiler::Optimize(JSFunction* function, bool eager, int delay) {
-  ASSERT(IsOptimizable(function));
+  ASSERT(function->IsOptimizable());
   if (FLAG_trace_opt) {
     PrintF("[marking (%s) ", eager ? "eagerly" : "lazily");
     function->PrintName();
+    PrintF(" 0x%" V8PRIxPTR, reinterpret_cast<intptr_t>(function->address()));
     PrintF(" for recompilation");
     if (delay > 0) {
       PrintF(" (delayed %0.3f ms)", static_cast<double>(delay) / 1000);
@@ -165,7 +171,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   // Debug::has_break_points().
   ASSERT(function->IsMarkedForLazyRecompilation());
   if (!FLAG_use_osr ||
-      isolate_->debug()->has_break_points() ||
+      isolate_->DebuggerHasBreakPoints() ||
       function->IsBuiltin()) {
     return;
   }
@@ -197,7 +203,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   MaybeObject* maybe_check_code = check_stub.TryGetCode();
   if (maybe_check_code->ToObject(&check_code)) {
     Code* replacement_code =
-        isolate_->builtins()->builtin(Builtins::OnStackReplacement);
+        isolate_->builtins()->builtin(Builtins::kOnStackReplacement);
     Code* unoptimized_code = shared->code();
     Deoptimizer::PatchStackCheckCode(unoptimized_code,
                                      Code::cast(check_code),
@@ -243,7 +249,7 @@ void RuntimeProfiler::OptimizeNow() {
     if (current->IsValid()) {
       Handle<JSFunction> function = current->function();
       int delay = current->Delay();
-      if (IsOptimizable(*function)) {
+      if (function->IsOptimizable()) {
         Optimize(*function, true, delay);
       }
     }
@@ -258,7 +264,7 @@ void RuntimeProfiler::OptimizeNow() {
   JSFunction* samples[kSamplerFrameCount];
   int sample_count = 0;
   int frame_count = 0;
-  for (JavaScriptFrameIterator it;
+  for (JavaScriptFrameIterator it(isolate_);
        frame_count++ < kSamplerFrameCount && !it.done();
        it.Advance()) {
     JavaScriptFrame* frame = it.frame();
@@ -288,7 +294,7 @@ void RuntimeProfiler::OptimizeNow() {
     }
 
     // Do not record non-optimizable functions.
-    if (!IsOptimizable(function)) continue;
+    if (!function->IsOptimizable()) continue;
     samples[sample_count++] = function;
 
     int function_size = function->shared()->SourceSize();
@@ -328,7 +334,7 @@ void RuntimeProfiler::OptimizeNow() {
 
 
 void RuntimeProfiler::OptimizeSoon(JSFunction* function) {
-  if (!IsOptimizable(function)) return;
+  if (!function->IsOptimizable()) return;
   PendingListNode* node = new PendingListNode(function);
   node->set_next(optimize_soon_list_);
   optimize_soon_list_ = node;
@@ -344,8 +350,12 @@ void RuntimeProfiler::UpdateStateRatio(SamplerState current_state) {
   ASSERT(IsPowerOf2(kStateWindowSize));
   state_window_position_ = (state_window_position_ + 1) &
       (kStateWindowSize - 1);
+  // Note: to calculate correct ratio we have to track how many valid
+  // ticks are actually in the state window, because on profiler
+  // startup this number can be less than the window size.
+  state_window_ticks_ = Min(kStateWindowSize, state_window_ticks_ + 1);
   NoBarrier_Store(&js_ratio_, state_counts_[IN_JS_STATE] * 100 /
-                  kStateWindowSize);
+                  state_window_ticks_);
 }
 #endif
 
@@ -363,6 +373,7 @@ void RuntimeProfiler::NotifyTick() {
 
 
 void RuntimeProfiler::Setup() {
+  ASSERT(has_been_globally_setup_);
   ClearSampleBuffer();
   // If the ticker hasn't already started, make sure to do so to get
   // the ticks for the runtime profiler.

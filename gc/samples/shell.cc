@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,19 +28,24 @@
 #include <v8.h>
 #include <v8-testing.h>
 #include <assert.h>
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+#include <bzlib.h>
+#endif
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+// When building with V8 in a shared library we cannot use functions which
+// is not explicitly a part of the public V8 API. This extensive use of
+// #ifndef USING_V8_SHARED/#endif is a hack until we can resolve whether to
+// still use the shell sample for testing or change to use the developer
+// shell d8 TODO(1272).
+#ifndef USING_V8_SHARED
 #include "../src/v8.h"
+#endif  // USING_V8_SHARED
 
-// TODO(isolates):
-//   o Either use V8 internal platform stuff for every platform or
-//     re-implement it.
-//   o Do not assume not WIN32 implies pthreads.
-#ifndef WIN32
-#include <pthread.h>  // NOLINT
+#if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #endif
 
@@ -63,29 +68,32 @@ v8::Handle<v8::Value> Read(const v8::Arguments& args);
 v8::Handle<v8::Value> Load(const v8::Arguments& args);
 v8::Handle<v8::Value> Quit(const v8::Arguments& args);
 v8::Handle<v8::Value> Version(const v8::Arguments& args);
+v8::Handle<v8::Value> Int8Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Uint8Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Int16Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Uint16Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Int32Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Uint32Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Float32Array(const v8::Arguments& args);
+v8::Handle<v8::Value> Float64Array(const v8::Arguments& args);
+v8::Handle<v8::Value> PixelArray(const v8::Arguments& args);
 v8::Handle<v8::String> ReadFile(const char* name);
 void ReportException(v8::TryCatch* handler);
 
-
-#ifndef WIN32
-void* IsolateThreadEntry(void* arg);
-#endif
 
 static bool last_run = true;
 
 class SourceGroup {
  public:
-  SourceGroup() : argv_(NULL),
+  SourceGroup() :
+#ifndef USING_V8_SHARED
+                  next_semaphore_(v8::internal::OS::CreateSemaphore(0)),
+                  done_semaphore_(v8::internal::OS::CreateSemaphore(0)),
+                  thread_(NULL),
+#endif  // USING_V8_SHARED
+                  argv_(NULL),
                   begin_offset_(0),
-                  end_offset_(0),
-                  next_semaphore_(NULL),
-                  done_semaphore_(NULL) {
-#ifndef WIN32
-    next_semaphore_ = v8::internal::OS::CreateSemaphore(0);
-    done_semaphore_ = v8::internal::OS::CreateSemaphore(0);
-    thread_ = 0;
-#endif
-  }
+                  end_offset_(0) { }
 
   void Begin(char** argv, int offset) {
     argv_ = const_cast<const char**>(argv);
@@ -116,6 +124,7 @@ class SourceGroup {
         v8::Handle<v8::String> source = ReadFile(arg);
         if (source.IsEmpty()) {
           printf("Error reading '%s'\n", arg);
+          continue;
         }
         if (!ExecuteString(source, file_name, false, true)) {
           ExitShell(1);
@@ -125,42 +134,52 @@ class SourceGroup {
     }
   }
 
-#ifdef WIN32
-  void StartExecuteInThread() { ExecuteInThread(); }
-  void WaitForThread() {}
-
-#else
+#ifndef USING_V8_SHARED
   void StartExecuteInThread() {
-    if (thread_ == 0) {
-      pthread_attr_t attr;
-      // On some systems (OSX 10.6) the stack size default is 0.5Mb or less
-      // which is not enough to parse the big literal expressions used in tests.
-      // The stack size should be at least StackGuard::kLimitSize + some
-      // OS-specific padding for thread startup code.
-      size_t stacksize = 2 << 20;  // 2 Mb seems to be enough
-      pthread_attr_init(&attr);
-      pthread_attr_setstacksize(&attr, stacksize);
-      int error = pthread_create(&thread_, &attr, &IsolateThreadEntry, this);
-      if (error != 0) {
-        fprintf(stderr, "Error creating isolate thread.\n");
-        ExitShell(1);
-      }
+    if (thread_ == NULL) {
+      thread_ = new IsolateThread(this);
+      thread_->Start();
     }
     next_semaphore_->Signal();
   }
 
   void WaitForThread() {
-    if (thread_ == 0) return;
+    if (thread_ == NULL) return;
     if (last_run) {
-      pthread_join(thread_, NULL);
-      thread_ = 0;
+      thread_->Join();
+      thread_ = NULL;
     } else {
       done_semaphore_->Wait();
     }
   }
-#endif  // WIN32
+#endif  // USING_V8_SHARED
 
  private:
+#ifndef USING_V8_SHARED
+  static v8::internal::Thread::Options GetThreadOptions() {
+    v8::internal::Thread::Options options;
+    options.name = "IsolateThread";
+    // On some systems (OSX 10.6) the stack size default is 0.5Mb or less
+    // which is not enough to parse the big literal expressions used in tests.
+    // The stack size should be at least StackGuard::kLimitSize + some
+    // OS-specific padding for thread startup code.
+    options.stack_size = 2 << 20;  // 2 Mb seems to be enough
+    return options;
+  }
+
+  class IsolateThread : public v8::internal::Thread {
+   public:
+    explicit IsolateThread(SourceGroup* group)
+        : v8::internal::Thread(NULL, GetThreadOptions()), group_(group) {}
+
+    virtual void Run() {
+      group_->ExecuteInThread();
+    }
+
+   private:
+    SourceGroup* group_;
+  };
+
   void ExecuteInThread() {
     v8::Isolate* isolate = v8::Isolate::New();
     do {
@@ -180,24 +199,15 @@ class SourceGroup {
     isolate->Dispose();
   }
 
+  v8::internal::Semaphore* next_semaphore_;
+  v8::internal::Semaphore* done_semaphore_;
+  v8::internal::Thread* thread_;
+#endif  // USING_V8_SHARED
+
   const char** argv_;
   int begin_offset_;
   int end_offset_;
-  v8::internal::Semaphore* next_semaphore_;
-  v8::internal::Semaphore* done_semaphore_;
-#ifndef WIN32
-  pthread_t thread_;
-#endif
-
-  friend void* IsolateThreadEntry(void* arg);
 };
-
-#ifndef WIN32
-void* IsolateThreadEntry(void* arg) {
-  reinterpret_cast<SourceGroup*>(arg)->ExecuteInThread();
-  return NULL;
-}
-#endif
 
 
 static SourceGroup* isolate_sources = NULL;
@@ -217,7 +227,15 @@ int RunMain(int argc, char* argv[]) {
   bool run_shell = (argc == 1);
   int num_isolates = 1;
   for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "--isolate") == 0) ++num_isolates;
+    if (strcmp(argv[i], "--isolate") == 0) {
+#ifndef USING_V8_SHARED
+      ++num_isolates;
+#else  // USING_V8_SHARED
+      printf("Error: --isolate not supported when linked with shared "
+             "library\n");
+      ExitShell(1);
+#endif  // USING_V8_SHARED
+    }
   }
   if (isolate_sources == NULL) {
     isolate_sources = new SourceGroup[num_isolates];
@@ -241,14 +259,18 @@ int RunMain(int argc, char* argv[]) {
     }
     current->End(argc);
   }
+#ifndef USING_V8_SHARED
   for (int i = 1; i < num_isolates; ++i) {
     isolate_sources[i].StartExecuteInThread();
   }
+#endif  // USING_V8_SHARED
   isolate_sources[0].Execute();
   if (run_shell) RunShell(context);
+#ifndef USING_V8_SHARED
   for (int i = 1; i < num_isolates; ++i) {
     isolate_sources[i].WaitForThread();
   }
+#endif  // USING_V8_SHARED
   if (last_run) {
     delete[] isolate_sources;
     isolate_sources = NULL;
@@ -280,6 +302,31 @@ int main(int argc, char* argv[]) {
     }
   }
 
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+  ASSERT_EQ(v8::StartupData::kBZip2,
+            v8::V8::GetCompressedStartupDataAlgorithm());
+  int compressed_data_count = v8::V8::GetCompressedStartupDataCount();
+  v8::StartupData* compressed_data = new v8::StartupData[compressed_data_count];
+  v8::V8::GetCompressedStartupData(compressed_data);
+  for (int i = 0; i < compressed_data_count; ++i) {
+    char* decompressed = new char[compressed_data[i].raw_size];
+    unsigned int decompressed_size = compressed_data[i].raw_size;
+    int result =
+        BZ2_bzBuffToBuffDecompress(decompressed,
+                                   &decompressed_size,
+                                   const_cast<char*>(compressed_data[i].data),
+                                   compressed_data[i].compressed_size,
+                                   0, 1);
+    if (result != BZ_OK) {
+      fprintf(stderr, "bzip error code: %d\n", result);
+      exit(1);
+    }
+    compressed_data[i].data = decompressed;
+    compressed_data[i].raw_size = decompressed_size;
+  }
+  v8::V8::SetDecompressedStartupData(compressed_data);
+#endif  // COMPRESS_STARTUP_DATA_BZ2
+
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   int result = 0;
   if (FLAG_stress_opt || FLAG_stress_deopt) {
@@ -300,6 +347,14 @@ int main(int argc, char* argv[]) {
     result = RunMain(argc, argv);
   }
   v8::V8::Dispose();
+
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+  for (int i = 0; i < compressed_data_count; ++i) {
+    delete[] compressed_data[i].data;
+  }
+  delete[] compressed_data;
+#endif  // COMPRESS_STARTUP_DATA_BZ2
+
   return result;
 }
 
@@ -325,6 +380,27 @@ v8::Persistent<v8::Context> CreateShellContext() {
   global->Set(v8::String::New("quit"), v8::FunctionTemplate::New(Quit));
   // Bind the 'version' function
   global->Set(v8::String::New("version"), v8::FunctionTemplate::New(Version));
+
+  // Bind the handlers for external arrays.
+  global->Set(v8::String::New("Int8Array"),
+              v8::FunctionTemplate::New(Int8Array));
+  global->Set(v8::String::New("Uint8Array"),
+              v8::FunctionTemplate::New(Uint8Array));
+  global->Set(v8::String::New("Int16Array"),
+              v8::FunctionTemplate::New(Int16Array));
+  global->Set(v8::String::New("Uint16Array"),
+              v8::FunctionTemplate::New(Uint16Array));
+  global->Set(v8::String::New("Int32Array"),
+              v8::FunctionTemplate::New(Int32Array));
+  global->Set(v8::String::New("Uint32Array"),
+              v8::FunctionTemplate::New(Uint32Array));
+  global->Set(v8::String::New("Float32Array"),
+              v8::FunctionTemplate::New(Float32Array));
+  global->Set(v8::String::New("Float64Array"),
+              v8::FunctionTemplate::New(Float64Array));
+  global->Set(v8::String::New("PixelArray"),
+              v8::FunctionTemplate::New(PixelArray));
+
   return v8::Context::New(NULL, global);
 }
 
@@ -405,6 +481,84 @@ v8::Handle<v8::Value> Quit(const v8::Arguments& args) {
 
 v8::Handle<v8::Value> Version(const v8::Arguments& args) {
   return v8::String::New(v8::V8::GetVersion());
+}
+
+
+void ExternalArrayWeakCallback(v8::Persistent<v8::Value> object, void* data) {
+  free(data);
+  object.Dispose();
+}
+
+
+v8::Handle<v8::Value> CreateExternalArray(const v8::Arguments& args,
+                                          v8::ExternalArrayType type,
+                                          int element_size) {
+  if (args.Length() != 1) {
+    return v8::ThrowException(
+        v8::String::New("Array constructor needs one parameter."));
+  }
+  int length = args[0]->Int32Value();
+  void* data = malloc(length * element_size);
+  memset(data, 0, length * element_size);
+  v8::Handle<v8::Object> array = v8::Object::New();
+  v8::Persistent<v8::Object> persistent_array =
+      v8::Persistent<v8::Object>::New(array);
+  persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
+  array->SetIndexedPropertiesToExternalArrayData(data, type, length);
+  array->Set(v8::String::New("length"), v8::Int32::New(length),
+             v8::ReadOnly);
+  array->Set(v8::String::New("BYTES_PER_ELEMENT"),
+             v8::Int32::New(element_size));
+  return array;
+}
+
+
+v8::Handle<v8::Value> Int8Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalByteArray, sizeof(int8_t));
+}
+
+
+v8::Handle<v8::Value> Uint8Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalUnsignedByteArray,
+                             sizeof(uint8_t));
+}
+
+
+v8::Handle<v8::Value> Int16Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalShortArray, sizeof(int16_t));
+}
+
+
+v8::Handle<v8::Value> Uint16Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalUnsignedShortArray,
+                             sizeof(uint16_t));
+}
+
+v8::Handle<v8::Value> Int32Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalIntArray, sizeof(int32_t));
+}
+
+
+v8::Handle<v8::Value> Uint32Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalUnsignedIntArray,
+                             sizeof(uint32_t));
+}
+
+
+v8::Handle<v8::Value> Float32Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalFloatArray,
+                             sizeof(float));  // NOLINT
+}
+
+
+v8::Handle<v8::Value> Float64Array(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalDoubleArray,
+                             sizeof(double));  // NOLINT
+}
+
+
+v8::Handle<v8::Value> PixelArray(const v8::Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalPixelArray, sizeof(uint8_t));
 }
 
 

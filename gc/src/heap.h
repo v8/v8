@@ -105,6 +105,7 @@ inline Heap* _inline_get_heap_();
   V(Map, external_int_array_map, ExternalIntArrayMap)                          \
   V(Map, external_unsigned_int_array_map, ExternalUnsignedIntArrayMap)         \
   V(Map, external_float_array_map, ExternalFloatArrayMap)                      \
+  V(Map, external_double_array_map, ExternalDoubleArrayMap)                    \
   V(Map, context_map, ContextMap)                                              \
   V(Map, catch_context_map, CatchContextMap)                                   \
   V(Map, code_map, CodeMap)                                                    \
@@ -157,6 +158,7 @@ inline Heap* _inline_get_heap_();
   V(name_symbol, "name")                                                 \
   V(number_symbol, "number")                                             \
   V(Number_symbol, "Number")                                             \
+  V(nan_symbol, "NaN")                                                   \
   V(RegExp_symbol, "RegExp")                                             \
   V(source_symbol, "source")                                             \
   V(global_symbol, "global")                                             \
@@ -218,6 +220,7 @@ inline Heap* _inline_get_heap_();
   V(KeyedLoadExternalUnsignedIntArray_symbol,                            \
        "KeyedLoadExternalUnsignedIntArray")                              \
   V(KeyedLoadExternalFloatArray_symbol, "KeyedLoadExternalFloatArray")   \
+  V(KeyedLoadExternalDoubleArray_symbol, "KeyedLoadExternalDoubleArray") \
   V(KeyedLoadExternalPixelArray_symbol, "KeyedLoadExternalPixelArray")   \
   V(KeyedStoreExternalByteArray_symbol, "KeyedStoreExternalByteArray")   \
   V(KeyedStoreExternalUnsignedByteArray_symbol,                          \
@@ -229,6 +232,7 @@ inline Heap* _inline_get_heap_();
   V(KeyedStoreExternalUnsignedIntArray_symbol,                           \
         "KeyedStoreExternalUnsignedIntArray")                            \
   V(KeyedStoreExternalFloatArray_symbol, "KeyedStoreExternalFloatArray") \
+  V(KeyedStoreExternalDoubleArray_symbol, "KeyedStoreExternalDoubleArray") \
   V(KeyedStoreExternalPixelArray_symbol, "KeyedStoreExternalPixelArray")
 
 // Forward declarations.
@@ -1526,6 +1530,8 @@ class Heap {
 
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
+
+  void SwitchScavengingVisitorsTableIfProfilingWasEnabled();
 
   // Performs a minor collection in new generation.
   void Scavenge();

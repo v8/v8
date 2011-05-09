@@ -143,7 +143,8 @@ void MacroAssembler::MarkBits(Register addr_reg,
                               bool in_new_space) {
   ASSERT(!Aliasing(addr_reg, bitmap_reg, mask_reg, ecx));
   if (in_new_space) {
-    mov(bitmap_reg, Immediate(ExternalReference::new_space_mark_bits()));
+    mov(bitmap_reg,
+        Immediate(ExternalReference::new_space_mark_bits(isolate())));
   } else {
     mov(bitmap_reg, Operand(addr_reg));
     and_(bitmap_reg, high_mask);

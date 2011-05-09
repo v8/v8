@@ -1,4 +1,4 @@
-// Copyright 2007-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -280,4 +280,75 @@ TEST(Issue380) {
       "{return p}(\"if blah blah\",62,1976,\'a|b\'.split(\'|\'),0,{})\n"
       "}");
   CheckFunctionName(script, "return p", "");
+}
+
+
+TEST(MultipleAssignments) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "var fun1 = fun2 = function () { return 1; }");
+  CheckFunctionName(script, "return 1", "fun2");
+}
+
+
+TEST(PassedAsConstructorParameter) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "function Foo() {}\n"
+      "var foo = new Foo(function() { return 1; })");
+  CheckFunctionName(script, "return 1", "");
+}
+
+
+TEST(FactoryHashmap) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "function createMyObj() {\n"
+      "  var obj = {};\n"
+      "  obj[\"method1\"] = function() { return 1; }\n"
+      "  obj[\"method2\"] = function() { return 2; }\n"
+      "  return obj;\n"
+      "}");
+  CheckFunctionName(script, "return 1", "obj.method1");
+  CheckFunctionName(script, "return 2", "obj.method2");
+}
+
+
+TEST(FactoryHashmapVariable) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "function createMyObj() {\n"
+      "  var obj = {};\n"
+      "  var methodName = \"method1\";\n"
+      "  obj[methodName] = function() { return 1; }\n"
+      "  methodName = \"method2\";\n"
+      "  obj[methodName] = function() { return 2; }\n"
+      "  return obj;\n"
+      "}");
+  // Can't infer function names statically.
+  CheckFunctionName(script, "return 1", "obj.(anonymous function)");
+  CheckFunctionName(script, "return 2", "obj.(anonymous function)");
+}
+
+
+TEST(FactoryHashmapConditional) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "function createMyObj() {\n"
+      "  var obj = {};\n"
+      "  obj[0 ? \"method1\" : \"method2\"] = function() { return 1; }\n"
+      "  return obj;\n"
+      "}");
+  // Can't infer the function name statically.
+  CheckFunctionName(script, "return 1", "obj.(anonymous function)");
 }

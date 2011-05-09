@@ -25,58 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-#include "isolate.h"
-#include "allocation.h"
-
-/* TODO(isolates): this is what's included in bleeding_edge
-   including of v8.h was replaced with these in
-   http://codereview.chromium.org/5005001/
-   we need Isolate and Isolate needs a lot more so I'm including v8.h back.
 #include "../include/v8stdint.h"
 #include "globals.h"
 #include "checks.h"
 #include "allocation.h"
 #include "utils.h"
-*/
 
 namespace v8 {
 namespace internal {
 
-#ifdef DEBUG
-
-NativeAllocationChecker::NativeAllocationChecker(
-    NativeAllocationChecker::NativeAllocationAllowed allowed)
-    : allowed_(allowed) {
-  if (allowed == DISALLOW) {
-    Isolate* isolate = Isolate::Current();
-    isolate->set_allocation_disallowed(isolate->allocation_disallowed() + 1);
-  }
-}
-
-
-NativeAllocationChecker::~NativeAllocationChecker() {
-  Isolate* isolate = Isolate::Current();
-  if (allowed_ == DISALLOW) {
-    isolate->set_allocation_disallowed(isolate->allocation_disallowed() - 1);
-  }
-  ASSERT(isolate->allocation_disallowed() >= 0);
-}
-
-
-bool NativeAllocationChecker::allocation_allowed() {
-  // TODO(isolates): either find a way to make this work that doesn't
-  // require initializing an isolate before we can use malloc or drop
-  // it completely.
-  return true;
-  // return Isolate::Current()->allocation_disallowed() == 0;
-}
-
-#endif  // DEBUG
-
-
 void* Malloced::New(size_t size) {
-  ASSERT(NativeAllocationChecker::allocation_allowed());
   void* result = malloc(size);
   if (result == NULL) {
     v8::internal::FatalProcessOutOfMemory("Malloced operator new");
@@ -139,77 +97,6 @@ char* StrNDup(const char* str, int n) {
   memcpy(result, str, length);
   result[length] = '\0';
   return result;
-}
-
-
-void Isolate::PreallocatedStorageInit(size_t size) {
-  ASSERT(free_list_.next_ == &free_list_);
-  ASSERT(free_list_.previous_ == &free_list_);
-  PreallocatedStorage* free_chunk =
-      reinterpret_cast<PreallocatedStorage*>(new char[size]);
-  free_list_.next_ = free_list_.previous_ = free_chunk;
-  free_chunk->next_ = free_chunk->previous_ = &free_list_;
-  free_chunk->size_ = size - sizeof(PreallocatedStorage);
-  preallocated_storage_preallocated_ = true;
-}
-
-
-void* Isolate::PreallocatedStorageNew(size_t size) {
-  if (!preallocated_storage_preallocated_) {
-    return FreeStoreAllocationPolicy::New(size);
-  }
-  ASSERT(free_list_.next_ != &free_list_);
-  ASSERT(free_list_.previous_ != &free_list_);
-
-  size = (size + kPointerSize - 1) & ~(kPointerSize - 1);
-  // Search for exact fit.
-  for (PreallocatedStorage* storage = free_list_.next_;
-       storage != &free_list_;
-       storage = storage->next_) {
-    if (storage->size_ == size) {
-      storage->Unlink();
-      storage->LinkTo(&in_use_list_);
-      return reinterpret_cast<void*>(storage + 1);
-    }
-  }
-  // Search for first fit.
-  for (PreallocatedStorage* storage = free_list_.next_;
-       storage != &free_list_;
-       storage = storage->next_) {
-    if (storage->size_ >= size + sizeof(PreallocatedStorage)) {
-      storage->Unlink();
-      storage->LinkTo(&in_use_list_);
-      PreallocatedStorage* left_over =
-          reinterpret_cast<PreallocatedStorage*>(
-              reinterpret_cast<char*>(storage + 1) + size);
-      left_over->size_ = storage->size_ - size - sizeof(PreallocatedStorage);
-      ASSERT(size + left_over->size_ + sizeof(PreallocatedStorage) ==
-             storage->size_);
-      storage->size_ = size;
-      left_over->LinkTo(&free_list_);
-      return reinterpret_cast<void*>(storage + 1);
-    }
-  }
-  // Allocation failure.
-  ASSERT(false);
-  return NULL;
-}
-
-
-// We don't attempt to coalesce.
-void Isolate::PreallocatedStorageDelete(void* p) {
-  if (p == NULL) {
-    return;
-  }
-  if (!preallocated_storage_preallocated_) {
-    FreeStoreAllocationPolicy::Delete(p);
-    return;
-  }
-  PreallocatedStorage* storage = reinterpret_cast<PreallocatedStorage*>(p) - 1;
-  ASSERT(storage->next_->previous_ == storage);
-  ASSERT(storage->previous_->next_ == storage);
-  storage->Unlink();
-  storage->LinkTo(&free_list_);
 }
 
 

@@ -119,6 +119,9 @@ void HeapObject::HeapObjectVerify() {
     case EXTERNAL_FLOAT_ARRAY_TYPE:
       ExternalFloatArray::cast(this)->ExternalFloatArrayVerify();
       break;
+    case EXTERNAL_DOUBLE_ARRAY_TYPE:
+      ExternalDoubleArray::cast(this)->ExternalDoubleArrayVerify();
+      break;
     case CODE_TYPE:
       Code::cast(this)->CodeVerify();
       break;
@@ -237,6 +240,11 @@ void ExternalUnsignedIntArray::ExternalUnsignedIntArrayVerify() {
 
 void ExternalFloatArray::ExternalFloatArrayVerify() {
   ASSERT(IsExternalFloatArray());
+}
+
+
+void ExternalDoubleArray::ExternalDoubleArrayVerify() {
+  ASSERT(IsExternalDoubleArray());
 }
 
 

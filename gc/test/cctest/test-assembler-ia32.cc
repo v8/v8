@@ -61,7 +61,7 @@ TEST(AssemblerIa320) {
   v8::HandleScope scope;
 
   v8::internal::byte buffer[256];
-  Assembler assm(buffer, sizeof buffer);
+  Assembler assm(Isolate::Current(), buffer, sizeof buffer);
 
   __ mov(eax, Operand(esp, 4));
   __ add(eax, Operand(esp, 8));
@@ -89,7 +89,7 @@ TEST(AssemblerIa321) {
   v8::HandleScope scope;
 
   v8::internal::byte buffer[256];
-  Assembler assm(buffer, sizeof buffer);
+  Assembler assm(Isolate::Current(), buffer, sizeof buffer);
   Label L, C;
 
   __ mov(edx, Operand(esp, 4));
@@ -127,7 +127,7 @@ TEST(AssemblerIa322) {
   v8::HandleScope scope;
 
   v8::internal::byte buffer[256];
-  Assembler assm(buffer, sizeof buffer);
+  Assembler assm(Isolate::Current(), buffer, sizeof buffer);
   Label L, C;
 
   __ mov(edx, Operand(esp, 4));
@@ -167,15 +167,15 @@ TEST(AssemblerIa322) {
 typedef int (*F3)(float x);
 
 TEST(AssemblerIa323) {
-  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) return;
-
   InitializeVM();
+  if (!CpuFeatures::IsSupported(SSE2)) return;
+
   v8::HandleScope scope;
 
   v8::internal::byte buffer[256];
-  Assembler assm(buffer, sizeof buffer);
+  Assembler assm(Isolate::Current(), buffer, sizeof buffer);
 
-  CHECK(Isolate::Current()->cpu_features()->IsSupported(SSE2));
+  CHECK(CpuFeatures::IsSupported(SSE2));
   { CpuFeatures::Scope fscope(SSE2);
     __ cvttss2si(eax, Operand(esp, 4));
     __ ret(0);
@@ -202,15 +202,15 @@ TEST(AssemblerIa323) {
 typedef int (*F4)(double x);
 
 TEST(AssemblerIa324) {
-  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) return;
-
   InitializeVM();
+  if (!CpuFeatures::IsSupported(SSE2)) return;
+
   v8::HandleScope scope;
 
   v8::internal::byte buffer[256];
-  Assembler assm(buffer, sizeof buffer);
+  Assembler assm(Isolate::Current(), buffer, sizeof buffer);
 
-  CHECK(Isolate::Current()->cpu_features()->IsSupported(SSE2));
+  CHECK(CpuFeatures::IsSupported(SSE2));
   CpuFeatures::Scope fscope(SSE2);
   __ cvttsd2si(eax, Operand(esp, 4));
   __ ret(0);
@@ -239,7 +239,7 @@ TEST(AssemblerIa325) {
   v8::HandleScope scope;
 
   v8::internal::byte buffer[256];
-  Assembler assm(buffer, sizeof buffer);
+  Assembler assm(Isolate::Current(), buffer, sizeof buffer);
 
   __ mov(eax, Operand(reinterpret_cast<intptr_t>(&baz), RelocInfo::NONE));
   __ ret(0);
@@ -259,14 +259,14 @@ TEST(AssemblerIa325) {
 typedef double (*F5)(double x, double y);
 
 TEST(AssemblerIa326) {
-  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) return;
-
   InitializeVM();
+  if (!CpuFeatures::IsSupported(SSE2)) return;
+
   v8::HandleScope scope;
-  CHECK(Isolate::Current()->cpu_features()->IsSupported(SSE2));
+  CHECK(CpuFeatures::IsSupported(SSE2));
   CpuFeatures::Scope fscope(SSE2);
   v8::internal::byte buffer[256];
-  Assembler assm(buffer, sizeof buffer);
+  Assembler assm(Isolate::Current(), buffer, sizeof buffer);
 
   __ movdbl(xmm0, Operand(esp, 1 * kPointerSize));
   __ movdbl(xmm1, Operand(esp, 3 * kPointerSize));
@@ -305,14 +305,14 @@ TEST(AssemblerIa326) {
 typedef double (*F6)(int x);
 
 TEST(AssemblerIa328) {
-  if (!Isolate::Current()->cpu_features()->IsSupported(SSE2)) return;
-
   InitializeVM();
+  if (!CpuFeatures::IsSupported(SSE2)) return;
+
   v8::HandleScope scope;
-  CHECK(Isolate::Current()->cpu_features()->IsSupported(SSE2));
+  CHECK(CpuFeatures::IsSupported(SSE2));
   CpuFeatures::Scope fscope(SSE2);
   v8::internal::byte buffer[256];
-  Assembler assm(buffer, sizeof buffer);
+  Assembler assm(Isolate::Current(), buffer, sizeof buffer);
   __ mov(eax, Operand(esp, 4));
   __ cvtsi2sd(xmm0, Operand(eax));
   // Copy xmm0 to st(0) using eight bytes of stack.
@@ -345,7 +345,7 @@ TEST(AssemblerIa329) {
   InitializeVM();
   v8::HandleScope scope;
   v8::internal::byte buffer[256];
-  MacroAssembler assm(buffer, sizeof buffer);
+  MacroAssembler assm(Isolate::Current(), buffer, sizeof buffer);
   enum { kEqual = 0, kGreater = 1, kLess = 2, kNaN = 3, kUndefined = 4 };
   Label equal_l, less_l, greater_l, nan_l;
   __ fld_d(Operand(esp, 3 * kPointerSize));

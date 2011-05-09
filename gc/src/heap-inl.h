@@ -29,8 +29,9 @@
 #define V8_HEAP_INL_H_
 
 #include "heap.h"
-#include "objects.h"
 #include "isolate.h"
+#include "list-inl.h"
+#include "objects.h"
 #include "v8-counters.h"
 #include "store-buffer.h"
 #include "store-buffer-inl.h"

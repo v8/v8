@@ -387,10 +387,9 @@ for (var i = 0; i < future_reserved_words.length; i++) {
   testFutureReservedWord(future_reserved_words[i]);
 }
 
-function testAssignToUndefined(should_throw) {
-  "use strict";
+function testAssignToUndefined(test, should_throw) {
   try {
-    possibly_undefined_variable_for_strict_mode_test = "should throw?";
+    test();
   } catch (e) {
     assertTrue(should_throw, "strict mode");
     assertInstanceof(e, ReferenceError, "strict mode");
@@ -399,33 +398,78 @@ function testAssignToUndefined(should_throw) {
   assertFalse(should_throw, "strict mode");
 }
 
-testAssignToUndefined(true);
-testAssignToUndefined(true);
-testAssignToUndefined(true);
-
-possibly_undefined_variable_for_strict_mode_test = "value";
-
-testAssignToUndefined(false);
-testAssignToUndefined(false);
-testAssignToUndefined(false);
-
-delete possibly_undefined_variable_for_strict_mode_test;
-
-testAssignToUndefined(true);
-testAssignToUndefined(true);
-testAssignToUndefined(true);
-
 function repeat(n, f) {
- for (var i = 0; i < n; i ++) { f(); }
+  for (var i = 0; i < n; i ++) { f(); }
 }
 
-repeat(10, function() { testAssignToUndefined(true); });
+function assignToUndefined() {
+  "use strict";
+  possibly_undefined_variable_for_strict_mode_test = "should throw?";
+}
+
+testAssignToUndefined(assignToUndefined, true);
+testAssignToUndefined(assignToUndefined, true);
+testAssignToUndefined(assignToUndefined, true);
+
 possibly_undefined_variable_for_strict_mode_test = "value";
-repeat(10, function() { testAssignToUndefined(false); });
+
+testAssignToUndefined(assignToUndefined, false);
+testAssignToUndefined(assignToUndefined, false);
+testAssignToUndefined(assignToUndefined, false);
+
 delete possibly_undefined_variable_for_strict_mode_test;
-repeat(10, function() { testAssignToUndefined(true); });
+
+testAssignToUndefined(assignToUndefined, true);
+testAssignToUndefined(assignToUndefined, true);
+testAssignToUndefined(assignToUndefined, true);
+
+repeat(10, function() { testAssignToUndefined(assignToUndefined, true); });
+possibly_undefined_variable_for_strict_mode_test = "value";
+repeat(10, function() { testAssignToUndefined(assignToUndefined, false); });
+delete possibly_undefined_variable_for_strict_mode_test;
+repeat(10, function() { testAssignToUndefined(assignToUndefined, true); });
 possibly_undefined_variable_for_strict_mode_test = undefined;
-repeat(10, function() { testAssignToUndefined(false); });
+repeat(10, function() { testAssignToUndefined(assignToUndefined, false); });
+
+function assignToUndefinedWithEval() {
+  "use strict";
+  possibly_undefined_variable_for_strict_mode_test_with_eval = "should throw?";
+  eval("");
+}
+
+testAssignToUndefined(assignToUndefinedWithEval, true);
+testAssignToUndefined(assignToUndefinedWithEval, true);
+testAssignToUndefined(assignToUndefinedWithEval, true);
+
+possibly_undefined_variable_for_strict_mode_test_with_eval = "value";
+
+testAssignToUndefined(assignToUndefinedWithEval, false);
+testAssignToUndefined(assignToUndefinedWithEval, false);
+testAssignToUndefined(assignToUndefinedWithEval, false);
+
+delete possibly_undefined_variable_for_strict_mode_test_with_eval;
+
+testAssignToUndefined(assignToUndefinedWithEval, true);
+testAssignToUndefined(assignToUndefinedWithEval, true);
+testAssignToUndefined(assignToUndefinedWithEval, true);
+
+repeat(10, function() {
+             testAssignToUndefined(assignToUndefinedWithEval, true);
+           });
+possibly_undefined_variable_for_strict_mode_test_with_eval = "value";
+repeat(10, function() {
+             testAssignToUndefined(assignToUndefinedWithEval, false);
+           });
+delete possibly_undefined_variable_for_strict_mode_test_with_eval;
+repeat(10, function() {
+             testAssignToUndefined(assignToUndefinedWithEval, true);
+           });
+possibly_undefined_variable_for_strict_mode_test_with_eval = undefined;
+repeat(10, function() {
+             testAssignToUndefined(assignToUndefinedWithEval, false);
+           });
+
+
 
 (function testDeleteNonConfigurable() {
   function delete_property(o) {
@@ -983,7 +1027,10 @@ function CheckPillDescriptor(func, name) {
   function CheckPill(pill) {
     assertEquals("function", typeof pill);
     assertInstanceof(pill, Function);
-    assertThrows(function() { pill.property = "value"; }, TypeError);
+    pill.property = "value";
+    assertEquals(pill.value, undefined);
+    assertThrows(function() { 'use strict'; pill.property = "value"; },
+                 TypeError);
     assertThrows(pill, TypeError);
     assertEquals(pill.prototype, (function(){}).prototype);
     var d = Object.getOwnPropertyDescriptor(pill, "prototype");
@@ -1080,4 +1127,62 @@ function CheckPillDescriptor(func, name) {
   assertEquals(strict, args[2]);
   CheckPillDescriptor(args, "caller");
   CheckPillDescriptor(args, "callee");
+})();
+
+
+(function TestNonStrictFunctionCallerPillSimple() {
+  function return_my_caller() {
+    return return_my_caller.caller;
+  }
+
+  function strict() {
+    "use strict";
+    return_my_caller();
+  }
+  assertThrows(strict, TypeError);
+
+  function non_strict() {
+    return return_my_caller();
+  }
+  assertSame(non_strict(), non_strict);
+})();
+
+
+(function TestNonStrictFunctionCallerPill() {
+  function strict(n) {
+    "use strict";
+    non_strict(n);
+  }
+
+  function recurse(n, then) {
+    if (n > 0) {
+      recurse(n - 1);
+    } else {
+      return then();
+    }
+  }
+
+  function non_strict(n) {
+    recurse(n, function() { non_strict.caller; });
+  }
+
+  function test(n) {
+    try {
+      recurse(n, function() { strict(n); });
+    } catch(e) {
+      return e instanceof TypeError;
+    }
+    return false;
+  }
+
+  for (var i = 0; i < 10; i ++) {
+    assertEquals(test(i), true);
+  }
+})();
+
+
+(function TestStrictModeEval() {
+  "use strict";
+  eval("var eval_local = 10;");
+  assertThrows(function() { return eval_local; }, ReferenceError);
 })();

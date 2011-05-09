@@ -302,7 +302,7 @@ void MemoryAllocator::FreeMemory(Address base,
     VirtualMemory::ReleaseRegion(base, size);
   }
 
-  COUNTERS->memory_allocated()->Decrement(static_cast<int>(size));
+  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
 
   ASSERT(size_ >= size);
   size_ -= size;
@@ -488,7 +488,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
 #ifdef DEBUG
   ZapBlock(base, chunk_size);
 #endif
-  COUNTERS->memory_allocated()->Increment(chunk_size);
+  isolate_->counters()->memory_allocated()->Increment(chunk_size);
 
   LOG(isolate_, NewEvent("MemoryChunk", base, chunk_size));
   if (owner != NULL) {
@@ -544,14 +544,14 @@ bool MemoryAllocator::CommitBlock(Address start,
 #ifdef DEBUG
   ZapBlock(start, size);
 #endif
-  COUNTERS->memory_allocated()->Increment(static_cast<int>(size));
+  isolate_->counters()->memory_allocated()->Increment(static_cast<int>(size));
   return true;
 }
 
 
 bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
   if (!VirtualMemory::UncommitRegion(start, size)) return false;
-  COUNTERS->memory_allocated()->Decrement(static_cast<int>(size));
+  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
   return true;
 }
 
@@ -1217,7 +1217,7 @@ static void ReportCodeKindStatistics() {
       CASE(KEYED_EXTERNAL_ARRAY_STORE_IC);
       CASE(CALL_IC);
       CASE(KEYED_CALL_IC);
-      CASE(BINARY_OP_IC);
+      CASE(TYPE_RECORDING_UNARY_OP_IC);
       CASE(TYPE_RECORDING_BINARY_OP_IC);
       CASE(COMPARE_IC);
     }
@@ -1388,7 +1388,7 @@ void NewSpace::RecordPromotion(HeapObject* obj) {
 // -----------------------------------------------------------------------------
 // Free lists for old object spaces implementation
 
-void FreeListNode::set_size(int size_in_bytes) {
+void FreeListNode::set_size(Heap* heap, int size_in_bytes) {
   ASSERT(size_in_bytes > 0);
   ASSERT(IsAligned(size_in_bytes, kPointerSize));
 
@@ -1401,14 +1401,14 @@ void FreeListNode::set_size(int size_in_bytes) {
   // correct size.
   // TODO(gc) ISOLATES MERGE cleanup HEAP macro usage
   if (size_in_bytes > FreeSpace::kHeaderSize) {
-    set_map(HEAP->raw_unchecked_free_space_map());
+    set_map(heap->raw_unchecked_free_space_map());
     // Can't use FreeSpace::cast because it fails during deserialization.
     FreeSpace* this_as_free_space = reinterpret_cast<FreeSpace*>(this);
     this_as_free_space->set_size(size_in_bytes);
   } else if (size_in_bytes == kPointerSize) {
-    set_map(HEAP->raw_unchecked_one_pointer_filler_map());
+    set_map(heap->raw_unchecked_one_pointer_filler_map());
   } else if (size_in_bytes == 2 * kPointerSize) {
-    set_map(HEAP->raw_unchecked_two_pointer_filler_map());
+    set_map(heap->raw_unchecked_two_pointer_filler_map());
   } else {
     UNREACHABLE();
   }
@@ -1457,7 +1457,8 @@ void FreeListNode::set_next(FreeListNode* next) {
 }
 
 
-OldSpaceFreeList::OldSpaceFreeList(PagedSpace* owner) : owner_(owner) {
+OldSpaceFreeList::OldSpaceFreeList(PagedSpace* owner)
+    : owner_(owner), heap_(owner->heap()) {
   Reset();
 }
 
@@ -1474,7 +1475,7 @@ void OldSpaceFreeList::Reset() {
 int OldSpaceFreeList::Free(Address start, int size_in_bytes) {
   if (size_in_bytes == 0) return 0;
   FreeListNode* node = FreeListNode::FromAddress(start);
-  node->set_size(size_in_bytes);
+  node->set_size(heap_, size_in_bytes);
 
   // Early return to drop too-small blocks on the floor.
   if (size_in_bytes < kSmallListMin) return size_in_bytes;
@@ -2109,7 +2110,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       }
 
       // Free the chunk.
-      heap()->mark_compact_collector()->ReportDeleteIfNeeded(object);
+      heap()->mark_compact_collector()->ReportDeleteIfNeeded(
+          object, heap()->isolate());
       size_ -= static_cast<int>(page->size());
       objects_size_ -= object->Size();
       page_count_--;

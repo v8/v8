@@ -32,7 +32,6 @@
 
 #include "ast.h"
 #include "compiler.h"
-#include "data-flow.h"
 #include "hydrogen-instructions.h"
 #include "zone.h"
 
@@ -40,6 +39,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class BitVector;
 class HEnvironment;
 class HGraph;
 class HLoopInformation;
@@ -141,6 +141,8 @@ class HBasicBlock: public ZoneObject {
   bool IsInlineReturnTarget() const { return is_inline_return_target_; }
   void MarkAsInlineReturnTarget() { is_inline_return_target_ = true; }
 
+  inline Zone* zone();
+
 #ifdef DEBUG
   void Verify();
 #endif
@@ -200,6 +202,9 @@ class HLoopInformation: public ZoneObject {
 class HGraph: public ZoneObject {
  public:
   explicit HGraph(CompilationInfo* info);
+
+  Isolate* isolate() { return isolate_; }
+  Zone* zone() { return isolate_->zone(); }
 
   const ZoneList<HBasicBlock*>* blocks() const { return &blocks_; }
   const ZoneList<HPhi*>* phi_list() const { return phi_list_; }
@@ -272,15 +277,15 @@ class HGraph: public ZoneObject {
   void InsertTypeConversions(HInstruction* instr);
   void PropagateMinusZeroChecks(HValue* value, BitVector* visited);
   void InsertRepresentationChangeForUse(HValue* value,
-                                        HValue* use,
+                                        HValue* use_value,
+                                        int use_index,
                                         Representation to);
-  void InsertRepresentationChangesForValue(HValue* current,
-                                           ZoneList<HValue*>* value_list,
-                                           ZoneList<Representation>* rep_list);
+  void InsertRepresentationChangesForValue(HValue* value);
   void InferTypes(ZoneList<HValue*>* worklist);
   void InitializeInferredTypes(int from_inclusive, int to_inclusive);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
 
+  Isolate* isolate_;
   int next_block_id_;
   HBasicBlock* entry_block_;
   HEnvironment* start_environment_;
@@ -298,8 +303,13 @@ class HGraph: public ZoneObject {
 };
 
 
+Zone* HBasicBlock::zone() { return graph_->zone(); }
+
+
 class HEnvironment: public ZoneObject {
  public:
+  enum CompilationPhase { HYDROGEN, LITHIUM };
+
   HEnvironment(HEnvironment* outer,
                Scope* scope,
                Handle<JSFunction> closure);
@@ -376,7 +386,7 @@ class HEnvironment: public ZoneObject {
   // instructions, otherwise they are the actual values.
   HEnvironment* CopyForInlining(Handle<JSFunction> target,
                                 FunctionLiteral* function,
-                                bool is_speculative,
+                                CompilationPhase compilation_phase,
                                 HConstant* undefined) const;
 
   void AddIncomingEdge(HBasicBlock* block, HEnvironment* other);
@@ -431,6 +441,11 @@ class HEnvironment: public ZoneObject {
 
 class HGraphBuilder;
 
+enum ArgumentsAllowedFlag {
+  ARGUMENTS_NOT_ALLOWED,
+  ARGUMENTS_ALLOWED
+};
+
 // This class is not BASE_EMBEDDED because our inlining implementation uses
 // new and delete.
 class AstContext {
@@ -450,11 +465,16 @@ class AstContext {
   // the instruction as value.
   virtual void ReturnInstruction(HInstruction* instr, int ast_id) = 0;
 
+  void set_for_typeof(bool for_typeof) { for_typeof_ = for_typeof; }
+  bool is_for_typeof() { return for_typeof_; }
+
  protected:
   AstContext(HGraphBuilder* owner, Expression::Context kind);
   virtual ~AstContext();
 
   HGraphBuilder* owner() const { return owner_; }
+
+  inline Zone* zone();
 
   // We want to be able to assert, in a context-specific way, that the stack
   // height makes sense when the context is filled.
@@ -466,6 +486,7 @@ class AstContext {
   HGraphBuilder* owner_;
   Expression::Context kind_;
   AstContext* outer_;
+  bool for_typeof_;
 };
 
 
@@ -483,13 +504,18 @@ class EffectContext: public AstContext {
 
 class ValueContext: public AstContext {
  public:
-  explicit ValueContext(HGraphBuilder* owner)
-      : AstContext(owner, Expression::kValue) {
+  explicit ValueContext(HGraphBuilder* owner, ArgumentsAllowedFlag flag)
+      : AstContext(owner, Expression::kValue), flag_(flag) {
   }
   virtual ~ValueContext();
 
   virtual void ReturnValue(HValue* value);
   virtual void ReturnInstruction(HInstruction* instr, int ast_id);
+
+  bool arguments_allowed() { return flag_ == ARGUMENTS_ALLOWED; }
+
+ private:
+  ArgumentsAllowedFlag flag_;
 };
 
 
@@ -540,6 +566,8 @@ class FunctionState BASE_EMBEDDED {
     delete test_context_;
     test_context_ = NULL;
   }
+
+  FunctionState* outer() { return outer_; }
 
  private:
   HGraphBuilder* owner_;
@@ -621,7 +649,8 @@ class HGraphBuilder: public AstVisitor {
         break_scope_(NULL),
         graph_(NULL),
         current_block_(NULL),
-        inlined_count_(0) {
+        inlined_count_(0),
+        zone_(info->isolate()->zone()) {
     // This is not initialized in the initializer list because the
     // constructor for the initial state relies on function_state_ == NULL
     // to know it's the initial state.
@@ -648,6 +677,8 @@ class HGraphBuilder: public AstVisitor {
   // Bailout environment manipulation.
   void Push(HValue* value) { environment()->Push(value); }
   HValue* Pop() { return environment()->Pop(); }
+
+  void Bailout(const char* reason);
 
  private:
   // Type of a member function that generates inline code for a native function.
@@ -691,6 +722,9 @@ class HGraphBuilder: public AstVisitor {
   void ClearInlinedTestContext() {
     function_state()->ClearInlinedTestContext();
   }
+  bool function_strict_mode() {
+    return function_state()->compilation_info()->is_strict_mode();
+  }
 
   // Generators for inline runtime functions.
 #define INLINE_FUNCTION_GENERATOR_DECLARATION(Name, argc, ressize)      \
@@ -699,8 +733,6 @@ class HGraphBuilder: public AstVisitor {
   INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
   INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
 #undef INLINE_FUNCTION_GENERATOR_DECLARATION
-
-  void Bailout(const char* reason);
 
   void PreProcessOsrEntry(IterationStatement* statement);
   // True iff. we are compiling for OSR and the statement is the entry.
@@ -731,7 +763,12 @@ class HGraphBuilder: public AstVisitor {
   void Drop(int n) { environment()->Drop(n); }
   void Bind(Variable* var, HValue* value) { environment()->Bind(var, value); }
 
-  void VisitForValue(Expression* expr);
+  // The value of the arguments object is allowed in some but not most value
+  // contexts.  (It's allowed in all effect contexts and disallowed in all
+  // test contexts.)
+  void VisitForValue(Expression* expr,
+                     ArgumentsAllowedFlag flag = ARGUMENTS_NOT_ALLOWED);
+  void VisitForTypeOf(Expression* expr);
   void VisitForEffect(Expression* expr);
   void VisitForControl(Expression* expr,
                        HBasicBlock* true_block,
@@ -767,9 +804,13 @@ class HGraphBuilder: public AstVisitor {
   HBasicBlock* CreateLoopHeaderBlock();
 
   // Helpers for flow graph construction.
-  void LookupGlobalPropertyCell(Variable* var,
-                                LookupResult* lookup,
-                                bool is_store);
+  enum GlobalPropertyAccess {
+    kUseCell,
+    kUseGeneric
+  };
+  GlobalPropertyAccess LookupGlobalProperty(Variable* var,
+                                            LookupResult* lookup,
+                                            bool is_store);
 
   bool TryArgumentsAccess(Property* expr);
   bool TryCallApply(Call* expr);
@@ -791,10 +832,6 @@ class HGraphBuilder: public AstVisitor {
 
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
-  void HandlePolymorphicLoadNamedField(Property* expr,
-                                       HValue* object,
-                                       ZoneMapList* types,
-                                       Handle<String> name);
   void HandlePolymorphicStoreNamedField(Assignment* expr,
                                         HValue* object,
                                         HValue* value,
@@ -810,7 +847,9 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildBinaryOperation(BinaryOperation* expr,
                                      HValue* left,
                                      HValue* right);
-  HInstruction* BuildIncrement(HValue* value, bool increment);
+  HInstruction* BuildIncrement(HValue* value,
+                               bool increment,
+                               CountOperation* expr);
   HLoadNamedField* BuildLoadNamedField(HValue* object,
                                        Property* expr,
                                        Handle<Map> type,
@@ -820,11 +859,15 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildLoadKeyedFastElement(HValue* object,
                                           HValue* key,
                                           Property* expr);
-  HInstruction* BuildLoadKeyedPixelArrayElement(HValue* object,
-                                                HValue* key,
-                                                Property* expr);
+  HInstruction* BuildLoadKeyedSpecializedArrayElement(HValue* object,
+                                                      HValue* key,
+                                                      Property* expr);
   HInstruction* BuildLoadKeyedGeneric(HValue* object,
                                       HValue* key);
+
+  HInstruction* BuildLoadKeyed(HValue* obj,
+                               HValue* key,
+                               Property* prop);
 
   HInstruction* BuildLoadNamed(HValue* object,
                                Property* prop,
@@ -851,10 +894,16 @@ class HGraphBuilder: public AstVisitor {
                                            HValue* val,
                                            Expression* expr);
 
-  HInstruction* BuildStoreKeyedPixelArrayElement(HValue* object,
-                                                 HValue* key,
-                                                 HValue* val,
-                                                 Expression* expr);
+  HInstruction* BuildStoreKeyedSpecializedArrayElement(
+      HValue* object,
+      HValue* key,
+      HValue* val,
+      Expression* expr);
+
+  HInstruction* BuildStoreKeyed(HValue* object,
+                                HValue* key,
+                                HValue* value,
+                                Expression* assignment);
 
   HValue* BuildContextChainWalk(Variable* var);
 
@@ -863,6 +912,7 @@ class HGraphBuilder: public AstVisitor {
                                 Handle<Map> receiver_map,
                                 bool smi_and_map_check);
 
+  Zone* zone() { return zone_; }
 
   // The translation state of the currently-being-translated function.
   FunctionState* function_state_;
@@ -882,11 +932,16 @@ class HGraphBuilder: public AstVisitor {
 
   int inlined_count_;
 
+  Zone* zone_;
+
   friend class FunctionState;  // Pushes and pops the state stack.
   friend class AstContext;  // Pushes and pops the AST context stack.
 
   DISALLOW_COPY_AND_ASSIGN(HGraphBuilder);
 };
+
+
+Zone* AstContext::zone() { return owner_->zone(); }
 
 
 class HValueMap: public ZoneObject {
@@ -911,7 +966,10 @@ class HValueMap: public ZoneObject {
   }
 
   HValue* Lookup(HValue* value) const;
-  HValueMap* Copy() const { return new HValueMap(this); }
+
+  HValueMap* Copy(Zone* zone) const {
+    return new(zone) HValueMap(this);
+  }
 
  private:
   // A linked list of HValue* values.  Stored in arrays.

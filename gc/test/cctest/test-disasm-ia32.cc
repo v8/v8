@@ -58,7 +58,7 @@ TEST(DisasmIa320) {
   InitializeVM();
   v8::HandleScope scope;
   v8::internal::byte buffer[2048];
-  Assembler assm(buffer, sizeof buffer);
+  Assembler assm(Isolate::Current(), buffer, sizeof buffer);
   DummyStaticFunction(NULL);  // just bloody use it (DELETE; debugging)
 
   // Short immediate instructions
@@ -107,12 +107,12 @@ TEST(DisasmIa320) {
   __ xor_(edx, 3);
   __ nop();
   {
-    CHECK(Isolate::Current()->cpu_features()->IsSupported(CPUID));
+    CHECK(CpuFeatures::IsSupported(CPUID));
     CpuFeatures::Scope fscope(CPUID);
     __ cpuid();
   }
   {
-    CHECK(Isolate::Current()->cpu_features()->IsSupported(RDTSC));
+    CHECK(CpuFeatures::IsSupported(RDTSC));
     CpuFeatures::Scope fscope(RDTSC);
     __ rdtsc();
   }
@@ -271,7 +271,7 @@ TEST(DisasmIa320) {
   __ call(Operand(ebx, ecx, times_4, 10000));
   __ nop();
   Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::LoadIC_Initialize));
+      Builtins::kLoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
   __ call(FUNCTION_ADDR(DummyStaticFunction), RelocInfo::RUNTIME_ENTRY);
@@ -281,7 +281,8 @@ TEST(DisasmIa320) {
   __ jmp(Operand(ebx, ecx, times_4, 10000));
 #ifdef ENABLE_DEBUGGER_SUPPORT
   ExternalReference after_break_target =
-      ExternalReference(Debug_Address::AfterBreakTarget());
+      ExternalReference(Debug_Address::AfterBreakTarget(),
+                        assm.isolate());
   __ jmp(Operand::StaticVariable(after_break_target));
 #endif  // ENABLE_DEBUGGER_SUPPORT
   __ jmp(ic, RelocInfo::CODE_TARGET);
@@ -372,7 +373,7 @@ TEST(DisasmIa320) {
   __ fwait();
   __ nop();
   {
-    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+    if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatures::Scope fscope(SSE2);
       __ cvttss2si(edx, Operand(ebx, ecx, times_4, 10000));
       __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
@@ -394,7 +395,7 @@ TEST(DisasmIa320) {
 
   // cmov.
   {
-    if (Isolate::Current()->cpu_features()->IsSupported(CMOV)) {
+    if (CpuFeatures::IsSupported(CMOV)) {
       CpuFeatures::Scope use_cmov(CMOV);
       __ cmov(overflow, eax, Operand(eax, 0));
       __ cmov(no_overflow, eax, Operand(eax, 1));
@@ -417,7 +418,7 @@ TEST(DisasmIa320) {
 
   // andpd, cmpltsd, movaps, psllq, psrlq, por.
   {
-    if (Isolate::Current()->cpu_features()->IsSupported(SSE2)) {
+    if (CpuFeatures::IsSupported(SSE2)) {
       CpuFeatures::Scope fscope(SSE2);
       __ andpd(xmm0, xmm1);
       __ andpd(xmm1, xmm2);
@@ -446,7 +447,7 @@ TEST(DisasmIa320) {
   }
 
   {
-    if (Isolate::Current()->cpu_features()->IsSupported(SSE4_1)) {
+    if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatures::Scope scope(SSE4_1);
       __ pextrd(Operand(eax), xmm0, 1);
       __ pinsrd(xmm1, Operand(eax), 0);

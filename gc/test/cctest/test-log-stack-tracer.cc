@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -39,7 +39,6 @@
 #include "isolate.h"
 #include "cctest.h"
 #include "disassembler.h"
-#include "register-allocator-inl.h"
 #include "vm-state-inl.h"
 
 using v8::Function;
@@ -280,6 +279,9 @@ static void CreateTraceCallerFunction(const char* func_name,
 // StackTracer uses Isolate::c_entry_fp as a starting point for stack
 // walking.
 TEST(CFromJSStackTrace) {
+  // BUG(1303) Inlining of JSFuncDoTrace() in JSTrace below breaks this test.
+  i::FLAG_use_inlining = false;
+
   TickSample sample;
   InitTraceEnv(&sample);
 
@@ -303,13 +305,11 @@ TEST(CFromJSStackTrace) {
   //         DoTrace(EBP) [native]
   //           StackTracer::Trace
 
-  // The VM state tracking keeps track of external callbacks and puts
-  // them at the top of the sample stack.
-  int base = 0;
-  CHECK(sample.stack[0] == FUNCTION_ADDR(TraceExtension::Trace));
-  base++;
+  CHECK(sample.has_external_callback);
+  CHECK_EQ(FUNCTION_ADDR(TraceExtension::Trace), sample.external_callback);
 
   // Stack tracing will start from the first JS function, i.e. "JSFuncDoTrace"
+  int base = 0;
   CHECK_GT(sample.frames_count, base + 1);
   CHECK(IsAddressWithinFuncCode("JSFuncDoTrace", sample.stack[base + 0]));
   CHECK(IsAddressWithinFuncCode("JSTrace", sample.stack[base + 1]));
@@ -354,13 +354,11 @@ TEST(PureJSStackTrace) {
   //             StackTracer::Trace
   //
 
-  // The VM state tracking keeps track of external callbacks and puts
-  // them at the top of the sample stack.
-  int base = 0;
-  CHECK(sample.stack[0] == FUNCTION_ADDR(TraceExtension::JSTrace));
-  base++;
+  CHECK(sample.has_external_callback);
+  CHECK_EQ(FUNCTION_ADDR(TraceExtension::JSTrace), sample.external_callback);
 
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
+  int base = 0;
   CHECK_GT(sample.frames_count, base + 1);
   CHECK(IsAddressWithinFuncCode("JSTrace", sample.stack[base + 0]));
   CHECK(IsAddressWithinFuncCode("OuterJSTrace", sample.stack[base + 1]));

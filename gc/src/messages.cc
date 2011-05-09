@@ -56,11 +56,6 @@ void MessageHandler::DefaultMessageReport(const MessageLocation* loc,
 }
 
 
-void MessageHandler::ReportMessage(const char* msg) {
-  PrintF("%s\n", msg);
-}
-
-
 Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     const char* type,
     MessageLocation* loc,
@@ -106,14 +101,25 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
 }
 
 
-void MessageHandler::ReportMessage(MessageLocation* loc,
+void MessageHandler::ReportMessage(Isolate* isolate,
+                                   MessageLocation* loc,
                                    Handle<Object> message) {
+  // We are calling into embedder's code which can throw exceptions.
+  // Thus we need to save current exception state, reset it to the clean one
+  // and ignore scheduled exceptions callbacks can throw.
+  Isolate::ExceptionScope exception_scope(isolate);
+  isolate->clear_pending_exception();
+  isolate->set_external_caught_exception(false);
+
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
 
   v8::NeanderArray global_listeners(FACTORY->message_listeners());
   int global_length = global_listeners.length();
   if (global_length == 0) {
     DefaultMessageReport(loc, message);
+    if (isolate->has_scheduled_exception()) {
+      isolate->clear_scheduled_exception();
+    }
   } else {
     for (int i = 0; i < global_length; i++) {
       HandleScope scope;
@@ -123,7 +129,14 @@ void MessageHandler::ReportMessage(MessageLocation* loc,
       v8::MessageCallback callback =
           FUNCTION_CAST<v8::MessageCallback>(callback_obj->proxy());
       Handle<Object> callback_data(listener.get(1));
-      callback(api_message_obj, v8::Utils::ToLocal(callback_data));
+      {
+        // Do not allow exceptions to propagate.
+        v8::TryCatch try_catch;
+        callback(api_message_obj, v8::Utils::ToLocal(callback_data));
+      }
+      if (isolate->has_scheduled_exception()) {
+        isolate->clear_scheduled_exception();
+      }
     }
   }
 }

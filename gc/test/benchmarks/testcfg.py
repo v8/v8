@@ -84,7 +84,7 @@ class BenchmarkTestConfiguration(test.TestConfiguration):
   def __init__(self, context, root):
     super(BenchmarkTestConfiguration, self).__init__(context, root)
 
-  def ListTests(self, current_path, path, mode):
+  def ListTests(self, current_path, path, mode, variant_flags):
     path = self.context.workspace
     path = join(path, 'benchmarks')
     test = BenchmarkTestCase(path, self.context, mode)

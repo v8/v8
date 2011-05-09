@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -104,8 +104,7 @@ class AstPrinter: public PrettyPrinter {
   void PrintLiteralIndented(const char* info, Handle<Object> value, bool quote);
   void PrintLiteralWithModeIndented(const char* info,
                                     Variable* var,
-                                    Handle<Object> value,
-                                    StaticType* type);
+                                    Handle<Object> value);
   void PrintLabelsIndented(const char* info, ZoneStringList* labels);
 
   void inc_indent() { indent_++; }

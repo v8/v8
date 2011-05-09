@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 // A light-weight IA32 Assembler.
 
@@ -240,9 +240,9 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitPointer(heap, target_object_address());
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
-    StaticVisitor::VisitCodeTarget(this);
+    StaticVisitor::VisitCodeTarget(heap, this);
   } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-    StaticVisitor::VisitGlobalPropertyCell(this);
+    StaticVisitor::VisitGlobalPropertyCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(target_reference_address());
     CPU::FlushICache(pc_, sizeof(Address));
@@ -252,7 +252,7 @@ void RelocInfo::Visit(Heap* heap) {
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
-    StaticVisitor::VisitDebugTarget(this);
+    StaticVisitor::VisitDebugTarget(heap, this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {
     StaticVisitor::VisitRuntimeEntry(this);
@@ -315,7 +315,7 @@ void Assembler::emit(uint32_t x) {
 void Assembler::emit(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  ASSERT(!HEAP->InNewSpace(obj));
+  ASSERT(!isolate()->heap()->InNewSpace(obj));
   if (obj->IsHeapObject()) {
     emit(reinterpret_cast<intptr_t>(handle.location()),
          RelocInfo::EMBEDDED_OBJECT);
@@ -326,8 +326,12 @@ void Assembler::emit(Handle<Object> handle) {
 }
 
 
-void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
-  if (rmode != RelocInfo::NONE) RecordRelocInfo(rmode);
+void Assembler::emit(uint32_t x, RelocInfo::Mode rmode, unsigned id) {
+  if (rmode == RelocInfo::CODE_TARGET && id != kNoASTId) {
+    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, static_cast<intptr_t>(id));
+  } else if (rmode != RelocInfo::NONE) {
+    RecordRelocInfo(rmode);
+  }
   emit(x);
 }
 

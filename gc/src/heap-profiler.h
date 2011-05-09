@@ -67,6 +67,7 @@ class HeapProfiler {
   static int GetSnapshotsCount();
   static HeapSnapshot* GetSnapshot(int index);
   static HeapSnapshot* FindSnapshot(unsigned uid);
+  static void DeleteAllSnapshots();
 
   void ObjectMoveEvent(Address from, Address to);
 
@@ -92,6 +93,7 @@ class HeapProfiler {
   HeapSnapshot* TakeSnapshotImpl(String* name,
                                  int type,
                                  v8::ActivityControl* control);
+  void ResetSnapshots();
 
   HeapSnapshotsCollection* snapshots_;
   unsigned next_snapshot_uid_;

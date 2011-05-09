@@ -116,7 +116,7 @@ namespace internal {
 RegExpMacroAssemblerARM::RegExpMacroAssemblerARM(
     Mode mode,
     int registers_to_save)
-    : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
+    : masm_(new MacroAssembler(Isolate::Current(), NULL, kRegExpCodeSize)),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -347,7 +347,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     __ sub(current_input_offset(), r2, end_of_input_address());
   } else {
     ASSERT(mode_ == UC16);
-    int argument_count = 3;
+    int argument_count = 4;
     __ PrepareCallCFunction(argument_count, r2);
 
     // r0 - offset of start of capture
@@ -358,6 +358,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     //   r0: Address byte_offset1 - Address captured substring's start.
     //   r1: Address byte_offset2 - Address of current character position.
     //   r2: size_t byte_length - length of capture in bytes(!)
+    //   r3: Isolate* isolate
 
     // Address of start of capture.
     __ add(r0, r0, Operand(end_of_input_address()));
@@ -367,9 +368,11 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     __ mov(r4, Operand(r1));
     // Address of current input position.
     __ add(r1, current_input_offset(), Operand(end_of_input_address()));
+    // Isolate.
+    __ mov(r3, Operand(ExternalReference::isolate_address()));
 
     ExternalReference function =
-        ExternalReference::re_case_insensitive_compare_uc16();
+        ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
     __ CallCFunction(function, argument_count);
 
     // Check if function returned non-zero for success or zero for failure.
@@ -627,7 +630,7 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   Label stack_ok;
 
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit();
+      ExternalReference::address_of_stack_limit(masm_->isolate());
   __ mov(r0, Operand(stack_limit));
   __ ldr(r0, MemOperand(r0));
   __ sub(r0, sp, r0, SetCC);
@@ -778,12 +781,13 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
     Label grow_failed;
 
     // Call GrowStack(backtrack_stackpointer(), &stack_base)
-    static const int num_arguments = 2;
+    static const int num_arguments = 3;
     __ PrepareCallCFunction(num_arguments, r0);
     __ mov(r0, backtrack_stackpointer());
     __ add(r1, frame_pointer(), Operand(kStackHighEnd));
+    __ mov(r2, Operand(ExternalReference::isolate_address()));
     ExternalReference grow_stack =
-      ExternalReference::re_grow_stack();
+        ExternalReference::re_grow_stack(masm_->isolate());
     __ CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
@@ -999,7 +1003,7 @@ void RegExpMacroAssemblerARM::CallCheckStackGuardState(Register scratch) {
   __ mov(r1, Operand(masm_->CodeObject()));
   // r0 becomes return address pointer.
   ExternalReference stack_guard_check =
-      ExternalReference::re_check_stack_guard_state();
+      ExternalReference::re_check_stack_guard_state(masm_->isolate());
   CallCFunctionUsingStub(stack_guard_check, num_arguments);
 }
 
@@ -1161,7 +1165,7 @@ void RegExpMacroAssemblerARM::Pop(Register target) {
 void RegExpMacroAssemblerARM::CheckPreemption() {
   // Check for preemption.
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit();
+      ExternalReference::address_of_stack_limit(masm_->isolate());
   __ mov(r0, Operand(stack_limit));
   __ ldr(r0, MemOperand(r0));
   __ cmp(sp, r0);
@@ -1171,7 +1175,7 @@ void RegExpMacroAssemblerARM::CheckPreemption() {
 
 void RegExpMacroAssemblerARM::CheckStackLimit() {
   ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit();
+      ExternalReference::address_of_regexp_stack_limit(masm_->isolate());
   __ mov(r0, Operand(stack_limit));
   __ ldr(r0, MemOperand(r0));
   __ cmp(backtrack_stackpointer(), Operand(r0));

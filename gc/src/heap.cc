@@ -30,12 +30,12 @@
 #include "accessors.h"
 #include "api.h"
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "compilation-cache.h"
 #include "debug.h"
+#include "global-handles.h"
 #include "heap-profiler.h"
 #include "incremental-marking.h"
-#include "global-handles.h"
 #include "liveobjectlist-inl.h"
 #include "mark-compact.h"
 #include "natives.h"
@@ -50,6 +50,10 @@
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
 #include "regexp-macro-assembler.h"
 #include "arm/regexp-macro-assembler-arm.h"
+#endif
+#if V8_TARGET_ARCH_MIPS && !V8_INTERPRETED_REGEXP
+#include "regexp-macro-assembler.h"
+#include "mips/regexp-macro-assembler-mips.h"
 #endif
 
 namespace v8 {
@@ -1273,23 +1277,33 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 }
 
 
+enum LoggingAndProfiling {
+  LOGGING_AND_PROFILING_ENABLED,
+  LOGGING_AND_PROFILING_DISABLED
+};
+
+
 enum MarksHandling { TRANSFER_MARKS, IGNORE_MARKS };
 
 typedef void (*ScavengingCallback)(Map* map,
                                    HeapObject** slot,
                                    HeapObject* object);
 
+
+static Atomic32 scavenging_visitors_table_mode_;
 // TODO(gc) ISOLATES MERGE: this table can no longer be static!
-static VisitorDispatchTable<ScavengingCallback> scavening_visitors_table_;
+static VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
+
 
 static inline void DoScavengeObject(Map* map,
                                     HeapObject** slot,
                                     HeapObject* obj) {
-  scavening_visitors_table_.GetVisitor(map)(map, slot, obj);
+  scavenging_visitors_table_.GetVisitor(map)(map, slot, obj);
 }
 
 
-template<MarksHandling marks_handling>
+template<MarksHandling marks_handling,
+         LoggingAndProfiling logging_and_profiling_mode>
 class ScavengingVisitor : public StaticVisitorBase {
  public:
   static void Initialize() {
@@ -1368,21 +1382,24 @@ class ScavengingVisitor : public StaticVisitorBase {
     // Set the forwarding address.
     source->set_map_word(MapWord::FromForwardingAddress(target));
 
+    if (logging_and_profiling_mode == LOGGING_AND_PROFILING_ENABLED) {
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
-    // Update NewSpace stats if necessary.
-    RecordCopiedObject(heap, target);
+      // Update NewSpace stats if necessary.
+      RecordCopiedObject(heap, target);
 #endif
-    HEAP_PROFILE(heap, ObjectMoveEvent(source->address(), target->address()));
+      HEAP_PROFILE(heap, ObjectMoveEvent(source->address(), target->address()));
 #if defined(ENABLE_LOGGING_AND_PROFILING)
-    Isolate* isolate = heap->isolate();
-    if (isolate->logger()->is_logging() ||
-        isolate->cpu_profiler()->is_profiling()) {
-      if (target->IsSharedFunctionInfo()) {
-        PROFILE(isolate, SharedFunctionInfoMoveEvent(
-            source->address(), target->address()));
+      Isolate* isolate = heap->isolate();
+      if (isolate->logger()->is_logging() ||
+          CpuProfiler::is_profiling(isolate)) {
+        if (target->IsSharedFunctionInfo()) {
+          PROFILE(isolate, SharedFunctionInfoMoveEvent(
+              source->address(), target->address()));
+        }
       }
-    }
 #endif
+    }
+
 
     if (marks_handling == TRANSFER_MARKS) TransferMark(heap, source, target);
 
@@ -1547,18 +1564,47 @@ class ScavengingVisitor : public StaticVisitorBase {
 };
 
 
-template<MarksHandling marks_handling>
+template<MarksHandling marks_handling,
+         LoggingAndProfiling logging_and_profiling_mode>
 VisitorDispatchTable<ScavengingCallback>
-    ScavengingVisitor<marks_handling>::table_;
+    ScavengingVisitor<marks_handling, logging_and_profiling_mode>::table_;
+
+
+static void InitializeScavengingVisitorsTables() {
+  ScavengingVisitor<TRANSFER_MARKS,
+                    LOGGING_AND_PROFILING_DISABLED>::Initialize();
+  ScavengingVisitor<IGNORE_MARKS, LOGGING_AND_PROFILING_DISABLED>::Initialize();
+  ScavengingVisitor<TRANSFER_MARKS,
+                    LOGGING_AND_PROFILING_ENABLED>::Initialize();
+  ScavengingVisitor<IGNORE_MARKS, LOGGING_AND_PROFILING_ENABLED>::Initialize();
+  scavenging_visitors_table_.CopyFrom(
+      ScavengingVisitor<IGNORE_MARKS,
+                        LOGGING_AND_PROFILING_DISABLED>::GetTable());
+  scavenging_visitors_table_mode_ = LOGGING_AND_PROFILING_DISABLED;
+}
 
 
 void Heap::SelectScavengingVisitorsTable() {
   if (incremental_marking()->IsStopped()) {
-    scavening_visitors_table_.CopyFrom(
-        ScavengingVisitor<IGNORE_MARKS>::GetTable());
+    if (scavenging_visitors_table_mode_ == LOGGING_AND_PROFILING_DISABLED) {
+      scavenging_visitors_table_.CopyFrom(
+          ScavengingVisitor<IGNORE_MARKS,
+                            LOGGING_AND_PROFILING_DISABLED>::GetTable());
+    } else {
+      scavenging_visitors_table_.CopyFrom(
+          ScavengingVisitor<IGNORE_MARKS,
+                            LOGGING_AND_PROFILING_ENABLED>::GetTable());
+    }
   } else {
-    scavening_visitors_table_.CopyFrom(
-        ScavengingVisitor<TRANSFER_MARKS>::GetTable());
+    if (scavenging_visitors_table_mode_ == LOGGING_AND_PROFILING_DISABLED) {
+      scavenging_visitors_table_.CopyFrom(
+          ScavengingVisitor<TRANSFER_MARKS,
+                            LOGGING_AND_PROFILING_DISABLED>::GetTable());
+    } else {
+      scavenging_visitors_table_.CopyFrom(
+          ScavengingVisitor<TRANSFER_MARKS,
+                            LOGGING_AND_PROFILING_ENABLED>::GetTable());
+    }
   }
 }
 
@@ -1612,6 +1658,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_pre_allocated_property_fields(0);
   map->set_instance_descriptors(empty_descriptor_array());
   map->set_code_cache(empty_fixed_array());
+  map->set_prototype_transitions(empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2((1 << Map::kIsExtensible) | (1 << Map::kHasFastElements));
@@ -1704,12 +1751,15 @@ bool Heap::CreateInitialMaps() {
   // Fix the instance_descriptors for the existing maps.
   meta_map()->set_instance_descriptors(empty_descriptor_array());
   meta_map()->set_code_cache(empty_fixed_array());
+  meta_map()->set_prototype_transitions(empty_fixed_array());
 
   fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
   fixed_array_map()->set_code_cache(empty_fixed_array());
+  fixed_array_map()->set_prototype_transitions(empty_fixed_array());
 
   oddball_map()->set_instance_descriptors(empty_descriptor_array());
   oddball_map()->set_code_cache(empty_fixed_array());
+  oddball_map()->set_prototype_transitions(empty_fixed_array());
 
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
@@ -1823,6 +1873,12 @@ bool Heap::CreateInitialMaps() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_external_float_array_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_DOUBLE_ARRAY_TYPE,
+                                         ExternalArray::kAlignedSize);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_external_double_array_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateMap(CODE_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -2312,6 +2368,8 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
       return kExternalUnsignedIntArrayMapRootIndex;
     case kExternalFloatArray:
       return kExternalFloatArrayMapRootIndex;
+    case kExternalDoubleArray:
+      return kExternalDoubleArrayMapRootIndex;
     case kExternalPixelArray:
       return kExternalPixelArrayMapRootIndex;
     default:
@@ -2365,11 +2423,11 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
 
   SharedFunctionInfo* share = SharedFunctionInfo::cast(result);
   share->set_name(name);
-  Code* illegal = isolate_->builtins()->builtin(Builtins::Illegal);
+  Code* illegal = isolate_->builtins()->builtin(Builtins::kIllegal);
   share->set_code(illegal);
   share->set_scope_info(SerializedScopeInfo::Empty());
   Code* construct_stub = isolate_->builtins()->builtin(
-      Builtins::JSConstructStubGeneric);
+      Builtins::kJSConstructStubGeneric);
   share->set_construct_stub(construct_stub);
   share->set_expected_nof_properties(0);
   share->set_length(0);
@@ -3255,7 +3313,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   // Fill these accessors into the dictionary.
   DescriptorArray* descs = map->instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    PropertyDetails details = descs->GetDetails(i);
+    PropertyDetails details(descs->GetDetails(i));
     ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
     PropertyDetails d =
         PropertyDetails(details.attributes(), CALLBACKS, details.index());
@@ -3410,8 +3468,8 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
   const uc32 kMaxSupportedChar = 0xFFFF;
   // Count the number of characters in the UTF-8 string and check if
   // it is an ASCII string.
-  Access<ScannerConstants::Utf8Decoder>
-      decoder(isolate_->scanner_constants()->utf8_decoder());
+  Access<UnicodeCache::Utf8Decoder>
+      decoder(isolate_->unicode_cache()->utf8_decoder());
   decoder->Reset(string.start(), string.length());
   int chars = 0;
   while (decoder->has_more()) {
@@ -4944,8 +5002,7 @@ bool Heap::Setup(bool create_heap_objects) {
   static bool initialized_gc = false;
   if (!initialized_gc) {
       initialized_gc = true;
-      ScavengingVisitor<TRANSFER_MARKS>::Initialize();
-      ScavengingVisitor<IGNORE_MARKS>::Initialize();
+      InitializeScavengingVisitorsTables();
       NewSpaceScavenger::Initialize();
       MarkCompactCollector::Initialize();
   }

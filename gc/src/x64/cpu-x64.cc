@@ -42,10 +42,12 @@ namespace v8 {
 namespace internal {
 
 void CPU::Setup() {
-  Isolate::Current()->cpu_features()->Probe(true);
-  if (Serializer::enabled()) {
-    V8::DisableCrankshaft();
-  }
+  CpuFeatures::Probe();
+}
+
+
+bool CPU::SupportsCrankshaft() {
+  return true;  // Yay!
 }
 
 

@@ -39,25 +39,6 @@ namespace internal {
 // processing.
 void FatalProcessOutOfMemory(const char* message);
 
-// A class that controls whether allocation is allowed.  This is for
-// the C++ heap only!
-class NativeAllocationChecker {
- public:
-  enum NativeAllocationAllowed { ALLOW, DISALLOW };
-#ifdef DEBUG
-  explicit NativeAllocationChecker(NativeAllocationAllowed allowed);
-  ~NativeAllocationChecker();
-  static bool allocation_allowed();
- private:
-  // This flag applies to this particular instance.
-  NativeAllocationAllowed allowed_;
-#else
-  explicit inline NativeAllocationChecker(NativeAllocationAllowed allowed) {}
-  static inline bool allocation_allowed() { return true; }
-#endif
-};
-
-
 // Superclass for classes managed with new & delete.
 class Malloced {
  public:
@@ -101,7 +82,6 @@ class AllStatic {
 
 template <typename T>
 static T* NewArray(int size) {
-  ASSERT(NativeAllocationChecker::allocation_allowed());
   T* result = new T[size];
   if (result == NULL) Malloced::FatalProcessOutOfMemory();
   return result;

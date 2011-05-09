@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --call_regexp
-var callbacks = [ function() {return 'foo'}, "nonobject", /abc/ ];
+var callbacks = [ function() { return 'foo'; }, "nonobject", /abc/ ];
 assertEquals('foo', callbacks['0']());
 assertThrows("callbacks['1']()");
-assertEquals('abc', callbacks['2']("abcdefg"));
+assertEquals(['abc'], callbacks['2']("abcdefg"));

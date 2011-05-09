@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -49,10 +49,6 @@ enum AllocationFlags {
 // distinguish memory operands from other operands on ia32.
 typedef Operand MemOperand;
 
-// Forward declaration.
-class JumpTarget;
-class PostCallGenerator;
-
 enum EmitRememberedSet { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 enum ObjectMode { PRESERVE_OBJECT, DESTROY_OBJECT };
@@ -64,7 +60,11 @@ bool Aliasing(Register r1, Register r2, Register r3, Register r4);
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
  public:
-  MacroAssembler(void* buffer, int size);
+  // The isolate parameter can be NULL if the macro assembler should
+  // not use isolate-dependent functionality. In this case, it's the
+  // responsibility of the caller to never invoke such function on the
+  // macro assembler.
+  MacroAssembler(Isolate* isolate, void* buffer, int size);
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -265,32 +265,32 @@ class MacroAssembler: public Assembler {
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  PostCallGenerator* post_call_generator = NULL);
+                  const CallWrapper& call_wrapper = NullCallWrapper());
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
                   InvokeFlag flag,
-                  PostCallGenerator* post_call_generator = NULL);
+                  const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id,
                      InvokeFlag flag,
-                     PostCallGenerator* post_call_generator = NULL);
+                     const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, Builtins::JavaScript id);
@@ -528,12 +528,6 @@ class MacroAssembler: public Assembler {
   // Check if result is zero and op is negative.
   void NegativeZeroTest(Register result, Register op, Label* then_label);
 
-  // Check if result is zero and op is negative in code using jump targets.
-  void NegativeZeroTest(CodeGenerator* cgen,
-                        Register result,
-                        Register op,
-                        JumpTarget* then_target);
-
   // Check if result is zero and any of op1 and op2 are negative.
   // Register scratch is destroyed, and it must be different from op2.
   void NegativeZeroTest(Register result, Register op1, Register op2,
@@ -563,7 +557,7 @@ class MacroAssembler: public Assembler {
   // Runtime calls
 
   // Call a code stub.  Generate the code if necessary.
-  void CallStub(CodeStub* stub);
+  void CallStub(CodeStub* stub, unsigned ast_id = kNoASTId);
 
   // Call a code stub and return the code object called.  Try to generate
   // the code if necessary.  Do not perform a GC but instead return a retry
@@ -688,7 +682,10 @@ class MacroAssembler: public Assembler {
 
   void Move(Register target, Handle<Object> value);
 
-  Handle<Object> CodeObject() { return code_object_; }
+  Handle<Object> CodeObject() {
+    ASSERT(!code_object_.is_null());
+    return code_object_;
+  }
 
 
   // ---------------------------------------------------------------------------
@@ -743,6 +740,10 @@ class MacroAssembler: public Assembler {
                                            Register scratch2,
                                            Label* on_not_flat_ascii_strings);
 
+  static int SafepointRegisterStackIndex(Register reg) {
+    return SafepointRegisterStackIndex(reg.code());
+  }
+
  private:
   bool generating_stub_;
   bool allow_stub_calls_;
@@ -756,7 +757,7 @@ class MacroAssembler: public Assembler {
                       const Operand& code_operand,
                       NearLabel* done,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -812,18 +813,20 @@ void MacroAssembler::InNewSpace(Register object,
     // The mask isn't really an address.  We load it as an external reference in
     // case the size of the new space is different between the snapshot maker
     // and the running system.
-    and_(Operand(scratch), Immediate(ExternalReference::new_space_mask()));
-    cmp(Operand(scratch), Immediate(ExternalReference::new_space_start()));
+    and_(Operand(scratch),
+         Immediate(ExternalReference::new_space_mask(isolate())));
+    cmp(Operand(scratch),
+        Immediate(ExternalReference::new_space_start(isolate())));
     j(cc, branch);
   } else {
     int32_t new_space_start = reinterpret_cast<int32_t>(
-        ExternalReference::new_space_start().address());
+        ExternalReference::new_space_start(isolate()).address());
     if (object.is(scratch)) {
       sub(Operand(scratch), Immediate(new_space_start));
     } else {
       lea(scratch, Operand(object, -new_space_start));
     }
-    and_(scratch, HEAP->NewSpaceMask());
+    and_(scratch, isolate()->heap()->NewSpaceMask());
     j(cc, branch);
   }
 }
@@ -846,17 +849,6 @@ class CodePatcher {
   byte* address_;  // The address of the code being patched.
   int size_;  // Number of bytes of the expected patch size.
   MacroAssembler masm_;  // Macro assembler used to generate the code.
-};
-
-
-// Helper class for generating code or data associated with the code
-// right after a call instruction. As an example this can be used to
-// generate safepoint data after calls for crankshaft.
-class PostCallGenerator {
- public:
-  PostCallGenerator() { }
-  virtual ~PostCallGenerator() { }
-  virtual void Generate() = 0;
 };
 
 

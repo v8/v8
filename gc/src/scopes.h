@@ -149,7 +149,9 @@ class Scope: public ZoneObject {
   void AddParameter(Variable* var);
 
   // Create a new unresolved variable.
-  virtual VariableProxy* NewUnresolved(Handle<String> name, bool inside_with);
+  virtual VariableProxy* NewUnresolved(Handle<String> name,
+                                       bool inside_with,
+                                       int position = RelocInfo::kNoPosition);
 
   // Remove a unresolved variable. During parsing, an unresolved variable
   // may have been added optimistically, but then only the variable name
@@ -209,6 +211,9 @@ class Scope: public ZoneObject {
   bool is_function_scope() const { return type_ == FUNCTION_SCOPE; }
   bool is_global_scope() const { return type_ == GLOBAL_SCOPE; }
   bool is_strict_mode() const { return strict_mode_; }
+  bool is_strict_mode_eval_scope() const {
+    return is_eval_scope() && is_strict_mode();
+  }
 
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
@@ -376,8 +381,8 @@ class Scope: public ZoneObject {
   int num_heap_slots_;
 
   // Serialized scopes support.
-  SerializedScopeInfo* scope_info_;
-  bool resolved() { return scope_info_ != NULL; }
+  Handle<SerializedScopeInfo> scope_info_;
+  bool resolved() { return !scope_info_.is_null(); }
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
@@ -412,7 +417,7 @@ class Scope: public ZoneObject {
   void AllocateVariablesRecursively();
 
  private:
-  Scope(Scope* inner_scope, SerializedScopeInfo* scope_info);
+  Scope(Scope* inner_scope, Handle<SerializedScopeInfo> scope_info);
 
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {
@@ -423,29 +428,7 @@ class Scope: public ZoneObject {
 
   void SetDefaults(Type type,
                    Scope* outer_scope,
-                   SerializedScopeInfo* scope_info) {
-    outer_scope_ = outer_scope;
-    type_ = type;
-    scope_name_ = FACTORY->empty_symbol();
-    dynamics_ = NULL;
-    receiver_ = NULL;
-    function_ = NULL;
-    arguments_ = NULL;
-    arguments_shadow_ = NULL;
-    illegal_redecl_ = NULL;
-    scope_inside_with_ = false;
-    scope_contains_with_ = false;
-    scope_calls_eval_ = false;
-    // Inherit the strict mode from the parent scope.
-    strict_mode_ = (outer_scope != NULL) && outer_scope->strict_mode_;
-    outer_scope_calls_eval_ = false;
-    inner_scope_calls_eval_ = false;
-    outer_scope_is_eval_scope_ = false;
-    force_eager_compilation_ = false;
-    num_stack_slots_ = 0;
-    num_heap_slots_ = 0;
-    scope_info_ = scope_info;
-  }
+                   Handle<SerializedScopeInfo> scope_info);
 };
 
 
@@ -479,7 +462,9 @@ class DummyScope : public Scope {
 
   virtual Variable* Lookup(Handle<String> name)  { return NULL; }
 
-  virtual VariableProxy* NewUnresolved(Handle<String> name, bool inside_with) {
+  virtual VariableProxy* NewUnresolved(Handle<String> name,
+                                       bool inside_with,
+                                       int position = RelocInfo::kNoPosition) {
     return NULL;
   }
 

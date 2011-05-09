@@ -28,8 +28,6 @@
 #ifndef V8_IA32_FRAMES_IA32_H_
 #define V8_IA32_FRAMES_IA32_H_
 
-#include "memory.h"
-
 namespace v8 {
 namespace internal {
 
@@ -110,7 +108,7 @@ class JavaScriptFrameConstants : public AllStatic {
  public:
   // FP-relative.
   static const int kLocal0Offset = StandardFrameConstants::kExpressionsOffset;
-  static const int kSavedRegistersOffset = +2 * kPointerSize;
+  static const int kLastParameterOffset = +2 * kPointerSize;
   static const int kFunctionOffset = StandardFrameConstants::kMarkerOffset;
 
   // Caller SP-relative.

@@ -29,6 +29,7 @@
 #define V8_SAFEPOINT_TABLE_H_
 
 #include "heap.h"
+#include "v8memory.h"
 #include "zone.h"
 
 namespace v8 {

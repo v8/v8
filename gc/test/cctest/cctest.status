@@ -52,6 +52,15 @@ test-log/EquivalenceOfLoggingAndTraversal: PASS || FAIL
 # BUG(1261): Flakey test.
 test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
 
+##############################################################################
+# BUG(1354): Bad function name inference
+test-func-name-inference/FactoryHashmapConditional: FAIL
+test-func-name-inference/FactoryHashmapVariable: FAIL
+test-func-name-inference/FactoryHashmap: FAIL
+test-func-name-inference/MultipleAssignments: FAIL
+test-func-name-inference/PassedAsConstructorParameter: FAIL
+
+##############################################################################
 [ $arch == arm ]
 
 # We cannot assume that we can throw OutOfMemory exceptions in all situations.
@@ -67,7 +76,7 @@ test-log/ProfLazyMode: SKIP
 test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
 test-sockets/Socket: SKIP
 
-# BUG(1075): Some deserialization tests fail om ARM
+# BUG(1075): Unresolved crashes.
 test-serialize/Deserialize: SKIP
 test-serialize/DeserializeFromSecondSerializationAndRunScript2: SKIP
 test-serialize/DeserializeAndRunScript2: SKIP
@@ -90,12 +99,15 @@ test-compiler: SKIP
 test-cpu-profiler: SKIP
 test-debug: SKIP
 test-decls: SKIP
+test-deoptimization: SKIP
 test-func-name-inference: SKIP
 test-heap: SKIP
 test-heap-profiler: SKIP
 test-log: SKIP
 test-log-utils: SKIP
 test-mark-compact: SKIP
+test-parsing: SKIP
+test-profile-generator: SKIP
 test-regexp: SKIP
 test-serialize: SKIP
 test-sockets: SKIP

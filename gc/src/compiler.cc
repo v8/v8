@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,9 +30,8 @@
 #include "compiler.h"
 
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "compilation-cache.h"
-#include "data-flow.h"
 #include "debug.h"
 #include "full-codegen.h"
 #include "gdb-jit.h"
@@ -203,6 +202,10 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   Handle<Code> code(info->shared_info()->code());
   ASSERT(code->kind() == Code::FUNCTION);
 
+  // We should never arrive here if optimization has been disabled on the
+  // shared function info.
+  ASSERT(!info->shared_info()->optimization_disabled());
+
   // Fall back to using the full code generator if it's not possible
   // to use the Hydrogen-based optimizing compiler. We already have
   // generated code for this from the shared function object.
@@ -322,30 +325,9 @@ static bool MakeCode(CompilationInfo* info) {
 
   if (Rewriter::Rewrite(info) && Scope::Analyze(info)) {
     if (V8::UseCrankshaft()) return MakeCrankshaftCode(info);
-
-    // Generate code and return it.  Code generator selection is governed by
-    // which backends are enabled and whether the function is considered
-    // run-once code or not.
-    //
-    // --full-compiler enables the dedicated backend for code we expect to
-    // be run once
-    //
-    // The normal choice of backend can be overridden with the flags
-    // --always-full-compiler.
-    if (Rewriter::Analyze(info)) {
-      Handle<SharedFunctionInfo> shared = info->shared_info();
-      bool is_run_once = (shared.is_null())
-          ? info->scope()->is_global_scope()
-          : (shared->is_toplevel() || shared->try_full_codegen());
-      bool can_use_full =
-          FLAG_full_compiler && !info->function()->contains_loops();
-      if (AlwaysFullCompiler() || (is_run_once && can_use_full)) {
-        return FullCodeGenerator::MakeCode(info);
-      } else {
-        return AssignedVariablesAnalyzer::Analyze(info) &&
-            CodeGenerator::MakeCode(info);
-      }
-    }
+    // If crankshaft is not supported fall back to full code generator
+    // for all compilation.
+    return FullCodeGenerator::MakeCode(info);
   }
 
   return false;
@@ -384,11 +366,11 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
     // For eval scripts add information on the function from which eval was
     // called.
     if (info->is_eval()) {
-      StackTraceFrameIterator it;
+      StackTraceFrameIterator it(isolate);
       if (!it.done()) {
         script->set_eval_from_shared(
             JSFunction::cast(it.frame()->function())->shared());
-        Code* code = it.frame()->LookupCode(isolate);
+        Code* code = it.frame()->LookupCode();
         int offset = static_cast<int>(
             it.frame()->pc() - code->instruction_start());
         script->set_eval_from_instructions_offset(Smi::FromInt(offset));
@@ -409,8 +391,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // rest of the function into account to avoid overlap with the
   // parsing statistics.
   HistogramTimer* rate = info->is_eval()
-      ? COUNTERS->compile_eval()
-      : COUNTERS->compile();
+      ? info->isolate()->counters()->compile_eval()
+      : info->isolate()->counters()->compile();
   HistogramTimerScope timer(rate);
 
   // Compile the code.
@@ -480,10 +462,10 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              ScriptDataImpl* input_pre_data,
                                              Handle<Object> script_data,
                                              NativesFlag natives) {
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
-  COUNTERS->total_load_size()->Increment(source_length);
-  COUNTERS->total_compile_size()->Increment(source_length);
+  isolate->counters()->total_load_size()->Increment(source_length);
+  isolate->counters()->total_compile_size()->Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(isolate, COMPILER);
@@ -584,7 +566,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     CompilationInfo info(script);
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
-    if (strict_mode == kStrictMode) info.MarkAsStrict();
+    if (strict_mode == kStrictMode) info.MarkAsStrictMode();
     info.SetCallingContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
@@ -621,6 +603,12 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
     // parsing statistics.
     HistogramTimerScope timer(isolate->counters()->compile_lazy());
 
+    // After parsing we know function's strict mode. Remember it.
+    if (info->function()->strict_mode()) {
+      shared->set_strict_mode(true);
+      info->MarkAsStrictMode();
+    }
+
     // Compile the code.
     if (!MakeCode(info)) {
       if (!isolate->has_pending_exception()) {
@@ -629,6 +617,11 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
     } else {
       ASSERT(!info->code().is_null());
       Handle<Code> code = info->code();
+      // Set optimizable to false if this is disallowed by the shared
+      // function info, e.g., we might have flushed the code and must
+      // reset this bit when lazy compiling the code again.
+      if (shared->optimization_disabled()) code->set_optimizable(false);
+
       Handle<JSFunction> function = info->closure();
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 
@@ -665,12 +658,12 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
         ASSERT(shared->is_compiled());
         shared->set_code_age(0);
 
-        if (V8::UseCrankshaft() && info->AllowOptimize()) {
+        if (info->AllowOptimize() && !shared->optimization_disabled()) {
           // If we're asked to always optimize, we compile the optimized
           // version of the function right away - unless the debugger is
           // active as it makes no sense to compile optimized code then.
           if (FLAG_always_opt &&
-              !Isolate::Current()->debug()->has_break_points()) {
+              !Isolate::Current()->DebuggerHasBreakPoints()) {
             CompilationInfo optimized(function);
             optimized.SetOptimizing(AstNode::kNoNumber);
             return CompileLazy(&optimized);
@@ -710,38 +703,14 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
 
   // Generate code
   if (FLAG_lazy && allow_lazy) {
-    Handle<Code> code(
-        info.isolate()->builtins()->builtin(Builtins::LazyCompile));
+    Handle<Code> code = info.isolate()->builtins()->LazyCompile();
     info.SetCode(code);
-  } else {
-    if (V8::UseCrankshaft()) {
-      if (!MakeCrankshaftCode(&info)) {
-        return Handle<SharedFunctionInfo>::null();
-      }
-    } else {
-      // The bodies of function literals have not yet been visited by the
-      // AST optimizer/analyzer.
-      if (!Rewriter::Analyze(&info)) return Handle<SharedFunctionInfo>::null();
-
-      bool is_run_once = literal->try_full_codegen();
-      bool can_use_full = FLAG_full_compiler && !literal->contains_loops();
-
-      if (AlwaysFullCompiler() || (is_run_once && can_use_full)) {
-        if (!FullCodeGenerator::MakeCode(&info)) {
-          return Handle<SharedFunctionInfo>::null();
-        }
-      } else {
-        // We fall back to the classic V8 code generator.
-        if (!AssignedVariablesAnalyzer::Analyze(&info) ||
-            !CodeGenerator::MakeCode(&info)) {
-          return Handle<SharedFunctionInfo>::null();
-        }
-      }
-    }
+  } else if ((V8::UseCrankshaft() && MakeCrankshaftCode(&info)) ||
+             (!V8::UseCrankshaft() && FullCodeGenerator::MakeCode(&info))) {
     ASSERT(!info.code().is_null());
-
-    // Function compilation complete.
     scope_info = SerializedScopeInfo::Create(info.scope());
+  } else {
+    return Handle<SharedFunctionInfo>::null();
   }
 
   // Create a shared function info object.
@@ -783,7 +752,6 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->SetThisPropertyAssignmentsInfo(
       lit->has_only_simple_this_property_assignments(),
       *lit->this_property_assignments());
-  function_info->set_try_full_codegen(lit->try_full_codegen());
   function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   function_info->set_strict_mode(lit->strict_mode());
 }
@@ -798,10 +766,11 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
-  if (info->isolate()->logger()->is_logging() || CpuProfiler::is_profiling()) {
+  if (info->isolate()->logger()->is_logging() ||
+      CpuProfiler::is_profiling(info->isolate())) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
-    if (*code == info->isolate()->builtins()->builtin(Builtins::LazyCompile))
+    if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
       return;
     if (script->name()->IsString()) {
       int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
@@ -821,7 +790,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     }
   }
 
-  GDBJIT(AddCode(name,
+  GDBJIT(AddCode(Handle<String>(shared->DebugName()),
                  Handle<Script>(info->script()),
                  Handle<Code>(info->code())));
 }

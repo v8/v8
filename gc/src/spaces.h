@@ -28,7 +28,7 @@
 #ifndef V8_SPACES_H_
 #define V8_SPACES_H_
 
-#include "list-inl.h"
+#include "list.h"
 #include "log.h"
 
 namespace v8 {
@@ -1083,7 +1083,7 @@ class FreeListNode: public HeapObject {
   // function also writes a map to the first word of the block so that it
   // looks like a heap object to the garbage collector and heap iteration
   // functions.
-  void set_size(int size_in_bytes);
+  void set_size(Heap* heap, int size_in_bytes);
 
   // Accessors for the next field.
   inline FreeListNode* next();
@@ -1162,6 +1162,7 @@ class OldSpaceFreeList BASE_EMBEDDED {
   static const int kMaxBlockSize = Page::kMaxHeapObjectSize;
 
   PagedSpace* owner_;
+  Heap* heap_;
 
   // Total available bytes in all blocks on this free list.
   int available_;
@@ -1878,10 +1879,10 @@ class OldSpace : public PagedSpace {
  public:
   // Creates an old space object with a given maximum capacity.
   // The constructor does not allocate pages from OS.
-  explicit OldSpace(Heap* heap,
-                    intptr_t max_capacity,
-                    AllocationSpace id,
-                    Executability executable)
+  OldSpace(Heap* heap,
+           intptr_t max_capacity,
+           AllocationSpace id,
+           Executability executable)
       : PagedSpace(heap, max_capacity, id, executable) {
     page_extra_ = 0;
   }

@@ -260,8 +260,8 @@ class Builtins {
   const char* Lookup(byte* pc);
 
   enum Name {
-#define DEF_ENUM_C(name, ignore) name,
-#define DEF_ENUM_A(name, kind, state, extra) name,
+#define DEF_ENUM_C(name, ignore) k##name,
+#define DEF_ENUM_A(name, kind, state, extra) k##name,
     BUILTIN_LIST_C(DEF_ENUM_C)
     BUILTIN_LIST_A(DEF_ENUM_A)
     BUILTIN_LIST_DEBUG_A(DEF_ENUM_A)
@@ -283,6 +283,15 @@ class Builtins {
 #undef DEF_ENUM
     id_count
   };
+
+#define DECLARE_BUILTIN_ACCESSOR_C(name, ignore) Handle<Code> name();
+#define DECLARE_BUILTIN_ACCESSOR_A(name, kind, state, extra) \
+  Handle<Code> name();
+  BUILTIN_LIST_C(DECLARE_BUILTIN_ACCESSOR_C)
+  BUILTIN_LIST_A(DECLARE_BUILTIN_ACCESSOR_A)
+  BUILTIN_LIST_DEBUG_A(DECLARE_BUILTIN_ACCESSOR_A)
+#undef DECLARE_BUILTIN_ACCESSOR_C
+#undef DECLARE_BUILTIN_ACCESSOR_A
 
   Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins

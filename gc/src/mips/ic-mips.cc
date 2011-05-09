@@ -32,6 +32,7 @@
 #if defined(V8_TARGET_ARCH_MIPS)
 
 #include "codegen-inl.h"
+#include "code-stubs.h"
 #include "ic-inl.h"
 #include "runtime.h"
 #include "stub-cache.h"
@@ -52,7 +53,7 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateStringLength(MacroAssembler* masm) {
+void LoadIC::GenerateStringLength(MacroAssembler* masm, bool support_wrappers) {
   UNIMPLEMENTED_MIPS();
 }
 
@@ -65,6 +66,12 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
 // Defined in ic.cc.
 Object* CallIC_Miss(Arguments args);
 
+
+void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
 void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   UNIMPLEMENTED_MIPS();
 }
@@ -74,50 +81,21 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   UNIMPLEMENTED_MIPS();
 }
 
-void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+
+void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
   UNIMPLEMENTED_MIPS();
-    // Registers:
-    // a2: name
-    // ra: return address
-
-  // Get the receiver of the function from the stack.
-  __ lw(a3, MemOperand(sp, argc*kPointerSize));
-
-  __ EnterInternalFrame();
-
-  // Push the receiver and the name of the function.
-  __ MultiPush(a2.bit() | a3.bit());
-
-  // Call the entry.
-  __ li(a0, Operand(2));
-  __ li(a1, Operand(ExternalReference(IC_Utility(kCallIC_Miss))));
-
-  CEntryStub stub(1);
-  __ CallStub(&stub);
-
-  // Move result to r1 and leave the internal frame.
-  __ mov(a1, v0);
-  __ LeaveInternalFrame();
-
-  // Check if the receiver is a global object of some sort.
-  Label invoke, global;
-  __ lw(a2, MemOperand(sp, argc * kPointerSize));
-  __ andi(t0, a2, kSmiTagMask);
-  __ Branch(eq, &invoke, t0, Operand(zero_reg));
-  __ GetObjectType(a2, a3, a3);
-  __ Branch(eq, &global, a3, Operand(JS_GLOBAL_OBJECT_TYPE));
-  __ Branch(ne, &invoke, a3, Operand(JS_BUILTINS_OBJECT_TYPE));
-
-  // Patch the receiver on the stack.
-  __ bind(&global);
-  __ lw(a2, FieldMemOperand(a2, GlobalObject::kGlobalReceiverOffset));
-  __ sw(a2, MemOperand(sp, argc * kPointerSize));
-
-  // Invoke the function.
-  ParameterCount actual(argc);
-  __ bind(&invoke);
-  __ InvokeFunction(a1, actual, JUMP_FUNCTION);
 }
+
+
+void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
+  UNIMPLEMENTED_MIPS();
+}
+
 
 // Defined in ic.cc.
 Object* LoadIC_Miss(Arguments args);
@@ -137,19 +115,35 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void LoadIC::ClearInlinedVersion(Address address) {}
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
+  UNIMPLEMENTED_MIPS();
   return false;
 }
 
-void KeyedLoadIC::ClearInlinedVersion(Address address) {}
+
+bool LoadIC::PatchInlinedContextualLoad(Address address,
+                                        Object* map,
+                                        Object* cell,
+                                        bool is_dont_delete) {
+  UNIMPLEMENTED_MIPS();
+  return false;
+}
+
+
+bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
+  UNIMPLEMENTED_MIPS();
+  return false;
+}
+
+
 bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
+  UNIMPLEMENTED_MIPS();
   return false;
 }
 
-void KeyedStoreIC::ClearInlinedVersion(Address address) {}
-void KeyedStoreIC::RestoreInlinedVersion(Address address) {}
+
 bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
+  UNIMPLEMENTED_MIPS();
   return false;
 }
 
@@ -158,6 +152,11 @@ Object* KeyedLoadIC_Miss(Arguments args);
 
 
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   UNIMPLEMENTED_MIPS();
 }
 
@@ -172,7 +171,14 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                              StrictModeFlag strict_mode) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
+                                   StrictModeFlag strict_mode) {
   UNIMPLEMENTED_MIPS();
 }
 
@@ -187,7 +193,8 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
+void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
+                                  StrictModeFlag strict_mode) {
   UNIMPLEMENTED_MIPS();
 }
 
@@ -201,7 +208,36 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   UNIMPLEMENTED_MIPS();
 }
 
+
+void StoreIC::GenerateNormal(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void StoreIC::GenerateGlobalProxy(MacroAssembler* masm,
+                                  StrictModeFlag strict_mode) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
 #undef __
+
+
+Condition CompareIC::ComputeCondition(Token::Value op) {
+  UNIMPLEMENTED_MIPS();
+  return kNoCondition;
+}
+
+
+void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void PatchInlinedSmiCode(Address address) {
+  // Currently there is no smi inlining in the MIPS full code generator.
+}
+
 
 } }  // namespace v8::internal
 

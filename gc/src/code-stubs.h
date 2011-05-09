@@ -37,7 +37,7 @@ namespace internal {
 // as only the stubs up to and including Instanceof allows nested stub calls.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
-  V(GenericBinaryOp)                     \
+  V(TypeRecordingUnaryOp)                \
   V(TypeRecordingBinaryOp)               \
   V(StringAdd)                           \
   V(SubString)                           \
@@ -53,7 +53,6 @@ namespace internal {
   V(Instanceof)                          \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
-  V(IntegerMod)                          \
   V(StackCheck)                          \
   V(FastNewClosure)                      \
   V(FastNewContext)                      \
@@ -82,10 +81,19 @@ namespace internal {
 #define CODE_STUB_LIST_ARM(V)
 #endif
 
+// List of code stubs only used on MIPS platforms.
+#ifdef V8_TARGET_ARCH_MIPS
+#define CODE_STUB_LIST_MIPS(V)  \
+  V(RegExpCEntry)
+#else
+#define CODE_STUB_LIST_MIPS(V)
+#endif
+
 // Combined list of code stubs.
 #define CODE_STUB_LIST(V)            \
   CODE_STUB_LIST_ALL_PLATFORMS(V)    \
-  CODE_STUB_LIST_ARM(V)
+  CODE_STUB_LIST_ARM(V)              \
+  CODE_STUB_LIST_MIPS(V)
 
 // Mode to overwrite BinaryExpression values.
 enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
@@ -157,10 +165,10 @@ class CodeStub BASE_EMBEDDED {
   // lazily generated function should be fully optimized or not.
   virtual InLoopFlag InLoop() { return NOT_IN_LOOP; }
 
-  // GenericBinaryOpStub needs to override this.
+  // TypeRecordingBinaryOpStub needs to override this.
   virtual int GetCodeKind();
 
-  // GenericBinaryOpStub needs to override this.
+  // TypeRecordingBinaryOpStub needs to override this.
   virtual InlineCacheState GetICState() {
     return UNINITIALIZED;
   }
@@ -383,54 +391,6 @@ class InstanceofStub: public CodeStub {
 };
 
 
-enum NegativeZeroHandling {
-  kStrictNegativeZero,
-  kIgnoreNegativeZero
-};
-
-
-enum UnaryOpFlags {
-  NO_UNARY_FLAGS = 0,
-  NO_UNARY_SMI_CODE_IN_STUB = 1 << 0
-};
-
-
-class GenericUnaryOpStub : public CodeStub {
- public:
-  GenericUnaryOpStub(Token::Value op,
-                     UnaryOverwriteMode overwrite,
-                     UnaryOpFlags flags,
-                     NegativeZeroHandling negative_zero = kStrictNegativeZero)
-      : op_(op),
-        overwrite_(overwrite),
-        include_smi_code_((flags & NO_UNARY_SMI_CODE_IN_STUB) == 0),
-        negative_zero_(negative_zero) { }
-
- private:
-  Token::Value op_;
-  UnaryOverwriteMode overwrite_;
-  bool include_smi_code_;
-  NegativeZeroHandling negative_zero_;
-
-  class OverwriteField: public BitField<UnaryOverwriteMode, 0, 1> {};
-  class IncludeSmiCodeField: public BitField<bool, 1, 1> {};
-  class NegativeZeroField: public BitField<NegativeZeroHandling, 2, 1> {};
-  class OpField: public BitField<Token::Value, 3, kMinorBits - 3> {};
-
-  Major MajorKey() { return GenericUnaryOp; }
-  int MinorKey() {
-    return OpField::encode(op_) |
-        OverwriteField::encode(overwrite_) |
-        IncludeSmiCodeField::encode(include_smi_code_) |
-        NegativeZeroField::encode(negative_zero_);
-  }
-
-  void Generate(MacroAssembler* masm);
-
-  const char* GetName();
-};
-
-
 class MathPowStub: public CodeStub {
  public:
   MathPowStub() {}
@@ -466,6 +426,7 @@ class ICCompareStub: public CodeStub {
 
   void GenerateSmis(MacroAssembler* masm);
   void GenerateHeapNumbers(MacroAssembler* masm);
+  void GenerateStrings(MacroAssembler* masm);
   void GenerateObjects(MacroAssembler* masm);
   void GenerateMiss(MacroAssembler* masm);
 

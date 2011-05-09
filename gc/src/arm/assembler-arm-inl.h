@@ -223,9 +223,9 @@ void RelocInfo::Visit(Heap* heap) {
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     StaticVisitor::VisitPointer(heap, target_object_address());
   } else if (RelocInfo::IsCodeTarget(mode)) {
-    StaticVisitor::VisitCodeTarget(this);
+    StaticVisitor::VisitCodeTarget(heap, this);
   } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-    StaticVisitor::VisitGlobalPropertyCell(this);
+    StaticVisitor::VisitGlobalPropertyCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -234,7 +234,7 @@ void RelocInfo::Visit(Heap* heap) {
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
-    StaticVisitor::VisitDebugTarget(this);
+    StaticVisitor::VisitDebugTarget(heap, this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {
     StaticVisitor::VisitRuntimeEntry(this);

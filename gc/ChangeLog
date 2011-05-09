@@ -1,3 +1,152 @@
+2011-05-04: Version 3.3.4
+
+        Implemented API to disallow code generation from strings for a context
+        (issue 1258).
+
+        Fixed bug with whitespaces in parseInt (issue 955).
+
+        Fixed bug with == comparison of Date objects (issue 1356).
+
+        Added GYP variables for ARM code generation:
+        v8_can_use_vfp_instructions, v8_can_use_unaligned_accesses
+        and v8_use_arm_eabi_hardfloat.
+
+
+2011-05-02: Version 3.3.3
+
+        Added support for generating Visual Studio solution and project files
+        using GYP.
+
+        Implemented support for ARM EABI calling convention variation where
+        floating-point arguments are passed in registers (hardfloat).
+
+        Added Object::HasOwnProperty() to the API.
+
+        Added support for compressing startup data to reduce binary size. This
+        includes build time support and an API for the embedder to decompress
+        the startup data before initializing V8.
+
+        Reduced the profiling hooks overhead from >400% to 25% when using
+        ll_prof.
+
+        Performance improvements and bug fixes on all platforms.
+
+
+2011-04-27: Version 3.3.2
+
+        Fixed crash bug on ARM with no VFP3 hardware.
+
+        Fixed compilation of V8 without debugger support.
+
+        Improved performance on JSLint.
+
+        Added support Float64 WebGL arrays.
+
+        Fixed crash bug in regexp replace.
+
+
+2011-04-20: Version 3.3.1
+
+        Reduced V8 binary size by removing virtual functions from hydrogen.
+
+        Fixed crash bug on x64.
+
+        Performance improvements on ARM and IA32.
+
+
+2011-04-18: Version 3.3.0
+
+        Fixed bug in floating point rounding in Crankshaft on ARM
+        (issue 958)
+
+        Fixed a number of issues with running without VFPv3 support on ARM
+        (issue 1315)
+
+        Introduced v8Locale.Collator, a partial implementation of Collator
+        per last ECMAScript meeting + mailing list.
+
+        Minor performance improvements and bug fixes.
+
+
+2011-04-13: Version 3.2.10
+
+        Fixed bug in external float arrays on ARM (issue 1323).
+
+        Minor performance improvements and bug fixes.
+
+
+2011-04-11: Version 3.2.9
+
+        Removed support for ABI prior to EABI on ARM.
+
+        Fixed multiple crash bugs.
+
+        Added GCMole to the repository, a simple static analysis tool that
+        searches for GC-unsafe evaluation order dependent callsites.
+
+        Made preparser API be exported in shared libraries.
+
+        Fixed multiple issues in EcmaScript 5 strict mode implementation.
+
+        Fixed mutable __proto__ property if object is not extensible
+        (Issue 1309).
+
+        Fixed auto suspension of the sampler thread.
+
+
+2011-04-06: Version 3.2.8
+
+        Exposed WebGL typed array constructors in the shell sample.
+
+        Performance improvements on all platforms.
+
+
+2011-04-04: Version 3.2.7
+
+        Disabled the original 'classic' V8 code generator.  Crankshaft is
+        now the default on all platforms.
+
+        Changed the heap profiler to use more descriptive names.
+
+        Performance and stability improvements to isolates on all platforms.
+
+
+2011-03-30: Version 3.2.6
+
+        Fixed xcode build warning in shell.cc (out of order initialization).
+
+        Fixed null-pointer dereference in the compiler when running without
+        SSE3 support (Chromium issue 77654).
+
+        Fixed x64 compilation error due to some dead code. (Issue 1286)
+
+        Introduced scons target to build the preparser stand-alone example.
+
+        Made FreeBSD build and pass all tests.
+
+
+2011-03-28: Version 3.2.5
+
+        Fixed build with Irregexp interpreter (issue 1266).
+
+        Added Crankshaft support for external arrays.
+
+        Fixed two potential crash bugs.
+
+
+2011-03-23: Version 3.2.4
+
+        Added isolates which allows several V8 instances in the same process.
+        This is controlled through the new Isolate class in the API.
+
+        Implemented more of EcmaScript 5 strict mode.
+
+        Reduced the time it takes to make detailed heap snapshot.
+
+        Added a number of commands to the ARM simulator and enhanced the ARM
+        disassembler.
+
+
 2011-03-17: Version 3.2.3
 
         Fixed a number of crash bugs.

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -96,8 +96,15 @@ private:
 //
 #define FLAG FLAG_FULL
 
+// Flags for experimental language features.
+DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
+
 // Flags for Crankshaft.
-DEFINE_bool(crankshaft, true, "use crankshaft")
+#ifdef V8_TARGET_ARCH_MIPS
+  DEFINE_bool(crankshaft, false, "use crankshaft")
+#else
+  DEFINE_bool(crankshaft, true, "use crankshaft")
+#endif
 DEFINE_string(hydrogen_filter, "", "hydrogen use/trace filter")
 DEFINE_bool(use_hydrogen, true, "use generated hydrogen for compilation")
 DEFINE_bool(build_lithium, true, "use lithium chunk builder")
@@ -158,9 +165,12 @@ DEFINE_bool(enable_rdtsc, true,
 DEFINE_bool(enable_sahf, true,
             "enable use of SAHF instruction if available (X64 only)")
 DEFINE_bool(enable_vfp3, true,
-            "enable use of VFP3 instructions if available (ARM only)")
+            "enable use of VFP3 instructions if available - this implies "
+            "enabling ARMv7 instructions (ARM only)")
 DEFINE_bool(enable_armv7, true,
             "enable use of ARMv7 instructions if available (ARM only)")
+DEFINE_bool(enable_fpu, true,
+            "enable use of MIPS FPU instructions if available (MIPS only)")
 
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
@@ -212,6 +222,8 @@ DEFINE_bool(use_flow_graph, false, "perform flow-graph based optimizations")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
+
+DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
 
 // data-flow.cc
 DEFINE_bool(loop_peeling, false, "Peel off the first iteration of loops.")

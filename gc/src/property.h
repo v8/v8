@@ -110,6 +110,16 @@ class MapTransitionDescriptor: public Descriptor {
       : Descriptor(key, map, attributes, MAP_TRANSITION) { }
 };
 
+class ExternalArrayTransitionDescriptor: public Descriptor {
+ public:
+  ExternalArrayTransitionDescriptor(String* key,
+                                    Map* map,
+                                    ExternalArrayType array_type)
+      : Descriptor(key, map, PropertyDetails(NONE,
+                                             EXTERNAL_ARRAY_TRANSITION,
+                                             array_type)) { }
+};
+
 // Marks a field name in a map so that adding the field is guaranteed
 // to create a FIELD descriptor in the new map.  Used after adding
 // a constant function the first time, creating a CONSTANT_FUNCTION
@@ -172,6 +182,13 @@ class LookupResult BASE_EMBEDDED {
     lookup_type_ = DESCRIPTOR_TYPE;
     holder_ = holder;
     details_ = details;
+    number_ = number;
+  }
+
+  void DescriptorResult(JSObject* holder, Smi* details, int number) {
+    lookup_type_ = DESCRIPTOR_TYPE;
+    holder_ = holder;
+    details_ = PropertyDetails(details);
     number_ = number;
   }
 
@@ -262,7 +279,8 @@ class LookupResult BASE_EMBEDDED {
 
   Map* GetTransitionMap() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
-    ASSERT(type() == MAP_TRANSITION || type() == CONSTANT_TRANSITION);
+    ASSERT(type() == MAP_TRANSITION || type() == CONSTANT_TRANSITION ||
+           type() == EXTERNAL_ARRAY_TRANSITION);
     return Map::cast(GetValue());
   }
 

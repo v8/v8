@@ -39,11 +39,11 @@
 #include "contexts.h"
 #include "conversions-inl.h"
 #include "heap.h"
-#include "memory.h"
 #include "isolate.h"
 #include "property.h"
 #include "spaces.h"
 #include "store-buffer.h"
+#include "v8memory.h"
 
 #include "incremental-marking.h"
 
@@ -425,6 +425,13 @@ bool Object::IsExternalFloatArray() {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map()->instance_type() ==
       EXTERNAL_FLOAT_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalDoubleArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_DOUBLE_ARRAY_TYPE;
 }
 
 
@@ -857,14 +864,51 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
   if (HEAP->InNewSpace(value)) { \
     heap->RecordWrite(object->address(), offset); \
   }
-
 // TODO(gc) !!!
+
+#ifndef V8_TARGET_ARCH_MIPS
+  #define READ_DOUBLE_FIELD(p, offset) \
+    (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)))
+#else  // V8_TARGET_ARCH_MIPS
+  // Prevent gcc from using load-double (mips ldc1) on (possibly)
+  // non-64-bit aligned HeapNumber::value.
+  static inline double read_double_field(HeapNumber* p, int offset) {
+    union conversion {
+      double d;
+      uint32_t u[2];
+    } c;
+    c.u[0] = (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)));
+    c.u[1] = (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset + 4)));
+    return c.d;
+  }
+  #define READ_DOUBLE_FIELD(p, offset) read_double_field(p, offset)
+#endif  // V8_TARGET_ARCH_MIPS
+
 
 #define READ_DOUBLE_FIELD(p, offset) \
   (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)))
 
-#define WRITE_DOUBLE_FIELD(p, offset, value) \
-  (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)) = value)
+
+#ifndef V8_TARGET_ARCH_MIPS
+  #define WRITE_DOUBLE_FIELD(p, offset, value) \
+    (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)) = value)
+#else  // V8_TARGET_ARCH_MIPS
+  // Prevent gcc from using store-double (mips sdc1) on (possibly)
+  // non-64-bit aligned HeapNumber::value.
+  static inline void write_double_field(HeapNumber* p, int offset,
+                                        double value) {
+    union conversion {
+      double d;
+      uint32_t u[2];
+    } c;
+    c.d = value;
+    (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset))) = c.u[0];
+    (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset + 4))) = c.u[1];
+  }
+  #define WRITE_DOUBLE_FIELD(p, offset, value) \
+    write_double_field(p, offset, value)
+#endif  // V8_TARGET_ARCH_MIPS
+
 
 #define READ_INT_FIELD(p, offset) \
   (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)))
@@ -1056,9 +1100,7 @@ Heap* HeapObject::GetHeap() {
 
 
 Isolate* HeapObject::GetIsolate() {
-  Isolate* isolate = MemoryChunk::FromAddress(address())->heap()->isolate();
-  ASSERT(isolate == Isolate::Current());
-  return isolate;
+  return GetHeap()->isolate();
 }
 
 
@@ -1611,7 +1653,8 @@ bool DescriptorArray::IsProperty(int descriptor_number) {
 
 bool DescriptorArray::IsTransition(int descriptor_number) {
   PropertyType t = GetType(descriptor_number);
-  return t == MAP_TRANSITION || t == CONSTANT_TRANSITION;
+  return t == MAP_TRANSITION || t == CONSTANT_TRANSITION ||
+      t == EXTERNAL_ARRAY_TRANSITION;
 }
 
 
@@ -1628,7 +1671,7 @@ bool DescriptorArray::IsDontEnum(int descriptor_number) {
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(GetKey(descriptor_number),
              GetValue(descriptor_number),
-             GetDetails(descriptor_number));
+             PropertyDetails(GetDetails(descriptor_number)));
 }
 
 
@@ -1756,6 +1799,7 @@ CAST_ACCESSOR(ExternalUnsignedShortArray)
 CAST_ACCESSOR(ExternalIntArray)
 CAST_ACCESSOR(ExternalUnsignedIntArray)
 CAST_ACCESSOR(ExternalFloatArray)
+CAST_ACCESSOR(ExternalDoubleArray)
 CAST_ACCESSOR(ExternalPixelArray)
 CAST_ACCESSOR(Struct)
 
@@ -2171,6 +2215,20 @@ void ExternalFloatArray::set(int index, float value) {
 }
 
 
+double ExternalDoubleArray::get(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  double* ptr = static_cast<double*>(external_pointer());
+  return ptr[index];
+}
+
+
+void ExternalDoubleArray::set(int index, double value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  double* ptr = static_cast<double*>(external_pointer());
+  ptr[index] = value;
+}
+
+
 int Map::visitor_id() {
   return READ_BYTE_FIELD(this, kVisitorIdOffset);
 }
@@ -2374,6 +2432,12 @@ JSFunction* Map::unchecked_constructor() {
 }
 
 
+FixedArray* Map::unchecked_prototype_transitions() {
+  return reinterpret_cast<FixedArray*>(
+      READ_FIELD(this, kPrototypeTransitionsOffset));
+}
+
+
 Code::Flags Code::flags() {
   return static_cast<Flags>(READ_INT_FIELD(this, kFlagsOffset));
 }
@@ -2432,7 +2496,6 @@ int Code::arguments_count() {
 
 int Code::major_key() {
   ASSERT(kind() == STUB ||
-         kind() == BINARY_OP_IC ||
          kind() == TYPE_RECORDING_BINARY_OP_IC ||
          kind() == COMPARE_IC);
   return READ_BYTE_FIELD(this, kStubMajorKeyOffset);
@@ -2441,7 +2504,7 @@ int Code::major_key() {
 
 void Code::set_major_key(int major) {
   ASSERT(kind() == STUB ||
-         kind() == BINARY_OP_IC ||
+         kind() == TYPE_RECORDING_UNARY_OP_IC ||
          kind() == TYPE_RECORDING_BINARY_OP_IC ||
          kind() == COMPARE_IC);
   ASSERT(0 <= major && major < 256);
@@ -2550,15 +2613,15 @@ void Code::set_external_array_type(ExternalArrayType value) {
 }
 
 
-byte Code::binary_op_type() {
-  ASSERT(is_binary_op_stub());
-  return READ_BYTE_FIELD(this, kBinaryOpTypeOffset);
+byte Code::type_recording_unary_op_type() {
+  ASSERT(is_type_recording_unary_op_stub());
+  return READ_BYTE_FIELD(this, kUnaryOpTypeOffset);
 }
 
 
-void Code::set_binary_op_type(byte value) {
-  ASSERT(is_binary_op_stub());
-  WRITE_BYTE_FIELD(this, kBinaryOpTypeOffset, value);
+void Code::set_type_recording_unary_op_type(byte value) {
+  ASSERT(is_type_recording_unary_op_stub());
+  WRITE_BYTE_FIELD(this, kUnaryOpTypeOffset, value);
 }
 
 
@@ -2733,7 +2796,7 @@ MaybeObject* Map::GetFastElementsMap() {
   }
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(true);
-  COUNTERS->map_slow_to_fast_elements()->Increment();
+  GetIsolate()->counters()->map_slow_to_fast_elements()->Increment();
   return new_map;
 }
 
@@ -2746,22 +2809,7 @@ MaybeObject* Map::GetSlowElementsMap() {
   }
   Map* new_map = Map::cast(obj);
   new_map->set_has_fast_elements(false);
-  COUNTERS->map_fast_to_slow_elements()->Increment();
-  return new_map;
-}
-
-
-MaybeObject* Map::NewExternalArrayElementsMap() {
-  // TODO(danno): Special case empty object map (or most common case)
-  // to return a pre-canned pixel array map.
-  Object* obj;
-  { MaybeObject* maybe_obj = CopyDropTransitions();
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  Map* new_map = Map::cast(obj);
-  new_map->set_has_fast_elements(false);
-  new_map->set_has_external_array_elements(true);
-  COUNTERS->map_to_external_array_elements()->Increment();
+  GetIsolate()->counters()->map_fast_to_slow_elements()->Increment();
   return new_map;
 }
 
@@ -2769,6 +2817,7 @@ MaybeObject* Map::NewExternalArrayElementsMap() {
 ACCESSORS(Map, instance_descriptors, DescriptorArray,
           kInstanceDescriptorsOffset)
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
+ACCESSORS(Map, prototype_transitions, FixedArray, kPrototypeTransitionsOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
@@ -2888,10 +2937,6 @@ BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
 BOOL_GETTER(SharedFunctionInfo, compiler_hints,
             has_only_simple_this_property_assignments,
             kHasOnlySimpleThisPropertyAssignments)
-BOOL_ACCESSORS(SharedFunctionInfo,
-               compiler_hints,
-               try_full_codegen,
-               kTryFullCodegen)
 BOOL_ACCESSORS(SharedFunctionInfo,
                compiler_hints,
                allows_lazy_compilation,
@@ -3106,7 +3151,7 @@ void SharedFunctionInfo::set_deopt_counter(Smi* value) {
 
 bool SharedFunctionInfo::is_compiled() {
   return code() !=
-      Isolate::Current()->builtins()->builtin(Builtins::LazyCompile);
+      Isolate::Current()->builtins()->builtin(Builtins::kLazyCompile);
 }
 
 
@@ -3165,8 +3210,13 @@ bool JSFunction::IsOptimized() {
 }
 
 
+bool JSFunction::IsOptimizable() {
+  return code()->kind() == Code::FUNCTION && code()->optimizable();
+}
+
+
 bool JSFunction::IsMarkedForLazyRecompilation() {
-  return code() == GetIsolate()->builtins()->builtin(Builtins::LazyRecompile);
+  return code() == GetIsolate()->builtins()->builtin(Builtins::kLazyRecompile);
 }
 
 
@@ -3281,7 +3331,7 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code() != GetIsolate()->builtins()->builtin(Builtins::LazyCompile);
+  return code() != GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
 }
 
 
@@ -3490,14 +3540,18 @@ JSObject::ElementsKind JSObject::GetElementsKind() {
         return EXTERNAL_INT_ELEMENTS;
       case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
         return EXTERNAL_UNSIGNED_INT_ELEMENTS;
+      case EXTERNAL_FLOAT_ARRAY_TYPE:
+        return EXTERNAL_FLOAT_ELEMENTS;
+      case EXTERNAL_DOUBLE_ARRAY_TYPE:
+        return EXTERNAL_DOUBLE_ELEMENTS;
       case EXTERNAL_PIXEL_ARRAY_TYPE:
         return EXTERNAL_PIXEL_ELEMENTS;
       default:
         break;
     }
   }
-  ASSERT(array->map()->instance_type() == EXTERNAL_FLOAT_ARRAY_TYPE);
-  return EXTERNAL_FLOAT_ELEMENTS;
+  UNREACHABLE();
+  return DICTIONARY_ELEMENTS;
 }
 
 
@@ -3538,6 +3592,8 @@ EXTERNAL_ELEMENTS_CHECK(UnsignedInt,
                         EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)
 EXTERNAL_ELEMENTS_CHECK(Float,
                         EXTERNAL_FLOAT_ARRAY_TYPE)
+EXTERNAL_ELEMENTS_CHECK(Double,
+                        EXTERNAL_DOUBLE_ARRAY_TYPE)
 EXTERNAL_ELEMENTS_CHECK(Pixel, EXTERNAL_PIXEL_ARRAY_TYPE)
 
 
@@ -3795,6 +3851,15 @@ void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
   int rest_value = flag()->value() & ~AttributesField::mask();
   set_flag(Smi::FromInt(rest_value | AttributesField::encode(attributes)));
 }
+
+
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::SetEntry(int entry,
+                                      Object* key,
+                                      Object* value) {
+  SetEntry(entry, key, value, PropertyDetails(Smi::FromInt(0)));
+}
+
 
 template<typename Shape, typename Key>
 void Dictionary<Shape, Key>::SetEntry(int entry,

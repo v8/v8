@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -106,7 +106,8 @@ enum ContextLookupFlags {
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function) \
   V(OUT_OF_MEMORY_INDEX, Object, out_of_memory) \
   V(MAP_CACHE_INDEX, Object, map_cache) \
-  V(CONTEXT_DATA_INDEX, Object, data)
+  V(CONTEXT_DATA_INDEX, Object, data) \
+  V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings)
 
 // JSFunctions are pairs (context, function code), sometimes also called
 // closures. A Context object is used to represent function contexts and
@@ -236,6 +237,7 @@ class Context: public FixedArray {
     OUT_OF_MEMORY_INDEX,
     MAP_CACHE_INDEX,
     CONTEXT_DATA_INDEX,
+    ALLOW_CODE_GEN_FROM_STRINGS_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.

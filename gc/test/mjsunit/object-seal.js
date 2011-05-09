@@ -75,12 +75,8 @@ assertTrue(Object.isSealed(obj));
 assertFalse(Object.isFrozen(obj));
 
 // We should not allow new properties to be added.
-try {
-   obj.foo = 42;
-   assertUnreachable();
-} catch(e) {
-  assertTrue(/object is not extensible/.test(e));
-}
+obj.foo = 42;
+assertEquals(obj.foo, undefined);
 
 desc = Object.getOwnPropertyDescriptor(obj, 'x');
 assertTrue(desc.writable);
@@ -95,7 +91,7 @@ assertEquals("foobar", desc.value);
 // Since writable is not affected by seal we should still be able to
 // update the values.
 obj.x = "43";
-assertEquals(43, obj.x);
+assertEquals("43", obj.x);
 
 // Test on accessors.
 var obj2 = {};
@@ -125,13 +121,8 @@ assertEquals(undefined, desc.value);
 assertEquals(set, desc.set);
 assertEquals(get, desc.get);
 
-try {
-  obj2.foo = 42;
-  assertUnreachable();
-} catch(e) {
-  assertTrue(/object is not extensible/.test(e));
-}
-
+obj2.foo = 42;
+assertEquals(obj2.foo, undefined);
 
 // Test seal on arrays.
 var arr = new Array(42,43);
@@ -151,7 +142,7 @@ assertFalse(Object.isSealed(arr));
 Object.seal(arr);
 assertTrue(Object.isSealed(arr));
 assertFalse(Object.isExtensible(arr));
-// Since the values in the array is still writable this object 
+// Since the values in the array is still writable this object
 // is not frozen.
 assertFalse(Object.isFrozen(arr));
 
@@ -195,5 +186,5 @@ Object.preventExtensions(obj4);
 assertFalse(Object.isSealed(obj4));
 
 // Make sure that Object.seal returns the sealed object.
-var obj4 = {}
-assertTrue(obj4 === Object.seal(obj4))
+var obj4 = {};
+assertTrue(obj4 === Object.seal(obj4));

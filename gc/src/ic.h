@@ -53,7 +53,7 @@ namespace internal {
   ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)                       \
-  ICU(BinaryOp_Patch)                                 \
+  ICU(TypeRecordingUnaryOp_Patch)                     \
   ICU(TypeRecordingBinaryOp_Patch)                    \
   ICU(CompareIC_Miss)
 //
@@ -297,14 +297,6 @@ class LoadIC: public IC {
                                    bool support_wrappers);
   static void GenerateFunctionPrototype(MacroAssembler* masm);
 
-  // Clear the use of the inlined version.
-  static void ClearInlinedVersion(Address address);
-
-  // The offset from the inlined patch site to the start of the
-  // inlined load instruction.  It is architecture-dependent, and not
-  // used on ARM.
-  static const int kOffsetToLoadInstruction;
-
  private:
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -316,25 +308,18 @@ class LoadIC: public IC {
   // Stub accessors.
   Code* megamorphic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::LoadIC_Megamorphic);
+        Builtins::kLoadIC_Megamorphic);
   }
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
-        Builtins::LoadIC_Initialize);
+        Builtins::kLoadIC_Initialize);
   }
   Code* pre_monomorphic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::LoadIC_PreMonomorphic);
+        Builtins::kLoadIC_PreMonomorphic);
   }
 
   static void Clear(Address address, Code* target);
-
-  static bool PatchInlinedLoad(Address address, Object* map, int index);
-
-  static bool PatchInlinedContextualLoad(Address address,
-                                         Object* map,
-                                         Object* cell,
-                                         bool is_dont_delete);
 
   friend class IC;
 };
@@ -343,7 +328,8 @@ class LoadIC: public IC {
 class KeyedLoadIC: public IC {
  public:
   explicit KeyedLoadIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {
-    ASSERT(target()->is_keyed_load_stub());
+    ASSERT(target()->is_keyed_load_stub() ||
+           target()->is_external_array_load_stub());
   }
 
   MUST_USE_RESULT MaybeObject* Load(State state,
@@ -362,9 +348,6 @@ class KeyedLoadIC: public IC {
 
   static void GenerateIndexedInterceptor(MacroAssembler* masm);
 
-  // Clear the use of the inlined version.
-  static void ClearInlinedVersion(Address address);
-
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
   // Access check is necessary explicitly since generic stub does not perform
@@ -382,35 +365,31 @@ class KeyedLoadIC: public IC {
   // Stub accessors.
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
-        Builtins::KeyedLoadIC_Initialize);
+        Builtins::kKeyedLoadIC_Initialize);
   }
   Code* megamorphic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedLoadIC_Generic);
+        Builtins::kKeyedLoadIC_Generic);
   }
   Code* generic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedLoadIC_Generic);
+        Builtins::kKeyedLoadIC_Generic);
   }
   Code* pre_monomorphic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedLoadIC_PreMonomorphic);
+        Builtins::kKeyedLoadIC_PreMonomorphic);
   }
   Code* string_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedLoadIC_String);
+        Builtins::kKeyedLoadIC_String);
   }
 
   Code* indexed_interceptor_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedLoadIC_IndexedInterceptor);
+        Builtins::kKeyedLoadIC_IndexedInterceptor);
   }
 
   static void Clear(Address address, Code* target);
-
-  // Support for patching the map that is checked in an inlined
-  // version of keyed load.
-  static bool PatchInlinedLoad(Address address, Object* map);
 
   friend class IC;
 };
@@ -438,13 +417,6 @@ class StoreIC: public IC {
   static void GenerateGlobalProxy(MacroAssembler* masm,
                                   StrictModeFlag strict_mode);
 
-  // Clear the use of an inlined version.
-  static void ClearInlinedVersion(Address address);
-
-  // The offset from the inlined patch site to the start of the
-  // inlined store instruction.
-  static const int kOffsetToStoreInstruction;
-
  private:
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -465,34 +437,30 @@ class StoreIC: public IC {
   // Stub accessors.
   Code* megamorphic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::StoreIC_Megamorphic);
+        Builtins::kStoreIC_Megamorphic);
   }
   Code* megamorphic_stub_strict() {
     return isolate()->builtins()->builtin(
-        Builtins::StoreIC_Megamorphic_Strict);
+        Builtins::kStoreIC_Megamorphic_Strict);
   }
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
-        Builtins::StoreIC_Initialize);
+        Builtins::kStoreIC_Initialize);
   }
   static Code* initialize_stub_strict() {
     return Isolate::Current()->builtins()->builtin(
-        Builtins::StoreIC_Initialize_Strict);
+        Builtins::kStoreIC_Initialize_Strict);
   }
   Code* global_proxy_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::StoreIC_GlobalProxy);
+        Builtins::kStoreIC_GlobalProxy);
   }
   Code* global_proxy_stub_strict() {
     return isolate()->builtins()->builtin(
-        Builtins::StoreIC_GlobalProxy_Strict);
+        Builtins::kStoreIC_GlobalProxy_Strict);
   }
 
   static void Clear(Address address, Code* target);
-
-  // Support for patching the index and the map that is checked in an
-  // inlined version of the named store.
-  static bool PatchInlinedStore(Address address, Object* map, int index);
 
   friend class IC;
 };
@@ -515,12 +483,6 @@ class KeyedStoreIC: public IC {
                                          StrictModeFlag strict_mode);
   static void GenerateGeneric(MacroAssembler* masm, StrictModeFlag strict_mode);
 
-  // Clear the inlined version so the IC is always hit.
-  static void ClearInlinedVersion(Address address);
-
-  // Restore the inlined version so the fast case can get hit.
-  static void RestoreInlinedVersion(Address address);
-
  private:
   // Update the inline cache.
   void UpdateCaches(LookupResult* lookup,
@@ -540,56 +502,48 @@ class KeyedStoreIC: public IC {
   // Stub accessors.
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Initialize);
+        Builtins::kKeyedStoreIC_Initialize);
   }
   Code* megamorphic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Generic);
+        Builtins::kKeyedStoreIC_Generic);
   }
   static Code* initialize_stub_strict() {
     return Isolate::Current()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Initialize_Strict);
+        Builtins::kKeyedStoreIC_Initialize_Strict);
   }
   Code* megamorphic_stub_strict() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Generic_Strict);
+        Builtins::kKeyedStoreIC_Generic_Strict);
   }
   Code* generic_stub() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Generic);
+        Builtins::kKeyedStoreIC_Generic);
   }
   Code* generic_stub_strict() {
     return isolate()->builtins()->builtin(
-        Builtins::KeyedStoreIC_Generic_Strict);
+        Builtins::kKeyedStoreIC_Generic_Strict);
   }
 
   static void Clear(Address address, Code* target);
-
-  // Support for patching the map that is checked in an inlined
-  // version of keyed store.
-  // The address is the patch point for the IC call
-  // (Assembler::kCallTargetAddressOffset before the end of
-  // the call/return address).
-  // The map is the new map that the inlined code should check against.
-  static bool PatchInlinedStore(Address address, Object* map);
 
   friend class IC;
 };
 
 
-class BinaryOpIC: public IC {
+class TRUnaryOpIC: public IC {
  public:
 
+  // sorted: increasingly more unspecific (ignoring UNINITIALIZED)
+  // TODO(svenpanne) Using enums+switch is an antipattern, use a class instead.
   enum TypeInfo {
-    UNINIT_OR_SMI,
-    DEFAULT,  // Initial state. When first executed, patches to one
-              // of the following states depending on the operands types.
-    HEAP_NUMBERS,  // Both arguments are HeapNumbers.
-    STRINGS,  // At least one of the arguments is String.
-    GENERIC   // Non-specialized case (processes any type combination).
+    UNINITIALIZED,
+    SMI,
+    HEAP_NUMBER,
+    GENERIC
   };
 
-  explicit BinaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
+  explicit TRUnaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
 
   void patch(Code* code);
 
@@ -597,7 +551,9 @@ class BinaryOpIC: public IC {
 
   static State ToState(TypeInfo type_info);
 
-  static TypeInfo GetTypeInfo(Object* left, Object* right);
+  static TypeInfo GetTypeInfo(Handle<Object> operand);
+
+  static TypeInfo JoinTypes(TypeInfo x, TypeInfo y);
 };
 
 
@@ -610,6 +566,8 @@ class TRBinaryOpIC: public IC {
     SMI,
     INT32,
     HEAP_NUMBER,
+    ODDBALL,
+    BOTH_STRING,  // Only used for addition operation.
     STRING,  // Only used for addition operation.  At least one string operand.
     GENERIC
   };
@@ -634,6 +592,7 @@ class CompareIC: public IC {
     UNINITIALIZED,
     SMIS,
     HEAP_NUMBERS,
+    STRINGS,
     OBJECTS,
     GENERIC
   };

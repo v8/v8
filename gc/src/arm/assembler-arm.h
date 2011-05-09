@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 // A light-weight ARM Assembler
 // Generates user mode instructions for the ARM architecture up to version 5
@@ -72,6 +72,7 @@ namespace internal {
 struct Register {
   static const int kNumRegisters = 16;
   static const int kNumAllocatableRegisters = 8;
+  static const int kSizeInBytes = 4;
 
   static int ToAllocationIndex(Register reg) {
     ASSERT(reg.code() < kNumAllocatableRegisters);
@@ -468,58 +469,97 @@ class MemOperand BASE_EMBEDDED {
 
 // CpuFeatures keeps track of which features are supported by the target CPU.
 // Supported features must be enabled by a Scope before use.
-class CpuFeatures {
+class CpuFeatures : public AllStatic {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
-  void Probe(bool portable);
+  static void Probe();
 
   // Check whether a feature is supported by the target CPU.
-  bool IsSupported(CpuFeature f) const {
+  static bool IsSupported(CpuFeature f) {
+    ASSERT(initialized_);
     if (f == VFP3 && !FLAG_enable_vfp3) return false;
     return (supported_ & (1u << f)) != 0;
   }
 
+#ifdef DEBUG
   // Check whether a feature is currently enabled.
-  bool IsEnabled(CpuFeature f) const {
-    return (enabled_ & (1u << f)) != 0;
+  static bool IsEnabled(CpuFeature f) {
+    ASSERT(initialized_);
+    Isolate* isolate = Isolate::UncheckedCurrent();
+    if (isolate == NULL) {
+      // When no isolate is available, work as if we're running in
+      // release mode.
+      return IsSupported(f);
+    }
+    unsigned enabled = static_cast<unsigned>(isolate->enabled_cpu_features());
+    return (enabled & (1u << f)) != 0;
   }
+#endif
 
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
    public:
-    explicit Scope(CpuFeature f)
-        : cpu_features_(Isolate::Current()->cpu_features()),
-          isolate_(Isolate::Current()) {
-      ASSERT(cpu_features_->IsSupported(f));
+    explicit Scope(CpuFeature f) {
+      unsigned mask = 1u << f;
+      ASSERT(CpuFeatures::IsSupported(f));
       ASSERT(!Serializer::enabled() ||
-             (cpu_features_->found_by_runtime_probing_ & (1u << f)) == 0);
-      old_enabled_ = cpu_features_->enabled_;
-      cpu_features_->enabled_ |= 1u << f;
+             (CpuFeatures::found_by_runtime_probing_ & mask) == 0);
+      isolate_ = Isolate::UncheckedCurrent();
+      old_enabled_ = 0;
+      if (isolate_ != NULL) {
+        old_enabled_ = static_cast<unsigned>(isolate_->enabled_cpu_features());
+        isolate_->set_enabled_cpu_features(old_enabled_ | mask);
+      }
     }
     ~Scope() {
-      ASSERT_EQ(Isolate::Current(), isolate_);
-      cpu_features_->enabled_ = old_enabled_;
+      ASSERT_EQ(Isolate::UncheckedCurrent(), isolate_);
+      if (isolate_ != NULL) {
+        isolate_->set_enabled_cpu_features(old_enabled_);
+      }
     }
    private:
-    unsigned old_enabled_;
-    CpuFeatures* cpu_features_;
     Isolate* isolate_;
+    unsigned old_enabled_;
 #else
    public:
     explicit Scope(CpuFeature f) {}
 #endif
   };
 
+  class TryForceFeatureScope BASE_EMBEDDED {
+   public:
+    explicit TryForceFeatureScope(CpuFeature f)
+        : old_supported_(CpuFeatures::supported_) {
+      if (CanForce()) {
+        CpuFeatures::supported_ |= (1u << f);
+      }
+    }
+
+    ~TryForceFeatureScope() {
+      if (CanForce()) {
+        CpuFeatures::supported_ = old_supported_;
+      }
+    }
+
+   private:
+    static bool CanForce() {
+      // It's only safe to temporarily force support of CPU features
+      // when there's only a single isolate, which is guaranteed when
+      // the serializer is enabled.
+      return Serializer::enabled();
+    }
+
+    const unsigned old_supported_;
+  };
+
  private:
-  CpuFeatures();
-
-  unsigned supported_;
-  unsigned enabled_;
-  unsigned found_by_runtime_probing_;
-
-  friend class Isolate;
+#ifdef DEBUG
+  static bool initialized_;
+#endif
+  static unsigned supported_;
+  static unsigned found_by_runtime_probing_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
@@ -549,7 +589,7 @@ extern const Instr kAndBicFlip;
 
 
 
-class Assembler : public Malloced {
+class Assembler : public AssemblerBase {
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the
@@ -564,7 +604,7 @@ class Assembler : public Malloced {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size);
   ~Assembler();
 
   // Overrides the default provided by FLAG_debug_code.
@@ -908,16 +948,6 @@ class Assembler : public Malloced {
   void ldc2(Coprocessor coproc, CRegister crd, Register base, int option,
             LFlag l = Short);  // v5 and above
 
-  void stc(Coprocessor coproc, CRegister crd, const MemOperand& dst,
-           LFlag l = Short, Condition cond = al);
-  void stc(Coprocessor coproc, CRegister crd, Register base, int option,
-           LFlag l = Short, Condition cond = al);
-
-  void stc2(Coprocessor coproc, CRegister crd, const MemOperand& dst,
-            LFlag l = Short);  // v5 and above
-  void stc2(Coprocessor coproc, CRegister crd, Register base, int option,
-            LFlag l = Short);  // v5 and above
-
   // Support for VFP.
   // All these APIs support S0 to S31 and D0 to D15.
   // Currently these APIs do not support extended D registers, i.e, D16 to D31.
@@ -955,6 +985,30 @@ class Assembler : public Malloced {
   void vstr(const SwVfpRegister src,
             const MemOperand& dst,
             const Condition cond = al);
+
+  void vldm(BlockAddrMode am,
+            Register base,
+            DwVfpRegister first,
+            DwVfpRegister last,
+            Condition cond = al);
+
+  void vstm(BlockAddrMode am,
+            Register base,
+            DwVfpRegister first,
+            DwVfpRegister last,
+            Condition cond = al);
+
+  void vldm(BlockAddrMode am,
+            Register base,
+            SwVfpRegister first,
+            SwVfpRegister last,
+            Condition cond = al);
+
+  void vstm(BlockAddrMode am,
+            Register base,
+            SwVfpRegister first,
+            SwVfpRegister last,
+            Condition cond = al);
 
   void vmov(const DwVfpRegister dst,
             double imm,
@@ -1113,6 +1167,10 @@ class Assembler : public Malloced {
   // Mark address of a debug break slot.
   void RecordDebugBreakSlot();
 
+  // Record the AST id of the CallIC being compiled, so that it can be placed
+  // in the relocation information.
+  void RecordAstId(unsigned ast_id) { ast_id_for_reloc_info_ = ast_id; }
+
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
@@ -1170,6 +1228,11 @@ class Assembler : public Malloced {
   void CheckConstPool(bool force_emit, bool require_jump);
 
  protected:
+  // Relocation for a type-recording IC has the AST id added to it.  This
+  // member variable is a way to pass the information from the call site to
+  // the relocation info.
+  unsigned ast_id_for_reloc_info_;
+
   bool emit_debug_code() const { return emit_debug_code_; }
 
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
