@@ -372,11 +372,9 @@ class SubStringStub: public CodeStub {
 
 class StringCompareStub: public CodeStub {
  public:
-  explicit StringCompareStub() {
-  }
+  StringCompareStub() { }
 
-  // Compare two flat ascii strings and returns result in eax after popping two
-  // arguments from the stack.
+  // Compares two flat ASCII strings and returns result in eax.
   static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                               Register left,
                                               Register right,
@@ -384,11 +382,25 @@ class StringCompareStub: public CodeStub {
                                               Register scratch2,
                                               Register scratch3);
 
- private:
-  Major MajorKey() { return StringCompare; }
-  int MinorKey() { return 0; }
+  // Compares two flat ASCII strings for equality and returns result
+  // in eax.
+  static void GenerateFlatAsciiStringEquals(MacroAssembler* masm,
+                                            Register left,
+                                            Register right,
+                                            Register scratch1,
+                                            Register scratch2);
 
-  void Generate(MacroAssembler* masm);
+ private:
+  virtual Major MajorKey() { return StringCompare; }
+  virtual int MinorKey() { return 0; }
+  virtual void Generate(MacroAssembler* masm);
+
+  static void GenerateAsciiCharsCompareLoop(MacroAssembler* masm,
+                                            Register left,
+                                            Register right,
+                                            Register length,
+                                            Register scratch,
+                                            NearLabel* chars_not_equal);
 };
 
 
@@ -423,6 +435,74 @@ class NumberToStringStub: public CodeStub {
   }
 #endif
 };
+
+
+class StringDictionaryLookupStub: public CodeStub {
+ public:
+  enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
+
+  StringDictionaryLookupStub(Register dictionary,
+                             Register result,
+                             Register index,
+                             LookupMode mode)
+      : dictionary_(dictionary), result_(result), index_(index), mode_(mode) { }
+
+  void Generate(MacroAssembler* masm);
+
+  static void GenerateNegativeLookup(MacroAssembler* masm,
+                                     Label* miss,
+                                     Label* done,
+                                     Register properties,
+                                     String* name,
+                                     Register r0);
+
+  static void GeneratePositiveLookup(MacroAssembler* masm,
+                                     Label* miss,
+                                     Label* done,
+                                     Register elements,
+                                     Register name,
+                                     Register r0,
+                                     Register r1);
+
+ private:
+  static const int kInlinedProbes = 4;
+  static const int kTotalProbes = 20;
+
+  static const int kCapacityOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kCapacityIndex * kPointerSize;
+
+  static const int kElementsStartOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
+
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("StringDictionaryLookupStub\n");
+  }
+#endif
+
+  Major MajorKey() { return StringDictionaryNegativeLookup; }
+
+  int MinorKey() {
+    return DictionaryBits::encode(dictionary_.code()) |
+        ResultBits::encode(result_.code()) |
+        IndexBits::encode(index_.code()) |
+        LookupModeBits::encode(mode_);
+  }
+
+  class DictionaryBits: public BitField<int, 0, 3> {};
+  class ResultBits: public BitField<int, 3, 3> {};
+  class IndexBits: public BitField<int, 6, 3> {};
+  class LookupModeBits: public BitField<LookupMode, 9, 1> {};
+
+  Register dictionary_;
+  Register result_;
+  Register index_;
+  LookupMode mode_;
+};
+
 
 } }  // namespace v8::internal
 

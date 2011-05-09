@@ -28,6 +28,7 @@
 #ifndef V8_FRAMES_H_
 #define V8_FRAMES_H_
 
+#include "allocation.h"
 #include "handles.h"
 #include "safepoint-table.h"
 

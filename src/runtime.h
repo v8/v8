@@ -28,6 +28,7 @@
 #ifndef V8_RUNTIME_H_
 #define V8_RUNTIME_H_
 
+#include "allocation.h"
 #include "zone.h"
 
 namespace v8 {
@@ -86,6 +87,8 @@ namespace internal {
   F(NotifyOSR, 0, 1) \
   F(DeoptimizeFunction, 1, 1) \
   F(OptimizeFunctionOnNextCall, 1, 1) \
+  F(GetOptimizationStatus, 1, 1) \
+  F(GetOptimizationCount, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \

@@ -28,6 +28,7 @@
 #ifndef V8_LITHIUM_H_
 #define V8_LITHIUM_H_
 
+#include "allocation.h"
 #include "hydrogen.h"
 #include "safepoint-table.h"
 

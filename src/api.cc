@@ -53,7 +53,6 @@
 
 #define LOG_API(isolate, expr) LOG(isolate, ApiEntryCall(expr))
 
-// TODO(isolates): avoid repeated TLS reads in function prologues.
 #ifdef ENABLE_VMSTATE_TRACKING
 #define ENTER_V8(isolate)                                        \
   ASSERT((isolate)->IsInitialized());                           \
@@ -290,6 +289,7 @@ static inline bool EnsureInitializedForIsolate(i::Isolate* isolate,
   if (isolate != NULL) {
     if (isolate->IsInitialized()) return true;
   }
+  ASSERT(isolate == i::Isolate::Current());
   return ApiCheck(InitializeHelper(), location, "Error initializing V8");
 }
 
@@ -3255,6 +3255,74 @@ int v8::Object::GetIndexedPropertiesExternalArrayDataLength() {
 }
 
 
+Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv, int argc,
+                                        v8::Handle<v8::Value> argv[]) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::CallAsFunction()",
+             return Local<v8::Value>());
+  LOG_API(isolate, "Object::CallAsFunction");
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
+  STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
+  i::Object*** args = reinterpret_cast<i::Object***>(argv);
+  i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>();
+  if (obj->IsJSFunction()) {
+    fun = i::Handle<i::JSFunction>::cast(obj);
+  } else {
+    EXCEPTION_PREAMBLE(isolate);
+    i::Handle<i::Object> delegate =
+        i::Execution::TryGetFunctionDelegate(obj, &has_pending_exception);
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+    fun = i::Handle<i::JSFunction>::cast(delegate);
+    recv_obj = obj;
+  }
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> returned =
+      i::Execution::Call(fun, recv_obj, argc, args, &has_pending_exception);
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+  return Utils::ToLocal(scope.CloseAndEscape(returned));
+}
+
+
+Local<v8::Value> Object::CallAsConstructor(int argc,
+                                           v8::Handle<v8::Value> argv[]) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::CallAsConstructor()",
+             return Local<v8::Object>());
+  LOG_API(isolate, "Object::CallAsConstructor");
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
+  i::Object*** args = reinterpret_cast<i::Object***>(argv);
+  if (obj->IsJSFunction()) {
+    i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(obj);
+    EXCEPTION_PREAMBLE(isolate);
+    i::Handle<i::Object> returned =
+        i::Execution::New(fun, argc, args, &has_pending_exception);
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
+    return Utils::ToLocal(scope.CloseAndEscape(
+        i::Handle<i::JSObject>::cast(returned)));
+  }
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> delegate =
+      i::Execution::TryGetConstructorDelegate(obj, &has_pending_exception);
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
+  if (!delegate->IsUndefined()) {
+    i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(delegate);
+    EXCEPTION_PREAMBLE(isolate);
+    i::Handle<i::Object> returned =
+        i::Execution::Call(fun, obj, argc, args, &has_pending_exception);
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
+    ASSERT(!delegate->IsUndefined());
+    return Utils::ToLocal(scope.CloseAndEscape(returned));
+  }
+  return Local<v8::Object>();
+}
+
+
 Local<v8::Object> Function::NewInstance() const {
   return NewInstance(0, NULL);
 }
@@ -5708,9 +5776,8 @@ void HandleScopeImplementer::FreeThreadResources() {
 
 
 char* HandleScopeImplementer::ArchiveThread(char* storage) {
-  Isolate* isolate = Isolate::Current();
   v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
+      isolate_->handle_scope_data();
   handle_scope_data_ = *current;
   memcpy(storage, this, sizeof(*this));
 
@@ -5728,7 +5795,7 @@ int HandleScopeImplementer::ArchiveSpacePerThread() {
 
 char* HandleScopeImplementer::RestoreThread(char* storage) {
   memcpy(this, storage, sizeof(*this));
-  *Isolate::Current()->handle_scope_data() = handle_scope_data_;
+  *isolate_->handle_scope_data() = handle_scope_data_;
   return storage + ArchiveSpacePerThread();
 }
 
@@ -5754,7 +5821,7 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
 
 void HandleScopeImplementer::Iterate(ObjectVisitor* v) {
   v8::ImplementationUtilities::HandleScopeData* current =
-      Isolate::Current()->handle_scope_data();
+      isolate_->handle_scope_data();
   handle_scope_data_ = *current;
   IterateThis(v);
 }

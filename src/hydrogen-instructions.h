@@ -30,6 +30,7 @@
 
 #include "v8.h"
 
+#include "allocation.h"
 #include "code-stubs.h"
 #include "data-flow.h"
 #include "small-pointer-list.h"

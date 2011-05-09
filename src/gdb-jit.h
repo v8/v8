@@ -28,6 +28,8 @@
 #ifndef V8_GDB_JIT_H_
 #define V8_GDB_JIT_H_
 
+#include "allocation.h"
+
 //
 // Basic implementation of GDB JIT Interface client.
 // GBD JIT Interface is supported in GDB 7.0 and above.

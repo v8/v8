@@ -49,6 +49,7 @@
 // instantiate newly compiled functions.
 
 
+#include "allocation.h"
 #include "compiler.h"
 
 namespace v8 {

@@ -55,20 +55,6 @@ v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
     v8::Handle<v8::String> name) {
   if (name->Equals(v8::String::New("NativeJSLocale"))) {
     return v8::FunctionTemplate::New(I18NLocale::JSLocale);
-  } else if (name->Equals(v8::String::New("NativeJSAvailableLocales"))) {
-    return v8::FunctionTemplate::New(I18NLocale::JSAvailableLocales);
-  } else if (name->Equals(v8::String::New("NativeJSMaximizedLocale"))) {
-    return v8::FunctionTemplate::New(I18NLocale::JSMaximizedLocale);
-  } else if (name->Equals(v8::String::New("NativeJSMinimizedLocale"))) {
-    return v8::FunctionTemplate::New(I18NLocale::JSMinimizedLocale);
-  } else if (name->Equals(v8::String::New("NativeJSDisplayLanguage"))) {
-    return v8::FunctionTemplate::New(I18NLocale::JSDisplayLanguage);
-  } else if (name->Equals(v8::String::New("NativeJSDisplayScript"))) {
-    return v8::FunctionTemplate::New(I18NLocale::JSDisplayScript);
-  } else if (name->Equals(v8::String::New("NativeJSDisplayRegion"))) {
-    return v8::FunctionTemplate::New(I18NLocale::JSDisplayRegion);
-  } else if (name->Equals(v8::String::New("NativeJSDisplayName"))) {
-    return v8::FunctionTemplate::New(I18NLocale::JSDisplayName);
   } else if (name->Equals(v8::String::New("NativeJSBreakIterator"))) {
     return v8::FunctionTemplate::New(BreakIterator::JSBreakIterator);
   } else if (name->Equals(v8::String::New("NativeJSCollator"))) {

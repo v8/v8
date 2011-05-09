@@ -610,6 +610,9 @@ js1_5/Regress/regress-306633: FAIL
 # We fail on out of memory.  The important thing is not to crash.
 js1_5/Regress/regress-303213: FAIL || TIMEOUT if $mode == debug
 
+# This test fails since we now throw in String.prototype.match when apply
+# is given null or undefined as this argument (and so does firefox nightly).
+js1_5/Regress/regress-295052: FAIL
 
 # Bug 1202592: New ecma_3/String/15.5.4.11 is failing.
 ecma_3/String/15.5.4.11: FAIL

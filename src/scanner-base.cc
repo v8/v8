@@ -38,8 +38,7 @@ namespace internal {
 // Scanner
 
 Scanner::Scanner(UnicodeCache* unicode_cache)
-    : unicode_cache_(unicode_cache),
-      octal_pos_(kNoOctalLocation) { }
+    : unicode_cache_(unicode_cache) { }
 
 
 uc32 Scanner::ScanHexEscape(uc32 c, int length) {
@@ -70,34 +69,12 @@ uc32 Scanner::ScanHexEscape(uc32 c, int length) {
 }
 
 
-// Octal escapes of the forms '\0xx' and '\xxx' are not a part of
-// ECMA-262. Other JS VMs support them.
-uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
-  uc32 x = c - '0';
-  int i = 0;
-  for (; i < length; i++) {
-    int d = c0_ - '0';
-    if (d < 0 || d > 7) break;
-    int nx = x * 8 + d;
-    if (nx >= 256) break;
-    x = nx;
-    Advance();
-  }
-  // Anything excelt '\0' is an octal escape sequence, illegal in strict mode.
-  // Remember the position of octal escape sequences so that better error
-  // can be reported later (in strict mode).
-  if (c != '0' || i > 0) {
-    octal_pos_ = source_pos() - i - 1;     // Already advanced
-  }
-  return x;
-}
-
 
 // ----------------------------------------------------------------------------
 // JavaScriptScanner
 
 JavaScriptScanner::JavaScriptScanner(UnicodeCache* scanner_contants)
-    : Scanner(scanner_contants) { }
+  : Scanner(scanner_contants), octal_pos_(Location::invalid()) { }
 
 
 Token::Value JavaScriptScanner::Next() {
@@ -518,6 +495,31 @@ void JavaScriptScanner::ScanEscape() {
 }
 
 
+// Octal escapes of the forms '\0xx' and '\xxx' are not a part of
+// ECMA-262. Other JS VMs support them.
+uc32 JavaScriptScanner::ScanOctalEscape(uc32 c, int length) {
+  uc32 x = c - '0';
+  int i = 0;
+  for (; i < length; i++) {
+    int d = c0_ - '0';
+    if (d < 0 || d > 7) break;
+    int nx = x * 8 + d;
+    if (nx >= 256) break;
+    x = nx;
+    Advance();
+  }
+  // Anything except '\0' is an octal escape sequence, illegal in strict mode.
+  // Remember the position of octal escape sequences so that an error
+  // can be reported later (in strict mode).
+  // We don't report the error immediately, because the octal escape can
+  // occur before the "use strict" directive.
+  if (c != '0' || i > 0) {
+    octal_pos_ = Location(source_pos() - i - 1, source_pos() - 1);
+  }
+  return x;
+}
+
+
 Token::Value JavaScriptScanner::ScanString() {
   uc32 quote = c0_;
   Advance();  // consume quote
@@ -562,6 +564,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
   } else {
     // if the first character is '0' we must check for octals and hex
     if (c0_ == '0') {
+      int start_pos = source_pos();  // For reporting octal positions.
       AddLiteralCharAdvance();
 
       // either 0, 0exxx, 0Exxx, 0.xxx, an octal number, or a hex number
@@ -586,7 +589,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
           }
           if (c0_  < '0' || '7'  < c0_) {
             // Octal literal finished.
-            octal_pos_ = next_.location.beg_pos;
+            octal_pos_ = Location(start_pos, source_pos());
             break;
           }
           AddLiteralCharAdvance();
@@ -729,6 +732,9 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
       // worrying whether the following characters are part of the escape
       // or not, since any '/', '\\' or '[' is guaranteed to not be part
       // of the escape sequence.
+
+      // TODO(896): At some point, parse RegExps more throughly to capture
+      // octal esacpes in strict mode.
     } else {  // Unescaped character.
       if (c0_ == '[') in_character_class = true;
       if (c0_ == ']') in_character_class = false;

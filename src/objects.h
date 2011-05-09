@@ -28,6 +28,7 @@
 #ifndef V8_OBJECTS_H_
 #define V8_OBJECTS_H_
 
+#include "allocation.h"
 #include "builtins.h"
 #include "smart-pointer.h"
 #include "unicode-inl.h"
@@ -5924,8 +5925,8 @@ class Relocatable BASE_EMBEDDED {
 
   static void PostGarbageCollectionProcessing();
   static int ArchiveSpacePerThread();
-  static char* ArchiveState(char* to);
-  static char* RestoreState(char* from);
+  static char* ArchiveState(Isolate* isolate, char* to);
+  static char* RestoreState(Isolate* isolate, char* from);
   static void Iterate(ObjectVisitor* v);
   static void Iterate(ObjectVisitor* v, Relocatable* top);
   static char* Iterate(ObjectVisitor* v, char* t);

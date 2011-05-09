@@ -30,6 +30,7 @@
 
 #include "v8.h"
 
+#include "allocation.h"
 #include "lithium.h"
 #include "zone.h"
 

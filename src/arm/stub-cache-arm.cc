@@ -136,69 +136,15 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
   // Restore the temporarily used register.
   __ ldr(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 
-  // Compute the capacity mask.
-  const int kCapacityOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kCapacityIndex * kPointerSize;
 
-  // Generate an unrolled loop that performs a few probes before
-  // giving up.
-  static const int kProbes = 4;
-  const int kElementsStartOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kElementsStartIndex * kPointerSize;
+  StringDictionaryLookupStub::GenerateNegativeLookup(masm,
+                                                     miss_label,
+                                                     &done,
+                                                     receiver,
+                                                     properties,
+                                                     name,
+                                                     scratch1);
 
-  // If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the null value).
-  for (int i = 0; i < kProbes; i++) {
-    // scratch0 points to properties hash.
-    // Compute the masked index: (hash + i + i * i) & mask.
-    Register index = scratch1;
-    // Capacity is smi 2^n.
-    __ ldr(index, FieldMemOperand(properties, kCapacityOffset));
-    __ sub(index, index, Operand(1));
-    __ and_(index, index, Operand(
-        Smi::FromInt(name->Hash() + StringDictionary::GetProbeOffset(i))));
-
-    // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
-    __ add(index, index, Operand(index, LSL, 1));  // index *= 3.
-
-    Register entity_name = scratch1;
-    // Having undefined at this place means the name is not contained.
-    ASSERT_EQ(kSmiTagSize, 1);
-    Register tmp = properties;
-    __ add(tmp, properties, Operand(index, LSL, 1));
-    __ ldr(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
-
-    ASSERT(!tmp.is(entity_name));
-    __ LoadRoot(tmp, Heap::kUndefinedValueRootIndex);
-    __ cmp(entity_name, tmp);
-    if (i != kProbes - 1) {
-      __ b(eq, &done);
-
-      // Stop if found the property.
-      __ cmp(entity_name, Operand(Handle<String>(name)));
-      __ b(eq, miss_label);
-
-      // Check if the entry name is not a symbol.
-      __ ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
-      __ ldrb(entity_name,
-              FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-      __ tst(entity_name, Operand(kIsSymbolMask));
-      __ b(eq, miss_label);
-
-      // Restore the properties.
-      __ ldr(properties,
-             FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-    } else {
-      // Give up probing if still not found the undefined value.
-      __ b(ne, miss_label);
-    }
-  }
   __ bind(&done);
   __ DecrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
 }

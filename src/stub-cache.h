@@ -28,6 +28,7 @@
 #ifndef V8_STUB_CACHE_H_
 #define V8_STUB_CACHE_H_
 
+#include "allocation.h"
 #include "arguments.h"
 #include "macro-assembler.h"
 #include "zone-inl.h"

@@ -207,6 +207,7 @@ function FormatMessage(message) {
       invalid_json:                 ["String '", "%0", "' is not valid JSON"],
       circular_structure:           ["Converting circular structure to JSON"],
       obj_ctor_property_non_object: ["Object.", "%0", " called on non-object"],
+      called_on_null_or_undefined:  ["%0", " called on null or undefined"],
       array_indexof_not_defined:    ["Array.getIndexOf: Argument undefined"],
       object_not_extensible:        ["Can't add property ", "%0", ", object is not extensible"],
       illegal_access:               ["Illegal access"],
@@ -1070,6 +1071,10 @@ function errorToStringDetectCycle() {
 }
 
 function errorToString() {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["Error.prototype.toString"]);
+  }
   // This helper function is needed because access to properties on
   // the builtins object do not work inside of a catch clause.
   function isCyclicErrorMarker(o) { return o === cyclic_error_marker; }

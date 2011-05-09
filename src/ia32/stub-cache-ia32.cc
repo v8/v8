@@ -118,7 +118,6 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
   __ IncrementCounter(counters->negative_lookups(), 1);
   __ IncrementCounter(counters->negative_lookups_miss(), 1);
 
-  Label done;
   __ mov(r0, FieldOperand(receiver, HeapObject::kMapOffset));
 
   const int kInterceptorOrAccessCheckNeededMask =
@@ -142,62 +141,13 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
          Immediate(masm->isolate()->factory()->hash_table_map()));
   __ j(not_equal, miss_label);
 
-  // Compute the capacity mask.
-  const int kCapacityOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kCapacityIndex * kPointerSize;
-
-  // Generate an unrolled loop that performs a few probes before
-  // giving up.
-  static const int kProbes = 4;
-  const int kElementsStartOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kElementsStartIndex * kPointerSize;
-
-  // If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the null value).
-  for (int i = 0; i < kProbes; i++) {
-    // r0 points to properties hash.
-    // Compute the masked index: (hash + i + i * i) & mask.
-    Register index = r1;
-    // Capacity is smi 2^n.
-    __ mov(index, FieldOperand(properties, kCapacityOffset));
-    __ dec(index);
-    __ and_(Operand(index),
-            Immediate(Smi::FromInt(name->Hash() +
-                                   StringDictionary::GetProbeOffset(i))));
-
-    // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
-    __ lea(index, Operand(index, index, times_2, 0));  // index *= 3.
-
-    Register entity_name = r1;
-    // Having undefined at this place means the name is not contained.
-    ASSERT_EQ(kSmiTagSize, 1);
-    __ mov(entity_name, Operand(properties, index, times_half_pointer_size,
-                                kElementsStartOffset - kHeapObjectTag));
-    __ cmp(entity_name, masm->isolate()->factory()->undefined_value());
-    if (i != kProbes - 1) {
-      __ j(equal, &done, taken);
-
-      // Stop if found the property.
-      __ cmp(entity_name, Handle<String>(name));
-      __ j(equal, miss_label, not_taken);
-
-      // Check if the entry name is not a symbol.
-      __ mov(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
-      __ test_b(FieldOperand(entity_name, Map::kInstanceTypeOffset),
-                kIsSymbolMask);
-      __ j(zero, miss_label, not_taken);
-    } else {
-      // Give up probing if still not found the undefined value.
-      __ j(not_equal, miss_label, not_taken);
-    }
-  }
-
+  Label done;
+  StringDictionaryLookupStub::GenerateNegativeLookup(masm,
+                                                     miss_label,
+                                                     &done,
+                                                     properties,
+                                                     name,
+                                                     r1);
   __ bind(&done);
   __ DecrementCounter(counters->negative_lookups_miss(), 1);
 }

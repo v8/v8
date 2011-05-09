@@ -28,6 +28,7 @@
 #ifndef V8_SPACES_H_
 #define V8_SPACES_H_
 
+#include "allocation.h"
 #include "list.h"
 #include "log.h"
 

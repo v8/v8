@@ -205,7 +205,7 @@ static void ArmUsingHardFloatHelper() {
   asm("mov r2, #255");
   asm("lsl r1, r1, #8");
   asm("orr r1, r1, r2");
-  asm("lsl r1, r1, #16");
+  asm("lsl r1, r1, #20");
   // For vmov d0, r0, r1 use ARM mode.
 #ifdef __thumb__
   asm volatile(

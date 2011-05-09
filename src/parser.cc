@@ -3543,9 +3543,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     //    '(' (Identifier)*[','] ')'
     Expect(Token::LPAREN, CHECK_OK);
     start_pos = scanner().location().beg_pos;
-    Scanner::Location name_loc = Scanner::NoLocation();
-    Scanner::Location dupe_loc = Scanner::NoLocation();
-    Scanner::Location reserved_loc = Scanner::NoLocation();
+    Scanner::Location name_loc = Scanner::Location::invalid();
+    Scanner::Location dupe_loc = Scanner::Location::invalid();
+    Scanner::Location reserved_loc = Scanner::Location::invalid();
 
     bool done = (peek() == Token::RPAREN);
     while (!done) {
@@ -3864,12 +3864,14 @@ void Parser::CheckStrictModeLValue(Expression* expression,
 }
 
 
-// Checks whether octal literal last seen is between beg_pos and end_pos.
-// If so, reports an error.
+// Checks whether an octal literal was last seen between beg_pos and end_pos.
+// If so, reports an error. Only called for strict mode.
 void Parser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
-  int octal = scanner().octal_position();
-  if (beg_pos <= octal && octal <= end_pos) {
-    ReportMessageAt(Scanner::Location(octal, octal + 1), "strict_octal_literal",
+  Scanner::Location octal = scanner().octal_position();
+  if (octal.IsValid() &&
+      beg_pos <= octal.beg_pos &&
+      octal.end_pos <= end_pos) {
+    ReportMessageAt(octal, "strict_octal_literal",
                     Vector<const char*>::empty());
     scanner().clear_octal_position();
     *ok = false;

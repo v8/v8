@@ -234,6 +234,30 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
 }
 
 
+Handle<Object> Execution::TryGetFunctionDelegate(Handle<Object> object,
+                                                 bool* has_pending_exception) {
+  ASSERT(!object->IsJSFunction());
+  Isolate* isolate = Isolate::Current();
+
+  // Objects created through the API can have an instance-call handler
+  // that should be used when calling the object as a function.
+  if (object->IsHeapObject() &&
+      HeapObject::cast(*object)->map()->has_instance_call_handler()) {
+    return Handle<JSFunction>(
+        isolate->global_context()->call_as_function_delegate());
+  }
+
+  // If the Object doesn't have an instance-call handler we should
+  // throw a non-callable exception.
+  i::Handle<i::Object> error_obj = isolate->factory()->NewTypeError(
+      "called_non_callable", i::HandleVector<i::Object>(&object, 1));
+  isolate->Throw(*error_obj);
+  *has_pending_exception = true;
+
+  return isolate->factory()->undefined_value();
+}
+
+
 Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
   ASSERT(!object->IsJSFunction());
   Isolate* isolate = Isolate::Current();
@@ -248,6 +272,34 @@ Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
     return Handle<JSFunction>(
         isolate->global_context()->call_as_constructor_delegate());
   }
+
+  return isolate->factory()->undefined_value();
+}
+
+
+Handle<Object> Execution::TryGetConstructorDelegate(
+    Handle<Object> object,
+    bool* has_pending_exception) {
+  ASSERT(!object->IsJSFunction());
+  Isolate* isolate = Isolate::Current();
+
+  // If you return a function from here, it will be called when an
+  // attempt is made to call the given object as a constructor.
+
+  // Objects created through the API can have an instance-call handler
+  // that should be used when calling the object as a function.
+  if (object->IsHeapObject() &&
+      HeapObject::cast(*object)->map()->has_instance_call_handler()) {
+    return Handle<JSFunction>(
+        isolate->global_context()->call_as_constructor_delegate());
+  }
+
+  // If the Object doesn't have an instance-call handler we should
+  // throw a non-callable exception.
+  i::Handle<i::Object> error_obj = isolate->factory()->NewTypeError(
+      "called_non_callable", i::HandleVector<i::Object>(&object, 1));
+  isolate->Throw(*error_obj);
+  *has_pending_exception = true;
 
   return isolate->factory()->undefined_value();
 }
@@ -272,7 +324,7 @@ void StackGuard::SetStackLimit(uintptr_t limit) {
   ExecutionAccess access(isolate_);
   // If the current limits are special (eg due to a pending interrupt) then
   // leave them alone.
-  uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(limit);
+  uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(isolate_, limit);
   if (thread_local_.jslimit_ == thread_local_.real_jslimit_) {
     thread_local_.jslimit_ = jslimit;
   }
@@ -428,7 +480,7 @@ void StackGuard::ThreadLocal::Clear() {
 }
 
 
-bool StackGuard::ThreadLocal::Initialize() {
+bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
   bool should_set_stack_limits = false;
   if (real_climit_ == kIllegalLimit) {
     // Takes the address of the limit variable in order to find out where
@@ -436,8 +488,8 @@ bool StackGuard::ThreadLocal::Initialize() {
     const uintptr_t kLimitSize = FLAG_stack_size * KB;
     uintptr_t limit = reinterpret_cast<uintptr_t>(&limit) - kLimitSize;
     ASSERT(reinterpret_cast<uintptr_t>(&limit) > kLimitSize);
-    real_jslimit_ = SimulatorStack::JsLimitFromCLimit(limit);
-    jslimit_ = SimulatorStack::JsLimitFromCLimit(limit);
+    real_jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
+    jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
     real_climit_ = limit;
     climit_ = limit;
     should_set_stack_limits = true;
@@ -456,9 +508,10 @@ void StackGuard::ClearThread(const ExecutionAccess& lock) {
 
 
 void StackGuard::InitThread(const ExecutionAccess& lock) {
-  if (thread_local_.Initialize()) isolate_->heap()->SetStackLimits();
-  uintptr_t stored_limit =
-      Isolate::CurrentPerIsolateThreadData()->stack_limit();
+  if (thread_local_.Initialize(isolate_)) isolate_->heap()->SetStackLimits();
+  Isolate::PerIsolateThreadData* per_thread =
+      isolate_->FindOrAllocatePerThreadDataForThisThread();
+  uintptr_t stored_limit = per_thread->stack_limit();
   // You should hold the ExecutionAccess lock when you call this.
   if (stored_limit != 0) {
     StackGuard::SetStackLimit(stored_limit);
@@ -681,13 +734,13 @@ static Object* RuntimePreempt() {
     isolate->debug()->PreemptionWhileInDebugger();
   } else {
     // Perform preemption.
-    v8::Unlocker unlocker;
+    v8::Unlocker unlocker(reinterpret_cast<v8::Isolate*>(isolate));
     Thread::YieldCPU();
   }
 #else
   { // NOLINT
     // Perform preemption.
-    v8::Unlocker unlocker;
+    v8::Unlocker unlocker(reinterpret_cast<v8::Isolate*>(isolate));
     Thread::YieldCPU();
   }
 #endif

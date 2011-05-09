@@ -27,146 +27,86 @@
 
 #include "i18n-locale.h"
 
-#include <algorithm>
-#include <string>
-
+#include "i18n-utils.h"
+#include "language-matcher.h"
 #include "unicode/locid.h"
 #include "unicode/uloc.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
 
+const char* const I18NLocale::kLocaleID = "localeID";
+const char* const I18NLocale::kRegionID = "regionID";
+const char* const I18NLocale::kICULocaleID = "icuLocaleID";
+
 v8::Handle<v8::Value> I18NLocale::JSLocale(const v8::Arguments& args) {
-  // TODO(cira): Fetch browser locale. Accept en-US as good default for now.
-  // We could possibly pass browser locale as a parameter in the constructor.
-  std::string locale_name("en-US");
-  if (args.Length() == 1 && args[0]->IsString()) {
-    locale_name = *v8::String::Utf8Value(args[0]->ToString());
-  }
+  v8::HandleScope handle_scope;
 
-  v8::Local<v8::Object> locale = v8::Object::New();
-  locale->Set(v8::String::New("locale"), v8::String::New(locale_name.c_str()));
-
-  icu::Locale icu_locale(locale_name.c_str());
-
-  const char* language = icu_locale.getLanguage();
-  locale->Set(v8::String::New("language"), v8::String::New(language));
-
-  const char* script = icu_locale.getScript();
-  if (strlen(script)) {
-    locale->Set(v8::String::New("script"), v8::String::New(script));
-  }
-
-  const char* region = icu_locale.getCountry();
-  if (strlen(region)) {
-    locale->Set(v8::String::New("region"), v8::String::New(region));
-  }
-
-  return locale;
-}
-
-// TODO(cira): Filter out locales that Chrome doesn't support.
-v8::Handle<v8::Value> I18NLocale::JSAvailableLocales(
-    const v8::Arguments& args) {
-  v8::Local<v8::Array> all_locales = v8::Array::New();
-
-  int count = 0;
-  const icu::Locale* icu_locales = icu::Locale::getAvailableLocales(count);
-  for (int i = 0; i < count; ++i) {
-    all_locales->Set(i, v8::String::New(icu_locales[i].getName()));
-  }
-
-  return all_locales;
-}
-
-// Use - as tag separator, not _ that ICU uses.
-static std::string NormalizeLocale(const std::string& locale) {
-  std::string result(locale);
-  // TODO(cira): remove STL dependency.
-  std::replace(result.begin(), result.end(), '_', '-');
-  return result;
-}
-
-v8::Handle<v8::Value> I18NLocale::JSMaximizedLocale(const v8::Arguments& args) {
-  if (!args.Length() || !args[0]->IsString()) {
+  if (args.Length() != 1 || !args[0]->IsObject()) {
     return v8::Undefined();
   }
 
-  UErrorCode status = U_ZERO_ERROR;
-  std::string locale_name = *v8::String::Utf8Value(args[0]->ToString());
-  char max_locale[ULOC_FULLNAME_CAPACITY];
-  uloc_addLikelySubtags(locale_name.c_str(), max_locale,
-                        sizeof(max_locale), &status);
-  if (U_FAILURE(status)) {
+  v8::Local<v8::Object> settings = args[0]->ToObject();
+
+  // Get best match for locale.
+  v8::TryCatch try_catch;
+  v8::Handle<v8::Value> locale_id = settings->Get(v8::String::New(kLocaleID));
+  if (try_catch.HasCaught()) {
     return v8::Undefined();
   }
 
-  return v8::String::New(NormalizeLocale(max_locale).c_str());
-}
-
-v8::Handle<v8::Value> I18NLocale::JSMinimizedLocale(const v8::Arguments& args) {
-  if (!args.Length() || !args[0]->IsString()) {
-    return v8::Undefined();
-  }
-
-  UErrorCode status = U_ZERO_ERROR;
-  std::string locale_name = *v8::String::Utf8Value(args[0]->ToString());
-  char min_locale[ULOC_FULLNAME_CAPACITY];
-  uloc_minimizeSubtags(locale_name.c_str(), min_locale,
-                       sizeof(min_locale), &status);
-  if (U_FAILURE(status)) {
-    return v8::Undefined();
-  }
-
-  return v8::String::New(NormalizeLocale(min_locale).c_str());
-}
-
-// Common code for JSDisplayXXX methods.
-static v8::Handle<v8::Value> GetDisplayItem(const v8::Arguments& args,
-                                            const std::string& item) {
-  if (args.Length() != 2 || !args[0]->IsString() || !args[1]->IsString()) {
-    return v8::Undefined();
-  }
-
-  std::string base_locale = *v8::String::Utf8Value(args[0]->ToString());
-  icu::Locale icu_locale(base_locale.c_str());
-  icu::Locale display_locale =
-      icu::Locale(*v8::String::Utf8Value(args[1]->ToString()));
-  icu::UnicodeString result;
-  if (item == "language") {
-    icu_locale.getDisplayLanguage(display_locale, result);
-  } else if (item == "script") {
-    icu_locale.getDisplayScript(display_locale, result);
-  } else if (item == "region") {
-    icu_locale.getDisplayCountry(display_locale, result);
-  } else if (item == "name") {
-    icu_locale.getDisplayName(display_locale, result);
+  LocaleIDMatch result;
+  if (locale_id->IsArray()) {
+    LanguageMatcher::GetBestMatchForPriorityList(
+        v8::Handle<v8::Array>::Cast(locale_id), &result);
+  } else if (locale_id->IsString()) {
+    LanguageMatcher::GetBestMatchForString(locale_id->ToString(), &result);
   } else {
+    LanguageMatcher::GetBestMatchForString(v8::String::New(""), &result);
+  }
+
+  // Get best match for region.
+  char region_id[ULOC_COUNTRY_CAPACITY];
+  I18NUtils::StrNCopy(region_id, ULOC_COUNTRY_CAPACITY, "");
+
+  v8::Handle<v8::Value> region = settings->Get(v8::String::New(kRegionID));
+  if (try_catch.HasCaught()) {
     return v8::Undefined();
   }
 
-  if (result.length()) {
-    return v8::String::New(
-        reinterpret_cast<const uint16_t*>(result.getBuffer()), result.length());
+  if (!GetBestMatchForRegionID(result.icu_id, region, region_id)) {
+    // Set region id to empty string because region couldn't be inferred.
+    I18NUtils::StrNCopy(region_id, ULOC_COUNTRY_CAPACITY, "");
   }
 
-  return v8::Undefined();
+  // Build JavaScript object that contains bcp and icu locale ID and region ID.
+  v8::Handle<v8::Object> locale = v8::Object::New();
+  locale->Set(v8::String::New(kLocaleID), v8::String::New(result.bcp47_id));
+  locale->Set(v8::String::New(kICULocaleID), v8::String::New(result.icu_id));
+  locale->Set(v8::String::New(kRegionID), v8::String::New(region_id));
+
+  return handle_scope.Close(locale);
 }
 
-v8::Handle<v8::Value> I18NLocale::JSDisplayLanguage(const v8::Arguments& args) {
-  return GetDisplayItem(args, "language");
-}
+bool I18NLocale::GetBestMatchForRegionID(
+    const char* locale_id, v8::Handle<v8::Value> region_id, char* result) {
+  if (region_id->IsString() && region_id->ToString()->Length() != 0) {
+    icu::Locale user_locale(
+        icu::Locale("und", *v8::String::Utf8Value(region_id->ToString())));
+    I18NUtils::StrNCopy(
+        result, ULOC_COUNTRY_CAPACITY, user_locale.getCountry());
+    return true;
+  }
+  // Maximize locale_id to infer the region (e.g. expand "de" to "de-Latn-DE"
+  // and grab "DE" from the result).
+  UErrorCode status = U_ZERO_ERROR;
+  char maximized_locale[ULOC_FULLNAME_CAPACITY];
+  uloc_addLikelySubtags(
+      locale_id, maximized_locale, ULOC_FULLNAME_CAPACITY, &status);
+  uloc_getCountry(maximized_locale, result, ULOC_COUNTRY_CAPACITY, &status);
 
-v8::Handle<v8::Value> I18NLocale::JSDisplayScript(const v8::Arguments& args) {
-  return GetDisplayItem(args, "script");
-}
-
-v8::Handle<v8::Value> I18NLocale::JSDisplayRegion(const v8::Arguments& args) {
-  return GetDisplayItem(args, "region");
-}
-
-v8::Handle<v8::Value> I18NLocale::JSDisplayName(const v8::Arguments& args) {
-  return GetDisplayItem(args, "name");
+  return !U_FAILURE(status);
 }
 
 } }  // namespace v8::internal

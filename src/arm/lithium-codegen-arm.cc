@@ -2284,23 +2284,29 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 }
 
 
-void LCodeGen::EmitLoadField(Register result,
-                             Register object,
-                             Handle<Map> type,
-                             Handle<String> name) {
+void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
+                                               Register object,
+                                               Handle<Map> type,
+                                               Handle<String> name) {
   LookupResult lookup;
   type->LookupInDescriptors(NULL, *name, &lookup);
-  ASSERT(lookup.IsProperty() && lookup.type() == FIELD);
-  int index = lookup.GetLocalFieldIndexFromMap(*type);
-  int offset = index * kPointerSize;
-  if (index < 0) {
-    // Negative property indices are in-object properties, indexed
-    // from the end of the fixed part of the object.
-    __ ldr(result, FieldMemOperand(object, offset + type->instance_size()));
+  ASSERT(lookup.IsProperty() &&
+         (lookup.type() == FIELD || lookup.type() == CONSTANT_FUNCTION));
+  if (lookup.type() == FIELD) {
+    int index = lookup.GetLocalFieldIndexFromMap(*type);
+    int offset = index * kPointerSize;
+    if (index < 0) {
+      // Negative property indices are in-object properties, indexed
+      // from the end of the fixed part of the object.
+      __ ldr(result, FieldMemOperand(object, offset + type->instance_size()));
+    } else {
+      // Non-negative property indices are in the properties array.
+      __ ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
+      __ ldr(result, FieldMemOperand(result, offset + FixedArray::kHeaderSize));
+    }
   } else {
-    // Non-negative property indices are in the properties array.
-    __ ldr(result, FieldMemOperand(object, JSObject::kPropertiesOffset));
-    __ ldr(result, FieldMemOperand(result, offset + FixedArray::kHeaderSize));
+    Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*type));
+    LoadHeapObject(result, Handle<HeapObject>::cast(function));
   }
 }
 
@@ -2324,7 +2330,7 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
       Label next;
       __ cmp(scratch, Operand(map));
       __ b(ne, &next);
-      EmitLoadField(result, object, map, name);
+      EmitLoadFieldOrConstantFunction(result, object, map, name);
       __ b(&done);
       __ bind(&next);
     }
@@ -2333,7 +2339,7 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
     if (instr->hydrogen()->need_generic()) {
       Label generic;
       __ b(ne, &generic);
-      EmitLoadField(result, object, map, name);
+      EmitLoadFieldOrConstantFunction(result, object, map, name);
       __ b(&done);
       __ bind(&generic);
       __ mov(r2, Operand(name));
@@ -2341,7 +2347,7 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
       CallCode(ic, RelocInfo::CODE_TARGET, instr);
     } else {
       DeoptimizeIf(ne, instr->environment());
-      EmitLoadField(result, object, map, name);
+      EmitLoadFieldOrConstantFunction(result, object, map, name);
     }
     __ bind(&done);
   }

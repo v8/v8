@@ -719,20 +719,21 @@ void Simulator::CheckICache(v8::internal::HashMap* i_cache,
 }
 
 
-void Simulator::Initialize() {
-  if (Isolate::Current()->simulator_initialized()) return;
-  Isolate::Current()->set_simulator_initialized(true);
-  ::v8::internal::ExternalReference::set_redirector(&RedirectExternalReference);
+void Simulator::Initialize(Isolate* isolate) {
+  if (isolate->simulator_initialized()) return;
+  isolate->set_simulator_initialized(true);
+  ::v8::internal::ExternalReference::set_redirector(isolate,
+                                                    &RedirectExternalReference);
 }
 
 
-Simulator::Simulator() : isolate_(Isolate::Current()) {
+Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   i_cache_ = isolate_->simulator_i_cache();
   if (i_cache_ == NULL) {
     i_cache_ = new v8::internal::HashMap(&ICacheMatch);
     isolate_->set_simulator_i_cache(i_cache_);
   }
-  Initialize();
+  Initialize(isolate);
   // Setup simulator support first. Some of this information is needed to
   // setup the architecture state.
   size_t stack_size = 1 * 1024*1024;  // allocate 1MB for stack
@@ -848,17 +849,13 @@ void* Simulator::RedirectExternalReference(void* external_function,
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =
-      Isolate::CurrentPerIsolateThreadData();
-  if (isolate_data == NULL) {
-    Isolate::EnterDefaultIsolate();
-    isolate_data = Isolate::CurrentPerIsolateThreadData();
-  }
+      isolate->FindOrAllocatePerThreadDataForThisThread();
   ASSERT(isolate_data != NULL);
 
   Simulator* sim = isolate_data->simulator();
   if (sim == NULL) {
     // TODO(146): delete the simulator object when a thread/isolate goes away.
-    sim = new Simulator();
+    sim = new Simulator(isolate);
     isolate_data->set_simulator(sim);
   }
   return sim;
@@ -1018,13 +1015,13 @@ void Simulator::GetFpArgs(double* x, double* y) {
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
-    char buffer[2 * sizeof(registers_[0])];
+    char buffer[sizeof(*x)];
     // Registers 0 and 1 -> x.
-    memcpy(buffer, registers_, sizeof(buffer));
-    memcpy(x, buffer, sizeof(buffer));
+    memcpy(buffer, registers_, sizeof(*x));
+    memcpy(x, buffer, sizeof(*x));
     // Registers 2 and 3 -> y.
-    memcpy(buffer, registers_ + 2, sizeof(buffer));
-    memcpy(y, buffer, sizeof(buffer));
+    memcpy(buffer, registers_ + 2, sizeof(*y));
+    memcpy(y, buffer, sizeof(*y));
   }
 }
 
@@ -1036,16 +1033,16 @@ void Simulator::GetFpArgs(double* x) {
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
-    char buffer[2 * sizeof(registers_[0])];
+    char buffer[sizeof(*x)];
     // Registers 0 and 1 -> x.
-    memcpy(buffer, registers_, sizeof(buffer));
-    memcpy(x, buffer, sizeof(buffer));
+    memcpy(buffer, registers_, sizeof(*x));
+    memcpy(x, buffer, sizeof(*x));
   }
 }
 
 
-// For use in calls that take two double values, constructed either
-// from r0-r3 or d0 and d1.
+// For use in calls that take one double value constructed either
+// from r0 and r1 or d0 and one integer value.
 void Simulator::GetFpArgs(double* x, int32_t* y) {
   if (use_eabi_hardfloat()) {
     *x = vfp_register[0];
@@ -1053,13 +1050,13 @@ void Simulator::GetFpArgs(double* x, int32_t* y) {
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
-    char buffer[2 * sizeof(registers_[0])];
+    char buffer[sizeof(*x)];
     // Registers 0 and 1 -> x.
-    memcpy(buffer, registers_, sizeof(buffer));
-    memcpy(x, buffer, sizeof(buffer));
-    // Registers 2 and 3 -> y.
-    memcpy(buffer, registers_ + 2, sizeof(buffer));
-    memcpy(y, buffer, sizeof(buffer));
+    memcpy(buffer, registers_, sizeof(*x));
+    memcpy(x, buffer, sizeof(*x));
+    // Register 2 -> y.
+    memcpy(buffer, registers_ + 2, sizeof(*y));
+    memcpy(y, buffer, sizeof(*y));
   }
 }
 

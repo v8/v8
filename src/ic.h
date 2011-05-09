@@ -592,6 +592,7 @@ class CompareIC: public IC {
     UNINITIALIZED,
     SMIS,
     HEAP_NUMBERS,
+    STRINGS,
     OBJECTS,
     GENERIC
   };

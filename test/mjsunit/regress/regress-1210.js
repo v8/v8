@@ -44,7 +44,7 @@ function test() {
 }
 
 // Run enough to optimize assuming global 'a' is a smi.
-for (var i = 0; i < 1000000; ++i) test(0);
+for (var i = 0; i < 10; ++i) test(0);
 %OptimizeFunctionOnNextCall(test);
 test(0);
 

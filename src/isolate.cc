@@ -311,6 +311,17 @@ Isolate::PerIsolateThreadData*
 }
 
 
+Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThisThread() {
+  ThreadId thread_id = ThreadId::Current();
+  PerIsolateThreadData* per_thread = NULL;
+  {
+    ScopedLock lock(process_wide_mutex_);
+    per_thread = thread_data_table_->Lookup(this, thread_id);
+  }
+  return per_thread;
+}
+
+
 void Isolate::EnsureDefaultIsolate() {
   ScopedLock lock(process_wide_mutex_);
   if (default_isolate_ == NULL) {
@@ -322,7 +333,9 @@ void Isolate::EnsureDefaultIsolate() {
   }
   // Can't use SetIsolateThreadLocals(default_isolate_, NULL) here
   // becase a non-null thread data may be already set.
-  Thread::SetThreadLocal(isolate_key_, default_isolate_);
+  if (Thread::GetThreadLocal(isolate_key_) == NULL) {
+    Thread::SetThreadLocal(isolate_key_, default_isolate_);
+  }
   CHECK(default_isolate_->PreInit());
 }
 
@@ -457,6 +470,11 @@ Isolate::Isolate()
   heap_.isolate_ = this;
   zone_.isolate_ = this;
   stack_guard_.isolate_ = this;
+
+  // ThreadManager is initialized early to support locking an isolate
+  // before it is entered.
+  thread_manager_ = new ThreadManager();
+  thread_manager_->isolate_ = this;
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
     defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
@@ -643,7 +661,6 @@ bool Isolate::PreInit() {
   TRACE_ISOLATE(preinit);
 
   ASSERT(Isolate::Current() == this);
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
   debug_ = new Debug(this);
   debugger_ = new Debugger();
@@ -671,8 +688,6 @@ bool Isolate::PreInit() {
 
   string_tracker_ = new StringTracker();
   string_tracker_->isolate_ = this;
-  thread_manager_ = new ThreadManager();
-  thread_manager_->isolate_ = this;
   compilation_cache_ = new CompilationCache(this);
   transcendental_cache_ = new TranscendentalCache();
   keyed_lookup_cache_ = new KeyedLookupCache();
@@ -683,7 +698,7 @@ bool Isolate::PreInit() {
   write_input_buffer_ = new StringInputBuffer();
   global_handles_ = new GlobalHandles(this);
   bootstrapper_ = new Bootstrapper();
-  handle_scope_implementer_ = new HandleScopeImplementer();
+  handle_scope_implementer_ = new HandleScopeImplementer(this);
   stub_cache_ = new StubCache(this);
   ast_sentinels_ = new AstSentinels();
   regexp_stack_ = new RegExpStack();
@@ -700,6 +715,7 @@ bool Isolate::PreInit() {
 
 
 void Isolate::InitializeThreadLocal() {
+  thread_local_top_.isolate_ = this;
   thread_local_top_.Initialize();
   clear_pending_exception();
   clear_pending_message();
@@ -757,7 +773,7 @@ bool Isolate::Init(Deserializer* des) {
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
 #if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
-  Simulator::Initialize();
+  Simulator::Initialize(this);
 #endif
 #endif
 

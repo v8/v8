@@ -68,7 +68,8 @@ typedef int (*mips_regexp_matcher)(String*, int, const byte*, const byte*,
 // just use the C stack limit.
 class SimulatorStack : public v8::internal::AllStatic {
  public:
-  static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
+  static inline uintptr_t JsLimitFromCLimit(Isolate* isolate,
+                                            uintptr_t c_limit) {
     return c_limit;
   }
 
@@ -170,7 +171,7 @@ class Simulator {
     kNumFPURegisters
   };
 
-  Simulator();
+  explicit Simulator(Isolate* isolate);
   ~Simulator();
 
   // The currently executing Simulator instance. Potentially there can be one
@@ -205,7 +206,7 @@ class Simulator {
   void Execute();
 
   // Call on program start.
-  static void Initialize();
+  static void Initialize(Isolate* isolate);
 
   // V8 generally calls into generated JS code with 5 parameters and into
   // generated RegExp code with 7 parameters. This is a convenience function,
@@ -373,8 +374,9 @@ reinterpret_cast<Object*>(Simulator::current(Isolate::Current())->Call( \
 // trouble down the line.
 class SimulatorStack : public v8::internal::AllStatic {
  public:
-  static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
-    return Simulator::current(Isolate::Current())->StackLimit();
+  static inline uintptr_t JsLimitFromCLimit(Isolate* isolate,
+                                            uintptr_t c_limit) {
+    return Simulator::current(isolate)->StackLimit();
   }
 
   static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {

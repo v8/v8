@@ -30,6 +30,7 @@
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+#include "allocation.h"
 #include "atomicops.h"
 #include "circular-queue.h"
 #include "unbound-queue.h"

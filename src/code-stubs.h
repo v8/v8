@@ -28,6 +28,7 @@
 #ifndef V8_CODE_STUBS_H_
 #define V8_CODE_STUBS_H_
 
+#include "allocation.h"
 #include "globals.h"
 
 namespace v8 {
@@ -65,7 +66,8 @@ namespace internal {
   V(NumberToString)                      \
   V(CEntry)                              \
   V(JSEntry)                             \
-  V(DebuggerStatement)
+  V(DebuggerStatement)                   \
+  V(StringDictionaryNegativeLookup)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -424,6 +426,7 @@ class ICCompareStub: public CodeStub {
 
   void GenerateSmis(MacroAssembler* masm);
   void GenerateHeapNumbers(MacroAssembler* masm);
+  void GenerateStrings(MacroAssembler* masm);
   void GenerateObjects(MacroAssembler* masm);
   void GenerateMiss(MacroAssembler* masm);
 

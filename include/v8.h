@@ -1606,6 +1606,22 @@ class Object : public Value {
   V8EXPORT ExternalArrayType GetIndexedPropertiesExternalArrayDataType();
   V8EXPORT int GetIndexedPropertiesExternalArrayDataLength();
 
+  /**
+   * Call an Object as a function if a callback is set by the 
+   * ObjectTemplate::SetCallAsFunctionHandler method.
+   */
+  V8EXPORT Local<Value> CallAsFunction(Handle<Object> recv,
+                                       int argc,
+                                       Handle<Value> argv[]);
+
+  /**
+   * Call an Object as a consturctor if a callback is set by the
+   * ObjectTemplate::SetCallAsFunctionHandler method.
+   * Note: This method behaves like the Function::NewInstance method.
+   */
+  V8EXPORT Local<Value> CallAsConstructor(int argc,
+                                          Handle<Value> argv[]);
+
   V8EXPORT static Local<Object> New();
   static inline Object* Cast(Value* obj);
  private:
@@ -3385,26 +3401,20 @@ class V8EXPORT Context {
  * to the user of V8 to ensure (perhaps with locking) that this
  * constraint is not violated.
  *
- * More then one thread and multiple V8 isolates can be used
- * without any locking if each isolate is created and accessed
- * by a single thread only. For example, one thread can use
- * multiple isolates or multiple threads can each create and run
- * their own isolate.
+ * v8::Locker is a scoped lock object. While it's
+ * active (i.e. between its construction and destruction) the current thread is
+ * allowed to use the locked isolate. V8 guarantees that an isolate can be locked
+ * by at most one thread at any time. In other words, the scope of a v8::Locker is
+ * a critical section.
  *
- * If you wish to start using V8 isolate in more then one thread
- * you can do this by constructing a v8::Locker object to guard
- * access to the isolate. After the code using V8 has completed
- * for the current thread you can call the destructor.  This can
- * be combined with C++ scope-based construction as follows
- * (assumes the default isolate that is used if not specified as
- * a parameter for the Locker):
- *
- * \code
+ * Sample usage:
+* \code
  * ...
  * {
- *   v8::Locker locker;
+ *   v8::Locker locker(isolate);
+ *   v8::Isolate::Scope isolate_scope(isolate);
  *   ...
- *   // Code using V8 goes here.
+ *   // Code using V8 and isolate goes here.
  *   ...
  * } // Destructor called here
  * \endcode
@@ -3415,11 +3425,13 @@ class V8EXPORT Context {
  *
  * \code
  * {
- *   v8::Unlocker unlocker;
+ *   isolate->Exit();
+ *   v8::Unlocker unlocker(isolate);
  *   ...
  *   // Code not using V8 goes here while V8 can run in another thread.
  *   ...
  * } // Destructor called here.
+ * isolate->Enter();
  * \endcode
  *
  * The Unlocker object is intended for use in a long-running callback
@@ -3439,32 +3451,45 @@ class V8EXPORT Context {
  * \code
  * // V8 not locked.
  * {
- *   v8::Locker locker;
+ *   v8::Locker locker(isolate);
+ *   Isolate::Scope isolate_scope(isolate);
  *   // V8 locked.
  *   {
- *     v8::Locker another_locker;
+ *     v8::Locker another_locker(isolate);
  *     // V8 still locked (2 levels).
  *     {
- *       v8::Unlocker unlocker;
+ *       isolate->Exit();
+ *       v8::Unlocker unlocker(isolate);
  *       // V8 not locked.
  *     }
+ *     isolate->Enter();
  *     // V8 locked again (2 levels).
  *   }
  *   // V8 still locked (1 level).
  * }
  * // V8 Now no longer locked.
  * \endcode
+ *
+ * 
  */
 class V8EXPORT Unlocker {
  public:
-  Unlocker();
+  /**
+   * Initialize Unlocker for a given Isolate. NULL means default isolate.
+   */
+  explicit Unlocker(Isolate* isolate = NULL);
   ~Unlocker();
+ private:
+  internal::Isolate* isolate_;
 };
 
 
 class V8EXPORT Locker {
  public:
-  Locker();
+  /**
+   * Initialize Locker for a given Isolate. NULL means default isolate.
+   */
+  explicit Locker(Isolate* isolate = NULL);
   ~Locker();
 
   /**
@@ -3482,9 +3507,10 @@ class V8EXPORT Locker {
   static void StopPreemption();
 
   /**
-   * Returns whether or not the locker is locked by the current thread.
+   * Returns whether or not the locker for a given isolate, or default isolate if NULL is given,
+   * is locked by the current thread.
    */
-  static bool IsLocked();
+  static bool IsLocked(Isolate* isolate = NULL);
 
   /**
    * Returns whether v8::Locker is being used by this V8 instance.
@@ -3494,6 +3520,7 @@ class V8EXPORT Locker {
  private:
   bool has_lock_;
   bool top_level_;
+  internal::Isolate* isolate_;
 
   static bool active_;
 

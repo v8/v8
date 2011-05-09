@@ -95,21 +95,13 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
 
 
 void CompilationInfo::DisableOptimization() {
-  if (FLAG_optimize_closures) {
-    // If we allow closures optimizations and it's an optimizable closure
-    // mark it correspondingly.
-    bool is_closure = closure_.is_null() && !scope_->HasTrivialOuterContext();
-    if (is_closure) {
-      bool is_optimizable_closure =
-          !scope_->outer_scope_calls_eval() && !scope_->inside_with();
-      if (is_optimizable_closure) {
-        SetMode(BASE);
-        return;
-      }
-    }
-  }
-
-  SetMode(NONOPT);
+  bool is_optimizable_closure =
+    FLAG_optimize_closures &&
+    closure_.is_null() &&
+    !scope_->HasTrivialOuterContext() &&
+    !scope_->outer_scope_calls_eval() &&
+    !scope_->inside_with();
+  SetMode(is_optimizable_closure ? BASE : NONOPT);
 }
 
 
@@ -121,17 +113,20 @@ void CompilationInfo::DisableOptimization() {
 // all. However crankshaft support recompilation of functions, so in this case
 // the full compiler need not be be used if a debugger is attached, but only if
 // break points has actually been set.
-static bool AlwaysFullCompiler() {
+static bool is_debugging_active() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Isolate* isolate = Isolate::Current();
-  if (V8::UseCrankshaft()) {
-    return FLAG_always_full_compiler || isolate->debug()->has_break_points();
-  } else {
-    return FLAG_always_full_compiler || isolate->debugger()->IsDebuggerActive();
-  }
+  return V8::UseCrankshaft() ?
+    isolate->debug()->has_break_points() :
+    isolate->debugger()->IsDebuggerActive();
 #else
-  return FLAG_always_full_compiler;
+  return false;
 #endif
+}
+
+
+static bool AlwaysFullCompiler() {
+  return FLAG_always_full_compiler || is_debugging_active();
 }
 
 
@@ -318,19 +313,18 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 }
 
 
+static bool GenerateCode(CompilationInfo* info) {
+  return V8::UseCrankshaft() ?
+    MakeCrankshaftCode(info) :
+    FullCodeGenerator::MakeCode(info);
+}
+
+
 static bool MakeCode(CompilationInfo* info) {
   // Precondition: code has been parsed.  Postcondition: the code field in
   // the compilation info is set if compilation succeeded.
   ASSERT(info->function() != NULL);
-
-  if (Rewriter::Rewrite(info) && Scope::Analyze(info)) {
-    if (V8::UseCrankshaft()) return MakeCrankshaftCode(info);
-    // If crankshaft is not supported fall back to full code generator
-    // for all compilation.
-    return FullCodeGenerator::MakeCode(info);
-  }
-
-  return false;
+  return Rewriter::Rewrite(info) && Scope::Analyze(info) && GenerateCode(info);
 }
 
 

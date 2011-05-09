@@ -34,6 +34,7 @@
 #include "list.h"
 
 #include "scanner-base.h"
+#include "preparse-data-format.h"
 #include "preparse-data.h"
 #include "preparser.h"
 
@@ -94,13 +95,33 @@ void PreParser::ReportUnexpectedToken(i::Token::Value token) {
 }
 
 
+// Checks whether octal literal last seen is between beg_pos and end_pos.
+// If so, reports an error.
+void PreParser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
+  i::Scanner::Location octal = scanner_->octal_position();
+  if (beg_pos <= octal.beg_pos && octal.end_pos <= end_pos) {
+    ReportMessageAt(octal.beg_pos, octal.end_pos, "strict_octal_literal", NULL);
+    scanner_->clear_octal_position();
+    *ok = false;
+  }
+}
+
+
 PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
                                                          bool* ok) {
   // SourceElements ::
   //   (Statement)* <end_token>
 
+  bool allow_directive_prologue = true;
   while (peek() != end_token) {
-    ParseStatement(CHECK_OK);
+    Statement statement = ParseStatement(CHECK_OK);
+    if (allow_directive_prologue) {
+      if (statement == kUseStrictExpressionStatement) {
+        set_strict_mode();
+      } else if (statement != kStringLiteralExpressionStatement) {
+        allow_directive_prologue = false;
+      }
+    }
   }
   return kUnknownSourceElements;
 }
@@ -299,10 +320,17 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
   Expression expr = ParseExpression(true, CHECK_OK);
   if (peek() == i::Token::COLON && expr == kIdentifierExpression) {
     Consume(i::Token::COLON);
-    return ParseStatement(ok);
+    ParseStatement(ok);
+    return kUnknownStatement;
   }
   // Parsed expression statement.
   ExpectSemicolon(CHECK_OK);
+  if (expr == kStringLiteralExpression) {
+    return kStringLiteralExpressionStatement;
+  }
+  if (expr == kUseStrictString) {
+    return kUseStrictExpressionStatement;
+  }
   return kUnknownStatement;
 }
 
@@ -1057,10 +1085,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
   ScopeType outer_scope_type = scope_->type();
   bool inside_with = scope_->IsInsideWith();
   Scope function_scope(&scope_, kFunctionScope);
-
   //  FormalParameterList ::
   //    '(' (Identifier)*[','] ')'
   Expect(i::Token::LPAREN, CHECK_OK);
+  int start_position = scanner_->location().beg_pos;
   bool done = (peek() == i::Token::RPAREN);
   while (!done) {
     ParseIdentifier(CHECK_OK);
@@ -1099,6 +1127,12 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
     ParseSourceElements(i::Token::RBRACE, CHECK_OK);
     Expect(i::Token::RBRACE, CHECK_OK);
   }
+
+  if (scope_->is_strict()) {
+    int end_position = scanner_->location().end_pos;
+    CheckOctalLiteral(start_position, end_position, CHECK_OK);
+  }
+
   return kUnknownExpression;
 }
 
@@ -1149,8 +1183,17 @@ PreParser::Identifier PreParser::GetIdentifierSymbol() {
 
 
 PreParser::Expression PreParser::GetStringSymbol() {
+  const int kUseStrictLength = 10;
+  const char* kUseStrictChars = "use strict";
   LogSymbol();
-  return kUnknownExpression;
+  if (scanner_->is_literal_ascii() &&
+      scanner_->literal_length() == kUseStrictLength &&
+      !scanner_->literal_contains_escapes() &&
+      !strncmp(scanner_->literal_ascii_string().start(), kUseStrictChars,
+               kUseStrictLength)) {
+    return kUseStrictString;
+  }
+  return kStringLiteralExpression;
 }
 
 

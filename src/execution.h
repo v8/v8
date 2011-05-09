@@ -28,6 +28,8 @@
 #ifndef V8_EXECUTION_H_
 #define V8_EXECUTION_H_
 
+#include "allocation.h"
+
 namespace v8 {
 namespace internal {
 
@@ -138,10 +140,14 @@ class Execution : public AllStatic {
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as functions.
   static Handle<Object> GetFunctionDelegate(Handle<Object> object);
+  static Handle<Object> TryGetFunctionDelegate(Handle<Object> object,
+                                               bool* has_pending_exception);
 
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as constructors.
   static Handle<Object> GetConstructorDelegate(Handle<Object> object);
+  static Handle<Object> TryGetConstructorDelegate(Handle<Object> object,
+                                                  bool* has_pending_exception);
 };
 
 
@@ -252,7 +258,7 @@ class StackGuard {
     void Clear();
 
     // Returns true if the heap's stack limits should be set, false if not.
-    bool Initialize();
+    bool Initialize(Isolate* isolate);
 
     // The stack limit is split into a JavaScript and a C++ stack limit. These
     // two are the same except when running on a simulator where the C++ and

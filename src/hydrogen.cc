@@ -4106,7 +4106,10 @@ bool HGraphBuilder::TryInline(Call* expr) {
 
   HConstant* undefined = graph()->GetConstantUndefined();
   HEnvironment* inner_env =
-      environment()->CopyForInlining(target, function, true, undefined);
+      environment()->CopyForInlining(target,
+                                     function,
+                                     HEnvironment::HYDROGEN,
+                                     undefined);
   HBasicBlock* body_entry = CreateBasicBlock(inner_env);
   current_block()->Goto(body_entry);
 
@@ -5735,7 +5738,7 @@ HEnvironment* HEnvironment::CopyAsLoopHeader(HBasicBlock* loop_header) const {
 
 HEnvironment* HEnvironment::CopyForInlining(Handle<JSFunction> target,
                                             FunctionLiteral* function,
-                                            bool is_speculative,
+                                            CompilationPhase compilation_phase,
                                             HConstant* undefined) const {
   // Outer environment is a copy of this one without the arguments.
   int arity = function->scope()->num_parameters();
@@ -5746,14 +5749,16 @@ HEnvironment* HEnvironment::CopyForInlining(Handle<JSFunction> target,
   HEnvironment* inner =
       new(zone) HEnvironment(outer, function->scope(), target);
   // Get the argument values from the original environment.
-  if (is_speculative) {
+  if (compilation_phase == HYDROGEN) {
     for (int i = 0; i <= arity; ++i) {  // Include receiver.
       HValue* push = ExpressionStackAt(arity - i);
       inner->SetValueAt(i, push);
     }
   } else {
+    ASSERT(compilation_phase == LITHIUM);
     for (int i = 0; i <= arity; ++i) {  // Include receiver.
-      inner->SetValueAt(i, ExpressionStackAt(arity - i));
+      HValue* push = ExpressionStackAt(arity - i);
+      inner->SetValueAt(i, push);
     }
   }
 

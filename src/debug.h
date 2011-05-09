@@ -28,6 +28,7 @@
 #ifndef V8_DEBUG_H_
 #define V8_DEBUG_H_
 
+#include "allocation.h"
 #include "arguments.h"
 #include "assembler.h"
 #include "debug-agent.h"
