@@ -2141,6 +2141,7 @@ const char* CompareIC::GetStateName(State state) {
     case SMIS: return "SMIS";
     case HEAP_NUMBERS: return "HEAP_NUMBERS";
     case OBJECTS: return "OBJECTS";
+    case SYMBOLS: return "SYMBOLS";
     case STRINGS: return "STRINGS";
     case GENERIC: return "GENERIC";
     default:
@@ -2154,12 +2155,16 @@ CompareIC::State CompareIC::TargetState(State state,
                                         bool has_inlined_smi_code,
                                         Handle<Object> x,
                                         Handle<Object> y) {
-  if (!has_inlined_smi_code && state != UNINITIALIZED) return GENERIC;
+  if (!has_inlined_smi_code && state != UNINITIALIZED && state != SYMBOLS) {
+    return GENERIC;
+  }
   if (state == UNINITIALIZED && x->IsSmi() && y->IsSmi()) return SMIS;
   if ((state == UNINITIALIZED || (state == SMIS && has_inlined_smi_code)) &&
       x->IsNumber() && y->IsNumber()) return HEAP_NUMBERS;
   if (op_ != Token::EQ && op_ != Token::EQ_STRICT) return GENERIC;
   if (state == UNINITIALIZED &&
+      x->IsSymbol() && y->IsSymbol()) return SYMBOLS;
+  if ((state == UNINITIALIZED || state == SYMBOLS) &&
       x->IsString() && y->IsString()) return STRINGS;
   if (state == UNINITIALIZED &&
       x->IsJSObject() && y->IsJSObject()) return OBJECTS;

@@ -4739,6 +4739,49 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
 }
 
 
+void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
+  ASSERT(state_ == CompareIC::SYMBOLS);
+  ASSERT(GetCondition() == equal);
+
+  // Registers containing left and right operands respectively.
+  Register left = rdx;
+  Register right = rax;
+  Register tmp1 = rcx;
+  Register tmp2 = rbx;
+
+  // Check that both operands are heap objects.
+  NearLabel miss;
+  Condition cond = masm->CheckEitherSmi(left, right, tmp1);
+  __ j(cond, &miss);
+
+  // Check that both operands are symbols.
+  __ movq(tmp1, FieldOperand(left, HeapObject::kMapOffset));
+  __ movq(tmp2, FieldOperand(right, HeapObject::kMapOffset));
+  __ movzxbq(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
+  __ movzxbq(tmp2, FieldOperand(tmp2, Map::kInstanceTypeOffset));
+  STATIC_ASSERT(kSymbolTag != 0);
+  __ and_(tmp1, tmp2);
+  __ testb(tmp1, Immediate(kIsSymbolMask));
+  __ j(zero, &miss);
+
+  // Symbols are compared by identity.
+  NearLabel done;
+  __ cmpq(left, right);
+  // Make sure rax is non-zero. At this point input operands are
+  // guaranteed to be non-zero.
+  ASSERT(right.is(rax));
+  __ j(not_equal, &done);
+  STATIC_ASSERT(EQUAL == 0);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ Move(rax, Smi::FromInt(EQUAL));
+  __ bind(&done);
+  __ ret(0);
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
 void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::STRINGS);
   ASSERT(GetCondition() == equal);
@@ -4764,7 +4807,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   __ movq(tmp3, tmp1);
   STATIC_ASSERT(kNotStringTag != 0);
   __ or_(tmp3, tmp2);
-  __ testl(tmp3, Immediate(kIsNotStringMask));
+  __ testb(tmp3, Immediate(kIsNotStringMask));
   __ j(not_zero, &miss);
 
   // Fast check for identical strings.
@@ -4784,7 +4827,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   NearLabel do_compare;
   STATIC_ASSERT(kSymbolTag != 0);
   __ and_(tmp1, tmp2);
-  __ testl(tmp1, Immediate(kIsSymbolMask));
+  __ testb(tmp1, Immediate(kIsSymbolMask));
   __ j(zero, &do_compare);
   // Make sure rax is non-zero. At this point input operands are
   // guaranteed to be non-zero.

@@ -5854,6 +5854,52 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
 }
 
 
+void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
+  ASSERT(state_ == CompareIC::SYMBOLS);
+  ASSERT(GetCondition() == equal);
+
+  // Registers containing left and right operands respectively.
+  Register left = edx;
+  Register right = eax;
+  Register tmp1 = ecx;
+  Register tmp2 = ebx;
+
+  // Check that both operands are heap objects.
+  NearLabel miss;
+  __ mov(tmp1, Operand(left));
+  STATIC_ASSERT(kSmiTag == 0);
+  __ and_(tmp1, Operand(right));
+  __ test(tmp1, Immediate(kSmiTagMask));
+  __ j(zero, &miss);
+
+  // Check that both operands are symbols.
+  __ mov(tmp1, FieldOperand(left, HeapObject::kMapOffset));
+  __ mov(tmp2, FieldOperand(right, HeapObject::kMapOffset));
+  __ movzx_b(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
+  __ movzx_b(tmp2, FieldOperand(tmp2, Map::kInstanceTypeOffset));
+  STATIC_ASSERT(kSymbolTag != 0);
+  __ and_(tmp1, Operand(tmp2));
+  __ test(tmp1, Immediate(kIsSymbolMask));
+  __ j(zero, &miss);
+
+  // Symbols are compared by identity.
+  NearLabel done;
+  __ cmp(left, Operand(right));
+  // Make sure eax is non-zero. At this point input operands are
+  // guaranteed to be non-zero.
+  ASSERT(right.is(eax));
+  __ j(not_equal, &done);
+  STATIC_ASSERT(EQUAL == 0);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
+  __ bind(&done);
+  __ ret(0);
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
 void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::STRINGS);
   ASSERT(GetCondition() == equal);
