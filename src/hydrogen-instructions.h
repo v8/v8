@@ -3255,6 +3255,8 @@ class HLoadKeyedFastElement: public HBinaryOperation {
 
   virtual void PrintDataTo(StringStream* stream);
 
+  bool RequiresHoleCheck() const;
+
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastElement)
 
  protected:

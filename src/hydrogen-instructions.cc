@@ -1263,6 +1263,15 @@ void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
 }
 
 
+bool HLoadKeyedFastElement::RequiresHoleCheck() const {
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    HValue* use = it.value();
+    if (!use->IsChange()) return true;
+  }
+  return false;
+}
+
+
 void HLoadKeyedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add("[");

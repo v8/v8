@@ -2473,9 +2473,11 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   __ ldr(result, FieldMemOperand(scratch, FixedArray::kHeaderSize));
 
   // Check for the hole value.
-  __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
-  __ cmp(result, scratch);
-  DeoptimizeIf(eq, instr->environment());
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
+    __ cmp(result, scratch);
+    DeoptimizeIf(eq, instr->environment());
+  }
 }
 
 

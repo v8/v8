@@ -2384,8 +2384,10 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
                               FixedArray::kHeaderSize));
 
   // Check for the hole value.
-  __ cmp(result, factory()->the_hole_value());
-  DeoptimizeIf(equal, instr->environment());
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    __ cmp(result, factory()->the_hole_value());
+    DeoptimizeIf(equal, instr->environment());
+  }
 }
 
 
