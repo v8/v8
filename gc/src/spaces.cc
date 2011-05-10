@@ -628,7 +628,9 @@ PagedSpace::PagedSpace(Heap* heap,
                        Executability executable)
     : Space(heap, id, executable),
       free_list_(this),
-      was_swept_conservatively_(false) {
+      was_swept_conservatively_(false),
+      first_unswept_page_(Page::FromAddress(NULL)),
+      last_unswept_page_(Page::FromAddress(NULL)) {
   max_capacity_ = (RoundDown(max_capacity, Page::kPageSize) / Page::kPageSize)
                   * Page::kObjectAreaSize;
   accounting_stats_.Clear();
@@ -1565,7 +1567,7 @@ HeapObject* OldSpaceFreeList::Allocate(int size_in_bytes) {
   owner_->Allocate(new_node_size);
 
   if (new_node_size - size_in_bytes > kThreshold &&
-      HEAP->incremental_marking()->IsMarking() &&
+      HEAP->incremental_marking()->IsMarkingIncomplete() &&
       FLAG_incremental_marking_steps) {
     // We don't want to give too large linear areas to the allocator while
     // incremental marking is going on, because we won't check again whether
@@ -1642,7 +1644,10 @@ void OldSpace::PrepareForMarkCompact(bool will_compact) {
   // Call prepare of the super class.
   PagedSpace::PrepareForMarkCompact(will_compact);
 
+  first_unswept_page_ = last_unswept_page_ = Page::FromAddress(NULL);
+
   // Clear the free list before a full GC---it will be rebuilt afterward.
+  // TODO(gc): can we avoid resetting free list?
   free_list_.Reset();
 }
 
@@ -1699,6 +1704,29 @@ bool LargeObjectSpace::ReserveSpace(int bytes) {
 }
 
 
+bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
+  if (IsSweepingComplete()) return true;
+
+  int freed_bytes = 0;
+  Page* last = last_unswept_page_->next_page();
+  Page* p = first_unswept_page_;
+  do {
+    freed_bytes += MarkCompactCollector::SweepConservatively(this, p);
+    p = p->next_page();
+  } while (p != last && freed_bytes < bytes_to_sweep);
+
+  if (p == last) {
+    last_unswept_page_ = first_unswept_page_ = Page::FromAddress(NULL);
+  } else {
+    first_unswept_page_ = p;
+  }
+
+  heap()->LowerOldGenLimits(freed_bytes);
+
+  return IsSweepingComplete();
+}
+
+
 HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   // Allocation in this space has failed.
 
@@ -1708,6 +1736,23 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   if (!heap()->always_allocate() &&
       heap()->OldGenerationAllocationLimitReached()) {
     return NULL;
+  }
+
+  // If there are unswept pages advance lazy sweeper.
+  if (first_unswept_page_->is_valid()) {
+    AdvanceSweeper(size_in_bytes);
+
+    // Retry the free list allocation.
+    HeapObject* object = free_list_.Allocate(size_in_bytes);
+    if (object != NULL) return object;
+
+    if (!IsSweepingComplete()) {
+      AdvanceSweeper(kMaxInt);
+
+      // Retry the free list allocation.
+      object = free_list_.Allocate(size_in_bytes);
+      if (object != NULL) return object;
+    }
   }
 
   // Try to expand the space and allocate in the new next page.

@@ -35,7 +35,7 @@ namespace internal {
 
 
 void IncrementalMarking::RecordWrite(HeapObject* obj, Object* value) {
-  if (!IsStopped() && value->IsHeapObject()) {
+  if (IsMarking() && value->IsHeapObject()) {
     MarkBit value_bit = heap_->marking()->MarkBitFrom(HeapObject::cast(value));
     if (IsWhite(value_bit)) {
       MarkBit obj_bit = heap_->marking()->MarkBitFrom(obj);
@@ -49,7 +49,7 @@ void IncrementalMarking::RecordWrite(HeapObject* obj, Object* value) {
 
 
 void IncrementalMarking::RecordWriteOf(HeapObject* value) {
-  if (state_ != STOPPED) {
+  if (IsMarking()) {
     MarkBit value_bit = heap_->marking()->MarkBitFrom(value);
     if (IsWhite(value_bit)) {
       WhiteToGreyAndPush(value, value_bit);
@@ -60,7 +60,7 @@ void IncrementalMarking::RecordWriteOf(HeapObject* value) {
 
 
 void IncrementalMarking::RecordWrites(HeapObject* obj) {
-  if (!IsStopped()) {
+  if (IsMarking()) {
     MarkBit obj_bit = heap_->marking()->MarkBitFrom(obj);
     if (IsBlack(obj_bit)) {
       BlackToGreyAndUnshift(obj, obj_bit);
@@ -74,7 +74,7 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
                                                MarkBit mark_bit) {
   ASSERT(heap_->marking()->MarkBitFrom(obj) == mark_bit);
   ASSERT(obj->Size() >= 2*kPointerSize);
-  ASSERT(!IsStopped());
+  ASSERT(IsMarking());
   ASSERT(IsBlack(mark_bit));
   mark_bit.Next().Set();
   ASSERT(IsGrey(mark_bit));
@@ -94,7 +94,7 @@ void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
 void IncrementalMarking::WhiteToGrey(HeapObject* obj, MarkBit mark_bit) {
   ASSERT(heap_->marking()->MarkBitFrom(obj) == mark_bit);
   ASSERT(obj->Size() >= 2*kPointerSize);
-  ASSERT(!IsStopped());
+  ASSERT(IsMarking());
   ASSERT(IsWhite(mark_bit));
   mark_bit.Set();
   mark_bit.Next().Set();

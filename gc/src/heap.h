@@ -1180,6 +1180,11 @@ class Heap {
            (PromotedSpaceSize() + PromotedExternalMemorySize());
   }
 
+  inline void LowerOldGenLimits(int bytes) {
+    old_gen_promotion_limit_ -= bytes;
+    old_gen_allocation_limit_ -= bytes;
+  }
+
   // Can be called when the embedding application is idle.
   bool IdleNotification();
 

@@ -5983,7 +5983,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 void RecordWriteStub::Generate(MacroAssembler* masm) {
   NearLabel skip_non_incremental_part;
   __ jmp(&skip_non_incremental_part);
-  if (HEAP->incremental_marking()->IsStopped()) {
+  if (!HEAP->incremental_marking()->IsMarking()) {
     ASSERT(masm->get_opcode(-2) == kSkipNonIncrementalPartInstruction);
     masm->set_opcode(-2, kTwoByteNopInstruction);
   }

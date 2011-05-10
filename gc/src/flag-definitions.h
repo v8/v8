@@ -292,6 +292,8 @@ DEFINE_bool(native_code_counters, false,
 DEFINE_bool(always_compact, false, "Perform compaction on every full GC")
 DEFINE_bool(never_compact, false,
             "Never perform compaction on full GC - testing only")
+DEFINE_bool(lazy_sweeping, true,
+            "Use lazy sweeping for old pointer and data spaces")
 DEFINE_bool(cleanup_ics_at_gc, true,
             "Flush inline caches prior to mark compact collection.")
 DEFINE_bool(cleanup_caches_in_maps_at_gc, true,

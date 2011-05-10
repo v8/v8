@@ -106,7 +106,6 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
         incremental_marking_(incremental_marking) {
   }
 
-
   void VisitPointer(Object** p) {
     MarkObjectByPointer(p);
   }
@@ -136,7 +135,7 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
 };
 
 
-static void ClearMarkbits(PagedSpace* space) {
+void IncrementalMarking::ClearMarkbits(PagedSpace* space) {
   PageIterator it(space);
 
   while (it.has_next()) {
@@ -146,36 +145,36 @@ static void ClearMarkbits(PagedSpace* space) {
 }
 
 
-static void ClearMarkbits() {
+void IncrementalMarking::ClearMarkbits() {
   // TODO(gc): Clear the mark bits in the sweeper.
-  // TODO(gc) ISOLATES MERGE
-  ClearMarkbits(HEAP->old_pointer_space());
-  ClearMarkbits(HEAP->old_data_space());
-  ClearMarkbits(HEAP->cell_space());
-  ClearMarkbits(HEAP->map_space());
-  ClearMarkbits(HEAP->code_space());
+  ClearMarkbits(heap_->old_pointer_space());
+  ClearMarkbits(heap_->old_data_space());
+  ClearMarkbits(heap_->cell_space());
+  ClearMarkbits(heap_->map_space());
+  ClearMarkbits(heap_->code_space());
 }
 
 
 #ifdef DEBUG
-  static void VerifyMarkbitsAreClean(PagedSpace* space) {
-    PageIterator it(space);
+void IncrementalMarking::VerifyMarkbitsAreClean(PagedSpace* space) {
+  PageIterator it(space);
 
-    while (it.has_next()) {
-      Page* p = it.next();
-      ASSERT(p->markbits()->IsClean());
-    }
+  while (it.has_next()) {
+    Page* p = it.next();
+    ASSERT(p->markbits()->IsClean());
   }
+}
 
-  static void VerifyMarkbitsAreClean() {
-    // TODO(gc) ISOLATES MERGE
-    VerifyMarkbitsAreClean(HEAP->old_pointer_space());
-    VerifyMarkbitsAreClean(HEAP->old_data_space());
-    VerifyMarkbitsAreClean(HEAP->code_space());
-    VerifyMarkbitsAreClean(HEAP->cell_space());
-    VerifyMarkbitsAreClean(HEAP->map_space());
-  }
+
+void IncrementalMarking::VerifyMarkbitsAreClean() {
+  VerifyMarkbitsAreClean(heap_->old_pointer_space());
+  VerifyMarkbitsAreClean(heap_->old_data_space());
+  VerifyMarkbitsAreClean(heap_->code_space());
+  VerifyMarkbitsAreClean(heap_->cell_space());
+  VerifyMarkbitsAreClean(heap_->map_space());
+}
 #endif
+
 
 bool IncrementalMarking::WorthActivating() {
 #ifndef DEBUG
@@ -212,7 +211,9 @@ static void PatchIncrementalMarkingRecordWriteStubs(bool enable) {
   }
 }
 
+
 static VirtualMemory* marking_deque_memory = NULL;
+
 
 static void EnsureMarkingDequeIsCommitted() {
   if (marking_deque_memory == NULL) {
@@ -231,9 +232,27 @@ void IncrementalMarking::Start() {
   }
   ASSERT(FLAG_incremental_marking);
   ASSERT(state_ == STOPPED);
-  state_ = MARKING;
 
   ResetStepCounters();
+
+  if (heap_->old_pointer_space()->IsSweepingComplete() &&
+      heap_->old_data_space()->IsSweepingComplete()) {
+    StartMarking();
+  } else {
+    if (FLAG_trace_incremental_marking) {
+      PrintF("[IncrementalMarking] Start sweeping.\n");
+    }
+    state_ = SWEEPING;
+  }
+}
+
+
+void IncrementalMarking::StartMarking() {
+  if (FLAG_trace_incremental_marking) {
+    PrintF("[IncrementalMarking] Start marking\n");
+  }
+
+  state_ = MARKING;
 
   PatchIncrementalMarkingRecordWriteStubs(true);
 
@@ -270,7 +289,7 @@ void IncrementalMarking::Start() {
 
 
 void IncrementalMarking::PrepareForScavenge() {
-  if (IsStopped()) return;
+  if (!IsMarking()) return;
 
   Address new_space_low = heap_->new_space()->FromSpaceLow();
   Address new_space_high = heap_->new_space()->FromSpaceHigh();
@@ -280,7 +299,7 @@ void IncrementalMarking::PrepareForScavenge() {
 
 
 void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
-  if (IsStopped()) return;
+  if (!IsMarking()) return;
 
   intptr_t current = marking_deque_.bottom();
   intptr_t mask = marking_deque_.mask();
@@ -341,6 +360,20 @@ void IncrementalMarking::Hurry() {
 }
 
 
+void IncrementalMarking::Abort() {
+  if (IsStopped()) return;
+  if (FLAG_trace_incremental_marking) {
+    PrintF("[IncrementalMarking] Aborting.\n");
+  }
+  heap_->new_space()->LowerInlineAllocationLimit(0);
+  IncrementalMarking::set_should_hurry(false);
+  ResetStepCounters();
+  if (IsMarking()) PatchIncrementalMarkingRecordWriteStubs(false);
+  heap_->isolate()->stack_guard()->Continue(GC_REQUEST);
+  state_ = STOPPED;
+}
+
+
 void IncrementalMarking::Finalize() {
   Hurry();
   state_ = STOPPED;
@@ -349,7 +382,7 @@ void IncrementalMarking::Finalize() {
   ResetStepCounters();
   PatchIncrementalMarkingRecordWriteStubs(false);
   ASSERT(marking_deque_.IsEmpty());
-  ISOLATE->stack_guard()->Continue(GC_REQUEST);
+  heap_->isolate()->stack_guard()->Continue(GC_REQUEST);
 }
 
 
@@ -370,60 +403,66 @@ void IncrementalMarking::MarkingComplete() {
 
 
 void IncrementalMarking::Step(intptr_t allocated_bytes) {
-  if (state_ == MARKING &&
-      heap_->gc_state() == Heap::NOT_IN_GC &&
-      FLAG_incremental_marking_steps) {
-    allocated_ += allocated_bytes;
+  if (heap_->gc_state() != Heap::NOT_IN_GC) return;
+  if (!FLAG_incremental_marking_steps) return;
 
-    if (allocated_ >= kAllocatedThreshold) {
-      double start = 0;
+  allocated_ += allocated_bytes;
 
-      if (FLAG_trace_incremental_marking || FLAG_trace_gc) {
-        start = OS::TimeCurrentMillis();
-      }
+  if (allocated_ < kAllocatedThreshold) return;
 
-      intptr_t bytes_to_process = allocated_ * allocation_marking_factor_;
-      int count = 0;
+  intptr_t bytes_to_process = allocated_ * allocation_marking_factor_;
 
-      Map* filler_map = heap_->one_pointer_filler_map();
-      IncrementalMarkingMarkingVisitor marking_visitor(heap_, this);
-      Marking* marking = heap_->marking();
-      while (!marking_deque_.IsEmpty() && bytes_to_process > 0) {
-        HeapObject* obj = marking_deque_.Pop();
+  double start = 0;
 
-        // Explicitly skip one word fillers. Incremental markbit patterns are
-        // correct only for objects that occupy at least two words.
-        Map* map = obj->map();
-        if (map != filler_map) {
-          ASSERT(IsGrey(marking->MarkBitFrom(obj)));
-          int size = obj->SizeFromMap(map);
-          bytes_to_process -= size;
-          MarkBit map_mark_bit = marking->MarkBitFromOldSpace(map);
-          if (IsWhite(map_mark_bit)) WhiteToGreyAndPush(map, map_mark_bit);
-          // TODO(gc) switch to static visitor instead of normal visitor.
-          obj->IterateBody(map->instance_type(), size, &marking_visitor);
-          MarkBit obj_mark_bit = marking->MarkBitFrom(obj);
-          MarkBlack(obj_mark_bit);
-        }
-        count++;
-      }
-      allocated_ = 0;
-      if (marking_deque_.IsEmpty()) MarkingComplete();
-      if (FLAG_trace_incremental_marking || FLAG_trace_gc) {
-        double end = OS::TimeCurrentMillis();
-        steps_took_ += (end - start);
-      }
+  if (FLAG_trace_incremental_marking || FLAG_trace_gc) {
+    start = OS::TimeCurrentMillis();
+  }
 
-      steps_count_++;
+  if (state_ == SWEEPING) {
+    if (heap_->old_pointer_space()->AdvanceSweeper(bytes_to_process) &&
+        heap_->old_data_space()->AdvanceSweeper(bytes_to_process)) {
+      StartMarking();
+    }
+  } else if (state_ == MARKING) {
+    Map* filler_map = heap_->one_pointer_filler_map();
+    IncrementalMarkingMarkingVisitor marking_visitor(heap_, this);
+    Marking* marking = heap_->marking();
+    while (!marking_deque_.IsEmpty() && bytes_to_process > 0) {
+      HeapObject* obj = marking_deque_.Pop();
 
-      if ((steps_count_ % kAllocationMarkingFactorSpeedupInterval) == 0) {
-        allocation_marking_factor_ += kAllocationMarkingFactorSpeedup;
-        allocation_marking_factor_ *= 1.3;
-        if (FLAG_trace_gc) {
-          PrintF("Marking speed increased to %d\n", allocation_marking_factor_);
-        }
+      // Explicitly skip one word fillers. Incremental markbit patterns are
+      // correct only for objects that occupy at least two words.
+      Map* map = obj->map();
+      if (map != filler_map) {
+        ASSERT(IsGrey(marking->MarkBitFrom(obj)));
+        int size = obj->SizeFromMap(map);
+        bytes_to_process -= size;
+        MarkBit map_mark_bit = marking->MarkBitFromOldSpace(map);
+        if (IsWhite(map_mark_bit)) WhiteToGreyAndPush(map, map_mark_bit);
+        // TODO(gc) switch to static visitor instead of normal visitor.
+        obj->IterateBody(map->instance_type(), size, &marking_visitor);
+        MarkBit obj_mark_bit = marking->MarkBitFrom(obj);
+        MarkBlack(obj_mark_bit);
       }
     }
+    if (marking_deque_.IsEmpty()) MarkingComplete();
+  }
+
+  allocated_ = 0;
+
+  steps_count_++;
+
+  if ((steps_count_ % kAllocationMarkingFactorSpeedupInterval) == 0) {
+    allocation_marking_factor_ += kAllocationMarkingFactorSpeedup;
+    allocation_marking_factor_ *= 1.3;
+    if (FLAG_trace_gc) {
+      PrintF("Marking speed increased to %d\n", allocation_marking_factor_);
+    }
+  }
+
+  if (FLAG_trace_incremental_marking || FLAG_trace_gc) {
+    double end = OS::TimeCurrentMillis();
+    steps_took_ += (end - start);
   }
 }
 

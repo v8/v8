@@ -42,6 +42,7 @@ class IncrementalMarking : public AllStatic {
  public:
   enum State {
     STOPPED,
+    SWEEPING,
     MARKING,
     COMPLETE
   };
@@ -57,7 +58,9 @@ class IncrementalMarking : public AllStatic {
 
   inline bool IsStopped() { return state() == STOPPED; }
 
-  inline bool IsMarking() { return state() == MARKING; }
+  inline bool IsMarking() { return state() >= MARKING; }
+
+  inline bool IsMarkingIncomplete() { return state() == MARKING; }
 
   bool WorthActivating();
 
@@ -72,6 +75,8 @@ class IncrementalMarking : public AllStatic {
   void Hurry();
 
   void Finalize();
+
+  void Abort();
 
   void MarkingComplete();
 
@@ -194,6 +199,16 @@ class IncrementalMarking : public AllStatic {
     steps_took_ = 0;
     allocation_marking_factor_ = kInitialAllocationMarkingFactor;
   }
+
+  static void ClearMarkbits(PagedSpace* space);
+  void ClearMarkbits();
+
+#ifdef DEBUG
+  void VerifyMarkbitsAreClean();
+  static void VerifyMarkbitsAreClean(PagedSpace* space);
+#endif
+
+  void StartMarking();
 
 
   Heap* heap_;

@@ -295,6 +295,16 @@ class MarkCompactCollector {
   inline bool is_code_flushing_enabled() const { return code_flusher_ != NULL; }
   void EnableCodeFlushing(bool enable);
 
+  enum SweeperType {
+    CONSERVATIVE,
+    LAZY_CONSERVATIVE,
+    PRECISE
+  };
+
+  // Sweep a single page from the given space conservatively.
+  // Return a number of reclaimed bytes.
+  static int SweepConservatively(PagedSpace* space, Page* p);
+
  private:
   MarkCompactCollector();
   ~MarkCompactCollector();
@@ -457,9 +467,9 @@ class MarkCompactCollector {
 
   void SweepNewSpace(NewSpace* space);
 
-  enum SweeperType { CONSERVATIVE, PRECISE };
 
   void SweepSpace(PagedSpace* space, SweeperType sweeper);
+
 
 #ifdef DEBUG
   // -----------------------------------------------------------------------

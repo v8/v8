@@ -482,7 +482,7 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
 
   if (collector == MARK_COMPACTOR &&
       !mark_compact_collector()->PreciseSweepingRequired() &&
-      incremental_marking()->IsMarking() &&
+      incremental_marking()->IsMarkingIncomplete() &&
       !incremental_marking()->should_hurry() &&
       FLAG_incremental_marking_steps) {
     if (FLAG_trace_incremental_marking) {
@@ -1006,6 +1006,9 @@ void Heap::Scavenge() {
   SelectScavengingVisitorsTable();
 
   incremental_marking()->PrepareForScavenge();
+
+  old_pointer_space()->AdvanceSweeper(new_space_.Size());
+  old_data_space()->AdvanceSweeper(new_space_.Size());
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
@@ -1585,7 +1588,7 @@ static void InitializeScavengingVisitorsTables() {
 
 
 void Heap::SelectScavengingVisitorsTable() {
-  if (incremental_marking()->IsStopped()) {
+  if (!incremental_marking()->IsMarking()) {
     if (scavenging_visitors_table_mode_ == LOGGING_AND_PROFILING_DISABLED) {
       scavenging_visitors_table_.CopyFrom(
           ScavengingVisitor<IGNORE_MARKS,

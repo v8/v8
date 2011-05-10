@@ -1014,6 +1014,11 @@ class AllocationStats BASE_EMBEDDED {
     waste_ = 0;
   }
 
+  void ClearSizeWaste() {
+    size_ = capacity_;
+    waste_ = 0;
+  }
+
   // Reset the allocation statistics (ie, available = capacity with no
   // wasted or allocated bytes).
   void Reset() {
@@ -1232,7 +1237,9 @@ class PagedSpace : public Space {
   // capacity and the size when it is encountered.  As free spaces are
   // discovered during the sweeping they are subtracted from the size and added
   // to the available and wasted totals.
-  void ClearStats() { accounting_stats_.Clear(); }
+  void ClearStats() {
+    accounting_stats_.ClearSizeWaste();
+  }
 
   // Available bytes without growing.  These are the bytes on the free list.
   // The bytes in the linear allocation area are not included in this total
@@ -1268,9 +1275,10 @@ class PagedSpace : public Space {
   // the free list or accounted as waste.
   // If add_to_freelist is false then just accounting stats are updated and
   // no attempt to add area to free list is made.
-  void Free(Address start, int size_in_bytes) {
+  int Free(Address start, int size_in_bytes) {
     int wasted = free_list_.Free(start, size_in_bytes);
     accounting_stats_.DeallocateBytes(size_in_bytes - wasted);
+    return size_in_bytes - wasted;
   }
 
   // Set space allocation info.
@@ -1327,6 +1335,26 @@ class PagedSpace : public Space {
   bool was_swept_conservatively() { return was_swept_conservatively_; }
   void set_was_swept_conservatively(bool b) { was_swept_conservatively_ = b; }
 
+  void SetPagesToSweep(Page* first, Page* last) {
+    first_unswept_page_ = first;
+    last_unswept_page_ = last;
+
+    Page* p = first;
+    do {
+      p->SetFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
+      p = p->next_page();
+    } while (p != last);
+  }
+
+  bool AdvanceSweeper(intptr_t bytes_to_sweep);
+
+  bool IsSweepingComplete() {
+    return !first_unswept_page_->is_valid();
+  }
+
+  Page* FirstPage() { return anchor_.next_page(); }
+  Page* LastPage() { return anchor_.prev_page(); }
+
  protected:
   // Maximum capacity of this space.
   intptr_t max_capacity_;
@@ -1350,6 +1378,9 @@ class PagedSpace : public Space {
   int page_extra_;
 
   bool was_swept_conservatively_;
+
+  Page* first_unswept_page_;
+  Page* last_unswept_page_;
 
   // Sets allocation pointer.  If the allocation pointer already pointed to a
   // non-zero-length area then that area may be returned to the free list.

@@ -164,16 +164,17 @@ void MarkCompactCollector::CollectGarbage() {
   // Tell the tracer.
   if (IsCompacting()) tracer_->set_is_compacting();
 
-  if (heap_->incremental_marking()->IsStopped()) {
+  if (!heap_->incremental_marking()->IsMarking()) {
+    heap_->incremental_marking()->Abort();
     MarkLiveObjects();
   } else {
     {
       GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_MARK);
       heap_->incremental_marking()->Finalize();
-      ASSERT(heap_->incremental_marking()->IsStopped());
     }
     MarkLiveObjects();
   }
+  ASSERT(heap_->incremental_marking()->IsStopped());
 
   if (FLAG_collect_maps) ClearNonLiveTransitions();
 
@@ -240,7 +241,7 @@ void Marking::TransferMark(Address old_start, Address new_start) {
 
   MarkBit new_mark_bit = MarkBitFrom(new_start);
 
-  if (!heap_->incremental_marking()->IsStopped()) {
+  if (heap_->incremental_marking()->IsMarking()) {
     MarkBit old_mark_bit = MarkBitFrom(old_start);
     if (heap_->incremental_marking()->IsBlack(old_mark_bit)) {
       heap_->incremental_marking()->MarkBlack(new_mark_bit);
@@ -255,7 +256,6 @@ void Marking::TransferMark(Address old_start, Address new_start) {
       // on top of it to see whether they are equal to old_start.
     }
   } else {
-    ASSERT(heap_->incremental_marking()->IsStopped());
     if (heap_->InNewSpace(old_start)) {
       return;
     } else {
@@ -311,7 +311,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
     space->PrepareForMarkCompact(compacting_collection_);
   }
 
-  if (heap()->incremental_marking()->IsStopped()) {
+  if (!heap()->incremental_marking()->IsMarking()) {
     Address new_space_bottom = heap()->new_space()->bottom();
     uintptr_t new_space_size =
         RoundUp(heap()->new_space()->top() - new_space_bottom,
@@ -2445,8 +2445,9 @@ static inline Address StartOfLiveObject(Address block_address, uint32_t cell) {
 // because it means that any FreeSpace maps left actually describe a region of
 // memory that can be ignored when scanning.  Dead objects other than free
 // spaces will not contain the free space map.
-static void SweepConservatively(PagedSpace* space,
-                                Page* p) {
+int MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
+  int freed_bytes = 0;
+
   MarkBit::CellType* cells = p->markbits()->cells();
 
   p->SetFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
@@ -2469,15 +2470,15 @@ static void SweepConservatively(PagedSpace* space,
   }
   int size = block_address - p->ObjectAreaStart();
   if (cell_index == last_cell_index) {
-    space->Free(p->ObjectAreaStart(), size);
-    return;
+    freed_bytes += space->Free(p->ObjectAreaStart(), size);
+    return freed_bytes;
   }
   // Grow the size of the start-of-page free space a little to get up to the
   // first live object.
   Address free_end = StartOfLiveObject(block_address, cells[cell_index]);
   // Free the first free space.
   size = free_end - p->ObjectAreaStart();
-  space->Free(p->ObjectAreaStart(), size);
+  freed_bytes += space->Free(p->ObjectAreaStart(), size);
   // The start of the current free area is represented in undigested form by
   // the address of the last 32-word section that contained a live object and
   // the marking bitmap for that cell, which describes where the live object
@@ -2506,7 +2507,7 @@ static void SweepConservatively(PagedSpace* space,
           // so now we need to find the start of the first live object at the
           // end of the free space.
           free_end = StartOfLiveObject(block_address, cell);
-          space->Free(free_start, free_end - free_start);
+          freed_bytes += space->Free(free_start, free_end - free_start);
         }
       }
       // Update our undigested record of where the current free area started.
@@ -2518,8 +2519,10 @@ static void SweepConservatively(PagedSpace* space,
   // Handle the free space at the end of the page.
   if (block_address - free_start > 32 * kPointerSize) {
     free_start = DigestFreeStart(free_start, free_start_cell);
-    space->Free(free_start, block_address - free_start);
+    freed_bytes += space->Free(free_start, block_address - free_start);
   }
+
+  return freed_bytes;
 }
 
 
@@ -2570,31 +2573,39 @@ static void SweepPrecisely(PagedSpace* space,
 
 void MarkCompactCollector::SweepSpace(PagedSpace* space,
                                       SweeperType sweeper) {
-  space->set_was_swept_conservatively(sweeper == CONSERVATIVE);
+  space->set_was_swept_conservatively(sweeper == CONSERVATIVE ||
+                                      sweeper == LAZY_CONSERVATIVE);
 
   space->ClearStats();
 
   PageIterator it(space);
 
-  // During sweeping of paged space we are trying to find longest sequences
-  // of pages without live objects and free them (instead of putting them on
-  // the free list).
-
-  // Page preceding current.
-  Page* prev = Page::FromAddress(NULL);
+  int freed_bytes = 0;
+  int newspace_size = space->heap()->new_space()->Size();
 
   while (it.has_next()) {
     Page* p = it.next();
-    space->IncreaseCapacity(p->ObjectAreaEnd() - p->ObjectAreaStart());
 
-    if (sweeper == CONSERVATIVE) {
-      SweepConservatively(space, p);
-    } else {
-      ASSERT(sweeper == PRECISE);
-      SweepPrecisely(space, p);
+    switch (sweeper) {
+      case CONSERVATIVE:
+        SweepConservatively(space, p);
+        break;
+      case LAZY_CONSERVATIVE:
+        freed_bytes += SweepConservatively(space, p);
+        // TODO(gc): tweak the heuristic.
+        if (freed_bytes >= newspace_size && p != space->LastPage()) {
+          space->SetPagesToSweep(p->next_page(), space->LastPage());
+          return;
+        }
+        break;
+      case PRECISE:
+        SweepPrecisely(space, p);
+        break;
+      default:
+        UNREACHABLE();
     }
-    prev = p;
   }
+
   // TODO(gc): set up allocation top and limit using the free list.
 }
 
@@ -2606,7 +2617,8 @@ void MarkCompactCollector::SweepSpaces() {
 #endif
 
   ASSERT(!IsCompacting());
-  SweeperType how_to_sweep = CONSERVATIVE;
+  SweeperType how_to_sweep =
+      FLAG_lazy_sweeping ? LAZY_CONSERVATIVE : CONSERVATIVE;
   if (sweep_precisely_) how_to_sweep = PRECISE;
   // Noncompacting collections simply sweep the spaces to clear the mark
   // bits and free the nonlive blocks (for old and map spaces).  We sweep
