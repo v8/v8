@@ -4639,7 +4639,6 @@ void HGraphBuilder::VisitSub(UnaryOperation* expr) {
   HInstruction* instr = new(zone()) HMul(value, graph_->GetConstantMinus1());
 
   Representation rep = ToRepresentation(oracle()->UnaryType(expr));
-  PrintF("********************** Old: %s, New: %s\n", instr->representation().Mnemonic(), rep.Mnemonic());
   AssumeRepresentation(instr, rep);
 
   ast_context()->ReturnInstruction(instr, expr->id());
