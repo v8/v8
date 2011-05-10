@@ -3796,17 +3796,13 @@ void HGraphBuilder::VisitProperty(Property* expr) {
   if (expr->IsArrayLength()) {
     HValue* array = Pop();
     AddInstruction(new(zone()) HCheckNonSmi(array));
-    AddInstruction(new(zone()) HCheckInstanceType(array,
-                                                  JS_ARRAY_TYPE,
-                                                  JS_ARRAY_TYPE));
+    AddInstruction(HCheckInstanceType::NewIsJSArray(array));
     instr = new(zone()) HJSArrayLength(array);
 
   } else if (expr->IsStringLength()) {
     HValue* string = Pop();
     AddInstruction(new(zone()) HCheckNonSmi(string));
-    AddInstruction(new(zone()) HCheckInstanceType(string,
-                                                  FIRST_STRING_TYPE,
-                                                  LAST_STRING_TYPE));
+    AddInstruction(HCheckInstanceType::NewIsString(string));
     instr = new(zone()) HStringLength(string);
   } else if (expr->IsStringAccess()) {
     CHECK_ALIVE(VisitForValue(expr->key()));
@@ -4853,8 +4849,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
 HStringCharCodeAt* HGraphBuilder::BuildStringCharCodeAt(HValue* string,
                                                         HValue* index) {
   AddInstruction(new(zone()) HCheckNonSmi(string));
-  AddInstruction(new(zone()) HCheckInstanceType(
-      string, FIRST_STRING_TYPE, LAST_STRING_TYPE));
+  AddInstruction(HCheckInstanceType::NewIsString(string));
   HStringLength* length = new(zone()) HStringLength(string);
   AddInstruction(length);
   AddInstruction(new(zone()) HBoundsCheck(index, length));
@@ -4894,11 +4889,9 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(
     case Token::ADD:
       if (info.IsString()) {
         AddInstruction(new(zone()) HCheckNonSmi(left));
-        AddInstruction(new(zone()) HCheckInstanceType(left, FIRST_STRING_TYPE,
-                                                      LAST_STRING_TYPE));
+        AddInstruction(HCheckInstanceType::NewIsString(left));
         AddInstruction(new(zone()) HCheckNonSmi(right));
-        AddInstruction(new(zone()) HCheckInstanceType(right, FIRST_STRING_TYPE,
-                                                      LAST_STRING_TYPE));
+        AddInstruction(HCheckInstanceType::NewIsString(right));
         return new(zone()) HStringAdd(left, right);
       } else {
         return new(zone()) HAdd(left, right);

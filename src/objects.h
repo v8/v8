@@ -485,7 +485,6 @@ const uint32_t kShortcutTypeTag = kConsStringTag;
 
 enum InstanceType {
   // String types.
-  // FIRST_STRING_TYPE
   SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kSeqStringTag,
   ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kSeqStringTag,
   CONS_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kConsStringTag,
@@ -568,8 +567,6 @@ enum InstanceType {
   LAST_TYPE = JS_FUNCTION_TYPE,
   INVALID_TYPE = FIRST_TYPE - 1,
   FIRST_NONSTRING_TYPE = MAP_TYPE,
-  FIRST_STRING_TYPE = FIRST_TYPE,
-  LAST_STRING_TYPE = FIRST_NONSTRING_TYPE - 1,
   // Boundaries for testing for an external array.
   FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_BYTE_ARRAY_TYPE,
   LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_PIXEL_ARRAY_TYPE,

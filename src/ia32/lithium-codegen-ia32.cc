@@ -3829,29 +3829,43 @@ void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
 void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register temp = ToRegister(instr->TempAt(0));
-  InstanceType first = instr->hydrogen()->first();
-  InstanceType last = instr->hydrogen()->last();
 
   __ mov(temp, FieldOperand(input, HeapObject::kMapOffset));
 
-  // If there is only one type in the interval check for equality.
-  if (first == last) {
+  if (instr->hydrogen()->is_interval_check()) {
+    InstanceType first;
+    InstanceType last;
+    instr->hydrogen()->GetCheckInterval(&first, &last);
+
     __ cmpb(FieldOperand(temp, Map::kInstanceTypeOffset),
             static_cast<int8_t>(first));
-    DeoptimizeIf(not_equal, instr->environment());
-  } else if (first == FIRST_STRING_TYPE && last == LAST_STRING_TYPE) {
-    // String has a dedicated bit in instance type.
-    __ test_b(FieldOperand(temp, Map::kInstanceTypeOffset), kIsNotStringMask);
-    DeoptimizeIf(not_zero, instr->environment());
-  } else  {
-    __ cmpb(FieldOperand(temp, Map::kInstanceTypeOffset),
-            static_cast<int8_t>(first));
-    DeoptimizeIf(below, instr->environment());
-    // Omit check for the last type.
-    if (last != LAST_TYPE) {
-      __ cmpb(FieldOperand(temp, Map::kInstanceTypeOffset),
-              static_cast<int8_t>(last));
-      DeoptimizeIf(above, instr->environment());
+
+    // If there is only one type in the interval check for equality.
+    if (first == last) {
+      DeoptimizeIf(not_equal, instr->environment());
+    } else {
+      DeoptimizeIf(below, instr->environment());
+      // Omit check for the last type.
+      if (last != LAST_TYPE) {
+        __ cmpb(FieldOperand(temp, Map::kInstanceTypeOffset),
+                static_cast<int8_t>(last));
+        DeoptimizeIf(above, instr->environment());
+      }
+    }
+  } else {
+    uint8_t mask;
+    uint8_t tag;
+    instr->hydrogen()->GetCheckMaskAndTag(&mask, &tag);
+
+    if (IsPowerOf2(mask)) {
+      ASSERT(tag == 0 || IsPowerOf2(tag));
+      __ test_b(FieldOperand(temp, Map::kInstanceTypeOffset), mask);
+      DeoptimizeIf(tag == 0 ? not_zero : zero, instr->environment());
+    } else {
+      __ movzx_b(temp, FieldOperand(temp, Map::kInstanceTypeOffset));
+      __ and_(temp, mask);
+      __ cmpb(Operand(temp), tag);
+      DeoptimizeIf(not_equal, instr->environment());
     }
   }
 }

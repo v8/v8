@@ -3869,22 +3869,41 @@ void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
 void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register scratch = scratch0();
-  InstanceType first = instr->hydrogen()->first();
-  InstanceType last = instr->hydrogen()->last();
 
   __ ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
   __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  __ cmp(scratch, Operand(first));
 
-  // If there is only one type in the interval check for equality.
-  if (first == last) {
-    DeoptimizeIf(ne, instr->environment());
+  if (instr->hydrogen()->is_interval_check()) {
+    InstanceType first;
+    InstanceType last;
+    instr->hydrogen()->GetCheckInterval(&first, &last);
+
+    __ cmp(scratch, Operand(first));
+
+    // If there is only one type in the interval check for equality.
+    if (first == last) {
+      DeoptimizeIf(ne, instr->environment());
+    } else {
+      DeoptimizeIf(lo, instr->environment());
+      // Omit check for the last type.
+      if (last != LAST_TYPE) {
+        __ cmp(scratch, Operand(last));
+        DeoptimizeIf(hi, instr->environment());
+      }
+    }
   } else {
-    DeoptimizeIf(lo, instr->environment());
-    // Omit check for the last type.
-    if (last != LAST_TYPE) {
-      __ cmp(scratch, Operand(last));
-      DeoptimizeIf(hi, instr->environment());
+    uint8_t mask;
+    uint8_t tag;
+    instr->hydrogen()->GetCheckMaskAndTag(&mask, &tag);
+
+    if (IsPowerOf2(mask)) {
+      ASSERT(tag == 0 || IsPowerOf2(tag));
+      __ tst(scratch, Operand(mask));
+      DeoptimizeIf(tag == 0 ? ne : eq, instr->environment());
+    } else {
+      __ and_(scratch, scratch, Operand(mask));
+      __ cmp(scratch, Operand(tag));
+      DeoptimizeIf(ne, instr->environment());
     }
   }
 }

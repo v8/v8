@@ -751,10 +751,38 @@ void HChange::PrintDataTo(StringStream* stream) {
 }
 
 
-HCheckInstanceType* HCheckInstanceType::NewIsJSObjectOrJSFunction(
-    HValue* value)  {
-  STATIC_ASSERT((LAST_JS_OBJECT_TYPE + 1) == JS_FUNCTION_TYPE);
-  return new HCheckInstanceType(value, FIRST_JS_OBJECT_TYPE, JS_FUNCTION_TYPE);
+void HCheckInstanceType::GetCheckInterval(InstanceType* first,
+                                          InstanceType* last) {
+  ASSERT(is_interval_check());
+  switch (check_) {
+    case IS_JS_OBJECT_OR_JS_FUNCTION:
+      STATIC_ASSERT((LAST_JS_OBJECT_TYPE + 1) == JS_FUNCTION_TYPE);
+      *first = FIRST_JS_OBJECT_TYPE;
+      *last = JS_FUNCTION_TYPE;
+      return;
+    case IS_JS_ARRAY:
+      *first = *last = JS_ARRAY_TYPE;
+      return;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
+  ASSERT(!is_interval_check());
+  switch (check_) {
+    case IS_STRING:
+      *mask = kIsNotStringMask;
+      *tag = kStringTag;
+      return;
+    case IS_SYMBOL:
+      *mask = kIsSymbolMask;
+      *tag = kSymbolTag;
+      return;
+    default:
+      UNREACHABLE();
+  }
 }
 
 
