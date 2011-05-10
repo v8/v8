@@ -482,7 +482,7 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
 
   if (collector == MARK_COMPACTOR &&
       !mark_compact_collector()->PreciseSweepingRequired() &&
-      incremental_marking()->IsMarkingIncomplete() &&
+      !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() &&
       FLAG_incremental_marking_steps) {
     if (FLAG_trace_incremental_marking) {

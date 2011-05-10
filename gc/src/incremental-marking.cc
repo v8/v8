@@ -244,6 +244,8 @@ void IncrementalMarking::Start() {
     }
     state_ = SWEEPING;
   }
+
+  heap_->new_space()->LowerInlineAllocationLimit(kAllocatedThreshold);
 }
 
 
@@ -274,8 +276,6 @@ void IncrementalMarking::StartMarking() {
 #ifdef DEBUG
   VerifyMarkbitsAreClean();
 #endif
-
-  heap_->new_space()->LowerInlineAllocationLimit(kAllocatedThreshold);
 
   // Mark strong roots grey.
   IncrementalMarkingRootMarkingVisitor visitor(heap_, this);
