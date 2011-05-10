@@ -78,18 +78,28 @@ class DoubleConstant: public AllStatic {
 
 class Label BASE_EMBEDDED {
  public:
-  INLINE(Label())                 { Unuse(); }
+  enum Distance {
+    kNear, kFar
+  };
+
+  INLINE(Label()) {
+    Unuse();
+    UnuseNear();
+  }
   INLINE(~Label())                { ASSERT(!is_linked()); }
 
   INLINE(void Unuse())            { pos_ = 0; }
+  INLINE(void UnuseNear())        { near_link_pos_ = 0; }
 
   INLINE(bool is_bound() const)  { return pos_ <  0; }
-  INLINE(bool is_unused() const)  { return pos_ == 0; }
+  INLINE(bool is_unused() const)  { return pos_ == 0 && near_link_pos_ == 0; }
   INLINE(bool is_linked() const)  { return pos_ >  0; }
+  INLINE(bool is_near_linked() const) { return near_link_pos_ > 0; }
 
   // Returns the position of bound or linked labels. Cannot be used
   // for unused labels.
   int pos() const;
+  int near_link_pos() const { return near_link_pos_ - 1; }
 
  private:
   // pos_ encodes both the binding state (via its sign)
@@ -100,13 +110,21 @@ class Label BASE_EMBEDDED {
   // pos_ >  0  linked label, pos() returns the last reference position
   int pos_;
 
+  // Behaves like |pos_| in the "> 0" case, but for near jumps to this label.
+  int near_link_pos_;
+
   void bind_to(int pos)  {
     pos_ = -pos - 1;
     ASSERT(is_bound());
   }
-  void link_to(int pos)  {
-    pos_ =  pos + 1;
-    ASSERT(is_linked());
+  void link_to(int pos, Distance distance = kFar) {
+    if (distance == kNear) {
+      near_link_pos_ = pos + 1;
+      ASSERT(is_near_linked());
+    } else {
+      pos_ = pos + 1;
+      ASSERT(is_linked());
+    }
   }
 
   friend class Assembler;

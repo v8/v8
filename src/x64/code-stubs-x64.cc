@@ -40,15 +40,15 @@ namespace internal {
 
 void ToNumberStub::Generate(MacroAssembler* masm) {
   // The ToNumber stub takes one argument in eax.
-  NearLabel check_heap_number, call_builtin;
+  Label check_heap_number, call_builtin;
   __ SmiTest(rax);
-  __ j(not_zero, &check_heap_number);
+  __ j(not_zero, &check_heap_number, Label::kNear);
   __ Ret();
 
   __ bind(&check_heap_number);
   __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
                  Heap::kHeapNumberMapRootIndex);
-  __ j(not_equal, &call_builtin);
+  __ j(not_equal, &call_builtin, Label::kNear);
   __ Ret();
 
   __ bind(&call_builtin);
@@ -232,12 +232,12 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 
 
 void ToBooleanStub::Generate(MacroAssembler* masm) {
-  NearLabel false_result, true_result, not_string;
+  Label false_result, true_result, not_string;
   __ movq(rax, Operand(rsp, 1 * kPointerSize));
 
   // 'null' => false.
   __ CompareRoot(rax, Heap::kNullValueRootIndex);
-  __ j(equal, &false_result);
+  __ j(equal, &false_result, Label::kNear);
 
   // Get the map and type of the heap object.
   // We don't use CmpObjectType because we manipulate the type field.
@@ -247,28 +247,28 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // Undetectable => false.
   __ movzxbq(rbx, FieldOperand(rdx, Map::kBitFieldOffset));
   __ and_(rbx, Immediate(1 << Map::kIsUndetectable));
-  __ j(not_zero, &false_result);
+  __ j(not_zero, &false_result, Label::kNear);
 
   // JavaScript object => true.
   __ cmpq(rcx, Immediate(FIRST_JS_OBJECT_TYPE));
-  __ j(above_equal, &true_result);
+  __ j(above_equal, &true_result, Label::kNear);
 
   // String value => false iff empty.
   __ cmpq(rcx, Immediate(FIRST_NONSTRING_TYPE));
-  __ j(above_equal, &not_string);
+  __ j(above_equal, &not_string, Label::kNear);
   __ movq(rdx, FieldOperand(rax, String::kLengthOffset));
   __ SmiTest(rdx);
-  __ j(zero, &false_result);
-  __ jmp(&true_result);
+  __ j(zero, &false_result, Label::kNear);
+  __ jmp(&true_result, Label::kNear);
 
   __ bind(&not_string);
   __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
-  __ j(not_equal, &true_result);
+  __ j(not_equal, &true_result, Label::kNear);
   // HeapNumber => false iff +0, -0, or NaN.
   // These three cases set the zero flag when compared to zero using ucomisd.
   __ xorps(xmm0, xmm0);
   __ ucomisd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ j(zero, &false_result);
+  __ j(zero, &false_result, Label::kNear);
   // Fall through to |true_result|.
 
   // Return 1/0 for true/false in rax.
@@ -334,7 +334,7 @@ void IntegerConvert(MacroAssembler* masm,
   // cvttsd2si (32-bit version) directly.
   Register double_exponent = rbx;
   Register double_value = rdi;
-  NearLabel done, exponent_63_plus;
+  Label done, exponent_63_plus;
   // Get double and extract exponent.
   __ movq(double_value, FieldOperand(source, HeapNumber::kValueOffset));
   // Clear result preemptively, in case we need to return zero.
@@ -347,17 +347,17 @@ void IntegerConvert(MacroAssembler* masm,
   __ subl(double_exponent, Immediate(HeapNumber::kExponentBias));
   // Check whether the exponent is too big for a 63 bit unsigned integer.
   __ cmpl(double_exponent, Immediate(63));
-  __ j(above_equal, &exponent_63_plus);
+  __ j(above_equal, &exponent_63_plus, Label::kNear);
   // Handle exponent range 0..62.
   __ cvttsd2siq(result, xmm0);
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   __ bind(&exponent_63_plus);
   // Exponent negative or 63+.
   __ cmpl(double_exponent, Immediate(83));
   // If exponent negative or above 83, number contains no significant bits in
   // the range 0..2^31, so result is zero, and rcx already holds zero.
-  __ j(above, &done);
+  __ j(above, &done, Label::kNear);
 
   // Exponent in rage 63..83.
   // Mantissa * 2^exponent contains bits in the range 2^0..2^31, namely
@@ -1157,18 +1157,18 @@ void TypeRecordingBinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
   }
 
   // Convert oddball arguments to numbers.
-  NearLabel check, done;
+  Label check, done;
   __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
-  __ j(not_equal, &check);
+  __ j(not_equal, &check, Label::kNear);
   if (Token::IsBitOp(op_)) {
     __ xor_(rdx, rdx);
   } else {
     __ LoadRoot(rdx, Heap::kNanValueRootIndex);
   }
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
   __ bind(&check);
   __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
-  __ j(not_equal, &done);
+  __ j(not_equal, &done, Label::kNear);
   if (Token::IsBitOp(op_)) {
     __ xor_(rax, rax);
   } else {
@@ -1277,7 +1277,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   const bool tagged = (argument_type_ == TAGGED);
   if (tagged) {
     NearLabel input_not_smi;
-    NearLabel loaded;
+    Label loaded;
     // Test that rax is a number.
     __ movq(rax, Operand(rsp, kPointerSize));
     __ JumpIfNotSmi(rax, &input_not_smi);
@@ -1291,7 +1291,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ movq(rdx, xmm1);
     __ fld_d(Operand(rsp, 0));
     __ addq(rsp, Immediate(kDoubleSize));
-    __ jmp(&loaded);
+    __ jmp(&loaded, Label::kNear);
 
     __ bind(&input_not_smi);
     // Check if input is a HeapNumber.
@@ -1366,9 +1366,9 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ addl(rcx, rcx);
   __ lea(rcx, Operand(rax, rcx, times_8, 0));
   // Check if cache matches: Double value is stored in uint32_t[2] array.
-  NearLabel cache_miss;
+  Label cache_miss;
   __ cmpq(rbx, Operand(rcx, 0));
-  __ j(not_equal, &cache_miss);
+  __ j(not_equal, &cache_miss, Label::kNear);
   // Cache hit!
   __ movq(rax, Operand(rcx, 2 * kIntSize));
   if (tagged) {
@@ -1476,8 +1476,8 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
     __ j(below, &in_range);
     // Check for infinity and NaN. Both return NaN for sin.
     __ cmpl(rdi, Immediate(0x7ff));
-    NearLabel non_nan_result;
-    __ j(not_equal, &non_nan_result);
+    Label non_nan_result;
+    __ j(not_equal, &non_nan_result, Label::kNear);
     // Input is +/-Infinity or NaN. Result is NaN.
     __ fstp(0);
     __ LoadRoot(kScratchRegister, Heap::kNanValueRootIndex);
@@ -1505,7 +1505,7 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
 
     // Compute st(0) % st(1)
     {
-      NearLabel partial_remainder_loop;
+      Label partial_remainder_loop;
       __ bind(&partial_remainder_loop);
       __ fprem1();
       __ fwait();
@@ -1698,7 +1698,7 @@ void FloatingPointHelper::NumbersToSmis(MacroAssembler* masm,
 
   __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
 
-  NearLabel first_smi, check_second;
+  NearLabel first_smi;
   __ JumpIfSmi(first, &first_smi);
   __ cmpq(FieldOperand(first, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, on_not_smis);
@@ -1714,7 +1714,6 @@ void FloatingPointHelper::NumbersToSmis(MacroAssembler* masm,
   __ j(not_equal, on_not_smis);
   __ Integer32ToSmi(first, smi_result);
 
-  __ bind(&check_second);
   __ JumpIfSmi(second, (on_success != NULL) ? on_success : &done);
   __ bind(&first_smi);
   if (FLAG_debug_code) {
@@ -1785,20 +1784,20 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ movq(rdx, rax);
 
   // Get absolute value of exponent.
-  NearLabel no_neg;
+  Label no_neg;
   __ cmpl(rax, Immediate(0));
-  __ j(greater_equal, &no_neg);
+  __ j(greater_equal, &no_neg, Label::kNear);
   __ negl(rax);
   __ bind(&no_neg);
 
   // Load xmm1 with 1.
   __ movaps(xmm1, xmm3);
-  NearLabel while_true;
-  NearLabel no_multiply;
+  Label while_true;
+  Label no_multiply;
 
   __ bind(&while_true);
   __ shrl(rax, Immediate(1));
-  __ j(not_carry, &no_multiply);
+  __ j(not_carry, &no_multiply, Label::kNear);
   __ mulsd(xmm1, xmm0);
   __ bind(&no_multiply);
   __ mulsd(xmm0, xmm0);
@@ -1829,11 +1828,11 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ j(parity_even, &call_runtime);
 
   NearLabel base_not_smi;
-  NearLabel handle_special_cases;
+  Label handle_special_cases;
   __ JumpIfNotSmi(rdx, &base_not_smi);
   __ SmiToInteger32(rdx, rdx);
   __ cvtlsi2sd(xmm0, rdx);
-  __ jmp(&handle_special_cases);
+  __ jmp(&handle_special_cases, Label::kNear);
 
   __ bind(&base_not_smi);
   __ CompareRoot(FieldOperand(rdx, HeapObject::kMapOffset),
@@ -1848,14 +1847,14 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // base is in xmm0 and exponent is in xmm1.
   __ bind(&handle_special_cases);
-  NearLabel not_minus_half;
+  Label not_minus_half;
   // Test for -0.5.
   // Load xmm2 with -0.5.
   __ movq(rcx, V8_UINT64_C(0xBFE0000000000000), RelocInfo::NONE);
   __ movq(xmm2, rcx);
   // xmm2 now has -0.5.
   __ ucomisd(xmm2, xmm1);
-  __ j(not_equal, &not_minus_half);
+  __ j(not_equal, &not_minus_half, Label::kNear);
 
   // Calculates reciprocal of square root.
   // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
@@ -2174,7 +2173,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // rax: RegExp data (FixedArray)
   // Check the representation and encoding of the subject string.
-  NearLabel seq_ascii_string, seq_two_byte_string, check_code;
+  Label seq_ascii_string, seq_two_byte_string, check_code;
   __ movq(rdi, Operand(rsp, kSubjectOffset));
   __ movq(rbx, FieldOperand(rdi, HeapObject::kMapOffset));
   __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
@@ -2182,10 +2181,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ andb(rbx, Immediate(
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask));
   STATIC_ASSERT((kStringTag | kSeqStringTag | kTwoByteStringTag) == 0);
-  __ j(zero, &seq_two_byte_string);
+  __ j(zero, &seq_two_byte_string, Label::kNear);
   // Any other flat string must be a flat ascii string.
   __ testb(rbx, Immediate(kIsNotStringMask | kStringRepresentationMask));
-  __ j(zero, &seq_ascii_string);
+  __ j(zero, &seq_ascii_string, Label::kNear);
 
   // Check for flat cons string.
   // A flat cons string is a cons string where the second part is the empty
@@ -2209,7 +2208,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
            Immediate(kStringRepresentationMask | kStringEncodingMask));
   STATIC_ASSERT((kSeqStringTag | kTwoByteStringTag) == 0);
-  __ j(zero, &seq_two_byte_string);
+  __ j(zero, &seq_two_byte_string, Label::kNear);
   // Any other flat string must be ascii.
   __ testb(FieldOperand(rbx, Map::kInstanceTypeOffset),
            Immediate(kStringRepresentationMask));
@@ -2220,7 +2219,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // rax: RegExp data (FixedArray)
   __ movq(r11, FieldOperand(rax, JSRegExp::kDataAsciiCodeOffset));
   __ Set(rcx, 1);  // Type is ascii.
-  __ jmp(&check_code);
+  __ jmp(&check_code, Label::kNear);
 
   __ bind(&seq_two_byte_string);
   // rdi: subject string (flat two-byte)
@@ -2306,13 +2305,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Argument 4: End of string data
   // Argument 3: Start of string data
-  NearLabel setup_two_byte, setup_rest;
+  Label setup_two_byte, setup_rest;
   __ testb(rcx, rcx);  // Last use of rcx as encoding of subject string.
-  __ j(zero, &setup_two_byte);
+  __ j(zero, &setup_two_byte, Label::kNear);
   __ SmiToInteger32(rcx, FieldOperand(rdi, String::kLengthOffset));
   __ lea(arg4, FieldOperand(rdi, rcx, times_1, SeqAsciiString::kHeaderSize));
   __ lea(arg3, FieldOperand(rdi, rbx, times_1, SeqAsciiString::kHeaderSize));
-  __ jmp(&setup_rest);
+  __ jmp(&setup_rest, Label::kNear);
   __ bind(&setup_two_byte);
   __ SmiToInteger32(rcx, FieldOperand(rdi, String::kLengthOffset));
   __ lea(arg4, FieldOperand(rdi, rcx, times_2, SeqTwoByteString::kHeaderSize));
@@ -2337,10 +2336,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ LeaveApiExitFrame();
 
   // Check the result.
-  NearLabel success;
+  Label success;
   Label exception;
   __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::SUCCESS));
-  __ j(equal, &success);
+  __ j(equal, &success, Label::kNear);
   __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::EXCEPTION));
   __ j(equal, &exception);
   __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::FAILURE));
@@ -2389,12 +2388,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // rbx: last_match_info backing store (FixedArray)
   // rcx: offsets vector
   // rdx: number of capture registers
-  NearLabel next_capture, done;
+  Label next_capture, done;
   // Capture register counter starts from number of capture registers and
   // counts down until wraping after zero.
   __ bind(&next_capture);
   __ subq(rdx, Immediate(1));
-  __ j(negative, &done);
+  __ j(negative, &done, Label::kNear);
   // Read the value from the static offsets vector buffer and make it a smi.
   __ movl(rdi, Operand(rcx, rdx, times_int_size, 0));
   __ Integer32ToSmi(rdi, rdi);
@@ -2427,8 +2426,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movq(pending_exception_operand, rdx);
 
   __ CompareRoot(rax, Heap::kTerminationExceptionRootIndex);
-  NearLabel termination_exception;
-  __ j(equal, &termination_exception);
+  Label termination_exception;
+  __ j(equal, &termination_exception, Label::kNear);
   __ Throw(rax);
 
   __ bind(&termination_exception);
@@ -2671,16 +2670,16 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   // Two identical objects are equal unless they are both NaN or undefined.
   {
-    NearLabel not_identical;
+    Label not_identical;
     __ cmpq(rax, rdx);
-    __ j(not_equal, &not_identical);
+    __ j(not_equal, &not_identical, Label::kNear);
 
     if (cc_ != equal) {
       // Check for undefined.  undefined OP undefined is false even though
       // undefined == undefined.
-      NearLabel check_for_nan;
+      Label check_for_nan;
       __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
-      __ j(not_equal, &check_for_nan);
+      __ j(not_equal, &check_for_nan, Label::kNear);
       __ Set(rax, NegativeComparisonResult(cc_));
       __ ret(0);
       __ bind(&check_for_nan);
@@ -2695,15 +2694,15 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ Set(rax, EQUAL);
       __ ret(0);
     } else {
-      NearLabel heap_number;
+      Label heap_number;
       // If it's not a heap number, then return equal for (in)equality operator.
       __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
              factory->heap_number_map());
-      __ j(equal, &heap_number);
+      __ j(equal, &heap_number, Label::kNear);
       if (cc_ != equal) {
         // Call runtime on identical JSObjects.  Otherwise return equal.
         __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
-        __ j(above_equal, &not_identical);
+        __ j(above_equal, &not_identical, Label::kNear);
       }
       __ Set(rax, EQUAL);
       __ ret(0);
@@ -2759,9 +2758,9 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
       // If the first object is a JS object, we have done pointer comparison.
       STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-      NearLabel first_non_object;
+      Label first_non_object;
       __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
-      __ j(below, &first_non_object);
+      __ j(below, &first_non_object, Label::kNear);
       // Return non-zero (eax (not rax) is not zero)
       Label return_not_equal;
       STATIC_ASSERT(kHeapObjectTag != 0);
@@ -2788,14 +2787,14 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // Generate the number comparison code.
   if (include_number_compare_) {
     Label non_number_comparison;
-    NearLabel unordered;
+    Label unordered;
     FloatingPointHelper::LoadSSE2UnknownOperands(masm, &non_number_comparison);
     __ xorl(rax, rax);
     __ xorl(rcx, rcx);
     __ ucomisd(xmm0, xmm1);
 
     // Don't base result on EFLAGS when a NaN is involved.
-    __ j(parity_even, &unordered);
+    __ j(parity_even, &unordered, Label::kNear);
     // Return a result of -1, 0, or 1, based on EFLAGS.
     __ setcc(above, rax);
     __ setcc(below, rcx);
@@ -2860,7 +2859,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // Not strict equality.  Objects are unequal if
     // they are both JSObjects and not undetectable,
     // and their pointers are different.
-    NearLabel not_both_objects, return_unequal;
+    Label not_both_objects, return_unequal;
     // At most one is a smi, so we can test for smi by adding the two.
     // A smi plus a heap object has the low bit set, a heap object plus
     // a heap object has the low bit clear.
@@ -2868,17 +2867,17 @@ void CompareStub::Generate(MacroAssembler* masm) {
     STATIC_ASSERT(kSmiTagMask == 1);
     __ lea(rcx, Operand(rax, rdx, times_1, 0));
     __ testb(rcx, Immediate(kSmiTagMask));
-    __ j(not_zero, &not_both_objects);
+    __ j(not_zero, &not_both_objects, Label::kNear);
     __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rbx);
-    __ j(below, &not_both_objects);
+    __ j(below, &not_both_objects, Label::kNear);
     __ CmpObjectType(rdx, FIRST_JS_OBJECT_TYPE, rcx);
-    __ j(below, &not_both_objects);
+    __ j(below, &not_both_objects, Label::kNear);
     __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
-    __ j(zero, &return_unequal);
+    __ j(zero, &return_unequal, Label::kNear);
     __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
-    __ j(zero, &return_unequal);
+    __ j(zero, &return_unequal, Label::kNear);
     // The objects are both undetectable, so they both compare as the value
     // undefined, and are equal.
     __ Set(rax, EQUAL);
@@ -3108,11 +3107,11 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Handling of failure.
   __ bind(&failure_returned);
 
-  NearLabel retry;
+  Label retry;
   // If the returned exception is RETRY_AFTER_GC continue at retry label
   STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
   __ testl(rax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
-  __ j(zero, &retry);
+  __ j(zero, &retry, Label::kNear);
 
   // Special handling of out of memory exceptions.
   __ movq(kScratchRegister, Failure::OutOfMemoryException(), RelocInfo::NONE);
@@ -3413,11 +3412,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // real lookup and update the call site cache.
   if (!HasCallSiteInlineCheck()) {
     // Look up the function and the map in the instanceof cache.
-    NearLabel miss;
+    Label miss;
     __ CompareRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
-    __ j(not_equal, &miss);
+    __ j(not_equal, &miss, Label::kNear);
     __ CompareRoot(rax, Heap::kInstanceofCacheMapRootIndex);
-    __ j(not_equal, &miss);
+    __ j(not_equal, &miss, Label::kNear);
     __ LoadRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
     __ ret(2 * kPointerSize);
     __ bind(&miss);
@@ -3453,15 +3452,15 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ movq(rcx, FieldOperand(rax, Map::kPrototypeOffset));
 
   // Loop through the prototype chain looking for the function prototype.
-  NearLabel loop, is_instance, is_not_instance;
+  Label loop, is_instance, is_not_instance;
   __ LoadRoot(kScratchRegister, Heap::kNullValueRootIndex);
   __ bind(&loop);
   __ cmpq(rcx, rbx);
-  __ j(equal, &is_instance);
+  __ j(equal, &is_instance, Label::kNear);
   __ cmpq(rcx, kScratchRegister);
   // The code at is_not_instance assumes that kScratchRegister contains a
   // non-zero GCable value (the null object in this case).
-  __ j(equal, &is_not_instance);
+  __ j(equal, &is_not_instance, Label::kNear);
   __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
   __ movq(rcx, FieldOperand(rcx, Map::kPrototypeOffset));
   __ jmp(&loop);
@@ -3826,10 +3825,10 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // rax: first string
   // rdx: second string
   // Check if either of the strings are empty. In that case return the other.
-  NearLabel second_not_zero_length, both_not_zero_length;
+  Label second_not_zero_length, both_not_zero_length;
   __ movq(rcx, FieldOperand(rdx, String::kLengthOffset));
   __ SmiTest(rcx);
-  __ j(not_zero, &second_not_zero_length);
+  __ j(not_zero, &second_not_zero_length, Label::kNear);
   // Second string is empty, result is first string which is already in rax.
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->string_add_native(), 1);
@@ -3837,7 +3836,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ bind(&second_not_zero_length);
   __ movq(rbx, FieldOperand(rax, String::kLengthOffset));
   __ SmiTest(rbx);
-  __ j(not_zero, &both_not_zero_length);
+  __ j(not_zero, &both_not_zero_length, Label::kNear);
   // First string is empty, result is second string which is in rdx.
   __ movq(rax, rdx);
   __ IncrementCounter(counters->string_add_native(), 1);
@@ -4131,9 +4130,9 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
   ASSERT(count.is(rcx));  // rep movs count
 
   // Nothing to do for zero characters.
-  NearLabel done;
+  Label done;
   __ testl(count, count);
-  __ j(zero, &done);
+  __ j(zero, &done, Label::kNear);
 
   // Make count the number of bytes to copy.
   if (!ascii) {
@@ -4142,9 +4141,9 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
   }
 
   // Don't enter the rep movs if there are less than 4 bytes to copy.
-  NearLabel last_bytes;
+  Label last_bytes;
   __ testl(count, Immediate(~7));
-  __ j(zero, &last_bytes);
+  __ j(zero, &last_bytes, Label::kNear);
 
   // Copy from edi to esi using rep movs instruction.
   __ movl(kScratchRegister, count);
@@ -4158,7 +4157,7 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
   // Check if there are more bytes to copy.
   __ bind(&last_bytes);
   __ testl(count, count);
-  __ j(zero, &done);
+  __ j(zero, &done, Label::kNear);
 
   // Copy remaining characters.
   Label loop;
@@ -4186,10 +4185,10 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
   // Make sure that both characters are not digits as such strings has a
   // different hash algorithm. Don't try to look for these in the symbol table.
-  NearLabel not_array_index;
+  Label not_array_index;
   __ leal(scratch, Operand(c1, -'0'));
   __ cmpl(scratch, Immediate(static_cast<int>('9' - '0')));
-  __ j(above, &not_array_index);
+  __ j(above, &not_array_index, Label::kNear);
   __ leal(scratch, Operand(c2, -'0'));
   __ cmpl(scratch, Immediate(static_cast<int>('9' - '0')));
   __ j(below_equal, not_found);
@@ -4251,9 +4250,9 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
                          SymbolTable::kElementsStartOffset));
 
     // If entry is undefined no string with this hash can be found.
-    NearLabel is_string;
+    Label is_string;
     __ CmpObjectType(candidate, ODDBALL_TYPE, map);
-    __ j(not_equal, &is_string);
+    __ j(not_equal, &is_string, Label::kNear);
 
     __ CompareRoot(candidate, Heap::kUndefinedValueRootIndex);
     __ j(equal, not_found);
@@ -4505,19 +4504,19 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
   Register length = scratch1;
 
   // Compare lengths.
-  NearLabel check_zero_length;
+  Label check_zero_length;
   __ movq(length, FieldOperand(left, String::kLengthOffset));
   __ SmiCompare(length, FieldOperand(right, String::kLengthOffset));
-  __ j(equal, &check_zero_length);
+  __ j(equal, &check_zero_length, Label::kNear);
   __ Move(rax, Smi::FromInt(NOT_EQUAL));
   __ ret(0);
 
   // Check if the length is zero.
-  NearLabel compare_chars;
+  Label compare_chars;
   __ bind(&check_zero_length);
   STATIC_ASSERT(kSmiTag == 0);
   __ SmiTest(length);
-  __ j(not_zero, &compare_chars);
+  __ j(not_zero, &compare_chars, Label::kNear);
   __ Move(rax, Smi::FromInt(EQUAL));
   __ ret(0);
 
@@ -4557,8 +4556,8 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
             FieldOperand(right, String::kLengthOffset));
   // Register scratch4 now holds left.length - right.length.
   const Register length_difference = scratch4;
-  NearLabel left_shorter;
-  __ j(less, &left_shorter);
+  Label left_shorter;
+  __ j(less, &left_shorter, Label::kNear);
   // The right string isn't longer that the left one.
   // Get the right string's length by subtracting the (non-negative) difference
   // from the left string's length.
@@ -4567,10 +4566,10 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Register scratch1 now holds Min(left.length, right.length).
   const Register min_length = scratch1;
 
-  NearLabel compare_lengths;
+  Label compare_lengths;
   // If min-length is zero, go directly to comparing lengths.
   __ SmiTest(min_length);
-  __ j(zero, &compare_lengths);
+  __ j(zero, &compare_lengths, Label::kNear);
 
   // Compare loop.
   NearLabel result_not_equal;
@@ -4581,16 +4580,16 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Compare lengths (precomputed).
   __ bind(&compare_lengths);
   __ SmiTest(length_difference);
-  __ j(not_zero, &result_not_equal);
+  __ j(not_zero, &result_not_equal, Label::kNear);
 
   // Result is EQUAL.
   __ Move(rax, Smi::FromInt(EQUAL));
   __ ret(0);
 
-  NearLabel result_greater;
+  Label result_greater;
   __ bind(&result_not_equal);
   // Unequal comparison of left to right, either character or length.
-  __ j(greater, &result_greater);
+  __ j(greater, &result_greater, Label::kNear);
 
   // Result is LESS.
   __ Move(rax, Smi::FromInt(LESS));
@@ -4622,7 +4621,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
   Register index = length;  // index = -length;
 
   // Compare loop.
-  NearLabel loop;
+  Label loop;
   __ bind(&loop);
   __ movb(scratch, Operand(left, index, times_1, 0));
   __ cmpb(scratch, Operand(right, index, times_1, 0));
@@ -4644,9 +4643,9 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ movq(rax, Operand(rsp, 1 * kPointerSize));  // right
 
   // Check for identity.
-  NearLabel not_same;
+  Label not_same;
   __ cmpq(rdx, rax);
-  __ j(not_equal, &not_same);
+  __ j(not_equal, &not_same, Label::kNear);
   __ Move(rax, Smi::FromInt(EQUAL));
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->string_compare_native(), 1);
@@ -4681,9 +4680,9 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
     // For equality we do not care about the sign of the result.
     __ subq(rax, rdx);
   } else {
-    NearLabel done;
+    Label done;
     __ subq(rdx, rax);
-    __ j(no_overflow, &done);
+    __ j(no_overflow, &done, Label::kNear);
     // Correct sign of result in case of overflow.
     __ SmiNot(rdx, rdx);
     __ bind(&done);
@@ -4699,16 +4698,16 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::HEAP_NUMBERS);
 
-  NearLabel generic_stub;
-  NearLabel unordered;
-  NearLabel miss;
+  Label generic_stub;
+  Label unordered;
+  Label miss;
   Condition either_smi = masm->CheckEitherSmi(rax, rdx);
-  __ j(either_smi, &generic_stub);
+  __ j(either_smi, &generic_stub, Label::kNear);
 
   __ CmpObjectType(rax, HEAP_NUMBER_TYPE, rcx);
-  __ j(not_equal, &miss);
+  __ j(not_equal, &miss, Label::kNear);
   __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rcx);
-  __ j(not_equal, &miss);
+  __ j(not_equal, &miss, Label::kNear);
 
   // Load left and right operand
   __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
@@ -4718,7 +4717,7 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   __ ucomisd(xmm0, xmm1);
 
   // Don't base result on EFLAGS when a NaN is involved.
-  __ j(parity_even, &unordered);
+  __ j(parity_even, &unordered, Label::kNear);
 
   // Return a result of -1, 0, or 1, based on EFLAGS.
   // Performing mov, because xor would destroy the flag register.
@@ -4750,9 +4749,9 @@ void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
   Register tmp2 = rbx;
 
   // Check that both operands are heap objects.
-  NearLabel miss;
+  Label miss;
   Condition cond = masm->CheckEitherSmi(left, right, tmp1);
-  __ j(cond, &miss);
+  __ j(cond, &miss, Label::kNear);
 
   // Check that both operands are symbols.
   __ movq(tmp1, FieldOperand(left, HeapObject::kMapOffset));
@@ -4762,15 +4761,15 @@ void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
   STATIC_ASSERT(kSymbolTag != 0);
   __ and_(tmp1, tmp2);
   __ testb(tmp1, Immediate(kIsSymbolMask));
-  __ j(zero, &miss);
+  __ j(zero, &miss, Label::kNear);
 
   // Symbols are compared by identity.
-  NearLabel done;
+  Label done;
   __ cmpq(left, right);
   // Make sure rax is non-zero. At this point input operands are
   // guaranteed to be non-zero.
   ASSERT(right.is(rax));
-  __ j(not_equal, &done);
+  __ j(not_equal, &done, Label::kNear);
   STATIC_ASSERT(EQUAL == 0);
   STATIC_ASSERT(kSmiTag == 0);
   __ Move(rax, Smi::FromInt(EQUAL));
@@ -4811,9 +4810,9 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   __ j(not_zero, &miss);
 
   // Fast check for identical strings.
-  NearLabel not_same;
+  Label not_same;
   __ cmpq(left, right);
-  __ j(not_equal, &not_same);
+  __ j(not_equal, &not_same, Label::kNear);
   STATIC_ASSERT(EQUAL == 0);
   STATIC_ASSERT(kSmiTag == 0);
   __ Move(rax, Smi::FromInt(EQUAL));
@@ -4824,11 +4823,11 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
   // Check that both strings are symbols. If they are, we're done
   // because we already know they are not identical.
-  NearLabel do_compare;
+  Label do_compare;
   STATIC_ASSERT(kSymbolTag != 0);
   __ and_(tmp1, tmp2);
   __ testb(tmp1, Immediate(kIsSymbolMask));
-  __ j(zero, &do_compare);
+  __ j(zero, &do_compare, Label::kNear);
   // Make sure rax is non-zero. At this point input operands are
   // guaranteed to be non-zero.
   ASSERT(right.is(rax));
@@ -4858,14 +4857,14 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
 void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::OBJECTS);
-  NearLabel miss;
+  Label miss;
   Condition either_smi = masm->CheckEitherSmi(rdx, rax);
-  __ j(either_smi, &miss);
+  __ j(either_smi, &miss, Label::kNear);
 
   __ CmpObjectType(rax, JS_OBJECT_TYPE, rcx);
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss, not_taken, Label::kNear);
   __ CmpObjectType(rdx, JS_OBJECT_TYPE, rcx);
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss, not_taken, Label::kNear);
 
   ASSERT(GetCondition() == equal);
   __ subq(rax, rdx);

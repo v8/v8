@@ -971,9 +971,9 @@ void RegExpMacroAssemblerIA32::ReadStackPointerFromRegister(int reg) {
 }
 
 void RegExpMacroAssemblerIA32::SetCurrentPositionFromEnd(int by)  {
-  NearLabel after_position;
+  Label after_position;
   __ cmp(edi, -by * char_size());
-  __ j(greater_equal, &after_position);
+  __ j(greater_equal, &after_position, Label::kNear);
   __ mov(edi, -by * char_size());
   // On RegExp code entry (where this operation is used), the character before
   // the current position is expected to be already loaded.

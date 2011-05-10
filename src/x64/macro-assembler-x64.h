@@ -1369,21 +1369,22 @@ void MacroAssembler::SmiMul(Register dst,
   ASSERT(!src2.is(kScratchRegister));
 
   if (dst.is(src1)) {
-    NearLabel failure, zero_correct_result;
+    Label failure, zero_correct_result;
     movq(kScratchRegister, src1);  // Create backup for later testing.
     SmiToInteger64(dst, src1);
     imul(dst, src2);
-    j(overflow, &failure);
+    j(overflow, &failure, Label::kNear);
 
     // Check for negative zero result.  If product is zero, and one
     // argument is negative, go to slow case.
-    NearLabel correct_result;
+    Label correct_result;
     testq(dst, dst);
-    j(not_zero, &correct_result);
+    j(not_zero, &correct_result, Label::kNear);
 
     movq(dst, kScratchRegister);
     xor_(dst, src2);
-    j(positive, &zero_correct_result);  // Result was positive zero.
+    // Result was positive zero.
+    j(positive, &zero_correct_result, Label::kNear);
 
     bind(&failure);  // Reused failure exit, restores src1.
     movq(src1, kScratchRegister);
@@ -1399,9 +1400,9 @@ void MacroAssembler::SmiMul(Register dst,
     j(overflow, on_not_smi_result);
     // Check for negative zero result.  If product is zero, and one
     // argument is negative, go to slow case.
-    NearLabel correct_result;
+    Label correct_result;
     testq(dst, dst);
-    j(not_zero, &correct_result);
+    j(not_zero, &correct_result, Label::kNear);
     // One of src1 and src2 is zero, the check whether the other is
     // negative.
     movq(kScratchRegister, src1);
@@ -1516,7 +1517,6 @@ void MacroAssembler::SmiDiv(Register dst,
   ASSERT(!src1.is(rdx));
 
   // Check for 0 divisor (result is +/-Infinity).
-  NearLabel positive_divisor;
   testq(src2, src2);
   j(zero, on_not_smi_result);
 
@@ -1531,12 +1531,12 @@ void MacroAssembler::SmiDiv(Register dst,
 
   // We overshoot a little and go to slow case if we divide min-value
   // by any negative value, not just -1.
-  NearLabel safe_div;
+  Label safe_div;
   testl(rax, Immediate(0x7fffffff));
-  j(not_zero, &safe_div);
+  j(not_zero, &safe_div, Label::kNear);
   testq(src2, src2);
   if (src1.is(rax)) {
-    j(positive, &safe_div);
+    j(positive, &safe_div, Label::kNear);
     movq(src1, kScratchRegister);
     jmp(on_not_smi_result);
   } else {
@@ -1552,8 +1552,8 @@ void MacroAssembler::SmiDiv(Register dst,
   // Check that the remainder is zero.
   testl(rdx, rdx);
   if (src1.is(rax)) {
-    NearLabel smi_result;
-    j(zero, &smi_result);
+    Label smi_result;
+    j(zero, &smi_result, Label::kNear);
     movq(src1, kScratchRegister);
     jmp(on_not_smi_result);
     bind(&smi_result);
@@ -1590,11 +1590,11 @@ void MacroAssembler::SmiMod(Register dst,
   SmiToInteger32(src2, src2);
 
   // Test for the edge case of dividing Smi::kMinValue by -1 (will overflow).
-  NearLabel safe_div;
+  Label safe_div;
   cmpl(rax, Immediate(Smi::kMinValue));
-  j(not_equal, &safe_div);
+  j(not_equal, &safe_div, Label::kNear);
   cmpl(src2, Immediate(-1));
-  j(not_equal, &safe_div);
+  j(not_equal, &safe_div, Label::kNear);
   // Retag inputs and go slow case.
   Integer32ToSmi(src2, src2);
   if (src1.is(rax)) {
@@ -1613,9 +1613,9 @@ void MacroAssembler::SmiMod(Register dst,
   }
   // Check for a negative zero result.  If the result is zero, and the
   // dividend is negative, go slow to return a floating point negative zero.
-  NearLabel smi_result;
+  Label smi_result;
   testl(rdx, rdx);
-  j(not_zero, &smi_result);
+  j(not_zero, &smi_result, Label::kNear);
   testq(src1, src1);
   j(negative, on_not_smi_result);
   bind(&smi_result);
@@ -1652,7 +1652,6 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
   ASSERT(!dst.is(rcx));
   // dst and src1 can be the same, because the one case that bails out
   // is a shift by 0, which leaves dst, and therefore src1, unchanged.
-  NearLabel result_ok;
   if (src1.is(rcx) || src2.is(rcx)) {
     movq(kScratchRegister, rcx);
   }
@@ -1665,8 +1664,8 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
   shl(dst, Immediate(kSmiShift));
   testq(dst, dst);
   if (src1.is(rcx) || src2.is(rcx)) {
-    NearLabel positive_result;
-    j(positive, &positive_result);
+    Label positive_result;
+    j(positive, &positive_result, Label::kNear);
     if (src1.is(rcx)) {
       movq(src1, kScratchRegister);
     } else {
@@ -1938,7 +1937,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper) {
   bool definitely_matches = false;
-  NearLabel invoke;
+  Label invoke;
   if (expected.is_immediate()) {
     ASSERT(actual.is_immediate());
     if (expected.immediate() == actual.immediate()) {
@@ -1962,14 +1961,14 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       // case when we invoke function values without going through the
       // IC mechanism.
       cmpq(expected.reg(), Immediate(actual.immediate()));
-      j(equal, &invoke);
+      j(equal, &invoke, Label::kNear);
       ASSERT(expected.reg().is(rbx));
       Set(rax, actual.immediate());
     } else if (!expected.reg().is(actual.reg())) {
       // Both expected and actual are in (different) registers. This
       // is the case when we invoke functions using call and apply.
       cmpq(expected.reg(), actual.reg());
-      j(equal, &invoke);
+      j(equal, &invoke, Label::kNear);
       ASSERT(actual.reg().is(rax));
       ASSERT(expected.reg().is(rbx));
     }

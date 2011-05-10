@@ -458,6 +458,20 @@ void Assembler::bind_to(Label* L, int pos) {
     int last_imm32 = pos - (current + sizeof(int32_t));
     long_at_put(current, last_imm32);
   }
+  while (L->is_near_linked()) {
+    int fixup_pos = L->near_link_pos();
+    int offset_to_next =
+        static_cast<int>(*reinterpret_cast<int8_t*>(addr_at(fixup_pos)));
+    ASSERT(offset_to_next <= 0);
+    int disp = pos - (fixup_pos + sizeof(int8_t));
+    ASSERT(is_int8(disp));
+    set_byte_at(fixup_pos, disp);
+    if (offset_to_next < 0) {
+      L->link_to(fixup_pos + offset_to_next, Label::kNear);
+    } else {
+      L->UnuseNear();
+    }
+  }
   L->bind_to(pos);
 }
 
@@ -1214,7 +1228,7 @@ void Assembler::int3() {
 }
 
 
-void Assembler::j(Condition cc, Label* L) {
+void Assembler::j(Condition cc, Label* L, Hint hint, Label::Distance distance) {
   if (cc == always) {
     jmp(L);
     return;
@@ -1223,6 +1237,7 @@ void Assembler::j(Condition cc, Label* L) {
   }
   EnsureSpace ensure_space(this);
   ASSERT(is_uint4(cc));
+  if (FLAG_emit_branch_hints && hint != no_hint) emit(hint);
   if (L->is_bound()) {
     const int short_size = 2;
     const int long_size  = 6;
@@ -1238,6 +1253,17 @@ void Assembler::j(Condition cc, Label* L) {
       emit(0x80 | cc);
       emitl(offs - long_size);
     }
+  } else if (distance == Label::kNear) {
+    // 0111 tttn #8-bit disp
+    emit(0x70 | cc);
+    byte disp = 0x00;
+    if (L->is_near_linked()) {
+      int offset = L->near_link_pos() - pc_offset();
+      ASSERT(is_int8(offset));
+      disp = static_cast<byte>(offset & 0xFF);
+    }
+    L->link_to(pc_offset(), Label::kNear);
+    emit(disp);
   } else if (L->is_linked()) {
     // 0000 1111 1000 tttn #32-bit disp.
     emit(0x0F);
@@ -1287,7 +1313,7 @@ void Assembler::j(Condition cc, NearLabel* L, Hint hint) {
 }
 
 
-void Assembler::jmp(Label* L) {
+void Assembler::jmp(Label* L, Label::Distance distance) {
   EnsureSpace ensure_space(this);
   const int short_size = sizeof(int8_t);
   const int long_size = sizeof(int32_t);
@@ -1303,7 +1329,17 @@ void Assembler::jmp(Label* L) {
       emit(0xE9);
       emitl(offs - long_size);
     }
-  } else  if (L->is_linked()) {
+  } else if (distance == Label::kNear) {
+    emit(0xEB);
+    byte disp = 0x00;
+    if (L->is_near_linked()) {
+      int offset = L->near_link_pos() - pc_offset();
+      ASSERT(is_int8(offset));
+      disp = static_cast<byte>(offset & 0xFF);
+    }
+    L->link_to(pc_offset(), Label::kNear);
+    emit(disp);
+  } else if (L->is_linked()) {
     // 1110 1001 #32-bit disp.
     emit(0xE9);
     emitl(L->pos());

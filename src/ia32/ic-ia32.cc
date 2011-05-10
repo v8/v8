@@ -97,7 +97,6 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
 }
 
 
-
 // Helper function used to load a property from a dictionary backing
 // storage. This function may fail to load a property even though it is
 // in the dictionary, so code at miss_label must always call a backup
@@ -749,7 +748,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // ecx: key, a smi.
   // edi: receiver->elements, a FixedArray
   // flags: compare (ecx, edx.length())
-  __ j(not_equal, &slow, not_taken);  // do not leave holes in the array
+  // do not leave holes in the array:
+  __ j(not_equal, &slow, not_taken);
   __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
   __ j(above_equal, &slow, not_taken);
   // Add 1 to receiver->length, and go to fast array write.
@@ -942,13 +942,13 @@ static void GenerateCallMiss(MacroAssembler* masm,
     Label invoke, global;
     __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));  // receiver
     __ test(edx, Immediate(kSmiTagMask));
-    __ j(zero, &invoke, not_taken);
+    __ j(zero, &invoke, not_taken, Label::kNear);
     __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
     __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
     __ cmp(ebx, JS_GLOBAL_OBJECT_TYPE);
-    __ j(equal, &global);
+    __ j(equal, &global, Label::kNear);
     __ cmp(ebx, JS_BUILTINS_OBJECT_TYPE);
-    __ j(not_equal, &invoke);
+    __ j(not_equal, &invoke, Label::kNear);
 
     // Patch the receiver on the stack.
     __ bind(&global);

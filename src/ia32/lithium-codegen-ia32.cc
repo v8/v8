@@ -545,7 +545,7 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
     __ mov(ebx, shared);
     __ mov(eax, FieldOperand(ebx, SharedFunctionInfo::kDeoptCounterOffset));
     __ sub(Operand(eax), Immediate(Smi::FromInt(1)));
-    __ j(not_zero, &no_deopt);
+    __ j(not_zero, &no_deopt, Label::kNear);
     if (FLAG_trap_on_deopt) __ int3();
     __ mov(eax, Immediate(Smi::FromInt(FLAG_deopt_every_n_times)));
     __ mov(FieldOperand(ebx, SharedFunctionInfo::kDeoptCounterOffset), eax);
@@ -566,8 +566,8 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
     __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
     if (FLAG_trap_on_deopt) {
-      NearLabel done;
-      __ j(NegateCondition(cc), &done);
+      Label done;
+      __ j(NegateCondition(cc), &done, Label::kNear);
       __ int3();
       __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
       __ bind(&done);
@@ -787,21 +787,21 @@ void LCodeGen::DoModI(LModI* instr) {
 
     if (divisor < 0) divisor = -divisor;
 
-    NearLabel positive_dividend, done;
+    Label positive_dividend, done;
     __ test(dividend, Operand(dividend));
-    __ j(not_sign, &positive_dividend);
+    __ j(not_sign, &positive_dividend, Label::kNear);
     __ neg(dividend);
     __ and_(dividend, divisor - 1);
     __ neg(dividend);
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      __ j(not_zero, &done);
+      __ j(not_zero, &done, Label::kNear);
       DeoptimizeIf(no_condition, instr->environment());
     }
     __ bind(&positive_dividend);
     __ and_(dividend, divisor - 1);
     __ bind(&done);
   } else {
-    NearLabel done, remainder_eq_dividend, slow, do_subtraction, both_positive;
+    Label done, remainder_eq_dividend, slow, do_subtraction, both_positive;
     Register left_reg = ToRegister(instr->InputAt(0));
     Register right_reg = ToRegister(instr->InputAt(1));
     Register result_reg = ToRegister(instr->result());
@@ -818,11 +818,11 @@ void LCodeGen::DoModI(LModI* instr) {
     }
 
     __ test(left_reg, Operand(left_reg));
-    __ j(zero, &remainder_eq_dividend);
-    __ j(sign, &slow);
+    __ j(zero, &remainder_eq_dividend, Label::kNear);
+    __ j(sign, &slow, Label::kNear);
 
     __ test(right_reg, Operand(right_reg));
-    __ j(not_sign, &both_positive);
+    __ j(not_sign, &both_positive, Label::kNear);
     // The sign of the divisor doesn't matter.
     __ neg(right_reg);
 
@@ -830,16 +830,16 @@ void LCodeGen::DoModI(LModI* instr) {
     // If the dividend is smaller than the nonnegative
     // divisor, the dividend is the result.
     __ cmp(left_reg, Operand(right_reg));
-    __ j(less, &remainder_eq_dividend);
+    __ j(less, &remainder_eq_dividend, Label::kNear);
 
     // Check if the divisor is a PowerOfTwo integer.
     Register scratch = ToRegister(instr->TempAt(0));
     __ mov(scratch, right_reg);
     __ sub(Operand(scratch), Immediate(1));
     __ test(scratch, Operand(right_reg));
-    __ j(not_zero, &do_subtraction);
+    __ j(not_zero, &do_subtraction, Label::kNear);
     __ and_(left_reg, Operand(scratch));
-    __ jmp(&remainder_eq_dividend);
+    __ jmp(&remainder_eq_dividend, Label::kNear);
 
     __ bind(&do_subtraction);
     const int kUnfolds = 3;
@@ -850,7 +850,7 @@ void LCodeGen::DoModI(LModI* instr) {
       __ sub(left_reg, Operand(right_reg));
       // Check if the dividend is less than the divisor.
       __ cmp(left_reg, Operand(right_reg));
-      __ j(less, &remainder_eq_dividend);
+      __ j(less, &remainder_eq_dividend, Label::kNear);
     }
     __ mov(left_reg, scratch);
 
@@ -861,15 +861,15 @@ void LCodeGen::DoModI(LModI* instr) {
 
     // Check for (0 % -x) that will produce negative zero.
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-      NearLabel positive_left;
-      NearLabel done;
+      Label positive_left;
+      Label done;
       __ test(left_reg, Operand(left_reg));
-      __ j(not_sign, &positive_left);
+      __ j(not_sign, &positive_left, Label::kNear);
       __ idiv(right_reg);
 
       // Test the remainder for 0, because then the result would be -0.
       __ test(result_reg, Operand(result_reg));
-      __ j(not_zero, &done);
+      __ j(not_zero, &done, Label::kNear);
 
       DeoptimizeIf(no_condition, instr->environment());
       __ bind(&positive_left);
@@ -878,7 +878,7 @@ void LCodeGen::DoModI(LModI* instr) {
     } else {
       __ idiv(right_reg);
     }
-    __ jmp(&done);
+    __ jmp(&done, Label::kNear);
 
     __ bind(&remainder_eq_dividend);
     __ mov(result_reg, left_reg);
@@ -906,9 +906,9 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
   // Check for (0 / -x) that will produce negative zero.
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    NearLabel left_not_zero;
+    Label left_not_zero;
     __ test(left_reg, Operand(left_reg));
-    __ j(not_zero, &left_not_zero);
+    __ j(not_zero, &left_not_zero, Label::kNear);
     __ test(right_reg, ToOperand(right));
     DeoptimizeIf(sign, instr->environment());
     __ bind(&left_not_zero);
@@ -916,9 +916,9 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
   // Check for (-kMinInt / -1).
   if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-    NearLabel left_not_min_int;
+    Label left_not_min_int;
     __ cmp(left_reg, kMinInt);
-    __ j(not_zero, &left_not_min_int);
+    __ j(not_zero, &left_not_min_int, Label::kNear);
     __ cmp(right_reg, -1);
     DeoptimizeIf(zero, instr->environment());
     __ bind(&left_not_min_int);
@@ -996,9 +996,9 @@ void LCodeGen::DoMulI(LMulI* instr) {
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // Bail out if the result is supposed to be negative zero.
-    NearLabel done;
+    Label done;
     __ test(left, Operand(left));
-    __ j(not_zero, &done);
+    __ j(not_zero, &done, Label::kNear);
     if (right->IsConstantOperand()) {
       if (ToInteger32(LConstantOperand::cast(right)) <= 0) {
         DeoptimizeIf(no_condition, instr->environment());
@@ -1203,14 +1203,14 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
   Register result = ToRegister(instr->result());
   Register map = ToRegister(instr->TempAt(0));
   ASSERT(input.is(result));
-  NearLabel done;
+  Label done;
   // If the object is a smi return the object.
   __ test(input, Immediate(kSmiTagMask));
-  __ j(zero, &done);
+  __ j(zero, &done, Label::kNear);
 
   // If the object is not a value type, return the object.
   __ CmpObjectType(input, JS_VALUE_TYPE, map);
-  __ j(not_equal, &done);
+  __ j(not_equal, &done, Label::kNear);
   __ mov(result, FieldOperand(input, JSValue::kValueOffset));
 
   __ bind(&done);
@@ -1368,10 +1368,10 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ j(zero, true_label);
 
       // Test for double values. Zero is false.
-      NearLabel call_stub;
+      Label call_stub;
       __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
              factory()->heap_number_map());
-      __ j(not_equal, &call_stub);
+      __ j(not_equal, &call_stub, Label::kNear);
       __ fldz();
       __ fld_d(FieldOperand(reg, HeapNumber::kValueOffset));
       __ FCmp();
@@ -1477,20 +1477,20 @@ void LCodeGen::DoCmpID(LCmpID* instr) {
   LOperand* right = instr->InputAt(1);
   LOperand* result = instr->result();
 
-  NearLabel unordered;
+  Label unordered;
   if (instr->is_double()) {
     // Don't base result on EFLAGS when a NaN is involved. Instead
     // jump to the unordered case, which produces a false value.
     __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
-    __ j(parity_even, &unordered, not_taken);
+    __ j(parity_even, &unordered, not_taken, Label::kNear);
   } else {
     EmitCmpI(left, right);
   }
 
-  NearLabel done;
+  Label done;
   Condition cc = TokenToCondition(instr->op(), instr->is_double());
   __ mov(ToRegister(result), factory()->true_value());
-  __ j(cc, &done);
+  __ j(cc, &done, Label::kNear);
 
   __ bind(&unordered);
   __ mov(ToRegister(result), factory()->false_value());
@@ -1525,8 +1525,8 @@ void LCodeGen::DoCmpJSObjectEq(LCmpJSObjectEq* instr) {
 
   __ cmp(left, Operand(right));
   __ mov(result, factory()->true_value());
-  NearLabel done;
-  __ j(equal, &done);
+  Label done;
+  __ j(equal, &done, Label::kNear);
   __ mov(result, factory()->false_value());
   __ bind(&done);
 }
@@ -1553,27 +1553,27 @@ void LCodeGen::DoIsNull(LIsNull* instr) {
   __ cmp(reg, factory()->null_value());
   if (instr->is_strict()) {
     __ mov(result, factory()->true_value());
-    NearLabel done;
-    __ j(equal, &done);
+    Label done;
+    __ j(equal, &done, Label::kNear);
     __ mov(result, factory()->false_value());
     __ bind(&done);
   } else {
-    NearLabel true_value, false_value, done;
-    __ j(equal, &true_value);
+    Label true_value, false_value, done;
+    __ j(equal, &true_value, Label::kNear);
     __ cmp(reg, factory()->undefined_value());
-    __ j(equal, &true_value);
+    __ j(equal, &true_value, Label::kNear);
     __ test(reg, Immediate(kSmiTagMask));
-    __ j(zero, &false_value);
+    __ j(zero, &false_value, Label::kNear);
     // Check for undetectable objects by looking in the bit field in
     // the map. The object has already been smi checked.
     Register scratch = result;
     __ mov(scratch, FieldOperand(reg, HeapObject::kMapOffset));
     __ movzx_b(scratch, FieldOperand(scratch, Map::kBitFieldOffset));
     __ test(scratch, Immediate(1 << Map::kIsUndetectable));
-    __ j(not_zero, &true_value);
+    __ j(not_zero, &true_value, Label::kNear);
     __ bind(&false_value);
     __ mov(result, factory()->false_value());
-    __ jmp(&done);
+    __ jmp(&done, Label::kNear);
     __ bind(&true_value);
     __ mov(result, factory()->true_value());
     __ bind(&done);
@@ -1684,8 +1684,8 @@ void LCodeGen::DoIsSmi(LIsSmi* instr) {
   ASSERT(instr->hydrogen()->value()->representation().IsTagged());
   __ test(input, Immediate(kSmiTagMask));
   __ mov(result, factory()->true_value());
-  NearLabel done;
-  __ j(zero, &done);
+  Label done;
+  __ j(zero, &done, Label::kNear);
   __ mov(result, factory()->false_value());
   __ bind(&done);
 }
@@ -1728,12 +1728,13 @@ void LCodeGen::DoHasInstanceType(LHasInstanceType* instr) {
 
   ASSERT(instr->hydrogen()->value()->representation().IsTagged());
   __ test(input, Immediate(kSmiTagMask));
-  NearLabel done, is_false;
-  __ j(zero, &is_false);
+  Label done, is_false;
+  __ j(zero, &is_false, Label::kNear);
   __ CmpObjectType(input, TestType(instr->hydrogen()), result);
-  __ j(NegateCondition(BranchCondition(instr->hydrogen())), &is_false);
+  __ j(NegateCondition(BranchCondition(instr->hydrogen())),
+       &is_false, Label::kNear);
   __ mov(result, factory()->true_value());
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
   __ bind(&is_false);
   __ mov(result, factory()->false_value());
   __ bind(&done);
@@ -1778,8 +1779,8 @@ void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
   __ mov(result, factory()->true_value());
   __ test(FieldOperand(input, String::kHashFieldOffset),
           Immediate(String::kContainsCachedArrayIndexMask));
-  NearLabel done;
-  __ j(zero, &done);
+  Label done;
+  __ j(zero, &done, Label::kNear);
   __ mov(result, factory()->false_value());
   __ bind(&done);
 }
@@ -1861,16 +1862,16 @@ void LCodeGen::DoClassOfTest(LClassOfTest* instr) {
   ASSERT(input.is(result));
   Register temp = ToRegister(instr->TempAt(0));
   Handle<String> class_name = instr->hydrogen()->class_name();
-  NearLabel done;
+  Label done;
   Label is_true, is_false;
 
   EmitClassOfTest(&is_true, &is_false, class_name, input, temp, input);
 
-  __ j(not_equal, &is_false);
+  __ j(not_equal, &is_false, Label::kNear);
 
   __ bind(&is_true);
   __ mov(result, factory()->true_value());
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   __ bind(&is_false);
   __ mov(result, factory()->false_value());
@@ -1918,11 +1919,11 @@ void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
   InstanceofStub stub(InstanceofStub::kArgsInRegisters);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr, CONTEXT_ADJUSTED);
 
-  NearLabel true_value, done;
+  Label true_value, done;
   __ test(eax, Operand(eax));
-  __ j(zero, &true_value);
+  __ j(zero, &true_value, Label::kNear);
   __ mov(ToRegister(instr->result()), factory()->false_value());
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
   __ bind(&true_value);
   __ mov(ToRegister(instr->result()), factory()->true_value());
   __ bind(&done);
@@ -1972,12 +1973,12 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   // This is the inlined call site instanceof cache. The two occurences of the
   // hole value will be patched to the last map/result pair generated by the
   // instanceof stub.
-  NearLabel cache_miss;
+  Label cache_miss;
   Register map = ToRegister(instr->TempAt(0));
   __ mov(map, FieldOperand(object, HeapObject::kMapOffset));
   __ bind(deferred->map_check());  // Label for calculating code patching.
   __ cmp(map, factory()->the_hole_value());  // Patched to cached map.
-  __ j(not_equal, &cache_miss, not_taken);
+  __ j(not_equal, &cache_miss, not_taken, Label::kNear);
   __ mov(eax, factory()->the_hole_value());  // Patched to either true or false.
   __ jmp(&done);
 
@@ -2069,11 +2070,11 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
   if (op == Token::GT || op == Token::LTE) {
     condition = ReverseCondition(condition);
   }
-  NearLabel true_value, done;
+  Label true_value, done;
   __ test(eax, Operand(eax));
-  __ j(condition, &true_value);
+  __ j(condition, &true_value, Label::kNear);
   __ mov(ToRegister(instr->result()), factory()->false_value());
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
   __ bind(&true_value);
   __ mov(ToRegister(instr->result()), factory()->true_value());
   __ bind(&done);
@@ -2239,23 +2240,23 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
     Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
     CallCode(ic, RelocInfo::CODE_TARGET, instr, RESTORE_CONTEXT);
   } else {
-    NearLabel done;
+    Label done;
     for (int i = 0; i < map_count - 1; ++i) {
       Handle<Map> map = instr->hydrogen()->types()->at(i);
-      NearLabel next;
+      Label next;
       __ cmp(FieldOperand(object, HeapObject::kMapOffset), map);
-      __ j(not_equal, &next);
+      __ j(not_equal, &next, Label::kNear);
       EmitLoadFieldOrConstantFunction(result, object, map, name);
-      __ jmp(&done);
+      __ jmp(&done, Label::kNear);
       __ bind(&next);
     }
     Handle<Map> map = instr->hydrogen()->types()->last();
     __ cmp(FieldOperand(object, HeapObject::kMapOffset), map);
     if (instr->hydrogen()->need_generic()) {
-      NearLabel generic;
-      __ j(not_equal, &generic);
+      Label generic;
+      __ j(not_equal, &generic, Label::kNear);
       EmitLoadFieldOrConstantFunction(result, object, map, name);
-      __ jmp(&done);
+      __ jmp(&done, Label::kNear);
       __ bind(&generic);
       __ mov(ecx, name);
       Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
@@ -2290,10 +2291,10 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
   DeoptimizeIf(not_equal, instr->environment());
 
   // Check whether the function has an instance prototype.
-  NearLabel non_instance;
+  Label non_instance;
   __ test_b(FieldOperand(result, Map::kBitFieldOffset),
             1 << Map::kHasNonInstancePrototype);
-  __ j(not_zero, &non_instance);
+  __ j(not_zero, &non_instance, Label::kNear);
 
   // Get the prototype or initial map from the function.
   __ mov(result,
@@ -2304,13 +2305,13 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
   DeoptimizeIf(equal, instr->environment());
 
   // If the function does not have an initial map, we're done.
-  NearLabel done;
+  Label done;
   __ CmpObjectType(result, MAP_TYPE, temp);
-  __ j(not_equal, &done);
+  __ j(not_equal, &done, Label::kNear);
 
   // Get the prototype from the initial map.
   __ mov(result, FieldOperand(result, Map::kPrototypeOffset));
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   // Non-instance prototype: Fetch prototype from constructor field
   // in the function's map.
@@ -2327,13 +2328,13 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
   Register input = ToRegister(instr->InputAt(0));
   __ mov(result, FieldOperand(input, JSObject::kElementsOffset));
   if (FLAG_debug_code) {
-    NearLabel done;
+    Label done;
     __ cmp(FieldOperand(result, HeapObject::kMapOffset),
            Immediate(factory()->fixed_array_map()));
-    __ j(equal, &done);
+    __ j(equal, &done, Label::kNear);
     __ cmp(FieldOperand(result, HeapObject::kMapOffset),
            Immediate(factory()->fixed_cow_array_map()));
-    __ j(equal, &done);
+    __ j(equal, &done, Label::kNear);
     Register temp((result.is(eax)) ? ebx : eax);
     __ push(temp);
     __ mov(temp, FieldOperand(result, HeapObject::kMapOffset));
@@ -2453,16 +2454,16 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register result = ToRegister(instr->result());
 
   // Check for arguments adapter frame.
-  NearLabel done, adapted;
+  Label done, adapted;
   __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(result, Operand(result, StandardFrameConstants::kContextOffset));
   __ cmp(Operand(result),
          Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(equal, &adapted);
+  __ j(equal, &adapted, Label::kNear);
 
   // No arguments adaptor frame.
   __ mov(result, Operand(ebp));
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   // Arguments adaptor frame present.
   __ bind(&adapted);
@@ -2478,12 +2479,12 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
   Operand elem = ToOperand(instr->InputAt(0));
   Register result = ToRegister(instr->result());
 
-  NearLabel done;
+  Label done;
 
   // If no arguments adaptor frame the number of arguments is fixed.
   __ cmp(ebp, elem);
   __ mov(result, Immediate(scope()->num_parameters()));
-  __ j(equal, &done);
+  __ j(equal, &done, Label::kNear);
 
   // Arguments adaptor frame present. Get argument length from there.
   __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
@@ -2508,18 +2509,18 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
   // If the receiver is null or undefined, we have to pass the global object
   // as a receiver.
-  NearLabel global_object, receiver_ok;
+  Label global_object, receiver_ok;
   __ cmp(receiver, factory()->null_value());
-  __ j(equal, &global_object);
+  __ j(equal, &global_object, Label::kNear);
   __ cmp(receiver, factory()->undefined_value());
-  __ j(equal, &global_object);
+  __ j(equal, &global_object, Label::kNear);
 
   // The receiver should be a JS object.
   __ test(receiver, Immediate(kSmiTagMask));
   DeoptimizeIf(equal, instr->environment());
   __ CmpObjectType(receiver, FIRST_JS_OBJECT_TYPE, scratch);
   DeoptimizeIf(below, instr->environment());
-  __ jmp(&receiver_ok);
+  __ jmp(&receiver_ok, Label::kNear);
 
   __ bind(&global_object);
   // TODO(kmillikin): We have a hydrogen value for the global object.  See
@@ -2540,10 +2541,10 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
   // Loop through the arguments pushing them onto the execution
   // stack.
-  NearLabel invoke, loop;
+  Label invoke, loop;
   // length is a small non-negative integer, due to the test above.
   __ test(length, Operand(length));
-  __ j(zero, &invoke);
+  __ j(zero, &invoke, Label::kNear);
   __ bind(&loop);
   __ push(Operand(elements, length, times_pointer_size, 1 * kPointerSize));
   __ dec(length);
@@ -2895,20 +2896,20 @@ void LCodeGen::DoPower(LPower* instr) {
 void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
   ASSERT(instr->InputAt(0)->Equals(instr->result()));
   XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
-  NearLabel positive, done, zero, negative;
+  Label positive, done, zero;
   __ xorps(xmm0, xmm0);
   __ ucomisd(input_reg, xmm0);
-  __ j(above, &positive);
-  __ j(equal, &zero);
+  __ j(above, &positive, Label::kNear);
+  __ j(equal, &zero, Label::kNear);
   ExternalReference nan = ExternalReference::address_of_nan();
   __ movdbl(input_reg, Operand::StaticVariable(nan));
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
   __ bind(&zero);
   __ push(Immediate(0xFFF00000));
   __ push(Immediate(0));
   __ movdbl(input_reg, Operand(esp, 0));
   __ add(Operand(esp), Immediate(kDoubleSize));
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
   __ bind(&positive);
   __ fldln2();
   __ sub(Operand(esp), Immediate(kDoubleSize));
@@ -3128,9 +3129,9 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
         // instruction.
         ASSERT(temp.is(eax));
         __ mov(temp, ToRegister(instr->value()));
-        NearLabel done;
+        Label done;
         __ test(temp, Immediate(0xFFFFFF00));
-        __ j(zero, &done);
+        __ j(zero, &done, Label::kNear);
         __ setcc(negative, temp);  // 1 if negative, 0 if positive.
         __ dec_b(temp);  // 0 if negative, 255 if positive.
         __ bind(&done);
@@ -3237,7 +3238,7 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   DeferredStringCharCodeAt* deferred =
       new DeferredStringCharCodeAt(this, instr);
 
-  NearLabel flat_string, ascii_string, done;
+  Label flat_string, ascii_string, done;
 
   // Fetch the instance type of the receiver into result register.
   __ mov(result, FieldOperand(string, HeapObject::kMapOffset));
@@ -3246,7 +3247,7 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   // We need special handling for non-flat strings.
   STATIC_ASSERT(kSeqStringTag == 0);
   __ test(result, Immediate(kStringRepresentationMask));
-  __ j(zero, &flat_string);
+  __ j(zero, &flat_string, Label::kNear);
 
   // Handle non-flat strings.
   __ test(result, Immediate(kIsConsStringMask));
@@ -3273,7 +3274,7 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   __ bind(&flat_string);
   STATIC_ASSERT(kAsciiStringTag != 0);
   __ test(result, Immediate(kStringEncodingMask));
-  __ j(not_zero, &ascii_string);
+  __ j(not_zero, &ascii_string, Label::kNear);
 
   // Two-byte string.
   // Load the two-byte character code into the result register.
@@ -3289,7 +3290,7 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
                                     times_2,
                                     SeqTwoByteString::kHeaderSize));
   }
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   // ASCII string.
   // Load the byte into the result register.
@@ -3450,13 +3451,13 @@ void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   // There was overflow, so bits 30 and 31 of the original integer
   // disagree. Try to allocate a heap number in new space and store
   // the value in there. If that fails, call the runtime system.
-  NearLabel done;
+  Label done;
   __ SmiUntag(reg);
   __ xor_(reg, 0x80000000);
   __ cvtsi2sd(xmm0, Operand(reg));
   if (FLAG_inline_new) {
     __ AllocateHeapNumber(reg, tmp, no_reg, &slow);
-    __ jmp(&done);
+    __ jmp(&done, Label::kNear);
   }
 
   // Slow case: Call the runtime system to do the number allocation.
@@ -3538,16 +3539,16 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 XMMRegister result_reg,
                                 LEnvironment* env) {
-  NearLabel load_smi, heap_number, done;
+  Label load_smi, heap_number, done;
 
   // Smi check.
   __ test(input_reg, Immediate(kSmiTagMask));
-  __ j(zero, &load_smi, not_taken);
+  __ j(zero, &load_smi, not_taken, Label::kNear);
 
   // Heap number map check.
   __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
          factory()->heap_number_map());
-  __ j(equal, &heap_number);
+  __ j(equal, &heap_number, Label::kNear);
 
   __ cmp(input_reg, factory()->undefined_value());
   DeoptimizeIf(not_equal, env);
@@ -3555,12 +3556,12 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   // Convert undefined to NaN.
   ExternalReference nan = ExternalReference::address_of_nan();
   __ movdbl(result_reg, Operand::StaticVariable(nan));
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   // Heap number to XMM conversion.
   __ bind(&heap_number);
   __ movdbl(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   // Smi to XMM conversion
   __ bind(&load_smi);
@@ -3582,7 +3583,7 @@ class DeferredTaggedToI: public LDeferredCode {
 
 
 void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
-  NearLabel done, heap_number;
+  Label done, heap_number;
   Register input_reg = ToRegister(instr->InputAt(0));
 
   // Heap number map check.
@@ -3590,18 +3591,18 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
          factory()->heap_number_map());
 
   if (instr->truncating()) {
-    __ j(equal, &heap_number);
+    __ j(equal, &heap_number, Label::kNear);
     // Check for undefined. Undefined is converted to zero for truncating
     // conversions.
     __ cmp(input_reg, factory()->undefined_value());
     DeoptimizeIf(not_equal, instr->environment());
     __ mov(input_reg, 0);
-    __ jmp(&done);
+    __ jmp(&done, Label::kNear);
 
     __ bind(&heap_number);
     if (CpuFeatures::IsSupported(SSE3)) {
       CpuFeatures::Scope scope(SSE3);
-      NearLabel convert;
+      Label convert;
       // Use more powerful conversion when sse3 is available.
       // Load x87 register with heap number.
       __ fld_d(FieldOperand(input_reg, HeapNumber::kValueOffset));
@@ -3611,7 +3612,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
       const uint32_t kTooBigExponent =
           (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
       __ cmp(Operand(input_reg), Immediate(kTooBigExponent));
-      __ j(less, &convert);
+      __ j(less, &convert, Label::kNear);
       // Pop FPU stack before deoptimizing.
       __ ffree(0);
       __ fincstp();
@@ -3625,7 +3626,6 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
       __ mov(input_reg, Operand(esp, 0));  // Low word of answer is the result.
       __ add(Operand(esp), Immediate(kDoubleSize));
     } else {
-      NearLabel deopt;
       XMMRegister xmm_temp = ToDoubleRegister(instr->TempAt(0));
       __ movdbl(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
       __ cvttsd2si(input_reg, Operand(xmm0));
@@ -3712,8 +3712,8 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     if (CpuFeatures::IsSupported(SSE3)) {
       // This will deoptimize if the exponent of the input in out of range.
       CpuFeatures::Scope scope(SSE3);
-      NearLabel convert, done;
-      __ j(not_equal, &done);
+      Label convert, done;
+      __ j(not_equal, &done, Label::kNear);
       __ sub(Operand(esp), Immediate(kDoubleSize));
       __ movdbl(Operand(esp, 0), input_reg);
       // Get exponent alone and check for too-big exponent.
@@ -3722,7 +3722,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
       const uint32_t kTooBigExponent =
           (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
       __ cmp(Operand(result_reg), Immediate(kTooBigExponent));
-      __ j(less, &convert);
+      __ j(less, &convert, Label::kNear);
       __ add(Operand(esp), Immediate(kDoubleSize));
       DeoptimizeIf(no_condition, instr->environment());
       __ bind(&convert);
@@ -3733,13 +3733,13 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
       __ add(Operand(esp), Immediate(kDoubleSize));
       __ bind(&done);
     } else {
-      NearLabel done;
+      Label done;
       Register temp_reg = ToRegister(instr->TempAt(0));
       XMMRegister xmm_scratch = xmm0;
 
       // If cvttsd2si succeeded, we're done. Otherwise, we attempt
       // manual conversion.
-      __ j(not_equal, &done);
+      __ j(not_equal, &done, Label::kNear);
 
       // Get high 32 bits of the input in result_reg and temp_reg.
       __ pshufd(xmm_scratch, input_reg, 1);
@@ -3789,7 +3789,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
       __ bind(&done);
     }
   } else {
-    NearLabel done;
+    Label done;
     __ cvttsd2si(result_reg, Operand(input_reg));
     __ cvtsi2sd(xmm0, Operand(result_reg));
     __ ucomisd(xmm0, input_reg);
@@ -3799,7 +3799,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
       // The integer converted back is equal to the original. We
       // only have to test if we got -0 as an input.
       __ test(result_reg, Operand(result_reg));
-      __ j(not_zero, &done);
+      __ j(not_zero, &done, Label::kNear);
       __ movmskpd(result_reg, input_reg);
       // Bit 0 contains the sign of the double in input_reg.
       // If input was positive, we are ok and return 0, otherwise
@@ -3976,7 +3976,7 @@ void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
 
 
 void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
-  NearLabel materialized;
+  Label materialized;
   // Registers will be used as follows:
   // edi = JS function.
   // ecx = literals array.
@@ -3988,7 +3988,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
       instr->hydrogen()->literal_index() * kPointerSize;
   __ mov(ebx, FieldOperand(ecx, literal_offset));
   __ cmp(ebx, factory()->undefined_value());
-  __ j(not_equal, &materialized);
+  __ j(not_equal, &materialized, Label::kNear);
 
   // Create regexp literal using runtime function
   // Result will be in eax.
@@ -4064,16 +4064,16 @@ void LCodeGen::DoTypeofIs(LTypeofIs* instr) {
   Register result = ToRegister(instr->result());
   Label true_label;
   Label false_label;
-  NearLabel done;
+  Label done;
 
   Condition final_branch_condition = EmitTypeofIs(&true_label,
                                                   &false_label,
                                                   input,
                                                   instr->type_literal());
-  __ j(final_branch_condition, &true_label);
+  __ j(final_branch_condition, &true_label, Label::kNear);
   __ bind(&false_label);
   __ mov(result, factory()->false_value());
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   __ bind(&true_label);
   __ mov(result, factory()->true_value());
@@ -4167,15 +4167,14 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 
 void LCodeGen::DoIsConstructCall(LIsConstructCall* instr) {
   Register result = ToRegister(instr->result());
-  NearLabel true_label;
-  NearLabel false_label;
-  NearLabel done;
+  Label true_label;
+  Label done;
 
   EmitIsConstructCall(result);
-  __ j(equal, &true_label);
+  __ j(equal, &true_label, Label::kNear);
 
   __ mov(result, factory()->false_value());
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   __ bind(&true_label);
   __ mov(result, factory()->true_value());
@@ -4199,10 +4198,10 @@ void LCodeGen::EmitIsConstructCall(Register temp) {
   __ mov(temp, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
 
   // Skip the arguments adaptor frame if it exists.
-  NearLabel check_frame_marker;
+  Label check_frame_marker;
   __ cmp(Operand(temp, StandardFrameConstants::kContextOffset),
          Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(not_equal, &check_frame_marker);
+  __ j(not_equal, &check_frame_marker, Label::kNear);
   __ mov(temp, Operand(temp, StandardFrameConstants::kCallerFPOffset));
 
   // Check the marker in the calling frame.
@@ -4251,11 +4250,11 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
 
 void LCodeGen::DoStackCheck(LStackCheck* instr) {
   // Perform stack overflow check.
-  NearLabel done;
+  Label done;
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(isolate());
   __ cmp(esp, Operand::StaticVariable(stack_limit));
-  __ j(above_equal, &done);
+  __ j(above_equal, &done, Label::kNear);
 
   StackCheckStub stub;
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr, RESTORE_CONTEXT);

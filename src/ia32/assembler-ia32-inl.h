@@ -380,6 +380,18 @@ void Assembler::emit_disp(Label* L, Displacement::Type type) {
 }
 
 
+void Assembler::emit_near_disp(Label* L) {
+  byte disp = 0x00;
+  if (L->is_near_linked()) {
+    int offset = L->near_link_pos() - pc_offset();
+    ASSERT(is_int8(offset));
+    disp = static_cast<byte>(offset & 0xFF);
+  }
+  L->link_to(pc_offset(), Label::kNear);
+  *pc_++ = disp;
+}
+
+
 void Operand::set_modrm(int mod, Register rm) {
   ASSERT((mod & -4) == 0);
   buf_[0] = mod << 6 | rm.code();

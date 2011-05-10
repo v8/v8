@@ -3300,9 +3300,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   switch (array_type) {
     case kExternalPixelArray:
       {  // Clamp the value to [0..255].
-        NearLabel done;
+        Label done;
         __ testl(rdx, Immediate(0xFFFFFF00));
-        __ j(zero, &done);
+        __ j(zero, &done, Label::kNear);
         __ setcc(negative, rdx);  // 1 if negative, 0 if positive.
         __ decb(rdx);  // 0 if negative, 255 if positive.
         __ bind(&done);

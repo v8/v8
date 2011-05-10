@@ -842,6 +842,7 @@ class Assembler : public AssemblerBase {
   // but it may be bound only once.
 
   void bind(Label* L);  // binds an unbound label L to the current code position
+  // DEPRECATED. Use bind(Label*) with jmp(Label*, Label::kNear) instead.
   void bind(NearLabel* L);
 
   // Calls
@@ -855,20 +856,29 @@ class Assembler : public AssemblerBase {
             unsigned ast_id = kNoASTId);
 
   // Jumps
-  void jmp(Label* L);  // unconditional jump to L
+  // unconditional jump to L
+  void jmp(Label* L, Label::Distance distance = Label::kFar);
   void jmp(byte* entry, RelocInfo::Mode rmode);
   void jmp(const Operand& adr);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
 
   // Short jump
+  // DEPRECATED. Use jmp(Label*, Label::kNear) instead.
   void jmp(NearLabel* L);
 
   // Conditional jumps
-  void j(Condition cc, Label* L, Hint hint = no_hint);
+  void j(Condition cc,
+         Label* L,
+         Hint hint,
+         Label::Distance distance = Label::kFar);
+  void j(Condition cc, Label* L, Label::Distance distance = Label::kFar) {
+    j(cc, L, no_hint, distance);
+  }
   void j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint = no_hint);
   void j(Condition cc, Handle<Code> code, Hint hint = no_hint);
 
   // Conditional short jump
+  // DEPRECATED. Use j(Condition, Label*, Label::kNear) instead.
   void j(Condition cc, NearLabel* L, Hint hint = no_hint);
 
   // Floating-point operations
@@ -1105,6 +1115,7 @@ class Assembler : public AssemblerBase {
   inline Displacement disp_at(Label* L);
   inline void disp_at_put(Label* L, Displacement disp);
   inline void emit_disp(Label* L, Displacement::Type type);
+  inline void emit_near_disp(Label* L);
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);

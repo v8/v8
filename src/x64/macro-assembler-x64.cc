@@ -344,13 +344,13 @@ void MacroAssembler::Assert(Condition cc, const char* msg) {
 
 void MacroAssembler::AssertFastElements(Register elements) {
   if (emit_debug_code()) {
-    NearLabel ok;
+    Label ok;
     CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
                 Heap::kFixedArrayMapRootIndex);
-    j(equal, &ok);
+    j(equal, &ok, Label::kNear);
     CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
                 Heap::kFixedCOWArrayMapRootIndex);
-    j(equal, &ok);
+    j(equal, &ok, Label::kNear);
     Abort("JSObject with fast elements map has slow elements");
     bind(&ok);
   }
@@ -358,8 +358,8 @@ void MacroAssembler::AssertFastElements(Register elements) {
 
 
 void MacroAssembler::Check(Condition cc, const char* msg) {
-  NearLabel L;
-  j(cc, &L);
+  Label L;
+  j(cc, &L, Label::kNear);
   Abort(msg);
   // will not return here
   bind(&L);
@@ -371,9 +371,9 @@ void MacroAssembler::CheckStackAlignment() {
   int frame_alignment_mask = frame_alignment - 1;
   if (frame_alignment > kPointerSize) {
     ASSERT(IsPowerOf2(frame_alignment));
-    NearLabel alignment_as_expected;
+    Label alignment_as_expected;
     testq(rsp, Immediate(frame_alignment_mask));
-    j(zero, &alignment_as_expected);
+    j(zero, &alignment_as_expected, Label::kNear);
     // Abort if stack is not aligned.
     int3();
     bind(&alignment_as_expected);
@@ -384,9 +384,9 @@ void MacroAssembler::CheckStackAlignment() {
 void MacroAssembler::NegativeZeroTest(Register result,
                                       Register op,
                                       Label* then_label) {
-  NearLabel ok;
+  Label ok;
   testl(result, result);
-  j(not_zero, &ok);
+  j(not_zero, &ok, Label::kNear);
   testl(op, op);
   j(sign, then_label);
   bind(&ok);
@@ -832,8 +832,8 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
     if (allow_stub_calls()) {
       Assert(equal, "Uninitialized kSmiConstantRegister");
     } else {
-      NearLabel ok;
-      j(equal, &ok);
+      Label ok;
+      j(equal, &ok, Label::kNear);
       int3();
       bind(&ok);
     }
@@ -895,8 +895,8 @@ void MacroAssembler::Integer32ToSmi(Register dst, Register src) {
 void MacroAssembler::Integer32ToSmiField(const Operand& dst, Register src) {
   if (emit_debug_code()) {
     testb(dst, Immediate(0x01));
-    NearLabel ok;
-    j(zero, &ok);
+    Label ok;
+    j(zero, &ok, Label::kNear);
     if (allow_stub_calls()) {
       Abort("Integer32ToSmiField writing to non-smi location");
     } else {
@@ -1397,7 +1397,6 @@ void MacroAssembler::SmiShiftLeft(Register dst,
                                   Register src1,
                                   Register src2) {
   ASSERT(!dst.is(rcx));
-  NearLabel result_ok;
   // Untag shift amount.
   if (!dst.is(src1)) {
     movq(dst, src1);
@@ -1782,9 +1781,9 @@ void MacroAssembler::Throw(Register value) {
   // Before returning we restore the context from the frame pointer if not NULL.
   // The frame pointer is NULL in the exception handler of a JS entry frame.
   Set(rsi, 0);  // Tentatively set context pointer to NULL
-  NearLabel skip;
+  Label skip;
   cmpq(rbp, Immediate(0));
-  j(equal, &skip);
+  j(equal, &skip, Label::kNear);
   movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   bind(&skip);
   ret(0);
@@ -1802,12 +1801,12 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   Load(rsp, handler_address);
 
   // Unwind the handlers until the ENTRY handler is found.
-  NearLabel loop, done;
+  Label loop, done;
   bind(&loop);
   // Load the type of the current stack handler.
   const int kStateOffset = StackHandlerConstants::kStateOffset;
   cmpq(Operand(rsp, kStateOffset), Immediate(StackHandler::ENTRY));
-  j(equal, &done);
+  j(equal, &done, Label::kNear);
   // Fetch the next handler in the list.
   const int kNextOffset = StackHandlerConstants::kNextOffset;
   movq(rsp, Operand(rsp, kNextOffset));
@@ -1899,9 +1898,9 @@ void MacroAssembler::CheckMap(Register obj,
 
 
 void MacroAssembler::AbortIfNotNumber(Register object) {
-  NearLabel ok;
+  Label ok;
   Condition is_smi = CheckSmi(object);
-  j(is_smi, &ok);
+  j(is_smi, &ok, Label::kNear);
   Cmp(FieldOperand(object, HeapObject::kMapOffset),
       isolate()->factory()->heap_number_map());
   Assert(equal, "Operand not a number");
@@ -1910,7 +1909,6 @@ void MacroAssembler::AbortIfNotNumber(Register object) {
 
 
 void MacroAssembler::AbortIfSmi(Register object) {
-  NearLabel ok;
   Condition is_smi = CheckSmi(object);
   Assert(NegateCondition(is_smi), "Operand is a smi");
 }
@@ -1973,10 +1971,10 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   j(not_equal, miss);
 
   // Make sure that the function has an instance prototype.
-  NearLabel non_instance;
+  Label non_instance;
   testb(FieldOperand(result, Map::kBitFieldOffset),
         Immediate(1 << Map::kHasNonInstancePrototype));
-  j(not_zero, &non_instance);
+  j(not_zero, &non_instance, Label::kNear);
 
   // Get the prototype or initial map from the function.
   movq(result,
@@ -1989,13 +1987,13 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   j(equal, miss);
 
   // If the function does not have an initial map, we're done.
-  NearLabel done;
+  Label done;
   CmpObjectType(result, MAP_TYPE, kScratchRegister);
-  j(not_equal, &done);
+  j(not_equal, &done, Label::kNear);
 
   // Get the prototype from the initial map.
   movq(result, FieldOperand(result, Map::kPrototypeOffset));
-  jmp(&done);
+  jmp(&done, Label::kNear);
 
   // Non-instance prototype: Fetch prototype from constructor field
   // in initial map.

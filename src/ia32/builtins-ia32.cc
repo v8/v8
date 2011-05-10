@@ -520,15 +520,15 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ SmiUntag(ecx);
 
   // Switch on the state.
-  NearLabel not_no_registers, not_tos_eax;
+  Label not_no_registers, not_tos_eax;
   __ cmp(ecx, FullCodeGenerator::NO_REGISTERS);
-  __ j(not_equal, &not_no_registers);
+  __ j(not_equal, &not_no_registers, Label::kNear);
   __ ret(1 * kPointerSize);  // Remove state.
 
   __ bind(&not_no_registers);
   __ mov(eax, Operand(esp, 2 * kPointerSize));
   __ cmp(ecx, FullCodeGenerator::TOS_REG);
-  __ j(not_equal, &not_tos_eax);
+  __ j(not_equal, &not_tos_eax, Label::kNear);
   __ ret(2 * kPointerSize);  // Remove state, eax.
 
   __ bind(&not_tos_eax);
@@ -1577,19 +1577,19 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 
   // If the result was -1 it means that we couldn't optimize the
   // function. Just return and continue in the unoptimized version.
-  NearLabel skip;
+  Label skip;
   __ cmp(Operand(eax), Immediate(Smi::FromInt(-1)));
-  __ j(not_equal, &skip);
+  __ j(not_equal, &skip, Label::kNear);
   __ ret(0);
 
   // If we decide not to perform on-stack replacement we perform a
   // stack guard check to enable interrupts.
   __ bind(&stack_check);
-  NearLabel ok;
+  Label ok;
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(masm->isolate());
   __ cmp(esp, Operand::StaticVariable(stack_limit));
-  __ j(above_equal, &ok, taken);
+  __ j(above_equal, &ok, taken, Label::kNear);
   StackCheckStub stub;
   __ TailCallStub(&stub);
   __ Abort("Unreachable code: returned from tail call.");

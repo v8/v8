@@ -1525,6 +1525,21 @@ void Assembler::bind_to(Label* L, int pos) {
     }
     disp.next(L);
   }
+  while (L->is_near_linked()) {
+    int fixup_pos = L->near_link_pos();
+    int offset_to_next =
+        static_cast<int>(*reinterpret_cast<int8_t*>(addr_at(fixup_pos)));
+    ASSERT(offset_to_next <= 0);
+    // Relative address, relative to point after address.
+    int disp = pos - fixup_pos - sizeof(int8_t);
+    ASSERT(0 <= disp && disp <= 127);
+    set_byte_at(fixup_pos, disp);
+    if (offset_to_next < 0) {
+      L->link_to(fixup_pos + offset_to_next, Label::kNear);
+    } else {
+      L->UnuseNear();
+    }
+  }
   L->bind_to(pos);
 }
 
@@ -1613,7 +1628,7 @@ void Assembler::call(Handle<Code> code,
 }
 
 
-void Assembler::jmp(Label* L) {
+void Assembler::jmp(Label* L, Label::Distance distance) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (L->is_bound()) {
@@ -1630,6 +1645,9 @@ void Assembler::jmp(Label* L) {
       EMIT(0xE9);
       emit(offs - long_size);
     }
+  } else if (distance == Label::kNear) {
+    EMIT(0xEB);
+    emit_near_disp(L);
   } else {
     // 1110 1001 #32-bit disp.
     EMIT(0xE9);
@@ -1683,7 +1701,7 @@ void Assembler::jmp(NearLabel* L) {
 }
 
 
-void Assembler::j(Condition cc, Label* L, Hint hint) {
+void Assembler::j(Condition cc, Label* L, Hint hint, Label::Distance distance) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   ASSERT(0 <= cc && cc < 16);
@@ -1703,6 +1721,9 @@ void Assembler::j(Condition cc, Label* L, Hint hint) {
       EMIT(0x80 | cc);
       emit(offs - long_size);
     }
+  } else if (distance == Label::kNear) {
+    EMIT(0x70 | cc);
+    emit_near_disp(L);
   } else {
     // 0000 1111 1000 tttn #32-bit disp
     // Note: could eliminate cond. jumps to this jump if condition
