@@ -780,6 +780,11 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
 }
 
 
+void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
+    UNIMPLEMENTED_MIPS();
+  }
+
+
 void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   UNIMPLEMENTED_MIPS();
 }
