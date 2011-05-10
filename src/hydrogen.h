@@ -735,6 +735,18 @@ class HGraphBuilder: public AstVisitor {
   INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
 #undef INLINE_FUNCTION_GENERATOR_DECLARATION
 
+  void VisitDelete(UnaryOperation* expr);
+  void VisitVoid(UnaryOperation* expr);
+  void VisitTypeof(UnaryOperation* expr);
+  void VisitAdd(UnaryOperation* expr);
+  void VisitSub(UnaryOperation* expr);
+  void VisitBitNot(UnaryOperation* expr);
+  void VisitNot(UnaryOperation* expr);
+
+  void VisitComma(BinaryOperation* expr);
+  void VisitAndOr(BinaryOperation* expr, bool is_logical_and);
+  void VisitCommon(BinaryOperation* expr);
+
   void PreProcessOsrEntry(IterationStatement* statement);
   // True iff. we are compiling for OSR and the statement is the entry.
   bool HasOsrEntryAt(IterationStatement* statement);
@@ -848,6 +860,10 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildBinaryOperation(BinaryOperation* expr,
                                      HValue* left,
                                      HValue* right);
+  HInstruction* BuildBinaryOperation(Token::Value op,
+                                     HValue* left,
+                                     HValue* right,
+                                     TypeInfo info);
   HInstruction* BuildIncrement(HValue* value,
                                bool increment,
                                CountOperation* expr);

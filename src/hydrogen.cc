@@ -4568,106 +4568,138 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  Token::Value op = expr->op();
-  if (op == Token::VOID) {
-    CHECK_ALIVE(VisitForEffect(expr->expression()));
-    ast_context()->ReturnValue(graph()->GetConstantUndefined());
-  } else if (op == Token::DELETE) {
-    Property* prop = expr->expression()->AsProperty();
-    Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
-    if (prop == NULL && var == NULL) {
-      // Result of deleting non-property, non-variable reference is true.
-      // Evaluate the subexpression for side effects.
-      CHECK_ALIVE(VisitForEffect(expr->expression()));
-      ast_context()->ReturnValue(graph()->GetConstantTrue());
-    } else if (var != NULL &&
-               !var->is_global() &&
-               var->AsSlot() != NULL &&
-               var->AsSlot()->type() != Slot::LOOKUP) {
-      // Result of deleting non-global, non-dynamic variables is false.
-      // The subexpression does not have side effects.
-      ast_context()->ReturnValue(graph()->GetConstantFalse());
-    } else if (prop != NULL) {
-      if (prop->is_synthetic()) {
-        // Result of deleting parameters is false, even when they rewrite
-        // to accesses on the arguments object.
-        ast_context()->ReturnValue(graph()->GetConstantFalse());
-      } else {
-        CHECK_ALIVE(VisitForValue(prop->obj()));
-        CHECK_ALIVE(VisitForValue(prop->key()));
-        HValue* key = Pop();
-        HValue* obj = Pop();
-        HDeleteProperty* instr = new(zone()) HDeleteProperty(obj, key);
-        ast_context()->ReturnInstruction(instr, expr->id());
-      }
-    } else if (var->is_global()) {
-      return Bailout("delete with global variable");
-    } else {
-      return Bailout("delete with non-global variable");
-    }
-  } else if (op == Token::NOT) {
-    if (ast_context()->IsTest()) {
-      TestContext* context = TestContext::cast(ast_context());
-      VisitForControl(expr->expression(),
-                      context->if_false(),
-                      context->if_true());
-    } else if (ast_context()->IsValue()) {
-      HBasicBlock* materialize_false = graph()->CreateBasicBlock();
-      HBasicBlock* materialize_true = graph()->CreateBasicBlock();
-      CHECK_BAILOUT(VisitForControl(expr->expression(),
-                                    materialize_false,
-                                    materialize_true));
-
-      if (materialize_false->HasPredecessor()) {
-        materialize_false->SetJoinId(expr->expression()->id());
-        set_current_block(materialize_false);
-        Push(graph()->GetConstantFalse());
-      } else {
-        materialize_false = NULL;
-      }
-
-      if (materialize_true->HasPredecessor()) {
-        materialize_true->SetJoinId(expr->expression()->id());
-        set_current_block(materialize_true);
-        Push(graph()->GetConstantTrue());
-      } else {
-        materialize_true = NULL;
-      }
-
-      HBasicBlock* join =
-          CreateJoin(materialize_false, materialize_true, expr->id());
-      set_current_block(join);
-      if (join != NULL) ast_context()->ReturnValue(Pop());
-    } else {
-      ASSERT(ast_context()->IsEffect());
-      VisitForEffect(expr->expression());
-    }
-
-  } else if (op == Token::TYPEOF) {
-    CHECK_ALIVE(VisitForTypeOf(expr->expression()));
-    HValue* value = Pop();
-    ast_context()->ReturnInstruction(new(zone()) HTypeof(value), expr->id());
-
-  } else {
-    CHECK_ALIVE(VisitForValue(expr->expression()));
-    HValue* value = Pop();
-    HInstruction* instr = NULL;
-    switch (op) {
-      case Token::BIT_NOT:
-        instr = new(zone()) HBitNot(value);
-        break;
-      case Token::SUB:
-        instr = new(zone()) HMul(value, graph_->GetConstantMinus1());
-        break;
-      case Token::ADD:
-        instr = new(zone()) HMul(value, graph_->GetConstant1());
-        break;
-      default:
-        return Bailout("Value: unsupported unary operation");
-        break;
-    }
-    ast_context()->ReturnInstruction(instr, expr->id());
+  switch (expr->op()) {
+    case Token::DELETE: return VisitDelete(expr);
+    case Token::VOID: return VisitVoid(expr);
+    case Token::TYPEOF: return VisitTypeof(expr);
+    case Token::ADD: return VisitAdd(expr);
+    case Token::SUB: return VisitSub(expr);
+    case Token::BIT_NOT: return VisitBitNot(expr);
+    case Token::NOT: return VisitNot(expr);
+    default: UNREACHABLE();
   }
+}
+
+void HGraphBuilder::VisitDelete(UnaryOperation* expr) {
+  Property* prop = expr->expression()->AsProperty();
+  Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
+  if (prop == NULL && var == NULL) {
+    // Result of deleting non-property, non-variable reference is true.
+    // Evaluate the subexpression for side effects.
+    CHECK_ALIVE(VisitForEffect(expr->expression()));
+    ast_context()->ReturnValue(graph()->GetConstantTrue());
+  } else if (var != NULL &&
+             !var->is_global() &&
+             var->AsSlot() != NULL &&
+             var->AsSlot()->type() != Slot::LOOKUP) {
+    // Result of deleting non-global, non-dynamic variables is false.
+    // The subexpression does not have side effects.
+    ast_context()->ReturnValue(graph()->GetConstantFalse());
+  } else if (prop != NULL) {
+    if (prop->is_synthetic()) {
+      // Result of deleting parameters is false, even when they rewrite
+      // to accesses on the arguments object.
+      ast_context()->ReturnValue(graph()->GetConstantFalse());
+    } else {
+      CHECK_ALIVE(VisitForValue(prop->obj()));
+      CHECK_ALIVE(VisitForValue(prop->key()));
+      HValue* key = Pop();
+      HValue* obj = Pop();
+      HDeleteProperty* instr = new(zone()) HDeleteProperty(obj, key);
+      ast_context()->ReturnInstruction(instr, expr->id());
+    }
+  } else if (var->is_global()) {
+    Bailout("delete with global variable");
+  } else {
+    Bailout("delete with non-global variable");
+  }
+}
+
+
+void HGraphBuilder::VisitVoid(UnaryOperation* expr) {
+  CHECK_ALIVE(VisitForEffect(expr->expression()));
+  ast_context()->ReturnValue(graph()->GetConstantUndefined());
+}
+
+
+void HGraphBuilder::VisitTypeof(UnaryOperation* expr) {
+  CHECK_ALIVE(VisitForTypeOf(expr->expression()));
+  HValue* value = Pop();
+  ast_context()->ReturnInstruction(new(zone()) HTypeof(value), expr->id());
+}
+
+
+void HGraphBuilder::VisitAdd(UnaryOperation* expr) {
+  CHECK_ALIVE(VisitForValue(expr->expression()));
+  HValue* value = Pop();
+  HInstruction* instr = new(zone()) HMul(value, graph_->GetConstant1());
+  ast_context()->ReturnInstruction(instr, expr->id());
+}
+
+
+void HGraphBuilder::VisitSub(UnaryOperation* expr) {
+  CHECK_ALIVE(VisitForValue(expr->expression()));
+  HValue* value = Pop();
+  HInstruction* instr = new(zone()) HMul(value, graph_->GetConstantMinus1());
+
+  Representation rep = ToRepresentation(oracle()->UnaryType(expr));
+  PrintF("********************** Old: %s, New: %s\n", instr->representation().Mnemonic(), rep.Mnemonic());
+  AssumeRepresentation(instr, rep);
+
+  ast_context()->ReturnInstruction(instr, expr->id());
+}
+
+
+void HGraphBuilder::VisitBitNot(UnaryOperation* expr) {
+  CHECK_ALIVE(VisitForValue(expr->expression()));
+  HValue* value = Pop();
+  HInstruction* instr = new(zone()) HBitNot(value);
+  ast_context()->ReturnInstruction(instr, expr->id());
+}
+
+
+void HGraphBuilder::VisitNot(UnaryOperation* expr) {
+  // TODO(svenpanne) Perhaps a switch/virtual function is nicer here.
+  if (ast_context()->IsTest()) {
+    TestContext* context = TestContext::cast(ast_context());
+    VisitForControl(expr->expression(),
+                    context->if_false(),
+                    context->if_true());
+    return;
+  }
+
+  if (ast_context()->IsEffect()) {
+    VisitForEffect(expr->expression());
+    return;
+  }
+
+  ASSERT(ast_context()->IsValue());
+  HBasicBlock* materialize_false = graph()->CreateBasicBlock();
+  HBasicBlock* materialize_true = graph()->CreateBasicBlock();
+  CHECK_BAILOUT(VisitForControl(expr->expression(),
+                                materialize_false,
+                                materialize_true));
+
+  if (materialize_false->HasPredecessor()) {
+    materialize_false->SetJoinId(expr->expression()->id());
+    set_current_block(materialize_false);
+    Push(graph()->GetConstantFalse());
+  } else {
+    materialize_false = NULL;
+  }
+
+  if (materialize_true->HasPredecessor()) {
+    materialize_true->SetJoinId(expr->expression()->id());
+    set_current_block(materialize_true);
+    Push(graph()->GetConstantTrue());
+  } else {
+    materialize_true = NULL;
+  }
+
+  HBasicBlock* join =
+    CreateJoin(materialize_false, materialize_true, expr->id());
+  set_current_block(join);
+  if (join != NULL) ast_context()->ReturnValue(Pop());
 }
 
 
@@ -4834,54 +4866,7 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
                                                   HValue* left,
                                                   HValue* right) {
   TypeInfo info = oracle()->BinaryType(expr);
-  HInstruction* instr = NULL;
-  switch (expr->op()) {
-    case Token::ADD:
-      if (info.IsString()) {
-        AddInstruction(new(zone()) HCheckNonSmi(left));
-        AddInstruction(new(zone()) HCheckInstanceType(
-            left, FIRST_STRING_TYPE, LAST_STRING_TYPE));
-        AddInstruction(new(zone()) HCheckNonSmi(right));
-        AddInstruction(new(zone()) HCheckInstanceType(
-            right, FIRST_STRING_TYPE, LAST_STRING_TYPE));
-        instr = new(zone()) HStringAdd(left, right);
-      } else {
-        instr = new(zone()) HAdd(left, right);
-      }
-      break;
-    case Token::SUB:
-      instr = new(zone()) HSub(left, right);
-      break;
-    case Token::MUL:
-      instr = new(zone()) HMul(left, right);
-      break;
-    case Token::MOD:
-      instr = new(zone()) HMod(left, right);
-      break;
-    case Token::DIV:
-      instr = new(zone()) HDiv(left, right);
-      break;
-    case Token::BIT_XOR:
-      instr = new(zone()) HBitXor(left, right);
-      break;
-    case Token::BIT_AND:
-      instr = new(zone()) HBitAnd(left, right);
-      break;
-    case Token::BIT_OR:
-      instr = new(zone()) HBitOr(left, right);
-      break;
-    case Token::SAR:
-      instr = new(zone()) HSar(left, right);
-      break;
-    case Token::SHR:
-      instr = new(zone()) HShr(left, right);
-      break;
-    case Token::SHL:
-      instr = new(zone()) HShl(left, right);
-      break;
-    default:
-      UNREACHABLE();
-  }
+  HInstruction* instr = BuildBinaryOperation(expr->op(), left, right, info);
   // If we hit an uninitialized binary op stub we will get type info
   // for a smi operation. If one of the operands is a constant string
   // do not generate code assuming it is a smi operation.
@@ -4903,6 +4888,38 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
 }
 
 
+HInstruction* HGraphBuilder::BuildBinaryOperation(
+    Token::Value op, HValue* left, HValue* right, TypeInfo info) {
+  switch (op) {
+    case Token::ADD:
+      if (info.IsString()) {
+        AddInstruction(new(zone()) HCheckNonSmi(left));
+        AddInstruction(new(zone()) HCheckInstanceType(left, FIRST_STRING_TYPE,
+                                                      LAST_STRING_TYPE));
+        AddInstruction(new(zone()) HCheckNonSmi(right));
+        AddInstruction(new(zone()) HCheckInstanceType(right, FIRST_STRING_TYPE,
+                                                      LAST_STRING_TYPE));
+        return new(zone()) HStringAdd(left, right);
+      } else {
+        return new(zone()) HAdd(left, right);
+      }
+    case Token::SUB: return new(zone()) HSub(left, right);
+    case Token::MUL: return new(zone()) HMul(left, right);
+    case Token::MOD: return new(zone()) HMod(left, right);
+    case Token::DIV: return new(zone()) HDiv(left, right);
+    case Token::BIT_XOR: return new(zone()) HBitXor(left, right);
+    case Token::BIT_AND: return new(zone()) HBitAnd(left, right);
+    case Token::BIT_OR: return new(zone()) HBitOr(left, right);
+    case Token::SAR: return new(zone()) HSar(left, right);
+    case Token::SHR: return new(zone()) HShr(left, right);
+    case Token::SHL: return new(zone()) HShl(left, right);
+    default:
+      UNREACHABLE();
+      return NULL;
+  }
+}
+
+
 // Check for the form (%_ClassOf(foo) === 'BarClass').
 static bool IsClassOfTest(CompareOperation* expr) {
   if (expr->op() != Token::EQ_STRICT) return false;
@@ -4921,107 +4938,118 @@ void HGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  if (expr->op() == Token::COMMA) {
-    CHECK_ALIVE(VisitForEffect(expr->left()));
-    // Visit the right subexpression in the same AST context as the entire
-    // expression.
-    Visit(expr->right());
+  switch (expr->op()) {
+    case Token::COMMA: return VisitComma(expr);
+    case Token::OR: return VisitAndOr(expr, false);
+    case Token::AND: return VisitAndOr(expr, true);
+    default: return VisitCommon(expr);
+  }
+}
 
-  } else if (expr->op() == Token::AND || expr->op() == Token::OR) {
-    bool is_logical_and = (expr->op() == Token::AND);
-    if (ast_context()->IsTest()) {
-      TestContext* context = TestContext::cast(ast_context());
-      // Translate left subexpression.
-      HBasicBlock* eval_right = graph()->CreateBasicBlock();
-      if (is_logical_and) {
-        CHECK_BAILOUT(VisitForControl(expr->left(),
-                                      eval_right,
-                                      context->if_false()));
-      } else {
-        CHECK_BAILOUT(VisitForControl(expr->left(),
-                                      context->if_true(),
-                                      eval_right));
-      }
 
-      // Translate right subexpression by visiting it in the same AST
-      // context as the entire expression.
-      if (eval_right->HasPredecessor()) {
-        eval_right->SetJoinId(expr->RightId());
-        set_current_block(eval_right);
-        Visit(expr->right());
-      }
+void HGraphBuilder::VisitComma(BinaryOperation* expr) {
+  CHECK_ALIVE(VisitForEffect(expr->left()));
+  // Visit the right subexpression in the same AST context as the entire
+  // expression.
+  Visit(expr->right());
+}
 
-    } else if (ast_context()->IsValue()) {
-      CHECK_ALIVE(VisitForValue(expr->left()));
-      ASSERT(current_block() != NULL);
 
-      // We need an extra block to maintain edge-split form.
-      HBasicBlock* empty_block = graph()->CreateBasicBlock();
-      HBasicBlock* eval_right = graph()->CreateBasicBlock();
-      HTest* test = is_logical_and
-          ? new(zone()) HTest(Top(), eval_right, empty_block)
-          : new(zone()) HTest(Top(), empty_block, eval_right);
-      current_block()->Finish(test);
-
-      set_current_block(eval_right);
-      Drop(1);  // Value of the left subexpression.
-      CHECK_BAILOUT(VisitForValue(expr->right()));
-
-      HBasicBlock* join_block =
-          CreateJoin(empty_block, current_block(), expr->id());
-      set_current_block(join_block);
-      ast_context()->ReturnValue(Pop());
-
+void HGraphBuilder::VisitAndOr(BinaryOperation* expr, bool is_logical_and) {
+  if (ast_context()->IsTest()) {
+    TestContext* context = TestContext::cast(ast_context());
+    // Translate left subexpression.
+    HBasicBlock* eval_right = graph()->CreateBasicBlock();
+    if (is_logical_and) {
+      CHECK_BAILOUT(VisitForControl(expr->left(),
+                                    eval_right,
+                                    context->if_false()));
     } else {
-      ASSERT(ast_context()->IsEffect());
-      // In an effect context, we don't need the value of the left
-      // subexpression, only its control flow and side effects.  We need an
-      // extra block to maintain edge-split form.
-      HBasicBlock* empty_block = graph()->CreateBasicBlock();
-      HBasicBlock* right_block = graph()->CreateBasicBlock();
-      if (is_logical_and) {
-        CHECK_BAILOUT(VisitForControl(expr->left(), right_block, empty_block));
-      } else {
-        CHECK_BAILOUT(VisitForControl(expr->left(), empty_block, right_block));
-      }
-
-      // TODO(kmillikin): Find a way to fix this.  It's ugly that there are
-      // actually two empty blocks (one here and one inserted by
-      // TestContext::BuildBranch, and that they both have an HSimulate
-      // though the second one is not a merge node, and that we really have
-      // no good AST ID to put on that first HSimulate.
-      if (empty_block->HasPredecessor()) {
-        empty_block->SetJoinId(expr->id());
-      } else {
-        empty_block = NULL;
-      }
-
-      if (right_block->HasPredecessor()) {
-        right_block->SetJoinId(expr->RightId());
-        set_current_block(right_block);
-        CHECK_BAILOUT(VisitForEffect(expr->right()));
-        right_block = current_block();
-      } else {
-        right_block = NULL;
-      }
-
-      HBasicBlock* join_block =
-          CreateJoin(empty_block, right_block, expr->id());
-      set_current_block(join_block);
-      // We did not materialize any value in the predecessor environments,
-      // so there is no need to handle it here.
+      CHECK_BAILOUT(VisitForControl(expr->left(),
+                                    context->if_true(),
+                                    eval_right));
     }
 
-  } else {
-    CHECK_ALIVE(VisitForValue(expr->left()));
-    CHECK_ALIVE(VisitForValue(expr->right()));
+    // Translate right subexpression by visiting it in the same AST
+    // context as the entire expression.
+    if (eval_right->HasPredecessor()) {
+      eval_right->SetJoinId(expr->RightId());
+      set_current_block(eval_right);
+      Visit(expr->right());
+    }
 
-    HValue* right = Pop();
-    HValue* left = Pop();
-    HInstruction* instr = BuildBinaryOperation(expr, left, right);
-    instr->set_position(expr->position());
-    ast_context()->ReturnInstruction(instr, expr->id());
+  } else if (ast_context()->IsValue()) {
+    CHECK_ALIVE(VisitForValue(expr->left()));
+    ASSERT(current_block() != NULL);
+
+    // We need an extra block to maintain edge-split form.
+    HBasicBlock* empty_block = graph()->CreateBasicBlock();
+    HBasicBlock* eval_right = graph()->CreateBasicBlock();
+    HTest* test = is_logical_and
+      ? new(zone()) HTest(Top(), eval_right, empty_block)
+      : new(zone()) HTest(Top(), empty_block, eval_right);
+    current_block()->Finish(test);
+
+    set_current_block(eval_right);
+    Drop(1);  // Value of the left subexpression.
+    CHECK_BAILOUT(VisitForValue(expr->right()));
+
+    HBasicBlock* join_block =
+      CreateJoin(empty_block, current_block(), expr->id());
+    set_current_block(join_block);
+    ast_context()->ReturnValue(Pop());
+
+  } else {
+    ASSERT(ast_context()->IsEffect());
+    // In an effect context, we don't need the value of the left subexpression,
+    // only its control flow and side effects.  We need an extra block to
+    // maintain edge-split form.
+    HBasicBlock* empty_block = graph()->CreateBasicBlock();
+    HBasicBlock* right_block = graph()->CreateBasicBlock();
+    if (is_logical_and) {
+      CHECK_BAILOUT(VisitForControl(expr->left(), right_block, empty_block));
+    } else {
+      CHECK_BAILOUT(VisitForControl(expr->left(), empty_block, right_block));
+    }
+
+    // TODO(kmillikin): Find a way to fix this.  It's ugly that there are
+    // actually two empty blocks (one here and one inserted by
+    // TestContext::BuildBranch, and that they both have an HSimulate though the
+    // second one is not a merge node, and that we really have no good AST ID to
+    // put on that first HSimulate.
+
+    if (empty_block->HasPredecessor()) {
+      empty_block->SetJoinId(expr->id());
+    } else {
+      empty_block = NULL;
+    }
+
+    if (right_block->HasPredecessor()) {
+      right_block->SetJoinId(expr->RightId());
+      set_current_block(right_block);
+      CHECK_BAILOUT(VisitForEffect(expr->right()));
+      right_block = current_block();
+    } else {
+      right_block = NULL;
+    }
+
+    HBasicBlock* join_block =
+      CreateJoin(empty_block, right_block, expr->id());
+    set_current_block(join_block);
+    // We did not materialize any value in the predecessor environments,
+    // so there is no need to handle it here.
   }
+}
+
+
+void HGraphBuilder::VisitCommon(BinaryOperation* expr) {
+  CHECK_ALIVE(VisitForValue(expr->left()));
+  CHECK_ALIVE(VisitForValue(expr->right()));
+  HValue* right = Pop();
+  HValue* left = Pop();
+  HInstruction* instr = BuildBinaryOperation(expr, left, right);
+  instr->set_position(expr->position());
+  ast_context()->ReturnInstruction(instr, expr->id());
 }
 
 
