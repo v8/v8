@@ -1895,7 +1895,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
                                      array_type == kExternalDoubleArray)));
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* external_pointer = UseRegister(instr->external_pointer());
-  LOperand* key = UseRegister(instr->key());
+  LOperand* key = UseRegisterOrConstant(instr->key());
   LLoadKeyedSpecializedArrayElement* result =
       new LLoadKeyedSpecializedArrayElement(external_pointer,
                                             key);
@@ -1950,7 +1950,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
   ASSERT(instr->key()->representation().IsInteger32());
 
   LOperand* external_pointer = UseRegister(instr->external_pointer());
-  LOperand* key = UseRegister(instr->key());
+  LOperand* key = UseRegisterOrConstant(instr->key());
   LOperand* temp = NULL;
 
   if (array_type == kExternalPixelArray) {

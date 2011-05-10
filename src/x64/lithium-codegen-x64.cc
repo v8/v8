@@ -2403,39 +2403,56 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 }
 
 
+Operand LCodeGen::BuildExternalArrayOperand(LOperand* external_pointer,
+                                            LOperand* key,
+                                            ExternalArrayType array_type) {
+  Register external_pointer_reg = ToRegister(external_pointer);
+  int shift_size = ExternalArrayTypeToShiftSize(array_type);
+  if (key->IsConstantOperand()) {
+    int constant_value = ToInteger32(LConstantOperand::cast(key));
+    if (constant_value & 0xF0000000) {
+      Abort("array index constant value too big");
+    }
+    return Operand(external_pointer_reg, constant_value * (1 << shift_size));
+  } else {
+    ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
+    return Operand(external_pointer_reg, ToRegister(key), scale_factor, 0);
+  }
+}
+
+
 void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     LLoadKeyedSpecializedArrayElement* instr) {
-  Register external_pointer = ToRegister(instr->external_pointer());
-  Register key = ToRegister(instr->key());
   ExternalArrayType array_type = instr->array_type();
+  Operand operand(BuildExternalArrayOperand(instr->external_pointer(),
+                                            instr->key(), array_type));
   if (array_type == kExternalFloatArray) {
     XMMRegister result(ToDoubleRegister(instr->result()));
-    __ movss(result, Operand(external_pointer, key, times_4, 0));
+    __ movss(result, operand);
     __ cvtss2sd(result, result);
   } else if (array_type == kExternalDoubleArray) {
-    __ movsd(ToDoubleRegister(instr->result()),
-             Operand(external_pointer, key, times_8, 0));
+    __ movsd(ToDoubleRegister(instr->result()), operand);
   } else {
     Register result(ToRegister(instr->result()));
     switch (array_type) {
       case kExternalByteArray:
-        __ movsxbq(result, Operand(external_pointer, key, times_1, 0));
+        __ movsxbq(result, operand);
         break;
       case kExternalUnsignedByteArray:
       case kExternalPixelArray:
-        __ movzxbq(result, Operand(external_pointer, key, times_1, 0));
+        __ movzxbq(result, operand);
         break;
       case kExternalShortArray:
-        __ movsxwq(result, Operand(external_pointer, key, times_2, 0));
+        __ movsxwq(result, operand);
         break;
       case kExternalUnsignedShortArray:
-        __ movzxwq(result, Operand(external_pointer, key, times_2, 0));
+        __ movzxwq(result, operand);
         break;
       case kExternalIntArray:
-        __ movsxlq(result, Operand(external_pointer, key, times_4, 0));
+        __ movsxlq(result, operand);
         break;
       case kExternalUnsignedIntArray:
-        __ movl(result, Operand(external_pointer, key, times_4, 0));
+        __ movl(result, operand);
         __ testl(result, result);
         // TODO(danno): we could be more clever here, perhaps having a special
         // version of the stub that detects if the overflow case actually
@@ -3097,16 +3114,15 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
 void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     LStoreKeyedSpecializedArrayElement* instr) {
-  Register external_pointer = ToRegister(instr->external_pointer());
-  Register key = ToRegister(instr->key());
   ExternalArrayType array_type = instr->array_type();
+  Operand operand(BuildExternalArrayOperand(instr->external_pointer(),
+                                            instr->key(), array_type));
   if (array_type == kExternalFloatArray) {
     XMMRegister value(ToDoubleRegister(instr->value()));
     __ cvtsd2ss(value, value);
-    __ movss(Operand(external_pointer, key, times_4, 0), value);
+    __ movss(operand, value);
   } else if (array_type == kExternalDoubleArray) {
-    __ movsd(Operand(external_pointer, key, times_8, 0),
-             ToDoubleRegister(instr->value()));
+    __ movsd(operand, ToDoubleRegister(instr->value()));
   } else {
     Register value(ToRegister(instr->value()));
     switch (array_type) {
@@ -3118,20 +3134,20 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
           __ setcc(negative, value);  // 1 if negative, 0 if positive.
           __ decb(value);  // 0 if negative, 255 if positive.
           __ bind(&done);
-          __ movb(Operand(external_pointer, key, times_1, 0), value);
+          __ movb(operand, value);
         }
         break;
       case kExternalByteArray:
       case kExternalUnsignedByteArray:
-        __ movb(Operand(external_pointer, key, times_1, 0), value);
+        __ movb(operand, value);
         break;
       case kExternalShortArray:
       case kExternalUnsignedShortArray:
-        __ movw(Operand(external_pointer, key, times_2, 0), value);
+        __ movw(operand, value);
         break;
       case kExternalIntArray:
       case kExternalUnsignedIntArray:
-        __ movl(Operand(external_pointer, key, times_4, 0), value);
+        __ movl(operand, value);
         break;
       case kExternalFloatArray:
       case kExternalDoubleArray:

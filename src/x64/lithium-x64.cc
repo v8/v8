@@ -1851,7 +1851,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
                                      array_type == kExternalDoubleArray)));
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* external_pointer = UseRegister(instr->external_pointer());
-  LOperand* key = UseRegister(instr->key());
+  LOperand* key = UseRegisterOrConstant(instr->key());
   LLoadKeyedSpecializedArrayElement* result =
       new LLoadKeyedSpecializedArrayElement(external_pointer, key);
   LInstruction* load_instr = DefineAsRegister(result);
@@ -1908,7 +1908,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
   LOperand* val = val_is_temp_register
       ? UseTempRegister(instr->value())
       : UseRegister(instr->value());
-  LOperand* key = UseRegister(instr->key());
+  LOperand* key = UseRegisterOrConstant(instr->key());
 
   return new LStoreKeyedSpecializedArrayElement(external_pointer,
                                                 key,
