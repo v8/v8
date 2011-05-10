@@ -4580,7 +4580,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Compare lengths (precomputed).
   __ bind(&compare_lengths);
   __ SmiTest(length_difference);
-  __ j(not_zero, &result_not_equal, Label::kNear);
+  __ j(not_zero, &result_not_equal);
 
   // Result is EQUAL.
   __ Move(rax, Smi::FromInt(EQUAL));
