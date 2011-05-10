@@ -4140,7 +4140,7 @@ static void VerifyPointers(
   while (it.has_next()) {
     Page* page = it.next();
     HEAP->IteratePointersOnPage(reinterpret_cast<PagedSpace*>(page->owner()),
-                                &Heap::IteratePointersToNewSpace,
+                                visit_pointer_region,
                                 &DummyScavengePointer,
                                 page);
   }
