@@ -4637,10 +4637,6 @@ void HGraphBuilder::VisitSub(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
   HInstruction* instr = new(zone()) HMul(value, graph_->GetConstantMinus1());
-
-  Representation rep = ToRepresentation(oracle()->UnaryType(expr));
-  AssumeRepresentation(instr, rep);
-
   ast_context()->ReturnInstruction(instr, expr->id());
 }
 
