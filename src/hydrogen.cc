@@ -5274,7 +5274,11 @@ void HGraphBuilder::GenerateIsNonNegativeSmi(CallRuntime* call) {
 
 
 void HGraphBuilder::GenerateIsUndetectableObject(CallRuntime* call) {
-  return Bailout("inlined runtime function: IsUndetectableObject");
+  ASSERT(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* value = Pop();
+  ast_context()->ReturnInstruction(new(zone()) HIsUndetectable(value),
+                                   call->id());
 }
 
 

@@ -1774,6 +1774,40 @@ void LCodeGen::DoIsSmiAndBranch(LIsSmiAndBranch* instr) {
 }
 
 
+void LCodeGen::DoIsUndetectable(LIsUndetectable* instr) {
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+
+  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
+  Label false_label, done;
+  __ JumpIfSmi(input, &false_label);
+  __ ldr(result, FieldMemOperand(input, HeapObject::kMapOffset));
+  __ ldrb(result, FieldMemOperand(result, Map::kBitFieldOffset));
+  __ tst(result, Operand(1 << Map::kIsUndetectable));
+  __ b(eq, &false_label);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+  __ jmp(&done);
+  __ bind(&false_label);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoIsUndetectableAndBranch(LIsUndetectableAndBranch* instr) {
+  Register input = ToRegister(instr->InputAt(0));
+  Register temp = ToRegister(instr->TempAt(0));
+
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  __ JumpIfSmi(input, chunk_->GetAssemblyLabel(false_block));
+  __ ldr(temp, FieldMemOperand(input, HeapObject::kMapOffset));
+  __ ldrb(temp, FieldMemOperand(temp, Map::kBitFieldOffset));
+  __ tst(temp, Operand(1 << Map::kIsUndetectable));
+  EmitBranch(true_block, false_block, ne);
+}
+
+
 static InstanceType TestType(HHasInstanceType* instr) {
   InstanceType from = instr->from();
   InstanceType to = instr->to();

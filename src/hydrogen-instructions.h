@@ -110,10 +110,11 @@ class LChunkBuilder;
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
   V(InvokeFunction)                            \
+  V(IsConstructCall)                           \
   V(IsNull)                                    \
   V(IsObject)                                  \
   V(IsSmi)                                     \
-  V(IsConstructCall)                           \
+  V(IsUndetectable)                            \
   V(JSArrayLength)                             \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
@@ -2463,6 +2464,17 @@ class HIsSmi: public HUnaryPredicate {
   explicit HIsSmi(HValue* value) : HUnaryPredicate(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(IsSmi)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
+class HIsUndetectable: public HUnaryPredicate {
+ public:
+  explicit HIsUndetectable(HValue* value) : HUnaryPredicate(value) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsUndetectable)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }

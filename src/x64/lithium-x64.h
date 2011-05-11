@@ -108,18 +108,23 @@ class LCodeGen;
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
   V(InvokeFunction)                             \
+  V(IsConstructCall)                            \
+  V(IsConstructCallAndBranch)                   \
   V(IsNull)                                     \
   V(IsNullAndBranch)                            \
   V(IsObject)                                   \
   V(IsObjectAndBranch)                          \
   V(IsSmi)                                      \
   V(IsSmiAndBranch)                             \
+  V(IsUndetectable)                             \
+  V(IsUndetectableAndBranch)                    \
   V(JSArrayLength)                              \
   V(Label)                                      \
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
   V(LoadElements)                               \
   V(LoadExternalArrayPointer)                   \
+  V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
   V(LoadGlobalGeneric)                          \
   V(LoadKeyedFastElement)                       \
@@ -128,7 +133,6 @@ class LCodeGen;
   V(LoadNamedField)                             \
   V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
-  V(LoadFunctionPrototype)                      \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -160,13 +164,11 @@ class LCodeGen;
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
-  V(ToFastProperties)                           \
   V(Throw)                                      \
+  V(ToFastProperties)                           \
   V(Typeof)                                     \
   V(TypeofIs)                                   \
   V(TypeofIsAndBranch)                          \
-  V(IsConstructCall)                            \
-  V(IsConstructCallAndBranch)                   \
   V(UnaryMathOperation)                         \
   V(UnknownOSRValue)                            \
   V(ValueOf)
@@ -733,6 +735,31 @@ class LIsSmiAndBranch: public LControlInstruction<1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(IsSmiAndBranch, "is-smi-and-branch")
+
+  virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class LIsUndetectable: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LIsUndetectable(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsUndetectable, "is-undetectable")
+  DECLARE_HYDROGEN_ACCESSOR(IsUndetectable)
+};
+
+
+class LIsUndetectableAndBranch: public LControlInstruction<1, 1> {
+ public:
+  explicit LIsUndetectableAndBranch(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsUndetectableAndBranch,
+                               "is-undetectable-and-branch")
 
   virtual void PrintDataTo(StringStream* stream);
 };

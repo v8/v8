@@ -237,6 +237,13 @@ void LIsSmiAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
+void LIsUndetectableAndBranch::PrintDataTo(StringStream* stream) {
+  stream->Add("if is_undetectable(");
+  InputAt(0)->PrintTo(stream);
+  stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
+}
+
+
 void LHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if has_instance_type(");
   InputAt(0)->PrintTo(stream);
@@ -1081,6 +1088,12 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       ASSERT(compare->value()->representation().IsTagged());
 
       return new LIsSmiAndBranch(Use(compare->value()));
+    } else if (v->IsIsUndetectable()) {
+      HIsUndetectable* compare = HIsUndetectable::cast(v);
+      ASSERT(compare->value()->representation().IsTagged());
+
+      return new LIsUndetectableAndBranch(UseRegisterAtStart(compare->value()),
+                                          TempRegister());
     } else if (v->IsHasInstanceType()) {
       HHasInstanceType* compare = HHasInstanceType::cast(v);
       ASSERT(compare->value()->representation().IsTagged());
@@ -1528,6 +1541,14 @@ LInstruction* LChunkBuilder::DoIsSmi(HIsSmi* instr) {
   LOperand* value = UseAtStart(instr->value());
 
   return DefineAsRegister(new LIsSmi(value));
+}
+
+
+LInstruction* LChunkBuilder::DoIsUndetectable(HIsUndetectable* instr) {
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegisterAtStart(instr->value());
+
+  return DefineAsRegister(new LIsUndetectable(value));
 }
 
 

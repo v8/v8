@@ -3940,6 +3940,38 @@ THREADED_TEST(UndetectableString) {
 }
 
 
+TEST(UndetectableOptimized) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<String> obj = String::NewUndetectable("foo");
+  env->Global()->Set(v8_str("undetectable"), obj);
+  env->Global()->Set(v8_str("detectable"), v8_str("bar"));
+
+  ExpectString(
+      "function testBranch() {"
+      "  if (!%_IsUndetectableObject(undetectable)) throw 1;"
+      "  if (%_IsUndetectableObject(detectable)) throw 2;"
+      "}\n"
+      "function testBool() {"
+      "  var b1 = !%_IsUndetectableObject(undetectable);"
+      "  var b2 = %_IsUndetectableObject(detectable);"
+      "  if (b1) throw 3;"
+      "  if (b2) throw 4;"
+      "  return b1 == b2;"
+      "}\n"
+      "%OptimizeFunctionOnNextCall(testBranch);"
+      "%OptimizeFunctionOnNextCall(testBool);"
+      "for (var i = 0; i < 10; i++) {"
+      "  testBranch();"
+      "  testBool();"
+      "}\n"
+      "\"PASS\"",
+      "PASS");
+}
+
+
 template <typename T> static void USE(T) { }
 
 
