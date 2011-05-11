@@ -2229,14 +2229,21 @@ void HGraphBuilder::SetupScope(Scope* scope) {
 
   // Set the initial values of parameters including "this".  "This" has
   // parameter index 0.
-  int count = scope->num_parameters() + 1;
-  for (int i = 0; i < count; ++i) {
+  ASSERT_EQ(scope->num_parameters() + 1, environment()->parameter_count());
+
+  for (int i = 0; i < environment()->parameter_count(); ++i) {
     HInstruction* parameter = AddInstruction(new(zone()) HParameter(i));
     environment()->Bind(i, parameter);
   }
 
-  // Set the initial values of stack-allocated locals.
-  for (int i = count; i < environment()->length(); ++i) {
+  // First special is HContext.
+  HInstruction* context = AddInstruction(new(zone()) HContext);
+  environment()->BindContext(context);
+
+  // Initialize specials and locals to undefined.
+  for (int i = environment()->parameter_count() + 1;
+       i < environment()->length();
+       ++i) {
     environment()->Bind(i, undefined_constant);
   }
 
@@ -2593,17 +2600,18 @@ void HGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
   int osr_entry_id = statement->OsrEntryId();
   // We want the correct environment at the OsrEntry instruction.  Build
   // it explicitly.  The expression stack should be empty.
-  int count = environment()->length();
-  ASSERT(count ==
-         (environment()->parameter_count() + environment()->local_count()));
-  for (int i = 0; i < count; ++i) {
-    HUnknownOSRValue* unknown = new(zone()) HUnknownOSRValue;
-    AddInstruction(unknown);
-    environment()->Bind(i, unknown);
+  ASSERT(environment()->ExpressionStackIsEmpty());
+  for (int i = 0; i < environment()->length(); ++i) {
+    HUnknownOSRValue* osr_value = new(zone()) HUnknownOSRValue;
+    AddInstruction(osr_value);
+    environment()->Bind(i, osr_value);
   }
 
   AddSimulate(osr_entry_id);
   AddInstruction(new(zone()) HOsrEntry(osr_entry_id));
+  HContext* context = new(zone()) HContext;
+  AddInstruction(context);
+  environment()->BindContext(context);
   current_block()->Goto(loop_predecessor);
   loop_predecessor->SetJoinId(statement->EntryId());
   set_current_block(loop_predecessor);
@@ -2886,12 +2894,12 @@ HGraphBuilder::GlobalPropertyAccess HGraphBuilder::LookupGlobalProperty(
 
 HValue* HGraphBuilder::BuildContextChainWalk(Variable* var) {
   ASSERT(var->IsContextSlot());
-  HInstruction* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   int length = info()->scope()->ContextChainLength(var->scope());
   while (length-- > 0) {
-    context = new(zone()) HOuterContext(context);
-    AddInstruction(context);
+    HInstruction* context_instruction = new(zone()) HOuterContext(context);
+    AddInstruction(context_instruction);
+    context = context_instruction;
   }
   return context;
 }
@@ -2930,8 +2938,7 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       HLoadGlobalCell* instr = new(zone()) HLoadGlobalCell(cell, check_hole);
       ast_context()->ReturnInstruction(instr, expr->id());
     } else {
-      HContext* context = new(zone()) HContext;
-      AddInstruction(context);
+      HValue* context = environment()->LookupContext();
       HGlobalObject* global_object = new(zone()) HGlobalObject(context);
       AddInstruction(global_object);
       HLoadGlobalGeneric* instr =
@@ -2974,8 +2981,7 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   HObjectLiteral* literal =
       new(zone()) HObjectLiteral(context,
                                  expr->constant_properties(),
@@ -3157,8 +3163,7 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
 HInstruction* HGraphBuilder::BuildStoreNamedGeneric(HValue* object,
                                                     Handle<String> name,
                                                     HValue* value) {
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   return new(zone()) HStoreNamedGeneric(
                          context,
                          object,
@@ -3334,8 +3339,7 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
     AddInstruction(instr);
     if (instr->HasSideEffects()) AddSimulate(ast_id);
   } else {
-    HContext* context = new(zone()) HContext;
-    AddInstruction(context);
+    HValue* context =  environment()->LookupContext();
     HGlobalObject* global_object = new(zone()) HGlobalObject(context);
     AddInstruction(global_object);
     HStoreGlobalGeneric* instr =
@@ -3560,8 +3564,7 @@ HInstruction* HGraphBuilder::BuildLoadNamedGeneric(HValue* obj,
                                                    Property* expr) {
   ASSERT(expr->key()->IsPropertyName());
   Handle<Object> name = expr->key()->AsLiteral()->handle();
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   return new(zone()) HLoadNamedGeneric(context, obj, name);
 }
 
@@ -3591,8 +3594,7 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
 
 HInstruction* HGraphBuilder::BuildLoadKeyedGeneric(HValue* object,
                                                    HValue* key) {
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   return new(zone()) HLoadKeyedGeneric(context, object, key);
 }
 
@@ -3667,8 +3669,7 @@ HInstruction* HGraphBuilder::BuildLoadKeyed(HValue* obj,
 HInstruction* HGraphBuilder::BuildStoreKeyedGeneric(HValue* object,
                                                     HValue* key,
                                                     HValue* value) {
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   return new(zone()) HStoreKeyedGeneric(
                          context,
                          object,
@@ -3917,8 +3918,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
     current_block()->FinishExitWithDeoptimization();
   } else {
-    HContext* context = new(zone()) HContext;
-    AddInstruction(context);
+    HValue* context = environment()->LookupContext();
     HCallNamed* call = new(zone()) HCallNamed(context, name, argument_count);
     call->set_position(expr->position());
     PreProcessCall(call);
@@ -4345,8 +4345,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
 
       CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
-      HContext* context = new(zone()) HContext;
-      AddInstruction(context);
+      HValue* context = environment()->LookupContext();
       call = PreProcessCall(
           new(zone()) HCallKeyed(context, key, argument_count));
       call->set_position(expr->position());
@@ -4385,8 +4384,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
         // When the target has a custom call IC generator, use the IC,
         // because it is likely to generate better code.  Also use the IC
         // when a primitive receiver check is required.
-        HContext* context = new(zone()) HContext;
-        AddInstruction(context);
+        HValue* context = environment()->LookupContext();
         call = PreProcessCall(
             new(zone()) HCallNamed(context, name, argument_count));
       } else {
@@ -4403,8 +4401,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
       return;
 
     } else {
-      HContext* context = new(zone()) HContext;
-      AddInstruction(context);
+      HValue* context = environment()->LookupContext();
       call = PreProcessCall(
           new(zone()) HCallNamed(context, name, argument_count));
     }
@@ -4433,9 +4430,8 @@ void HGraphBuilder::VisitCall(Call* expr) {
       if (known_global_function) {
         // Push the global object instead of the global receiver because
         // code generated by the full code generator expects it.
-        HContext* context = new(zone()) HContext;
+        HValue* context = environment()->LookupContext();
         HGlobalObject* global_object = new(zone()) HGlobalObject(context);
-        AddInstruction(context);
         PushAndAdd(global_object);
         CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
@@ -4457,8 +4453,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
         call = PreProcessCall(new(zone()) HCallKnownGlobal(expr->target(),
                                                            argument_count));
       } else {
-        HContext* context = new(zone()) HContext;
-        AddInstruction(context);
+        HValue* context = environment()->LookupContext();
         PushAndAdd(new(zone()) HGlobalObject(context));
         CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
@@ -4468,9 +4463,8 @@ void HGraphBuilder::VisitCall(Call* expr) {
       }
 
     } else {
-      HContext* context = new(zone()) HContext;
+      HValue* context = environment()->LookupContext();
       HGlobalObject* global_object = new(zone()) HGlobalObject(context);
-      AddInstruction(context);
       AddInstruction(global_object);
       PushAndAdd(new(zone()) HGlobalReceiver(global_object));
       CHECK_ALIVE(VisitExpressions(expr->arguments()));
@@ -4493,8 +4487,7 @@ void HGraphBuilder::VisitCallNew(CallNew* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
 
   // The constructor is both an operand to the instruction and an argument
   // to the construct call.
@@ -5137,8 +5130,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     // If the target is not null we have found a known global function that is
     // assumed to stay the same for this instanceof.
     if (target.is_null()) {
-      HContext* context = new(zone()) HContext;
-      AddInstruction(context);
+      HValue* context = environment()->LookupContext();
       instr = new(zone()) HInstanceOf(context, left, right);
     } else {
       AddInstruction(new(zone()) HCheckFunction(right, target));
@@ -5414,8 +5406,7 @@ void HGraphBuilder::GenerateRandomHeapNumber(CallRuntime* call) {
 void HGraphBuilder::GenerateStringAdd(CallRuntime* call) {
   ASSERT_EQ(2, call->arguments()->length());
   CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   HCallStub* result = new(zone()) HCallStub(context, CodeStub::StringAdd, 2);
   Drop(2);
   ast_context()->ReturnInstruction(result, call->id());
@@ -5426,8 +5417,7 @@ void HGraphBuilder::GenerateStringAdd(CallRuntime* call) {
 void HGraphBuilder::GenerateSubString(CallRuntime* call) {
   ASSERT_EQ(3, call->arguments()->length());
   CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   HCallStub* result = new(zone()) HCallStub(context, CodeStub::SubString, 3);
   Drop(3);
   ast_context()->ReturnInstruction(result, call->id());
@@ -5438,8 +5428,7 @@ void HGraphBuilder::GenerateSubString(CallRuntime* call) {
 void HGraphBuilder::GenerateStringCompare(CallRuntime* call) {
   ASSERT_EQ(2, call->arguments()->length());
   CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   HCallStub* result =
       new(zone()) HCallStub(context, CodeStub::StringCompare, 2);
   Drop(2);
@@ -5451,8 +5440,7 @@ void HGraphBuilder::GenerateStringCompare(CallRuntime* call) {
 void HGraphBuilder::GenerateRegExpExec(CallRuntime* call) {
   ASSERT_EQ(4, call->arguments()->length());
   CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   HCallStub* result = new(zone()) HCallStub(context, CodeStub::RegExpExec, 4);
   Drop(4);
   ast_context()->ReturnInstruction(result, call->id());
@@ -5463,8 +5451,7 @@ void HGraphBuilder::GenerateRegExpExec(CallRuntime* call) {
 void HGraphBuilder::GenerateRegExpConstructResult(CallRuntime* call) {
   ASSERT_EQ(3, call->arguments()->length());
   CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   HCallStub* result =
       new(zone()) HCallStub(context, CodeStub::RegExpConstructResult, 3);
   Drop(3);
@@ -5482,8 +5469,7 @@ void HGraphBuilder::GenerateGetFromCache(CallRuntime* call) {
 void HGraphBuilder::GenerateNumberToString(CallRuntime* call) {
   ASSERT_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   HCallStub* result =
       new(zone()) HCallStub(context, CodeStub::NumberToString, 1);
   Drop(1);
@@ -5510,8 +5496,7 @@ void HGraphBuilder::GenerateCallFunction(CallRuntime* call) {
   }
   CHECK_ALIVE(VisitForValue(call->arguments()->last()));
   HValue* function = Pop();
-  HContext* context = new HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   HInvokeFunction* result =
       new(zone()) HInvokeFunction(context, function, arg_count);
   Drop(arg_count);
@@ -5534,8 +5519,7 @@ void HGraphBuilder::GenerateMathPow(CallRuntime* call) {
 void HGraphBuilder::GenerateMathSin(CallRuntime* call) {
   ASSERT_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   HCallStub* result =
       new(zone()) HCallStub(context, CodeStub::TranscendentalCache, 1);
   result->set_transcendental_type(TranscendentalCache::SIN);
@@ -5547,8 +5531,7 @@ void HGraphBuilder::GenerateMathSin(CallRuntime* call) {
 void HGraphBuilder::GenerateMathCos(CallRuntime* call) {
   ASSERT_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   HCallStub* result =
       new(zone()) HCallStub(context, CodeStub::TranscendentalCache, 1);
   result->set_transcendental_type(TranscendentalCache::COS);
@@ -5560,8 +5543,7 @@ void HGraphBuilder::GenerateMathCos(CallRuntime* call) {
 void HGraphBuilder::GenerateMathLog(CallRuntime* call) {
   ASSERT_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitArgumentList(call->arguments()));
-  HContext* context = new(zone()) HContext;
-  AddInstruction(context);
+  HValue* context = environment()->LookupContext();
   HCallStub* result =
       new(zone()) HCallStub(context, CodeStub::TranscendentalCache, 1);
   result->set_transcendental_type(TranscendentalCache::LOG);
@@ -5606,6 +5588,7 @@ HEnvironment::HEnvironment(HEnvironment* outer,
       values_(0),
       assigned_variables_(4),
       parameter_count_(0),
+      specials_count_(1),
       local_count_(0),
       outer_(outer),
       pop_count_(0),
@@ -5619,6 +5602,7 @@ HEnvironment::HEnvironment(const HEnvironment* other)
     : values_(0),
       assigned_variables_(0),
       parameter_count_(0),
+      specials_count_(1),
       local_count_(0),
       outer_(NULL),
       pop_count_(0),
@@ -5635,7 +5619,7 @@ void HEnvironment::Initialize(int parameter_count,
   local_count_ = local_count;
 
   // Avoid reallocating the temporaries' backing store on the first Push.
-  int total = parameter_count + local_count + stack_height;
+  int total = parameter_count + specials_count_ + local_count + stack_height;
   values_.Initialize(total + 4);
   for (int i = 0; i < total; ++i) values_.Add(NULL);
 }
@@ -5694,12 +5678,12 @@ void HEnvironment::Bind(int index, HValue* value) {
 
 
 bool HEnvironment::HasExpressionAt(int index) const {
-  return index >= parameter_count_ + local_count_;
+  return index >= parameter_count_ + specials_count_ + local_count_;
 }
 
 
 bool HEnvironment::ExpressionStackIsEmpty() const {
-  int first_expression = parameter_count() + local_count();
+  int first_expression = parameter_count() + specials_count() + local_count();
   ASSERT(length() >= first_expression);
   return length() == first_expression;
 }
@@ -5777,12 +5761,9 @@ HEnvironment* HEnvironment::CopyForInlining(Handle<JSFunction> target,
       inner->SetValueAt(i, push);
     }
   }
-
-  // Initialize the stack-allocated locals to undefined.
-  int local_base = arity + 1;
-  int local_count = function->scope()->num_stack_slots();
-  for (int i = 0; i < local_count; ++i) {
-    inner->SetValueAt(local_base + i, undefined);
+  inner->SetValueAt(arity + 1, outer->LookupContext());
+  for (int i = arity + 2; i < inner->length(); ++i) {
+    inner->SetValueAt(i, undefined);
   }
 
   inner->set_ast_id(AstNode::kFunctionEntryId);
@@ -5793,8 +5774,11 @@ HEnvironment* HEnvironment::CopyForInlining(Handle<JSFunction> target,
 void HEnvironment::PrintTo(StringStream* stream) {
   for (int i = 0; i < length(); i++) {
     if (i == 0) stream->Add("parameters\n");
-    if (i == parameter_count()) stream->Add("locals\n");
-    if (i == parameter_count() + local_count()) stream->Add("expressions");
+    if (i == parameter_count()) stream->Add("specials\n");
+    if (i == parameter_count() + specials_count()) stream->Add("locals\n");
+    if (i == parameter_count() + specials_count() + local_count()) {
+      stream->Add("expressions");
+    }
     HValue* val = values_.at(i);
     stream->Add("%d: ", i);
     if (val != NULL) {
