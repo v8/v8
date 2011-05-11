@@ -63,14 +63,18 @@ class JumpPatchSite BASE_EMBEDDED {
     ASSERT(patch_site_.is_bound() == info_emitted_);
   }
 
-  void EmitJumpIfNotSmi(Register reg, NearLabel* target) {
+  void EmitJumpIfNotSmi(Register reg,
+                        Label* target,
+                        Label::Distance near_jump = Label::kFar) {
     __ testb(reg, Immediate(kSmiTagMask));
-    EmitJump(not_carry, target);   // Always taken before patched.
+    EmitJump(not_carry, target, near_jump);   // Always taken before patched.
   }
 
-  void EmitJumpIfSmi(Register reg, NearLabel* target) {
+  void EmitJumpIfSmi(Register reg,
+                     Label* target,
+                     Label::Distance near_jump = Label::kFar) {
     __ testb(reg, Immediate(kSmiTagMask));
-    EmitJump(carry, target);  // Never taken before patched.
+    EmitJump(carry, target, near_jump);  // Never taken before patched.
   }
 
   void EmitPatchInfo() {
@@ -86,11 +90,11 @@ class JumpPatchSite BASE_EMBEDDED {
 
  private:
   // jc will be patched with jz, jnc will become jnz.
-  void EmitJump(Condition cc, NearLabel* target) {
+  void EmitJump(Condition cc, Label* target, Label::Distance near_jump) {
     ASSERT(!patch_site_.is_bound() && !info_emitted_);
     ASSERT(cc == carry || cc == not_carry);
     __ bind(&patch_site_);
-    __ j(cc, target);
+    __ j(cc, target, near_jump);
   }
 
   MacroAssembler* masm_;
@@ -807,10 +811,10 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     bool inline_smi_code = ShouldInlineSmiCase(Token::EQ_STRICT);
     JumpPatchSite patch_site(masm_);
     if (inline_smi_code) {
-      NearLabel slow_case;
+      Label slow_case;
       __ movq(rcx, rdx);
       __ or_(rcx, rax);
-      patch_site.EmitJumpIfNotSmi(rcx, &slow_case);
+      patch_site.EmitJumpIfNotSmi(rcx, &slow_case, Label::kNear);
 
       __ cmpq(rdx, rax);
       __ j(not_equal, &next_test);
@@ -1671,13 +1675,12 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   // Do combined smi check of the operands. Left operand is on the
   // stack (popped into rdx). Right operand is in rax but moved into
   // rcx to make the shifts easier.
-  NearLabel stub_call, smi_case;
-  Label done;
+  Label done, stub_call, smi_case;
   __ pop(rdx);
   __ movq(rcx, rax);
   __ or_(rax, rdx);
   JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(rax, &smi_case);
+  patch_site.EmitJumpIfSmi(rax, &smi_case, Label::kNear);
 
   __ bind(&stub_call);
   __ movq(rax, rcx);
@@ -3838,8 +3841,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Inline smi case if we are in a loop.
-  NearLabel done;
-  Label stub_call;
+  Label done, stub_call;
   JumpPatchSite patch_site(masm_);
 
   if (ShouldInlineSmiCase(expr->op())) {
@@ -3851,7 +3853,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     __ j(overflow, &stub_call, Label::kNear);
     // We could eliminate this smi check if we split the code at
     // the first smi check before calling ToNumber.
-    patch_site.EmitJumpIfSmi(rax, &done);
+    patch_site.EmitJumpIfSmi(rax, &done, Label::kNear);
 
     __ bind(&stub_call);
     // Call stub. Undo operation first.
@@ -4136,10 +4138,10 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       bool inline_smi_code = ShouldInlineSmiCase(op);
       JumpPatchSite patch_site(masm_);
       if (inline_smi_code) {
-        NearLabel slow_case;
+        Label slow_case;
         __ movq(rcx, rdx);
         __ or_(rcx, rax);
-        patch_site.EmitJumpIfNotSmi(rcx, &slow_case);
+        patch_site.EmitJumpIfNotSmi(rcx, &slow_case, Label::kNear);
         __ cmpq(rdx, rax);
         Split(cc, if_true, if_false, NULL);
         __ bind(&slow_case);

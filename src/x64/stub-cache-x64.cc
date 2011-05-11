@@ -3195,9 +3195,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     // For the UnsignedInt array type, we need to see whether
     // the value can be represented in a Smi. If not, we need to convert
     // it to a HeapNumber.
-    NearLabel box_int;
+    Label box_int;
 
-    __ JumpIfUIntNotValidSmiValue(rcx, &box_int);
+    __ JumpIfUIntNotValidSmiValue(rcx, &box_int, Label::kNear);
 
     __ Integer32ToSmi(rax, rcx);
     __ ret(0);
@@ -3286,12 +3286,12 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   // rdx: receiver (a JSObject)
   // rbx: elements array
   // rdi: untagged key
-  NearLabel check_heap_number;
+  Label check_heap_number;
   if (array_type == kExternalPixelArray) {
     // Float to pixel conversion is only implemented in the runtime for now.
     __ JumpIfNotSmi(rax, &slow);
   } else {
-    __ JumpIfNotSmi(rax, &check_heap_number);
+    __ JumpIfNotSmi(rax, &check_heap_number, Label::kNear);
   }
   // No more branches to slow case on this path.  Key and receiver not needed.
   __ SmiToInteger32(rdx, rax);

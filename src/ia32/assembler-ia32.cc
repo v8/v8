@@ -1552,20 +1552,6 @@ void Assembler::bind(Label* L) {
 }
 
 
-void Assembler::bind(NearLabel* L) {
-  ASSERT(!L->is_bound());
-  last_pc_ = NULL;
-  while (L->unresolved_branches_ > 0) {
-    int branch_pos = L->unresolved_positions_[L->unresolved_branches_ - 1];
-    int disp = pc_offset() - branch_pos;
-    ASSERT(is_int8(disp));
-    set_byte_at(branch_pos - sizeof(int8_t), disp);
-    L->unresolved_branches_--;
-  }
-  L->bind_to(pc_offset());
-}
-
-
 void Assembler::call(Label* L) {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
@@ -1682,25 +1668,6 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
 }
 
 
-void Assembler::jmp(NearLabel* L) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  if (L->is_bound()) {
-    const int short_size = 2;
-    int offs = L->pos() - pc_offset();
-    ASSERT(offs <= 0);
-    ASSERT(is_int8(offs - short_size));
-    // 1110 1011 #8-bit disp.
-    EMIT(0xEB);
-    EMIT((offs - short_size) & 0xFF);
-  } else {
-    EMIT(0xEB);
-    EMIT(0x00);      // The displacement will be resolved later.
-    L->link_to(pc_offset());
-  }
-}
-
-
 void Assembler::j(Condition cc, Label* L, Hint hint, Label::Distance distance) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1755,27 +1722,6 @@ void Assembler::j(Condition cc, Handle<Code> code, Hint hint) {
   EMIT(0x0F);
   EMIT(0x80 | cc);
   emit(reinterpret_cast<intptr_t>(code.location()), RelocInfo::CODE_TARGET);
-}
-
-
-void Assembler::j(Condition cc, NearLabel* L, Hint hint) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  ASSERT(0 <= cc && cc < 16);
-  if (FLAG_emit_branch_hints && hint != no_hint) EMIT(hint);
-  if (L->is_bound()) {
-    const int short_size = 2;
-    int offs = L->pos() - pc_offset();
-    ASSERT(offs <= 0);
-    ASSERT(is_int8(offs - short_size));
-    // 0111 tttn #8-bit disp
-    EMIT(0x70 | cc);
-    EMIT((offs - short_size) & 0xFF);
-  } else {
-    EMIT(0x70 | cc);
-    EMIT(0x00);      // The displacement will be resolved later.
-    L->link_to(pc_offset());
-  }
 }
 
 

@@ -842,8 +842,6 @@ class Assembler : public AssemblerBase {
   // but it may be bound only once.
 
   void bind(Label* L);  // binds an unbound label L to the current code position
-  // DEPRECATED. Use bind(Label*) with jmp(Label*, Label::kNear) instead.
-  void bind(NearLabel* L);
 
   // Calls
   void call(Label* L);
@@ -862,10 +860,6 @@ class Assembler : public AssemblerBase {
   void jmp(const Operand& adr);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
 
-  // Short jump
-  // DEPRECATED. Use jmp(Label*, Label::kNear) instead.
-  void jmp(NearLabel* L);
-
   // Conditional jumps
   void j(Condition cc,
          Label* L,
@@ -876,10 +870,6 @@ class Assembler : public AssemblerBase {
   }
   void j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint = no_hint);
   void j(Condition cc, Handle<Code> code, Hint hint = no_hint);
-
-  // Conditional short jump
-  // DEPRECATED. Use j(Condition, Label*, Label::kNear) instead.
-  void j(Condition cc, NearLabel* L, Hint hint = no_hint);
 
   // Floating-point operations
   void fld(int i);

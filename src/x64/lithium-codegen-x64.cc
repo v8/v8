@@ -1203,13 +1203,13 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
   ASSERT(input.is(result));
-  NearLabel done;
+  Label done;
   // If the object is a smi return the object.
-  __ JumpIfSmi(input, &done);
+  __ JumpIfSmi(input, &done, Label::kNear);
 
   // If the object is not a value type, return the object.
   __ CmpObjectType(input, JS_VALUE_TYPE, kScratchRegister);
-  __ j(not_equal, &done);
+  __ j(not_equal, &done, Label::kNear);
   __ movq(result, FieldOperand(input, JSValue::kValueOffset));
 
   __ bind(&done);
@@ -1574,12 +1574,11 @@ void LCodeGen::DoIsNull(LIsNull* instr) {
     __ bind(&load);
     __ LoadRootIndexed(result, result, 0);
   } else {
-    NearLabel false_value;
-    Label true_value, done;
+    Label false_value, true_value, done;
     __ j(equal, &true_value, Label::kNear);
     __ CompareRoot(reg, Heap::kUndefinedValueRootIndex);
     __ j(equal, &true_value, Label::kNear);
-    __ JumpIfSmi(reg, &false_value);
+    __ JumpIfSmi(reg, &false_value, Label::kNear);
     // Check for undetectable objects by looking in the bit field in
     // the map. The object has already been smi checked.
     Register scratch = result;
@@ -3495,11 +3494,10 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 XMMRegister result_reg,
                                 LEnvironment* env) {
-  NearLabel load_smi;
-  Label heap_number, done;
+  Label load_smi, heap_number, done;
 
   // Smi check.
-  __ JumpIfSmi(input_reg, &load_smi);
+  __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
 
   // Heap number map check.
   __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),

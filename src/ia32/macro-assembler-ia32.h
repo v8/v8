@@ -70,11 +70,11 @@ class MacroAssembler: public Assembler {
 
   // Check if object is in new space.
   // scratch can be object itself, but it will be clobbered.
-  template <typename LabelType>
   void InNewSpace(Register object,
                   Register scratch,
                   Condition cc,  // equal for new space, not_equal otherwise.
-                  LabelType* branch);
+                  Label* branch,
+                  Label::Distance branch_near = Label::kFar);
 
   // For page containing |object| mark region covering [object+offset]
   // dirty. |object| is the object being stored into, |value| is the
@@ -647,8 +647,9 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& actual,
                       Handle<Code> code_constant,
                       const Operand& code_operand,
-                      NearLabel* done,
+                      Label* done,
                       InvokeFlag flag,
+                      Label::Distance done_near = Label::kFar,
                       const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Activation support.
@@ -682,33 +683,6 @@ class MacroAssembler: public Assembler {
   // traversal.
   friend class OptimizedFrame;
 };
-
-
-template <typename LabelType>
-void MacroAssembler::InNewSpace(Register object,
-                                Register scratch,
-                                Condition cc,
-                                LabelType* branch) {
-  ASSERT(cc == equal || cc == not_equal);
-  if (Serializer::enabled()) {
-    // Can't do arithmetic on external references if it might get serialized.
-    mov(scratch, Operand(object));
-    // The mask isn't really an address.  We load it as an external reference in
-    // case the size of the new space is different between the snapshot maker
-    // and the running system.
-    and_(Operand(scratch),
-         Immediate(ExternalReference::new_space_mask(isolate())));
-    cmp(Operand(scratch),
-        Immediate(ExternalReference::new_space_start(isolate())));
-    j(cc, branch);
-  } else {
-    int32_t new_space_start = reinterpret_cast<int32_t>(
-        ExternalReference::new_space_start(isolate()).address());
-    lea(scratch, Operand(object, -new_space_start));
-    and_(scratch, isolate()->heap()->NewSpaceMask());
-    j(cc, branch);
-  }
-}
 
 
 // The code patcher is used to patch (typically) small parts of code e.g. for

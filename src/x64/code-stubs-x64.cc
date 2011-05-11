@@ -453,38 +453,40 @@ void TypeRecordingUnaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 
 
 void TypeRecordingUnaryOpStub::GenerateSmiStubSub(MacroAssembler* masm) {
-  NearLabel non_smi;
   Label slow;
-  GenerateSmiCodeSub(masm, &non_smi, &slow);
-  __ bind(&non_smi);
+  GenerateSmiCodeSub(masm, &slow, &slow, Label::kNear, Label::kNear);
   __ bind(&slow);
   GenerateTypeTransition(masm);
 }
 
 
 void TypeRecordingUnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
-  NearLabel non_smi;
-  GenerateSmiCodeBitNot(masm, &non_smi);
+  Label non_smi;
+  GenerateSmiCodeBitNot(masm, &non_smi, Label::kNear);
   __ bind(&non_smi);
   GenerateTypeTransition(masm);
 }
 
 
 void TypeRecordingUnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
-                                                  NearLabel* non_smi,
-                                                  Label* slow) {
-  NearLabel done;
-  __ JumpIfNotSmi(rax, non_smi);
-  __ SmiNeg(rax, rax, &done);
-  __ jmp(slow);
+                                                  Label* non_smi,
+                                                  Label* slow,
+                                                  Label::Distance non_smi_near,
+                                                  Label::Distance slow_near) {
+  Label done;
+  __ JumpIfNotSmi(rax, non_smi, non_smi_near);
+  __ SmiNeg(rax, rax, &done, Label::kNear);
+  __ jmp(slow, slow_near);
   __ bind(&done);
   __ ret(0);
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateSmiCodeBitNot(MacroAssembler* masm,
-                                                     NearLabel* non_smi) {
-  __ JumpIfNotSmi(rax, non_smi);
+void TypeRecordingUnaryOpStub::GenerateSmiCodeBitNot(
+    MacroAssembler* masm,
+    Label* non_smi,
+    Label::Distance non_smi_near) {
+  __ JumpIfNotSmi(rax, non_smi, non_smi_near);
   __ SmiNot(rax, rax);
   __ ret(0);
 }
@@ -506,9 +508,8 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
-  NearLabel non_smi;
-  Label slow;
-  GenerateSmiCodeSub(masm, &non_smi, &slow);
+  Label non_smi, slow;
+  GenerateSmiCodeSub(masm, &non_smi, &slow, Label::kNear);
   __ bind(&non_smi);
   GenerateHeapNumberCodeSub(masm, &slow);
   __ bind(&slow);
@@ -518,9 +519,8 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
 
 void TypeRecordingUnaryOpStub::GenerateHeapNumberStubBitNot(
     MacroAssembler* masm) {
-  NearLabel non_smi;
-  Label slow;
-  GenerateSmiCodeBitNot(masm, &non_smi);
+  Label non_smi, slow;
+  GenerateSmiCodeBitNot(masm, &non_smi, Label::kNear);
   __ bind(&non_smi);
   GenerateHeapNumberCodeBitNot(masm, &slow);
   __ bind(&slow);
@@ -603,9 +603,8 @@ void TypeRecordingUnaryOpStub::GenerateGenericStub(MacroAssembler* masm) {
 
 
 void TypeRecordingUnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm) {
-  NearLabel non_smi;
-  Label slow;
-  GenerateSmiCodeSub(masm, &non_smi, &slow);
+  Label non_smi, slow;
+  GenerateSmiCodeSub(masm, &non_smi, &slow, Label::kNear);
   __ bind(&non_smi);
   GenerateHeapNumberCodeSub(masm, &slow);
   __ bind(&slow);
@@ -614,9 +613,8 @@ void TypeRecordingUnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm) {
 
 
 void TypeRecordingUnaryOpStub::GenerateGenericStubBitNot(MacroAssembler* masm) {
-  NearLabel non_smi;
-  Label slow;
-  GenerateSmiCodeBitNot(masm, &non_smi);
+  Label non_smi, slow;
+  GenerateSmiCodeBitNot(masm, &non_smi, Label::kNear);
   __ bind(&non_smi);
   GenerateHeapNumberCodeBitNot(masm, &slow);
   __ bind(&slow);
@@ -1013,25 +1011,25 @@ void TypeRecordingBinaryOpStub::GenerateFloatingPointCode(
 
 void TypeRecordingBinaryOpStub::GenerateStringAddCode(MacroAssembler* masm) {
   ASSERT(op_ == Token::ADD);
-  NearLabel left_not_string, call_runtime;
+  Label left_not_string, call_runtime;
 
   // Registers containing left and right operands respectively.
   Register left = rdx;
   Register right = rax;
 
   // Test if left operand is a string.
-  __ JumpIfSmi(left, &left_not_string);
+  __ JumpIfSmi(left, &left_not_string, Label::kNear);
   __ CmpObjectType(left, FIRST_NONSTRING_TYPE, rcx);
-  __ j(above_equal, &left_not_string);
+  __ j(above_equal, &left_not_string, Label::kNear);
   StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
   GenerateRegisterArgsPush(masm);
   __ TailCallStub(&string_add_left_stub);
 
   // Left operand is not a string, test right.
   __ bind(&left_not_string);
-  __ JumpIfSmi(right, &call_runtime);
+  __ JumpIfSmi(right, &call_runtime, Label::kNear);
   __ CmpObjectType(right, FIRST_NONSTRING_TYPE, rcx);
-  __ j(above_equal, &call_runtime);
+  __ j(above_equal, &call_runtime, Label::kNear);
 
   StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
   GenerateRegisterArgsPush(masm);
@@ -1276,11 +1274,10 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   Label skip_cache;
   const bool tagged = (argument_type_ == TAGGED);
   if (tagged) {
-    NearLabel input_not_smi;
-    Label loaded;
+    Label input_not_smi, loaded;
     // Test that rax is a number.
     __ movq(rax, Operand(rsp, kPointerSize));
-    __ JumpIfNotSmi(rax, &input_not_smi);
+    __ JumpIfNotSmi(rax, &input_not_smi, Label::kNear);
     // Input is a smi. Untag and load it onto the FPU stack.
     // Then load the bits of the double into rbx.
     __ SmiToInteger32(rax, rax);
@@ -1698,8 +1695,8 @@ void FloatingPointHelper::NumbersToSmis(MacroAssembler* masm,
 
   __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
 
-  NearLabel first_smi;
-  __ JumpIfSmi(first, &first_smi);
+  Label first_smi;
+  __ JumpIfSmi(first, &first_smi, Label::kNear);
   __ cmpq(FieldOperand(first, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, on_not_smis);
   // Convert HeapNumber to smi if possible.
@@ -1827,9 +1824,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ ucomisd(xmm1, xmm1);
   __ j(parity_even, &call_runtime);
 
-  NearLabel base_not_smi;
-  Label handle_special_cases;
-  __ JumpIfNotSmi(rdx, &base_not_smi);
+  Label base_not_smi, handle_special_cases;
+  __ JumpIfNotSmi(rdx, &base_not_smi, Label::kNear);
   __ SmiToInteger32(rdx, rdx);
   __ cvtlsi2sd(xmm0, rdx);
   __ jmp(&handle_special_cases, Label::kNear);
@@ -4522,9 +4518,9 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
 
   // Compare characters.
   __ bind(&compare_chars);
-  NearLabel strings_not_equal;
+  Label strings_not_equal;
   GenerateAsciiCharsCompareLoop(masm, left, right, length, scratch2,
-                                &strings_not_equal);
+                                &strings_not_equal, Label::kNear);
 
   // Characters are equal.
   __ Move(rax, Smi::FromInt(EQUAL));
@@ -4572,15 +4568,15 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   __ j(zero, &compare_lengths, Label::kNear);
 
   // Compare loop.
-  NearLabel result_not_equal;
+  Label result_not_equal;
   GenerateAsciiCharsCompareLoop(masm, left, right, min_length, scratch2,
-                                &result_not_equal);
+                                &result_not_equal, Label::kNear);
 
   // Completed loop without finding different characters.
   // Compare lengths (precomputed).
   __ bind(&compare_lengths);
   __ SmiTest(length_difference);
-  __ j(not_zero, &result_not_equal);
+  __ j(not_zero, &result_not_equal, Label::kNear);
 
   // Result is EQUAL.
   __ Move(rax, Smi::FromInt(EQUAL));
@@ -4608,7 +4604,8 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
     Register right,
     Register length,
     Register scratch,
-    NearLabel* chars_not_equal) {
+    Label* chars_not_equal,
+    Label::Distance near_jump) {
   // Change index to run from -length to -1 by adding length to string
   // start. This means that loop ends when index reaches zero, which
   // doesn't need an additional compare.
@@ -4625,7 +4622,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
   __ bind(&loop);
   __ movb(scratch, Operand(left, index, times_1, 0));
   __ cmpb(scratch, Operand(right, index, times_1, 0));
-  __ j(not_equal, chars_not_equal);
+  __ j(not_equal, chars_not_equal, near_jump);
   __ addq(index, Immediate(1));
   __ j(not_zero, &loop);
 }
@@ -4673,8 +4670,8 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
 void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::SMIS);
-  NearLabel miss;
-  __ JumpIfNotBothSmi(rdx, rax, &miss);
+  Label miss;
+  __ JumpIfNotBothSmi(rdx, rax, &miss, Label::kNear);
 
   if (GetCondition() == equal) {
     // For equality we do not care about the sign of the result.
