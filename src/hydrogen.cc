@@ -5889,10 +5889,11 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
       Tag states_tag(this, "states");
       Tag locals_tag(this, "locals");
       int total = current->phis()->length();
-      trace_.Add("size %d\n", total);
-      trace_.Add("method \"None\"");
+      PrintIntProperty("size", current->phis()->length());
+      PrintStringProperty("method", "None");
       for (int j = 0; j < total; ++j) {
         HPhi* phi = current->phis()->at(j);
+        PrintIndent();
         trace_.Add("%d ", phi->merged_index());
         phi->PrintNameTo(&trace_);
         trace_.Add(" ");
@@ -5907,6 +5908,7 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
       while (instruction != NULL) {
         int bci = 0;
         int uses = instruction->UseCount();
+        PrintIndent();
         trace_.Add("%d %d ", bci, uses);
         instruction->PrintNameTo(&trace_);
         trace_.Add(" ");
@@ -5926,6 +5928,7 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
         for (int i = first_index; i <= last_index; ++i) {
           LInstruction* linstr = instructions->at(i);
           if (linstr != NULL) {
+            PrintIndent();
             trace_.Add("%d ",
                        LifetimePosition::FromInstructionIndex(i).Value());
             linstr->PrintTo(&trace_);
@@ -5961,6 +5964,7 @@ void HTracer::TraceLiveRanges(const char* name, LAllocator* allocator) {
 
 void HTracer::TraceLiveRange(LiveRange* range, const char* type) {
   if (range != NULL && !range->IsEmpty()) {
+    PrintIndent();
     trace_.Add("%d %s", range->id(), type);
     if (range->HasRegisterAssigned()) {
       LOperand* op = range->CreateAssignedOperand();

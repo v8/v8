@@ -60,12 +60,10 @@ const char* Representation::Mnemonic() const {
     case kDouble: return "d";
     case kInteger32: return "i";
     case kExternal: return "x";
-    case kNumRepresentations:
+    default:
       UNREACHABLE();
       return NULL;
   }
-  UNREACHABLE();
-  return NULL;
 }
 
 
@@ -402,8 +400,39 @@ void HValue::SetBlock(HBasicBlock* block) {
 }
 
 
-void HValue::PrintTypeTo(HType type, StringStream* stream) {
-  stream->Add(type.ToShortString());
+void HValue::PrintTypeTo(StringStream* stream) {
+  if (!representation().IsTagged() || type().Equals(HType::Tagged())) return;
+  stream->Add(" type[%s]", type().ToString());
+}
+
+
+void HValue::PrintRangeTo(StringStream* stream) {
+  if (range() == NULL || range()->IsMostGeneric()) return;
+  stream->Add(" range[%d,%d,m0=%d]",
+              range()->lower(),
+              range()->upper(),
+              static_cast<int>(range()->CanBeMinusZero()));
+}
+
+
+void HValue::PrintChangesTo(StringStream* stream) {
+  int changes_flags = (flags() & HValue::ChangesFlagsMask());
+  if (changes_flags == 0) return;
+  stream->Add(" changes[");
+  if (changes_flags == AllSideEffects()) {
+    stream->Add("*");
+  } else {
+    bool add_comma = false;
+#define PRINT_DO(type)                         \
+    if (changes_flags & (1 << kChanges##type)) { \
+      if (add_comma) stream->Add(",");           \
+      add_comma = true;                          \
+      stream->Add(#type);                        \
+    }
+    GVN_FLAG_LIST(PRINT_DO);
+#undef PRINT_DO
+  }
+  stream->Add("]");
 }
 
 
@@ -465,28 +494,18 @@ void HValue::ComputeInitialRange() {
 
 
 void HInstruction::PrintTo(StringStream* stream) {
+  PrintMnemonicTo(stream);
+  PrintDataTo(stream);
+  PrintRangeTo(stream);
+  PrintChangesTo(stream);
+  PrintTypeTo(stream);
+}
+
+
+void HInstruction::PrintMnemonicTo(StringStream* stream) {
   stream->Add("%s", Mnemonic());
   if (HasSideEffects()) stream->Add("*");
   stream->Add(" ");
-  PrintDataTo(stream);
-
-  if (range() != NULL &&
-      !range()->IsMostGeneric() &&
-      !range()->CanBeMinusZero()) {
-    stream->Add(" range[%d,%d,m0=%d]",
-                range()->lower(),
-                range()->upper(),
-                static_cast<int>(range()->CanBeMinusZero()));
-  }
-
-  int changes_flags = (flags() & HValue::ChangesFlagsMask());
-  if (changes_flags != 0) {
-    stream->Add(" changes[0x%x]", changes_flags);
-  }
-
-  if (representation().IsTagged() && !type().Equals(HType::Tagged())) {
-    stream->Add(" type[%s]", type().ToString());
-  }
 }
 
 
