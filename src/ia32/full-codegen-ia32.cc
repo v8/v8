@@ -64,16 +64,16 @@ class JumpPatchSite BASE_EMBEDDED {
 
   void EmitJumpIfNotSmi(Register reg,
                         Label* target,
-                        Label::Distance near = Label::kFar) {
+                        Label::Distance distance = Label::kFar) {
     __ test(reg, Immediate(kSmiTagMask));
-    EmitJump(not_carry, target, near);  // Always taken before patched.
+    EmitJump(not_carry, target, distance);  // Always taken before patched.
   }
 
   void EmitJumpIfSmi(Register reg,
                      Label* target,
-                     Label::Distance near = Label::kFar) {
+                     Label::Distance distance = Label::kFar) {
     __ test(reg, Immediate(kSmiTagMask));
-    EmitJump(carry, target, near);  // Never taken before patched.
+    EmitJump(carry, target, distance);  // Never taken before patched.
   }
 
   void EmitPatchInfo() {
@@ -89,11 +89,11 @@ class JumpPatchSite BASE_EMBEDDED {
 
  private:
   // jc will be patched with jz, jnc will become jnz.
-  void EmitJump(Condition cc, Label* target, Label::Distance near) {
+  void EmitJump(Condition cc, Label* target, Label::Distance distance) {
     ASSERT(!patch_site_.is_bound() && !info_emitted_);
     ASSERT(cc == carry || cc == not_carry);
     __ bind(&patch_site_);
-    __ j(cc, target, near);
+    __ j(cc, target, distance);
   }
 
   MacroAssembler* masm_;
