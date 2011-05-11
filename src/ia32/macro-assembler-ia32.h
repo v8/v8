@@ -193,6 +193,11 @@ class MacroAssembler: public Assembler {
   void Set(Register dst, const Immediate& x);
   void Set(const Operand& dst, const Immediate& x);
 
+  // Support for constant splitting.
+  bool IsUnsafeImmediate(const Immediate& x);
+  void SafeSet(Register dst, const Immediate& x);
+  void SafePush(const Immediate& x);
+
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
   void CmpObjectType(Register heap_object, InstanceType type, Register map);

@@ -31,6 +31,8 @@
 #include "v8.h"
 
 #include "compiler.h"
+#include "disasm.h"
+#include "disassembler.h"
 #include "execution.h"
 #include "factory.h"
 #include "platform.h"
@@ -348,3 +350,51 @@ TEST(GetScriptLineNumber) {
     CHECK_EQ(i, f->GetScriptLineNumber());
   }
 }
+
+
+#ifdef ENABLE_DISASSEMBLER
+static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
+                                 const char* property_name) {
+  v8::Local<v8::Function> fun =
+      v8::Local<v8::Function>::Cast(obj->Get(v8_str(property_name)));
+  return v8::Utils::OpenHandle(*fun);
+}
+
+
+static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
+  // Create a disassembler with default name lookup.
+  disasm::NameConverter name_converter;
+  disasm::Disassembler d(name_converter);
+
+  if (f->code()->kind() == Code::FUNCTION) {
+    Address pc = f->code()->instruction_start();
+    int decode_size =
+        Min(f->code()->instruction_size(),
+            static_cast<int>(f->code()->stack_check_table_offset()));
+    Address end = pc + decode_size;
+
+    v8::internal::EmbeddedVector<char, 128> decode_buffer;
+    while (pc < end) {
+      pc += d.InstructionDecode(decode_buffer, pc);
+      CHECK(strstr(decode_buffer.start(), "mov eax,0x178c29c") == NULL);
+      CHECK(strstr(decode_buffer.start(), "push 0x178c29c") == NULL);
+      CHECK(strstr(decode_buffer.start(), "0x178c29c") == NULL);
+    }
+  }
+}
+
+
+TEST(SplitConstantsInFullCompiler) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun("function f() { a = 12345678 }; f();");
+  CheckCodeForUnsafeLiteral(GetJSFunction(env->Global(), "f"));
+  CompileRun("function f(x) { a = 12345678 + x}; f(1);");
+  CheckCodeForUnsafeLiteral(GetJSFunction(env->Global(), "f"));
+  CompileRun("function f(x) { var arguments = 1; x += 12345678}; f(1);");
+  CheckCodeForUnsafeLiteral(GetJSFunction(env->Global(), "f"));
+  CompileRun("function f(x) { var arguments = 1; x = 12345678}; f(1);");
+  CheckCodeForUnsafeLiteral(GetJSFunction(env->Global(), "f"));
+}
+#endif

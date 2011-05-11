@@ -191,7 +191,7 @@ void MacroAssembler::DebugBreak() {
 
 void MacroAssembler::Set(Register dst, const Immediate& x) {
   if (x.is_zero()) {
-    xor_(dst, Operand(dst));  // shorter than mov
+    xor_(dst, Operand(dst));  // Shorter than mov.
   } else {
     mov(dst, x);
   }
@@ -200,6 +200,33 @@ void MacroAssembler::Set(Register dst, const Immediate& x) {
 
 void MacroAssembler::Set(const Operand& dst, const Immediate& x) {
   mov(dst, x);
+}
+
+
+bool MacroAssembler::IsUnsafeImmediate(const Immediate& x) {
+  static const int kMaxImmediateBits = 17;
+  if (x.rmode_ != RelocInfo::NONE) return false;
+  return !is_intn(x.x_, kMaxImmediateBits);
+}
+
+
+void MacroAssembler::SafeSet(Register dst, const Immediate& x) {
+  if (IsUnsafeImmediate(x) && jit_cookie() != 0) {
+    Set(dst, Immediate(x.x_ ^ jit_cookie()));
+    xor_(dst, jit_cookie());
+  } else {
+    Set(dst, x);
+  }
+}
+
+
+void MacroAssembler::SafePush(const Immediate& x) {
+  if (IsUnsafeImmediate(x) && jit_cookie() != 0) {
+    push(Immediate(x.x_ ^ jit_cookie()));
+    xor_(Operand(esp, 0), Immediate(jit_cookie()));
+  } else {
+    push(x);
+  }
 }
 
 
