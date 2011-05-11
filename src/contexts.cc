@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -240,6 +240,27 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
   // No local or potential with statement found so the variable is
   // global unless it is shadowed by an eval-introduced variable.
   return true;
+}
+
+
+void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_eval,
+                                   bool* outer_scope_calls_non_strict_eval) {
+  Context* context = this;
+  while (true) {
+    Handle<SerializedScopeInfo> scope_info(
+        context->closure()->shared()->scope_info());
+    if (scope_info->CallsEval()) {
+      *outer_scope_calls_eval = true;
+      if (!scope_info->IsStrictMode()) {
+        // No need to go further since the answers will not change
+        // from here.
+        *outer_scope_calls_non_strict_eval = true;
+        return;
+      }
+    }
+    if (context->IsGlobalContext()) break;
+    context = Context::cast(context->closure()->context());
+  }
 }
 
 

@@ -99,7 +99,7 @@ void CompilationInfo::DisableOptimization() {
     FLAG_optimize_closures &&
     closure_.is_null() &&
     !scope_->HasTrivialOuterContext() &&
-    !scope_->outer_scope_calls_eval() &&
+    !scope_->outer_scope_calls_non_strict_eval() &&
     !scope_->inside_with();
   SetMode(is_optimizable_closure ? BASE : NONOPT);
 }

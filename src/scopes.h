@@ -218,6 +218,9 @@ class Scope: public ZoneObject {
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
   bool outer_scope_calls_eval() const { return outer_scope_calls_eval_; }
+  bool outer_scope_calls_non_strict_eval() const {
+    return outer_scope_calls_non_strict_eval_;
+  }
 
   // Is this scope inside a with statement.
   bool inside_with() const { return scope_inside_with_; }
@@ -372,6 +375,7 @@ class Scope: public ZoneObject {
 
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_eval_;
+  bool outer_scope_calls_non_strict_eval_;
   bool inner_scope_calls_eval_;
   bool outer_scope_is_eval_scope_;
   bool force_eager_compilation_;
@@ -400,6 +404,7 @@ class Scope: public ZoneObject {
 
   // Scope analysis.
   bool PropagateScopeInfo(bool outer_scope_calls_eval,
+                          bool outer_scope_calls_non_strict_eval,
                           bool outer_scope_is_eval_scope);
   bool HasTrivialContext() const;
 
