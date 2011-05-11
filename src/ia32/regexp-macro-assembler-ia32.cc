@@ -305,7 +305,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
   // The length of a capture should not be negative. This can only happen
   // if the end of the capture is unrecorded, or at a point earlier than
   // the start of the capture.
-  BranchOrBacktrack(less, on_no_match, not_taken);
+  BranchOrBacktrack(less, on_no_match);
 
   // If length is zero, either the capture is empty or it is completely
   // uncaptured. In either case succeed immediately.
@@ -348,7 +348,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ add(Operand(edi), Immediate(1));
     // Compare to end of match, and loop if not done.
     __ cmp(edi, Operand(ebx));
-    __ j(below, &loop, taken);
+    __ j(below, &loop);
     __ jmp(&success);
 
     __ bind(&fail);
@@ -687,11 +687,11 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ mov(ecx, esp);
   __ sub(ecx, Operand::StaticVariable(stack_limit));
   // Handle it if the stack pointer is already below the stack limit.
-  __ j(below_equal, &stack_limit_hit, not_taken);
+  __ j(below_equal, &stack_limit_hit);
   // Check if there is room for the variable number of registers above
   // the stack limit.
   __ cmp(ecx, num_registers_ * kPointerSize);
-  __ j(above_equal, &stack_ok, taken);
+  __ j(above_equal, &stack_ok);
   // Exit with OutOfMemory exception. There is not enough space on the stack
   // for our working registers.
   __ mov(eax, EXCEPTION);
@@ -1142,8 +1142,7 @@ void RegExpMacroAssemblerIA32::CheckPosition(int cp_offset,
 
 
 void RegExpMacroAssemblerIA32::BranchOrBacktrack(Condition condition,
-                                                 Label* to,
-                                                 Hint hint) {
+                                                 Label* to) {
   if (condition < 0) {  // No condition
     if (to == NULL) {
       Backtrack();
@@ -1153,10 +1152,10 @@ void RegExpMacroAssemblerIA32::BranchOrBacktrack(Condition condition,
     return;
   }
   if (to == NULL) {
-    __ j(condition, &backtrack_label_, hint);
+    __ j(condition, &backtrack_label_);
     return;
   }
-  __ j(condition, to, hint);
+  __ j(condition, to);
 }
 
 
@@ -1209,7 +1208,7 @@ void RegExpMacroAssemblerIA32::CheckPreemption() {
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(masm_->isolate());
   __ cmp(esp, Operand::StaticVariable(stack_limit));
-  __ j(above, &no_preempt, taken);
+  __ j(above, &no_preempt);
 
   SafeCall(&check_preempt_label_);
 

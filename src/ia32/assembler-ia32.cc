@@ -1423,10 +1423,9 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
 }
 
 
-void Assembler::j(Condition cc, Label* L, Hint hint, Label::Distance distance) {
+void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
   EnsureSpace ensure_space(this);
   ASSERT(0 <= cc && cc < 16);
-  if (FLAG_emit_branch_hints && hint != no_hint) EMIT(hint);
   if (L->is_bound()) {
     const int short_size = 2;
     const int long_size  = 6;
@@ -1456,10 +1455,9 @@ void Assembler::j(Condition cc, Label* L, Hint hint, Label::Distance distance) {
 }
 
 
-void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint) {
+void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   ASSERT((0 <= cc) && (cc < 16));
-  if (FLAG_emit_branch_hints && hint != no_hint) EMIT(hint);
   // 0000 1111 1000 tttn #32-bit disp.
   EMIT(0x0F);
   EMIT(0x80 | cc);
@@ -1467,9 +1465,8 @@ void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint) {
 }
 
 
-void Assembler::j(Condition cc, Handle<Code> code, Hint hint) {
+void Assembler::j(Condition cc, Handle<Code> code) {
   EnsureSpace ensure_space(this);
-  if (FLAG_emit_branch_hints && hint != no_hint) EMIT(hint);
   // 0000 1111 1000 tttn #32-bit disp
   EMIT(0x0F);
   EMIT(0x80 | cc);

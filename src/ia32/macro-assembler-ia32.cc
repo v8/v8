@@ -513,7 +513,7 @@ void MacroAssembler::Throw(Register value) {
   Set(esi, Immediate(0));  // Tentatively set context pointer to NULL.
   Label skip;
   cmp(ebp, 0);
-  j(equal, &skip, not_taken, Label::kNear);
+  j(equal, &skip, Label::kNear);
   mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   bind(&skip);
 
@@ -614,7 +614,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
   // Check if both contexts are the same.
   cmp(scratch, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
-  j(equal, &same_contexts, taken);
+  j(equal, &same_contexts);
 
   // Compare security tokens, save holder_reg on the stack so we can use it
   // as a temporary register.
@@ -644,7 +644,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   mov(scratch, FieldOperand(scratch, token_offset));
   cmp(scratch, FieldOperand(holder_reg, token_offset));
   pop(holder_reg);
-  j(not_equal, miss, not_taken);
+  j(not_equal, miss);
 
   bind(&same_contexts);
 }
@@ -732,9 +732,9 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
     mov(top_reg, result);
   }
   add(Operand(top_reg), Immediate(object_size));
-  j(carry, gc_required, not_taken);
+  j(carry, gc_required);
   cmp(top_reg, Operand::StaticVariable(new_space_allocation_limit));
-  j(above, gc_required, not_taken);
+  j(above, gc_required);
 
   // Update allocation top.
   UpdateAllocationTopHelper(top_reg, scratch);
@@ -831,9 +831,9 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
     mov(result_end, object_size);
   }
   add(result_end, Operand(result));
-  j(carry, gc_required, not_taken);
+  j(carry, gc_required);
   cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
-  j(above, gc_required, not_taken);
+  j(above, gc_required);
 
   // Tag result if requested.
   if ((flags & TAG_OBJECT) != 0) {
@@ -1062,9 +1062,9 @@ void MacroAssembler::NegativeZeroTest(Register result,
                                       Label* then_label) {
   Label ok;
   test(result, Operand(result));
-  j(not_zero, &ok, taken);
+  j(not_zero, &ok);
   test(op, Operand(op));
-  j(sign, then_label, not_taken);
+  j(sign, then_label);
   bind(&ok);
 }
 
@@ -1076,10 +1076,10 @@ void MacroAssembler::NegativeZeroTest(Register result,
                                       Label* then_label) {
   Label ok;
   test(result, Operand(result));
-  j(not_zero, &ok, taken);
+  j(not_zero, &ok);
   mov(scratch, Operand(op1));
   or_(scratch, Operand(op2));
-  j(sign, then_label, not_taken);
+  j(sign, then_label);
   bind(&ok);
 }
 
@@ -1090,17 +1090,17 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Label* miss) {
   // Check that the receiver isn't a smi.
   test(function, Immediate(kSmiTagMask));
-  j(zero, miss, not_taken);
+  j(zero, miss);
 
   // Check that the function really is a function.
   CmpObjectType(function, JS_FUNCTION_TYPE, result);
-  j(not_equal, miss, not_taken);
+  j(not_equal, miss);
 
   // Make sure that the function has an instance prototype.
   Label non_instance;
   movzx_b(scratch, FieldOperand(result, Map::kBitFieldOffset));
   test(scratch, Immediate(1 << Map::kHasNonInstancePrototype));
-  j(not_zero, &non_instance, not_taken);
+  j(not_zero, &non_instance);
 
   // Get the prototype or initial map from the function.
   mov(result,
@@ -1110,7 +1110,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   // simply miss the cache instead. This will allow us to allocate a
   // prototype object on-demand in the runtime system.
   cmp(Operand(result), Immediate(isolate()->factory()->the_hole_value()));
-  j(equal, miss, not_taken);
+  j(equal, miss);
 
   // If the function does not have an initial map, we're done.
   Label done;
@@ -1391,7 +1391,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
 
   // Check if the result handle holds 0.
   test(eax, Operand(eax));
-  j(zero, &empty_handle, not_taken);
+  j(zero, &empty_handle);
   // It was non-zero.  Dereference to get the result value.
   mov(eax, Operand(eax, 0));
   bind(&prologue);
@@ -1401,7 +1401,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
   sub(Operand::StaticVariable(level_address), Immediate(1));
   Assert(above_equal, "Invalid HandleScope level");
   cmp(edi, Operand::StaticVariable(limit_address));
-  j(not_equal, &delete_allocated_handles, not_taken);
+  j(not_equal, &delete_allocated_handles);
   bind(&leave_exit_frame);
 
   // Check if the function scheduled an exception.
@@ -1409,7 +1409,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(ApiFunction* function,
       ExternalReference::scheduled_exception_address(isolate());
   cmp(Operand::StaticVariable(scheduled_exception_address),
       Immediate(isolate()->factory()->the_hole_value()));
-  j(not_equal, &promote_scheduled_exception, not_taken);
+  j(not_equal, &promote_scheduled_exception);
   LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
   bind(&promote_scheduled_exception);
@@ -1849,7 +1849,7 @@ void MacroAssembler::AssertFastElements(Register elements) {
 
 void MacroAssembler::Check(Condition cc, const char* msg) {
   Label L;
-  j(cc, &L, taken);
+  j(cc, &L);
   Abort(msg);
   // will not return here
   bind(&L);

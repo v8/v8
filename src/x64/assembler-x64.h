@@ -327,22 +327,6 @@ inline Condition ReverseCondition(Condition cc) {
 }
 
 
-enum Hint {
-  no_hint = 0,
-  not_taken = 0x2e,
-  taken = 0x3e
-};
-
-// The result of negating a hint is as if the corresponding condition
-// were negated by NegateCondition.  That is, no_hint is mapped to
-// itself and not_taken and taken are mapped to each other.
-inline Hint NegateHint(Hint hint) {
-  return (hint == no_hint)
-      ? no_hint
-      : ((hint == not_taken) ? taken : not_taken);
-}
-
-
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates
 
@@ -1214,11 +1198,7 @@ class Assembler : public AssemblerBase {
   // Conditional jumps
   void j(Condition cc,
          Label* L,
-         Hint hint,
          Label::Distance distance = Label::kFar);
-  void j(Condition cc, Label* L, Label::Distance distance = Label::kFar) {
-    j(cc, L, no_hint, distance);
-  }
   void j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode);
 
   // Floating-point operations

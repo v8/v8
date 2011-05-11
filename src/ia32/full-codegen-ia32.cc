@@ -245,7 +245,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       ExternalReference stack_limit =
           ExternalReference::address_of_stack_limit(isolate());
       __ cmp(esp, Operand::StaticVariable(stack_limit));
-      __ j(above_equal, &ok, taken, Label::kNear);
+      __ j(above_equal, &ok, Label::kNear);
       StackCheckStub stub;
       __ CallStub(&stub);
       __ bind(&ok);
@@ -278,7 +278,7 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(isolate());
   __ cmp(esp, Operand::StaticVariable(stack_limit));
-  __ j(above_equal, &ok, taken, Label::kNear);
+  __ j(above_equal, &ok, Label::kNear);
   StackCheckStub stub;
   __ CallStub(&stub);
   // Record a mapping of this PC offset to the OSR id.  This is used to find
@@ -1725,7 +1725,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ imul(eax, Operand(ecx));
       __ j(overflow, &stub_call);
       __ test(eax, Operand(eax));
-      __ j(not_zero, &done, taken, Label::kNear);
+      __ j(not_zero, &done, Label::kNear);
       __ mov(ebx, edx);
       __ or_(ebx, Operand(ecx));
       __ j(negative, &stub_call);

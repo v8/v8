@@ -168,7 +168,7 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
 
   // Equivalent to a conditional branch to the label, unless the label
   // is NULL, in which case it is a conditional Backtrack.
-  void BranchOrBacktrack(Condition condition, Label* to, Hint hint = no_hint);
+  void BranchOrBacktrack(Condition condition, Label* to);
 
   // Call and return internally in the generated code in a way that
   // is GC-safe (i.e., doesn't leave absolute code addresses on the stack)

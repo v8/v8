@@ -1215,7 +1215,7 @@ void Assembler::int3() {
 }
 
 
-void Assembler::j(Condition cc, Label* L, Hint hint, Label::Distance distance) {
+void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
   if (cc == always) {
     jmp(L);
     return;
@@ -1224,7 +1224,6 @@ void Assembler::j(Condition cc, Label* L, Hint hint, Label::Distance distance) {
   }
   EnsureSpace ensure_space(this);
   ASSERT(is_uint4(cc));
-  if (FLAG_emit_branch_hints && hint != no_hint) emit(hint);
   if (L->is_bound()) {
     const int short_size = 2;
     const int long_size  = 6;
