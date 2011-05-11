@@ -1898,59 +1898,6 @@ void MacroAssembler::Abort(const char* msg) {
 }
 
 
-void MacroAssembler::JumpIfNotNumber(Register reg,
-                                     TypeInfo info,
-                                     Label* on_not_number) {
-  if (emit_debug_code()) AbortIfSmi(reg);
-  if (!info.IsNumber()) {
-    cmp(FieldOperand(reg, HeapObject::kMapOffset),
-        isolate()->factory()->heap_number_map());
-    j(not_equal, on_not_number);
-  }
-}
-
-
-void MacroAssembler::ConvertToInt32(Register dst,
-                                    Register source,
-                                    Register scratch,
-                                    TypeInfo info,
-                                    Label* on_not_int32) {
-  if (emit_debug_code()) {
-    AbortIfSmi(source);
-    AbortIfNotNumber(source);
-  }
-  if (info.IsInteger32()) {
-    cvttsd2si(dst, FieldOperand(source, HeapNumber::kValueOffset));
-  } else {
-    Label done;
-    bool push_pop = (scratch.is(no_reg) && dst.is(source));
-    ASSERT(!scratch.is(source));
-    if (push_pop) {
-      push(dst);
-      scratch = dst;
-    }
-    if (scratch.is(no_reg)) scratch = dst;
-    cvttsd2si(scratch, FieldOperand(source, HeapNumber::kValueOffset));
-    cmp(scratch, 0x80000000u);
-    if (push_pop) {
-      j(not_equal, &done);
-      pop(dst);
-      jmp(on_not_int32);
-    } else {
-      j(equal, on_not_int32);
-    }
-
-    bind(&done);
-    if (push_pop) {
-      add(Operand(esp), Immediate(kPointerSize));  // Pop.
-    }
-    if (!scratch.is(dst)) {
-      mov(dst, scratch);
-    }
-  }
-}
-
-
 void MacroAssembler::LoadPowerOf2(XMMRegister dst,
                                   Register scratch,
                                   int power) {

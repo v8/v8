@@ -29,10 +29,10 @@
 
 #if defined(V8_TARGET_ARCH_IA32)
 
-#include "code-stubs.h"
 #include "bootstrapper.h"
-#include "jsregexp.h"
+#include "code-stubs.h"
 #include "isolate.h"
+#include "jsregexp.h"
 #include "regexp-macro-assembler.h"
 
 namespace v8 {
@@ -331,14 +331,6 @@ class FloatingPointHelper : public AllStatic {
 
   // Takes the operands in edx and eax and loads them as integers in eax
   // and ecx.
-  static void LoadAsIntegers(MacroAssembler* masm,
-                             TypeInfo type_info,
-                             bool use_sse3,
-                             Label* operand_conversion_failure);
-  static void LoadNumbersAsIntegers(MacroAssembler* masm,
-                                    TypeInfo type_info,
-                                    bool use_sse3,
-                                    Label* operand_conversion_failure);
   static void LoadUnknownsAsIntegers(MacroAssembler* masm,
                                      bool use_sse3,
                                      Label* operand_conversion_failure);
@@ -380,34 +372,24 @@ class FloatingPointHelper : public AllStatic {
 // trashed registers.
 static void IntegerConvert(MacroAssembler* masm,
                            Register source,
-                           TypeInfo type_info,
                            bool use_sse3,
                            Label* conversion_failure) {
   ASSERT(!source.is(ecx) && !source.is(edi) && !source.is(ebx));
   Label done, right_exponent, normal_exponent;
   Register scratch = ebx;
   Register scratch2 = edi;
-  if (type_info.IsInteger32() && CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope scope(SSE2);
-    __ cvttsd2si(ecx, FieldOperand(source, HeapNumber::kValueOffset));
-    return;
-  }
-  if (!type_info.IsInteger32() || !use_sse3) {
-    // Get exponent word.
-    __ mov(scratch, FieldOperand(source, HeapNumber::kExponentOffset));
-    // Get exponent alone in scratch2.
-    __ mov(scratch2, scratch);
-    __ and_(scratch2, HeapNumber::kExponentMask);
-  }
+  // Get exponent word.
+  __ mov(scratch, FieldOperand(source, HeapNumber::kExponentOffset));
+  // Get exponent alone in scratch2.
+  __ mov(scratch2, scratch);
+  __ and_(scratch2, HeapNumber::kExponentMask);
   if (use_sse3) {
     CpuFeatures::Scope scope(SSE3);
-    if (!type_info.IsInteger32()) {
-      // Check whether the exponent is too big for a 64 bit signed integer.
-      static const uint32_t kTooBigExponent =
-          (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
-      __ cmp(Operand(scratch2), Immediate(kTooBigExponent));
-      __ j(greater_equal, conversion_failure);
-    }
+    // Check whether the exponent is too big for a 64 bit signed integer.
+    static const uint32_t kTooBigExponent =
+        (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
+    __ cmp(Operand(scratch2), Immediate(kTooBigExponent));
+    __ j(greater_equal, conversion_failure);
     // Load x87 register with heap number.
     __ fld_d(FieldOperand(source, HeapNumber::kValueOffset));
     // Reserve space for 64 bit answer.
@@ -747,8 +729,7 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
   __ j(not_equal, slow);
 
   // Convert the heap number in eax to an untagged integer in ecx.
-  IntegerConvert(masm, eax, TypeInfo::Unknown(), CpuFeatures::IsSupported(SSE3),
-                 slow);
+  IntegerConvert(masm, eax, CpuFeatures::IsSupported(SSE3), slow);
 
   // Do the bitwise operation and check if the result fits in a smi.
   Label try_float;
@@ -2407,58 +2388,6 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
 
 // Input: edx, eax are the left and right objects of a bit op.
 // Output: eax, ecx are left and right integers for a bit op.
-void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm,
-                                                TypeInfo type_info,
-                                                bool use_sse3,
-                                                Label* conversion_failure) {
-  // Check float operands.
-  Label arg1_is_object, check_undefined_arg1;
-  Label arg2_is_object, check_undefined_arg2;
-  Label load_arg2, done;
-
-  if (!type_info.IsDouble()) {
-    if (!type_info.IsSmi()) {
-      __ test(edx, Immediate(kSmiTagMask));
-      __ j(not_zero, &arg1_is_object);
-    } else {
-      if (FLAG_debug_code) __ AbortIfNotSmi(edx);
-    }
-    __ SmiUntag(edx);
-    __ jmp(&load_arg2);
-  }
-
-  __ bind(&arg1_is_object);
-
-  // Get the untagged integer version of the edx heap number in ecx.
-  IntegerConvert(masm, edx, type_info, use_sse3, conversion_failure);
-  __ mov(edx, ecx);
-
-  // Here edx has the untagged integer, eax has a Smi or a heap number.
-  __ bind(&load_arg2);
-  if (!type_info.IsDouble()) {
-    // Test if arg2 is a Smi.
-    if (!type_info.IsSmi()) {
-      __ test(eax, Immediate(kSmiTagMask));
-      __ j(not_zero, &arg2_is_object);
-    } else {
-      if (FLAG_debug_code) __ AbortIfNotSmi(eax);
-    }
-    __ SmiUntag(eax);
-    __ mov(ecx, eax);
-    __ jmp(&done);
-  }
-
-  __ bind(&arg2_is_object);
-
-  // Get the untagged integer version of the eax heap number in ecx.
-  IntegerConvert(masm, eax, type_info, use_sse3, conversion_failure);
-  __ bind(&done);
-  __ mov(eax, edx);
-}
-
-
-// Input: edx, eax are the left and right objects of a bit op.
-// Output: eax, ecx are left and right integers for a bit op.
 void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
                                                  bool use_sse3,
                                                  Label* conversion_failure) {
@@ -2488,11 +2417,7 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   __ j(not_equal, &check_undefined_arg1);
 
   // Get the untagged integer version of the edx heap number in ecx.
-  IntegerConvert(masm,
-                 edx,
-                 TypeInfo::Unknown(),
-                 use_sse3,
-                 conversion_failure);
+  IntegerConvert(masm, edx, use_sse3, conversion_failure);
   __ mov(edx, ecx);
 
   // Here edx has the untagged integer, eax has a Smi or a heap number.
@@ -2519,25 +2444,9 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   __ j(not_equal, &check_undefined_arg2);
 
   // Get the untagged integer version of the eax heap number in ecx.
-  IntegerConvert(masm,
-                 eax,
-                 TypeInfo::Unknown(),
-                 use_sse3,
-                 conversion_failure);
+  IntegerConvert(masm, eax, use_sse3, conversion_failure);
   __ bind(&done);
   __ mov(eax, edx);
-}
-
-
-void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
-                                         TypeInfo type_info,
-                                         bool use_sse3,
-                                         Label* conversion_failure) {
-  if (type_info.IsNumber()) {
-    LoadNumbersAsIntegers(masm, type_info, use_sse3, conversion_failure);
-  } else {
-    LoadUnknownsAsIntegers(masm, use_sse3, conversion_failure);
-  }
 }
 
 
