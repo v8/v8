@@ -229,6 +229,9 @@ TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
       return TypeInfo::Smi();
     case CompareIC::HEAP_NUMBERS:
       return TypeInfo::Number();
+    case CompareIC::SYMBOLS:
+    case CompareIC::STRINGS:
+      return TypeInfo::String();
     case CompareIC::OBJECTS:
       // TODO(kasperl): We really need a type for JS objects here.
       return TypeInfo::NonPrimitive();
@@ -236,6 +239,16 @@ TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
     default:
       return unknown;
   }
+}
+
+
+bool TypeFeedbackOracle::IsSymbolCompare(CompareOperation* expr) {
+  Handle<Object> object = GetInfo(expr->id());
+  if (!object->IsCode()) return false;
+  Handle<Code> code = Handle<Code>::cast(object);
+  if (!code->is_compare_ic_stub()) return false;
+  CompareIC::State state = static_cast<CompareIC::State>(code->compare_state());
+  return state == CompareIC::SYMBOLS;
 }
 
 

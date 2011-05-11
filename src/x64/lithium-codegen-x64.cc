@@ -1552,6 +1552,31 @@ void LCodeGen::DoCmpJSObjectEqAndBranch(LCmpJSObjectEqAndBranch* instr) {
 }
 
 
+void LCodeGen::DoCmpSymbolEq(LCmpSymbolEq* instr) {
+  Register left = ToRegister(instr->InputAt(0));
+  Register right = ToRegister(instr->InputAt(1));
+  Register result = ToRegister(instr->result());
+
+  Label done;
+  __ cmpq(left, right);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ j(not_equal, &done, Label::kNear);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoCmpSymbolEqAndBranch(LCmpSymbolEqAndBranch* instr) {
+  Register left = ToRegister(instr->InputAt(0));
+  Register right = ToRegister(instr->InputAt(1));
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+
+  __ cmpq(left, right);
+  EmitBranch(true_block, false_block, equal);
+}
+
+
 void LCodeGen::DoIsNull(LIsNull* instr) {
   Register reg = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());

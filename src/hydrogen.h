@@ -871,6 +871,9 @@ class HGraphBuilder: public AstVisitor {
                                   ZoneMapList* types,
                                   Handle<String> name);
 
+  HCompareSymbolEq* BuildSymbolCompare(HValue* left,
+                                       HValue* right,
+                                       Token::Value op);
   HStringCharCodeAt* BuildStringCharCodeAt(HValue* string,
                                            HValue* index);
   HInstruction* BuildBinaryOperation(BinaryOperation* expr,

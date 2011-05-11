@@ -80,6 +80,8 @@ class LCodeGen;
   V(CmpJSObjectEq)                              \
   V(CmpJSObjectEqAndBranch)                     \
   V(CmpMapAndBranch)                            \
+  V(CmpSymbolEq)                                \
+  V(CmpSymbolEqAndBranch)                       \
   V(CmpT)                                       \
   V(CmpTAndBranch)                              \
   V(ConstantD)                                  \
@@ -663,6 +665,28 @@ class LCmpJSObjectEqAndBranch: public LControlInstruction<2, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CmpJSObjectEqAndBranch,
                                "cmp-jsobject-eq-and-branch")
+};
+
+
+class LCmpSymbolEq: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LCmpSymbolEq(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpSymbolEq, "cmp-symbol-eq")
+};
+
+
+class LCmpSymbolEqAndBranch: public LControlInstruction<2, 0> {
+ public:
+  LCmpSymbolEqAndBranch(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpSymbolEqAndBranch, "cmp-symbol-eq-and-branch")
 };
 
 

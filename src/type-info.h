@@ -264,6 +264,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   TypeInfo UnaryType(UnaryOperation* expr);
   TypeInfo BinaryType(BinaryOperation* expr);
   TypeInfo CompareType(CompareOperation* expr);
+  bool IsSymbolCompare(CompareOperation* expr);
   TypeInfo SwitchType(CaseClause* clause);
   TypeInfo IncrementType(CountOperation* expr);
 

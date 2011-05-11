@@ -91,6 +91,7 @@ class LChunkBuilder;
   V(Compare)                                   \
   V(CompareJSObjectEq)                         \
   V(CompareMap)                                \
+  V(CompareSymbolEq)                           \
   V(Constant)                                  \
   V(Context)                                   \
   V(DeleteProperty)                            \
@@ -2407,6 +2408,40 @@ class HCompareJSObjectEq: public HBinaryOperation {
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
+class HCompareSymbolEq: public HBinaryOperation {
+ public:
+  HCompareSymbolEq(HValue* left, HValue* right, Token::Value op)
+      : HBinaryOperation(left, right), op_(op) {
+    ASSERT(op == Token::EQ || op == Token::EQ_STRICT);
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+    SetFlag(kDependsOnMaps);
+  }
+
+  Token::Value op() const { return op_; }
+
+  virtual bool EmitAtUses() {
+    return !HasSideEffects() && !HasMultipleUses();
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  virtual HType CalculateInferredType() { return HType::Boolean(); }
+
+  DECLARE_CONCRETE_INSTRUCTION(CompareSymbolEq);
+
+ protected:
+  virtual bool DataEquals(HValue* other) {
+    return op_ == HCompareSymbolEq::cast(other)->op_;
+  }
+
+ private:
+  const Token::Value op_;
 };
 
 
