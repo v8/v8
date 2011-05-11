@@ -1,3 +1,11 @@
+2011-05-11: Version 3.3.6
+
+        Updated MIPS infrastructure files.
+
+        Added method IsCallable for Object to the API.
+        Patch by Peter Varga.
+
+
 2011-05-09: Version 3.3.5
 
         Fixed build on FreeBSD. Patch by Akinori MUSHA.
