@@ -2785,7 +2785,8 @@ Code::Flags Code::ComputeFlags(Kind kind,
          (kind == CALL_IC && (ic_state == MONOMORPHIC ||
                               ic_state == MONOMORPHIC_PROTOTYPE_FAILURE)) ||
          (kind == STORE_IC) ||
-         (kind == KEYED_STORE_IC));
+         (kind == KEYED_STORE_IC) ||
+         (kind == KEYED_EXTERNAL_ARRAY_STORE_IC));
   // Compute the bit mask.
   int bits = kind << kFlagsKindShift;
   if (in_loop) bits |= kFlagsICInLoopMask;
