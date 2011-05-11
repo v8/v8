@@ -1124,9 +1124,6 @@ class Assembler : public AssemblerBase {
   byte* pc_;  // the program counter; moves forward
   RelocInfoWriter reloc_info_writer;
 
-  // push-pop elimination
-  byte* last_pc_;
-
   PositionsRecorder positions_recorder_;
 
   bool emit_debug_code_;
