@@ -4084,6 +4084,21 @@ Handle<String> JsonParser::GetString() {
 }
 
 
+Handle<String> JsonParser::GetSymbol() {
+  int literal_length = scanner_.literal_length();
+  if (literal_length == 0) {
+    return isolate()->factory()->empty_string();
+  }
+  if (scanner_.is_literal_ascii()) {
+    return isolate()->factory()->LookupAsciiSymbol(
+        scanner_.literal_ascii_string());
+  } else {
+    return isolate()->factory()->LookupTwoByteSymbol(
+        scanner_.literal_uc16_string());
+  }
+}
+
+
 // Parse any JSON value.
 Handle<Object> JsonParser::ParseJsonValue() {
   Token::Value token = scanner_.Next();
@@ -4125,7 +4140,7 @@ Handle<Object> JsonParser::ParseJsonObject() {
       if (scanner_.Next() != Token::STRING) {
         return ReportUnexpectedToken();
       }
-      Handle<String> key = GetString();
+      Handle<String> key = GetSymbol();
       if (scanner_.Next() != Token::COLON) {
         return ReportUnexpectedToken();
       }
