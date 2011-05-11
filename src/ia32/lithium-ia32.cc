@@ -1214,7 +1214,7 @@ LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
 
 
 LInstruction* LChunkBuilder::DoContext(HContext* instr) {
-  return DefineAsRegister(new LContext);
+  return instr->HasNoUses() ? NULL : DefineAsRegister(new LContext);
 }
 
 
