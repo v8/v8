@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,39 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Test that passing the strict_mode flag in extra ic state from
+// StubCache::ComputeKeyedLoadOrStoreExternalArray does not
+// hit an assertion in Code::ComputeFlags.
 
-#if defined(V8_TARGET_ARCH_MIPS)
-
-#include "codegen-inl.h"
-#include "register-allocator-inl.h"
-
-namespace v8 {
-namespace internal {
-
-// -------------------------------------------------------------------------
-// Result implementation.
-
-void Result::ToRegister() {
-  UNIMPLEMENTED_MIPS();
+x="";
+function foo(){
+  "use strict";
+  var wxemsx=(4);
+  var wxemsx_0=Float32Array(wxemsx);
+  wxemsx_0[0]={};
 }
 
-
-void Result::ToRegister(Register target) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-// -------------------------------------------------------------------------
-// RegisterAllocator implementation.
-
-Result RegisterAllocator::AllocateByteRegisterWithoutSpilling() {
-  // No byte registers on MIPS.
-  UNREACHABLE();
-  return Result();
-}
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_TARGET_ARCH_MIPS
+foo()

@@ -351,6 +351,11 @@ class Context: public FixedArray {
   // eval.
   bool GlobalIfNotShadowedByEval(Handle<String> name);
 
+  // Determine if any function scope in the context call eval and if
+  // any of those calls are in non-strict mode.
+  void ComputeEvalScopeInfo(bool* outer_scope_calls_eval,
+                            bool* outer_scope_calls_non_strict_eval);
+
   // Code generation support.
   static int SlotOffset(int index) {
     return kHeaderSize + index * kPointerSize - kHeapObjectTag;

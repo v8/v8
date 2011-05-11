@@ -77,20 +77,47 @@ void MacroAssembler::RecordWriteHelper(Register object,
 }
 
 
+void MacroAssembler::InNewSpace(Register object,
+                                Register scratch,
+                                Condition cc,
+                                Label* branch,
+                                Label::Distance branch_near) {
+  ASSERT(cc == equal || cc == not_equal);
+  if (Serializer::enabled()) {
+    // Can't do arithmetic on external references if it might get serialized.
+    mov(scratch, Operand(object));
+    // The mask isn't really an address.  We load it as an external reference in
+    // case the size of the new space is different between the snapshot maker
+    // and the running system.
+    and_(Operand(scratch),
+         Immediate(ExternalReference::new_space_mask(isolate())));
+    cmp(Operand(scratch),
+        Immediate(ExternalReference::new_space_start(isolate())));
+    j(cc, branch, branch_near);
+  } else {
+    int32_t new_space_start = reinterpret_cast<int32_t>(
+        ExternalReference::new_space_start(isolate()).address());
+    lea(scratch, Operand(object, -new_space_start));
+    and_(scratch, isolate()->heap()->NewSpaceMask());
+    j(cc, branch, branch_near);
+  }
+}
+
+
 void MacroAssembler::RecordWrite(Register object,
                                  int offset,
                                  Register value,
                                  Register scratch) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
-  NearLabel done;
+  Label done;
 
   // Skip barrier if writing a smi.
   ASSERT_EQ(0, kSmiTag);
   test(value, Immediate(kSmiTagMask));
-  j(zero, &done);
+  j(zero, &done, Label::kNear);
 
-  InNewSpace(object, value, equal, &done);
+  InNewSpace(object, value, equal, &done, Label::kNear);
 
   // The offset is relative to a tagged or untagged HeapObject pointer,
   // so either offset or offset + kHeapObjectTag must be a
@@ -484,9 +511,9 @@ void MacroAssembler::Throw(Register value) {
   // not NULL.  The frame pointer is NULL in the exception handler of
   // a JS entry frame.
   Set(esi, Immediate(0));  // Tentatively set context pointer to NULL.
-  NearLabel skip;
+  Label skip;
   cmp(ebp, 0);
-  j(equal, &skip, not_taken);
+  j(equal, &skip, not_taken, Label::kNear);
   mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   bind(&skip);
 
@@ -511,12 +538,12 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   mov(esp, Operand::StaticVariable(handler_address));
 
   // Unwind the handlers until the ENTRY handler is found.
-  NearLabel loop, done;
+  Label loop, done;
   bind(&loop);
   // Load the type of the current stack handler.
   const int kStateOffset = StackHandlerConstants::kStateOffset;
   cmp(Operand(esp, kStateOffset), Immediate(StackHandler::ENTRY));
-  j(equal, &done);
+  j(equal, &done, Label::kNear);
   // Fetch the next handler in the list.
   const int kNextOffset = StackHandlerConstants::kNextOffset;
   mov(esp, Operand(esp, kNextOffset));
@@ -1433,8 +1460,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     Handle<Code> code_constant,
                                     const Operand& code_operand,
-                                    NearLabel* done,
+                                    Label* done,
                                     InvokeFlag flag,
+                                    Label::Distance done_near,
                                     const CallWrapper& call_wrapper) {
   bool definitely_matches = false;
   Label invoke;
@@ -1488,7 +1516,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       call_wrapper.BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
       call(adaptor, RelocInfo::CODE_TARGET);
       call_wrapper.AfterCall();
-      jmp(done);
+      jmp(done, done_near);
     } else {
       jmp(adaptor, RelocInfo::CODE_TARGET);
     }
@@ -1502,9 +1530,9 @@ void MacroAssembler::InvokeCode(const Operand& code,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
                                 const CallWrapper& call_wrapper) {
-  NearLabel done;
+  Label done;
   InvokePrologue(expected, actual, Handle<Code>::null(), code,
-                 &done, flag, call_wrapper);
+                 &done, flag, Label::kNear, call_wrapper);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(code));
     call(code);
@@ -1523,9 +1551,10 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 RelocInfo::Mode rmode,
                                 InvokeFlag flag,
                                 const CallWrapper& call_wrapper) {
-  NearLabel done;
+  Label done;
   Operand dummy(eax);
-  InvokePrologue(expected, actual, code, dummy, &done, flag, call_wrapper);
+  InvokePrologue(expected, actual, code, dummy, &done, flag, Label::kNear,
+                 call_wrapper);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(code, rmode));
     call(code, rmode);

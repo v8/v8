@@ -63,14 +63,18 @@ class JumpPatchSite BASE_EMBEDDED {
     ASSERT(patch_site_.is_bound() == info_emitted_);
   }
 
-  void EmitJumpIfNotSmi(Register reg, NearLabel* target) {
+  void EmitJumpIfNotSmi(Register reg,
+                        Label* target,
+                        Label::Distance near_jump = Label::kFar) {
     __ testb(reg, Immediate(kSmiTagMask));
-    EmitJump(not_carry, target);   // Always taken before patched.
+    EmitJump(not_carry, target, near_jump);   // Always taken before patched.
   }
 
-  void EmitJumpIfSmi(Register reg, NearLabel* target) {
+  void EmitJumpIfSmi(Register reg,
+                     Label* target,
+                     Label::Distance near_jump = Label::kFar) {
     __ testb(reg, Immediate(kSmiTagMask));
-    EmitJump(carry, target);  // Never taken before patched.
+    EmitJump(carry, target, near_jump);  // Never taken before patched.
   }
 
   void EmitPatchInfo() {
@@ -86,11 +90,11 @@ class JumpPatchSite BASE_EMBEDDED {
 
  private:
   // jc will be patched with jz, jnc will become jnz.
-  void EmitJump(Condition cc, NearLabel* target) {
+  void EmitJump(Condition cc, Label* target, Label::Distance near_jump) {
     ASSERT(!patch_site_.is_bound() && !info_emitted_);
     ASSERT(cc == carry || cc == not_carry);
     __ bind(&patch_site_);
-    __ j(cc, target);
+    __ j(cc, target, near_jump);
   }
 
   MacroAssembler* masm_;
@@ -239,9 +243,9 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 
     { Comment cmnt(masm_, "[ Stack check");
       PrepareForBailoutForId(AstNode::kFunctionEntryId, NO_REGISTERS);
-      NearLabel ok;
+      Label ok;
       __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
-      __ j(above_equal, &ok);
+      __ j(above_equal, &ok, Label::kNear);
       StackCheckStub stub;
       __ CallStub(&stub);
       __ bind(&ok);
@@ -270,9 +274,9 @@ void FullCodeGenerator::ClearAccumulator() {
 
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   Comment cmnt(masm_, "[ Stack check");
-  NearLabel ok;
+  Label ok;
   __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
-  __ j(above_equal, &ok);
+  __ j(above_equal, &ok, Label::kNear);
   StackCheckStub stub;
   __ CallStub(&stub);
   // Record a mapping of this PC offset to the OSR id.  This is used to find
@@ -485,10 +489,10 @@ void FullCodeGenerator::EffectContext::Plug(Label* materialize_true,
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Label* materialize_true,
     Label* materialize_false) const {
-  NearLabel done;
+  Label done;
   __ bind(materialize_true);
   __ Move(result_register(), isolate()->factory()->true_value());
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
   __ bind(materialize_false);
   __ Move(result_register(), isolate()->factory()->false_value());
   __ bind(&done);
@@ -498,10 +502,10 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(
 void FullCodeGenerator::StackValueContext::Plug(
     Label* materialize_true,
     Label* materialize_false) const {
-  NearLabel done;
+  Label done;
   __ bind(materialize_true);
   __ Push(isolate()->factory()->true_value());
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
   __ bind(materialize_false);
   __ Push(isolate()->factory()->false_value());
   __ bind(&done);
@@ -638,8 +642,8 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(State state,
   // preparation to avoid preparing with the same AST id twice.
   if (!context()->IsTest() || !info_->IsOptimizable()) return;
 
-  NearLabel skip;
-  if (should_normalize) __ jmp(&skip);
+  Label skip;
+  if (should_normalize) __ jmp(&skip, Label::kNear);
 
   ForwardBailoutStack* current = forward_bailout_stack_;
   while (current != NULL) {
@@ -807,10 +811,10 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     bool inline_smi_code = ShouldInlineSmiCase(Token::EQ_STRICT);
     JumpPatchSite patch_site(masm_);
     if (inline_smi_code) {
-      NearLabel slow_case;
+      Label slow_case;
       __ movq(rcx, rdx);
       __ or_(rcx, rax);
-      patch_site.EmitJumpIfNotSmi(rcx, &slow_case);
+      patch_site.EmitJumpIfNotSmi(rcx, &slow_case, Label::kNear);
 
       __ cmpq(rdx, rax);
       __ j(not_equal, &next_test);
@@ -918,9 +922,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ JumpIfSmi(rdx, &call_runtime);
 
   // For all objects but the receiver, check that the cache is empty.
-  NearLabel check_prototype;
+  Label check_prototype;
   __ cmpq(rcx, rax);
-  __ j(equal, &check_prototype);
+  __ j(equal, &check_prototype, Label::kNear);
   __ movq(rdx, FieldOperand(rdx, DescriptorArray::kEnumCacheBridgeCacheOffset));
   __ cmpq(rdx, empty_fixed_array_value);
   __ j(not_equal, &call_runtime);
@@ -933,9 +937,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // The enum cache is valid.  Load the map of the object being
   // iterated over and use the cache for the iteration.
-  NearLabel use_cache;
+  Label use_cache;
   __ movq(rax, FieldOperand(rax, HeapObject::kMapOffset));
-  __ jmp(&use_cache);
+  __ jmp(&use_cache, Label::kNear);
 
   // Get the set of properties to enumerate.
   __ bind(&call_runtime);
@@ -945,10 +949,10 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // If we got a map from the runtime call, we can do a fast
   // modification check. Otherwise, we got a fixed array, and we have
   // to do a slow check.
-  NearLabel fixed_array;
+  Label fixed_array;
   __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
                  Heap::kMetaMapRootIndex);
-  __ j(not_equal, &fixed_array);
+  __ j(not_equal, &fixed_array, Label::kNear);
 
   // We got a map in register rax. Get the enumeration cache from it.
   __ bind(&use_cache);
@@ -992,10 +996,10 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Check if the expected map still matches that of the enumerable.
   // If not, we have to filter the key.
-  NearLabel update_each;
+  Label update_each;
   __ movq(rcx, Operand(rsp, 4 * kPointerSize));
   __ cmpq(rdx, FieldOperand(rcx, HeapObject::kMapOffset));
-  __ j(equal, &update_each);
+  __ j(equal, &update_each, Label::kNear);
 
   // Convert the entry to a string or null if it isn't a property
   // anymore. If the property has been removed while iterating, we
@@ -1103,7 +1107,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
   if (s != NULL && s->is_eval_scope()) {
     // Loop up the context chain.  There is no frame effect so it is
     // safe to use raw labels here.
-    NearLabel next, fast;
+    Label next, fast;
     if (!context.is(temp)) {
       __ movq(temp, context);
     }
@@ -1112,7 +1116,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
     __ bind(&next);
     // Terminate at global context.
     __ cmpq(kScratchRegister, FieldOperand(temp, HeapObject::kMapOffset));
-    __ j(equal, &fast);
+    __ j(equal, &fast, Label::kNear);
     // Check that extension is NULL.
     __ cmpq(ContextOperand(temp, Context::EXTENSION_INDEX), Immediate(0));
     __ j(not_equal, slow);
@@ -1261,11 +1265,11 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
     if (var->mode() == Variable::CONST) {
       // Constants may be the hole value if they have not been initialized.
       // Unhole them.
-      NearLabel done;
+      Label done;
       MemOperand slot_operand = EmitSlotSearch(slot, rax);
       __ movq(rax, slot_operand);
       __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
-      __ j(not_equal, &done);
+      __ j(not_equal, &done, Label::kNear);
       __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
       __ bind(&done);
       context()->Plug(rax);
@@ -1671,18 +1675,18 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   // Do combined smi check of the operands. Left operand is on the
   // stack (popped into rdx). Right operand is in rax but moved into
   // rcx to make the shifts easier.
-  NearLabel done, stub_call, smi_case;
+  Label done, stub_call, smi_case;
   __ pop(rdx);
   __ movq(rcx, rax);
   __ or_(rax, rdx);
   JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(rax, &smi_case);
+  patch_site.EmitJumpIfSmi(rax, &smi_case, Label::kNear);
 
   __ bind(&stub_call);
   __ movq(rax, rcx);
   TypeRecordingBinaryOpStub stub(op, mode);
   EmitCallIC(stub.GetCode(), &patch_site, expr->id());
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   __ bind(&smi_case);
   switch (op) {
@@ -2197,8 +2201,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // function and receiver and have the slow path jump around this
     // code.
     if (done.is_linked()) {
-      NearLabel call;
-      __ jmp(&call);
+      Label call;
+      __ jmp(&call, Label::kNear);
       __ bind(&done);
       // Push function.
       __ push(rax);
@@ -2639,7 +2643,7 @@ void FullCodeGenerator::EmitArguments(ZoneList<Expression*>* args) {
 void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
 
-  NearLabel exit;
+  Label exit;
   // Get the number of formal parameters.
   __ Move(rax, Smi::FromInt(scope()->num_parameters()));
 
@@ -2647,7 +2651,7 @@ void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
   __ movq(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
   __ Cmp(Operand(rbx, StandardFrameConstants::kContextOffset),
          Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(not_equal, &exit);
+  __ j(not_equal, &exit, Label::kNear);
 
   // Arguments adaptor case: Read the arguments length from the
   // adaptor frame.
@@ -3183,7 +3187,7 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
   __ movq(cache,
           FieldOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
 
-  NearLabel done, not_found;
+  Label done, not_found;
   // tmp now holds finger offset as a smi.
   ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ movq(tmp, FieldOperand(cache, JSFunctionResultCache::kFingerOffset));
@@ -3193,12 +3197,12 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
                             index.reg,
                             index.scale,
                             FixedArray::kHeaderSize));
-  __ j(not_equal, &not_found);
+  __ j(not_equal, &not_found, Label::kNear);
   __ movq(rax, FieldOperand(cache,
                             index.reg,
                             index.scale,
                             FixedArray::kHeaderSize + kPointerSize));
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
 
   __ bind(&not_found);
   // Call runtime to perform the lookup.
@@ -3222,25 +3226,25 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
   VisitForAccumulatorValue(args->at(1));
   __ pop(left);
 
-  NearLabel done, fail, ok;
+  Label done, fail, ok;
   __ cmpq(left, right);
-  __ j(equal, &ok);
+  __ j(equal, &ok, Label::kNear);
   // Fail if either is a non-HeapObject.
   Condition either_smi = masm()->CheckEitherSmi(left, right, tmp);
-  __ j(either_smi, &fail);
-  __ j(zero, &fail);
+  __ j(either_smi, &fail, Label::kNear);
+  __ j(zero, &fail, Label::kNear);
   __ movq(tmp, FieldOperand(left, HeapObject::kMapOffset));
   __ cmpb(FieldOperand(tmp, Map::kInstanceTypeOffset),
           Immediate(JS_REGEXP_TYPE));
-  __ j(not_equal, &fail);
+  __ j(not_equal, &fail, Label::kNear);
   __ cmpq(tmp, FieldOperand(right, HeapObject::kMapOffset));
-  __ j(not_equal, &fail);
+  __ j(not_equal, &fail, Label::kNear);
   __ movq(tmp, FieldOperand(left, JSRegExp::kDataOffset));
   __ cmpq(tmp, FieldOperand(right, JSRegExp::kDataOffset));
-  __ j(equal, &ok);
+  __ j(equal, &ok, Label::kNear);
   __ bind(&fail);
   __ Move(rax, isolate()->factory()->false_value());
-  __ jmp(&done);
+  __ jmp(&done, Label::kNear);
   __ bind(&ok);
   __ Move(rax, isolate()->factory()->true_value());
   __ bind(&done);
@@ -3808,10 +3812,10 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Call ToNumber only if operand is not a smi.
-  NearLabel no_conversion;
+  Label no_conversion;
   Condition is_smi;
   is_smi = masm_->CheckSmi(rax);
-  __ j(is_smi, &no_conversion);
+  __ j(is_smi, &no_conversion, Label::kNear);
   ToNumberStub convert_stub;
   __ CallStub(&convert_stub);
   __ bind(&no_conversion);
@@ -3837,7 +3841,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Inline smi case if we are in a loop.
-  NearLabel stub_call, done;
+  Label done, stub_call;
   JumpPatchSite patch_site(masm_);
 
   if (ShouldInlineSmiCase(expr->op())) {
@@ -3846,10 +3850,10 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     } else {
       __ SmiSubConstant(rax, rax, Smi::FromInt(1));
     }
-    __ j(overflow, &stub_call);
+    __ j(overflow, &stub_call, Label::kNear);
     // We could eliminate this smi check if we split the code at
     // the first smi check before calling ToNumber.
-    patch_site.EmitJumpIfSmi(rax, &done);
+    patch_site.EmitJumpIfSmi(rax, &done, Label::kNear);
 
     __ bind(&stub_call);
     // Call stub. Undo operation first.
@@ -4134,10 +4138,10 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       bool inline_smi_code = ShouldInlineSmiCase(op);
       JumpPatchSite patch_site(masm_);
       if (inline_smi_code) {
-        NearLabel slow_case;
+        Label slow_case;
         __ movq(rcx, rdx);
         __ or_(rcx, rax);
-        patch_site.EmitJumpIfNotSmi(rcx, &slow_case);
+        patch_site.EmitJumpIfNotSmi(rcx, &slow_case, Label::kNear);
         __ cmpq(rdx, rax);
         Split(cc, if_true, if_false, NULL);
         __ bind(&slow_case);

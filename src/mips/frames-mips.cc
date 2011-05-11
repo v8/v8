@@ -38,8 +38,12 @@ namespace internal {
 
 
 Address ExitFrame::ComputeStackPointer(Address fp) {
-  UNIMPLEMENTED_MIPS();
-  return fp;
+  Address marker = Memory::Address_at(fp + ExitFrameConstants::kMarkerOffset);
+  Address sp = fp + ExitFrameConstants::kSPOffset;
+  if (marker == NULL) {
+    sp -= FPURegister::kNumRegisters * kDoubleSize + 2 * kPointerSize;
+  }
+  return sp;
 }
 
 

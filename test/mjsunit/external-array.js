@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --expose-gc
 
 // This is a regression test for overlapping key and value registers.
 function f(a) {
@@ -42,15 +42,6 @@ f(a);
 
 assertEquals(0, a[0]);
 assertEquals(0, a[1]);
-
-// Test the correct behavior of the |length| property (which is read-only).
-a = new Int32Array(42);
-assertEquals(42, a.length);
-a.length = 2;
-assertEquals(42, a.length);
-assertTrue(delete a.length);
-a.length = 2
-assertEquals(2, a.length);
 
 // Test the correct behavior of the |BYTES_PER_ELEMENT| property (which is
 // "constant", but not read-only).
@@ -88,3 +79,72 @@ for (var i = 0; i < 5; i++) {
 %OptimizeFunctionOnNextCall(get);
 assertEquals(2.5, get(array, 0));
 assertEquals(3.5, get(array, 1));
+
+// Test loads and stores.
+types = [Int8Array, Uint8Array, Int16Array, Uint16Array, Int32Array,
+         Uint32Array, PixelArray, Float32Array, Float64Array];
+
+const kElementCount = 40;
+
+function test_load(array, sum) {
+  for (var i = 0; i < kElementCount; i++) {
+    sum += array[i];
+  }
+  return sum;
+}
+
+function test_load_const_key(array, sum) {
+  sum += array[0];
+  sum += array[1];
+  sum += array[2];
+  return sum;
+}
+
+function test_store(array, sum) {
+  for (var i = 0; i < kElementCount; i++) {
+    sum += array[i] = i+1;
+  }
+  return sum;
+}
+
+function test_store_const_key(array, sum) {
+  sum += array[0] = 1;
+  sum += array[1] = 2;
+  sum += array[2] = 3;
+  return sum;
+}
+
+function run_test(test_func, array, expected_sum_per_run) {
+  for (var i = 0; i < 5; i++) test_func(array, 0);
+  %OptimizeFunctionOnNextCall(test_func);
+  const kRuns = 10;
+  var sum = 0;
+  for (var i = 0; i < kRuns; i++) {
+    sum = test_func(array, sum);
+  }
+  assertEquals(sum, expected_sum_per_run * kRuns);
+  %DeoptimizeFunction(test_func);
+  gc();  // Makes V8 forget about type information for test_func.
+}
+
+for (var t = 0; t < types.length; t++) {
+  var type = types[t];
+  var a = new type(kElementCount);
+  for (var i = 0; i < kElementCount; i++) {
+    a[i] = i;
+  }
+  
+  // Run test functions defined above.
+  run_test(test_load, a, 780);
+  run_test(test_load_const_key, a, 3);
+  run_test(test_store, a, 820);
+  run_test(test_store_const_key, a, 6);
+  
+  // Test the correct behavior of the |length| property (which is read-only).
+  assertEquals(kElementCount, a.length);
+  a.length = 2;
+  assertEquals(kElementCount, a.length);
+  assertTrue(delete a.length);
+  a.length = 2
+  assertEquals(2, a.length);
+}

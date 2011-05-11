@@ -200,6 +200,9 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
     case CompareIC::STRINGS:
       GenerateStrings(masm);
       break;
+    case CompareIC::SYMBOLS:
+      GenerateSymbols(masm);
+      break;
     case CompareIC::OBJECTS:
       GenerateObjects(masm);
       break;

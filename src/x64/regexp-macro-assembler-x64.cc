@@ -703,7 +703,7 @@ void RegExpMacroAssemblerX64::Fail() {
 }
 
 
-Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
+Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Finalize code - write the entry point code now we know how many
   // registers we need.
   // Entry code:
@@ -972,7 +972,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
       code_desc, Code::ComputeFlags(Code::REGEXP),
       masm_.CodeObject());
   PROFILE(isolate, RegExpCodeCreateEvent(*code, *source));
-  return Handle<Object>::cast(code);
+  return Handle<HeapObject>::cast(code);
 }
 
 
@@ -1065,9 +1065,9 @@ void RegExpMacroAssemblerX64::ReadStackPointerFromRegister(int reg) {
 
 
 void RegExpMacroAssemblerX64::SetCurrentPositionFromEnd(int by) {
-  NearLabel after_position;
+  Label after_position;
   __ cmpq(rdi, Immediate(-by * char_size()));
-  __ j(greater_equal, &after_position);
+  __ j(greater_equal, &after_position, Label::kNear);
   __ movq(rdi, Immediate(-by * char_size()));
   // On RegExp code entry (where this operation is used), the character before
   // the current position is expected to be already loaded.

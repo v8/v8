@@ -31,7 +31,7 @@
 
 #include "bootstrapper.h"
 #include "code-stubs.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "regexp-macro-assembler.h"
 
 namespace v8 {
@@ -111,63 +111,6 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
 }
 
 
-class FloatingPointHelper : public AllStatic {
- public:
-
-  enum Destination {
-    kFPURegisters,
-    kCoreRegisters
-  };
-
-
-  // Loads smis from a0 and a1 (right and left in binary operations) into
-  // floating point registers. Depending on the destination the values ends up
-  // either f14 and f12 or in a2/a3 and a0/a1 respectively. If the destination
-  // is floating point registers FPU must be supported. If core registers are
-  // requested when FPU is supported f12 and f14 will be scratched.
-  static void LoadSmis(MacroAssembler* masm,
-                       Destination destination,
-                       Register scratch1,
-                       Register scratch2);
-
-  // Loads objects from a0 and a1 (right and left in binary operations) into
-  // floating point registers. Depending on the destination the values ends up
-  // either f14 and f12 or in a2/a3 and a0/a1 respectively. If the destination
-  // is floating point registers FPU must be supported. If core registers are
-  // requested when FPU is supported f12 and f14 will still be scratched. If
-  // either a0 or a1 is not a number (not smi and not heap number object) the
-  // not_number label is jumped to with a0 and a1 intact.
-  static void LoadOperands(MacroAssembler* masm,
-                           FloatingPointHelper::Destination destination,
-                           Register heap_number_map,
-                           Register scratch1,
-                           Register scratch2,
-                           Label* not_number);
-  // Loads the number from object into dst as a 32-bit integer if possible. If
-  // the object is not a 32-bit integer control continues at the label
-  // not_int32. If FPU is supported double_scratch is used but not scratch2.
-  static void LoadNumberAsInteger(MacroAssembler* masm,
-                                  Register object,
-                                  Register dst,
-                                  Register heap_number_map,
-                                  Register scratch1,
-                                  Register scratch2,
-                                  FPURegister double_scratch,
-                                  Label* not_int32);
- private:
-  static void LoadNumber(MacroAssembler* masm,
-                         FloatingPointHelper::Destination destination,
-                         Register object,
-                         FPURegister dst,
-                         Register dst1,
-                         Register dst2,
-                         Register heap_number_map,
-                         Register scratch1,
-                         Register scratch2,
-                         Label* not_number);
-};
-
-
 void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
                                    FloatingPointHelper::Destination destination,
                                    Register scratch1,
@@ -201,14 +144,74 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
 }
 
 
-void FloatingPointHelper::LoadNumberAsInteger(MacroAssembler* masm,
-                                              Register object,
-                                              Register dst,
-                                              Register heap_number_map,
-                                              Register scratch1,
-                                              Register scratch2,
-                                              FPURegister double_scratch,
-                                              Label* not_int32) {
+void FloatingPointHelper::ConvertNumberToInt32(MacroAssembler* masm,
+                                               Register object,
+                                               Register dst,
+                                               Register heap_number_map,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Register scratch3,
+                                               FPURegister double_scratch,
+                                               Label* not_number) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
+                                             Register int_scratch,
+                                             Destination destination,
+                                             FPURegister double_dst,
+                                             Register dst1,
+                                             Register dst2,
+                                             Register scratch2,
+                                             FPURegister single_scratch) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
+                                                  Register object,
+                                                  Destination destination,
+                                                  FPURegister double_dst,
+                                                  Register dst1,
+                                                  Register dst2,
+                                                  Register heap_number_map,
+                                                  Register scratch1,
+                                                  Register scratch2,
+                                                  FPURegister single_scratch,
+                                                  Label* not_int32) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
+                                            Register object,
+                                            Register dst,
+                                            Register heap_number_map,
+                                            Register scratch1,
+                                            Register scratch2,
+                                            Register scratch3,
+                                            FPURegister double_scratch,
+                                            Label* not_int32) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void FloatingPointHelper::DoubleIs32BitInteger(MacroAssembler* masm,
+                                               Register src1,
+                                               Register src2,
+                                               Register dst,
+                                               Register scratch,
+                                               Label* not_int32) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void FloatingPointHelper::CallCCodeForDoubleOperation(
+    MacroAssembler* masm,
+    Token::Value op,
+    Register heap_number_result,
+    Register scratch) {
   UNIMPLEMENTED_MIPS();
 }
 
@@ -256,49 +259,107 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
-// We fall into this code if the operands were Smis, but the result was
-// not (eg. overflow).  We branch into this code (to the not_smi label) if
-// the operands were not both Smi.  The operands are in lhs and rhs.
-// To call the C-implemented binary fp operation routines we need to end up
-// with the double precision floating point operands in a0 and a1 (for the
-// value in a1) and a2 and a3 (for the value in a0).
-void GenericBinaryOpStub::HandleBinaryOpSlowCases(MacroAssembler* masm,
-                                    Label* not_smi,
-                                    Register lhs,
-                                    Register rhs,
-                                    const Builtins::JavaScript& builtin) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-// For bitwise ops where the inputs are not both Smis we here try to determine
-// whether both inputs are either Smis or at least heap numbers that can be
-// represented by a 32 bit signed value.  We truncate towards zero as required
-// by the ES spec.  If this is the case we do the bitwise op and see if the
-// result is a Smi.  If so, great, otherwise we try to find a heap number to
-// write the answer into (either by allocating or by overwriting).
-// On entry the operands are in lhs (x) and rhs (y). (Result = x op y).
-// On exit the result is in v0.
-void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm,
-                                                Register lhs,
-                                                Register rhs) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void GenericBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
-  GenericBinaryOpStub stub(key, type_info);
+Handle<Code> GetTypeRecordingUnaryOpStub(int key,
+                                         TRUnaryOpIC::TypeInfo type_info) {
+  TypeRecordingUnaryOpStub stub(key, type_info);
   return stub.GetCode();
+}
+
+
+const char* TypeRecordingUnaryOpStub::GetName() {
+  UNIMPLEMENTED_MIPS();
+  return NULL;
+}
+
+
+// TODO(svenpanne): Use virtual functions instead of switch.
+void TypeRecordingUnaryOpStub::Generate(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+// TODO(svenpanne): Use virtual functions instead of switch.
+void TypeRecordingUnaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiStubSub(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
+                                                  Label* non_smi,
+                                                  Label* slow) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateSmiCodeBitNot(MacroAssembler* masm,
+                                                     Label* non_smi) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+// TODO(svenpanne): Use virtual functions instead of switch.
+void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateHeapNumberStubBitNot(
+    MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
+                                                         Label* slow) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
+    MacroAssembler* masm, Label* slow) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+// TODO(svenpanne): Use virtual functions instead of switch.
+void TypeRecordingUnaryOpStub::GenerateGenericStub(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateGenericStubBitNot(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void TypeRecordingUnaryOpStub::GenerateGenericCodeFallback(
+    MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
 }
 
 
@@ -352,6 +413,7 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
 // requested the code falls through. If number allocation is requested but a
 // heap number cannot be allocated the code jumps to the lable gc_required.
 void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
+    Label* use_runtime,
     Label* gc_required,
     SmiCodeGenerateHeapNumberResults allow_heapnumber_results) {
   UNIMPLEMENTED_MIPS();
@@ -422,6 +484,11 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
 
 
 void StackCheckStub::Generate(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void MathPowStub::Generate(MacroAssembler* masm) {
   UNIMPLEMENTED_MIPS();
 }
 
@@ -510,8 +577,7 @@ int CompareStub::MinorKey() {
 }
 
 
-// StringCharCodeAtGenerator
-
+// StringCharCodeAtGenerator.
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   UNIMPLEMENTED_MIPS();
 }
@@ -684,8 +750,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
 
 void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
-                                                        Register right,
                                                         Register left,
+                                                        Register right,
                                                         Register scratch1,
                                                         Register scratch2,
                                                         Register scratch3,
@@ -710,6 +776,16 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
+    UNIMPLEMENTED_MIPS();
+  }
+
+
+void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   UNIMPLEMENTED_MIPS();
 }
 

@@ -31,7 +31,7 @@
 
 #if defined(V8_TARGET_ARCH_MIPS)
 
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "debug.h"
 
 namespace v8 {

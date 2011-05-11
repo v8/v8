@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -93,6 +93,7 @@ class ScopeInfo BASE_EMBEDDED {
  private:
   Handle<String> function_name_;
   bool calls_eval_;
+  bool is_strict_mode_;
   List<Handle<String>, Allocator > parameters_;
   List<Handle<String>, Allocator > stack_slots_;
   List<Handle<String>, Allocator > context_slots_;
@@ -112,6 +113,9 @@ class SerializedScopeInfo : public FixedArray {
 
   // Does this scope call eval?
   bool CallsEval();
+
+  // Is this scope a strict mode scope?
+  bool IsStrictMode();
 
   // Does this scope have an arguments shadow?
   bool HasArgumentsShadow() {

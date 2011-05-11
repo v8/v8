@@ -106,7 +106,7 @@ namespace internal {
 RegExpMacroAssemblerMIPS::RegExpMacroAssemblerMIPS(
     Mode mode,
     int registers_to_save)
-    : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
+    : masm_(new MacroAssembler(Isolate::Current(), NULL, kRegExpCodeSize)),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -259,9 +259,9 @@ void RegExpMacroAssemblerMIPS::Fail() {
 }
 
 
-Handle<Object> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
+Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
   UNIMPLEMENTED_MIPS();
-  return Handle<Object>::null();
+  return Handle<HeapObject>::null();
 }
 
 

@@ -2580,6 +2580,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
       case CONSTANT_TRANSITION:
       case NULL_DESCRIPTOR:
       case INTERCEPTOR:
+      case EXTERNAL_ARRAY_TRANSITION:
         break;
       default:
         UNREACHABLE();

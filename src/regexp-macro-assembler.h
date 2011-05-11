@@ -130,7 +130,7 @@ class RegExpMacroAssembler {
     return false;
   }
   virtual void Fail() = 0;
-  virtual Handle<Object> GetCode(Handle<String> source) = 0;
+  virtual Handle<HeapObject> GetCode(Handle<String> source) = 0;
   virtual void GoTo(Label* label) = 0;
   // Check whether a register is >= a given constant and go to a label if it
   // is.  Backtracks instead if the label is NULL.
@@ -162,6 +162,13 @@ class RegExpMacroAssembler {
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset) = 0;
   virtual void ClearRegisters(int reg_from, int reg_to) = 0;
   virtual void WriteStackPointerToRegister(int reg) = 0;
+
+  // Controls the generation of large inlined constants in the code.
+  void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
+  bool slow_safe() { return slow_safe_compiler_; }
+
+ private:
+  bool slow_safe_compiler_;
 };
 
 

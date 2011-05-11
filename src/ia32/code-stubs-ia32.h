@@ -132,9 +132,16 @@ class TypeRecordingUnaryOpStub: public CodeStub {
   void GenerateSmiStub(MacroAssembler* masm);
   void GenerateSmiStubSub(MacroAssembler* masm);
   void GenerateSmiStubBitNot(MacroAssembler* masm);
-  void GenerateSmiCodeSub(MacroAssembler* masm, NearLabel* non_smi, Label* undo,
-                          Label* slow);
-  void GenerateSmiCodeBitNot(MacroAssembler* masm, NearLabel* non_smi);
+  void GenerateSmiCodeSub(MacroAssembler* masm,
+                          Label* non_smi,
+                          Label* undo,
+                          Label* slow,
+                          Label::Distance non_smi_near = Label::kFar,
+                          Label::Distance undo_near = Label::kFar,
+                          Label::Distance slow_near = Label::kFar);
+  void GenerateSmiCodeBitNot(MacroAssembler* masm,
+                             Label* non_smi,
+                             Label::Distance non_smi_near = Label::kFar);
   void GenerateSmiCodeUndo(MacroAssembler* masm);
 
   void GenerateHeapNumberStub(MacroAssembler* masm);
@@ -395,12 +402,14 @@ class StringCompareStub: public CodeStub {
   virtual int MinorKey() { return 0; }
   virtual void Generate(MacroAssembler* masm);
 
-  static void GenerateAsciiCharsCompareLoop(MacroAssembler* masm,
-                                            Register left,
-                                            Register right,
-                                            Register length,
-                                            Register scratch,
-                                            NearLabel* chars_not_equal);
+  static void GenerateAsciiCharsCompareLoop(
+      MacroAssembler* masm,
+      Register left,
+      Register right,
+      Register length,
+      Register scratch,
+      Label* chars_not_equal,
+      Label::Distance chars_not_equal_near = Label::kFar);
 };
 
 
@@ -449,12 +458,13 @@ class StringDictionaryLookupStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  static void GenerateNegativeLookup(MacroAssembler* masm,
-                                     Label* miss,
-                                     Label* done,
-                                     Register properties,
-                                     String* name,
-                                     Register r0);
+  MUST_USE_RESULT static MaybeObject* GenerateNegativeLookup(
+      MacroAssembler* masm,
+      Label* miss,
+      Label* done,
+      Register properties,
+      String* name,
+      Register r0);
 
   static void GeneratePositiveLookup(MacroAssembler* masm,
                                      Label* miss,
