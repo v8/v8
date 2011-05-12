@@ -115,12 +115,13 @@ void HBasicBlock::AddInstruction(HInstruction* instr) {
 }
 
 
-HDeoptimize* HBasicBlock::CreateDeoptimize() {
+HDeoptimize* HBasicBlock::CreateDeoptimize(
+    HDeoptimize::UseEnvironment has_uses) {
   ASSERT(HasEnvironment());
+  if (has_uses == HDeoptimize::kNoUses) return new(zone()) HDeoptimize(0);
+
   HEnvironment* environment = last_environment();
-
   HDeoptimize* instr = new(zone()) HDeoptimize(environment->length());
-
   for (int i = 0; i < environment->length(); i++) {
     HValue* val = environment->values()->at(i);
     instr->AddEnvironmentValue(val);
@@ -2490,7 +2491,9 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     // Unconditionally deoptimize on the first non-smi compare.
     clause->RecordTypeFeedback(oracle());
     if (!clause->IsSmiCompare()) {
-      current_block()->FinishExitWithDeoptimization();
+      // Finish with deoptimize and add uses of enviroment values to
+      // account for invisible uses.
+      current_block()->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
       set_current_block(NULL);
       break;
     }
@@ -3237,7 +3240,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExitWithDeoptimization();
+    current_block()->FinishExitWithDeoptimization(HDeoptimize::kNoUses);
   } else {
     HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
     instr->set_position(expr->position());
@@ -3916,7 +3919,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExitWithDeoptimization();
+    current_block()->FinishExitWithDeoptimization(HDeoptimize::kNoUses);
   } else {
     HValue* context = environment()->LookupContext();
     HCallNamed* call = new(zone()) HCallNamed(context, name, argument_count);

@@ -862,6 +862,11 @@ class HDeoptimize: public HControlInstruction {
 
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
 
+  enum UseEnvironment {
+    kNoUses,
+    kUseAll
+  };
+
  protected:
   virtual void InternalSetOperandAt(int index, HValue* value) {
     values_[index] = value;
