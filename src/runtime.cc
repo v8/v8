@@ -4166,25 +4166,33 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasLocalProperty) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, key, args[1]);
 
+  uint32_t index;
+  const bool key_is_array_index = key->AsArrayIndex(&index);
+
   Object* obj = args[0];
   // Only JS objects can have properties.
   if (obj->IsJSObject()) {
     JSObject* object = JSObject::cast(obj);
-    // Fast case - no interceptors.
+    // Fast case: either the key is a real named property or it is not
+    // an array index and there are no interceptors or hidden
+    // prototypes.
     if (object->HasRealNamedProperty(key)) return isolate->heap()->true_value();
-    // Slow case.  Either it's not there or we have an interceptor.  We should
-    // have handles for this kind of deal.
+    Map* map = object->map();
+    if (!key_is_array_index &&
+        !map->has_named_interceptor() &&
+        !HeapObject::cast(map->prototype())->map()->is_hidden_prototype()) {
+      return isolate->heap()->false_value();
+    }
+    // Slow case.
     HandleScope scope(isolate);
     return HasLocalPropertyImplementation(isolate,
                                           Handle<JSObject>(object),
                                           Handle<String>(key));
-  } else if (obj->IsString()) {
+  } else if (obj->IsString() && key_is_array_index) {
     // Well, there is one exception:  Handle [] on strings.
-    uint32_t index;
-    if (key->AsArrayIndex(&index)) {
-      String* string = String::cast(obj);
-      if (index < static_cast<uint32_t>(string->length()))
-        return isolate->heap()->true_value();
+    String* string = String::cast(obj);
+    if (index < static_cast<uint32_t>(string->length())) {
+      return isolate->heap()->true_value();
     }
   }
   return isolate->heap()->false_value();
