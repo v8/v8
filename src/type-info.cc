@@ -441,6 +441,7 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
     Code::Kind kind = target->kind();
 
     if (kind == Code::TYPE_RECORDING_BINARY_OP_IC ||
+        kind == Code::TYPE_RECORDING_UNARY_OP_IC ||
         kind == Code::COMPARE_IC) {
       SetInfo(id, target);
     } else if (state == MONOMORPHIC) {
