@@ -3317,6 +3317,12 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
+  // [code_flushing_candidate]: Field only used during garbage
+  // collection to hold code flushing candidates. The contents of this
+  // field does not have to be traced during garbage collection since
+  // it is only used by the garbage collector itself.
+  DECL_ACCESSORS(next_code_flushing_candidate, Object)
+
   // Unchecked accessors to be used during GC.
   inline ByteArray* unchecked_relocation_info();
   inline FixedArray* unchecked_deoptimization_data();
@@ -3537,9 +3543,12 @@ class Code: public HeapObject {
   static const int kRelocationInfoOffset = kInstructionSizeOffset + kIntSize;
   static const int kDeoptimizationDataOffset =
       kRelocationInfoOffset + kPointerSize;
-  static const int kFlagsOffset = kDeoptimizationDataOffset + kPointerSize;
-  static const int kKindSpecificFlagsOffset  = kFlagsOffset + kIntSize;
+  static const int kNextCodeFlushingCandidateOffset =
+      kDeoptimizationDataOffset + kPointerSize;
+  static const int kFlagsOffset =
+      kNextCodeFlushingCandidateOffset + kPointerSize;
 
+  static const int kKindSpecificFlagsOffset = kFlagsOffset + kIntSize;
   static const int kKindSpecificFlagsSize = 2 * kIntSize;
 
   static const int kHeaderPaddingStart = kKindSpecificFlagsOffset +

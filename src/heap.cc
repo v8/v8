@@ -2799,6 +2799,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
   code->set_deoptimization_data(empty_fixed_array());
+  code->set_next_code_flushing_candidate(undefined_value());
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_reference.is_null()) {
