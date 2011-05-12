@@ -800,17 +800,18 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void GenerateFastPixelArrayLoad(MacroAssembler* masm,
-                                Register receiver,
-                                Register key,
-                                Register elements_map,
-                                Register elements,
-                                Register scratch1,
-                                Register scratch2,
-                                Register result,
-                                Label* not_pixel_array,
-                                Label* key_not_smi,
-                                Label* out_of_range) {
+void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
+                                                        Label* miss,
+                                                        Label* done,
+                                                        Register elements,
+                                                        Register name,
+                                                        Register scratch1,
+                                                        Register scratch2) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
   UNIMPLEMENTED_MIPS();
 }
 
