@@ -819,7 +819,11 @@ class HGraphBuilder: public AstVisitor {
   // to push them as outgoing parameters.
   template <int V> HInstruction* PreProcessCall(HCall<V>* call);
 
-  void AssumeRepresentation(HValue* value, Representation r);
+  void TraceRepresentation(Token::Value op,
+                           TypeInfo info,
+                           HValue* value,
+                           Representation rep);
+  void AssumeRepresentation(HValue* value, Representation rep);
   static Representation ToRepresentation(TypeInfo info);
 
   void SetupScope(Scope* scope);

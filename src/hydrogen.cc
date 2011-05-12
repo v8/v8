@@ -4694,10 +4694,12 @@ HInstruction* HGraphBuilder::BuildIncrement(HValue* value,
       ? graph_->GetConstant1()
       : graph_->GetConstantMinus1();
   HInstruction* instr = new(zone()) HAdd(value, delta);
-  Representation rep = ToRepresentation(oracle()->IncrementType(expr));
+  TypeInfo info = oracle()->IncrementType(expr);
+  Representation rep = ToRepresentation(info);
   if (rep.IsTagged()) {
     rep = Representation::Integer32();
   }
+  TraceRepresentation(expr->op(), info, instr, rep);
   AssumeRepresentation(instr, rep);
   return instr;
 }
@@ -4870,14 +4872,12 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
        (right->IsConstant() && HConstant::cast(right)->HasStringValue()))) {
     return instr;
   }
-  if (FLAG_trace_representation) {
-    PrintF("Info: %s/%s\n", info.ToString(), ToRepresentation(info).Mnemonic());
-  }
   Representation rep = ToRepresentation(info);
   // We only generate either int32 or generic tagged bitwise operations.
   if (instr->IsBitwiseBinaryOperation() && rep.IsDouble()) {
     rep = Representation::Integer32();
   }
+  TraceRepresentation(expr->op(), info, instr, rep);
   AssumeRepresentation(instr, rep);
   return instr;
 }
@@ -5046,20 +5046,32 @@ void HGraphBuilder::VisitCommon(BinaryOperation* expr) {
 }
 
 
-void HGraphBuilder::AssumeRepresentation(HValue* value, Representation r) {
+void HGraphBuilder::TraceRepresentation(Token::Value op,
+                                        TypeInfo info,
+                                        HValue* value,
+                                        Representation rep) {
+  if (!FLAG_trace_representation) return;
+  // TODO(svenpanne) Under which circumstances are we actually not flexible?
+  // At first glance, this looks a bit weird...
+  bool flexible = value->CheckFlag(HValue::kFlexibleRepresentation);
+  PrintF("Operation %s has type info %s, %schange representation assumption "
+         "for %s (ID %d) from %s to %s\n",
+         Token::Name(op),
+         info.ToString(),
+         flexible ? "" : " DO NOT ",
+         value->Mnemonic(),
+         graph_->GetMaximumValueID(),
+         value->representation().Mnemonic(),
+         rep.Mnemonic());
+}
+
+
+void HGraphBuilder::AssumeRepresentation(HValue* value, Representation rep) {
   if (value->CheckFlag(HValue::kFlexibleRepresentation)) {
-    if (FLAG_trace_representation) {
-      PrintF("Assume representation for %s to be %s (%d)\n",
-             value->Mnemonic(),
-             r.Mnemonic(),
-             graph_->GetMaximumValueID());
-    }
-    value->ChangeRepresentation(r);
+    value->ChangeRepresentation(rep);
     // The representation of the value is dictated by type feedback and
     // will not be changed later.
     value->ClearFlag(HValue::kFlexibleRepresentation);
-  } else if (FLAG_trace_representation) {
-    PrintF("No representation assumed\n");
   }
 }
 
