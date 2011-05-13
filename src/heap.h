@@ -452,6 +452,13 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateFunctionPrototype(JSFunction* function);
 
+  // Allocates a Harmony Proxy.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  MUST_USE_RESULT MaybeObject* AllocateJSProxy(Object* handler,
+                                               Object* prototype);
+
   // Reinitialize an JSGlobalProxy based on a constructor.  The object
   // must have the same size as objects allocated using the
   // constructor.  The object is reinitialized and behaves as an

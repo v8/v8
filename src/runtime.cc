@@ -588,6 +588,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSProxy) {
+  ASSERT(args.length() == 2);
+  Object* handler = args[0];
+  Object* prototype = args[1];
+  Object* used_prototype =
+      (prototype->IsJSObject() || prototype->IsJSProxy()) ? prototype
+          : isolate->heap()->null_value();
+  return isolate->heap()->AllocateJSProxy(handler, used_prototype);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCatchExtensionObject) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, key, args[0]);

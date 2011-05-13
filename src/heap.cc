@@ -3213,6 +3213,27 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
 }
 
 
+MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
+  // Allocate map.
+  // TODO(rossberg): Once we optimize proxies, think about a scheme to share
+  // maps. Will probably depend on the identity of the handler object, too.
+  Object* map_obj;
+  MaybeObject* maybe_map_obj = AllocateMap(JS_PROXY_TYPE, JSProxy::kSize);
+  if (!maybe_map_obj->ToObject(&map_obj)) return maybe_map_obj;
+  Map* map = Map::cast(map_obj);
+  map->set_prototype(prototype);
+  map->set_pre_allocated_property_fields(1);
+  map->set_inobject_properties(1);
+
+  // Allocate the proxy object.
+  Object* result;
+  MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
+  if (!maybe_result->ToObject(&result)) return maybe_result;
+  JSProxy::cast(result)->set_handler(handler);
+  return result;
+}
+
+
 MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   ASSERT(constructor->has_initial_map());
   Map* map = constructor->initial_map();

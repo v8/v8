@@ -1638,10 +1638,12 @@ bool Genesis::InstallNatives() {
 
 
 bool Genesis::InstallExperimentalNatives() {
-  if (FLAG_harmony_proxies) {
-    for (int i = ExperimentalNatives::GetDebuggerCount();
-         i < ExperimentalNatives::GetBuiltinsCount();
-         i++) {
+  for (int i = ExperimentalNatives::GetDebuggerCount();
+       i < ExperimentalNatives::GetBuiltinsCount();
+       i++) {
+    if (FLAG_harmony_proxies &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native proxy.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
   }

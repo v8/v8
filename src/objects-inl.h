@@ -584,6 +584,12 @@ bool Object::IsStringWrapper() {
 }
 
 
+bool Object::IsJSProxy() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() == JS_PROXY_TYPE;
+}
+
+
 bool Object::IsProxy() {
   return Object::IsHeapObject()
       && HeapObject::cast(this)->map()->instance_type() == PROXY_TYPE;
@@ -1898,6 +1904,7 @@ CAST_ACCESSOR(JSBuiltinsObject)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSRegExp)
+CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(Proxy)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(ExternalArray)
@@ -3519,6 +3526,9 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
   WRITE_FIELD(this, OffsetOfCodeWithId(id), value);
   ASSERT(!HEAP->InNewSpace(value));
 }
+
+
+ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 
 
 Address Proxy::proxy() {

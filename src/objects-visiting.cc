@@ -88,6 +88,11 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case SHARED_FUNCTION_INFO_TYPE:
       return kVisitSharedFunctionInfo;
 
+    case JS_PROXY_TYPE:
+      return GetVisitorIdForSize(kVisitDataObject,
+                                 kVisitDataObjectGeneric,
+                                 JSProxy::kSize);
+
     case PROXY_TYPE:
       return GetVisitorIdForSize(kVisitDataObject,
                                  kVisitDataObjectGeneric,

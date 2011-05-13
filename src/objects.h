@@ -90,6 +90,7 @@
 //       - Code
 //       - Map
 //       - Oddball
+//       - JSProxy
 //       - Proxy
 //       - SharedFunctionInfo
 //       - Struct
@@ -287,6 +288,7 @@ static const int kVariableSizeSentinel = 0;
   V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
                                                                                \
   V(HEAP_NUMBER_TYPE)                                                          \
+  V(JS_PROXY_TYPE)                                                             \
   V(PROXY_TYPE)                                                                \
   V(BYTE_ARRAY_TYPE)                                                           \
   /* Note: the order of these external array */                                \
@@ -515,6 +517,7 @@ enum InstanceType {
   // objects.
   HEAP_NUMBER_TYPE,
   PROXY_TYPE,
+  JS_PROXY_TYPE,
   BYTE_ARRAY_TYPE,
   EXTERNAL_BYTE_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
   EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE,
@@ -720,6 +723,7 @@ class MaybeObject BASE_EMBEDDED {
   V(Proxy)                                     \
   V(Boolean)                                   \
   V(JSArray)                                   \
+  V(JSProxy)                                   \
   V(JSRegExp)                                  \
   V(HashTable)                                 \
   V(Dictionary)                                \
@@ -3956,7 +3960,7 @@ class Map: public HeapObject {
 
 
 // An abstract superclass, a marker class really, for simple structure classes.
-// It doesn't carry much functionality but allows struct classes to me
+// It doesn't carry much functionality but allows struct classes to be
 // identified in the type system.
 class Struct: public HeapObject {
  public:
@@ -6100,6 +6104,39 @@ class JSGlobalPropertyCell: public HeapObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalPropertyCell);
+};
+
+
+// The JSProxy describes EcmaScript Harmony proxies
+class JSProxy: public HeapObject {
+ public:
+  // [handler]: The handler property.
+  DECL_ACCESSORS(handler, Object)
+
+  // Casting.
+  static inline JSProxy* cast(Object* obj);
+
+  // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSProxyPrint() {
+    JSProxyPrint(stdout);
+  }
+  void JSProxyPrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void JSProxyVerify();
+#endif
+
+  // Layout description.
+  static const int kHandlerOffset = HeapObject::kHeaderSize;
+  static const int kSize = kHandlerOffset + kPointerSize;
+
+  typedef FixedBodyDescriptor<kHandlerOffset,
+                              kHandlerOffset + kPointerSize,
+                              kSize> BodyDescriptor;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };
 
 

@@ -134,24 +134,22 @@ Object* Object::ToBoolean() {
 void Object::Lookup(String* name, LookupResult* result) {
   Object* holder = NULL;
   if (IsSmi()) {
-    Heap* heap = Isolate::Current()->heap();
-    Context* global_context = heap->isolate()->context()->global_context();
+    Context* global_context = Isolate::Current()->context()->global_context();
     holder = global_context->number_function()->instance_prototype();
   } else {
     HeapObject* heap_object = HeapObject::cast(this);
     if (heap_object->IsJSObject()) {
       return JSObject::cast(this)->Lookup(name, result);
     }
-    Heap* heap = heap_object->GetHeap();
+    Context* global_context = Isolate::Current()->context()->global_context();
     if (heap_object->IsString()) {
-      Context* global_context = heap->isolate()->context()->global_context();
       holder = global_context->string_function()->instance_prototype();
     } else if (heap_object->IsHeapNumber()) {
-      Context* global_context = heap->isolate()->context()->global_context();
       holder = global_context->number_function()->instance_prototype();
     } else if (heap_object->IsBoolean()) {
-      Context* global_context = heap->isolate()->context()->global_context();
       holder = global_context->boolean_function()->instance_prototype();
+    } else if (heap_object->IsJSProxy()) {
+      return result->NotFound();  // For now...
     }
   }
   ASSERT(holder != NULL);  // Cannot handle null or undefined.
@@ -494,12 +492,13 @@ MaybeObject* Object::GetProperty(Object* receiver,
   Heap* heap = name->GetHeap();
 
   // Traverse the prototype chain from the current object (this) to
-  // the holder and check for access rights. This avoid traversing the
+  // the holder and check for access rights. This avoids traversing the
   // objects more than once in case of interceptors, because the
   // holder will always be the interceptor holder and the search may
   // only continue with a current object just after the interceptor
   // holder in the prototype chain.
   Object* last = result->IsProperty() ? result->holder() : heap->null_value();
+  ASSERT(this != this->GetPrototype());
   for (Object* current = this; true; current = current->GetPrototype()) {
     if (current->IsAccessCheckNeeded()) {
       // Check if we're allowed to read from the current object. Note
@@ -575,6 +574,8 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
       holder = global_context->number_function()->instance_prototype();
     } else if (heap_object->IsBoolean()) {
       holder = global_context->boolean_function()->instance_prototype();
+    } else if (heap_object->IsJSProxy()) {
+      return heap->undefined_value();  // For now...
     } else {
       // Undefined and null have no indexed properties.
       ASSERT(heap_object->IsUndefined() || heap_object->IsNull());
@@ -595,9 +596,10 @@ Object* Object::GetPrototype() {
 
   HeapObject* heap_object = HeapObject::cast(this);
 
-  // The object is either a number, a string, a boolean, or a real JS object.
-  if (heap_object->IsJSObject()) {
-    return JSObject::cast(this)->map()->prototype();
+  // The object is either a number, a string, a boolean,
+  // a real JS object, or a Harmony proxy.
+  if (heap_object->IsJSObject() || heap_object->IsJSProxy()) {
+    return heap_object->map()->prototype();
   }
   Heap* heap = heap_object->GetHeap();
   Context* context = heap->isolate()->context()->global_context();
@@ -1153,6 +1155,9 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
     case ODDBALL_TYPE:
       Oddball::BodyDescriptor::IterateBody(this, v);
+      break;
+    case JS_PROXY_TYPE:
+      JSProxy::BodyDescriptor::IterateBody(this, v);
       break;
     case PROXY_TYPE:
       reinterpret_cast<Proxy*>(this)->ProxyIterateBody(v);
