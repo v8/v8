@@ -398,6 +398,7 @@ NewSpacePage* NewSpacePage::Initialize(Heap* heap, Address start) {
                                                NOT_EXECUTABLE,
                                                heap->new_space());
   chunk->initialize_scan_on_scavenge(true);
+  heap->incremental_marking()->SetNewSpacePageFlags(chunk);
   return static_cast<NewSpacePage*>(chunk);
 }
 
@@ -417,7 +418,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->set_owner(owner);
   chunk->markbits()->Clear();
   chunk->initialize_scan_on_scavenge(false);
-  ASSERT(OFFSET_OF(MemoryChunk, scan_on_scavenge_) == kScanOnScavengeOffset);
   ASSERT(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
 
   if (executable == EXECUTABLE) chunk->SetFlag(IS_EXECUTABLE);
@@ -930,6 +930,10 @@ void NewSpace::Flip() {
   SemiSpace tmp = from_space_;
   from_space_ = to_space_;
   to_space_ = tmp;
+
+  NewSpacePage* old_active_page = from_space_.current_page();
+  NewSpacePage* new_active_page = to_space_.current_page();
+  new_active_page->CopyFlagsFrom(old_active_page);
 }
 
 

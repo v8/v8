@@ -339,8 +339,14 @@ class MemoryChunk {
            kFailureTag);
   }
 
-  bool scan_on_scavenge() { return scan_on_scavenge_; }
-  void initialize_scan_on_scavenge(bool scan) { scan_on_scavenge_ = scan; }
+  bool scan_on_scavenge() { return IsFlagSet(SCAN_ON_SCAVENGE); }
+  void initialize_scan_on_scavenge(bool scan) {
+    if (scan) {
+      SetFlag(SCAN_ON_SCAVENGE);
+    } else {
+      ClearFlag(SCAN_ON_SCAVENGE);
+    }
+  }
   inline void set_scan_on_scavenge(bool scan);
 
   int store_buffer_counter() { return store_buffer_counter_; }
@@ -360,6 +366,9 @@ class MemoryChunk {
     IS_EXECUTABLE,
     WAS_SWEPT_CONSERVATIVELY,
     CONTAINS_ONLY_DATA,
+    POINTERS_TO_HERE_ARE_INTERESTING,
+    POINTERS_FROM_HERE_ARE_INTERESTING,
+    SCAN_ON_SCAVENGE,
     NUM_MEMORY_CHUNK_FLAGS
   };
 
@@ -373,6 +382,10 @@ class MemoryChunk {
 
   bool IsFlagSet(int flag) {
     return (flags_ & (1 << flag)) != 0;
+  }
+
+  void CopyFlagsFrom(MemoryChunk* chunk) {
+    flags_ = chunk->flags_;
   }
 
   static const intptr_t kAlignment = (1 << kPageSizeBits);
@@ -448,7 +461,6 @@ class MemoryChunk {
   inline Heap* heap() { return heap_; }
 
   static const int kFlagsOffset = kPointerSize * 3;
-  static const int kScanOnScavengeOffset = kPointerSize * 6;
 
  protected:
   MemoryChunk* next_chunk_;
@@ -460,10 +472,6 @@ class MemoryChunk {
   // in a fixed array.
   Address owner_;
   Heap* heap_;
-  // This flag indicates that the page is not being tracked by the store buffer.
-  // At any point where we have to iterate over pointers to new space, we must
-  // search this page for pointers to new space.
-  bool scan_on_scavenge_;
   // Used by the store buffer to keep track of which pages to mark scan-on-
   // scavenge.
   int store_buffer_counter_;
@@ -586,11 +594,7 @@ class LargePage : public MemoryChunk {
     set_next_chunk(page);
   }
  private:
-  static LargePage* Initialize(Heap* heap,
-                               MemoryChunk* chunk) {
-    // TODO(gc) ISOLATESMERGE initialize chunk to point to heap?
-    return static_cast<LargePage*>(chunk);
-  }
+  static inline LargePage* Initialize(Heap* heap, MemoryChunk* chunk);
 
   friend class MemoryAllocator;
 };
@@ -1862,6 +1866,10 @@ class NewSpace : public Space {
     return inline_alloction_limit_step_;
   }
 
+  NewSpacePage* ActivePage() {
+    return to_space_.current_page();
+  }
+
  private:
   Address chunk_base_;
   uintptr_t chunk_size_;
@@ -2130,6 +2138,8 @@ class LargeObjectSpace : public Space {
   void Protect();
   void Unprotect();
 #endif
+
+  LargePage* first_page() { return first_page_; }
 
 #ifdef DEBUG
   virtual void Verify();

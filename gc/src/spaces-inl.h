@@ -127,6 +127,9 @@ Page* Page::Initialize(Heap* heap,
   owner->IncreaseCapacity(Page::kObjectAreaSize);
   owner->Free(page->ObjectAreaStart(),
               page->ObjectAreaEnd() - page->ObjectAreaStart());
+
+  heap->incremental_marking()->SetOldSpacePageFlags(chunk);
+
   return page;
 }
 
@@ -140,11 +143,13 @@ bool PagedSpace::Contains(Address addr) {
 
 void MemoryChunk::set_scan_on_scavenge(bool scan) {
   if (scan) {
-    if (!scan_on_scavenge_) heap_->increment_scan_on_scavenge_pages();
+    if (!scan_on_scavenge()) heap_->increment_scan_on_scavenge_pages();
+    SetFlag(SCAN_ON_SCAVENGE);
   } else {
-    if (scan_on_scavenge_) heap_->decrement_scan_on_scavenge_pages();
+    if (scan_on_scavenge()) heap_->decrement_scan_on_scavenge_pages();
+    ClearFlag(SCAN_ON_SCAVENGE);
   }
-  scan_on_scavenge_ = scan;
+  heap_->incremental_marking()->SetOldSpacePageFlags(this);
 }
 
 
@@ -266,6 +271,12 @@ MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes) {
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   return obj;
+}
+
+
+LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk) {
+  heap->incremental_marking()->SetOldSpacePageFlags(chunk);
+  return static_cast<LargePage*>(chunk);
 }
 
 

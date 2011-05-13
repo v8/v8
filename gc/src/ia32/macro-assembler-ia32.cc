@@ -32,6 +32,7 @@
 #include "bootstrapper.h"
 #include "codegen.h"
 #include "debug.h"
+#include "macro-assembler-ia32-inl.h"
 #include "runtime.h"
 #include "serialize.h"
 
@@ -216,6 +217,15 @@ void MacroAssembler::RecordWrite(Register object,
       FLAG_incremental_marking == false) {
     return;
   }
+
+  if (FLAG_debug_code) {
+    NearLabel ok;
+    cmp(value, Operand(address, 0));
+    j(equal, &ok);
+    Abort("Registers did not match in write barrier");
+    bind(&ok);
+  }
+
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
   NearLabel done;
@@ -227,12 +237,21 @@ void MacroAssembler::RecordWrite(Register object,
     j(zero, &done);
   }
 
+  CheckPageFlag(value,
+                value,  // Used as scratch.
+                MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING,
+                zero,
+                &done);
+  CheckPageFlag(object,
+                value,  // Used as scratch.
+                MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING,
+                zero,
+                &done);
+
   RecordWriteStub stub(object, value, address, emit_remembered_set, fp_mode);
   CallStub(&stub);
 
-  if (smi_check == INLINE_SMI_CHECK) {
-    bind(&done);
-  }
+  bind(&done);
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.

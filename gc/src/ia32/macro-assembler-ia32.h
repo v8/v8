@@ -88,11 +88,12 @@ class MacroAssembler: public Assembler {
                   Condition cc,  // equal for new space, not_equal otherwise.
                   LabelType* branch);
 
-  // Check if old-space object is on a scan-on-scavenge page.
-  template <typename LabelType>
-  void HasScanOnScavenge(Register object,
-                         Register scratch,
-                         LabelType* scan_on_scavenge);
+  template<typename LabelType>
+  void CheckPageFlag(Register object,
+                     Register scratch,
+                     MemoryChunk::MemoryChunkFlags flag,
+                     Condition cc,
+                     LabelType* condition_met);
 
   // Check if an object has a given incremental marking colour.  Also uses ecx!
   // The colour bits are found by splitting the address at the bit offset

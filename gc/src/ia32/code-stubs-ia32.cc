@@ -5988,24 +5988,15 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
     masm->set_opcode(-2, kTwoByteNopInstruction);
   }
 
-  if (FLAG_debug_code) {
-    NearLabel ok;
-    __ cmp(value_, Operand(address_, 0));
-    __ j(equal, &ok);
-    __ Abort("Registers did not match in write barrier");
-    __ bind(&ok);
-  }
-
   if (emit_remembered_set_ == EMIT_REMEMBERED_SET) {
     NearLabel skip;
-    __ HasScanOnScavenge(object_, value_, &skip);
     __ RememberedSetHelper(address_, value_, save_fp_regs_mode_);
     __ bind(&skip);
   }
   __ ret(0);
 
   __ bind(&skip_non_incremental_part);
-
+  __ mov(value_, Operand(address_, 0));
   GenerateIncremental(masm);
 }
 
@@ -6060,7 +6051,11 @@ void RecordWriteStub::GenerateIncrementalValueIsInNewSpace(
   // the scan_on_scavenge flag on the object's page?
   if (emit_remembered_set_ == EMIT_REMEMBERED_SET) {
     Label scan_on_scavenge;
-    __ HasScanOnScavenge(regs_.object(), regs_.scratch0(), &scan_on_scavenge);
+    __ CheckPageFlag(regs_.object(),
+                     regs_.scratch0(),
+                     MemoryChunk::SCAN_ON_SCAVENGE,
+                     not_zero,
+                     &scan_on_scavenge);
     GenerateIncrementalValueIsInNewSpaceObjectIsInOldSpaceRememberedSet(masm);
     __ bind(&scan_on_scavenge);
   }

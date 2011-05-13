@@ -189,6 +189,15 @@ class IncrementalMarking : public AllStatic {
     return steps_took_;
   }
 
+  inline void SetOldSpacePageFlags(MemoryChunk* chunk) {
+    SetOldSpacePageFlags(chunk, IsMarking());
+  }
+
+  inline void SetNewSpacePageFlags(MemoryChunk* chunk) {
+    SetNewSpacePageFlags(chunk, IsMarking());
+  }
+
+
  private:
   void set_should_hurry(bool val) {
     should_hurry_ = val;
@@ -210,6 +219,11 @@ class IncrementalMarking : public AllStatic {
 
   void StartMarking();
 
+  void DeactivateWriteBarrierForSpace(PagedSpace* space);
+  void DeactivateWriteBarrier();
+
+  static void SetOldSpacePageFlags(MemoryChunk* chunk, bool is_marking);
+  static void SetNewSpacePageFlags(MemoryChunk* chunk, bool is_marking);
 
   Heap* heap_;
 

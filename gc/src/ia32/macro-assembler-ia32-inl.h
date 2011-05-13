@@ -33,14 +33,18 @@
 namespace v8 {
 namespace internal {
 
+
 template<typename LabelType>
-void MacroAssembler::HasScanOnScavenge(Register object,
-                                       Register scratch,
-                                       LabelType* scan_on_scavenge) {
+void MacroAssembler::CheckPageFlag(
+    Register object,
+    Register scratch,
+    MemoryChunk::MemoryChunkFlags flag,
+    Condition cc,
+    LabelType* condition_met) {
   Move(scratch, object);
   and_(scratch, ~Page::kPageAlignmentMask);
-  cmpb(Operand(scratch, MemoryChunk::kScanOnScavengeOffset), 0);
-  j(not_equal, scan_on_scavenge);
+  test(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(1 << flag));
+  j(cc, condition_met);
 }
 
 

@@ -135,12 +135,65 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
 };
 
 
+void IncrementalMarking::SetOldSpacePageFlags(MemoryChunk* chunk,
+                                              bool is_marking) {
+  if (is_marking) {
+    chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+  } else if (chunk->owner()->identity() == CELL_SPACE ||
+             chunk->scan_on_scavenge()) {
+    chunk->ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+    chunk->ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+  } else {
+    chunk->ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+  }
+}
+
+
+void IncrementalMarking::SetNewSpacePageFlags(MemoryChunk* chunk,
+                                              bool is_marking) {
+  chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
+  if (is_marking) {
+    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+  } else {
+    chunk->ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+  }
+}
+
+
+void IncrementalMarking::DeactivateWriteBarrierForSpace(PagedSpace* space) {
+  PageIterator it(space);
+  while (it.has_next()) {
+    Page* p = it.next();
+    SetOldSpacePageFlags(p, false);
+  }
+}
+
+
+void IncrementalMarking::DeactivateWriteBarrier() {
+  DeactivateWriteBarrierForSpace(heap_->old_pointer_space());
+  DeactivateWriteBarrierForSpace(heap_->old_data_space());
+  DeactivateWriteBarrierForSpace(heap_->cell_space());
+  DeactivateWriteBarrierForSpace(heap_->map_space());
+  DeactivateWriteBarrierForSpace(heap_->code_space());
+
+  SetNewSpacePageFlags(heap_->new_space()->ActivePage(), false);
+
+  LargePage* lop = heap_->lo_space()->first_page();
+  while (lop->is_valid()) {
+    SetOldSpacePageFlags(lop, false);
+    lop = lop->next_page();
+  }
+}
+
+
 void IncrementalMarking::ClearMarkbits(PagedSpace* space) {
   PageIterator it(space);
-
   while (it.has_next()) {
     Page* p = it.next();
     p->markbits()->Clear();
+    SetOldSpacePageFlags(p, true);
   }
 }
 
@@ -152,6 +205,14 @@ void IncrementalMarking::ClearMarkbits() {
   ClearMarkbits(heap_->cell_space());
   ClearMarkbits(heap_->map_space());
   ClearMarkbits(heap_->code_space());
+
+  SetNewSpacePageFlags(heap_->new_space()->ActivePage(), true);
+
+  LargePage* lop = heap_->lo_space()->first_page();
+  while (lop->is_valid()) {
+    SetOldSpacePageFlags(lop, true);
+    lop = lop->next_page();
+  }
 }
 
 
@@ -368,7 +429,10 @@ void IncrementalMarking::Abort() {
   heap_->new_space()->LowerInlineAllocationLimit(0);
   IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
-  if (IsMarking()) PatchIncrementalMarkingRecordWriteStubs(false);
+  if (IsMarking()) {
+    PatchIncrementalMarkingRecordWriteStubs(false);
+    DeactivateWriteBarrier();
+  }
   heap_->isolate()->stack_guard()->Continue(GC_REQUEST);
   state_ = STOPPED;
 }
@@ -381,6 +445,7 @@ void IncrementalMarking::Finalize() {
   IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
   PatchIncrementalMarkingRecordWriteStubs(false);
+  DeactivateWriteBarrier();
   ASSERT(marking_deque_.IsEmpty());
   heap_->isolate()->stack_guard()->Continue(GC_REQUEST);
 }

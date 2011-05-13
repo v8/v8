@@ -3186,7 +3186,11 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
 
   NearLabel no_remembered_set;
   __ InNewSpace(elements, temp, equal, &no_remembered_set);
-  __ HasScanOnScavenge(elements, temp, &no_remembered_set);
+  __ CheckPageFlag(elements,
+                   temp,
+                   MemoryChunk::SCAN_ON_SCAVENGE,
+                   not_zero,
+                   &no_remembered_set);
 
   __ mov(object, elements);
   // Since we are swapping two objects, the incremental marker is not disturbed,
