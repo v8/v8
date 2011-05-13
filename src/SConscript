@@ -68,7 +68,6 @@ SOURCES = {
     execution.cc
     factory.cc
     flags.cc
-    frame-element.cc
     frames.cc
     full-codegen.cc
     func-name-inferrer.cc

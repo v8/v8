@@ -34,6 +34,7 @@
 #include "ast.h"
 #include "compiler.h"
 #include "hydrogen-instructions.h"
+#include "type-info.h"
 #include "zone.h"
 
 namespace v8 {

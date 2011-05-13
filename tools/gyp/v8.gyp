@@ -453,8 +453,6 @@
             '../../src/fixed-dtoa.h',
             '../../src/flags.cc',
             '../../src/flags.h',
-            '../../src/frame-element.cc',
-            '../../src/frame-element.h',
             '../../src/frames-inl.h',
             '../../src/frames.cc',
             '../../src/frames.h',
