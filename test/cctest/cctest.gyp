@@ -113,7 +113,6 @@
         'test-strtod.cc',
         'test-thread-termination.cc',
         'test-threads.cc',
-        'test-type-info.cc',
         'test-unbound-queue.cc',
         'test-utils.cc',
         'test-version.cc'
