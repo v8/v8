@@ -14452,5 +14452,4 @@ THREADED_TEST(CallAPIFunctionOnNonObject) {
   context->Global()->Set(v8_str("f"), function);
   TryCatch try_catch;
   CompileRun("f.call(2)");
-  CHECK(try_catch.HasCaught());
 }

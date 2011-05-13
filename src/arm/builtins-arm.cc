@@ -1243,15 +1243,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
                              kSmiTagSize)));
     __ b(ne, &shift_arguments);
 
-    // Do not transform the receiver for native (shared already in r2).
-    __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kScriptOffset));
-    __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
-    __ cmp(r2, r3);
-    __ b(eq, &shift_arguments);
-    __ ldr(r2, FieldMemOperand(r2, Script::kTypeOffset));
-    __ mov(r2, Operand(r2, ASR, kSmiTagSize));
-    __ cmp(r2, Operand(Script::TYPE_NATIVE));
-    __ b(eq, &shift_arguments);
+    // Do not transform the receiver for native (Compilerhints already in r3).
+    __ tst(r3, Operand(1 << (SharedFunctionInfo::kES5Native +
+                             kSmiTagSize)));
+    __ b(ne, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
     __ add(r2, sp, Operand(r0, LSL, kPointerSizeLog2));
@@ -1262,7 +1257,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ tst(r2, Operand(kSmiTagMask));
     __ b(eq, &convert_to_object);
 
-    // Heap::kUndefinedValueRootIndex is already in r3.
+    __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
     __ cmp(r2, r3);
     __ b(eq, &use_global_receiver);
     __ LoadRoot(r3, Heap::kNullValueRootIndex);
@@ -1431,15 +1426,10 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
                            kSmiTagSize)));
   __ b(ne, &push_receiver);
 
-  // Do not transform the receiver for native (shared already in r1).
-  __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kScriptOffset));
-  __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
-  __ cmp(r1, r2);
-  __ b(eq, &push_receiver);
-  __ ldr(r1, FieldMemOperand(r1, Script::kTypeOffset));
-  __ mov(r1, Operand(r1, ASR, kSmiTagSize));
-  __ cmp(r1, Operand(Script::TYPE_NATIVE));
-  __ b(eq, &push_receiver);
+  // Do not transform the receiver for strict mode functions.
+  __ tst(r2, Operand(1 << (SharedFunctionInfo::kES5Native +
+                           kSmiTagSize)));
+  __ b(ne, &push_receiver);
 
   // Compute the receiver in non-strict mode.
   __ tst(r0, Operand(kSmiTagMask));
@@ -1447,8 +1437,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ LoadRoot(r1, Heap::kNullValueRootIndex);
   __ cmp(r0, r1);
   __ b(eq, &use_global_receiver);
-  // Heap::kUndefinedValueRootIndex is already in r2.
-  __ cmp(r0, r2);
+  __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
+  __ cmp(r0, r1);
   __ b(eq, &use_global_receiver);
 
   // Check if the receiver is already a JavaScript object.

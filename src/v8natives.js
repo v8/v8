@@ -56,6 +56,7 @@ function InstallFunctions(object, attributes, functions) {
     %FunctionSetName(f, key);
     %FunctionRemovePrototype(f);
     %SetProperty(object, key, f, attributes);
+    %SetES5Flag(f);
   }
   %ToFastProperties(object);
 }

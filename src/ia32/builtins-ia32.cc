@@ -600,13 +600,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_equal, &shift_arguments);
 
     // Do not transform the receiver for natives (shared already in ebx).
-    __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kScriptOffset));
-    __ cmp(ebx, factory->undefined_value());
-    __ j(equal, &shift_arguments);
-    __ mov(ebx, FieldOperand(ebx, Script::kTypeOffset));
-    __ SmiUntag(ebx);
-    __ cmp(ebx, Script::TYPE_NATIVE);
-    __ j(equal, &shift_arguments);
+    __ test_b(FieldOperand(ebx, SharedFunctionInfo::kES5NativeByteOffset),
+              1 << SharedFunctionInfo::kES5NativeBitWithinByte);
+    __ j(not_equal, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
     __ mov(ebx, Operand(esp, eax, times_4, 0));  // First argument.
@@ -767,13 +763,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   Factory* factory = masm->isolate()->factory();
 
   // Do not transform the receiver for natives (shared already in ecx).
-  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kScriptOffset));
-  __ cmp(ecx, factory->undefined_value());
-  __ j(equal, &push_receiver);
-  __ mov(ecx, FieldOperand(ecx, Script::kTypeOffset));
-  __ SmiUntag(ecx);
-  __ cmp(ecx, Script::TYPE_NATIVE);
-  __ j(equal, &push_receiver);
+  __ test_b(FieldOperand(ecx, SharedFunctionInfo::kES5NativeByteOffset),
+            1 << SharedFunctionInfo::kES5NativeBitWithinByte);
+  __ j(not_equal, &push_receiver);
 
   // Compute the receiver in non-strict mode.
   __ test(ebx, Immediate(kSmiTagMask));
