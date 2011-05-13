@@ -27,5 +27,5 @@
 
 // Flags: --expose-gc
 
-assertThrows('gc.call(1)');
-assertThrows('gc.call("asdf")');
+assertDoesNotThrow('gc.call(1)');
+assertDoesNotThrow('gc.call("asdf")');

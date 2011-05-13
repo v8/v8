@@ -92,6 +92,7 @@ namespace internal {
   F(CompileForOnStackReplacement, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \
+  F(SetES5Flag, 1, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \

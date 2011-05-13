@@ -3218,6 +3218,18 @@ void SharedFunctionInfo::set_strict_mode(bool value) {
 }
 
 
+bool SharedFunctionInfo::es5_native() {
+  return BooleanBit::get(compiler_hints(), kES5Native);
+}
+
+
+void SharedFunctionInfo::set_es5_native(bool value) {
+  set_compiler_hints(BooleanBit::set(compiler_hints(),
+                                     kES5Native,
+                                     value));
+}
+
+
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
 

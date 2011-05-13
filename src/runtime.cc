@@ -4107,6 +4107,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
 }
 
 
+// Set the ES5 native flag on the function.
+// This is used to decide if we should transform null and undefined
+// into the global object when doing call and apply.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetES5Flag) {
+  NoHandleAllocation ha;
+  RUNTIME_ASSERT(args.length() == 1);
+
+  Handle<Object> object = args.at<Object>(0);
+
+  if (object->IsJSFunction()) {
+    JSFunction* func = JSFunction::cast(*object);
+    func->shared()->set_es5_native(true);
+  }
+  return isolate->heap()->undefined_value();
+}
+
+
 // Set a local property, even if it is READ_ONLY.  If the property does not
 // exist, it will be added with attributes NONE.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IgnoreAttributesAndSetProperty) {

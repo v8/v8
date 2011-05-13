@@ -2377,6 +2377,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_num_literals(0);
   share->set_end_position(0);
   share->set_function_token_position(0);
+  share->set_es5_native(false);
   return result;
 }
 
