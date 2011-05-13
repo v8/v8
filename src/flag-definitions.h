@@ -327,7 +327,7 @@ DEFINE_int(stop_sim_at, 0, "Simulator stop after x number of instructions")
 DEFINE_int(sim_stack_alignment, 8,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")
 
-// top.cc
+// isolate.cc
 DEFINE_bool(trace_exception, false,
             "print stack trace when throwing exceptions")
 DEFINE_bool(preallocate_message_memory, false,

@@ -583,8 +583,6 @@
             '../../src/stub-cache.h',
             '../../src/token.cc',
             '../../src/token.h',
-            '../../src/top.cc',
-            '../../src/top.h',
             '../../src/type-info.cc',
             '../../src/type-info.h',
             '../../src/unbound-queue-inl.h',
