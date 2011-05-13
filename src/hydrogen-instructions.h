@@ -557,6 +557,7 @@ class HValue: public ZoneObject {
     RepresentationChanged(r);
     representation_ = r;
   }
+  void AssumeRepresentation(Representation r);
 
   virtual bool IsConvertibleToInteger() const { return true; }
 
