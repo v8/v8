@@ -201,7 +201,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ lea(edx,
            Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
     __ push(edx);
-    __ push(Immediate(Smi::FromInt(scope()->num_parameters())));
+    __ SafePush(Immediate(Smi::FromInt(scope()->num_parameters())));
     // Arguments to ArgumentsAccessStub:
     //   function, receiver address, parameter count.
     // The stub will rewrite receiver and parameter count if the previous
@@ -245,7 +245,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       ExternalReference stack_limit =
           ExternalReference::address_of_stack_limit(isolate());
       __ cmp(esp, Operand::StaticVariable(stack_limit));
-      __ j(above_equal, &ok, taken, Label::kNear);
+      __ j(above_equal, &ok, Label::kNear);
       StackCheckStub stub;
       __ CallStub(&stub);
       __ bind(&ok);
@@ -278,7 +278,7 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(isolate());
   __ cmp(esp, Operand::StaticVariable(stack_limit));
-  __ j(above_equal, &ok, taken, Label::kNear);
+  __ j(above_equal, &ok, Label::kNear);
   StackCheckStub stub;
   __ CallStub(&stub);
   // Record a mapping of this PC offset to the OSR id.  This is used to find
@@ -390,13 +390,20 @@ void FullCodeGenerator::EffectContext::Plug(Handle<Object> lit) const {
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Handle<Object> lit) const {
-  __ Set(result_register(), Immediate(lit));
+  if (lit->IsSmi()) {
+    __ SafeSet(result_register(), Immediate(lit));
+  } else {
+    __ Set(result_register(), Immediate(lit));
+  }
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const {
-  // Immediates can be pushed directly.
-  __ push(Immediate(lit));
+  if (lit->IsSmi()) {
+    __ SafePush(Immediate(lit));
+  } else {
+    __ push(Immediate(lit));
+  }
 }
 
 
@@ -739,7 +746,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       }
       ASSERT(prop->key()->AsLiteral() != NULL &&
              prop->key()->AsLiteral()->handle()->IsSmi());
-      __ Set(ecx, Immediate(prop->key()->AsLiteral()->handle()));
+      __ SafeSet(ecx, Immediate(prop->key()->AsLiteral()->handle()));
 
       Handle<Code> ic = is_strict_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
@@ -1193,7 +1200,7 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
           __ mov(edx,
                  ContextSlotOperandCheckExtensions(obj_proxy->var()->AsSlot(),
                                                    slow));
-          __ mov(eax, Immediate(key_literal->handle()));
+          __ SafeSet(eax, Immediate(key_literal->handle()));
           Handle<Code> ic =
               isolate()->builtins()->KeyedLoadIC_Initialize();
           EmitCallIC(ic, RelocInfo::CODE_TARGET, GetPropertyId(property));
@@ -1278,7 +1285,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
     ASSERT(key_literal->handle()->IsSmi());
 
     // Load the key.
-    __ mov(eax, Immediate(key_literal->handle()));
+    __ SafeSet(eax, Immediate(key_literal->handle()));
 
     // Do a keyed property load.
     Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
@@ -1549,7 +1556,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
           MemOperand slot_operand =
               EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx);
           __ push(slot_operand);
-          __ mov(eax, Immediate(property->key()->AsLiteral()->handle()));
+          __ SafeSet(eax, Immediate(property->key()->AsLiteral()->handle()));
         } else {
           VisitForStackValue(property->obj());
           VisitForAccumulatorValue(property->key());
@@ -1562,7 +1569,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
           MemOperand slot_operand =
               EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx);
           __ push(slot_operand);
-          __ push(Immediate(property->key()->AsLiteral()->handle()));
+          __ SafePush(Immediate(property->key()->AsLiteral()->handle()));
         } else {
           VisitForStackValue(property->obj());
           VisitForStackValue(property->key());
@@ -1641,6 +1648,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
 void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
+  ASSERT(!key->handle()->IsSmi());
   __ mov(ecx, Immediate(key->handle()));
   Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
   EmitCallIC(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
@@ -1725,7 +1733,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ imul(eax, Operand(ecx));
       __ j(overflow, &stub_call);
       __ test(eax, Operand(eax));
-      __ j(not_zero, &done, taken, Label::kNear);
+      __ j(not_zero, &done, Label::kNear);
       __ mov(ebx, edx);
       __ or_(ebx, Operand(ecx));
       __ j(negative, &stub_call);
@@ -1807,7 +1815,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
           EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
         }
         __ mov(edx, eax);
-        __ Set(ecx, Immediate(prop->key()->AsLiteral()->handle()));
+        __ SafeSet(ecx, Immediate(prop->key()->AsLiteral()->handle()));
       } else {
         VisitForStackValue(prop->obj());
         VisitForAccumulatorValue(prop->key());
@@ -2320,7 +2328,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   SetSourcePosition(expr->position());
 
   // Load function and argument count into edi and eax.
-  __ Set(eax, Immediate(arg_count));
+  __ SafeSet(eax, Immediate(arg_count));
   __ mov(edi, Operand(esp, arg_count * kPointerSize));
 
   Handle<Code> construct_builtin =
@@ -2660,7 +2668,7 @@ void FullCodeGenerator::EmitArguments(ZoneList<Expression*>* args) {
   // parameter count in eax.
   VisitForAccumulatorValue(args->at(0));
   __ mov(edx, eax);
-  __ mov(eax, Immediate(Smi::FromInt(scope()->num_parameters())));
+  __ SafeSet(eax, Immediate(Smi::FromInt(scope()->num_parameters())));
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
   __ CallStub(&stub);
   context()->Plug(eax);
@@ -2672,7 +2680,7 @@ void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
 
   Label exit;
   // Get the number of formal parameters.
-  __ Set(eax, Immediate(Smi::FromInt(scope()->num_parameters())));
+  __ SafeSet(eax, Immediate(Smi::FromInt(scope()->num_parameters())));
 
   // Check if the calling frame is an arguments adaptor frame.
   __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
@@ -3813,7 +3821,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         MemOperand slot_operand =
             EmitSlotSearch(obj_proxy->var()->AsSlot(), ecx);
         __ push(slot_operand);
-        __ mov(eax, Immediate(prop->key()->AsLiteral()->handle()));
+        __ SafeSet(eax, Immediate(prop->key()->AsLiteral()->handle()));
       } else {
         VisitForStackValue(prop->obj());
         VisitForAccumulatorValue(prop->key());

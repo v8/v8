@@ -134,24 +134,22 @@ Object* Object::ToBoolean() {
 void Object::Lookup(String* name, LookupResult* result) {
   Object* holder = NULL;
   if (IsSmi()) {
-    Heap* heap = Isolate::Current()->heap();
-    Context* global_context = heap->isolate()->context()->global_context();
+    Context* global_context = Isolate::Current()->context()->global_context();
     holder = global_context->number_function()->instance_prototype();
   } else {
     HeapObject* heap_object = HeapObject::cast(this);
     if (heap_object->IsJSObject()) {
       return JSObject::cast(this)->Lookup(name, result);
     }
-    Heap* heap = heap_object->GetHeap();
+    Context* global_context = Isolate::Current()->context()->global_context();
     if (heap_object->IsString()) {
-      Context* global_context = heap->isolate()->context()->global_context();
       holder = global_context->string_function()->instance_prototype();
     } else if (heap_object->IsHeapNumber()) {
-      Context* global_context = heap->isolate()->context()->global_context();
       holder = global_context->number_function()->instance_prototype();
     } else if (heap_object->IsBoolean()) {
-      Context* global_context = heap->isolate()->context()->global_context();
       holder = global_context->boolean_function()->instance_prototype();
+    } else if (heap_object->IsJSProxy()) {
+      return result->NotFound();  // For now...
     }
   }
   ASSERT(holder != NULL);  // Cannot handle null or undefined.
@@ -494,12 +492,13 @@ MaybeObject* Object::GetProperty(Object* receiver,
   Heap* heap = name->GetHeap();
 
   // Traverse the prototype chain from the current object (this) to
-  // the holder and check for access rights. This avoid traversing the
+  // the holder and check for access rights. This avoids traversing the
   // objects more than once in case of interceptors, because the
   // holder will always be the interceptor holder and the search may
   // only continue with a current object just after the interceptor
   // holder in the prototype chain.
   Object* last = result->IsProperty() ? result->holder() : heap->null_value();
+  ASSERT(this != this->GetPrototype());
   for (Object* current = this; true; current = current->GetPrototype()) {
     if (current->IsAccessCheckNeeded()) {
       // Check if we're allowed to read from the current object. Note
@@ -575,6 +574,8 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
       holder = global_context->number_function()->instance_prototype();
     } else if (heap_object->IsBoolean()) {
       holder = global_context->boolean_function()->instance_prototype();
+    } else if (heap_object->IsJSProxy()) {
+      return heap->undefined_value();  // For now...
     } else {
       // Undefined and null have no indexed properties.
       ASSERT(heap_object->IsUndefined() || heap_object->IsNull());
@@ -595,9 +596,10 @@ Object* Object::GetPrototype() {
 
   HeapObject* heap_object = HeapObject::cast(this);
 
-  // The object is either a number, a string, a boolean, or a real JS object.
-  if (heap_object->IsJSObject()) {
-    return JSObject::cast(this)->map()->prototype();
+  // The object is either a number, a string, a boolean,
+  // a real JS object, or a Harmony proxy.
+  if (heap_object->IsJSObject() || heap_object->IsJSProxy()) {
+    return heap_object->map()->prototype();
   }
   Heap* heap = heap_object->GetHeap();
   Context* context = heap->isolate()->context()->global_context();
@@ -1153,6 +1155,9 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
     case ODDBALL_TYPE:
       Oddball::BodyDescriptor::IterateBody(this, v);
+      break;
+    case JS_PROXY_TYPE:
+      JSProxy::BodyDescriptor::IterateBody(this, v);
       break;
     case PROXY_TYPE:
       reinterpret_cast<Proxy*>(this)->ProxyIterateBody(v);
@@ -2868,8 +2873,9 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
           // exception. dictionary->DeleteProperty will return false_value()
           // if a non-configurable property is being deleted.
           HandleScope scope;
+          Handle<Object> self(this);
           Handle<Object> i = isolate->factory()->NewNumberFromUint(index);
-          Handle<Object> args[2] = { i, Handle<Object>(this) };
+          Handle<Object> args[2] = { i, self };
           return isolate->Throw(*isolate->factory()->NewTypeError(
               "strict_delete_property", HandleVector(args, 2)));
         }
@@ -7287,7 +7293,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
 
   // api style callbacks.
   if (structure->IsAccessorInfo()) {
-    AccessorInfo* data = AccessorInfo::cast(structure);
+    Handle<AccessorInfo> data(AccessorInfo::cast(structure));
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
     HandleScope scope(isolate);
@@ -7344,14 +7350,16 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
 
   if (structure->IsAccessorInfo()) {
     // api style callbacks
-    AccessorInfo* data = AccessorInfo::cast(structure);
+    Handle<JSObject> self(this);
+    Handle<JSObject> holder_handle(JSObject::cast(holder));
+    Handle<AccessorInfo> data(AccessorInfo::cast(structure));
     Object* call_obj = data->setter();
     v8::AccessorSetter call_fun = v8::ToCData<v8::AccessorSetter>(call_obj);
     if (call_fun == NULL) return value;
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<String> key(isolate->factory()->NumberToString(number));
-    LOG(isolate, ApiNamedPropertyAccess("store", this, *key));
-    CustomArguments args(isolate, data->data(), this, JSObject::cast(holder));
+    LOG(isolate, ApiNamedPropertyAccess("store", *self, *key));
+    CustomArguments args(isolate, data->data(), *self, *holder_handle);
     v8::AccessorInfo info(args.end());
     {
       // Leaving JavaScript.
@@ -7553,8 +7561,8 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
           // If put fails instrict mode, throw exception.
           if (!dictionary->ValueAtPut(entry, value) &&
               strict_mode == kStrictMode) {
-            Handle<Object> number(isolate->factory()->NewNumberFromUint(index));
             Handle<Object> holder(this);
+            Handle<Object> number(isolate->factory()->NewNumberFromUint(index));
             Handle<Object> args[2] = { number, holder };
             return isolate->Throw(
                 *isolate->factory()->NewTypeError("strict_read_only_property",

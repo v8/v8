@@ -29,7 +29,6 @@
 #define V8_IA32_MACRO_ASSEMBLER_IA32_H_
 
 #include "assembler.h"
-#include "type-info.h"
 
 namespace v8 {
 namespace internal {
@@ -194,6 +193,11 @@ class MacroAssembler: public Assembler {
   void Set(Register dst, const Immediate& x);
   void Set(const Operand& dst, const Immediate& x);
 
+  // Support for constant splitting.
+  bool IsUnsafeImmediate(const Immediate& x);
+  void SafeSet(Register dst, const Immediate& x);
+  void SafePush(const Immediate& x);
+
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
   void CmpObjectType(Register heap_object, InstanceType type, Register map);
@@ -245,16 +249,6 @@ class MacroAssembler: public Assembler {
   }
 
   // Modifies the register even if it does not contain a Smi!
-  void SmiUntag(Register reg, TypeInfo info, Label* non_smi) {
-    ASSERT(kSmiTagSize == 1);
-    sar(reg, kSmiTagSize);
-    if (info.IsSmi()) {
-      ASSERT(kSmiTag == 0);
-      j(carry, non_smi);
-    }
-  }
-
-  // Modifies the register even if it does not contain a Smi!
   void SmiUntag(Register reg, Label* is_smi) {
     ASSERT(kSmiTagSize == 1);
     sar(reg, kSmiTagSize);
@@ -265,24 +259,13 @@ class MacroAssembler: public Assembler {
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label) {
     test(value, Immediate(kSmiTagMask));
-    j(zero, smi_label, not_taken);
+    j(zero, smi_label);
   }
   // Jump if register contain a non-smi.
   inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
     test(value, Immediate(kSmiTagMask));
-    j(not_zero, not_smi_label, not_taken);
+    j(not_zero, not_smi_label);
   }
-
-  // Assumes input is a heap object.
-  void JumpIfNotNumber(Register reg, TypeInfo info, Label* on_not_number);
-
-  // Assumes input is a heap number.  Jumps on things out of range.  Also jumps
-  // on the min negative int32.  Ignores frational parts.
-  void ConvertToInt32(Register dst,
-                      Register src,      // Can be the same as dst.
-                      Register scratch,  // Can be no_reg or dst, but not src.
-                      TypeInfo info,
-                      Label* on_not_int32);
 
   void LoadPowerOf2(XMMRegister dst, Register scratch, int power);
 

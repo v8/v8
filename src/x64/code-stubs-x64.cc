@@ -4859,9 +4859,9 @@ void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
   __ j(either_smi, &miss, Label::kNear);
 
   __ CmpObjectType(rax, JS_OBJECT_TYPE, rcx);
-  __ j(not_equal, &miss, not_taken, Label::kNear);
+  __ j(not_equal, &miss, Label::kNear);
   __ CmpObjectType(rdx, JS_OBJECT_TYPE, rcx);
-  __ j(not_equal, &miss, not_taken, Label::kNear);
+  __ j(not_equal, &miss, Label::kNear);
 
   ASSERT(GetCondition() == equal);
   __ subq(rax, rdx);

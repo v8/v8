@@ -237,6 +237,13 @@ void LIsSmiAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
+void LIsUndetectableAndBranch::PrintDataTo(StringStream* stream) {
+  stream->Add("if is_undetectable(");
+  InputAt(0)->PrintTo(stream);
+  stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
+}
+
+
 void LHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if has_instance_type(");
   InputAt(0)->PrintTo(stream);
@@ -1081,6 +1088,12 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       ASSERT(compare->value()->representation().IsTagged());
 
       return new LIsSmiAndBranch(Use(compare->value()));
+    } else if (v->IsIsUndetectable()) {
+      HIsUndetectable* compare = HIsUndetectable::cast(v);
+      ASSERT(compare->value()->representation().IsTagged());
+
+      return new LIsUndetectableAndBranch(UseRegisterAtStart(compare->value()),
+                                          TempRegister());
     } else if (v->IsHasInstanceType()) {
       HHasInstanceType* compare = HHasInstanceType::cast(v);
       ASSERT(compare->value()->representation().IsTagged());
@@ -1107,6 +1120,10 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
       return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
                                          UseRegisterAtStart(compare->right()));
+    } else if (v->IsCompareSymbolEq()) {
+      HCompareSymbolEq* compare = HCompareSymbolEq::cast(v);
+      return new LCmpSymbolEqAndBranch(UseRegisterAtStart(compare->left()),
+                                       UseRegisterAtStart(compare->right()));
     } else if (v->IsInstanceOf()) {
       HInstanceOf* instance_of = HInstanceOf::cast(v);
       LInstruction* result =
@@ -1189,7 +1206,7 @@ LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
 
 
 LInstruction* LChunkBuilder::DoContext(HContext* instr) {
-  return DefineAsRegister(new LContext);
+  return instr->HasNoUses() ? NULL : DefineAsRegister(new LContext);
 }
 
 
@@ -1507,6 +1524,15 @@ LInstruction* LChunkBuilder::DoCompareJSObjectEq(
 }
 
 
+LInstruction* LChunkBuilder::DoCompareSymbolEq(
+    HCompareSymbolEq* instr) {
+  LOperand* left = UseRegisterAtStart(instr->left());
+  LOperand* right = UseRegisterAtStart(instr->right());
+  LCmpSymbolEq* result = new LCmpSymbolEq(left, right);
+  return DefineAsRegister(result);
+}
+
+
 LInstruction* LChunkBuilder::DoIsNull(HIsNull* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
@@ -1528,6 +1554,14 @@ LInstruction* LChunkBuilder::DoIsSmi(HIsSmi* instr) {
   LOperand* value = UseAtStart(instr->value());
 
   return DefineAsRegister(new LIsSmi(value));
+}
+
+
+LInstruction* LChunkBuilder::DoIsUndetectable(HIsUndetectable* instr) {
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegisterAtStart(instr->value());
+
+  return DefineAsRegister(new LIsUndetectable(value));
 }
 
 

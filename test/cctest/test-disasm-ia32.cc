@@ -330,11 +330,6 @@ TEST(DisasmIa320) {
   __ j(less_equal, &Ljcc);
   __ j(greater, &Ljcc);
 
-  // checking hints
-  __ j(zero, &Ljcc, taken);
-  __ j(zero, &Ljcc, not_taken);
-
-  // __ mov(Operand::StaticVariable(Isolate::handler_address()), eax);
   // 0xD9 instructions
   __ nop();
 

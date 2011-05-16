@@ -29,10 +29,10 @@
 
 #if defined(V8_TARGET_ARCH_IA32)
 
-#include "code-stubs.h"
 #include "bootstrapper.h"
-#include "jsregexp.h"
+#include "code-stubs.h"
 #include "isolate.h"
+#include "jsregexp.h"
 #include "regexp-macro-assembler.h"
 
 namespace v8 {
@@ -331,14 +331,6 @@ class FloatingPointHelper : public AllStatic {
 
   // Takes the operands in edx and eax and loads them as integers in eax
   // and ecx.
-  static void LoadAsIntegers(MacroAssembler* masm,
-                             TypeInfo type_info,
-                             bool use_sse3,
-                             Label* operand_conversion_failure);
-  static void LoadNumbersAsIntegers(MacroAssembler* masm,
-                                    TypeInfo type_info,
-                                    bool use_sse3,
-                                    Label* operand_conversion_failure);
   static void LoadUnknownsAsIntegers(MacroAssembler* masm,
                                      bool use_sse3,
                                      Label* operand_conversion_failure);
@@ -380,34 +372,24 @@ class FloatingPointHelper : public AllStatic {
 // trashed registers.
 static void IntegerConvert(MacroAssembler* masm,
                            Register source,
-                           TypeInfo type_info,
                            bool use_sse3,
                            Label* conversion_failure) {
   ASSERT(!source.is(ecx) && !source.is(edi) && !source.is(ebx));
   Label done, right_exponent, normal_exponent;
   Register scratch = ebx;
   Register scratch2 = edi;
-  if (type_info.IsInteger32() && CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope scope(SSE2);
-    __ cvttsd2si(ecx, FieldOperand(source, HeapNumber::kValueOffset));
-    return;
-  }
-  if (!type_info.IsInteger32() || !use_sse3) {
-    // Get exponent word.
-    __ mov(scratch, FieldOperand(source, HeapNumber::kExponentOffset));
-    // Get exponent alone in scratch2.
-    __ mov(scratch2, scratch);
-    __ and_(scratch2, HeapNumber::kExponentMask);
-  }
+  // Get exponent word.
+  __ mov(scratch, FieldOperand(source, HeapNumber::kExponentOffset));
+  // Get exponent alone in scratch2.
+  __ mov(scratch2, scratch);
+  __ and_(scratch2, HeapNumber::kExponentMask);
   if (use_sse3) {
     CpuFeatures::Scope scope(SSE3);
-    if (!type_info.IsInteger32()) {
-      // Check whether the exponent is too big for a 64 bit signed integer.
-      static const uint32_t kTooBigExponent =
-          (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
-      __ cmp(Operand(scratch2), Immediate(kTooBigExponent));
-      __ j(greater_equal, conversion_failure);
-    }
+    // Check whether the exponent is too big for a 64 bit signed integer.
+    static const uint32_t kTooBigExponent =
+        (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
+    __ cmp(Operand(scratch2), Immediate(kTooBigExponent));
+    __ j(greater_equal, conversion_failure);
     // Load x87 register with heap number.
     __ fld_d(FieldOperand(source, HeapNumber::kValueOffset));
     // Reserve space for 64 bit answer.
@@ -747,8 +729,7 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
   __ j(not_equal, slow);
 
   // Convert the heap number in eax to an untagged integer in ecx.
-  IntegerConvert(masm, eax, TypeInfo::Unknown(), CpuFeatures::IsSupported(SSE3),
-                 slow);
+  IntegerConvert(masm, eax, CpuFeatures::IsSupported(SSE3), slow);
 
   // Do the bitwise operation and check if the result fits in a smi.
   Label try_float;
@@ -1018,7 +999,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
   // 3. Perform the smi check of the operands.
   STATIC_ASSERT(kSmiTag == 0);  // Adjust zero check if not the case.
   __ test(combined, Immediate(kSmiTagMask));
-  __ j(not_zero, &not_smis, not_taken);
+  __ j(not_zero, &not_smis);
 
   // 4. Operands are both smis, perform the operation leaving the result in
   // eax and check the result if necessary.
@@ -1047,7 +1028,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
       __ shl_cl(left);
       // Check that the *signed* result fits in a smi.
       __ cmp(left, 0xc0000000);
-      __ j(sign, &use_fp_on_smis, not_taken);
+      __ j(sign, &use_fp_on_smis);
       // Tag the result and store it in register eax.
       __ SmiTag(left);
       __ mov(eax, left);
@@ -1077,7 +1058,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
       // Smi tagging these two cases can only happen with shifts
       // by 0 or 1 when handed a valid smi.
       __ test(left, Immediate(0xc0000000));
-      __ j(not_zero, slow, not_taken);
+      __ j(not_zero, slow);
       // Tag the result and store it in register eax.
       __ SmiTag(left);
       __ mov(eax, left);
@@ -1086,12 +1067,12 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
     case Token::ADD:
       ASSERT(right.is(eax));
       __ add(right, Operand(left));  // Addition is commutative.
-      __ j(overflow, &use_fp_on_smis, not_taken);
+      __ j(overflow, &use_fp_on_smis);
       break;
 
     case Token::SUB:
       __ sub(left, Operand(right));
-      __ j(overflow, &use_fp_on_smis, not_taken);
+      __ j(overflow, &use_fp_on_smis);
       __ mov(eax, left);
       break;
 
@@ -1105,7 +1086,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
       __ SmiUntag(right);
       // Do multiplication.
       __ imul(right, Operand(left));  // Multiplication is commutative.
-      __ j(overflow, &use_fp_on_smis, not_taken);
+      __ j(overflow, &use_fp_on_smis);
       // Check for negative zero result.  Use combined = left | right.
       __ NegativeZeroTest(right, combined, &use_fp_on_smis);
       break;
@@ -1116,7 +1097,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
       __ mov(edi, left);
       // Check for 0 divisor.
       __ test(right, Operand(right));
-      __ j(zero, &use_fp_on_smis, not_taken);
+      __ j(zero, &use_fp_on_smis);
       // Sign extend left into edx:eax.
       ASSERT(left.is(eax));
       __ cdq();
@@ -1140,7 +1121,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
     case Token::MOD:
       // Check for 0 divisor.
       __ test(right, Operand(right));
-      __ j(zero, &not_smis, not_taken);
+      __ j(zero, &not_smis);
 
       // Sign extend left into edx:eax.
       ASSERT(left.is(eax));
@@ -1541,7 +1522,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
             __ mov(eax, Operand(esp, mode_ == OVERWRITE_RIGHT ?
                                 1 * kPointerSize : 2 * kPointerSize));
             __ test(eax, Immediate(kSmiTagMask));
-            __ j(not_zero, &skip_allocation, not_taken, Label::kNear);
+            __ j(not_zero, &skip_allocation, Label::kNear);
             // Fall through!
           case NO_OVERWRITE:
             __ AllocateHeapNumber(eax, ecx, edx, &call_runtime);
@@ -1756,7 +1737,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
             __ mov(eax, Operand(esp, mode_ == OVERWRITE_RIGHT ?
                                 1 * kPointerSize : 2 * kPointerSize));
             __ test(eax, Immediate(kSmiTagMask));
-            __ j(not_zero, &skip_allocation, not_taken, Label::kNear);
+            __ j(not_zero, &skip_allocation, Label::kNear);
             // Fall through!
           case NO_OVERWRITE:
             __ AllocateHeapNumber(eax, ecx, edx, &call_runtime);
@@ -1956,7 +1937,7 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
             __ mov(eax, Operand(esp, mode_ == OVERWRITE_RIGHT ?
                                 1 * kPointerSize : 2 * kPointerSize));
             __ test(eax, Immediate(kSmiTagMask));
-            __ j(not_zero, &skip_allocation, not_taken, Label::kNear);
+            __ j(not_zero, &skip_allocation, Label::kNear);
             // Fall through!
           case NO_OVERWRITE:
             __ AllocateHeapNumber(eax, ecx, edx, &call_runtime);
@@ -2074,7 +2055,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapResultAllocation(
       // If the argument in edx is already an object, we skip the
       // allocation of a heap number.
       __ test(edx, Immediate(kSmiTagMask));
-      __ j(not_zero, &skip_allocation, not_taken);
+      __ j(not_zero, &skip_allocation);
       // Allocate a heap number for the result. Keep eax and edx intact
       // for the possible runtime call.
       __ AllocateHeapNumber(ebx, ecx, no_reg, alloc_failure);
@@ -2090,7 +2071,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapResultAllocation(
       // If the argument in eax is already an object, we skip the
       // allocation of a heap number.
       __ test(eax, Immediate(kSmiTagMask));
-      __ j(not_zero, &skip_allocation, not_taken);
+      __ j(not_zero, &skip_allocation);
       // Fall through!
     case NO_OVERWRITE:
       // Allocate a heap number for the result. Keep eax and edx intact
@@ -2333,11 +2314,11 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
     int supported_exponent_limit =
         (63 + HeapNumber::kExponentBias) << HeapNumber::kExponentShift;
     __ cmp(Operand(edi), Immediate(supported_exponent_limit));
-    __ j(below, &in_range, taken, Label::kNear);
+    __ j(below, &in_range, Label::kNear);
     // Check for infinity and NaN. Both return NaN for sin.
     __ cmp(Operand(edi), Immediate(0x7ff00000));
     Label non_nan_result;
-    __ j(not_equal, &non_nan_result, taken, Label::kNear);
+    __ j(not_equal, &non_nan_result, Label::kNear);
     // Input is +/-Infinity or NaN. Result is NaN.
     __ fstp(0);
     // NaN is represented by 0x7ff8000000000000.
@@ -2407,58 +2388,6 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
 
 // Input: edx, eax are the left and right objects of a bit op.
 // Output: eax, ecx are left and right integers for a bit op.
-void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm,
-                                                TypeInfo type_info,
-                                                bool use_sse3,
-                                                Label* conversion_failure) {
-  // Check float operands.
-  Label arg1_is_object, check_undefined_arg1;
-  Label arg2_is_object, check_undefined_arg2;
-  Label load_arg2, done;
-
-  if (!type_info.IsDouble()) {
-    if (!type_info.IsSmi()) {
-      __ test(edx, Immediate(kSmiTagMask));
-      __ j(not_zero, &arg1_is_object);
-    } else {
-      if (FLAG_debug_code) __ AbortIfNotSmi(edx);
-    }
-    __ SmiUntag(edx);
-    __ jmp(&load_arg2);
-  }
-
-  __ bind(&arg1_is_object);
-
-  // Get the untagged integer version of the edx heap number in ecx.
-  IntegerConvert(masm, edx, type_info, use_sse3, conversion_failure);
-  __ mov(edx, ecx);
-
-  // Here edx has the untagged integer, eax has a Smi or a heap number.
-  __ bind(&load_arg2);
-  if (!type_info.IsDouble()) {
-    // Test if arg2 is a Smi.
-    if (!type_info.IsSmi()) {
-      __ test(eax, Immediate(kSmiTagMask));
-      __ j(not_zero, &arg2_is_object);
-    } else {
-      if (FLAG_debug_code) __ AbortIfNotSmi(eax);
-    }
-    __ SmiUntag(eax);
-    __ mov(ecx, eax);
-    __ jmp(&done);
-  }
-
-  __ bind(&arg2_is_object);
-
-  // Get the untagged integer version of the eax heap number in ecx.
-  IntegerConvert(masm, eax, type_info, use_sse3, conversion_failure);
-  __ bind(&done);
-  __ mov(eax, edx);
-}
-
-
-// Input: edx, eax are the left and right objects of a bit op.
-// Output: eax, ecx are left and right integers for a bit op.
 void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
                                                  bool use_sse3,
                                                  Label* conversion_failure) {
@@ -2488,11 +2417,7 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   __ j(not_equal, &check_undefined_arg1);
 
   // Get the untagged integer version of the edx heap number in ecx.
-  IntegerConvert(masm,
-                 edx,
-                 TypeInfo::Unknown(),
-                 use_sse3,
-                 conversion_failure);
+  IntegerConvert(masm, edx, use_sse3, conversion_failure);
   __ mov(edx, ecx);
 
   // Here edx has the untagged integer, eax has a Smi or a heap number.
@@ -2519,25 +2444,9 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   __ j(not_equal, &check_undefined_arg2);
 
   // Get the untagged integer version of the eax heap number in ecx.
-  IntegerConvert(masm,
-                 eax,
-                 TypeInfo::Unknown(),
-                 use_sse3,
-                 conversion_failure);
+  IntegerConvert(masm, eax, use_sse3, conversion_failure);
   __ bind(&done);
   __ mov(eax, edx);
-}
-
-
-void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
-                                         TypeInfo type_info,
-                                         bool use_sse3,
-                                         Label* conversion_failure) {
-  if (type_info.IsNumber()) {
-    LoadNumbersAsIntegers(masm, type_info, use_sse3, conversion_failure);
-  } else {
-    LoadUnknownsAsIntegers(masm, use_sse3, conversion_failure);
-  }
 }
 
 
@@ -2553,7 +2462,7 @@ void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
   Label load_smi, done;
 
   __ test(number, Immediate(kSmiTagMask));
-  __ j(zero, &load_smi, not_taken, Label::kNear);
+  __ j(zero, &load_smi, Label::kNear);
   __ fld_d(FieldOperand(number, HeapNumber::kValueOffset));
   __ jmp(&done, Label::kNear);
 
@@ -2572,14 +2481,14 @@ void FloatingPointHelper::LoadSSE2Operands(MacroAssembler* masm) {
   // Load operand in edx into xmm0.
   __ test(edx, Immediate(kSmiTagMask));
   // Argument in edx is a smi.
-  __ j(zero, &load_smi_edx, not_taken, Label::kNear);
+  __ j(zero, &load_smi_edx, Label::kNear);
   __ movdbl(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
 
   __ bind(&load_eax);
   // Load operand in eax into xmm1.
   __ test(eax, Immediate(kSmiTagMask));
   // Argument in eax is a smi.
-  __ j(zero, &load_smi_eax, not_taken, Label::kNear);
+  __ j(zero, &load_smi_eax, Label::kNear);
   __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
   __ jmp(&done, Label::kNear);
 
@@ -2604,7 +2513,7 @@ void FloatingPointHelper::LoadSSE2Operands(MacroAssembler* masm,
   // Load operand in edx into xmm0, or branch to not_numbers.
   __ test(edx, Immediate(kSmiTagMask));
   // Argument in edx is a smi.
-  __ j(zero, &load_smi_edx, not_taken, Label::kNear);
+  __ j(zero, &load_smi_edx, Label::kNear);
   Factory* factory = masm->isolate()->factory();
   __ cmp(FieldOperand(edx, HeapObject::kMapOffset), factory->heap_number_map());
   __ j(not_equal, not_numbers);  // Argument in edx is not a number.
@@ -2613,7 +2522,7 @@ void FloatingPointHelper::LoadSSE2Operands(MacroAssembler* masm,
   // Load operand in eax into xmm1, or branch to not_numbers.
   __ test(eax, Immediate(kSmiTagMask));
   // Argument in eax is a smi.
-  __ j(zero, &load_smi_eax, not_taken, Label::kNear);
+  __ j(zero, &load_smi_eax, Label::kNear);
   __ cmp(FieldOperand(eax, HeapObject::kMapOffset), factory->heap_number_map());
   __ j(equal, &load_float_eax, Label::kNear);
   __ jmp(not_numbers);  // Argument in eax is not a number.
@@ -2674,7 +2583,7 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
     __ mov(scratch, Operand(esp, 2 * kPointerSize));
   }
   __ test(scratch, Immediate(kSmiTagMask));
-  __ j(zero, &load_smi_1, not_taken, Label::kNear);
+  __ j(zero, &load_smi_1, Label::kNear);
   __ fld_d(FieldOperand(scratch, HeapNumber::kValueOffset));
   __ bind(&done_load_1);
 
@@ -2684,7 +2593,7 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
     __ mov(scratch, Operand(esp, 1 * kPointerSize));
   }
   __ test(scratch, Immediate(kSmiTagMask));
-  __ j(zero, &load_smi_2, not_taken, Label::kNear);
+  __ j(zero, &load_smi_2, Label::kNear);
   __ fld_d(FieldOperand(scratch, HeapNumber::kValueOffset));
   __ jmp(&done, Label::kNear);
 
@@ -2730,7 +2639,7 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
   // Test if both operands are floats or smi -> scratch=k_is_float;
   // Otherwise scratch = k_not_float.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &test_other, not_taken, Label::kNear);  // argument in edx is OK
+  __ j(zero, &test_other, Label::kNear);  // argument in edx is OK
   __ mov(scratch, FieldOperand(edx, HeapObject::kMapOffset));
   Factory* factory = masm->isolate()->factory();
   __ cmp(scratch, factory->heap_number_map());
@@ -2923,7 +2832,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // Check that the key is a smi.
   Label slow;
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(not_zero, &slow, not_taken);
+  __ j(not_zero, &slow);
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor;
@@ -2936,7 +2845,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // through register eax. Use unsigned comparison to get negative
   // check for free.
   __ cmp(edx, Operand(eax));
-  __ j(above_equal, &slow, not_taken);
+  __ j(above_equal, &slow);
 
   // Read the argument from the stack and return it.
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -2952,7 +2861,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ bind(&adaptor);
   __ mov(ecx, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ cmp(edx, Operand(ecx));
-  __ j(above_equal, &slow, not_taken);
+  __ j(above_equal, &slow);
 
   // Read the argument from the stack and return it.
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -3115,7 +3024,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
       ExternalReference::address_of_regexp_stack_memory_size(masm->isolate());
   __ mov(ebx, Operand::StaticVariable(address_of_regexp_stack_memory_size));
   __ test(ebx, Operand(ebx));
-  __ j(zero, &runtime, not_taken);
+  __ j(zero, &runtime);
 
   // Check that the first argument is a JSRegExp object.
   __ mov(eax, Operand(esp, kJSRegExpOffset));
@@ -3336,10 +3245,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check the result.
   Label success;
   __ cmp(eax, NativeRegExpMacroAssembler::SUCCESS);
-  __ j(equal, &success, taken);
+  __ j(equal, &success);
   Label failure;
   __ cmp(eax, NativeRegExpMacroAssembler::FAILURE);
-  __ j(equal, &failure, taken);
+  __ j(equal, &failure);
   __ cmp(eax, NativeRegExpMacroAssembler::EXCEPTION);
   // If not exception it can only be retry. Handle that in the runtime system.
   __ j(not_equal, &runtime);
@@ -3658,7 +3567,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ mov(ecx, Operand(edx));
     __ or_(ecx, Operand(eax));
     __ test(ecx, Immediate(kSmiTagMask));
-    __ j(not_zero, &non_smi, not_taken);
+    __ j(not_zero, &non_smi);
     __ sub(edx, Operand(eax));  // Return on the result of the subtraction.
     __ j(no_overflow, &smi_done);
     __ not_(edx);  // Correct sign in case of overflow. edx is never 0 here.
@@ -3833,7 +3742,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ ucomisd(xmm0, xmm1);
 
       // Don't base result on EFLAGS when a NaN is involved.
-      __ j(parity_even, &unordered, not_taken);
+      __ j(parity_even, &unordered);
       // Return a result of -1, 0, or 1, based on EFLAGS.
       __ mov(eax, 0);  // equal
       __ mov(ecx, Immediate(Smi::FromInt(1)));
@@ -3849,12 +3758,12 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ FCmp();
 
       // Don't base result on EFLAGS when a NaN is involved.
-      __ j(parity_even, &unordered, not_taken);
+      __ j(parity_even, &unordered);
 
       Label below_label, above_label;
       // Return a result of -1, 0, or 1, based on EFLAGS.
-      __ j(below, &below_label, not_taken);
-      __ j(above, &above_label, not_taken);
+      __ j(below, &below_label);
+      __ j(above, &above_label);
 
       __ Set(eax, Immediate(0));
       __ ret(0);
@@ -4012,7 +3921,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
     // Check if receiver is a smi (which is a number value).
     __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, &receiver_is_value, not_taken);
+    __ j(zero, &receiver_is_value);
 
     // Check if the receiver is a valid JS object.
     __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, edi);
@@ -4035,10 +3944,10 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Check that the function really is a JavaScript function.
   __ test(edi, Immediate(kSmiTagMask));
-  __ j(zero, &slow, not_taken);
+  __ j(zero, &slow);
   // Goto slow case if we do not have a function.
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-  __ j(not_equal, &slow, not_taken);
+  __ j(not_equal, &slow);
 
   // Fast-case: Just invoke the function.
   ParameterCount actual(argc_);
@@ -4132,7 +4041,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ lea(ecx, Operand(eax, 1));
   // Lower 2 bits of ecx are 0 iff eax has failure tag.
   __ test(ecx, Immediate(kFailureTagMask));
-  __ j(zero, &failure_returned, not_taken);
+  __ j(zero, &failure_returned);
 
   ExternalReference pending_exception_address(
       Isolate::k_pending_exception_address, masm->isolate());
@@ -4163,7 +4072,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // If the returned exception is RETRY_AFTER_GC continue at retry label
   STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
   __ test(eax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
-  __ j(zero, &retry, taken);
+  __ j(zero, &retry);
 
   // Special handling of out of memory exceptions.
   __ cmp(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
@@ -4417,7 +4326,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Check that the left hand is a JS object.
   __ test(object, Immediate(kSmiTagMask));
-  __ j(zero, &not_js_object, not_taken);
+  __ j(zero, &not_js_object);
   __ IsObjectJSObjectType(object, map, scratch, &not_js_object);
 
   // If there is a call site cache don't look in the global cache, but do the
@@ -4445,7 +4354,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Check that the function prototype is a JS object.
   __ test(prototype, Immediate(kSmiTagMask));
-  __ j(zero, &slow, not_taken);
+  __ j(zero, &slow);
   __ IsObjectJSObjectType(prototype, scratch, scratch, &slow);
 
   // Update the global instanceof or call site inlined cache with the current
@@ -4535,9 +4444,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Before null, smi and string value checks, check that the rhs is a function
   // as for a non-function rhs an exception needs to be thrown.
   __ test(function, Immediate(kSmiTagMask));
-  __ j(zero, &slow, not_taken);
+  __ j(zero, &slow);
   __ CmpObjectType(function, JS_FUNCTION_TYPE, scratch);
-  __ j(not_equal, &slow, not_taken);
+  __ j(not_equal, &slow);
 
   // Null is not instance of anything.
   __ cmp(object, factory->null_value());
@@ -4548,7 +4457,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ bind(&object_not_null);
   // Smi values is not instance of anything.
   __ test(object, Immediate(kSmiTagMask));
-  __ j(not_zero, &object_not_null_or_smi, not_taken);
+  __ j(not_zero, &object_not_null_or_smi);
   __ Set(eax, Immediate(Smi::FromInt(1)));
   __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
@@ -4820,7 +4729,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   __ test(code_,
           Immediate(kSmiTagMask |
                     ((~String::kMaxAsciiCharCode) << kSmiTagSize)));
-  __ j(not_zero, &slow_case_, not_taken);
+  __ j(not_zero, &slow_case_);
 
   Factory* factory = masm->isolate()->factory();
   __ Set(result_, Immediate(factory->single_character_string_cache()));
@@ -4832,7 +4741,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
                                code_, times_half_pointer_size,
                                FixedArray::kHeaderSize));
   __ cmp(result_, factory->undefined_value());
-  __ j(equal, &slow_case_, not_taken);
+  __ j(equal, &slow_case_);
   __ bind(&exit_);
 }
 
@@ -5781,7 +5690,7 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   __ mov(ecx, Operand(edx));
   __ or_(ecx, Operand(eax));
   __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, &miss, not_taken, Label::kNear);
+  __ j(not_zero, &miss, Label::kNear);
 
   if (GetCondition() == equal) {
     // For equality we do not care about the sign of the result.
@@ -5811,12 +5720,12 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   __ mov(ecx, Operand(edx));
   __ and_(ecx, Operand(eax));
   __ test(ecx, Immediate(kSmiTagMask));
-  __ j(zero, &generic_stub, not_taken, Label::kNear);
+  __ j(zero, &generic_stub, Label::kNear);
 
   __ CmpObjectType(eax, HEAP_NUMBER_TYPE, ecx);
-  __ j(not_equal, &miss, not_taken, Label::kNear);
+  __ j(not_equal, &miss, Label::kNear);
   __ CmpObjectType(edx, HEAP_NUMBER_TYPE, ecx);
-  __ j(not_equal, &miss, not_taken, Label::kNear);
+  __ j(not_equal, &miss, Label::kNear);
 
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or SS2 or CMOV is unsupported.
@@ -5832,7 +5741,7 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
     __ ucomisd(xmm0, xmm1);
 
     // Don't base result on EFLAGS when a NaN is involved.
-    __ j(parity_even, &unordered, not_taken, Label::kNear);
+    __ j(parity_even, &unordered, Label::kNear);
 
     // Return a result of -1, 0, or 1, based on EFLAGS.
     // Performing mov, because xor would destroy the flag register.
@@ -5984,12 +5893,12 @@ void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
   __ mov(ecx, Operand(edx));
   __ and_(ecx, Operand(eax));
   __ test(ecx, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken, Label::kNear);
+  __ j(zero, &miss, Label::kNear);
 
   __ CmpObjectType(eax, JS_OBJECT_TYPE, ecx);
-  __ j(not_equal, &miss, not_taken, Label::kNear);
+  __ j(not_equal, &miss, Label::kNear);
   __ CmpObjectType(edx, JS_OBJECT_TYPE, ecx);
-  __ j(not_equal, &miss, not_taken, Label::kNear);
+  __ j(not_equal, &miss, Label::kNear);
 
   ASSERT(GetCondition() == equal);
   __ sub(eax, Operand(edx));
@@ -6069,17 +5978,17 @@ MaybeObject* StringDictionaryLookupStub::GenerateNegativeLookup(
     __ mov(entity_name, Operand(properties, index, times_half_pointer_size,
                                 kElementsStartOffset - kHeapObjectTag));
     __ cmp(entity_name, masm->isolate()->factory()->undefined_value());
-    __ j(equal, done, taken);
+    __ j(equal, done);
 
     // Stop if found the property.
     __ cmp(entity_name, Handle<String>(name));
-    __ j(equal, miss, not_taken);
+    __ j(equal, miss);
 
     // Check if the entry name is not a symbol.
     __ mov(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
     __ test_b(FieldOperand(entity_name, Map::kInstanceTypeOffset),
               kIsSymbolMask);
-    __ j(zero, miss, not_taken);
+    __ j(zero, miss);
   }
 
   StringDictionaryLookupStub stub(properties,
@@ -6136,7 +6045,7 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
                          r0,
                          times_4,
                          kElementsStartOffset - kHeapObjectTag));
-    __ j(equal, done, taken);
+    __ j(equal, done);
   }
 
   StringDictionaryLookupStub stub(elements,

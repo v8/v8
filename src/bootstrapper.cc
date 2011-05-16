@@ -1638,10 +1638,12 @@ bool Genesis::InstallNatives() {
 
 
 bool Genesis::InstallExperimentalNatives() {
-  if (FLAG_harmony_proxies) {
-    for (int i = ExperimentalNatives::GetDebuggerCount();
-         i < ExperimentalNatives::GetBuiltinsCount();
-         i++) {
+  for (int i = ExperimentalNatives::GetDebuggerCount();
+       i < ExperimentalNatives::GetBuiltinsCount();
+       i++) {
+    if (FLAG_harmony_proxies &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native proxy.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
   }
@@ -1699,14 +1701,14 @@ void Genesis::InstallBuiltinFunctionIds() {
   F(16, global_context()->regexp_function())
 
 
-static FixedArray* CreateCache(int size, JSFunction* factory_function) {
+static FixedArray* CreateCache(int size, Handle<JSFunction> factory_function) {
   Factory* factory = factory_function->GetIsolate()->factory();
   // Caches are supposed to live for a long time, allocate in old space.
   int array_size = JSFunctionResultCache::kEntriesIndex + 2 * size;
   // Cannot use cast as object is not fully initialized yet.
   JSFunctionResultCache* cache = reinterpret_cast<JSFunctionResultCache*>(
       *factory->NewFixedArrayWithHoles(array_size, TENURED));
-  cache->set(JSFunctionResultCache::kFactoryIndex, factory_function);
+  cache->set(JSFunctionResultCache::kFactoryIndex, *factory_function);
   cache->MakeZeroSize();
   return cache;
 }
@@ -1723,9 +1725,9 @@ void Genesis::InstallJSFunctionResultCaches() {
 
   int index = 0;
 
-#define F(size, func) do {                           \
-    FixedArray* cache = CreateCache((size), (func)); \
-    caches->set(index++, cache);                     \
+#define F(size, func) do {                                              \
+    FixedArray* cache = CreateCache((size), Handle<JSFunction>(func));  \
+    caches->set(index++, cache);                                        \
   } while (false)
 
   JSFUNCTION_RESULT_CACHE_LIST(F);

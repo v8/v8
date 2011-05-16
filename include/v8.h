@@ -159,7 +159,7 @@ typedef void (*WeakReferenceCallback)(Persistent<Value> object,
  *
  * It is safe to extract the object stored in the handle by
  * dereferencing the handle (for instance, to extract the Object* from
- * an Handle<Object>); the value will still be governed by a handle
+ * a Handle<Object>); the value will still be governed by a handle
  * behind the scenes and the same rules apply to these values as to
  * their handles.
  */
@@ -181,7 +181,7 @@ template <class T> class Handle {
    * constructor allows you to pass handles as arguments by value and
    * to assign between handles.  However, if you try to assign between
    * incompatible handles, for instance from a Handle<String> to a
-   * Handle<Number> it will cause a compiletime error.  Assigning
+   * Handle<Number> it will cause a compile-time error.  Assigning
    * between compatible handles, for instance assigning a
    * Handle<String> to a variable declared as Handle<Value>, is legal
    * because String is a subclass of Value.
@@ -325,7 +325,7 @@ template <class T> class Persistent : public Handle<T> {
    * handles as arguments by value and to assign between persistent
    * handles.  However, attempting to assign between incompatible
    * persistent handles, for instance from a Persistent<String> to a
-   * Persistent<Number> will cause a compiletime error.  Assigning
+   * Persistent<Number> will cause a compile-time error.  Assigning
    * between compatible persistent handles, for instance assigning a
    * Persistent<String> to a variable declared as Persistent<Value>,
    * is allowed as String is a subclass of Value.
@@ -371,7 +371,7 @@ template <class T> class Persistent : public Handle<T> {
   /**
    * Releases the storage cell referenced by this persistent handle.
    * Does not remove the reference to the cell from any handles.
-   * This handle's reference, and any any other references to the storage
+   * This handle's reference, and any other references to the storage
    * cell remain and IsEmpty will still return false.
    */
   inline void Dispose();
@@ -775,7 +775,7 @@ class V8EXPORT StackTrace {
   Local<Array> AsArray();
 
   /**
-   * Grab a snapshot of the the current JavaScript execution stack.
+   * Grab a snapshot of the current JavaScript execution stack.
    *
    * \param frame_limit The maximum number of stack frames we want to capture.
    * \param options Enumerates the set of things we will capture for each
@@ -834,7 +834,7 @@ class V8EXPORT StackFrame {
   bool IsEval() const;
 
   /**
-   * Returns whther or not the associated function is called as a
+   * Returns whether or not the associated function is called as a
    * constructor via "new".
    */
   bool IsConstructor() const;
@@ -1182,7 +1182,7 @@ class String : public Primitive {
    * Associate an external string resource with this string by transforming it
    * in place so that existing references to this string in the JavaScript heap
    * will use the external string resource. The external string resource's
-   * character contents needs to be equivalent to this string.
+   * character contents need to be equivalent to this string.
    * Returns true if the string has been changed to be an external string.
    * The string is not modified if the operation fails. See NewExternal for
    * information on the lifetime of the resource.
@@ -1204,7 +1204,7 @@ class String : public Primitive {
    * Associate an external string resource with this string by transforming it
    * in place so that existing references to this string in the JavaScript heap
    * will use the external string resource. The external string resource's
-   * character contents needs to be equivalent to this string.
+   * character contents need to be equivalent to this string.
    * Returns true if the string has been changed to be an external string.
    * The string is not modified if the operation fails. See NewExternal for
    * information on the lifetime of the resource.
@@ -1540,8 +1540,8 @@ class Object : public Value {
   V8EXPORT void TurnOnAccessCheck();
 
   /**
-   * Returns the identity hash for this object. The current implemenation uses
-   * a hidden property on the object to store the identity hash.
+   * Returns the identity hash for this object. The current implementation
+   * uses a hidden property on the object to store the identity hash.
    *
    * The return value will never be 0. Also, it is not guaranteed to be
    * unique.
@@ -1622,7 +1622,7 @@ class Object : public Value {
                                        Handle<Value> argv[]);
 
   /**
-   * Call an Object as a consturctor if a callback is set by the
+   * Call an Object as a constructor if a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    * Note: This method behaves like the Function::NewInstance method.
    */
@@ -2243,7 +2243,7 @@ class V8EXPORT ObjectTemplate : public Template {
    *
    * \param getter The callback to invoke when getting a property.
    * \param setter The callback to invoke when setting a property.
-   * \param query The callback to invoke to check is an object has a property.
+   * \param query The callback to invoke to check if an object has a property.
    * \param deleter The callback to invoke when deleting a property.
    * \param enumerator The callback to invoke to enumerate all the indexed
    *   properties of an object.
@@ -2706,7 +2706,7 @@ class V8EXPORT V8 {
    * This means that the fatal error handler is called and that V8 is
    * terminated.
    *
-   * IgnoreOutOfMemoryException can be used to not treat a
+   * IgnoreOutOfMemoryException can be used to not treat an
    * out-of-memory situation as a fatal error.  This way, the contexts
    * that did not cause the out of memory problem might be able to
    * continue execution.
@@ -2742,7 +2742,7 @@ class V8EXPORT V8 {
   /**
    * Adds a message listener.
    *
-   * The same message listener can be added more than once and it that
+   * The same message listener can be added more than once and in that
    * case it will be called more than once for each message.
    */
   static bool AddMessageListener(MessageCallback that,
@@ -3022,7 +3022,7 @@ class V8EXPORT V8 {
    * The termination is achieved by throwing an exception that is
    * uncatchable by JavaScript exception handlers.  Termination
    * exceptions act as if they were caught by a C++ TryCatch exception
-   * handlers.  If forceful termination is used, any C++ TryCatch
+   * handler.  If forceful termination is used, any C++ TryCatch
    * exception handler that catches an exception should check if that
    * exception is a termination exception and immediately return if
    * that is the case.  Returning immediately in that case will
@@ -3426,7 +3426,7 @@ class V8EXPORT Context {
  * } // Destructor called here
  * \endcode
  *
- * If you wish to stop using V8 in a thread A you can do this by either
+ * If you wish to stop using V8 in a thread A you can do this either
  * by destroying the v8::Locker object as above or by constructing a
  * v8::Unlocker object:
  *
@@ -3502,7 +3502,7 @@ class V8EXPORT Locker {
   /**
    * Start preemption.
    *
-   * When preemption is started, a timer is fired every n milli seconds
+   * When preemption is started, a timer is fired every n milliseconds
    * that will switch between multiple threads that are in contention
    * for the V8 lock.
    */
@@ -3682,7 +3682,7 @@ class Internals {
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
-  static const int kJSObjectType = 0xa1;
+  static const int kJSObjectType = 0xa2;
   static const int kFirstNonstringType = 0x80;
   static const int kProxyType = 0x85;
 

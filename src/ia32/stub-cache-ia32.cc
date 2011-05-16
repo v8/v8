@@ -57,7 +57,7 @@ static void ProbeTable(Isolate* isolate,
 
     // Check that the key in the entry matches the name.
     __ cmp(name, Operand::StaticArray(offset, times_2, key_offset));
-    __ j(not_equal, &miss, not_taken);
+    __ j(not_equal, &miss);
 
     // Check that the flags match what we're looking for.
     __ mov(offset, FieldOperand(extra, Code::kFlagsOffset));
@@ -76,7 +76,7 @@ static void ProbeTable(Isolate* isolate,
 
     // Check that the key in the entry matches the name.
     __ cmp(name, Operand::StaticArray(offset, times_2, key_offset));
-    __ j(not_equal, &miss, not_taken);
+    __ j(not_equal, &miss);
 
     // Get the code entry from the cache.
     __ mov(offset, Operand::StaticArray(offset, times_2, value_offset));
@@ -126,11 +126,11 @@ static MaybeObject* GenerateDictionaryNegativeLookup(MacroAssembler* masm,
   // Bail out if the receiver has a named interceptor or requires access checks.
   __ test_b(FieldOperand(r0, Map::kBitFieldOffset),
             kInterceptorOrAccessCheckNeededMask);
-  __ j(not_zero, miss_label, not_taken);
+  __ j(not_zero, miss_label);
 
   // Check that receiver is a JSObject.
   __ CmpInstanceType(r0, FIRST_JS_OBJECT_TYPE);
-  __ j(below, miss_label, not_taken);
+  __ j(below, miss_label);
 
   // Load properties array.
   Register properties = r0;
@@ -189,7 +189,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
 
   // Check that the receiver isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  __ j(zero, &miss);
 
   // Get the map of the receiver and compute the hash.
   __ mov(scratch, FieldOperand(name, String::kHashFieldOffset));
@@ -250,11 +250,11 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
                                            Label* miss_label) {
   // Check that the receiver isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss_label, not_taken);
+  __ j(zero, miss_label);
 
   // Check that the object is a JS array.
   __ CmpObjectType(receiver, JS_ARRAY_TYPE, scratch);
-  __ j(not_equal, miss_label, not_taken);
+  __ j(not_equal, miss_label);
 
   // Load length directly from the JS array.
   __ mov(eax, FieldOperand(receiver, JSArray::kLengthOffset));
@@ -271,14 +271,14 @@ static void GenerateStringCheck(MacroAssembler* masm,
                                 Label* non_string_object) {
   // Check that the object isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, smi, not_taken);
+  __ j(zero, smi);
 
   // Check that the object is a string.
   __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
   ASSERT(kNotStringTag != 0);
   __ test(scratch, Immediate(kNotStringTag));
-  __ j(not_zero, non_string_object, not_taken);
+  __ j(not_zero, non_string_object);
 }
 
 
@@ -303,7 +303,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
     // Check if the object is a JSValue wrapper.
     __ bind(&check_wrapper);
     __ cmp(scratch1, JS_VALUE_TYPE);
-    __ j(not_equal, miss, not_taken);
+    __ j(not_equal, miss);
 
     // Check if the wrapped value is a string and load the length
     // directly if it is.
@@ -508,7 +508,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 
     // Check that the receiver isn't a smi.
     __ test(receiver, Immediate(kSmiTagMask));
-    __ j(zero, miss, not_taken);
+    __ j(zero, miss);
 
     CallOptimization optimization(lookup);
 
@@ -725,12 +725,12 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Label* miss_label) {
   // Check that the object isn't a smi.
   __ test(receiver_reg, Immediate(kSmiTagMask));
-  __ j(zero, miss_label, not_taken);
+  __ j(zero, miss_label);
 
   // Check that the map of the object hasn't changed.
   __ cmp(FieldOperand(receiver_reg, HeapObject::kMapOffset),
          Immediate(Handle<Map>(object->map())));
-  __ j(not_equal, miss_label, not_taken);
+  __ j(not_equal, miss_label);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -820,7 +820,7 @@ MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCell(
     __ cmp(Operand::Cell(Handle<JSGlobalPropertyCell>(cell)),
            Immediate(masm->isolate()->factory()->the_hole_value()));
   }
-  __ j(not_equal, miss, not_taken);
+  __ j(not_equal, miss);
   return cell;
 }
 
@@ -925,7 +925,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
       __ mov(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
       __ cmp(Operand(scratch1), Immediate(Handle<Map>(current->map())));
       // Branch on the result of the map check.
-      __ j(not_equal, miss, not_taken);
+      __ j(not_equal, miss);
       // Check access rights to the global object.  This has to happen
       // after the map check so that we know that the object is
       // actually a global object.
@@ -945,7 +945,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
       __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
              Immediate(Handle<Map>(current->map())));
       // Branch on the result of the map check.
-      __ j(not_equal, miss, not_taken);
+      __ j(not_equal, miss);
       // Check access rights to the global object.  This has to happen
       // after the map check so that we know that the object is
       // actually a global object.
@@ -972,7 +972,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
   // Check the holder map.
   __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
          Immediate(Handle<Map>(holder->map())));
-  __ j(not_equal, miss, not_taken);
+  __ j(not_equal, miss);
 
   // Perform security check for access to the global object.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
@@ -1007,7 +1007,7 @@ void StubCompiler::GenerateLoadField(JSObject* object,
                                      Label* miss) {
   // Check that the receiver isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss, not_taken);
+  __ j(zero, miss);
 
   // Check the prototype chain.
   Register reg =
@@ -1032,7 +1032,7 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
                                                 Label* miss) {
   // Check that the receiver isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss, not_taken);
+  __ j(zero, miss);
 
   // Check that the maps haven't changed.
   Register reg =
@@ -1099,7 +1099,7 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
                                         Label* miss) {
   // Check that the receiver isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss, not_taken);
+  __ j(zero, miss);
 
   // Check that the maps haven't changed.
   CheckPrototypes(object, receiver, holder,
@@ -1126,7 +1126,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 
   // Check that the receiver isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss, not_taken);
+  __ j(zero, miss);
 
   // So far the most popular follow ups for interceptor loads are FIELD
   // and CALLBACKS, so inline only them, other cases may be added
@@ -1255,7 +1255,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
   if (kind_ == Code::KEYED_CALL_IC) {
     __ cmp(Operand(ecx), Immediate(Handle<String>(name)));
-    __ j(not_equal, miss, not_taken);
+    __ j(not_equal, miss);
   }
 }
 
@@ -1277,7 +1277,7 @@ void CallStubCompiler::GenerateGlobalReceiverCheck(JSObject* object,
   // the receiver cannot be a smi.
   if (object != holder) {
     __ test(edx, Immediate(kSmiTagMask));
-    __ j(zero, miss, not_taken);
+    __ j(zero, miss);
   }
 
   // Check that the maps haven't changed.
@@ -1304,17 +1304,17 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
     // function can all use this call IC. Before we load through the
     // function, we have to verify that it still is a function.
     __ test(edi, Immediate(kSmiTagMask));
-    __ j(zero, miss, not_taken);
+    __ j(zero, miss);
     __ CmpObjectType(edi, JS_FUNCTION_TYPE, ebx);
-    __ j(not_equal, miss, not_taken);
+    __ j(not_equal, miss);
 
     // Check the shared function info. Make sure it hasn't changed.
     __ cmp(FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset),
            Immediate(Handle<SharedFunctionInfo>(function->shared())));
-    __ j(not_equal, miss, not_taken);
+    __ j(not_equal, miss);
   } else {
     __ cmp(Operand(edi), Immediate(Handle<JSFunction>(function)));
-    __ j(not_equal, miss, not_taken);
+    __ j(not_equal, miss);
   }
 }
 
@@ -1352,7 +1352,7 @@ MUST_USE_RESULT MaybeObject* CallStubCompiler::CompileCallField(
 
   // Check that the receiver isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  __ j(zero, &miss);
 
   // Do the right check and compute the holder register.
   Register reg = CheckPrototypes(object, edx, holder, ebx, eax, edi,
@@ -1362,9 +1362,9 @@ MUST_USE_RESULT MaybeObject* CallStubCompiler::CompileCallField(
 
   // Check that the function really is a function.
   __ test(edi, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  __ j(zero, &miss);
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ebx);
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   // Patch the receiver on the stack with the global proxy if
   // necessary.
@@ -2129,7 +2129,7 @@ MaybeObject* CallStubCompiler::CompileFastApiCall(
 
   // Check that the receiver isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &miss_before_stack_reserved, not_taken);
+  __ j(zero, &miss_before_stack_reserved);
 
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->call_const(), 1);
@@ -2197,7 +2197,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
   // Check that the receiver isn't a smi.
   if (check != NUMBER_CHECK) {
     __ test(edx, Immediate(kSmiTagMask));
-    __ j(zero, &miss, not_taken);
+    __ j(zero, &miss);
   }
 
   // Make sure that it's okay not to patch the on stack receiver
@@ -2229,7 +2229,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       } else {
         // Check that the object is a string or a symbol.
         __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, eax);
-        __ j(above_equal, &miss, not_taken);
+        __ j(above_equal, &miss);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
             masm(), Context::STRING_FUNCTION_INDEX, eax, &miss);
@@ -2247,9 +2247,9 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
         Label fast;
         // Check that the object is a smi or a heap number.
         __ test(edx, Immediate(kSmiTagMask));
-        __ j(zero, &fast, taken);
+        __ j(zero, &fast);
         __ CmpObjectType(edx, HEAP_NUMBER_TYPE, eax);
-        __ j(not_equal, &miss, not_taken);
+        __ j(not_equal, &miss);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
@@ -2269,9 +2269,9 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
         Label fast;
         // Check that the object is a boolean.
         __ cmp(edx, factory()->true_value());
-        __ j(equal, &fast, taken);
+        __ j(equal, &fast);
         __ cmp(edx, factory()->false_value());
-        __ j(not_equal, &miss, not_taken);
+        __ j(not_equal, &miss);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
@@ -2339,9 +2339,9 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   // Check that the function really is a function.
   __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  __ j(zero, &miss);
   __ CmpObjectType(eax, JS_FUNCTION_TYPE, ebx);
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   // Patch the receiver on the stack with the global proxy if
   // necessary.
@@ -2478,12 +2478,12 @@ MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
 
   // Check that the object isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  __ j(zero, &miss);
 
   // Check that the map of the object hasn't changed.
   __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
          Immediate(Handle<Map>(object->map())));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -2528,12 +2528,12 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 
   // Check that the object isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  __ j(zero, &miss);
 
   // Check that the map of the object hasn't changed.
   __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
          Immediate(Handle<Map>(receiver->map())));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   // Perform global security token check if needed.
   if (receiver->IsJSGlobalProxy()) {
@@ -2580,7 +2580,7 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   // Check that the map of the global has not changed.
   __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
          Immediate(Handle<Map>(object->map())));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
 
   // Compute the cell operand to use.
@@ -2633,7 +2633,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
 
   // Check that the name has not changed.
   __ cmp(Operand(ecx), Immediate(Handle<String>(name)));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   // Generate store field code.  Trashes the name register.
   GenerateStoreField(masm(),
@@ -2666,30 +2666,30 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
 
   // Check that the receiver isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  __ j(zero, &miss);
 
   // Check that the map matches.
   __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
          Immediate(Handle<Map>(receiver->map())));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   // Check that the key is a smi.
   __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, &miss, not_taken);
+  __ j(not_zero, &miss);
 
   // Get the elements array and make sure it is a fast element array, not 'cow'.
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
   __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
          Immediate(factory()->fixed_array_map()));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   // Check that the key is within bounds.
   if (receiver->IsJSArray()) {
     __ cmp(ecx, FieldOperand(edx, JSArray::kLengthOffset));  // Compare smis.
-    __ j(above_equal, &miss, not_taken);
+    __ j(above_equal, &miss);
   } else {
     __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));  // Compare smis.
-    __ j(above_equal, &miss, not_taken);
+    __ j(above_equal, &miss);
   }
 
   // Do the store and update the write barrier. Make sure to preserve
@@ -2723,7 +2723,7 @@ MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
 
   // Check that the receiver isn't a smi.
   __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  __ j(zero, &miss);
 
   ASSERT(last->IsGlobalObject() || last->HasFastProperties());
 
@@ -2876,7 +2876,7 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   // the receiver cannot be a smi.
   if (object != holder) {
     __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, &miss, not_taken);
+    __ j(zero, &miss);
   }
 
   // Check that the maps haven't changed.
@@ -2893,7 +2893,7 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   // Check for deleted property if property can actually be deleted.
   if (!is_dont_delete) {
     __ cmp(ebx, factory()->the_hole_value());
-    __ j(equal, &miss, not_taken);
+    __ j(equal, &miss);
   } else if (FLAG_debug_code) {
     __ cmp(ebx, factory()->the_hole_value());
     __ Check(not_equal, "DontDelete cells can't contain the hole");
@@ -2929,7 +2929,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadField(String* name,
 
   // Check that the name has not changed.
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   GenerateLoadField(receiver, holder, edx, ebx, ecx, edi, index, name, &miss);
 
@@ -2959,7 +2959,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadCallback(
 
   // Check that the name has not changed.
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   MaybeObject* result = GenerateLoadCallback(receiver, holder, edx, eax, ebx,
                                              ecx, edi, callback, name, &miss);
@@ -2994,7 +2994,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
 
   // Check that the name has not changed.
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   GenerateLoadConstant(receiver, holder, edx, ebx, ecx, edi,
                        value, name, &miss);
@@ -3022,7 +3022,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
 
   // Check that the name has not changed.
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   LookupResult lookup;
   LookupPostInterceptor(holder, name, &lookup);
@@ -3058,7 +3058,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
 
   // Check that the name has not changed.
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   GenerateLoadArrayLength(masm(), edx, ecx, &miss);
   __ bind(&miss);
@@ -3083,7 +3083,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
 
   // Check that the name has not changed.
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   GenerateLoadStringLength(masm(), edx, ecx, ebx, &miss, true);
   __ bind(&miss);
@@ -3108,7 +3108,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
 
   // Check that the name has not changed.
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   GenerateLoadFunctionPrototype(masm(), edx, ecx, ebx, &miss);
   __ bind(&miss);
@@ -3130,16 +3130,16 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
 
   // Check that the receiver isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  __ j(zero, &miss);
 
   // Check that the map matches.
   __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
          Immediate(Handle<Map>(receiver->map())));
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   // Check that the key is a smi.
   __ test(eax, Immediate(kSmiTagMask));
-  __ j(not_zero, &miss, not_taken);
+  __ j(not_zero, &miss);
 
   // Get the elements array.
   __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
@@ -3147,13 +3147,13 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
 
   // Check that the key is within bounds.
   __ cmp(eax, FieldOperand(ecx, FixedArray::kLengthOffset));
-  __ j(above_equal, &miss, not_taken);
+  __ j(above_equal, &miss);
 
   // Load the result and make sure it's not the hole.
   __ mov(ebx, Operand(ecx, eax, times_2,
                       FixedArray::kHeaderSize - kHeapObjectTag));
   __ cmp(ebx, factory()->the_hole_value());
-  __ j(equal, &miss, not_taken);
+  __ j(equal, &miss);
   __ mov(eax, ebx);
   __ ret(0);
 
@@ -3182,7 +3182,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kDebugInfoOffset));
   __ cmp(ebx, factory()->undefined_value());
-  __ j(not_equal, &generic_stub_call, not_taken);
+  __ j(not_equal, &generic_stub_call);
 #endif
 
   // Load the initial map and verify that it is in fact a map.
@@ -3315,11 +3315,11 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
 
   // Check that the object isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &slow, not_taken);
+  __ j(zero, &slow);
 
   // Check that the key is a smi.
   __ test(eax, Immediate(kSmiTagMask));
-  __ j(not_zero, &slow, not_taken);
+  __ j(not_zero, &slow);
 
   // Check that the map matches.
   __ CheckMap(edx, Handle<Map>(receiver->map()), &slow, false);

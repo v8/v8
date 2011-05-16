@@ -449,6 +449,7 @@ class Parser {
   // construct a hashable id, so if more than 2^17 are allowed, this
   // should be checked.
   static const int kMaxNumFunctionParameters = 32766;
+  static const int kMaxNumFunctionLocals = 32767;
   FunctionLiteral* ParseLazy(CompilationInfo* info,
                              UC16CharacterStream* source,
                              ZoneScope* zone_scope);
@@ -814,6 +815,8 @@ class JsonParser BASE_EMBEDDED {
   Handle<Object> ReportUnexpectedToken() { return Handle<Object>::null(); }
   // Converts the currently parsed literal to a JavaScript String.
   Handle<String> GetString();
+  // Converts the currently parsed literal to a JavaScript Symbol String.
+  Handle<String> GetSymbol();
 
   Isolate* isolate_;
   JsonScanner scanner_;

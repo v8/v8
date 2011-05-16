@@ -127,6 +127,7 @@ Heap::Heap()
       global_gc_prologue_callback_(NULL),
       global_gc_epilogue_callback_(NULL),
       gc_safe_size_of_old_object_(NULL),
+      total_regexp_code_generated_(0),
       tracer_(NULL),
       young_survivors_after_last_gc_(0),
       high_survival_rate_period_length_(0),
@@ -2800,6 +2801,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
   code->set_deoptimization_data(empty_fixed_array());
+  code->set_next_code_flushing_candidate(undefined_value());
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_reference.is_null()) {
@@ -3208,6 +3210,27 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
   Object* non_failure;
   ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
 #endif
+  return result;
+}
+
+
+MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
+  // Allocate map.
+  // TODO(rossberg): Once we optimize proxies, think about a scheme to share
+  // maps. Will probably depend on the identity of the handler object, too.
+  Object* map_obj;
+  MaybeObject* maybe_map_obj = AllocateMap(JS_PROXY_TYPE, JSProxy::kSize);
+  if (!maybe_map_obj->ToObject(&map_obj)) return maybe_map_obj;
+  Map* map = Map::cast(map_obj);
+  map->set_prototype(prototype);
+  map->set_pre_allocated_property_fields(1);
+  map->set_inobject_properties(1);
+
+  // Allocate the proxy object.
+  Object* result;
+  MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
+  if (!maybe_result->ToObject(&result)) return maybe_result;
+  JSProxy::cast(result)->set_handler(handler);
   return result;
 }
 

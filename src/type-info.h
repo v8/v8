@@ -72,32 +72,6 @@ class TypeInfo {
   // We haven't started collecting info yet.
   static TypeInfo Uninitialized() { return TypeInfo(kUninitialized); }
 
-  // Return compact representation.  Very sensitive to enum values below!
-  // Compacting drops information about primitive types and strings types.
-  // We use the compact representation when we only care about number types.
-  int ThreeBitRepresentation() {
-    ASSERT(type_ != kUninitialized);
-    int answer = type_ & 0xf;
-    answer = answer > 6 ? answer - 2 : answer;
-    ASSERT(answer >= 0);
-    ASSERT(answer <= 7);
-    return answer;
-  }
-
-  // Decode compact representation.  Very sensitive to enum values below!
-  static TypeInfo ExpandedRepresentation(int three_bit_representation) {
-    Type t = static_cast<Type>(three_bit_representation > 4 ?
-                               three_bit_representation + 2 :
-                               three_bit_representation);
-    t = (t == kUnknown) ? t : static_cast<Type>(t | kPrimitive);
-    ASSERT(t == kUnknown ||
-           t == kNumber ||
-           t == kInteger32 ||
-           t == kSmi ||
-           t == kDouble);
-    return TypeInfo(t);
-  }
-
   int ToInt() {
     return type_;
   }
@@ -264,6 +238,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   TypeInfo UnaryType(UnaryOperation* expr);
   TypeInfo BinaryType(BinaryOperation* expr);
   TypeInfo CompareType(CompareOperation* expr);
+  bool IsSymbolCompare(CompareOperation* expr);
   TypeInfo SwitchType(CaseClause* clause);
   TypeInfo IncrementType(CountOperation* expr);
 

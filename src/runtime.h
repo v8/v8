@@ -275,6 +275,9 @@ namespace internal {
   F(CreateArrayLiteral, 3, 1) \
   F(CreateArrayLiteralShallow, 3, 1) \
   \
+  /* Harmony proxies */ \
+  F(CreateJSProxy, 2, 1) \
+  \
   /* Catch context extension objects */ \
   F(CreateCatchExtensionObject, 2, 1) \
   \

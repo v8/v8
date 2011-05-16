@@ -95,6 +95,11 @@ class Scope: public ZoneObject {
     GLOBAL_SCOPE    // the top-level scope for a program or a top-level eval
   };
 
+  enum LocalType {
+    PARAMETER,
+    VAR_OR_CONST
+  };
+
   Scope(Scope* outer_scope, Type type);
 
   virtual ~Scope() { }
@@ -134,7 +139,9 @@ class Scope: public ZoneObject {
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
-  virtual Variable* DeclareLocal(Handle<String> name, Variable::Mode mode);
+  virtual Variable* DeclareLocal(Handle<String> name,
+                                 Variable::Mode mode,
+                                 LocalType type);
 
   // Declare an implicit global variable in this scope which must be a
   // global scope.  The variable was introduced (possibly from an inner
@@ -288,6 +295,9 @@ class Scope: public ZoneObject {
   // cases the context parameter is an empty handle.
   void AllocateVariables(Handle<Context> context);
 
+  // Current number of var or const locals.
+  int num_var_or_const() { return num_var_or_const_; }
+
   // Result of variable allocation.
   int num_stack_slots() const { return num_stack_slots_; }
   int num_heap_slots() const { return num_heap_slots_; }
@@ -379,6 +389,9 @@ class Scope: public ZoneObject {
   bool inner_scope_calls_eval_;
   bool outer_scope_is_eval_scope_;
   bool force_eager_compilation_;
+
+  // Computed as variables are declared.
+  int num_var_or_const_;
 
   // Computed via AllocateVariables; function scopes only.
   int num_stack_slots_;

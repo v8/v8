@@ -1620,6 +1620,28 @@ void LCodeGen::DoCmpJSObjectEqAndBranch(LCmpJSObjectEqAndBranch* instr) {
 }
 
 
+void LCodeGen::DoCmpSymbolEq(LCmpSymbolEq* instr) {
+  Register left = ToRegister(instr->InputAt(0));
+  Register right = ToRegister(instr->InputAt(1));
+  Register result = ToRegister(instr->result());
+
+  __ cmp(left, Operand(right));
+  __ LoadRoot(result, Heap::kTrueValueRootIndex, eq);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex, ne);
+}
+
+
+void LCodeGen::DoCmpSymbolEqAndBranch(LCmpSymbolEqAndBranch* instr) {
+  Register left = ToRegister(instr->InputAt(0));
+  Register right = ToRegister(instr->InputAt(1));
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+
+  __ cmp(left, Operand(right));
+  EmitBranch(true_block, false_block, eq);
+}
+
+
 void LCodeGen::DoIsNull(LIsNull* instr) {
   Register reg = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
@@ -1771,6 +1793,40 @@ void LCodeGen::DoIsSmiAndBranch(LIsSmiAndBranch* instr) {
   Register input_reg = EmitLoadRegister(instr->InputAt(0), ip);
   __ tst(input_reg, Operand(kSmiTagMask));
   EmitBranch(true_block, false_block, eq);
+}
+
+
+void LCodeGen::DoIsUndetectable(LIsUndetectable* instr) {
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+
+  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
+  Label false_label, done;
+  __ JumpIfSmi(input, &false_label);
+  __ ldr(result, FieldMemOperand(input, HeapObject::kMapOffset));
+  __ ldrb(result, FieldMemOperand(result, Map::kBitFieldOffset));
+  __ tst(result, Operand(1 << Map::kIsUndetectable));
+  __ b(eq, &false_label);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+  __ jmp(&done);
+  __ bind(&false_label);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoIsUndetectableAndBranch(LIsUndetectableAndBranch* instr) {
+  Register input = ToRegister(instr->InputAt(0));
+  Register temp = ToRegister(instr->TempAt(0));
+
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  __ JumpIfSmi(input, chunk_->GetAssemblyLabel(false_block));
+  __ ldr(temp, FieldMemOperand(input, HeapObject::kMapOffset));
+  __ ldrb(temp, FieldMemOperand(temp, Map::kBitFieldOffset));
+  __ tst(temp, Operand(1 << Map::kIsUndetectable));
+  EmitBranch(true_block, false_block, ne);
 }
 
 

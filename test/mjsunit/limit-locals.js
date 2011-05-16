@@ -25,32 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Test that there is a limit of 32767 locals.
 
-#include "cctest.h"
-#include "type-info.h"
-
-namespace v8 {
-namespace internal {
-
-TEST(ThreeBitRepresentation) {
-  // Numeric types and unknown should fit into the short
-  // representation.
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::Unknown().ThreeBitRepresentation()).IsUnknown());
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::Number().ThreeBitRepresentation()).IsNumber());
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::Integer32().ThreeBitRepresentation()).IsInteger32());
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::Smi().ThreeBitRepresentation()).IsSmi());
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::Double().ThreeBitRepresentation()).IsDouble());
-
-  // Other types should map to unknown.
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::Primitive().ThreeBitRepresentation()).IsUnknown());
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::String().ThreeBitRepresentation()).IsUnknown());
+function function_with_n_locals(n) {
+  test_prefix = "prefix ";
+  test_suffix = " suffix";
+  var src = "test_prefix + (function () {"
+  for (var i = 1; i <= n; i++) {
+    src += "var x" + i + ";";
+  }
+  src += "return " + n + ";})() + test_suffix";
+  return eval(src);
 }
 
-} }  // namespace v8::internal
+assertEquals("prefix 0 suffix", function_with_n_locals(0));
+assertEquals("prefix 16000 suffix", function_with_n_locals(16000));
+assertEquals("prefix 32767 suffix", function_with_n_locals(32767));
+
+assertThrows("function_with_n_locals(32768)");
+assertThrows("function_with_n_locals(100000)");

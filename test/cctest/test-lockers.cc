@@ -240,7 +240,11 @@ class IsolateNonlockingThread : public JoinableThread {
 
 // Run many threads each accessing its own isolate without locking
 TEST(MultithreadedParallelIsolates) {
+#ifdef V8_TARGET_ARCH_ARM
+  const int kNThreads = 10;
+#else
   const int kNThreads = 50;
+#endif
   i::List<JoinableThread*> threads(kNThreads);
   for (int i = 0; i < kNThreads; i++) {
     threads.Add(new IsolateNonlockingThread());

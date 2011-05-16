@@ -80,8 +80,8 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
-  static const int kCodeOffset      = -2 * kPointerSize;
-  static const int kSPOffset        = -1 * kPointerSize;
+  static const int kCodeOffset     = -2 * kPointerSize;
+  static const int kSPOffset       = -1 * kPointerSize;
 
   static const int kCallerFPOffset =  0 * kPointerSize;
   static const int kCallerPCOffset = +1 * kPointerSize;
@@ -94,7 +94,9 @@ class ExitFrameConstants : public AllStatic {
 
 class StandardFrameConstants : public AllStatic {
  public:
-  static const int kFixedFrameSize    =  4;
+  // StandardFrame::IterateExpressions assumes that kContextOffset is the last
+  // object pointer.
+  static const int kFixedFrameSize    =  4;  // Currently unused.
   static const int kExpressionsOffset = -3 * kPointerSize;
   static const int kMarkerOffset      = -2 * kPointerSize;
   static const int kContextOffset     = -1 * kPointerSize;

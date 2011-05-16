@@ -91,6 +91,7 @@ class LChunkBuilder;
   V(Compare)                                   \
   V(CompareJSObjectEq)                         \
   V(CompareMap)                                \
+  V(CompareSymbolEq)                           \
   V(Constant)                                  \
   V(Context)                                   \
   V(DeleteProperty)                            \
@@ -110,10 +111,11 @@ class LChunkBuilder;
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
   V(InvokeFunction)                            \
+  V(IsConstructCall)                           \
   V(IsNull)                                    \
   V(IsObject)                                  \
   V(IsSmi)                                     \
-  V(IsConstructCall)                           \
+  V(IsUndetectable)                            \
   V(JSArrayLength)                             \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
@@ -555,6 +557,7 @@ class HValue: public ZoneObject {
     RepresentationChanged(r);
     representation_ = r;
   }
+  void AssumeRepresentation(Representation r);
 
   virtual bool IsConvertibleToInteger() const { return true; }
 
@@ -859,6 +862,11 @@ class HDeoptimize: public HControlInstruction {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
+
+  enum UseEnvironment {
+    kNoUses,
+    kUseAll
+  };
 
  protected:
   virtual void InternalSetOperandAt(int index, HValue* value) {
@@ -2409,6 +2417,40 @@ class HCompareJSObjectEq: public HBinaryOperation {
 };
 
 
+class HCompareSymbolEq: public HBinaryOperation {
+ public:
+  HCompareSymbolEq(HValue* left, HValue* right, Token::Value op)
+      : HBinaryOperation(left, right), op_(op) {
+    ASSERT(op == Token::EQ || op == Token::EQ_STRICT);
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+    SetFlag(kDependsOnMaps);
+  }
+
+  Token::Value op() const { return op_; }
+
+  virtual bool EmitAtUses() {
+    return !HasSideEffects() && !HasMultipleUses();
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  virtual HType CalculateInferredType() { return HType::Boolean(); }
+
+  DECLARE_CONCRETE_INSTRUCTION(CompareSymbolEq);
+
+ protected:
+  virtual bool DataEquals(HValue* other) {
+    return op_ == HCompareSymbolEq::cast(other)->op_;
+  }
+
+ private:
+  const Token::Value op_;
+};
+
+
 class HUnaryPredicate: public HUnaryOperation {
  public:
   explicit HUnaryPredicate(HValue* value) : HUnaryOperation(value) {
@@ -2463,6 +2505,17 @@ class HIsSmi: public HUnaryPredicate {
   explicit HIsSmi(HValue* value) : HUnaryPredicate(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(IsSmi)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
+class HIsUndetectable: public HUnaryPredicate {
+ public:
+  explicit HIsUndetectable(HValue* value) : HUnaryPredicate(value) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsUndetectable)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }

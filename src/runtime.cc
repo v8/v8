@@ -588,6 +588,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSProxy) {
+  ASSERT(args.length() == 2);
+  Object* handler = args[0];
+  Object* prototype = args[1];
+  Object* used_prototype =
+      (prototype->IsJSObject() || prototype->IsJSProxy()) ? prototype
+          : isolate->heap()->null_value();
+  return isolate->heap()->AllocateJSProxy(handler, used_prototype);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCatchExtensionObject) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, key, args[0]);
@@ -4183,25 +4194,33 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasLocalProperty) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, key, args[1]);
 
+  uint32_t index;
+  const bool key_is_array_index = key->AsArrayIndex(&index);
+
   Object* obj = args[0];
   // Only JS objects can have properties.
   if (obj->IsJSObject()) {
     JSObject* object = JSObject::cast(obj);
-    // Fast case - no interceptors.
+    // Fast case: either the key is a real named property or it is not
+    // an array index and there are no interceptors or hidden
+    // prototypes.
     if (object->HasRealNamedProperty(key)) return isolate->heap()->true_value();
-    // Slow case.  Either it's not there or we have an interceptor.  We should
-    // have handles for this kind of deal.
+    Map* map = object->map();
+    if (!key_is_array_index &&
+        !map->has_named_interceptor() &&
+        !HeapObject::cast(map->prototype())->map()->is_hidden_prototype()) {
+      return isolate->heap()->false_value();
+    }
+    // Slow case.
     HandleScope scope(isolate);
     return HasLocalPropertyImplementation(isolate,
                                           Handle<JSObject>(object),
                                           Handle<String>(key));
-  } else if (obj->IsString()) {
+  } else if (obj->IsString() && key_is_array_index) {
     // Well, there is one exception:  Handle [] on strings.
-    uint32_t index;
-    if (key->AsArrayIndex(&index)) {
-      String* string = String::cast(obj);
-      if (index < static_cast<uint32_t>(string->length()))
-        return isolate->heap()->true_value();
+    String* string = String::cast(obj);
+    if (index < static_cast<uint32_t>(string->length())) {
+      return isolate->heap()->true_value();
     }
   }
   return isolate->heap()->false_value();
@@ -7909,12 +7928,13 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     // If the "property" we were looking for is a local variable or an
     // argument in a context, the receiver is the global object; see
     // ECMA-262, 3rd., 10.1.6 and 10.2.3.
-    JSObject* receiver =
-        isolate->context()->global()->global_receiver();
+    // GetElement below can cause GC.
+    Handle<JSObject> receiver(
+        isolate->context()->global()->global_receiver());
     MaybeObject* value = (holder->IsContext())
         ? Context::cast(*holder)->get(index)
         : JSObject::cast(*holder)->GetElement(index);
-    return MakePair(Unhole(isolate->heap(), value, attributes), receiver);
+    return MakePair(Unhole(isolate->heap(), value, attributes), *receiver);
   }
 
   // If the holder is found, we read the property from it.
@@ -7929,10 +7949,14 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     } else {
       receiver = ComputeReceiverForNonGlobal(isolate, object);
     }
+
+    // GetProperty below can cause GC.
+    Handle<JSObject> receiver_handle(receiver);
+
     // No need to unhole the value here. This is taken care of by the
     // GetProperty function.
     MaybeObject* value = object->GetProperty(*name);
-    return MakePair(value, receiver);
+    return MakePair(value, *receiver_handle);
   }
 
   if (throw_error) {

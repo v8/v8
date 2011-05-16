@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -305,13 +305,11 @@ class CodeFlusher {
     *GetNextCandidateField(candidate) = next_candidate;
   }
 
-  STATIC_ASSERT(kPointerSize <= Code::kHeaderSize - Code::kHeaderPaddingStart);
-
   static SharedFunctionInfo** GetNextCandidateField(
       SharedFunctionInfo* candidate) {
     Code* code = candidate->unchecked_code();
     return reinterpret_cast<SharedFunctionInfo**>(
-        code->address() + Code::kHeaderPaddingStart);
+        code->address() + Code::kNextCodeFlushingCandidateOffset);
   }
 
   static SharedFunctionInfo* GetNextCandidate(SharedFunctionInfo* candidate) {

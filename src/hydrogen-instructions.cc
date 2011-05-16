@@ -67,6 +67,16 @@ const char* Representation::Mnemonic() const {
 }
 
 
+void HValue::AssumeRepresentation(Representation r) {
+  if (CheckFlag(kFlexibleRepresentation)) {
+    ChangeRepresentation(r);
+    // The representation of the value is dictated by type feedback and
+    // will not be changed later.
+    ClearFlag(kFlexibleRepresentation);
+  }
+}
+
+
 static int32_t ConvertAndSetOverflow(int64_t result, bool* overflow) {
   if (result > kMaxInt) {
     *overflow = true;

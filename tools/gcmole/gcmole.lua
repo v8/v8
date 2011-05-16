@@ -29,8 +29,44 @@
 -- Usage: CLANG_BIN=clang-bin-dir lua tools/gcmole/gcmole.lua [arm|ia32|x64]
 
 local DIR = arg[0]:match("^(.+)/[^/]+$")
- 
-local ARCHS = arg[1] and { arg[1] } or { 'ia32', 'arm', 'x64' }
+
+local FLAGS = {
+   -- Do not build gcsuspects file and reuse previously generated one.
+   reuse_gcsuspects = false;
+
+   -- Print commands to console before executing them.
+   verbose = false;
+
+   -- Perform dead variable analysis (generates many false positives).
+   -- TODO add some sort of whiteliste to filter out false positives.
+   dead_vars = false;
+
+   -- When building gcsuspects whitelist certain functions as if they
+   -- can be causing GC. Currently used to reduce number of false
+   -- positives in dead variables analysis. See TODO for WHITELIST
+   -- below.
+   whitelist = true;
+}
+local ARGS = {}
+
+for i = 1, #arg do
+   local flag = arg[i]:match "^%-%-([%w_-]+)$"
+   if flag then
+      local no, real_flag = flag:match "^(no)([%w_-]+)$"
+      if real_flag then flag = real_flag end
+
+      flag = flag:gsub("%-", "_")
+      if FLAGS[flag] ~= nil then
+         FLAGS[flag] = (no ~= "no")
+      else
+         error("Unknown flag: " .. flag)
+      end
+   else
+      table.insert(ARGS, arg[i])
+   end
+end
+
+local ARCHS = ARGS[1] and { ARGS[1] } or { 'ia32', 'arm', 'x64' }
 
 local io = require "io"
 local os = require "os"
@@ -43,33 +79,40 @@ end
 -------------------------------------------------------------------------------
 -- Clang invocation
 
-local CLANG_BIN = os.getenv "CLANG_BIN" 
+local CLANG_BIN = os.getenv "CLANG_BIN"
 
 if not CLANG_BIN or CLANG_BIN == "" then
    error "CLANG_BIN not set"
-end 
+end
 
-local function MakeClangCommandLine(plugin, triple, arch_define)
-   return CLANG_BIN .. "/clang -cc1 -load " .. DIR .. "/libgcmole.so" 
+local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
+   if plugin_args then
+     for i = 1, #plugin_args do
+        plugin_args[i] = "-plugin-arg-" .. plugin .. " " .. plugin_args[i]
+     end
+     plugin_args = " " .. table.concat(plugin_args, " ")
+   end
+   return CLANG_BIN .. "/clang -cc1 -load " .. DIR .. "/libgcmole.so"
       .. " -plugin "  .. plugin
-      .. " -triple " .. triple 
+      .. (plugin_args or "")
+      .. " -triple " .. triple
       .. " -D" .. arch_define
-      .. " -DENABLE_VMSTATE_TRACKING" 
-      .. " -DENABLE_LOGGING_AND_PROFILING" 
+      .. " -DENABLE_VMSTATE_TRACKING"
+      .. " -DENABLE_LOGGING_AND_PROFILING"
       .. " -DENABLE_DEBUGGER_SUPPORT"
       .. " -Isrc"
 end
 
 function InvokeClangPluginForEachFile(filenames, cfg, func)
    local cmd_line = MakeClangCommandLine(cfg.plugin,
-					 cfg.triple,
-					 cfg.arch_define)
+                                         cfg.plugin_args,
+                                         cfg.triple,
+                                         cfg.arch_define)
 
-   for _, filename in ipairs(filenames) do 
+   for _, filename in ipairs(filenames) do
       log("-- %s", filename)
-
       local action = cmd_line .. " src/" .. filename .. " 2>&1"
-
+      if FLAGS.verbose then print('popen ', action) end
       local pipe = io.popen(action)
       func(filename, pipe:lines())
       pipe:close()
@@ -84,7 +127,7 @@ local function ParseSConscript()
    local sconscript = f:read('*a')
    f:close()
 
-   local SOURCES = sconscript:match "SOURCES = {(.-)}"; 
+   local SOURCES = sconscript:match "SOURCES = {(.-)}";
 
    local sources = {}
 
@@ -93,13 +136,13 @@ local function ParseSConscript()
       local files = {}
       for file in list:gmatch "[^%s]+" do table.insert(files, file) end
       sources[condition] = files
-   end 
+   end
 
    for condition, list in SOURCES:gmatch "'([^']-)': %[(.-)%]" do
       local files = {}
       for file in list:gmatch "'([^']-)'" do table.insert(files, file) end
       sources[condition] = files
-   end 
+   end
 
    return sources
 end
@@ -119,7 +162,7 @@ local function BuildFileList(sources, props)
    local list = {}
    for condition, files in pairs(sources) do
       if EvaluateCondition(condition, props) then
-	 for i = 1, #files do table.insert(list, files[i]) end
+         for i = 1, #files do table.insert(list, files[i]) end
       end
    end
    return list
@@ -129,9 +172,9 @@ local sources = ParseSConscript()
 
 local function FilesForArch(arch)
    return BuildFileList(sources, { os = 'linux',
-				   arch = arch,
-				   mode = 'debug',
-				   simulator = ''})
+                                   arch = arch,
+                                   mode = 'debug',
+                                   simulator = ''})
 end
 
 local mtConfig = {}
@@ -149,29 +192,67 @@ end
 
 local ARCHITECTURES = {
    ia32 = config { triple = "i586-unknown-linux",
-		   arch_define = "V8_TARGET_ARCH_IA32" },
+                   arch_define = "V8_TARGET_ARCH_IA32" },
    arm = config { triple = "i586-unknown-linux",
-		  arch_define = "V8_TARGET_ARCH_ARM" },
+                  arch_define = "V8_TARGET_ARCH_ARM" },
    x64 = config { triple = "x86_64-unknown-linux",
-		  arch_define = "V8_TARGET_ARCH_X64" }
+                  arch_define = "V8_TARGET_ARCH_X64" }
 }
 
 -------------------------------------------------------------------------------
--- GCSuspects Generation 
+-- GCSuspects Generation
 
-local gc = {}
-local funcs = {}
+local gc, gc_caused, funcs
+
+local WHITELIST = {
+   -- The following functions call CEntryStub which is always present.
+   "MacroAssembler.*CallExternalReference",
+   "MacroAssembler.*CallRuntime",
+   "CompileCallLoadPropertyWithInterceptor",
+   "CallIC.*GenerateMiss",
+
+   -- DirectCEntryStub is a special stub used on ARM. 
+   -- It is pinned and always present.
+   "DirectCEntryStub.*GenerateCall",  
+
+   -- TODO GCMole currently is sensitive enough to understand that certain 
+   --      functions only cause GC and return Failure simulataneously. 
+   --      Callsites of such functions are safe as long as they are properly 
+   --      check return value and propagate the Failure to the caller.
+   --      It should be possible to extend GCMole to understand this.
+   "Heap.*AllocateFunctionPrototype"
+};
+
+local function AddCause(name, cause)
+   local t = gc_caused[name]
+   if not t then
+      t = {}
+      gc_caused[name] = t
+   end
+   table.insert(t, cause)
+end
 
 local function resolve(name)
    local f = funcs[name]
-   
-   if not f then 
+
+   if not f then
       f = {}
       funcs[name] = f
-      
-      if name:match "Collect.*Garbage" then gc[name] = true end
+
+      if name:match "Collect.*Garbage" then
+         gc[name] = true
+         AddCause(name, "<GC>")
+      end
+
+      if FLAGS.whitelist then
+         for i = 1, #WHITELIST do
+            if name:match(WHITELIST[i]) then
+               gc[name] = false
+            end
+         end
+      end
    end
-   
+
     return f
 end
 
@@ -180,11 +261,11 @@ local function parse (filename, lines)
 
    for funcname in lines do
       if funcname:sub(1, 1) ~= '\t' then
-	 resolve(funcname)
-	 scope = funcname
+         resolve(funcname)
+         scope = funcname
       else
-	 local name = funcname:sub(2)
-	 resolve(name)[scope] = true
+         local name = funcname:sub(2)
+         resolve(name)[scope] = true
       end
    end
 end
@@ -192,60 +273,82 @@ end
 local function propagate ()
    log "** Propagating GC information"
 
-   local function mark(callers)
-      for caller, _ in pairs(callers) do 
-	 if not gc[caller] then
-	    gc[caller] = true
-	    mark(funcs[caller]) 
-	 end
+   local function mark(from, callers)
+      for caller, _ in pairs(callers) do
+         if gc[caller] == nil then
+            gc[caller] = true
+            mark(caller, funcs[caller])
+         end
+         AddCause(caller, from)
       end
    end
 
    for funcname, callers in pairs(funcs) do
-      if gc[funcname] then mark(callers) end
+      if gc[funcname] then mark(funcname, callers) end
    end
 end
 
 local function GenerateGCSuspects(arch, files, cfg)
+   -- Reset the global state.
+   gc, gc_caused, funcs = {}, {}, {}
+
    log ("** Building GC Suspects for %s", arch)
    InvokeClangPluginForEachFile (files,
                                  cfg:extend { plugin = "dump-callees" },
                                  parse)
-   
+
    propagate()
 
    local out = assert(io.open("gcsuspects", "w"))
-   for name, _ in pairs(gc) do out:write (name, '\n') end
+   for name, value in pairs(gc) do if value then out:write (name, '\n') end end
    out:close()
+
+   local out = assert(io.open("gccauses", "w"))
+   out:write "GC = {"
+   for name, causes in pairs(gc_caused) do
+      out:write("['", name, "'] = {")
+      for i = 1, #causes do out:write ("'", causes[i], "';") end
+      out:write("};\n")
+   end
+   out:write "}"
+   out:close()
+
    log ("** GCSuspects generated for %s", arch)
 end
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Analysis
 
-local function CheckCorrectnessForArch(arch) 
+local function CheckCorrectnessForArch(arch)
    local files = FilesForArch(arch)
    local cfg = ARCHITECTURES[arch]
 
-   GenerateGCSuspects(arch, files, cfg)
+   if not FLAGS.reuse_gcsuspects then
+      GenerateGCSuspects(arch, files, cfg)
+   end
 
    local processed_files = 0
    local errors_found = false
    local function SearchForErrors(filename, lines)
       processed_files = processed_files + 1
       for l in lines do
-	 errors_found = errors_found or
-	    l:match "^[^:]+:%d+:%d+:" or
-	    l:match "error" or
-	    l:match "warning"
+         errors_found = errors_found or
+            l:match "^[^:]+:%d+:%d+:" or
+            l:match "error" or
+            l:match "warning"
          print(l)
       end
    end
 
-   log("** Searching for evaluation order problems for %s", arch)
+   log("** Searching for evaluation order problems%s for %s",
+       FLAGS.dead_vars and " and dead variables" or "",
+       arch)
+   local plugin_args
+   if FLAGS.dead_vars then plugin_args = { "--dead-vars" } end
    InvokeClangPluginForEachFile(files,
-				cfg:extend { plugin = "find-problems" },
-			        SearchForErrors)
+                                cfg:extend { plugin = "find-problems",
+                                             plugin_args = plugin_args },
+                                SearchForErrors)
    log("** Done processing %d files. %s",
        processed_files,
        errors_found and "Errors found" or "No errors found")

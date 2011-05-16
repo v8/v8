@@ -50,11 +50,11 @@ static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
   // Register usage:
   //   type: holds the receiver instance type on entry.
   __ cmp(type, JS_GLOBAL_OBJECT_TYPE);
-  __ j(equal, global_object, not_taken);
+  __ j(equal, global_object);
   __ cmp(type, JS_BUILTINS_OBJECT_TYPE);
-  __ j(equal, global_object, not_taken);
+  __ j(equal, global_object);
   __ cmp(type, JS_GLOBAL_PROXY_TYPE);
-  __ j(equal, global_object, not_taken);
+  __ j(equal, global_object);
 }
 
 
@@ -73,13 +73,13 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
 
   // Check that the receiver isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss, not_taken);
+  __ j(zero, miss);
 
   // Check that the receiver is a valid JS object.
   __ mov(r1, FieldOperand(receiver, HeapObject::kMapOffset));
   __ movzx_b(r0, FieldOperand(r1, Map::kInstanceTypeOffset));
   __ cmp(r0, FIRST_JS_OBJECT_TYPE);
-  __ j(below, miss, not_taken);
+  __ j(below, miss);
 
   // If this assert fails, we have to check upper bound too.
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
@@ -90,7 +90,7 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
   __ test_b(FieldOperand(r1, Map::kBitFieldOffset),
             (1 << Map::kIsAccessCheckNeeded) |
             (1 << Map::kHasNamedInterceptor));
-  __ j(not_zero, miss, not_taken);
+  __ j(not_zero, miss);
 
   __ mov(r0, FieldOperand(receiver, JSObject::kPropertiesOffset));
   __ CheckMap(r0, FACTORY->hash_table_map(), miss, true);
@@ -146,7 +146,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   __ test(Operand(elements, r0, times_4, kDetailsOffset - kHeapObjectTag),
           Immediate(PropertyDetails::TypeField::mask() << kSmiTagSize));
-  __ j(not_zero, miss_label, not_taken);
+  __ j(not_zero, miss_label);
 
   // Get the value at the masked, scaled index.
   const int kValueOffset = kElementsStartOffset + kPointerSize;
@@ -204,7 +204,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
          PropertyDetails::AttributesField::encode(READ_ONLY)) << kSmiTagSize;
   __ test(Operand(elements, r0, times_4, kDetailsOffset - kHeapObjectTag),
           Immediate(kTypeAndReadOnlyMask));
-  __ j(not_zero, miss_label, not_taken);
+  __ j(not_zero, miss_label);
 
   // Store the value at the masked, scaled index.
   const int kValueOffset = kElementsStartOffset + kPointerSize;
@@ -294,9 +294,9 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
                              times_pointer_size,
                              NumberDictionary::kElementsStartOffset));
     if (i != (kProbes - 1)) {
-      __ j(equal, &done, taken);
+      __ j(equal, &done);
     } else {
-      __ j(not_equal, miss, not_taken);
+      __ j(not_equal, miss);
     }
   }
 
@@ -374,7 +374,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
 
   // Check that the object isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, slow, not_taken);
+  __ j(zero, slow);
 
   // Get the map of the receiver.
   __ mov(map, FieldOperand(receiver, HeapObject::kMapOffset));
@@ -382,7 +382,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   // Check bit field.
   __ test_b(FieldOperand(map, Map::kBitFieldOffset),
             (1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit));
-  __ j(not_zero, slow, not_taken);
+  __ j(not_zero, slow);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
   // we enter the runtime system to make sure that indexing
@@ -390,7 +390,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
 
   __ CmpInstanceType(map, JS_OBJECT_TYPE);
-  __ j(below, slow, not_taken);
+  __ j(below, slow);
 }
 
 
@@ -453,12 +453,12 @@ static void GenerateKeyStringCheck(MacroAssembler* masm,
   // Is the string an array index, with cached numeric value?
   __ mov(hash, FieldOperand(key, String::kHashFieldOffset));
   __ test(hash, Immediate(String::kContainsCachedArrayIndexMask));
-  __ j(zero, index_string, not_taken);
+  __ j(zero, index_string);
 
   // Is the string a symbol?
   ASSERT(kSymbolTag != 0);
   __ test_b(FieldOperand(map, Map::kInstanceTypeOffset), kIsSymbolMask);
-  __ j(zero, not_symbol, not_taken);
+  __ j(zero, not_symbol);
 }
 
 
@@ -473,7 +473,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   __ test(eax, Immediate(kSmiTagMask));
-  __ j(not_zero, &check_string, not_taken);
+  __ j(not_zero, &check_string);
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from
   // where a numeric string is converted to a smi.
@@ -485,7 +485,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // now in ecx.
   __ test_b(FieldOperand(ecx, Map::kBitField2Offset),
             1 << Map::kHasFastElements);
-  __ j(zero, &check_number_dictionary, not_taken);
+  __ j(zero, &check_number_dictionary);
 
   GenerateFastArrayLoad(masm,
                         edx,
@@ -663,11 +663,11 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 
   // Check that the receiver isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &slow, not_taken);
+  __ j(zero, &slow);
 
   // Check that the key is an array index, that is Uint32.
   __ test(eax, Immediate(kSmiTagMask | kSmiSignMask));
-  __ j(not_zero, &slow, not_taken);
+  __ j(not_zero, &slow);
 
   // Get the map of the receiver.
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
@@ -677,7 +677,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   __ movzx_b(ecx, FieldOperand(ecx, Map::kBitFieldOffset));
   __ and_(Operand(ecx), Immediate(kSlowCaseBitFieldMask));
   __ cmp(Operand(ecx), Immediate(1 << Map::kHasIndexedInterceptor));
-  __ j(not_zero, &slow, not_taken);
+  __ j(not_zero, &slow);
 
   // Everything is fine, call runtime.
   __ pop(ecx);
@@ -708,22 +708,22 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 
   // Check that the object isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &slow, not_taken);
+  __ j(zero, &slow);
   // Get the map from the receiver.
   __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
   // to do this because this generic stub does not perform map checks.
   __ test_b(FieldOperand(edi, Map::kBitFieldOffset),
             1 << Map::kIsAccessCheckNeeded);
-  __ j(not_zero, &slow, not_taken);
+  __ j(not_zero, &slow);
   // Check that the key is a smi.
   __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, &slow, not_taken);
+  __ j(not_zero, &slow);
   __ CmpInstanceType(edi, JS_ARRAY_TYPE);
   __ j(equal, &array);
   // Check that the object is some kind of JS object.
   __ CmpInstanceType(edi, FIRST_JS_OBJECT_TYPE);
-  __ j(below, &slow, not_taken);
+  __ j(below, &slow);
 
   // Object case: Check key against length in the elements array.
   // eax: value
@@ -733,7 +733,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Check that the object is in fast mode and writable.
   __ CheckMap(edi, FACTORY->fixed_array_map(), &slow, true);
   __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
-  __ j(below, &fast, taken);
+  __ j(below, &fast);
 
   // Slow case: call runtime.
   __ bind(&slow);
@@ -749,9 +749,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // edi: receiver->elements, a FixedArray
   // flags: compare (ecx, edx.length())
   // do not leave holes in the array:
-  __ j(not_equal, &slow, not_taken);
+  __ j(not_equal, &slow);
   __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
-  __ j(above_equal, &slow, not_taken);
+  __ j(above_equal, &slow);
   // Add 1 to receiver->length, and go to fast array write.
   __ add(FieldOperand(edx, JSArray::kLengthOffset),
          Immediate(Smi::FromInt(1)));
@@ -770,7 +770,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.
   __ cmp(ecx, FieldOperand(edx, JSArray::kLengthOffset));  // Compare smis.
-  __ j(above_equal, &extra, not_taken);
+  __ j(above_equal, &extra);
 
   // Fast case: Do the store.
   __ bind(&fast);
@@ -814,9 +814,9 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   //
   // Check for number.
   __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &number, not_taken);
+  __ j(zero, &number);
   __ CmpObjectType(edx, HEAP_NUMBER_TYPE, ebx);
-  __ j(not_equal, &non_number, taken);
+  __ j(not_equal, &non_number);
   __ bind(&number);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
       masm, Context::NUMBER_FUNCTION_INDEX, edx);
@@ -825,7 +825,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // Check for string.
   __ bind(&non_number);
   __ CmpInstanceType(ebx, FIRST_NONSTRING_TYPE);
-  __ j(above_equal, &non_string, taken);
+  __ j(above_equal, &non_string);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
       masm, Context::STRING_FUNCTION_INDEX, edx);
   __ jmp(&probe);
@@ -833,9 +833,9 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // Check for boolean.
   __ bind(&non_string);
   __ cmp(edx, FACTORY->true_value());
-  __ j(equal, &boolean, not_taken);
+  __ j(equal, &boolean);
   __ cmp(edx, FACTORY->false_value());
-  __ j(not_equal, &miss, taken);
+  __ j(not_equal, &miss);
   __ bind(&boolean);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
       masm, Context::BOOLEAN_FUNCTION_INDEX, edx);
@@ -862,11 +862,11 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 
   // Check that the result is not a smi.
   __ test(edi, Immediate(kSmiTagMask));
-  __ j(zero, miss, not_taken);
+  __ j(zero, miss);
 
   // Check that the value is a JavaScript function, fetching its map into eax.
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
-  __ j(not_equal, miss, not_taken);
+  __ j(not_equal, miss);
 
   // Invoke the function.
   ParameterCount actual(argc);
@@ -942,7 +942,7 @@ static void GenerateCallMiss(MacroAssembler* masm,
     Label invoke, global;
     __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));  // receiver
     __ test(edx, Immediate(kSmiTagMask));
-    __ j(zero, &invoke, not_taken, Label::kNear);
+    __ j(zero, &invoke, Label::kNear);
     __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
     __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
     __ cmp(ebx, JS_GLOBAL_OBJECT_TYPE);
@@ -1024,7 +1024,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // Check that the key is a smi.
   __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, &check_string, not_taken);
+  __ j(not_zero, &check_string);
 
   __ bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from
@@ -1314,22 +1314,22 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
 
   // Check that the receiver isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
+  __ j(zero, &miss);
 
   // Check that the object is a JS array.
   __ CmpObjectType(receiver, JS_ARRAY_TYPE, scratch);
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   // Check that elements are FixedArray.
   // We rely on StoreIC_ArrayLength below to deal with all types of
   // fast elements (including COW).
   __ mov(scratch, FieldOperand(receiver, JSArray::kElementsOffset));
   __ CmpObjectType(scratch, FIXED_ARRAY_TYPE, scratch);
-  __ j(not_equal, &miss, not_taken);
+  __ j(not_equal, &miss);
 
   // Check that value is a smi.
   __ test(value, Immediate(kSmiTagMask));
-  __ j(not_zero, &miss, not_taken);
+  __ j(not_zero, &miss);
 
   // Prepare tail call to StoreIC_ArrayLength.
   __ pop(scratch);

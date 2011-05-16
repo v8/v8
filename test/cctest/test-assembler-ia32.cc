@@ -102,7 +102,7 @@ TEST(AssemblerIa321) {
 
   __ bind(&C);
   __ test(edx, Operand(edx));
-  __ j(not_zero, &L, taken);
+  __ j(not_zero, &L);
   __ ret(0);
 
   CodeDesc desc;
@@ -140,7 +140,7 @@ TEST(AssemblerIa322) {
 
   __ bind(&C);
   __ test(edx, Operand(edx));
-  __ j(not_zero, &L, taken);
+  __ j(not_zero, &L);
   __ ret(0);
 
   // some relocated stuff here, not executed
@@ -351,10 +351,10 @@ TEST(AssemblerIa329) {
   __ fld_d(Operand(esp, 3 * kPointerSize));
   __ fld_d(Operand(esp, 1 * kPointerSize));
   __ FCmp();
-  __ j(parity_even, &nan_l, taken);
-  __ j(equal, &equal_l, taken);
-  __ j(below, &less_l, taken);
-  __ j(above, &greater_l, taken);
+  __ j(parity_even, &nan_l);
+  __ j(equal, &equal_l);
+  __ j(below, &less_l);
+  __ j(above, &greater_l);
 
   __ mov(eax, kUndefined);
   __ ret(0);

@@ -73,6 +73,8 @@ class LCodeGen;
   V(CmpIDAndBranch)                             \
   V(CmpJSObjectEq)                              \
   V(CmpJSObjectEqAndBranch)                     \
+  V(CmpSymbolEq)                                \
+  V(CmpSymbolEqAndBranch)                       \
   V(CmpMapAndBranch)                            \
   V(CmpT)                                       \
   V(CmpTAndBranch)                              \
@@ -102,14 +104,16 @@ class LCodeGen;
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
   V(InvokeFunction)                             \
+  V(IsConstructCall)                            \
+  V(IsConstructCallAndBranch)                   \
   V(IsNull)                                     \
   V(IsNullAndBranch)                            \
   V(IsObject)                                   \
   V(IsObjectAndBranch)                          \
   V(IsSmi)                                      \
   V(IsSmiAndBranch)                             \
-  V(IsConstructCall)                            \
-  V(IsConstructCallAndBranch)                   \
+  V(IsUndetectable)                             \
+  V(IsUndetectableAndBranch)                    \
   V(JSArrayLength)                              \
   V(Label)                                      \
   V(LazyBailout)                                \
@@ -666,6 +670,28 @@ class LCmpJSObjectEqAndBranch: public LControlInstruction<2, 0> {
 };
 
 
+class LCmpSymbolEq: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LCmpSymbolEq(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpSymbolEq, "cmp-symbol-eq")
+};
+
+
+class LCmpSymbolEqAndBranch: public LControlInstruction<2, 0> {
+ public:
+  LCmpSymbolEqAndBranch(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpSymbolEqAndBranch, "cmp-symbol-eq-and-branch")
+};
+
+
 class LIsNull: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LIsNull(LOperand* value) {
@@ -738,6 +764,31 @@ class LIsSmiAndBranch: public LControlInstruction<1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(IsSmiAndBranch, "is-smi-and-branch")
+
+  virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class LIsUndetectable: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LIsUndetectable(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsUndetectable, "is-undetectable")
+  DECLARE_HYDROGEN_ACCESSOR(IsUndetectable)
+};
+
+
+class LIsUndetectableAndBranch: public LControlInstruction<1, 1> {
+ public:
+  explicit LIsUndetectableAndBranch(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsUndetectableAndBranch,
+                               "is-undetectable-and-branch")
 
   virtual void PrintDataTo(StringStream* stream);
 };

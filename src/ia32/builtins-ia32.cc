@@ -356,12 +356,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
   // If the result is a smi, it is *not* an object in the ECMA sense.
   __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &use_receiver, not_taken);
+  __ j(zero, &use_receiver);
 
   // If the type of the result (stored in its map) is less than
   // FIRST_JS_OBJECT_TYPE, it is not an object in the ECMA sense.
   __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
-  __ j(above_equal, &exit, not_taken);
+  __ j(above_equal, &exit);
 
   // Throw away the result of the constructor invocation and use the
   // on-stack receiver as the result.
@@ -568,7 +568,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 1. Make sure we have at least one argument.
   { Label done;
     __ test(eax, Operand(eax));
-    __ j(not_zero, &done, taken);
+    __ j(not_zero, &done);
     __ pop(ebx);
     __ push(Immediate(factory->undefined_value()));
     __ push(ebx);
@@ -582,9 +582,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 1 ~ return address.
   __ mov(edi, Operand(esp, eax, times_4, 1 * kPointerSize));
   __ test(edi, Immediate(kSmiTagMask));
-  __ j(zero, &non_function, not_taken);
+  __ j(zero, &non_function);
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-  __ j(not_equal, &non_function, not_taken);
+  __ j(not_equal, &non_function);
 
 
   // 3a. Patch the first argument if necessary when calling a function.
@@ -680,7 +680,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin.
   { Label function;
     __ test(edi, Operand(edi));
-    __ j(not_zero, &function, taken);
+    __ j(not_zero, &function);
     __ Set(ebx, Immediate(0));
     __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
     __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
@@ -729,7 +729,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
   // Check if the arguments will overflow the stack.
   __ cmp(ecx, Operand(edx));
-  __ j(greater, &okay, taken);  // Signed comparison.
+  __ j(greater, &okay);  // Signed comparison.
 
   // Out of stack space.
   __ push(Operand(ebp, 4 * kPointerSize));  // push this
@@ -1581,7 +1581,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(masm->isolate());
   __ cmp(esp, Operand::StaticVariable(stack_limit));
-  __ j(above_equal, &ok, taken, Label::kNear);
+  __ j(above_equal, &ok, Label::kNear);
   StackCheckStub stub;
   __ TailCallStub(&stub);
   __ Abort("Unreachable code: returned from tail call.");

@@ -26,3 +26,40 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 global.Proxy = new $Object();
+
+var $Proxy = global.Proxy
+
+var fundamentalTraps = [
+  "getOwnPropertyDescriptor",
+  "getPropertyDescriptor",
+  "getOwnPropertyNames",
+  "getPropertyNames",
+  "defineProperty",
+  "delete",
+  "fix",
+]
+
+var derivedTraps = [
+  "has",
+  "hasOwn",
+  "get",
+  "set",
+  "enumerate",
+  "keys",
+]
+
+var functionTraps = [
+  "callTrap",
+  "constructTrap",
+]
+
+$Proxy.createFunction = function(handler, callTrap, constructTrap) {
+  handler.callTrap = callTrap
+  handler.constructTrap = constructTrap
+  $Proxy.create(handler)
+}
+
+$Proxy.create = function(handler, proto) {
+  if (!IS_SPEC_OBJECT(proto)) proto = $Object.prototype
+  return %CreateJSProxy(handler, proto)
+}

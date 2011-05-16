@@ -1757,7 +1757,7 @@ MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub, Condition cond) {
   { MaybeObject* maybe_result = stub->TryGetCode();
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
+  Jump(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET, cond);
   return result;
 }
 

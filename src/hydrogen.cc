@@ -115,12 +115,13 @@ void HBasicBlock::AddInstruction(HInstruction* instr) {
 }
 
 
-HDeoptimize* HBasicBlock::CreateDeoptimize() {
+HDeoptimize* HBasicBlock::CreateDeoptimize(
+    HDeoptimize::UseEnvironment has_uses) {
   ASSERT(HasEnvironment());
+  if (has_uses == HDeoptimize::kNoUses) return new(zone()) HDeoptimize(0);
+
   HEnvironment* environment = last_environment();
-
   HDeoptimize* instr = new(zone()) HDeoptimize(environment->length());
-
   for (int i = 0; i < environment->length(); i++) {
     HValue* val = environment->values()->at(i);
     instr->AddEnvironmentValue(val);
@@ -2490,7 +2491,9 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     // Unconditionally deoptimize on the first non-smi compare.
     clause->RecordTypeFeedback(oracle());
     if (!clause->IsSmiCompare()) {
-      current_block()->FinishExitWithDeoptimization();
+      // Finish with deoptimize and add uses of enviroment values to
+      // account for invisible uses.
+      current_block()->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
       set_current_block(NULL);
       break;
     }
@@ -3237,7 +3240,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExitWithDeoptimization();
+    current_block()->FinishExitWithDeoptimization(HDeoptimize::kNoUses);
   } else {
     HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
     instr->set_position(expr->position());
@@ -3916,7 +3919,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    current_block()->FinishExitWithDeoptimization();
+    current_block()->FinishExitWithDeoptimization(HDeoptimize::kNoUses);
   } else {
     HValue* context = environment()->LookupContext();
     HCallNamed* call = new(zone()) HCallNamed(context, name, argument_count);
@@ -4630,6 +4633,10 @@ void HGraphBuilder::VisitSub(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
   HInstruction* instr = new(zone()) HMul(value, graph_->GetConstantMinus1());
+  TypeInfo info = oracle()->UnaryType(expr);
+  Representation rep = ToRepresentation(info);
+  TraceRepresentation(expr->op(), info, instr, rep);
+  instr->AssumeRepresentation(rep);
   ast_context()->ReturnInstruction(instr, expr->id());
 }
 
@@ -4694,11 +4701,13 @@ HInstruction* HGraphBuilder::BuildIncrement(HValue* value,
       ? graph_->GetConstant1()
       : graph_->GetConstantMinus1();
   HInstruction* instr = new(zone()) HAdd(value, delta);
-  Representation rep = ToRepresentation(oracle()->IncrementType(expr));
+  TypeInfo info = oracle()->IncrementType(expr);
+  Representation rep = ToRepresentation(info);
   if (rep.IsTagged()) {
     rep = Representation::Integer32();
   }
-  AssumeRepresentation(instr, rep);
+  TraceRepresentation(expr->op(), info, instr, rep);
+  instr->AssumeRepresentation(rep);
   return instr;
 }
 
@@ -4834,6 +4843,18 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
 }
 
 
+HCompareSymbolEq* HGraphBuilder::BuildSymbolCompare(HValue* left,
+                                                    HValue* right,
+                                                    Token::Value op) {
+  ASSERT(op == Token::EQ || op == Token::EQ_STRICT);
+  AddInstruction(new(zone()) HCheckNonSmi(left));
+  AddInstruction(HCheckInstanceType::NewIsSymbol(left));
+  AddInstruction(new(zone()) HCheckNonSmi(right));
+  AddInstruction(HCheckInstanceType::NewIsSymbol(right));
+  return new(zone()) HCompareSymbolEq(left, right, op);
+}
+
+
 HStringCharCodeAt* HGraphBuilder::BuildStringCharCodeAt(HValue* string,
                                                         HValue* index) {
   AddInstruction(new(zone()) HCheckNonSmi(string));
@@ -4858,15 +4879,13 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
        (right->IsConstant() && HConstant::cast(right)->HasStringValue()))) {
     return instr;
   }
-  if (FLAG_trace_representation) {
-    PrintF("Info: %s/%s\n", info.ToString(), ToRepresentation(info).Mnemonic());
-  }
   Representation rep = ToRepresentation(info);
   // We only generate either int32 or generic tagged bitwise operations.
   if (instr->IsBitwiseBinaryOperation() && rep.IsDouble()) {
     rep = Representation::Integer32();
   }
-  AssumeRepresentation(instr, rep);
+  TraceRepresentation(expr->op(), info, instr, rep);
+  instr->AssumeRepresentation(rep);
   return instr;
 }
 
@@ -5034,21 +5053,23 @@ void HGraphBuilder::VisitCommon(BinaryOperation* expr) {
 }
 
 
-void HGraphBuilder::AssumeRepresentation(HValue* value, Representation r) {
-  if (value->CheckFlag(HValue::kFlexibleRepresentation)) {
-    if (FLAG_trace_representation) {
-      PrintF("Assume representation for %s to be %s (%d)\n",
-             value->Mnemonic(),
-             r.Mnemonic(),
-             graph_->GetMaximumValueID());
-    }
-    value->ChangeRepresentation(r);
-    // The representation of the value is dictated by type feedback and
-    // will not be changed later.
-    value->ClearFlag(HValue::kFlexibleRepresentation);
-  } else if (FLAG_trace_representation) {
-    PrintF("No representation assumed\n");
-  }
+void HGraphBuilder::TraceRepresentation(Token::Value op,
+                                        TypeInfo info,
+                                        HValue* value,
+                                        Representation rep) {
+  if (!FLAG_trace_representation) return;
+  // TODO(svenpanne) Under which circumstances are we actually not flexible?
+  // At first glance, this looks a bit weird...
+  bool flexible = value->CheckFlag(HValue::kFlexibleRepresentation);
+  PrintF("Operation %s has type info %s, %schange representation assumption "
+         "for %s (ID %d) from %s to %s\n",
+         Token::Name(op),
+         info.ToString(),
+         flexible ? "" : " DO NOT ",
+         value->Mnemonic(),
+         graph_->GetMaximumValueID(),
+         value->representation().Mnemonic(),
+         rep.Mnemonic());
 }
 
 
@@ -5153,6 +5174,9 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         return Bailout("Unsupported non-primitive compare");
         break;
     }
+  } else if (type_info.IsString() && oracle()->IsSymbolCompare(expr) &&
+             (op == Token::EQ || op == Token::EQ_STRICT)) {
+    instr = BuildSymbolCompare(left, right, op);
   } else {
     HCompare* compare = new(zone()) HCompare(left, right, op);
     Representation r = ToRepresentation(type_info);
@@ -5274,7 +5298,11 @@ void HGraphBuilder::GenerateIsNonNegativeSmi(CallRuntime* call) {
 
 
 void HGraphBuilder::GenerateIsUndetectableObject(CallRuntime* call) {
-  return Bailout("inlined runtime function: IsUndetectableObject");
+  ASSERT(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* value = Pop();
+  ast_context()->ReturnInstruction(new(zone()) HIsUndetectable(value),
+                                   call->id());
 }
 
 
