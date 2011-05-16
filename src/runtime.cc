@@ -7928,12 +7928,13 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     // If the "property" we were looking for is a local variable or an
     // argument in a context, the receiver is the global object; see
     // ECMA-262, 3rd., 10.1.6 and 10.2.3.
-    JSObject* receiver =
-        isolate->context()->global()->global_receiver();
+    // GetElement below can cause GC.
+    Handle<JSObject> receiver(
+        isolate->context()->global()->global_receiver());
     MaybeObject* value = (holder->IsContext())
         ? Context::cast(*holder)->get(index)
         : JSObject::cast(*holder)->GetElement(index);
-    return MakePair(Unhole(isolate->heap(), value, attributes), receiver);
+    return MakePair(Unhole(isolate->heap(), value, attributes), *receiver);
   }
 
   // If the holder is found, we read the property from it.
@@ -7948,10 +7949,14 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     } else {
       receiver = ComputeReceiverForNonGlobal(isolate, object);
     }
+
+    // GetProperty below can cause GC.
+    Handle<JSObject> receiver_handle(receiver);
+
     // No need to unhole the value here. This is taken care of by the
     // GetProperty function.
     MaybeObject* value = object->GetProperty(*name);
-    return MakePair(value, receiver);
+    return MakePair(value, *receiver_handle);
   }
 
   if (throw_error) {
