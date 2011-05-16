@@ -166,15 +166,6 @@ class CallbacksDescriptor:  public Descriptor {
 
 class LookupResult BASE_EMBEDDED {
  public:
-  // Where did we find the result;
-  enum {
-    NOT_FOUND,
-    DESCRIPTOR_TYPE,
-    DICTIONARY_TYPE,
-    INTERCEPTOR_TYPE,
-    CONSTANT_TYPE
-  } lookup_type_;
-
   LookupResult()
       : lookup_type_(NOT_FOUND),
         cacheable_(true),
@@ -211,6 +202,12 @@ class LookupResult BASE_EMBEDDED {
     number_ = entry;
   }
 
+  void HandlerResult() {
+    lookup_type_ = HANDLER_TYPE;
+    holder_ = NULL;
+    details_ = PropertyDetails(NONE, HANDLER);
+  }
+
   void InterceptorResult(JSObject* holder) {
     lookup_type_ = INTERCEPTOR_TYPE;
     holder_ = holder;
@@ -245,6 +242,7 @@ class LookupResult BASE_EMBEDDED {
   bool IsDontEnum() { return details_.IsDontEnum(); }
   bool IsDeleted() { return details_.IsDeleted(); }
   bool IsFound() { return lookup_type_ != NOT_FOUND; }
+  bool IsHandler() { return lookup_type_ == HANDLER_TYPE; }
 
   // Is the result is a property excluding transitions and the null
   // descriptor?
@@ -345,6 +343,16 @@ class LookupResult BASE_EMBEDDED {
   }
 
  private:
+  // Where did we find the result;
+  enum {
+    NOT_FOUND,
+    DESCRIPTOR_TYPE,
+    DICTIONARY_TYPE,
+    HANDLER_TYPE,
+    INTERCEPTOR_TYPE,
+    CONSTANT_TYPE
+  } lookup_type_;
+
   JSObject* holder_;
   int number_;
   bool cacheable_;

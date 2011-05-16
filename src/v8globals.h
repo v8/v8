@@ -322,11 +322,12 @@ enum PropertyType {
   FIELD                     = 1,  // only in fast mode
   CONSTANT_FUNCTION         = 2,  // only in fast mode
   CALLBACKS                 = 3,
-  INTERCEPTOR               = 4,  // only in lookup results, not in descriptors.
-  MAP_TRANSITION            = 5,  // only in fast mode
-  EXTERNAL_ARRAY_TRANSITION = 6,
-  CONSTANT_TRANSITION       = 7,  // only in fast mode
-  NULL_DESCRIPTOR           = 8,  // only in fast mode
+  HANDLER                   = 4,  // only in lookup results, not in descriptors
+  INTERCEPTOR               = 5,  // only in lookup results, not in descriptors
+  MAP_TRANSITION            = 6,  // only in fast mode
+  EXTERNAL_ARRAY_TRANSITION = 7,
+  CONSTANT_TRANSITION       = 8,  // only in fast mode
+  NULL_DESCRIPTOR           = 9,  // only in fast mode
   // All properties before MAP_TRANSITION are real.
   FIRST_PHANTOM_PROPERTY_TYPE = MAP_TRANSITION,
   // There are no IC stubs for NULL_DESCRIPTORS. Therefore,

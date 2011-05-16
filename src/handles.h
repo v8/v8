@@ -243,6 +243,10 @@ Handle<Object> GetProperty(Handle<JSObject> obj,
                            const char* name);
 
 Handle<Object> GetProperty(Handle<Object> obj,
+                           const char* name,
+                           LookupResult* result);
+
+Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key);
 
 Handle<Object> GetProperty(Handle<JSObject> obj,

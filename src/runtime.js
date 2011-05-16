@@ -647,3 +647,20 @@ function DefaultString(x) {
 // that is cloned when running the code.  It is essential that the
 // boilerplate gets the right prototype.
 %FunctionSetPrototype($Array, new $Array(0));
+
+
+/* ------------------------------------------
+- - -   H a r m o n y   P r o x i e s   - - -
+---------------------------------------------
+*/
+
+function DERIVED_GET_TRAP(receiver, name) {
+  var desc = this.getPropertyDescriptor(name);
+  if (IS_UNDEFINED(desc)) { return desc; }
+  if ('value' in desc) {
+    return desc.value;
+  } else {
+    if (IS_UNDEFINED(desc.get)) { return desc.get; }
+    return desc.get().call(receiver);  // The proposal says so...
+  }
+}

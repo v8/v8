@@ -808,6 +808,9 @@ class Object : public MaybeObject {
                                                        Object* structure,
                                                        String* name,
                                                        Object* holder);
+  MUST_USE_RESULT MaybeObject* GetPropertyWithHandler(Object* receiver,
+                                                      String* name,
+                                                      Object* handler);
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
                                                             JSFunction* getter);
 

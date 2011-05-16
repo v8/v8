@@ -174,11 +174,12 @@ PropertyType.Normal                  = 0;
 PropertyType.Field                   = 1;
 PropertyType.ConstantFunction        = 2;
 PropertyType.Callbacks               = 3;
-PropertyType.Interceptor             = 4;
-PropertyType.MapTransition           = 5;
-PropertyType.ExternalArrayTransition = 6;
-PropertyType.ConstantTransition      = 7;
-PropertyType.NullDescriptor          = 8;
+PropertyType.Handler                 = 4;
+PropertyType.Interceptor             = 5;
+PropertyType.MapTransition           = 6;
+PropertyType.ExternalArrayTransition = 7;
+PropertyType.ConstantTransition      = 8;
+PropertyType.NullDescriptor          = 9;
 
 
 // Different attributes for a property.

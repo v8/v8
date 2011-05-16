@@ -145,11 +145,16 @@ static Handle<Object> Invoke(bool construct,
 }
 
 
-Handle<Object> Execution::Call(Handle<JSFunction> func,
+Handle<Object> Execution::Call(Handle<Object> callable,
                                Handle<Object> receiver,
                                int argc,
                                Object*** args,
                                bool* pending_exception) {
+  if (!callable->IsJSFunction()) {
+    callable = TryGetFunctionDelegate(callable, pending_exception);
+    if (*pending_exception) return callable;
+  }
+  Handle<JSFunction> func = Handle<JSFunction>::cast(callable);
   return Invoke(false, func, receiver, argc, args, pending_exception);
 }
 

@@ -903,7 +903,8 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   PropertyAttributes attr;
-  if (lookup.IsProperty() && lookup.type() == INTERCEPTOR) {
+  if (lookup.IsProperty() &&
+      (lookup.type() == INTERCEPTOR || lookup.type() == HANDLER)) {
     // Get the property.
     Object* result;
     { MaybeObject* maybe_result =
