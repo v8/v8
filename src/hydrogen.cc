@@ -3725,6 +3725,11 @@ HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
   HLoadExternalArrayPointer* external_elements =
       new(zone()) HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
+  if (expr->external_array_type() == kExternalPixelArray) {
+    HClampToUint8* clamp = new(zone()) HClampToUint8(val);
+    AddInstruction(clamp);
+    val = clamp;
+  }
   return new(zone()) HStoreKeyedSpecializedArrayElement(
       external_elements,
       key,

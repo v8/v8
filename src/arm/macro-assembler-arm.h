@@ -987,6 +987,13 @@ class MacroAssembler: public Assembler {
                                  Register result);
 
 
+  void ClampUint8(Register output_reg, Register input_reg);
+
+  void ClampDoubleToUint8(Register result_reg,
+                          DoubleRegister input_reg,
+                          DoubleRegister temp_double_reg);
+
+
  private:
   void CallCFunctionHelper(Register function,
                            ExternalReference function_reference,

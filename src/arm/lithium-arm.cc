@@ -1751,6 +1751,24 @@ LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
+  HValue* value = instr->value();
+  Representation input_rep = value->representation();
+  LOperand* reg = UseRegister(value);
+  if (input_rep.IsDouble()) {
+    return DefineAsRegister(new LClampDoubleToUint8(reg, FixedTemp(d1)));
+  } else if (input_rep.IsInteger32()) {
+    return DefineAsRegister(new LClampIToUint8(reg));
+  } else {
+    ASSERT(input_rep.IsTagged());
+    // Register allocator doesn't (yet) support allocation of double
+    // temps. Reserve d1 explicitly.
+    LClampTaggedToUint8* result = new LClampTaggedToUint8(reg, FixedTemp(d1));
+    return AssignEnvironment(DefineAsRegister(result));
+  }
+}
+
+
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
   return new LReturn(UseFixed(instr->value(), r0));
 }

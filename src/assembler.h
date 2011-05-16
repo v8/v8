@@ -67,6 +67,8 @@ class DoubleConstant: public AllStatic {
   static const double min_int;
   static const double one_half;
   static const double minus_zero;
+  static const double zero;
+  static const double uint8_max_value;
   static const double negative_infinity;
   static const double nan;
 };
@@ -607,6 +609,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_min_int();
   static ExternalReference address_of_one_half();
   static ExternalReference address_of_minus_zero();
+  static ExternalReference address_of_zero();
+  static ExternalReference address_of_uint8_max_value();
   static ExternalReference address_of_negative_infinity();
   static ExternalReference address_of_nan();
 

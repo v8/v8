@@ -366,7 +366,6 @@ const char* HValue::Mnemonic() const {
 
 
 void HValue::SetOperandAt(int index, HValue* value) {
-  ASSERT(value == NULL || !value->representation().IsNone());
   RegisterUse(index, value);
   InternalSetOperandAt(index, value);
 }
@@ -600,6 +599,8 @@ void HInstruction::Verify() {
         ASSERT(cur == other_operand);
       }
     } else {
+      // If the following assert fires, you may have forgotten an
+      // AddInstruction.
       ASSERT(other_block->Dominates(cur_block));
     }
   }

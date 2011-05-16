@@ -77,6 +77,36 @@ void MacroAssembler::RecordWriteHelper(Register object,
 }
 
 
+void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
+                                        XMMRegister scratch_reg,
+                                        Register result_reg) {
+  Label done;
+  ExternalReference zero_ref = ExternalReference::address_of_zero();
+  movdbl(scratch_reg, Operand::StaticVariable(zero_ref));
+  Set(result_reg, Immediate(0));
+  ucomisd(input_reg, scratch_reg);
+  j(below, &done, Label::kNear);
+  ExternalReference half_ref = ExternalReference::address_of_one_half();
+  movdbl(scratch_reg, Operand::StaticVariable(half_ref));
+  addsd(scratch_reg, input_reg);
+  cvttsd2si(result_reg, Operand(scratch_reg));
+  test(result_reg, Immediate(0xFFFFFF00));
+  j(zero, &done, Label::kNear);
+  Set(result_reg, Immediate(255));
+  bind(&done);
+}
+
+
+void MacroAssembler::ClampUint8(Register reg) {
+  Label done;
+  test(reg, Immediate(0xFFFFFF00));
+  j(zero, &done, Label::kNear);
+  setcc(negative, reg);  // 1 if negative, 0 if positive.
+  dec_b(reg);  // 0 if negative, 255 if positive.
+  bind(&done);
+}
+
+
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 Condition cc,

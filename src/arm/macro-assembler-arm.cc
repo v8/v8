@@ -3028,6 +3028,44 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
 }
 
 
+void MacroAssembler::ClampUint8(Register output_reg, Register input_reg) {
+  Usat(output_reg, 8, Operand(input_reg));
+}
+
+
+void MacroAssembler::ClampDoubleToUint8(Register result_reg,
+                                        DoubleRegister input_reg,
+                                        DoubleRegister temp_double_reg) {
+  Label above_zero;
+  Label done;
+  Label in_bounds;
+
+  vmov(temp_double_reg, 0.0);
+  VFPCompareAndSetFlags(input_reg, temp_double_reg);
+  b(gt, &above_zero);
+
+  // Double value is less than zero, NaN or Inf, return 0.
+  mov(result_reg, Operand(0));
+  b(al, &done);
+
+  // Double value is >= 255, return 255.
+  bind(&above_zero);
+  vmov(temp_double_reg, 255.0);
+  VFPCompareAndSetFlags(input_reg, temp_double_reg);
+  b(le, &in_bounds);
+  mov(result_reg, Operand(255));
+  b(al, &done);
+
+  // In 0-255 range, round and truncate.
+  bind(&in_bounds);
+  vmov(temp_double_reg, 0.5);
+  vadd(temp_double_reg, input_reg, temp_double_reg);
+  vcvt_u32_f64(s0, temp_double_reg);
+  vmov(result_reg, s0);
+  bind(&done);
+}
+
+
 CodePatcher::CodePatcher(byte* address, int instructions)
     : address_(address),
       instructions_(instructions),

@@ -238,6 +238,13 @@ class MacroAssembler: public Assembler {
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();
 
+  void ClampUint8(Register reg);
+
+  void ClampDoubleToUint8(XMMRegister input_reg,
+                          XMMRegister scratch_reg,
+                          Register result_reg);
+
+
   // Smi tagging support.
   void SmiTag(Register reg) {
     ASSERT(kSmiTag == 0);

@@ -2570,6 +2570,37 @@ void MacroAssembler::CheckMap(Register obj,
 }
 
 
+void MacroAssembler::ClampUint8(Register reg) {
+  Label done;
+  testl(reg, Immediate(0xFFFFFF00));
+  j(zero, &done, Label::kNear);
+  setcc(negative, reg);  // 1 if negative, 0 if positive.
+  decb(reg);  // 0 if negative, 255 if positive.
+  bind(&done);
+}
+
+
+void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
+                                        XMMRegister temp_xmm_reg,
+                                        Register result_reg,
+                                        Register temp_reg) {
+  Label done;
+  Set(result_reg, 0);
+  xorps(temp_xmm_reg, temp_xmm_reg);
+  ucomisd(input_reg, temp_xmm_reg);
+  j(below, &done, Label::kNear);
+  uint64_t one_half = BitCast<uint64_t, double>(0.5);
+  Set(temp_reg, one_half);
+  movq(temp_xmm_reg, temp_reg);
+  addsd(temp_xmm_reg, input_reg);
+  cvttsd2si(result_reg, temp_xmm_reg);
+  testl(result_reg, Immediate(0xFFFFFF00));
+  j(zero, &done, Label::kNear);
+  Set(result_reg, 255);
+  bind(&done);
+}
+
+
 void MacroAssembler::AbortIfNotNumber(Register object) {
   Label ok;
   Condition is_smi = CheckSmi(object);
