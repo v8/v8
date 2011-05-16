@@ -296,6 +296,7 @@ class Immediate BASE_EMBEDDED {
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
+  friend class MacroAssembler;
 };
 
 

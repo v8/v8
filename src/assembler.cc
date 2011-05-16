@@ -74,6 +74,18 @@ const double DoubleConstant::negative_infinity = -V8_INFINITY;
 const char* RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
 // -----------------------------------------------------------------------------
+// Implementation of AssemblerBase
+
+AssemblerBase::AssemblerBase(Isolate* isolate)
+    : isolate_(isolate),
+      jit_cookie_(0) {
+  if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
+    jit_cookie_ = V8::RandomPrivate(isolate);
+  }
+}
+
+
+// -----------------------------------------------------------------------------
 // Implementation of Label
 
 int Label::pos() const {

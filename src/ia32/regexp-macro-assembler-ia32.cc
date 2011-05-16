@@ -662,7 +662,7 @@ void RegExpMacroAssemblerIA32::Fail() {
 }
 
 
-Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
+Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   // Finalize code - write the entry point code now we know how many
   // registers we need.
 
@@ -879,7 +879,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
                                            Code::ComputeFlags(Code::REGEXP),
                                            masm_->CodeObject());
   PROFILE(masm_->isolate(), RegExpCodeCreateEvent(*code, *source));
-  return Handle<Object>::cast(code);
+  return Handle<HeapObject>::cast(code);
 }
 
 

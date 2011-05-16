@@ -1210,6 +1210,11 @@ class Heap {
 
   GCTracer* tracer() { return tracer_; }
 
+  double total_regexp_code_generated() { return total_regexp_code_generated_; }
+  void IncreaseTotalRegexpCodeGenerated(int size) {
+    total_regexp_code_generated_ += size;
+  }
+
   // Returns maximum GC pause.
   int get_max_gc_pause() { return max_gc_pause_; }
 
@@ -1492,6 +1497,9 @@ class Heap {
       JSFunction* function,
       SharedFunctionInfo* shared,
       Object* prototype);
+
+  // Total RegExp code ever generated
+  double total_regexp_code_generated_;
 
   GCTracer* tracer_;
 

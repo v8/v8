@@ -435,7 +435,8 @@ void RegExpMacroAssemblerIrregexp::IfRegisterEqPos(int register_index,
 }
 
 
-Handle<Object> RegExpMacroAssemblerIrregexp::GetCode(Handle<String> source) {
+Handle<HeapObject> RegExpMacroAssemblerIrregexp::GetCode(
+    Handle<String> source) {
   Bind(&backtrack_);
   Emit(BC_POP_BT, 0);
   Handle<ByteArray> array = FACTORY->NewByteArray(length());

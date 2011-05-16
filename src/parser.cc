@@ -1308,7 +1308,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
     var = top_scope_->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
-      var = top_scope_->DeclareLocal(name, mode);
+      var = top_scope_->DeclareLocal(name, mode, Scope::VAR_OR_CONST);
     } else {
       // The name was declared before; check for conflicting
       // re-declarations. If the previous declaration was a const or the
@@ -1580,6 +1580,12 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
                        is_const /* always bound for CONST! */,
                        CHECK_OK);
     nvars++;
+    if (top_scope_->num_var_or_const() > kMaxNumFunctionLocals) {
+      ReportMessageAt(scanner().location(), "too_many_variables",
+                      Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    }
 
     // Parse initialization expression if present and/or needed. A
     // declaration of the form:
@@ -3562,7 +3568,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         reserved_loc = scanner().location();
       }
 
-      Variable* parameter = top_scope_->DeclareLocal(param_name, Variable::VAR);
+      Variable* parameter = top_scope_->DeclareLocal(param_name,
+                                                     Variable::VAR,
+                                                     Scope::PARAMETER);
       top_scope_->AddParameter(parameter);
       num_parameters++;
       if (num_parameters > kMaxNumFunctionParameters) {
