@@ -84,7 +84,8 @@ namespace internal {
 // List of code stubs only used on MIPS platforms.
 #ifdef V8_TARGET_ARCH_MIPS
 #define CODE_STUB_LIST_MIPS(V)  \
-  V(RegExpCEntry)
+  V(RegExpCEntry)               \
+  V(DirectCEntry)
 #else
 #define CODE_STUB_LIST_MIPS(V)
 #endif

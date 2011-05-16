@@ -38,12 +38,7 @@ namespace internal {
 
 
 Address ExitFrame::ComputeStackPointer(Address fp) {
-  Address marker = Memory::Address_at(fp + ExitFrameConstants::kMarkerOffset);
-  Address sp = fp + ExitFrameConstants::kSPOffset;
-  if (marker == NULL) {
-    sp -= FPURegister::kNumRegisters * kDoubleSize + 2 * kPointerSize;
-  }
-  return sp;
+  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
 }
 
 

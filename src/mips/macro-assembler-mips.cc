@@ -1992,6 +1992,159 @@ void MacroAssembler::PopTryHandler() {
 }
 
 
+void MacroAssembler::Throw(Register value) {
+  // v0 is expected to hold the exception.
+  Move(v0, value);
+
+  // Adjust this code if not the case.
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
+  // Drop the sp to the top of the handler.
+  li(a3, Operand(ExternalReference(Isolate::k_handler_address,
+                                      isolate())));
+  lw(sp, MemOperand(a3));
+
+  // Restore the next handler and frame pointer, discard handler state.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  pop(a2);
+  sw(a2, MemOperand(a3));
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
+  MultiPop(a3.bit() | fp.bit());
+
+  // Before returning we restore the context from the frame pointer if
+  // not NULL.  The frame pointer is NULL in the exception handler of a
+  // JS entry frame.
+  // Set cp to NULL if fp is NULL.
+  Label done;
+  Branch(USE_DELAY_SLOT, &done, eq, fp, Operand(zero_reg));
+  mov(cp, zero_reg);   // In branch delay slot.
+  lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  bind(&done);
+
+#ifdef DEBUG
+  // When emitting debug_code, set ra as return address for the jump.
+  // 5 instructions: add: 1, pop: 2, jump: 2.
+  const int kOffsetRaInstructions = 5;
+  Label find_ra;
+
+  if (emit_debug_code()) {
+    // Compute ra for the Jump(t9).
+    const int kOffsetRaBytes = kOffsetRaInstructions * Assembler::kInstrSize;
+
+    // This branch-and-link sequence is needed to get the current PC on mips,
+    // saved to the ra register. Then adjusted for instruction count.
+    bal(&find_ra);  // bal exposes branch-delay.
+    nop();  // Branch delay slot nop.
+    bind(&find_ra);
+    addiu(ra, ra, kOffsetRaBytes);
+  }
+#endif
+
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+  pop(t9);  // 2 instructions: lw, add sp.
+  Jump(t9);  // 2 instructions: jr, nop (in delay slot).
+
+  if (emit_debug_code()) {
+    // Make sure that the expected number of instructions were generated.
+    ASSERT_EQ(kOffsetRaInstructions,
+              InstructionsGeneratedSince(&find_ra));
+  }
+}
+
+
+void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
+                                      Register value) {
+  // Adjust this code if not the case.
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
+  // v0 is expected to hold the exception.
+  Move(v0, value);
+
+  // Drop sp to the top stack handler.
+  li(a3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+  lw(sp, MemOperand(a3));
+
+  // Unwind the handlers until the ENTRY handler is found.
+  Label loop, done;
+  bind(&loop);
+  // Load the type of the current stack handler.
+  const int kStateOffset = StackHandlerConstants::kStateOffset;
+  lw(a2, MemOperand(sp, kStateOffset));
+  Branch(&done, eq, a2, Operand(StackHandler::ENTRY));
+  // Fetch the next handler in the list.
+  const int kNextOffset = StackHandlerConstants::kNextOffset;
+  lw(sp, MemOperand(sp, kNextOffset));
+  jmp(&loop);
+  bind(&done);
+
+  // Set the top handler address to next handler past the current ENTRY handler.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  pop(a2);
+  sw(a2, MemOperand(a3));
+
+  if (type == OUT_OF_MEMORY) {
+    // Set external caught exception to false.
+    ExternalReference external_caught(
+           Isolate::k_external_caught_exception_address, isolate());
+    li(a0, Operand(false, RelocInfo::NONE));
+    li(a2, Operand(external_caught));
+    sw(a0, MemOperand(a2));
+
+    // Set pending exception and v0 to out of memory exception.
+    Failure* out_of_memory = Failure::OutOfMemoryException();
+    li(v0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
+    li(a2, Operand(ExternalReference(Isolate::k_pending_exception_address,
+                                        isolate())));
+    sw(v0, MemOperand(a2));
+  }
+
+  // Stack layout at this point. See also StackHandlerConstants.
+  // sp ->   state (ENTRY)
+  //         fp
+  //         ra
+
+  // Discard handler state (a2 is not used) and restore frame pointer.
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
+  MultiPop(a2.bit() | fp.bit());  // a2: discarded state.
+  // Before returning we restore the context from the frame pointer if
+  // not NULL.  The frame pointer is NULL in the exception handler of a
+  // JS entry frame.
+  Label cp_null;
+  Branch(USE_DELAY_SLOT, &cp_null, eq, fp, Operand(zero_reg));
+  mov(cp, zero_reg);   // In the branch delay slot.
+  lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  bind(&cp_null);
+
+#ifdef DEBUG
+  // When emitting debug_code, set ra as return address for the jump.
+  // 5 instructions: add: 1, pop: 2, jump: 2.
+  const int kOffsetRaInstructions = 5;
+  Label find_ra;
+
+  if (emit_debug_code()) {
+    // Compute ra for the Jump(t9).
+    const int kOffsetRaBytes = kOffsetRaInstructions * Assembler::kInstrSize;
+
+    // This branch-and-link sequence is needed to get the current PC on mips,
+    // saved to the ra register. Then adjusted for instruction count.
+    bal(&find_ra);  // bal exposes branch-delay slot.
+    nop();  // Branch delay slot nop.
+    bind(&find_ra);
+    addiu(ra, ra, kOffsetRaBytes);
+  }
+#endif
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+  pop(t9);  // 2 instructions: lw, add sp.
+  Jump(t9);  // 2 instructions: jr, nop (in delay slot).
+
+  if (emit_debug_code()) {
+    // Make sure that the expected number of instructions were generated.
+    ASSERT_EQ(kOffsetRaInstructions,
+              InstructionsGeneratedSince(&find_ra));
+  }
+}
+
+
 void MacroAssembler::AllocateInNewSpace(int object_size,
                                         Register result,
                                         Register scratch1,
@@ -2351,7 +2504,7 @@ void MacroAssembler::CopyBytes(Register src,
 
   // Copy bytes in word size chunks.
   bind(&word_loop);
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     And(scratch, src, kPointerSize - 1);
     Assert(eq, "Expecting alignment for CopyBytes",
         scratch, Operand(zero_reg));
@@ -2680,9 +2833,134 @@ void MacroAssembler::CallStub(CodeStub* stub, Condition cond,
 }
 
 
+MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub, Condition cond,
+                                         Register r1, const Operand& r2) {
+  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  Object* result;
+  { MaybeObject* maybe_result = stub->TryGetCode();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  Call(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET, cond, r1, r2);
+  return result;
+}
+
+
+
 void MacroAssembler::TailCallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
+}
+
+MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub,
+                                             Condition cond,
+                                             Register r1,
+                                             const Operand& r2) {
+  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  Object* result;
+  { MaybeObject* maybe_result = stub->TryGetCode();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2);
+  return result;
+}
+
+
+static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
+  return ref0.address() - ref1.address();
+}
+
+
+MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
+    ExternalReference function, int stack_space) {
+  ExternalReference next_address =
+      ExternalReference::handle_scope_next_address();
+  const int kNextOffset = 0;
+  const int kLimitOffset = AddressOffset(
+      ExternalReference::handle_scope_limit_address(),
+      next_address);
+  const int kLevelOffset = AddressOffset(
+      ExternalReference::handle_scope_level_address(),
+      next_address);
+
+  // Allocate HandleScope in callee-save registers.
+  li(s3, Operand(next_address));
+  lw(s0, MemOperand(s3, kNextOffset));
+  lw(s1, MemOperand(s3, kLimitOffset));
+  lw(s2, MemOperand(s3, kLevelOffset));
+  Addu(s2, s2, Operand(1));
+  sw(s2, MemOperand(s3, kLevelOffset));
+
+  // The O32 ABI requires us to pass a pointer in a0 where the returned struct
+  // (4 bytes) will be placed. This is also built into the Simulator.
+  // Set up the pointer to the returned value (a0). It was allocated in
+  // EnterExitFrame.
+  addiu(a0, fp, ExitFrameConstants::kStackSpaceOffset);
+
+  // Native call returns to the DirectCEntry stub which redirects to the
+  // return address pushed on stack (could have moved after GC).
+  // DirectCEntry stub itself is generated early and never moves.
+  DirectCEntryStub stub;
+  stub.GenerateCall(this, function);
+
+  // As mentioned above, on MIPS a pointer is returned - we need to dereference
+  // it to get the actual return value (which is also a pointer).
+  lw(v0, MemOperand(v0));
+
+  Label promote_scheduled_exception;
+  Label delete_allocated_handles;
+  Label leave_exit_frame;
+
+  // If result is non-zero, dereference to get the result value
+  // otherwise set it to undefined.
+  Label skip;
+  LoadRoot(a0, Heap::kUndefinedValueRootIndex);
+  Branch(&skip, eq, v0, Operand(zero_reg));
+  lw(a0, MemOperand(v0));
+  bind(&skip);
+  mov(v0, a0);
+
+  // No more valid handles (the result handle was the last one). Restore
+  // previous handle scope.
+  sw(s0, MemOperand(s3, kNextOffset));
+  if (emit_debug_code()) {
+    lw(a1, MemOperand(s3, kLevelOffset));
+    Check(eq, "Unexpected level after return from api call", a1, Operand(s2));
+  }
+  Subu(s2, s2, Operand(1));
+  sw(s2, MemOperand(s3, kLevelOffset));
+  lw(at, MemOperand(s3, kLimitOffset));
+  Branch(&delete_allocated_handles, ne, s1, Operand(at));
+
+  // Check if the function scheduled an exception.
+  bind(&leave_exit_frame);
+  LoadRoot(t0, Heap::kTheHoleValueRootIndex);
+  li(at, Operand(ExternalReference::scheduled_exception_address(isolate())));
+  lw(t1, MemOperand(at));
+  Branch(&promote_scheduled_exception, ne, t0, Operand(t1));
+  li(s0, Operand(stack_space));
+  LeaveExitFrame(false, s0);
+  Ret();
+
+  bind(&promote_scheduled_exception);
+  MaybeObject* result = TryTailCallExternalReference(
+      ExternalReference(Runtime::kPromoteScheduledException, isolate()), 0, 1);
+  if (result->IsFailure()) {
+    return result;
+  }
+
+  // HandleScope limit has changed. Delete allocated extensions.
+  bind(&delete_allocated_handles);
+  sw(s1, MemOperand(s3, kLimitOffset));
+  mov(s0, v0);
+  mov(a0, v0);
+  PrepareCallCFunction(1, s1);
+  li(a0, Operand(ExternalReference::isolate_address()));
+  CallCFunction(ExternalReference::delete_handle_scope_extensions(isolate()),
+      1);
+  mov(v0, s0);
+  jmp(&leave_exit_frame);
+
+  return result;
 }
 
 
@@ -2893,6 +3171,16 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
   JumpToExternalReference(ext);
 }
 
+MaybeObject* MacroAssembler::TryTailCallExternalReference(
+    const ExternalReference& ext, int num_arguments, int result_size) {
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  li(a0, num_arguments);
+  return TryJumpToExternalReference(ext);
+}
+
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
                                      int num_arguments,
@@ -2907,6 +3195,14 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   li(a1, Operand(builtin));
   CEntryStub stub(1);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+MaybeObject* MacroAssembler::TryJumpToExternalReference(
+    const ExternalReference& builtin) {
+  li(a1, Operand(builtin));
+  CEntryStub stub(1);
+  return TryTailCallStub(&stub);
 }
 
 
@@ -3144,33 +3440,34 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::EnterExitFrame(Register hold_argc,
-                                    Register hold_argv,
-                                    Register hold_function,
-                                    bool save_doubles) {
-  // a0 is argc.
-  sll(t8, a0, kPointerSizeLog2);
-  addu(hold_argv, sp, t8);
-  addiu(hold_argv, hold_argv, -kPointerSize);
+void MacroAssembler::EnterExitFrame(bool save_doubles,
+                                    int stack_space) {
+  // Setup the frame structure on the stack.
+  STATIC_ASSERT(2 * kPointerSize == ExitFrameConstants::kCallerSPDisplacement);
+  STATIC_ASSERT(1 * kPointerSize == ExitFrameConstants::kCallerPCOffset);
+  STATIC_ASSERT(0 * kPointerSize == ExitFrameConstants::kCallerFPOffset);
 
-  // Compute callee's stack pointer before making changes and save it as
-  // t9 register so that it is restored as sp register on exit, thereby
-  // popping the args.
-  // t9 = sp + kPointerSize * #args
-  addu(t9, sp, t8);
-
-  // Align the stack at this point.
-  AlignStack(0);
+  // This is how the stack will look:
+  // fp + 2 (==kCallerSPDisplacement) - old stack's end
+  // [fp + 1 (==kCallerPCOffset)] - saved old ra
+  // [fp + 0 (==kCallerFPOffset)] - saved old fp
+  // [fp - 1 (==kSPOffset)] - sp of the called function
+  // [fp - 2 (==kCodeOffset)] - CodeObject
+  // fp - (2 + stack_space + alignment) == sp == [fp - kSPOffset] - top of the
+  //   new stack (will contain saved ra)
 
   // Save registers.
-  addiu(sp, sp, -12);
-  sw(t9, MemOperand(sp, 8));
-  sw(ra, MemOperand(sp, 4));
-  sw(fp, MemOperand(sp, 0));
-  mov(fp, sp);  // Setup new frame pointer.
+  addiu(sp, sp, -4 * kPointerSize);
+  sw(ra, MemOperand(sp, 3 * kPointerSize));
+  sw(fp, MemOperand(sp, 2 * kPointerSize));
+  addiu(fp, sp, 2 * kPointerSize);  // Setup new frame pointer.
 
-  li(t8, Operand(CodeObject()));
-  push(t8);  // Accessed from ExitFrame::code_slot.
+  if (emit_debug_code()) {
+    sw(zero_reg, MemOperand(fp, ExitFrameConstants::kSPOffset));
+  }
+
+  li(t8, Operand(CodeObject()));  // Accessed from ExitFrame::code_slot.
+  sw(t8, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
   li(t8, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
@@ -3178,49 +3475,31 @@ void MacroAssembler::EnterExitFrame(Register hold_argc,
   li(t8, Operand(ExternalReference(Isolate::k_context_address, isolate())));
   sw(cp, MemOperand(t8));
 
-  // Setup argc and the builtin function in callee-saved registers.
-  mov(hold_argc, a0);
-  mov(hold_function, a1);
+  // Ensure we are not saving doubles, since it's not implemented yet.
+  ASSERT(save_doubles == 0);
 
-  // Optionally save all double registers.
-  if (save_doubles) {
-#ifdef DEBUG
-    int frame_alignment = ActivationFrameAlignment();
-#endif
-    // The stack alignment code above made sp unaligned, so add space for one
-    // more double register and use aligned addresses.
-    ASSERT(kDoubleSize == frame_alignment);
-    // Mark the frame as containing doubles by pushing a non-valid return
-    // address, i.e. 0.
-    ASSERT(ExitFrameConstants::kMarkerOffset == -2 * kPointerSize);
-    push(zero_reg);  // Marker and alignment word.
-    int space = FPURegister::kNumRegisters * kDoubleSize + kPointerSize;
-    Subu(sp, sp, Operand(space));
-    // Remember: we only need to save every 2nd double FPU value.
-    for (int i = 0; i < FPURegister::kNumRegisters; i+=2) {
-      FPURegister reg = FPURegister::from_code(i);
-      sdc1(reg, MemOperand(sp, i * kDoubleSize + kPointerSize));
-    }
-    // Note that f0 will be accessible at fp - 2*kPointerSize -
-    // FPURegister::kNumRegisters * kDoubleSize, since the code slot and the
-    // alignment word were pushed after the fp.
+  // Reserve place for the return address, stack space and an optional slot
+  // (used by the DirectCEntryStub to hold the return value if a struct is
+  // returned) and align the frame preparing for calling the runtime function.
+  ASSERT(stack_space >= 0);
+  const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
+  Subu(sp, sp, Operand((stack_space + 2) * kPointerSize));
+  if (frame_alignment > 0) {
+    ASSERT(IsPowerOf2(frame_alignment));
+    And(sp, sp, Operand(-frame_alignment));  // Align stack.
   }
+
+  // Set the exit frame sp value to point just before the return address
+  // location.
+  addiu(at, sp, kPointerSize);
+  sw(at, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
 
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles) {
-  // Optionally restore all double registers.
-  if (save_doubles) {
-    // TODO(regis): Use vldrm instruction.
-    // Remember: we only need to restore every 2nd double FPU value.
-    for (int i = 0; i < FPURegister::kNumRegisters; i+=2) {
-      FPURegister reg = FPURegister::from_code(i);
-      // Register f30-f31 is just below the marker.
-      const int offset = ExitFrameConstants::kMarkerOffset;
-      ldc1(reg, MemOperand(fp,
-          (i - FPURegister::kNumRegisters) * kDoubleSize + offset));
-    }
-  }
+void MacroAssembler::LeaveExitFrame(bool save_doubles,
+                                    Register argument_count) {
+  // Ensure we are not restoring doubles, since it's not implemented yet.
+  ASSERT(save_doubles == 0);
 
   // Clear top frame.
   li(t8, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
@@ -3235,11 +3514,13 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
 
   // Pop the arguments, restore registers, and return.
   mov(sp, fp);  // Respect ABI stack constraint.
-  lw(fp, MemOperand(sp, 0));
-  lw(ra, MemOperand(sp, 4));
-  lw(sp, MemOperand(sp, 8));
-  jr(ra);
-  nop();  // Branch delay slot nop.
+  lw(fp, MemOperand(sp, ExitFrameConstants::kCallerFPOffset));
+  lw(ra, MemOperand(sp, ExitFrameConstants::kCallerPCOffset));
+  addiu(sp, sp, 8);
+  if (argument_count.is_valid()) {
+    sll(t8, argument_count, kPointerSizeLog2);
+    addu(sp, sp, t8);
+  }
 }
 
 
@@ -3273,37 +3554,22 @@ int MacroAssembler::ActivationFrameAlignment() {
 #endif  // defined(V8_HOST_ARCH_MIPS)
 }
 
+void MacroAssembler::AssertStackIsAligned() {
+  if (emit_debug_code()) {
+      const int frame_alignment = ActivationFrameAlignment();
+      const int frame_alignment_mask = frame_alignment - 1;
 
-void MacroAssembler::AlignStack(int offset) {
-  // On MIPS an offset of 0 aligns to 0 modulo 8 bytes,
-  //     and an offset of 1 aligns to 4 modulo 8 bytes.
-#if defined(V8_HOST_ARCH_MIPS)
-  // Running on the real platform. Use the alignment as mandated by the local
-  // environment.
-  // Note: This will break if we ever start generating snapshots on one MIPS
-  // platform for another MIPS platform with a different alignment.
-  int activation_frame_alignment = OS::ActivationFrameAlignment();
-#else  // defined(V8_HOST_ARCH_MIPS)
-  // If we are using the simulator then we should always align to the expected
-  // alignment. As the simulator is used to generate snapshots we do not know
-  // if the target platform will need alignment, so we will always align at
-  // this point here.
-  int activation_frame_alignment = 2 * kPointerSize;
-#endif  // defined(V8_HOST_ARCH_MIPS)
-  if (activation_frame_alignment != kPointerSize) {
-    // This code needs to be made more general if this assert doesn't hold.
-    ASSERT(activation_frame_alignment == 2 * kPointerSize);
-    if (offset == 0) {
-      andi(t8, sp, activation_frame_alignment - 1);
-      Push(zero_reg, eq, t8, zero_reg);
-    } else {
-      andi(t8, sp, activation_frame_alignment - 1);
-      addiu(t8, t8, -4);
-      Push(zero_reg, eq, t8, zero_reg);
+      if (frame_alignment > kPointerSize) {
+        Label alignment_as_expected;
+        ASSERT(IsPowerOf2(frame_alignment));
+        andi(at, sp, frame_alignment_mask);
+        Branch(&alignment_as_expected, eq, at, Operand(zero_reg));
+        // Don't use Check here, as it will call Runtime_Abort re-entering here.
+        stop("Unexpected stack alignment");
+        bind(&alignment_as_expected);
+      }
     }
-  }
 }
-
 
 
 void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
