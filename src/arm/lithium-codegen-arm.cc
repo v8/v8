@@ -85,7 +85,6 @@ bool LCodeGen::GenerateCode() {
   return GeneratePrologue() &&
       GenerateBody() &&
       GenerateDeferredCode() &&
-      GenerateDeoptJumpTable() &&
       GenerateSafepointTable();
 }
 
@@ -250,41 +249,13 @@ bool LCodeGen::GenerateDeferredCode() {
     __ jmp(code->exit());
   }
 
-  return !is_aborted();
-}
-
-
-bool LCodeGen::GenerateDeoptJumpTable() {
-  // Check that the jump table is accessible from everywhere in the function
-  // code, ie that offsets to the table can be encoded in the 24bit signed
-  // immediate of a branch instruction.
-  // To simplify we consider the code size from the first instruction to the
-  // end of the jump table. We also don't consider the pc load delta.
-  // Each entry in the jump table generates only one instruction.
-  if (!is_int24((masm()->pc_offset() / Assembler::kInstrSize) +
-      deopt_jump_table_.length())) {
-    Abort("Generated code is too large");
-  }
-
-  __ RecordComment("[ Deoptimisation jump table");
-  Label table_start;
-  __ bind(&table_start);
-  for (int i = 0; i < deopt_jump_table_.length(); i++) {
-    __ bind(&deopt_jump_table_[i].label);
-    __ mov(pc, Operand(reinterpret_cast<int32_t>(deopt_jump_table_[i].address),
-                       RelocInfo::RUNTIME_ENTRY));
-  }
-  ASSERT(masm()->InstructionsGeneratedSince(&table_start) ==
-      deopt_jump_table_.length());
-  __ RecordComment("]");
-
-  // Force constant pool emission at the end of the jump table to make
+  // Force constant pool emission at the end of deferred code to make
   // sure that no constant pools are emitted after the official end of
   // the instruction sequence.
   masm()->CheckConstPool(true, false);
 
-  // The deoptimization jump table is the last part of the instruction
-  // sequence. Mark the generated code as done unless we bailed out.
+  // Deferred code is the last part of the instruction sequence. Mark
+  // the generated code as done unless we bailed out.
   if (!is_aborted()) status_ = DONE;
   return !is_aborted();
 }
@@ -624,18 +595,19 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
     return;
   }
 
-  if (FLAG_trap_on_deopt) __ stop("trap_on_deopt", cc);
-
   if (cc == al) {
+    if (FLAG_trap_on_deopt) __ stop("trap_on_deopt");
     __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
-    // We often have several deopts to the same entry, reuse the last
-    // jump entry if this is the case.
-    if (deopt_jump_table_.is_empty() ||
-        (deopt_jump_table_.last().address != entry)) {
-      deopt_jump_table_.Add(JumpTableEntry(entry));
+    if (FLAG_trap_on_deopt) {
+      Label done;
+      __ b(&done, NegateCondition(cc));
+      __ stop("trap_on_deopt");
+      __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+      __ bind(&done);
+    } else {
+      __ Jump(entry, RelocInfo::RUNTIME_ENTRY, cc);
     }
-    __ b(cc, &deopt_jump_table_.last().label);
   }
 }
 
