@@ -73,9 +73,9 @@ class LCodeGen;
   V(CheckMap)                                   \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
-  V(ClampDoubleToUint8)                         \
+  V(ClampDToUint8)                              \
   V(ClampIToUint8)                              \
-  V(ClampTaggedToUint8)                         \
+  V(ClampTToUint8)                              \
   V(ClassOfTest)                                \
   V(ClassOfTestAndBranch)                       \
   V(CmpID)                                      \
@@ -1930,16 +1930,16 @@ class LCheckNonSmi: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LClampDoubleToUint8: public LTemplateInstruction<1, 1, 1> {
+class LClampDToUint8: public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LClampDoubleToUint8(LOperand* value, LOperand* temp) {
+  LClampDToUint8(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
     temps_[0] = temp;
   }
 
   LOperand* unclamped() { return inputs_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(ClampDoubleToUint8, "clamp-d-to-uint8")
+  DECLARE_CONCRETE_INSTRUCTION(ClampDToUint8, "clamp-d-to-uint8")
 };
 
 
@@ -1955,16 +1955,16 @@ class LClampIToUint8: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LClampTaggedToUint8: public LTemplateInstruction<1, 1, 1> {
+class LClampTToUint8: public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LClampTaggedToUint8(LOperand* value, LOperand* temp) {
+  LClampTToUint8(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
     temps_[0] = temp;
   }
 
   LOperand* unclamped() { return inputs_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(ClampTaggedToUint8, "clamp-t-to-uint8")
+  DECLARE_CONCRETE_INSTRUCTION(ClampTToUint8, "clamp-t-to-uint8")
 };
 
 

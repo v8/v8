@@ -3951,7 +3951,7 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
 }
 
 
-void LCodeGen::DoClampDoubleToUint8(LClampDoubleToUint8* instr) {
+void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
   XMMRegister value_reg = ToDoubleRegister(instr->unclamped());
   Register result_reg = ToRegister(instr->result());
   __ ClampDoubleToUint8(value_reg, xmm0, result_reg);
@@ -3965,7 +3965,7 @@ void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
 }
 
 
-void LCodeGen::DoClampTaggedToUint8(LClampTaggedToUint8* instr) {
+void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   ASSERT(instr->unclamped()->Equals(instr->result()));
   Register input_reg = ToRegister(instr->unclamped());
   Label is_smi, done, heap_number;

@@ -4011,7 +4011,7 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
 }
 
 
-void LCodeGen::DoClampDoubleToUint8(LClampDoubleToUint8* instr) {
+void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
   DoubleRegister value_reg = ToDoubleRegister(instr->unclamped());
   Register result_reg = ToRegister(instr->result());
   DoubleRegister temp_reg = ToDoubleRegister(instr->TempAt(0));
@@ -4026,7 +4026,7 @@ void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
 }
 
 
-void LCodeGen::DoClampTaggedToUint8(LClampTaggedToUint8* instr) {
+void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   Register scratch = scratch0();
   Register input_reg = ToRegister(instr->unclamped());
   Register result_reg = ToRegister(instr->result());
