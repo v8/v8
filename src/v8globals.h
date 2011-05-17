@@ -185,6 +185,8 @@ class Mutex;
 
 typedef bool (*WeakSlotCallback)(Object** pointer);
 
+typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, Object** pointer);
+
 // -----------------------------------------------------------------------------
 // Miscellaneous
 
@@ -218,7 +220,12 @@ enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
-enum VisitMode { VISIT_ALL, VISIT_ALL_IN_SCAVENGE, VISIT_ONLY_STRONG };
+enum VisitMode {
+  VISIT_ALL,
+  VISIT_ALL_IN_SCAVENGE,
+  VISIT_ALL_IN_SWEEP_NEWSPACE,
+  VISIT_ONLY_STRONG
+};
 
 // Flag indicating whether code is built into the VM (one of the natives files).
 enum NativesFlag { NOT_NATIVES_CODE, NATIVES_CODE };

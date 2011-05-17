@@ -48,6 +48,7 @@ class GlobalHandles::Node : public Malloced {
     // Set the initial value of the handle.
     object_ = object;
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
+    independent_ = false;
     state_  = NORMAL;
     parameter_or_next_free_.parameter = NULL;
     callback_ = NULL;
@@ -138,6 +139,13 @@ class GlobalHandles::Node : public Malloced {
     set_parameter(NULL);
   }
 
+  void MarkIndependent(GlobalHandles* global_handles) {
+    LOG(global_handles->isolate(),
+        HandleEvent("GlobalHandle::MarkIndependent", handle().location()));
+    ASSERT(state_ != DESTROYED);
+    independent_ = true;
+  }
+
   bool IsNearDeath() {
     // Check for PENDING to ensure correct answer when processing callbacks.
     return state_ == PENDING || state_ == NEAR_DEATH;
@@ -221,6 +229,8 @@ class GlobalHandles::Node : public Malloced {
     DESTROYED
   };
   State state_ : 4;  // Need one more bit for MSVC as it treats enums as signed.
+
+  bool independent_ : 1;
 
  private:
   // Handle specific callback.
@@ -364,6 +374,11 @@ void GlobalHandles::ClearWeakness(Object** location) {
 }
 
 
+void GlobalHandles::MarkIndependent(Object** location) {
+  Node::FromLocation(location)->MarkIndependent(this);
+}
+
+
 bool GlobalHandles::IsNearDeath(Object** location) {
   return Node::FromLocation(location)->IsNearDeath();
 }
@@ -381,8 +396,22 @@ void GlobalHandles::SetWrapperClassId(Object** location, uint16_t class_id) {
 
 void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
   // Traversal of GC roots in the global handle list that are marked as
-  // WEAK or PENDING.
+  // WEAK, PENDING or NEAR_DEATH.
   for (Node* current = head_; current != NULL; current = current->next()) {
+    if (current->state_ == Node::WEAK
+      || current->state_ == Node::PENDING
+      || current->state_ == Node::NEAR_DEATH) {
+      v->VisitPointer(&current->object_);
+    }
+  }
+}
+
+
+void GlobalHandles::IterateWeakIndependentRoots(ObjectVisitor* v) {
+  // Traversal of GC roots in the global handle list that are independent
+  // and marked as WEAK, PENDING or NEAR_DEATH.
+  for (Node* current = head_; current != NULL; current = current->next()) {
+    if (!current->independent_) continue;
     if (current->state_ == Node::WEAK
       || current->state_ == Node::PENDING
       || current->state_ == Node::NEAR_DEATH) {
@@ -415,7 +444,21 @@ void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback f) {
 }
 
 
-bool GlobalHandles::PostGarbageCollectionProcessing() {
+void GlobalHandles::IdentifyWeakIndependentHandles(WeakSlotCallbackWithHeap f) {
+  for (Node* current = head_; current != NULL; current = current->next()) {
+    if (current->state_ == Node::WEAK && current->independent_) {
+      if (f(isolate_->heap(), &current->object_)) {
+        current->state_ = Node::PENDING;
+        LOG(isolate_,
+            HandleEvent("GlobalHandle::Pending", current->handle().location()));
+      }
+    }
+  }
+}
+
+
+bool GlobalHandles::PostGarbageCollectionProcessing(
+    GarbageCollector collector) {
   // Process weak global handle callbacks. This must be done after the
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
@@ -425,6 +468,14 @@ bool GlobalHandles::PostGarbageCollectionProcessing() {
   bool next_gc_likely_to_collect_more = false;
   Node** p = &head_;
   while (*p != NULL) {
+    // Skip dependent handles. Their weak callbacks might expect to be
+    // called between two global garbage collection callbacks which
+    // are not called for minor collections.
+    if (collector == SCAVENGER && !(*p)->independent_) {
+      p = (*p)->next_addr();
+      continue;
+    }
+
     if ((*p)->PostGarbageCollectionProcessing(isolate_, this)) {
       if (initial_post_gc_processing_count != post_gc_processing_count_) {
         // Weak callback triggered another GC and another round of
@@ -470,6 +521,16 @@ void GlobalHandles::IterateStrongRoots(ObjectVisitor* v) {
 void GlobalHandles::IterateAllRoots(ObjectVisitor* v) {
   for (Node* current = head_; current != NULL; current = current->next()) {
     if (current->state_ != Node::DESTROYED) {
+      v->VisitPointer(&current->object_);
+    }
+  }
+}
+
+
+void GlobalHandles::IterateStrongAndDependentRoots(ObjectVisitor* v) {
+  for (Node* current = head_; current != NULL; current = current->next()) {
+    if ((current->independent_ && current->state_ == Node::NORMAL) ||
+        (!current->independent_ && current->state_ != Node::DESTROYED)) {
       v->VisitPointer(&current->object_);
     }
   }

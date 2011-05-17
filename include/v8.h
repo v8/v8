@@ -388,6 +388,15 @@ template <class T> class Persistent : public Handle<T> {
   inline void ClearWeak();
 
   /**
+   * Marks the reference to this object independent. Garbage collector
+   * is free to ignore any object groups containing this object.
+   * Weak callback for an independent handle should not
+   * assume that it will be preceded by a global GC prologue callback
+   * or followed by a global GC epilogue callback.
+   */
+  inline void MarkIndependent();
+
+  /**
    *Checks if the handle holds the only reference to an object.
    */
   inline bool IsNearDeath() const;
@@ -3106,6 +3115,7 @@ class V8EXPORT V8 {
                        void* data,
                        WeakReferenceCallback);
   static void ClearWeak(internal::Object** global_handle);
+  static void MarkIndependent(internal::Object** global_handle);
   static bool IsGlobalNearDeath(internal::Object** global_handle);
   static bool IsGlobalWeak(internal::Object** global_handle);
   static void SetWrapperClassId(internal::Object** global_handle,
@@ -3806,6 +3816,11 @@ void Persistent<T>::MakeWeak(void* parameters, WeakReferenceCallback callback) {
 template <class T>
 void Persistent<T>::ClearWeak() {
   V8::ClearWeak(reinterpret_cast<internal::Object**>(**this));
+}
+
+template <class T>
+void Persistent<T>::MarkIndependent() {
+  V8::MarkIndependent(reinterpret_cast<internal::Object**>(**this));
 }
 
 template <class T>

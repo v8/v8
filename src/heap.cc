@@ -771,11 +771,10 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
   isolate_->counters()->objs_since_last_young()->Set(0);
 
-  if (collector == MARK_COMPACTOR) {
-    DisableAssertNoAllocation allow_allocation;
+  { DisableAssertNoAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     next_gc_likely_to_collect_more =
-        isolate_->global_handles()->PostGarbageCollectionProcessing();
+        isolate_->global_handles()->PostGarbageCollectionProcessing(collector);
   }
 
   // Update relocatables.
@@ -935,6 +934,12 @@ void Heap::CheckNewSpaceExpansionCriteria() {
 }
 
 
+static bool IsUnscavengedHeapObject(Heap* heap, Object** p) {
+  return heap->InNewSpace(*p) &&
+      !HeapObject::cast(*p)->map_word().IsForwardingAddress();
+}
+
+
 void Heap::Scavenge() {
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
@@ -1029,6 +1034,11 @@ void Heap::Scavenge() {
   scavenge_visitor.VisitPointer(BitCast<Object**>(&global_contexts_list_));
 
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
+  isolate_->global_handles()->IdentifyWeakIndependentHandles(
+      &IsUnscavengedHeapObject);
+  isolate_->global_handles()->IterateWeakIndependentRoots(&scavenge_visitor);
+  new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
+
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
@@ -4492,7 +4502,8 @@ void Heap::IterateRoots(ObjectVisitor* v, VisitMode mode) {
 void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointer(reinterpret_cast<Object**>(&roots_[kSymbolTableRootIndex]));
   v->Synchronize("symbol_table");
-  if (mode != VISIT_ALL_IN_SCAVENGE) {
+  if (mode != VISIT_ALL_IN_SCAVENGE &&
+      mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     // Scavenge collections have special processing for this.
     external_string_table_.Iterate(v);
   }
@@ -4528,16 +4539,24 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   // Iterate over the builtin code objects and code stubs in the
   // heap. Note that it is not necessary to iterate over code objects
   // on scavenge collections.
-  if (mode != VISIT_ALL_IN_SCAVENGE) {
+  if (mode != VISIT_ALL_IN_SCAVENGE &&
+      mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     isolate_->builtins()->IterateBuiltins(v);
   }
   v->Synchronize("builtins");
 
   // Iterate over global handles.
-  if (mode == VISIT_ONLY_STRONG) {
-    isolate_->global_handles()->IterateStrongRoots(v);
-  } else {
-    isolate_->global_handles()->IterateAllRoots(v);
+  switch (mode) {
+    case VISIT_ONLY_STRONG:
+      isolate_->global_handles()->IterateStrongRoots(v);
+      break;
+    case VISIT_ALL_IN_SCAVENGE:
+      isolate_->global_handles()->IterateStrongAndDependentRoots(v);
+      break;
+    case VISIT_ALL_IN_SWEEP_NEWSPACE:
+    case VISIT_ALL:
+      isolate_->global_handles()->IterateAllRoots(v);
+      break;
   }
   v->Synchronize("globalhandles");
 
