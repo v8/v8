@@ -1638,6 +1638,13 @@ HValue* HChange::EnsureAndPropagateNotMinusZero(BitVector* visited) {
 }
 
 
+HValue* HForceRepresentation::EnsureAndPropagateNotMinusZero(
+    BitVector* visited) {
+  visited->Add(id());
+  return value();
+}
+
+
 HValue* HMod::EnsureAndPropagateNotMinusZero(BitVector* visited) {
   visited->Add(id());
   if (range() == NULL || range()->CanBeMinusZero()) {

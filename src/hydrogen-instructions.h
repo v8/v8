@@ -101,6 +101,7 @@ class LChunkBuilder;
   V(EnterInlined)                              \
   V(ExternalArrayLength)                       \
   V(FixedArrayLength)                          \
+  V(ForceRepresentation)                       \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
   V(GlobalObject)                              \
@@ -1006,6 +1007,25 @@ class HThrow: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Throw)
+};
+
+
+class HForceRepresentation: public HTemplateInstruction<1> {
+ public:
+  HForceRepresentation(HValue* value, Representation required_representation) {
+    SetOperandAt(0, value);
+    set_representation(required_representation);
+  }
+
+  HValue* value() { return OperandAt(0); }
+
+  virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return representation();  // Same as the output representation.
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ForceRepresentation)
 };
 
 
