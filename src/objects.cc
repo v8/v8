@@ -3811,8 +3811,6 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
 
 
 MaybeObject* CodeCache::Update(String* name, Code* code) {
-  ASSERT(code->ic_state() == MONOMORPHIC);
-
   // The number of monomorphic stubs for normal load/store/call IC's can grow to
   // a large number and therefore they need to go into a hash table. They are
   // used to load global properties from cells.
@@ -6555,10 +6553,8 @@ const char* Code::Kind2String(Kind kind) {
     case BUILTIN: return "BUILTIN";
     case LOAD_IC: return "LOAD_IC";
     case KEYED_LOAD_IC: return "KEYED_LOAD_IC";
-    case KEYED_EXTERNAL_ARRAY_LOAD_IC: return "KEYED_EXTERNAL_ARRAY_LOAD_IC";
     case STORE_IC: return "STORE_IC";
     case KEYED_STORE_IC: return "KEYED_STORE_IC";
-    case KEYED_EXTERNAL_ARRAY_STORE_IC: return "KEYED_EXTERNAL_ARRAY_STORE_IC";
     case CALL_IC: return "CALL_IC";
     case KEYED_CALL_IC: return "KEYED_CALL_IC";
     case TYPE_RECORDING_UNARY_OP_IC: return "TYPE_RECORDING_UNARY_OP_IC";

@@ -2601,6 +2601,21 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
 }
 
 
+void MacroAssembler::DispatchMap(Register obj,
+                                 Handle<Map> map,
+                                 Handle<Code> success,
+                                 SmiCheckType smi_check_type) {
+  Label fail;
+  if (smi_check_type == DO_SMI_CHECK) {
+    JumpIfSmi(obj, &fail);
+  }
+  Cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
+  j(equal, success, RelocInfo::CODE_TARGET);
+
+  bind(&fail);
+}
+
+
 void MacroAssembler::AbortIfNotNumber(Register object) {
   Label ok;
   Condition is_smi = CheckSmi(object);

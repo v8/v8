@@ -578,11 +578,22 @@ class MacroAssembler: public Assembler {
                 Label* fail,
                 SmiCheckType smi_check_type);
 
+
   void CheckMap(Register obj,
                 Register scratch,
                 Heap::RootListIndex index,
                 Label* fail,
                 SmiCheckType smi_check_type);
+
+
+  // Check if the map of an object is equal to a specified map and branch to a
+  // specified target if equal. Skip the smi check if not required (object is
+  // known to be a heap object)
+  void DispatchMap(Register obj,
+                   Register scratch,
+                   Handle<Map> map,
+                   Handle<Code> success,
+                   SmiCheckType smi_check_type);
 
 
   // Compare the object in a register to a value from the root list.

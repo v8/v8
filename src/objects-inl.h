@@ -2595,7 +2595,6 @@ Code::ExtraICState Code::extra_ic_state() {
 
 
 PropertyType Code::type() {
-  ASSERT(ic_state() == MONOMORPHIC);
   return ExtractTypeFromFlags(flags());
 }
 
@@ -2713,14 +2712,14 @@ void Code::set_check_type(CheckType value) {
 
 
 ExternalArrayType Code::external_array_type() {
-  ASSERT(is_external_array_load_stub() || is_external_array_store_stub());
+  ASSERT(is_keyed_load_stub() || is_keyed_store_stub());
   byte type = READ_BYTE_FIELD(this, kExternalArrayTypeOffset);
   return static_cast<ExternalArrayType>(type);
 }
 
 
 void Code::set_external_array_type(ExternalArrayType value) {
-  ASSERT(is_external_array_load_stub() || is_external_array_store_stub());
+  ASSERT(is_keyed_load_stub() || is_keyed_store_stub());
   WRITE_BYTE_FIELD(this, kExternalArrayTypeOffset, value);
 }
 
@@ -2792,8 +2791,7 @@ Code::Flags Code::ComputeFlags(Kind kind,
          (kind == CALL_IC && (ic_state == MONOMORPHIC ||
                               ic_state == MONOMORPHIC_PROTOTYPE_FAILURE)) ||
          (kind == STORE_IC) ||
-         (kind == KEYED_STORE_IC) ||
-         (kind == KEYED_EXTERNAL_ARRAY_STORE_IC));
+         (kind == KEYED_STORE_IC));
   // Compute the bit mask.
   int bits = kind << kFlagsKindShift;
   if (in_loop) bits |= kFlagsICInLoopMask;
