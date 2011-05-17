@@ -59,6 +59,11 @@ static const int kRootRegisterBias = 128;
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;
 
+enum EmitRememberedSet { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
+enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
+
+bool Aliasing(Register r1, Register r2, Register r3, Register r4);
+
 // Forward declaration.
 class JumpTarget;
 

@@ -300,10 +300,16 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       __ movsd(Operand(rsp, i * kDoubleSize), reg);
     }
   }
-  const int argument_count = 0;
+  const int argument_count = 1;
   __ PrepareCallCFunction(argument_count);
-  __ CallCFunction(ExteranalReference::store_buffer_overflow_function(),
-                   argument_count);
+#ifdef _WIN64
+  __ LoadAddress(rcx, ExternalReference::isolate_address());
+#else
+  __ LoadAddress(rdi, ExternalReference::isolate_address());
+#endif
+  __ CallCFunction(
+      ExternalReference::store_buffer_overflow_function(masm->isolate()),
+      argument_count);
   if (save_doubles_ == kSaveFPRegs) {
     CpuFeatures::Scope scope(SSE2);
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
@@ -3474,6 +3480,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ StoreRoot(rdx, Heap::kInstanceofCacheFunctionRootIndex);
     __ StoreRoot(rax, Heap::kInstanceofCacheMapRootIndex);
   } else {
+    // Get return address and delta to inlined map check.
     __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
     __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
     __ movq(Operand(kScratchRegister, kOffsetToMapCheckValue), rax);
@@ -3508,9 +3515,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
   } else {
     // Store offset of true in the root array at the inline check site.
-    ASSERT((Heap::kTrueValueRootIndex << kPointerSizeLog2) - kRootRegisterBias
-        == 0xB0 - 0x100);
-    __ movl(rax, Immediate(0xB0));  // TrueValue is at -10 * kPointerSize.
+    int true_offset = 0x100 +
+        (Heap::kTrueValueRootIndex << kPointerSizeLog2) - kRootRegisterBias;
+    // Assert it is a 1-byte signed value.
+    ASSERT(true_offset >= 0 && true_offset < 0x100);
+    __ movl(rax, Immediate(true_offset));
     __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
     __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
     __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);
@@ -3529,9 +3538,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ StoreRoot(kScratchRegister, Heap::kInstanceofCacheAnswerRootIndex);
   } else {
     // Store offset of false in the root array at the inline check site.
-    ASSERT((Heap::kFalseValueRootIndex << kPointerSizeLog2) - kRootRegisterBias
-        == 0xB8 - 0x100);
-    __ movl(rax, Immediate(0xB8));  // FalseValue is at -9 * kPointerSize.
+    int false_offset = 0x100 +
+        (Heap::kFalseValueRootIndex << kPointerSizeLog2) - kRootRegisterBias;
+    // Assert it is a 1-byte signed value.
+    ASSERT(false_offset >= 0 && false_offset < 0x100);
+    __ movl(rax, Immediate(false_offset));
     __ movq(kScratchRegister, Operand(rsp, 0 * kPointerSize));
     __ subq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
     __ movb(Operand(kScratchRegister, kOffsetToResultValue), rax);

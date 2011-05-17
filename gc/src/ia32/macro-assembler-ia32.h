@@ -51,11 +51,10 @@ typedef Operand MemOperand;
 
 enum EmitRememberedSet { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
-enum ObjectMode { PRESERVE_OBJECT, DESTROY_OBJECT };
-enum ValueMode { PRESERVE_VALUE, DESTROY_VALUE };
-enum AddressMode { PRESERVE_ADDRESS, DESTROY_ADDRESS };
+
 
 bool Aliasing(Register r1, Register r2, Register r3, Register r4);
+
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
@@ -176,9 +175,6 @@ class MacroAssembler: public Assembler {
                      emit_remembered_set,
                      smi_check);
   }
-
-
-
 
   // Notify the garbage collector that we wrote a pointer into a fixed array.
   // |array| is the array being stored into, |value| is the

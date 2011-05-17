@@ -2543,7 +2543,7 @@ static void SweepPrecisely(PagedSpace* space,
 
   int cell_index = Page::kFirstUsedCell;
   Address free_start = p->ObjectAreaStart();
-  ASSERT(reinterpret_cast<uint32_t>(free_start) % (32 * kPointerSize) == 0);
+  ASSERT(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
   Address object_address = p->ObjectAreaStart();
   int offsets[16];
 

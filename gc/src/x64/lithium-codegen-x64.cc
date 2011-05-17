@@ -205,7 +205,7 @@ bool LCodeGen::GeneratePrologue() {
         // registers, so we have use a third register to avoid
         // clobbering rsi.
         __ movq(rcx, rsi);
-        __ RecordWrite(rcx, context_offset, rax, rbx);
+        __ RecordWrite(rcx, context_offset, rax, rbx, kSaveFPRegs);
       }
     }
     Comment(";;; End allocate local context");
@@ -2191,7 +2191,7 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   if (instr->needs_write_barrier()) {
     int offset = Context::SlotOffset(instr->slot_index());
     Register scratch = ToRegister(instr->TempAt(0));
-    __ RecordWrite(context, offset, value, scratch);
+    __ RecordWrite(context, offset, value, scratch, kSaveFPRegs);
   }
 }
 
@@ -3063,7 +3063,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     if (instr->needs_write_barrier()) {
       Register temp = ToRegister(instr->TempAt(0));
       // Update the write barrier for the object for in-object properties.
-      __ RecordWrite(object, offset, value, temp);
+      __ RecordWrite(object, offset, value, temp, kSaveFPRegs);
     }
   } else {
     Register temp = ToRegister(instr->TempAt(0));
@@ -3072,7 +3072,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     if (instr->needs_write_barrier()) {
       // Update the write barrier for the properties array.
       // object is used as a scratch register.
-      __ RecordWrite(temp, offset, value, object);
+      __ RecordWrite(temp, offset, value, object, kSaveFPRegs);
     }
   }
 }
@@ -3173,7 +3173,7 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
                              key,
                              times_pointer_size,
                              FixedArray::kHeaderSize));
-    __ RecordWrite(elements, key, value);
+    __ RecordWrite(elements, key, value, kSaveFPRegs);
   }
 }
 

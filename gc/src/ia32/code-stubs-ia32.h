@@ -553,7 +553,7 @@ class RecordWriteStub: public CodeStub {
 
     // If we have to call into C then we need to save and restore all caller-
     // saved registers that were not already preserved.  The caller saved
-    // registers are eax, ecx and adx.  The three scratch registers (incl. ecx)
+    // registers are eax, ecx and edx.  The three scratch registers (incl. ecx)
     // will be restored by other means so we don't bother pushing them here.
     void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
       if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->push(eax);

@@ -233,7 +233,7 @@ class IncrementalMarking : public AllStatic {
   int steps_count_;
   double steps_took_;
   bool should_hurry_;
-  intptr_t allocation_marking_factor_;
+  int allocation_marking_factor_;
   intptr_t allocated_;
 };
 

@@ -197,7 +197,7 @@ void MacroAssembler::CompareRoot(const Operand& with,
 
 
 void MacroAssembler::RecordWriteHelper(Register object,
-                                       Register addr,
+                                         Register addr,
                                        Register scratch,
                                        SaveFPRegsMode save_fp) {
   if (emit_debug_code()) {
@@ -236,7 +236,7 @@ void MacroAssembler::RecordWrite(Register object,
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are rsi.
-  ASSERT(!object.is(rsi) && !value.is(rsi) && !index.is(rsi));
+  ASSERT(!value.is(rsi) && !index.is(rsi));
 
   // First, check if a write barrier is even needed. The tests below
   // catch stores of smis and stores into the young generation.
@@ -252,7 +252,6 @@ void MacroAssembler::RecordWrite(Register object,
   // avoid having the fast case for smis leave the registers
   // unchanged.
   if (emit_debug_code()) {
-    movq(object, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
@@ -282,7 +281,6 @@ void MacroAssembler::RecordWrite(Register object,
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    movq(object, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(address, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
@@ -341,7 +339,6 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    movq(object, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(scratch, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
@@ -512,8 +509,7 @@ void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
   const Runtime::Function* function = Runtime::FunctionForId(id);
   Set(rax, function->nargs);
   LoadAddress(rbx, ExternalReference(function, isolate()));
-  CEntryStub ces(1);
-  ces.SaveDoubles();
+  CEntryStub ces(1, kSaveFPRegs);
   CallStub(&ces);
 }
 

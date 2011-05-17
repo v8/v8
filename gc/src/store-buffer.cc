@@ -371,9 +371,6 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback callback) {
   old_top_ = old_start_;
   {
     DontMoveStoreBufferEntriesScope scope(this);
-    if (FLAG_trace_gc) {
-      PrintF("Store buffer: %d entries\n", limit - old_start_);
-    }
     for (Address* current = old_start_; current < limit; current++) {
 #ifdef DEBUG
       Address* saved_top = old_top_;

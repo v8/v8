@@ -696,8 +696,9 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
           VisitForAccumulatorValue(function);
           __ movq(ContextOperand(rsi, slot->index()), result_register());
           int offset = Context::SlotOffset(slot->index());
-          __ movq(rbx, rsi);
-          __ RecordWrite(rbx, offset, result_register(), rcx, kDontSaveFPRegs);
+          // We know that we have written a function, which is not a smi.
+          // TODO(gc): Make sure we omit Smi check here.
+          __ RecordWrite(rsi, offset, result_register(), rcx, kDontSaveFPRegs);
         }
         break;
 
@@ -1846,7 +1847,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ movq(ContextOperand(rcx, slot->index()), rax);
         int offset = Context::SlotOffset(slot->index());
         __ movq(rdx, rax);  // Preserve the stored value in eax.
-        __ RecordWrite(rcx, offset, rdx, rbx);
+        __ RecordWrite(rcx, offset, rdx, rbx, kDontSaveFPRegs);
         break;
       }
       case Slot::LOOKUP:
@@ -3139,8 +3140,8 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ InNewSpace(elements, temp, equal, &new_space);
 
   __ movq(object, elements);
-  __ RecordWriteHelper(object, index_1, temp);
-  __ RecordWriteHelper(elements, index_2, temp);
+  __ RecordWriteHelper(object, index_1, temp, kDontSaveFPRegs);
+  __ RecordWriteHelper(elements, index_2, temp, kDontSaveFPRegs);
 
   __ bind(&new_space);
   // We are done. Drop elements from the stack, and return undefined.

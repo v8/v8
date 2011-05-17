@@ -47,7 +47,7 @@ uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 
 
 void CpuFeatures::Probe() {
-  ASSERT(!initialized_);
+  ASSERT(supported_ == CpuFeatures::kDefaultCpuFeatures);
 #ifdef DEBUG
   initialized_ = true;
 #endif

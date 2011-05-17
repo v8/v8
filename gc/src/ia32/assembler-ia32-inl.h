@@ -89,14 +89,13 @@ int RelocInfo::target_address_size() {
 
 
 void RelocInfo::set_target_address(Address target, Code* code) {
+  Assembler::set_target_address_at(pc_, target);
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   if (code != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
-    // TODO(gc) ISOLATES MERGE code should have heap.
     code->GetHeap()->incremental_marking()->RecordWrite(
         code, HeapObject::cast(target_code));
   }
-  Assembler::set_target_address_at(pc_, target);
 }
 
 
@@ -123,7 +122,6 @@ void RelocInfo::set_target_object(Object* target, Code* code) {
   Memory::Object_at(pc_) = target;
   CPU::FlushICache(pc_, sizeof(Address));
   if (code != NULL && target->IsHeapObject()) {
-    // TODO(gc) ISOLATES MERGE code object should have heap() accessor.
     code->GetHeap()->incremental_marking()->RecordWrite(
         code, HeapObject::cast(target));
   }
@@ -159,7 +157,6 @@ void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell, Code* code) {
   Memory::Address_at(pc_) = address;
   CPU::FlushICache(pc_, sizeof(Address));
   if (code != NULL) {
-    // TODO(gc) ISOLATES MERGE code object should have heap() accessor.
     code->GetHeap()->incremental_marking()->RecordWrite(code, cell);
   }
 }
