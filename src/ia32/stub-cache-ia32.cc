@@ -713,14 +713,6 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 }
 
 
-void StubCompiler::GenerateKeyedLoadMissForceGeneric(MacroAssembler* masm) {
-  Code* code = masm->isolate()->builtins()->builtin(
-      Builtins::kKeyedLoadIC_MissForceGeneric);
-  Handle<Code> ic(code);
-  __ jmp(ic, RelocInfo::CODE_TARGET);
-}
-
-
 // Both name_reg and receiver_reg are preserved on jumps to miss_label,
 // but may be destroyed if store is successful.
 void StubCompiler::GenerateStoreField(MacroAssembler* masm,
@@ -2662,35 +2654,8 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStoreFastElement(
-    Map* receiver_map) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-  MaybeObject* maybe_stub =
-      KeyedStoreFastElementStub(is_js_array).TryGetCode();
-  Code* stub;
-  if (!maybe_stub->To(&stub)) return maybe_stub;
-  __ DispatchMap(edx,
-                 Handle<Map>(receiver_map),
-                 Handle<Code>(stub),
-                 DO_SMI_CHECK);
-
-  Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode(NORMAL, NULL);
-}
-
-
-MaybeObject* KeyedStoreStubCompiler::CompileStoreMegamorphic(
-    MapList* receiver_maps,
-    CodeList* handler_ics) {
+MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
+    JSObject* receiver) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
@@ -2698,22 +2663,51 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreMegamorphic(
   //  -- esp[0] : return address
   // -----------------------------------
   Label miss;
-  __ JumpIfSmi(edx, &miss);
 
-  Register map_reg = ebx;
-  __ mov(map_reg, FieldOperand(edx, HeapObject::kMapOffset));
-  int receiver_count = receiver_maps->length();
-  for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map(receiver_maps->at(current));
-    __ cmp(map_reg, map);
-    __ j(equal, Handle<Code>(handler_ics->at(current)));
+  // Check that the receiver isn't a smi.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &miss);
+
+  // Check that the map matches.
+  __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+         Immediate(Handle<Map>(receiver->map())));
+  __ j(not_equal, &miss);
+
+  // Check that the key is a smi.
+  __ test(ecx, Immediate(kSmiTagMask));
+  __ j(not_zero, &miss);
+
+  // Get the elements array and make sure it is a fast element array, not 'cow'.
+  __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
+  __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
+         Immediate(factory()->fixed_array_map()));
+  __ j(not_equal, &miss);
+
+  // Check that the key is within bounds.
+  if (receiver->IsJSArray()) {
+    __ cmp(ecx, FieldOperand(edx, JSArray::kLengthOffset));  // Compare smis.
+    __ j(above_equal, &miss);
+  } else {
+    __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));  // Compare smis.
+    __ j(above_equal, &miss);
   }
+
+  // Do the store and update the write barrier. Make sure to preserve
+  // the value in register eax.
+  __ mov(edx, Operand(eax));
+  __ mov(FieldOperand(edi, ecx, times_2, FixedArray::kHeaderSize), eax);
+  __ RecordWrite(edi, 0, edx, ecx);
+
+  // Done.
+  __ ret(0);
+
+  // Handle store cache miss.
   __ bind(&miss);
-  Handle<Code> miss_ic = isolate()->builtins()->KeyedStoreIC_Miss();
-  __ jmp(miss_ic, RelocInfo::CODE_TARGET);
+  Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
+  __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(NORMAL, NULL, MEGAMORPHIC);
+  return GetCode(NORMAL, NULL);
 }
 
 
@@ -3126,52 +3120,48 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadFastElement(Map* receiver_map) {
-  // ----------- S t a t e -------------
-  //  -- eax    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  MaybeObject* maybe_stub = KeyedLoadFastElementStub().TryGetCode();
-  Code* stub;
-  if (!maybe_stub->To(&stub)) return maybe_stub;
-  __ DispatchMap(edx,
-                 Handle<Map>(receiver_map),
-                 Handle<Code>(stub),
-                 DO_SMI_CHECK);
-
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(NORMAL, NULL);
-}
-
-
-MaybeObject* KeyedLoadStubCompiler::CompileLoadMegamorphic(
-    MapList* receiver_maps,
-    CodeList* handler_ics) {
+MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
   Label miss;
-  __ JumpIfSmi(edx, &miss);
 
-  Register map_reg = ebx;
-  __ mov(map_reg, FieldOperand(edx, HeapObject::kMapOffset));
-  int receiver_count = receiver_maps->length();
-  for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map(receiver_maps->at(current));
-    __ cmp(map_reg, map);
-    __ j(equal, Handle<Code>(handler_ics->at(current)));
-  }
+  // Check that the receiver isn't a smi.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &miss);
+
+  // Check that the map matches.
+  __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+         Immediate(Handle<Map>(receiver->map())));
+  __ j(not_equal, &miss);
+
+  // Check that the key is a smi.
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(not_zero, &miss);
+
+  // Get the elements array.
+  __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
+  __ AssertFastElements(ecx);
+
+  // Check that the key is within bounds.
+  __ cmp(eax, FieldOperand(ecx, FixedArray::kLengthOffset));
+  __ j(above_equal, &miss);
+
+  // Load the result and make sure it's not the hole.
+  __ mov(ebx, Operand(ecx, eax, times_2,
+                      FixedArray::kHeaderSize - kHeapObjectTag));
+  __ cmp(ebx, factory()->the_hole_value());
+  __ j(equal, &miss);
+  __ mov(eax, ebx);
+  __ ret(0);
 
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(NORMAL, NULL, MEGAMORPHIC);
+  return GetCode(NORMAL, NULL);
 }
 
 
@@ -3314,82 +3304,36 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
 }
 
 
-MaybeObject* ExternalArrayLoadStubCompiler::CompileLoad(
-    JSObject*receiver, ExternalArrayType array_type) {
+MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
+    JSObject*receiver, ExternalArrayType array_type, Code::Flags flags) {
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  MaybeObject* maybe_stub =
-      KeyedLoadExternalArrayStub(array_type).TryGetCode();
-  Code* stub;
-  if (!maybe_stub->To(&stub)) return maybe_stub;
-  __ DispatchMap(edx,
-                 Handle<Map>(receiver->map()),
-                 Handle<Code>(stub),
-                 DO_SMI_CHECK);
+  Label slow, failed_allocation;
 
-  Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Miss();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
-
-  // Return the generated code.
-  return GetCode();
-}
-
-
-MaybeObject* ExternalArrayStoreStubCompiler::CompileStore(
-    JSObject* receiver, ExternalArrayType array_type) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  MaybeObject* maybe_stub =
-      KeyedStoreExternalArrayStub(array_type).TryGetCode();
-  Code* stub;
-  if (!maybe_stub->To(&stub)) return maybe_stub;
-  __ DispatchMap(edx,
-                 Handle<Map>(receiver->map()),
-                 Handle<Code>(stub),
-                 DO_SMI_CHECK);
-
-  Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
-
-  return GetCode();
-}
-
-
-#undef __
-#define __ ACCESS_MASM(masm)
-
-
-void KeyedLoadStubCompiler::GenerateLoadExternalArray(
-    MacroAssembler* masm,
-    ExternalArrayType array_type) {
-  // ----------- S t a t e -------------
-  //  -- eax    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss_force_generic, failed_allocation, slow;
-
-  // This stub is meant to be tail-jumped to, the receiver must already
-  // have been verified by the caller to not be a smi.
+  // Check that the object isn't a smi.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &slow);
 
   // Check that the key is a smi.
   __ test(eax, Immediate(kSmiTagMask));
-  __ j(not_zero, &miss_force_generic);
+  __ j(not_zero, &slow);
 
+  // Check that the map matches.
+  __ CheckMap(edx, Handle<Map>(receiver->map()), &slow, DO_SMI_CHECK);
+  __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
+
+  // eax: key, known to be a smi.
+  // edx: receiver, known to be a JSObject.
+  // ebx: elements object, known to be an external array.
   // Check that the index is in range.
   __ mov(ecx, eax);
   __ SmiUntag(ecx);  // Untag the index.
-  __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
   __ cmp(ecx, FieldOperand(ebx, ExternalArray::kLengthOffset));
   // Unsigned comparison catches both negative and too-large values.
-  __ j(above_equal, &miss_force_generic);
+  __ j(above_equal, &slow);
   __ mov(ebx, FieldOperand(ebx, ExternalArray::kExternalPointerOffset));
   // ebx: base pointer of external storage
   switch (array_type) {
@@ -3496,48 +3440,47 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
   // Slow case: Jump to runtime.
   __ bind(&slow);
-  Counters* counters = masm->isolate()->counters();
+  Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->keyed_load_external_array_slow(), 1);
-
   // ----------- S t a t e -------------
   //  -- eax    : key
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
 
-  Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Slow();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  __ pop(ebx);
+  __ push(edx);  // receiver
+  __ push(eax);  // name
+  __ push(ebx);  // return address
 
-  // ----------- S t a t e -------------
-  //  -- eax    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
+  // Perform tail call to the entry.
+  __ TailCallRuntime(Runtime::kKeyedGetProperty, 2, 1);
 
-  // Miss case: Jump to runtime.
-  __ bind(&miss_force_generic);
-  Handle<Code> miss_ic =
-      masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
-  __ jmp(miss_ic, RelocInfo::CODE_TARGET);
+  // Return the generated code.
+  return GetCode(flags);
 }
 
 
-void KeyedStoreStubCompiler::GenerateStoreExternalArray(
-    MacroAssembler* masm,
-    ExternalArrayType array_type) {
+MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
+    JSObject* receiver, ExternalArrayType array_type, Code::Flags flags) {
   // ----------- S t a t e -------------
-  //  -- eax    : key
+  //  -- eax    : value
+  //  -- ecx    : key
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label miss_force_generic, slow, check_heap_number;
+  Label slow, check_heap_number;
 
-  // This stub is meant to be tail-jumped to, the receiver must already
-  // have been verified by the caller to not be a smi.
+  // Check that the object isn't a smi.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &slow);
+
+  // Check that the map matches.
+  __ CheckMap(edx, Handle<Map>(receiver->map()), &slow, DO_SMI_CHECK);
 
   // Check that the key is a smi.
   __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, &miss_force_generic);
+  __ j(not_zero, &slow);
 
   // Check that the index is in range.
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
@@ -3616,7 +3559,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     // edi: elements array
     // ebx: untagged index
     __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
-           Immediate(masm->isolate()->factory()->heap_number_map()));
+           Immediate(factory()->heap_number_map()));
     __ j(not_equal, &slow);
 
     // The WebGL specification leaves the behavior of storing NaN and
@@ -3711,9 +3654,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
 
   // Slow case: call runtime.
   __ bind(&slow);
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->keyed_store_external_array_slow(), 1);
-
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
@@ -3721,109 +3661,19 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   //  -- esp[0] : return address
   // -----------------------------------
 
-  Handle<Code> ic = masm->isolate()->builtins()->KeyedStoreIC_Slow();
-  __ jmp(ic, RelocInfo::CODE_TARGET);
+  __ pop(ebx);
+  __ push(edx);
+  __ push(ecx);
+  __ push(eax);
+  __ push(Immediate(Smi::FromInt(NONE)));   // PropertyAttributes
+  __ push(Immediate(Smi::FromInt(
+      Code::ExtractExtraICStateFromFlags(flags) & kStrictMode)));
+  __ push(ebx);   // return address
 
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 
-  __ bind(&miss_force_generic);
-  Handle<Code> miss_ic =
-      masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
-  __ jmp(miss_ic, RelocInfo::CODE_TARGET);
-}
-
-
-
-
-void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss_force_generic;
-
-  // This stub is meant to be tail-jumped to, the receiver must already
-  // have been verified by the caller to not be a smi.
-
-  // Check that the key is a smi.
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(not_zero, &miss_force_generic);
-
-  // Get the elements array.
-  __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
-  __ AssertFastElements(ecx);
-
-  // Check that the key is within bounds.
-  __ cmp(eax, FieldOperand(ecx, FixedArray::kLengthOffset));
-  __ j(above_equal, &miss_force_generic);
-
-  // Load the result and make sure it's not the hole.
-  __ mov(ebx, Operand(ecx, eax, times_2,
-                      FixedArray::kHeaderSize - kHeapObjectTag));
-  __ cmp(ebx, masm->isolate()->factory()->the_hole_value());
-  __ j(equal, &miss_force_generic);
-  __ mov(eax, ebx);
-  __ ret(0);
-
-  __ bind(&miss_force_generic);
-  Handle<Code> miss_ic =
-      masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
-  __ jmp(miss_ic, RelocInfo::CODE_TARGET);
-}
-
-
-void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
-                                                      bool is_js_array) {
-  // ----------- S t a t e -------------
-  //  -- eax    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss_force_generic;
-
-  // This stub is meant to be tail-jumped to, the receiver must already
-  // have been verified by the caller to not be a smi.
-
-  // Check that the key is a smi.
-  __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, &miss_force_generic);
-
-  // Get the elements array and make sure it is a fast element array, not 'cow'.
-  __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-  __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
-         Immediate(masm->isolate()->factory()->fixed_array_map()));
-  __ j(not_equal, &miss_force_generic);
-
-  if (is_js_array) {
-    // Check that the key is within bounds.
-    __ cmp(ecx, FieldOperand(edx, JSArray::kLengthOffset));  // smis.
-    __ j(above_equal, &miss_force_generic);
-  } else {
-    // Check that the key is within bounds.
-    __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));  // smis.
-    __ j(above_equal, &miss_force_generic);
-  }
-
-  // Do the store and update the write barrier. Make sure to preserve
-  // the value in register eax.
-  __ mov(edx, Operand(eax));
-  __ mov(FieldOperand(edi, ecx, times_2, FixedArray::kHeaderSize), eax);
-  __ RecordWrite(edi, 0, edx, ecx);
-
-  // Done.
-  __ ret(0);
-
-  // Handle store cache miss, replacing the ic with the generic stub.
-  __ bind(&miss_force_generic);
-  Handle<Code> ic_force_generic =
-      masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
-  __ jmp(ic_force_generic, RelocInfo::CODE_TARGET);
+  return GetCode(flags);
 }
 
 

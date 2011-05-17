@@ -30,7 +30,6 @@
 
 #include "allocation.h"
 #include "builtins.h"
-#include "list.h"
 #include "smart-pointer.h"
 #include "unicode-inl.h"
 #if V8_TARGET_ARCH_ARM
@@ -3276,10 +3275,12 @@ class Code: public HeapObject {
     BUILTIN,
     LOAD_IC,
     KEYED_LOAD_IC,
+    KEYED_EXTERNAL_ARRAY_LOAD_IC,
     CALL_IC,
     KEYED_CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
+    KEYED_EXTERNAL_ARRAY_STORE_IC,
     TYPE_RECORDING_UNARY_OP_IC,
     TYPE_RECORDING_BINARY_OP_IC,
     COMPARE_IC,
@@ -3362,6 +3363,12 @@ class Code: public HeapObject {
     return kind() == TYPE_RECORDING_BINARY_OP_IC;
   }
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
+  inline bool is_external_array_load_stub() {
+    return kind() == KEYED_EXTERNAL_ARRAY_LOAD_IC;
+  }
+  inline bool is_external_array_store_stub() {
+    return kind() == KEYED_EXTERNAL_ARRAY_STORE_IC;
+  }
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline int major_key();

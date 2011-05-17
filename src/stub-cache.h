@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,7 +31,6 @@
 #include "allocation.h"
 #include "arguments.h"
 #include "macro-assembler.h"
-#include "objects.h"
 #include "zone-inl.h"
 
 namespace v8 {
@@ -145,6 +144,9 @@ class StubCache {
       String* name,
       JSFunction* receiver);
 
+  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadSpecialized(
+      JSObject* receiver);
+
   // ---
 
   MUST_USE_RESULT MaybeObject* ComputeStoreField(
@@ -183,15 +185,16 @@ class StubCache {
       Map* transition,
       StrictModeFlag strict_mode);
 
+  MUST_USE_RESULT MaybeObject* ComputeKeyedStoreSpecialized(
+      JSObject* receiver,
+      StrictModeFlag strict_mode);
+
+
   MUST_USE_RESULT MaybeObject* ComputeKeyedLoadOrStoreExternalArray(
       JSObject* receiver,
       bool is_store,
       StrictModeFlag strict_mode);
 
-  MUST_USE_RESULT MaybeObject* ComputeKeyedLoadOrStoreFastElement(
-      JSObject* receiver,
-      bool is_store,
-      StrictModeFlag strict_mode);
   // ---
 
   MUST_USE_RESULT MaybeObject* ComputeCallField(int argc,
@@ -466,10 +469,7 @@ class StubCompiler BASE_EMBEDDED {
                                  Register scratch,
                                  Label* miss_label);
 
-  static void GenerateLoadMiss(MacroAssembler* masm,
-                               Code::Kind kind);
-
-  static void GenerateKeyedLoadMissForceGeneric(MacroAssembler* masm);
+  static void GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind);
 
   // Generates code that verifies that the property holder has not changed
   // (checking maps of objects in the prototype chain for fast and global
@@ -634,21 +634,10 @@ class KeyedLoadStubCompiler: public StubCompiler {
   MUST_USE_RESULT MaybeObject* CompileLoadStringLength(String* name);
   MUST_USE_RESULT MaybeObject* CompileLoadFunctionPrototype(String* name);
 
-  MUST_USE_RESULT MaybeObject* CompileLoadFastElement(Map* receiver_map);
-
-  MUST_USE_RESULT MaybeObject* CompileLoadMegamorphic(
-      MapList* receiver_maps,
-      CodeList* handler_ics);
-
-  static void GenerateLoadExternalArray(MacroAssembler* masm,
-                                        ExternalArrayType array_type);
-
-  static void GenerateLoadFastElement(MacroAssembler* masm);
+  MUST_USE_RESULT MaybeObject* CompileLoadSpecialized(JSObject* receiver);
 
  private:
-  MaybeObject* GetCode(PropertyType type,
-                       String* name,
-                       InlineCacheState state = MONOMORPHIC);
+  MaybeObject* GetCode(PropertyType type, String* name);
 };
 
 
@@ -689,22 +678,10 @@ class KeyedStoreStubCompiler: public StubCompiler {
                                                  Map* transition,
                                                  String* name);
 
-  MUST_USE_RESULT MaybeObject* CompileStoreFastElement(Map* receiver_map);
-
-  MUST_USE_RESULT MaybeObject* CompileStoreMegamorphic(
-      MapList* receiver_maps,
-      CodeList* handler_ics);
-
-  static void GenerateStoreFastElement(MacroAssembler* masm,
-                                       bool is_js_array);
-
-  static void GenerateStoreExternalArray(MacroAssembler* masm,
-                                         ExternalArrayType array_type);
+  MUST_USE_RESULT MaybeObject* CompileStoreSpecialized(JSObject* receiver);
 
  private:
-  MaybeObject* GetCode(PropertyType type,
-                       String* name,
-                       InlineCacheState state = MONOMORPHIC);
+  MaybeObject* GetCode(PropertyType type, String* name);
 
   StrictModeFlag strict_mode_;
 };
@@ -871,29 +848,19 @@ class CallOptimization BASE_EMBEDDED {
   CallHandlerInfo* api_call_info_;
 };
 
-class ExternalArrayLoadStubCompiler: public StubCompiler {
+class ExternalArrayStubCompiler: public StubCompiler {
  public:
-  explicit ExternalArrayLoadStubCompiler() {}
+  explicit ExternalArrayStubCompiler() {}
 
-  MUST_USE_RESULT MaybeObject* CompileLoad(
-      JSObject* receiver, ExternalArrayType array_type);
+  MUST_USE_RESULT MaybeObject* CompileKeyedLoadStub(
+      JSObject* receiver, ExternalArrayType array_type, Code::Flags flags);
+
+  MUST_USE_RESULT MaybeObject* CompileKeyedStoreStub(
+      JSObject* receiver, ExternalArrayType array_type, Code::Flags flags);
 
  private:
-  MaybeObject* GetCode();
+  MaybeObject* GetCode(Code::Flags flags);
 };
-
-
-class ExternalArrayStoreStubCompiler: public StubCompiler {
- public:
-  explicit ExternalArrayStoreStubCompiler() {}
-
-  MUST_USE_RESULT MaybeObject* CompileStore(
-      JSObject* receiver, ExternalArrayType array_type);
-
- private:
-  MaybeObject* GetCode();
-};
-
 
 } }  // namespace v8::internal
 

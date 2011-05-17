@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -178,14 +178,8 @@ inline Heap* _inline_get_heap_();
   V(value_of_symbol, "valueOf")                                          \
   V(InitializeVarGlobal_symbol, "InitializeVarGlobal")                   \
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
-  V(KeyedLoadSpecializedMonomorphic_symbol,                              \
-    "KeyedLoadSpecializedMonomorphic")                                   \
-  V(KeyedLoadSpecializedPolymorphic_symbol,                              \
-    "KeyedLoadSpecializedPolymorphic")                                   \
-  V(KeyedStoreSpecializedMonomorphic_symbol,                             \
-    "KeyedStoreSpecializedMonomorphic")                                  \
-  V(KeyedStoreSpecializedPolymorphic_symbol,                             \
-    "KeyedStoreSpecializedPolymorphic")                                  \
+  V(KeyedLoadSpecialized_symbol, "KeyedLoadSpecialized")                 \
+  V(KeyedStoreSpecialized_symbol, "KeyedStoreSpecialized")               \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
   V(illegal_access_symbol, "illegal access")                             \
   V(out_of_memory_symbol, "out-of-memory")                               \
@@ -213,7 +207,32 @@ inline Heap* _inline_get_heap_();
   V(global_eval_symbol, "GlobalEval")                                    \
   V(identity_hash_symbol, "v8::IdentityHash")                            \
   V(closure_symbol, "(closure)")                                         \
-  V(use_strict, "use strict")
+  V(use_strict, "use strict")                                            \
+  V(KeyedLoadExternalByteArray_symbol, "KeyedLoadExternalByteArray")     \
+  V(KeyedLoadExternalUnsignedByteArray_symbol,                           \
+      "KeyedLoadExternalUnsignedByteArray")                              \
+  V(KeyedLoadExternalShortArray_symbol,                                  \
+      "KeyedLoadExternalShortArray")                                     \
+  V(KeyedLoadExternalUnsignedShortArray_symbol,                          \
+      "KeyedLoadExternalUnsignedShortArray")                             \
+  V(KeyedLoadExternalIntArray_symbol, "KeyedLoadExternalIntArray")       \
+  V(KeyedLoadExternalUnsignedIntArray_symbol,                            \
+       "KeyedLoadExternalUnsignedIntArray")                              \
+  V(KeyedLoadExternalFloatArray_symbol, "KeyedLoadExternalFloatArray")   \
+  V(KeyedLoadExternalDoubleArray_symbol, "KeyedLoadExternalDoubleArray") \
+  V(KeyedLoadExternalPixelArray_symbol, "KeyedLoadExternalPixelArray")   \
+  V(KeyedStoreExternalByteArray_symbol, "KeyedStoreExternalByteArray")   \
+  V(KeyedStoreExternalUnsignedByteArray_symbol,                          \
+        "KeyedStoreExternalUnsignedByteArray")                           \
+  V(KeyedStoreExternalShortArray_symbol, "KeyedStoreExternalShortArray") \
+  V(KeyedStoreExternalUnsignedShortArray_symbol,                         \
+        "KeyedStoreExternalUnsignedShortArray")                          \
+  V(KeyedStoreExternalIntArray_symbol, "KeyedStoreExternalIntArray")     \
+  V(KeyedStoreExternalUnsignedIntArray_symbol,                           \
+        "KeyedStoreExternalUnsignedIntArray")                            \
+  V(KeyedStoreExternalFloatArray_symbol, "KeyedStoreExternalFloatArray") \
+  V(KeyedStoreExternalDoubleArray_symbol, "KeyedStoreExternalDoubleArray") \
+  V(KeyedStoreExternalPixelArray_symbol, "KeyedStoreExternalPixelArray")
 
 // Forward declarations.
 class GCTracer;
