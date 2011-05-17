@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -480,6 +480,14 @@ enum StrictModeFlag {
   // to compile when we assert that a flag is either kNonStrictMode or
   // kStrictMode.
   kInvalidStrictFlag
+};
+
+
+// Used to specify if a macro instruction must perform a smi check on tagged
+// values.
+enum SmiCheckType {
+  DONT_DO_SMI_CHECK = 0,
+  DO_SMI_CHECK
 };
 
 } }  // namespace v8::internal

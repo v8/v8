@@ -4672,7 +4672,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ CheckMap(index_,
               masm->isolate()->factory()->heap_number_map(),
               index_not_number_,
-              true);
+              DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
   __ push(object_);
   __ push(index_);

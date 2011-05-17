@@ -29,6 +29,7 @@
 #define V8_IA32_MACRO_ASSEMBLER_IA32_H_
 
 #include "assembler.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
@@ -211,7 +212,7 @@ class MacroAssembler: public Assembler {
   void CheckMap(Register obj,
                 Handle<Map> map,
                 Label* fail,
-                bool is_heap_object);
+                SmiCheckType smi_check_type);
 
   // Check if the object in register heap_object is a string. Afterwards the
   // register map contains the object map and the register instance_type

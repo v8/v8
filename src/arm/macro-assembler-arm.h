@@ -29,6 +29,7 @@
 #define V8_ARM_MACRO_ASSEMBLER_ARM_H_
 
 #include "assembler.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
@@ -575,13 +576,13 @@ class MacroAssembler: public Assembler {
                 Register scratch,
                 Handle<Map> map,
                 Label* fail,
-                bool is_heap_object);
+                SmiCheckType smi_check_type);
 
   void CheckMap(Register obj,
                 Register scratch,
                 Heap::RootListIndex index,
                 Label* fail,
-                bool is_heap_object);
+                SmiCheckType smi_check_type);
 
 
   // Compare the object in a register to a value from the root list.

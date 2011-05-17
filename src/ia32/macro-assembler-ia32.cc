@@ -277,10 +277,9 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
-                              bool is_heap_object) {
-  if (!is_heap_object) {
-    test(obj, Immediate(kSmiTagMask));
-    j(zero, fail);
+                              SmiCheckType smi_check_type) {
+  if (smi_check_type == DONT_DO_SMI_CHECK) {
+    JumpIfSmi(obj, fail);
   }
   cmp(FieldOperand(obj, HeapObject::kMapOffset), Immediate(map));
   j(not_equal, fail);
@@ -1742,7 +1741,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   mov(map, FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
   if (emit_debug_code()) {
     Label ok, fail;
-    CheckMap(map, isolate()->factory()->meta_map(), &fail, false);
+    CheckMap(map, isolate()->factory()->meta_map(), &fail, DO_SMI_CHECK);
     jmp(&ok);
     bind(&fail);
     Abort("Global functions must have initial map");

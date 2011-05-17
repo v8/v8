@@ -93,7 +93,7 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
   __ j(not_zero, miss);
 
   __ mov(r0, FieldOperand(receiver, JSObject::kPropertiesOffset));
-  __ CheckMap(r0, FACTORY->hash_table_map(), miss, true);
+  __ CheckMap(r0, FACTORY->hash_table_map(), miss, DONT_DO_SMI_CHECK);
 }
 
 
@@ -414,7 +414,10 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   __ mov(scratch, FieldOperand(receiver, JSObject::kElementsOffset));
   if (not_fast_array != NULL) {
     // Check that the object is in fast mode and writable.
-    __ CheckMap(scratch, FACTORY->fixed_array_map(), not_fast_array, true);
+    __ CheckMap(scratch,
+                FACTORY->fixed_array_map(),
+                not_fast_array,
+                DONT_DO_SMI_CHECK);
   } else {
     __ AssertFastElements(scratch);
   }
@@ -509,7 +512,10 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // ebx: untagged index
   // eax: key
   // ecx: elements
-  __ CheckMap(ecx, isolate->factory()->hash_table_map(), &slow, true);
+  __ CheckMap(ecx,
+              isolate->factory()->hash_table_map(),
+              &slow,
+              DONT_DO_SMI_CHECK);
   Label slow_pop_receiver;
   // Push receiver on the stack to free up a register for the dictionary
   // probing.
@@ -731,7 +737,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // ecx: key (a smi)
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
   // Check that the object is in fast mode and writable.
-  __ CheckMap(edi, FACTORY->fixed_array_map(), &slow, true);
+  __ CheckMap(edi, FACTORY->fixed_array_map(), &slow, DONT_DO_SMI_CHECK);
   __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
   __ j(below, &fast);
 
@@ -765,7 +771,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // edx: receiver, a JSArray
   // ecx: key, a smi.
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-  __ CheckMap(edi, FACTORY->fixed_array_map(), &slow, true);
+  __ CheckMap(edi, FACTORY->fixed_array_map(), &slow, DONT_DO_SMI_CHECK);
 
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.
@@ -1049,7 +1055,10 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // eax: elements
   // ecx: smi key
   // Check whether the elements is a number dictionary.
-  __ CheckMap(eax, isolate->factory()->hash_table_map(), &slow_load, true);
+  __ CheckMap(eax,
+              isolate->factory()->hash_table_map(),
+              &slow_load,
+              DONT_DO_SMI_CHECK);
   __ mov(ebx, ecx);
   __ SmiUntag(ebx);
   // ebx: untagged index
@@ -1090,7 +1099,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ CheckMap(ebx,
               isolate->factory()->hash_table_map(),
               &lookup_monomorphic_cache,
-              true);
+              DONT_DO_SMI_CHECK);
 
   GenerateDictionaryLoad(masm, &slow_load, ebx, ecx, eax, edi, edi);
   __ IncrementCounter(counters->keyed_call_generic_lookup_dict(), 1);

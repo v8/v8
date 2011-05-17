@@ -2551,7 +2551,10 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Factory* factory = masm->isolate()->factory();
   if (!object_is_smi) {
     __ JumpIfSmi(object, &is_smi);
-    __ CheckMap(object, factory->heap_number_map(), not_found, true);
+    __ CheckMap(object,
+                factory->heap_number_map(),
+                not_found,
+                DONT_DO_SMI_CHECK);
 
     STATIC_ASSERT(8 == kDoubleSize);
     __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
@@ -3680,7 +3683,10 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // Index is not a smi.
   __ bind(&index_not_smi_);
   // If index is a heap number, try converting it to an integer.
-  __ CheckMap(index_, factory->heap_number_map(), index_not_number_, true);
+  __ CheckMap(index_,
+              factory->heap_number_map(),
+              index_not_number_,
+              DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
   __ push(object_);
   __ push(index_);
