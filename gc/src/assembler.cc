@@ -843,11 +843,6 @@ ExternalReference ExternalReference::new_space_start(Isolate* isolate) {
 }
 
 
-ExternalReference ExternalReference::new_space_mark_bits(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->marking()->new_space_bitmap());
-}
-
-
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
   return ExternalReference(isolate->heap()->store_buffer()->TopAddress());
 }

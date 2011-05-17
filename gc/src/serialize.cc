@@ -397,13 +397,9 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       11,
       "Heap::NewSpaceMask()");
-  Add(ExternalReference::new_space_mark_bits(isolate).address(),
-      UNCLASSIFIED,
-      12,
-      "Marking::new_space_bitmap()");
   Add(ExternalReference::heap_always_allocate_scope_depth(isolate).address(),
       UNCLASSIFIED,
-      13,
+      12,
       "Heap::always_allocate_scope_depth()");
   Add(ExternalReference::new_space_allocation_limit_address(isolate).address(),
       UNCLASSIFIED,

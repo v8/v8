@@ -49,26 +49,14 @@ class RootMarkingVisitor;
 class Marking {
  public:
   explicit Marking(Heap* heap)
-      : heap_(heap),
-        new_space_bitmap_(NULL) {
+      : heap_(heap) {
   }
 
-  inline MarkBit MarkBitFromNewSpace(HeapObject* obj);
+  static inline MarkBit MarkBitFrom(Address addr);
 
-  static inline MarkBit MarkBitFromOldSpace(HeapObject* obj);
-
-  inline MarkBit MarkBitFrom(Address addr);
-
-  // For embedding in generated code.
-  inline Address new_space_bitmap() {
-    return reinterpret_cast<Address>(new_space_bitmap_);
-  }
-
-  inline MarkBit MarkBitFrom(HeapObject* obj) {
+  static inline MarkBit MarkBitFrom(HeapObject* obj) {
     return MarkBitFrom(reinterpret_cast<Address>(obj));
   }
-
-  inline void ClearRange(Address addr, int size);
 
   void TransferMark(Address old_start, Address new_start);
 
@@ -77,51 +65,7 @@ class Marking {
   void TearDown();
 
  private:
-  class BitmapStorageDescriptor {
-   public:
-    INLINE(static int CellsCount(Address addr)) {
-      return HeaderOf(addr)->cells_count_;
-    }
-
-    static Bitmap<BitmapStorageDescriptor>* Allocate(int cells_count) {
-      VirtualMemory* memory = new VirtualMemory(SizeFor(cells_count));
-
-      if (!memory->Commit(memory->address(), memory->size(), false)) {
-        delete memory;
-        return NULL;
-      }
-
-      Address bitmap_address =
-          reinterpret_cast<Address>(memory->address()) + sizeof(Header);
-      HeaderOf(bitmap_address)->cells_count_ = cells_count;
-      HeaderOf(bitmap_address)->storage_ = memory;
-      return Bitmap<BitmapStorageDescriptor>::FromAddress(bitmap_address);
-    }
-
-    static void Free(Bitmap<BitmapStorageDescriptor>* bitmap) {
-      delete HeaderOf(bitmap->address())->storage_;
-    }
-
-   private:
-    struct Header {
-      VirtualMemory* storage_;
-      int cells_count_;
-    };
-
-    static int SizeFor(int cell_count) {
-      return sizeof(Header) +
-          Bitmap<BitmapStorageDescriptor>::SizeFor(cell_count);
-    }
-
-    static Header* HeaderOf(Address addr) {
-      return reinterpret_cast<Header*>(addr - sizeof(Header));
-    }
-  };
-
-  typedef Bitmap<BitmapStorageDescriptor> NewSpaceMarkbitsBitmap;
-
   Heap* heap_;
-  NewSpaceMarkbitsBitmap* new_space_bitmap_;
 };
 
 // ----------------------------------------------------------------------------

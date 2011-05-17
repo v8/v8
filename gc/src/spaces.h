@@ -164,19 +164,25 @@ class MarkBit {
 
 
 // Bitmap is a sequence of cells each containing fixed number of bits.
-template<typename StorageDescriptor>
 class Bitmap {
  public:
   static const uint32_t kBitsPerCell = 32;
   static const uint32_t kBitsPerCellLog2 = 5;
   static const uint32_t kBitIndexMask = kBitsPerCell - 1;
 
+  static const size_t kLength =
+    (1 << kPageSizeBits) >> (kPointerSizeLog2);
+
+  static const size_t kSize =
+    (1 << kPageSizeBits) >> (kPointerSizeLog2 + kBitsPerByteLog2);
+
+
   static int CellsForLength(int length) {
     return (length + kBitsPerCell - 1) >> kBitsPerCellLog2;
   }
 
   int CellsCount() {
-    return StorageDescriptor::CellsCount(this->address());
+    return CellsForLength(kLength);
   }
 
   static int SizeFor(int cells_count) {
@@ -395,14 +401,8 @@ class MemoryChunk {
   static const size_t kHeaderSize = kPointerSize + kPointerSize + kPointerSize +
     kPointerSize + kPointerSize + kPointerSize + kPointerSize + kPointerSize;
 
-  static const size_t kMarksBitmapLength =
-    (1 << kPageSizeBits) >> (kPointerSizeLog2);
-
-  static const size_t kMarksBitmapSize =
-    (1 << kPageSizeBits) >> (kPointerSizeLog2 + kBitsPerByteLog2);
-
   static const int kBodyOffset =
-    CODE_POINTER_ALIGN(MAP_POINTER_ALIGN(kHeaderSize + kMarksBitmapSize));
+    CODE_POINTER_ALIGN(MAP_POINTER_ALIGN(kHeaderSize + Bitmap::kSize));
 
   // The start offset of the object area in a page. Aligned to both maps and
   // code alignment to be suitable for both.  Also aligned to 32 words because
@@ -424,18 +424,8 @@ class MemoryChunk {
   // ---------------------------------------------------------------------
   // Markbits support
 
-  class BitmapStorageDescriptor {
-   public:
-    INLINE(static int CellsCount(Address addr)) {
-      return Bitmap<BitmapStorageDescriptor>::CellsForLength(
-          kMarksBitmapLength);
-    }
-  };
-
-  typedef Bitmap<BitmapStorageDescriptor> MarkbitsBitmap;
-
-  inline MarkbitsBitmap* markbits() {
-    return MarkbitsBitmap::FromAddress(address() + kHeaderSize);
+  inline Bitmap* markbits() {
+    return Bitmap::FromAddress(address() + kHeaderSize);
   }
 
   void PrintMarkbits() { markbits()->Print(); }
@@ -558,11 +548,11 @@ class Page : public MemoryChunk {
   static const int kMaxHeapObjectSize = kObjectAreaSize;
 
   static const int kFirstUsedCell =
-    (kObjectStartOffset/kPointerSize) >> MarkbitsBitmap::kBitsPerCellLog2;
+    (kObjectStartOffset/kPointerSize) >> Bitmap::kBitsPerCellLog2;
 
   static const int kLastUsedCell =
     ((kPageSize - kPointerSize)/kPointerSize) >>
-      MarkbitsBitmap::kBitsPerCellLog2;
+      Bitmap::kBitsPerCellLog2;
 
   inline void ClearGCFields();
 
@@ -1868,6 +1858,10 @@ class NewSpace : public Space {
 
   NewSpacePage* ActivePage() {
     return to_space_.current_page();
+  }
+
+  NewSpacePage* InactivePage() {
+    return from_space_.current_page();
   }
 
  private:

@@ -55,10 +55,7 @@ void MacroAssembler::InOldSpaceIsBlack(Register object,
                                        LabelType* is_black) {
   HasColour(object, scratch0, scratch1,
             is_black,
-            Page::kPageAlignmentMask,
-            MemoryChunk::kHeaderSize,
-            1, 0,    // kBlackBitPattern.
-            false);  // In old space.
+            1, 0);  // kBlackBitPattern.
   ASSERT(strcmp(IncrementalMarking::kBlackBitPattern, "10") == 0);
 }
 
@@ -70,10 +67,7 @@ void MacroAssembler::InNewSpaceIsBlack(Register object,
                                        LabelType* is_black) {
   HasColour(object, scratch0, scratch1,
             is_black,
-            ~HEAP->new_space()->mask(),
-            0,
-            1, 0,   // kBlackBitPattern.
-            true);  // In new space.
+            1, 0);  // kBlackBitPattern.
   ASSERT(strcmp(IncrementalMarking::kBlackBitPattern, "10") == 0);
 }
 
@@ -83,27 +77,23 @@ void MacroAssembler::HasColour(Register object,
                                Register bitmap_scratch,
                                Register mask_scratch,
                                LabelType* has_colour,
-                               uint32_t mask,
-                               int header_size,
                                int first_bit,
-                               int second_bit,
-                               bool in_new_space) {
+                               int second_bit) {
   ASSERT(!Aliasing(object, bitmap_scratch, mask_scratch, ecx));
-  int32_t high_mask = ~mask;
 
-  MarkBits(object, bitmap_scratch, mask_scratch, high_mask, in_new_space);
+  MarkBits(object, bitmap_scratch, mask_scratch);
 
   NearLabel other_colour, word_boundary;
-  test(mask_scratch, Operand(bitmap_scratch, header_size));
+  test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
   j(first_bit == 1 ? zero : not_zero, &other_colour);
   add(mask_scratch, Operand(mask_scratch));  // Shift left 1 by adding.
   j(zero, &word_boundary);
-  test(mask_scratch, Operand(bitmap_scratch, header_size));
+  test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
   j(second_bit == 1 ? not_zero : zero, has_colour);
   jmp(&other_colour);
 
   bind(&word_boundary);
-  test_b(Operand(bitmap_scratch, header_size + kPointerSize), 1);
+  test_b(Operand(bitmap_scratch, MemoryChunk::kHeaderSize + kPointerSize), 1);
 
   j(second_bit == 1 ? not_zero : zero, has_colour);
   bind(&other_colour);
@@ -142,27 +132,20 @@ void MacroAssembler::IsDataObject(Register value,
 
 void MacroAssembler::MarkBits(Register addr_reg,
                               Register bitmap_reg,
-                              Register mask_reg,
-                              int32_t high_mask,
-                              bool in_new_space) {
+                              Register mask_reg) {
   ASSERT(!Aliasing(addr_reg, bitmap_reg, mask_reg, ecx));
-  if (in_new_space) {
-    mov(bitmap_reg,
-        Immediate(ExternalReference::new_space_mark_bits(isolate())));
-  } else {
-    mov(bitmap_reg, Operand(addr_reg));
-    and_(bitmap_reg, high_mask);
-  }
+  mov(bitmap_reg, Operand(addr_reg));
+  and_(bitmap_reg, ~Page::kPageAlignmentMask);
   mov(ecx, Operand(addr_reg));
-  static const int kBitsPerCellLog2 =
-      Bitmap<MemoryChunk::BitmapStorageDescriptor>::kBitsPerCellLog2;
-  shr(ecx, kBitsPerCellLog2);
-  and_(ecx, ~((high_mask >> kBitsPerCellLog2) | (kPointerSize - 1)));
+  shr(ecx, Bitmap::kBitsPerCellLog2);
+  and_(ecx,
+       (Page::kPageAlignmentMask >> Bitmap::kBitsPerCellLog2) &
+           ~(kPointerSize - 1));
 
   add(bitmap_reg, Operand(ecx));
   mov(ecx, Operand(addr_reg));
   shr(ecx, kPointerSizeLog2);
-  and_(ecx, (1 << kBitsPerCellLog2) - 1);
+  and_(ecx, (1 << Bitmap::kBitsPerCellLog2) - 1);
   mov(mask_reg, Immediate(1));
   shl_cl(mask_reg);
 }
@@ -176,11 +159,7 @@ void MacroAssembler::EnsureNotWhite(
     LabelType* value_is_white_and_not_data,
     bool in_new_space) {
   ASSERT(!Aliasing(value, bitmap_scratch, mask_scratch, ecx));
-  int32_t high_mask = in_new_space ?
-      HEAP->new_space()->mask() :
-      ~Page::kPageAlignmentMask;
-  int header_size = in_new_space ? 0 : MemoryChunk::kHeaderSize;
-  MarkBits(value, bitmap_scratch, mask_scratch, high_mask, in_new_space);
+  MarkBits(value, bitmap_scratch, mask_scratch);
 
   // If the value is black or grey we don't need to do anything.
   ASSERT(strcmp(IncrementalMarking::kWhiteBitPattern, "00") == 0);
@@ -192,7 +171,7 @@ void MacroAssembler::EnsureNotWhite(
 
   // Since both black and grey have a 1 in the first position and white does
   // not have a 1 there we only need to check one bit.
-  test(mask_scratch, Operand(bitmap_scratch, header_size));
+  test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
   j(not_zero, &done);
 
   if (FLAG_debug_code) {
@@ -201,7 +180,7 @@ void MacroAssembler::EnsureNotWhite(
     push(mask_scratch);
     // shl.  May overflow making the check conservative.
     add(mask_scratch, Operand(mask_scratch));
-    test(mask_scratch, Operand(bitmap_scratch, header_size));
+    test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
     j(zero, &ok);
     int3();
     bind(&ok);
@@ -213,7 +192,7 @@ void MacroAssembler::EnsureNotWhite(
 
   // Value is a data object, and it is white.  Mark it black.  Since we know
   // that the object is white we can make it black by flipping one bit.
-  or_(Operand(bitmap_scratch, header_size), mask_scratch);
+  or_(Operand(bitmap_scratch, MemoryChunk::kHeaderSize), mask_scratch);
   bind(&done);
 }
 

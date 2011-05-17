@@ -35,46 +35,11 @@
 namespace v8 {
 namespace internal {
 
-MarkBit Marking::MarkBitFromNewSpace(HeapObject* obj) {
-  ASSERT(heap_->InNewSpace(obj));
-  uint32_t index = heap_->new_space()->AddressToMarkbitIndex(
-      reinterpret_cast<Address>(obj));
-  bool data_object = obj->map()->instance_type() == HEAP_NUMBER_TYPE;
-  return new_space_bitmap_->MarkBitFromIndex(index, data_object);
-}
 
-
-MarkBit Marking::MarkBitFromOldSpace(HeapObject* obj) {
-  ASSERT(!HEAP->InNewSpace(obj));
-  ASSERT(obj->IsHeapObject());
-  Address addr = reinterpret_cast<Address>(obj);
+MarkBit Marking::MarkBitFrom(Address addr) {
   Page *p = Page::FromAddress(addr);
   return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr),
                                          p->ContainsOnlyData());
-}
-
-
-MarkBit Marking::MarkBitFrom(Address addr) {
-  if (heap_->InNewSpace(addr)) {
-    uint32_t index = heap_->new_space()->AddressToMarkbitIndex(addr);
-    return new_space_bitmap_->MarkBitFromIndex(index);
-  } else {
-    Page *p = Page::FromAddress(addr);
-    return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr),
-                                           p->ContainsOnlyData());
-  }
-}
-
-
-void Marking::ClearRange(Address addr, int size) {
-  if (heap_->InNewSpace(addr)) {
-    uint32_t index = heap_->new_space()->AddressToMarkbitIndex(addr);
-    new_space_bitmap_->ClearRange(index, size >> kPointerSizeLog2);
-  } else {
-    Page *p = Page::FromAddress(addr);
-    p->markbits()->ClearRange(p->FastAddressToMarkbitIndex(addr),
-                              size >> kPointerSizeLog2);
-  }
 }
 
 

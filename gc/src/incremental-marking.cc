@@ -205,6 +205,7 @@ void IncrementalMarking::ClearMarkbits() {
   ClearMarkbits(heap_->cell_space());
   ClearMarkbits(heap_->map_space());
   ClearMarkbits(heap_->code_space());
+  heap_->new_space()->ActivePage()->markbits()->Clear();
 
   SetNewSpacePageFlags(heap_->new_space()->ActivePage(), true);
 
@@ -233,6 +234,7 @@ void IncrementalMarking::VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(heap_->code_space());
   VerifyMarkbitsAreClean(heap_->cell_space());
   VerifyMarkbitsAreClean(heap_->map_space());
+  ASSERT(heap_->new_space()->ActivePage()->markbits()->IsClean());
 }
 #endif
 
@@ -327,11 +329,6 @@ void IncrementalMarking::StartMarking() {
                             addr + marking_deque_memory->size());
 
   // Clear markbits.
-  Address new_space_low = heap_->new_space()->ToSpaceLow();
-  Address new_space_high = heap_->new_space()->ToSpaceHigh();
-  heap_->marking()->ClearRange(
-      new_space_low, static_cast<int>(new_space_high - new_space_low));
-
   ClearMarkbits();
 
 #ifdef DEBUG
@@ -351,11 +348,7 @@ void IncrementalMarking::StartMarking() {
 
 void IncrementalMarking::PrepareForScavenge() {
   if (!IsMarking()) return;
-
-  Address new_space_low = heap_->new_space()->FromSpaceLow();
-  Address new_space_high = heap_->new_space()->FromSpaceHigh();
-  heap_->marking()->ClearRange(
-      new_space_low, static_cast<int>(new_space_high - new_space_low));
+  heap_->new_space()->InactivePage()->markbits()->Clear();
 }
 
 
@@ -502,7 +495,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
         ASSERT(IsGrey(marking->MarkBitFrom(obj)));
         int size = obj->SizeFromMap(map);
         bytes_to_process -= size;
-        MarkBit map_mark_bit = marking->MarkBitFromOldSpace(map);
+        MarkBit map_mark_bit = marking->MarkBitFrom(map);
         if (IsWhite(map_mark_bit)) WhiteToGreyAndPush(map, map_mark_bit);
         // TODO(gc) switch to static visitor instead of normal visitor.
         obj->IterateBody(map->instance_type(), size, &marking_visitor);

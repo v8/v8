@@ -104,11 +104,8 @@ class MacroAssembler: public Assembler {
                  Register scratch0,
                  Register scratch1,
                  LabelType* has_colour,
-                 uint32_t mask,
-                 int header_size,
                  int first_bit,
-                 int second_bit,
-                 bool in_new_space);
+                 int second_bit);
 
   template <typename LabelType>
   void InOldSpaceIsBlack(Register object,
@@ -784,9 +781,7 @@ class MacroAssembler: public Assembler {
   // unchanged.
   inline void MarkBits(Register addr_reg,
                        Register bitmap_reg,
-                       Register mask_reg,
-                       int32_t high_mask,
-                       bool in_new_space);
+                       Register mask_reg);
 
   // Compute memory operands for safepoint stack slots.
   Operand SafepointRegisterSlot(Register reg);

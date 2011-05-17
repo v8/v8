@@ -5074,9 +5074,6 @@ bool Heap::Setup(bool create_heap_objects) {
   lo_space_ = new LargeObjectSpace(this, LO_SPACE);
   if (lo_space_ == NULL) return false;
   if (!lo_space_->Setup()) return false;
-
-  if (!marking()->Setup()) return false;
-
   if (create_heap_objects) {
     // Create initial maps.
     if (!CreateInitialMaps()) return false;
@@ -5174,7 +5171,6 @@ void Heap::TearDown() {
     lo_space_ = NULL;
   }
 
-  marking()->TearDown();
   store_buffer()->TearDown();
 
   isolate_->memory_allocator()->TearDown();

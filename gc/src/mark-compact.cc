@@ -68,28 +68,6 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       code_flusher_(NULL) { }
 
 
-bool Marking::Setup() {
-  if (new_space_bitmap_ == NULL) {
-    // TODO(gc) ISOLATES
-    int markbits_per_newspace =
-        (2*HEAP->ReservedSemiSpaceSize()) >> kPointerSizeLog2;
-
-    new_space_bitmap_ =
-        BitmapStorageDescriptor::Allocate(
-            NewSpaceMarkbitsBitmap::CellsForLength(markbits_per_newspace));
-  }
-  return new_space_bitmap_ != NULL;
-}
-
-
-void Marking::TearDown() {
-  if (new_space_bitmap_ != NULL) {
-    BitmapStorageDescriptor::Free(new_space_bitmap_);
-    new_space_bitmap_ = NULL;
-  }
-}
-
-
 #ifdef DEBUG
 class VerifyMarkingVisitor: public ObjectVisitor {
  public:
@@ -212,6 +190,7 @@ static void VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(HEAP->code_space());
   VerifyMarkbitsAreClean(HEAP->cell_space());
   VerifyMarkbitsAreClean(HEAP->map_space());
+  ASSERT(HEAP->new_space()->ActivePage()->markbits()->IsClean());
 }
 #endif
 
@@ -233,6 +212,7 @@ static void ClearMarkbits() {
   ClearMarkbits(HEAP->old_pointer_space());
   ClearMarkbits(HEAP->old_data_space());
   ClearMarkbits(HEAP->cell_space());
+  HEAP->new_space()->ActivePage()->markbits()->Clear();
 }
 
 
@@ -312,13 +292,6 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   }
 
   if (!heap()->incremental_marking()->IsMarking()) {
-    Address new_space_bottom = heap()->new_space()->bottom();
-    uintptr_t new_space_size =
-        RoundUp(heap()->new_space()->top() - new_space_bottom,
-                32 * kPointerSize);
-
-    heap()->marking()->ClearRange(new_space_bottom, new_space_size);
-
     ClearMarkbits();
 #ifdef DEBUG
     VerifyMarkbitsAreClean();
@@ -443,7 +416,7 @@ class CodeFlusher {
       SharedFunctionInfo* shared = candidate->unchecked_shared();
 
       Code* code = shared->unchecked_code();
-      MarkBit code_mark = Marking::MarkBitFromOldSpace(code);
+      MarkBit code_mark = Marking::MarkBitFrom(code);
       if (!code_mark.Get()) {
         shared->set_code(lazy_compile);
         candidate->set_code(lazy_compile);
@@ -468,7 +441,7 @@ class CodeFlusher {
       SetNextCandidate(candidate, NULL);
 
       Code* code = candidate->unchecked_code();
-      MarkBit code_mark = Marking::MarkBitFromOldSpace(code);
+      MarkBit code_mark = Marking::MarkBitFrom(code);
       if (!code_mark.Get()) {
         candidate->set_code(lazy_compile);
       }
@@ -653,7 +626,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       // Please note targets for cleared inline cached do not have to be
       // marked since they are contained in HEAP->non_monomorphic_cache().
     } else {
-      MarkBit code_mark = Marking::MarkBitFromOldSpace(code);
+      MarkBit code_mark = Marking::MarkBitFrom(code);
       heap->mark_compact_collector()->MarkObject(code, code_mark);
     }
   }
@@ -675,7 +648,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
            (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
             rinfo->IsPatchedDebugBreakSlotSequence()));
     HeapObject* code = Code::GetCodeFromTargetAddress(rinfo->call_address());
-    MarkBit code_mark = Marking::MarkBitFromOldSpace(code);
+    MarkBit code_mark = Marking::MarkBitFrom(code);
     heap->mark_compact_collector()->MarkObject(code, code_mark);
   }
 
@@ -701,7 +674,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     MarkBit mark = heap->marking()->MarkBitFrom(obj);
     heap->mark_compact_collector()->SetMark(obj, mark);
     // Mark the map pointer and the body.
-    MarkBit map_mark = Marking::MarkBitFromOldSpace(map);
+    MarkBit map_mark = Marking::MarkBitFrom(map);
     heap->mark_compact_collector()->MarkObject(map, map_mark);
     IterateBody(map, obj);
   }
@@ -784,7 +757,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     // Code is either on stack, in compilation cache or referenced
     // by optimized version of function.
     MarkBit code_mark =
-        Marking::MarkBitFromOldSpace(function->unchecked_code());
+        Marking::MarkBitFrom(function->unchecked_code());
     if (code_mark.Get()) {
       shared_info->set_code_age(0);
       return false;
@@ -802,7 +775,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     // Code is either on stack, in compilation cache or referenced
     // by optimized version of function.
     MarkBit code_mark =
-        Marking::MarkBitFromOldSpace(shared_info->unchecked_code());
+        Marking::MarkBitFrom(shared_info->unchecked_code());
     if (code_mark.Get()) {
       shared_info->set_code_age(0);
       return false;
@@ -954,7 +927,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     if (!flush_code_candidate) {
       Code* code = jsfunction->unchecked_shared()->unchecked_code();
-      MarkBit code_mark = Marking::MarkBitFromOldSpace(code);
+      MarkBit code_mark = Marking::MarkBitFrom(code);
       HEAP->mark_compact_collector()->MarkObject(code, code_mark);
 
       if (jsfunction->unchecked_code()->kind() == Code::OPTIMIZED_FUNCTION) {
@@ -973,7 +946,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
           JSFunction* inlined = reinterpret_cast<JSFunction*>(literals->get(i));
           Code* inlined_code = inlined->unchecked_shared()->unchecked_code();
           MarkBit inlined_code_mark =
-              Marking::MarkBitFromOldSpace(inlined_code);
+              Marking::MarkBitFrom(inlined_code);
           HEAP->mark_compact_collector()->MarkObject(
               inlined_code, inlined_code_mark);
         }
@@ -1018,7 +991,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       if (!shared_info_mark.Get()) {
         Map* shared_info_map = shared_info->map();
         MarkBit shared_info_map_mark =
-            Marking::MarkBitFromOldSpace(shared_info_map);
+            Marking::MarkBitFrom(shared_info_map);
         HEAP->mark_compact_collector()->SetMark(shared_info, shared_info_mark);
         HEAP->mark_compact_collector()->MarkObject(shared_info_map,
                                                    shared_info_map_mark);
@@ -1100,7 +1073,7 @@ class CodeMarkingVisitor : public ThreadVisitor {
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
     for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       Code* code = it.frame()->unchecked_code();
-      MarkBit code_bit = Marking::MarkBitFromOldSpace(code);
+      MarkBit code_bit = Marking::MarkBitFrom(code);
       HEAP->mark_compact_collector()->MarkObject(
           it.frame()->unchecked_code(), code_bit);
     }
@@ -1127,7 +1100,7 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
       // TODO(gc) ISOLATES MERGE
       MarkBit shared_mark = HEAP->marking()->MarkBitFrom(shared);
       MarkBit code_mark =
-          HEAP->marking()->MarkBitFromOldSpace(shared->unchecked_code());
+          HEAP->marking()->MarkBitFrom(shared->unchecked_code());
       HEAP->mark_compact_collector()->MarkObject(shared->unchecked_code(),
                                                  code_mark);
       HEAP->mark_compact_collector()->MarkObject(shared, shared_mark);
@@ -1168,7 +1141,7 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
   ASSERT(this == heap()->mark_compact_collector());
   for (StackFrameIterator it; !it.done(); it.Advance()) {
     Code* code = it.frame()->unchecked_code();
-    MarkBit code_mark = Marking::MarkBitFromOldSpace(code);
+    MarkBit code_mark = Marking::MarkBitFrom(code);
     MarkObject(code, code_mark);
   }
 
@@ -1215,7 +1188,7 @@ class RootMarkingVisitor : public ObjectVisitor {
     HEAP->mark_compact_collector()->SetMark(object, mark_bit);
 
     // Mark the map pointer and body, and push them on the marking stack.
-    MarkBit map_mark = Marking::MarkBitFromOldSpace(map);
+    MarkBit map_mark = Marking::MarkBitFrom(map);
     HEAP->mark_compact_collector()->MarkObject(map, map_mark);
     StaticMarkingVisitor::IterateBody(map, object);
 
@@ -1551,7 +1524,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
     ASSERT(!object->IsOverflowed());
 
     Map* map = object->map();
-    MarkBit map_mark = Marking::MarkBitFromOldSpace(map);
+    MarkBit map_mark = Marking::MarkBitFrom(map);
     MarkObject(map, map_mark);
 
     StaticMarkingVisitor::IterateBody(map, object);
@@ -1756,7 +1729,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
   for (HeapObject* obj = map_iterator.Next();
        obj != NULL; obj = map_iterator.Next()) {
     Map* map = reinterpret_cast<Map*>(obj);
-    MarkBit map_mark = Marking::MarkBitFromOldSpace(map);
+    MarkBit map_mark = Marking::MarkBitFrom(map);
     if (map->IsFreeSpace()) continue;
 
     ASSERT(SafeIsMap(map));
@@ -1781,7 +1754,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
         HeapObject* prototype = HeapObject::cast(prototype_transitions->get(i));
         Map* cached_map = Map::cast(prototype_transitions->get(i + 1));
         MarkBit prototype_mark = heap()->marking()->MarkBitFrom(prototype);
-        MarkBit cached_map_mark = Marking::MarkBitFromOldSpace(cached_map);
+        MarkBit cached_map_mark = Marking::MarkBitFrom(cached_map);
         if (prototype_mark.Get() && cached_map_mark.Get()) {
           if (new_finger != i) {
             prototype_transitions->set_unchecked(heap_,
@@ -1824,7 +1797,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
     while (SafeIsMap(current)) {
       next = current->prototype();
       // There should never be a dead map above a live map.
-      MarkBit current_mark = Marking::MarkBitFromOldSpace(current);
+      MarkBit current_mark = Marking::MarkBitFrom(current);
       ASSERT(on_dead_path || current_mark.Get());
 
       // A live map above a dead map indicates a dead transition.
@@ -2017,7 +1990,7 @@ void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
     HeapObject* object = HeapObject::FromAddress(current);
 
 
-    MarkBit mark_bit = heap_->marking()->MarkBitFromNewSpace(object);
+    MarkBit mark_bit = heap_->marking()->MarkBitFrom(object);
     if (mark_bit.Get()) {
       mark_bit.Clear();
       heap_->mark_compact_collector()->tracer()->decrement_marked_count();
@@ -2113,7 +2086,7 @@ static uint32_t SweepFree(PagedSpace* space,
                           uint32_t free_start,
                           uint32_t region_end,
                           uint32_t* cells) {
-  uint32_t free_cell_index = Page::MarkbitsBitmap::IndexToCell(free_start);
+  uint32_t free_cell_index = Bitmap::IndexToCell(free_start);
   ASSERT(cells[free_cell_index] == 0);
   while (free_cell_index < region_end && cells[free_cell_index] == 0) {
     free_cell_index++;
@@ -2123,7 +2096,7 @@ static uint32_t SweepFree(PagedSpace* space,
     return free_cell_index;
   }
 
-  uint32_t free_end = Page::MarkbitsBitmap::CellToIndex(free_cell_index);
+  uint32_t free_end = Bitmap::CellToIndex(free_cell_index);
   space->Free(p->MarkbitIndexToAddress(free_start),
               (free_end - free_start) << kPointerSizeLog2);
 
@@ -2161,7 +2134,7 @@ static int SizeOfPreviousObject(Page* p,
       CompilerIntrinsics::CountLeadingZeros(cells[cell_index - 1]) + 1;
   Address addr =
       p->MarkbitIndexToAddress(
-          Page::MarkbitsBitmap::CellToIndex(cell_index) - leading_zeroes);
+          Bitmap::CellToIndex(cell_index) - leading_zeroes);
   HeapObject* obj = HeapObject::FromAddress(addr);
   ASSERT(obj->map()->IsMap());
   return (obj->Size() >> kPointerSizeLog2) - leading_zeroes;
@@ -2456,8 +2429,8 @@ int MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
   Address block_address = p->ObjectAreaStart();
 
   int last_cell_index =
-      Page::MarkbitsBitmap::IndexToCell(
-          Page::MarkbitsBitmap::CellAlignIndex(
+      Bitmap::IndexToCell(
+          Bitmap::CellAlignIndex(
               p->AddressToMarkbitIndex(p->ObjectAreaEnd())));
 
   int cell_index = Page::kFirstUsedCell;
@@ -2492,8 +2465,8 @@ int MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
        cell_index < last_cell_index;
        cell_index++, block_address += 32 * kPointerSize) {
     ASSERT((unsigned)cell_index ==
-        Page::MarkbitsBitmap::IndexToCell(
-            Page::MarkbitsBitmap::CellAlignIndex(
+        Bitmap::IndexToCell(
+            Bitmap::CellAlignIndex(
                 p->AddressToMarkbitIndex(block_address))));
     uint32_t cell = cells[cell_index];
     if (cell != 0) {
@@ -2537,8 +2510,8 @@ static void SweepPrecisely(PagedSpace* space,
   p->ClearFlag(MemoryChunk::WAS_SWEPT_CONSERVATIVELY);
 
   int last_cell_index =
-      Page::MarkbitsBitmap::IndexToCell(
-          Page::MarkbitsBitmap::CellAlignIndex(
+      Bitmap::IndexToCell(
+          Bitmap::CellAlignIndex(
               p->AddressToMarkbitIndex(p->ObjectAreaEnd())));
 
   int cell_index = Page::kFirstUsedCell;
@@ -2551,8 +2524,8 @@ static void SweepPrecisely(PagedSpace* space,
        cell_index < last_cell_index;
        cell_index++, object_address += 32 * kPointerSize) {
     ASSERT((unsigned)cell_index ==
-        Page::MarkbitsBitmap::IndexToCell(
-            Page::MarkbitsBitmap::CellAlignIndex(
+        Bitmap::IndexToCell(
+            Bitmap::CellAlignIndex(
                 p->AddressToMarkbitIndex(object_address))));
     int live_objects = MarkWordToObjectStarts(cells[cell_index], offsets);
     int live_index = 0;
