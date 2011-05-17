@@ -300,10 +300,19 @@ class FullCodeGenerator: public AstVisitor {
 
   // Helper function to split control flow and avoid a branch to the
   // fall-through label if it is set up.
+#ifdef V8_TARGET_ARCH_MIPS
+  void Split(Condition cc,
+             Register lhs,
+             const Operand&  rhs,
+             Label* if_true,
+             Label* if_false,
+             Label* fall_through);
+#else  // All non-mips arch.
   void Split(Condition cc,
              Label* if_true,
              Label* if_false,
              Label* fall_through);
+#endif  // V8_TARGET_ARCH_MIPS
 
   void Move(Slot* dst, Register source, Register scratch1, Register scratch2);
   void Move(Register dst, Slot* source);
