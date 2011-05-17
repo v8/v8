@@ -3333,8 +3333,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 #endif
 
   // Restore the top frame descriptor from the stack.
-  {
-    Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
+  { Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
     __ pop(c_entry_fp_operand);
   }
 

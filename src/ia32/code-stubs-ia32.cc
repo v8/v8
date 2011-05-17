@@ -4254,7 +4254,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // Check if the current stack frame is marked as the outermost JS frame.
   __ pop(ebx);
-  __ cmp(Operand(ebx), Immediate(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  __ cmp(Operand(ebx),
+         Immediate(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
   __ j(not_equal, &not_outermost_js_2);
   __ mov(Operand::StaticVariable(js_entry_sp), Immediate(0));
   __ bind(&not_outermost_js_2);
