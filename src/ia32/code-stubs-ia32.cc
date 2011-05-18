@@ -622,10 +622,13 @@ void TypeRecordingUnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateSmiCodeSub(
-    MacroAssembler* masm, Label* non_smi, Label* undo, Label* slow,
-    Label::Distance non_smi_near, Label::Distance undo_near,
-    Label::Distance slow_near) {
+void TypeRecordingUnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
+                                                  Label* non_smi,
+                                                  Label* undo,
+                                                  Label* slow,
+                                                  Label::Distance non_smi_near,
+                                                  Label::Distance undo_near,
+                                                  Label::Distance slow_near) {
   // Check whether the value is a smi.
   __ test(eax, Immediate(kSmiTagMask));
   __ j(not_zero, non_smi, non_smi_near);
@@ -679,14 +682,16 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
-  Label non_smi, undo, slow;
-  GenerateSmiCodeSub(masm, &non_smi, &undo, &slow, Label::kNear);
+  Label non_smi, undo, slow, call_builtin;
+  GenerateSmiCodeSub(masm, &non_smi, &undo, &call_builtin, Label::kNear);
   __ bind(&non_smi);
   GenerateHeapNumberCodeSub(masm, &slow);
   __ bind(&undo);
   GenerateSmiCodeUndo(masm);
   __ bind(&slow);
   GenerateTypeTransition(masm);
+  __ bind(&call_builtin);
+  GenerateGenericCodeFallback(masm);
 }
 
 

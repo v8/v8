@@ -643,7 +643,7 @@ class TRUnaryOpIC: public IC {
 
   static TypeInfo GetTypeInfo(Handle<Object> operand);
 
-  static TypeInfo JoinTypes(TypeInfo x, TypeInfo y);
+  static TypeInfo ComputeNewType(TypeInfo type, TypeInfo previous);
 };
 
 
