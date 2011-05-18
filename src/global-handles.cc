@@ -619,6 +619,11 @@ void GlobalHandles::Print() {
 void GlobalHandles::AddObjectGroup(Object*** handles,
                                    size_t length,
                                    v8::RetainedObjectInfo* info) {
+#ifdef DEBUG
+  for (size_t i = 0; i < length; ++i) {
+    ASSERT(!Node::FromLocation(handles[i])->independent_);
+  }
+#endif
   if (length == 0) {
     if (info != NULL) info->Dispose();
     return;
@@ -630,6 +635,12 @@ void GlobalHandles::AddObjectGroup(Object*** handles,
 void GlobalHandles::AddImplicitReferences(HeapObject** parent,
                                           Object*** children,
                                           size_t length) {
+#ifdef DEBUG
+  ASSERT(!Node::FromLocation(BitCast<Object**>(parent))->independent_);
+  for (size_t i = 0; i < length; ++i) {
+    ASSERT(!Node::FromLocation(children[i])->independent_);
+  }
+#endif
   if (length == 0) return;
   implicit_ref_groups_.Add(ImplicitRefGroup::New(parent, children, length));
 }
