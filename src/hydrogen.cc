@@ -1021,13 +1021,13 @@ void TraceGVN(const char* msg, ...) {
 }
 
 
-HValueMap::HValueMap(const HValueMap* other)
+HValueMap::HValueMap(Zone* zone, const HValueMap* other)
     : array_size_(other->array_size_),
       lists_size_(other->lists_size_),
       count_(other->count_),
       present_flags_(other->present_flags_),
-      array_(ZONE->NewArray<HValueMapListElement>(other->array_size_)),
-      lists_(ZONE->NewArray<HValueMapListElement>(other->lists_size_)),
+      array_(zone->NewArray<HValueMapListElement>(other->array_size_)),
+      lists_(zone->NewArray<HValueMapListElement>(other->lists_size_)),
       free_list_head_(other->free_list_head_) {
   memcpy(array_, other->array_, array_size_ * sizeof(HValueMapListElement));
   memcpy(lists_, other->lists_, lists_size_ * sizeof(HValueMapListElement));
@@ -1240,13 +1240,49 @@ void HStackCheckEliminator::RemoveStackCheck(HBasicBlock* block) {
 }
 
 
+// Simple sparse set with O(1) add, contains, and clear.
+class SparseSet {
+ public:
+  SparseSet(Zone* zone, int capacity)
+      : capacity_(capacity),
+        length_(0),
+        dense_(zone->NewArray<int>(capacity)),
+        sparse_(zone->NewArray<int>(capacity)) {}
+
+  bool Contains(int n) const {
+    ASSERT(0 <= n && n < capacity_);
+    int d = sparse_[n];
+    return 0 <= d && d < length_ && dense_[d] == n;
+  }
+
+  bool Add(int n) {
+    if (Contains(n)) return false;
+    dense_[length_] = n;
+    sparse_[n] = length_;
+    ++length_;
+    return true;
+  }
+
+  void Clear() { length_ = 0; }
+
+ private:
+  int capacity_;
+  int length_;
+  int* dense_;
+  int* sparse_;
+
+  DISALLOW_COPY_AND_ASSIGN(SparseSet);
+};
+
+
 class HGlobalValueNumberer BASE_EMBEDDED {
  public:
   explicit HGlobalValueNumberer(HGraph* graph, CompilationInfo* info)
       : graph_(graph),
         info_(info),
-        block_side_effects_(graph_->blocks()->length()),
-        loop_side_effects_(graph_->blocks()->length()) {
+        block_side_effects_(graph->blocks()->length()),
+        loop_side_effects_(graph->blocks()->length()),
+        visited_on_paths_(graph->zone(), graph->blocks()->length()) {
     ASSERT(info->isolate()->heap()->allow_allocation(false));
     block_side_effects_.AddBlock(0, graph_->blocks()->length());
     loop_side_effects_.AddBlock(0, graph_->blocks()->length());
@@ -1258,6 +1294,8 @@ class HGlobalValueNumberer BASE_EMBEDDED {
   void Analyze();
 
  private:
+  int CollectSideEffectsOnPathsToDominatedBlock(HBasicBlock* dominator,
+                                                HBasicBlock* dominated);
   void AnalyzeBlock(HBasicBlock* block, HValueMap* map);
   void ComputeBlockSideEffects();
   void LoopInvariantCodeMotion();
@@ -1279,6 +1317,10 @@ class HGlobalValueNumberer BASE_EMBEDDED {
 
   // A map of loop header block IDs to their loop's side effects.
   ZoneList<int> loop_side_effects_;
+
+  // Used when collecting side effects on paths from dominator to
+  // dominated.
+  SparseSet visited_on_paths_;
 };
 
 
@@ -1414,8 +1456,27 @@ bool HGlobalValueNumberer::ShouldMove(HInstruction* instr,
 }
 
 
+int HGlobalValueNumberer::CollectSideEffectsOnPathsToDominatedBlock(
+    HBasicBlock* dominator, HBasicBlock* dominated) {
+  int side_effects = 0;
+  for (int i = 0; i < dominated->predecessors()->length(); ++i) {
+    HBasicBlock* block = dominated->predecessors()->at(i);
+    if (dominator->block_id() < block->block_id() &&
+        block->block_id() < dominated->block_id() &&
+        visited_on_paths_.Add(block->block_id())) {
+      side_effects |= block_side_effects_[block->block_id()];
+      side_effects |= CollectSideEffectsOnPathsToDominatedBlock(
+          dominator, block);
+    }
+  }
+  return side_effects;
+}
+
+
 void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block, HValueMap* map) {
-  TraceGVN("Analyzing block B%d\n", block->block_id());
+  TraceGVN("Analyzing block B%d%s\n",
+           block->block_id(),
+           block->IsLoopHeader() ? " (loop header)" : "");
 
   // If this is a loop header kill everything killed by the loop.
   if (block->IsLoopHeader()) {
@@ -1456,23 +1517,18 @@ void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block, HValueMap* map) {
     // No need to copy the map for the last child in the dominator tree.
     HValueMap* successor_map = (i == length - 1) ? map : map->Copy(zone());
 
-    // If the dominated block is not a successor to this block we have to
-    // kill everything killed on any path between this block and the
-    // dominated block.  Note we rely on the block ordering.
-    bool is_successor = false;
-    int predecessor_count = dominated->predecessors()->length();
-    for (int j = 0; !is_successor && j < predecessor_count; ++j) {
-      is_successor = (dominated->predecessors()->at(j) == block);
+    // Kill everything killed on any path between this block and the
+    // dominated block.
+    // We don't have to traverse these paths if the value map is
+    // already empty.
+    // If the range of block ids (block_id, dominated_id) is empty
+    // there are no such paths.
+    if (!successor_map->IsEmpty() &&
+        block->block_id() + 1 < dominated->block_id()) {
+      visited_on_paths_.Clear();
+      successor_map->Kill(CollectSideEffectsOnPathsToDominatedBlock(block,
+                                                                    dominated));
     }
-
-    if (!is_successor) {
-      int side_effects = 0;
-      for (int j = block->block_id() + 1; j < dominated->block_id(); ++j) {
-        side_effects |= block_side_effects_[j];
-      }
-      successor_map->Kill(side_effects);
-    }
-
     AnalyzeBlock(dominated, successor_map);
   }
 }

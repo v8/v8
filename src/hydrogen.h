@@ -1008,8 +1008,10 @@ class HValueMap: public ZoneObject {
   HValue* Lookup(HValue* value) const;
 
   HValueMap* Copy(Zone* zone) const {
-    return new(zone) HValueMap(this);
+    return new(zone) HValueMap(zone, this);
   }
+
+  bool IsEmpty() const { return count_ == 0; }
 
  private:
   // A linked list of HValue* values.  Stored in arrays.
@@ -1022,7 +1024,7 @@ class HValueMap: public ZoneObject {
   // Must be a power of 2.
   static const int kInitialSize = 16;
 
-  explicit HValueMap(const HValueMap* other);
+  HValueMap(Zone* zone, const HValueMap* other);
 
   void Resize(int new_size);
   void ResizeLists(int new_size);
