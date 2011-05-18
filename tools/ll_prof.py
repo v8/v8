@@ -780,12 +780,14 @@ class LibraryRepo(object):
     return True
 
 
-def PrintReport(code_map, library_repo, arch, options):
+def PrintReport(code_map, library_repo, arch, ticks, options):
   print "Ticks per symbol:"
   used_code = [code for code in code_map.UsedCode()]
   used_code.sort(key=lambda x: x.self_ticks, reverse=True)
   for i, code in enumerate(used_code):
-    print "%10d %s [%s]" % (code.self_ticks, code.FullName(), code.origin)
+    code_ticks = code.self_ticks
+    print "%10d %5.1f%% %s [%s]" % (code_ticks, 100. * code_ticks / ticks,
+                                    code.FullName(), code.origin)
     if options.disasm_all or i < options.disasm_top:
       code.PrintAnnotated(arch, options)
   print
@@ -793,7 +795,9 @@ def PrintReport(code_map, library_repo, arch, options):
   mmap_infos = [m for m in library_repo.infos]
   mmap_infos.sort(key=lambda m: m.ticks, reverse=True)
   for mmap_info in mmap_infos:
-    print "%10d %s" % (mmap_info.ticks, mmap_info.unique_name)
+    mmap_ticks = mmap_info.ticks
+    print "%10d %5.1f%% %s" % (mmap_ticks, 100. * mmap_ticks / ticks,
+                               mmap_info.unique_name)
 
 
 def PrintDot(code_map, options):
@@ -878,6 +882,7 @@ if __name__ == "__main__":
   if not options.quiet:
     print "Generated code architecture: %s" % log_reader.arch
     print
+    sys.stdout.flush()
 
   # Process the code and trace logs.
   library_repo = LibraryRepo()
@@ -919,7 +924,7 @@ if __name__ == "__main__":
   if options.dot:
     PrintDot(code_map, options)
   else:
-    PrintReport(code_map, library_repo, log_reader.arch, options)
+    PrintReport(code_map, library_repo, log_reader.arch, ticks, options)
 
     if not options.quiet:
       print
