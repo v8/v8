@@ -815,7 +815,8 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
     __ LeaveInternalFrame();
     // IntegerConvert uses ebx and edi as scratch registers.
     // This conversion won't go slow-case.
-    IntegerConvert(masm, edx, CpuFeatures::IsSupported(SSE3), slow);
+    IntegerConvert(masm, edx, TypeInfo::Unknown(),
+                   CpuFeatures::IsSupported(SSE3), slow);
     __ not_(ecx);
 
     __ bind(&heapnumber_allocated);
