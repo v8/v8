@@ -2217,6 +2217,8 @@ TRUnaryOpIC::TypeInfo TRUnaryOpIC::ComputeNewType(
       UNREACHABLE();
       return TRUnaryOpIC::GENERIC;
   }
+  UNREACHABLE();
+  return TRUnaryOpIC::GENERIC;
 }
 
 
