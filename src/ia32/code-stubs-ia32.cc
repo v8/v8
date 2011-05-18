@@ -746,15 +746,24 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
   __ bind(&try_float);
   if (mode_ == UNARY_NO_OVERWRITE) {
     Label slow_allocate_heapnumber, heapnumber_allocated;
+    __ mov(ebx, eax);
     __ AllocateHeapNumber(eax, edx, edi, &slow_allocate_heapnumber);
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
     __ EnterInternalFrame();
-    __ push(ecx);
+    // Push the original HeapNumber on the stack. The integer value can't
+    // be stored since it's untagged and not in the smi range (so we can't
+    // smi-tag it). We'll recalculate the value after the GC instead.
+    __ push(ebx);
     __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ pop(ecx);
+    // New HeapNumber is in eax.
+    __ pop(edx);
     __ LeaveInternalFrame();
+    // IntegerConvert uses ebx and edi as scratch registers.
+    // This conversion won't go slow-case.
+    IntegerConvert(masm, edx, CpuFeatures::IsSupported(SSE3), slow);
+    __ not_(ecx);
 
     __ bind(&heapnumber_allocated);
   }
