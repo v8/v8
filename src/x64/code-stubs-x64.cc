@@ -630,7 +630,7 @@ void TypeRecordingBinaryOpStub::GenerateFloatingPointCode(
         // already loaded heap_number_map.
         __ AllocateInNewSpace(HeapNumber::kSize,
                               rax,
-                              rcx,
+                              rdx,
                               no_reg,
                               &allocation_failed,
                               TAG_OBJECT);
@@ -650,7 +650,7 @@ void TypeRecordingBinaryOpStub::GenerateFloatingPointCode(
         // We need tagged values in rdx and rax for the following code,
         // not int32 in rax and rcx.
         __ Integer32ToSmi(rax, rcx);
-        __ Integer32ToSmi(rdx, rax);
+        __ Integer32ToSmi(rdx, rbx);
         __ jmp(allocation_failure);
       }
       break;
@@ -3043,9 +3043,14 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ Load(rax, js_entry_sp);
   __ testq(rax, rax);
   __ j(not_zero, &not_outermost_js);
+  __ Push(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ movq(rax, rbp);
   __ Store(js_entry_sp, rax);
+  Label cont;
+  __ jmp(&cont);
   __ bind(&not_outermost_js);
+  __ Push(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME));
+  __ bind(&cont);
 #endif
 
   // Call a faked try-block that does the invoke.
@@ -3087,27 +3092,21 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ call(kScratchRegister);
 
   // Unlink this frame from the handler chain.
-  Operand handler_operand =
-      masm->ExternalOperand(ExternalReference(Isolate::k_handler_address,
-                                              isolate));
-  __ pop(handler_operand);
-  // Pop next_sp.
-  __ addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+  __ PopTryHandler();
 
+  __ bind(&exit);
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  // If current RBP value is the same as js_entry_sp value, it means that
-  // the current function is the outermost.
-  __ movq(kScratchRegister, js_entry_sp);
-  __ cmpq(rbp, Operand(kScratchRegister, 0));
+  // Check if the current stack frame is marked as the outermost JS frame.
+  __ pop(rbx);
+  __ Cmp(rbx, Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
+  __ movq(kScratchRegister, js_entry_sp);
   __ movq(Operand(kScratchRegister, 0), Immediate(0));
   __ bind(&not_outermost_js_2);
 #endif
 
   // Restore the top frame descriptor from the stack.
-  __ bind(&exit);
-  {
-    Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
+  { Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
     __ pop(c_entry_fp_operand);
   }
 
