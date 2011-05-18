@@ -644,7 +644,7 @@ void LCodeGen::RecordSafepoint(
     int arguments,
     int deoptimization_index) {
   ASSERT(kind == expected_safepoint_kind_);
-  const ZoneList<LOperand*>* operands = pointers->operands();
+  const ZoneList<LOperand*>* operands = pointers->GetNormalizedOperands();
   Safepoint safepoint = safepoints_.DefineSafepoint(masm(),
       kind, arguments, deoptimization_index);
   for (int i = 0; i < operands->length(); i++) {

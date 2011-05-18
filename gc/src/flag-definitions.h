@@ -452,6 +452,11 @@ DEFINE_bool(print_global_handles, false, "report global handles after GC")
 // ic.cc
 DEFINE_bool(trace_ic, false, "trace inline cache state transitions")
 
+// mark-compact.cc
+DEFINE_bool(force_marking_deque_overflows, false,
+            "force overflows of marking deque by reducing it's size "
+            "to 64 words")
+
 // objects.cc
 DEFINE_bool(trace_normalization,
             false,

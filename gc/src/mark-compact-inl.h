@@ -50,7 +50,7 @@ void MarkCompactCollector::SetFlags(int flags) {
 
 
 void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
-  ASSERT(heap()->marking()->MarkBitFrom(obj) == mark_bit);
+  ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
   if (!mark_bit.Get()) {
     mark_bit.Set();
     tracer_->increment_marked_count();
@@ -62,7 +62,7 @@ void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
 }
 
 void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
-  ASSERT(heap()->marking()->MarkBitFrom(obj) == mark_bit);
+  ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
   mark_bit.Set();
   tracer_->increment_marked_count();
 #ifdef DEBUG
@@ -74,7 +74,7 @@ void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
 bool MarkCompactCollector::IsMarked(Object* obj) {
   ASSERT(obj->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(obj);
-  return heap_->marking()->MarkBitFrom(heap_object).Get();
+  return Marking::MarkBitFrom(heap_object).Get();
 }
 
 

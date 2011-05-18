@@ -112,74 +112,20 @@ class IncrementalMarking : public AllStatic {
   inline void RecordWriteOf(HeapObject* value);
   inline void RecordWrites(HeapObject* obj);
 
-  // Impossible markbits: 01
-  static const char* kImpossibleBitPattern;
-  static inline bool IsImpossible(MarkBit mark_bit) {
-    ASSERT(strcmp(kImpossibleBitPattern, "01") == 0);
-    return !mark_bit.Get() && mark_bit.Next().Get();
-  }
-
-  // Black markbits: 10 - this is required by the sweeper.
-  static const char* kBlackBitPattern;
-  static inline bool IsBlack(MarkBit mark_bit) {
-    ASSERT(strcmp(kBlackBitPattern, "10") == 0);
-    ASSERT(!IsImpossible(mark_bit));
-    return mark_bit.Get() && !mark_bit.Next().Get();
-  }
-
-  // White markbits: 00 - this is required by the mark bit clearer.
-  static const char* kWhiteBitPattern;
-  static inline bool IsWhite(MarkBit mark_bit) {
-    ASSERT(strcmp(kWhiteBitPattern, "00") == 0);
-    ASSERT(!IsImpossible(mark_bit));
-    return !mark_bit.Get();
-  }
-
-  // Grey markbits: 11
-  static const char* kGreyBitPattern;
-  static inline bool IsGrey(MarkBit mark_bit) {
-    ASSERT(strcmp(kGreyBitPattern, "11") == 0);
-    ASSERT(!IsImpossible(mark_bit));
-    return mark_bit.Get() && mark_bit.Next().Get();
-  }
-
   inline void BlackToGreyAndUnshift(HeapObject* obj, MarkBit mark_bit);
 
   inline void WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit);
 
   inline void WhiteToGrey(HeapObject* obj, MarkBit mark_bit);
 
-  inline void MarkBlack(MarkBit mark_bit) {
-    mark_bit.Set();
-    mark_bit.Next().Clear();
-    ASSERT(IsBlack(mark_bit));
-  }
-
   // Does white->black or grey->grey
   inline void MarkBlackOrKeepGrey(MarkBit mark_bit) {
-    ASSERT(!IsImpossible(mark_bit));
+    ASSERT(!Marking::IsImpossible(mark_bit));
     if (mark_bit.Get()) return;
     mark_bit.Set();
-    ASSERT(!IsWhite(mark_bit));
-    ASSERT(!IsImpossible(mark_bit));
+    ASSERT(!Marking::IsWhite(mark_bit));
+    ASSERT(!Marking::IsImpossible(mark_bit));
   }
-
-  static inline const char* ColorStr(MarkBit mark_bit) {
-    if (IsBlack(mark_bit)) return "black";
-    if (IsWhite(mark_bit)) return "white";
-    if (IsGrey(mark_bit)) return "grey";
-    UNREACHABLE();
-    return "???";
-  }
-
-  enum ObjectColor {
-    BLACK_OBJECT,
-    WHITE_OBJECT,
-    GREY_OBJECT,
-    IMPOSSIBLE_COLOR
-  };
-
-  inline ObjectColor Color(HeapObject* obj);
 
   inline int steps_count() {
     return steps_count_;
@@ -197,6 +143,7 @@ class IncrementalMarking : public AllStatic {
     SetNewSpacePageFlags(chunk, IsMarking());
   }
 
+  MarkingDeque* marking_deque() { return &marking_deque_; }
 
  private:
   void set_should_hurry(bool val) {

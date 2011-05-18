@@ -455,9 +455,8 @@ void RuntimeProfiler::WakeUpRuntimeProfilerThreadBeforeShutdown() {
 void RuntimeProfiler::RemoveDeadSamples() {
   for (int i = 0; i < kSamplerWindowSize; i++) {
     Object* function = sampler_window_[i];
-    // TODO(gc) ISOLATES MERGE
     if (function != NULL &&
-        !HEAP->marking()->MarkBitFrom(HeapObject::cast(function)).Get()) {
+        !Marking::MarkBitFrom(HeapObject::cast(function)).Get()) {
       sampler_window_[i] = NULL;
     }
   }

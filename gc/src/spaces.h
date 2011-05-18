@@ -1616,7 +1616,7 @@ class SemiSpaceIterator : public ObjectIterator {
   SemiSpaceIterator(NewSpace* space, HeapObjectCallback size_func);
   SemiSpaceIterator(NewSpace* space, Address start);
 
-  HeapObject* next() {
+  HeapObject* Next() {
     if (current_ == current_page_limit_) {
       // TODO(gc): Add something here when we have more than one page.
     }
@@ -1630,7 +1630,7 @@ class SemiSpaceIterator : public ObjectIterator {
   }
 
   // Implementation of the ObjectIterator functions.
-  virtual HeapObject* next_object() { return next(); }
+  virtual HeapObject* next_object() { return Next(); }
 
  private:
   void Initialize(NewSpace* space,
@@ -2169,10 +2169,10 @@ class LargeObjectIterator: public ObjectIterator {
   explicit LargeObjectIterator(LargeObjectSpace* space);
   LargeObjectIterator(LargeObjectSpace* space, HeapObjectCallback size_func);
 
-  HeapObject* next();
+  HeapObject* Next();
 
   // implementation of ObjectIterator.
-  virtual HeapObject* next_object() { return next(); }
+  virtual HeapObject* next_object() { return Next(); }
 
  private:
   LargePage* current_;
@@ -2206,7 +2206,7 @@ class PointerChunkIterator BASE_EMBEDDED {
       case kLargeObjectState: {
         HeapObject* heap_object;
         do {
-          heap_object = lo_iterator_.next();
+          heap_object = lo_iterator_.Next();
           if (heap_object == NULL) {
             state_ = kFinishedState;
             return NULL;

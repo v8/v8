@@ -157,9 +157,8 @@ MemoryChunk* MemoryChunk::FromAnyPointerAddress(Address addr) {
   MemoryChunk* maybe = reinterpret_cast<MemoryChunk*>(
       OffsetFrom(addr) & ~Page::kPageAlignmentMask);
   if (maybe->owner() != NULL) return maybe;
-  // TODO(gc) ISOLATESMERGE HEAP
   LargeObjectIterator iterator(HEAP->lo_space());
-  for (HeapObject* o = iterator.next(); o != NULL; o = iterator.next()) {
+  for (HeapObject* o = iterator.Next(); o != NULL; o = iterator.Next()) {
     // Fixed arrays are the only pointer-containing objects in large object
     // space.
     if (o->IsFixedArray()) {

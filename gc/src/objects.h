@@ -1063,20 +1063,6 @@ class HeapObject: public Object {
   // GC internal.
   inline int SizeFromMap(Map* map);
 
-  // True if this object is marked as overflowed.  Overflowed objects have
-  // been reached and marked during marking of the heap, but their children
-  // have not necessarily been marked and they have not been pushed on the
-  // marking stack.
-  inline bool IsOverflowed() { return false; }
-
-  // Mutate this object's map pointer to indicate that the object is
-  // overflowed.
-  inline void SetOverflow() {}
-
-  // Mutate this object's map pointer to remove the indication that the
-  // object is overflowed (ie, partially restore the map pointer).
-  inline void ClearOverflow() {}
-
   // Returns the field at offset in obj, as a read/write Object* reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
   // Does not invoke write barrier, so should only be assigned to

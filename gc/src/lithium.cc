@@ -156,6 +156,27 @@ void LPointerMap::RecordPointer(LOperand* op) {
 }
 
 
+void LPointerMap::RemovePointer(LOperand* op) {
+  // Do not record arguments as pointers.
+  if (op->IsStackSlot() && op->index() < 0) return;
+  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  for (int i = 0; i < pointer_operands_.length(); ++i) {
+    if (pointer_operands_[i]->Equals(op)) {
+      pointer_operands_.Remove(i);
+      --i;
+    }
+  }
+}
+
+
+void LPointerMap::RecordUntagged(LOperand* op) {
+  // Do not record arguments as pointers.
+  if (op->IsStackSlot() && op->index() < 0) return;
+  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  untagged_operands_.Add(op);
+}
+
+
 void LPointerMap::PrintTo(StringStream* stream) {
   stream->Add("{");
   for (int i = 0; i < pointer_operands_.length(); ++i) {

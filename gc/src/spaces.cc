@@ -1309,7 +1309,7 @@ void NewSpace::ClearHistograms() {
 void NewSpace::CollectStatistics() {
   ClearHistograms();
   SemiSpaceIterator it(this);
-  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next())
+  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next())
     RecordAllocation(obj);
 }
 
@@ -1977,7 +1977,7 @@ LargeObjectIterator::LargeObjectIterator(LargeObjectSpace* space,
 }
 
 
-HeapObject* LargeObjectIterator::next() {
+HeapObject* LargeObjectIterator::Next() {
   if (current_ == NULL) return NULL;
 
   HeapObject* object = current_->GetObject();
@@ -2121,7 +2121,7 @@ LargePage* LargeObjectSpace::FindPageContainingPc(Address pc) {
 void LargeObjectSpace::IteratePointersToNewSpace(
     ObjectSlotCallback copy_object) {
   LargeObjectIterator it(this);
-  for (HeapObject* object = it.next(); object != NULL; object = it.next()) {
+  for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
     // We only have code, sequential strings, or fixed arrays in large
     // object space, and only fixed arrays can possibly contain pointers to
     // the young generation.
@@ -2142,7 +2142,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* current = first_page_;
   while (current != NULL) {
     HeapObject* object = current->GetObject();
-    MarkBit mark_bit = heap()->marking()->MarkBitFrom(object);
+    MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (mark_bit.Get()) {
       mark_bit.Clear();
       heap()->mark_compact_collector()->tracer()->decrement_marked_count();
@@ -2239,7 +2239,7 @@ void LargeObjectSpace::Verify() {
 
 void LargeObjectSpace::Print() {
   LargeObjectIterator it(this);
-  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
+  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
     obj->Print();
   }
 }
@@ -2250,7 +2250,7 @@ void LargeObjectSpace::ReportStatistics() {
   int num_objects = 0;
   ClearHistograms();
   LargeObjectIterator it(this);
-  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
+  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
     num_objects++;
     CollectHistogramInfo(obj);
   }
@@ -2264,7 +2264,7 @@ void LargeObjectSpace::ReportStatistics() {
 void LargeObjectSpace::CollectCodeStatistics() {
   Isolate* isolate = heap()->isolate();
   LargeObjectIterator obj_it(this);
-  for (HeapObject* obj = obj_it.next(); obj != NULL; obj = obj_it.next()) {
+  for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next()) {
     if (obj->IsCode()) {
       Code* code = Code::cast(obj);
       isolate->code_kind_statistics()[code->kind()] += code->Size();

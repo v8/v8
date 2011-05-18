@@ -34,10 +34,6 @@
 namespace v8 {
 namespace internal {
 
-const char* IncrementalMarking::kWhiteBitPattern = "00";
-const char* IncrementalMarking::kBlackBitPattern = "10";
-const char* IncrementalMarking::kGreyBitPattern = "11";
-const char* IncrementalMarking::kImpossibleBitPattern = "01";
 
 IncrementalMarking::IncrementalMarking(Heap* heap)
     : heap_(heap),
@@ -82,11 +78,11 @@ class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
     // produce.
     if (obj->NonFailureIsHeapObject()) {
       HeapObject* heap_object = HeapObject::cast(obj);
-      MarkBit mark_bit = heap_->marking()->MarkBitFrom(heap_object);
+      MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
       if (mark_bit.data_only()) {
         incremental_marking_->MarkBlackOrKeepGrey(mark_bit);
       } else {
-        if (IncrementalMarking::IsWhite(mark_bit)) {
+        if (Marking::IsWhite(mark_bit)) {
           incremental_marking_->WhiteToGreyAndPush(heap_object, mark_bit);
         }
       }
@@ -120,11 +116,11 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
     if (!obj->IsHeapObject()) return;
 
     HeapObject* heap_object = HeapObject::cast(obj);
-    MarkBit mark_bit = heap_->marking()->MarkBitFrom(heap_object);
+    MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
     if (mark_bit.data_only()) {
       incremental_marking_->MarkBlackOrKeepGrey(mark_bit);
     } else {
-      if (IncrementalMarking::IsWhite(mark_bit)) {
+      if (Marking::IsWhite(mark_bit)) {
         incremental_marking_->WhiteToGreyAndPush(heap_object, mark_bit);
       }
     }
@@ -280,7 +276,7 @@ static VirtualMemory* marking_deque_memory = NULL;
 
 static void EnsureMarkingDequeIsCommitted() {
   if (marking_deque_memory == NULL) {
-    marking_deque_memory = new VirtualMemory(4*MB);
+    marking_deque_memory = new VirtualMemory(4 * MB);
     marking_deque_memory->Commit(
         reinterpret_cast<Address>(marking_deque_memory->address()),
         marking_deque_memory->size(),
@@ -325,8 +321,9 @@ void IncrementalMarking::StartMarking() {
 
   // Initialize marking stack.
   Address addr = static_cast<Address>(marking_deque_memory->address());
-  marking_deque_.Initialize(addr,
-                            addr + marking_deque_memory->size());
+  int size = marking_deque_memory->size();
+  if (FLAG_force_marking_deque_overflows) size = 64 * kPointerSize;
+  marking_deque_.Initialize(addr, addr + size);
 
   // Clear markbits.
   ClearMarkbits();
@@ -368,14 +365,15 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
       MapWord map_word = obj->map_word();
       if (map_word.IsForwardingAddress()) {
         HeapObject* dest = map_word.ToForwardingAddress();
-        WhiteToGrey(dest, heap_->marking()->MarkBitFrom(dest));
         array[new_top] = dest;
         new_top = ((new_top + 1) & mask);
-        ASSERT(Color(obj) == Color(dest));
+        ASSERT(new_top != marking_deque_.bottom());
+        ASSERT(Marking::Color(obj) == Marking::Color(dest));
       }
     } else {
       array[new_top] = obj;
       new_top = ((new_top + 1) & mask);
+      ASSERT(new_top != marking_deque_.bottom());
     }
   }
   marking_deque_.set_top(new_top);
@@ -400,8 +398,8 @@ void IncrementalMarking::Hurry() {
       // correct only for objects that occupy at least two words.
       if (obj->map() != filler_map) {
         obj->Iterate(&marking_visitor);
-        MarkBit mark_bit = heap_->marking()->MarkBitFrom(obj);
-        MarkBlack(mark_bit);
+        MarkBit mark_bit = Marking::MarkBitFrom(obj);
+        Marking::MarkBlack(mark_bit);
       }
     }
     state_ = COMPLETE;
@@ -484,7 +482,6 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
   } else if (state_ == MARKING) {
     Map* filler_map = heap_->one_pointer_filler_map();
     IncrementalMarkingMarkingVisitor marking_visitor(heap_, this);
-    Marking* marking = heap_->marking();
     while (!marking_deque_.IsEmpty() && bytes_to_process > 0) {
       HeapObject* obj = marking_deque_.Pop();
 
@@ -492,15 +489,17 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
       // correct only for objects that occupy at least two words.
       Map* map = obj->map();
       if (map != filler_map) {
-        ASSERT(IsGrey(marking->MarkBitFrom(obj)));
+        ASSERT(Marking::IsGrey(Marking::MarkBitFrom(obj)));
         int size = obj->SizeFromMap(map);
         bytes_to_process -= size;
-        MarkBit map_mark_bit = marking->MarkBitFrom(map);
-        if (IsWhite(map_mark_bit)) WhiteToGreyAndPush(map, map_mark_bit);
+        MarkBit map_mark_bit = Marking::MarkBitFrom(map);
+        if (Marking::IsWhite(map_mark_bit)) {
+          WhiteToGreyAndPush(map, map_mark_bit);
+        }
         // TODO(gc) switch to static visitor instead of normal visitor.
         obj->IterateBody(map->instance_type(), size, &marking_visitor);
-        MarkBit obj_mark_bit = marking->MarkBitFrom(obj);
-        MarkBlack(obj_mark_bit);
+        MarkBit obj_mark_bit = Marking::MarkBitFrom(obj);
+        Marking::MarkBlack(obj_mark_bit);
       }
     }
     if (marking_deque_.IsEmpty()) MarkingComplete();

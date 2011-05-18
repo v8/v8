@@ -56,7 +56,7 @@ void MacroAssembler::InOldSpaceIsBlack(Register object,
   HasColour(object, scratch0, scratch1,
             is_black,
             1, 0);  // kBlackBitPattern.
-  ASSERT(strcmp(IncrementalMarking::kBlackBitPattern, "10") == 0);
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
 }
 
 
@@ -68,7 +68,7 @@ void MacroAssembler::InNewSpaceIsBlack(Register object,
   HasColour(object, scratch0, scratch1,
             is_black,
             1, 0);  // kBlackBitPattern.
-  ASSERT(strcmp(IncrementalMarking::kBlackBitPattern, "10") == 0);
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
 }
 
 
@@ -162,10 +162,10 @@ void MacroAssembler::EnsureNotWhite(
   MarkBits(value, bitmap_scratch, mask_scratch);
 
   // If the value is black or grey we don't need to do anything.
-  ASSERT(strcmp(IncrementalMarking::kWhiteBitPattern, "00") == 0);
-  ASSERT(strcmp(IncrementalMarking::kBlackBitPattern, "10") == 0);
-  ASSERT(strcmp(IncrementalMarking::kGreyBitPattern, "11") == 0);
-  ASSERT(strcmp(IncrementalMarking::kImpossibleBitPattern, "01") == 0);
+  ASSERT(strcmp(Marking::kWhiteBitPattern, "00") == 0);
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
+  ASSERT(strcmp(Marking::kGreyBitPattern, "11") == 0);
+  ASSERT(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
 
   NearLabel done;
 

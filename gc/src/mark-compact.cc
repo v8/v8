@@ -42,6 +42,13 @@
 namespace v8 {
 namespace internal {
 
+
+const char* Marking::kWhiteBitPattern = "00";
+const char* Marking::kBlackBitPattern = "10";
+const char* Marking::kGreyBitPattern = "11";
+const char* Marking::kImpossibleBitPattern = "01";
+
+
 // -------------------------------------------------------------------------
 // MarkCompactCollector
 
@@ -142,16 +149,7 @@ void MarkCompactCollector::CollectGarbage() {
   // Tell the tracer.
   if (IsCompacting()) tracer_->set_is_compacting();
 
-  if (!heap_->incremental_marking()->IsMarking()) {
-    heap_->incremental_marking()->Abort();
-    MarkLiveObjects();
-  } else {
-    {
-      GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_MARK);
-      heap_->incremental_marking()->Finalize();
-    }
-    MarkLiveObjects();
-  }
+  MarkLiveObjects();
   ASSERT(heap_->incremental_marking()->IsStopped());
 
   if (FLAG_collect_maps) ClearNonLiveTransitions();
@@ -223,18 +221,27 @@ void Marking::TransferMark(Address old_start, Address new_start) {
 
   if (heap_->incremental_marking()->IsMarking()) {
     MarkBit old_mark_bit = MarkBitFrom(old_start);
-    if (heap_->incremental_marking()->IsBlack(old_mark_bit)) {
-      heap_->incremental_marking()->MarkBlack(new_mark_bit);
+#ifdef DEBUG
+    ObjectColor old_color = Color(old_mark_bit);
+#endif
+    if (Marking::IsBlack(old_mark_bit)) {
+      Marking::MarkBlack(new_mark_bit);
       old_mark_bit.Clear();
-    } else if (heap_->incremental_marking()->IsGrey(old_mark_bit)) {
+    } else if (Marking::IsGrey(old_mark_bit)) {
       old_mark_bit.Next().Clear();
       heap_->incremental_marking()->WhiteToGreyAndPush(
           HeapObject::FromAddress(new_start), new_mark_bit);
       heap_->incremental_marking()->RestartIfNotMarking();
       // TODO(gc): if we shift huge array in the loop we might end up pushing
-      // to much to marking stack. maybe we should check one or two elements
-      // on top of it to see whether they are equal to old_start.
+      // too much into the marking deque. Maybe we should check one or two
+      // elements on top/bottom of the marking deque to see whether they are
+      // equal to old_start.
     }
+
+#ifdef DEBUG
+    ObjectColor new_color = Color(new_mark_bit);
+    ASSERT(new_color == old_color);
+#endif
   } else {
     if (heap_->InNewSpace(old_start)) {
       return;
@@ -656,7 +663,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   INLINE(static void MarkObjectByPointer(Heap* heap, Object** p)) {
     if (!(*p)->IsHeapObject()) return;
     HeapObject* object = ShortCircuitConsString(p);
-    MarkBit mark = heap->marking()->MarkBitFrom(object);
+    MarkBit mark = Marking::MarkBitFrom(object);
     heap->mark_compact_collector()->MarkObject(object, mark);
   }
 
@@ -670,8 +677,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 #endif
     Map* map = obj->map();
     Heap* heap = obj->GetHeap();
-    // TODO(gc) ISOLATES MERGE
-    MarkBit mark = heap->marking()->MarkBitFrom(obj);
+    MarkBit mark = Marking::MarkBitFrom(obj);
     heap->mark_compact_collector()->SetMark(obj, mark);
     // Mark the map pointer and the body.
     MarkBit map_mark = Marking::MarkBitFrom(map);
@@ -694,7 +700,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       Object* o = *p;
       if (!o->IsHeapObject()) continue;
       HeapObject* obj = HeapObject::cast(o);
-      MarkBit mark = heap->marking()->MarkBitFrom(obj);
+      MarkBit mark = Marking::MarkBitFrom(obj);
       if (mark.Get()) continue;
       VisitUnmarkedObject(collector, obj);
     }
@@ -987,7 +993,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       // Visit shared function info to avoid double checking of it's
       // flushability.
       SharedFunctionInfo* shared_info = object->unchecked_shared();
-      MarkBit shared_info_mark = heap->marking()->MarkBitFrom(shared_info);
+      MarkBit shared_info_mark = Marking::MarkBitFrom(shared_info);
       if (!shared_info_mark.Get()) {
         Map* shared_info_map = shared_info->map();
         MarkBit shared_info_map_mark =
@@ -1097,13 +1103,10 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
     Object* obj = *slot;
     if (obj->IsSharedFunctionInfo()) {
       SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(obj);
-      // TODO(gc) ISOLATES MERGE
-      MarkBit shared_mark = HEAP->marking()->MarkBitFrom(shared);
-      MarkBit code_mark =
-          HEAP->marking()->MarkBitFrom(shared->unchecked_code());
-      HEAP->mark_compact_collector()->MarkObject(shared->unchecked_code(),
-                                                 code_mark);
-      HEAP->mark_compact_collector()->MarkObject(shared, shared_mark);
+      MarkBit shared_mark = Marking::MarkBitFrom(shared);
+      MarkBit code_mark = Marking::MarkBitFrom(shared->unchecked_code());
+      collector_->MarkObject(shared->unchecked_code(), code_mark);
+      collector_->MarkObject(shared, shared_mark);
     }
   }
 
@@ -1132,9 +1135,7 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
   // Ensure that empty descriptor array is marked. Method MarkDescriptorArray
   // relies on it being marked before any other descriptor array.
   HeapObject* descriptor_array = heap()->raw_unchecked_empty_descriptor_array();
-  // TODO(gc) ISOLATES MERGE
-  MarkBit descriptor_array_mark =
-      heap()->marking()->MarkBitFrom(descriptor_array);
+  MarkBit descriptor_array_mark = Marking::MarkBitFrom(descriptor_array);
   MarkObject(descriptor_array, descriptor_array_mark);
 
   // Make sure we are not referencing the code from the stack.
@@ -1179,17 +1180,16 @@ class RootMarkingVisitor : public ObjectVisitor {
 
     // Replace flat cons strings in place.
     HeapObject* object = ShortCircuitConsString(p);
-    // TODO(gc) ISOLATES MERGE
-    MarkBit mark_bit = HEAP->marking()->MarkBitFrom(object);
+    MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (mark_bit.Get()) return;
 
     Map* map = object->map();
     // Mark the object.
-    HEAP->mark_compact_collector()->SetMark(object, mark_bit);
+    collector_->SetMark(object, mark_bit);
 
     // Mark the map pointer and body, and push them on the marking stack.
     MarkBit map_mark = Marking::MarkBitFrom(map);
-    HEAP->mark_compact_collector()->MarkObject(map, map_mark);
+    collector_->MarkObject(map, map_mark);
     StaticMarkingVisitor::IterateBody(map, object);
 
     // Mark all the objects reachable from the map and body.  May leave
@@ -1211,9 +1211,8 @@ class SymbolTableCleaner : public ObjectVisitor {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
       Object* o = *p;
-      // TODO(gc) ISOLATES MERGE
       if (o->IsHeapObject() &&
-          !HEAP->marking()->MarkBitFrom(HeapObject::cast(o)).Get()) {
+          !Marking::MarkBitFrom(HeapObject::cast(o)).Get()) {
         // Check if the symbol being pruned is an external symbol. We need to
         // delete the associated external data as this symbol is going away.
 
@@ -1243,8 +1242,7 @@ class SymbolTableCleaner : public ObjectVisitor {
 class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
  public:
   virtual Object* RetainAs(Object* object) {
-    // TODO(gc) ISOLATES MERGE
-    if (HEAP->marking()->MarkBitFrom(HeapObject::cast(object)).Get()) {
+    if (Marking::MarkBitFrom(HeapObject::cast(object)).Get()) {
       return object;
     } else {
       return NULL;
@@ -1266,10 +1264,10 @@ void MarkCompactCollector::ProcessNewlyMarkedObject(HeapObject* object) {
         map->instance_type() <= JS_FUNCTION_TYPE) {
       MarkMapContents(map);
     } else {
-      marking_deque_.Push(map);
+      marking_deque_.PushBlack(map);
     }
   } else {
-    marking_deque_.Push(object);
+    marking_deque_.PushBlack(object);
   }
 }
 
@@ -1278,9 +1276,8 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
   // Mark prototype transitions array but don't push it into marking stack.
   // This will make references from it weak. We will clean dead prototype
   // transitions in ClearNonLiveTransitions.
-  Heap* heap = map->GetHeap();
   FixedArray* prototype_transitions = map->unchecked_prototype_transitions();
-  MarkBit mark = heap->marking()->MarkBitFrom(prototype_transitions);
+  MarkBit mark = Marking::MarkBitFrom(prototype_transitions);
   if (!mark.Get()) mark.Set();
 
   MarkDescriptorArray(reinterpret_cast<DescriptorArray*>(
@@ -1300,8 +1297,7 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
 
 void MarkCompactCollector::MarkDescriptorArray(
     DescriptorArray* descriptors) {
-  // TODO(gc) ISOLATES MERGE
-  MarkBit descriptors_mark = HEAP->marking()->MarkBitFrom(descriptors);
+  MarkBit descriptors_mark = Marking::MarkBitFrom(descriptors);
   if (descriptors_mark.Get()) return;
   // Empty descriptor array is marked as a root before any maps are marked.
   ASSERT(descriptors != HEAP->raw_unchecked_empty_descriptor_array());
@@ -1313,8 +1309,7 @@ void MarkCompactCollector::MarkDescriptorArray(
   ASSERT(!IsMarked(contents));
   ASSERT(contents->IsFixedArray());
   ASSERT(contents->length() >= 2);
-  // TODO(gc) ISOLATES MERGE
-  MarkBit contents_mark = HEAP->marking()->MarkBitFrom(contents);
+  MarkBit contents_mark = Marking::MarkBitFrom(contents);
   SetMark(contents, contents_mark);
   // Contents contains (value, details) pairs.  If the details say that the type
   // of descriptor is MAP_TRANSITION, CONSTANT_TRANSITION,
@@ -1328,18 +1323,17 @@ void MarkCompactCollector::MarkDescriptorArray(
     if (details.type() < FIRST_PHANTOM_PROPERTY_TYPE) {
       HeapObject* object = reinterpret_cast<HeapObject*>(contents->get(i));
       if (object->IsHeapObject()) {
-        // TODO(gc) ISOLATES MERGE
-        MarkBit mark = HEAP->marking()->MarkBitFrom(HeapObject::cast(object));
+        MarkBit mark = Marking::MarkBitFrom(HeapObject::cast(object));
         if (!mark.Get()) {
           SetMark(HeapObject::cast(object), mark);
-          marking_deque_.Push(object);
+          marking_deque_.PushBlack(object);
         }
       }
     }
   }
   // The DescriptorArray descriptors contains a pointer to its contents array,
   // but the contents array is already marked.
-  marking_deque_.Push(descriptors);
+  marking_deque_.PushBlack(descriptors);
 }
 
 
@@ -1360,36 +1354,99 @@ void MarkCompactCollector::CreateBackPointers() {
 }
 
 
-#if 0
-static int OverflowObjectSize(HeapObject* obj) {
-  // Recover the normal map pointer, it might be marked as live and
-  // overflowed.
-  return obj->Size();
-}
-#endif
-
-
 // Fill the marking stack with overflowed objects returned by the given
 // iterator.  Stop when the marking stack is filled or the end of the space
 // is reached, whichever comes first.
 template<class T>
-static void ScanOverflowedObjects(T* it) {
-#if 0
+static void DiscoverGreyObjectsWithIterator(Heap* heap,
+                                            MarkingDeque* marking_deque,
+                                            T* it) {
   // The caller should ensure that the marking stack is initially not full,
   // so that we don't waste effort pointlessly scanning for objects.
-  ASSERT(!marking_deque.is_full());
+  ASSERT(!marking_deque->IsFull());
 
-  for (HeapObject* object = it->next(); object != NULL; object = it->next()) {
-    if (object->IsOverflowed()) {
-      object->ClearOverflow();
-      ASSERT(HEAP->mark_compact_collector()->IsMarked(object));
-      ASSERT(HEAP->Contains(object));
-      marking_deque.Push(object);
-      if (marking_deque.is_full()) return;
+  Map* filler_map = heap->one_pointer_filler_map();
+  for (HeapObject* object = it->Next();
+       object != NULL;
+       object = it->Next()) {
+    MarkBit markbit = Marking::MarkBitFrom(object);
+    if ((object->map() != filler_map) && Marking::IsGrey(markbit)) {
+      Marking::GreyToBlack(markbit);
+      marking_deque->PushBlack(object);
+      if (marking_deque->IsFull()) return;
     }
   }
-#endif
-  UNREACHABLE();
+}
+
+
+static inline int MarkWordToObjectStarts(uint32_t mark_bits, int* starts);
+
+
+static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque, Page* p) {
+  ASSERT(strcmp(Marking::kWhiteBitPattern, "10") == 0);
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
+  ASSERT(strcmp(Marking::kGreyBitPattern, "11") == 0);
+  ASSERT(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
+
+  MarkBit::CellType* cells = p->markbits()->cells();
+
+  int last_cell_index =
+      Bitmap::IndexToCell(
+          Bitmap::CellAlignIndex(
+              p->AddressToMarkbitIndex(p->ObjectAreaEnd())));
+
+  int cell_index = Page::kFirstUsedCell;
+  Address cell_base = p->ObjectAreaStart();
+
+  for (cell_index = Page::kFirstUsedCell;
+       cell_index < last_cell_index;
+       cell_index++, cell_base += 32 * kPointerSize) {
+    ASSERT((unsigned)cell_index ==
+        Bitmap::IndexToCell(
+            Bitmap::CellAlignIndex(
+                p->AddressToMarkbitIndex(cell_base))));
+
+    const MarkBit::CellType current_cell = cells[cell_index];
+    if (current_cell == 0) continue;
+
+    const MarkBit::CellType next_cell = cells[cell_index + 1];
+    MarkBit::CellType grey_objects = current_cell &
+        ((current_cell >> 1) | (next_cell << (Bitmap::kBitsPerCell - 1)));
+
+    int offset = 0;
+    while (grey_objects != 0) {
+      int trailing_zeros = CompilerIntrinsics::CountTrailingZeros(grey_objects);
+      grey_objects >>= trailing_zeros;
+      offset += trailing_zeros;
+      MarkBit markbit(&cells[cell_index], 1 << offset, false);
+      ASSERT(Marking::IsGrey(markbit));
+      Marking::GreyToBlack(markbit);
+      Address addr = cell_base + offset * kPointerSize;
+      marking_deque->PushBlack(HeapObject::FromAddress(addr));
+      if (marking_deque->IsFull()) return;
+      offset += 2;
+      grey_objects >>= 2;
+    }
+
+    grey_objects >>= (Bitmap::kBitsPerCell - 1);
+  }
+}
+
+
+static void DiscoverGreyObjectsInSpace(Heap* heap,
+                                       MarkingDeque* marking_deque,
+                                       PagedSpace* space) {
+  if (!space->was_swept_conservatively()) {
+    HeapObjectIterator it(space);
+    DiscoverGreyObjectsWithIterator(heap, marking_deque, &it);
+  } else {
+    PageIterator it(space);
+    while (it.has_next()) {
+      Page* p = it.next();
+      DiscoverGreyObjectsOnPage(marking_deque, p);
+      if (marking_deque->IsFull()) return;
+    }
+  }
 }
 
 
@@ -1397,8 +1454,7 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
   Object* o = *p;
   if (!o->IsHeapObject()) return false;
   HeapObject* heap_object = HeapObject::cast(o);
-  // TODO(gc) ISOLATES MERGE
-  MarkBit mark = HEAP->marking()->MarkBitFrom(heap_object);
+  MarkBit mark = Marking::MarkBitFrom(heap_object);
   return !mark.Get();
 }
 
@@ -1406,7 +1462,7 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
 void MarkCompactCollector::MarkSymbolTable() {
   SymbolTable* symbol_table = heap()->raw_unchecked_symbol_table();
   // Mark the symbol table itself.
-  MarkBit symbol_table_mark = heap_->marking()->MarkBitFrom(symbol_table);
+  MarkBit symbol_table_mark = Marking::MarkBitFrom(symbol_table);
   SetMark(symbol_table, symbol_table_mark);
   // Explicitly mark the prefix.
   MarkingVisitor marker(heap());
@@ -1446,7 +1502,7 @@ void MarkCompactCollector::MarkObjectGroups() {
       Object* object = *objects[j];
       if (object->IsHeapObject()) {
         HeapObject* heap_object = HeapObject::cast(object);
-        MarkBit mark = heap_->marking()->MarkBitFrom(heap_object);
+        MarkBit mark = Marking::MarkBitFrom(heap_object);
         if (mark.Get()) {
           group_marked = true;
           break;
@@ -1465,7 +1521,7 @@ void MarkCompactCollector::MarkObjectGroups() {
       Object* object = *objects[j];
       if (object->IsHeapObject()) {
         HeapObject* heap_object = HeapObject::cast(object);
-        MarkBit mark = heap_->marking()->MarkBitFrom(heap_object);
+        MarkBit mark = Marking::MarkBitFrom(heap_object);
         MarkObject(heap_object, mark);
       }
     }
@@ -1498,7 +1554,7 @@ void MarkCompactCollector::MarkImplicitRefGroups() {
     for (size_t j = 0; j < entry->length_; ++j) {
       if ((*children[j])->IsHeapObject()) {
         HeapObject* child = HeapObject::cast(*children[j]);
-        MarkBit mark = heap_->marking()->MarkBitFrom(child);
+        MarkBit mark = Marking::MarkBitFrom(child);
         MarkObject(child, mark);
       }
     }
@@ -1520,8 +1576,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
     HeapObject* object = marking_deque_.Pop();
     ASSERT(object->IsHeapObject());
     ASSERT(heap()->Contains(object));
-    ASSERT(IsMarked(object));
-    ASSERT(!object->IsOverflowed());
+    ASSERT(Marking::IsBlack(Marking::MarkBitFrom(object)));
 
     Map* map = object->map();
     MarkBit map_mark = Marking::MarkBitFrom(map);
@@ -1538,42 +1593,44 @@ void MarkCompactCollector::EmptyMarkingDeque() {
 // overflowed objects in the heap so the overflow flag on the markings stack
 // is cleared.
 void MarkCompactCollector::RefillMarkingDeque() {
-  UNREACHABLE();
-
-#if 0
   ASSERT(marking_deque_.overflowed());
 
-  SemiSpaceIterator new_it(HEAP->new_space(), &OverflowObjectSize);
-  OverflowedObjectsScanner::ScanOverflowedObjects(this, &new_it);
-  if (marking_deque_.is_full()) return;
+  SemiSpaceIterator new_it(heap()->new_space());
+  DiscoverGreyObjectsWithIterator(heap(), &marking_deque_, &new_it);
+  if (marking_deque_.IsFull()) return;
 
-  HeapObjectIterator old_pointer_it(heap()->old_pointer_space(),
-                                    &OverflowObjectSize);
-  OverflowedObjectsScanner::ScanOverflowedObjects(this, &old_pointer_it);
-  if (marking_deque_.is_full()) return;
+  DiscoverGreyObjectsInSpace(heap(),
+                             &marking_deque_,
+                             heap()->old_pointer_space());
+  if (marking_deque_.IsFull()) return;
 
-  HeapObjectIterator old_data_it(heap()->old_data_space(), &OverflowObjectSize);
-  OverflowedObjectsScanner::ScanOverflowedObjects(this, &old_data_it);
-  if (marking_deque_.is_full()) return;
+  DiscoverGreyObjectsInSpace(heap(),
+                             &marking_deque_,
+                             heap()->old_data_space());
+  if (marking_deque_.IsFull()) return;
 
-  HeapObjectIterator code_it(heap()->code_space(), &OverflowObjectSize);
-  OverflowedObjectsScanner::ScanOverflowedObjects(this, &code_it);
-  if (marking_deque_.is_full()) return;
+  DiscoverGreyObjectsInSpace(heap(),
+                             &marking_deque_,
+                             heap()->code_space());
+  if (marking_deque_.IsFull()) return;
 
-  HeapObjectIterator map_it(heap()->map_space(), &OverflowObjectSize);
-  OverflowedObjectsScanner::ScanOverflowedObjects(this, &map_it);
-  if (marking_deque_.is_full()) return;
+  DiscoverGreyObjectsInSpace(heap(),
+                             &marking_deque_,
+                             heap()->map_space());
+  if (marking_deque_.IsFull()) return;
 
-  HeapObjectIterator cell_it(heap()->cell_space(), &OverflowObjectSize);
-  OverflowedObjectsScanner::ScanOverflowedObjects(this, &cell_it);
-  if (marking_deque_.is_full()) return;
+  DiscoverGreyObjectsInSpace(heap(),
+                             &marking_deque_,
+                             heap()->cell_space());
+  if (marking_deque_.IsFull()) return;
 
-  LargeObjectIterator lo_it(heap()->lo_space(), &OverflowObjectSize);
-  OverflowedObjectsScanner::ScanOverflowedObjects(this, &lo_it);
-  if (marking_deque_.is_full()) return;
+  LargeObjectIterator lo_it(heap()->lo_space());
+  DiscoverGreyObjectsWithIterator(heap(),
+                                  &marking_deque_,
+                                  &lo_it);
+  if (marking_deque_.IsFull()) return;
 
-  marking_deque_.clear_overflowed();
-#endif
+  marking_deque_.ClearOverflowed();
 }
 
 
@@ -1609,16 +1666,43 @@ void MarkCompactCollector::MarkLiveObjects() {
   // with the C stack limit check.
   PostponeInterruptsScope postpone(heap()->isolate());
 
+  bool incremental_marking_overflowed = false;
+  IncrementalMarking* incremental_marking = heap_->incremental_marking();
+  if (incremental_marking->IsMarking()) {
+    // Finalize the incremental marking and check whether we had an overflow.
+    // Both markers use grey color to mark overflowed objects so
+    // non-incremental marker can deal with them as if overflow
+    // occured during normal marking.
+    // But incremental marker uses a separate marking deque
+    // so we have to explicitly copy it's overflow state.
+    incremental_marking->Finalize();
+    incremental_marking_overflowed =
+        incremental_marking->marking_deque()->overflowed();
+    incremental_marking->marking_deque()->ClearOverflowed();
+  } else {
+    // Abort any pending incremental activities e.g. incremental sweeping.
+    incremental_marking->Abort();
+  }
+
 #ifdef DEBUG
   ASSERT(state_ == PREPARE_GC);
   state_ = MARK_LIVE_OBJECTS;
 #endif
   // The to space contains live objects, the from space is used as a marking
   // stack.
-  marking_deque_.Initialize(heap()->new_space()->FromSpaceLow(),
-                            heap()->new_space()->FromSpaceHigh());
-
+  Address marking_deque_start = heap()->new_space()->FromSpaceLow();
+  Address marking_deque_end = heap()->new_space()->FromSpaceHigh();
+  if (FLAG_force_marking_deque_overflows) {
+    marking_deque_end = marking_deque_start + 64 * kPointerSize;
+  }
+  marking_deque_.Initialize(marking_deque_start,
+                            marking_deque_end);
   ASSERT(!marking_deque_.overflowed());
+
+  if (incremental_marking_overflowed) {
+    // There are overflowed objects left in the heap after incremental marking.
+    marking_deque_.SetOverflowed();
+  }
 
   PrepareForCodeFlushing();
 
@@ -1753,7 +1837,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
       for (int i = 1; i < finger; i += 2) {
         HeapObject* prototype = HeapObject::cast(prototype_transitions->get(i));
         Map* cached_map = Map::cast(prototype_transitions->get(i + 1));
-        MarkBit prototype_mark = heap()->marking()->MarkBitFrom(prototype);
+        MarkBit prototype_mark = Marking::MarkBitFrom(prototype);
         MarkBit cached_map_mark = Marking::MarkBitFrom(cached_map);
         if (prototype_mark.Get() && cached_map_mark.Get()) {
           if (new_finger != i) {
@@ -1989,8 +2073,7 @@ void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
   for (Address current = from_bottom; current < from_top; current += size) {
     HeapObject* object = HeapObject::FromAddress(current);
 
-
-    MarkBit mark_bit = heap_->marking()->MarkBitFrom(object);
+    MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (mark_bit.Get()) {
       mark_bit.Clear();
       heap_->mark_compact_collector()->tracer()->decrement_marked_count();
@@ -2116,28 +2199,6 @@ static uint32_t NextCandidate(uint32_t cell_index,
     cell_index++;
   } while (cell_index < last_cell_index && cells[cell_index] != 0);
   return cell_index;
-}
-
-
-INLINE(static int SizeOfPreviousObject(Page* p,
-                                       uint32_t cell_index,
-                                       uint32_t* cells));
-
-
-static int SizeOfPreviousObject(Page* p,
-                                uint32_t cell_index,
-                                uint32_t* cells) {
-  ASSERT(cells[cell_index] == 0);
-  if (cells[cell_index - 1] == 0) return 0;
-
-  int leading_zeroes =
-      CompilerIntrinsics::CountLeadingZeros(cells[cell_index - 1]) + 1;
-  Address addr =
-      p->MarkbitIndexToAddress(
-          Bitmap::CellToIndex(cell_index) - leading_zeroes);
-  HeapObject* obj = HeapObject::FromAddress(addr);
-  ASSERT(obj->map()->IsMap());
-  return (obj->Size() >> kPointerSizeLog2) - leading_zeroes;
 }
 
 
@@ -2535,6 +2596,7 @@ static void SweepPrecisely(PagedSpace* space,
         space->Free(free_start, free_end - free_start);
       }
       HeapObject* live_object = HeapObject::FromAddress(free_end);
+      ASSERT(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
       free_start = free_end + live_object->Size();
     }
   }

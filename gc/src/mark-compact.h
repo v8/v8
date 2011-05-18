@@ -58,11 +58,98 @@ class Marking {
     return MarkBitFrom(reinterpret_cast<Address>(obj));
   }
 
+  // Impossible markbits: 01
+  static const char* kImpossibleBitPattern;
+  static inline bool IsImpossible(MarkBit mark_bit) {
+    ASSERT(strcmp(kImpossibleBitPattern, "01") == 0);
+    return !mark_bit.Get() && mark_bit.Next().Get();
+  }
+
+  // Black markbits: 10 - this is required by the sweeper.
+  static const char* kBlackBitPattern;
+  static inline bool IsBlack(MarkBit mark_bit) {
+    ASSERT(strcmp(kBlackBitPattern, "10") == 0);
+    ASSERT(!IsImpossible(mark_bit));
+    return mark_bit.Get() && !mark_bit.Next().Get();
+  }
+
+  // White markbits: 00 - this is required by the mark bit clearer.
+  static const char* kWhiteBitPattern;
+  static inline bool IsWhite(MarkBit mark_bit) {
+    ASSERT(strcmp(kWhiteBitPattern, "00") == 0);
+    ASSERT(!IsImpossible(mark_bit));
+    return !mark_bit.Get();
+  }
+
+  // Grey markbits: 11
+  static const char* kGreyBitPattern;
+  static inline bool IsGrey(MarkBit mark_bit) {
+    ASSERT(strcmp(kGreyBitPattern, "11") == 0);
+    ASSERT(!IsImpossible(mark_bit));
+    return mark_bit.Get() && mark_bit.Next().Get();
+  }
+
+  static inline void MarkBlack(MarkBit mark_bit) {
+    mark_bit.Set();
+    mark_bit.Next().Clear();
+    ASSERT(Marking::IsBlack(mark_bit));
+  }
+
+  static inline void BlackToGrey(MarkBit markbit) {
+    ASSERT(IsBlack(markbit));
+    markbit.Next().Set();
+    ASSERT(IsGrey(markbit));
+  }
+
+  static inline void WhiteToGrey(MarkBit markbit) {
+    ASSERT(IsWhite(markbit));
+    markbit.Set();
+    markbit.Next().Set();
+    ASSERT(IsGrey(markbit));
+  }
+
+  static inline void GreyToBlack(MarkBit markbit) {
+    ASSERT(IsGrey(markbit));
+    markbit.Next().Clear();
+    ASSERT(IsBlack(markbit));
+  }
+
+  static inline void BlackToGrey(HeapObject* obj) {
+    ASSERT(obj->Size() >= 2 * kPointerSize);
+    BlackToGrey(MarkBitFrom(obj));
+  }
+
   void TransferMark(Address old_start, Address new_start);
 
-  bool Setup();
+#ifdef DEBUG
+  enum ObjectColor {
+    BLACK_OBJECT,
+    WHITE_OBJECT,
+    GREY_OBJECT,
+    IMPOSSIBLE_COLOR
+  };
 
-  void TearDown();
+  static ObjectColor Color(HeapObject* obj) {
+    return Color(Marking::MarkBitFrom(obj));
+  }
+
+  static ObjectColor Color(MarkBit mark_bit) {
+    if (IsBlack(mark_bit)) return BLACK_OBJECT;
+    if (IsWhite(mark_bit)) return WHITE_OBJECT;
+    if (IsGrey(mark_bit)) return GREY_OBJECT;
+    UNREACHABLE();
+    return IMPOSSIBLE_COLOR;
+  }
+#endif
+
+  INLINE(static void TransferColor(HeapObject* from,
+                                   HeapObject* to)) {
+    MarkBit from_mark_bit = MarkBitFrom(from);
+    MarkBit to_mark_bit = MarkBitFrom(to);
+    if (from_mark_bit.Get()) to_mark_bit.Set();
+    if (from_mark_bit.Next().Get()) to_mark_bit.Next().Set();
+    ASSERT(Color(from) == Color(to));
+  }
 
  private:
   Heap* heap_;
@@ -91,16 +178,29 @@ class MarkingDeque {
 
   bool overflowed() const { return overflowed_; }
 
-  void clear_overflowed() { overflowed_ = false; }
+  void ClearOverflowed() { overflowed_ = false; }
+
+  void SetOverflowed() { overflowed_ = true; }
 
   // Push the (marked) object on the marking stack if there is room,
   // otherwise mark the object as overflowed and wait for a rescan of the
   // heap.
-  inline void Push(HeapObject* object) {
+  inline void PushBlack(HeapObject* object) {
     ASSERT(object->IsHeapObject());
     if (IsFull()) {
-      object->SetOverflow();
-      overflowed_ = true;
+      Marking::BlackToGrey(object);
+      SetOverflowed();
+    } else {
+      array_[top_] = object;
+      top_ = ((top_ + 1) & mask_);
+    }
+  }
+
+  inline void PushGrey(HeapObject* object) {
+    ASSERT(object->IsHeapObject());
+    if (IsFull()) {
+      ASSERT(Marking::IsGrey(Marking::MarkBitFrom(object)));
+      SetOverflowed();
     } else {
       array_[top_] = object;
       top_ = ((top_ + 1) & mask_);
@@ -115,11 +215,11 @@ class MarkingDeque {
     return object;
   }
 
-  inline void Unshift(HeapObject* object) {
+  inline void UnshiftGrey(HeapObject* object) {
     ASSERT(object->IsHeapObject());
     if (IsFull()) {
-      object->SetOverflow();
-      overflowed_ = true;
+      ASSERT(Marking::IsGrey(Marking::MarkBitFrom(object)));
+      SetOverflowed();
     } else {
       bottom_ = ((bottom_ - 1) & mask_);
       array_[bottom_] = object;
@@ -148,9 +248,6 @@ class MarkingDeque {
 
 // -------------------------------------------------------------------------
 // Mark-Compact collector
-
-class OverflowedObjectsScanner;
-
 class MarkCompactCollector {
  public:
   // Type of functions to compute forwarding addresses of objects in
@@ -457,7 +554,6 @@ class MarkCompactCollector {
   CodeFlusher* code_flusher_;
 
   friend class Heap;
-  friend class OverflowedObjectsScanner;
 };
 
 

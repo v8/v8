@@ -54,7 +54,7 @@ TEST(MarkingDeque) {
 
   Address address = NULL;
   while (!s.IsFull()) {
-    s.Push(HeapObject::FromAddress(address));
+    s.PushBlack(HeapObject::FromAddress(address));
     address += kPointerSize;
   }
 

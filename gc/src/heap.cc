@@ -1404,19 +1404,11 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
 
 
-    if (marks_handling == TRANSFER_MARKS) TransferMark(heap, source, target);
+    if (marks_handling == TRANSFER_MARKS) {
+      Marking::TransferColor(source, target);
+    }
 
     return target;
-  }
-
-
-  INLINE(static void TransferMark(Heap* heap,
-                                  HeapObject* from,
-                                  HeapObject* to)) {
-    MarkBit from_mark_bit = heap->marking()->MarkBitFrom(from);
-    if (heap->incremental_marking()->IsBlack(from_mark_bit)) {
-      heap->incremental_marking()->MarkBlack(heap->marking()->MarkBitFrom(to));
-    }
   }
 
   template<ObjectContents object_contents, SizeRestriction size_restriction>
@@ -4152,7 +4144,7 @@ static void VerifyPointers(
 
 static void VerifyPointers(LargeObjectSpace* space) {
   LargeObjectIterator it(space);
-  for (HeapObject* object = it.next(); object != NULL; object = it.next()) {
+  for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
     if (object->IsFixedArray()) {
       Address slot_address = object->address();
       Address end = object->address() + object->Size();
@@ -4507,7 +4499,7 @@ void Heap::MapSpaceCheckStoreBuffer() {
 
 void Heap::LargeObjectSpaceCheckStoreBuffer() {
   LargeObjectIterator it(lo_space());
-  for (HeapObject* object = it.next(); object != NULL; object = it.next()) {
+  for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
     // We only have code, sequential strings, or fixed arrays in large
     // object space, and only fixed arrays can possibly contain pointers to
     // the young generation.
