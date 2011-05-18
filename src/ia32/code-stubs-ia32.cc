@@ -746,15 +746,24 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
   __ bind(&try_float);
   if (mode_ == UNARY_NO_OVERWRITE) {
     Label slow_allocate_heapnumber, heapnumber_allocated;
+    __ mov(ebx, eax);
     __ AllocateHeapNumber(eax, edx, edi, &slow_allocate_heapnumber);
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
     __ EnterInternalFrame();
-    __ push(ecx);
+    // Push the original HeapNumber on the stack. The integer value can't
+    // be stored since it's untagged and not in the smi range (so we can't
+    // smi-tag it). We'll recalculate the value after the GC instead.
+    __ push(ebx);
     __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ pop(ecx);
+    // New HeapNumber is in eax.
+    __ pop(edx);
     __ LeaveInternalFrame();
+    // IntegerConvert uses ebx and edi as scratch registers.
+    // This conversion won't go slow-case.
+    IntegerConvert(masm, edx, CpuFeatures::IsSupported(SSE3), slow);
+    __ not_(ecx);
 
     __ bind(&heapnumber_allocated);
   }
@@ -4197,7 +4206,12 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ cmp(Operand::StaticVariable(js_entry_sp), Immediate(0));
   __ j(not_equal, &not_outermost_js);
   __ mov(Operand::StaticVariable(js_entry_sp), ebp);
+  __ push(Immediate(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  Label cont;
+  __ jmp(&cont);
   __ bind(&not_outermost_js);
+  __ push(Immediate(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
+  __ bind(&cont);
 #endif
 
   // Call a faked try-block that does the invoke.
@@ -4243,23 +4257,20 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ call(Operand(edx));
 
   // Unlink this frame from the handler chain.
-  __ pop(Operand::StaticVariable(ExternalReference(
-      Isolate::k_handler_address,
-      masm->isolate())));
-  // Pop next_sp.
-  __ add(Operand(esp), Immediate(StackHandlerConstants::kSize - kPointerSize));
+  __ PopTryHandler();
 
+  __ bind(&exit);
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  // If current EBP value is the same as js_entry_sp value, it means that
-  // the current function is the outermost.
-  __ cmp(ebp, Operand::StaticVariable(js_entry_sp));
+  // Check if the current stack frame is marked as the outermost JS frame.
+  __ pop(ebx);
+  __ cmp(Operand(ebx),
+         Immediate(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
   __ j(not_equal, &not_outermost_js_2);
   __ mov(Operand::StaticVariable(js_entry_sp), Immediate(0));
   __ bind(&not_outermost_js_2);
 #endif
 
   // Restore the top frame descriptor from the stack.
-  __ bind(&exit);
   __ pop(Operand::StaticVariable(ExternalReference(
       Isolate::k_c_entry_fp_address,
       masm->isolate())));
@@ -4670,7 +4681,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ CheckMap(index_,
               masm->isolate()->factory()->heap_number_map(),
               index_not_number_,
-              true);
+              DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
   __ push(object_);
   __ push(index_);

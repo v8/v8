@@ -1655,8 +1655,8 @@ void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,
                               Label* fail,
-                              bool is_heap_object) {
-  if (!is_heap_object) {
+                              SmiCheckType smi_check_type) {
+  if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
   ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
@@ -1670,8 +1670,8 @@ void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Heap::RootListIndex index,
                               Label* fail,
-                              bool is_heap_object) {
-  if (!is_heap_object) {
+                              SmiCheckType smi_check_type) {
+  if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
   ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
@@ -2521,7 +2521,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
   if (emit_debug_code()) {
     Label ok, fail;
-    CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, false);
+    CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, DO_SMI_CHECK);
     b(&ok);
     bind(&fail);
     Abort("Global functions must have initial map");
@@ -3025,6 +3025,44 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
   and_(result, result, Operand(kLdrOffsetMask));
   add(result, ldr_location, Operand(result));
   add(result, result, Operand(kPCRegOffset));
+}
+
+
+void MacroAssembler::ClampUint8(Register output_reg, Register input_reg) {
+  Usat(output_reg, 8, Operand(input_reg));
+}
+
+
+void MacroAssembler::ClampDoubleToUint8(Register result_reg,
+                                        DoubleRegister input_reg,
+                                        DoubleRegister temp_double_reg) {
+  Label above_zero;
+  Label done;
+  Label in_bounds;
+
+  vmov(temp_double_reg, 0.0);
+  VFPCompareAndSetFlags(input_reg, temp_double_reg);
+  b(gt, &above_zero);
+
+  // Double value is less than zero, NaN or Inf, return 0.
+  mov(result_reg, Operand(0));
+  b(al, &done);
+
+  // Double value is >= 255, return 255.
+  bind(&above_zero);
+  vmov(temp_double_reg, 255.0);
+  VFPCompareAndSetFlags(input_reg, temp_double_reg);
+  b(le, &in_bounds);
+  mov(result_reg, Operand(255));
+  b(al, &done);
+
+  // In 0-255 range, round and truncate.
+  bind(&in_bounds);
+  vmov(temp_double_reg, 0.5);
+  vadd(temp_double_reg, input_reg, temp_double_reg);
+  vcvt_u32_f64(s0, temp_double_reg);
+  vmov(result_reg, s0);
+  bind(&done);
 }
 
 

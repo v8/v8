@@ -29,6 +29,7 @@
 #define V8_IA32_MACRO_ASSEMBLER_IA32_H_
 
 #include "assembler.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
@@ -211,7 +212,7 @@ class MacroAssembler: public Assembler {
   void CheckMap(Register obj,
                 Handle<Map> map,
                 Label* fail,
-                bool is_heap_object);
+                SmiCheckType smi_check_type);
 
   // Check if the object in register heap_object is a string. Afterwards the
   // register map contains the object map and the register instance_type
@@ -237,6 +238,13 @@ class MacroAssembler: public Assembler {
   // FCmp is similar to integer cmp, but requires unsigned
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();
+
+  void ClampUint8(Register reg);
+
+  void ClampDoubleToUint8(XMMRegister input_reg,
+                          XMMRegister scratch_reg,
+                          Register result_reg);
+
 
   // Smi tagging support.
   void SmiTag(Register reg) {

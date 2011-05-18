@@ -1924,7 +1924,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
 
   // Check if the argument is a heap number and load its value into xmm0.
   Label slow;
-  __ CheckMap(eax, factory()->heap_number_map(), &slow, true);
+  __ CheckMap(eax, factory()->heap_number_map(), &slow, DONT_DO_SMI_CHECK);
   __ movdbl(xmm0, FieldOperand(eax, HeapNumber::kValueOffset));
 
   // Check if the argument is strictly positive. Note this also
@@ -2068,7 +2068,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
   // Check if the argument is a heap number and load its exponent and
   // sign into ebx.
   __ bind(&not_smi);
-  __ CheckMap(eax, factory()->heap_number_map(), &slow, true);
+  __ CheckMap(eax, factory()->heap_number_map(), &slow, DONT_DO_SMI_CHECK);
   __ mov(ebx, FieldOperand(eax, HeapNumber::kExponentOffset));
 
   // Check the sign of the argument. If the argument is positive,
@@ -3322,7 +3322,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
   __ j(not_zero, &slow);
 
   // Check that the map matches.
-  __ CheckMap(edx, Handle<Map>(receiver->map()), &slow, false);
+  __ CheckMap(edx, Handle<Map>(receiver->map()), &slow, DO_SMI_CHECK);
   __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
 
   // eax: key, known to be a smi.
@@ -3476,7 +3476,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   __ j(zero, &slow);
 
   // Check that the map matches.
-  __ CheckMap(edx, Handle<Map>(receiver->map()), &slow, false);
+  __ CheckMap(edx, Handle<Map>(receiver->map()), &slow, DO_SMI_CHECK);
 
   // Check that the key is a smi.
   __ test(ecx, Immediate(kSmiTagMask));

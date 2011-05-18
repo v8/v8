@@ -4432,55 +4432,116 @@ THREADED_TEST(WeakReference) {
 }
 
 
-static bool in_scavenge = false;
-static int last = -1;
-
-static void ForceScavenge(v8::Persistent<v8::Value> obj, void* data) {
-  CHECK_EQ(-1, last);
-  last = 0;
+static void DisposeAndSetFlag(v8::Persistent<v8::Value> obj, void* data) {
   obj.Dispose();
   obj.Clear();
-  in_scavenge = true;
-  HEAP->PerformScavenge();
-  in_scavenge = false;
   *(reinterpret_cast<bool*>(data)) = true;
 }
 
-static void CheckIsNotInvokedInScavenge(v8::Persistent<v8::Value> obj,
-                                        void* data) {
-  CHECK_EQ(0, last);
-  last = 1;
-  *(reinterpret_cast<bool*>(data)) = in_scavenge;
-  obj.Dispose();
-  obj.Clear();
-}
 
-THREADED_TEST(NoWeakRefCallbacksInScavenge) {
-  // Test verifies that scavenge cannot invoke WeakReferenceCallbacks.
-  // Calling callbacks from scavenges is unsafe as objects held by those
-  // handlers might have become strongly reachable, but scavenge doesn't
-  // check that.
+THREADED_TEST(IndependentWeakHandle) {
   v8::Persistent<Context> context = Context::New();
   Context::Scope context_scope(context);
 
   v8::Persistent<v8::Object> object_a;
-  v8::Persistent<v8::Object> object_b;
 
   {
     v8::HandleScope handle_scope;
-    object_b = v8::Persistent<v8::Object>::New(v8::Object::New());
     object_a = v8::Persistent<v8::Object>::New(v8::Object::New());
   }
 
   bool object_a_disposed = false;
-  object_a.MakeWeak(&object_a_disposed, &ForceScavenge);
-  bool released_in_scavenge = false;
-  object_b.MakeWeak(&released_in_scavenge, &CheckIsNotInvokedInScavenge);
+  object_a.MakeWeak(&object_a_disposed, &DisposeAndSetFlag);
+  object_a.MarkIndependent();
+  HEAP->PerformScavenge();
+  CHECK(object_a_disposed);
+}
 
-  while (!object_a_disposed) {
-    HEAP->CollectAllGarbage(false);
+
+static void InvokeScavenge() {
+  HEAP->PerformScavenge();
+}
+
+
+static void InvokeMarkSweep() {
+  HEAP->CollectAllGarbage(false);
+}
+
+
+static void ForceScavenge(v8::Persistent<v8::Value> obj, void* data) {
+  obj.Dispose();
+  obj.Clear();
+  *(reinterpret_cast<bool*>(data)) = true;
+  InvokeScavenge();
+}
+
+
+static void ForceMarkSweep(v8::Persistent<v8::Value> obj, void* data) {
+  obj.Dispose();
+  obj.Clear();
+  *(reinterpret_cast<bool*>(data)) = true;
+  InvokeMarkSweep();
+}
+
+
+THREADED_TEST(GCFromWeakCallbacks) {
+  v8::Persistent<Context> context = Context::New();
+  Context::Scope context_scope(context);
+
+  static const int kNumberOfGCTypes = 2;
+  v8::WeakReferenceCallback gc_forcing_callback[kNumberOfGCTypes] =
+      {&ForceScavenge, &ForceMarkSweep};
+
+  typedef void (*GCInvoker)();
+  GCInvoker invoke_gc[kNumberOfGCTypes] = {&InvokeScavenge, &InvokeMarkSweep};
+
+  for (int outer_gc = 0; outer_gc < kNumberOfGCTypes; outer_gc++) {
+    for (int inner_gc = 0; inner_gc < kNumberOfGCTypes; inner_gc++) {
+      v8::Persistent<v8::Object> object;
+      {
+        v8::HandleScope handle_scope;
+        object = v8::Persistent<v8::Object>::New(v8::Object::New());
+      }
+      bool disposed = false;
+      object.MakeWeak(&disposed, gc_forcing_callback[inner_gc]);
+      object.MarkIndependent();
+      invoke_gc[outer_gc]();
+      CHECK(disposed);
+    }
   }
-  CHECK(!released_in_scavenge);
+}
+
+
+static void RevivingCallback(v8::Persistent<v8::Value> obj, void* data) {
+  obj.ClearWeak();
+  *(reinterpret_cast<bool*>(data)) = true;
+}
+
+
+THREADED_TEST(IndependentHandleRevival) {
+  v8::Persistent<Context> context = Context::New();
+  Context::Scope context_scope(context);
+
+  v8::Persistent<v8::Object> object;
+  {
+    v8::HandleScope handle_scope;
+    object = v8::Persistent<v8::Object>::New(v8::Object::New());
+    object->Set(v8_str("x"), v8::Integer::New(1));
+    v8::Local<String> y_str = v8_str("y");
+    object->Set(y_str, y_str);
+  }
+  bool revived = false;
+  object.MakeWeak(&revived, &RevivingCallback);
+  object.MarkIndependent();
+  HEAP->PerformScavenge();
+  CHECK(revived);
+  HEAP->CollectAllGarbage(true);
+  {
+    v8::HandleScope handle_scope;
+    v8::Local<String> y_str = v8_str("y");
+    CHECK_EQ(v8::Integer::New(1), object->Get(v8_str("x")));
+    CHECK(object->Get(y_str)->Equals(y_str));
+  }
 }
 
 

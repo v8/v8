@@ -149,7 +149,7 @@ void Object::Lookup(String* name, LookupResult* result) {
     } else if (heap_object->IsBoolean()) {
       holder = global_context->boolean_function()->instance_prototype();
     } else if (heap_object->IsJSProxy()) {
-      return result->NotFound();  // For now...
+      return result->HandlerResult();
     }
   }
   ASSERT(holder != NULL);  // Cannot handle null or undefined.
@@ -222,6 +222,36 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
 
   UNREACHABLE();
   return NULL;
+}
+
+
+MaybeObject* Object::GetPropertyWithHandler(Object* receiver_raw,
+                                            String* name_raw,
+                                            Object* handler_raw) {
+  Isolate* isolate = name_raw->GetIsolate();
+  HandleScope scope;
+  Handle<Object> receiver(receiver_raw);
+  Handle<Object> name(name_raw);
+  Handle<Object> handler(handler_raw);
+
+  // Extract trap function.
+  LookupResult lookup;
+  Handle<Object> trap(v8::internal::GetProperty(handler, "get", &lookup));
+  if (!lookup.IsFound()) {
+    // Get the derived `get' property.
+    Object* derived = isolate->global_context()->builtins()->javascript_builtin(
+        Builtins::DERIVED_GET_TRAP);
+    trap = Handle<JSFunction>(JSFunction::cast(derived));
+  }
+
+  // Call trap function.
+  Object** args[] = { receiver.location(), name.location() };
+  bool has_exception;
+  Handle<Object> result =
+      Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
+  if (has_exception) return Failure::Exception();
+
+  return *result;
 }
 
 
@@ -497,26 +527,29 @@ MaybeObject* Object::GetProperty(Object* receiver,
   // holder will always be the interceptor holder and the search may
   // only continue with a current object just after the interceptor
   // holder in the prototype chain.
-  Object* last = result->IsProperty() ? result->holder() : heap->null_value();
-  ASSERT(this != this->GetPrototype());
-  for (Object* current = this; true; current = current->GetPrototype()) {
-    if (current->IsAccessCheckNeeded()) {
-      // Check if we're allowed to read from the current object. Note
-      // that even though we may not actually end up loading the named
-      // property from the current object, we still check that we have
-      // access to it.
-      JSObject* checked = JSObject::cast(current);
-      if (!heap->isolate()->MayNamedAccess(checked, name, v8::ACCESS_GET)) {
-        return checked->GetPropertyWithFailedAccessCheck(receiver,
-                                                         result,
-                                                         name,
-                                                         attributes);
+  // Proxy handlers do not use the proxy's prototype, so we can skip this.
+  if (!result->IsHandler()) {
+    Object* last = result->IsProperty() ? result->holder() : heap->null_value();
+    ASSERT(this != this->GetPrototype());
+    for (Object* current = this; true; current = current->GetPrototype()) {
+      if (current->IsAccessCheckNeeded()) {
+        // Check if we're allowed to read from the current object. Note
+        // that even though we may not actually end up loading the named
+        // property from the current object, we still check that we have
+        // access to it.
+        JSObject* checked = JSObject::cast(current);
+        if (!heap->isolate()->MayNamedAccess(checked, name, v8::ACCESS_GET)) {
+          return checked->GetPropertyWithFailedAccessCheck(receiver,
+                                                           result,
+                                                           name,
+                                                           attributes);
+        }
       }
+      // Stop traversing the chain once we reach the last object in the
+      // chain; either the holder of the result or null in case of an
+      // absent property.
+      if (current == last) break;
     }
-    // Stop traversing the chain once we reach the last object in the
-    // chain; either the holder of the result or null in case of an
-    // absent property.
-    if (current == last) break;
   }
 
   if (!result->IsProperty()) {
@@ -542,14 +575,22 @@ MaybeObject* Object::GetProperty(Object* receiver,
                                      result->GetCallbackObject(),
                                      name,
                                      holder);
+    case HANDLER: {
+      JSProxy* proxy = JSProxy::cast(this);
+      return GetPropertyWithHandler(receiver, name, proxy->handler());
+    }
     case INTERCEPTOR: {
       JSObject* recvr = JSObject::cast(receiver);
       return holder->GetPropertyWithInterceptor(recvr, name, attributes);
     }
-    default:
-      UNREACHABLE();
-      return NULL;
+    case MAP_TRANSITION:
+    case EXTERNAL_ARRAY_TRANSITION:
+    case CONSTANT_TRANSITION:
+    case NULL_DESCRIPTOR:
+      break;
   }
+  UNREACHABLE();
+  return NULL;
 }
 
 
@@ -6550,6 +6591,7 @@ const char* Code::PropertyType2String(PropertyType type) {
     case FIELD: return "FIELD";
     case CONSTANT_FUNCTION: return "CONSTANT_FUNCTION";
     case CALLBACKS: return "CALLBACKS";
+    case HANDLER: return "HANDLER";
     case INTERCEPTOR: return "INTERCEPTOR";
     case MAP_TRANSITION: return "MAP_TRANSITION";
     case EXTERNAL_ARRAY_TRANSITION: return "EXTERNAL_ARRAY_TRANSITION";

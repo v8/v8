@@ -888,8 +888,7 @@ class HGraphBuilder: public AstVisitor {
                                      HValue* left,
                                      HValue* right,
                                      TypeInfo info);
-  HInstruction* BuildIncrement(HValue* value,
-                               bool increment,
+  HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
   HLoadNamedField* BuildLoadNamedField(HValue* object,
                                        Property* expr,

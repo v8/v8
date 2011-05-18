@@ -1,4 +1,4 @@
-// Copyright 2006-2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -121,10 +121,11 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   static const int kStoredRegisters = kFramePointer;
   // Return address (stored from link register, read into pc on return).
   static const int kReturnAddress = kStoredRegisters + 9 * kPointerSize;
+  static const int kSecondaryReturnAddress = kReturnAddress + kPointerSize;
   // Stack frame header.
   static const int kStackFrameHeader = kReturnAddress + kPointerSize;
   // Stack parameters placed by caller.
-  static const int kRegisterOutput = kStackFrameHeader + 16;
+  static const int kRegisterOutput = kStackFrameHeader + 20;
   static const int kStackHighEnd = kRegisterOutput + kPointerSize;
   static const int kDirectCall = kStackHighEnd + kPointerSize;
   static const int kIsolate = kDirectCall + kPointerSize;
@@ -183,7 +184,7 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   // Register holding pointer to the current code object.
   inline Register code_pointer() { return t1; }
 
-  // Byte size of chars in the string to match (decided by the Mode argument)
+  // Byte size of chars in the string to match (decided by the Mode argument).
   inline int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
@@ -228,7 +229,7 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   int num_registers_;
 
   // Number of registers to output at the end (the saved registers
-  // are always 0..num_saved_registers_-1)
+  // are always 0..num_saved_registers_-1).
   int num_saved_registers_;
 
   // Labels used internally.
@@ -239,6 +240,7 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   Label exit_label_;
   Label check_preempt_label_;
   Label stack_overflow_label_;
+  Label internal_failure_label_;
 };
 
 #endif  // V8_INTERPRETED_REGEXP

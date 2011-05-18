@@ -362,6 +362,17 @@ Handle<Object> GetProperty(Handle<JSObject> obj,
 
 
 Handle<Object> GetProperty(Handle<Object> obj,
+                           const char* name,
+                           LookupResult* result) {
+  Isolate* isolate = Isolate::Current();
+  Handle<String> str = isolate->factory()->LookupAsciiSymbol(name);
+  PropertyAttributes attributes;
+  CALL_HEAP_FUNCTION(
+      isolate, obj->GetProperty(*obj, result, *str, &attributes), Object);
+}
+
+
+Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key) {
   Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(isolate,

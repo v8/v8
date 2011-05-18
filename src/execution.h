@@ -53,7 +53,7 @@ class Execution : public AllStatic {
   // *pending_exception tells whether the invoke resulted in
   // a pending exception.
   //
-  static Handle<Object> Call(Handle<JSFunction> func,
+  static Handle<Object> Call(Handle<Object> callable,
                              Handle<Object> receiver,
                              int argc,
                              Object*** args,

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -185,6 +185,8 @@ class Mutex;
 
 typedef bool (*WeakSlotCallback)(Object** pointer);
 
+typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, Object** pointer);
+
 // -----------------------------------------------------------------------------
 // Miscellaneous
 
@@ -218,7 +220,12 @@ enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
-enum VisitMode { VISIT_ALL, VISIT_ALL_IN_SCAVENGE, VISIT_ONLY_STRONG };
+enum VisitMode {
+  VISIT_ALL,
+  VISIT_ALL_IN_SCAVENGE,
+  VISIT_ALL_IN_SWEEP_NEWSPACE,
+  VISIT_ONLY_STRONG
+};
 
 // Flag indicating whether code is built into the VM (one of the natives files).
 enum NativesFlag { NOT_NATIVES_CODE, NATIVES_CODE };
@@ -322,11 +329,12 @@ enum PropertyType {
   FIELD                     = 1,  // only in fast mode
   CONSTANT_FUNCTION         = 2,  // only in fast mode
   CALLBACKS                 = 3,
-  INTERCEPTOR               = 4,  // only in lookup results, not in descriptors.
-  MAP_TRANSITION            = 5,  // only in fast mode
-  EXTERNAL_ARRAY_TRANSITION = 6,
-  CONSTANT_TRANSITION       = 7,  // only in fast mode
-  NULL_DESCRIPTOR           = 8,  // only in fast mode
+  HANDLER                   = 4,  // only in lookup results, not in descriptors
+  INTERCEPTOR               = 5,  // only in lookup results, not in descriptors
+  MAP_TRANSITION            = 6,  // only in fast mode
+  EXTERNAL_ARRAY_TRANSITION = 7,
+  CONSTANT_TRANSITION       = 8,  // only in fast mode
+  NULL_DESCRIPTOR           = 9,  // only in fast mode
   // All properties before MAP_TRANSITION are real.
   FIRST_PHANTOM_PROPERTY_TYPE = MAP_TRANSITION,
   // There are no IC stubs for NULL_DESCRIPTORS. Therefore,
@@ -479,6 +487,14 @@ enum StrictModeFlag {
   // to compile when we assert that a flag is either kNonStrictMode or
   // kStrictMode.
   kInvalidStrictFlag
+};
+
+
+// Used to specify if a macro instruction must perform a smi check on tagged
+// values.
+enum SmiCheckType {
+  DONT_DO_SMI_CHECK = 0,
+  DO_SMI_CHECK
 };
 
 } }  // namespace v8::internal

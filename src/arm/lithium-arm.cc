@@ -1643,6 +1643,14 @@ LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoForceRepresentation(HForceRepresentation* bad) {
+  // All HForceRepresentation instructions should be eliminated in the
+  // representation change phase of Hydrogen.
+  UNREACHABLE();
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   Representation from = instr->from();
   Representation to = instr->to();
@@ -1748,6 +1756,24 @@ LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   LInstruction* result = new LCheckMap(value);
   return AssignEnvironment(result);
+}
+
+
+LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
+  HValue* value = instr->value();
+  Representation input_rep = value->representation();
+  LOperand* reg = UseRegister(value);
+  if (input_rep.IsDouble()) {
+    return DefineAsRegister(new LClampDToUint8(reg, FixedTemp(d1)));
+  } else if (input_rep.IsInteger32()) {
+    return DefineAsRegister(new LClampIToUint8(reg));
+  } else {
+    ASSERT(input_rep.IsTagged());
+    // Register allocator doesn't (yet) support allocation of double
+    // temps. Reserve d1 explicitly.
+    LClampTToUint8* result = new LClampTToUint8(reg, FixedTemp(d1));
+    return AssignEnvironment(DefineAsRegister(result));
+  }
 }
 
 

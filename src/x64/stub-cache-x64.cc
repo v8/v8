@@ -1905,7 +1905,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
 
   // Check if the argument is a heap number and load its value.
   __ bind(&not_smi);
-  __ CheckMap(rax, factory()->heap_number_map(), &slow, true);
+  __ CheckMap(rax, factory()->heap_number_map(), &slow, DONT_DO_SMI_CHECK);
   __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
 
   // Check the sign of the argument. If the argument is positive,
@@ -3137,7 +3137,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
   __ JumpIfNotSmi(rax, &slow);
 
   // Check that the map matches.
-  __ CheckMap(rdx, Handle<Map>(receiver->map()), &slow, false);
+  __ CheckMap(rdx, Handle<Map>(receiver->map()), &slow, DO_SMI_CHECK);
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
 
   // Check that the index is in range.
@@ -3267,7 +3267,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   __ JumpIfSmi(rdx, &slow);
 
   // Check that the map matches.
-  __ CheckMap(rdx, Handle<Map>(receiver->map()), &slow, false);
+  __ CheckMap(rdx, Handle<Map>(receiver->map()), &slow, DO_SMI_CHECK);
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
 
   // Check that the key is a smi.

@@ -152,6 +152,12 @@ class StackFrame BASE_EMBEDDED {
     NO_ID = 0
   };
 
+  // Used to mark the outermost JS entry frame.
+  enum JsFrameMarker {
+    INNER_JSENTRY_FRAME = 0,
+    OUTERMOST_JSENTRY_FRAME = 1
+  };
+
   struct State {
     State() : sp(NULL), fp(NULL), pc_address(NULL) { }
     Address sp;

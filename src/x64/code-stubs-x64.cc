@@ -2551,7 +2551,10 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Factory* factory = masm->isolate()->factory();
   if (!object_is_smi) {
     __ JumpIfSmi(object, &is_smi);
-    __ CheckMap(object, factory->heap_number_map(), not_found, true);
+    __ CheckMap(object,
+                factory->heap_number_map(),
+                not_found,
+                DONT_DO_SMI_CHECK);
 
     STATIC_ASSERT(8 == kDoubleSize);
     __ movl(scratch, FieldOperand(object, HeapNumber::kValueOffset + 4));
@@ -3270,9 +3273,14 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ Load(rax, js_entry_sp);
   __ testq(rax, rax);
   __ j(not_zero, &not_outermost_js);
+  __ Push(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ movq(rax, rbp);
   __ Store(js_entry_sp, rax);
+  Label cont;
+  __ jmp(&cont);
   __ bind(&not_outermost_js);
+  __ Push(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME));
+  __ bind(&cont);
 #endif
 
   // Call a faked try-block that does the invoke.
@@ -3314,27 +3322,21 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ call(kScratchRegister);
 
   // Unlink this frame from the handler chain.
-  Operand handler_operand =
-      masm->ExternalOperand(ExternalReference(Isolate::k_handler_address,
-                                              isolate));
-  __ pop(handler_operand);
-  // Pop next_sp.
-  __ addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+  __ PopTryHandler();
 
+  __ bind(&exit);
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  // If current RBP value is the same as js_entry_sp value, it means that
-  // the current function is the outermost.
-  __ movq(kScratchRegister, js_entry_sp);
-  __ cmpq(rbp, Operand(kScratchRegister, 0));
+  // Check if the current stack frame is marked as the outermost JS frame.
+  __ pop(rbx);
+  __ Cmp(rbx, Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
+  __ movq(kScratchRegister, js_entry_sp);
   __ movq(Operand(kScratchRegister, 0), Immediate(0));
   __ bind(&not_outermost_js_2);
 #endif
 
   // Restore the top frame descriptor from the stack.
-  __ bind(&exit);
-  {
-    Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
+  { Operand c_entry_fp_operand = masm->ExternalOperand(c_entry_fp);
     __ pop(c_entry_fp_operand);
   }
 
@@ -3681,7 +3683,10 @@ void StringCharCodeAtGenerator::GenerateSlow(
   // Index is not a smi.
   __ bind(&index_not_smi_);
   // If index is a heap number, try converting it to an integer.
-  __ CheckMap(index_, factory->heap_number_map(), index_not_number_, true);
+  __ CheckMap(index_,
+              factory->heap_number_map(),
+              index_not_number_,
+              DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
   __ push(object_);
   __ push(index_);

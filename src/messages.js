@@ -192,6 +192,7 @@ function FormatMessage(message) {
       redefine_disallowed:          ["Cannot redefine property: ", "%0"],
       define_disallowed:            ["Cannot define property, object is not extensible: ", "%0"],
       non_extensible_proto:         ["%0", " is not extensible"],
+      handler_trap_missing:         ["Proxy handler ", "%0", " has no '", "%1", "' trap"],
       // RangeError
       invalid_array_length:         ["Invalid array length"],
       stack_overflow:               ["Maximum call stack size exceeded"],

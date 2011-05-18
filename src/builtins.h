@@ -237,7 +237,8 @@ enum BuiltinExtraArguments {
   V(STRING_ADD_LEFT, 1)                  \
   V(STRING_ADD_RIGHT, 1)                 \
   V(APPLY_PREPARE, 1)                    \
-  V(APPLY_OVERFLOW, 1)
+  V(APPLY_OVERFLOW, 1)                   \
+  V(DERIVED_GET_TRAP, 2)
 
 
 class BuiltinFunctionTable;

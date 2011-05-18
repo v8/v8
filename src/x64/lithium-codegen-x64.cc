@@ -3185,16 +3185,6 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     Register value(ToRegister(instr->value()));
     switch (array_type) {
       case kExternalPixelArray:
-        {  // Clamp the value to [0..255].
-          Label done;
-          __ testl(value, Immediate(0xFFFFFF00));
-          __ j(zero, &done, Label::kNear);
-          __ setcc(negative, value);  // 1 if negative, 0 if positive.
-          __ decb(value);  // 0 if negative, 255 if positive.
-          __ bind(&done);
-          __ movb(operand, value);
-        }
-        break;
       case kExternalByteArray:
       case kExternalUnsignedByteArray:
         __ movb(operand, value);
@@ -3782,6 +3772,57 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
   __ Cmp(FieldOperand(reg, HeapObject::kMapOffset),
          instr->hydrogen()->map());
   DeoptimizeIf(not_equal, instr->environment());
+}
+
+
+void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
+  XMMRegister value_reg = ToDoubleRegister(instr->unclamped());
+  Register result_reg = ToRegister(instr->result());
+  Register temp_reg = ToRegister(instr->TempAt(0));
+  __ ClampDoubleToUint8(value_reg, xmm0, result_reg, temp_reg);
+}
+
+
+void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
+  ASSERT(instr->unclamped()->Equals(instr->result()));
+  Register value_reg = ToRegister(instr->result());
+  __ ClampUint8(value_reg);
+}
+
+
+void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
+  ASSERT(instr->unclamped()->Equals(instr->result()));
+  Register input_reg = ToRegister(instr->unclamped());
+  Register temp_reg = ToRegister(instr->TempAt(0));
+  XMMRegister temp_xmm_reg = ToDoubleRegister(instr->TempAt(1));
+  Label is_smi, done, heap_number;
+
+  __ JumpIfSmi(input_reg, &is_smi);
+
+  // Check for heap number
+  __ Cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
+         factory()->heap_number_map());
+  __ j(equal, &heap_number, Label::kNear);
+
+  // Check for undefined. Undefined is converted to zero for clamping
+  // conversions.
+  __ Cmp(input_reg, factory()->undefined_value());
+  DeoptimizeIf(not_equal, instr->environment());
+  __ movq(input_reg, Immediate(0));
+  __ jmp(&done, Label::kNear);
+
+  // Heap number
+  __ bind(&heap_number);
+  __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
+  __ ClampDoubleToUint8(xmm0, temp_xmm_reg, input_reg, temp_reg);
+  __ jmp(&done, Label::kNear);
+
+  // smi
+  __ bind(&is_smi);
+  __ SmiToInteger32(input_reg, input_reg);
+  __ ClampUint8(input_reg);
+
+  __ bind(&done);
 }
 
 

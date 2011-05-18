@@ -1550,8 +1550,11 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
     __ ldr(elements, FieldMemOperand(receiver, JSArray::kElementsOffset));
 
     // Check that the elements are in fast mode and writable.
-    __ CheckMap(elements, r0,
-                Heap::kFixedArrayMapRootIndex, &call_builtin, true);
+    __ CheckMap(elements,
+                r0,
+                Heap::kFixedArrayMapRootIndex,
+                &call_builtin,
+                DONT_DO_SMI_CHECK);
 
     if (argc == 1) {  // Otherwise fall through to call the builtin.
       Label exit, with_write_barrier, attempt_to_grow_elements;
@@ -1700,7 +1703,11 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ ldr(elements, FieldMemOperand(receiver, JSArray::kElementsOffset));
 
   // Check that the elements are in fast mode and writable.
-  __ CheckMap(elements, r0, Heap::kFixedArrayMapRootIndex, &call_builtin, true);
+  __ CheckMap(elements,
+              r0,
+              Heap::kFixedArrayMapRootIndex,
+              &call_builtin,
+              DONT_DO_SMI_CHECK);
 
   // Get the array's length into r4 and calculate new length.
   __ ldr(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -2042,7 +2049,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   __ Drop(argc + 1, eq);
   __ Ret(eq);
 
-  __ CheckMap(r0, r1, Heap::kHeapNumberMapRootIndex, &slow, true);
+  __ CheckMap(r0, r1, Heap::kHeapNumberMapRootIndex, &slow, DONT_DO_SMI_CHECK);
 
   Label wont_fit_smi, no_vfp_exception, restore_fpscr_and_return;
 
@@ -2203,7 +2210,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
   // Check if the argument is a heap number and load its exponent and
   // sign.
   __ bind(&not_smi);
-  __ CheckMap(r0, r1, Heap::kHeapNumberMapRootIndex, &slow, true);
+  __ CheckMap(r0, r1, Heap::kHeapNumberMapRootIndex, &slow, DONT_DO_SMI_CHECK);
   __ ldr(r1, FieldMemOperand(r0, HeapNumber::kExponentOffset));
 
   // Check the sign of the argument. If the argument is positive,

@@ -1803,6 +1803,12 @@ void HGraph::InsertRepresentationChangesForValue(HValue* value) {
     ASSERT(value->IsConstant());
     value->DeleteAndReplaceWith(NULL);
   }
+
+  // The only purpose of a HForceRepresentation is to represent the value
+  // after the (possible) HChange instruction.  We make it disappear.
+  if (value->IsForceRepresentation()) {
+    value->DeleteAndReplaceWith(HForceRepresentation::cast(value)->value());
+  }
 }
 
 
@@ -3725,6 +3731,11 @@ HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
   HLoadExternalArrayPointer* external_elements =
       new(zone()) HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
+  if (expr->external_array_type() == kExternalPixelArray) {
+    HClampToUint8* clamp = new(zone()) HClampToUint8(val);
+    AddInstruction(clamp);
+    val = clamp;
+  }
   return new(zone()) HStoreKeyedSpecializedArrayElement(
       external_elements,
       key,
@@ -4694,20 +4705,35 @@ void HGraphBuilder::VisitNot(UnaryOperation* expr) {
 }
 
 
-HInstruction* HGraphBuilder::BuildIncrement(HValue* value,
-                                            bool increment,
+HInstruction* HGraphBuilder::BuildIncrement(bool returns_original_input,
                                             CountOperation* expr) {
-  HConstant* delta = increment
-      ? graph_->GetConstant1()
-      : graph_->GetConstantMinus1();
-  HInstruction* instr = new(zone()) HAdd(value, delta);
+  // The input to the count operation is on top of the expression stack.
   TypeInfo info = oracle()->IncrementType(expr);
   Representation rep = ToRepresentation(info);
   if (rep.IsTagged()) {
     rep = Representation::Integer32();
   }
+
+  if (returns_original_input) {
+    // We need an explicit HValue representing ToNumber(input).  The
+    // actual HChange instruction we need is (sometimes) added in a later
+    // phase, so it is not available now to be used as an input to HAdd and
+    // as the return value.
+    HInstruction* number_input = new(zone()) HForceRepresentation(Pop(), rep);
+    AddInstruction(number_input);
+    Push(number_input);
+  }
+
+  // The addition has no side effects, so we do not need
+  // to simulate the expression stack after this instruction.
+  // Any later failures deopt to the load of the input or earlier.
+  HConstant* delta = (expr->op() == Token::INC)
+      ? graph_->GetConstant1()
+      : graph_->GetConstantMinus1();
+  HInstruction* instr = new(zone()) HAdd(Top(), delta);
   TraceRepresentation(expr->op(), info, instr, rep);
   instr->AssumeRepresentation(rep);
+  AddInstruction(instr);
   return instr;
 }
 
@@ -4720,18 +4746,25 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
   VariableProxy* proxy = target->AsVariableProxy();
   Variable* var = proxy->AsVariable();
   Property* prop = target->AsProperty();
-  ASSERT(var == NULL || prop == NULL);
-  bool inc = expr->op() == Token::INC;
+  if (var == NULL && prop == NULL) {
+    return Bailout("invalid lhs in count operation");
+  }
+
+  // Match the full code generator stack by simulating an extra stack
+  // element for postfix operations in a non-effect context.  The return
+  // value is ToNumber(input).
+  bool returns_original_input =
+      expr->is_postfix() && !ast_context()->IsEffect();
+  HValue* input = NULL;  // ToNumber(original_input).
+  HValue* after = NULL;  // The result after incrementing or decrementing.
 
   if (var != NULL) {
+    // Argument of the count operation is a variable, not a property.
+    ASSERT(prop == NULL);
     CHECK_ALIVE(VisitForValue(target));
 
-    // Match the full code generator stack by simulating an extra stack
-    // element for postfix operations in a non-effect context.
-    bool has_extra = expr->is_postfix() && !ast_context()->IsEffect();
-    HValue* before = has_extra ? Top() : Pop();
-    HInstruction* after = BuildIncrement(before, inc, expr);
-    AddInstruction(after);
+    after = BuildIncrement(returns_original_input, expr);
+    input = returns_original_input ? Top() : Pop();
     Push(after);
 
     if (var->is_global()) {
@@ -4751,19 +4784,15 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
     } else {
       return Bailout("lookup variable in count operation");
     }
-    Drop(has_extra ? 2 : 1);
-    ast_context()->ReturnValue(expr->is_postfix() ? before : after);
 
-  } else if (prop != NULL) {
+  } else {
+    // Argument of the count operation is a property.
+    ASSERT(prop != NULL);
     prop->RecordTypeFeedback(oracle());
 
     if (prop->key()->IsPropertyName()) {
       // Named property.
-
-      // Match the full code generator stack by simulating an extra stack
-      // element for postfix operations in a non-effect context.
-      bool has_extra = expr->is_postfix() && !ast_context()->IsEffect();
-      if (has_extra) Push(graph_->GetConstantUndefined());
+      if (returns_original_input) Push(graph_->GetConstantUndefined());
 
       CHECK_ALIVE(VisitForValue(prop->obj()));
       HValue* obj = Top();
@@ -4779,11 +4808,8 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       PushAndAdd(load);
       if (load->HasSideEffects()) AddSimulate(expr->CountId());
 
-      HValue* before = Pop();
-      // There is no deoptimization to after the increment, so we don't need
-      // to simulate the expression stack after this instruction.
-      HInstruction* after = BuildIncrement(before, inc, expr);
-      AddInstruction(after);
+      after = BuildIncrement(returns_original_input, expr);
+      input = Pop();
 
       HInstruction* store = BuildStoreNamed(obj, after, prop);
       AddInstruction(store);
@@ -4792,19 +4818,12 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       // of the operation, and the placeholder with the original value if
       // necessary.
       environment()->SetExpressionStackAt(0, after);
-      if (has_extra) environment()->SetExpressionStackAt(1, before);
+      if (returns_original_input) environment()->SetExpressionStackAt(1, input);
       if (store->HasSideEffects()) AddSimulate(expr->AssignmentId());
-      Drop(has_extra ? 2 : 1);
-
-      ast_context()->ReturnValue(expr->is_postfix() ? before : after);
 
     } else {
       // Keyed property.
-
-      // Match the full code generator stack by simulate an extra stack element
-      // for postfix operations in a non-effect context.
-      bool has_extra = expr->is_postfix() && !ast_context()->IsEffect();
-      if (has_extra) Push(graph_->GetConstantUndefined());
+      if (returns_original_input) Push(graph_->GetConstantUndefined());
 
       CHECK_ALIVE(VisitForValue(prop->obj()));
       CHECK_ALIVE(VisitForValue(prop->key()));
@@ -4815,11 +4834,8 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       PushAndAdd(load);
       if (load->HasSideEffects()) AddSimulate(expr->CountId());
 
-      HValue* before = Pop();
-      // There is no deoptimization to after the increment, so we don't need
-      // to simulate the expression stack after this instruction.
-      HInstruction* after = BuildIncrement(before, inc, expr);
-      AddInstruction(after);
+      after = BuildIncrement(returns_original_input, expr);
+      input = Pop();
 
       expr->RecordTypeFeedback(oracle());
       HInstruction* store = BuildStoreKeyed(obj, key, after, expr);
@@ -4830,16 +4846,13 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       // original value if necessary.
       Drop(1);
       environment()->SetExpressionStackAt(0, after);
-      if (has_extra) environment()->SetExpressionStackAt(1, before);
+      if (returns_original_input) environment()->SetExpressionStackAt(1, input);
       if (store->HasSideEffects()) AddSimulate(expr->AssignmentId());
-      Drop(has_extra ? 2 : 1);
-
-      ast_context()->ReturnValue(expr->is_postfix() ? before : after);
     }
-
-  } else {
-    return Bailout("invalid lhs in count operation");
   }
+
+  Drop(returns_original_input ? 2 : 1);
+  ast_context()->ReturnValue(expr->is_postfix() ? input : after);
 }
 
 

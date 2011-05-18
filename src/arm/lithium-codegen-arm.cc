@@ -3352,9 +3352,6 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
         : MemOperand(external_pointer, key, LSL, shift_size));
     switch (array_type) {
       case kExternalPixelArray:
-        // Clamp the value to [0..255].
-        __ Usat(value, 8, Operand(value));
-        // Fall through to the next case for the store instruction:
       case kExternalByteArray:
       case kExternalUnsignedByteArray:
         __ strb(value, mem_operand);
@@ -4011,6 +4008,59 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
   __ ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
   __ cmp(scratch, Operand(instr->hydrogen()->map()));
   DeoptimizeIf(ne, instr->environment());
+}
+
+
+void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
+  DoubleRegister value_reg = ToDoubleRegister(instr->unclamped());
+  Register result_reg = ToRegister(instr->result());
+  DoubleRegister temp_reg = ToDoubleRegister(instr->TempAt(0));
+  __ ClampDoubleToUint8(result_reg, value_reg, temp_reg);
+}
+
+
+void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
+  Register unclamped_reg = ToRegister(instr->unclamped());
+  Register result_reg = ToRegister(instr->result());
+  __ ClampUint8(result_reg, unclamped_reg);
+}
+
+
+void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
+  Register scratch = scratch0();
+  Register input_reg = ToRegister(instr->unclamped());
+  Register result_reg = ToRegister(instr->result());
+  DoubleRegister temp_reg = ToDoubleRegister(instr->TempAt(0));
+  Label is_smi, done, heap_number;
+
+  // Both smi and heap number cases are handled.
+  __ JumpIfSmi(input_reg, &is_smi);
+
+  // Check for heap number
+  __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
+  __ cmp(scratch, Operand(factory()->heap_number_map()));
+  __ b(eq, &heap_number);
+
+  // Check for undefined. Undefined is converted to zero for clamping
+  // conversions.
+  __ cmp(input_reg, Operand(factory()->undefined_value()));
+  DeoptimizeIf(ne, instr->environment());
+  __ movt(input_reg, 0);
+  __ jmp(&done);
+
+  // Heap number
+  __ bind(&heap_number);
+  __ vldr(double_scratch0(), FieldMemOperand(input_reg,
+                                             HeapNumber::kValueOffset));
+  __ ClampDoubleToUint8(result_reg, double_scratch0(), temp_reg);
+  __ jmp(&done);
+
+  // smi
+  __ bind(&is_smi);
+  __ SmiUntag(result_reg, input_reg);
+  __ ClampUint8(result_reg, result_reg);
+
+  __ bind(&done);
 }
 
 

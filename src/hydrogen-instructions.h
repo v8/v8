@@ -87,6 +87,7 @@ class LChunkBuilder;
   V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
   V(CheckSmi)                                  \
+  V(ClampToUint8)                              \
   V(ClassOfTest)                               \
   V(Compare)                                   \
   V(CompareJSObjectEq)                         \
@@ -100,6 +101,7 @@ class LChunkBuilder;
   V(EnterInlined)                              \
   V(ExternalArrayLength)                       \
   V(FixedArrayLength)                          \
+  V(ForceRepresentation)                       \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
   V(GlobalObject)                              \
@@ -551,7 +553,6 @@ class HValue: public ZoneObject {
   Representation representation() const { return representation_; }
   void ChangeRepresentation(Representation r) {
     // Representation was already set and is allowed to be changed.
-    ASSERT(!representation_.IsNone());
     ASSERT(!r.IsNone());
     ASSERT(CheckFlag(kFlexibleRepresentation));
     RepresentationChanged(r);
@@ -1009,6 +1010,25 @@ class HThrow: public HUnaryOperation {
 };
 
 
+class HForceRepresentation: public HTemplateInstruction<1> {
+ public:
+  HForceRepresentation(HValue* value, Representation required_representation) {
+    SetOperandAt(0, value);
+    set_representation(required_representation);
+  }
+
+  HValue* value() { return OperandAt(0); }
+
+  virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return representation();  // Same as the output representation.
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ForceRepresentation)
+};
+
+
 class HChange: public HUnaryOperation {
  public:
   HChange(HValue* value,
@@ -1051,6 +1071,46 @@ class HChange: public HUnaryOperation {
 
  private:
   Representation from_;
+};
+
+
+class HClampToUint8: public HUnaryOperation {
+ public:
+  explicit HClampToUint8(HValue* value)
+      : HUnaryOperation(value),
+        input_rep_(Representation::None()) {
+    SetFlag(kFlexibleRepresentation);
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return input_rep_;
+  }
+
+  virtual Representation InferredRepresentation() {
+    // TODO(danno): Inference on input types should happen separately from
+    // return representation.
+    Representation new_rep = value()->representation();
+    if (input_rep_.IsNone()) {
+      if (!new_rep.IsNone()) {
+        input_rep_ = new_rep;
+        return Representation::Integer32();
+      } else {
+        return Representation::None();
+      }
+    } else {
+      return Representation::Integer32();
+    }
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ClampToUint8)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+
+ private:
+  Representation input_rep_;
 };
 
 

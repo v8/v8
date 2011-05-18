@@ -2561,12 +2561,43 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
-                              bool is_heap_object) {
-  if (!is_heap_object) {
+                              SmiCheckType smi_check_type) {
+  if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
   Cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
   j(not_equal, fail);
+}
+
+
+void MacroAssembler::ClampUint8(Register reg) {
+  Label done;
+  testl(reg, Immediate(0xFFFFFF00));
+  j(zero, &done, Label::kNear);
+  setcc(negative, reg);  // 1 if negative, 0 if positive.
+  decb(reg);  // 0 if negative, 255 if positive.
+  bind(&done);
+}
+
+
+void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
+                                        XMMRegister temp_xmm_reg,
+                                        Register result_reg,
+                                        Register temp_reg) {
+  Label done;
+  Set(result_reg, 0);
+  xorps(temp_xmm_reg, temp_xmm_reg);
+  ucomisd(input_reg, temp_xmm_reg);
+  j(below, &done, Label::kNear);
+  uint64_t one_half = BitCast<uint64_t, double>(0.5);
+  Set(temp_reg, one_half);
+  movq(temp_xmm_reg, temp_reg);
+  addsd(temp_xmm_reg, input_reg);
+  cvttsd2si(result_reg, temp_xmm_reg);
+  testl(result_reg, Immediate(0xFFFFFF00));
+  j(zero, &done, Label::kNear);
+  Set(result_reg, 255);
+  bind(&done);
 }
 
 
@@ -3571,7 +3602,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   movq(map, FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
   if (emit_debug_code()) {
     Label ok, fail;
-    CheckMap(map, isolate()->factory()->meta_map(), &fail, false);
+    CheckMap(map, isolate()->factory()->meta_map(), &fail, DO_SMI_CHECK);
     jmp(&ok);
     bind(&fail);
     Abort("Global functions must have initial map");

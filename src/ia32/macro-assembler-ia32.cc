@@ -77,6 +77,36 @@ void MacroAssembler::RecordWriteHelper(Register object,
 }
 
 
+void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
+                                        XMMRegister scratch_reg,
+                                        Register result_reg) {
+  Label done;
+  ExternalReference zero_ref = ExternalReference::address_of_zero();
+  movdbl(scratch_reg, Operand::StaticVariable(zero_ref));
+  Set(result_reg, Immediate(0));
+  ucomisd(input_reg, scratch_reg);
+  j(below, &done, Label::kNear);
+  ExternalReference half_ref = ExternalReference::address_of_one_half();
+  movdbl(scratch_reg, Operand::StaticVariable(half_ref));
+  addsd(scratch_reg, input_reg);
+  cvttsd2si(result_reg, Operand(scratch_reg));
+  test(result_reg, Immediate(0xFFFFFF00));
+  j(zero, &done, Label::kNear);
+  Set(result_reg, Immediate(255));
+  bind(&done);
+}
+
+
+void MacroAssembler::ClampUint8(Register reg) {
+  Label done;
+  test(reg, Immediate(0xFFFFFF00));
+  j(zero, &done, Label::kNear);
+  setcc(negative, reg);  // 1 if negative, 0 if positive.
+  dec_b(reg);  // 0 if negative, 255 if positive.
+  bind(&done);
+}
+
+
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 Condition cc,
@@ -247,10 +277,9 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
-                              bool is_heap_object) {
-  if (!is_heap_object) {
-    test(obj, Immediate(kSmiTagMask));
-    j(zero, fail);
+                              SmiCheckType smi_check_type) {
+  if (smi_check_type == DONT_DO_SMI_CHECK) {
+    JumpIfSmi(obj, fail);
   }
   cmp(FieldOperand(obj, HeapObject::kMapOffset), Immediate(map));
   j(not_equal, fail);
@@ -1712,7 +1741,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   mov(map, FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
   if (emit_debug_code()) {
     Label ok, fail;
-    CheckMap(map, isolate()->factory()->meta_map(), &fail, false);
+    CheckMap(map, isolate()->factory()->meta_map(), &fail, DO_SMI_CHECK);
     jmp(&ok);
     bind(&fail);
     Abort("Global functions must have initial map");

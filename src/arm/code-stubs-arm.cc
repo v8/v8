@@ -1369,7 +1369,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                   scratch1,
                   Heap::kHeapNumberMapRootIndex,
                   not_found,
-                  true);
+                  DONT_DO_SMI_CHECK);
 
       STATIC_ASSERT(8 == kDoubleSize);
       __ add(scratch1,
@@ -3021,7 +3021,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
                   r1,
                   Heap::kHeapNumberMapRootIndex,
                   &calculate,
-                  true);
+                  DONT_DO_SMI_CHECK);
       // Input is a HeapNumber. Load it to a double register and store the
       // low and high words into r2, r3.
       __ vldr(d0, FieldMemOperand(r0, HeapNumber::kValueOffset));
@@ -3564,11 +3564,20 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // If this is the outermost JS call, set js_entry_sp value.
+  Label non_outermost_js;
   ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
   __ mov(r5, Operand(ExternalReference(js_entry_sp)));
   __ ldr(r6, MemOperand(r5));
-  __ cmp(r6, Operand(0, RelocInfo::NONE));
-  __ str(fp, MemOperand(r5), eq);
+  __ cmp(r6, Operand(0));
+  __ b(ne, &non_outermost_js);
+  __ str(fp, MemOperand(r5));
+  __ mov(ip, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  Label cont;
+  __ b(&cont);
+  __ bind(&non_outermost_js);
+  __ mov(ip, Operand(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
+  __ bind(&cont);
+  __ push(ip);
 #endif
 
   // Call a faked try-block that does the invoke.
@@ -3626,27 +3635,22 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ mov(lr, Operand(pc));
   masm->add(pc, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
 
-  // Unlink this frame from the handler chain. When reading the
-  // address of the next handler, there is no need to use the address
-  // displacement since the current stack pointer (sp) points directly
-  // to the stack handler.
-  __ ldr(r3, MemOperand(sp, StackHandlerConstants::kNextOffset));
-  __ mov(ip, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
-  __ str(r3, MemOperand(ip));
-  // No need to restore registers
-  __ add(sp, sp, Operand(StackHandlerConstants::kSize));
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  // If current FP value is the same as js_entry_sp value, it means that
-  // the current function is the outermost.
-  __ mov(r5, Operand(ExternalReference(js_entry_sp)));
-  __ ldr(r6, MemOperand(r5));
-  __ cmp(fp, Operand(r6));
-  __ mov(r6, Operand(0, RelocInfo::NONE), LeaveCC, eq);
-  __ str(r6, MemOperand(r5), eq);
-#endif
+  // Unlink this frame from the handler chain.
+  __ PopTryHandler();
 
   __ bind(&exit);  // r0 holds result
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // Check if the current stack frame is marked as the outermost JS frame.
+  Label non_outermost_js_2;
+  __ pop(r5);
+  __ cmp(r5, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  __ b(ne, &non_outermost_js_2);
+  __ mov(r6, Operand(0));
+  __ mov(r5, Operand(ExternalReference(js_entry_sp)));
+  __ str(r6, MemOperand(r5));
+  __ bind(&non_outermost_js_2);
+#endif
+
   // Restore the top frame descriptors from the stack.
   __ pop(r3);
   __ mov(ip,
@@ -4689,7 +4693,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
               scratch_,
               Heap::kHeapNumberMapRootIndex,
               index_not_number_,
-              true);
+              DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
   __ Push(object_, index_);
   __ push(index_);  // Consumed by runtime conversion function.

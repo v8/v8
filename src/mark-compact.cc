@@ -2053,7 +2053,7 @@ static void SweepNewSpace(Heap* heap, NewSpace* space) {
   }
 
   // Update roots.
-  heap->IterateRoots(&updating_visitor, VISIT_ALL_IN_SCAVENGE);
+  heap->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
   LiveObjectList::IterateElements(&updating_visitor);
 
   // Update pointers in old spaces.
