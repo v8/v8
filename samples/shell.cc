@@ -504,6 +504,7 @@ v8::Handle<v8::Value> CreateExternalArray(const v8::Arguments& args,
   v8::Persistent<v8::Object> persistent_array =
       v8::Persistent<v8::Object>::New(array);
   persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
+  persistent_array.MarkIndependent();
   array->SetIndexedPropertiesToExternalArrayData(data, type, length);
   array->Set(v8::String::New("length"), v8::Int32::New(length),
              v8::ReadOnly);
