@@ -239,9 +239,7 @@ MaybeObject* Object::GetPropertyWithHandler(Object* receiver_raw,
   Handle<Object> trap(v8::internal::GetProperty(handler, "get", &lookup));
   if (!lookup.IsFound()) {
     // Get the derived `get' property.
-    Object* derived = isolate->global_context()->builtins()->javascript_builtin(
-        Builtins::DERIVED_GET_TRAP);
-    trap = Handle<JSFunction>(JSFunction::cast(derived));
+    trap = isolate->derived_get_trap();
   }
 
   // Call trap function.

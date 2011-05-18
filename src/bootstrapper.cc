@@ -199,6 +199,7 @@ class Genesis BASE_EMBEDDED {
   // Installs the contents of the native .js files on the global objects.
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
+  void InstallExperimentalNativeFunctions();
   bool InstallNatives();
   bool InstallExperimentalNatives();
   void InstallBuiltinFunctionIds();
@@ -1285,6 +1286,12 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSObject, "functionCache", function_cache);
 }
 
+void Genesis::InstallExperimentalNativeFunctions() {
+  if (FLAG_harmony_proxies) {
+    INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
+  }
+}
+
 #undef INSTALL_NATIVE
 
 
@@ -1647,6 +1654,9 @@ bool Genesis::InstallExperimentalNatives() {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
   }
+
+  InstallExperimentalNativeFunctions();
+
   return true;
 }
 
