@@ -82,7 +82,8 @@ bool TypeFeedbackOracle::LoadIsMonomorphic(Property* expr) {
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code(Code::cast(*map_or_code));
-    return code->kind() == Code::KEYED_EXTERNAL_ARRAY_LOAD_IC &&
+    return code->is_keyed_load_stub() &&
+        code->ic_state() == MONOMORPHIC &&
         code->FindFirstMap() != NULL;
   }
   return false;
@@ -94,8 +95,8 @@ bool TypeFeedbackOracle::StoreIsMonomorphic(Expression* expr) {
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code(Code::cast(*map_or_code));
-    return code->kind() == Code::KEYED_EXTERNAL_ARRAY_STORE_IC &&
-        code->FindFirstMap() != NULL;
+    return code->is_keyed_store_stub() &&
+        code->ic_state() == MONOMORPHIC;
   }
   return false;
 }
@@ -113,7 +114,9 @@ Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
       Handle<HeapObject>::cast(GetInfo(expr->id())));
   if (map_or_code->IsCode()) {
     Handle<Code> code(Code::cast(*map_or_code));
-    return Handle<Map>(code->FindFirstMap());
+    Map* first_map = code->FindFirstMap();
+    ASSERT(first_map != NULL);
+    return Handle<Map>(first_map);
   }
   return Handle<Map>(Map::cast(*map_or_code));
 }
@@ -445,8 +448,8 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
         kind == Code::COMPARE_IC) {
       SetInfo(id, target);
     } else if (state == MONOMORPHIC) {
-      if (kind == Code::KEYED_EXTERNAL_ARRAY_LOAD_IC ||
-          kind == Code::KEYED_EXTERNAL_ARRAY_STORE_IC) {
+      if (kind == Code::KEYED_LOAD_IC ||
+          kind == Code::KEYED_STORE_IC) {
         SetInfo(id, target);
       } else if (kind != Code::CALL_IC ||
                  target->check_type() == RECEIVER_MAP_CHECK) {

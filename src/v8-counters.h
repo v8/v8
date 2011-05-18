@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -134,6 +134,7 @@ namespace internal {
   SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)            \
   SC(keyed_load_generic_lookup_cache, V8.KeyedLoadGenericLookupCache) \
   SC(keyed_load_generic_slow, V8.KeyedLoadGenericSlow)                \
+  SC(keyed_load_polymorphic_stubs, V8.KeyedLoadPolymorphicStubs)      \
   SC(keyed_load_external_array_slow, V8.KeyedLoadExternalArraySlow)   \
   /* How is the generic keyed-call stub used? */                      \
   SC(keyed_call_generic_smi_fast, V8.KeyedCallGenericSmiFast)         \
@@ -179,6 +180,8 @@ namespace internal {
   SC(keyed_store_inline_miss, V8.KeyedStoreInlineMiss)                \
   SC(named_store_global_inline, V8.NamedStoreGlobalInline)            \
   SC(named_store_global_inline_miss, V8.NamedStoreGlobalInlineMiss)   \
+  SC(keyed_store_polymorphic_stubs, V8.KeyedStorePolymorphicStubs)    \
+  SC(keyed_store_external_array_slow, V8.KeyedStoreExternalArraySlow) \
   SC(store_normal_miss, V8.StoreNormalMiss)                           \
   SC(store_normal_hit, V8.StoreNormalHit)                             \
   SC(cow_arrays_created_stub, V8.COWArraysCreatedStub)                \

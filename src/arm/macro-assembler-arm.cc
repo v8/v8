@@ -1681,6 +1681,23 @@ void MacroAssembler::CheckMap(Register obj,
 }
 
 
+void MacroAssembler::DispatchMap(Register obj,
+                                 Register scratch,
+                                 Handle<Map> map,
+                                 Handle<Code> success,
+                                 SmiCheckType smi_check_type) {
+  Label fail;
+  if (smi_check_type == DO_SMI_CHECK) {
+    JumpIfSmi(obj, &fail);
+  }
+  ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
+  mov(ip, Operand(map));
+  cmp(scratch, ip);
+  Jump(success, RelocInfo::CODE_TARGET, eq);
+  bind(&fail);
+}
+
+
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,

@@ -457,7 +457,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* code = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    if (FLAG_cleanup_ics_at_gc && code->is_inline_cache_stub()) {
+    if (FLAG_cleanup_code_caches_at_gc && code->is_inline_cache_stub()) {
       IC::Clear(rinfo->pc());
       // Please note targets for cleared inline cached do not have to be
       // marked since they are contained in HEAP->non_monomorphic_cache().
@@ -1056,7 +1056,7 @@ void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
   ASSERT(HEAP->Contains(object));
   if (object->IsMap()) {
     Map* map = Map::cast(object);
-    if (FLAG_cleanup_caches_in_maps_at_gc) {
+    if (FLAG_cleanup_code_caches_at_gc) {
       map->ClearCodeCache(heap());
     }
     SetMark(map);

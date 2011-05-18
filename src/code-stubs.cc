@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,6 +29,7 @@
 
 #include "bootstrapper.h"
 #include "code-stubs.h"
+#include "stub-cache.h"
 #include "factory.h"
 #include "gdb-jit.h"
 #include "macro-assembler.h"
@@ -240,6 +241,26 @@ const char* InstanceofStub::GetName() {
                inline_check,
                return_true_false_object);
   return name_;
+}
+
+
+void KeyedLoadFastElementStub::Generate(MacroAssembler* masm) {
+  KeyedLoadStubCompiler::GenerateLoadFastElement(masm);
+}
+
+
+void KeyedStoreFastElementStub::Generate(MacroAssembler* masm) {
+  KeyedStoreStubCompiler::GenerateStoreFastElement(masm, is_js_array_);
+}
+
+
+void KeyedLoadExternalArrayStub::Generate(MacroAssembler* masm) {
+  KeyedLoadStubCompiler::GenerateLoadExternalArray(masm, array_type_);
+}
+
+
+void KeyedStoreExternalArrayStub::Generate(MacroAssembler* masm) {
+  KeyedStoreStubCompiler::GenerateStoreExternalArray(masm, array_type_);
 }
 
 
