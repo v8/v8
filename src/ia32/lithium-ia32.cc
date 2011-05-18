@@ -2016,7 +2016,6 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
 
   LOperand* external_pointer = UseRegister(instr->external_pointer());
   LOperand* key = UseRegisterOrConstant(instr->key());
-  LOperand* temp = NULL;
   LOperand* val = NULL;
   if (array_type == kExternalByteArray ||
       array_type == kExternalUnsignedByteArray) {
@@ -2028,8 +2027,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
 
   return new LStoreKeyedSpecializedArrayElement(external_pointer,
                                                 key,
-                                                val,
-                                                temp);
+                                                val);
 }
 
 
