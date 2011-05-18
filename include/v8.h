@@ -2670,17 +2670,6 @@ class V8EXPORT Isolate {
    */
   void Dispose();
 
-  /**
-   * Associate embedder-specific data with the isolate
-   */
-  void SetData(void* data);
-
-  /**
-   * Retrive embedder-specific data from the isolate.
-   * Returns NULL if SetData has never been called.
-   */
-  void* GetData();
-
  private:
 
   Isolate();
