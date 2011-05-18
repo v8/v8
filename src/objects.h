@@ -628,6 +628,7 @@ struct ValueInfo : public Malloced {
 // A template-ized version of the IsXXX functions.
 template <class C> static inline bool Is(Object* obj);
 
+class Failure;
 
 class MaybeObject BASE_EMBEDDED {
  public:
@@ -640,6 +641,10 @@ class MaybeObject BASE_EMBEDDED {
     if (IsFailure()) return false;
     *obj = reinterpret_cast<Object*>(this);
     return true;
+  }
+  inline Failure* ToFailureUnchecked() {
+    ASSERT(IsFailure());
+    return reinterpret_cast<Failure*>(this);
   }
   inline Object* ToObjectUnchecked() {
     ASSERT(!IsFailure());
