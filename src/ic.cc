@@ -2379,7 +2379,10 @@ RUNTIME_FUNCTION(MaybeObject*, TypeRecordingBinaryOp_Patch) {
     type = TRBinaryOpIC::GENERIC;
   }
   if (type == TRBinaryOpIC::SMI && previous_type == TRBinaryOpIC::SMI) {
-    if (op == Token::DIV || op == Token::MUL || kSmiValueSize == 32) {
+    if (op == Token::DIV ||
+        op == Token::MUL ||
+        op == Token::SHR ||
+        kSmiValueSize == 32) {
       // Arithmetic on two Smi inputs has yielded a heap number.
       // That is the only way to get here from the Smi stub.
       // With 32-bit Smis, all overflows give heap numbers, but with

@@ -1083,7 +1083,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
       // Smi tagging these two cases can only happen with shifts
       // by 0 or 1 when handed a valid smi.
       __ test(left, Immediate(0xc0000000));
-      __ j(not_zero, slow);
+      __ j(not_zero, &use_fp_on_smis);
       // Tag the result and store it in register eax.
       __ SmiTag(left);
       __ mov(eax, left);
@@ -1219,26 +1219,35 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
   } else {
     ASSERT(allow_heapnumber_results == ALLOW_HEAPNUMBER_RESULTS);
     switch (op_) {
-      case Token::SHL: {
+      case Token::SHL:
+      case Token::SHR: {
         Comment perform_float(masm, "-- Perform float operation on smis");
         __ bind(&use_fp_on_smis);
         // Result we want is in left == edx, so we can put the allocated heap
         // number in eax.
         __ AllocateHeapNumber(eax, ecx, ebx, slow);
         // Store the result in the HeapNumber and return.
-        if (CpuFeatures::IsSupported(SSE2)) {
-          CpuFeatures::Scope use_sse2(SSE2);
-          __ cvtsi2sd(xmm0, Operand(left));
-          __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
-        } else {
-          // It's OK to overwrite the right argument on the stack because we
-          // are about to return.
+        // It's OK to overwrite the arguments on the stack because we
+        // are about to return.
+        if (op_ == Token::SHR) {
           __ mov(Operand(esp, 1 * kPointerSize), left);
-          __ fild_s(Operand(esp, 1 * kPointerSize));
+          __ mov(Operand(esp, 2 * kPointerSize), Immediate(0));
+          __ fild_d(Operand(esp, 1 * kPointerSize));
           __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+        } else {
+          ASSERT_EQ(Token::SHL, op_);
+          if (CpuFeatures::IsSupported(SSE2)) {
+            CpuFeatures::Scope use_sse2(SSE2);
+            __ cvtsi2sd(xmm0, Operand(left));
+            __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
+          } else {
+            __ mov(Operand(esp, 1 * kPointerSize), left);
+            __ fild_s(Operand(esp, 1 * kPointerSize));
+            __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+          }
         }
-      __ ret(2 * kPointerSize);
-      break;
+        __ ret(2 * kPointerSize);
+        break;
       }
 
       case Token::ADD:
