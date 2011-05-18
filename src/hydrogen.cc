@@ -2535,9 +2535,11 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
       // Identify the block where normal (non-fall-through) control flow
       // goes to.
       HBasicBlock* normal_block = NULL;
-      if (clause->is_default() && last_block != NULL) {
-        normal_block = last_block;
-        last_block = NULL;  // Cleared to indicate we've handled it.
+      if (clause->is_default()) {
+        if (last_block != NULL) {
+          normal_block = last_block;
+          last_block = NULL;  // Cleared to indicate we've handled it.
+        }
       } else if (!curr_test_block->end()->IsDeoptimize()) {
         normal_block = curr_test_block->end()->FirstSuccessor();
         curr_test_block = curr_test_block->end()->SecondSuccessor();
