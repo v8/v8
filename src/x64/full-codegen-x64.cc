@@ -553,25 +553,10 @@ void FullCodeGenerator::TestContext::Plug(bool flag) const {
 void FullCodeGenerator::DoTest(Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  // Emit the inlined tests assumed by the stub.
-  __ CompareRoot(result_register(), Heap::kUndefinedValueRootIndex);
-  __ j(equal, if_false);
-  __ CompareRoot(result_register(), Heap::kTrueValueRootIndex);
-  __ j(equal, if_true);
-  __ CompareRoot(result_register(), Heap::kFalseValueRootIndex);
-  __ j(equal, if_false);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ Cmp(result_register(), Smi::FromInt(0));
-  __ j(equal, if_false);
-  Condition is_smi = masm_->CheckSmi(result_register());
-  __ j(is_smi, if_true);
-
-  // Call the ToBoolean stub for all other cases.
   ToBooleanStub stub;
   __ push(result_register());
   __ CallStub(&stub);
   __ testq(rax, rax);
-
   // The stub returns nonzero for true.
   Split(not_zero, if_true, if_false, fall_through);
 }

@@ -244,9 +244,25 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result, true_result, not_string;
   __ mov(eax, Operand(esp, 1 * kPointerSize));
+  Factory* factory = masm->isolate()->factory();
+
+  // undefined -> false
+  __ cmp(eax, factory->undefined_value());
+  __ j(equal, &false_result);
+
+  // Boolean -> its value
+  __ cmp(eax, factory->true_value());
+  __ j(equal, &true_result);
+  __ cmp(eax, factory->false_value());
+  __ j(equal, &false_result);
+
+  // Smis: 0 -> false, all other -> true
+  __ test(eax, Operand(eax));
+  __ j(zero, &false_result);
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &true_result);
 
   // 'null' => false.
-  Factory* factory = masm->isolate()->factory();
   __ cmp(eax, factory->null_value());
   __ j(equal, &false_result, Label::kNear);
 

@@ -235,6 +235,22 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result, true_result, not_string;
   __ movq(rax, Operand(rsp, 1 * kPointerSize));
 
+  // undefined -> false
+  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
+  __ j(equal, &false_result);
+
+  // Boolean -> its value
+  __ CompareRoot(rax, Heap::kFalseValueRootIndex);
+  __ j(equal, &false_result);
+  __ CompareRoot(rax, Heap::kTrueValueRootIndex);
+  __ j(equal, &true_result);
+
+  // Smis: 0 -> false, all other -> true
+  __ Cmp(rax, Smi::FromInt(0));
+  __ j(equal, &false_result);
+  Condition is_smi = __ CheckSmi(rax);
+  __ j(is_smi, &true_result);
+
   // 'null' => false.
   __ CompareRoot(rax, Heap::kNullValueRootIndex);
   __ j(equal, &false_result, Label::kNear);
