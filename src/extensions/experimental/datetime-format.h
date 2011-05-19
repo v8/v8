@@ -25,57 +25,59 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "i18n-extension.h"
+#ifndef V8_EXTENSIONS_EXPERIMENTAL_DATETIME_FORMAT_H_
+#define V8_EXTENSIONS_EXPERIMENTAL_DATETIME_FORMAT_H_
 
-#include "break-iterator.h"
-#include "collator.h"
-#include "datetime-format.h"
-#include "i18n-locale.h"
-#include "natives.h"
+#include <v8.h>
+
+#include "unicode/uversion.h"
+
+namespace U_ICU_NAMESPACE {
+class SimpleDateFormat;
+}
 
 namespace v8 {
 namespace internal {
 
-I18NExtension* I18NExtension::extension_ = NULL;
+class DateTimeFormat {
+ public:
+  static v8::Handle<v8::Value> JSDateTimeFormat(const v8::Arguments& args);
 
-// Returns a pointer to static string containing the actual
-// JavaScript code generated from i18n.js file.
-static const char* GetScriptSource() {
-  int index = NativesCollection<I18N>::GetIndex("i18n");
-  Vector<const char> script_data =
-      NativesCollection<I18N>::GetScriptSource(index);
+  // Helper methods for various bindings.
 
-  return script_data.start();
-}
+  // Unpacks date format object from corresponding JavaScript object.
+  static icu::SimpleDateFormat* UnpackDateTimeFormat(
+      v8::Handle<v8::Object> obj);
 
-I18NExtension::I18NExtension()
-    : v8::Extension("v8/i18n", GetScriptSource()) {
-}
+  // Release memory we allocated for the DateFormat once the JS object that
+  // holds the pointer gets garbage collected.
+  static void DeleteDateTimeFormat(v8::Persistent<v8::Value> object,
+                                   void* param);
 
-v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
-    v8::Handle<v8::String> name) {
-  if (name->Equals(v8::String::New("NativeJSLocale"))) {
-    return v8::FunctionTemplate::New(I18NLocale::JSLocale);
-  } else if (name->Equals(v8::String::New("NativeJSBreakIterator"))) {
-    return v8::FunctionTemplate::New(BreakIterator::JSBreakIterator);
-  } else if (name->Equals(v8::String::New("NativeJSCollator"))) {
-    return v8::FunctionTemplate::New(Collator::JSCollator);
-  } else if (name->Equals(v8::String::New("NativeJSDateTimeFormat"))) {
-    return v8::FunctionTemplate::New(DateTimeFormat::JSDateTimeFormat);
-  }
+  // Formats date and returns corresponding string.
+  static v8::Handle<v8::Value> Format(const v8::Arguments& args);
 
-  return v8::Handle<v8::FunctionTemplate>();
-}
+  // All date time symbol methods below return stand-alone names in
+  // either narrow, abbreviated or wide width.
 
-I18NExtension* I18NExtension::get() {
-  if (!extension_) {
-    extension_ = new I18NExtension();
-  }
-  return extension_;
-}
+  // Get list of months.
+  static v8::Handle<v8::Value> GetMonths(const v8::Arguments& args);
 
-void I18NExtension::Register() {
-  static v8::DeclareExtension i18n_extension_declaration(I18NExtension::get());
-}
+  // Get list of weekdays.
+  static v8::Handle<v8::Value> GetWeekdays(const v8::Arguments& args);
+
+  // Get list of eras.
+  static v8::Handle<v8::Value> GetEras(const v8::Arguments& args);
+
+  // Get list of day periods.
+  static v8::Handle<v8::Value> GetAmPm(const v8::Arguments& args);
+
+ private:
+  DateTimeFormat();
+
+  static v8::Persistent<v8::FunctionTemplate> datetime_format_template_;
+};
 
 } }  // namespace v8::internal
+
+#endif  // V8_EXTENSIONS_EXPERIMENTAL_DATETIME_FORMAT_H_

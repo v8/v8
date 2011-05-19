@@ -45,11 +45,11 @@ v8Locale = function(settings) {
   }
 
   var properties = NativeJSLocale(
-      v8Locale.createSettingsOrDefault_(settings, {'localeID': 'root'}));
+      v8Locale.__createSettingsOrDefault(settings, {'localeID': 'root'}));
 
   // Keep the resolved ICU locale ID around to avoid resolving localeID to
   // ICU locale ID every time BreakIterator, Collator and so forth are called.
-  this.__icuLocaleID__ = properties.icuLocaleID;
+  this.__icuLocaleID = properties.icuLocaleID;
   this.options = {'localeID': properties.localeID,
                   'regionID': properties.regionID};
 };
@@ -61,7 +61,7 @@ v8Locale = function(settings) {
  */
 v8Locale.prototype.derive = function(settings) {
   return new v8Locale(
-      v8Locale.createSettingsOrDefault_(settings, this.options));
+      v8Locale.__createSettingsOrDefault(settings, this.options));
 };
 
 /**
@@ -79,9 +79,9 @@ v8Locale.prototype.derive = function(settings) {
 v8Locale.v8BreakIterator = function(locale, type) {
   native function NativeJSBreakIterator();
 
-  locale = v8Locale.createLocaleOrDefault_(locale);
+  locale = v8Locale.__createLocaleOrDefault(locale);
   // BCP47 ID would work in this case, but we use ICU locale for consistency.
-  var iterator = NativeJSBreakIterator(locale.__icuLocaleID__, type);
+  var iterator = NativeJSBreakIterator(locale.__icuLocaleID, type);
   iterator.type = type;
   return iterator;
 };
@@ -122,19 +122,100 @@ v8Locale.prototype.v8CreateBreakIterator = function(type) {
 v8Locale.Collator = function(locale, settings) {
   native function NativeJSCollator();
 
-  locale = v8Locale.createLocaleOrDefault_(locale);
+  locale = v8Locale.__createLocaleOrDefault(locale);
   var collator = NativeJSCollator(
-      locale.__icuLocaleID__, v8Locale.createSettingsOrDefault_(settings, {}));
+      locale.__icuLocaleID, v8Locale.__createSettingsOrDefault(settings, {}));
   return collator;
 };
 
 /**
  * Creates new Collator based on current locale.
  * @param {Object} - collation flags. See constructor.
- * @returns {Object} - new v8BreakIterator object.
+ * @returns {Object} - new Collator object.
  */
 v8Locale.prototype.createCollator = function(settings) {
   return new v8Locale.Collator(this, settings);
+};
+
+/**
+ * DateTimeFormat class implements locale-aware date and time formatting.
+ * Constructor is not part of public API.
+ * @param {Object} locale - locale object to pass to formatter.
+ * @param {Object} settings - formatting flags:
+ *   - skeleton
+ *   - dateType
+ *   - timeType
+ *   - calendar
+ * @constructor
+ */
+v8Locale.__DateTimeFormat = function(locale, settings) {
+  native function NativeJSDateTimeFormat();
+
+  settings = v8Locale.__createSettingsOrDefault(settings, {});
+
+  var cleanSettings = {};
+  if (settings.hasOwnProperty('skeleton')) {
+    cleanSettings['skeleton'] = settings['skeleton'];
+  } else {
+    cleanSettings = {};
+    if (settings.hasOwnProperty('dateType')) {
+      var dt = settings['dateType'];
+      if (!/^short|medium|long|full$/.test(dt)) dt = 'short';
+      cleanSettings['dateType'] = dt;
+    }
+
+    if (settings.hasOwnProperty('timeType')) {
+      var tt = settings['timeType'];
+      if (!/^short|medium|long|full$/.test(tt)) tt = 'short';
+      cleanSettings['timeType'] = tt;
+    }
+  }
+
+  // Default is to show short date and time.
+  if (!cleanSettings.hasOwnProperty('skeleton') &&
+      !cleanSettings.hasOwnProperty('dateType') &&
+      !cleanSettings.hasOwnProperty('timeType')) {
+    cleanSettings = {'dateType': 'short',
+                     'timeType': 'short'};
+  }
+
+  locale = v8Locale.__createLocaleOrDefault(locale);
+  var formatter = NativeJSDateTimeFormat(locale.__icuLocaleID, cleanSettings);
+
+  // NativeJSDateTimeFormat creates formatter.options for us, we just need
+  // to append actual settings to it.
+  for (key in cleanSettings) {
+    formatter.options[key] = cleanSettings[key];
+  }
+
+  /**
+   * Clones existing date time format with possible overrides for some
+   * of the options.
+   * @param {!Object} overrideSettings - overrides for current format settings.
+   * @returns {Object} - new DateTimeFormat object.
+   */
+  formatter.derive = function(overrideSettings) {
+    // To remove a setting user can specify undefined as its value. We'll remove
+    // it from the map in that case.
+    for (var prop in overrideSettings) {
+      if (settings.hasOwnProperty(prop) && !overrideSettings[prop]) {
+        delete settings[prop];
+      }
+    }
+    return new v8Locale.__DateTimeFormat(
+        locale, v8Locale.__createSettingsOrDefault(overrideSettings, settings));
+  };
+
+  return formatter;
+};
+
+/**
+ * Creates new DateTimeFormat based on current locale.
+ * @param {Object} - formatting flags. See constructor.
+ * @returns {Object} - new DateTimeFormat object.
+ */
+v8Locale.prototype.createDateTimeFormat = function(settings) {
+  return new v8Locale.__DateTimeFormat(this, settings);
 };
 
 /**
@@ -146,7 +227,7 @@ v8Locale.prototype.createCollator = function(settings) {
  * @param {!Object} defaults - default values for this type of settings.
  * @returns {Object} - valid settings object.
  */
-v8Locale.createSettingsOrDefault_ = function(settings, defaults) {
+v8Locale.__createSettingsOrDefault = function(settings, defaults) {
   if (!settings || typeof(settings) !== 'object' ) {
     return defaults;
   }
@@ -155,10 +236,16 @@ v8Locale.createSettingsOrDefault_ = function(settings, defaults) {
       settings[key] = defaults[key];
     }
   }
-  // Clean up values, like trimming whitespace.
+  // Clean up settings.
   for (var key in settings) {
+    // Trim whitespace.
     if (typeof(settings[key]) === "string") {
       settings[key] = settings[key].trim();
+    }
+    // Remove all properties that are set to undefined/null. This allows
+    // derive method to remove a setting we don't need anymore.
+    if (!settings[key]) {
+      delete settings[key];
     }
   }
 
@@ -171,7 +258,7 @@ v8Locale.createSettingsOrDefault_ = function(settings, defaults) {
  * @param {!Object} locale - user provided locale.
  * @returns {Object} - v8Locale object.
  */
-v8Locale.createLocaleOrDefault_ = function(locale) {
+v8Locale.__createLocaleOrDefault = function(locale) {
   if (!locale || !(locale instanceof v8Locale)) {
     return new v8Locale();
   } else {
