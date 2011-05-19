@@ -4831,7 +4831,17 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
   // sp[0] : number of parameters
   // sp[4] : receiver displacement
   // sp[8] : function
@@ -4858,7 +4868,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // Try the new space allocation. Start out with computing the size
   // of the arguments object and the elements array in words.
   Label add_arguments_object;
-  if (type_ == NEW_NON_STRICT) {
+  if (type_ == NEW_NON_STRICT_SLOW || type_ == NEW_NON_STRICT_FAST) {
     __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
   } else {
     __ bind(&try_allocate);
@@ -4867,7 +4877,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
     __ mov(r1, Operand(r1, LSR, kSmiTagSize));
     __ add(r1, r1, Operand(FixedArray::kHeaderSize / kPointerSize));
     __ bind(&add_arguments_object);
-    __ add(r1, r1, Operand(GetArgumentsObjectSize() / kPointerSize));
+    __ add(r1, r1, Operand(Heap::kArgumentsObjectSizeStrict / kPointerSize));
 
     // Do the allocation of both objects in one go.
     __ AllocateInNewSpace(
@@ -4881,13 +4891,13 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
     // Get the arguments boilerplate from the current (global) context.
     __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
     __ ldr(r4, FieldMemOperand(r4, GlobalObject::kGlobalContextOffset));
-    __ ldr(r4, MemOperand(r4,
-                          Context::SlotOffset(GetArgumentsBoilerplateIndex())));
+    __ ldr(r4, MemOperand(r4, Context::SlotOffset(
+        Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX)));
 
     // Copy the JS object part.
     __ CopyFields(r0, r4, r3.bit(), JSObject::kHeaderSize / kPointerSize);
 
-    if (type_ == NEW_NON_STRICT) {
+    if (type_ == NEW_NON_STRICT_SLOW || type_ == NEW_NON_STRICT_FAST) {
       // Setup the callee in-object property.
       STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
       __ ldr(r3, MemOperand(sp, 2 * kPointerSize));
@@ -4912,7 +4922,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
     // Setup the elements pointer in the allocated arguments object and
     // initialize the header in the elements fixed array.
-    __ add(r4, r0, Operand(GetArgumentsObjectSize()));
+    __ add(r4, r0, Operand(Heap::kArgumentsObjectSizeStrict));
     __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
     __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
     __ str(r3, FieldMemOperand(r4, FixedArray::kMapOffset));

@@ -2342,7 +2342,17 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
   // rsp[0] : return address
   // rsp[8] : number of parameters
   // rsp[16] : receiver displacement
@@ -2380,14 +2390,14 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // the arguments object and the elements array.
   Label add_arguments_object;
   __ bind(&try_allocate);
-  if (type_ == NEW_NON_STRICT) {
+  if (type_ == NEW_NON_STRICT_SLOW || type_ == NEW_NON_STRICT_FAST) {
     __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
   } else {
     __ testl(rcx, rcx);
     __ j(zero, &add_arguments_object);
     __ leal(rcx, Operand(rcx, times_pointer_size, FixedArray::kHeaderSize));
     __ bind(&add_arguments_object);
-    __ addl(rcx, Immediate(GetArgumentsObjectSize()));
+    __ addl(rcx, Immediate(Heap::kArgumentsObjectSize));
 
     // Do the allocation of both objects in one go.
     __ AllocateInNewSpace(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
@@ -2395,8 +2405,8 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
     // Get the arguments boilerplate from the current (global) context.
     __ movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
     __ movq(rdi, FieldOperand(rdi, GlobalObject::kGlobalContextOffset));
-    __ movq(rdi, Operand(rdi,
-                         Context::SlotOffset(GetArgumentsBoilerplateIndex())));
+    __ movq(rdi, Operand(rdi, Context::SlotOffset(
+        Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX)));
 
     // Copy the JS object part.
     STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
@@ -2407,7 +2417,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
     __ movq(FieldOperand(rax, 1 * kPointerSize), rdx);
     __ movq(FieldOperand(rax, 2 * kPointerSize), rbx);
 
-    if (type_ == NEW_NON_STRICT) {
+    if (type_ == NEW_NON_STRICT_SLOW || type_ == NEW_NON_STRICT_FAST) {
       // Setup the callee in-object property.
       ASSERT(Heap::kArgumentsCalleeIndex == 1);
       __ movq(kScratchRegister, Operand(rsp, 3 * kPointerSize));
@@ -2433,7 +2443,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
     // Setup the elements pointer in the allocated arguments object and
     // initialize the header in the elements fixed array.
-    __ lea(rdi, Operand(rax, GetArgumentsObjectSize()));
+    __ lea(rdi, Operand(rax, Heap::kArgumentsObjectSize));
     __ movq(FieldOperand(rax, JSObject::kElementsOffset), rdi);
     __ LoadRoot(kScratchRegister, Heap::kFixedArrayMapRootIndex);
     __ movq(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);

@@ -200,7 +200,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     // stack frame was an arguments adapter frame.
     ArgumentsAccessStub stub(
         is_strict_mode() ? ArgumentsAccessStub::NEW_STRICT
-                         : ArgumentsAccessStub::NEW_NON_STRICT);
+                         : ArgumentsAccessStub::NEW_NON_STRICT_SLOW);
     __ CallStub(&stub);
 
     Move(arguments->AsSlot(), rax, rbx, rdx);
