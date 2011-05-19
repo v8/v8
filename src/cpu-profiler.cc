@@ -244,7 +244,7 @@ bool ProfilerEventsProcessor::ProcessTicks(unsigned dequeue_order) {
       // A paranoid check to make sure that we don't get a memory overrun
       // in case of frames_count having a wild value.
       if (record.sample.frames_count < 0
-          || record.sample.frames_count >= TickSample::kMaxFramesCount)
+          || record.sample.frames_count > TickSample::kMaxFramesCount)
         record.sample.frames_count = 0;
       generator_->RecordTickSample(record.sample);
       ticks_buffer_.FinishDequeue();
