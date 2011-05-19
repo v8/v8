@@ -81,7 +81,7 @@ bool TypeFeedbackOracle::LoadIsMonomorphic(Property* expr) {
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
-    Handle<Code> code(Code::cast(*map_or_code));
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
     return code->is_keyed_load_stub() &&
         code->ic_state() == MONOMORPHIC &&
         code->FindFirstMap() != NULL;
@@ -94,7 +94,7 @@ bool TypeFeedbackOracle::StoreIsMonomorphic(Expression* expr) {
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
-    Handle<Code> code(Code::cast(*map_or_code));
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
     return code->is_keyed_store_stub() &&
         code->ic_state() == MONOMORPHIC;
   }
@@ -110,27 +110,25 @@ bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
 
 Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
   ASSERT(LoadIsMonomorphic(expr));
-  Handle<Object> map_or_code(
-      Handle<HeapObject>::cast(GetInfo(expr->id())));
+  Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsCode()) {
-    Handle<Code> code(Code::cast(*map_or_code));
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
     Map* first_map = code->FindFirstMap();
     ASSERT(first_map != NULL);
     return Handle<Map>(first_map);
   }
-  return Handle<Map>(Map::cast(*map_or_code));
+  return Handle<Map>::cast(map_or_code);
 }
 
 
 Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Expression* expr) {
   ASSERT(StoreIsMonomorphic(expr));
-  Handle<HeapObject> map_or_code(
-      Handle<HeapObject>::cast(GetInfo(expr->id())));
+  Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsCode()) {
-    Handle<Code> code(Code::cast(*map_or_code));
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
     return Handle<Map>(code->FindFirstMap());
   }
-  return Handle<Map>(Map::cast(*map_or_code));
+  return Handle<Map>::cast(map_or_code);
 }
 
 
