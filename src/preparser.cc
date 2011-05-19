@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -981,7 +981,7 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
       // FALLTHROUGH
     case i::Token::IDENTIFIER: {
       Identifier id = ParseIdentifier(CHECK_OK);
-      result = Expression::Identifier(id);
+      result = Expression::FromIdentifier(id);
       break;
     }
 
