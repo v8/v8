@@ -115,14 +115,14 @@ void NeanderObject::set(int offset, v8::internal::Object* value) {
 template <typename T> static inline T ToCData(v8::internal::Object* obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   return reinterpret_cast<T>(
-      reinterpret_cast<intptr_t>(v8::internal::Proxy::cast(obj)->proxy()));
+      reinterpret_cast<intptr_t>(v8::internal::Foreign::cast(obj)->address()));
 }
 
 
 template <typename T>
 static inline v8::internal::Handle<v8::internal::Object> FromCData(T obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
-  return FACTORY->NewProxy(
+  return FACTORY->NewForeign(
       reinterpret_cast<v8::internal::Address>(reinterpret_cast<intptr_t>(obj)));
 }
 
@@ -182,7 +182,7 @@ class Utils {
   static inline Local<Array> ToLocal(
       v8::internal::Handle<v8::internal::JSArray> obj);
   static inline Local<External> ToLocal(
-      v8::internal::Handle<v8::internal::Proxy> obj);
+      v8::internal::Handle<v8::internal::Foreign> obj);
   static inline Local<Message> MessageToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<StackTrace> StackTraceToLocal(
@@ -236,7 +236,7 @@ class Utils {
       OpenHandle(const v8::Signature* sig);
   static inline v8::internal::Handle<v8::internal::TypeSwitchInfo>
       OpenHandle(const v8::TypeSwitch* that);
-  static inline v8::internal::Handle<v8::internal::Proxy>
+  static inline v8::internal::Handle<v8::internal::Foreign>
       OpenHandle(const v8::External* that);
 };
 
@@ -273,7 +273,7 @@ MAKE_TO_LOCAL(ToLocal, String, String)
 MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
-MAKE_TO_LOCAL(ToLocal, Proxy, External)
+MAKE_TO_LOCAL(ToLocal, Foreign, External)
 MAKE_TO_LOCAL(ToLocal, FunctionTemplateInfo, FunctionTemplate)
 MAKE_TO_LOCAL(ToLocal, ObjectTemplateInfo, ObjectTemplate)
 MAKE_TO_LOCAL(ToLocal, SignatureInfo, Signature)
@@ -311,7 +311,7 @@ MAKE_OPEN_HANDLE(Script, Object)
 MAKE_OPEN_HANDLE(Function, JSFunction)
 MAKE_OPEN_HANDLE(Message, JSObject)
 MAKE_OPEN_HANDLE(Context, Context)
-MAKE_OPEN_HANDLE(External, Proxy)
+MAKE_OPEN_HANDLE(External, Foreign)
 MAKE_OPEN_HANDLE(StackTrace, JSArray)
 MAKE_OPEN_HANDLE(StackFrame, JSObject)
 

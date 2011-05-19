@@ -590,9 +590,9 @@ bool Object::IsJSProxy() {
 }
 
 
-bool Object::IsProxy() {
+bool Object::IsForeign() {
   return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() == PROXY_TYPE;
+      && HeapObject::cast(this)->map()->instance_type() == FOREIGN_TYPE;
 }
 
 
@@ -1757,8 +1757,8 @@ Object* DescriptorArray::GetCallbacksObject(int descriptor_number) {
 
 AccessorDescriptor* DescriptorArray::GetCallbacks(int descriptor_number) {
   ASSERT(GetType(descriptor_number) == CALLBACKS);
-  Proxy* p = Proxy::cast(GetCallbacksObject(descriptor_number));
-  return reinterpret_cast<AccessorDescriptor*>(p->proxy());
+  Foreign* p = Foreign::cast(GetCallbacksObject(descriptor_number));
+  return reinterpret_cast<AccessorDescriptor*>(p->address());
 }
 
 
@@ -1905,7 +1905,7 @@ CAST_ACCESSOR(Code)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSProxy)
-CAST_ACCESSOR(Proxy)
+CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(ExternalArray)
 CAST_ACCESSOR(ExternalByteArray)
@@ -3044,7 +3044,7 @@ ACCESSORS(Script, line_offset, Smi, kLineOffsetOffset)
 ACCESSORS(Script, column_offset, Smi, kColumnOffsetOffset)
 ACCESSORS(Script, data, Object, kDataOffset)
 ACCESSORS(Script, context_data, Object, kContextOffset)
-ACCESSORS(Script, wrapper, Proxy, kWrapperOffset)
+ACCESSORS(Script, wrapper, Foreign, kWrapperOffset)
 ACCESSORS(Script, type, Smi, kTypeOffset)
 ACCESSORS(Script, compilation_type, Smi, kCompilationTypeOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
@@ -3529,13 +3529,13 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 
 
-Address Proxy::proxy() {
-  return AddressFrom<Address>(READ_INTPTR_FIELD(this, kProxyOffset));
+Address Foreign::address() {
+  return AddressFrom<Address>(READ_INTPTR_FIELD(this, kAddressOffset));
 }
 
 
-void Proxy::set_proxy(Address value) {
-  WRITE_INTPTR_FIELD(this, kProxyOffset, OffsetFrom(value));
+void Foreign::set_address(Address value) {
+  WRITE_INTPTR_FIELD(this, kAddressOffset, OffsetFrom(value));
 }
 
 
@@ -4148,16 +4148,16 @@ int JSObject::BodyDescriptor::SizeOf(Map* map, HeapObject* object) {
 }
 
 
-void Proxy::ProxyIterateBody(ObjectVisitor* v) {
+void Foreign::ForeignIterateBody(ObjectVisitor* v) {
   v->VisitExternalReference(
-      reinterpret_cast<Address *>(FIELD_ADDR(this, kProxyOffset)));
+      reinterpret_cast<Address *>(FIELD_ADDR(this, kAddressOffset)));
 }
 
 
 template<typename StaticVisitor>
-void Proxy::ProxyIterateBody() {
+void Foreign::ForeignIterateBody() {
   StaticVisitor::VisitExternalReference(
-      reinterpret_cast<Address *>(FIELD_ADDR(this, kProxyOffset)));
+      reinterpret_cast<Address *>(FIELD_ADDR(this, kAddressOffset)));
 }
 
 

@@ -174,11 +174,12 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
                                              Object* holder) {
   Isolate* isolate = name->GetIsolate();
   // To accommodate both the old and the new api we switch on the
-  // data structure used to store the callbacks.  Eventually proxy
+  // data structure used to store the callbacks.  Eventually foreign
   // callbacks should be phased out.
-  if (structure->IsProxy()) {
+  if (structure->IsForeign()) {
     AccessorDescriptor* callback =
-        reinterpret_cast<AccessorDescriptor*>(Proxy::cast(structure)->proxy());
+        reinterpret_cast<AccessorDescriptor*>(
+            Foreign::cast(structure)->address());
     MaybeObject* value = (callback->getter)(receiver, callback->data);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return value;
@@ -1126,8 +1127,8 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       HeapNumber::cast(this)->HeapNumberPrint(accumulator);
       accumulator->Put('>');
       break;
-    case PROXY_TYPE:
-      accumulator->Add("<Proxy>");
+    case FOREIGN_TYPE:
+      accumulator->Add("<Foreign>");
       break;
     case JS_GLOBAL_PROPERTY_CELL_TYPE:
       accumulator->Add("Cell for ");
@@ -1198,8 +1199,8 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_PROXY_TYPE:
       JSProxy::BodyDescriptor::IterateBody(this, v);
       break;
-    case PROXY_TYPE:
-      reinterpret_cast<Proxy*>(this)->ProxyIterateBody(v);
+    case FOREIGN_TYPE:
+      reinterpret_cast<Foreign*>(this)->ForeignIterateBody(v);
       break;
     case MAP_TYPE:
       Map::BodyDescriptor::IterateBody(this, v);
@@ -1780,11 +1781,12 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
   Handle<Object> value_handle(value, isolate);
 
   // To accommodate both the old and the new api we switch on the
-  // data structure used to store the callbacks.  Eventually proxy
+  // data structure used to store the callbacks.  Eventually foreign
   // callbacks should be phased out.
-  if (structure->IsProxy()) {
+  if (structure->IsForeign()) {
     AccessorDescriptor* callback =
-        reinterpret_cast<AccessorDescriptor*>(Proxy::cast(structure)->proxy());
+        reinterpret_cast<AccessorDescriptor*>(
+            Foreign::cast(structure)->address());
     MaybeObject* obj = (callback->setter)(this,  value, callback->data);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (obj->IsFailure()) return obj;
@@ -7325,7 +7327,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
                                               uint32_t index,
                                               Object* holder) {
   Isolate* isolate = GetIsolate();
-  ASSERT(!structure->IsProxy());
+  ASSERT(!structure->IsForeign());
 
   // api style callbacks.
   if (structure->IsAccessorInfo()) {
@@ -7380,9 +7382,9 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
   Handle<Object> value_handle(value, isolate);
 
   // To accommodate both the old and the new api we switch on the
-  // data structure used to store the callbacks.  Eventually proxy
+  // data structure used to store the callbacks.  Eventually foreign
   // callbacks should be phased out.
-  ASSERT(!structure->IsProxy());
+  ASSERT(!structure->IsForeign());
 
   if (structure->IsAccessorInfo()) {
     // api style callbacks

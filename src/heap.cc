@@ -1730,10 +1730,10 @@ bool Heap::CreateInitialMaps() {
   }
   set_heap_number_map(Map::cast(obj));
 
-  { MaybeObject* maybe_obj = AllocateMap(PROXY_TYPE, Proxy::kSize);
+  { MaybeObject* maybe_obj = AllocateMap(FOREIGN_TYPE, Foreign::kSize);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_proxy_map(Map::cast(obj));
+  set_foreign_map(Map::cast(obj));
 
   for (unsigned i = 0; i < ARRAY_SIZE(string_type_table); i++) {
     const StringTypeTable& entry = string_type_table[i];
@@ -2118,12 +2118,12 @@ bool Heap::CreateInitialObjects() {
   }
   hidden_symbol_ = String::cast(obj);
 
-  // Allocate the proxy for __proto__.
+  // Allocate the foreign for __proto__.
   { MaybeObject* maybe_obj =
-        AllocateProxy((Address) &Accessors::ObjectPrototype);
+        AllocateForeign((Address) &Accessors::ObjectPrototype);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_prototype_accessors(Proxy::cast(obj));
+  set_prototype_accessors(Foreign::cast(obj));
 
   // Allocate the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
@@ -2341,16 +2341,16 @@ MaybeObject* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
 }
 
 
-MaybeObject* Heap::AllocateProxy(Address proxy, PretenureFlag pretenure) {
-  // Statically ensure that it is safe to allocate proxies in paged spaces.
-  STATIC_ASSERT(Proxy::kSize <= Page::kMaxHeapObjectSize);
+MaybeObject* Heap::AllocateForeign(Address address, PretenureFlag pretenure) {
+  // Statically ensure that it is safe to allocate foreigns in paged spaces.
+  STATIC_ASSERT(Foreign::kSize <= Page::kMaxHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   Object* result;
-  { MaybeObject* maybe_result = Allocate(proxy_map(), space);
+  { MaybeObject* maybe_result = Allocate(foreign_map(), space);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  Proxy::cast(result)->set_proxy(proxy);
+  Foreign::cast(result)->set_address(address);
   return result;
 }
 

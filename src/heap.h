@@ -112,12 +112,12 @@ inline Heap* _inline_get_heap_();
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, message_object_map, JSMessageObjectMap)                               \
-  V(Map, proxy_map, ProxyMap)                                                  \
+  V(Map, foreign_map, ForeignMap)                                              \
   V(Object, nan_value, NanValue)                                               \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
   V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
-  V(Proxy, prototype_accessors, PrototypeAccessors)                            \
+  V(Foreign, prototype_accessors, PrototypeAccessors)                          \
   V(NumberDictionary, code_stubs, CodeStubs)                                   \
   V(NumberDictionary, non_monomorphic_cache, NonMonomorphicCache)              \
   V(Code, js_entry_code, JsEntryCode)                                          \
@@ -688,12 +688,12 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT inline MaybeObject* NumberFromUint32(uint32_t value);
 
-  // Allocates a new proxy object.
+  // Allocates a new foreign object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateProxy(
-      Address proxy, PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT MaybeObject* AllocateForeign(
+      Address address, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a new SharedFunctionInfo object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

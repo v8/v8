@@ -151,8 +151,8 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case JS_PROXY_TYPE:
       JSProxy::cast(this)->JSProxyPrint(out);
       break;
-    case PROXY_TYPE:
-      Proxy::cast(this)->ProxyPrint(out);
+    case FOREIGN_TYPE:
+      Foreign::cast(this)->ForeignPrint(out);
       break;
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::cast(this)->SharedFunctionInfoPrint(out);
@@ -417,7 +417,7 @@ static const char* TypeToString(InstanceType type) {
     case JS_GLOBAL_OBJECT_TYPE: return "JS_GLOBAL_OBJECT";
     case JS_BUILTINS_OBJECT_TYPE: return "JS_BUILTINS_OBJECT";
     case JS_GLOBAL_PROXY_TYPE: return "JS_GLOBAL_PROXY";
-    case PROXY_TYPE: return "PROXY";
+    case FOREIGN_TYPE: return "FOREIGN";
     case JS_MESSAGE_OBJECT_TYPE: return "JS_MESSAGE_OBJECT_TYPE";
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return #NAME;
   STRUCT_LIST(MAKE_STRUCT_CASE)
@@ -635,8 +635,8 @@ void Code::CodePrint(FILE* out) {
 }
 
 
-void Proxy::ProxyPrint(FILE* out) {
-  PrintF(out, "proxy to %p", proxy());
+void Foreign::ForeignPrint(FILE* out) {
+  PrintF(out, "foreign address : %p", address());
 }
 
 

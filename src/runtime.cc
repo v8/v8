@@ -9357,7 +9357,7 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
       return result->GetConstantFunction();
     case CALLBACKS: {
       Object* structure = result->GetCallbackObject();
-      if (structure->IsProxy() || structure->IsAccessorInfo()) {
+      if (structure->IsForeign() || structure->IsAccessorInfo()) {
         MaybeObject* maybe_value = receiver->GetPropertyWithCallback(
             receiver, structure, name, result->holder());
         if (!maybe_value->ToObject(&value)) {

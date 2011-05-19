@@ -93,10 +93,10 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
                                  kVisitDataObjectGeneric,
                                  JSProxy::kSize);
 
-    case PROXY_TYPE:
+    case FOREIGN_TYPE:
       return GetVisitorIdForSize(kVisitDataObject,
                                  kVisitDataObjectGeneric,
-                                 Proxy::kSize);
+                                 Foreign::kSize);
 
     case FILLER_TYPE:
       return kVisitDataObjectGeneric;
