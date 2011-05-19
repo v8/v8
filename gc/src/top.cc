@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -572,6 +572,7 @@ Failure* Isolate::ReThrow(MaybeObject* exception, MessageLocation* location) {
 
   // Set the exception being re-thrown.
   set_pending_exception(exception);
+  if (exception->IsFailure()) return exception->ToFailureUnchecked();
   return Failure::Exception();
 }
 

@@ -592,6 +592,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCatchExtensionObject) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, key, args[0]);
   Object* value = args[1];
+  RUNTIME_ASSERT(!value->IsFailure());
   // Create a catch context extension object.
   JSFunction* constructor =
       isolate->context()->global_context()->

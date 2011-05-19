@@ -1005,6 +1005,7 @@ class Heap {
   // Returns whether the object resides in new space.
   inline bool InNewSpace(Object* object);
   inline bool InNewSpace(Address addr);
+  inline bool InNewSpacePage(Address addr);
   inline bool InFromSpace(Object* object);
   inline bool InToSpace(Object* object);
 

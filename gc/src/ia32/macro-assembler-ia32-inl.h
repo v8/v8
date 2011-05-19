@@ -33,7 +33,6 @@
 namespace v8 {
 namespace internal {
 
-
 template<typename LabelType>
 void MacroAssembler::CheckPageFlag(
     Register object,
@@ -41,9 +40,19 @@ void MacroAssembler::CheckPageFlag(
     MemoryChunk::MemoryChunkFlags flag,
     Condition cc,
     LabelType* condition_met) {
-  Move(scratch, object);
-  and_(scratch, ~Page::kPageAlignmentMask);
-  test(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(1 << flag));
+  ASSERT(cc == zero || cc == not_zero);
+  if (scratch.is(object)) {
+    and_(scratch, Immediate(~Page::kPageAlignmentMask));
+  } else {
+    mov(scratch, Immediate(~Page::kPageAlignmentMask));
+    and_(scratch, Operand(object));
+  }
+  if (flag < kBitsPerByte) {
+    test_b(Operand(scratch, MemoryChunk::kFlagsOffset),
+           static_cast<uint8_t>(1u << flag));
+  } else {
+    test(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(1 << flag));
+  }
   j(cc, condition_met);
 }
 

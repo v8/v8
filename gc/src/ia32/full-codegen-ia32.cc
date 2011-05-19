@@ -3185,11 +3185,8 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ mov(Operand(index_1, 0), temp);
 
   NearLabel no_remembered_set;
-  __ InNewSpace(elements, temp, equal, &no_remembered_set);
-  __ CheckPageFlag(elements,
-                   temp,
-                   MemoryChunk::SCAN_ON_SCAVENGE,
-                   not_zero,
+  __ CheckPageFlag(elements, temp,
+                   MemoryChunk::SCAN_ON_SCAVENGE, not_zero,
                    &no_remembered_set);
 
   __ mov(object, elements);

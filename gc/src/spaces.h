@@ -375,6 +375,7 @@ class MemoryChunk {
     POINTERS_TO_HERE_ARE_INTERESTING,
     POINTERS_FROM_HERE_ARE_INTERESTING,
     SCAN_ON_SCAVENGE,
+    IN_NEW_SPACE,
     NUM_MEMORY_CHUNK_FLAGS
   };
 
@@ -419,6 +420,10 @@ class MemoryChunk {
 
   bool ContainsOnlyData() {
     return IsFlagSet(CONTAINS_ONLY_DATA);
+  }
+
+  bool InNewSpace() {
+    return IsFlagSet(IN_NEW_SPACE);
   }
 
   // ---------------------------------------------------------------------
@@ -1693,8 +1698,38 @@ class NewSpace : public Space {
     return (reinterpret_cast<uintptr_t>(a) & address_mask_)
         == reinterpret_cast<uintptr_t>(start_);
   }
+
+  // True if the address or object lies on a NewSpacePage.
+  // Must be a pointer into a heap page, and if it's a large object
+  // page, it must be a pointer into the beginning of it.
+  // TODO(gc): When every call to Contains is converted to PageContains,
+  //           remove Contains and rename PageContains to Contains.
+  bool PageContains(Address a) {
+    if ((reinterpret_cast<intptr_t>(a) & ~kHeapObjectTagMask) ==
+        static_cast<intptr_t>(0)) {
+      // Tagged zero-page pointers are not real heap pointers.
+      // TODO(gc): Remove when we no longer have tagged zero-page
+      // pointers intermingled with real heap object pointers.
+      return false;
+    }
+    return MemoryChunk::FromAddress(a)->InNewSpace();
+  }
+
   bool Contains(Object* o) {
     return (reinterpret_cast<uintptr_t>(o) & object_mask_) == object_expected_;
+  }
+
+  bool PageContains(Object* o) {
+    if (o->IsSmi()) return false;
+    if ((reinterpret_cast<uintptr_t>(o) & ~kHeapObjectTagMask) ==
+        static_cast<uintptr_t>(0)) {
+      // Tagged zero-page pointers are not real heap pointers.
+      // TODO(gc): Remove when we no longer have tagged zero-page
+      // pointers intermingled with real heap object pointers.
+      return false;
+    }
+    Address a = HeapObject::cast(o)->address();
+    return MemoryChunk::FromAddress(a)->InNewSpace();
   }
 
   // Return the allocated bytes in the active semispace.

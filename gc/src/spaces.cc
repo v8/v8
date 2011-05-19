@@ -398,6 +398,7 @@ NewSpacePage* NewSpacePage::Initialize(Heap* heap, Address start) {
                                                NOT_EXECUTABLE,
                                                heap->new_space());
   chunk->initialize_scan_on_scavenge(true);
+  chunk->SetFlag(MemoryChunk::IN_NEW_SPACE);
   heap->incremental_marking()->SetNewSpacePageFlags(chunk);
   return static_cast<NewSpacePage*>(chunk);
 }
@@ -2173,12 +2174,9 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
 
 bool LargeObjectSpace::Contains(HeapObject* object) {
   Address address = object->address();
-  if (heap()->new_space()->Contains(address)) {
-    return false;
-  }
   MemoryChunk* chunk = MemoryChunk::FromAddress(address);
 
-  bool owned = chunk->owner() == this;
+  bool owned = (chunk->owner() == this);
 
   SLOW_ASSERT(!owned
               || !FindObject(address)->IsFailure());

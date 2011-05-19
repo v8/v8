@@ -414,9 +414,12 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback callback) {
           heap_->IteratePointersToNewSpace(heap_, start, object_end, callback);
         } else {
           Page* page = reinterpret_cast<Page*>(chunk);
+          PagedSpace* owner = reinterpret_cast<PagedSpace*>(page->owner());
           heap_->IteratePointersOnPage(
-              reinterpret_cast<PagedSpace*>(page->owner()),
-              &Heap::IteratePointersToNewSpace,
+              owner,
+              (owner == heap_->map_space() ?
+                 &Heap::IteratePointersFromMapsToNewSpace :
+                 &Heap::IteratePointersToNewSpace),
               callback,
               page);
         }

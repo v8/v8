@@ -1228,12 +1228,12 @@ ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 
 
 byte Oddball::kind() {
-  return READ_BYTE_FIELD(this, kKindOffset);
+  return Smi::cast(READ_FIELD(this, kKindOffset))->value();
 }
 
 
 void Oddball::set_kind(byte value) {
-  WRITE_BYTE_FIELD(this, kKindOffset, value);
+  WRITE_FIELD(this, kKindOffset, Smi::FromInt(value));
 }
 
 
