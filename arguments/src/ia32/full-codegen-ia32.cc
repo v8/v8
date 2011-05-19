@@ -193,13 +193,19 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
            Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
     __ push(edx);
     __ push(Immediate(Smi::FromInt(scope()->num_parameters())));
-    // Arguments to ArgumentsAccessStub:
+    // Arguments to ArgumentsAccessStub and/or New...:
     //   function, receiver address, parameter count.
     // The stub will rewrite receiver and parameter count if the previous
     // stack frame was an arguments adapter frame.
-    ArgumentsAccessStub stub(
-        is_strict_mode() ? ArgumentsAccessStub::NEW_STRICT
-                         : ArgumentsAccessStub::NEW_NON_STRICT);
+    ArgumentsAccessStub::Type type;
+    if (is_strict_mode()) {
+      type = ArgumentsAccessStub::NEW_STRICT;
+    } else if (function()->has_duplicate_parameters()) {
+      type = ArgumentsAccessStub::NEW_NON_STRICT_SLOW;
+    } else {
+      type = ArgumentsAccessStub::NEW_NON_STRICT_FAST;
+    }
+    ArgumentsAccessStub stub(type);
     __ CallStub(&stub);
 
     Move(arguments->AsSlot(), eax, ebx, edx);

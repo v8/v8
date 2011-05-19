@@ -753,7 +753,7 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
   } else {
     ArgumentsAccessStub stub(is_strict_mode()
         ? ArgumentsAccessStub::NEW_STRICT
-        : ArgumentsAccessStub::NEW_NON_STRICT);
+        : ArgumentsAccessStub::NEW_NON_STRICT_SLOW);
     frame_->PushFunction();
     frame_->PushReceiverSlotAddress();
     frame_->Push(Smi::FromInt(scope()->num_parameters()));
