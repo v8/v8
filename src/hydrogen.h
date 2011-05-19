@@ -857,7 +857,9 @@ class HGraphBuilder: public AstVisitor {
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a
   // non-NULL reason string.
-  void TraceInline(Handle<JSFunction> target, const char* failure_reason);
+  void TraceInline(Handle<JSFunction> target,
+                   Handle<JSFunction> caller,
+                   const char* failure_reason);
 
   void HandleGlobalVariableAssignment(Variable* var,
                                       HValue* value,

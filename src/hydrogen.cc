@@ -4019,22 +4019,17 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
 }
 
 
-void HGraphBuilder::TraceInline(Handle<JSFunction> target, const char* reason) {
+void HGraphBuilder::TraceInline(Handle<JSFunction> target,
+                                Handle<JSFunction> caller,
+                                const char* reason) {
   if (FLAG_trace_inlining) {
+    SmartPointer<char> target_name = target->shared()->DebugName()->ToCString();
+    SmartPointer<char> caller_name = caller->shared()->DebugName()->ToCString();
     if (reason == NULL) {
-      // We are currently in the context of inlined function thus we have
-      // to go to an outer FunctionState to get caller.
-      SmartPointer<char> callee = target->shared()->DebugName()->ToCString();
-      SmartPointer<char> caller =
-          function_state()->outer()->compilation_info()->function()->
-              debug_name()->ToCString();
-      PrintF("Inlined %s called from %s.\n", *callee, *caller);
+      PrintF("Inlined %s called from %s.\n", *target_name, *caller_name);
     } else {
-      SmartPointer<char> callee = target->shared()->DebugName()->ToCString();
-      SmartPointer<char> caller =
-          info()->function()->debug_name()->ToCString();
       PrintF("Did not inline %s called from %s (%s).\n",
-             *callee, *caller, reason);
+             *target_name, *caller_name, reason);
     }
   }
 }
@@ -4046,17 +4041,18 @@ bool HGraphBuilder::TryInline(Call* expr) {
   // Precondition: call is monomorphic and we have found a target with the
   // appropriate arity.
   Handle<JSFunction> target = expr->target();
+  Handle<JSFunction> caller = info()->closure();
 
   // Do a quick check on source code length to avoid parsing large
   // inlining candidates.
   if (FLAG_limit_inlining && target->shared()->SourceSize() > kMaxSourceSize) {
-    TraceInline(target, "target text too big");
+    TraceInline(target, caller, "target text too big");
     return false;
   }
 
   // Target must be inlineable.
   if (!target->IsInlineable()) {
-    TraceInline(target, "target not inlineable");
+    TraceInline(target, caller, "target not inlineable");
     return false;
   }
 
@@ -4065,7 +4061,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
   if (target->context() != outer_info->closure()->context() ||
       outer_info->scope()->contains_with() ||
       outer_info->scope()->num_heap_slots() > 0) {
-    TraceInline(target, "target requires context change");
+    TraceInline(target, caller, "target requires context change");
     return false;
   }
 
@@ -4074,7 +4070,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
   int current_level = 1;
   while (env->outer() != NULL) {
     if (current_level == Compiler::kMaxInliningLevels) {
-      TraceInline(target, "inline depth limit reached");
+      TraceInline(target, caller, "inline depth limit reached");
       return false;
     }
     current_level++;
@@ -4083,13 +4079,13 @@ bool HGraphBuilder::TryInline(Call* expr) {
 
   // Don't inline recursive functions.
   if (target->shared() == outer_info->closure()->shared()) {
-    TraceInline(target, "target is recursive");
+    TraceInline(target, caller, "target is recursive");
     return false;
   }
 
   // We don't want to add more than a certain number of nodes from inlining.
   if (FLAG_limit_inlining && inlined_count_ > kMaxInlinedNodes) {
-    TraceInline(target, "cumulative AST node limit reached");
+    TraceInline(target, caller, "cumulative AST node limit reached");
     return false;
   }
 
@@ -4104,12 +4100,12 @@ bool HGraphBuilder::TryInline(Call* expr) {
       SetStackOverflow();
       target->shared()->set_optimization_disabled(true);
     }
-    TraceInline(target, "parse failure");
+    TraceInline(target, caller, "parse failure");
     return false;
   }
 
   if (target_info.scope()->num_heap_slots() > 0) {
-    TraceInline(target, "target has context-allocated variables");
+    TraceInline(target, caller, "target has context-allocated variables");
     return false;
   }
   FunctionLiteral* function = target_info.function();
@@ -4117,14 +4113,14 @@ bool HGraphBuilder::TryInline(Call* expr) {
   // Count the number of AST nodes added by inlining this call.
   int nodes_added = AstNode::Count() - count_before;
   if (FLAG_limit_inlining && nodes_added > kMaxInlinedSize) {
-    TraceInline(target, "target AST is too large");
+    TraceInline(target, caller, "target AST is too large");
     return false;
   }
 
   // Check if we can handle all declarations in the inlined functions.
   VisitDeclarations(target_info.scope()->declarations());
   if (HasStackOverflow()) {
-    TraceInline(target, "target has non-trivial declaration");
+    TraceInline(target, caller, "target has non-trivial declaration");
     ClearStackOverflow();
     return false;
   }
@@ -4135,14 +4131,14 @@ bool HGraphBuilder::TryInline(Call* expr) {
   int arity = expr->arguments()->length();
   if (function->scope()->arguments() != NULL ||
       arity != target_shared->formal_parameter_count()) {
-    TraceInline(target, "target requires special argument handling");
+    TraceInline(target, caller, "target requires special argument handling");
     return false;
   }
 
   // All statements in the body must be inlineable.
   for (int i = 0, count = function->body()->length(); i < count; ++i) {
     if (!function->body()->at(i)->IsInlineable()) {
-      TraceInline(target, "target contains unsupported syntax");
+      TraceInline(target, caller, "target contains unsupported syntax");
       return false;
     }
   }
@@ -4154,7 +4150,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
     // generating the optimized inline code.
     target_info.EnableDeoptimizationSupport();
     if (!FullCodeGenerator::MakeCode(&target_info)) {
-      TraceInline(target, "could not generate deoptimization info");
+      TraceInline(target, caller, "could not generate deoptimization info");
       return false;
     }
     target_shared->EnableDeoptimizationSupport(*target_info.code());
@@ -4188,14 +4184,14 @@ bool HGraphBuilder::TryInline(Call* expr) {
   if (HasStackOverflow()) {
     // Bail out if the inline function did, as we cannot residualize a call
     // instead.
-    TraceInline(target, "inline graph construction failed");
+    TraceInline(target, caller, "inline graph construction failed");
     return true;
   }
 
   // Update inlined nodes count.
   inlined_count_ += nodes_added;
 
-  TraceInline(target, NULL);
+  TraceInline(target, caller, NULL);
 
   if (current_block() != NULL) {
     // Add a return of undefined if control can fall off the body.  In a
