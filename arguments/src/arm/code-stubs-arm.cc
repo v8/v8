@@ -4868,10 +4868,10 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
   // Try the new space allocation. Start out with computing the size
   // of the arguments object and the elements array in words.
   Label add_arguments_object;
+  __ bind(&try_allocate);
   if (type_ == NEW_NON_STRICT_SLOW || type_ == NEW_NON_STRICT_FAST) {
     __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
   } else {
-    __ bind(&try_allocate);
     __ cmp(r1, Operand(0, RelocInfo::NONE));
     __ b(eq, &add_arguments_object);
     __ mov(r1, Operand(r1, LSR, kSmiTagSize));

@@ -1361,11 +1361,12 @@ class JSObject: public HeapObject {
   //
   // In the fast mode elements is a FixedArray and so each element can
   // be quickly accessed. This fact is used in the generated code. The
-  // elements array can have one of the two maps in this mode:
-  // fixed_array_map or fixed_cow_array_map (for copy-on-write
-  // arrays). In the latter case the elements array may be shared by a
-  // few objects and so before writing to any element the array must
-  // be copied. Use EnsureWritableFastElements in this case.
+  // elements array can have one of three maps in this mode:
+  // fixed_array_map, non_strict_arguments_elements_map or
+  // fixed_cow_array_map (for copy-on-write arrays). In the latter case
+  // the elements array may be shared by a few objects and so before
+  // writing to any element the array must be copied. Use
+  // EnsureWritableFastElements in this case.
   //
   // In the slow mode the elements is either a NumberDictionary, an
   // ExternalArray, or a FixedArray parameter map for a (non-strict)

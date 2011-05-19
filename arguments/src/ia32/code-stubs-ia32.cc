@@ -3672,7 +3672,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
   __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ mov(Operand(esp, 1 * kPointerSize), ecx);
   __ lea(edx, Operand(edx, ecx, times_2,
-		      StandardFrameConstants::kCallerSPOffset));
+              StandardFrameConstants::kCallerSPOffset));
   __ mov(Operand(esp, 2 * kPointerSize), edx);
 
   // Try the new space allocation. Start out with computing the size of
@@ -3709,7 +3709,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ bind(&adaptor_frame);
   __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ lea(edx, Operand(edx, ecx, times_2,
-		      StandardFrameConstants::kCallerSPOffset));
+                      StandardFrameConstants::kCallerSPOffset));
   __ mov(Operand(esp, 2 * kPointerSize), edx);
 
   // ebx = parameter count (tagged)
@@ -3925,7 +3925,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ mov(Operand(esp, 1 * kPointerSize), ecx);
   __ lea(edx, Operand(edx, ecx, times_2,
-		      StandardFrameConstants::kCallerSPOffset));
+                      StandardFrameConstants::kCallerSPOffset));
   __ mov(Operand(esp, 2 * kPointerSize), edx);
 
   // Try the new space allocation. Start out with computing the size of

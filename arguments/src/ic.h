@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -269,6 +269,7 @@ class KeyedCallIC: public CallICBase {
   static void GenerateMiss(MacroAssembler* masm, int argc);
   static void GenerateMegamorphic(MacroAssembler* masm, int argc);
   static void GenerateNormal(MacroAssembler* masm, int argc);
+  static void GenerateNonStrictArguments(MacroAssembler* masm, int argc);
 };
 
 
@@ -359,8 +360,8 @@ class KeyedLoadIC: public IC {
   }
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateString(MacroAssembler* masm);
-
   static void GenerateIndexedInterceptor(MacroAssembler* masm);
+  static void GenerateNonStrictArguments(MacroAssembler* masm);
 
   // Clear the use of the inlined version.
   static void ClearInlinedVersion(Address address);
@@ -400,10 +401,13 @@ class KeyedLoadIC: public IC {
     return isolate()->builtins()->builtin(
         Builtins::kKeyedLoadIC_String);
   }
-
   Code* indexed_interceptor_stub() {
     return isolate()->builtins()->builtin(
         Builtins::kKeyedLoadIC_IndexedInterceptor);
+  }
+  Code* non_strict_arguments_stub() {
+    return isolate()->builtins()->builtin(
+        Builtins::kKeyedLoadIC_NonStrictArguments);
   }
 
   static void Clear(Address address, Code* target);
@@ -514,6 +518,7 @@ class KeyedStoreIC: public IC {
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
                                          StrictModeFlag strict_mode);
   static void GenerateGeneric(MacroAssembler* masm, StrictModeFlag strict_mode);
+  static void GenerateNonStrictArguments(MacroAssembler* masm);
 
   // Clear the inlined version so the IC is always hit.
   static void ClearInlinedVersion(Address address);
@@ -561,6 +566,10 @@ class KeyedStoreIC: public IC {
   Code* generic_stub_strict() {
     return isolate()->builtins()->builtin(
         Builtins::kKeyedStoreIC_Generic_Strict);
+  }
+  Code* non_strict_arguments_stub() {
+    return isolate()->builtins()->builtin(
+        Builtins::kKeyedStoreIC_NonStrictArguments);
   }
 
   static void Clear(Address address, Code* target);

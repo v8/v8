@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -255,6 +255,10 @@ class StubCache {
                                                  InLoopFlag in_loop,
                                                  Code::Kind kind);
 
+  MUST_USE_RESULT MaybeObject* ComputeCallArguments(int argc,
+                                                    InLoopFlag in_loop,
+                                                    Code::Kind kind);
+
   MUST_USE_RESULT MaybeObject* ComputeCallMegamorphic(int argc,
                                                       InLoopFlag in_loop,
                                                       Code::Kind kind);
@@ -415,6 +419,7 @@ class StubCompiler BASE_EMBEDDED {
   MUST_USE_RESULT MaybeObject* CompileCallPreMonomorphic(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* CompileCallNormal(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* CompileCallMegamorphic(Code::Flags flags);
+  MUST_USE_RESULT MaybeObject* CompileCallArguments(Code::Flags flags);
   MUST_USE_RESULT MaybeObject* CompileCallMiss(Code::Flags flags);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   MUST_USE_RESULT MaybeObject* CompileCallDebugBreak(Code::Flags flags);

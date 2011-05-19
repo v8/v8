@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -809,18 +809,34 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
     return TypeError("non_object_property_call", object, key);
   }
 
-  if (FLAG_use_ic && state != MEGAMORPHIC && !object->IsAccessCheckNeeded()) {
+  if (FLAG_use_ic && state != MEGAMORPHIC && object->IsHeapObject()) {
     int argc = target()->arguments_count();
     InLoopFlag in_loop = target()->ic_in_loop();
-    MaybeObject* maybe_code = isolate()->stub_cache()->ComputeCallMegamorphic(
-        argc, in_loop, Code::KEYED_CALL_IC);
-    Object* code;
-    if (maybe_code->ToObject(&code)) {
-      set_target(Code::cast(code));
+    Heap* heap = Handle<HeapObject>::cast(object)->GetHeap();
+    Map* map = heap->non_strict_arguments_elements_map();
+    if (object->IsJSObject() &&
+        Handle<JSObject>::cast(object)->elements()->map() == map) {
+      MaybeObject* maybe_code = isolate()->stub_cache()->ComputeCallArguments(
+          argc, in_loop, Code::KEYED_CALL_IC);
+      Object* code;
+      if (maybe_code->ToObject(&code)) {
+        set_target(Code::cast(code));
 #ifdef DEBUG
-      TraceIC(
-          "KeyedCallIC", key, state, target(), in_loop ? " (in-loop)" : "");
+        TraceIC(
+            "KeyedCallIC", key, state, target(), in_loop ? " (in-loop)" : "");
 #endif
+      }
+    } else if (!object->IsAccessCheckNeeded()) {
+      MaybeObject* maybe_code = isolate()->stub_cache()->ComputeCallMegamorphic(
+          argc, in_loop, Code::KEYED_CALL_IC);
+      Object* code;
+      if (maybe_code->ToObject(&code)) {
+        set_target(Code::cast(code));
+#ifdef DEBUG
+        TraceIC(
+            "KeyedCallIC", key, state, target(), in_loop ? " (in-loop)" : "");
+#endif
+      }
     }
   }
 
@@ -1263,13 +1279,8 @@ MaybeObject* KeyedLoadIC::Load(State state,
   }
 
   // Do not use ICs for objects that require access checks (including
-  // the global object) nor for non-strict arguments objects.
+  // the global object).
   bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
-  if (use_ic && object->IsJSObject()) {
-    Heap* heap = Handle<JSObject>::cast(object)->GetHeap();
-    Map* elements_map = Handle<JSObject>::cast(object)->elements()->map();
-    use_ic = (elements_map != heap->non_strict_arguments_elements_map());
-  }
 
   if (use_ic) {
     Code* stub = generic_stub();
@@ -1278,12 +1289,16 @@ MaybeObject* KeyedLoadIC::Load(State state,
         stub = string_stub();
       } else if (object->IsJSObject()) {
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+        Heap* heap = Handle<JSObject>::cast(object)->GetHeap();
+        Map* elements_map = Handle<JSObject>::cast(object)->elements()->map();
         if (receiver->HasExternalArrayElements()) {
           MaybeObject* probe =
               isolate()->stub_cache()->ComputeKeyedLoadOrStoreExternalArray(
                   *receiver, false, kNonStrictMode);
           stub = probe->IsFailure() ?
               NULL : Code::cast(probe->ToObjectUnchecked());
+        } else if (elements_map == heap->non_strict_arguments_elements_map()) {
+          stub = non_strict_arguments_stub();
         } else if (receiver->HasIndexedInterceptor()) {
           stub = indexed_interceptor_stub();
         } else if (key->IsSmi() &&
@@ -1710,12 +1725,16 @@ MaybeObject* KeyedStoreIC::Store(State state,
     if (state == UNINITIALIZED) {
       if (object->IsJSObject()) {
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+        Heap* heap = Handle<JSObject>::cast(object)->GetHeap();
+        Map* elements_map = Handle<JSObject>::cast(object)->elements()->map();
         if (receiver->HasExternalArrayElements()) {
           MaybeObject* probe =
               isolate()->stub_cache()->ComputeKeyedLoadOrStoreExternalArray(
                   *receiver, true, strict_mode);
           stub = probe->IsFailure() ?
               NULL : Code::cast(probe->ToObjectUnchecked());
+        } else if (elements_map == heap->non_strict_arguments_elements_map()) {
+          stub = non_strict_arguments_stub();
         } else if (key->IsSmi() && receiver->map()->has_fast_elements()) {
           MaybeObject* probe =
               isolate()->stub_cache()->ComputeKeyedStoreSpecialized(
