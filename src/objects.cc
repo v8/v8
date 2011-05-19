@@ -6096,6 +6096,29 @@ void SharedFunctionInfo::EnableDeoptimizationSupport(Code* recompiled) {
 }
 
 
+void SharedFunctionInfo::DisableOptimization(JSFunction* function) {
+  // Disable optimization for the shared function info and mark the
+  // code as non-optimizable. The marker on the shared function info
+  // is there because we flush non-optimized code thereby loosing the
+  // non-optimizable information for the code. When the code is
+  // regenerated and set on the shared function info it is marked as
+  // non-optimizable if optimization is disabled for the shared
+  // function info.
+  set_optimization_disabled(true);
+  // Code should be the lazy compilation stub or else unoptimized.  If the
+  // latter, disable optimization for the code too.
+  ASSERT(code()->kind() == Code::FUNCTION || code()->kind() == Code::BUILTIN);
+  if (code()->kind() == Code::FUNCTION) {
+    code()->set_optimizable(false);
+  }
+  if (FLAG_trace_opt) {
+    PrintF("[disabled optimization for: ");
+    function->PrintName();
+    PrintF(" / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
+  }
+}
+
+
 bool SharedFunctionInfo::VerifyBailoutId(int id) {
   // TODO(srdjan): debugging ARM crashes in hydrogen. OK to disable while
   // we are always bailing out on ARM.

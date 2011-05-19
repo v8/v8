@@ -4368,6 +4368,11 @@ class SharedFunctionInfo: public HeapObject {
   // Enable deoptimization support through recompiled code.
   void EnableDeoptimizationSupport(Code* recompiled);
 
+  // Disable (further) attempted optimization of all functions sharing this
+  // shared function info.  The function is the one we actually tried to
+  // optimize.
+  void DisableOptimization(JSFunction* function);
+
   // Lookup the bailout ID and ASSERT that it exists in the non-optimized
   // code, returns whether it asserted (i.e., always true if assertions are
   // disabled).

@@ -521,6 +521,22 @@ HConstant* HGraph::GetConstantFalse() {
   return GetConstant(&constant_false_, isolate()->heap()->false_value());
 }
 
+HGraphBuilder::HGraphBuilder(CompilationInfo* info,
+                             TypeFeedbackOracle* oracle)
+    : function_state_(NULL),
+      initial_function_state_(this, info, oracle),
+      ast_context_(NULL),
+      break_scope_(NULL),
+      graph_(NULL),
+      current_block_(NULL),
+      inlined_count_(0),
+      zone_(info->isolate()->zone()),
+      inline_bailout_(false) {
+  // This is not initialized in the initializer list because the
+  // constructor for the initial state relies on function_state_ == NULL
+  // to know it's the initial state.
+  function_state_= &initial_function_state_;
+}
 
 HBasicBlock* HGraphBuilder::CreateJoin(HBasicBlock* first,
                                        HBasicBlock* second,
@@ -4040,8 +4056,9 @@ bool HGraphBuilder::TryInline(Call* expr) {
 
   // Precondition: call is monomorphic and we have found a target with the
   // appropriate arity.
-  Handle<JSFunction> target = expr->target();
   Handle<JSFunction> caller = info()->closure();
+  Handle<JSFunction> target = expr->target();
+  Handle<SharedFunctionInfo> target_shared(target->shared());
 
   // Do a quick check on source code length to avoid parsing large
   // inlining candidates.
@@ -4078,7 +4095,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
   }
 
   // Don't inline recursive functions.
-  if (target->shared() == outer_info->closure()->shared()) {
+  if (*target_shared == outer_info->closure()->shared()) {
     TraceInline(target, caller, "target is recursive");
     return false;
   }
@@ -4098,7 +4115,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
     if (target_info.isolate()->has_pending_exception()) {
       // Parse or scope error, never optimize this function.
       SetStackOverflow();
-      target->shared()->set_optimization_disabled(true);
+      target_shared->DisableOptimization(*target);
     }
     TraceInline(target, caller, "parse failure");
     return false;
@@ -4127,7 +4144,6 @@ bool HGraphBuilder::TryInline(Call* expr) {
 
   // Don't inline functions that uses the arguments object or that
   // have a mismatching number of parameters.
-  Handle<SharedFunctionInfo> target_shared(target->shared());
   int arity = expr->arguments()->length();
   if (function->scope()->arguments() != NULL ||
       arity != target_shared->formal_parameter_count()) {
@@ -4185,6 +4201,8 @@ bool HGraphBuilder::TryInline(Call* expr) {
     // Bail out if the inline function did, as we cannot residualize a call
     // instead.
     TraceInline(target, caller, "inline graph construction failed");
+    target_shared->DisableOptimization(*target);
+    inline_bailout_ = true;
     return true;
   }
 

@@ -94,6 +94,7 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
 }
 
 
+// Disable optimization for the rest of the compilation pipeline.
 void CompilationInfo::DisableOptimization() {
   bool is_optimizable_closure =
     FLAG_optimize_closures &&
@@ -102,6 +103,14 @@ void CompilationInfo::DisableOptimization() {
     !scope_->outer_scope_calls_non_strict_eval() &&
     !scope_->inside_with();
   SetMode(is_optimizable_closure ? BASE : NONOPT);
+}
+
+
+void CompilationInfo::AbortOptimization() {
+  Handle<Code> code(shared_info()->code());
+  SetCode(code);
+  Isolate* isolate = code->GetIsolate();
+  isolate->compilation_cache()->MarkForLazyOptimizing(closure());
 }
 
 
@@ -156,31 +165,6 @@ static void FinishOptimization(Handle<JSFunction> function, int64_t start) {
 }
 
 
-static void AbortAndDisable(CompilationInfo* info) {
-  // Disable optimization for the shared function info and mark the
-  // code as non-optimizable. The marker on the shared function info
-  // is there because we flush non-optimized code thereby loosing the
-  // non-optimizable information for the code. When the code is
-  // regenerated and set on the shared function info it is marked as
-  // non-optimizable if optimization is disabled for the shared
-  // function info.
-  Handle<SharedFunctionInfo> shared = info->shared_info();
-  shared->set_optimization_disabled(true);
-  Handle<Code> code = Handle<Code>(shared->code());
-  ASSERT(code->kind() == Code::FUNCTION);
-  code->set_optimizable(false);
-  info->SetCode(code);
-  Isolate* isolate = code->GetIsolate();
-  isolate->compilation_cache()->MarkForLazyOptimizing(info->closure());
-  if (FLAG_trace_opt) {
-    PrintF("[disabled optimization for: ");
-    info->closure()->PrintName();
-    PrintF(" / %" V8PRIxPTR "]\n",
-           reinterpret_cast<intptr_t>(*info->closure()));
-  }
-}
-
-
 static bool MakeCrankshaftCode(CompilationInfo* info) {
   // Test if we can optimize this function when asked to. We can only
   // do this after the scopes are computed.
@@ -214,7 +198,9 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   const int kMaxOptCount =
       FLAG_deopt_every_n_times == 0 ? Compiler::kDefaultMaxOptCount : 1000;
   if (info->shared_info()->opt_count() > kMaxOptCount) {
-    AbortAndDisable(info);
+    info->AbortOptimization();
+    Handle<JSFunction> closure = info->closure();
+    info->shared_info()->DisableOptimization(*closure);
     // True indicates the compilation pipeline is still going, not
     // necessarily that we optimized the code.
     return true;
@@ -231,7 +217,9 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   Scope* scope = info->scope();
   if ((scope->num_parameters() + 1) > limit ||
       scope->num_stack_slots() > limit) {
-    AbortAndDisable(info);
+    info->AbortOptimization();
+    Handle<JSFunction> closure = info->closure();
+    info->shared_info()->DisableOptimization(*closure);
     // True indicates the compilation pipeline is still going, not
     // necessarily that we optimized the code.
     return true;
@@ -304,9 +292,14 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
     }
   }
 
-  // Compilation with the Hydrogen compiler failed. Keep using the
-  // shared code but mark it as unoptimizable.
-  AbortAndDisable(info);
+  // Keep using the shared code.
+  info->AbortOptimization();
+  if (!builder.inline_bailout()) {
+    // Mark the shared code as unoptimizable unless it was an inlined
+    // function that bailed out.
+    Handle<JSFunction> closure = info->closure();
+    info->shared_info()->DisableOptimization(*closure);
+  }
   // True indicates the compilation pipeline is still going, not necessarily
   // that we optimized the code.
   return true;
