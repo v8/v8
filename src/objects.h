@@ -613,6 +613,7 @@ enum CompareResult {
 
 class StringStream;
 class ObjectVisitor;
+class Failure;
 
 struct ValueInfo : public Malloced {
   ValueInfo() : type(FIRST_TYPE), ptr(NULL), str(NULL), number(0) { }
@@ -638,6 +639,10 @@ class MaybeObject BASE_EMBEDDED {
     if (IsFailure()) return false;
     *obj = reinterpret_cast<Object*>(this);
     return true;
+  }
+  inline Failure* ToFailureUnchecked() {
+    ASSERT(IsFailure());
+    return reinterpret_cast<Failure*>(this);
   }
   inline Object* ToObjectUnchecked() {
     ASSERT(!IsFailure());
