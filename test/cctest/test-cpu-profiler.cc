@@ -26,9 +26,6 @@ TEST(StartStop) {
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
-  while (!processor.running()) {
-    i::Thread::YieldCPU();
-  }
   processor.Stop();
   processor.Join();
 }
@@ -90,9 +87,6 @@ TEST(CodeEvents) {
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
-  while (!processor.running()) {
-    i::Thread::YieldCPU();
-  }
 
   // Enqueue code creation events.
   i::HandleScope scope;
@@ -154,9 +148,6 @@ TEST(TickEvents) {
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
-  while (!processor.running()) {
-    i::Thread::YieldCPU();
-  }
 
   processor.CodeCreateEvent(i::Logger::BUILTIN_TAG,
                             "bbb",
@@ -247,9 +238,6 @@ TEST(Issue1398) {
   ProfileGenerator generator(&profiles);
   ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
   processor.Start();
-  while (!processor.running()) {
-    i::Thread::YieldCPU();
-  }
 
   processor.CodeCreateEvent(i::Logger::BUILTIN_TAG,
                             "bbb",
