@@ -1005,6 +1005,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
+    name_buffer_->AppendBytes(ComputeMarker(code));
     name_buffer_->AppendString(name);
   }
   if (FLAG_ll_prof) {
@@ -1047,6 +1048,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
+    name_buffer_->AppendBytes(ComputeMarker(code));
     name_buffer_->AppendString(shared->DebugName());
     name_buffer_->AppendByte(' ');
     name_buffer_->AppendString(source);
