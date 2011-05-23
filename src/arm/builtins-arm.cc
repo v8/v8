@@ -1264,10 +1264,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ cmp(r2, r3);
     __ b(eq, &use_global_receiver);
 
+    STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
+    STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
     __ CompareObjectType(r2, r3, r3, FIRST_JS_OBJECT_TYPE);
-    __ b(lt, &convert_to_object);
-    __ cmp(r3, Operand(LAST_JS_OBJECT_TYPE));
-    __ b(le, &shift_arguments);
+    __ b(ge, &shift_arguments);
 
     __ bind(&convert_to_object);
     __ EnterInternalFrame();  // In order to preserve argument count.
@@ -1443,10 +1443,10 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
   // Check if the receiver is already a JavaScript object.
   // r0: receiver
+  STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
+  STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
   __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE);
-  __ b(lt, &call_to_object);
-  __ cmp(r1, Operand(LAST_JS_OBJECT_TYPE));
-  __ b(le, &push_receiver);
+  __ b(ge, &push_receiver);
 
   // Convert the receiver to a regular object.
   // r0: receiver

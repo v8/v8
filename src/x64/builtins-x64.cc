@@ -666,17 +666,17 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     // Compute the receiver in non-strict mode.
     __ movq(rbx, Operand(rsp, rax, times_pointer_size, 0));
-    __ JumpIfSmi(rbx, &convert_to_object);
+    __ JumpIfSmi(rbx, &convert_to_object, Label::kNear);
 
     __ CompareRoot(rbx, Heap::kNullValueRootIndex);
     __ j(equal, &use_global_receiver);
     __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
     __ j(equal, &use_global_receiver);
 
+    STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
+    STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
     __ CmpObjectType(rbx, FIRST_JS_OBJECT_TYPE, rcx);
-    __ j(below, &convert_to_object);
-    __ CmpInstanceType(rcx, LAST_JS_OBJECT_TYPE);
-    __ j(below_equal, &shift_arguments);
+    __ j(above_equal, &shift_arguments);
 
     __ bind(&convert_to_object);
     __ EnterInternalFrame();  // In order to preserve argument count.
@@ -692,7 +692,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ LeaveInternalFrame();
     // Restore the function to rdi.
     __ movq(rdi, Operand(rsp, rax, times_pointer_size, 1 * kPointerSize));
-    __ jmp(&patch_receiver);
+    __ jmp(&patch_receiver, Label::kNear);
 
     // Use the global receiver object from the called function as the
     // receiver.
@@ -834,7 +834,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ j(not_zero, &push_receiver);
 
   // Compute the receiver in non-strict mode.
-  __ JumpIfSmi(rbx, &call_to_object);
+  __ JumpIfSmi(rbx, &call_to_object, Label::kNear);
   __ CompareRoot(rbx, Heap::kNullValueRootIndex);
   __ j(equal, &use_global_receiver);
   __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
@@ -842,17 +842,17 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
   // If given receiver is already a JavaScript object then there's no
   // reason for converting it.
+  STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
+  STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
   __ CmpObjectType(rbx, FIRST_JS_OBJECT_TYPE, rcx);
-  __ j(below, &call_to_object);
-  __ CmpInstanceType(rcx, LAST_JS_OBJECT_TYPE);
-  __ j(below_equal, &push_receiver);
+  __ j(above_equal, &push_receiver);
 
   // Convert the receiver to an object.
   __ bind(&call_to_object);
   __ push(rbx);
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
   __ movq(rbx, rax);
-  __ jmp(&push_receiver);
+  __ jmp(&push_receiver, Label::kNear);
 
   // Use the current global receiver object as the receiver.
   __ bind(&use_global_receiver);

@@ -606,20 +606,19 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     // Compute the receiver in non-strict mode.
     __ mov(ebx, Operand(esp, eax, times_4, 0));  // First argument.
+
+    // Call ToObject on the receiver if it is not an object, or use the
+    // global object if it is null or undefined.
     __ test(ebx, Immediate(kSmiTagMask));
     __ j(zero, &convert_to_object);
-
     __ cmp(ebx, factory->null_value());
     __ j(equal, &use_global_receiver);
     __ cmp(ebx, factory->undefined_value());
     __ j(equal, &use_global_receiver);
-
-    // We don't use IsObjectJSObjectType here because we jump on success.
-    __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
-    __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-    __ sub(Operand(ecx), Immediate(FIRST_JS_OBJECT_TYPE));
-    __ cmp(ecx, LAST_JS_OBJECT_TYPE - FIRST_JS_OBJECT_TYPE);
-    __ j(below_equal, &shift_arguments);
+    STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
+    STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+    __ CmpObjectType(ebx, FIRST_JS_OBJECT_TYPE, ecx);
+    __ j(above_equal, &shift_arguments);
 
     __ bind(&convert_to_object);
     __ EnterInternalFrame();  // In order to preserve argument count.
@@ -768,23 +767,19 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ j(not_equal, &push_receiver);
 
   // Compute the receiver in non-strict mode.
+  // Call ToObject on the receiver if it is not an object, or use the
+  // global object if it is null or undefined.
   __ test(ebx, Immediate(kSmiTagMask));
   __ j(zero, &call_to_object);
   __ cmp(ebx, factory->null_value());
   __ j(equal, &use_global_receiver);
   __ cmp(ebx, factory->undefined_value());
   __ j(equal, &use_global_receiver);
+  STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
+  STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  __ CmpObjectType(ebx, FIRST_JS_OBJECT_TYPE, ecx);
+  __ j(above_equal, &push_receiver);
 
-  // If given receiver is already a JavaScript object then there's no
-  // reason for converting it.
-  // We don't use IsObjectJSObjectType here because we jump on success.
-  __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ sub(Operand(ecx), Immediate(FIRST_JS_OBJECT_TYPE));
-  __ cmp(ecx, LAST_JS_OBJECT_TYPE - FIRST_JS_OBJECT_TYPE);
-  __ j(below_equal, &push_receiver);
-
-  // Convert the receiver to an object.
   __ bind(&call_to_object);
   __ push(ebx);
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
