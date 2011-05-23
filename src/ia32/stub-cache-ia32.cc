@@ -2671,9 +2671,6 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreFastElement(
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label miss;
-  __ JumpIfSmi(edx, &miss);
-
   bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
   MaybeObject* maybe_stub =
       KeyedStoreFastElementStub(is_js_array).TryGetCode();
@@ -2684,7 +2681,6 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreFastElement(
                  Handle<Code>(stub),
                  DO_SMI_CHECK);
 
-  __ bind(&miss);
   Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
@@ -3137,9 +3133,6 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadFastElement(Map* receiver_map) {
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label miss;
-  __ JumpIfSmi(edx, &miss);
-
   MaybeObject* maybe_stub = KeyedLoadFastElementStub().TryGetCode();
   Code* stub;
   if (!maybe_stub->To(&stub)) return maybe_stub;
@@ -3148,7 +3141,6 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadFastElement(Map* receiver_map) {
                  Handle<Code>(stub),
                  DO_SMI_CHECK);
 
-  __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.

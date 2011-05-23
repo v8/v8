@@ -193,4 +193,22 @@ for (var t = 0; t < types.length; t++) {
     a.length = 2;
     assertEquals(2, a.length);
   }
+
+  function array_load_set_smi_check(a) {
+    return a[0] = a[0] = 1;
+  }
+
+  array_load_set_smi_check(a);
+  array_load_set_smi_check(0);
+
+  function array_load_set_smi_check2(a) {
+    return a[0] = a[0] = 1;
+  }
+
+  array_load_set_smi_check2(a);
+  %OptimizeFunctionOnNextCall(array_load_set_smi_check2);
+  array_load_set_smi_check2(a);
+  array_load_set_smi_check2(0);
+  %DeoptimizeFunction(array_load_set_smi_check2);
+  gc();  // Makes V8 forget about type information for array_load_set_smi_check.
 }
