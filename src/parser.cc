@@ -127,7 +127,7 @@ void RegExpBuilder::FlushText() {
 void RegExpBuilder::AddCharacter(uc16 c) {
   pending_empty_ = false;
   if (characters_ == NULL) {
-    characters_ = new ZoneList<uc16>(4);
+    characters_ = new(zone()) ZoneList<uc16>(4);
   }
   characters_->Add(c);
   LAST(ADD_CHAR);
@@ -639,7 +639,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
     if (strict_mode == kStrictMode) {
       top_scope_->EnableStrictMode();
     }
-    ZoneList<Statement*>* body = new ZoneList<Statement*>(16);
+    ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16);
     bool ok = true;
     int beg_loc = scanner().location().beg_pos;
     ParseSourceElements(body, Token::EOS, &ok);
@@ -1049,9 +1049,10 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     if (names_ == NULL) {
       ASSERT(assigned_arguments_ == NULL);
       ASSERT(assigned_constants_ == NULL);
-      names_ = new ZoneStringList(4);
-      assigned_arguments_ = new ZoneList<int>(4);
-      assigned_constants_ = new ZoneObjectList(4);
+      Zone* zone = isolate_->zone();
+      names_ = new(zone) ZoneStringList(4);
+      assigned_arguments_ = new(zone) ZoneList<int>(4);
+      assigned_constants_ = new(zone) ZoneObjectList(4);
     }
   }
 
@@ -1653,7 +1654,7 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
 
     if (top_scope_->is_global_scope()) {
       // Compute the arguments for the runtime call.
-      ZoneList<Expression*>* arguments = new ZoneList<Expression*>(3);
+      ZoneList<Expression*>* arguments = new(zone()) ZoneList<Expression*>(3);
       // We have at least 1 parameter.
       arguments->Add(new(zone()) Literal(name));
       CallRuntime* initialize;
@@ -1770,7 +1771,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
       *ok = false;
       return NULL;
     }
-    if (labels == NULL) labels = new ZoneStringList(4);
+    if (labels == NULL) labels = new(zone()) ZoneStringList(4);
     labels->Add(label);
     // Remove the "ghost" variable that turned out to be a label
     // from the top scope. This way, we don't try to resolve it
@@ -1911,7 +1912,7 @@ Block* Parser::WithHelper(Expression* obj,
                           bool is_catch_block,
                           bool* ok) {
   // Parse the statement and collect escaping labels.
-  ZoneList<Label*>* target_list = new ZoneList<Label*>(0);
+  ZoneList<Label*>* target_list = new(zone()) ZoneList<Label*>(0);
   TargetCollector collector(target_list);
   Statement* stat;
   { Target target(&this->target_stack_, &collector);
@@ -1986,7 +1987,7 @@ CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
   }
   Expect(Token::COLON, CHECK_OK);
   int pos = scanner().location().beg_pos;
-  ZoneList<Statement*>* statements = new ZoneList<Statement*>(5);
+  ZoneList<Statement*>* statements = new(zone()) ZoneList<Statement*>(5);
   while (peek() != Token::CASE &&
          peek() != Token::DEFAULT &&
          peek() != Token::RBRACE) {
@@ -2012,7 +2013,7 @@ SwitchStatement* Parser::ParseSwitchStatement(ZoneStringList* labels,
   Expect(Token::RPAREN, CHECK_OK);
 
   bool default_seen = false;
-  ZoneList<CaseClause*>* cases = new ZoneList<CaseClause*>(4);
+  ZoneList<CaseClause*>* cases = new(zone()) ZoneList<CaseClause*>(4);
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
     CaseClause* clause = ParseCaseClause(&default_seen, CHECK_OK);
@@ -2057,7 +2058,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   Expect(Token::TRY, CHECK_OK);
 
-  ZoneList<Label*>* target_list = new ZoneList<Label*>(0);
+  ZoneList<Label*>* target_list = new(zone()) ZoneList<Label*>(0);
   TargetCollector collector(target_list);
   Block* try_block;
 
@@ -2080,7 +2081,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   // then we will need to collect jump targets from the catch block. Since
   // we don't know yet if there will be a finally block, we always collect
   // the jump targets.
-  ZoneList<Label*>* catch_target_list = new ZoneList<Label*>(0);
+  ZoneList<Label*>* catch_target_list = new(zone()) ZoneList<Label*>(0);
   TargetCollector catch_collector(catch_target_list);
   bool has_catch = false;
   if (tok == Token::CATCH) {
@@ -2726,7 +2727,9 @@ Expression* Parser::ParseNewPrefix(PositionStack* stack, bool* ok) {
 
   if (!stack->is_empty()) {
     int last = stack->pop();
-    result = new(zone()) CallNew(result, new ZoneList<Expression*>(0), last);
+    result = new(zone()) CallNew(result,
+                                 new(zone()) ZoneList<Expression*>(0),
+                                 last);
   }
   return result;
 }
@@ -2993,7 +2996,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
   // ArrayLiteral ::
   //   '[' Expression? (',' Expression?)* ']'
 
-  ZoneList<Expression*>* values = new ZoneList<Expression*>(4);
+  ZoneList<Expression*>* values = new(zone()) ZoneList<Expression*>(4);
   Expect(Token::LBRACK, CHECK_OK);
   while (peek() != Token::RBRACK) {
     Expression* elem;
@@ -3335,7 +3338,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   //    )*[','] '}'
 
   ZoneList<ObjectLiteral::Property*>* properties =
-      new ZoneList<ObjectLiteral::Property*>(4);
+      new(zone()) ZoneList<ObjectLiteral::Property*>(4);
   int number_of_boilerplate_properties = 0;
   bool has_function = false;
 
@@ -3497,7 +3500,7 @@ ZoneList<Expression*>* Parser::ParseArguments(bool* ok) {
   // Arguments ::
   //   '(' (AssignmentExpression)*[','] ')'
 
-  ZoneList<Expression*>* result = new ZoneList<Expression*>(4);
+  ZoneList<Expression*>* result = new(zone()) ZoneList<Expression*>(4);
   Expect(Token::LPAREN, CHECK_OK);
   bool done = (peek() == Token::RPAREN);
   while (!done) {
@@ -3534,7 +3537,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
 
   int num_parameters = 0;
   Scope* scope = NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
-  ZoneList<Statement*>* body = new ZoneList<Statement*>(8);
+  ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8);
   int materialized_literal_count;
   int expected_property_count;
   int start_pos;
@@ -4007,7 +4010,7 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
   Handle<JSArray> array = isolate()->factory()->NewJSArrayWithElements(elements,
                                                                        TENURED);
 
-  ZoneList<Expression*>* args = new ZoneList<Expression*>(2);
+  ZoneList<Expression*>* args = new(zone()) ZoneList<Expression*>(2);
   args->Add(new(zone()) Literal(type));
   args->Add(new(zone()) Literal(array));
   return new(zone()) Throw(new(zone()) CallRuntime(constructor, NULL, args),
@@ -4396,7 +4399,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
     case '.': {
       Advance();
       // everything except \x0a, \x0d, \u2028 and \u2029
-      ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
+      ZoneList<CharacterRange>* ranges =
+          new(zone()) ZoneList<CharacterRange>(2);
       CharacterRange::AddClassEscape('.', ranges);
       RegExpTree* atom = new(zone()) RegExpCharacterClass(ranges, false);
       builder->AddAtom(atom);
@@ -4423,7 +4427,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         Advance(2);
       } else {
         if (captures_ == NULL) {
-          captures_ = new ZoneList<RegExpCapture*>(2);
+          captures_ = new(zone()) ZoneList<RegExpCapture*>(2);
         }
         if (captures_started() >= kMaxCaptures) {
           ReportError(CStrVector("Too many captures") CHECK_FAILED);
@@ -4466,7 +4470,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       case 'd': case 'D': case 's': case 'S': case 'w': case 'W': {
         uc32 c = Next();
         Advance(2);
-        ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
+        ZoneList<CharacterRange>* ranges =
+            new(zone()) ZoneList<CharacterRange>(2);
         CharacterRange::AddClassEscape(c, ranges);
         RegExpTree* atom = new(zone()) RegExpCharacterClass(ranges, false);
         builder->AddAtom(atom);
@@ -4962,7 +4967,7 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
     is_negated = true;
     Advance();
   }
-  ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
+  ZoneList<CharacterRange>* ranges = new(zone()) ZoneList<CharacterRange>(2);
   while (has_more() && current() != ']') {
     uc16 char_class = kNoCharClass;
     CharacterRange first = ParseClassAtom(&char_class CHECK_FAILED);

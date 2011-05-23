@@ -178,6 +178,9 @@ class ZoneListAllocationPolicy {
 template<typename T>
 class ZoneList: public List<T, ZoneListAllocationPolicy> {
  public:
+  inline void* operator new(size_t size);
+  inline void* operator new(size_t size, Zone* zone);
+
   // Construct a new ZoneList with the given capacity; the length is
   // always zero. The capacity must be non-negative.
   explicit ZoneList(int capacity)
