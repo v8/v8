@@ -3577,8 +3577,21 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ vstr(d0, r3, HeapNumber::kValueOffset);
       __ Ret();
     } else {
-      WriteInt32ToHeapNumberStub stub(value, r0, r3);
-      __ TailCallStub(&stub);
+      Register dst1 = r1;
+      Register dst2 = r3;
+      FloatingPointHelper::Destination dest =
+          FloatingPointHelper::kCoreRegisters;
+      FloatingPointHelper::ConvertIntToDouble(masm,
+                                              value,
+                                              dest,
+                                              d0,
+                                              dst1,
+                                              dst2,
+                                              r9,
+                                              s0);
+      __ str(dst1, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
+      __ str(dst2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+      __ Ret();
     }
   } else if (array_type == kExternalUnsignedIntArray) {
     // The test is different for unsigned int values. Since we need

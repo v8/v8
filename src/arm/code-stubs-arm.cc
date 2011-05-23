@@ -538,6 +538,8 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
                                              Register scratch2,
                                              SwVfpRegister single_scratch) {
   ASSERT(!int_scratch.is(scratch2));
+  ASSERT(!int_scratch.is(dst1));
+  ASSERT(!int_scratch.is(dst2));
 
   Label done;
 
