@@ -309,6 +309,13 @@ PreParser::Statement PreParser::ParseVariableDeclarations(bool accept_IN,
   if (peek() == i::Token::VAR) {
     Consume(i::Token::VAR);
   } else if (peek() == i::Token::CONST) {
+    if (strict_mode()) {
+      i::Scanner::Location location = scanner_->peek_location();
+      ReportMessageAt(location.beg_pos, location.end_pos,
+                      "strict_const", NULL);
+      *ok = false;
+      return Statement::Default();
+    }
     Consume(i::Token::CONST);
   } else {
     *ok = false;
@@ -348,9 +355,11 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
 
   Expression expr = ParseExpression(true, CHECK_OK);
   if (peek() == i::Token::COLON && expr.IsRawIdentifier()) {
-    Consume(i::Token::COLON);
-    ParseStatement(ok);
-    return Statement::Default();
+    if (!strict_mode() || !expr.AsIdentifier().IsFutureReserved()) {
+      Consume(i::Token::COLON);
+      ParseStatement(ok);
+      return Statement::Default();
+    }
   }
   // Parsed expression statement.
   ExpectSemicolon(CHECK_OK);
