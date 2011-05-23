@@ -29,7 +29,6 @@
 
 #include "break-iterator.h"
 #include "collator.h"
-#include "datetime-format.h"
 #include "i18n-locale.h"
 #include "natives.h"
 
@@ -60,8 +59,6 @@ v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
     return v8::FunctionTemplate::New(BreakIterator::JSBreakIterator);
   } else if (name->Equals(v8::String::New("NativeJSCollator"))) {
     return v8::FunctionTemplate::New(Collator::JSCollator);
-  } else if (name->Equals(v8::String::New("NativeJSDateTimeFormat"))) {
-    return v8::FunctionTemplate::New(DateTimeFormat::JSDateTimeFormat);
   }
 
   return v8::Handle<v8::FunctionTemplate>();
@@ -77,14 +74,5 @@ I18NExtension* I18NExtension::get() {
 void I18NExtension::Register() {
   static v8::DeclareExtension i18n_extension_declaration(I18NExtension::get());
 }
-
-#ifdef V8_SHARED
-// We end up dragging in a call to Malloc::FatalProcessOutOfMemory by including
-// allocation.h, but that function isn't public V8 API so it's not available
-// when v8 is build as DLL.
-// Define it as a no-op here.
-void Malloced::FatalProcessOutOfMemory() {
-}
-#endif
 
 } }  // namespace v8::internal

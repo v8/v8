@@ -28,14 +28,6 @@
 #ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_UTILS_H_
 #define V8_EXTENSIONS_EXPERIMENTAL_I18N_UTILS_H_
 
-#include <v8.h>
-
-#include "unicode/uversion.h"
-
-namespace U_ICU_NAMESPACE {
-class UnicodeString;
-}
-
 namespace v8 {
 namespace internal {
 
@@ -47,12 +39,6 @@ class I18NUtils {
   // We can't use OS::SNPrintF, it's only for internal code.
   // TODO(cira): Find a way to use OS::SNPrintF instead.
   static void StrNCopy(char* dest, int length, const char* src);
-
-  // Extract a string setting named in |settings| and set it to |result|.
-  // Return true if it's specified. Otherwise, return false.
-  static bool ExtractStringSetting(const v8::Handle<v8::Object>& settings,
-                                   const char* setting,
-                                   icu::UnicodeString* result);
 
  private:
   I18NUtils() {}

@@ -29,8 +29,6 @@
 
 #include <string.h>
 
-#include "unicode/unistr.h"
-
 namespace v8 {
 namespace internal {
 
@@ -40,29 +38,6 @@ void I18NUtils::StrNCopy(char* dest, int length, const char* src) {
 
   strncpy(dest, src, length);
   dest[length - 1] = '\0';
-}
-
-// static
-bool I18NUtils::ExtractStringSetting(const v8::Handle<v8::Object>& settings,
-                                     const char* setting,
-                                     icu::UnicodeString* result) {
-  if (!setting || !result) return false;
-
-  v8::HandleScope handle_scope;
-  v8::TryCatch try_catch;
-  v8::Handle<v8::Value> value = settings->Get(v8::String::New(setting));
-  if (try_catch.HasCaught()) {
-    return false;
-  }
-  // No need to check if |value| is empty because it's taken care of
-  // by TryCatch above.
-  if (!value->IsUndefined() && !value->IsNull() && value->IsString()) {
-    v8::String::Utf8Value utf8_value(value);
-    if (*utf8_value == NULL) return false;
-    result->setTo(icu::UnicodeString::fromUTF8(*utf8_value));
-    return true;
-  }
-  return false;
 }
 
 } }  // namespace v8::internal
