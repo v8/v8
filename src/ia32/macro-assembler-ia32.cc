@@ -73,7 +73,12 @@ void MacroAssembler::RecordWriteHelper(Register object,
   shr(addr, Page::kRegionSizeLog2);
 
   // Set dirty mark for region.
-  bts(Operand(object, Page::kDirtyFlagOffset), addr);
+  // Bit tests with a memory operand should be avoided on Intel processors,
+  // as they usually have long latency and multiple uops. We load the bit base
+  // operand to a register at first and store it back after bit set.
+  mov(scratch, Operand(object, Page::kDirtyFlagOffset));
+  bts(Operand(scratch), addr);
+  mov(Operand(object, Page::kDirtyFlagOffset), scratch);
 }
 
 
