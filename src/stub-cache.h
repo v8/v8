@@ -334,7 +334,7 @@ class StubCache {
   Entry secondary_[kSecondaryTableSize];
 
   // Computes the hashed offsets for primary and secondary caches.
-  RLYSTC int PrimaryOffset(String* name, Code::Flags flags, Map* map) {
+  static int PrimaryOffset(String* name, Code::Flags flags, Map* map) {
     // This works well because the heap object tag size and the hash
     // shift are equal.  Shifting down the length field to get the
     // hash code would effectively throw away two bits of the hash
@@ -357,7 +357,7 @@ class StubCache {
     return key & ((kPrimaryTableSize - 1) << kHeapObjectTagSize);
   }
 
-  RLYSTC int SecondaryOffset(String* name, Code::Flags flags, int seed) {
+  static int SecondaryOffset(String* name, Code::Flags flags, int seed) {
     // Use the seed from the primary cache in the secondary cache.
     uint32_t string_low32bits =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name));
@@ -374,7 +374,7 @@ class StubCache {
   // ends in String::kHashShift 0s.  Then we shift it so it is a multiple
   // of sizeof(Entry).  This makes it easier to avoid making mistakes
   // in the hashed offset computations.
-  RLYSTC Entry* entry(Entry* table, int offset) {
+  static Entry* entry(Entry* table, int offset) {
     const int shift_amount = kPointerSizeLog2 + 1 - String::kHashShift;
     return reinterpret_cast<Entry*>(
         reinterpret_cast<Address>(table) + (offset << shift_amount));

@@ -116,7 +116,7 @@ class Bootstrapper {
   bool IsActive() const { return nesting_ != 0; }
 
   // Support for thread preemption.
-  RLYSTC int ArchiveSpacePerThread();
+  static int ArchiveSpacePerThread();
   char* ArchiveState(char* to);
   char* RestoreState(char* from);
   void FreeThreadResources();

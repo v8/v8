@@ -1371,20 +1371,6 @@ inline void Context::mark_out_of_memory() {
 }
 
 
-// Temporary macro to be used to flag definitions that are indeed static
-// and not per-isolate. (It would be great to be able to grep for [static]!)
-#define RLYSTC static
-
-
-// Temporary macro to be used to flag classes that should be static.
-#define STATIC_CLASS class
-
-
-// Temporary macro to be used to flag classes that are completely converted
-// to be isolate-friendly. Their mix of static/nonstatic methods/fields is
-// correct.
-#define ISOLATED_CLASS class
-
 } }  // namespace v8::internal
 
 // TODO(isolates): Get rid of these -inl.h includes and place them only where

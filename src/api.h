@@ -396,7 +396,7 @@ class StringTracker {
 // data. In multithreaded V8 programs this data is copied in and out of storage
 // so that the currently executing thread always has its own copy of this
 // data.
-ISOLATED_CLASS HandleScopeImplementer {
+class HandleScopeImplementer {
  public:
 
   explicit HandleScopeImplementer(Isolate* isolate)
