@@ -1,10 +1,29 @@
+2011-05-23: Version 3.3.9
+
+        Added DateTimeFormat class to experimental i18n API.
+
+        Extended preparser to give early errors for some strict mode
+        restrictions.
+
+        Removed legacy execScript function from V8.
+
+        Extended isolate API with the ability to add embedder-specific
+        data to an isolate.
+
+        Added basic support for polymorphic loads from JS and external
+        arrays.
+
+        Fixed bug in handling of switch statements in the optimizing
+        compiler.
+
+
 2011-05-18: Version 3.3.8
 
-        Add MarkIndependent to the persistent handle API.  Independent
+        Added MarkIndependent to the persistent handle API.  Independent
         handles are independent of all other persistent handles and can be
         garbage collected more frequently.
 
-        Implement the get trap for Harmony proxies.  Proxies are enabled
+        Implemented the get trap for Harmony proxies.  Proxies are enabled
         with the --harmony-proxies flag.
 
         Performance improvements and bug fixes on all platforms.
