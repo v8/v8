@@ -291,7 +291,7 @@ void MacroAssembler::DispatchMap(Register obj,
                                  Handle<Code> success,
                                  SmiCheckType smi_check_type) {
   Label fail;
-  if (smi_check_type == DONT_DO_SMI_CHECK) {
+  if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, &fail);
   }
   cmp(FieldOperand(obj, HeapObject::kMapOffset), Immediate(map));
