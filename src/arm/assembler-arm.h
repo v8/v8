@@ -1218,6 +1218,16 @@ class Assembler : public AssemblerBase {
   static int GetCmpImmediateRawImmediate(Instr instr);
   static bool IsNop(Instr instr, int type = NON_MARKING_NOP);
 
+  // Buffer size and constant pool distance are checked together at regular
+  // intervals of kBufferCheckInterval emitted bytes
+  static const int kBufferCheckInterval = 1*KB/2;
+  // Constants in pools are accessed via pc relative addressing, which can
+  // reach +/-4KB thereby defining a maximum distance between the instruction
+  // and the accessed constant. We satisfy this constraint by limiting the
+  // distance between pools.
+  static const int kMaxDistBetweenPools = 4*KB - 2*kBufferCheckInterval;
+  static const int kMaxNumPRInfo = kMaxDistBetweenPools/kInstrSize;
+
   // Check if is time to emit a constant pool for pending reloc info entries
   void CheckConstPool(bool force_emit, bool require_jump);
 
@@ -1264,9 +1274,6 @@ class Assembler : public AssemblerBase {
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
 
-  // Buffer size and constant pool distance are checked together at regular
-  // intervals of kBufferCheckInterval emitted bytes
-  static const int kBufferCheckInterval = 1*KB/2;
   int next_buffer_check_;  // pc offset of next buffer check
 
   // Code generation
@@ -1299,12 +1306,6 @@ class Assembler : public AssemblerBase {
   // regular intervals of kDistBetweenPools bytes
   static const int kDistBetweenPools = 1*KB;
 
-  // Constants in pools are accessed via pc relative addressing, which can
-  // reach +/-4KB thereby defining a maximum distance between the instruction
-  // and the accessed constant. We satisfy this constraint by limiting the
-  // distance between pools.
-  static const int kMaxDistBetweenPools = 4*KB - 2*kBufferCheckInterval;
-
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
   int no_const_pool_before_;  // Block emission before this pc offset.
@@ -1322,7 +1323,6 @@ class Assembler : public AssemblerBase {
   // stored in a separate buffer until a constant pool is emitted.
   // If every instruction in a long sequence is accessing the pool, we need one
   // pending relocation entry per instruction.
-  static const int kMaxNumPRInfo = kMaxDistBetweenPools/kInstrSize;
   RelocInfo prinfo_[kMaxNumPRInfo];  // the buffer of pending relocation info
   int num_prinfo_;  // number of pending reloc info entries in the buffer
 
