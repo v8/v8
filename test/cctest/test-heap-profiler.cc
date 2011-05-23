@@ -142,7 +142,7 @@ TEST(ClustersCoarserSimple) {
   v8::HandleScope scope;
   LocalContext env;
 
-  i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
+  i::ZoneScope zn_scope(i::Isolate::Current(), i::DELETE_ON_EXIT);
 
   JSObjectsRetainerTree tree;
   JSObjectsCluster function(HEAP->function_class_symbol());
@@ -180,7 +180,7 @@ TEST(ClustersCoarserMultipleConstructors) {
   v8::HandleScope scope;
   LocalContext env;
 
-  i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
+  i::ZoneScope zn_scope(i::Isolate::Current(), i::DELETE_ON_EXIT);
 
   JSObjectsRetainerTree tree;
   JSObjectsCluster function(HEAP->function_class_symbol());
@@ -210,7 +210,7 @@ TEST(ClustersCoarserPathsTraversal) {
   v8::HandleScope scope;
   LocalContext env;
 
-  i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
+  i::ZoneScope zn_scope(i::Isolate::Current(), i::DELETE_ON_EXIT);
 
   JSObjectsRetainerTree tree;
 
@@ -262,7 +262,7 @@ TEST(ClustersCoarserSelf) {
   v8::HandleScope scope;
   LocalContext env;
 
-  i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
+  i::ZoneScope zn_scope(i::Isolate::Current(), i::DELETE_ON_EXIT);
 
   JSObjectsRetainerTree tree;
 

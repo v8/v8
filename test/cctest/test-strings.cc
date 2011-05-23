@@ -233,7 +233,7 @@ TEST(Traverse) {
   InitializeVM();
   v8::HandleScope scope;
   Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS];
-  ZoneScope zone(DELETE_ON_EXIT);
+  ZoneScope zone(Isolate::Current(), DELETE_ON_EXIT);
   InitializeBuildingBlocks(building_blocks);
   Handle<String> flat = ConstructBalanced(building_blocks);
   FlattenString(flat);
@@ -348,7 +348,7 @@ TEST(Utf8Conversion) {
 
 
 TEST(ExternalShortStringAdd) {
-  ZoneScope zone(DELETE_ON_EXIT);
+  ZoneScope zone(Isolate::Current(), DELETE_ON_EXIT);
 
   InitializeVM();
   v8::HandleScope handle_scope;
@@ -439,7 +439,7 @@ TEST(CachedHashOverflow) {
   // We incorrectly allowed strings to be tagged as array indices even if their
   // values didn't fit in the hash field.
   // See http://code.google.com/p/v8/issues/detail?id=728
-  ZoneScope zone(DELETE_ON_EXIT);
+  ZoneScope zone(Isolate::Current(), DELETE_ON_EXIT);
 
   InitializeVM();
   v8::HandleScope handle_scope;

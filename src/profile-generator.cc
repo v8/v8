@@ -1907,7 +1907,7 @@ void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj,
     HandleScope hs;
     JSFunction* func = JSFunction::cast(js_obj);
     Context* context = func->context();
-    ZoneScope zscope(DELETE_ON_EXIT);
+    ZoneScope zscope(Isolate::Current(), DELETE_ON_EXIT);
     SerializedScopeInfo* serialized_scope_info =
         context->closure()->shared()->scope_info();
     ScopeInfo<ZoneListAllocationPolicy> zone_scope_info(serialized_scope_info);

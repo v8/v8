@@ -102,7 +102,7 @@ void* ZoneObject::operator new(size_t size, Zone* zone) {
 }
 
 
-void* ZoneListAllocationPolicy::New(int size) {
+inline void* ZoneListAllocationPolicy::New(int size) {
   return ZONE->New(size);
 }
 
@@ -119,9 +119,8 @@ void* ZoneList<T>::operator new(size_t size, Zone* zone) {
 }
 
 
-ZoneScope::ZoneScope(ZoneScopeMode mode)
-    : isolate_(Isolate::Current()),
-      mode_(mode) {
+ZoneScope::ZoneScope(Isolate* isolate, ZoneScopeMode mode)
+    : isolate_(isolate), mode_(mode) {
   isolate_->zone()->scope_nesting_++;
 }
 

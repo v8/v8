@@ -2613,7 +2613,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   int capture_count = regexp_handle->CaptureCount();
 
   // CompiledReplacement uses zone allocation.
-  CompilationZoneScope zone(DELETE_ON_EXIT);
+  CompilationZoneScope zone(isolate, DELETE_ON_EXIT);
   CompiledReplacement compiled_replacement;
   compiled_replacement.Compile(replacement_handle,
                                capture_count,
@@ -3127,7 +3127,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
   }
   int length = subject->length();
 
-  CompilationZoneScope zone_space(DELETE_ON_EXIT);
+  CompilationZoneScope zone_space(isolate, DELETE_ON_EXIT);
   ZoneList<int> offsets(8);
   do {
     int start;
@@ -5601,7 +5601,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
 
   static const int kMaxInitialListCapacity = 16;
 
-  ZoneScope scope(DELETE_ON_EXIT);
+  ZoneScope scope(isolate, DELETE_ON_EXIT);
 
   // Find (up to limit) indices of separator and end-of-string in subject
   int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);

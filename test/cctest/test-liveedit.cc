@@ -95,7 +95,7 @@ void CompareStringsOneWay(const char* s1, const char* s2,
                           int expected_diff_parameter = -1) {
   StringCompareInput input(s1, s2);
 
-  ZoneScope zone_scope(DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
 
   DiffChunkStruct* first_chunk;
   ListDiffOutputWriter writer(&first_chunk);

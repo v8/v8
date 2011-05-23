@@ -592,7 +592,7 @@ Parser::Parser(Handle<Script> script,
 FunctionLiteral* Parser::ParseProgram(Handle<String> source,
                                       bool in_global_context,
                                       StrictModeFlag strict_mode) {
-  CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
+  CompilationZoneScope zone_scope(isolate(), DONT_DELETE_ON_EXIT);
 
   HistogramTimerScope timer(isolate()->counters()->parse());
   isolate()->counters()->total_parse_size()->Increment(source->length());
@@ -674,7 +674,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
 }
 
 FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
-  CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
+  CompilationZoneScope zone_scope(isolate(), DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(isolate()->counters()->parse_lazy());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
@@ -4179,7 +4179,7 @@ Handle<Object> JsonParser::ParseJsonObject() {
 
 // Parse a JSON array. Scanner must be right after '[' token.
 Handle<Object> JsonParser::ParseJsonArray() {
-  ZoneScope zone_scope(DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate(), DELETE_ON_EXIT);
   ZoneList<Handle<Object> > elements(4);
 
   Token::Value token = scanner_.peek();
