@@ -1616,12 +1616,36 @@ void CompareStub::Generate(MacroAssembler* masm) {
 // The stub returns zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   // This stub uses VFP3 instructions.
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  CpuFeatures::Scope scope(VFP3);
 
   Label false_result;
   Label not_heap_number;
   Register scratch = r9.is(tos_) ? r7 : r9;
 
+  // undefined -> false
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(tos_, ip);
+  __ b(eq, &false_result);
+
+  // Boolean -> its value
+  __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+  __ cmp(tos_, ip);
+  __ b(eq, &false_result);
+  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+  __ cmp(tos_, ip);
+  // "tos_" is a register and contains a non-zero value.  Hence we implicitly
+  // return true if the equal condition is satisfied.
+  __ Ret(eq);
+
+  // Smis: 0 -> false, all other -> true
+  __ tst(tos_, tos_);
+  __ b(eq, &false_result);
+  __ tst(tos_, Operand(kSmiTagMask));
+  // "tos_" is a register and contains a non-zero value.  Hence we implicitly
+  // return true if the not equal condition is satisfied.
+  __ Ret(eq);
+
+  // 'null' -> false
   __ LoadRoot(ip, Heap::kNullValueRootIndex);
   __ cmp(tos_, ip);
   __ b(eq, &false_result);
@@ -1631,9 +1655,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
   __ cmp(scratch, ip);
   __ b(&not_heap_number, ne);
-
-  __ sub(ip, tos_, Operand(kHeapObjectTag));
-  __ vldr(d1, ip, HeapNumber::kValueOffset);
+  __ vldr(d1, FieldMemOperand(tos_, HeapNumber::kValueOffset));
   __ VFPCompareAndSetFlags(d1, 0.0);
   // "tos_" is a register, and contains a non zero value by default.
   // Hence we only need to overwrite "tos_" with zero to return false for
@@ -1643,12 +1665,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ Ret();
 
   __ bind(&not_heap_number);
-
-  // Check if the value is 'null'.
-  // 'null' => false.
-  __ LoadRoot(ip, Heap::kNullValueRootIndex);
-  __ cmp(tos_, ip);
-  __ b(&false_result, eq);
 
   // It can be an undetectable object.
   // Undetectable => false.
@@ -1831,12 +1847,14 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
-  Label non_smi, slow;
-  GenerateSmiCodeSub(masm, &non_smi, &slow);
+  Label non_smi, slow, call_builtin;
+  GenerateSmiCodeSub(masm, &non_smi, &call_builtin);
   __ bind(&non_smi);
   GenerateHeapNumberCodeSub(masm, &slow);
   __ bind(&slow);
   GenerateTypeTransition(masm);
+  __ bind(&call_builtin);
+  GenerateGenericCodeFallback(masm);
 }
 
 

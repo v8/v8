@@ -154,7 +154,7 @@ class Object;
 class MaybeObject;
 class OldSpace;
 class Property;
-class Proxy;
+class Foreign;
 class RegExpNode;
 struct RegExpCompileData;
 class RegExpTree;

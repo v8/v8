@@ -156,13 +156,13 @@ class Factory {
 
   Handle<Script> NewScript(Handle<String> source);
 
-  // Proxies are pretenured when allocated by the bootstrapper.
-  Handle<Proxy> NewProxy(Address addr,
-                         PretenureFlag pretenure = NOT_TENURED);
+  // Foreign objects are pretenured when allocated by the bootstrapper.
+  Handle<Foreign> NewForeign(Address addr,
+                             PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocate a new proxy.  The proxy is pretenured (allocated directly in
-  // the old generation).
-  Handle<Proxy> NewProxy(const AccessorDescriptor* proxy);
+  // Allocate a new foreign object.  The foreign is pretenured (allocated
+  // directly in the old generation).
+  Handle<Foreign> NewForeign(const AccessorDescriptor* foreign);
 
   Handle<ByteArray> NewByteArray(int length,
                                  PretenureFlag pretenure = NOT_TENURED);
@@ -316,7 +316,7 @@ class Factory {
   Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
                                                  Handle<Code> code);
 
-  Handle<DescriptorArray> CopyAppendProxyDescriptor(
+  Handle<DescriptorArray> CopyAppendForeignDescriptor(
       Handle<DescriptorArray> array,
       Handle<String> key,
       Handle<Object> value,

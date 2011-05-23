@@ -1,4 +1,4 @@
-// Copyright 2006-2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1564,10 +1564,8 @@ static void ReportCodeKindStatistics() {
       CASE(BUILTIN);
       CASE(LOAD_IC);
       CASE(KEYED_LOAD_IC);
-      CASE(KEYED_EXTERNAL_ARRAY_LOAD_IC);
       CASE(STORE_IC);
       CASE(KEYED_STORE_IC);
-      CASE(KEYED_EXTERNAL_ARRAY_STORE_IC);
       CASE(CALL_IC);
       CASE(KEYED_CALL_IC);
       CASE(TYPE_RECORDING_UNARY_OP_IC);

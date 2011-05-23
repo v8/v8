@@ -125,9 +125,9 @@ void MessageHandler::ReportMessage(Isolate* isolate,
       HandleScope scope;
       if (global_listeners.get(i)->IsUndefined()) continue;
       v8::NeanderObject listener(JSObject::cast(global_listeners.get(i)));
-      Handle<Proxy> callback_obj(Proxy::cast(listener.get(0)));
+      Handle<Foreign> callback_obj(Foreign::cast(listener.get(0)));
       v8::MessageCallback callback =
-          FUNCTION_CAST<v8::MessageCallback>(callback_obj->proxy());
+          FUNCTION_CAST<v8::MessageCallback>(callback_obj->address());
       Handle<Object> callback_data(listener.get(1));
       {
         // Do not allow exceptions to propagate.

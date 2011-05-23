@@ -521,6 +521,22 @@ HConstant* HGraph::GetConstantFalse() {
   return GetConstant(&constant_false_, isolate()->heap()->false_value());
 }
 
+HGraphBuilder::HGraphBuilder(CompilationInfo* info,
+                             TypeFeedbackOracle* oracle)
+    : function_state_(NULL),
+      initial_function_state_(this, info, oracle),
+      ast_context_(NULL),
+      break_scope_(NULL),
+      graph_(NULL),
+      current_block_(NULL),
+      inlined_count_(0),
+      zone_(info->isolate()->zone()),
+      inline_bailout_(false) {
+  // This is not initialized in the initializer list because the
+  // constructor for the initial state relies on function_state_ == NULL
+  // to know it's the initial state.
+  function_state_= &initial_function_state_;
+}
 
 HBasicBlock* HGraphBuilder::CreateJoin(HBasicBlock* first,
                                        HBasicBlock* second,
@@ -1021,13 +1037,13 @@ void TraceGVN(const char* msg, ...) {
 }
 
 
-HValueMap::HValueMap(const HValueMap* other)
+HValueMap::HValueMap(Zone* zone, const HValueMap* other)
     : array_size_(other->array_size_),
       lists_size_(other->lists_size_),
       count_(other->count_),
       present_flags_(other->present_flags_),
-      array_(ZONE->NewArray<HValueMapListElement>(other->array_size_)),
-      lists_(ZONE->NewArray<HValueMapListElement>(other->lists_size_)),
+      array_(zone->NewArray<HValueMapListElement>(other->array_size_)),
+      lists_(zone->NewArray<HValueMapListElement>(other->lists_size_)),
       free_list_head_(other->free_list_head_) {
   memcpy(array_, other->array_, array_size_ * sizeof(HValueMapListElement));
   memcpy(lists_, other->lists_, lists_size_ * sizeof(HValueMapListElement));
@@ -1240,13 +1256,49 @@ void HStackCheckEliminator::RemoveStackCheck(HBasicBlock* block) {
 }
 
 
+// Simple sparse set with O(1) add, contains, and clear.
+class SparseSet {
+ public:
+  SparseSet(Zone* zone, int capacity)
+      : capacity_(capacity),
+        length_(0),
+        dense_(zone->NewArray<int>(capacity)),
+        sparse_(zone->NewArray<int>(capacity)) {}
+
+  bool Contains(int n) const {
+    ASSERT(0 <= n && n < capacity_);
+    int d = sparse_[n];
+    return 0 <= d && d < length_ && dense_[d] == n;
+  }
+
+  bool Add(int n) {
+    if (Contains(n)) return false;
+    dense_[length_] = n;
+    sparse_[n] = length_;
+    ++length_;
+    return true;
+  }
+
+  void Clear() { length_ = 0; }
+
+ private:
+  int capacity_;
+  int length_;
+  int* dense_;
+  int* sparse_;
+
+  DISALLOW_COPY_AND_ASSIGN(SparseSet);
+};
+
+
 class HGlobalValueNumberer BASE_EMBEDDED {
  public:
   explicit HGlobalValueNumberer(HGraph* graph, CompilationInfo* info)
       : graph_(graph),
         info_(info),
-        block_side_effects_(graph_->blocks()->length()),
-        loop_side_effects_(graph_->blocks()->length()) {
+        block_side_effects_(graph->blocks()->length()),
+        loop_side_effects_(graph->blocks()->length()),
+        visited_on_paths_(graph->zone(), graph->blocks()->length()) {
     ASSERT(info->isolate()->heap()->allow_allocation(false));
     block_side_effects_.AddBlock(0, graph_->blocks()->length());
     loop_side_effects_.AddBlock(0, graph_->blocks()->length());
@@ -1258,6 +1310,8 @@ class HGlobalValueNumberer BASE_EMBEDDED {
   void Analyze();
 
  private:
+  int CollectSideEffectsOnPathsToDominatedBlock(HBasicBlock* dominator,
+                                                HBasicBlock* dominated);
   void AnalyzeBlock(HBasicBlock* block, HValueMap* map);
   void ComputeBlockSideEffects();
   void LoopInvariantCodeMotion();
@@ -1279,6 +1333,10 @@ class HGlobalValueNumberer BASE_EMBEDDED {
 
   // A map of loop header block IDs to their loop's side effects.
   ZoneList<int> loop_side_effects_;
+
+  // Used when collecting side effects on paths from dominator to
+  // dominated.
+  SparseSet visited_on_paths_;
 };
 
 
@@ -1414,8 +1472,27 @@ bool HGlobalValueNumberer::ShouldMove(HInstruction* instr,
 }
 
 
+int HGlobalValueNumberer::CollectSideEffectsOnPathsToDominatedBlock(
+    HBasicBlock* dominator, HBasicBlock* dominated) {
+  int side_effects = 0;
+  for (int i = 0; i < dominated->predecessors()->length(); ++i) {
+    HBasicBlock* block = dominated->predecessors()->at(i);
+    if (dominator->block_id() < block->block_id() &&
+        block->block_id() < dominated->block_id() &&
+        visited_on_paths_.Add(block->block_id())) {
+      side_effects |= block_side_effects_[block->block_id()];
+      side_effects |= CollectSideEffectsOnPathsToDominatedBlock(
+          dominator, block);
+    }
+  }
+  return side_effects;
+}
+
+
 void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block, HValueMap* map) {
-  TraceGVN("Analyzing block B%d\n", block->block_id());
+  TraceGVN("Analyzing block B%d%s\n",
+           block->block_id(),
+           block->IsLoopHeader() ? " (loop header)" : "");
 
   // If this is a loop header kill everything killed by the loop.
   if (block->IsLoopHeader()) {
@@ -1456,23 +1533,18 @@ void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block, HValueMap* map) {
     // No need to copy the map for the last child in the dominator tree.
     HValueMap* successor_map = (i == length - 1) ? map : map->Copy(zone());
 
-    // If the dominated block is not a successor to this block we have to
-    // kill everything killed on any path between this block and the
-    // dominated block.  Note we rely on the block ordering.
-    bool is_successor = false;
-    int predecessor_count = dominated->predecessors()->length();
-    for (int j = 0; !is_successor && j < predecessor_count; ++j) {
-      is_successor = (dominated->predecessors()->at(j) == block);
+    // Kill everything killed on any path between this block and the
+    // dominated block.
+    // We don't have to traverse these paths if the value map is
+    // already empty.
+    // If the range of block ids (block_id, dominated_id) is empty
+    // there are no such paths.
+    if (!successor_map->IsEmpty() &&
+        block->block_id() + 1 < dominated->block_id()) {
+      visited_on_paths_.Clear();
+      successor_map->Kill(CollectSideEffectsOnPathsToDominatedBlock(block,
+                                                                    dominated));
     }
-
-    if (!is_successor) {
-      int side_effects = 0;
-      for (int j = block->block_id() + 1; j < dominated->block_id(); ++j) {
-        side_effects |= block_side_effects_[j];
-      }
-      successor_map->Kill(side_effects);
-    }
-
     AnalyzeBlock(dominated, successor_map);
   }
 }
@@ -3963,22 +4035,17 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
 }
 
 
-void HGraphBuilder::TraceInline(Handle<JSFunction> target, const char* reason) {
+void HGraphBuilder::TraceInline(Handle<JSFunction> target,
+                                Handle<JSFunction> caller,
+                                const char* reason) {
   if (FLAG_trace_inlining) {
+    SmartPointer<char> target_name = target->shared()->DebugName()->ToCString();
+    SmartPointer<char> caller_name = caller->shared()->DebugName()->ToCString();
     if (reason == NULL) {
-      // We are currently in the context of inlined function thus we have
-      // to go to an outer FunctionState to get caller.
-      SmartPointer<char> callee = target->shared()->DebugName()->ToCString();
-      SmartPointer<char> caller =
-          function_state()->outer()->compilation_info()->function()->
-              debug_name()->ToCString();
-      PrintF("Inlined %s called from %s.\n", *callee, *caller);
+      PrintF("Inlined %s called from %s.\n", *target_name, *caller_name);
     } else {
-      SmartPointer<char> callee = target->shared()->DebugName()->ToCString();
-      SmartPointer<char> caller =
-          info()->function()->debug_name()->ToCString();
       PrintF("Did not inline %s called from %s (%s).\n",
-             *callee, *caller, reason);
+             *target_name, *caller_name, reason);
     }
   }
 }
@@ -3989,18 +4056,20 @@ bool HGraphBuilder::TryInline(Call* expr) {
 
   // Precondition: call is monomorphic and we have found a target with the
   // appropriate arity.
+  Handle<JSFunction> caller = info()->closure();
   Handle<JSFunction> target = expr->target();
+  Handle<SharedFunctionInfo> target_shared(target->shared());
 
   // Do a quick check on source code length to avoid parsing large
   // inlining candidates.
   if (FLAG_limit_inlining && target->shared()->SourceSize() > kMaxSourceSize) {
-    TraceInline(target, "target text too big");
+    TraceInline(target, caller, "target text too big");
     return false;
   }
 
   // Target must be inlineable.
   if (!target->IsInlineable()) {
-    TraceInline(target, "target not inlineable");
+    TraceInline(target, caller, "target not inlineable");
     return false;
   }
 
@@ -4009,7 +4078,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
   if (target->context() != outer_info->closure()->context() ||
       outer_info->scope()->contains_with() ||
       outer_info->scope()->num_heap_slots() > 0) {
-    TraceInline(target, "target requires context change");
+    TraceInline(target, caller, "target requires context change");
     return false;
   }
 
@@ -4018,7 +4087,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
   int current_level = 1;
   while (env->outer() != NULL) {
     if (current_level == Compiler::kMaxInliningLevels) {
-      TraceInline(target, "inline depth limit reached");
+      TraceInline(target, caller, "inline depth limit reached");
       return false;
     }
     current_level++;
@@ -4026,14 +4095,14 @@ bool HGraphBuilder::TryInline(Call* expr) {
   }
 
   // Don't inline recursive functions.
-  if (target->shared() == outer_info->closure()->shared()) {
-    TraceInline(target, "target is recursive");
+  if (*target_shared == outer_info->closure()->shared()) {
+    TraceInline(target, caller, "target is recursive");
     return false;
   }
 
   // We don't want to add more than a certain number of nodes from inlining.
   if (FLAG_limit_inlining && inlined_count_ > kMaxInlinedNodes) {
-    TraceInline(target, "cumulative AST node limit reached");
+    TraceInline(target, caller, "cumulative AST node limit reached");
     return false;
   }
 
@@ -4046,14 +4115,14 @@ bool HGraphBuilder::TryInline(Call* expr) {
     if (target_info.isolate()->has_pending_exception()) {
       // Parse or scope error, never optimize this function.
       SetStackOverflow();
-      target->shared()->set_optimization_disabled(true);
+      target_shared->DisableOptimization(*target);
     }
-    TraceInline(target, "parse failure");
+    TraceInline(target, caller, "parse failure");
     return false;
   }
 
   if (target_info.scope()->num_heap_slots() > 0) {
-    TraceInline(target, "target has context-allocated variables");
+    TraceInline(target, caller, "target has context-allocated variables");
     return false;
   }
   FunctionLiteral* function = target_info.function();
@@ -4061,32 +4130,31 @@ bool HGraphBuilder::TryInline(Call* expr) {
   // Count the number of AST nodes added by inlining this call.
   int nodes_added = AstNode::Count() - count_before;
   if (FLAG_limit_inlining && nodes_added > kMaxInlinedSize) {
-    TraceInline(target, "target AST is too large");
+    TraceInline(target, caller, "target AST is too large");
     return false;
   }
 
   // Check if we can handle all declarations in the inlined functions.
   VisitDeclarations(target_info.scope()->declarations());
   if (HasStackOverflow()) {
-    TraceInline(target, "target has non-trivial declaration");
+    TraceInline(target, caller, "target has non-trivial declaration");
     ClearStackOverflow();
     return false;
   }
 
   // Don't inline functions that uses the arguments object or that
   // have a mismatching number of parameters.
-  Handle<SharedFunctionInfo> target_shared(target->shared());
   int arity = expr->arguments()->length();
   if (function->scope()->arguments() != NULL ||
       arity != target_shared->formal_parameter_count()) {
-    TraceInline(target, "target requires special argument handling");
+    TraceInline(target, caller, "target requires special argument handling");
     return false;
   }
 
   // All statements in the body must be inlineable.
   for (int i = 0, count = function->body()->length(); i < count; ++i) {
     if (!function->body()->at(i)->IsInlineable()) {
-      TraceInline(target, "target contains unsupported syntax");
+      TraceInline(target, caller, "target contains unsupported syntax");
       return false;
     }
   }
@@ -4098,7 +4166,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
     // generating the optimized inline code.
     target_info.EnableDeoptimizationSupport();
     if (!FullCodeGenerator::MakeCode(&target_info)) {
-      TraceInline(target, "could not generate deoptimization info");
+      TraceInline(target, caller, "could not generate deoptimization info");
       return false;
     }
     target_shared->EnableDeoptimizationSupport(*target_info.code());
@@ -4132,14 +4200,16 @@ bool HGraphBuilder::TryInline(Call* expr) {
   if (HasStackOverflow()) {
     // Bail out if the inline function did, as we cannot residualize a call
     // instead.
-    TraceInline(target, "inline graph construction failed");
+    TraceInline(target, caller, "inline graph construction failed");
+    target_shared->DisableOptimization(*target);
+    inline_bailout_ = true;
     return true;
   }
 
   // Update inlined nodes count.
   inlined_count_ += nodes_added;
 
-  TraceInline(target, NULL);
+  TraceInline(target, caller, NULL);
 
   if (current_block() != NULL) {
     // Add a return of undefined if control can fall off the body.  In a

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -56,13 +56,6 @@ namespace preparser {
 
 namespace i = ::v8::internal;
 
-#define CHECK_OK  ok);  \
-  if (!*ok) return -1;  \
-  ((void)0
-#define DUMMY )  // to make indentation work
-#undef DUMMY
-
-
 void PreParser::ReportUnexpectedToken(i::Token::Value token) {
   // We don't report stack overflows here, to avoid increasing the
   // stack depth even further.  Instead we report it after parsing is
@@ -107,6 +100,13 @@ void PreParser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
 }
 
 
+#define CHECK_OK  ok);                      \
+  if (!*ok) return kUnknownSourceElements;  \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
+
+
 PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
                                                          bool* ok) {
   // SourceElements ::
@@ -116,15 +116,23 @@ PreParser::SourceElements PreParser::ParseSourceElements(int end_token,
   while (peek() != end_token) {
     Statement statement = ParseStatement(CHECK_OK);
     if (allow_directive_prologue) {
-      if (statement == kUseStrictExpressionStatement) {
+      if (statement.IsUseStrictLiteral()) {
         set_strict_mode();
-      } else if (statement != kStringLiteralExpressionStatement) {
+      } else if (!statement.IsStringLiteral()) {
         allow_directive_prologue = false;
       }
     }
   }
   return kUnknownSourceElements;
 }
+
+
+#undef CHECK_OK
+#define CHECK_OK  ok);                   \
+  if (!*ok) return Statement::Default();  \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
 
 
 PreParser::Statement PreParser::ParseStatement(bool* ok) {
@@ -163,10 +171,10 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
 
     case i::Token::SEMICOLON:
       Next();
-      return kUnknownStatement;
+      return Statement::Default();
 
     case i::Token::IF:
-      return  ParseIfStatement(ok);
+      return ParseIfStatement(ok);
 
     case i::Token::DO:
       return ParseDoWhileStatement(ok);
@@ -217,9 +225,24 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   // FunctionDeclaration ::
   //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
   Expect(i::Token::FUNCTION, CHECK_OK);
-  ParseIdentifier(CHECK_OK);
-  ParseFunctionLiteral(CHECK_OK);
-  return kUnknownStatement;
+
+  Identifier identifier = ParseIdentifier(CHECK_OK);
+  i::Scanner::Location location = scanner_->location();
+
+  Expression function_value = ParseFunctionLiteral(CHECK_OK);
+
+  if (function_value.IsStrictFunction() &&
+      !identifier.IsValidStrictVariable()) {
+    // Strict mode violation, using either reserved word or eval/arguments
+    // as name of strict function.
+    const char* type = "strict_function_name";
+    if (identifier.IsFutureReserved()) {
+      type = "strict_reserved_word";
+    }
+    ReportMessageAt(location.beg_pos, location.end_pos, type, NULL);
+    *ok = false;
+  }
+  return Statement::Default();
 }
 
 
@@ -242,7 +265,7 @@ PreParser::Statement PreParser::ParseNativeDeclaration(bool* ok) {
   }
   Expect(i::Token::RPAREN, CHECK_OK);
   Expect(i::Token::SEMICOLON, CHECK_OK);
-  return kUnknownStatement;
+  return Statement::Default();
 }
 
 
@@ -257,8 +280,8 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   while (peek() != i::Token::RBRACE) {
     ParseStatement(CHECK_OK);
   }
-  Expect(i::Token::RBRACE, CHECK_OK);
-  return kUnknownStatement;
+  Expect(i::Token::RBRACE, ok);
+  return Statement::Default();
 }
 
 
@@ -289,7 +312,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(bool accept_IN,
     Consume(i::Token::CONST);
   } else {
     *ok = false;
-    return 0;
+    return Statement::Default();
   }
 
   // The scope of a variable/const declared anywhere inside a function
@@ -298,7 +321,14 @@ PreParser::Statement PreParser::ParseVariableDeclarations(bool accept_IN,
   do {
     // Parse variable name.
     if (nvars > 0) Consume(i::Token::COMMA);
-    ParseIdentifier(CHECK_OK);
+    Identifier identifier  = ParseIdentifier(CHECK_OK);
+    if (strict_mode() && !identifier.IsValidStrictVariable()) {
+      StrictModeIdentifierViolation(scanner_->location(),
+                                    "strict_var_name",
+                                    identifier,
+                                    ok);
+      return Statement::Default();
+    }
     nvars++;
     if (peek() == i::Token::ASSIGN) {
       Expect(i::Token::ASSIGN, CHECK_OK);
@@ -307,31 +337,24 @@ PreParser::Statement PreParser::ParseVariableDeclarations(bool accept_IN,
   } while (peek() == i::Token::COMMA);
 
   if (num_decl != NULL) *num_decl = nvars;
-  return kUnknownStatement;
+  return Statement::Default();
 }
 
 
-PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
-    bool* ok) {
+PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   // ExpressionStatement | LabelledStatement ::
   //   Expression ';'
   //   Identifier ':' Statement
 
   Expression expr = ParseExpression(true, CHECK_OK);
-  if (peek() == i::Token::COLON && expr == kIdentifierExpression) {
+  if (peek() == i::Token::COLON && expr.IsRawIdentifier()) {
     Consume(i::Token::COLON);
     ParseStatement(ok);
-    return kUnknownStatement;
+    return Statement::Default();
   }
   // Parsed expression statement.
   ExpectSemicolon(CHECK_OK);
-  if (expr == kStringLiteralExpression) {
-    return kStringLiteralExpressionStatement;
-  }
-  if (expr == kUseStrictString) {
-    return kUseStrictExpressionStatement;
-  }
-  return kUnknownStatement;
+  return Statement::ExpressionStatement(expr);
 }
 
 
@@ -348,7 +371,7 @@ PreParser::Statement PreParser::ParseIfStatement(bool* ok) {
     Next();
     ParseStatement(CHECK_OK);
   }
-  return kUnknownStatement;
+  return Statement::Default();
 }
 
 
@@ -365,7 +388,7 @@ PreParser::Statement PreParser::ParseContinueStatement(bool* ok) {
     ParseIdentifier(CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
-  return kUnknownStatement;
+  return Statement::Default();
 }
 
 
@@ -382,7 +405,7 @@ PreParser::Statement PreParser::ParseBreakStatement(bool* ok) {
     ParseIdentifier(CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
-  return kUnknownStatement;
+  return Statement::Default();
 }
 
 
@@ -408,7 +431,7 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
     ParseExpression(true, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
-  return kUnknownStatement;
+  return Statement::Default();
 }
 
 
@@ -416,6 +439,13 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   // WithStatement ::
   //   'with' '(' Expression ')' Statement
   Expect(i::Token::WITH, CHECK_OK);
+  if (strict_mode()) {
+    i::Scanner::Location location = scanner_->location();
+    ReportMessageAt(location.beg_pos, location.end_pos,
+                    "strict_mode_with", NULL);
+    *ok = false;
+    return Statement::Default();
+  }
   Expect(i::Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
   Expect(i::Token::RPAREN, CHECK_OK);
@@ -423,7 +453,7 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   scope_->EnterWith();
   ParseStatement(CHECK_OK);
   scope_->LeaveWith();
-  return kUnknownStatement;
+  return Statement::Default();
 }
 
 
@@ -451,9 +481,8 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
     }
     token = peek();
   }
-  Expect(i::Token::RBRACE, CHECK_OK);
-
-  return kUnknownStatement;
+  Expect(i::Token::RBRACE, ok);
+  return Statement::Default();
 }
 
 
@@ -466,8 +495,8 @@ PreParser::Statement PreParser::ParseDoWhileStatement(bool* ok) {
   Expect(i::Token::WHILE, CHECK_OK);
   Expect(i::Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
-  Expect(i::Token::RPAREN, CHECK_OK);
-  return kUnknownStatement;
+  Expect(i::Token::RPAREN, ok);
+  return Statement::Default();
 }
 
 
@@ -479,8 +508,8 @@ PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
   Expect(i::Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
   Expect(i::Token::RPAREN, CHECK_OK);
-  ParseStatement(CHECK_OK);
-  return kUnknownStatement;
+  ParseStatement(ok);
+  return Statement::Default();
 }
 
 
@@ -500,7 +529,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
         Expect(i::Token::RPAREN, CHECK_OK);
 
         ParseStatement(CHECK_OK);
-        return kUnknownStatement;
+        return Statement::Default();
       }
     } else {
       ParseExpression(false, CHECK_OK);
@@ -510,7 +539,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
         Expect(i::Token::RPAREN, CHECK_OK);
 
         ParseStatement(CHECK_OK);
-        return kUnknownStatement;
+        return Statement::Default();
       }
     }
   }
@@ -528,8 +557,8 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   }
   Expect(i::Token::RPAREN, CHECK_OK);
 
-  ParseStatement(CHECK_OK);
-  return kUnknownStatement;
+  ParseStatement(ok);
+  return Statement::Default();
 }
 
 
@@ -543,12 +572,11 @@ PreParser::Statement PreParser::ParseThrowStatement(bool* ok) {
     ReportMessageAt(pos.beg_pos, pos.end_pos,
                     "newline_after_throw", NULL);
     *ok = false;
-    return kUnknownStatement;
+    return Statement::Default();
   }
   ParseExpression(true, CHECK_OK);
-  ExpectSemicolon(CHECK_OK);
-
-  return kUnknownStatement;
+  ExpectSemicolon(ok);
+  return Statement::Default();
 }
 
 
@@ -575,12 +603,19 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
   if (peek() == i::Token::CATCH) {
     Consume(i::Token::CATCH);
     Expect(i::Token::LPAREN, CHECK_OK);
-    ParseIdentifier(CHECK_OK);
+    Identifier id = ParseIdentifier(CHECK_OK);
+    if (strict_mode() && !id.IsValidStrictVariable()) {
+      StrictModeIdentifierViolation(scanner_->location(),
+                                    "strict_catch_variable",
+                                    id,
+                                    ok);
+      return Statement::Default();
+    }
     Expect(i::Token::RPAREN, CHECK_OK);
     scope_->EnterWith();
     ParseBlock(ok);
     scope_->LeaveWith();
-    if (!*ok) return kUnknownStatement;
+    if (!*ok) Statement::Default();
     catch_or_finally_seen = true;
   }
   if (peek() == i::Token::FINALLY) {
@@ -591,7 +626,7 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
   if (!catch_or_finally_seen) {
     *ok = false;
   }
-  return kUnknownStatement;
+  return Statement::Default();
 }
 
 
@@ -603,9 +638,17 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
   //   'debugger' ';'
 
   Expect(i::Token::DEBUGGER, CHECK_OK);
-  ExpectSemicolon(CHECK_OK);
-  return kUnknownStatement;
+  ExpectSemicolon(ok);
+  return Statement::Default();
 }
+
+
+#undef CHECK_OK
+#define CHECK_OK  ok);                     \
+  if (!*ok) return Expression::Default();  \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
 
 
 // Precedence = 1
@@ -618,7 +661,7 @@ PreParser::Expression PreParser::ParseExpression(bool accept_IN, bool* ok) {
   while (peek() == i::Token::COMMA) {
     Expect(i::Token::COMMA, CHECK_OK);
     ParseAssignmentExpression(accept_IN, CHECK_OK);
-    result = kUnknownExpression;
+    result = Expression::Default();
   }
   return result;
 }
@@ -631,6 +674,7 @@ PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
   //   ConditionalExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
 
+  i::Scanner::Location before = scanner_->peek_location();
   Expression expression = ParseConditionalExpression(accept_IN, CHECK_OK);
 
   if (!i::Token::IsAssignmentOp(peek())) {
@@ -638,14 +682,23 @@ PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
     return expression;
   }
 
+  if (strict_mode() && expression.IsIdentifier() &&
+      expression.AsIdentifier().IsEvalOrArguments()) {
+    i::Scanner::Location after = scanner_->location();
+    ReportMessageAt(before.beg_pos, after.end_pos,
+                    "strict_lhs_assignment", NULL);
+    *ok = false;
+    return Expression::Default();
+  }
+
   i::Token::Value op = Next();  // Get assignment operator.
   ParseAssignmentExpression(accept_IN, CHECK_OK);
 
-  if ((op == i::Token::ASSIGN) && (expression == kThisPropertyExpression)) {
+  if ((op == i::Token::ASSIGN) && expression.IsThisProperty()) {
     scope_->AddProperty();
   }
 
-  return kUnknownExpression;
+  return Expression::Default();
 }
 
 
@@ -666,7 +719,7 @@ PreParser::Expression PreParser::ParseConditionalExpression(bool accept_IN,
   ParseAssignmentExpression(true, CHECK_OK);
   Expect(i::Token::COLON, CHECK_OK);
   ParseAssignmentExpression(accept_IN, CHECK_OK);
-  return kUnknownExpression;
+  return Expression::Default();
 }
 
 
@@ -688,7 +741,7 @@ PreParser::Expression PreParser::ParseBinaryExpression(int prec,
     while (Precedence(peek(), accept_IN) == prec1) {
       Next();
       ParseBinaryExpression(prec1 + 1, accept_IN, CHECK_OK);
-      result = kUnknownExpression;
+      result = Expression::Default();
     }
   }
   return result;
@@ -709,10 +762,22 @@ PreParser::Expression PreParser::ParseUnaryExpression(bool* ok) {
   //   '!' UnaryExpression
 
   i::Token::Value op = peek();
-  if (i::Token::IsUnaryOp(op) || i::Token::IsCountOp(op)) {
+  if (i::Token::IsUnaryOp(op)) {
     op = Next();
     ParseUnaryExpression(ok);
-    return kUnknownExpression;
+    return Expression::Default();
+  } else if (i::Token::IsCountOp(op)) {
+    op = Next();
+    i::Scanner::Location before = scanner_->peek_location();
+    Expression expression = ParseUnaryExpression(CHECK_OK);
+    if (strict_mode() && expression.IsIdentifier() &&
+        expression.AsIdentifier().IsEvalOrArguments()) {
+      i::Scanner::Location after = scanner_->location();
+      ReportMessageAt(before.beg_pos, after.end_pos,
+                      "strict_lhs_prefix", NULL);
+      *ok = false;
+    }
+    return Expression::Default();
   } else {
     return ParsePostfixExpression(ok);
   }
@@ -723,11 +788,20 @@ PreParser::Expression PreParser::ParsePostfixExpression(bool* ok) {
   // PostfixExpression ::
   //   LeftHandSideExpression ('++' | '--')?
 
+  i::Scanner::Location before = scanner_->peek_location();
   Expression expression = ParseLeftHandSideExpression(CHECK_OK);
   if (!scanner_->has_line_terminator_before_next() &&
       i::Token::IsCountOp(peek())) {
+    if (strict_mode() && expression.IsIdentifier() &&
+        expression.AsIdentifier().IsEvalOrArguments()) {
+      i::Scanner::Location after = scanner_->location();
+      ReportMessageAt(before.beg_pos, after.end_pos,
+                      "strict_lhs_postfix", NULL);
+      *ok = false;
+      return Expression::Default();
+    }
     Next();
-    return kUnknownExpression;
+    return Expression::Default();
   }
   return expression;
 }
@@ -737,7 +811,7 @@ PreParser::Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
   // LeftHandSideExpression ::
   //   (NewExpression | MemberExpression) ...
 
-  Expression result;
+  Expression result = Expression::Default();
   if (peek() == i::Token::NEW) {
     result = ParseNewExpression(CHECK_OK);
   } else {
@@ -750,27 +824,27 @@ PreParser::Expression PreParser::ParseLeftHandSideExpression(bool* ok) {
         Consume(i::Token::LBRACK);
         ParseExpression(true, CHECK_OK);
         Expect(i::Token::RBRACK, CHECK_OK);
-        if (result == kThisExpression) {
-          result = kThisPropertyExpression;
+        if (result.IsThis()) {
+          result = Expression::ThisProperty();
         } else {
-          result = kUnknownExpression;
+          result = Expression::Default();
         }
         break;
       }
 
       case i::Token::LPAREN: {
         ParseArguments(CHECK_OK);
-        result = kUnknownExpression;
+        result = Expression::Default();
         break;
       }
 
       case i::Token::PERIOD: {
         Consume(i::Token::PERIOD);
         ParseIdentifierName(CHECK_OK);
-        if (result == kThisExpression) {
-          result = kThisPropertyExpression;
+        if (result.IsThis()) {
+          result = Expression::ThisProperty();
         } else {
-          result = kUnknownExpression;
+          result = Expression::Default();
         }
         break;
       }
@@ -816,13 +890,21 @@ PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
   //     ('[' Expression ']' | '.' Identifier | Arguments)*
 
   // Parse the initial primary or function expression.
-  Expression result = kUnknownExpression;
+  Expression result = Expression::Default();
   if (peek() == i::Token::FUNCTION) {
     Consume(i::Token::FUNCTION);
+    Identifier identifier = Identifier::Default();
     if (peek_any_identifier()) {
-      ParseIdentifier(CHECK_OK);
+      identifier = ParseIdentifier(CHECK_OK);
     }
     result = ParseFunctionLiteral(CHECK_OK);
+    if (result.IsStrictFunction() && !identifier.IsValidStrictVariable()) {
+      StrictModeIdentifierViolation(scanner_->location(),
+                                    "strict_function_name",
+                                    identifier,
+                                    ok);
+      return Expression::Default();
+    }
   } else {
     result = ParsePrimaryExpression(CHECK_OK);
   }
@@ -833,20 +915,20 @@ PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
         Consume(i::Token::LBRACK);
         ParseExpression(true, CHECK_OK);
         Expect(i::Token::RBRACK, CHECK_OK);
-        if (result == kThisExpression) {
-          result = kThisPropertyExpression;
+        if (result.IsThis()) {
+          result = Expression::ThisProperty();
         } else {
-          result = kUnknownExpression;
+          result = Expression::Default();
         }
         break;
       }
       case i::Token::PERIOD: {
         Consume(i::Token::PERIOD);
         ParseIdentifierName(CHECK_OK);
-        if (result == kThisExpression) {
-          result = kThisPropertyExpression;
+        if (result.IsThis()) {
+          result = Expression::ThisProperty();
         } else {
-          result = kUnknownExpression;
+          result = Expression::Default();
         }
         break;
       }
@@ -855,7 +937,7 @@ PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
         // Consume one of the new prefixes (already parsed).
         ParseArguments(CHECK_OK);
         new_count--;
-        result = kUnknownExpression;
+        result = Expression::Default();
         break;
       }
       default:
@@ -879,18 +961,27 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
   //   RegExpLiteral
   //   '(' Expression ')'
 
-  Expression result = kUnknownExpression;
+  Expression result = Expression::Default();
   switch (peek()) {
     case i::Token::THIS: {
       Next();
-      result = kThisExpression;
+      result = Expression::This();
       break;
     }
 
-    case i::Token::IDENTIFIER:
-    case i::Token::FUTURE_RESERVED_WORD: {
-      ParseIdentifier(CHECK_OK);
-      result = kIdentifierExpression;
+    case i::Token::FUTURE_RESERVED_WORD:
+      if (strict_mode()) {
+        Next();
+        i::Scanner::Location location = scanner_->location();
+        ReportMessageAt(location.beg_pos, location.end_pos,
+                        "strict_reserved_word", NULL);
+        *ok = false;
+        return Expression::Default();
+      }
+      // FALLTHROUGH
+    case i::Token::IDENTIFIER: {
+      Identifier id = ParseIdentifier(CHECK_OK);
+      result = Expression::FromIdentifier(id);
       break;
     }
 
@@ -928,7 +1019,7 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
       parenthesized_function_ = (peek() == i::Token::FUNCTION);
       result = ParseExpression(true, CHECK_OK);
       Expect(i::Token::RPAREN, CHECK_OK);
-      if (result == kIdentifierExpression) result = kUnknownExpression;
+      result = result.Parenthesize();
       break;
 
     case i::Token::MOD:
@@ -938,7 +1029,7 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
     default: {
       Next();
       *ok = false;
-      return kUnknownExpression;
+      return Expression::Default();
     }
   }
 
@@ -961,7 +1052,7 @@ PreParser::Expression PreParser::ParseArrayLiteral(bool* ok) {
   Expect(i::Token::RBRACK, CHECK_OK);
 
   scope_->NextMaterializedLiteralIndex();
-  return kUnknownExpression;
+  return Expression::Default();
 }
 
 
@@ -990,7 +1081,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
                 name != i::Token::STRING &&
                 !is_keyword) {
               *ok = false;
-              return kUnknownExpression;
+              return Expression::Default();
             }
             if (!is_keyword) {
               LogSymbol();
@@ -1016,7 +1107,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
         } else {
           // Unexpected token.
           *ok = false;
-          return kUnknownExpression;
+          return Expression::Default();
         }
     }
 
@@ -1029,7 +1120,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
   Expect(i::Token::RBRACE, CHECK_OK);
 
   scope_->NextMaterializedLiteralIndex();
-  return kUnknownExpression;
+  return Expression::Default();
 }
 
 
@@ -1041,7 +1132,7 @@ PreParser::Expression PreParser::ParseRegExpLiteral(bool seen_equal,
     ReportMessageAt(location.beg_pos, location.end_pos,
                     "unterminated_regexp", NULL);
     *ok = false;
-    return kUnknownExpression;
+    return Expression::Default();
   }
 
   scope_->NextMaterializedLiteralIndex();
@@ -1052,10 +1143,10 @@ PreParser::Expression PreParser::ParseRegExpLiteral(bool seen_equal,
     ReportMessageAt(location.beg_pos, location.end_pos,
                     "invalid_regexp_flags", NULL);
     *ok = false;
-    return kUnknownExpression;
+    return Expression::Default();
   }
   Next();
-  return kUnknownExpression;
+  return Expression::Default();
 }
 
 
@@ -1063,16 +1154,21 @@ PreParser::Arguments PreParser::ParseArguments(bool* ok) {
   // Arguments ::
   //   '(' (AssignmentExpression)*[','] ')'
 
-  Expect(i::Token::LPAREN, CHECK_OK);
+  Expect(i::Token::LPAREN, ok);
+  if (!*ok) return -1;
   bool done = (peek() == i::Token::RPAREN);
   int argc = 0;
   while (!done) {
-    ParseAssignmentExpression(true, CHECK_OK);
+    ParseAssignmentExpression(true, ok);
+    if (!*ok) return -1;
     argc++;
     done = (peek() == i::Token::RPAREN);
-    if (!done) Expect(i::Token::COMMA, CHECK_OK);
+    if (!done) {
+      Expect(i::Token::COMMA, ok);
+      if (!*ok) return -1;
+    }
   }
-  Expect(i::Token::RPAREN, CHECK_OK);
+  Expect(i::Token::RPAREN, ok);
   return argc;
 }
 
@@ -1091,7 +1187,13 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
   int start_position = scanner_->location().beg_pos;
   bool done = (peek() == i::Token::RPAREN);
   while (!done) {
-    ParseIdentifier(CHECK_OK);
+    Identifier id = ParseIdentifier(CHECK_OK);
+    if (!id.IsValidStrictVariable()) {
+      StrictModeIdentifierViolation(scanner_->location(),
+                                    "strict_param_name",
+                                    id,
+                                    CHECK_OK);
+    }
     done = (peek() == i::Token::RPAREN);
     if (!done) {
       Expect(i::Token::COMMA, CHECK_OK);
@@ -1114,7 +1216,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
     log_->PauseRecording();
     ParseSourceElements(i::Token::RBRACE, ok);
     log_->ResumeRecording();
-    if (!*ok) return kUnknownExpression;
+    if (!*ok) Expression::Default();
 
     Expect(i::Token::RBRACE, CHECK_OK);
 
@@ -1128,12 +1230,14 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
     Expect(i::Token::RBRACE, CHECK_OK);
   }
 
-  if (scope_->is_strict()) {
+  if (strict_mode()) {
     int end_position = scanner_->location().end_pos;
     CheckOctalLiteral(start_position, end_position, CHECK_OK);
+    CheckDelayedStrictModeViolation(start_position, end_position, CHECK_OK);
+    return Expression::StrictFunction();
   }
 
-  return kUnknownExpression;
+  return Expression::Default();
 }
 
 
@@ -1143,10 +1247,12 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
 
   Expect(i::Token::MOD, CHECK_OK);
   ParseIdentifier(CHECK_OK);
-  ParseArguments(CHECK_OK);
+  ParseArguments(ok);
 
-  return kUnknownExpression;
+  return Expression::Default();
 }
+
+#undef CHECK_OK
 
 
 void PreParser::ExpectSemicolon(bool* ok) {
@@ -1176,12 +1282,6 @@ void PreParser::LogSymbol() {
 }
 
 
-PreParser::Identifier PreParser::GetIdentifierSymbol() {
-  LogSymbol();
-  return kUnknownIdentifier;
-}
-
-
 PreParser::Expression PreParser::GetStringSymbol() {
   const int kUseStrictLength = 10;
   const char* kUseStrictChars = "use strict";
@@ -1191,18 +1291,86 @@ PreParser::Expression PreParser::GetStringSymbol() {
       !scanner_->literal_contains_escapes() &&
       !strncmp(scanner_->literal_ascii_string().start(), kUseStrictChars,
                kUseStrictLength)) {
-    return kUseStrictString;
+    return Expression::UseStrictStringLiteral();
   }
-  return kStringLiteralExpression;
+  return Expression::StringLiteral();
+}
+
+
+PreParser::Identifier PreParser::GetIdentifierSymbol() {
+  LogSymbol();
+  if (scanner_->current_token() == i::Token::FUTURE_RESERVED_WORD) {
+    return Identifier::FutureReserved();
+  }
+  if (scanner_->is_literal_ascii()) {
+    // Detect strict-mode poison words.
+    if (scanner_->literal_length() == 4 &&
+        !strncmp(scanner_->literal_ascii_string().start(), "eval", 4)) {
+      return Identifier::Eval();
+    }
+    if (scanner_->literal_length() == 9 &&
+        !strncmp(scanner_->literal_ascii_string().start(), "arguments", 9)) {
+      return Identifier::Arguments();
+    }
+  }
+  return Identifier::Default();
 }
 
 
 PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
   if (!Check(i::Token::FUTURE_RESERVED_WORD)) {
     Expect(i::Token::IDENTIFIER, ok);
+    if (!*ok) return Identifier::Default();
   }
-  if (!*ok) return kUnknownIdentifier;
   return GetIdentifierSymbol();
+}
+
+
+void PreParser::SetStrictModeViolation(i::Scanner::Location location,
+                                       const char* type,
+                                       bool* ok) {
+  if (strict_mode()) {
+    ReportMessageAt(location.beg_pos, location.end_pos, type, NULL);
+    *ok = false;
+    return;
+  }
+  // Delay report in case this later turns out to be strict code
+  // (i.e., for function names and parameters prior to a "use strict"
+  // directive).
+  strict_mode_violation_location_ = location;
+  strict_mode_violation_type_ = type;
+}
+
+
+void PreParser::CheckDelayedStrictModeViolation(int beg_pos,
+                                                int end_pos,
+                                                bool* ok) {
+  i::Scanner::Location location = strict_mode_violation_location_;
+  if (location.IsValid() &&
+      location.beg_pos > beg_pos && location.end_pos < end_pos) {
+    ReportMessageAt(location.beg_pos, location.end_pos,
+                    strict_mode_violation_type_, NULL);
+    *ok = false;
+  }
+  strict_mode_violation_location_ = i::Scanner::Location::invalid();
+}
+
+
+void PreParser::StrictModeIdentifierViolation(i::Scanner::Location location,
+                                              const char* eval_args_type,
+                                              Identifier identifier,
+                                              bool* ok) {
+  const char* type = eval_args_type;
+  if (identifier.IsFutureReserved()) {
+    type = "strict_reserved_word";
+  }
+  if (strict_mode()) {
+    ReportMessageAt(location.beg_pos, location.end_pos, type, NULL);
+    *ok = false;
+    return;
+  }
+  strict_mode_violation_location_ = location;
+  strict_mode_violation_type_ = type;
 }
 
 
@@ -1213,15 +1381,17 @@ PreParser::Identifier PreParser::ParseIdentifierName(bool* ok) {
     const char* keyword = i::Token::String(next);
     log_->LogAsciiSymbol(pos, i::Vector<const char>(keyword,
                                                     i::StrLength(keyword)));
-    return kUnknownExpression;
+    return Identifier::Default();
   }
   if (next == i::Token::IDENTIFIER ||
       next == i::Token::FUTURE_RESERVED_WORD) {
     return GetIdentifierSymbol();
   }
   *ok = false;
-  return kUnknownIdentifier;
+  return Identifier::Default();
 }
+
+#undef CHECK_OK
 
 
 // This function reads an identifier and determines whether or not it
@@ -1229,8 +1399,10 @@ PreParser::Identifier PreParser::ParseIdentifierName(bool* ok) {
 PreParser::Identifier PreParser::ParseIdentifierOrGetOrSet(bool* is_get,
                                                            bool* is_set,
                                                            bool* ok) {
-  PreParser::Identifier result = ParseIdentifier(CHECK_OK);
-  if (scanner_->is_literal_ascii() && scanner_->literal_length() == 3) {
+  Identifier result = ParseIdentifier(ok);
+  if (!*ok) return Identifier::Default();
+  if (scanner_->is_literal_ascii() &&
+      scanner_->literal_length() == 3) {
     const char* token = scanner_->literal_ascii_string().start();
     *is_get = strncmp(token, "get", 3) == 0;
     *is_set = !*is_get && strncmp(token, "set", 3) == 0;
@@ -1243,6 +1415,4 @@ bool PreParser::peek_any_identifier() {
   return next == i::Token::IDENTIFIER ||
          next == i::Token::FUTURE_RESERVED_WORD;
 }
-
-#undef CHECK_OK
 } }  // v8::preparser

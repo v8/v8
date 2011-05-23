@@ -994,6 +994,9 @@ class Isolate {
 
   void ResetEagerOptimizingData();
 
+  void SetData(void* data) { embedder_data_ = data; }
+  void* GetData() { return embedder_data_; }
+
  private:
   Isolate();
 
@@ -1156,6 +1159,7 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   ZoneObjectList frame_element_constant_list_;
   ZoneObjectList result_constant_list_;
+  void* embedder_data_;
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
     defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)

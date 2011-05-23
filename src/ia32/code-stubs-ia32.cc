@@ -244,9 +244,25 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result, true_result, not_string;
   __ mov(eax, Operand(esp, 1 * kPointerSize));
+  Factory* factory = masm->isolate()->factory();
+
+  // undefined -> false
+  __ cmp(eax, factory->undefined_value());
+  __ j(equal, &false_result);
+
+  // Boolean -> its value
+  __ cmp(eax, factory->true_value());
+  __ j(equal, &true_result);
+  __ cmp(eax, factory->false_value());
+  __ j(equal, &false_result);
+
+  // Smis: 0 -> false, all other -> true
+  __ test(eax, Operand(eax));
+  __ j(zero, &false_result);
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &true_result);
 
   // 'null' => false.
-  Factory* factory = masm->isolate()->factory();
   __ cmp(eax, factory->null_value());
   __ j(equal, &false_result, Label::kNear);
 
@@ -606,10 +622,13 @@ void TypeRecordingUnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateSmiCodeSub(
-    MacroAssembler* masm, Label* non_smi, Label* undo, Label* slow,
-    Label::Distance non_smi_near, Label::Distance undo_near,
-    Label::Distance slow_near) {
+void TypeRecordingUnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
+                                                  Label* non_smi,
+                                                  Label* undo,
+                                                  Label* slow,
+                                                  Label::Distance non_smi_near,
+                                                  Label::Distance undo_near,
+                                                  Label::Distance slow_near) {
   // Check whether the value is a smi.
   __ test(eax, Immediate(kSmiTagMask));
   __ j(not_zero, non_smi, non_smi_near);
@@ -663,14 +682,16 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
-  Label non_smi, undo, slow;
-  GenerateSmiCodeSub(masm, &non_smi, &undo, &slow, Label::kNear);
+  Label non_smi, undo, slow, call_builtin;
+  GenerateSmiCodeSub(masm, &non_smi, &undo, &call_builtin, Label::kNear);
   __ bind(&non_smi);
   GenerateHeapNumberCodeSub(masm, &slow);
   __ bind(&undo);
   GenerateSmiCodeUndo(masm);
   __ bind(&slow);
   GenerateTypeTransition(masm);
+  __ bind(&call_builtin);
+  GenerateGenericCodeFallback(masm);
 }
 
 
@@ -1067,7 +1088,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
       // Smi tagging these two cases can only happen with shifts
       // by 0 or 1 when handed a valid smi.
       __ test(left, Immediate(0xc0000000));
-      __ j(not_zero, slow);
+      __ j(not_zero, &use_fp_on_smis);
       // Tag the result and store it in register eax.
       __ SmiTag(left);
       __ mov(eax, left);
@@ -1203,26 +1224,35 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
   } else {
     ASSERT(allow_heapnumber_results == ALLOW_HEAPNUMBER_RESULTS);
     switch (op_) {
-      case Token::SHL: {
+      case Token::SHL:
+      case Token::SHR: {
         Comment perform_float(masm, "-- Perform float operation on smis");
         __ bind(&use_fp_on_smis);
         // Result we want is in left == edx, so we can put the allocated heap
         // number in eax.
         __ AllocateHeapNumber(eax, ecx, ebx, slow);
         // Store the result in the HeapNumber and return.
-        if (CpuFeatures::IsSupported(SSE2)) {
-          CpuFeatures::Scope use_sse2(SSE2);
-          __ cvtsi2sd(xmm0, Operand(left));
-          __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
-        } else {
-          // It's OK to overwrite the right argument on the stack because we
-          // are about to return.
+        // It's OK to overwrite the arguments on the stack because we
+        // are about to return.
+        if (op_ == Token::SHR) {
           __ mov(Operand(esp, 1 * kPointerSize), left);
-          __ fild_s(Operand(esp, 1 * kPointerSize));
+          __ mov(Operand(esp, 2 * kPointerSize), Immediate(0));
+          __ fild_d(Operand(esp, 1 * kPointerSize));
           __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+        } else {
+          ASSERT_EQ(Token::SHL, op_);
+          if (CpuFeatures::IsSupported(SSE2)) {
+            CpuFeatures::Scope use_sse2(SSE2);
+            __ cvtsi2sd(xmm0, Operand(left));
+            __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
+          } else {
+            __ mov(Operand(esp, 1 * kPointerSize), left);
+            __ fild_s(Operand(esp, 1 * kPointerSize));
+            __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+          }
         }
-      __ ret(2 * kPointerSize);
-      break;
+        __ ret(2 * kPointerSize);
+        break;
       }
 
       case Token::ADD:

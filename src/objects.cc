@@ -174,11 +174,12 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
                                              Object* holder) {
   Isolate* isolate = name->GetIsolate();
   // To accommodate both the old and the new api we switch on the
-  // data structure used to store the callbacks.  Eventually proxy
+  // data structure used to store the callbacks.  Eventually foreign
   // callbacks should be phased out.
-  if (structure->IsProxy()) {
+  if (structure->IsForeign()) {
     AccessorDescriptor* callback =
-        reinterpret_cast<AccessorDescriptor*>(Proxy::cast(structure)->proxy());
+        reinterpret_cast<AccessorDescriptor*>(
+            Foreign::cast(structure)->address());
     MaybeObject* value = (callback->getter)(receiver, callback->data);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return value;
@@ -239,9 +240,7 @@ MaybeObject* Object::GetPropertyWithHandler(Object* receiver_raw,
   Handle<Object> trap(v8::internal::GetProperty(handler, "get", &lookup));
   if (!lookup.IsFound()) {
     // Get the derived `get' property.
-    Object* derived = isolate->global_context()->builtins()->javascript_builtin(
-        Builtins::DERIVED_GET_TRAP);
-    trap = Handle<JSFunction>(JSFunction::cast(derived));
+    trap = isolate->derived_get_trap();
   }
 
   // Call trap function.
@@ -1128,8 +1127,8 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       HeapNumber::cast(this)->HeapNumberPrint(accumulator);
       accumulator->Put('>');
       break;
-    case PROXY_TYPE:
-      accumulator->Add("<Proxy>");
+    case FOREIGN_TYPE:
+      accumulator->Add("<Foreign>");
       break;
     case JS_GLOBAL_PROPERTY_CELL_TYPE:
       accumulator->Add("Cell for ");
@@ -1200,8 +1199,8 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_PROXY_TYPE:
       JSProxy::BodyDescriptor::IterateBody(this, v);
       break;
-    case PROXY_TYPE:
-      reinterpret_cast<Proxy*>(this)->ProxyIterateBody(v);
+    case FOREIGN_TYPE:
+      reinterpret_cast<Foreign*>(this)->ForeignIterateBody(v);
       break;
     case MAP_TYPE:
       Map::BodyDescriptor::IterateBody(this, v);
@@ -1782,11 +1781,12 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
   Handle<Object> value_handle(value, isolate);
 
   // To accommodate both the old and the new api we switch on the
-  // data structure used to store the callbacks.  Eventually proxy
+  // data structure used to store the callbacks.  Eventually foreign
   // callbacks should be phased out.
-  if (structure->IsProxy()) {
+  if (structure->IsForeign()) {
     AccessorDescriptor* callback =
-        reinterpret_cast<AccessorDescriptor*>(Proxy::cast(structure)->proxy());
+        reinterpret_cast<AccessorDescriptor*>(
+            Foreign::cast(structure)->address());
     MaybeObject* obj = (callback->setter)(this,  value, callback->data);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (obj->IsFailure()) return obj;
@@ -3811,8 +3811,6 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
 
 
 MaybeObject* CodeCache::Update(String* name, Code* code) {
-  ASSERT(code->ic_state() == MONOMORPHIC);
-
   // The number of monomorphic stubs for normal load/store/call IC's can grow to
   // a large number and therefore they need to go into a hash table. They are
   // used to load global properties from cells.
@@ -6098,6 +6096,29 @@ void SharedFunctionInfo::EnableDeoptimizationSupport(Code* recompiled) {
 }
 
 
+void SharedFunctionInfo::DisableOptimization(JSFunction* function) {
+  // Disable optimization for the shared function info and mark the
+  // code as non-optimizable. The marker on the shared function info
+  // is there because we flush non-optimized code thereby loosing the
+  // non-optimizable information for the code. When the code is
+  // regenerated and set on the shared function info it is marked as
+  // non-optimizable if optimization is disabled for the shared
+  // function info.
+  set_optimization_disabled(true);
+  // Code should be the lazy compilation stub or else unoptimized.  If the
+  // latter, disable optimization for the code too.
+  ASSERT(code()->kind() == Code::FUNCTION || code()->kind() == Code::BUILTIN);
+  if (code()->kind() == Code::FUNCTION) {
+    code()->set_optimizable(false);
+  }
+  if (FLAG_trace_opt) {
+    PrintF("[disabled optimization for: ");
+    function->PrintName();
+    PrintF(" / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
+  }
+}
+
+
 bool SharedFunctionInfo::VerifyBailoutId(int id) {
   // TODO(srdjan): debugging ARM crashes in hydrogen. OK to disable while
   // we are always bailing out on ARM.
@@ -6555,10 +6576,8 @@ const char* Code::Kind2String(Kind kind) {
     case BUILTIN: return "BUILTIN";
     case LOAD_IC: return "LOAD_IC";
     case KEYED_LOAD_IC: return "KEYED_LOAD_IC";
-    case KEYED_EXTERNAL_ARRAY_LOAD_IC: return "KEYED_EXTERNAL_ARRAY_LOAD_IC";
     case STORE_IC: return "STORE_IC";
     case KEYED_STORE_IC: return "KEYED_STORE_IC";
-    case KEYED_EXTERNAL_ARRAY_STORE_IC: return "KEYED_EXTERNAL_ARRAY_STORE_IC";
     case CALL_IC: return "CALL_IC";
     case KEYED_CALL_IC: return "KEYED_CALL_IC";
     case TYPE_RECORDING_UNARY_OP_IC: return "TYPE_RECORDING_UNARY_OP_IC";
@@ -7331,7 +7350,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
                                               uint32_t index,
                                               Object* holder) {
   Isolate* isolate = GetIsolate();
-  ASSERT(!structure->IsProxy());
+  ASSERT(!structure->IsForeign());
 
   // api style callbacks.
   if (structure->IsAccessorInfo()) {
@@ -7386,9 +7405,9 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
   Handle<Object> value_handle(value, isolate);
 
   // To accommodate both the old and the new api we switch on the
-  // data structure used to store the callbacks.  Eventually proxy
+  // data structure used to store the callbacks.  Eventually foreign
   // callbacks should be phased out.
-  ASSERT(!structure->IsProxy());
+  ASSERT(!structure->IsForeign());
 
   if (structure->IsAccessorInfo()) {
     // api style callbacks

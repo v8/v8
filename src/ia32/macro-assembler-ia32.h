@@ -45,6 +45,7 @@ enum AllocationFlags {
   RESULT_CONTAINS_TOP = 1 << 1
 };
 
+
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.
 typedef Operand MemOperand;
@@ -206,13 +207,21 @@ class MacroAssembler: public Assembler {
   // Compare instance type for map.
   void CmpInstanceType(Register map, InstanceType type);
 
-  // Check if the map of an object is equal to a specified map and
-  // branch to label if not. Skip the smi check if not required
-  // (object is known to be a heap object)
+  // Check if the map of an object is equal to a specified map and branch to
+  // label if not. Skip the smi check if not required (object is known to be a
+  // heap object)
   void CheckMap(Register obj,
                 Handle<Map> map,
                 Label* fail,
                 SmiCheckType smi_check_type);
+
+  // Check if the map of an object is equal to a specified map and branch to a
+  // specified target if equal. Skip the smi check if not required (object is
+  // known to be a heap object)
+  void DispatchMap(Register obj,
+                   Handle<Map> map,
+                   Handle<Code> success,
+                   SmiCheckType smi_check_type);
 
   // Check if the object in register heap_object is a string. Afterwards the
   // register map contains the object map and the register instance_type

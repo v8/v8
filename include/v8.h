@@ -2670,6 +2670,17 @@ class V8EXPORT Isolate {
    */
   void Dispose();
 
+  /**
+   * Associate embedder-specific data with the isolate
+   */
+  void SetData(void* data);
+
+  /**
+   * Retrive embedder-specific data from the isolate.
+   * Returns NULL if SetData has never been called.
+   */
+  void* GetData();
+
  private:
 
   Isolate();
@@ -3687,14 +3698,14 @@ class Internals {
   static const int kStringResourceOffset =
       InternalConstants<kApiPointerSize>::kStringResourceOffset;
 
-  static const int kProxyProxyOffset = kApiPointerSize;
+  static const int kForeignAddressOffset = kApiPointerSize;
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
   static const int kJSObjectType = 0xa2;
   static const int kFirstNonstringType = 0x80;
-  static const int kProxyType = 0x85;
+  static const int kForeignType = 0x85;
 
   static inline bool HasHeapObjectTag(internal::Object* value) {
     return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
@@ -3723,8 +3734,8 @@ class Internals {
   static inline void* GetExternalPointer(internal::Object* obj) {
     if (HasSmiTag(obj)) {
       return GetExternalPointerFromSmi(obj);
-    } else if (GetInstanceType(obj) == kProxyType) {
-      return ReadField<void*>(obj, kProxyProxyOffset);
+    } else if (GetInstanceType(obj) == kForeignType) {
+      return ReadField<void*>(obj, kForeignAddressOffset);
     } else {
       return NULL;
     }

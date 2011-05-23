@@ -235,6 +235,22 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result, true_result, not_string;
   __ movq(rax, Operand(rsp, 1 * kPointerSize));
 
+  // undefined -> false
+  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
+  __ j(equal, &false_result);
+
+  // Boolean -> its value
+  __ CompareRoot(rax, Heap::kFalseValueRootIndex);
+  __ j(equal, &false_result);
+  __ CompareRoot(rax, Heap::kTrueValueRootIndex);
+  __ j(equal, &true_result);
+
+  // Smis: 0 -> false, all other -> true
+  __ Cmp(rax, Smi::FromInt(0));
+  __ j(equal, &false_result);
+  Condition is_smi = __ CheckSmi(rax);
+  __ j(is_smi, &true_result);
+
   // 'null' => false.
   __ CompareRoot(rax, Heap::kNullValueRootIndex);
   __ j(equal, &false_result, Label::kNear);
@@ -508,12 +524,14 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
-  Label non_smi, slow;
-  GenerateSmiCodeSub(masm, &non_smi, &slow, Label::kNear);
+  Label non_smi, slow, call_builtin;
+  GenerateSmiCodeSub(masm, &non_smi, &call_builtin, Label::kNear);
   __ bind(&non_smi);
   GenerateHeapNumberCodeSub(masm, &slow);
   __ bind(&slow);
   GenerateTypeTransition(masm);
+  __ bind(&call_builtin);
+  GenerateGenericCodeFallback(masm);
 }
 
 
@@ -994,7 +1012,7 @@ void TypeRecordingBinaryOpStub::GenerateFloatingPointCode(
         // We need tagged values in rdx and rax for the following code,
         // not int32 in rax and rcx.
         __ Integer32ToSmi(rax, rcx);
-        __ Integer32ToSmi(rdx, rax);
+        __ Integer32ToSmi(rdx, rbx);
         __ jmp(allocation_failure);
       }
       break;

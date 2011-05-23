@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -67,47 +67,217 @@ class PreParser {
   }
 
  private:
+  // These types form an algebra over syntactic categories that is just
+  // rich enough to let us recognize and propagate the constructs that
+  // are either being counted in the preparser data, or is important
+  // to throw the correct syntax error exceptions.
+
   enum ScopeType {
     kTopLevelScope,
     kFunctionScope
   };
 
-  // Types that allow us to recognize simple this-property assignments.
-  // A simple this-property assignment is a statement on the form
-  // "this.propertyName = {primitive constant or function parameter name);"
-  // where propertyName isn't "__proto__".
-  // The result is only relevant if the function body contains only
-  // simple this-property assignments.
+  class Expression;
 
-  enum StatementType {
-    kUnknownStatement,
-    kStringLiteralExpressionStatement,
-    kUseStrictExpressionStatement
+  class Identifier {
+   public:
+    static Identifier Default() {
+      return Identifier(kUnknownIdentifier);
+    }
+    static Identifier Eval()  {
+      return Identifier(kEvalIdentifier);
+    }
+    static Identifier Arguments()  {
+      return Identifier(kArgumentsIdentifier);
+    }
+    static Identifier FutureReserved()  {
+      return Identifier(kFutureReservedIdentifier);
+    }
+    bool IsEval() { return type_ == kEvalIdentifier; }
+    bool IsArguments() { return type_ == kArgumentsIdentifier; }
+    bool IsEvalOrArguments() { return type_ >= kEvalIdentifier; }
+    bool IsFutureReserved() { return type_ == kFutureReservedIdentifier; }
+    bool IsValidStrictVariable() { return type_ == kUnknownIdentifier; }
+   private:
+    enum Type {
+      kUnknownIdentifier,
+      kFutureReservedIdentifier,
+      kEvalIdentifier,
+      kArgumentsIdentifier
+    };
+    explicit Identifier(Type type) : type_(type) { }
+    Type type_;
+
+    friend class Expression;
   };
 
-  enum ExpressionType {
-    kUnknownExpression,
-    kIdentifierExpression,  // Used to detect labels.
-    kThisExpression,
-    kThisPropertyExpression,
-    kStringLiteralExpression,
-    kUseStrictString
+  // Bits 0 and 1 are used to identify the type of expression:
+  // If bit 0 is set, it's an identifier.
+  // if bit 1 is set, it's a string literal.
+  // If neither is set, it's no particular type, and both set isn't
+  // use yet.
+  // Bit 2 is used to mark the expression as being parenthesized,
+  // so "(foo)" isn't recognized as a pure identifier (and possible label).
+  class Expression {
+   public:
+    static Expression Default() {
+      return Expression(kUnknownExpression);
+    }
+
+    static Expression FromIdentifier(Identifier id) {
+      return Expression(kIdentifierFlag | (id.type_ << kIdentifierShift));
+    }
+
+    static Expression StringLiteral() {
+      return Expression(kUnknownStringLiteral);
+    }
+
+    static Expression UseStrictStringLiteral() {
+      return Expression(kUseStrictString);
+    }
+
+    static Expression This() {
+      return Expression(kThisExpression);
+    }
+
+    static Expression ThisProperty() {
+      return Expression(kThisPropertyExpression);
+    }
+
+    static Expression StrictFunction() {
+      return Expression(kStrictFunctionExpression);
+    }
+
+    bool IsIdentifier() {
+      return (code_ & kIdentifierFlag) != 0;
+    }
+
+    // Only works corretly if it is actually an identifier expression.
+    PreParser::Identifier AsIdentifier() {
+      return PreParser::Identifier(
+          static_cast<PreParser::Identifier::Type>(code_ >> kIdentifierShift));
+    }
+
+    bool IsParenthesized() {
+      // If bit 0 or 1 is set, we interpret bit 2 as meaning parenthesized.
+      return (code_ & 7) > 4;
+    }
+
+    bool IsRawIdentifier() {
+      return !IsParenthesized() && IsIdentifier();
+    }
+
+    bool IsStringLiteral() { return (code_ & kStringLiteralFlag) != 0; }
+
+    bool IsRawStringLiteral() {
+      return !IsParenthesized() && IsStringLiteral();
+    }
+
+    bool IsUseStrictLiteral() {
+      return (code_ & kStringLiteralMask) == kUseStrictString;
+    }
+
+    bool IsThis() {
+      return code_ == kThisExpression;
+    }
+
+    bool IsThisProperty() {
+      return code_ == kThisPropertyExpression;
+    }
+
+    bool IsStrictFunction() {
+      return code_ == kStrictFunctionExpression;
+    }
+
+    Expression Parenthesize() {
+      int type = code_ & 3;
+      if (type != 0) {
+        // Identifiers and string literals can be parenthesized.
+        // They no longer work as labels or directive prologues,
+        // but are still recognized in other contexts.
+        return Expression(code_ | kParentesizedExpressionFlag);
+      }
+      // For other types of expressions, it's not important to remember
+      // the parentheses.
+      return *this;
+    }
+
+   private:
+    // First two/three bits are used as flags.
+    // Bit 0 and 1 represent identifiers or strings literals, and are
+    // mutually exclusive, but can both be absent.
+    // If bit 0 or 1 are set, bit 2 marks that the expression has
+    // been wrapped in parentheses (a string literal can no longer
+    // be a directive prologue, and an identifier can no longer be
+    // a label.
+    enum  {
+      kUnknownExpression = 0,
+      // Identifiers
+      kIdentifierFlag = 1,  // Used to detect labels.
+      kIdentifierShift = 3,
+
+      kStringLiteralFlag = 2,  // Used to detect directive prologue.
+      kUnknownStringLiteral = kStringLiteralFlag,
+      kUseStrictString = kStringLiteralFlag | 8,
+      kStringLiteralMask = kUseStrictString,
+
+      kParentesizedExpressionFlag = 4,  // Only if identifier or string literal.
+
+      // Below here applies if neither identifier nor string literal.
+      kThisExpression = 4,
+      kThisPropertyExpression = 8,
+      kStrictFunctionExpression = 12
+    };
+
+    explicit Expression(int expression_code) : code_(expression_code) { }
+
+    int code_;
   };
 
-  enum IdentifierType {
-    kUnknownIdentifier
+  class Statement {
+   public:
+    static Statement Default() {
+      return Statement(kUnknownStatement);
+    }
+
+    // Creates expression statement from expression.
+    // Preserves being an unparenthesized string literal, possibly
+    // "use strict".
+    static Statement ExpressionStatement(Expression expression) {
+      if (!expression.IsParenthesized()) {
+        if (expression.IsUseStrictLiteral()) {
+          return Statement(kUseStrictExpressionStatement);
+        }
+        if (expression.IsStringLiteral()) {
+          return Statement(kStringLiteralExpressionStatement);
+        }
+      }
+      return Default();
+    }
+
+    bool IsStringLiteral() {
+      return code_ != kUnknownStatement;
+    }
+
+    bool IsUseStrictLiteral() {
+      return code_ == kUseStrictExpressionStatement;
+    }
+
+   private:
+    enum Type {
+      kUnknownStatement,
+      kStringLiteralExpressionStatement,
+      kUseStrictExpressionStatement
+    };
+
+    explicit Statement(Type code) : code_(code) {}
+    Type code_;
   };
 
-  enum SourceElementTypes {
-    kUnknownSourceElements,
-    kDirectivePrologue,
-    kUseStrictDirective
+  enum SourceElements {
+    kUnknownSourceElements
   };
 
-  typedef int SourceElements;
-  typedef int Expression;
-  typedef int Statement;
-  typedef int Identifier;
   typedef int Arguments;
 
   class Scope {
@@ -153,6 +323,8 @@ class PreParser {
         log_(log),
         scope_(NULL),
         stack_limit_(stack_limit),
+        strict_mode_violation_location_(i::Scanner::Location::invalid()),
+        strict_mode_violation_type_(NULL),
         stack_overflow_(false),
         allow_lazy_(true),
         parenthesized_function_(false) { }
@@ -264,7 +436,7 @@ class PreParser {
     scope_->set_strict();
   }
 
-  bool is_strict_mode() { return scope_->is_strict(); }
+  bool strict_mode() { return scope_->is_strict(); }
 
   void Consume(i::Token::Value token) { Next(); }
 
@@ -286,10 +458,23 @@ class PreParser {
 
   static int Precedence(i::Token::Value tok, bool accept_IN);
 
+  void SetStrictModeViolation(i::Scanner::Location,
+                              const char* type,
+                              bool *ok);
+
+  void CheckDelayedStrictModeViolation(int beg_pos, int end_pos, bool* ok);
+
+  void StrictModeIdentifierViolation(i::Scanner::Location,
+                                     const char* eval_args_type,
+                                     Identifier identifier,
+                                     bool* ok);
+
   i::JavaScriptScanner* scanner_;
   i::ParserRecorder* log_;
   Scope* scope_;
   uintptr_t stack_limit_;
+  i::Scanner::Location strict_mode_violation_location_;
+  const char* strict_mode_violation_type_;
   bool stack_overflow_;
   bool allow_lazy_;
   bool parenthesized_function_;

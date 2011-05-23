@@ -896,13 +896,15 @@ Failure* Isolate::Throw(Object* exception, MessageLocation* location) {
 
 Failure* Isolate::ReThrow(MaybeObject* exception, MessageLocation* location) {
   bool can_be_caught_externally = false;
-  ShouldReportException(&can_be_caught_externally,
-                        is_catchable_by_javascript(exception));
+  bool catchable_by_javascript = is_catchable_by_javascript(exception);
+  ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
+
   thread_local_top()->catcher_ = can_be_caught_externally ?
       try_catch_handler() : NULL;
 
   // Set the exception being re-thrown.
   set_pending_exception(exception);
+  if (exception->IsFailure()) return exception->ToFailureUnchecked();
   return Failure::Exception();
 }
 
@@ -1395,7 +1397,8 @@ Isolate::Isolate()
       string_tracker_(NULL),
       regexp_stack_(NULL),
       frame_element_constant_list_(0),
-      result_constant_list_(0) {
+      result_constant_list_(0),
+      embedder_data_(NULL) {
   TRACE_ISOLATE(constructor);
 
   memset(isolate_addresses_, 0,

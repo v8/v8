@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "builtins.h"
+#include "list.h"
 #include "smart-pointer.h"
 #include "unicode-inl.h"
 #if V8_TARGET_ARCH_ARM
@@ -91,7 +92,7 @@
 //       - Map
 //       - Oddball
 //       - JSProxy
-//       - Proxy
+//       - Foreign
 //       - SharedFunctionInfo
 //       - Struct
 //         - AccessorInfo
@@ -289,7 +290,7 @@ static const int kVariableSizeSentinel = 0;
                                                                                \
   V(HEAP_NUMBER_TYPE)                                                          \
   V(JS_PROXY_TYPE)                                                             \
-  V(PROXY_TYPE)                                                                \
+  V(FOREIGN_TYPE)                                                              \
   V(BYTE_ARRAY_TYPE)                                                           \
   /* Note: the order of these external array */                                \
   /* types is relied upon in */                                                \
@@ -516,7 +517,7 @@ enum InstanceType {
   // "Data", objects that cannot contain non-map-word pointers to heap
   // objects.
   HEAP_NUMBER_TYPE,
-  PROXY_TYPE,
+  FOREIGN_TYPE,
   JS_PROXY_TYPE,
   BYTE_ARRAY_TYPE,
   EXTERNAL_BYTE_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
@@ -590,7 +591,7 @@ static const int kExternalArrayTypeCount = LAST_EXTERNAL_ARRAY_TYPE -
 
 STATIC_CHECK(JS_OBJECT_TYPE == Internals::kJSObjectType);
 STATIC_CHECK(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
-STATIC_CHECK(PROXY_TYPE == Internals::kProxyType);
+STATIC_CHECK(FOREIGN_TYPE == Internals::kForeignType);
 
 
 enum CompareResult {
@@ -628,6 +629,7 @@ struct ValueInfo : public Malloced {
 // A template-ized version of the IsXXX functions.
 template <class C> static inline bool Is(Object* obj);
 
+class Failure;
 
 class MaybeObject BASE_EMBEDDED {
  public:
@@ -640,6 +642,10 @@ class MaybeObject BASE_EMBEDDED {
     if (IsFailure()) return false;
     *obj = reinterpret_cast<Object*>(this);
     return true;
+  }
+  inline Failure* ToFailureUnchecked() {
+    ASSERT(IsFailure());
+    return reinterpret_cast<Failure*>(this);
   }
   inline Object* ToObjectUnchecked() {
     ASSERT(!IsFailure());
@@ -720,7 +726,7 @@ class MaybeObject BASE_EMBEDDED {
   V(JSValue)                                   \
   V(JSMessageObject)                           \
   V(StringWrapper)                             \
-  V(Proxy)                                     \
+  V(Foreign)                                   \
   V(Boolean)                                   \
   V(JSArray)                                   \
   V(JSProxy)                                   \
@@ -3275,12 +3281,10 @@ class Code: public HeapObject {
     BUILTIN,
     LOAD_IC,
     KEYED_LOAD_IC,
-    KEYED_EXTERNAL_ARRAY_LOAD_IC,
     CALL_IC,
     KEYED_CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
-    KEYED_EXTERNAL_ARRAY_STORE_IC,
     TYPE_RECORDING_UNARY_OP_IC,
     TYPE_RECORDING_BINARY_OP_IC,
     COMPARE_IC,
@@ -3363,12 +3367,6 @@ class Code: public HeapObject {
     return kind() == TYPE_RECORDING_BINARY_OP_IC;
   }
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
-  inline bool is_external_array_load_stub() {
-    return kind() == KEYED_EXTERNAL_ARRAY_LOAD_IC;
-  }
-  inline bool is_external_array_store_stub() {
-    return kind() == KEYED_EXTERNAL_ARRAY_STORE_IC;
-  }
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline int major_key();
@@ -4011,7 +4009,7 @@ class Script: public Struct {
   DECL_ACCESSORS(context_data, Object)
 
   // [wrapper]: the wrapper cache.
-  DECL_ACCESSORS(wrapper, Proxy)
+  DECL_ACCESSORS(wrapper, Foreign)
 
   // [type]: the script type.
   DECL_ACCESSORS(type, Smi)
@@ -4369,6 +4367,11 @@ class SharedFunctionInfo: public HeapObject {
 
   // Enable deoptimization support through recompiled code.
   void EnableDeoptimizationSupport(Code* recompiled);
+
+  // Disable (further) attempted optimization of all functions sharing this
+  // shared function info.  The function is the one we actually tried to
+  // optimize.
+  void DisableOptimization(JSFunction* function);
 
   // Lookup the bailout ID and ASSERT that it exists in the non-optimized
   // code, returns whether it asserted (i.e., always true if assertions are
@@ -4751,7 +4754,7 @@ class JSFunction: public JSObject {
 
 class JSGlobalProxy : public JSObject {
  public:
-  // [context]: the owner global context of this proxy object.
+  // [context]: the owner global context of this global proxy object.
   // It is null value if this object is not used by any context.
   DECL_ACCESSORS(context, Object)
 
@@ -6144,43 +6147,43 @@ class JSProxy: public HeapObject {
 
 
 
-// Proxy describes objects pointing from JavaScript to C structures.
+// Foreign describes objects pointing from JavaScript to C structures.
 // Since they cannot contain references to JS HeapObjects they can be
 // placed in old_data_space.
-class Proxy: public HeapObject {
+class Foreign: public HeapObject {
  public:
-  // [proxy]: field containing the address.
-  inline Address proxy();
-  inline void set_proxy(Address value);
+  // [address]: field containing the address.
+  inline Address address();
+  inline void set_address(Address value);
 
   // Casting.
-  static inline Proxy* cast(Object* obj);
+  static inline Foreign* cast(Object* obj);
 
   // Dispatched behavior.
-  inline void ProxyIterateBody(ObjectVisitor* v);
+  inline void ForeignIterateBody(ObjectVisitor* v);
 
   template<typename StaticVisitor>
-  inline void ProxyIterateBody();
+  inline void ForeignIterateBody();
 
 #ifdef OBJECT_PRINT
-  inline void ProxyPrint() {
-    ProxyPrint(stdout);
+  inline void ForeignPrint() {
+    ForeignPrint(stdout);
   }
-  void ProxyPrint(FILE* out);
+  void ForeignPrint(FILE* out);
 #endif
 #ifdef DEBUG
-  void ProxyVerify();
+  void ForeignVerify();
 #endif
 
   // Layout description.
 
-  static const int kProxyOffset = HeapObject::kHeaderSize;
-  static const int kSize = kProxyOffset + kPointerSize;
+  static const int kAddressOffset = HeapObject::kHeaderSize;
+  static const int kSize = kAddressOffset + kPointerSize;
 
-  STATIC_CHECK(kProxyOffset == Internals::kProxyProxyOffset);
+  STATIC_CHECK(kAddressOffset == Internals::kForeignAddressOffset);
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Proxy);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Foreign);
 };
 
 

@@ -45,6 +45,7 @@ enum AllocationFlags {
   RESULT_CONTAINS_TOP = 1 << 1
 };
 
+
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
@@ -751,6 +752,14 @@ class MacroAssembler: public Assembler {
                 Handle<Map> map,
                 Label* fail,
                 SmiCheckType smi_check_type);
+
+  // Check if the map of an object is equal to a specified map and branch to a
+  // specified target if equal. Skip the smi check if not required (object is
+  // known to be a heap object)
+  void DispatchMap(Register obj,
+                   Handle<Map> map,
+                   Handle<Code> success,
+                   SmiCheckType smi_check_type);
 
   // Check if the object in register heap_object is a string. Afterwards the
   // register map contains the object map and the register instance_type

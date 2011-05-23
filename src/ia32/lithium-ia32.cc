@@ -1046,116 +1046,102 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 
 LInstruction* LChunkBuilder::DoTest(HTest* instr) {
   HValue* v = instr->value();
-  if (v->EmitAtUses()) {
-    if (v->IsClassOfTest()) {
-      HClassOfTest* compare = HClassOfTest::cast(v);
-      ASSERT(compare->value()->representation().IsTagged());
-
-      return new LClassOfTestAndBranch(UseTempRegister(compare->value()),
-                                       TempRegister(),
-                                       TempRegister());
-    } else if (v->IsCompare()) {
-      HCompare* compare = HCompare::cast(v);
-      Token::Value op = compare->token();
-      HValue* left = compare->left();
-      HValue* right = compare->right();
-      Representation r = compare->GetInputRepresentation();
-      if (r.IsInteger32()) {
-        ASSERT(left->representation().IsInteger32());
-        ASSERT(right->representation().IsInteger32());
-
-        return new LCmpIDAndBranch(UseRegisterAtStart(left),
-                                   UseOrConstantAtStart(right));
-      } else if (r.IsDouble()) {
-        ASSERT(left->representation().IsDouble());
-        ASSERT(right->representation().IsDouble());
-
-        return new LCmpIDAndBranch(UseRegisterAtStart(left),
-                                   UseRegisterAtStart(right));
-      } else {
-        ASSERT(left->representation().IsTagged());
-        ASSERT(right->representation().IsTagged());
-        bool reversed = op == Token::GT || op == Token::LTE;
-        LOperand* left_operand = UseFixed(left, reversed ? eax : edx);
-        LOperand* right_operand = UseFixed(right, reversed ? edx : eax);
-        LCmpTAndBranch* result = new LCmpTAndBranch(left_operand,
-                                                    right_operand);
-        return MarkAsCall(result, instr);
-      }
-    } else if (v->IsIsSmi()) {
-      HIsSmi* compare = HIsSmi::cast(v);
-      ASSERT(compare->value()->representation().IsTagged());
-
-      return new LIsSmiAndBranch(Use(compare->value()));
-    } else if (v->IsIsUndetectable()) {
-      HIsUndetectable* compare = HIsUndetectable::cast(v);
-      ASSERT(compare->value()->representation().IsTagged());
-
-      return new LIsUndetectableAndBranch(UseRegisterAtStart(compare->value()),
-                                          TempRegister());
-    } else if (v->IsHasInstanceType()) {
-      HHasInstanceType* compare = HHasInstanceType::cast(v);
-      ASSERT(compare->value()->representation().IsTagged());
-
-      return new LHasInstanceTypeAndBranch(UseRegisterAtStart(compare->value()),
-                                           TempRegister());
-    } else if (v->IsHasCachedArrayIndex()) {
-      HHasCachedArrayIndex* compare = HHasCachedArrayIndex::cast(v);
-      ASSERT(compare->value()->representation().IsTagged());
-
-      return new LHasCachedArrayIndexAndBranch(
-          UseRegisterAtStart(compare->value()));
-    } else if (v->IsIsNull()) {
-      HIsNull* compare = HIsNull::cast(v);
-      ASSERT(compare->value()->representation().IsTagged());
-
-      // We only need a temp register for non-strict compare.
-      LOperand* temp = compare->is_strict() ? NULL : TempRegister();
-      return new LIsNullAndBranch(UseRegisterAtStart(compare->value()),
-                                  temp);
-    } else if (v->IsIsObject()) {
-      HIsObject* compare = HIsObject::cast(v);
-      ASSERT(compare->value()->representation().IsTagged());
-
-      LOperand* temp1 = TempRegister();
-      LOperand* temp2 = TempRegister();
-      return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()),
-                                    temp1,
-                                    temp2);
-    } else if (v->IsCompareJSObjectEq()) {
-      HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
-      return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
-                                         UseRegisterAtStart(compare->right()));
-    } else if (v->IsCompareSymbolEq()) {
-      HCompareSymbolEq* compare = HCompareSymbolEq::cast(v);
-      return new LCmpSymbolEqAndBranch(UseRegisterAtStart(compare->left()),
-                                       UseRegisterAtStart(compare->right()));
-    } else if (v->IsInstanceOf()) {
-      HInstanceOf* instance_of = HInstanceOf::cast(v);
-      LOperand* left = UseFixed(instance_of->left(), InstanceofStub::left());
-      LOperand* right = UseFixed(instance_of->right(), InstanceofStub::right());
-      LOperand* context = UseFixed(instance_of->context(), esi);
-      LInstanceOfAndBranch* result =
-          new LInstanceOfAndBranch(context, left, right);
-      return MarkAsCall(result, instr);
-    } else if (v->IsTypeofIs()) {
-      HTypeofIs* typeof_is = HTypeofIs::cast(v);
-      return new LTypeofIsAndBranch(UseTempRegister(typeof_is->value()));
-    } else if (v->IsIsConstructCall()) {
-      return new LIsConstructCallAndBranch(TempRegister());
+  if (!v->EmitAtUses()) {
+    return new LBranch(UseRegisterAtStart(v));
+  } else if (v->IsClassOfTest()) {
+    HClassOfTest* compare = HClassOfTest::cast(v);
+    ASSERT(compare->value()->representation().IsTagged());
+    return new LClassOfTestAndBranch(UseTempRegister(compare->value()),
+                                     TempRegister(),
+                                     TempRegister());
+  } else if (v->IsCompare()) {
+    HCompare* compare = HCompare::cast(v);
+    Token::Value op = compare->token();
+    HValue* left = compare->left();
+    HValue* right = compare->right();
+    Representation r = compare->GetInputRepresentation();
+    if (r.IsInteger32()) {
+      ASSERT(left->representation().IsInteger32());
+      ASSERT(right->representation().IsInteger32());
+      return new LCmpIDAndBranch(UseRegisterAtStart(left),
+                                 UseOrConstantAtStart(right));
+    } else if (r.IsDouble()) {
+      ASSERT(left->representation().IsDouble());
+      ASSERT(right->representation().IsDouble());
+      return new LCmpIDAndBranch(UseRegisterAtStart(left),
+                                 UseRegisterAtStart(right));
     } else {
-      if (v->IsConstant()) {
-        if (HConstant::cast(v)->ToBoolean()) {
-          return new LGoto(instr->FirstSuccessor()->block_id());
-        } else {
-          return new LGoto(instr->SecondSuccessor()->block_id());
-        }
-      }
-      Abort("Undefined compare before branch");
-      return NULL;
+      ASSERT(left->representation().IsTagged());
+      ASSERT(right->representation().IsTagged());
+      bool reversed = op == Token::GT || op == Token::LTE;
+      LOperand* left_operand = UseFixed(left, reversed ? eax : edx);
+      LOperand* right_operand = UseFixed(right, reversed ? edx : eax);
+      LCmpTAndBranch* result = new LCmpTAndBranch(left_operand, right_operand);
+      return MarkAsCall(result, instr);
     }
+  } else if (v->IsIsSmi()) {
+    HIsSmi* compare = HIsSmi::cast(v);
+    ASSERT(compare->value()->representation().IsTagged());
+    return new LIsSmiAndBranch(Use(compare->value()));
+  } else if (v->IsIsUndetectable()) {
+    HIsUndetectable* compare = HIsUndetectable::cast(v);
+    ASSERT(compare->value()->representation().IsTagged());
+    return new LIsUndetectableAndBranch(UseRegisterAtStart(compare->value()),
+                                        TempRegister());
+  } else if (v->IsHasInstanceType()) {
+    HHasInstanceType* compare = HHasInstanceType::cast(v);
+    ASSERT(compare->value()->representation().IsTagged());
+    return new LHasInstanceTypeAndBranch(UseRegisterAtStart(compare->value()),
+                                         TempRegister());
+  } else if (v->IsHasCachedArrayIndex()) {
+    HHasCachedArrayIndex* compare = HHasCachedArrayIndex::cast(v);
+    ASSERT(compare->value()->representation().IsTagged());
+    return new LHasCachedArrayIndexAndBranch(
+        UseRegisterAtStart(compare->value()));
+  } else if (v->IsIsNull()) {
+    HIsNull* compare = HIsNull::cast(v);
+    ASSERT(compare->value()->representation().IsTagged());
+    // We only need a temp register for non-strict compare.
+    LOperand* temp = compare->is_strict() ? NULL : TempRegister();
+    return new LIsNullAndBranch(UseRegisterAtStart(compare->value()), temp);
+  } else if (v->IsIsObject()) {
+    HIsObject* compare = HIsObject::cast(v);
+    ASSERT(compare->value()->representation().IsTagged());
+    LOperand* temp1 = TempRegister();
+    LOperand* temp2 = TempRegister();
+    return new LIsObjectAndBranch(UseRegisterAtStart(compare->value()),
+                                  temp1,
+                                  temp2);
+  } else if (v->IsCompareJSObjectEq()) {
+    HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
+    return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
+                                       UseRegisterAtStart(compare->right()));
+  } else if (v->IsCompareSymbolEq()) {
+    HCompareSymbolEq* compare = HCompareSymbolEq::cast(v);
+    return new LCmpSymbolEqAndBranch(UseRegisterAtStart(compare->left()),
+                                     UseRegisterAtStart(compare->right()));
+  } else if (v->IsInstanceOf()) {
+    HInstanceOf* instance_of = HInstanceOf::cast(v);
+    LOperand* left = UseFixed(instance_of->left(), InstanceofStub::left());
+    LOperand* right = UseFixed(instance_of->right(), InstanceofStub::right());
+    LOperand* context = UseFixed(instance_of->context(), esi);
+    LInstanceOfAndBranch* result =
+        new LInstanceOfAndBranch(context, left, right);
+    return MarkAsCall(result, instr);
+  } else if (v->IsTypeofIs()) {
+    HTypeofIs* typeof_is = HTypeofIs::cast(v);
+    return new LTypeofIsAndBranch(UseTempRegister(typeof_is->value()));
+  } else if (v->IsIsConstructCall()) {
+    return new LIsConstructCallAndBranch(TempRegister());
+  } else if (v->IsConstant()) {
+    HBasicBlock* successor = HConstant::cast(v)->ToBoolean()
+        ? instr->FirstSuccessor()
+        : instr->SecondSuccessor();
+    return new LGoto(successor->block_id());
+  } else {
+    Abort("Undefined compare before branch");
+    return NULL;
   }
-  return new LBranch(UseRegisterAtStart(v));
 }
 
 
@@ -2016,7 +2002,6 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
 
   LOperand* external_pointer = UseRegister(instr->external_pointer());
   LOperand* key = UseRegisterOrConstant(instr->key());
-  LOperand* temp = NULL;
   LOperand* val = NULL;
   if (array_type == kExternalByteArray ||
       array_type == kExternalUnsignedByteArray) {
@@ -2028,8 +2013,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
 
   return new LStoreKeyedSpecializedArrayElement(external_pointer,
                                                 key,
-                                                val,
-                                                temp);
+                                                val);
 }
 
 

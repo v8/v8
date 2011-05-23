@@ -936,9 +936,9 @@ int TypeSwitch::match(v8::Handle<Value> value) {
 }
 
 
-#define SET_FIELD_WRAPPED(obj, setter, cdata) do {  \
-    i::Handle<i::Object> proxy = FromCData(cdata);  \
-    (obj)->setter(*proxy);                          \
+#define SET_FIELD_WRAPPED(obj, setter, cdata) do {    \
+    i::Handle<i::Object> foreign = FromCData(cdata);  \
+    (obj)->setter(*foreign);                          \
   } while (false)
 
 
@@ -2058,7 +2058,7 @@ bool Value::IsExternal() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsExternal()")) {
     return false;
   }
-  return Utils::OpenHandle(this)->IsProxy();
+  return Utils::OpenHandle(this)->IsForeign();
 }
 
 
@@ -2219,7 +2219,7 @@ Local<Integer> Value::ToInteger() const {
 void External::CheckCast(v8::Value* that) {
   if (IsDeadCheck(i::Isolate::Current(), "v8::External::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  ApiCheck(obj->IsProxy(),
+  ApiCheck(obj->IsForeign(),
            "v8::External::Cast()",
            "Could not convert to external");
 }
@@ -3729,11 +3729,11 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
     Utils::OpenHandle(this)->SetInternalField(index, EncodeAsSmi(value));
   } else {
     HandleScope scope;
-    i::Handle<i::Proxy> proxy =
-        isolate->factory()->NewProxy(
+    i::Handle<i::Foreign> foreign =
+        isolate->factory()->NewForeign(
             reinterpret_cast<i::Address>(value), i::TENURED);
-    if (!proxy.is_null())
-        Utils::OpenHandle(this)->SetInternalField(index, *proxy);
+    if (!foreign.is_null())
+        Utils::OpenHandle(this)->SetInternalField(index, *foreign);
   }
   ASSERT_EQ(value, GetPointerFromInternalField(index));
 }
@@ -4069,11 +4069,11 @@ bool FunctionTemplate::HasInstance(v8::Handle<v8::Value> value) {
 
 
 static Local<External> ExternalNewImpl(void* data) {
-  return Utils::ToLocal(FACTORY->NewProxy(static_cast<i::Address>(data)));
+  return Utils::ToLocal(FACTORY->NewForeign(static_cast<i::Address>(data)));
 }
 
 static void* ExternalValueImpl(i::Handle<i::Object> obj) {
-  return reinterpret_cast<void*>(i::Proxy::cast(*obj)->proxy());
+  return reinterpret_cast<void*>(i::Foreign::cast(*obj)->address());
 }
 
 
@@ -4098,8 +4098,8 @@ void* v8::Object::SlowGetPointerFromInternalField(int index) {
   i::Object* value = obj->GetInternalField(index);
   if (value->IsSmi()) {
     return i::Internals::GetExternalPointerFromSmi(value);
-  } else if (value->IsProxy()) {
-    return reinterpret_cast<void*>(i::Proxy::cast(value)->proxy());
+  } else if (value->IsForeign()) {
+    return reinterpret_cast<void*>(i::Foreign::cast(value)->address());
   } else {
     return NULL;
   }
@@ -4112,7 +4112,7 @@ void* v8::External::FullUnwrap(v8::Handle<v8::Value> wrapper) {
   void* result;
   if (obj->IsSmi()) {
     result = i::Internals::GetExternalPointerFromSmi(*obj);
-  } else if (obj->IsProxy()) {
+  } else if (obj->IsForeign()) {
     result = ExternalValueImpl(obj);
   } else {
     result = NULL;
@@ -4558,7 +4558,7 @@ bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
   i::HandleScope scope(isolate);
   NeanderArray listeners(isolate->factory()->message_listeners());
   NeanderObject obj(2);
-  obj.set(0, *isolate->factory()->NewProxy(FUNCTION_ADDR(that)));
+  obj.set(0, *isolate->factory()->NewForeign(FUNCTION_ADDR(that)));
   obj.set(1, data.IsEmpty() ?
              isolate->heap()->undefined_value() :
              *Utils::OpenHandle(*data));
@@ -4578,8 +4578,8 @@ void V8::RemoveMessageListeners(MessageCallback that) {
     if (listeners.get(i)->IsUndefined()) continue;  // skip deleted ones
 
     NeanderObject listener(i::JSObject::cast(listeners.get(i)));
-    i::Handle<i::Proxy> callback_obj(i::Proxy::cast(listener.get(0)));
-    if (callback_obj->proxy() == FUNCTION_ADDR(that)) {
+    i::Handle<i::Foreign> callback_obj(i::Foreign::cast(listener.get(0)));
+    if (callback_obj->address() == FUNCTION_ADDR(that)) {
       listeners.set(i, isolate->heap()->undefined_value());
     }
   }
@@ -4870,6 +4870,17 @@ void Isolate::Exit() {
 }
 
 
+void Isolate::SetData(void* data) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetData(data);
+}
+
+void* Isolate::GetData() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->GetData();
+}
+
+
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
   i::Isolate* isolate = i::Isolate::Current();
@@ -5038,11 +5049,12 @@ bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
   isolate->set_debug_event_callback(that);
 
   i::HandleScope scope(isolate);
-  i::Handle<i::Object> proxy = isolate->factory()->undefined_value();
+  i::Handle<i::Object> foreign = isolate->factory()->undefined_value();
   if (that != NULL) {
-    proxy = isolate->factory()->NewProxy(FUNCTION_ADDR(EventCallbackWrapper));
+    foreign =
+        isolate->factory()->NewForeign(FUNCTION_ADDR(EventCallbackWrapper));
   }
-  isolate->debugger()->SetEventListener(proxy, Utils::OpenHandle(*data));
+  isolate->debugger()->SetEventListener(foreign, Utils::OpenHandle(*data));
   return true;
 }
 
@@ -5053,12 +5065,11 @@ bool Debug::SetDebugEventListener2(EventCallback2 that, Handle<Value> data) {
   ON_BAILOUT(isolate, "v8::Debug::SetDebugEventListener2()", return false);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  i::Handle<i::Object> proxy = isolate->factory()->undefined_value();
+  i::Handle<i::Object> foreign = isolate->factory()->undefined_value();
   if (that != NULL) {
-    proxy = isolate->factory()->NewProxy(FUNCTION_ADDR(that));
+    foreign = isolate->factory()->NewForeign(FUNCTION_ADDR(that));
   }
-  isolate->debugger()->SetEventListener(proxy,
-                                                      Utils::OpenHandle(*data));
+  isolate->debugger()->SetEventListener(foreign, Utils::OpenHandle(*data));
   return true;
 }
 

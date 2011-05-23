@@ -1813,16 +1813,14 @@ class LStoreKeyedFastElement: public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LStoreKeyedSpecializedArrayElement: public LTemplateInstruction<0, 3, 1> {
+class LStoreKeyedSpecializedArrayElement: public LTemplateInstruction<0, 3, 0> {
  public:
   LStoreKeyedSpecializedArrayElement(LOperand* external_pointer,
                                      LOperand* key,
-                                     LOperand* val,
-                                     LOperand* temp) {
+                                     LOperand* val) {
     inputs_[0] = external_pointer;
     inputs_[1] = key;
     inputs_[2] = val;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement,

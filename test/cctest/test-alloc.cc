@@ -139,11 +139,11 @@ TEST(StressJS) {
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map());
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
-  Handle<Proxy> proxy = FACTORY->NewProxy(&kDescriptor);
-  instance_descriptors = FACTORY->CopyAppendProxyDescriptor(
+  Handle<Foreign> foreign = FACTORY->NewForeign(&kDescriptor);
+  instance_descriptors = FACTORY->CopyAppendForeignDescriptor(
       instance_descriptors,
       FACTORY->NewStringFromAscii(Vector<const char>("get", 3)),
-      proxy,
+      foreign,
       static_cast<PropertyAttributes>(0));
   map->set_instance_descriptors(*instance_descriptors);
   // Add the Foo constructor the global object.

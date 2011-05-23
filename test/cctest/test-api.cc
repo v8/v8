@@ -14431,8 +14431,6 @@ void CheckCodeGenerationAllowed() {
   CHECK_EQ(42, result->Int32Value());
   result = CompileRun("(function(e) { return e('42'); })(eval)");
   CHECK_EQ(42, result->Int32Value());
-  result = CompileRun("execScript('42')");
-  CHECK(!result.IsEmpty());
   result = CompileRun("var f = new Function('return 42'); f()");
   CHECK_EQ(42, result->Int32Value());
 }
@@ -14447,11 +14445,6 @@ void CheckCodeGenerationDisallowed() {
   try_catch.Reset();
 
   result = CompileRun("(function(e) { return e('42'); })(eval)");
-  CHECK(result.IsEmpty());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
-
-  result = CompileRun("execScript('42')");
   CHECK(result.IsEmpty());
   CHECK(try_catch.HasCaught());
   try_catch.Reset();
@@ -14478,10 +14471,10 @@ THREADED_TEST(AllowCodeGenFromStrings) {
   v8::HandleScope scope;
   LocalContext context;
 
-  // eval, execScript and the Function constructor allowed by default.
+  // eval and the Function constructor allowed by default.
   CheckCodeGenerationAllowed();
 
-  // Disallow eval, execScript and the Function constructor.
+  // Disallow eval and the Function constructor.
   context->AllowCodeGenerationFromStrings(false);
   CheckCodeGenerationDisallowed();
 

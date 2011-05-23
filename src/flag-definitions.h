@@ -287,10 +287,9 @@ DEFINE_bool(native_code_counters, false,
 DEFINE_bool(always_compact, false, "Perform compaction on every full GC")
 DEFINE_bool(never_compact, false,
             "Never perform compaction on full GC - testing only")
-DEFINE_bool(cleanup_ics_at_gc, true,
-            "Flush inline caches prior to mark compact collection.")
-DEFINE_bool(cleanup_caches_in_maps_at_gc, true,
-            "Flush code caches in maps during mark compact cycle.")
+DEFINE_bool(cleanup_code_caches_at_gc, true,
+            "Flush inline caches prior to mark compact collection and "
+            "flush code caches in maps during mark compact cycle.")
 DEFINE_int(random_seed, 0,
            "Default seed for initializing random generator "
            "(0, the default, means to use system random).")

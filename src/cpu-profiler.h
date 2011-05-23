@@ -134,8 +134,8 @@ class TickSampleEventRecord BASE_EMBEDDED {
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public Thread {
  public:
-  explicit ProfilerEventsProcessor(Isolate* isolate,
-                                   ProfileGenerator* generator);
+  ProfilerEventsProcessor(Isolate* isolate,
+                          ProfileGenerator* generator);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.

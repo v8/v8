@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1005,6 +1005,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
+    name_buffer_->AppendBytes(ComputeMarker(code));
     name_buffer_->AppendString(name);
   }
   if (FLAG_ll_prof) {
@@ -1047,6 +1048,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
+    name_buffer_->AppendBytes(ComputeMarker(code));
     name_buffer_->AppendString(shared->DebugName());
     name_buffer_->AppendByte(' ');
     name_buffer_->AppendString(source);
@@ -1620,10 +1622,6 @@ void Logger::LogCodeObject(Object* object) {
         description = "A keyed load IC from the snapshot";
         tag = Logger::KEYED_LOAD_IC_TAG;
         break;
-      case Code::KEYED_EXTERNAL_ARRAY_LOAD_IC:
-        description = "A keyed external array load IC from the snapshot";
-        tag = Logger::KEYED_EXTERNAL_ARRAY_LOAD_IC_TAG;
-        break;
       case Code::LOAD_IC:
         description = "A load IC from the snapshot";
         tag = Logger::LOAD_IC_TAG;
@@ -1635,10 +1633,6 @@ void Logger::LogCodeObject(Object* object) {
       case Code::KEYED_STORE_IC:
         description = "A keyed store IC from the snapshot";
         tag = Logger::KEYED_STORE_IC_TAG;
-        break;
-      case Code::KEYED_EXTERNAL_ARRAY_STORE_IC:
-        description = "A keyed external array store IC from the snapshot";
-        tag = Logger::KEYED_EXTERNAL_ARRAY_STORE_IC_TAG;
         break;
       case Code::CALL_IC:
         description = "A call IC from the snapshot";

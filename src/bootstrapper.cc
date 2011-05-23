@@ -199,6 +199,7 @@ class Genesis BASE_EMBEDDED {
   // Installs the contents of the native .js files on the global objects.
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
+  void InstallExperimentalNativeFunctions();
   bool InstallNatives();
   bool InstallExperimentalNatives();
   void InstallBuiltinFunctionIds();
@@ -362,23 +363,24 @@ Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   {  // Add length.
-    Handle<Proxy> proxy = factory()->NewProxy(&Accessors::FunctionLength);
-    CallbacksDescriptor d(*factory()->length_symbol(), *proxy, attributes);
+    Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionLength);
+    CallbacksDescriptor d(*factory()->length_symbol(), *foreign, attributes);
     descriptors->Set(0, &d);
   }
   {  // Add name.
-    Handle<Proxy> proxy = factory()->NewProxy(&Accessors::FunctionName);
-    CallbacksDescriptor d(*factory()->name_symbol(), *proxy, attributes);
+    Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionName);
+    CallbacksDescriptor d(*factory()->name_symbol(), *foreign, attributes);
     descriptors->Set(1, &d);
   }
   {  // Add arguments.
-    Handle<Proxy> proxy = factory()->NewProxy(&Accessors::FunctionArguments);
-    CallbacksDescriptor d(*factory()->arguments_symbol(), *proxy, attributes);
+    Handle<Foreign> foreign =
+        factory()->NewForeign(&Accessors::FunctionArguments);
+    CallbacksDescriptor d(*factory()->arguments_symbol(), *foreign, attributes);
     descriptors->Set(2, &d);
   }
   {  // Add caller.
-    Handle<Proxy> proxy = factory()->NewProxy(&Accessors::FunctionCaller);
-    CallbacksDescriptor d(*factory()->caller_symbol(), *proxy, attributes);
+    Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionCaller);
+    CallbacksDescriptor d(*factory()->caller_symbol(), *foreign, attributes);
     descriptors->Set(3, &d);
   }
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
@@ -386,8 +388,9 @@ Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
     if (prototypeMode == ADD_WRITEABLE_PROTOTYPE) {
       attributes = static_cast<PropertyAttributes>(attributes & ~READ_ONLY);
     }
-    Handle<Proxy> proxy = factory()->NewProxy(&Accessors::FunctionPrototype);
-    CallbacksDescriptor d(*factory()->prototype_symbol(), *proxy, attributes);
+    Handle<Foreign> foreign =
+        factory()->NewForeign(&Accessors::FunctionPrototype);
+    CallbacksDescriptor d(*factory()->prototype_symbol(), *foreign, attributes);
     descriptors->Set(4, &d);
   }
   descriptors->Sort();
@@ -509,13 +512,13 @@ Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
       DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   {  // length
-    Handle<Proxy> proxy = factory()->NewProxy(&Accessors::FunctionLength);
-    CallbacksDescriptor d(*factory()->length_symbol(), *proxy, attributes);
+    Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionLength);
+    CallbacksDescriptor d(*factory()->length_symbol(), *foreign, attributes);
     descriptors->Set(0, &d);
   }
   {  // name
-    Handle<Proxy> proxy = factory()->NewProxy(&Accessors::FunctionName);
-    CallbacksDescriptor d(*factory()->name_symbol(), *proxy, attributes);
+    Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionName);
+    CallbacksDescriptor d(*factory()->name_symbol(), *foreign, attributes);
     descriptors->Set(1, &d);
   }
   {  // arguments
@@ -534,8 +537,9 @@ Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
     if (prototypeMode == ADD_WRITEABLE_PROTOTYPE) {
       attributes = static_cast<PropertyAttributes>(attributes & ~READ_ONLY);
     }
-    Handle<Proxy> proxy = factory()->NewProxy(&Accessors::FunctionPrototype);
-    CallbacksDescriptor d(*factory()->prototype_symbol(), *proxy, attributes);
+    Handle<Foreign> foreign =
+        factory()->NewForeign(&Accessors::FunctionPrototype);
+    CallbacksDescriptor d(*factory()->prototype_symbol(), *foreign, attributes);
     descriptors->Set(4, &d);
   }
 
@@ -846,10 +850,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // is 1.
     array_function->shared()->set_length(1);
     Handle<DescriptorArray> array_descriptors =
-        factory->CopyAppendProxyDescriptor(
+        factory->CopyAppendForeignDescriptor(
             factory->empty_descriptor_array(),
             factory->length_symbol(),
-            factory->NewProxy(&Accessors::ArrayLength),
+            factory->NewForeign(&Accessors::ArrayLength),
             static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE));
 
     // Cache the fast JavaScript array map
@@ -889,10 +893,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     global_context()->set_string_function(*string_fun);
     // Add 'length' property to strings.
     Handle<DescriptorArray> string_descriptors =
-        factory->CopyAppendProxyDescriptor(
+        factory->CopyAppendForeignDescriptor(
             factory->empty_descriptor_array(),
             factory->length_symbol(),
-            factory->NewProxy(&Accessors::StringLength),
+            factory->NewForeign(&Accessors::StringLength),
             static_cast<PropertyAttributes>(DONT_ENUM |
                                             DONT_DELETE |
                                             READ_ONLY));
@@ -1285,6 +1289,12 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSObject, "functionCache", function_cache);
 }
 
+void Genesis::InstallExperimentalNativeFunctions() {
+  if (FLAG_harmony_proxies) {
+    INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
+  }
+}
+
 #undef INSTALL_NATIVE
 
 
@@ -1351,104 +1361,108 @@ bool Genesis::InstallNatives() {
     // Add 'source' and 'data' property to scripts.
     PropertyAttributes common_attributes =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-    Handle<Proxy> proxy_source = factory()->NewProxy(&Accessors::ScriptSource);
+    Handle<Foreign> foreign_source =
+        factory()->NewForeign(&Accessors::ScriptSource);
     Handle<DescriptorArray> script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             factory()->empty_descriptor_array(),
             factory()->LookupAsciiSymbol("source"),
-            proxy_source,
+            foreign_source,
             common_attributes);
-    Handle<Proxy> proxy_name = factory()->NewProxy(&Accessors::ScriptName);
+    Handle<Foreign> foreign_name =
+        factory()->NewForeign(&Accessors::ScriptName);
     script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             script_descriptors,
             factory()->LookupAsciiSymbol("name"),
-            proxy_name,
+            foreign_name,
             common_attributes);
-    Handle<Proxy> proxy_id = factory()->NewProxy(&Accessors::ScriptId);
+    Handle<Foreign> foreign_id = factory()->NewForeign(&Accessors::ScriptId);
     script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             script_descriptors,
             factory()->LookupAsciiSymbol("id"),
-            proxy_id,
+            foreign_id,
             common_attributes);
-    Handle<Proxy> proxy_line_offset =
-        factory()->NewProxy(&Accessors::ScriptLineOffset);
+    Handle<Foreign> foreign_line_offset =
+        factory()->NewForeign(&Accessors::ScriptLineOffset);
     script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             script_descriptors,
             factory()->LookupAsciiSymbol("line_offset"),
-            proxy_line_offset,
+            foreign_line_offset,
             common_attributes);
-    Handle<Proxy> proxy_column_offset =
-        factory()->NewProxy(&Accessors::ScriptColumnOffset);
+    Handle<Foreign> foreign_column_offset =
+        factory()->NewForeign(&Accessors::ScriptColumnOffset);
     script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             script_descriptors,
             factory()->LookupAsciiSymbol("column_offset"),
-            proxy_column_offset,
+            foreign_column_offset,
             common_attributes);
-    Handle<Proxy> proxy_data = factory()->NewProxy(&Accessors::ScriptData);
+    Handle<Foreign> foreign_data =
+        factory()->NewForeign(&Accessors::ScriptData);
     script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             script_descriptors,
             factory()->LookupAsciiSymbol("data"),
-            proxy_data,
+            foreign_data,
             common_attributes);
-    Handle<Proxy> proxy_type = factory()->NewProxy(&Accessors::ScriptType);
+    Handle<Foreign> foreign_type =
+        factory()->NewForeign(&Accessors::ScriptType);
     script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             script_descriptors,
             factory()->LookupAsciiSymbol("type"),
-            proxy_type,
+            foreign_type,
             common_attributes);
-    Handle<Proxy> proxy_compilation_type =
-        factory()->NewProxy(&Accessors::ScriptCompilationType);
+    Handle<Foreign> foreign_compilation_type =
+        factory()->NewForeign(&Accessors::ScriptCompilationType);
     script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             script_descriptors,
             factory()->LookupAsciiSymbol("compilation_type"),
-            proxy_compilation_type,
+            foreign_compilation_type,
             common_attributes);
-    Handle<Proxy> proxy_line_ends =
-        factory()->NewProxy(&Accessors::ScriptLineEnds);
+    Handle<Foreign> foreign_line_ends =
+        factory()->NewForeign(&Accessors::ScriptLineEnds);
     script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             script_descriptors,
             factory()->LookupAsciiSymbol("line_ends"),
-            proxy_line_ends,
+            foreign_line_ends,
             common_attributes);
-    Handle<Proxy> proxy_context_data =
-        factory()->NewProxy(&Accessors::ScriptContextData);
+    Handle<Foreign> foreign_context_data =
+        factory()->NewForeign(&Accessors::ScriptContextData);
     script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             script_descriptors,
             factory()->LookupAsciiSymbol("context_data"),
-            proxy_context_data,
+            foreign_context_data,
             common_attributes);
-    Handle<Proxy> proxy_eval_from_script =
-        factory()->NewProxy(&Accessors::ScriptEvalFromScript);
+    Handle<Foreign> foreign_eval_from_script =
+        factory()->NewForeign(&Accessors::ScriptEvalFromScript);
     script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             script_descriptors,
             factory()->LookupAsciiSymbol("eval_from_script"),
-            proxy_eval_from_script,
+            foreign_eval_from_script,
             common_attributes);
-    Handle<Proxy> proxy_eval_from_script_position =
-        factory()->NewProxy(&Accessors::ScriptEvalFromScriptPosition);
+    Handle<Foreign> foreign_eval_from_script_position =
+        factory()->NewForeign(&Accessors::ScriptEvalFromScriptPosition);
     script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             script_descriptors,
             factory()->LookupAsciiSymbol("eval_from_script_position"),
-            proxy_eval_from_script_position,
+            foreign_eval_from_script_position,
             common_attributes);
-    Handle<Proxy> proxy_eval_from_function_name =
-        factory()->NewProxy(&Accessors::ScriptEvalFromFunctionName);
+    Handle<Foreign> foreign_eval_from_function_name =
+        factory()->NewForeign(&Accessors::ScriptEvalFromFunctionName);
     script_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             script_descriptors,
             factory()->LookupAsciiSymbol("eval_from_function_name"),
-            proxy_eval_from_function_name,
+            foreign_eval_from_function_name,
             common_attributes);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
@@ -1501,10 +1515,10 @@ bool Genesis::InstallNatives() {
 
     // Make "length" magic on instances.
     Handle<DescriptorArray> array_descriptors =
-        factory()->CopyAppendProxyDescriptor(
+        factory()->CopyAppendForeignDescriptor(
             factory()->empty_descriptor_array(),
             factory()->length_symbol(),
-            factory()->NewProxy(&Accessors::ArrayLength),
+            factory()->NewForeign(&Accessors::ArrayLength),
             static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE));
 
     array_function->initial_map()->set_instance_descriptors(
@@ -1647,6 +1661,9 @@ bool Genesis::InstallExperimentalNatives() {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
   }
+
+  InstallExperimentalNativeFunctions();
+
   return true;
 }
 

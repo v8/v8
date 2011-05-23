@@ -548,25 +548,10 @@ void FullCodeGenerator::TestContext::Plug(bool flag) const {
 void FullCodeGenerator::DoTest(Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  // Emit the inlined tests assumed by the stub.
-  __ cmp(result_register(), isolate()->factory()->undefined_value());
-  __ j(equal, if_false);
-  __ cmp(result_register(), isolate()->factory()->true_value());
-  __ j(equal, if_true);
-  __ cmp(result_register(), isolate()->factory()->false_value());
-  __ j(equal, if_false);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ test(result_register(), Operand(result_register()));
-  __ j(zero, if_false);
-  __ test(result_register(), Immediate(kSmiTagMask));
-  __ j(zero, if_true);
-
-  // Call the ToBoolean stub for all other cases.
   ToBooleanStub stub;
   __ push(result_register());
   __ CallStub(&stub);
   __ test(eax, Operand(eax));
-
   // The stub returns nonzero for true.
   Split(not_zero, if_true, if_false, fall_through);
 }

@@ -2255,6 +2255,7 @@ MaybeObject* CallStubCompiler::CompileFastApiCall(
   // repatch it to global receiver.
   if (object->IsGlobalObject()) return heap->undefined_value();
   if (cell != NULL) return heap->undefined_value();
+  if (!object->IsJSObject()) return heap()->undefined_value();
   int depth = optimization.GetPrototypeDepthOfExpectedType(
             JSObject::cast(object), holder);
   if (depth == kInvalidProtoDepth) return heap->undefined_value();

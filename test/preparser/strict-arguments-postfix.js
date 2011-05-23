@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,10 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var x  = 0;
-execScript('x = 1', 'javascript');
-assertEquals(1, x);
+// In strict mode, it's illegal to assign to "arguments" as a lhs variable.
 
-execScript('x = 2', 'JavaScript');
-assertEquals(2, x);
-
+function test() {
+  "use strict";
+  arguments++;
+}

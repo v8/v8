@@ -252,7 +252,8 @@ void CheckException(v8::PreParserData* data,
     }
   } else if (reader.throws()) {
     const char* message = reader.message();
-    fail(data, "Throws unexpectedly with message: %s\n", message);
+    fail(data, "Throws unexpectedly with message: %s at location %d-%d\n",
+         message, reader.beg_pos(), reader.end_pos());
   }
 }
 

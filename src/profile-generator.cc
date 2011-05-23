@@ -1736,7 +1736,7 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
   switch (object->map()->instance_type()) {
     case MAP_TYPE: return "system / Map";
     case JS_GLOBAL_PROPERTY_CELL_TYPE: return "system / JSGlobalPropertyCell";
-    case PROXY_TYPE: return "system / Proxy";
+    case FOREIGN_TYPE: return "system / Foreign";
     case ODDBALL_TYPE: return "system / Oddball";
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
     case NAME##_TYPE: return "system / "#Name;

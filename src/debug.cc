@@ -168,6 +168,7 @@ void BreakLocationIterator::Next() {
       Code* code = Code::GetCodeFromTargetAddress(target);
       if ((code->is_inline_cache_stub() &&
            !code->is_type_recording_binary_op_stub() &&
+           !code->is_type_recording_unary_op_stub() &&
            !code->is_compare_ic_stub()) ||
           RelocInfo::IsConstructCall(rmode())) {
         break_point_++;
@@ -2365,7 +2366,7 @@ void Debugger::CallEventCallback(v8::DebugEvent event,
                                  Handle<Object> exec_state,
                                  Handle<Object> event_data,
                                  v8::Debug::ClientData* client_data) {
-  if (event_listener_->IsProxy()) {
+  if (event_listener_->IsForeign()) {
     CallCEventCallback(event, exec_state, event_data, client_data);
   } else {
     CallJSEventCallback(event, exec_state, event_data);
@@ -2377,9 +2378,9 @@ void Debugger::CallCEventCallback(v8::DebugEvent event,
                                   Handle<Object> exec_state,
                                   Handle<Object> event_data,
                                   v8::Debug::ClientData* client_data) {
-  Handle<Proxy> callback_obj(Handle<Proxy>::cast(event_listener_));
+  Handle<Foreign> callback_obj(Handle<Foreign>::cast(event_listener_));
   v8::Debug::EventCallback2 callback =
-      FUNCTION_CAST<v8::Debug::EventCallback2>(callback_obj->proxy());
+      FUNCTION_CAST<v8::Debug::EventCallback2>(callback_obj->address());
   EventDetailsImpl event_details(
       event,
       Handle<JSObject>::cast(exec_state),

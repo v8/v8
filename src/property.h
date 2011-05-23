@@ -157,10 +157,10 @@ class ConstantFunctionDescriptor: public Descriptor {
 class CallbacksDescriptor:  public Descriptor {
  public:
   CallbacksDescriptor(String* key,
-                      Object* proxy,
+                      Object* foreign,
                       PropertyAttributes attributes,
                       int index = 0)
-      : Descriptor(key, proxy, attributes, CALLBACKS, index) {}
+      : Descriptor(key, foreign, attributes, CALLBACKS, index) {}
 };
 
 

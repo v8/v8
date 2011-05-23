@@ -544,7 +544,7 @@ Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info) {
 
 
 // Wrappers for scripts are kept alive and cached in weak global
-// handles referred from proxy objects held by the scripts as long as
+// handles referred from foreign objects held by the scripts as long as
 // they are used. When they are not used anymore, the garbage
 // collector will call the weak callback on the global handle
 // associated with the wrapper and get rid of both the wrapper and the
@@ -557,9 +557,9 @@ static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
 #endif
   Handle<Object> cache = Utils::OpenHandle(*handle);
   JSValue* wrapper = JSValue::cast(*cache);
-  Proxy* proxy = Script::cast(wrapper->value())->wrapper();
-  ASSERT(proxy->proxy() == reinterpret_cast<Address>(cache.location()));
-  proxy->set_proxy(0);
+  Foreign* foreign = Script::cast(wrapper->value())->wrapper();
+  ASSERT(foreign->address() == reinterpret_cast<Address>(cache.location()));
+  foreign->set_address(0);
   Isolate* isolate = Isolate::Current();
   isolate->global_handles()->Destroy(cache.location());
   isolate->counters()->script_wrappers()->Decrement();
@@ -567,10 +567,10 @@ static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
 
 
 Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
-  if (script->wrapper()->proxy() != NULL) {
+  if (script->wrapper()->address() != NULL) {
     // Return the script wrapper directly from the cache.
     return Handle<JSValue>(
-        reinterpret_cast<JSValue**>(script->wrapper()->proxy()));
+        reinterpret_cast<JSValue**>(script->wrapper()->address()));
   }
   Isolate* isolate = Isolate::Current();
   // Construct a new script wrapper.
@@ -586,7 +586,7 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   Handle<Object> handle = isolate->global_handles()->Create(*result);
   isolate->global_handles()->MakeWeak(handle.location(), NULL,
                                       &ClearWrapperCache);
-  script->wrapper()->set_proxy(reinterpret_cast<Address>(handle.location()));
+  script->wrapper()->set_address(reinterpret_cast<Address>(handle.location()));
   return result;
 }
 

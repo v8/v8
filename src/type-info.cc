@@ -81,8 +81,9 @@ bool TypeFeedbackOracle::LoadIsMonomorphic(Property* expr) {
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
-    Handle<Code> code(Code::cast(*map_or_code));
-    return code->kind() == Code::KEYED_EXTERNAL_ARRAY_LOAD_IC &&
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
+    return code->is_keyed_load_stub() &&
+        code->ic_state() == MONOMORPHIC &&
         code->FindFirstMap() != NULL;
   }
   return false;
@@ -93,9 +94,9 @@ bool TypeFeedbackOracle::StoreIsMonomorphic(Expression* expr) {
   Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
-    Handle<Code> code(Code::cast(*map_or_code));
-    return code->kind() == Code::KEYED_EXTERNAL_ARRAY_STORE_IC &&
-        code->FindFirstMap() != NULL;
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
+    return code->is_keyed_store_stub() &&
+        code->ic_state() == MONOMORPHIC;
   }
   return false;
 }
@@ -109,25 +110,25 @@ bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
 
 Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
   ASSERT(LoadIsMonomorphic(expr));
-  Handle<Object> map_or_code(
-      Handle<HeapObject>::cast(GetInfo(expr->id())));
+  Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsCode()) {
-    Handle<Code> code(Code::cast(*map_or_code));
-    return Handle<Map>(code->FindFirstMap());
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
+    Map* first_map = code->FindFirstMap();
+    ASSERT(first_map != NULL);
+    return Handle<Map>(first_map);
   }
-  return Handle<Map>(Map::cast(*map_or_code));
+  return Handle<Map>::cast(map_or_code);
 }
 
 
 Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Expression* expr) {
   ASSERT(StoreIsMonomorphic(expr));
-  Handle<HeapObject> map_or_code(
-      Handle<HeapObject>::cast(GetInfo(expr->id())));
+  Handle<Object> map_or_code(GetInfo(expr->id()));
   if (map_or_code->IsCode()) {
-    Handle<Code> code(Code::cast(*map_or_code));
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
     return Handle<Map>(code->FindFirstMap());
   }
-  return Handle<Map>(Map::cast(*map_or_code));
+  return Handle<Map>::cast(map_or_code);
 }
 
 
@@ -445,8 +446,8 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
         kind == Code::COMPARE_IC) {
       SetInfo(id, target);
     } else if (state == MONOMORPHIC) {
-      if (kind == Code::KEYED_EXTERNAL_ARRAY_LOAD_IC ||
-          kind == Code::KEYED_EXTERNAL_ARRAY_STORE_IC) {
+      if (kind == Code::KEYED_LOAD_IC ||
+          kind == Code::KEYED_STORE_IC) {
         SetInfo(id, target);
       } else if (kind != Code::CALL_IC ||
                  target->check_type() == RECEIVER_MAP_CHECK) {
