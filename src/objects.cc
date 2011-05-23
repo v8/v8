@@ -2535,6 +2535,7 @@ bool NormalizedMapCache::CheckHit(Map* slow,
                                     fast->inobject_properties()) &&
     slow->instance_type() == fast->instance_type() &&
     slow->bit_field() == fast->bit_field() &&
+    slow->bit_field3() == fast->bit_field3() &&
     (slow->bit_field2() & ~(1<<Map::kIsShared)) == fast->bit_field2();
 }
 
@@ -2657,7 +2658,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
                                      instance_size_delta);
 
   set_map(new_map);
-  new_map->set_instance_descriptors(current_heap->empty_descriptor_array());
+  new_map->clear_instance_descriptors();
 
   set_properties(dictionary);
 
@@ -3647,8 +3648,7 @@ MaybeObject* Map::CopyDropDescriptors() {
   // pointing to the same transition which is bad because the garbage
   // collector relies on being able to reverse pointers from transitions
   // to maps.  If properties need to be retained use CopyDropTransitions.
-  Map::cast(result)->set_instance_descriptors(
-      heap->empty_descriptor_array());
+  Map::cast(result)->clear_instance_descriptors();
   // Please note instance_type and instance_size are set when allocated.
   Map::cast(result)->set_inobject_properties(inobject_properties());
   Map::cast(result)->set_unused_property_fields(unused_property_fields());
@@ -3670,6 +3670,7 @@ MaybeObject* Map::CopyDropDescriptors() {
   }
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
+  Map::cast(result)->set_bit_field3(bit_field3());
   Map::cast(result)->set_is_shared(false);
   Map::cast(result)->ClearCodeCache(heap);
   return result;
@@ -3698,6 +3699,7 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
 
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
+  Map::cast(result)->set_bit_field3(bit_field3());
 
   Map::cast(result)->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
 
@@ -3773,8 +3775,8 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
   Map* meta_map = heap()->meta_map();
   while (current != meta_map) {
     DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
-        *RawField(current, Map::kInstanceDescriptorsOffset));
-    if (d == heap()->empty_descriptor_array()) {
+        *RawField(current, Map::kInstanceDescriptorsOrBitField3Offset));
+    if (d->IsEmpty()) {
       Map* prev = current->map();
       current->set_map(meta_map);
       callback(current, data);
@@ -4245,6 +4247,7 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors) {
         heap->AllocateFixedArray(number_of_descriptors << 1);
     if (!maybe_array->ToObject(&array)) return maybe_array;
   }
+  result->set(kBitField3StorageIndex, Smi::FromInt(0));
   result->set(kContentArrayIndex, array);
   result->set(kEnumerationIndexIndex,
               Smi::FromInt(PropertyDetails::kInitialIndex));
@@ -5701,8 +5704,8 @@ void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
   // Live DescriptorArray objects will be marked, so we must use
   // low-level accessors to get and modify their data.
   DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
-      *RawField(this, Map::kInstanceDescriptorsOffset));
-  if (d == heap->raw_unchecked_empty_descriptor_array()) return;
+      *RawField(this, Map::kInstanceDescriptorsOrBitField3Offset));
+  if (d->IsEmpty()) return;
   Smi* NullDescriptorDetails =
     PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
   FixedArray* contents = reinterpret_cast<FixedArray*>(

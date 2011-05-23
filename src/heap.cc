@@ -1603,7 +1603,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_instance_size(instance_size);
   map->set_inobject_properties(0);
   map->set_pre_allocated_property_fields(0);
-  map->set_instance_descriptors(empty_descriptor_array());
+  map->init_instance_descriptors();
   map->set_code_cache(empty_fixed_array());
   map->set_prototype_transitions(empty_fixed_array());
   map->set_unused_property_fields(0);
@@ -1696,15 +1696,15 @@ bool Heap::CreateInitialMaps() {
   set_empty_descriptor_array(DescriptorArray::cast(obj));
 
   // Fix the instance_descriptors for the existing maps.
-  meta_map()->set_instance_descriptors(empty_descriptor_array());
+  meta_map()->init_instance_descriptors();
   meta_map()->set_code_cache(empty_fixed_array());
   meta_map()->set_prototype_transitions(empty_fixed_array());
 
-  fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
+  fixed_array_map()->init_instance_descriptors();
   fixed_array_map()->set_code_cache(empty_fixed_array());
   fixed_array_map()->set_prototype_transitions(empty_fixed_array());
 
-  oddball_map()->set_instance_descriptors(empty_descriptor_array());
+  oddball_map()->init_instance_descriptors();
   oddball_map()->set_code_cache(empty_fixed_array());
   oddball_map()->set_prototype_transitions(empty_fixed_array());
 
@@ -3307,7 +3307,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
 
   // Setup the global object as a normalized object.
   global->set_map(new_map);
-  global->map()->set_instance_descriptors(empty_descriptor_array());
+  global->map()->clear_instance_descriptors();
   global->set_properties(dictionary);
 
   // Make sure result is a global object with properties in dictionary.

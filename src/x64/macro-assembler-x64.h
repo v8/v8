@@ -782,6 +782,8 @@ class MacroAssembler: public Assembler {
                           Register result_reg,
                           Register temp_reg);
 
+  void LoadInstanceDescriptors(Register map, Register descriptors);
+
   // Abort execution if argument is not a number. Used in debug code.
   void AbortIfNotNumber(Register object);
 

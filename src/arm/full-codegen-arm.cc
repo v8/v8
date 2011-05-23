@@ -924,9 +924,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // check for an enum cache.  Leave the map in r2 for the subsequent
   // prototype load.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldr(r3, FieldMemOperand(r2, Map::kInstanceDescriptorsOffset));
-  __ cmp(r3, empty_descriptor_array_value);
-  __ b(eq, &call_runtime);
+  __ ldr(r3, FieldMemOperand(r2, Map::kInstanceDescriptorsOrBitField3Offset));
+  __ JumpIfSmi(r3, &call_runtime);
 
   // Check that there is an enum cache in the non-empty instance
   // descriptors (r3).  This is the case if the next enumeration
@@ -971,7 +970,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We got a map in register r0. Get the enumeration cache from it.
   __ bind(&use_cache);
-  __ ldr(r1, FieldMemOperand(r0, Map::kInstanceDescriptorsOffset));
+  __ LoadInstanceDescriptors(r0, r1);
   __ ldr(r1, FieldMemOperand(r1, DescriptorArray::kEnumerationIndexOffset));
   __ ldr(r2, FieldMemOperand(r1, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
@@ -2544,7 +2543,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // Look for valueOf symbol in the descriptor array, and indicate false if
   // found. The type is not checked, so if it is a transition it is a false
   // negative.
-  __ ldr(r4, FieldMemOperand(r1, Map::kInstanceDescriptorsOffset));
+  __ LoadInstanceDescriptors(r1, r4);
   __ ldr(r3, FieldMemOperand(r4, FixedArray::kLengthOffset));
   // r4: descriptor array
   // r3: length of descriptor array

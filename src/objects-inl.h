@@ -1674,9 +1674,21 @@ Object** FixedArray::data_start() {
 
 
 bool DescriptorArray::IsEmpty() {
-  ASSERT(this->length() > kFirstIndex ||
+  ASSERT(this->IsSmi() ||
+         this->length() > kFirstIndex ||
          this == HEAP->empty_descriptor_array());
-  return length() <= kFirstIndex;
+  return this->IsSmi() || length() <= kFirstIndex;
+}
+
+
+int DescriptorArray::bit_field3_storage() {
+  Object* storage = READ_FIELD(this, kBitField3StorageOffset);
+  return Smi::cast(storage)->value();
+}
+
+void DescriptorArray::set_bit_field3_storage(int value) {
+  ASSERT(!IsEmpty());
+  WRITE_FIELD(this, kBitField3StorageOffset, Smi::FromInt(value));
 }
 
 
@@ -2967,8 +2979,82 @@ MaybeObject* Map::GetSlowElementsMap() {
 }
 
 
-ACCESSORS(Map, instance_descriptors, DescriptorArray,
-          kInstanceDescriptorsOffset)
+DescriptorArray* Map::instance_descriptors() {
+  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBitField3Offset);
+  if (object->IsSmi()) {
+    return HEAP->empty_descriptor_array();
+  } else {
+    return DescriptorArray::cast(object);
+  }
+}
+
+
+void Map::init_instance_descriptors() {
+  WRITE_FIELD(this, kInstanceDescriptorsOrBitField3Offset, Smi::FromInt(0));
+}
+
+
+void Map::clear_instance_descriptors() {
+  Object* object = READ_FIELD(this,
+                              kInstanceDescriptorsOrBitField3Offset);
+  if (!object->IsSmi()) {
+    WRITE_FIELD(
+        this,
+        kInstanceDescriptorsOrBitField3Offset,
+        Smi::FromInt(DescriptorArray::cast(object)->bit_field3_storage()));
+  }
+}
+
+
+void Map::set_instance_descriptors(DescriptorArray* value,
+                                   WriteBarrierMode mode) {
+  Object* object = READ_FIELD(this,
+                              kInstanceDescriptorsOrBitField3Offset);
+  if (value == isolate()->heap()->empty_descriptor_array()) {
+    clear_instance_descriptors();
+    return;
+  } else {
+    if (object->IsSmi()) {
+      value->set_bit_field3_storage(Smi::cast(object)->value());
+    } else {
+      value->set_bit_field3_storage(
+          DescriptorArray::cast(object)->bit_field3_storage());
+    }
+  }
+  ASSERT(!is_shared());
+  WRITE_FIELD(this, kInstanceDescriptorsOrBitField3Offset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(),
+                            this,
+                            kInstanceDescriptorsOrBitField3Offset,
+                            mode);
+}
+
+
+int Map::bit_field3() {
+  Object* object = READ_FIELD(this,
+                              kInstanceDescriptorsOrBitField3Offset);
+  if (object->IsSmi()) {
+    return Smi::cast(object)->value();
+  } else {
+    return DescriptorArray::cast(object)->bit_field3_storage();
+  }
+}
+
+
+void Map::set_bit_field3(int value) {
+  ASSERT(Smi::IsValid(value));
+  Object* object = READ_FIELD(this,
+                              kInstanceDescriptorsOrBitField3Offset);
+  if (object->IsSmi()) {
+    WRITE_FIELD(this,
+                kInstanceDescriptorsOrBitField3Offset,
+                Smi::FromInt(value));
+  } else {
+    DescriptorArray::cast(object)->set_bit_field3_storage(value);
+  }
+}
+
+
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
 ACCESSORS(Map, prototype_transitions, FixedArray, kPrototypeTransitionsOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)

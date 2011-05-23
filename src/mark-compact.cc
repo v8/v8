@@ -1081,8 +1081,13 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
   FixedArray* prototype_transitions = map->unchecked_prototype_transitions();
   if (!prototype_transitions->IsMarked()) SetMark(prototype_transitions);
 
-  MarkDescriptorArray(reinterpret_cast<DescriptorArray*>(
-      *HeapObject::RawField(map, Map::kInstanceDescriptorsOffset)));
+  Object* raw_descriptor_array =
+      *HeapObject::RawField(map,
+                            Map::kInstanceDescriptorsOrBitField3Offset);
+  if (!raw_descriptor_array->IsSmi()) {
+    MarkDescriptorArray(
+        reinterpret_cast<DescriptorArray*>(raw_descriptor_array));
+  }
 
   // Mark the Object* fields of the Map.
   // Since the descriptor array has been marked already, it is fine

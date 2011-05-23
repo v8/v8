@@ -1974,6 +1974,17 @@ void MacroAssembler::Abort(const char* msg) {
 }
 
 
+void MacroAssembler::LoadInstanceDescriptors(Register map,
+                                             Register descriptors) {
+  mov(descriptors,
+      FieldOperand(map, Map::kInstanceDescriptorsOrBitField3Offset));
+  Label not_smi;
+  JumpIfNotSmi(descriptors, &not_smi);
+  mov(descriptors, isolate()->factory()->empty_descriptor_array());
+  bind(&not_smi);
+}
+
+
 void MacroAssembler::LoadPowerOf2(XMMRegister dst,
                                   Register scratch,
                                   int power) {

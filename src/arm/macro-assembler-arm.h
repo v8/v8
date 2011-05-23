@@ -1006,6 +1006,8 @@ class MacroAssembler: public Assembler {
                           DoubleRegister temp_double_reg);
 
 
+  void LoadInstanceDescriptors(Register map, Register descriptors);
+
  private:
   void CallCFunctionHelper(Register function,
                            ExternalReference function_reference,

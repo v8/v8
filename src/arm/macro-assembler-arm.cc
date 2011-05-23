@@ -3083,6 +3083,17 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 }
 
 
+void MacroAssembler::LoadInstanceDescriptors(Register map,
+                                             Register descriptors) {
+  ldr(descriptors,
+      FieldMemOperand(map, Map::kInstanceDescriptorsOrBitField3Offset));
+  Label not_smi;
+  JumpIfNotSmi(descriptors, &not_smi);
+  mov(descriptors, Operand(FACTORY->empty_descriptor_array()));
+  bind(&not_smi);
+}
+
+
 CodePatcher::CodePatcher(byte* address, int instructions)
     : address_(address),
       instructions_(instructions),

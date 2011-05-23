@@ -284,6 +284,8 @@ class MacroAssembler: public Assembler {
     j(not_zero, not_smi_label);
   }
 
+  void LoadInstanceDescriptors(Register map, Register descriptors);
+
   void LoadPowerOf2(XMMRegister dst, Register scratch, int power);
 
   // Abort execution if argument is not a number. Used in debug code.

@@ -2601,6 +2601,17 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
 }
 
 
+void MacroAssembler::LoadInstanceDescriptors(Register map,
+                                             Register descriptors) {
+  movq(descriptors, FieldOperand(map,
+                                 Map::kInstanceDescriptorsOrBitField3Offset));
+  Label not_smi;
+  JumpIfNotSmi(descriptors, &not_smi, Label::kNear);
+  Move(descriptors, isolate()->factory()->empty_descriptor_array());
+  bind(&not_smi);
+}
+
+
 void MacroAssembler::DispatchMap(Register obj,
                                  Handle<Map> map,
                                  Handle<Code> success,

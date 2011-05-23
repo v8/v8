@@ -1865,9 +1865,11 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     SetInternalReference(obj, entry,
                          "constructor", map->constructor(),
                          Map::kConstructorOffset);
-    SetInternalReference(obj, entry,
-                         "descriptors", map->instance_descriptors(),
-                         Map::kInstanceDescriptorsOffset);
+    if (!map->instance_descriptors()->IsEmpty()) {
+      SetInternalReference(obj, entry,
+                           "descriptors", map->instance_descriptors(),
+                           Map::kInstanceDescriptorsOrBitField3Offset);
+    }
     SetInternalReference(obj, entry,
                          "code_cache", map->code_cache(),
                          Map::kCodeCacheOffset);

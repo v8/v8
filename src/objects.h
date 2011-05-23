@@ -2039,16 +2039,22 @@ class FixedArray: public HeapObject {
 
 // DescriptorArrays are fixed arrays used to hold instance descriptors.
 // The format of the these objects is:
-//   [0]: point to a fixed array with (value, detail) pairs.
-//   [1]: next enumeration index (Smi), or pointer to small fixed array:
+// TODO(1399): It should be possible to make room for bit_field3 in the map
+//             without overloading the instance descriptors field in the map
+//             (and storing it in the DescriptorArray when the map has one).
+//   [0]: storage for bit_field3 for Map owning this object (Smi)
+//   [1]: point to a fixed array with (value, detail) pairs.
+//   [2]: next enumeration index (Smi), or pointer to small fixed array:
 //          [0]: next enumeration index (Smi)
 //          [1]: pointer to fixed array with enum cache
-//   [2]: first key
+//   [3]: first key
 //   [length() - 1]: last key
 //
 class DescriptorArray: public FixedArray {
  public:
-  // Is this the singleton empty_descriptor_array?
+  // Returns true for both shared empty_descriptor_array and for smis, which the
+  // map uses to encode additional bit fields when the descriptor array is not
+  // yet used.
   inline bool IsEmpty();
 
   // Returns the number of descriptors in the array.
@@ -2084,6 +2090,12 @@ class DescriptorArray: public FixedArray {
     FixedArray* bridge = FixedArray::cast(get(kEnumerationIndexIndex));
     return bridge->get(kEnumCacheBridgeCacheIndex);
   }
+
+  // TODO(1399): It should be possible to make room for bit_field3 in the map
+  //             without overloading the instance descriptors field in the map
+  //             (and storing it in the DescriptorArray when the map has one).
+  inline int bit_field3_storage();
+  inline void set_bit_field3_storage(int value);
 
   // Initialize or change the enum cache,
   // using the supplied storage for the small "bridge".
@@ -2163,9 +2175,10 @@ class DescriptorArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  static const int kContentArrayIndex = 0;
-  static const int kEnumerationIndexIndex = 1;
-  static const int kFirstIndex = 2;
+  static const int kBitField3StorageIndex = 0;
+  static const int kContentArrayIndex = 1;
+  static const int kEnumerationIndexIndex = 2;
+  static const int kFirstIndex = 3;
 
   // The length of the "bridge" to the enum cache.
   static const int kEnumCacheBridgeLength = 2;
@@ -2173,7 +2186,8 @@ class DescriptorArray: public FixedArray {
   static const int kEnumCacheBridgeCacheIndex = 1;
 
   // Layout description.
-  static const int kContentArrayOffset = FixedArray::kHeaderSize;
+  static const int kBitField3StorageOffset = FixedArray::kHeaderSize;
+  static const int kContentArrayOffset = kBitField3StorageOffset + kPointerSize;
   static const int kEnumerationIndexOffset = kContentArrayOffset + kPointerSize;
   static const int kFirstOffset = kEnumerationIndexOffset + kPointerSize;
 
@@ -3645,6 +3659,13 @@ class Map: public HeapObject {
   inline byte bit_field2();
   inline void set_bit_field2(byte value);
 
+  // Bit field 3.
+  // TODO(1399): It should be possible to make room for bit_field3 in the map
+  // without overloading the instance descriptors field (and storing it in the
+  // DescriptorArray when the map has one).
+  inline int bit_field3();
+  inline void set_bit_field3(int value);
+
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
   // property is set to a value that is not a JSObject, the prototype
@@ -3766,8 +3787,16 @@ class Map: public HeapObject {
 
   inline JSFunction* unchecked_constructor();
 
+  // Should only be called by the code that initializes map to set initial valid
+  // value of the instance descriptor member.
+  inline void init_instance_descriptors();
+
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
+
+  // Sets the instance descriptor array for the map to be an empty descriptor
+  // array.
+  inline void clear_instance_descriptors();
 
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
@@ -3894,9 +3923,19 @@ class Map: public HeapObject {
   static const int kInstanceAttributesOffset = kInstanceSizesOffset + kIntSize;
   static const int kPrototypeOffset = kInstanceAttributesOffset + kIntSize;
   static const int kConstructorOffset = kPrototypeOffset + kPointerSize;
-  static const int kInstanceDescriptorsOffset =
+  // Storage for instance descriptors is overloaded to also contain additional
+  // map flags when unused (bit_field3). When the map has instance descriptors,
+  // the flags are transferred to the instance descriptor array and accessed
+  // through an extra indirection.
+  // TODO(1399): It should be possible to make room for bit_field3 in the map
+  // without overloading the instance descriptors field, but the map is
+  // currently perfectly aligned to 32 bytes and extending it at all would
+  // double its size.  After the increment GC work lands, this size restriction
+  // could be loosened and bit_field3 moved directly back in the map.
+  static const int kInstanceDescriptorsOrBitField3Offset =
       kConstructorOffset + kPointerSize;
-  static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
+  static const int kCodeCacheOffset =
+      kInstanceDescriptorsOrBitField3Offset + kPointerSize;
   static const int kPrototypeTransitionsOffset =
       kCodeCacheOffset + kPointerSize;
   static const int kPadStart = kPrototypeTransitionsOffset + kPointerSize;
