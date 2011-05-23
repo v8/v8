@@ -183,9 +183,10 @@ class ScopedPointer {
   ~ScopedPointer() { if (pointer_ != NULL) delete[] pointer_; }
   T& operator[](int index) { return pointer_[index]; }
   T* operator*() { return pointer_ ;}
-  T*& operator=(T* new_value) {
+  T* operator=(T* new_value) {
     if (pointer_ != NULL) delete[] pointer_;
     pointer_ = new_value;
+    return new_value;
   }
  private:
   T* pointer_;
