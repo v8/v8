@@ -874,10 +874,7 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-Object* KeyedLoadIC_Miss(Arguments args);
-
-
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
   // ---------- S t a t e --------------
   //  -- ra     : return address
   //  -- a0     : key
@@ -889,8 +886,11 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 
   __ Push(a1, a0);
 
-  ExternalReference ref = ExternalReference(IC_Utility(kKeyedLoadIC_Miss),
-                                            isolate);
+  // Perform tail call to the entry.
+  ExternalReference ref = force_generic
+      ? ExternalReference(IC_Utility(kKeyedLoadIC_MissForceGeneric), isolate)
+      : ExternalReference(IC_Utility(kKeyedLoadIC_Miss), isolate);
+
   __ TailCallExternalReference(ref, 2, 1);
 }
 
@@ -1097,7 +1097,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   char_at_generator.GenerateSlow(masm, call_helper);
 
   __ bind(&miss);
-  GenerateMiss(masm);
+  GenerateMiss(masm, false);
 }
 
 
@@ -1263,11 +1263,30 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
        IC_Utility(kKeyedLoadPropertyWithInterceptor), masm->isolate()), 2, 1);
 
   __ bind(&slow);
-  GenerateMiss(masm);
+  GenerateMiss(masm, false);
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
+  // ---------- S t a t e --------------
+  //  -- a0     : value
+  //  -- a1     : key
+  //  -- a2     : receiver
+  //  -- ra     : return address
+  // -----------------------------------
+
+  // Push receiver, key and value for runtime call.
+  __ Push(a2, a1, a0);
+
+  ExternalReference ref = force_generic
+      ? ExternalReference(IC_Utility(kKeyedStoreIC_MissForceGeneric),
+                          masm->isolate())
+      : ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
+  __ TailCallExternalReference(ref, 3, 1);
+}
+
+
+void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- a0     : value
   //  -- a1     : key
@@ -1279,8 +1298,11 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   // We can't use MultiPush as the order of the registers is important.
   __ Push(a2, a1, a0);
 
-  ExternalReference ref = ExternalReference(IC_Utility(kKeyedStoreIC_Miss),
-                                            masm->isolate());
+  // The slow case calls into the runtime to complete the store without causing
+  // an IC miss that would otherwise cause a transition to the generic stub.
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedStoreIC_Slow), masm->isolate());
+
   __ TailCallExternalReference(ref, 3, 1);
 }
 

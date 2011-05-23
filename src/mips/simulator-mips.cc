@@ -1165,7 +1165,11 @@ typedef double (*SimulatorRuntimeFPCall)(int32_t arg0,
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
-typedef v8::Handle<v8::Value> (*SimulatorRuntimeApiCall)(int32_t arg0);
+typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectApiCall)(int32_t arg0);
+
+// This signature supports direct call to accessor getter callback.
+typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectGetterCall)(int32_t arg0,
+                                                                  int32_t arg1);
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime. They are also used for debugging with simulator.
@@ -1240,15 +1244,27 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       set_register(v0, gpreg_pair[0]);
       set_register(v1, gpreg_pair[1]);
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
-      SimulatorRuntimeApiCall target =
-                  reinterpret_cast<SimulatorRuntimeApiCall>(external);
+      // See DirectCEntryStub::GenerateCall for explanation of register usage.
+      SimulatorRuntimeDirectApiCall target =
+                  reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
       if (::v8::internal::FLAG_trace_sim) {
         PrintF("Call to host function at %p args %08x\n",
-               FUNCTION_ADDR(target),
-               arg0);
+               FUNCTION_ADDR(target), arg1);
       }
-      v8::Handle<v8::Value> result = target(arg0);
-      set_register(v0, (int32_t) *result);
+      v8::Handle<v8::Value> result = target(arg1);
+      *(reinterpret_cast<int*>(arg0)) = (int32_t) *result;
+      set_register(v0, arg0);
+    } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
+      // See DirectCEntryStub::GenerateCall for explanation of register usage.
+      SimulatorRuntimeDirectGetterCall target =
+                  reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
+      if (::v8::internal::FLAG_trace_sim) {
+        PrintF("Call to host function at %p args %08x %08x\n",
+               FUNCTION_ADDR(target), arg1, arg2);
+      }
+      v8::Handle<v8::Value> result = target(arg1, arg2);
+      *(reinterpret_cast<int*>(arg0)) = (int32_t) *result;
+      set_register(v0, arg0);
     } else {
       SimulatorRuntimeCall target =
                   reinterpret_cast<SimulatorRuntimeCall>(external);

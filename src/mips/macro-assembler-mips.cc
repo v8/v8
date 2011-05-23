@@ -2545,8 +2545,8 @@ void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,
                               Label* fail,
-                              bool is_heap_object) {
-  if (!is_heap_object) {
+                              SmiCheckType smi_check_type) {
+  if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
   lw(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
@@ -2555,12 +2555,27 @@ void MacroAssembler::CheckMap(Register obj,
 }
 
 
+void MacroAssembler::DispatchMap(Register obj,
+                                 Register scratch,
+                                 Handle<Map> map,
+                                 Handle<Code> success,
+                                 SmiCheckType smi_check_type) {
+  Label fail;
+  if (smi_check_type == DO_SMI_CHECK) {
+    JumpIfSmi(obj, &fail);
+  }
+  lw(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
+  Jump(success, RelocInfo::CODE_TARGET, eq, scratch, Operand(map));
+  bind(&fail);
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Heap::RootListIndex index,
                               Label* fail,
-                              bool is_heap_object) {
-  if (!is_heap_object) {
+                              SmiCheckType smi_check_type) {
+  if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
   lw(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
@@ -2860,7 +2875,7 @@ MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub,
   { MaybeObject* maybe_result = stub->TryGetCode();
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2);
+  Jump(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET, cond, r1, r2);
   return result;
 }
 
@@ -3410,7 +3425,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   lw(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
   if (emit_debug_code()) {
     Label ok, fail;
-    CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, false);
+    CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, DO_SMI_CHECK);
     Branch(&ok);
     bind(&fail);
     Abort("Global functions must have initial map");

@@ -1202,13 +1202,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
                                  kSmiTagSize)));
     __ Branch(&shift_arguments, ne, t0, Operand(zero_reg));
 
-    // Do not transform the receiver for native (shared already in r2).
-    __ lw(a2, FieldMemOperand(a2, SharedFunctionInfo::kScriptOffset));
-    __ LoadRoot(a3, Heap::kUndefinedValueRootIndex);
-    __ Branch(&shift_arguments, eq, a2, Operand(a3));
-    __ lw(a2, FieldMemOperand(a2, Script::kTypeOffset));
-    __ sra(a2, a2, kSmiTagSize);
-    __ Branch(&shift_arguments, eq, a2, Operand(Script::TYPE_NATIVE));
+    // Do not transform the receiver for native (Compilerhints already in a3).
+    __ And(t0, a3, Operand(1 << (SharedFunctionInfo::kES5Native +
+                                 kSmiTagSize)));
+    __ Branch(&shift_arguments, ne, t0, Operand(zero_reg));
 
     // Compute the receiver in non-strict mode.
     // Load first argument in a2. a2 = -kPointerSize(sp + n_args << 2).
@@ -1220,7 +1217,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // a2: first argument
     __ JumpIfSmi(a2, &convert_to_object, t2);
 
-    // Heap::kUndefinedValueRootIndex is already in a3.
+    __ LoadRoot(a3, Heap::kUndefinedValueRootIndex);
     __ Branch(&use_global_receiver, eq, a2, Operand(a3));
     __ LoadRoot(a3, Heap::kNullValueRootIndex);
     __ Branch(&use_global_receiver, eq, a2, Operand(a3));
@@ -1389,20 +1386,17 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
                                kSmiTagSize)));
   __ Branch(&push_receiver, ne, t0, Operand(zero_reg));
 
-  // Do not transform the receiver for native (shared already in a1).
-  __ lw(a1, FieldMemOperand(a1, SharedFunctionInfo::kScriptOffset));
-  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
-  __ Branch(&push_receiver, eq, a1, Operand(a2));
-  __ lw(a1, FieldMemOperand(a1, Script::kTypeOffset));
-  __ sra(a1, a1, kSmiTagSize);
-  __ Branch(&push_receiver, eq, a1, Operand(Script::TYPE_NATIVE));
+  // Do not transform the receiver for native (Compilerhints already in a2).
+  __ And(t0, a2, Operand(1 << (SharedFunctionInfo::kES5Native +
+                               kSmiTagSize)));
+  __ Branch(&push_receiver, ne, t0, Operand(zero_reg));
 
   // Compute the receiver in non-strict mode.
   __ And(t0, a0, Operand(kSmiTagMask));
   __ Branch(&call_to_object, eq, t0, Operand(zero_reg));
   __ LoadRoot(a1, Heap::kNullValueRootIndex);
   __ Branch(&use_global_receiver, eq, a0, Operand(a1));
-  // Heap::kUndefinedValueRootIndex is already in a2.
+  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
   __ Branch(&use_global_receiver, eq, a0, Operand(a2));
 
   // Check if the receiver is already a JavaScript object.

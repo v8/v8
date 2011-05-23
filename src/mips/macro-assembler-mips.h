@@ -30,6 +30,7 @@
 
 #include "assembler.h"
 #include "mips/assembler-mips.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
@@ -710,13 +711,22 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                 Register scratch,
                 Handle<Map> map,
                 Label* fail,
-                bool is_heap_object);
+                SmiCheckType smi_check_type);
 
   void CheckMap(Register obj,
                 Register scratch,
                 Heap::RootListIndex index,
                 Label* fail,
-                bool is_heap_object);
+                SmiCheckType smi_check_type);
+
+  // Check if the map of an object is equal to a specified map and branch to a
+  // specified target if equal. Skip the smi check if not required (object is
+  // known to be a heap object)
+  void DispatchMap(Register obj,
+                   Register scratch,
+                   Handle<Map> map,
+                   Handle<Code> success,
+                   SmiCheckType smi_check_type);
 
   // Generates code for reporting that an illegal operation has
   // occurred.
