@@ -78,4 +78,13 @@ void I18NExtension::Register() {
   static v8::DeclareExtension i18n_extension_declaration(I18NExtension::get());
 }
 
+#ifdef V8_SHARED
+// We end up dragging in a call to Malloc::FatalProcessOutOfMemory by including
+// allocation.h, but that function isn't public V8 API so it's not available
+// when v8 is build as DLL.
+// Define it as a no-op here.
+void Malloced::FatalProcessOutOfMemory() {
+}
+#endif
+
 } }  // namespace v8::internal
