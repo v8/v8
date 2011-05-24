@@ -254,7 +254,7 @@ MaybeObject* Heap::AllocateRawCell() {
 
 
 bool Heap::InNewSpace(Object* object) {
-  bool result = new_space_.PageContains(object);
+  bool result = new_space_.Contains(object);
   ASSERT(!result ||                  // Either not in new space
          gc_state_ != NOT_IN_GC ||   // ... or in the middle of GC
          InToSpace(object));         // ... or in to-space (where we allocate).

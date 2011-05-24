@@ -88,6 +88,13 @@ class MacroAssembler: public Assembler {
       Label* condition_met,
       Label::Distance condition_met_distance = Label::kFar);
 
+
+  void InNewSpace(Register object,
+                  Register scratch,
+                  Condition cc,
+                  Label* condition_met,
+                  Label::Distance condition_met_distance = Label::kFar);
+
   // Check if an object has a given incremental marking colour.  Also uses ecx!
   // The colour bits are found by splitting the address at the bit offset
   // indicated by the mask: bits that are zero in the mask are used for the

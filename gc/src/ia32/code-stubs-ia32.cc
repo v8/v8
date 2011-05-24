@@ -6259,9 +6259,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm) {
 
   Label value_in_old_space;
 
-  __ CheckPageFlag(value_, regs_.scratch0(),
-                   MemoryChunk::IN_NEW_SPACE, zero,
-                   &value_in_old_space);
+  __ InNewSpace(value_, regs_.scratch0(), not_equal, &value_in_old_space);
   // After this point the value_ register may have been overwritten since it is
   // also one of the scratch registers.
 
@@ -6300,9 +6298,7 @@ void RecordWriteStub::GenerateIncrementalValueIsInNewSpace(
   Label value_in_new_space_object_is_black_no_remembered_set;
 
   // The value is in new space.  Check the object.
-  __ CheckPageFlag(regs_.object(), regs_.scratch0(),
-                   MemoryChunk::IN_NEW_SPACE, not_zero,
-                   &both_in_new_space);
+  __ InNewSpace(regs_.object(), regs_.scratch0(), equal, &both_in_new_space);
 
   // Value is in new space, object is in old space.  Could we be lucky and find
   // the scan_on_scavenge flag on the object's page?
@@ -6450,9 +6446,8 @@ void RecordWriteStub::GenerateIncrementalValueIsInOldSpace(
   // object is in in order to find its colour.
   __ bind(&value_is_white);
   __ pop(regs_.object());
-  __ CheckPageFlag(regs_.object(), regs_.scratch0(),
-                   MemoryChunk::IN_NEW_SPACE, not_zero,
-                   &value_in_old_space_and_white_object_in_new_space);
+  __ InNewSpace(regs_.object(), regs_.scratch0(), equal,
+                &value_in_old_space_and_white_object_in_new_space);
 
   // Both in old space, value is white and can't be marked.
   __ InOldSpaceIsBlack(regs_.object(),

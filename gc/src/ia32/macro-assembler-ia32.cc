@@ -53,6 +53,31 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 }
 
 
+void MacroAssembler::InNewSpace(
+    Register object,
+    Register scratch,
+    Condition cc,
+    Label* condition_met,
+    Label::Distance condition_met_distance) {
+  ASSERT(cc == equal || cc == not_equal);
+  if (scratch.is(object)) {
+    and_(scratch, Immediate(~Page::kPageAlignmentMask));
+  } else {
+    mov(scratch, Immediate(~Page::kPageAlignmentMask));
+    and_(scratch, Operand(object));
+  }
+  // Check that we can use a test_b.
+  ASSERT(MemoryChunk::IN_FROM_SPACE < 8);
+  ASSERT(MemoryChunk::IN_TO_SPACE < 8);
+  int mask = (1 << MemoryChunk::IN_FROM_SPACE)
+           | (1 << MemoryChunk::IN_TO_SPACE);
+  // If non-zero, the page belongs to new-space.
+  test_b(Operand(scratch, MemoryChunk::kFlagsOffset),
+         static_cast<uint8_t>(mask));
+  j(NegateCondition(cc), condition_met, condition_met_distance);
+}
+
+
 void MacroAssembler::IncrementalMarkingRecordWriteHelper(
     Register object,
     Register value,

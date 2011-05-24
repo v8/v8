@@ -394,14 +394,22 @@ void Page::InitializeAsAnchor(PagedSpace* owner) {
 }
 
 
-NewSpacePage* NewSpacePage::Initialize(Heap* heap, Address start) {
+NewSpacePage* NewSpacePage::Initialize(Heap* heap,
+                                       Address start,
+                                       SemiSpaceId semispace_id) {
   MemoryChunk* chunk = MemoryChunk::Initialize(heap,
                                                start,
                                                Page::kPageSize,
                                                NOT_EXECUTABLE,
                                                heap->new_space());
+  chunk->set_next_chunk(NULL);
+  chunk->set_prev_chunk(NULL);
   chunk->initialize_scan_on_scavenge(true);
-  chunk->SetFlag(MemoryChunk::IN_NEW_SPACE);
+  bool in_to_space = (semispace_id != kFromSpace);
+  chunk->SetFlag(in_to_space ? MemoryChunk::IN_TO_SPACE
+                             : MemoryChunk::IN_FROM_SPACE);
+  ASSERT(!chunk->IsFlagSet(in_to_space ? MemoryChunk::IN_FROM_SPACE
+                                       : MemoryChunk::IN_TO_SPACE));
   heap->incremental_marking()->SetNewSpacePageFlags(chunk);
   return static_cast<NewSpacePage*>(chunk);
 }
@@ -935,9 +943,11 @@ void NewSpace::Flip() {
   from_space_ = to_space_;
   to_space_ = tmp;
 
-  NewSpacePage* old_active_page = from_space_.current_page();
-  NewSpacePage* new_active_page = to_space_.current_page();
-  new_active_page->CopyFlagsFrom(old_active_page);
+  // Copy GC flags from old active space (from-space) to new (to-space).
+  intptr_t flags = from_space_.current_page()->GetFlags();
+  to_space_.Flip(flags, NewSpacePage::kCopyOnFlipFlagsMask);
+
+  from_space_.Flip(0, 0);
 }
 
 
@@ -1038,7 +1048,7 @@ bool SemiSpace::Commit() {
   committed_ = true;
   // TODO(gc): When more than one page is present, initialize and
   // chain them all.
-  current_page_ = NewSpacePage::Initialize(heap(), start_);
+  current_page_ = NewSpacePage::Initialize(heap(), start_, id_);
   return true;
 }
 
@@ -1136,6 +1146,23 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
   return true;
 }
 
+
+void SemiSpace::Flip(intptr_t flags, intptr_t mask) {
+  bool becomes_to_space = (id_ == kFromSpace);
+  id_ = becomes_to_space ? kToSpace : kFromSpace;
+  NewSpacePage* page = NewSpacePage::FromAddress(start_);
+  while (page != NULL) {
+    page->SetFlags(flags, mask);
+    if (becomes_to_space) {
+      page->ClearFlag(MemoryChunk::IN_FROM_SPACE);
+      page->SetFlag(MemoryChunk::IN_TO_SPACE);
+    } else {
+      page->SetFlag(MemoryChunk::IN_FROM_SPACE);
+      page->ClearFlag(MemoryChunk::IN_TO_SPACE);
+    }
+    page = page->next_page();
+  }
+}
 
 #ifdef DEBUG
 void SemiSpace::Print() { }

@@ -376,25 +376,40 @@ class MemoryChunk {
     POINTERS_TO_HERE_ARE_INTERESTING,
     POINTERS_FROM_HERE_ARE_INTERESTING,
     SCAN_ON_SCAVENGE,
-    IN_NEW_SPACE,
+    IN_FROM_SPACE,  // Mutually exclusive with IN_TO_SPACE.
+    IN_TO_SPACE,    // All pages in new space has one of these two set.
     NUM_MEMORY_CHUNK_FLAGS
   };
 
   void SetFlag(int flag) {
-    flags_ |= 1 << flag;
+    flags_ |= (1 << flag);
   }
 
   void ClearFlag(int flag) {
     flags_ &= ~(1 << flag);
   }
 
+  void SetFlagTo(int flag, bool value) {
+    if (value) {
+      SetFlag(flag);
+    } else {
+      ClearFlag(flag);
+    }
+  }
+
   bool IsFlagSet(int flag) {
     return (flags_ & (1 << flag)) != 0;
   }
 
-  void CopyFlagsFrom(MemoryChunk* chunk) {
-    flags_ = chunk->flags_;
+  // Set or clear multiple flags at a time. The flags in the mask
+  // are set to the value in "flags", the rest retain the current value
+  // in flags_.
+  void SetFlags(intptr_t flags, intptr_t mask) {
+    flags_ = (flags_ & ~mask) | (flags & mask);
   }
+
+  // Return all current flags.
+  intptr_t GetFlags() { return flags_; }
 
   static const intptr_t kAlignment = (1 << kPageSizeBits);
 
@@ -424,7 +439,15 @@ class MemoryChunk {
   }
 
   bool InNewSpace() {
-    return IsFlagSet(IN_NEW_SPACE);
+    return (flags_ & ((1 << IN_FROM_SPACE) | (1 << IN_TO_SPACE))) != 0;
+  }
+
+  bool InToSpace() {
+    return IsFlagSet(IN_TO_SPACE);
+  }
+
+  bool InFromSpace() {
+    return IsFlagSet(IN_FROM_SPACE);
   }
 
   // ---------------------------------------------------------------------
@@ -1446,8 +1469,21 @@ class HistogramInfo: public NumberAndSizeInfo {
 #endif
 
 
+enum SemiSpaceId {
+  kFromSpace = 0,
+  kToSpace = 1
+};
+
+
 class NewSpacePage : public MemoryChunk {
  public:
+  // GC related flags copied from from-space to to-space when
+  // flipping semispaces.
+  static const intptr_t kCopyOnFlipFlagsMask =
+    (1 << MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
+    (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
+    (1 << MemoryChunk::SCAN_ON_SCAVENGE);
+
   inline NewSpacePage* next_page() const {
     return static_cast<NewSpacePage*>(next_chunk());
   }
@@ -1464,7 +1500,9 @@ class NewSpacePage : public MemoryChunk {
     return reinterpret_cast<NewSpacePage*>(page_start);
   }
 
-  static NewSpacePage* Initialize(Heap* heap, Address start);
+  static NewSpacePage* Initialize(Heap* heap,
+                                  Address start,
+                                  SemiSpaceId semispace);
 
   friend class SemiSpace;
   friend class SemiSpaceIterator;
@@ -1481,10 +1519,11 @@ class NewSpacePage : public MemoryChunk {
 class SemiSpace : public Space {
  public:
   // Constructor.
-  explicit SemiSpace(Heap* heap) : Space(heap, NEW_SPACE, NOT_EXECUTABLE) {
-    start_ = NULL;
-    age_mark_ = NULL;
-  }
+  SemiSpace(Heap* heap, SemiSpaceId semispace)
+    : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
+      start_(NULL),
+      age_mark_(NULL),
+      id_(semispace) { }
 
   // Sets up the semispace using the given chunk.
   bool Setup(Address start, int initial_capacity, int maximum_capacity);
@@ -1511,6 +1550,10 @@ class SemiSpace : public Space {
   // semispace and less than the current capacity.
   bool ShrinkTo(int new_capacity);
 
+  // Flips the semispace between being from-space and to-space.
+  // Copies the flags into the masked positions on all pages in the space.
+  void Flip(intptr_t flags, intptr_t flag_mask);
+
   // Returns the start address of the space.
   Address low() {
     return NewSpacePage::FromAddress(start_)->body();
@@ -1525,19 +1568,6 @@ class SemiSpace : public Space {
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
   void set_age_mark(Address mark) { age_mark_ = mark; }
-
-  // True if the address is in the address range of this semispace (not
-  // necessarily below the allocation pointer).
-  bool Contains(Address a) {
-    return (reinterpret_cast<uintptr_t>(a) & address_mask_)
-           == reinterpret_cast<uintptr_t>(start_);
-  }
-
-  // True if the object is a heap object in the address range of this
-  // semispace (not necessarily below the allocation pointer).
-  bool Contains(Object* o) {
-    return (reinterpret_cast<uintptr_t>(o) & object_mask_) == object_expected_;
-  }
 
   // The offset of an address from the beginning of the space.
   int SpaceOffsetForAddress(Address addr) {
@@ -1600,6 +1630,7 @@ class SemiSpace : public Space {
   uintptr_t object_expected_;
 
   bool committed_;
+  SemiSpaceId id_;
 
   NewSpacePage* current_page_;
 
@@ -1668,8 +1699,8 @@ class NewSpace : public Space {
   // Constructor.
   explicit NewSpace(Heap* heap)
     : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
-      to_space_(heap),
-      from_space_(heap) {}
+      to_space_(heap, kToSpace),
+      from_space_(heap, kFromSpace) {}
 
   // Sets up the new space using the given chunk.
   bool Setup(int max_semispace_size);
@@ -1696,6 +1727,8 @@ class NewSpace : public Space {
   // True if the address or object lies in the address range of either
   // semispace (not necessarily below the allocation pointer).
   bool Contains(Address a) {
+    // TODO(gc): Replace by PageContains when we stop passing
+    // pointers to non-paged space.
     return (reinterpret_cast<uintptr_t>(a) & address_mask_)
         == reinterpret_cast<uintptr_t>(start_);
   }
@@ -1706,31 +1739,20 @@ class NewSpace : public Space {
   // TODO(gc): When every call to Contains is converted to PageContains,
   //           remove Contains and rename PageContains to Contains.
   bool PageContains(Address a) {
-    if ((reinterpret_cast<intptr_t>(a) & ~kHeapObjectTagMask) ==
-        static_cast<intptr_t>(0)) {
-      // Tagged zero-page pointers are not real heap pointers.
-      // TODO(gc): Remove when we no longer have tagged zero-page
-      // pointers intermingled with real heap object pointers.
-      return false;
-    }
-    return MemoryChunk::FromAddress(a)->InNewSpace();
+    MemoryChunk* page = MemoryChunk::FromAddress(a);
+    // Tagged zero-page pointers are not real heap pointers.
+    // TODO(gc): Remove when we no longer have tagged zero-page
+    // pointers intermingled with real heap object pointers.
+    if (!page->is_valid()) return false;
+    return page->InNewSpace();
   }
 
   bool Contains(Object* o) {
-    return (reinterpret_cast<uintptr_t>(o) & object_mask_) == object_expected_;
-  }
-
-  bool PageContains(Object* o) {
     if (o->IsSmi()) return false;
-    if ((reinterpret_cast<uintptr_t>(o) & ~kHeapObjectTagMask) ==
-        static_cast<uintptr_t>(0)) {
-      // Tagged zero-page pointers are not real heap pointers.
-      // TODO(gc): Remove when we no longer have tagged zero-page
-      // pointers intermingled with real heap object pointers.
-      return false;
-    }
-    Address a = HeapObject::cast(o)->address();
-    return MemoryChunk::FromAddress(a)->InNewSpace();
+    Address a = reinterpret_cast<Address>(o);
+    MemoryChunk* page = MemoryChunk::FromAddress(a);
+    if (!page->is_valid()) return false;
+    return page->InNewSpace();
   }
 
   // Return the allocated bytes in the active semispace.
@@ -1833,14 +1855,30 @@ class NewSpace : public Space {
     return from_space_.SpaceOffsetForAddress(a);
   }
 
+  inline bool ToSpaceContains(Address address) {
+    MemoryChunk* page = MemoryChunk::FromAddress(address);
+    return page->is_valid() && page->InToSpace();
+  }
+
+  inline bool FromSpaceContains(Address address) {
+    MemoryChunk* page = MemoryChunk::FromAddress(address);
+    return page->is_valid() && page->InFromSpace();
+  }
+
   // True if the object is a heap object in the address range of the
   // respective semispace (not necessarily below the allocation pointer of the
   // semispace).
-  bool ToSpaceContains(Object* o) { return to_space_.Contains(o); }
-  bool FromSpaceContains(Object* o) { return from_space_.Contains(o); }
+  bool ToSpaceContains(Object* o) {
+    if (o->IsSmi()) return false;
+    Address address = reinterpret_cast<Address>(o);
+    return ToSpaceContains(address);
+  }
 
-  bool ToSpaceContains(Address a) { return to_space_.Contains(a); }
-  bool FromSpaceContains(Address a) { return from_space_.Contains(a); }
+  bool FromSpaceContains(Object* o) {
+    if (o->IsSmi()) return false;
+    Address address = reinterpret_cast<Address>(o);
+    return FromSpaceContains(address);
+  }
 
   virtual bool ReserveSpace(int bytes);
 
