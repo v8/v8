@@ -242,7 +242,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
     ReportMessageAt(location.beg_pos, location.end_pos, type, NULL);
     *ok = false;
   }
-  return Statement::Default();
+  return Statement::FunctionDeclaration();
 }
 
 
@@ -278,7 +278,15 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   //
   Expect(i::Token::LBRACE, CHECK_OK);
   while (peek() != i::Token::RBRACE) {
-    ParseStatement(CHECK_OK);
+    i::Scanner::Location start_location = scanner_->peek_location();
+    Statement statement = ParseStatement(CHECK_OK);
+    i::Scanner::Location end_location = scanner_->location();
+    if (strict_mode() && statement.IsFunctionDeclaration()) {
+      ReportMessageAt(start_location.beg_pos, end_location.end_pos,
+                      "strict_function", NULL);
+      *ok = false;
+      return Statement::Default();
+    }
   }
   Expect(i::Token::RBRACE, ok);
   return Statement::Default();
@@ -357,7 +365,14 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   if (peek() == i::Token::COLON && expr.IsRawIdentifier()) {
     if (!strict_mode() || !expr.AsIdentifier().IsFutureReserved()) {
       Consume(i::Token::COLON);
-      ParseStatement(ok);
+      i::Scanner::Location start_location = scanner_->peek_location();
+      Statement statement = ParseStatement(CHECK_OK);
+      if (strict_mode() && statement.IsFunctionDeclaration()) {
+        i::Scanner::Location end_location = scanner_->location();
+        ReportMessageAt(start_location.beg_pos, end_location.end_pos,
+                        "strict_function", NULL);
+        *ok = false;
+      }
       return Statement::Default();
     }
   }
@@ -486,7 +501,15 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
       Expect(i::Token::DEFAULT, CHECK_OK);
       Expect(i::Token::COLON, CHECK_OK);
     } else {
-      ParseStatement(CHECK_OK);
+      i::Scanner::Location start_location = scanner_->peek_location();
+      Statement statement = ParseStatement(CHECK_OK);
+      if (strict_mode() && statement.IsFunctionDeclaration()) {
+        i::Scanner::Location end_location = scanner_->location();
+        ReportMessageAt(start_location.beg_pos, end_location.end_pos,
+                        "strict_function", NULL);
+        *ok = false;
+        return Statement::Default();
+      }
     }
     token = peek();
   }

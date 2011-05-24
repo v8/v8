@@ -242,8 +242,8 @@ void CheckException(v8::PreParserData* data,
     if (expects->type != NULL) {
       const char* actual_message = reader.message();
       if (strcmp(expects->type, actual_message)) {
-        fail(data, "Wrong error message. Expected <%s>, found <%s>\n",
-             expects->type, actual_message);
+        fail(data, "Wrong error message. Expected <%s>, found <%s> at %d..%d\n",
+             expects->type, actual_message, reader.beg_pos(), reader.end_pos());
       }
     }
     if (expects->beg_pos >= 0) {
