@@ -789,6 +789,7 @@ MaybeObject* StubCache::ComputeCallConstant(int argc,
 MaybeObject* StubCache::ComputeCallField(int argc,
                                          InLoopFlag in_loop,
                                          Code::Kind kind,
+                                         Code::ExtraICState extra_ic_state,
                                          String* name,
                                          Object* object,
                                          JSObject* holder,
@@ -807,14 +808,14 @@ MaybeObject* StubCache::ComputeCallField(int argc,
 
   Code::Flags flags = Code::ComputeMonomorphicFlags(kind,
                                                     FIELD,
-                                                    Code::kNoExtraICState,
+                                                    extra_ic_state,
                                                     cache_holder,
                                                     in_loop,
                                                     argc);
   Object* code = map_holder->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     CallStubCompiler compiler(
-        argc, in_loop, kind, Code::kNoExtraICState, cache_holder);
+        argc, in_loop, kind, extra_ic_state, cache_holder);
     { MaybeObject* maybe_code =
           compiler.CompileCallField(JSObject::cast(object),
                                     holder,
@@ -837,11 +838,13 @@ MaybeObject* StubCache::ComputeCallField(int argc,
 }
 
 
-MaybeObject* StubCache::ComputeCallInterceptor(int argc,
-                                               Code::Kind kind,
-                                               String* name,
-                                               Object* object,
-                                               JSObject* holder) {
+MaybeObject* StubCache::ComputeCallInterceptor(
+    int argc,
+    Code::Kind kind,
+    Code::ExtraICState extra_ic_state,
+    String* name,
+    Object* object,
+    JSObject* holder) {
   // Compute the check type and the map.
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(object, holder);
@@ -856,14 +859,14 @@ MaybeObject* StubCache::ComputeCallInterceptor(int argc,
 
   Code::Flags flags = Code::ComputeMonomorphicFlags(kind,
                                                     INTERCEPTOR,
-                                                    Code::kNoExtraICState,
+                                                    extra_ic_state,
                                                     cache_holder,
                                                     NOT_IN_LOOP,
                                                     argc);
   Object* code = map_holder->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     CallStubCompiler compiler(
-        argc, NOT_IN_LOOP, kind, Code::kNoExtraICState, cache_holder);
+        argc, NOT_IN_LOOP, kind, extra_ic_state, cache_holder);
     { MaybeObject* maybe_code =
           compiler.CompileCallInterceptor(JSObject::cast(object), holder, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
@@ -886,10 +889,12 @@ MaybeObject* StubCache::ComputeCallInterceptor(int argc,
 MaybeObject* StubCache::ComputeCallNormal(int argc,
                                           InLoopFlag in_loop,
                                           Code::Kind kind,
+                                          Code::ExtraICState extra_ic_state,
                                           String* name,
                                           JSObject* receiver) {
   Object* code;
-  { MaybeObject* maybe_code = ComputeCallNormal(argc, in_loop, kind);
+  { MaybeObject* maybe_code =
+        ComputeCallNormal(argc, in_loop, kind, extra_ic_state);
     if (!maybe_code->ToObject(&code)) return maybe_code;
   }
   return code;
@@ -899,6 +904,7 @@ MaybeObject* StubCache::ComputeCallNormal(int argc,
 MaybeObject* StubCache::ComputeCallGlobal(int argc,
                                           InLoopFlag in_loop,
                                           Code::Kind kind,
+                                          Code::ExtraICState extra_ic_state,
                                           String* name,
                                           JSObject* receiver,
                                           GlobalObject* holder,
@@ -909,7 +915,7 @@ MaybeObject* StubCache::ComputeCallGlobal(int argc,
   JSObject* map_holder = IC::GetCodeCacheHolder(receiver, cache_holder);
   Code::Flags flags = Code::ComputeMonomorphicFlags(kind,
                                                     NORMAL,
-                                                    Code::kNoExtraICState,
+                                                    extra_ic_state,
                                                     cache_holder,
                                                     in_loop,
                                                     argc);
@@ -921,9 +927,14 @@ MaybeObject* StubCache::ComputeCallGlobal(int argc,
     // caches.
     if (!function->is_compiled()) return Failure::InternalError();
     CallStubCompiler compiler(
-        argc, in_loop, kind, Code::kNoExtraICState, cache_holder);
+        argc, in_loop, kind, extra_ic_state, cache_holder);
     { MaybeObject* maybe_code =
-          compiler.CompileCallGlobal(receiver, holder, cell, function, name);
+          compiler.CompileCallGlobal(receiver,
+                                     holder,
+                                     cell,
+                                     function,
+                                     name,
+                                     extra_ic_state);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     ASSERT_EQ(flags, Code::cast(code)->flags());
@@ -991,11 +1002,15 @@ static MaybeObject* FillCache(Isolate* isolate, MaybeObject* maybe_code) {
 
 Code* StubCache::FindCallInitialize(int argc,
                                     InLoopFlag in_loop,
+                                    RelocInfo::Mode mode,
                                     Code::Kind kind) {
+  Code::ExtraICState extra_state =
+      CallICBase::StringStubState::encode(DEFAULT_STRING_STUB) |
+      CallICBase::Contextual::encode(mode == RelocInfo::CODE_TARGET_CONTEXT);
   Code::Flags flags = Code::ComputeFlags(kind,
                                          in_loop,
                                          UNINITIALIZED,
-                                         Code::kNoExtraICState,
+                                         extra_state,
                                          NORMAL,
                                          argc);
   Object* result = ProbeCache(isolate(), flags)->ToObjectUnchecked();
@@ -1008,11 +1023,15 @@ Code* StubCache::FindCallInitialize(int argc,
 
 MaybeObject* StubCache::ComputeCallInitialize(int argc,
                                               InLoopFlag in_loop,
+                                              RelocInfo::Mode mode,
                                               Code::Kind kind) {
+  Code::ExtraICState extra_state =
+      CallICBase::StringStubState::encode(DEFAULT_STRING_STUB) |
+      CallICBase::Contextual::encode(mode == RelocInfo::CODE_TARGET_CONTEXT);
   Code::Flags flags = Code::ComputeFlags(kind,
                                          in_loop,
                                          UNINITIALIZED,
-                                         Code::kNoExtraICState,
+                                         extra_state,
                                          NORMAL,
                                          argc);
   Object* probe;
@@ -1025,17 +1044,20 @@ MaybeObject* StubCache::ComputeCallInitialize(int argc,
 }
 
 
-Handle<Code> StubCache::ComputeCallInitialize(int argc, InLoopFlag in_loop) {
+Handle<Code> StubCache::ComputeCallInitialize(int argc,
+                                              InLoopFlag in_loop,
+                                              RelocInfo::Mode mode) {
   if (in_loop == IN_LOOP) {
     // Force the creation of the corresponding stub outside loops,
     // because it may be used when clearing the ICs later - it is
     // possible for a series of IC transitions to lose the in-loop
     // information, and the IC clearing code can't generate a stub
     // that it needs so we need to ensure it is generated already.
-    ComputeCallInitialize(argc, NOT_IN_LOOP);
+    ComputeCallInitialize(argc, NOT_IN_LOOP, mode);
   }
   CALL_HEAP_FUNCTION(isolate_,
-                     ComputeCallInitialize(argc, in_loop, Code::CALL_IC), Code);
+                     ComputeCallInitialize(argc, in_loop, mode, Code::CALL_IC),
+                     Code);
 }
 
 
@@ -1051,17 +1073,23 @@ Handle<Code> StubCache::ComputeKeyedCallInitialize(int argc,
   }
   CALL_HEAP_FUNCTION(
       isolate_,
-      ComputeCallInitialize(argc, in_loop, Code::KEYED_CALL_IC), Code);
+      ComputeCallInitialize(argc,
+                            in_loop,
+                            RelocInfo::CODE_TARGET,
+                            Code::KEYED_CALL_IC),
+      Code);
 }
 
 
-MaybeObject* StubCache::ComputeCallPreMonomorphic(int argc,
-                                                  InLoopFlag in_loop,
-                                                  Code::Kind kind) {
+MaybeObject* StubCache::ComputeCallPreMonomorphic(
+    int argc,
+    InLoopFlag in_loop,
+    Code::Kind kind,
+    Code::ExtraICState extra_ic_state) {
   Code::Flags flags = Code::ComputeFlags(kind,
                                          in_loop,
                                          PREMONOMORPHIC,
-                                         Code::kNoExtraICState,
+                                         extra_ic_state,
                                          NORMAL,
                                          argc);
   Object* probe;
@@ -1076,11 +1104,12 @@ MaybeObject* StubCache::ComputeCallPreMonomorphic(int argc,
 
 MaybeObject* StubCache::ComputeCallNormal(int argc,
                                           InLoopFlag in_loop,
-                                          Code::Kind kind) {
+                                          Code::Kind kind,
+                                          Code::ExtraICState extra_ic_state) {
   Code::Flags flags = Code::ComputeFlags(kind,
                                          in_loop,
                                          MONOMORPHIC,
-                                         Code::kNoExtraICState,
+                                         extra_ic_state,
                                          NORMAL,
                                          argc);
   Object* probe;
@@ -1093,13 +1122,15 @@ MaybeObject* StubCache::ComputeCallNormal(int argc,
 }
 
 
-MaybeObject* StubCache::ComputeCallMegamorphic(int argc,
-                                               InLoopFlag in_loop,
-                                               Code::Kind kind) {
+MaybeObject* StubCache::ComputeCallMegamorphic(
+    int argc,
+    InLoopFlag in_loop,
+    Code::Kind kind,
+    Code::ExtraICState extra_ic_state) {
   Code::Flags flags = Code::ComputeFlags(kind,
                                          in_loop,
                                          MEGAMORPHIC,
-                                         Code::kNoExtraICState,
+                                         extra_ic_state,
                                          NORMAL,
                                          argc);
   Object* probe;
@@ -1112,13 +1143,15 @@ MaybeObject* StubCache::ComputeCallMegamorphic(int argc,
 }
 
 
-MaybeObject* StubCache::ComputeCallMiss(int argc, Code::Kind kind) {
+MaybeObject* StubCache::ComputeCallMiss(int argc,
+                                        Code::Kind kind,
+                                        Code::ExtraICState extra_ic_state) {
   // MONOMORPHIC_PROTOTYPE_FAILURE state is used to make sure that miss stubs
   // and monomorphic stubs are not mixed up together in the stub cache.
   Code::Flags flags = Code::ComputeFlags(kind,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC_PROTOTYPE_FAILURE,
-                                         Code::kNoExtraICState,
+                                         extra_ic_state,
                                          NORMAL,
                                          argc,
                                          OWN_MAP);
@@ -1133,7 +1166,11 @@ MaybeObject* StubCache::ComputeCallMiss(int argc, Code::Kind kind) {
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-MaybeObject* StubCache::ComputeCallDebugBreak(int argc, Code::Kind kind) {
+MaybeObject* StubCache::ComputeCallDebugBreak(
+    int argc,
+    Code::Kind kind) {
+  // Extra IC state is irrelevant for debug break ICs. They jump to
+  // the actual call ic to carry out the work.
   Code::Flags flags = Code::ComputeFlags(kind,
                                          NOT_IN_LOOP,
                                          DEBUG_BREAK,
@@ -1150,8 +1187,11 @@ MaybeObject* StubCache::ComputeCallDebugBreak(int argc, Code::Kind kind) {
 }
 
 
-MaybeObject* StubCache::ComputeCallDebugPrepareStepIn(int argc,
-                                                      Code::Kind kind) {
+MaybeObject* StubCache::ComputeCallDebugPrepareStepIn(
+    int argc,
+    Code::Kind kind) {
+  // Extra IC state is irrelevant for debug break ICs. They jump to
+  // the actual call ic to carry out the work.
   Code::Flags flags = Code::ComputeFlags(kind,
                                          NOT_IN_LOOP,
                                          DEBUG_PREPARE_STEP_IN,
@@ -1435,8 +1475,9 @@ MaybeObject* StubCompiler::CompileCallInitialize(Code::Flags flags) {
   HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
+  Code::ExtraICState extra_ic_state = Code::ExtractExtraICStateFromFlags(flags);
   if (kind == Code::CALL_IC) {
-    CallIC::GenerateInitialize(masm(), argc);
+    CallIC::GenerateInitialize(masm(), argc, extra_ic_state);
   } else {
     KeyedCallIC::GenerateInitialize(masm(), argc);
   }
@@ -1462,8 +1503,9 @@ MaybeObject* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
   // The code of the PreMonomorphic stub is the same as the code
   // of the Initialized stub.  They just differ on the code object flags.
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
+  Code::ExtraICState extra_ic_state = Code::ExtractExtraICStateFromFlags(flags);
   if (kind == Code::CALL_IC) {
-    CallIC::GenerateInitialize(masm(), argc);
+    CallIC::GenerateInitialize(masm(), argc, extra_ic_state);
   } else {
     KeyedCallIC::GenerateInitialize(masm(), argc);
   }
@@ -1488,6 +1530,9 @@ MaybeObject* StubCompiler::CompileCallNormal(Code::Flags flags) {
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
   if (kind == Code::CALL_IC) {
+    // Call normal is always with a explict receiver.
+    ASSERT(!CallIC::Contextual::decode(
+        Code::ExtractExtraICStateFromFlags(flags)));
     CallIC::GenerateNormal(masm(), argc);
   } else {
     KeyedCallIC::GenerateNormal(masm(), argc);
@@ -1511,8 +1556,9 @@ MaybeObject* StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
   HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
+  Code::ExtraICState extra_ic_state = Code::ExtractExtraICStateFromFlags(flags);
   if (kind == Code::CALL_IC) {
-    CallIC::GenerateMegamorphic(masm(), argc);
+    CallIC::GenerateMegamorphic(masm(), argc, extra_ic_state);
   } else {
     KeyedCallIC::GenerateMegamorphic(masm(), argc);
   }
@@ -1536,8 +1582,9 @@ MaybeObject* StubCompiler::CompileCallMiss(Code::Flags flags) {
   HandleScope scope(isolate());
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
+  Code::ExtraICState extra_ic_state = Code::ExtractExtraICStateFromFlags(flags);
   if (kind == Code::CALL_IC) {
-    CallIC::GenerateMiss(masm(), argc);
+    CallIC::GenerateMiss(masm(), argc, extra_ic_state);
   } else {
     KeyedCallIC::GenerateMiss(masm(), argc);
   }
@@ -1583,7 +1630,8 @@ MaybeObject* StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   Code::Kind kind = Code::ExtractKindFromFlags(flags);
   if (kind == Code::CALL_IC) {
-    CallIC::GenerateMiss(masm(), argc);
+    // For the debugger extra ic state is irrelevant.
+    CallIC::GenerateMiss(masm(), argc, Code::kNoExtraICState);
   } else {
     KeyedCallIC::GenerateMiss(masm(), argc);
   }

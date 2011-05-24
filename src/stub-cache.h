@@ -194,13 +194,15 @@ class StubCache {
       StrictModeFlag strict_mode);
   // ---
 
-  MUST_USE_RESULT MaybeObject* ComputeCallField(int argc,
-                                                InLoopFlag in_loop,
-                                                Code::Kind,
-                                                String* name,
-                                                Object* object,
-                                                JSObject* holder,
-                                                int index);
+  MUST_USE_RESULT MaybeObject* ComputeCallField(
+      int argc,
+      InLoopFlag in_loop,
+      Code::Kind,
+      Code::ExtraICState extra_ic_state,
+      String* name,
+      Object* object,
+      JSObject* holder,
+      int index);
 
   MUST_USE_RESULT MaybeObject* ComputeCallConstant(
       int argc,
@@ -212,22 +214,27 @@ class StubCache {
       JSObject* holder,
       JSFunction* function);
 
-  MUST_USE_RESULT MaybeObject* ComputeCallNormal(int argc,
-                                                 InLoopFlag in_loop,
-                                                 Code::Kind,
-                                                 String* name,
-                                                 JSObject* receiver);
+  MUST_USE_RESULT MaybeObject* ComputeCallNormal(
+      int argc,
+      InLoopFlag in_loop,
+      Code::Kind,
+      Code::ExtraICState extra_ic_state,
+      String* name,
+      JSObject* receiver);
 
-  MUST_USE_RESULT MaybeObject* ComputeCallInterceptor(int argc,
-                                                      Code::Kind,
-                                                      String* name,
-                                                      Object* object,
-                                                      JSObject* holder);
+  MUST_USE_RESULT MaybeObject* ComputeCallInterceptor(
+      int argc,
+      Code::Kind,
+      Code::ExtraICState extra_ic_state,
+      String* name,
+      Object* object,
+      JSObject* holder);
 
   MUST_USE_RESULT MaybeObject* ComputeCallGlobal(
       int argc,
       InLoopFlag in_loop,
       Code::Kind,
+      Code::ExtraICState extra_ic_state,
       String* name,
       JSObject* receiver,
       GlobalObject* holder,
@@ -238,30 +245,39 @@ class StubCache {
 
   MUST_USE_RESULT MaybeObject* ComputeCallInitialize(int argc,
                                                      InLoopFlag in_loop,
+                                                     RelocInfo::Mode mode,
                                                      Code::Kind kind);
 
-  Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
+  Handle<Code> ComputeCallInitialize(int argc,
+                                     InLoopFlag in_loop,
+                                     RelocInfo::Mode mode);
 
   Handle<Code> ComputeKeyedCallInitialize(int argc, InLoopFlag in_loop);
 
   MUST_USE_RESULT MaybeObject* ComputeCallPreMonomorphic(
       int argc,
       InLoopFlag in_loop,
-      Code::Kind kind);
+      Code::Kind kind,
+      Code::ExtraICState extra_ic_state);
 
   MUST_USE_RESULT MaybeObject* ComputeCallNormal(int argc,
                                                  InLoopFlag in_loop,
-                                                 Code::Kind kind);
+                                                 Code::Kind kind,
+                                                 Code::ExtraICState state);
 
   MUST_USE_RESULT MaybeObject* ComputeCallMegamorphic(int argc,
                                                       InLoopFlag in_loop,
-                                                      Code::Kind kind);
+                                                      Code::Kind kind,
+                                                      Code::ExtraICState state);
 
-  MUST_USE_RESULT MaybeObject* ComputeCallMiss(int argc, Code::Kind kind);
+  MUST_USE_RESULT MaybeObject* ComputeCallMiss(int argc,
+                                               Code::Kind kind,
+                                               Code::ExtraICState state);
 
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
   MUST_USE_RESULT Code* FindCallInitialize(int argc,
                                            InLoopFlag in_loop,
+                                           RelocInfo::Mode mode,
                                            Code::Kind kind);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -744,11 +760,13 @@ class CallStubCompiler: public StubCompiler {
   MUST_USE_RESULT MaybeObject* CompileCallInterceptor(JSObject* object,
                                                       JSObject* holder,
                                                       String* name);
-  MUST_USE_RESULT MaybeObject* CompileCallGlobal(JSObject* object,
-                                                 GlobalObject* holder,
-                                                 JSGlobalPropertyCell* cell,
-                                                 JSFunction* function,
-                                                 String* name);
+  MUST_USE_RESULT MaybeObject* CompileCallGlobal(
+      JSObject* object,
+      GlobalObject* holder,
+      JSGlobalPropertyCell* cell,
+      JSFunction* function,
+      String* name,
+      Code::ExtraICState extra_ic_state);
 
   static bool HasCustomCallGenerator(JSFunction* function);
 

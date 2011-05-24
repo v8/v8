@@ -29,6 +29,7 @@
 #define V8_IC_H_
 
 #include "macro-assembler.h"
+#include "type-info.h"
 
 namespace v8 {
 namespace internal {
@@ -194,6 +195,10 @@ class IC_Utility {
 
 
 class CallICBase: public IC {
+ public:
+  class Contextual: public BitField<bool, 0, 1> {};
+  class StringStubState: public BitField<StringStubFeedback, 1, 1> {};
+
  protected:
   CallICBase(Code::Kind kind, Isolate* isolate)
       : IC(EXTRA_CALL_FRAME, isolate), kind_(kind) {}
@@ -234,6 +239,7 @@ class CallICBase: public IC {
   void ReceiverToObjectIfRequired(Handle<Object> callee, Handle<Object> object);
 
   static void Clear(Address address, Code* target);
+
   friend class IC;
 };
 
@@ -245,11 +251,17 @@ class CallIC: public CallICBase {
   }
 
   // Code generator routines.
-  static void GenerateInitialize(MacroAssembler* masm, int argc) {
-    GenerateMiss(masm, argc);
+  static void GenerateInitialize(MacroAssembler* masm,
+                                 int argc,
+                                 Code::ExtraICState extra_ic_state) {
+    GenerateMiss(masm, argc, extra_ic_state);
   }
-  static void GenerateMiss(MacroAssembler* masm, int argc);
-  static void GenerateMegamorphic(MacroAssembler* masm, int argc);
+  static void GenerateMiss(MacroAssembler* masm,
+                           int argc,
+                           Code::ExtraICState extra_ic_state);
+  static void GenerateMegamorphic(MacroAssembler* masm,
+                                  int argc,
+                                  Code::ExtraICState extra_ic_state);
   static void GenerateNormal(MacroAssembler* masm, int argc);
 };
 

@@ -208,7 +208,8 @@ class LCodeGen BASE_EMBEDDED {
   // to be in edi.
   void CallKnownFunction(Handle<JSFunction> function,
                          int arity,
-                         LInstruction* instr);
+                         LInstruction* instr,
+                         CallKind call_kind);
 
   void LoadHeapObject(Register result, Handle<HeapObject> object);
 

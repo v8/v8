@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -742,24 +742,30 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
       // at the first position. Since we are always at a call when we need
       // to construct a stack trace, the receiver is always in a stack slot.
       opcode = static_cast<Translation::Opcode>(it.Next());
-      ASSERT(opcode == Translation::STACK_SLOT);
-      int input_slot_index = it.Next();
+      ASSERT(opcode == Translation::STACK_SLOT ||
+             opcode == Translation::LITERAL);
+      int index = it.Next();
 
       // Get the correct receiver in the optimized frame.
       Object* receiver = NULL;
-      // Positive index means the value is spilled to the locals area. Negative
-      // means it is stored in the incoming parameter area.
-      if (input_slot_index >= 0) {
-        receiver = GetExpression(input_slot_index);
+      if (opcode == Translation::LITERAL) {
+        receiver = data->LiteralArray()->get(index);
       } else {
-        // Index -1 overlaps with last parameter, -n with the first parameter,
-        // (-n - 1) with the receiver with n being the number of parameters
-        // of the outermost, optimized frame.
-        int parameter_count = ComputeParametersCount();
-        int parameter_index = input_slot_index + parameter_count;
-        receiver = (parameter_index == -1)
-            ? this->receiver()
-            : this->GetParameter(parameter_index);
+        // Positive index means the value is spilled to the locals
+        // area. Negative means it is stored in the incoming parameter
+        // area.
+        if (index >= 0) {
+          receiver = GetExpression(index);
+        } else {
+          // Index -1 overlaps with last parameter, -n with the first parameter,
+          // (-n - 1) with the receiver with n being the number of parameters
+          // of the outermost, optimized frame.
+          int parameter_count = ComputeParametersCount();
+          int parameter_index = index + parameter_count;
+          receiver = (parameter_index == -1)
+              ? this->receiver()
+              : this->GetParameter(parameter_index);
+        }
       }
 
       Code* code = function->shared()->code();

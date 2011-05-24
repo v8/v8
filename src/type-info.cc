@@ -58,9 +58,6 @@ TypeInfo TypeInfo::TypeFromValue(Handle<Object> value) {
 }
 
 
-STATIC_ASSERT(DEFAULT_STRING_STUB == Code::kNoExtraICState);
-
-
 TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
                                        Handle<Context> global_context) {
   global_context_ = global_context;
@@ -147,15 +144,18 @@ ZoneMapList* TypeFeedbackOracle::StoreReceiverTypes(Assignment* expr,
 
 
 ZoneMapList* TypeFeedbackOracle::CallReceiverTypes(Call* expr,
-                                                   Handle<String> name) {
+                                                   Handle<String> name,
+                                                   CallKind call_kind) {
   int arity = expr->arguments()->length();
-  // Note: these flags won't let us get maps from stubs with
-  // non-default extra ic state in the megamorphic case. In the more
-  // important monomorphic case the map is obtained directly, so it's
-  // not a problem until we decide to emit more polymorphic code.
+
+  // Note: Currently we do not take string extra ic data into account
+  // here.
+  Code::ExtraICState extra_ic_state =
+      CallIC::Contextual::encode(call_kind == CALL_AS_FUNCTION);
+
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC,
                                                     NORMAL,
-                                                    Code::kNoExtraICState,
+                                                    extra_ic_state,
                                                     OWN_MAP,
                                                     NOT_IN_LOOP,
                                                     arity);

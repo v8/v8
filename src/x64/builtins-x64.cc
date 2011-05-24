@@ -98,6 +98,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Set expected number of arguments to zero (not changing rax).
   __ Set(rbx, 0);
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ SetCallKind(rcx, CALL_AS_METHOD);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
@@ -526,17 +527,23 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
 
   // Push a copy of the function onto the stack.
   __ push(rdi);
+  // Push call kind information.
+  __ push(rcx);
 
   __ push(rdi);  // Function is also the parameter to the runtime call.
   __ CallRuntime(Runtime::kLazyCompile, 1);
+
+  // Restore call kind information.
+  __ pop(rcx);
+  // Restore receiver.
   __ pop(rdi);
 
   // Tear down temporary frame.
   __ LeaveInternalFrame();
 
   // Do a tail-call of the compiled function.
-  __ lea(rcx, FieldOperand(rax, Code::kHeaderSize));
-  __ jmp(rcx);
+  __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
+  __ jmp(rax);
 }
 
 
@@ -546,17 +553,23 @@ void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
 
   // Push a copy of the function onto the stack.
   __ push(rdi);
+  // Push call kind information.
+  __ push(rcx);
 
   __ push(rdi);  // Function is also the parameter to the runtime call.
   __ CallRuntime(Runtime::kLazyRecompile, 1);
 
-  // Restore function and tear down temporary frame.
+  // Restore call kind information.
+  __ pop(rcx);
+  // Restore function.
   __ pop(rdi);
+
+  // Tear down temporary frame.
   __ LeaveInternalFrame();
 
   // Do a tail-call of the compiled function.
-  __ lea(rcx, FieldOperand(rax, Code::kHeaderSize));
-  __ jmp(rcx);
+  __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
+  __ jmp(rax);
 }
 
 
@@ -740,6 +753,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_zero, &function);
     __ Set(rbx, 0);
     __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
+    __ SetCallKind(rcx, CALL_AS_METHOD);
     __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
     __ bind(&function);
@@ -753,6 +767,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
              FieldOperand(rdx,
                           SharedFunctionInfo::kFormalParameterCountOffset));
   __ movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+  __ SetCallKind(rcx, CALL_AS_METHOD);
   __ cmpq(rax, rbx);
   __ j(not_equal,
        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
@@ -1335,11 +1350,11 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Push the function on the stack.
   __ push(rdi);
 
-  // Preserve the number of arguments on the stack. Must preserve both
-  // rax and rbx because these registers are used when copying the
+  // Preserve the number of arguments on the stack. Must preserve rax,
+  // rbx and rcx because these registers are used when copying the
   // arguments and the receiver.
-  __ Integer32ToSmi(rcx, rax);
-  __ push(rcx);
+  __ Integer32ToSmi(r8, rax);
+  __ push(r8);
 }
 
 
@@ -1363,6 +1378,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : actual number of arguments
   //  -- rbx : expected number of arguments
+  //  -- rcx : call kind information
   //  -- rdx : code entry to call
   // -----------------------------------
 
@@ -1383,14 +1399,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(rax, Operand(rbp, rax, times_pointer_size, offset));
-    __ Set(rcx, -1);  // account for receiver
+    __ Set(r8, -1);  // account for receiver
 
     Label copy;
     __ bind(&copy);
-    __ incq(rcx);
+    __ incq(r8);
     __ push(Operand(rax, 0));
     __ subq(rax, Immediate(kPointerSize));
-    __ cmpq(rcx, rbx);
+    __ cmpq(r8, rbx);
     __ j(less, &copy);
     __ jmp(&invoke);
   }
@@ -1402,23 +1418,23 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(rdi, Operand(rbp, rax, times_pointer_size, offset));
-    __ Set(rcx, -1);  // account for receiver
+    __ Set(r8, -1);  // account for receiver
 
     Label copy;
     __ bind(&copy);
-    __ incq(rcx);
+    __ incq(r8);
     __ push(Operand(rdi, 0));
     __ subq(rdi, Immediate(kPointerSize));
-    __ cmpq(rcx, rax);
+    __ cmpq(r8, rax);
     __ j(less, &copy);
 
     // Fill remaining expected arguments with undefined values.
     Label fill;
     __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
     __ bind(&fill);
-    __ incq(rcx);
+    __ incq(r8);
     __ push(kScratchRegister);
-    __ cmpq(rcx, rbx);
+    __ cmpq(r8, rbx);
     __ j(less, &fill);
 
     // Restore function pointer.

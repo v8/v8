@@ -676,6 +676,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   CompilationInfo info(script);
   info.SetFunction(literal);
   info.SetScope(literal->scope());
+  if (literal->scope()->is_strict_mode()) info.MarkAsStrictMode();
 
   LiveEditFunctionTracker live_edit_tracker(info.isolate(), literal);
   // Determine if the function can be lazily compiled. This is necessary to

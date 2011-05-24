@@ -1279,7 +1279,8 @@ class Call: public Expression {
   ZoneList<Expression*>* arguments() const { return arguments_; }
   virtual int position() const { return pos_; }
 
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle,
+                          CallKind call_kind);
   virtual ZoneMapList* GetReceiverTypes() { return receiver_types_; }
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   CheckType check_type() const { return check_type_; }

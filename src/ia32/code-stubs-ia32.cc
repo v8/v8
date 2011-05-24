@@ -3945,31 +3945,22 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow;
 
-  // If the receiver might be a value (string, number or boolean) check for this
-  // and box it if it is.
-  if (ReceiverMightBeValue()) {
+  // The receiver might implicitly be the global object. This is
+  // indicated by passing the hole as the receiver to the call
+  // function stub.
+  if (ReceiverMightBeImplicit()) {
+    Label call;
     // Get the receiver from the stack.
     // +1 ~ return address
-    Label receiver_is_value, receiver_is_js_object;
     __ mov(eax, Operand(esp, (argc_ + 1) * kPointerSize));
-
-    // Check if receiver is a smi (which is a number value).
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, &receiver_is_value);
-
-    // Check if the receiver is a valid JS object.
-    __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, edi);
-    __ j(above_equal, &receiver_is_js_object);
-
-    // Call the runtime to box the value.
-    __ bind(&receiver_is_value);
-    __ EnterInternalFrame();
-    __ push(eax);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-    __ LeaveInternalFrame();
-    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), eax);
-
-    __ bind(&receiver_is_js_object);
+    // Call as function is indicated with the hole.
+    __ cmp(eax, masm->isolate()->factory()->the_hole_value());
+    __ j(not_equal, &call, Label::kNear);
+    // Patch the receiver on the stack with the global receiver object.
+    __ mov(ebx, GlobalObjectOperand());
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
+    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), ebx);
+    __ bind(&call);
   }
 
   // Get the function to call from the stack.
@@ -3985,7 +3976,19 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Fast-case: Just invoke the function.
   ParameterCount actual(argc_);
-  __ InvokeFunction(edi, actual, JUMP_FUNCTION);
+
+  if (ReceiverMightBeImplicit()) {
+    Label call_as_function;
+    __ cmp(eax, masm->isolate()->factory()->the_hole_value());
+    __ j(equal, &call_as_function);
+    __ InvokeFunction(edi, actual, JUMP_FUNCTION);
+    __ bind(&call_as_function);
+  }
+  __ InvokeFunction(edi,
+                    actual,
+                    JUMP_FUNCTION,
+                    NullCallWrapper(),
+                    CALL_AS_FUNCTION);
 
   // Slow-case: Non-function called.
   __ bind(&slow);

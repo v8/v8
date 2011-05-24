@@ -318,12 +318,14 @@ void IC::Clear(Address address) {
 
 
 void CallICBase::Clear(Address address, Code* target) {
+  bool contextual = CallICBase::Contextual::decode(target->extra_ic_state());
   State state = target->ic_state();
   if (state == UNINITIALIZED) return;
   Code* code =
       Isolate::Current()->stub_cache()->FindCallInitialize(
           target->arguments_count(),
           target->ic_in_loop(),
+          contextual ? RelocInfo::CODE_TARGET_CONTEXT : RelocInfo::CODE_TARGET,
           target->kind());
   SetTargetAtAddress(address, code);
 }
@@ -574,7 +576,7 @@ bool CallICBase::TryUpdateExtraICState(LookupResult* lookup,
         ASSERT(string == args[0] || string == JSValue::cast(args[0])->value());
         // If we're in the default (fastest) state and the index is
         // out of bounds, update the state to record this fact.
-        if (*extra_ic_state == DEFAULT_STRING_STUB &&
+        if (StringStubState::decode(*extra_ic_state) == DEFAULT_STRING_STUB &&
             argc >= 1 && args[1]->IsNumber()) {
           double index;
           if (args[1]->IsSmi()) {
@@ -584,7 +586,9 @@ bool CallICBase::TryUpdateExtraICState(LookupResult* lookup,
             index = DoubleToInteger(HeapNumber::cast(args[1])->value());
           }
           if (index < 0 || index >= string->length()) {
-            *extra_ic_state = STRING_INDEX_OUT_OF_BOUNDS;
+            *extra_ic_state =
+                StringStubState::update(*extra_ic_state,
+                                        STRING_INDEX_OUT_OF_BOUNDS);
             return true;
           }
         }
@@ -612,6 +616,7 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
       maybe_code = isolate()->stub_cache()->ComputeCallField(argc,
                                                              in_loop,
                                                              kind_,
+                                                             extra_ic_state,
                                                              *name,
                                                              *object,
                                                              lookup->holder(),
@@ -647,6 +652,7 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
         maybe_code = isolate()->stub_cache()->ComputeCallGlobal(argc,
                                                                 in_loop,
                                                                 kind_,
+                                                                extra_ic_state,
                                                                 *name,
                                                                 *receiver,
                                                                 global,
@@ -661,6 +667,7 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
         maybe_code = isolate()->stub_cache()->ComputeCallNormal(argc,
                                                                 in_loop,
                                                                 kind_,
+                                                                extra_ic_state,
                                                                 *name,
                                                                 *receiver);
       }
@@ -671,6 +678,7 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
       maybe_code = isolate()->stub_cache()->ComputeCallInterceptor(
           argc,
           kind_,
+          extra_ic_state,
           *name,
           *object,
           lookup->holder());
@@ -709,9 +717,11 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
-    maybe_code = isolate()->stub_cache()->ComputeCallPreMonomorphic(argc,
-                                                                    in_loop,
-                                                                    kind_);
+    maybe_code =
+        isolate()->stub_cache()->ComputeCallPreMonomorphic(argc,
+                                                           in_loop,
+                                                           kind_,
+                                                           extra_ic_state);
   } else if (state == MONOMORPHIC) {
     if (kind_ == Code::CALL_IC &&
         TryUpdateExtraICState(lookup, object, &extra_ic_state)) {
@@ -731,9 +741,11 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
                                           object,
                                           name);
     } else {
-      maybe_code = isolate()->stub_cache()->ComputeCallMegamorphic(argc,
-                                                                   in_loop,
-                                                                   kind_);
+      maybe_code =
+          isolate()->stub_cache()->ComputeCallMegamorphic(argc,
+                                                          in_loop,
+                                                          kind_,
+                                                          extra_ic_state);
     }
   } else {
     maybe_code = ComputeMonomorphicStub(lookup,
@@ -791,7 +803,7 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
     int argc = target()->arguments_count();
     InLoopFlag in_loop = target()->ic_in_loop();
     MaybeObject* maybe_code = isolate()->stub_cache()->ComputeCallMegamorphic(
-        argc, in_loop, Code::KEYED_CALL_IC);
+        argc, in_loop, Code::KEYED_CALL_IC, Code::kNoExtraICState);
     Object* code;
     if (maybe_code->ToObject(&code)) {
       set_target(Code::cast(code));

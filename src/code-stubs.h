@@ -745,8 +745,9 @@ class CallFunctionStub: public CodeStub {
   }
 
   InLoopFlag InLoop() { return in_loop_; }
-  bool ReceiverMightBeValue() {
-    return (flags_ & RECEIVER_MIGHT_BE_VALUE) != 0;
+
+  bool ReceiverMightBeImplicit() {
+    return (flags_ & RECEIVER_MIGHT_BE_IMPLICIT) != 0;
   }
 };
 

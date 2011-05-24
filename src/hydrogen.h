@@ -404,7 +404,8 @@ class HEnvironment: public ZoneObject {
   HEnvironment* CopyForInlining(Handle<JSFunction> target,
                                 FunctionLiteral* function,
                                 CompilationPhase compilation_phase,
-                                HConstant* undefined) const;
+                                HConstant* undefined,
+                                CallKind call_kind) const;
 
   void AddIncomingEdge(HBasicBlock* block, HEnvironment* other);
 

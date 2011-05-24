@@ -102,6 +102,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   Handle<Code> arguments_adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+  __ SetCallKind(ecx, CALL_AS_METHOD);
   __ jmp(arguments_adaptor, RelocInfo::CODE_TARGET);
 }
 
@@ -467,19 +468,25 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
   // Enter an internal frame.
   __ EnterInternalFrame();
 
-  // Push a copy of the function onto the stack.
+  // Push a copy of the function.
   __ push(edi);
+  // Push call kind information.
+  __ push(ecx);
 
   __ push(edi);  // Function is also the parameter to the runtime call.
   __ CallRuntime(Runtime::kLazyCompile, 1);
+
+  // Restore call kind information.
+  __ pop(ecx);
+  // Restore receiver.
   __ pop(edi);
 
   // Tear down temporary frame.
   __ LeaveInternalFrame();
 
   // Do a tail-call of the compiled function.
-  __ lea(ecx, FieldOperand(eax, Code::kHeaderSize));
-  __ jmp(Operand(ecx));
+  __ lea(eax, FieldOperand(eax, Code::kHeaderSize));
+  __ jmp(Operand(eax));
 }
 
 
@@ -489,17 +496,23 @@ void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
 
   // Push a copy of the function onto the stack.
   __ push(edi);
+  // Push call kind information.
+  __ push(ecx);
 
   __ push(edi);  // Function is also the parameter to the runtime call.
   __ CallRuntime(Runtime::kLazyRecompile, 1);
 
-  // Restore function and tear down temporary frame.
+  // Restore call kind information.
+  __ pop(ecx);
+  // Restore receiver.
   __ pop(edi);
+
+  // Tear down temporary frame.
   __ LeaveInternalFrame();
 
   // Do a tail-call of the compiled function.
-  __ lea(ecx, FieldOperand(eax, Code::kHeaderSize));
-  __ jmp(Operand(ecx));
+  __ lea(eax, FieldOperand(eax, Code::kHeaderSize));
+  __ jmp(Operand(eax));
 }
 
 
@@ -682,6 +695,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_zero, &function);
     __ Set(ebx, Immediate(0));
     __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
+    __ SetCallKind(ecx, CALL_AS_METHOD);
     __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
            RelocInfo::CODE_TARGET);
     __ bind(&function);
@@ -695,6 +709,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
          FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
   __ mov(edx, FieldOperand(edi, JSFunction::kCodeEntryOffset));
   __ SmiUntag(ebx);
+  __ SetCallKind(ecx, CALL_AS_METHOD);
   __ cmp(eax, Operand(ebx));
   __ j(not_equal,
        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline());
@@ -1424,12 +1439,12 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Push the function on the stack.
   __ push(edi);
 
-  // Preserve the number of arguments on the stack. Must preserve both
-  // eax and ebx because these registers are used when copying the
+  // Preserve the number of arguments on the stack. Must preserve eax,
+  // ebx and ecx because these registers are used when copying the
   // arguments and the receiver.
   ASSERT(kSmiTagSize == 1);
-  __ lea(ecx, Operand(eax, eax, times_1, kSmiTag));
-  __ push(ecx);
+  __ lea(edi, Operand(eax, eax, times_1, kSmiTag));
+  __ push(edi);
 }
 
 
@@ -1452,6 +1467,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : actual number of arguments
   //  -- ebx : expected number of arguments
+  //  -- ecx : call kind information
   //  -- edx : code entry to call
   // -----------------------------------
 
@@ -1471,14 +1487,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(eax, Operand(ebp, eax, times_4, offset));
-    __ mov(ecx, -1);  // account for receiver
+    __ mov(edi, -1);  // account for receiver
 
     Label copy;
     __ bind(&copy);
-    __ inc(ecx);
+    __ inc(edi);
     __ push(Operand(eax, 0));
     __ sub(Operand(eax), Immediate(kPointerSize));
-    __ cmp(ecx, Operand(ebx));
+    __ cmp(edi, Operand(ebx));
     __ j(less, &copy);
     __ jmp(&invoke);
   }
@@ -1490,30 +1506,33 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(edi, Operand(ebp, eax, times_4, offset));
-    __ mov(ecx, -1);  // account for receiver
+    // ebx = expected - actual.
+    __ sub(ebx, Operand(eax));
+    // eax = -actual - 1
+    __ neg(eax);
+    __ sub(Operand(eax), Immediate(1));
 
     Label copy;
     __ bind(&copy);
-    __ inc(ecx);
+    __ inc(eax);
     __ push(Operand(edi, 0));
     __ sub(Operand(edi), Immediate(kPointerSize));
-    __ cmp(ecx, Operand(eax));
-    __ j(less, &copy);
+    __ test(eax, Operand(eax));
+    __ j(not_zero, &copy);
 
     // Fill remaining expected arguments with undefined values.
     Label fill;
     __ bind(&fill);
-    __ inc(ecx);
+    __ inc(eax);
     __ push(Immediate(masm->isolate()->factory()->undefined_value()));
-    __ cmp(ecx, Operand(ebx));
+    __ cmp(eax, Operand(ebx));
     __ j(less, &fill);
-
-    // Restore function pointer.
-    __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   }
 
   // Call the entry point.
   __ bind(&invoke);
+  // Restore function pointer.
+  __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ call(Operand(edx));
 
   // Leave frame and return.

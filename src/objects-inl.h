@@ -2798,11 +2798,10 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                PropertyType type,
                                int argc,
                                InlineCacheHolderFlag holder) {
-  // Extra IC state is only allowed for monomorphic call IC stubs
-  // or for store IC stubs.
+  // Extra IC state is only allowed for call IC stubs or for store IC
+  // stubs.
   ASSERT(extra_ic_state == kNoExtraICState ||
-         (kind == CALL_IC && (ic_state == MONOMORPHIC ||
-                              ic_state == MONOMORPHIC_PROTOTYPE_FAILURE)) ||
+         (kind == CALL_IC) ||
          (kind == STORE_IC) ||
          (kind == KEYED_STORE_IC));
   // Compute the bit mask.

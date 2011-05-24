@@ -146,6 +146,20 @@ bool LCodeGen::GeneratePrologue() {
   // fp: Caller's frame pointer.
   // lr: Caller's pc.
 
+  // Strict mode functions need to replace the receiver with undefined
+  // when called as functions (without an explicit receiver
+  // object). r5 is zero for method calls and non-zero for function
+  // calls.
+  if (info_->is_strict_mode()) {
+    Label ok;
+    __ cmp(r5, Operand(0));
+    __ b(eq, &ok);
+    int receiver_offset = scope()->num_parameters() * kPointerSize;
+    __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
+    __ str(r2, MemOperand(sp, receiver_offset));
+    __ bind(&ok);
+  }
+
   __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
   __ add(fp, sp, Operand(2 * kPointerSize));  // Adjust FP to point to saved FP.
 
@@ -2798,7 +2812,8 @@ void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
 
 void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int arity,
-                                 LInstruction* instr) {
+                                 LInstruction* instr,
+                                 CallKind call_kind) {
   // Change context if needed.
   bool change_context =
       (info()->closure()->context() != function->context()) ||
@@ -2818,6 +2833,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   RecordPosition(pointers->position());
 
   // Invoke function.
+  __ SetCallKind(r5, call_kind);
   __ ldr(ip, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
   __ Call(ip);
 
@@ -2832,7 +2848,10 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
   __ mov(r1, Operand(instr->function()));
-  CallKnownFunction(instr->function(), instr->arity(), instr);
+  CallKnownFunction(instr->function(),
+                    instr->arity(),
+                    instr,
+                    CALL_AS_METHOD);
 }
 
 
@@ -3214,10 +3233,11 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
-  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(
-      arity, NOT_IN_LOOP);
+  RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
+  Handle<Code> ic =
+      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP, mode);
   __ mov(r2, Operand(instr->name()));
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  CallCode(ic, mode, instr);
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
@@ -3227,7 +3247,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
-  CallFunctionStub stub(arity, NOT_IN_LOOP, RECEIVER_MIGHT_BE_VALUE);
+  CallFunctionStub stub(arity, NOT_IN_LOOP, RECEIVER_MIGHT_BE_IMPLICIT);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   __ Drop(1);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -3238,10 +3258,11 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
+  RelocInfo::Mode mode = RelocInfo::CODE_TARGET_CONTEXT;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP, mode);
   __ mov(r2, Operand(instr->name()));
-  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
+  CallCode(ic, mode, instr);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
@@ -3249,7 +3270,7 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
   __ mov(r1, Operand(instr->target()));
-  CallKnownFunction(instr->target(), instr->arity(), instr);
+  CallKnownFunction(instr->target(), instr->arity(), instr, CALL_AS_FUNCTION);
 }
 
 
