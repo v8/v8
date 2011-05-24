@@ -527,12 +527,12 @@ static Handle<Object> UnwrapJSValue(Handle<JSValue> jsValue) {
 
 // Wraps any object into a OpaqueReference, that will hide the object
 // from JavaScript.
-static Handle<JSValue> WrapInJSValue(Object* object) {
+static Handle<JSValue> WrapInJSValue(Handle<Object> object) {
   Handle<JSFunction> constructor =
       Isolate::Current()->opaque_reference_function();
   Handle<JSValue> result =
       Handle<JSValue>::cast(FACTORY->NewJSObject(constructor));
-  result->set_value(object);
+  result->set_value(*object);
   return result;
 }
 
@@ -599,17 +599,17 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   }
   void SetFunctionCode(Handle<Code> function_code,
       Handle<Object> code_scope_info) {
-    Handle<JSValue> code_wrapper = WrapInJSValue(*function_code);
+    Handle<JSValue> code_wrapper = WrapInJSValue(function_code);
     this->SetField(kCodeOffset_, code_wrapper);
 
-    Handle<JSValue> scope_wrapper = WrapInJSValue(*code_scope_info);
+    Handle<JSValue> scope_wrapper = WrapInJSValue(code_scope_info);
     this->SetField(kCodeScopeInfoOffset_, scope_wrapper);
   }
   void SetOuterScopeInfo(Handle<Object> scope_info_array) {
     this->SetField(kOuterScopeInfoOffset_, scope_info_array);
   }
   void SetSharedFunctionInfo(Handle<SharedFunctionInfo> info) {
-    Handle<JSValue> info_holder = WrapInJSValue(*info);
+    Handle<JSValue> info_holder = WrapInJSValue(info);
     this->SetField(kSharedFunctionInfoOffset_, info_holder);
   }
   int GetParentIndex() {
@@ -666,7 +666,7 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
                      Handle<SharedFunctionInfo> info) {
     HandleScope scope;
     this->SetField(kFunctionNameOffset_, name);
-    Handle<JSValue> info_holder = WrapInJSValue(*info);
+    Handle<JSValue> info_holder = WrapInJSValue(info);
     this->SetField(kSharedInfoOffset_, info_holder);
     this->SetSmiValueField(kStartPositionOffset_, start_position);
     this->SetSmiValueField(kEndPositionOffset_, end_position);

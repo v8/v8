@@ -127,7 +127,7 @@ class EXPORT Debug {
     /**
      * Get the context active when the debug event happened. Note this is not
      * the current active context as the JavaScript part of the debugger is
-     * running in it's own context which is entered at this point.
+     * running in its own context which is entered at this point.
      */
     virtual Handle<Context> GetEventContext() const = 0;
 
@@ -164,12 +164,13 @@ class EXPORT Debug {
     /**
      * Get the context active when the debug event happened. Note this is not
      * the current active context as the JavaScript part of the debugger is
-     * running in it's own context which is entered at this point.
+     * running in its own context which is entered at this point.
      */
     virtual Handle<Context> GetEventContext() const = 0;
 
     /**
-     * Client data passed with the corresponding callbak whet it was registered.
+     * Client data passed with the corresponding callback when it was
+     * registered.
      */
     virtual Handle<Value> GetCallbackData() const = 0;
 
@@ -310,7 +311,7 @@ class EXPORT Debug {
   * get access to information otherwise not available during normal JavaScript
   * execution e.g. details on stack frames. Receiver of the function call will
   * be the debugger context global object, however this is a subject to change.
-  * The following example show a JavaScript function which when passed to
+  * The following example shows a JavaScript function which when passed to
   * v8::Debug::Call will return the current line of JavaScript execution.
   *
   * \code
@@ -352,7 +353,7 @@ class EXPORT Debug {
    * 2. V8 is suspended on debug breakpoint; in this state V8 is dedicated
    * to reading and processing debug messages;
    * 3. V8 is not running at all or has called some long-working C++ function;
-   * by default it means that processing of all debug message will be deferred
+   * by default it means that processing of all debug messages will be deferred
    * until V8 gets control again; however, embedding application may improve
    * this by manually calling this method.
    *
@@ -376,7 +377,7 @@ class EXPORT Debug {
   static void ProcessDebugMessages();
 
   /**
-   * Debugger is running in it's own context which is entered while debugger
+   * Debugger is running in its own context which is entered while debugger
    * messages are being dispatched. This is an explicit getter for this
    * debugger context. Note that the content of the debugger context is subject
    * to change.

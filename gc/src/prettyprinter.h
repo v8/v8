@@ -28,6 +28,7 @@
 #ifndef V8_PRETTYPRINTER_H_
 #define V8_PRETTYPRINTER_H_
 
+#include "allocation.h"
 #include "ast.h"
 
 namespace v8 {

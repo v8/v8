@@ -588,6 +588,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSProxy) {
+  ASSERT(args.length() == 2);
+  Object* handler = args[0];
+  Object* prototype = args[1];
+  Object* used_prototype =
+      (prototype->IsJSObject() || prototype->IsJSProxy()) ? prototype
+          : isolate->heap()->null_value();
+  return isolate->heap()->AllocateJSProxy(handler, used_prototype);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCatchExtensionObject) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, key, args[0]);
@@ -4108,6 +4119,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
 }
 
 
+// Set the ES5 native flag on the function.
+// This is used to decide if we should transform null and undefined
+// into the global object when doing call and apply.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetES5Flag) {
+  NoHandleAllocation ha;
+  RUNTIME_ASSERT(args.length() == 1);
+
+  Handle<Object> object = args.at<Object>(0);
+
+  if (object->IsJSFunction()) {
+    JSFunction* func = JSFunction::cast(*object);
+    func->shared()->set_es5_native(true);
+  }
+  return isolate->heap()->undefined_value();
+}
+
+
 // Set a local property, even if it is READ_ONLY.  If the property does not
 // exist, it will be added with attributes NONE.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IgnoreAttributesAndSetProperty) {
@@ -4167,25 +4195,33 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasLocalProperty) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, key, args[1]);
 
+  uint32_t index;
+  const bool key_is_array_index = key->AsArrayIndex(&index);
+
   Object* obj = args[0];
   // Only JS objects can have properties.
   if (obj->IsJSObject()) {
     JSObject* object = JSObject::cast(obj);
-    // Fast case - no interceptors.
+    // Fast case: either the key is a real named property or it is not
+    // an array index and there are no interceptors or hidden
+    // prototypes.
     if (object->HasRealNamedProperty(key)) return isolate->heap()->true_value();
-    // Slow case.  Either it's not there or we have an interceptor.  We should
-    // have handles for this kind of deal.
+    Map* map = object->map();
+    if (!key_is_array_index &&
+        !map->has_named_interceptor() &&
+        !HeapObject::cast(map->prototype())->map()->is_hidden_prototype()) {
+      return isolate->heap()->false_value();
+    }
+    // Slow case.
     HandleScope scope(isolate);
     return HasLocalPropertyImplementation(isolate,
                                           Handle<JSObject>(object),
                                           Handle<String>(key));
-  } else if (obj->IsString()) {
+  } else if (obj->IsString() && key_is_array_index) {
     // Well, there is one exception:  Handle [] on strings.
-    uint32_t index;
-    if (key->AsArrayIndex(&index)) {
-      String* string = String::cast(obj);
-      if (index < static_cast<uint32_t>(string->length()))
-        return isolate->heap()->true_value();
+    String* string = String::cast(obj);
+    if (index < static_cast<uint32_t>(string->length())) {
+      return isolate->heap()->true_value();
     }
   }
   return isolate->heap()->false_value();
@@ -7555,6 +7591,29 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  if (!V8::UseCrankshaft()) {
+    return Smi::FromInt(4);  // 4 == "never".
+  }
+  if (FLAG_always_opt) {
+    return Smi::FromInt(3);  // 3 == "always".
+  }
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  return function->IsOptimized() ? Smi::FromInt(1)   // 1 == "yes".
+                                 : Smi::FromInt(2);  // 2 == "no".
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationCount) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  return Smi::FromInt(function->shared()->opt_count());
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -7870,12 +7929,13 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     // If the "property" we were looking for is a local variable or an
     // argument in a context, the receiver is the global object; see
     // ECMA-262, 3rd., 10.1.6 and 10.2.3.
-    JSObject* receiver =
-        isolate->context()->global()->global_receiver();
+    // GetElement below can cause GC.
+    Handle<JSObject> receiver(
+        isolate->context()->global()->global_receiver());
     MaybeObject* value = (holder->IsContext())
         ? Context::cast(*holder)->get(index)
         : JSObject::cast(*holder)->GetElement(index);
-    return MakePair(Unhole(isolate->heap(), value, attributes), receiver);
+    return MakePair(Unhole(isolate->heap(), value, attributes), *receiver);
   }
 
   // If the holder is found, we read the property from it.
@@ -7890,10 +7950,14 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     } else {
       receiver = ComputeReceiverForNonGlobal(isolate, object);
     }
+
+    // GetProperty below can cause GC.
+    Handle<JSObject> receiver_handle(receiver);
+
     // No need to unhole the value here. This is taken care of by the
     // GetProperty function.
     MaybeObject* value = object->GetProperty(*name);
-    return MakePair(value, receiver);
+    return MakePair(value, *receiver_handle);
   }
 
   if (throw_error) {

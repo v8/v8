@@ -30,6 +30,7 @@
 
 #include "v8.h"
 
+#include "allocation.h"
 #include "code-stubs.h"
 #include "data-flow.h"
 #include "small-pointer-list.h"
@@ -86,10 +87,12 @@ class LChunkBuilder;
   V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
   V(CheckSmi)                                  \
+  V(ClampToUint8)                              \
   V(ClassOfTest)                               \
   V(Compare)                                   \
   V(CompareJSObjectEq)                         \
   V(CompareMap)                                \
+  V(CompareSymbolEq)                           \
   V(Constant)                                  \
   V(Context)                                   \
   V(DeleteProperty)                            \
@@ -98,6 +101,7 @@ class LChunkBuilder;
   V(EnterInlined)                              \
   V(ExternalArrayLength)                       \
   V(FixedArrayLength)                          \
+  V(ForceRepresentation)                       \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
   V(GlobalObject)                              \
@@ -109,10 +113,11 @@ class LChunkBuilder;
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
   V(InvokeFunction)                            \
+  V(IsConstructCall)                           \
   V(IsNull)                                    \
   V(IsObject)                                  \
   V(IsSmi)                                     \
-  V(IsConstructCall)                           \
+  V(IsUndetectable)                            \
   V(JSArrayLength)                             \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
@@ -548,12 +553,12 @@ class HValue: public ZoneObject {
   Representation representation() const { return representation_; }
   void ChangeRepresentation(Representation r) {
     // Representation was already set and is allowed to be changed.
-    ASSERT(!representation_.IsNone());
     ASSERT(!r.IsNone());
     ASSERT(CheckFlag(kFlexibleRepresentation));
     RepresentationChanged(r);
     representation_ = r;
   }
+  void AssumeRepresentation(Representation r);
 
   virtual bool IsConvertibleToInteger() const { return true; }
 
@@ -627,7 +632,9 @@ class HValue: public ZoneObject {
   // Printing support.
   virtual void PrintTo(StringStream* stream) = 0;
   void PrintNameTo(StringStream* stream);
-  static void PrintTypeTo(HType type, StringStream* stream);
+  void PrintTypeTo(StringStream* stream);
+  void PrintRangeTo(StringStream* stream);
+  void PrintChangesTo(StringStream* stream);
 
   const char* Mnemonic() const;
 
@@ -739,6 +746,8 @@ class HInstruction: public HValue {
     ASSERT(!IsLinked());
     SetBlock(block);
   }
+
+  void PrintMnemonicTo(StringStream* stream);
 
   HInstruction* next_;
   HInstruction* previous_;
@@ -854,6 +863,11 @@ class HDeoptimize: public HControlInstruction {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize)
+
+  enum UseEnvironment {
+    kNoUses,
+    kUseAll
+  };
 
  protected:
   virtual void InternalSetOperandAt(int index, HValue* value) {
@@ -996,6 +1010,25 @@ class HThrow: public HUnaryOperation {
 };
 
 
+class HForceRepresentation: public HTemplateInstruction<1> {
+ public:
+  HForceRepresentation(HValue* value, Representation required_representation) {
+    SetOperandAt(0, value);
+    set_representation(required_representation);
+  }
+
+  HValue* value() { return OperandAt(0); }
+
+  virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return representation();  // Same as the output representation.
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ForceRepresentation)
+};
+
+
 class HChange: public HUnaryOperation {
  public:
   HChange(HValue* value,
@@ -1038,6 +1071,46 @@ class HChange: public HUnaryOperation {
 
  private:
   Representation from_;
+};
+
+
+class HClampToUint8: public HUnaryOperation {
+ public:
+  explicit HClampToUint8(HValue* value)
+      : HUnaryOperation(value),
+        input_rep_(Representation::None()) {
+    SetFlag(kFlexibleRepresentation);
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return input_rep_;
+  }
+
+  virtual Representation InferredRepresentation() {
+    // TODO(danno): Inference on input types should happen separately from
+    // return representation.
+    Representation new_rep = value()->representation();
+    if (input_rep_.IsNone()) {
+      if (!new_rep.IsNone()) {
+        input_rep_ = new_rep;
+        return Representation::Integer32();
+      } else {
+        return Representation::None();
+      }
+    } else {
+      return Representation::Integer32();
+    }
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ClampToUint8)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+
+ private:
+  Representation input_rep_;
 };
 
 
@@ -1756,19 +1829,17 @@ class HCheckFunction: public HUnaryOperation {
 
 class HCheckInstanceType: public HUnaryOperation {
  public:
-  // Check that the instance type is in the range [first, last] where
-  // both first and last are included.
-  HCheckInstanceType(HValue* value, InstanceType first, InstanceType last)
-      : HUnaryOperation(value), first_(first), last_(last) {
-    ASSERT(first <= last);
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    if ((FIRST_STRING_TYPE < first && last <= LAST_STRING_TYPE) ||
-        (FIRST_STRING_TYPE <= first && last < LAST_STRING_TYPE)) {
-      // A particular string instance type can change because of GC or
-      // externalization, but the value still remains a string.
-      SetFlag(kDependsOnMaps);
-    }
+  static HCheckInstanceType* NewIsJSObjectOrJSFunction(HValue* value) {
+    return new HCheckInstanceType(value, IS_JS_OBJECT_OR_JS_FUNCTION);
+  }
+  static HCheckInstanceType* NewIsJSArray(HValue* value) {
+    return new HCheckInstanceType(value, IS_JS_ARRAY);
+  }
+  static HCheckInstanceType* NewIsString(HValue* value) {
+    return new HCheckInstanceType(value, IS_STRING);
+  }
+  static HCheckInstanceType* NewIsSymbol(HValue* value) {
+    return new HCheckInstanceType(value, IS_SYMBOL);
   }
 
   virtual bool IsCheckInstruction() const { return true; }
@@ -1784,17 +1855,15 @@ class HCheckInstanceType: public HUnaryOperation {
   virtual HValue* Canonicalize() {
     if (!value()->type().IsUninitialized() &&
         value()->type().IsString() &&
-        first() == FIRST_STRING_TYPE &&
-        last() == LAST_STRING_TYPE) {
+        check_ == IS_STRING) {
       return NULL;
     }
     return this;
   }
 
-  static HCheckInstanceType* NewIsJSObjectOrJSFunction(HValue* value);
-
-  InstanceType first() const { return first_; }
-  InstanceType last() const { return last_; }
+  bool is_interval_check() const { return check_ <= LAST_INTERVAL_CHECK; }
+  void GetCheckInterval(InstanceType* first, InstanceType* last);
+  void GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag);
 
   DECLARE_CONCRETE_INSTRUCTION(CheckInstanceType)
 
@@ -1804,12 +1873,25 @@ class HCheckInstanceType: public HUnaryOperation {
   // with a larger range.
   virtual bool DataEquals(HValue* other) {
     HCheckInstanceType* b = HCheckInstanceType::cast(other);
-    return (first_ == b->first()) && (last_ == b->last());
+    return check_ == b->check_;
   }
 
  private:
-  InstanceType first_;
-  InstanceType last_;
+  enum Check {
+    IS_JS_OBJECT_OR_JS_FUNCTION,
+    IS_JS_ARRAY,
+    IS_STRING,
+    IS_SYMBOL,
+    LAST_INTERVAL_CHECK = IS_JS_ARRAY
+  };
+
+  HCheckInstanceType(HValue* value, Check check)
+      : HUnaryOperation(value), check_(check) {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  const Check check_;
 };
 
 
@@ -2395,6 +2477,40 @@ class HCompareJSObjectEq: public HBinaryOperation {
 };
 
 
+class HCompareSymbolEq: public HBinaryOperation {
+ public:
+  HCompareSymbolEq(HValue* left, HValue* right, Token::Value op)
+      : HBinaryOperation(left, right), op_(op) {
+    ASSERT(op == Token::EQ || op == Token::EQ_STRICT);
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+    SetFlag(kDependsOnMaps);
+  }
+
+  Token::Value op() const { return op_; }
+
+  virtual bool EmitAtUses() {
+    return !HasSideEffects() && !HasMultipleUses();
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::Tagged();
+  }
+
+  virtual HType CalculateInferredType() { return HType::Boolean(); }
+
+  DECLARE_CONCRETE_INSTRUCTION(CompareSymbolEq);
+
+ protected:
+  virtual bool DataEquals(HValue* other) {
+    return op_ == HCompareSymbolEq::cast(other)->op_;
+  }
+
+ private:
+  const Token::Value op_;
+};
+
+
 class HUnaryPredicate: public HUnaryOperation {
  public:
   explicit HUnaryPredicate(HValue* value) : HUnaryOperation(value) {
@@ -2449,6 +2565,17 @@ class HIsSmi: public HUnaryPredicate {
   explicit HIsSmi(HValue* value) : HUnaryPredicate(value) { }
 
   DECLARE_CONCRETE_INSTRUCTION(IsSmi)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
+class HIsUndetectable: public HUnaryPredicate {
+ public:
+  explicit HIsUndetectable(HValue* value) : HUnaryPredicate(value) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsUndetectable)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
@@ -3253,6 +3380,8 @@ class HLoadKeyedFastElement: public HBinaryOperation {
 
   virtual void PrintDataTo(StringStream* stream);
 
+  bool RequiresHoleCheck() const;
+
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastElement)
 
  protected:
@@ -3309,7 +3438,7 @@ class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
 
 class HLoadKeyedGeneric: public HTemplateInstruction<3> {
  public:
-  HLoadKeyedGeneric(HContext* context, HValue* obj, HValue* key) {
+  HLoadKeyedGeneric(HValue* context, HValue* obj, HValue* key) {
     set_representation(Representation::Tagged());
     SetOperandAt(0, obj);
     SetOperandAt(1, key);

@@ -858,12 +858,25 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
     RegExpNode* start,
     int capture_count,
     Handle<String> pattern) {
+  Heap* heap = pattern->GetHeap();
+
+  bool use_slow_safe_regexp_compiler = false;
+  if (heap->total_regexp_code_generated() >
+          RegExpImpl::kRegWxpCompiledLimit &&
+      heap->isolate()->memory_allocator()->SizeExecutable() >
+          RegExpImpl::kRegExpExecutableMemoryLimit) {
+    use_slow_safe_regexp_compiler = true;
+  }
+
+  macro_assembler->set_slow_safe(use_slow_safe_regexp_compiler);
+
 #ifdef DEBUG
   if (FLAG_trace_regexp_assembler)
     macro_assembler_ = new RegExpMacroAssemblerTracer(macro_assembler);
   else
 #endif
     macro_assembler_ = macro_assembler;
+
   List <RegExpNode*> work_list(0);
   work_list_ = &work_list;
   Label fail;
@@ -877,7 +890,8 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
   }
   if (reg_exp_too_big_) return IrregexpRegExpTooBig();
 
-  Handle<Object> code = macro_assembler_->GetCode(pattern);
+  Handle<HeapObject> code = macro_assembler_->GetCode(pattern);
+  heap->IncreaseTotalRegexpCodeGenerated(code->Size());
   work_list_ = NULL;
 #ifdef DEBUG
   if (FLAG_print_code) {

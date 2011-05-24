@@ -164,6 +164,11 @@ class List {
   DISALLOW_COPY_AND_ASSIGN(List);
 };
 
+class Map;
+class Code;
+typedef List<Map*> MapList;
+typedef List<Code*> CodeList;
+
 } }  // namespace v8::internal
 
 #endif  // V8_LIST_H_

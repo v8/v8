@@ -231,6 +231,8 @@ class Factory {
       Handle<FixedArray> elements,
       PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
+
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Object> prototype);
 

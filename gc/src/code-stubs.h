@@ -28,6 +28,7 @@
 #ifndef V8_CODE_STUBS_H_
 #define V8_CODE_STUBS_H_
 
+#include "allocation.h"
 #include "globals.h"
 
 namespace v8 {
@@ -67,7 +68,12 @@ namespace internal {
   V(NumberToString)                      \
   V(CEntry)                              \
   V(JSEntry)                             \
-  V(DebuggerStatement)
+  V(KeyedLoadFastElement)                \
+  V(KeyedStoreFastElement)               \
+  V(KeyedLoadExternalArray)              \
+  V(KeyedStoreExternalArray)             \
+  V(DebuggerStatement)                   \
+  V(StringDictionaryNegativeLookup)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -84,7 +90,8 @@ namespace internal {
 // List of code stubs only used on MIPS platforms.
 #ifdef V8_TARGET_ARCH_MIPS
 #define CODE_STUB_LIST_MIPS(V)  \
-  V(RegExpCEntry)
+  V(RegExpCEntry)               \
+  V(DirectCEntry)
 #else
 #define CODE_STUB_LIST_MIPS(V)
 #endif
@@ -426,6 +433,7 @@ class ICCompareStub: public CodeStub {
 
   void GenerateSmis(MacroAssembler* masm);
   void GenerateHeapNumbers(MacroAssembler* masm);
+  void GenerateSymbols(MacroAssembler* masm);
   void GenerateStrings(MacroAssembler* masm);
   void GenerateObjects(MacroAssembler* masm);
   void GenerateMiss(MacroAssembler* masm);
@@ -919,6 +927,86 @@ class AllowStubCallsScope {
 
   DISALLOW_COPY_AND_ASSIGN(AllowStubCallsScope);
 };
+
+#ifdef DEBUG
+#define DECLARE_ARRAY_STUB_PRINT(name) void Print() { PrintF(#name); }
+#else
+#define DECLARE_ARRAY_STUB_PRINT(name)
+#endif
+
+
+class KeyedLoadFastElementStub : public CodeStub {
+ public:
+  explicit KeyedLoadFastElementStub() {
+  }
+
+  Major MajorKey() { return KeyedLoadFastElement; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "KeyedLoadFastElementStub"; }
+
+  DECLARE_ARRAY_STUB_PRINT(KeyedLoadFastElementStub)
+};
+
+
+class KeyedStoreFastElementStub : public CodeStub {
+ public:
+  explicit KeyedStoreFastElementStub(bool is_js_array)
+      : is_js_array_(is_js_array) { }
+
+  Major MajorKey() { return KeyedStoreFastElement; }
+  int MinorKey() { return is_js_array_ ? 1 : 0; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "KeyedStoreFastElementStub"; }
+
+  DECLARE_ARRAY_STUB_PRINT(KeyedStoreFastElementStub)
+
+ private:
+  bool is_js_array_;
+};
+
+
+class KeyedLoadExternalArrayStub : public CodeStub {
+ public:
+  explicit KeyedLoadExternalArrayStub(ExternalArrayType array_type)
+      : array_type_(array_type) { }
+
+  Major MajorKey() { return KeyedLoadExternalArray; }
+  int MinorKey() { return array_type_; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "KeyedLoadExternalArrayStub"; }
+
+  DECLARE_ARRAY_STUB_PRINT(KeyedLoadExternalArrayStub)
+
+ protected:
+  ExternalArrayType array_type_;
+};
+
+
+class KeyedStoreExternalArrayStub : public CodeStub {
+ public:
+  explicit KeyedStoreExternalArrayStub(ExternalArrayType array_type)
+      : array_type_(array_type) { }
+
+  Major MajorKey() { return KeyedStoreExternalArray; }
+  int MinorKey() { return array_type_; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "KeyedStoreExternalArrayStub"; }
+
+  DECLARE_ARRAY_STUB_PRINT(KeyedStoreExternalArrayStub)
+
+ protected:
+  ExternalArrayType array_type_;
+};
+
 
 } }  // namespace v8::internal
 

@@ -30,6 +30,7 @@
 
 #include <math.h>
 
+#include "allocation.h"
 #include "globals.h"
 #include "incremental-marking.h"
 #include "list.h"
@@ -179,8 +180,14 @@ inline Heap* _inline_get_heap_();
   V(value_of_symbol, "valueOf")                                          \
   V(InitializeVarGlobal_symbol, "InitializeVarGlobal")                   \
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
-  V(KeyedLoadSpecialized_symbol, "KeyedLoadSpecialized")                 \
-  V(KeyedStoreSpecialized_symbol, "KeyedStoreSpecialized")               \
+  V(KeyedLoadSpecializedMonomorphic_symbol,                              \
+    "KeyedLoadSpecializedMonomorphic")                                   \
+  V(KeyedLoadSpecializedPolymorphic_symbol,                              \
+    "KeyedLoadSpecializedPolymorphic")                                   \
+  V(KeyedStoreSpecializedMonomorphic_symbol,                             \
+    "KeyedStoreSpecializedMonomorphic")                                  \
+  V(KeyedStoreSpecializedPolymorphic_symbol,                             \
+    "KeyedStoreSpecializedPolymorphic")                                  \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
   V(illegal_access_symbol, "illegal access")                             \
   V(out_of_memory_symbol, "out-of-memory")                               \
@@ -208,32 +215,7 @@ inline Heap* _inline_get_heap_();
   V(global_eval_symbol, "GlobalEval")                                    \
   V(identity_hash_symbol, "v8::IdentityHash")                            \
   V(closure_symbol, "(closure)")                                         \
-  V(use_strict, "use strict")                                            \
-  V(KeyedLoadExternalByteArray_symbol, "KeyedLoadExternalByteArray")     \
-  V(KeyedLoadExternalUnsignedByteArray_symbol,                           \
-      "KeyedLoadExternalUnsignedByteArray")                              \
-  V(KeyedLoadExternalShortArray_symbol,                                  \
-      "KeyedLoadExternalShortArray")                                     \
-  V(KeyedLoadExternalUnsignedShortArray_symbol,                          \
-      "KeyedLoadExternalUnsignedShortArray")                             \
-  V(KeyedLoadExternalIntArray_symbol, "KeyedLoadExternalIntArray")       \
-  V(KeyedLoadExternalUnsignedIntArray_symbol,                            \
-       "KeyedLoadExternalUnsignedIntArray")                              \
-  V(KeyedLoadExternalFloatArray_symbol, "KeyedLoadExternalFloatArray")   \
-  V(KeyedLoadExternalDoubleArray_symbol, "KeyedLoadExternalDoubleArray") \
-  V(KeyedLoadExternalPixelArray_symbol, "KeyedLoadExternalPixelArray")   \
-  V(KeyedStoreExternalByteArray_symbol, "KeyedStoreExternalByteArray")   \
-  V(KeyedStoreExternalUnsignedByteArray_symbol,                          \
-        "KeyedStoreExternalUnsignedByteArray")                           \
-  V(KeyedStoreExternalShortArray_symbol, "KeyedStoreExternalShortArray") \
-  V(KeyedStoreExternalUnsignedShortArray_symbol,                         \
-        "KeyedStoreExternalUnsignedShortArray")                          \
-  V(KeyedStoreExternalIntArray_symbol, "KeyedStoreExternalIntArray")     \
-  V(KeyedStoreExternalUnsignedIntArray_symbol,                           \
-        "KeyedStoreExternalUnsignedIntArray")                            \
-  V(KeyedStoreExternalFloatArray_symbol, "KeyedStoreExternalFloatArray") \
-  V(KeyedStoreExternalDoubleArray_symbol, "KeyedStoreExternalDoubleArray") \
-  V(KeyedStoreExternalPixelArray_symbol, "KeyedStoreExternalPixelArray")
+  V(use_strict, "use strict")
 
 // Forward declarations.
 class GCTracer;
@@ -473,6 +455,13 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateFunctionPrototype(JSFunction* function);
+
+  // Allocates a Harmony Proxy.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  MUST_USE_RESULT MaybeObject* AllocateJSProxy(Object* handler,
+                                               Object* prototype);
 
   // Reinitialize an JSGlobalProxy based on a constructor.  The object
   // must have the same size as objects allocated using the
@@ -1280,6 +1269,11 @@ class Heap {
   // Returns the size of objects residing in non new spaces.
   intptr_t PromotedSpaceSize();
 
+  double total_regexp_code_generated() { return total_regexp_code_generated_; }
+  void IncreaseTotalRegexpCodeGenerated(int size) {
+    total_regexp_code_generated_ += size;
+  }
+
   // Returns maximum GC pause.
   int get_max_gc_pause() { return max_gc_pause_; }
 
@@ -1580,6 +1574,9 @@ class Heap {
       JSFunction* function,
       SharedFunctionInfo* shared,
       Object* prototype);
+
+  // Total RegExp code ever generated
+  double total_regexp_code_generated_;
 
   GCTracer* tracer_;
 

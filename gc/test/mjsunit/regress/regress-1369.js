@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,56 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --expose-gc
 
-#include "v8.h"
-
-#if defined(V8_TARGET_ARCH_MIPS)
-
-#include "codegen-inl.h"
-#include "jump-target-inl.h"
-#include "register-allocator-inl.h"
-#include "virtual-frame-inl.h"
-
-namespace v8 {
-namespace internal {
-
-// -------------------------------------------------------------------------
-// JumpTarget implementation.
-
-#define __ ACCESS_MASM(cgen()->masm())
-
-// BRANCH_ARGS_CHECK checks that conditional jump arguments are correct.
-#define BRANCH_ARGS_CHECK(cond, rs, rt) ASSERT(                                \
-    (cond == cc_always && rs.is(zero_reg) && rt.rm().is(zero_reg)) ||          \
-    (cond != cc_always && (!rs.is(zero_reg) || !rt.rm().is(zero_reg))))
-
-
-void JumpTarget::DoJump() {
-  UNIMPLEMENTED_MIPS();
-}
-
-// Original prototype for mips, needs arch-indep change. Leave out for now.
-// void JumpTarget::DoBranch(Condition cc, Hint ignored,
-//     Register src1, const Operand& src2) {
-void JumpTarget::DoBranch(Condition cc, Hint ignored) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void JumpTarget::Call() {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-void JumpTarget::DoBind() {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-#undef __
-#undef BRANCH_ARGS_CHECK
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_TARGET_ARCH_MIPS
+assertDoesNotThrow('gc.call(1)');
+assertDoesNotThrow('gc.call("asdf")');

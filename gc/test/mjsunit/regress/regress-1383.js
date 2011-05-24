@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,40 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Test that passing the strict_mode flag in extra ic state from
+// StubCache::ComputeKeyedLoadOrStoreExternalArray does not
+// hit an assertion in Code::ComputeFlags.
 
-#ifndef V8_MIPS_CODEGEN_MIPS_INL_H_
-#define V8_MIPS_CODEGEN_MIPS_INL_H_
-
-#include "virtual-frame-mips.h"
-
-namespace v8 {
-namespace internal {
-
-#define __ ACCESS_MASM(masm_)
-
-// Platform-specific inline functions.
-
-void DeferredCode::Jump() {
-  __ b(&entry_label_);
-  __ nop();
+x="";
+function foo(){
+  "use strict";
+  var wxemsx=(4);
+  var wxemsx_0=Float32Array(wxemsx);
+  wxemsx_0[0]={};
 }
 
-
-// Note: this has been hacked for submisson. Mips branches require two
-//  additional operands: Register src1, const Operand& src2.
-void DeferredCode::Branch(Condition cond) {
-  __ Branch(&entry_label_, cond, zero_reg, Operand(0));
-}
-
-
-void Reference::GetValueAndSpill() {
-  GetValue();
-}
-
-
-#undef __
-
-} }  // namespace v8::internal
-
-#endif  // V8_MIPS_CODEGEN_MIPS_INL_H_
-
+foo()

@@ -1309,7 +1309,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
     var = top_scope_->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
-      var = top_scope_->DeclareLocal(name, mode);
+      var = top_scope_->DeclareLocal(name, mode, Scope::VAR_OR_CONST);
     } else {
       // The name was declared before; check for conflicting
       // re-declarations. If the previous declaration was a const or the
@@ -1581,6 +1581,12 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
                        is_const /* always bound for CONST! */,
                        CHECK_OK);
     nvars++;
+    if (top_scope_->num_var_or_const() > kMaxNumFunctionLocals) {
+      ReportMessageAt(scanner().location(), "too_many_variables",
+                      Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    }
 
     // Parse initialization expression if present and/or needed. A
     // declaration of the form:
@@ -3543,9 +3549,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     //    '(' (Identifier)*[','] ')'
     Expect(Token::LPAREN, CHECK_OK);
     start_pos = scanner().location().beg_pos;
-    Scanner::Location name_loc = Scanner::NoLocation();
-    Scanner::Location dupe_loc = Scanner::NoLocation();
-    Scanner::Location reserved_loc = Scanner::NoLocation();
+    Scanner::Location name_loc = Scanner::Location::invalid();
+    Scanner::Location dupe_loc = Scanner::Location::invalid();
+    Scanner::Location reserved_loc = Scanner::Location::invalid();
 
     bool done = (peek() == Token::RPAREN);
     while (!done) {
@@ -3564,7 +3570,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         reserved_loc = scanner().location();
       }
 
-      Variable* parameter = top_scope_->DeclareLocal(param_name, Variable::VAR);
+      Variable* parameter = top_scope_->DeclareLocal(param_name,
+                                                     Variable::VAR,
+                                                     Scope::PARAMETER);
       top_scope_->AddParameter(parameter);
       num_parameters++;
       if (num_parameters > kMaxNumFunctionParameters) {
@@ -3864,12 +3872,14 @@ void Parser::CheckStrictModeLValue(Expression* expression,
 }
 
 
-// Checks whether octal literal last seen is between beg_pos and end_pos.
-// If so, reports an error.
+// Checks whether an octal literal was last seen between beg_pos and end_pos.
+// If so, reports an error. Only called for strict mode.
 void Parser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
-  int octal = scanner().octal_position();
-  if (beg_pos <= octal && octal <= end_pos) {
-    ReportMessageAt(Scanner::Location(octal, octal + 1), "strict_octal_literal",
+  Scanner::Location octal = scanner().octal_position();
+  if (octal.IsValid() &&
+      beg_pos <= octal.beg_pos &&
+      octal.end_pos <= end_pos) {
+    ReportMessageAt(octal, "strict_octal_literal",
                     Vector<const char*>::empty());
     scanner().clear_octal_position();
     *ok = false;
@@ -4082,6 +4092,21 @@ Handle<String> JsonParser::GetString() {
 }
 
 
+Handle<String> JsonParser::GetSymbol() {
+  int literal_length = scanner_.literal_length();
+  if (literal_length == 0) {
+    return isolate()->factory()->empty_string();
+  }
+  if (scanner_.is_literal_ascii()) {
+    return isolate()->factory()->LookupAsciiSymbol(
+        scanner_.literal_ascii_string());
+  } else {
+    return isolate()->factory()->LookupTwoByteSymbol(
+        scanner_.literal_uc16_string());
+  }
+}
+
+
 // Parse any JSON value.
 Handle<Object> JsonParser::ParseJsonValue() {
   Token::Value token = scanner_.Next();
@@ -4123,7 +4148,7 @@ Handle<Object> JsonParser::ParseJsonObject() {
       if (scanner_.Next() != Token::STRING) {
         return ReportUnexpectedToken();
       }
-      Handle<String> key = GetString();
+      Handle<String> key = GetSymbol();
       if (scanner_.Next() != Token::COLON) {
         return ReportUnexpectedToken();
       }

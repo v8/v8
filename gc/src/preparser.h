@@ -33,7 +33,7 @@ namespace preparser {
 
 // Preparsing checks a JavaScript program and emits preparse-data that helps
 // a later parsing to be faster.
-// See preparse-data.h for the data.
+// See preparse-data-format.h for the data format.
 
 // The PreParser checks that the syntax follows the grammar for JavaScript,
 // and collects some information about the program along the way.
@@ -80,14 +80,18 @@ class PreParser {
   // simple this-property assignments.
 
   enum StatementType {
-    kUnknownStatement
+    kUnknownStatement,
+    kStringLiteralExpressionStatement,
+    kUseStrictExpressionStatement
   };
 
   enum ExpressionType {
     kUnknownExpression,
     kIdentifierExpression,  // Used to detect labels.
     kThisExpression,
-    kThisPropertyExpression
+    kThisPropertyExpression,
+    kStringLiteralExpression,
+    kUseStrictString
   };
 
   enum IdentifierType {
@@ -95,7 +99,9 @@ class PreParser {
   };
 
   enum SourceElementTypes {
-    kUnknownSourceElements
+    kUnknownSourceElements,
+    kDirectivePrologue,
+    kUseStrictDirective
   };
 
   typedef int SourceElements;
@@ -112,7 +118,8 @@ class PreParser {
           type_(type),
           materialized_literal_count_(0),
           expected_properties_(0),
-          with_nesting_count_(0) {
+          with_nesting_count_(0),
+          strict_((prev_ != NULL) && prev_->is_strict()) {
       *variable = this;
     }
     ~Scope() { *variable_ = prev_; }
@@ -122,6 +129,8 @@ class PreParser {
     int expected_properties() { return expected_properties_; }
     int materialized_literal_count() { return materialized_literal_count_; }
     bool IsInsideWith() { return with_nesting_count_ != 0; }
+    bool is_strict() { return strict_; }
+    void set_strict() { strict_ = true; }
     void EnterWith() { with_nesting_count_++; }
     void LeaveWith() { with_nesting_count_--; }
 
@@ -132,6 +141,7 @@ class PreParser {
     int materialized_literal_count_;
     int expected_properties_;
     int with_nesting_count_;
+    bool strict_;
   };
 
   // Private constructor only used in PreParseProgram.
@@ -152,10 +162,13 @@ class PreParser {
   PreParseResult PreParse() {
     Scope top_scope(&scope_, kTopLevelScope);
     bool ok = true;
+    int start_position = scanner_->peek_location().beg_pos;
     ParseSourceElements(i::Token::EOS, &ok);
     if (stack_overflow_) return kPreParseStackOverflow;
     if (!ok) {
       ReportUnexpectedToken(scanner_->current_token());
+    } else if (scope_->is_strict()) {
+      CheckOctalLiteral(start_position, scanner_->location().end_pos, &ok);
     }
     return kPreParseSuccess;
   }
@@ -168,6 +181,8 @@ class PreParser {
                        const char* name_opt) {
     log_->LogMessage(start_pos, end_pos, type, name_opt);
   }
+
+  void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok);
 
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
@@ -244,6 +259,12 @@ class PreParser {
   }
 
   bool peek_any_identifier();
+
+  void set_strict_mode() {
+    scope_->set_strict();
+  }
+
+  bool is_strict_mode() { return scope_->is_strict(); }
 
   void Consume(i::Token::Value token) { Next(); }
 

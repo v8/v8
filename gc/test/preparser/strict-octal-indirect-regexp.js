@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,9 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Make sure that 'this' is bound to the global object when using
-// execScript.
+// Strict mode with call to RegExp containing octal escape:
 
-var result;
-execScript("result = this");
-assertTrue(result === this);
+function foo() {
+  "use strict";
+  var re = RegExp("Hello\\040World");
+  return re;
+}

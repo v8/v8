@@ -192,6 +192,7 @@ function FormatMessage(message) {
       redefine_disallowed:          ["Cannot redefine property: ", "%0"],
       define_disallowed:            ["Cannot define property, object is not extensible: ", "%0"],
       non_extensible_proto:         ["%0", " is not extensible"],
+      handler_trap_missing:         ["Proxy handler ", "%0", " has no '", "%1", "' trap"],
       // RangeError
       invalid_array_length:         ["Invalid array length"],
       stack_overflow:               ["Maximum call stack size exceeded"],
@@ -214,7 +215,8 @@ function FormatMessage(message) {
       invalid_preparser_data:       ["Invalid preparser data for function ", "%0"],
       strict_mode_with:             ["Strict mode code may not include a with statement"],
       strict_catch_variable:        ["Catch variable may not be eval or arguments in strict mode"],
-      too_many_parameters:          ["Too many parameters in function definition"],
+      too_many_parameters:          ["Too many parameters in function definition (only 32766 allowed)"],
+      too_many_variables:           ["Too many variables declared (only 32767 allowed)"],
       strict_param_name:            ["Parameter name eval or arguments is not allowed in strict mode"],
       strict_param_dupe:            ["Strict mode function may not have duplicate parameter names"],
       strict_var_name:              ["Variable name may not be eval or arguments in strict mode"],

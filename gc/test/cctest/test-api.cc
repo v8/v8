@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "isolate.h"
 #include "compilation-cache.h"
 #include "execution.h"
 #include "snapshot.h"
@@ -3939,6 +3940,38 @@ THREADED_TEST(UndetectableString) {
 }
 
 
+TEST(UndetectableOptimized) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<String> obj = String::NewUndetectable("foo");
+  env->Global()->Set(v8_str("undetectable"), obj);
+  env->Global()->Set(v8_str("detectable"), v8_str("bar"));
+
+  ExpectString(
+      "function testBranch() {"
+      "  if (!%_IsUndetectableObject(undetectable)) throw 1;"
+      "  if (%_IsUndetectableObject(detectable)) throw 2;"
+      "}\n"
+      "function testBool() {"
+      "  var b1 = !%_IsUndetectableObject(undetectable);"
+      "  var b2 = %_IsUndetectableObject(detectable);"
+      "  if (b1) throw 3;"
+      "  if (b2) throw 4;"
+      "  return b1 == b2;"
+      "}\n"
+      "%OptimizeFunctionOnNextCall(testBranch);"
+      "%OptimizeFunctionOnNextCall(testBool);"
+      "for (var i = 0; i < 10; i++) {"
+      "  testBranch();"
+      "  testBool();"
+      "}\n"
+      "\"PASS\"",
+      "PASS");
+}
+
+
 template <typename T> static void USE(T) { }
 
 
@@ -4399,55 +4432,116 @@ THREADED_TEST(WeakReference) {
 }
 
 
-static bool in_scavenge = false;
-static int last = -1;
-
-static void ForceScavenge(v8::Persistent<v8::Value> obj, void* data) {
-  CHECK_EQ(-1, last);
-  last = 0;
+static void DisposeAndSetFlag(v8::Persistent<v8::Value> obj, void* data) {
   obj.Dispose();
   obj.Clear();
-  in_scavenge = true;
-  HEAP->PerformScavenge();
-  in_scavenge = false;
   *(reinterpret_cast<bool*>(data)) = true;
 }
 
-static void CheckIsNotInvokedInScavenge(v8::Persistent<v8::Value> obj,
-                                        void* data) {
-  CHECK_EQ(0, last);
-  last = 1;
-  *(reinterpret_cast<bool*>(data)) = in_scavenge;
-  obj.Dispose();
-  obj.Clear();
-}
 
-THREADED_TEST(NoWeakRefCallbacksInScavenge) {
-  // Test verifies that scavenge cannot invoke WeakReferenceCallbacks.
-  // Calling callbacks from scavenges is unsafe as objects held by those
-  // handlers might have become strongly reachable, but scavenge doesn't
-  // check that.
+THREADED_TEST(IndependentWeakHandle) {
   v8::Persistent<Context> context = Context::New();
   Context::Scope context_scope(context);
 
   v8::Persistent<v8::Object> object_a;
-  v8::Persistent<v8::Object> object_b;
 
   {
     v8::HandleScope handle_scope;
-    object_b = v8::Persistent<v8::Object>::New(v8::Object::New());
     object_a = v8::Persistent<v8::Object>::New(v8::Object::New());
   }
 
   bool object_a_disposed = false;
-  object_a.MakeWeak(&object_a_disposed, &ForceScavenge);
-  bool released_in_scavenge = false;
-  object_b.MakeWeak(&released_in_scavenge, &CheckIsNotInvokedInScavenge);
+  object_a.MakeWeak(&object_a_disposed, &DisposeAndSetFlag);
+  object_a.MarkIndependent();
+  HEAP->PerformScavenge();
+  CHECK(object_a_disposed);
+}
 
-  while (!object_a_disposed) {
-    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+
+static void InvokeScavenge() {
+  HEAP->PerformScavenge();
+}
+
+
+static void InvokeMarkSweep() {
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+}
+
+
+static void ForceScavenge(v8::Persistent<v8::Value> obj, void* data) {
+  obj.Dispose();
+  obj.Clear();
+  *(reinterpret_cast<bool*>(data)) = true;
+  InvokeScavenge();
+}
+
+
+static void ForceMarkSweep(v8::Persistent<v8::Value> obj, void* data) {
+  obj.Dispose();
+  obj.Clear();
+  *(reinterpret_cast<bool*>(data)) = true;
+  InvokeMarkSweep();
+}
+
+
+THREADED_TEST(GCFromWeakCallbacks) {
+  v8::Persistent<Context> context = Context::New();
+  Context::Scope context_scope(context);
+
+  static const int kNumberOfGCTypes = 2;
+  v8::WeakReferenceCallback gc_forcing_callback[kNumberOfGCTypes] =
+      {&ForceScavenge, &ForceMarkSweep};
+
+  typedef void (*GCInvoker)();
+  GCInvoker invoke_gc[kNumberOfGCTypes] = {&InvokeScavenge, &InvokeMarkSweep};
+
+  for (int outer_gc = 0; outer_gc < kNumberOfGCTypes; outer_gc++) {
+    for (int inner_gc = 0; inner_gc < kNumberOfGCTypes; inner_gc++) {
+      v8::Persistent<v8::Object> object;
+      {
+        v8::HandleScope handle_scope;
+        object = v8::Persistent<v8::Object>::New(v8::Object::New());
+      }
+      bool disposed = false;
+      object.MakeWeak(&disposed, gc_forcing_callback[inner_gc]);
+      object.MarkIndependent();
+      invoke_gc[outer_gc]();
+      CHECK(disposed);
+    }
   }
-  CHECK(!released_in_scavenge);
+}
+
+
+static void RevivingCallback(v8::Persistent<v8::Value> obj, void* data) {
+  obj.ClearWeak();
+  *(reinterpret_cast<bool*>(data)) = true;
+}
+
+
+THREADED_TEST(IndependentHandleRevival) {
+  v8::Persistent<Context> context = Context::New();
+  Context::Scope context_scope(context);
+
+  v8::Persistent<v8::Object> object;
+  {
+    v8::HandleScope handle_scope;
+    object = v8::Persistent<v8::Object>::New(v8::Object::New());
+    object->Set(v8_str("x"), v8::Integer::New(1));
+    v8::Local<String> y_str = v8_str("y");
+    object->Set(y_str, y_str);
+  }
+  bool revived = false;
+  object.MakeWeak(&revived, &RevivingCallback);
+  object.MarkIndependent();
+  HEAP->PerformScavenge();
+  CHECK(revived);
+  HEAP->CollectAllGarbage(true);
+  {
+    v8::HandleScope handle_scope;
+    v8::Local<String> y_str = v8_str("y");
+    CHECK_EQ(v8::Integer::New(1), object->Get(v8_str("x")));
+    CHECK(object->Get(y_str)->Equals(y_str));
+  }
 }
 
 
@@ -6746,6 +6840,200 @@ THREADED_TEST(Constructor) {
   CHECK(value->BooleanValue());
 }
 
+
+static Handle<Value> ConstructorCallback(const Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  Local<Object> This;
+
+  if (args.IsConstructCall()) {
+    Local<Object> Holder = args.Holder();
+    This = Object::New();
+    Local<Value> proto = Holder->GetPrototype();
+    if (proto->IsObject()) {
+      This->SetPrototype(proto);
+    }
+  } else {
+    This = args.This();
+  }
+
+  This->Set(v8_str("a"), args[0]);
+  return This;
+}
+
+
+static Handle<Value> FakeConstructorCallback(const Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  return args[0];
+}
+
+
+THREADED_TEST(ConstructorForObject) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    instance_template->SetCallAsFunctionHandler(ConstructorCallback);
+    Local<Object> instance = instance_template->NewInstance();
+    context->Global()->Set(v8_str("obj"), instance);
+    v8::TryCatch try_catch;
+    Local<Value> value;
+    CHECK(!try_catch.HasCaught());
+
+    // Call the Object's constructor with a 32-bit signed integer.
+    value = CompileRun("(function() { var o = new obj(28); return o.a; })()");
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsInt32());
+    CHECK_EQ(28, value->Int32Value());
+
+    Local<Value> args1[] = { v8_num(28) };
+    Local<Value> value_obj1 = instance->CallAsConstructor(1, args1);
+    CHECK(value_obj1->IsObject());
+    Local<Object> object1 = Local<Object>::Cast(value_obj1);
+    value = object1->Get(v8_str("a"));
+    CHECK(value->IsInt32());
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(28, value->Int32Value());
+
+    // Call the Object's constructor with a String.
+    value = CompileRun(
+        "(function() { var o = new obj('tipli'); return o.a; })()");
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsString());
+    String::AsciiValue string_value1(value->ToString());
+    CHECK_EQ("tipli", *string_value1);
+
+    Local<Value> args2[] = { v8_str("tipli") };
+    Local<Value> value_obj2 = instance->CallAsConstructor(1, args2);
+    CHECK(value_obj2->IsObject());
+    Local<Object> object2 = Local<Object>::Cast(value_obj2);
+    value = object2->Get(v8_str("a"));
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsString());
+    String::AsciiValue string_value2(value->ToString());
+    CHECK_EQ("tipli", *string_value2);
+
+    // Call the Object's constructor with a Boolean.
+    value = CompileRun("(function() { var o = new obj(true); return o.a; })()");
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsBoolean());
+    CHECK_EQ(true, value->BooleanValue());
+
+    Handle<Value> args3[] = { v8::Boolean::New(true) };
+    Local<Value> value_obj3 = instance->CallAsConstructor(1, args3);
+    CHECK(value_obj3->IsObject());
+    Local<Object> object3 = Local<Object>::Cast(value_obj3);
+    value = object3->Get(v8_str("a"));
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsBoolean());
+    CHECK_EQ(true, value->BooleanValue());
+
+    // Call the Object's constructor with undefined.
+    Handle<Value> args4[] = { v8::Undefined() };
+    Local<Value> value_obj4 = instance->CallAsConstructor(1, args4);
+    CHECK(value_obj4->IsObject());
+    Local<Object> object4 = Local<Object>::Cast(value_obj4);
+    value = object4->Get(v8_str("a"));
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsUndefined());
+
+    // Call the Object's constructor with null.
+    Handle<Value> args5[] = { v8::Null() };
+    Local<Value> value_obj5 = instance->CallAsConstructor(1, args5);
+    CHECK(value_obj5->IsObject());
+    Local<Object> object5 = Local<Object>::Cast(value_obj5);
+    value = object5->Get(v8_str("a"));
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsNull());
+  }
+
+  // Check exception handling when there is no constructor set for the Object.
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    Local<Object> instance = instance_template->NewInstance();
+    context->Global()->Set(v8_str("obj2"), instance);
+    v8::TryCatch try_catch;
+    Local<Value> value;
+    CHECK(!try_catch.HasCaught());
+
+    value = CompileRun("new obj2(28)");
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value1(try_catch.Exception());
+    CHECK_EQ("TypeError: object is not a function", *exception_value1);
+    try_catch.Reset();
+
+    Local<Value> args[] = { v8_num(29) };
+    value = instance->CallAsConstructor(1, args);
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value2(try_catch.Exception());
+    CHECK_EQ("TypeError: #<Object> is not a function", *exception_value2);
+    try_catch.Reset();
+  }
+
+  // Check the case when constructor throws exception.
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    instance_template->SetCallAsFunctionHandler(ThrowValue);
+    Local<Object> instance = instance_template->NewInstance();
+    context->Global()->Set(v8_str("obj3"), instance);
+    v8::TryCatch try_catch;
+    Local<Value> value;
+    CHECK(!try_catch.HasCaught());
+
+    value = CompileRun("new obj3(22)");
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value1(try_catch.Exception());
+    CHECK_EQ("22", *exception_value1);
+    try_catch.Reset();
+
+    Local<Value> args[] = { v8_num(23) };
+    value = instance->CallAsConstructor(1, args);
+    CHECK(try_catch.HasCaught());
+    String::AsciiValue exception_value2(try_catch.Exception());
+    CHECK_EQ("23", *exception_value2);
+    try_catch.Reset();
+  }
+
+  // Check whether constructor returns with an object or non-object.
+  { Local<FunctionTemplate> function_template =
+        FunctionTemplate::New(FakeConstructorCallback);
+    Local<Function> function = function_template->GetFunction();
+    Local<Object> instance1 = function;
+    context->Global()->Set(v8_str("obj4"), instance1);
+    v8::TryCatch try_catch;
+    Local<Value> value;
+    CHECK(!try_catch.HasCaught());
+
+    CHECK(instance1->IsObject());
+    CHECK(instance1->IsFunction());
+
+    value = CompileRun("new obj4(28)");
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsObject());
+
+    Local<Value> args1[] = { v8_num(28) };
+    value = instance1->CallAsConstructor(1, args1);
+    CHECK(!try_catch.HasCaught());
+    CHECK(value->IsObject());
+
+    Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    instance_template->SetCallAsFunctionHandler(FakeConstructorCallback);
+    Local<Object> instance2 = instance_template->NewInstance();
+    context->Global()->Set(v8_str("obj5"), instance2);
+    CHECK(!try_catch.HasCaught());
+
+    CHECK(instance2->IsObject());
+    CHECK(!instance2->IsFunction());
+
+    value = CompileRun("new obj5(28)");
+    CHECK(!try_catch.HasCaught());
+    CHECK(!value->IsObject());
+
+    Local<Value> args2[] = { v8_num(28) };
+    value = instance2->CallAsConstructor(1, args2);
+    CHECK(!try_catch.HasCaught());
+    CHECK(!value->IsObject());
+  }
+}
+
+
 THREADED_TEST(FunctionDescriptorException) {
   v8::HandleScope handle_scope;
   LocalContext context;
@@ -7028,9 +7316,8 @@ THREADED_TEST(CallAsFunction) {
     CHECK(value.IsEmpty());
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value1(try_catch.Exception());
-    CHECK_EQ(*exception_value1,
-             "TypeError: Property 'obj2' of object "
-             "#<Object> is not a function");
+    CHECK_EQ("TypeError: Property 'obj2' of object #<Object> is not a function",
+             *exception_value1);
     try_catch.Reset();
 
     // Call an object without call-as-function handler through the API
@@ -7040,7 +7327,7 @@ THREADED_TEST(CallAsFunction) {
     CHECK(value.IsEmpty());
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value2(try_catch.Exception());
-    CHECK_EQ(*exception_value2, "TypeError: [object Object] is not a function");
+    CHECK_EQ("TypeError: [object Object] is not a function", *exception_value2);
     try_catch.Reset();
   }
 
@@ -7057,15 +7344,58 @@ THREADED_TEST(CallAsFunction) {
     value = CompileRun("obj3(22)");
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value1(try_catch.Exception());
-    CHECK_EQ(*exception_value1, "22");
+    CHECK_EQ("22", *exception_value1);
     try_catch.Reset();
 
     v8::Handle<Value> args[] = { v8_num(23) };
     value = instance->CallAsFunction(instance, 1, args);
     CHECK(try_catch.HasCaught());
     String::AsciiValue exception_value2(try_catch.Exception());
-    CHECK_EQ(*exception_value2, "23");
+    CHECK_EQ("23", *exception_value2);
     try_catch.Reset();
+  }
+}
+
+
+// Check whether a non-function object is callable.
+THREADED_TEST(CallableObject) {
+  v8::HandleScope scope;
+  LocalContext context;
+
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    instance_template->SetCallAsFunctionHandler(call_as_function);
+    Local<Object> instance = instance_template->NewInstance();
+    v8::TryCatch try_catch;
+
+    CHECK(instance->IsCallable());
+    CHECK(!try_catch.HasCaught());
+  }
+
+  { Local<ObjectTemplate> instance_template = ObjectTemplate::New();
+    Local<Object> instance = instance_template->NewInstance();
+    v8::TryCatch try_catch;
+
+    CHECK(!instance->IsCallable());
+    CHECK(!try_catch.HasCaught());
+  }
+
+  { Local<FunctionTemplate> function_template =
+        FunctionTemplate::New(call_as_function);
+    Local<Function> function = function_template->GetFunction();
+    Local<Object> instance = function;
+    v8::TryCatch try_catch;
+
+    CHECK(instance->IsCallable());
+    CHECK(!try_catch.HasCaught());
+  }
+
+  { Local<FunctionTemplate> function_template = FunctionTemplate::New();
+    Local<Function> function = function_template->GetFunction();
+    Local<Object> instance = function;
+    v8::TryCatch try_catch;
+
+    CHECK(instance->IsCallable());
+    CHECK(!try_catch.HasCaught());
   }
 }
 
@@ -9007,11 +9337,10 @@ static unsigned linear_congruential_generator;
 void ApiTestFuzzer::Setup(PartOfTest part) {
   linear_congruential_generator = i::FLAG_testing_prng_seed;
   fuzzing_ = true;
-  int start = (part == FIRST_PART) ? 0 : (RegisterThreadedTest::count() >> 1);
-  int end = (part == FIRST_PART)
-      ? (RegisterThreadedTest::count() >> 1)
-      : RegisterThreadedTest::count();
-  active_tests_ = tests_being_run_ = end - start;
+  int count = RegisterThreadedTest::count();
+  int start =  count * part / (LAST_PART + 1);
+  int end = (count * (part + 1) / (LAST_PART + 1)) - 1;
+  active_tests_ = tests_being_run_ = end - start + 1;
   for (int i = 0; i < tests_being_run_; i++) {
     RegisterThreadedTest::nth(i)->fuzzer_ = new ApiTestFuzzer(
         i::Isolate::Current(), i + start);
@@ -9081,6 +9410,17 @@ TEST(Threading2) {
   ApiTestFuzzer::TearDown();
 }
 
+TEST(Threading3) {
+  ApiTestFuzzer::Setup(ApiTestFuzzer::THIRD_PART);
+  ApiTestFuzzer::RunAllTests();
+  ApiTestFuzzer::TearDown();
+}
+
+TEST(Threading4) {
+  ApiTestFuzzer::Setup(ApiTestFuzzer::FOURTH_PART);
+  ApiTestFuzzer::RunAllTests();
+  ApiTestFuzzer::TearDown();
+}
 
 void ApiTestFuzzer::CallTest() {
   if (kLogThreading)
@@ -11712,35 +12052,6 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
     CHECK_EQ(true, result->BooleanValue());
   }
 
-  // Test crankshaft external array loads
-  for (int i = 0; i < kElementCount; i++) {
-    array->set(i, static_cast<ElementType>(i));
-  }
-  result = CompileRun("function ee_load_test_func(sum) {"
-                      " for (var i = 0; i < 40; ++i)"
-                      "   sum += ext_array[i];"
-                      " return sum;"
-                      "}"
-                      "sum=0;"
-                      "for (var i=0;i<10000;++i) {"
-                      "  sum=ee_load_test_func(sum);"
-                      "}"
-                      "sum;");
-  CHECK_EQ(7800000, result->Int32Value());
-
-  // Test crankshaft external array stores
-  result = CompileRun("function ee_store_test_func(sum) {"
-                      " for (var i = 0; i < 40; ++i)"
-                      "   sum += ext_array[i] = i;"
-                      " return sum;"
-                      "}"
-                      "sum=0;"
-                      "for (var i=0;i<10000;++i) {"
-                      "  sum=ee_store_test_func(sum);"
-                      "}"
-                      "sum;");
-  CHECK_EQ(7800000, result->Int32Value());
-
   for (int i = 0; i < kElementCount; i++) {
     array->set(i, static_cast<ElementType>(i));
   }
@@ -13455,6 +13766,28 @@ TEST(MultipleIsolatesOnIndividualThreads) {
   isolate2->Dispose();
 }
 
+TEST(IsolateDifferentContexts) {
+  v8::Isolate* isolate = v8::Isolate::New();
+  Persistent<v8::Context> context;
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope;
+    context = v8::Context::New();
+    v8::Context::Scope context_scope(context);
+    Local<Value> v = CompileRun("2");
+    CHECK(v->IsNumber());
+    CHECK_EQ(2, static_cast<int>(v->NumberValue()));
+  }
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope;
+    context = v8::Context::New();
+    v8::Context::Scope context_scope(context);
+    Local<Value> v = CompileRun("22");
+    CHECK(v->IsNumber());
+    CHECK_EQ(22, static_cast<int>(v->NumberValue()));
+  }
+}
 
 class InitDefaultIsolateThread : public v8::internal::Thread {
  public:
@@ -14104,8 +14437,6 @@ void CheckCodeGenerationAllowed() {
   CHECK_EQ(42, result->Int32Value());
   result = CompileRun("(function(e) { return e('42'); })(eval)");
   CHECK_EQ(42, result->Int32Value());
-  result = CompileRun("execScript('42')");
-  CHECK(!result.IsEmpty());
   result = CompileRun("var f = new Function('return 42'); f()");
   CHECK_EQ(42, result->Int32Value());
 }
@@ -14120,11 +14451,6 @@ void CheckCodeGenerationDisallowed() {
   try_catch.Reset();
 
   result = CompileRun("(function(e) { return e('42'); })(eval)");
-  CHECK(result.IsEmpty());
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
-
-  result = CompileRun("execScript('42')");
   CHECK(result.IsEmpty());
   CHECK(try_catch.HasCaught());
   try_catch.Reset();
@@ -14151,10 +14477,10 @@ THREADED_TEST(AllowCodeGenFromStrings) {
   v8::HandleScope scope;
   LocalContext context;
 
-  // eval, execScript and the Function constructor allowed by default.
+  // eval and the Function constructor allowed by default.
   CheckCodeGenerationAllowed();
 
-  // Disallow eval, execScript and the Function constructor.
+  // Disallow eval and the Function constructor.
   context->AllowCodeGenerationFromStrings(false);
   CheckCodeGenerationDisallowed();
 
@@ -14170,4 +14496,20 @@ THREADED_TEST(AllowCodeGenFromStrings) {
   // Set a callback that disallows the code generation.
   V8::SetAllowCodeGenerationFromStringsCallback(&CodeGenerationDisallowed);
   CheckCodeGenerationDisallowed();
+}
+
+
+static v8::Handle<Value> NonObjectThis(const v8::Arguments& args) {
+  return v8::Undefined();
+}
+
+
+THREADED_TEST(CallAPIFunctionOnNonObject) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Handle<FunctionTemplate> templ = v8::FunctionTemplate::New(NonObjectThis);
+  Handle<Function> function = templ->GetFunction();
+  context->Global()->Set(v8_str("f"), function);
+  TryCatch try_catch;
+  CompileRun("f.call(2)");
 }

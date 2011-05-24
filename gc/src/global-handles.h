@@ -146,6 +146,9 @@ class GlobalHandles {
   // Clear the weakness of a global handle.
   void ClearWeakness(Object** location);
 
+  // Clear the weakness of a global handle.
+  void MarkIndependent(Object** location);
+
   // Tells whether global handle is near death.
   static bool IsNearDeath(Object** location);
 
@@ -154,10 +157,13 @@ class GlobalHandles {
 
   // Process pending weak handles.
   // Returns true if next major GC is likely to collect more garbage.
-  bool PostGarbageCollectionProcessing();
+  bool PostGarbageCollectionProcessing(GarbageCollector collector);
 
   // Iterates over all strong handles.
   void IterateStrongRoots(ObjectVisitor* v);
+
+  // Iterates over all strong and dependent handles.
+  void IterateStrongAndDependentRoots(ObjectVisitor* v);
 
   // Iterates over all handles.
   void IterateAllRoots(ObjectVisitor* v);
@@ -168,6 +174,9 @@ class GlobalHandles {
   // Iterates over all weak roots in heap.
   void IterateWeakRoots(ObjectVisitor* v);
 
+  // Iterates over all weak independent roots in heap.
+  void IterateWeakIndependentRoots(ObjectVisitor* v);
+
   // Iterates over weak roots that are bound to a given callback.
   void IterateWeakRoots(WeakReferenceGuest f,
                         WeakReferenceCallback callback);
@@ -175,6 +184,10 @@ class GlobalHandles {
   // Find all weak handles satisfying the callback predicate, mark
   // them as pending.
   void IdentifyWeakHandles(WeakSlotCallback f);
+
+  // Find all weak independent handles satisfying the callback predicate, mark
+  // them as pending.
+  void IdentifyWeakIndependentHandles(WeakSlotCallbackWithHeap f);
 
   // Add an object group.
   // Should be only used in GC callback function before a collection.

@@ -78,7 +78,7 @@ class LInstruction: public ZoneObject {
 
   bool HasEnvironment() const {
     UNIMPLEMENTED();
-    return NULL;
+    return false;
   }
 
   virtual void PrintTo(StringStream* stream) const { UNIMPLEMENTED(); }
@@ -213,14 +213,12 @@ class LOsrEntry: public LInstruction {
 
 class LChunk: public ZoneObject {
  public:
-  explicit LChunk(CompilationInfo* info, HGraph* graph) { }
+  explicit LChunk(HGraph* graph) { }
 
   HGraph* graph() const {
     UNIMPLEMENTED();
     return NULL;
   }
-
-  CompilationInfo* info() const { return NULL; }
 
   const ZoneList<LPointerMap*>* pointer_maps() const {
     UNIMPLEMENTED();
@@ -271,6 +269,11 @@ class LChunk: public ZoneObject {
 
   void MarkEmptyBlocks() { UNIMPLEMENTED(); }
 
+  CompilationInfo* info() const {
+    UNIMPLEMENTED();
+    return NULL;
+  }
+
 #ifdef DEBUG
   void Verify() { UNIMPLEMENTED(); }
 #endif
@@ -279,7 +282,7 @@ class LChunk: public ZoneObject {
 
 class LChunkBuilder BASE_EMBEDDED {
  public:
-  LChunkBuilder(CompilationInfo* info, HGraph* graph, LAllocator* allocator) { }
+  LChunkBuilder(CompilationInfo*&, HGraph* graph, LAllocator* allocator) { }
 
   // Build the sequence for the graph.
   LChunk* Build() {

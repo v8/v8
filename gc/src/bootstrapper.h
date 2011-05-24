@@ -29,6 +29,8 @@
 #ifndef V8_BOOTSTRAPPER_H_
 #define V8_BOOTSTRAPPER_H_
 
+#include "allocation.h"
+
 namespace v8 {
 namespace internal {
 

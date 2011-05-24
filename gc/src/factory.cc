@@ -832,6 +832,15 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArray> elements,
 }
 
 
+Handle<JSProxy> Factory::NewJSProxy(Handle<Object> handler,
+                                    Handle<Object> prototype) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSProxy(*handler, *prototype),
+      JSProxy);
+}
+
+
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name,
     int number_of_literals,

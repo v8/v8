@@ -28,6 +28,7 @@
 #ifndef V8_LITHIUM_H_
 #define V8_LITHIUM_H_
 
+#include "allocation.h"
 #include "hydrogen.h"
 #include "safepoint-table.h"
 
@@ -598,6 +599,10 @@ class DeepIterator BASE_EMBEDDED {
 
   ShallowIterator current_iterator_;
 };
+
+
+int ExternalArrayTypeToShiftSize(ExternalArrayType type);
+
 
 } }  // namespace v8::internal
 

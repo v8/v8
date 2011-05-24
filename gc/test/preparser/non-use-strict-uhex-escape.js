@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,23 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_MIPS_REGISTER_ALLOCATOR_MIPS_H_
-#define V8_MIPS_REGISTER_ALLOCATOR_MIPS_H_
+// A string looking like "use strict", but with a long hex escape in it,
+// doesn't trigger strict mode.
 
-#include "mips/constants-mips.h"
-
-namespace v8 {
-namespace internal {
-
-class RegisterAllocatorConstants : public AllStatic {
- public:
-  // No registers are currently managed by the register allocator on MIPS.
-  static const int kNumRegisters = 0;
-  static const int kInvalidRegister = -1;
-};
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_MIPS_REGISTER_ALLOCATOR_MIPS_H_
-
+function foo() {
+  "use\u0020strict";
+  var x = "hello\040world";
+  return x;
+}

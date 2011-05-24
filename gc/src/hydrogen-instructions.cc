@@ -60,12 +60,20 @@ const char* Representation::Mnemonic() const {
     case kDouble: return "d";
     case kInteger32: return "i";
     case kExternal: return "x";
-    case kNumRepresentations:
+    default:
       UNREACHABLE();
       return NULL;
   }
-  UNREACHABLE();
-  return NULL;
+}
+
+
+void HValue::AssumeRepresentation(Representation r) {
+  if (CheckFlag(kFlexibleRepresentation)) {
+    ChangeRepresentation(r);
+    // The representation of the value is dictated by type feedback and
+    // will not be changed later.
+    ClearFlag(kFlexibleRepresentation);
+  }
 }
 
 
@@ -358,7 +366,6 @@ const char* HValue::Mnemonic() const {
 
 
 void HValue::SetOperandAt(int index, HValue* value) {
-  ASSERT(value == NULL || !value->representation().IsNone());
   RegisterUse(index, value);
   InternalSetOperandAt(index, value);
 }
@@ -402,8 +409,39 @@ void HValue::SetBlock(HBasicBlock* block) {
 }
 
 
-void HValue::PrintTypeTo(HType type, StringStream* stream) {
-  stream->Add(type.ToShortString());
+void HValue::PrintTypeTo(StringStream* stream) {
+  if (!representation().IsTagged() || type().Equals(HType::Tagged())) return;
+  stream->Add(" type[%s]", type().ToString());
+}
+
+
+void HValue::PrintRangeTo(StringStream* stream) {
+  if (range() == NULL || range()->IsMostGeneric()) return;
+  stream->Add(" range[%d,%d,m0=%d]",
+              range()->lower(),
+              range()->upper(),
+              static_cast<int>(range()->CanBeMinusZero()));
+}
+
+
+void HValue::PrintChangesTo(StringStream* stream) {
+  int changes_flags = (flags() & HValue::ChangesFlagsMask());
+  if (changes_flags == 0) return;
+  stream->Add(" changes[");
+  if (changes_flags == AllSideEffects()) {
+    stream->Add("*");
+  } else {
+    bool add_comma = false;
+#define PRINT_DO(type)                         \
+    if (changes_flags & (1 << kChanges##type)) { \
+      if (add_comma) stream->Add(",");           \
+      add_comma = true;                          \
+      stream->Add(#type);                        \
+    }
+    GVN_FLAG_LIST(PRINT_DO);
+#undef PRINT_DO
+  }
+  stream->Add("]");
 }
 
 
@@ -465,28 +503,18 @@ void HValue::ComputeInitialRange() {
 
 
 void HInstruction::PrintTo(StringStream* stream) {
+  PrintMnemonicTo(stream);
+  PrintDataTo(stream);
+  PrintRangeTo(stream);
+  PrintChangesTo(stream);
+  PrintTypeTo(stream);
+}
+
+
+void HInstruction::PrintMnemonicTo(StringStream* stream) {
   stream->Add("%s", Mnemonic());
   if (HasSideEffects()) stream->Add("*");
   stream->Add(" ");
-  PrintDataTo(stream);
-
-  if (range() != NULL &&
-      !range()->IsMostGeneric() &&
-      !range()->CanBeMinusZero()) {
-    stream->Add(" range[%d,%d,m0=%d]",
-                range()->lower(),
-                range()->upper(),
-                static_cast<int>(range()->CanBeMinusZero()));
-  }
-
-  int changes_flags = (flags() & HValue::ChangesFlagsMask());
-  if (changes_flags != 0) {
-    stream->Add(" changes[0x%x]", changes_flags);
-  }
-
-  if (representation().IsTagged() && !type().Equals(HType::Tagged())) {
-    stream->Add(" type[%s]", type().ToString());
-  }
 }
 
 
@@ -571,6 +599,8 @@ void HInstruction::Verify() {
         ASSERT(cur == other_operand);
       }
     } else {
+      // If the following assert fires, you may have forgotten an
+      // AddInstruction.
       ASSERT(other_block->Dominates(cur_block));
     }
   }
@@ -751,10 +781,38 @@ void HChange::PrintDataTo(StringStream* stream) {
 }
 
 
-HCheckInstanceType* HCheckInstanceType::NewIsJSObjectOrJSFunction(
-    HValue* value)  {
-  STATIC_ASSERT((LAST_JS_OBJECT_TYPE + 1) == JS_FUNCTION_TYPE);
-  return new HCheckInstanceType(value, FIRST_JS_OBJECT_TYPE, JS_FUNCTION_TYPE);
+void HCheckInstanceType::GetCheckInterval(InstanceType* first,
+                                          InstanceType* last) {
+  ASSERT(is_interval_check());
+  switch (check_) {
+    case IS_JS_OBJECT_OR_JS_FUNCTION:
+      STATIC_ASSERT((LAST_JS_OBJECT_TYPE + 1) == JS_FUNCTION_TYPE);
+      *first = FIRST_JS_OBJECT_TYPE;
+      *last = JS_FUNCTION_TYPE;
+      return;
+    case IS_JS_ARRAY:
+      *first = *last = JS_ARRAY_TYPE;
+      return;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
+  ASSERT(!is_interval_check());
+  switch (check_) {
+    case IS_STRING:
+      *mask = kIsNotStringMask;
+      *tag = kStringTag;
+      return;
+    case IS_SYMBOL:
+      *mask = kIsSymbolMask;
+      *tag = kSymbolTag;
+      return;
+    default:
+      UNREACHABLE();
+  }
 }
 
 
@@ -1263,6 +1321,15 @@ void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
 }
 
 
+bool HLoadKeyedFastElement::RequiresHoleCheck() const {
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    HValue* use = it.value();
+    if (!use->IsChange()) return true;
+  }
+  return false;
+}
+
+
 void HLoadKeyedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add("[");
@@ -1568,6 +1635,13 @@ HValue* HChange::EnsureAndPropagateNotMinusZero(BitVector* visited) {
   }
   ASSERT(!from().IsInteger32() || !to().IsInteger32());
   return NULL;
+}
+
+
+HValue* HForceRepresentation::EnsureAndPropagateNotMinusZero(
+    BitVector* visited) {
+  visited->Add(id());
+  return value();
 }
 
 

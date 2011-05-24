@@ -67,12 +67,17 @@ class LCodeGen;
   V(CheckNonSmi)                                \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
+  V(ClampDToUint8)                              \
+  V(ClampIToUint8)                              \
+  V(ClampTToUint8)                              \
   V(ClassOfTest)                                \
   V(ClassOfTestAndBranch)                       \
   V(CmpID)                                      \
   V(CmpIDAndBranch)                             \
   V(CmpJSObjectEq)                              \
   V(CmpJSObjectEqAndBranch)                     \
+  V(CmpSymbolEq)                                \
+  V(CmpSymbolEqAndBranch)                       \
   V(CmpMapAndBranch)                            \
   V(CmpT)                                       \
   V(CmpTAndBranch)                              \
@@ -102,14 +107,16 @@ class LCodeGen;
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
   V(InvokeFunction)                             \
+  V(IsConstructCall)                            \
+  V(IsConstructCallAndBranch)                   \
   V(IsNull)                                     \
   V(IsNullAndBranch)                            \
   V(IsObject)                                   \
   V(IsObjectAndBranch)                          \
   V(IsSmi)                                      \
   V(IsSmiAndBranch)                             \
-  V(IsConstructCall)                            \
-  V(IsConstructCallAndBranch)                   \
+  V(IsUndetectable)                             \
+  V(IsUndetectableAndBranch)                    \
   V(JSArrayLength)                              \
   V(Label)                                      \
   V(LazyBailout)                                \
@@ -666,6 +673,28 @@ class LCmpJSObjectEqAndBranch: public LControlInstruction<2, 0> {
 };
 
 
+class LCmpSymbolEq: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LCmpSymbolEq(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpSymbolEq, "cmp-symbol-eq")
+};
+
+
+class LCmpSymbolEqAndBranch: public LControlInstruction<2, 0> {
+ public:
+  LCmpSymbolEqAndBranch(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpSymbolEqAndBranch, "cmp-symbol-eq-and-branch")
+};
+
+
 class LIsNull: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LIsNull(LOperand* value) {
@@ -738,6 +767,31 @@ class LIsSmiAndBranch: public LControlInstruction<1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(IsSmiAndBranch, "is-smi-and-branch")
+
+  virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class LIsUndetectable: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LIsUndetectable(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsUndetectable, "is-undetectable")
+  DECLARE_HYDROGEN_ACCESSOR(IsUndetectable)
+};
+
+
+class LIsUndetectableAndBranch: public LControlInstruction<1, 1> {
+ public:
+  explicit LIsUndetectableAndBranch(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsUndetectableAndBranch,
+                               "is-undetectable-and-branch")
 
   virtual void PrintDataTo(StringStream* stream);
 };
@@ -1765,16 +1819,14 @@ class LStoreKeyedFastElement: public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LStoreKeyedSpecializedArrayElement: public LTemplateInstruction<0, 3, 1> {
+class LStoreKeyedSpecializedArrayElement: public LTemplateInstruction<0, 3, 0> {
  public:
   LStoreKeyedSpecializedArrayElement(LOperand* external_pointer,
                                      LOperand* key,
-                                     LOperand* val,
-                                     LOperand* temp) {
+                                     LOperand* val) {
     inputs_[0] = external_pointer;
     inputs_[1] = key;
     inputs_[2] = val;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement,
@@ -1926,6 +1978,43 @@ class LCheckSmi: public LTemplateInstruction<0, 1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckSmi, "check-smi")
+};
+
+
+class LClampDToUint8: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LClampDToUint8(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* unclamped() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ClampDToUint8, "clamp-d-to-uint8")
+};
+
+
+class LClampIToUint8: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LClampIToUint8(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* unclamped() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ClampIToUint8, "clamp-i-to-uint8")
+};
+
+
+class LClampTToUint8: public LTemplateInstruction<1, 1, 1> {
+ public:
+  LClampTToUint8(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* unclamped() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ClampTToUint8, "clamp-t-to-uint8")
 };
 
 

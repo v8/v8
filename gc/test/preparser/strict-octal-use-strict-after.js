@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,39 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Strict mode with octal escape in string/directive prologue looking like
+// "use strict", after "use strict" directive.
 
-#if defined(V8_TARGET_ARCH_MIPS)
-
-#include "codegen-inl.h"
-#include "register-allocator-inl.h"
-
-namespace v8 {
-namespace internal {
-
-// -------------------------------------------------------------------------
-// Result implementation.
-
-void Result::ToRegister() {
-  UNIMPLEMENTED_MIPS();
+function foo() {
+  "use strict";
+  "use\040strict";
+  return true;
 }
-
-
-void Result::ToRegister(Register target) {
-  UNIMPLEMENTED_MIPS();
-}
-
-
-// -------------------------------------------------------------------------
-// RegisterAllocator implementation.
-
-Result RegisterAllocator::AllocateByteRegisterWithoutSpilling() {
-  // No byte registers on MIPS.
-  UNREACHABLE();
-  return Result();
-}
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_TARGET_ARCH_MIPS

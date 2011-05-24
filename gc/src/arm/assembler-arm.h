@@ -1186,12 +1186,6 @@ class Assembler : public AssemblerBase {
 
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
-  bool can_peephole_optimize(int instructions) {
-    if (!allow_peephole_optimization_) return false;
-    if (last_bound_pos_ > pc_offset() - instructions * kInstrSize) return false;
-    return reloc_info_writer.last_pc() <= pc_ - instructions * kInstrSize;
-  }
-
   // Read/patch instructions
   static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
   static void instr_at_put(byte* pc, Instr instr) {
@@ -1362,7 +1356,6 @@ class Assembler : public AssemblerBase {
   friend class BlockConstPoolScope;
 
   PositionsRecorder positions_recorder_;
-  bool allow_peephole_optimization_;
   bool emit_debug_code_;
   friend class PositionsRecorder;
   friend class EnsureSpace;

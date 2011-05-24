@@ -26,3 +26,58 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 global.Proxy = new $Object();
+
+var $Proxy = global.Proxy
+
+var fundamentalTraps = [
+  "getOwnPropertyDescriptor",
+  "getPropertyDescriptor",
+  "getOwnPropertyNames",
+  "getPropertyNames",
+  "defineProperty",
+  "delete",
+  "fix",
+]
+
+var derivedTraps = [
+  "has",
+  "hasOwn",
+  "get",
+  "set",
+  "enumerate",
+  "keys",
+]
+
+var functionTraps = [
+  "callTrap",
+  "constructTrap",
+]
+
+$Proxy.createFunction = function(handler, callTrap, constructTrap) {
+  handler.callTrap = callTrap
+  handler.constructTrap = constructTrap
+  $Proxy.create(handler)
+}
+
+$Proxy.create = function(handler, proto) {
+  if (!IS_SPEC_OBJECT(proto)) proto = $Object.prototype
+  return %CreateJSProxy(handler, proto)
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Builtins
+////////////////////////////////////////////////////////////////////////////////
+
+function DerivedGetTrap(receiver, name) {
+  var desc = this.getPropertyDescriptor(name)
+  if (IS_UNDEFINED(desc)) { return desc; }
+  if ('value' in desc) {
+    return desc.value
+  } else {
+    if (IS_UNDEFINED(desc.get)) { return desc.get; }
+    return desc.get.call(receiver)  // The proposal says so...
+  }
+}

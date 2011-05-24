@@ -42,6 +42,11 @@
               'V8_TARGET_ARCH_IA32',
             ],
           }],
+          ['v8_target_arch=="mips"', {
+            'defines': [
+              'V8_TARGET_ARCH_MIPS',
+            ],
+          }],
           ['v8_target_arch=="x64"', {
             'defines': [
               'V8_TARGET_ARCH_X64',
@@ -93,6 +98,7 @@
         'test-list.cc',
         'test-liveedit.cc',
         'test-lock.cc',
+        'test-lockers.cc',
         'test-log.cc',
         'test-log-utils.cc',
         'test-mark-compact.cc',
@@ -107,7 +113,6 @@
         'test-strtod.cc',
         'test-thread-termination.cc',
         'test-threads.cc',
-        'test-type-info.cc',
         'test-unbound-queue.cc',
         'test-utils.cc',
         'test-version.cc'
@@ -136,7 +141,7 @@
         ['v8_target_arch=="mips"', {
           'sources': [
             'test-assembler-mips.cc',
-            'test-mips.cc',
+            'test-disasm-mips.cc',
           ],
         }],
         [ 'OS=="linux"', {

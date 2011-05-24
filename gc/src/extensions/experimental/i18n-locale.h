@@ -39,13 +39,20 @@ class I18NLocale {
 
   // Implementations of window.Locale methods.
   static v8::Handle<v8::Value> JSLocale(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSAvailableLocales(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSMaximizedLocale(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSMinimizedLocale(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSDisplayLanguage(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSDisplayScript(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSDisplayRegion(const v8::Arguments& args);
-  static v8::Handle<v8::Value> JSDisplayName(const v8::Arguments& args);
+
+  // Infers region id given the locale id, or uses user specified region id.
+  // Result is canonicalized.
+  // Returns status of ICU operation (maximizing locale or get region call).
+  static bool GetBestMatchForRegionID(
+      const char* locale_id, v8::Handle<v8::Value> regions, char* result);
+
+ private:
+  // Key name for localeID parameter.
+  static const char* const kLocaleID;
+  // Key name for regionID parameter.
+  static const char* const kRegionID;
+  // Key name for the icuLocaleID result.
+  static const char* const kICULocaleID;
 };
 
 } }  // namespace v8::internal

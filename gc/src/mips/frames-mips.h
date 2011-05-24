@@ -59,7 +59,7 @@ static const RegList kCalleeSaved =
   // Saved temporaries.
   1 << 16 | 1 << 17 | 1 << 18 | 1 << 19 |
   1 << 20 | 1 << 21 | 1 << 22 | 1 << 23 |
-  // gp, sp, fp
+  // gp, sp, fp.
   1 << 28 | 1 << 29 | 1 << 30;
 
 static const int kNumCalleeSaved = 11;
@@ -101,22 +101,24 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
-  static const int kDebugMarkOffset = -1 * kPointerSize;
-  // Must be the same as kDebugMarkOffset. Alias introduced when upgrading.
-  static const int kCodeOffset = -1 * kPointerSize;
-  static const int kSPOffset = -1 * kPointerSize;
+  // See some explanation in MacroAssembler::EnterExitFrame.
+  // This marks the top of the extra allocated stack space.
+  static const int kStackSpaceOffset = -3 * kPointerSize;
 
-  // TODO(mips): Use a patched sp value on the stack instead.
-  // A marker of 0 indicates that double registers are saved.
-  static const int kMarkerOffset = -2 * kPointerSize;
+  static const int kCodeOffset = -2 * kPointerSize;
+
+  static const int kSPOffset = -1 * kPointerSize;
 
   // The caller fields are below the frame pointer on the stack.
   static const int kCallerFPOffset = +0 * kPointerSize;
   // The calling JS function is between FP and PC.
   static const int kCallerPCOffset = +1 * kPointerSize;
 
+  // MIPS-specific: a pointer to the old sp to avoid unnecessary calculations.
+  static const int kCallerSPOffset = +2 * kPointerSize;
+
   // FP-relative displacement of the caller's SP.
-  static const int kCallerSPDisplacement = +3 * kPointerSize;
+  static const int kCallerSPDisplacement = +2 * kPointerSize;
 };
 
 
@@ -135,7 +137,8 @@ class StandardFrameConstants : public AllStatic {
   static const int kRegularArgsSlotsSize = kRArgsSlotsSize;
 
   // C/C++ argument slots size.
-  static const int kCArgsSlotsSize = 4 * kPointerSize;
+  static const int kCArgSlotCount = 4;
+  static const int kCArgsSlotsSize = kCArgSlotCount * kPointerSize;
   // JS argument slots size.
   static const int kJSArgsSlotsSize = 0 * kPointerSize;
   // Assembly builtins argument slots size.

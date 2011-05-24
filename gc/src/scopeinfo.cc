@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -52,6 +52,7 @@ template<class Allocator>
 ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
     : function_name_(FACTORY->empty_symbol()),
       calls_eval_(scope->calls_eval()),
+      is_strict_mode_(scope->is_strict_mode()),
       parameters_(scope->num_parameters()),
       stack_slots_(scope->num_stack_slots()),
       context_slots_(scope->num_heap_slots()),
@@ -248,6 +249,7 @@ ScopeInfo<Allocator>::ScopeInfo(SerializedScopeInfo* data)
     Object** p = p0;
     p = ReadSymbol(p, &function_name_);
     p = ReadBool(p, &calls_eval_);
+    p = ReadBool(p, &is_strict_mode_);
     p = ReadList<Allocator>(p, &context_slots_, &context_modes_);
     p = ReadList<Allocator>(p, &parameters_);
     p = ReadList<Allocator>(p, &stack_slots_);
@@ -301,8 +303,8 @@ static Object** WriteList(Object** p,
 
 template<class Allocator>
 Handle<SerializedScopeInfo> ScopeInfo<Allocator>::Serialize() {
-  // function name, calls eval, length for 3 tables:
-  const int extra_slots = 1 + 1 + 3;
+  // function name, calls eval, is_strict_mode, length for 3 tables:
+  const int extra_slots = 1 + 1 + 1 + 3;
   int length = extra_slots +
                context_slots_.length() * 2 +
                parameters_.length() +
@@ -316,6 +318,7 @@ Handle<SerializedScopeInfo> ScopeInfo<Allocator>::Serialize() {
   Object** p = p0;
   p = WriteSymbol(p, function_name_);
   p = WriteBool(p, calls_eval_);
+  p = WriteBool(p, is_strict_mode_);
   p = WriteList(p, &context_slots_, &context_modes_);
   p = WriteList(p, &parameters_);
   p = WriteList(p, &stack_slots_);
@@ -363,7 +366,8 @@ SerializedScopeInfo* SerializedScopeInfo::Empty() {
 
 Object** SerializedScopeInfo::ContextEntriesAddr() {
   ASSERT(length() > 0);
-  return data_start() + 2;  // +2 for function name and calls eval.
+  // +3 for function name, calls eval, strict mode.
+  return data_start() + 3;
 }
 
 
@@ -392,7 +396,18 @@ bool SerializedScopeInfo::CallsEval() {
     p = ReadBool(p, &calls_eval);
     return calls_eval;
   }
-  return true;
+  return false;
+}
+
+
+bool SerializedScopeInfo::IsStrictMode() {
+  if (length() > 0) {
+    Object** p = data_start() + 2;  // +2 for function name, calls eval.
+    bool strict_mode;
+    p = ReadBool(p, &strict_mode);
+    return strict_mode;
+  }
+  return false;
 }
 
 

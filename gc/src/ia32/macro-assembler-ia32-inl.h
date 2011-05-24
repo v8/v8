@@ -33,13 +33,13 @@
 namespace v8 {
 namespace internal {
 
-template<typename LabelType>
 void MacroAssembler::CheckPageFlag(
     Register object,
     Register scratch,
     MemoryChunk::MemoryChunkFlags flag,
     Condition cc,
-    LabelType* condition_met) {
+    Label* condition_met,
+    Label::Distance condition_met_near) {
   ASSERT(cc == zero || cc == not_zero);
   if (scratch.is(object)) {
     and_(scratch, Immediate(~Page::kPageAlignmentMask));
@@ -53,72 +53,72 @@ void MacroAssembler::CheckPageFlag(
   } else {
     test(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(1 << flag));
   }
-  j(cc, condition_met);
+  j(cc, condition_met, condition_met_near);
 }
 
 
-template<typename LabelType>
 void MacroAssembler::InOldSpaceIsBlack(Register object,
                                        Register scratch0,
                                        Register scratch1,
-                                       LabelType* is_black) {
+                                       Label* is_black,
+                                       Label::Distance is_black_near) {
   HasColour(object, scratch0, scratch1,
-            is_black,
+            is_black, is_black_near,
             1, 0);  // kBlackBitPattern.
   ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
 }
 
 
-template<typename LabelType>
 void MacroAssembler::InNewSpaceIsBlack(Register object,
                                        Register scratch0,
                                        Register scratch1,
-                                       LabelType* is_black) {
+                                       Label* is_black,
+                                       Label::Distance is_black_near) {
   HasColour(object, scratch0, scratch1,
-            is_black,
+            is_black, is_black_near,
             1, 0);  // kBlackBitPattern.
   ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
 }
 
 
-template<typename LabelType>
 void MacroAssembler::HasColour(Register object,
                                Register bitmap_scratch,
                                Register mask_scratch,
-                               LabelType* has_colour,
+                               Label* has_colour,
+                               Label::Distance has_colour_distance,
                                int first_bit,
                                int second_bit) {
   ASSERT(!Aliasing(object, bitmap_scratch, mask_scratch, ecx));
 
   MarkBits(object, bitmap_scratch, mask_scratch);
 
-  NearLabel other_colour, word_boundary;
+  Label other_colour, word_boundary;
   test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  j(first_bit == 1 ? zero : not_zero, &other_colour);
+  j(first_bit == 1 ? zero : not_zero, &other_colour, Label::kNear);
   add(mask_scratch, Operand(mask_scratch));  // Shift left 1 by adding.
-  j(zero, &word_boundary);
+  j(zero, &word_boundary, Label::kNear);
   test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  j(second_bit == 1 ? not_zero : zero, has_colour);
-  jmp(&other_colour);
+  j(second_bit == 1 ? not_zero : zero, has_colour, has_colour_distance);
+  jmp(&other_colour, Label::kNear);
 
   bind(&word_boundary);
   test_b(Operand(bitmap_scratch, MemoryChunk::kHeaderSize + kPointerSize), 1);
 
-  j(second_bit == 1 ? not_zero : zero, has_colour);
+  j(second_bit == 1 ? not_zero : zero, has_colour, has_colour_distance);
   bind(&other_colour);
 }
 
 
-template<typename LabelType>
 void MacroAssembler::IsDataObject(Register value,
                                   Register scratch,
-                                  LabelType* not_data_object,
+                                  Label* not_data_object,
+                                  Label::Distance not_data_object_distance,
                                   bool in_new_space) {
   if (in_new_space) {
-    NearLabel is_data_object;
+    Label is_data_object;
     mov(scratch, FieldOperand(value, HeapObject::kMapOffset));
     cmp(scratch, FACTORY->heap_number_map());
-    j(equal, &is_data_object);
+    j(equal, &is_data_object, Label::kNear);
     ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
     ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
     // If it's a string and it's not a cons string then it's an object that
@@ -126,7 +126,7 @@ void MacroAssembler::IsDataObject(Register value,
     test_b(FieldOperand(scratch, Map::kInstanceTypeOffset),
            kIsConsStringMask | kIsNotStringMask);
     // Jump if we need to mark it grey and push it.
-    j(not_zero, not_data_object);
+    j(not_zero, not_data_object, not_data_object_distance);
     bind(&is_data_object);
   } else {
     mov(scratch, Operand(value));
@@ -134,7 +134,7 @@ void MacroAssembler::IsDataObject(Register value,
     test_b(Operand(scratch, MemoryChunk::kFlagsOffset),
            1 << MemoryChunk::CONTAINS_ONLY_DATA);
     // Jump if we need to mark it grey and push it.
-    j(zero, not_data_object);
+    j(zero, not_data_object, not_data_object_distance);
   }
 }
 
@@ -160,12 +160,12 @@ void MacroAssembler::MarkBits(Register addr_reg,
 }
 
 
-template<typename LabelType>
 void MacroAssembler::EnsureNotWhite(
     Register value,
     Register bitmap_scratch,
     Register mask_scratch,
-    LabelType* value_is_white_and_not_data,
+    Label* value_is_white_and_not_data,
+    Label::Distance distance,
     bool in_new_space) {
   ASSERT(!Aliasing(value, bitmap_scratch, mask_scratch, ecx));
   MarkBits(value, bitmap_scratch, mask_scratch);
@@ -176,28 +176,28 @@ void MacroAssembler::EnsureNotWhite(
   ASSERT(strcmp(Marking::kGreyBitPattern, "11") == 0);
   ASSERT(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
 
-  NearLabel done;
+  Label done;
 
   // Since both black and grey have a 1 in the first position and white does
   // not have a 1 there we only need to check one bit.
   test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  j(not_zero, &done);
+  j(not_zero, &done, Label::kNear);
 
   if (FLAG_debug_code) {
     // Check for impossible bit pattern.
-    NearLabel ok;
+    Label ok;
     push(mask_scratch);
     // shl.  May overflow making the check conservative.
     add(mask_scratch, Operand(mask_scratch));
     test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
-    j(zero, &ok);
+    j(zero, &ok, Label::kNear);
     int3();
     bind(&ok);
     pop(mask_scratch);
   }
 
   // Value is white.  We check whether it is data that doesn't need scanning.
-  IsDataObject(value, ecx, value_is_white_and_not_data, in_new_space);
+  IsDataObject(value, ecx, value_is_white_and_not_data, distance, in_new_space);
 
   // Value is a data object, and it is white.  Mark it black.  Since we know
   // that the object is white we can make it black by flipping one bit.

@@ -28,6 +28,8 @@
 #ifndef V8_OBJECTS_VISITING_H_
 #define V8_OBJECTS_VISITING_H_
 
+#include "allocation.h"
+
 // This file provides base classes and auxiliary methods for defining
 // static object visitors used during GC.
 // Visiting HeapObject body with a normal ObjectVisitor requires performing

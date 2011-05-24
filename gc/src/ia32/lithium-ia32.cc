@@ -239,6 +239,13 @@ void LIsSmiAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
+void LIsUndetectableAndBranch::PrintDataTo(StringStream* stream) {
+  stream->Add("if is_undetectable(");
+  InputAt(0)->PrintTo(stream);
+  stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
+}
+
+
 void LHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if has_instance_type(");
   InputAt(0)->PrintTo(stream);
@@ -1010,6 +1017,8 @@ LEnvironment* LChunkBuilder::CreateEnvironment(HEnvironment* hydrogen_env) {
                                           outer);
   int argument_index = 0;
   for (int i = 0; i < value_count; ++i) {
+    if (hydrogen_env->is_special_index(i)) continue;
+
     HValue* value = hydrogen_env->values()->at(i);
     LOperand* op = NULL;
     if (value->IsArgumentsObject()) {
@@ -1078,6 +1087,12 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       ASSERT(compare->value()->representation().IsTagged());
 
       return new LIsSmiAndBranch(Use(compare->value()));
+    } else if (v->IsIsUndetectable()) {
+      HIsUndetectable* compare = HIsUndetectable::cast(v);
+      ASSERT(compare->value()->representation().IsTagged());
+
+      return new LIsUndetectableAndBranch(UseRegisterAtStart(compare->value()),
+                                          TempRegister());
     } else if (v->IsHasInstanceType()) {
       HHasInstanceType* compare = HHasInstanceType::cast(v);
       ASSERT(compare->value()->representation().IsTagged());
@@ -1111,6 +1126,10 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       HCompareJSObjectEq* compare = HCompareJSObjectEq::cast(v);
       return new LCmpJSObjectEqAndBranch(UseRegisterAtStart(compare->left()),
                                          UseRegisterAtStart(compare->right()));
+    } else if (v->IsCompareSymbolEq()) {
+      HCompareSymbolEq* compare = HCompareSymbolEq::cast(v);
+      return new LCmpSymbolEqAndBranch(UseRegisterAtStart(compare->left()),
+                                       UseRegisterAtStart(compare->right()));
     } else if (v->IsInstanceOf()) {
       HInstanceOf* instance_of = HInstanceOf::cast(v);
       LOperand* left = UseFixed(instance_of->left(), InstanceofStub::left());
@@ -1199,7 +1218,7 @@ LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
 
 
 LInstruction* LChunkBuilder::DoContext(HContext* instr) {
-  return DefineAsRegister(new LContext);
+  return instr->HasNoUses() ? NULL : DefineAsRegister(new LContext);
 }
 
 
@@ -1538,6 +1557,15 @@ LInstruction* LChunkBuilder::DoCompareJSObjectEq(
 }
 
 
+LInstruction* LChunkBuilder::DoCompareSymbolEq(
+    HCompareSymbolEq* instr) {
+  LOperand* left = UseRegisterAtStart(instr->left());
+  LOperand* right = UseRegisterAtStart(instr->right());
+  LCmpSymbolEq* result = new LCmpSymbolEq(left, right);
+  return DefineAsRegister(result);
+}
+
+
 LInstruction* LChunkBuilder::DoIsNull(HIsNull* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());
@@ -1559,6 +1587,14 @@ LInstruction* LChunkBuilder::DoIsSmi(HIsSmi* instr) {
   LOperand* value = UseAtStart(instr->value());
 
   return DefineAsRegister(new LIsSmi(value));
+}
+
+
+LInstruction* LChunkBuilder::DoIsUndetectable(HIsUndetectable* instr) {
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegisterAtStart(instr->value());
+
+  return DefineAsRegister(new LIsUndetectable(value));
 }
 
 
@@ -1638,6 +1674,14 @@ LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
 LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
   LOperand* value = UseFixed(instr->value(), eax);
   return MarkAsCall(new LThrow(value), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoForceRepresentation(HForceRepresentation* bad) {
+  // All HForceRepresentation instructions should be eliminated in the
+  // representation change phase of Hydrogen.
+  UNREACHABLE();
+  return NULL;
 }
 
 
@@ -1739,6 +1783,27 @@ LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
   LCheckMap* result = new LCheckMap(value);
   return AssignEnvironment(result);
+}
+
+
+LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
+  HValue* value = instr->value();
+  Representation input_rep = value->representation();
+  if (input_rep.IsDouble()) {
+    LOperand* reg = UseRegister(value);
+    return DefineAsRegister(new LClampDToUint8(reg));
+  } else if (input_rep.IsInteger32()) {
+    LOperand* reg = UseFixed(value, eax);
+    return DefineFixed(new LClampIToUint8(reg), eax);
+  } else {
+    ASSERT(input_rep.IsTagged());
+    LOperand* reg = UseFixed(value, eax);
+    // Register allocator doesn't (yet) support allocation of double
+    // temps. Reserve xmm1 explicitly.
+    LOperand* temp = FixedTemp(xmm1);
+    LClampTToUint8* result = new LClampTToUint8(reg, temp);
+    return AssignEnvironment(DefineFixed(result, eax));
+  }
 }
 
 
@@ -1895,7 +1960,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
                                      array_type == kExternalDoubleArray)));
   ASSERT(instr->key()->representation().IsInteger32());
   LOperand* external_pointer = UseRegister(instr->external_pointer());
-  LOperand* key = UseRegister(instr->key());
+  LOperand* key = UseRegisterOrConstant(instr->key());
   LLoadKeyedSpecializedArrayElement* result =
       new LLoadKeyedSpecializedArrayElement(external_pointer,
                                             key);
@@ -1950,16 +2015,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
   ASSERT(instr->key()->representation().IsInteger32());
 
   LOperand* external_pointer = UseRegister(instr->external_pointer());
-  LOperand* key = UseRegister(instr->key());
-  LOperand* temp = NULL;
-
-  if (array_type == kExternalPixelArray) {
-    // The generated code for pixel array stores requires that the clamped value
-    // is in a byte register. eax is an arbitrary choice to satisfy this
-    // requirement.
-    temp = FixedTemp(eax);
-  }
-
+  LOperand* key = UseRegisterOrConstant(instr->key());
   LOperand* val = NULL;
   if (array_type == kExternalByteArray ||
       array_type == kExternalUnsignedByteArray) {
@@ -1971,8 +2027,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
 
   return new LStoreKeyedSpecializedArrayElement(external_pointer,
                                                 key,
-                                                val,
-                                                temp);
+                                                val);
 }
 
 

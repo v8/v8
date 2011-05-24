@@ -605,6 +605,12 @@ bool Object::IsStringWrapper() {
 }
 
 
+bool Object::IsJSProxy() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() == JS_PROXY_TYPE;
+}
+
+
 bool Object::IsProxy() {
   return Object::IsHeapObject()
       && HeapObject::cast(this)->map()->instance_type() == PROXY_TYPE;
@@ -1788,6 +1794,7 @@ CAST_ACCESSOR(JSBuiltinsObject)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSRegExp)
+CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(Proxy)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(FreeSpace)
@@ -2483,7 +2490,6 @@ Code::ExtraICState Code::extra_ic_state() {
 
 
 PropertyType Code::type() {
-  ASSERT(ic_state() == MONOMORPHIC);
   return ExtractTypeFromFlags(flags());
 }
 
@@ -2601,14 +2607,14 @@ void Code::set_check_type(CheckType value) {
 
 
 ExternalArrayType Code::external_array_type() {
-  ASSERT(is_external_array_load_stub() || is_external_array_store_stub());
+  ASSERT(is_keyed_load_stub() || is_keyed_store_stub());
   byte type = READ_BYTE_FIELD(this, kExternalArrayTypeOffset);
   return static_cast<ExternalArrayType>(type);
 }
 
 
 void Code::set_external_array_type(ExternalArrayType value) {
-  ASSERT(is_external_array_load_stub() || is_external_array_store_stub());
+  ASSERT(is_keyed_load_stub() || is_keyed_store_stub());
   WRITE_BYTE_FIELD(this, kExternalArrayTypeOffset, value);
 }
 
@@ -3072,6 +3078,18 @@ void SharedFunctionInfo::set_strict_mode(bool value) {
 }
 
 
+bool SharedFunctionInfo::es5_native() {
+  return BooleanBit::get(compiler_hints(), kES5Native);
+}
+
+
+void SharedFunctionInfo::set_es5_native(bool value) {
+  set_compiler_hints(BooleanBit::set(compiler_hints(),
+                                     kES5Native,
+                                     value));
+}
+
+
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
 
@@ -3368,6 +3386,9 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
 }
 
 
+ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
+
+
 Address Proxy::proxy() {
   return AddressFrom<Address>(READ_INTPTR_FIELD(this, kProxyOffset));
 }
@@ -3407,6 +3428,8 @@ JSMessageObject* JSMessageObject::cast(Object* obj) {
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
 ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
+ACCESSORS(Code, next_code_flushing_candidate,
+          Object, kNextCodeFlushingCandidateOffset)
 
 
 byte* Code::instruction_start()  {

@@ -35,6 +35,7 @@
 #ifndef V8_ASSEMBLER_H_
 #define V8_ASSEMBLER_H_
 
+#include "allocation.h"
 #include "gdb-jit.h"
 #include "runtime.h"
 #include "token.h"
@@ -48,12 +49,14 @@ const unsigned kNoASTId = -1;
 
 class AssemblerBase: public Malloced {
  public:
-  explicit AssemblerBase(Isolate* isolate) : isolate_(isolate) {}
+  explicit AssemblerBase(Isolate* isolate);
 
   Isolate* isolate() const { return isolate_; }
+  int jit_cookie() { return jit_cookie_; }
 
  private:
   Isolate* isolate_;
+  int jit_cookie_;
 };
 
 // -----------------------------------------------------------------------------
@@ -64,6 +67,8 @@ class DoubleConstant: public AllStatic {
   static const double min_int;
   static const double one_half;
   static const double minus_zero;
+  static const double zero;
+  static const double uint8_max_value;
   static const double negative_infinity;
   static const double nan;
 };
@@ -77,18 +82,28 @@ class DoubleConstant: public AllStatic {
 
 class Label BASE_EMBEDDED {
  public:
-  INLINE(Label())                 { Unuse(); }
+  enum Distance {
+    kNear, kFar
+  };
+
+  INLINE(Label()) {
+    Unuse();
+    UnuseNear();
+  }
   INLINE(~Label())                { ASSERT(!is_linked()); }
 
   INLINE(void Unuse())            { pos_ = 0; }
+  INLINE(void UnuseNear())        { near_link_pos_ = 0; }
 
   INLINE(bool is_bound() const)  { return pos_ <  0; }
-  INLINE(bool is_unused() const)  { return pos_ == 0; }
+  INLINE(bool is_unused() const)  { return pos_ == 0 && near_link_pos_ == 0; }
   INLINE(bool is_linked() const)  { return pos_ >  0; }
+  INLINE(bool is_near_linked() const) { return near_link_pos_ > 0; }
 
   // Returns the position of bound or linked labels. Cannot be used
   // for unused labels.
   int pos() const;
+  int near_link_pos() const { return near_link_pos_ - 1; }
 
  private:
   // pos_ encodes both the binding state (via its sign)
@@ -99,70 +114,27 @@ class Label BASE_EMBEDDED {
   // pos_ >  0  linked label, pos() returns the last reference position
   int pos_;
 
+  // Behaves like |pos_| in the "> 0" case, but for near jumps to this label.
+  int near_link_pos_;
+
   void bind_to(int pos)  {
     pos_ = -pos - 1;
     ASSERT(is_bound());
   }
-  void link_to(int pos)  {
-    pos_ =  pos + 1;
-    ASSERT(is_linked());
+  void link_to(int pos, Distance distance = kFar) {
+    if (distance == kNear) {
+      near_link_pos_ = pos + 1;
+      ASSERT(is_near_linked());
+    } else {
+      pos_ = pos + 1;
+      ASSERT(is_linked());
+    }
   }
 
   friend class Assembler;
   friend class RegexpAssembler;
   friend class Displacement;
   friend class RegExpMacroAssemblerIrregexp;
-};
-
-
-// -----------------------------------------------------------------------------
-// NearLabels are labels used for short jumps (in Intel jargon).
-// NearLabels should be used if it can be guaranteed that the jump range is
-// within -128 to +127. We already use short jumps when jumping backwards,
-// so using a NearLabel will only have performance impact if used for forward
-// jumps.
-class NearLabel BASE_EMBEDDED {
- public:
-  NearLabel() { Unuse(); }
-  ~NearLabel() { ASSERT(!is_linked()); }
-
-  void Unuse() {
-    pos_ = -1;
-    unresolved_branches_ = 0;
-#ifdef DEBUG
-    for (int i = 0; i < kMaxUnresolvedBranches; i++) {
-      unresolved_positions_[i] = -1;
-    }
-#endif
-  }
-
-  int pos() {
-    ASSERT(is_bound());
-    return pos_;
-  }
-
-  bool is_bound() { return pos_ >= 0; }
-  bool is_linked() { return !is_bound() && unresolved_branches_ > 0; }
-  bool is_unused() { return !is_bound() && unresolved_branches_ == 0; }
-
-  void bind_to(int position) {
-    ASSERT(!is_bound());
-    pos_ = position;
-  }
-
-  void link_to(int position) {
-    ASSERT(!is_bound());
-    ASSERT(unresolved_branches_ < kMaxUnresolvedBranches);
-    unresolved_positions_[unresolved_branches_++] = position;
-  }
-
- private:
-  static const int kMaxUnresolvedBranches = 8;
-  int pos_;
-  int unresolved_branches_;
-  int unresolved_positions_[kMaxUnresolvedBranches];
-
-  friend class Assembler;
 };
 
 
@@ -648,6 +620,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_min_int();
   static ExternalReference address_of_one_half();
   static ExternalReference address_of_minus_zero();
+  static ExternalReference address_of_zero();
+  static ExternalReference address_of_uint8_max_value();
   static ExternalReference address_of_negative_infinity();
   static ExternalReference address_of_nan();
 
@@ -684,10 +658,11 @@ class ExternalReference BASE_EMBEDDED {
 
   // This lets you register a function that rewrites all external references.
   // Used by the ARM simulator to catch calls to external references.
-  static void set_redirector(ExternalReferenceRedirector* redirector) {
+  static void set_redirector(Isolate* isolate,
+                             ExternalReferenceRedirector* redirector) {
     // We can't stack them.
-    ASSERT(Isolate::Current()->external_reference_redirector() == NULL);
-    Isolate::Current()->set_external_reference_redirector(
+    ASSERT(isolate->external_reference_redirector() == NULL);
+    isolate->set_external_reference_redirector(
         reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
   }
 

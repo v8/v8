@@ -286,22 +286,16 @@ class Scanner {
       return beg_pos >= 0 && end_pos >= beg_pos;
     }
 
+    static Location invalid() { return Location(-1, -1); }
+
     int beg_pos;
     int end_pos;
   };
-
-  static Location NoLocation() {
-    return Location(-1, -1);
-  }
 
   // Returns the location information for the current token
   // (the token returned by Next()).
   Location location() const { return current_.location; }
   Location peek_location() const { return next_.location; }
-
-  // Returns the location of the last seen octal literal
-  int octal_position() const { return octal_pos_; }
-  void clear_octal_position() { octal_pos_ = -1; }
 
   // Returns the literal string, if any, for the current token (the
   // token returned by Next()). The string is 0-terminated and in
@@ -324,6 +318,16 @@ class Scanner {
   int literal_length() const {
     ASSERT_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->length();
+  }
+
+  bool literal_contains_escapes() const {
+    Location location = current_.location;
+    int source_length = (location.end_pos - location.beg_pos);
+    if (current_.token == Token::STRING) {
+      // Subtract delimiters.
+      source_length -= 2;
+    }
+    return current_.literal_chars->length() != source_length;
   }
 
   // Returns the literal string for the next token (the token that
@@ -417,9 +421,6 @@ class Scanner {
 
   uc32 ScanHexEscape(uc32 c, int length);
 
-  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
-  uc32 ScanOctalEscape(uc32 c, int length);
-
   // Return the current source position.
   int source_pos() {
     return source_->pos() - kCharacterLookaheadBufferSize;
@@ -436,9 +437,6 @@ class Scanner {
 
   // Input stream. Must be initialized to an UC16CharacterStream.
   UC16CharacterStream* source_;
-
-  // Start position of the octal literal last scanned.
-  int octal_pos_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;
@@ -492,6 +490,13 @@ class JavaScriptScanner : public Scanner {
   // Used for checking if a property name is an identifier.
   static bool IsIdentifier(unibrow::CharacterStream* buffer);
 
+  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
+  uc32 ScanOctalEscape(uc32 c, int length);
+
+  // Returns the location of the last seen octal literal
+  Location octal_position() const { return octal_pos_; }
+  void clear_octal_position() { octal_pos_ = Location::invalid(); }
+
   // Seek forward to the given position.  This operation does not
   // work in general, for instance when there are pushed back
   // characters, but works for seeking forward until simple delimiter
@@ -520,6 +525,9 @@ class JavaScriptScanner : public Scanner {
   // Decodes a unicode escape-sequence which is part of an identifier.
   // If the escape sequence cannot be decoded the result is kBadChar.
   uc32 ScanIdentifierUnicodeEscape();
+
+  // Start position of the octal literal last scanned.
+  Location octal_pos_;
 
   bool has_line_terminator_before_next_;
 };

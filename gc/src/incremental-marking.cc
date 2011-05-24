@@ -460,6 +460,7 @@ void IncrementalMarking::MarkingComplete() {
 
 void IncrementalMarking::Step(intptr_t allocated_bytes) {
   if (heap_->gc_state() != Heap::NOT_IN_GC) return;
+  if (!FLAG_incremental_marking) return;
   if (!FLAG_incremental_marking_steps) return;
 
   allocated_ += allocated_bytes;

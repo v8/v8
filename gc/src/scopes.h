@@ -95,6 +95,11 @@ class Scope: public ZoneObject {
     GLOBAL_SCOPE    // the top-level scope for a program or a top-level eval
   };
 
+  enum LocalType {
+    PARAMETER,
+    VAR_OR_CONST
+  };
+
   Scope(Scope* outer_scope, Type type);
 
   virtual ~Scope() { }
@@ -134,7 +139,9 @@ class Scope: public ZoneObject {
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
-  virtual Variable* DeclareLocal(Handle<String> name, Variable::Mode mode);
+  virtual Variable* DeclareLocal(Handle<String> name,
+                                 Variable::Mode mode,
+                                 LocalType type);
 
   // Declare an implicit global variable in this scope which must be a
   // global scope.  The variable was introduced (possibly from an inner
@@ -218,6 +225,9 @@ class Scope: public ZoneObject {
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
   bool outer_scope_calls_eval() const { return outer_scope_calls_eval_; }
+  bool outer_scope_calls_non_strict_eval() const {
+    return outer_scope_calls_non_strict_eval_;
+  }
 
   // Is this scope inside a with statement.
   bool inside_with() const { return scope_inside_with_; }
@@ -284,6 +294,9 @@ class Scope: public ZoneObject {
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
   void AllocateVariables(Handle<Context> context);
+
+  // Current number of var or const locals.
+  int num_var_or_const() { return num_var_or_const_; }
 
   // Result of variable allocation.
   int num_stack_slots() const { return num_stack_slots_; }
@@ -372,9 +385,13 @@ class Scope: public ZoneObject {
 
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_eval_;
+  bool outer_scope_calls_non_strict_eval_;
   bool inner_scope_calls_eval_;
   bool outer_scope_is_eval_scope_;
   bool force_eager_compilation_;
+
+  // Computed as variables are declared.
+  int num_var_or_const_;
 
   // Computed via AllocateVariables; function scopes only.
   int num_stack_slots_;
@@ -400,6 +417,7 @@ class Scope: public ZoneObject {
 
   // Scope analysis.
   bool PropagateScopeInfo(bool outer_scope_calls_eval,
+                          bool outer_scope_calls_non_strict_eval,
                           bool outer_scope_is_eval_scope);
   bool HasTrivialContext() const;
 

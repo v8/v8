@@ -28,6 +28,7 @@
 #ifndef V8_HANDLES_H_
 #define V8_HANDLES_H_
 
+#include "allocation.h"
 #include "apiutils.h"
 
 namespace v8 {
@@ -240,6 +241,10 @@ Handle<Object> SetOwnElement(Handle<JSObject> object,
 
 Handle<Object> GetProperty(Handle<JSObject> obj,
                            const char* name);
+
+Handle<Object> GetProperty(Handle<Object> obj,
+                           const char* name,
+                           LookupResult* result);
 
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key);

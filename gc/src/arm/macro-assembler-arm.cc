@@ -1656,8 +1656,8 @@ void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,
                               Label* fail,
-                              bool is_heap_object) {
-  if (!is_heap_object) {
+                              SmiCheckType smi_check_type) {
+  if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
   ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
@@ -1671,14 +1671,31 @@ void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Heap::RootListIndex index,
                               Label* fail,
-                              bool is_heap_object) {
-  if (!is_heap_object) {
+                              SmiCheckType smi_check_type) {
+  if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
   ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
   LoadRoot(ip, index);
   cmp(scratch, ip);
   b(ne, fail);
+}
+
+
+void MacroAssembler::DispatchMap(Register obj,
+                                 Register scratch,
+                                 Handle<Map> map,
+                                 Handle<Code> success,
+                                 SmiCheckType smi_check_type) {
+  Label fail;
+  if (smi_check_type == DO_SMI_CHECK) {
+    JumpIfSmi(obj, &fail);
+  }
+  ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
+  mov(ip, Operand(map));
+  cmp(scratch, ip);
+  Jump(success, RelocInfo::CODE_TARGET, eq);
+  bind(&fail);
 }
 
 
@@ -1735,6 +1752,17 @@ void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
 }
 
 
+MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub, Condition cond) {
+  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  Object* result;
+  { MaybeObject* maybe_result = stub->TryGetCode();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  Call(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET, cond);
+  return result;
+}
+
+
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
   ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
@@ -1747,7 +1775,7 @@ MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub, Condition cond) {
   { MaybeObject* maybe_result = stub->TryGetCode();
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
+  Jump(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET, cond);
   return result;
 }
 
@@ -2511,7 +2539,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
   if (emit_debug_code()) {
     Label ok, fail;
-    CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, false);
+    CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, DO_SMI_CHECK);
     b(&ok);
     bind(&fail);
     Abort("Global functions must have initial map");
@@ -3015,6 +3043,44 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
   and_(result, result, Operand(kLdrOffsetMask));
   add(result, ldr_location, Operand(result));
   add(result, result, Operand(kPCRegOffset));
+}
+
+
+void MacroAssembler::ClampUint8(Register output_reg, Register input_reg) {
+  Usat(output_reg, 8, Operand(input_reg));
+}
+
+
+void MacroAssembler::ClampDoubleToUint8(Register result_reg,
+                                        DoubleRegister input_reg,
+                                        DoubleRegister temp_double_reg) {
+  Label above_zero;
+  Label done;
+  Label in_bounds;
+
+  vmov(temp_double_reg, 0.0);
+  VFPCompareAndSetFlags(input_reg, temp_double_reg);
+  b(gt, &above_zero);
+
+  // Double value is less than zero, NaN or Inf, return 0.
+  mov(result_reg, Operand(0));
+  b(al, &done);
+
+  // Double value is >= 255, return 255.
+  bind(&above_zero);
+  vmov(temp_double_reg, 255.0);
+  VFPCompareAndSetFlags(input_reg, temp_double_reg);
+  b(le, &in_bounds);
+  mov(result_reg, Operand(255));
+  b(al, &done);
+
+  // In 0-255 range, round and truncate.
+  bind(&in_bounds);
+  vmov(temp_double_reg, 0.5);
+  vadd(temp_double_reg, input_reg, temp_double_reg);
+  vcvt_u32_f64(s0, temp_double_reg);
+  vmov(result_reg, s0);
+  bind(&done);
 }
 
 

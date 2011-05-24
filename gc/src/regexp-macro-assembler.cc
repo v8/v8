@@ -35,7 +35,7 @@
 namespace v8 {
 namespace internal {
 
-RegExpMacroAssembler::RegExpMacroAssembler() {
+RegExpMacroAssembler::RegExpMacroAssembler() : slow_safe_compiler_(false) {
 }
 
 
@@ -54,7 +54,8 @@ bool RegExpMacroAssembler::CanReadUnaligned() {
 
 #ifndef V8_INTERPRETED_REGEXP  // Avoid unused code, e.g., on ARM.
 
-NativeRegExpMacroAssembler::NativeRegExpMacroAssembler() {
+NativeRegExpMacroAssembler::NativeRegExpMacroAssembler()
+    : RegExpMacroAssembler() {
 }
 
 
@@ -64,7 +65,7 @@ NativeRegExpMacroAssembler::~NativeRegExpMacroAssembler() {
 
 bool NativeRegExpMacroAssembler::CanReadUnaligned() {
 #ifdef V8_TARGET_CAN_READ_UNALIGNED
-  return true;
+  return !slow_safe();
 #else
   return false;
 #endif

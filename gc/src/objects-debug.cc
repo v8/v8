@@ -158,6 +158,9 @@ void HeapObject::HeapObjectVerify() {
       break;
     case FILLER_TYPE:
       break;
+    case JS_PROXY_TYPE:
+      JSProxy::cast(this)->JSProxyVerify();
+      break;
     case PROXY_TYPE:
       Proxy::cast(this)->ProxyVerify();
       break;
@@ -468,6 +471,11 @@ void JSRegExp::JSRegExpVerify() {
   }
 }
 
+
+void JSProxy::JSProxyVerify() {
+  ASSERT(IsJSProxy());
+  VerifyPointer(handler());
+}
 
 void Proxy::ProxyVerify() {
   ASSERT(IsProxy());

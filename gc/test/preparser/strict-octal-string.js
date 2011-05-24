@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Strict mode with octal escape in string literal.
 
-#include "cctest.h"
-#include "type-info.h"
-
-namespace v8 {
-namespace internal {
-
-TEST(ThreeBitRepresentation) {
-  // Numeric types and unknown should fit into the short
-  // representation.
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::Unknown().ThreeBitRepresentation()).IsUnknown());
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::Number().ThreeBitRepresentation()).IsNumber());
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::Integer32().ThreeBitRepresentation()).IsInteger32());
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::Smi().ThreeBitRepresentation()).IsSmi());
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::Double().ThreeBitRepresentation()).IsDouble());
-
-  // Other types should map to unknown.
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::Primitive().ThreeBitRepresentation()).IsUnknown());
-  CHECK(TypeInfo::ExpandedRepresentation(
-      TypeInfo::String().ThreeBitRepresentation()).IsUnknown());
+function foo() {
+  "use strict";
+  var x = "hello\040world";
+  return x;
 }
-
-} }  // namespace v8::internal

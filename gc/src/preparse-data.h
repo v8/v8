@@ -25,40 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PREPARSER_DATA_H_
-#define V8_PREPARSER_DATA_H_
+#ifndef V8_PREPARSE_DATA_H_
+#define V8_PREPARSE_DATA_H_
 
+#include "allocation.h"
 #include "hashmap.h"
 #include "utils-inl.h"
 
 namespace v8 {
 namespace internal {
-
-// Generic and general data used by preparse data recorders and readers.
-
-class PreparseDataConstants : public AllStatic {
- public:
-  // Layout and constants of the preparse data exchange format.
-  static const unsigned kMagicNumber = 0xBadDead;
-  static const unsigned kCurrentVersion = 6;
-
-  static const int kMagicOffset = 0;
-  static const int kVersionOffset = 1;
-  static const int kHasErrorOffset = 2;
-  static const int kFunctionsSizeOffset = 3;
-  static const int kSymbolCountOffset = 4;
-  static const int kSizeOffset = 5;
-  static const int kHeaderSize = 6;
-
-  // If encoding a message, the following positions are fixed.
-  static const int kMessageStartPos = 0;
-  static const int kMessageEndPos = 1;
-  static const int kMessageArgCountPos = 2;
-  static const int kMessageTextPos = 3;
-
-  static const byte kNumberTerminator = 0x80u;
-};
-
 
 // ----------------------------------------------------------------------------
 // ParserRecorder - Logging of preparser data.
@@ -247,4 +222,4 @@ class CompleteParserRecorder: public FunctionLoggingParserRecorder {
 
 } }  // namespace v8::internal.
 
-#endif  // V8_PREPARSER_DATA_H_
+#endif  // V8_PREPARSE_DATA_H_

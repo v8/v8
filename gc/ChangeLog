@@ -1,3 +1,47 @@
+2011-05-18: Version 3.3.8
+
+        Add MarkIndependent to the persistent handle API.  Independent
+        handles are independent of all other persistent handles and can be
+        garbage collected more frequently.
+
+        Implement the get trap for Harmony proxies.  Proxies are enabled
+        with the --harmony-proxies flag.
+
+        Performance improvements and bug fixes on all platforms.
+
+
+2011-05-16: Version 3.3.7
+
+        Updated MIPS infrastructure files.
+
+        Performance improvements and bug fixes on all platforms.
+
+
+2011-05-11: Version 3.3.6
+
+        Updated MIPS infrastructure files.
+
+        Added method IsCallable for Object to the API.
+        Patch by Peter Varga.
+
+
+2011-05-09: Version 3.3.5
+
+        Fixed build on FreeBSD. Patch by Akinori MUSHA.
+
+        Added check that receiver is JSObject on API calls.
+
+        Implemented CallAsConstructor method for Object in the API (Issue 1348).
+        Patch by Peter Varga.
+
+        Added CallAsFunction method to the Object class in the API (Issue 1336).
+        Patch by Peter Varga.
+
+        Added per-isolate locking and unlocking.
+
+        Fixed bug in x64 >>> operator (Issue 1359).
+
+
 2011-05-04: Version 3.3.4
 
         Implemented API to disallow code generation from strings for a context

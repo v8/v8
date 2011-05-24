@@ -28,7 +28,9 @@
 #ifndef V8_OBJECTS_H_
 #define V8_OBJECTS_H_
 
+#include "allocation.h"
 #include "builtins.h"
+#include "list.h"
 #include "smart-pointer.h"
 #include "unicode-inl.h"
 #if V8_TARGET_ARCH_ARM
@@ -91,6 +93,7 @@
 //       - Code
 //       - Map
 //       - Oddball
+//       - JSProxy
 //       - Proxy
 //       - SharedFunctionInfo
 //       - Struct
@@ -288,6 +291,7 @@ static const int kVariableSizeSentinel = 0;
   V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
                                                                                \
   V(HEAP_NUMBER_TYPE)                                                          \
+  V(JS_PROXY_TYPE)                                                             \
   V(PROXY_TYPE)                                                                \
   V(BYTE_ARRAY_TYPE)                                                           \
   V(FREE_SPACE_TYPE)                                                           \
@@ -487,7 +491,6 @@ const uint32_t kShortcutTypeTag = kConsStringTag;
 
 enum InstanceType {
   // String types.
-  // FIRST_STRING_TYPE
   SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kSeqStringTag,
   ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kSeqStringTag,
   CONS_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kConsStringTag,
@@ -518,6 +521,7 @@ enum InstanceType {
   // objects.
   HEAP_NUMBER_TYPE,
   PROXY_TYPE,
+  JS_PROXY_TYPE,
   BYTE_ARRAY_TYPE,
   FREE_SPACE_TYPE,
   EXTERNAL_BYTE_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
@@ -571,8 +575,6 @@ enum InstanceType {
   LAST_TYPE = JS_FUNCTION_TYPE,
   INVALID_TYPE = FIRST_TYPE - 1,
   FIRST_NONSTRING_TYPE = MAP_TYPE,
-  FIRST_STRING_TYPE = FIRST_TYPE,
-  LAST_STRING_TYPE = FIRST_NONSTRING_TYPE - 1,
   // Boundaries for testing for an external array.
   FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_BYTE_ARRAY_TYPE,
   LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_PIXEL_ARRAY_TYPE,
@@ -631,6 +633,7 @@ struct ValueInfo : public Malloced {
 
 // A template-ized version of the IsXXX functions.
 template <class C> static inline bool Is(Object* obj);
+
 
 class MaybeObject BASE_EMBEDDED {
  public:
@@ -731,6 +734,7 @@ class MaybeObject BASE_EMBEDDED {
   V(Proxy)                                     \
   V(Boolean)                                   \
   V(JSArray)                                   \
+  V(JSProxy)                                   \
   V(JSRegExp)                                  \
   V(HashTable)                                 \
   V(Dictionary)                                \
@@ -819,6 +823,9 @@ class Object : public MaybeObject {
                                                        Object* structure,
                                                        String* name,
                                                        Object* holder);
+  MUST_USE_RESULT MaybeObject* GetPropertyWithHandler(Object* receiver,
+                                                      String* name,
+                                                      Object* handler);
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
                                                             JSFunction* getter);
 
@@ -3209,12 +3216,10 @@ class Code: public HeapObject {
     BUILTIN,
     LOAD_IC,
     KEYED_LOAD_IC,
-    KEYED_EXTERNAL_ARRAY_LOAD_IC,
     CALL_IC,
     KEYED_CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
-    KEYED_EXTERNAL_ARRAY_STORE_IC,
     TYPE_RECORDING_UNARY_OP_IC,
     TYPE_RECORDING_BINARY_OP_IC,
     COMPARE_IC,
@@ -3258,6 +3263,12 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
+  // [code_flushing_candidate]: Field only used during garbage
+  // collection to hold code flushing candidates. The contents of this
+  // field does not have to be traced during garbage collection since
+  // it is only used by the garbage collector itself.
+  DECL_ACCESSORS(next_code_flushing_candidate, Object)
+
   // Unchecked accessors to be used during GC.
   inline ByteArray* unchecked_relocation_info();
   inline FixedArray* unchecked_deoptimization_data();
@@ -3291,12 +3302,6 @@ class Code: public HeapObject {
     return kind() == TYPE_RECORDING_BINARY_OP_IC;
   }
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
-  inline bool is_external_array_load_stub() {
-    return kind() == KEYED_EXTERNAL_ARRAY_LOAD_IC;
-  }
-  inline bool is_external_array_store_stub() {
-    return kind() == KEYED_EXTERNAL_ARRAY_STORE_IC;
-  }
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline int major_key();
@@ -3474,9 +3479,12 @@ class Code: public HeapObject {
   static const int kRelocationInfoOffset = kInstructionSizeOffset + kIntSize;
   static const int kDeoptimizationDataOffset =
       kRelocationInfoOffset + kPointerSize;
-  static const int kFlagsOffset = kDeoptimizationDataOffset + kPointerSize;
-  static const int kKindSpecificFlagsOffset  = kFlagsOffset + kIntSize;
+  static const int kNextCodeFlushingCandidateOffset =
+      kDeoptimizationDataOffset + kPointerSize;
+  static const int kFlagsOffset =
+      kNextCodeFlushingCandidateOffset + kPointerSize;
 
+  static const int kKindSpecificFlagsOffset = kFlagsOffset + kIntSize;
   static const int kKindSpecificFlagsSize = 2 * kIntSize;
 
   static const int kHeaderPaddingStart = kKindSpecificFlagsOffset +
@@ -3880,7 +3888,7 @@ class Map: public HeapObject {
 
 
 // An abstract superclass, a marker class really, for simple structure classes.
-// It doesn't carry much functionality but allows struct classes to me
+// It doesn't carry much functionality but allows struct classes to be
 // identified in the type system.
 class Struct: public HeapObject {
  public:
@@ -4273,6 +4281,13 @@ class SharedFunctionInfo: public HeapObject {
   inline bool strict_mode();
   inline void set_strict_mode(bool value);
 
+  // Indicates whether the function is a native ES5 function.
+  // These needs special threatment in .call and .apply since
+  // null passed as the receiver should not be translated to the
+  // global object.
+  inline bool es5_native();
+  inline void set_es5_native(bool value);
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support();
@@ -4453,6 +4468,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCodeAgeMask = 0x7;
   static const int kOptimizationDisabled = 6;
   static const int kStrictModeFunction = 7;
+  static const int kES5Native = 8;
 
  private:
 #if V8_HOST_ARCH_32_BIT
@@ -4466,18 +4482,27 @@ class SharedFunctionInfo: public HeapObject {
 #endif
 
  public:
-  // Constants for optimizing codegen for strict mode function tests.
+  // Constants for optimizing codegen for strict mode function and
+  // es5 native tests.
   // Allows to use byte-widgh instructions.
   static const int kStrictModeBitWithinByte =
       (kStrictModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
+  static const int kES5NativeBitWithinByte =
+      (kES5Native + kCompilerHintsSmiTagSize) % kBitsPerByte;
+
 #if __BYTE_ORDER == __LITTLE_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
-    (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
+      (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
+  static const int kES5NativeByteOffset = kCompilerHintsOffset +
+      (kES5Native + kCompilerHintsSmiTagSize) / kBitsPerByte;
 #elif __BYTE_ORDER == __BIG_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
-    (kCompilerHintsSize - 1) -
-    ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
+      (kCompilerHintsSize - 1) -
+      ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
+  static const int kES5NativeByteOffset = kCompilerHintsOffset +
+      (kCompilerHintsSize - 1) -
+      ((kES5Native + kCompilerHintsSmiTagSize) / kBitsPerByte);
 #else
 #error Unknown byte ordering
 #endif
@@ -5855,8 +5880,8 @@ class Relocatable BASE_EMBEDDED {
 
   static void PostGarbageCollectionProcessing();
   static int ArchiveSpacePerThread();
-  static char* ArchiveState(char* to);
-  static char* RestoreState(char* from);
+  static char* ArchiveState(Isolate* isolate, char* to);
+  static char* RestoreState(Isolate* isolate, char* from);
   static void Iterate(ObjectVisitor* v);
   static void Iterate(ObjectVisitor* v, Relocatable* top);
   static char* Iterate(ObjectVisitor* v, char* t);
@@ -6003,6 +6028,39 @@ class JSGlobalPropertyCell: public HeapObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalPropertyCell);
+};
+
+
+// The JSProxy describes EcmaScript Harmony proxies
+class JSProxy: public HeapObject {
+ public:
+  // [handler]: The handler property.
+  DECL_ACCESSORS(handler, Object)
+
+  // Casting.
+  static inline JSProxy* cast(Object* obj);
+
+  // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSProxyPrint() {
+    JSProxyPrint(stdout);
+  }
+  void JSProxyPrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void JSProxyVerify();
+#endif
+
+  // Layout description.
+  static const int kHandlerOffset = HeapObject::kHeaderSize;
+  static const int kSize = kHandlerOffset + kPointerSize;
+
+  typedef FixedBodyDescriptor<kHandlerOffset,
+                              kHandlerOffset + kPointerSize,
+                              kSize> BodyDescriptor;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };
 
 

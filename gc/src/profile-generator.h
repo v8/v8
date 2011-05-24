@@ -30,6 +30,7 @@
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+#include "allocation.h"
 #include "hashmap.h"
 #include "../include/v8-profiler.h"
 

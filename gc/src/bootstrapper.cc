@@ -199,6 +199,7 @@ class Genesis BASE_EMBEDDED {
   // Installs the contents of the native .js files on the global objects.
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
+  void InstallExperimentalNativeFunctions();
   bool InstallNatives();
   bool InstallExperimentalNatives();
   void InstallBuiltinFunctionIds();
@@ -1253,8 +1254,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
                      ? top_context->builtins()
                      : top_context->global());
   bool has_pending_exception;
-  Handle<Object> result =
-      Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
+  Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
   if (has_pending_exception) return false;
   return true;
 }
@@ -1284,6 +1284,12 @@ void Genesis::InstallNativeFunctions() {
                  configure_instance_fun);
   INSTALL_NATIVE(JSFunction, "GetStackTraceLine", get_stack_trace_line_fun);
   INSTALL_NATIVE(JSObject, "functionCache", function_cache);
+}
+
+void Genesis::InstallExperimentalNativeFunctions() {
+  if (FLAG_harmony_proxies) {
+    INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
+  }
 }
 
 #undef INSTALL_NATIVE
@@ -1639,13 +1645,18 @@ bool Genesis::InstallNatives() {
 
 
 bool Genesis::InstallExperimentalNatives() {
-  if (FLAG_harmony_proxies) {
-    for (int i = ExperimentalNatives::GetDebuggerCount();
-         i < ExperimentalNatives::GetBuiltinsCount();
-         i++) {
+  for (int i = ExperimentalNatives::GetDebuggerCount();
+       i < ExperimentalNatives::GetBuiltinsCount();
+       i++) {
+    if (FLAG_harmony_proxies &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native proxy.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
   }
+
+  InstallExperimentalNativeFunctions();
+
   return true;
 }
 
@@ -1700,14 +1711,14 @@ void Genesis::InstallBuiltinFunctionIds() {
   F(16, global_context()->regexp_function())
 
 
-static FixedArray* CreateCache(int size, JSFunction* factory_function) {
+static FixedArray* CreateCache(int size, Handle<JSFunction> factory_function) {
   Factory* factory = factory_function->GetIsolate()->factory();
   // Caches are supposed to live for a long time, allocate in old space.
   int array_size = JSFunctionResultCache::kEntriesIndex + 2 * size;
   // Cannot use cast as object is not fully initialized yet.
   JSFunctionResultCache* cache = reinterpret_cast<JSFunctionResultCache*>(
       *factory->NewFixedArrayWithHoles(array_size, TENURED));
-  cache->set(JSFunctionResultCache::kFactoryIndex, factory_function);
+  cache->set(JSFunctionResultCache::kFactoryIndex, *factory_function);
   cache->MakeZeroSize();
   return cache;
 }
@@ -1724,9 +1735,9 @@ void Genesis::InstallJSFunctionResultCaches() {
 
   int index = 0;
 
-#define F(size, func) do {                           \
-    FixedArray* cache = CreateCache((size), (func)); \
-    caches->set(index++, cache);                     \
+#define F(size, func) do {                                              \
+    FixedArray* cache = CreateCache((size), Handle<JSFunction>(func));  \
+    caches->set(index++, cache);                                        \
   } while (false)
 
   JSFUNCTION_RESULT_CACHE_LIST(F);
@@ -2005,8 +2016,9 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           break;
         case NORMAL:
           // Do not occur since the from object has fast properties.
+        case HANDLER:
         case INTERCEPTOR:
-          // No element in instance descriptors have interceptor type.
+          // No element in instance descriptors have proxy or interceptor type.
           UNREACHABLE();
           break;
       }

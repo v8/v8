@@ -473,13 +473,11 @@ class CodeFlusher {
     *GetNextCandidateField(candidate) = next_candidate;
   }
 
-  STATIC_ASSERT(kPointerSize <= Code::kHeaderSize - Code::kHeaderPaddingStart);
-
   static SharedFunctionInfo** GetNextCandidateField(
       SharedFunctionInfo* candidate) {
     Code* code = candidate->unchecked_code();
     return reinterpret_cast<SharedFunctionInfo**>(
-        code->address() + Code::kHeaderPaddingStart);
+        code->address() + Code::kNextCodeFlushingCandidateOffset);
   }
 
   static SharedFunctionInfo* GetNextCandidate(SharedFunctionInfo* candidate) {
@@ -628,7 +626,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* code = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    if (FLAG_cleanup_ics_at_gc && code->is_inline_cache_stub()) {
+    if (FLAG_cleanup_code_caches_at_gc && code->is_inline_cache_stub()) {
       IC::Clear(rinfo->pc());
       // Please note targets for cleared inline cached do not have to be
       // marked since they are contained in HEAP->non_monomorphic_cache().
@@ -1256,7 +1254,7 @@ void MarkCompactCollector::ProcessNewlyMarkedObject(HeapObject* object) {
   ASSERT(HEAP->Contains(object));
   if (object->IsMap()) {
     Map* map = Map::cast(object);
-    if (FLAG_cleanup_caches_in_maps_at_gc) {
+    if (FLAG_cleanup_code_caches_at_gc) {
       map->ClearCodeCache(heap());
     }
     if (FLAG_collect_maps &&
@@ -2118,7 +2116,7 @@ void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
   }
 
   // Update roots.
-  heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SCAVENGE);
+  heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
   LiveObjectList::IterateElements(&updating_visitor);
 
   {

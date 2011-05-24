@@ -131,6 +131,7 @@ Heap::Heap()
       global_gc_prologue_callback_(NULL),
       global_gc_epilogue_callback_(NULL),
       gc_safe_size_of_old_object_(NULL),
+      total_regexp_code_generated_(0),
       tracer_(NULL),
       young_survivors_after_last_gc_(0),
       high_survival_rate_period_length_(0),
@@ -761,11 +762,10 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
   isolate_->counters()->objs_since_last_young()->Set(0);
 
-  if (collector == MARK_COMPACTOR) {
-    DisableAssertNoAllocation allow_allocation;
+  { DisableAssertNoAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     next_gc_likely_to_collect_more =
-        isolate_->global_handles()->PostGarbageCollectionProcessing();
+        isolate_->global_handles()->PostGarbageCollectionProcessing(collector);
   }
 
   // Update relocatables.
@@ -927,6 +927,12 @@ void Heap::CheckNewSpaceExpansionCriteria() {
 }
 
 
+static bool IsUnscavengedHeapObject(Heap* heap, Object** p) {
+  return heap->InNewSpace(*p) &&
+      !HeapObject::cast(*p)->map_word().IsForwardingAddress();
+}
+
+
 void Heap::ScavengeStoreBufferCallback(
     Heap* heap,
     MemoryChunk* page,
@@ -1067,6 +1073,11 @@ void Heap::Scavenge() {
   scavenge_visitor.VisitPointer(BitCast<Object**>(&global_contexts_list_));
 
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
+  isolate_->global_handles()->IdentifyWeakIndependentHandles(
+      &IsUnscavengedHeapObject);
+  isolate_->global_handles()->IterateWeakIndependentRoots(&scavenge_visitor);
+  new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
+
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
@@ -2442,6 +2453,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_num_literals(0);
   share->set_end_position(0);
   share->set_function_token_position(0);
+  share->set_es5_native(false);
   return result;
 }
 
@@ -2864,6 +2876,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
   code->set_deoptimization_data(empty_fixed_array());
+  code->set_next_code_flushing_candidate(undefined_value());
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_reference.is_null()) {
@@ -3272,6 +3285,27 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
   Object* non_failure;
   ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
 #endif
+  return result;
+}
+
+
+MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
+  // Allocate map.
+  // TODO(rossberg): Once we optimize proxies, think about a scheme to share
+  // maps. Will probably depend on the identity of the handler object, too.
+  Object* map_obj;
+  MaybeObject* maybe_map_obj = AllocateMap(JS_PROXY_TYPE, JSProxy::kSize);
+  if (!maybe_map_obj->ToObject(&map_obj)) return maybe_map_obj;
+  Map* map = Map::cast(map_obj);
+  map->set_prototype(prototype);
+  map->set_pre_allocated_property_fields(1);
+  map->set_inobject_properties(1);
+
+  // Allocate the proxy object.
+  Object* result;
+  MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
+  if (!maybe_result->ToObject(&result)) return maybe_result;
+  JSProxy::cast(result)->set_handler(handler);
   return result;
 }
 
@@ -4624,7 +4658,8 @@ void Heap::IterateRoots(ObjectVisitor* v, VisitMode mode) {
 void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointer(reinterpret_cast<Object**>(&roots_[kSymbolTableRootIndex]));
   v->Synchronize("symbol_table");
-  if (mode != VISIT_ALL_IN_SCAVENGE) {
+  if (mode != VISIT_ALL_IN_SCAVENGE &&
+      mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     // Scavenge collections have special processing for this.
     external_string_table_.Iterate(v);
   }
@@ -4660,16 +4695,24 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   // Iterate over the builtin code objects and code stubs in the
   // heap. Note that it is not necessary to iterate over code objects
   // on scavenge collections.
-  if (mode != VISIT_ALL_IN_SCAVENGE) {
+  if (mode != VISIT_ALL_IN_SCAVENGE &&
+      mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     isolate_->builtins()->IterateBuiltins(v);
   }
   v->Synchronize("builtins");
 
   // Iterate over global handles.
-  if (mode == VISIT_ONLY_STRONG) {
-    isolate_->global_handles()->IterateStrongRoots(v);
-  } else {
-    isolate_->global_handles()->IterateAllRoots(v);
+  switch (mode) {
+    case VISIT_ONLY_STRONG:
+      isolate_->global_handles()->IterateStrongRoots(v);
+      break;
+    case VISIT_ALL_IN_SCAVENGE:
+      isolate_->global_handles()->IterateStrongAndDependentRoots(v);
+      break;
+    case VISIT_ALL_IN_SWEEP_NEWSPACE:
+    case VISIT_ALL:
+      isolate_->global_handles()->IterateAllRoots(v);
+      break;
   }
   v->Synchronize("globalhandles");
 

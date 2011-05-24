@@ -56,6 +56,7 @@ function InstallFunctions(object, attributes, functions) {
     %FunctionSetName(f, key);
     %FunctionRemovePrototype(f);
     %SetProperty(object, key, f, attributes);
+    %SetES5Flag(f);
   }
   %ToFastProperties(object);
 }
@@ -147,17 +148,6 @@ function GlobalEval(x) {
 }
 
 
-// execScript for IE compatibility.
-function GlobalExecScript(expr, lang) {
-  // NOTE: We don't care about the character casing.
-  if (!lang || /javascript/i.test(lang)) {
-    var f = %CompileString(ToString(expr));
-    %_CallFunction(%GlobalReceiver(global), f);
-  }
-  return null;
-}
-
-
 // ----------------------------------------------------------------------------
 
 
@@ -177,8 +167,7 @@ function SetupGlobal() {
     "isFinite", GlobalIsFinite,
     "parseInt", GlobalParseInt,
     "parseFloat", GlobalParseFloat,
-    "eval", GlobalEval,
-    "execScript", GlobalExecScript
+    "eval", GlobalEval
   ));
 }
 
@@ -234,7 +223,7 @@ function ObjectValueOf() {
 
 // ECMA-262 - 15.2.4.5
 function ObjectHasOwnProperty(V) {
-  return %HasLocalProperty(ToObject(this), ToString(V));
+  return %HasLocalProperty(TO_OBJECT_INLINE(this), TO_STRING_INLINE(V));
 }
 
 

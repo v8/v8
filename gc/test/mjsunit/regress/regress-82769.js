@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,13 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Flags: --noinline-new
 
-#include "frame-element.h"
-#include "zone-inl.h"
-
-namespace v8 {
-namespace internal {
-
-
-} }  // namespace v8::internal
+x = -1;
+y = -0;
+for (var i = 0; i < 5; i++) {
+  assertEquals(0xFFFFFFFF, (x >>> y));
+}

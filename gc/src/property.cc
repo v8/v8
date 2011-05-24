@@ -74,6 +74,9 @@ void LookupResult::Print(FILE* out) {
       PrintF(out, " -callback object:\n");
       GetCallbackObject()->Print(out);
       break;
+    case HANDLER:
+      PrintF(out, " -type = lookup proxy\n");
+      break;
     case INTERCEPTOR:
       PrintF(out, " -type = lookup interceptor\n");
       break;

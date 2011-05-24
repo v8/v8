@@ -1369,7 +1369,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                   scratch1,
                   Heap::kHeapNumberMapRootIndex,
                   not_found,
-                  true);
+                  DONT_DO_SMI_CHECK);
 
       STATIC_ASSERT(8 == kDoubleSize);
       __ add(scratch1,
@@ -1568,13 +1568,22 @@ void CompareStub::Generate(MacroAssembler* masm) {
   __ JumpIfNonSmisNotBothSequentialAsciiStrings(lhs_, rhs_, r2, r3, &slow);
 
   __ IncrementCounter(isolate->counters()->string_compare_native(), 1, r2, r3);
-  StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
+  if (cc_ == eq) {
+    StringCompareStub::GenerateFlatAsciiStringEquals(masm,
                                                      lhs_,
                                                      rhs_,
                                                      r2,
                                                      r3,
-                                                     r4,
-                                                     r5);
+                                                     r4);
+  } else {
+    StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
+                                                       lhs_,
+                                                       rhs_,
+                                                       r2,
+                                                       r3,
+                                                       r4,
+                                                       r5);
+  }
   // Never falls through to here.
 
   __ bind(&slow);
@@ -1607,12 +1616,36 @@ void CompareStub::Generate(MacroAssembler* masm) {
 // The stub returns zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   // This stub uses VFP3 instructions.
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  CpuFeatures::Scope scope(VFP3);
 
   Label false_result;
   Label not_heap_number;
   Register scratch = r9.is(tos_) ? r7 : r9;
 
+  // undefined -> false
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(tos_, ip);
+  __ b(eq, &false_result);
+
+  // Boolean -> its value
+  __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+  __ cmp(tos_, ip);
+  __ b(eq, &false_result);
+  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+  __ cmp(tos_, ip);
+  // "tos_" is a register and contains a non-zero value.  Hence we implicitly
+  // return true if the equal condition is satisfied.
+  __ Ret(eq);
+
+  // Smis: 0 -> false, all other -> true
+  __ tst(tos_, tos_);
+  __ b(eq, &false_result);
+  __ tst(tos_, Operand(kSmiTagMask));
+  // "tos_" is a register and contains a non-zero value.  Hence we implicitly
+  // return true if the not equal condition is satisfied.
+  __ Ret(eq);
+
+  // 'null' -> false
   __ LoadRoot(ip, Heap::kNullValueRootIndex);
   __ cmp(tos_, ip);
   __ b(eq, &false_result);
@@ -1622,9 +1655,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
   __ cmp(scratch, ip);
   __ b(&not_heap_number, ne);
-
-  __ sub(ip, tos_, Operand(kHeapObjectTag));
-  __ vldr(d1, ip, HeapNumber::kValueOffset);
+  __ vldr(d1, FieldMemOperand(tos_, HeapNumber::kValueOffset));
   __ VFPCompareAndSetFlags(d1, 0.0);
   // "tos_" is a register, and contains a non zero value by default.
   // Hence we only need to overwrite "tos_" with zero to return false for
@@ -1634,12 +1665,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ Ret();
 
   __ bind(&not_heap_number);
-
-  // Check if the value is 'null'.
-  // 'null' => false.
-  __ LoadRoot(ip, Heap::kNullValueRootIndex);
-  __ cmp(tos_, ip);
-  __ b(&false_result, eq);
 
   // It can be an undetectable object.
   // Undetectable => false.
@@ -1822,12 +1847,14 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
-  Label non_smi, slow;
-  GenerateSmiCodeSub(masm, &non_smi, &slow);
+  Label non_smi, slow, call_builtin;
+  GenerateSmiCodeSub(masm, &non_smi, &call_builtin);
   __ bind(&non_smi);
   GenerateHeapNumberCodeSub(masm, &slow);
   __ bind(&slow);
   GenerateTypeTransition(masm);
+  __ bind(&call_builtin);
+  GenerateGenericCodeFallback(masm);
 }
 
 
@@ -3012,7 +3039,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
                   r1,
                   Heap::kHeapNumberMapRootIndex,
                   &calculate,
-                  true);
+                  DONT_DO_SMI_CHECK);
       // Input is a HeapNumber. Load it to a double register and store the
       // low and high words into r2, r3.
       __ vldr(d0, FieldMemOperand(r0, HeapNumber::kValueOffset));
@@ -3555,11 +3582,20 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // If this is the outermost JS call, set js_entry_sp value.
+  Label non_outermost_js;
   ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
   __ mov(r5, Operand(ExternalReference(js_entry_sp)));
   __ ldr(r6, MemOperand(r5));
-  __ cmp(r6, Operand(0, RelocInfo::NONE));
-  __ str(fp, MemOperand(r5), eq);
+  __ cmp(r6, Operand(0));
+  __ b(ne, &non_outermost_js);
+  __ str(fp, MemOperand(r5));
+  __ mov(ip, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  Label cont;
+  __ b(&cont);
+  __ bind(&non_outermost_js);
+  __ mov(ip, Operand(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
+  __ bind(&cont);
+  __ push(ip);
 #endif
 
   // Call a faked try-block that does the invoke.
@@ -3617,27 +3653,22 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ mov(lr, Operand(pc));
   masm->add(pc, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
 
-  // Unlink this frame from the handler chain. When reading the
-  // address of the next handler, there is no need to use the address
-  // displacement since the current stack pointer (sp) points directly
-  // to the stack handler.
-  __ ldr(r3, MemOperand(sp, StackHandlerConstants::kNextOffset));
-  __ mov(ip, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
-  __ str(r3, MemOperand(ip));
-  // No need to restore registers
-  __ add(sp, sp, Operand(StackHandlerConstants::kSize));
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  // If current FP value is the same as js_entry_sp value, it means that
-  // the current function is the outermost.
-  __ mov(r5, Operand(ExternalReference(js_entry_sp)));
-  __ ldr(r6, MemOperand(r5));
-  __ cmp(fp, Operand(r6));
-  __ mov(r6, Operand(0, RelocInfo::NONE), LeaveCC, eq);
-  __ str(r6, MemOperand(r5), eq);
-#endif
+  // Unlink this frame from the handler chain.
+  __ PopTryHandler();
 
   __ bind(&exit);  // r0 holds result
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // Check if the current stack frame is marked as the outermost JS frame.
+  Label non_outermost_js_2;
+  __ pop(r5);
+  __ cmp(r5, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  __ b(ne, &non_outermost_js_2);
+  __ mov(r6, Operand(0));
+  __ mov(r5, Operand(ExternalReference(js_entry_sp)));
+  __ str(r6, MemOperand(r5));
+  __ bind(&non_outermost_js_2);
+#endif
+
   // Restore the top frame descriptors from the stack.
   __ pop(r3);
   __ mov(ip,
@@ -4684,7 +4715,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
               scratch_,
               Heap::kHeapNumberMapRootIndex,
               index_not_number_,
-              true);
+              DONT_DO_SMI_CHECK);
   call_helper.BeforeCall(masm);
   __ Push(object_, index_);
   __ push(index_);  // Consumed by runtime conversion function.
@@ -5396,6 +5427,45 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 }
 
 
+void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
+                                                      Register left,
+                                                      Register right,
+                                                      Register scratch1,
+                                                      Register scratch2,
+                                                      Register scratch3) {
+  Register length = scratch1;
+
+  // Compare lengths.
+  Label strings_not_equal, check_zero_length;
+  __ ldr(length, FieldMemOperand(left, String::kLengthOffset));
+  __ ldr(scratch2, FieldMemOperand(right, String::kLengthOffset));
+  __ cmp(length, scratch2);
+  __ b(eq, &check_zero_length);
+  __ bind(&strings_not_equal);
+  __ mov(r0, Operand(Smi::FromInt(NOT_EQUAL)));
+  __ Ret();
+
+  // Check if the length is zero.
+  Label compare_chars;
+  __ bind(&check_zero_length);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ tst(length, Operand(length));
+  __ b(ne, &compare_chars);
+  __ mov(r0, Operand(Smi::FromInt(EQUAL)));
+  __ Ret();
+
+  // Compare characters.
+  __ bind(&compare_chars);
+  GenerateAsciiCharsCompareLoop(masm,
+                                left, right, length, scratch2, scratch3,
+                                &strings_not_equal);
+
+  // Characters are equal.
+  __ mov(r0, Operand(Smi::FromInt(EQUAL)));
+  __ Ret();
+}
+
+
 void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                                         Register left,
                                                         Register right,
@@ -5403,7 +5473,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                                         Register scratch2,
                                                         Register scratch3,
                                                         Register scratch4) {
-  Label compare_lengths;
+  Label result_not_equal, compare_lengths;
   // Find minimum length and length difference.
   __ ldr(scratch1, FieldMemOperand(left, String::kLengthOffset));
   __ ldr(scratch2, FieldMemOperand(right, String::kLengthOffset));
@@ -5415,43 +5485,53 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   __ tst(min_length, Operand(min_length));
   __ b(eq, &compare_lengths);
 
-  // Untag smi.
-  __ mov(min_length, Operand(min_length, ASR, kSmiTagSize));
+  // Compare loop.
+  GenerateAsciiCharsCompareLoop(masm,
+                                left, right, min_length, scratch2, scratch4,
+                                &result_not_equal);
 
-  // Setup registers so that we only need to increment one register
-  // in the loop.
-  __ add(scratch2, min_length,
-         Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ add(left, left, Operand(scratch2));
-  __ add(right, right, Operand(scratch2));
-  // Registers left and right points to the min_length character of strings.
-  __ rsb(min_length, min_length, Operand(-1));
-  Register index = min_length;
-  // Index starts at -min_length.
-
-  {
-    // Compare loop.
-    Label loop;
-    __ bind(&loop);
-    // Compare characters.
-    __ add(index, index, Operand(1), SetCC);
-    __ ldrb(scratch2, MemOperand(left, index), ne);
-    __ ldrb(scratch4, MemOperand(right, index), ne);
-    // Skip to compare lengths with eq condition true.
-    __ b(eq, &compare_lengths);
-    __ cmp(scratch2, scratch4);
-    __ b(eq, &loop);
-    // Fallthrough with eq condition false.
-  }
-  // Compare lengths -  strings up to min-length are equal.
+  // Compare lengths - strings up to min-length are equal.
   __ bind(&compare_lengths);
   ASSERT(Smi::FromInt(EQUAL) == static_cast<Smi*>(0));
-  // Use zero length_delta as result.
-  __ mov(r0, Operand(length_delta), SetCC, eq);
-  // Fall through to here if characters compare not-equal.
+  // Use length_delta as result if it's zero.
+  __ mov(r0, Operand(length_delta), SetCC);
+  __ bind(&result_not_equal);
+  // Conditionally update the result based either on length_delta or
+  // the last comparion performed in the loop above.
   __ mov(r0, Operand(Smi::FromInt(GREATER)), LeaveCC, gt);
   __ mov(r0, Operand(Smi::FromInt(LESS)), LeaveCC, lt);
   __ Ret();
+}
+
+
+void StringCompareStub::GenerateAsciiCharsCompareLoop(
+    MacroAssembler* masm,
+    Register left,
+    Register right,
+    Register length,
+    Register scratch1,
+    Register scratch2,
+    Label* chars_not_equal) {
+  // Change index to run from -length to -1 by adding length to string
+  // start. This means that loop ends when index reaches zero, which
+  // doesn't need an additional compare.
+  __ SmiUntag(length);
+  __ add(scratch1, length,
+         Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(left, left, Operand(scratch1));
+  __ add(right, right, Operand(scratch1));
+  __ rsb(length, length, Operand(0));
+  Register index = length;  // index = -length;
+
+  // Compare loop.
+  Label loop;
+  __ bind(&loop);
+  __ ldrb(scratch1, MemOperand(left, index));
+  __ ldrb(scratch2, MemOperand(right, index));
+  __ cmp(scratch1, scratch2);
+  __ b(ne, chars_not_equal);
+  __ add(index, index, Operand(1), SetCC);
+  __ b(ne, &loop);
 }
 
 
@@ -5907,6 +5987,44 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
 }
 
 
+void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
+  ASSERT(state_ == CompareIC::SYMBOLS);
+  Label miss;
+
+  // Registers containing left and right operands respectively.
+  Register left = r1;
+  Register right = r0;
+  Register tmp1 = r2;
+  Register tmp2 = r3;
+
+  // Check that both operands are heap objects.
+  __ JumpIfEitherSmi(left, right, &miss);
+
+  // Check that both operands are symbols.
+  __ ldr(tmp1, FieldMemOperand(left, HeapObject::kMapOffset));
+  __ ldr(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
+  __ ldrb(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
+  __ ldrb(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
+  STATIC_ASSERT(kSymbolTag != 0);
+  __ and_(tmp1, tmp1, Operand(tmp2));
+  __ tst(tmp1, Operand(kIsSymbolMask));
+  __ b(eq, &miss);
+
+  // Symbols are compared by identity.
+  __ cmp(left, right);
+  // Make sure r0 is non-zero. At this point input operands are
+  // guaranteed to be non-zero.
+  ASSERT(right.is(r0));
+  STATIC_ASSERT(EQUAL == 0);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ mov(r0, Operand(Smi::FromInt(EQUAL)), LeaveCC, eq);
+  __ Ret();
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
 void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::STRINGS);
   Label miss;
@@ -5959,13 +6077,13 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
                                                   &runtime);
 
   // Compare flat ASCII strings. Returns when done.
-  StringCompareStub::GenerateCompareFlatAsciiStrings(
-      masm, left, right, tmp1, tmp2, tmp3, tmp4);
+  StringCompareStub::GenerateFlatAsciiStringEquals(
+      masm, left, right, tmp1, tmp2, tmp3);
 
   // Handle more complex cases in runtime.
   __ bind(&runtime);
   __ Push(left, right);
-  __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+  __ TailCallRuntime(Runtime::kStringEquals, 2, 1);
 
   __ bind(&miss);
   GenerateMiss(masm);
@@ -6039,6 +6157,239 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   // Push return address (accessible to GC through exit frame pc).
   __ str(pc, MemOperand(sp, 0));
   __ Jump(target);  // Call the C++ function.
+}
+
+
+MaybeObject* StringDictionaryLookupStub::GenerateNegativeLookup(
+    MacroAssembler* masm,
+    Label* miss,
+    Label* done,
+    Register receiver,
+    Register properties,
+    String* name,
+    Register scratch0) {
+  // If names of slots in range from 1 to kProbes - 1 for the hash value are
+  // not equal to the name and kProbes-th slot is not used (its name is the
+  // undefined value), it guarantees the hash table doesn't contain the
+  // property. It's true even if some slots represent deleted properties
+  // (their names are the null value).
+  for (int i = 0; i < kInlinedProbes; i++) {
+    // scratch0 points to properties hash.
+    // Compute the masked index: (hash + i + i * i) & mask.
+    Register index = scratch0;
+    // Capacity is smi 2^n.
+    __ ldr(index, FieldMemOperand(properties, kCapacityOffset));
+    __ sub(index, index, Operand(1));
+    __ and_(index, index, Operand(
+        Smi::FromInt(name->Hash() + StringDictionary::GetProbeOffset(i))));
+
+    // Scale the index by multiplying by the entry size.
+    ASSERT(StringDictionary::kEntrySize == 3);
+    __ add(index, index, Operand(index, LSL, 1));  // index *= 3.
+
+    Register entity_name = scratch0;
+    // Having undefined at this place means the name is not contained.
+    ASSERT_EQ(kSmiTagSize, 1);
+    Register tmp = properties;
+    __ add(tmp, properties, Operand(index, LSL, 1));
+    __ ldr(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
+
+    ASSERT(!tmp.is(entity_name));
+    __ LoadRoot(tmp, Heap::kUndefinedValueRootIndex);
+    __ cmp(entity_name, tmp);
+    __ b(eq, done);
+
+    if (i != kInlinedProbes - 1) {
+      // Stop if found the property.
+      __ cmp(entity_name, Operand(Handle<String>(name)));
+      __ b(eq, miss);
+
+      // Check if the entry name is not a symbol.
+      __ ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
+      __ ldrb(entity_name,
+              FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
+      __ tst(entity_name, Operand(kIsSymbolMask));
+      __ b(eq, miss);
+
+      // Restore the properties.
+      __ ldr(properties,
+             FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+    }
+  }
+
+  const int spill_mask =
+      (lr.bit() | r6.bit() | r5.bit() | r4.bit() | r3.bit() |
+       r2.bit() | r1.bit() | r0.bit());
+
+  __ stm(db_w, sp, spill_mask);
+  __ ldr(r0, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+  __ mov(r1, Operand(Handle<String>(name)));
+  StringDictionaryLookupStub stub(NEGATIVE_LOOKUP);
+  MaybeObject* result = masm->TryCallStub(&stub);
+  if (result->IsFailure()) return result;
+  __ tst(r0, Operand(r0));
+  __ ldm(ia_w, sp, spill_mask);
+
+  __ b(eq, done);
+  __ b(ne, miss);
+  return result;
+}
+
+
+// Probe the string dictionary in the |elements| register. Jump to the
+// |done| label if a property with the given name is found. Jump to
+// the |miss| label otherwise.
+// If lookup was successful |scratch2| will be equal to elements + 4 * index.
+void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
+                                                        Label* miss,
+                                                        Label* done,
+                                                        Register elements,
+                                                        Register name,
+                                                        Register scratch1,
+                                                        Register scratch2) {
+  // Assert that name contains a string.
+  if (FLAG_debug_code) __ AbortIfNotString(name);
+
+  // Compute the capacity mask.
+  __ ldr(scratch1, FieldMemOperand(elements, kCapacityOffset));
+  __ mov(scratch1, Operand(scratch1, ASR, kSmiTagSize));  // convert smi to int
+  __ sub(scratch1, scratch1, Operand(1));
+
+  // Generate an unrolled loop that performs a few probes before
+  // giving up. Measurements done on Gmail indicate that 2 probes
+  // cover ~93% of loads from dictionaries.
+  for (int i = 0; i < kInlinedProbes; i++) {
+    // Compute the masked index: (hash + i + i * i) & mask.
+    __ ldr(scratch2, FieldMemOperand(name, String::kHashFieldOffset));
+    if (i > 0) {
+      // Add the probe offset (i + i * i) left shifted to avoid right shifting
+      // the hash in a separate instruction. The value hash + i + i * i is right
+      // shifted in the following and instruction.
+      ASSERT(StringDictionary::GetProbeOffset(i) <
+             1 << (32 - String::kHashFieldOffset));
+      __ add(scratch2, scratch2, Operand(
+          StringDictionary::GetProbeOffset(i) << String::kHashShift));
+    }
+    __ and_(scratch2, scratch1, Operand(scratch2, LSR, String::kHashShift));
+
+    // Scale the index by multiplying by the element size.
+    ASSERT(StringDictionary::kEntrySize == 3);
+    // scratch2 = scratch2 * 3.
+    __ add(scratch2, scratch2, Operand(scratch2, LSL, 1));
+
+    // Check if the key is identical to the name.
+    __ add(scratch2, elements, Operand(scratch2, LSL, 2));
+    __ ldr(ip, FieldMemOperand(scratch2, kElementsStartOffset));
+    __ cmp(name, Operand(ip));
+    __ b(eq, done);
+  }
+
+  const int spill_mask =
+      (lr.bit() | r6.bit() | r5.bit() | r4.bit() |
+       r3.bit() | r2.bit() | r1.bit() | r0.bit()) &
+      ~(scratch1.bit() | scratch2.bit());
+
+  __ stm(db_w, sp, spill_mask);
+  __ Move(r0, elements);
+  __ Move(r1, name);
+  StringDictionaryLookupStub stub(POSITIVE_LOOKUP);
+  __ CallStub(&stub);
+  __ tst(r0, Operand(r0));
+  __ mov(scratch2, Operand(r2));
+  __ ldm(ia_w, sp, spill_mask);
+
+  __ b(ne, done);
+  __ b(eq, miss);
+}
+
+
+void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
+  // Registers:
+  //  result: StringDictionary to probe
+  //  r1: key
+  //  : StringDictionary to probe.
+  //  index_: will hold an index of entry if lookup is successful.
+  //          might alias with result_.
+  // Returns:
+  //  result_ is zero if lookup failed, non zero otherwise.
+
+  Register result = r0;
+  Register dictionary = r0;
+  Register key = r1;
+  Register index = r2;
+  Register mask = r3;
+  Register hash = r4;
+  Register undefined = r5;
+  Register entry_key = r6;
+
+  Label in_dictionary, maybe_in_dictionary, not_in_dictionary;
+
+  __ ldr(mask, FieldMemOperand(dictionary, kCapacityOffset));
+  __ mov(mask, Operand(mask, ASR, kSmiTagSize));
+  __ sub(mask, mask, Operand(1));
+
+  __ ldr(hash, FieldMemOperand(key, String::kHashFieldOffset));
+
+  __ LoadRoot(undefined, Heap::kUndefinedValueRootIndex);
+
+  for (int i = kInlinedProbes; i < kTotalProbes; i++) {
+    // Compute the masked index: (hash + i + i * i) & mask.
+    // Capacity is smi 2^n.
+    if (i > 0) {
+      // Add the probe offset (i + i * i) left shifted to avoid right shifting
+      // the hash in a separate instruction. The value hash + i + i * i is right
+      // shifted in the following and instruction.
+      ASSERT(StringDictionary::GetProbeOffset(i) <
+             1 << (32 - String::kHashFieldOffset));
+      __ add(index, hash, Operand(
+          StringDictionary::GetProbeOffset(i) << String::kHashShift));
+    } else {
+      __ mov(index, Operand(hash));
+    }
+    __ and_(index, mask, Operand(index, LSR, String::kHashShift));
+
+    // Scale the index by multiplying by the entry size.
+    ASSERT(StringDictionary::kEntrySize == 3);
+    __ add(index, index, Operand(index, LSL, 1));  // index *= 3.
+
+    ASSERT_EQ(kSmiTagSize, 1);
+    __ add(index, dictionary, Operand(index, LSL, 2));
+    __ ldr(entry_key, FieldMemOperand(index, kElementsStartOffset));
+
+    // Having undefined at this place means the name is not contained.
+    __ cmp(entry_key, Operand(undefined));
+    __ b(eq, &not_in_dictionary);
+
+    // Stop if found the property.
+    __ cmp(entry_key, Operand(key));
+    __ b(eq, &in_dictionary);
+
+    if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
+      // Check if the entry name is not a symbol.
+      __ ldr(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
+      __ ldrb(entry_key,
+              FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
+      __ tst(entry_key, Operand(kIsSymbolMask));
+      __ b(eq, &maybe_in_dictionary);
+    }
+  }
+
+  __ bind(&maybe_in_dictionary);
+  // If we are doing negative lookup then probing failure should be
+  // treated as a lookup success. For positive lookup probing failure
+  // should be treated as lookup failure.
+  if (mode_ == POSITIVE_LOOKUP) {
+    __ mov(result, Operand(0));
+    __ Ret();
+  }
+
+  __ bind(&in_dictionary);
+  __ mov(result, Operand(1));
+  __ Ret();
+
+  __ bind(&not_in_dictionary);
+  __ mov(result, Operand(0));
+  __ Ret();
 }
 
 

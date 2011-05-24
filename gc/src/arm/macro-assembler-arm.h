@@ -29,6 +29,7 @@
 #define V8_ARM_MACRO_ASSEMBLER_ARM_H_
 
 #include "assembler.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
@@ -576,13 +577,24 @@ class MacroAssembler: public Assembler {
                 Register scratch,
                 Handle<Map> map,
                 Label* fail,
-                bool is_heap_object);
+                SmiCheckType smi_check_type);
+
 
   void CheckMap(Register obj,
                 Register scratch,
                 Heap::RootListIndex index,
                 Label* fail,
-                bool is_heap_object);
+                SmiCheckType smi_check_type);
+
+
+  // Check if the map of an object is equal to a specified map and branch to a
+  // specified target if equal. Skip the smi check if not required (object is
+  // known to be a heap object)
+  void DispatchMap(Register obj,
+                   Register scratch,
+                   Handle<Map> map,
+                   Handle<Code> success,
+                   SmiCheckType smi_check_type);
 
 
   // Compare the object in a register to a value from the root list.
@@ -702,6 +714,11 @@ class MacroAssembler: public Assembler {
 
   // Call a code stub.
   void CallStub(CodeStub* stub, Condition cond = al);
+
+  // Call a code stub and return the code object called.  Try to generate
+  // the code if necessary.  Do not perform a GC but instead return a retry
+  // after GC failure.
+  MUST_USE_RESULT MaybeObject* TryCallStub(CodeStub* stub, Condition cond = al);
 
   // Call a code stub.
   void TailCallStub(CodeStub* stub, Condition cond = al);
@@ -981,6 +998,13 @@ class MacroAssembler: public Assembler {
   // from its load site.
   void GetRelocatedValueLocation(Register ldr_location,
                                  Register result);
+
+
+  void ClampUint8(Register output_reg, Register input_reg);
+
+  void ClampDoubleToUint8(Register result_reg,
+                          DoubleRegister input_reg,
+                          DoubleRegister temp_double_reg);
 
 
  private:

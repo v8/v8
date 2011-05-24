@@ -147,9 +147,16 @@ class TypeRecordingUnaryOpStub: public CodeStub {
   void GenerateSmiStub(MacroAssembler* masm);
   void GenerateSmiStubSub(MacroAssembler* masm);
   void GenerateSmiStubBitNot(MacroAssembler* masm);
-  void GenerateSmiCodeSub(MacroAssembler* masm, NearLabel* non_smi, Label* undo,
-                          Label* slow);
-  void GenerateSmiCodeBitNot(MacroAssembler* masm, NearLabel* non_smi);
+  void GenerateSmiCodeSub(MacroAssembler* masm,
+                          Label* non_smi,
+                          Label* undo,
+                          Label* slow,
+                          Label::Distance non_smi_near = Label::kFar,
+                          Label::Distance undo_near = Label::kFar,
+                          Label::Distance slow_near = Label::kFar);
+  void GenerateSmiCodeBitNot(MacroAssembler* masm,
+                             Label* non_smi,
+                             Label::Distance non_smi_near = Label::kFar);
   void GenerateSmiCodeUndo(MacroAssembler* masm);
 
   void GenerateHeapNumberStub(MacroAssembler* masm);
@@ -387,11 +394,9 @@ class SubStringStub: public CodeStub {
 
 class StringCompareStub: public CodeStub {
  public:
-  explicit StringCompareStub() {
-  }
+  StringCompareStub() { }
 
-  // Compare two flat ascii strings and returns result in eax after popping two
-  // arguments from the stack.
+  // Compares two flat ASCII strings and returns result in eax.
   static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                               Register left,
                                               Register right,
@@ -399,11 +404,27 @@ class StringCompareStub: public CodeStub {
                                               Register scratch2,
                                               Register scratch3);
 
- private:
-  Major MajorKey() { return StringCompare; }
-  int MinorKey() { return 0; }
+  // Compares two flat ASCII strings for equality and returns result
+  // in eax.
+  static void GenerateFlatAsciiStringEquals(MacroAssembler* masm,
+                                            Register left,
+                                            Register right,
+                                            Register scratch1,
+                                            Register scratch2);
 
-  void Generate(MacroAssembler* masm);
+ private:
+  virtual Major MajorKey() { return StringCompare; }
+  virtual int MinorKey() { return 0; }
+  virtual void Generate(MacroAssembler* masm);
+
+  static void GenerateAsciiCharsCompareLoop(
+      MacroAssembler* masm,
+      Register left,
+      Register right,
+      Register length,
+      Register scratch,
+      Label* chars_not_equal,
+      Label::Distance chars_not_equal_near = Label::kFar);
 };
 
 
@@ -440,6 +461,72 @@ class NumberToStringStub: public CodeStub {
 };
 
 
+class StringDictionaryLookupStub: public CodeStub {
+ public:
+  enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
+
+  StringDictionaryLookupStub(Register dictionary,
+                             Register result,
+                             Register index,
+                             LookupMode mode)
+      : dictionary_(dictionary), result_(result), index_(index), mode_(mode) { }
+
+  void Generate(MacroAssembler* masm);
+
+  MUST_USE_RESULT static MaybeObject* GenerateNegativeLookup(
+      MacroAssembler* masm,
+      Label* miss,
+      Label* done,
+      Register properties,
+      String* name,
+      Register r0);
+
+  static void GeneratePositiveLookup(MacroAssembler* masm,
+                                     Label* miss,
+                                     Label* done,
+                                     Register elements,
+                                     Register name,
+                                     Register r0,
+                                     Register r1);
+
+ private:
+  static const int kInlinedProbes = 4;
+  static const int kTotalProbes = 20;
+
+  static const int kCapacityOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kCapacityIndex * kPointerSize;
+
+  static const int kElementsStartOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
+
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("StringDictionaryLookupStub\n");
+  }
+#endif
+
+  Major MajorKey() { return StringDictionaryNegativeLookup; }
+
+  int MinorKey() {
+    return DictionaryBits::encode(dictionary_.code()) |
+        ResultBits::encode(result_.code()) |
+        IndexBits::encode(index_.code()) |
+        LookupModeBits::encode(mode_);
+  }
+
+  class DictionaryBits: public BitField<int, 0, 3> {};
+  class ResultBits: public BitField<int, 3, 3> {};
+  class IndexBits: public BitField<int, 6, 3> {};
+  class LookupModeBits: public BitField<LookupMode, 9, 1> {};
+
+  Register dictionary_;
+  Register result_;
+  Register index_;
+  LookupMode mode_;
+};
 class RecordWriteStub: public CodeStub {
  public:
   RecordWriteStub(Register object,

@@ -27,6 +27,7 @@
 
 #include "../include/v8stdint.h"
 
+#include "preparse-data-format.h"
 #include "preparse-data.h"
 
 #include "checks.h"

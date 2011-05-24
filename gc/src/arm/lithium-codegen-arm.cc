@@ -1620,6 +1620,28 @@ void LCodeGen::DoCmpJSObjectEqAndBranch(LCmpJSObjectEqAndBranch* instr) {
 }
 
 
+void LCodeGen::DoCmpSymbolEq(LCmpSymbolEq* instr) {
+  Register left = ToRegister(instr->InputAt(0));
+  Register right = ToRegister(instr->InputAt(1));
+  Register result = ToRegister(instr->result());
+
+  __ cmp(left, Operand(right));
+  __ LoadRoot(result, Heap::kTrueValueRootIndex, eq);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex, ne);
+}
+
+
+void LCodeGen::DoCmpSymbolEqAndBranch(LCmpSymbolEqAndBranch* instr) {
+  Register left = ToRegister(instr->InputAt(0));
+  Register right = ToRegister(instr->InputAt(1));
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+
+  __ cmp(left, Operand(right));
+  EmitBranch(true_block, false_block, eq);
+}
+
+
 void LCodeGen::DoIsNull(LIsNull* instr) {
   Register reg = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
@@ -1771,6 +1793,40 @@ void LCodeGen::DoIsSmiAndBranch(LIsSmiAndBranch* instr) {
   Register input_reg = EmitLoadRegister(instr->InputAt(0), ip);
   __ tst(input_reg, Operand(kSmiTagMask));
   EmitBranch(true_block, false_block, eq);
+}
+
+
+void LCodeGen::DoIsUndetectable(LIsUndetectable* instr) {
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+
+  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
+  Label false_label, done;
+  __ JumpIfSmi(input, &false_label);
+  __ ldr(result, FieldMemOperand(input, HeapObject::kMapOffset));
+  __ ldrb(result, FieldMemOperand(result, Map::kBitFieldOffset));
+  __ tst(result, Operand(1 << Map::kIsUndetectable));
+  __ b(eq, &false_label);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+  __ jmp(&done);
+  __ bind(&false_label);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ bind(&done);
+}
+
+
+void LCodeGen::DoIsUndetectableAndBranch(LIsUndetectableAndBranch* instr) {
+  Register input = ToRegister(instr->InputAt(0));
+  Register temp = ToRegister(instr->TempAt(0));
+
+  int true_block = chunk_->LookupDestination(instr->true_block_id());
+  int false_block = chunk_->LookupDestination(instr->false_block_id());
+
+  __ JumpIfSmi(input, chunk_->GetAssemblyLabel(false_block));
+  __ ldr(temp, FieldMemOperand(input, HeapObject::kMapOffset));
+  __ ldrb(temp, FieldMemOperand(temp, Map::kBitFieldOffset));
+  __ tst(temp, Operand(1 << Map::kIsUndetectable));
+  EmitBranch(true_block, false_block, ne);
 }
 
 
@@ -2473,49 +2529,67 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   __ ldr(result, FieldMemOperand(scratch, FixedArray::kHeaderSize));
 
   // Check for the hole value.
-  __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
-  __ cmp(result, scratch);
-  DeoptimizeIf(eq, instr->environment());
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
+    __ cmp(result, scratch);
+    DeoptimizeIf(eq, instr->environment());
+  }
 }
 
 
 void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     LLoadKeyedSpecializedArrayElement* instr) {
   Register external_pointer = ToRegister(instr->external_pointer());
-  Register key = ToRegister(instr->key());
+  Register key = no_reg;
   ExternalArrayType array_type = instr->array_type();
-  if (array_type == kExternalFloatArray) {
+  bool key_is_constant = instr->key()->IsConstantOperand();
+  int constant_key = 0;
+  if (key_is_constant) {
+    constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
+    if (constant_key & 0xF0000000) {
+      Abort("array index constant value too big.");
+    }
+  } else {
+    key = ToRegister(instr->key());
+  }
+  int shift_size = ExternalArrayTypeToShiftSize(array_type);
+
+  if (array_type == kExternalFloatArray || array_type == kExternalDoubleArray) {
     CpuFeatures::Scope scope(VFP3);
     DwVfpRegister result(ToDoubleRegister(instr->result()));
-    __ add(scratch0(), external_pointer, Operand(key, LSL, 2));
-    __ vldr(result.low(), scratch0(), 0);
-    __ vcvt_f64_f32(result, result.low());
-  } else if (array_type == kExternalDoubleArray) {
-    CpuFeatures::Scope scope(VFP3);
-    DwVfpRegister result(ToDoubleRegister(instr->result()));
-    __ add(scratch0(), external_pointer, Operand(key, LSL, 3));
-    __ vldr(result, scratch0(), 0);
+    Operand operand(key_is_constant ? Operand(constant_key * (1 << shift_size))
+                                    : Operand(key, LSL, shift_size));
+    __ add(scratch0(), external_pointer, operand);
+    if (array_type == kExternalFloatArray) {
+      __ vldr(result.low(), scratch0(), 0);
+      __ vcvt_f64_f32(result, result.low());
+    } else  {  // i.e. array_type == kExternalDoubleArray
+      __ vldr(result, scratch0(), 0);
+    }
   } else {
     Register result(ToRegister(instr->result()));
+    MemOperand mem_operand(key_is_constant
+        ? MemOperand(external_pointer, constant_key * (1 << shift_size))
+        : MemOperand(external_pointer, key, LSL, shift_size));
     switch (array_type) {
       case kExternalByteArray:
-        __ ldrsb(result, MemOperand(external_pointer, key));
+        __ ldrsb(result, mem_operand);
         break;
       case kExternalUnsignedByteArray:
       case kExternalPixelArray:
-        __ ldrb(result, MemOperand(external_pointer, key));
+        __ ldrb(result, mem_operand);
         break;
       case kExternalShortArray:
-        __ ldrsh(result, MemOperand(external_pointer, key, LSL, 1));
+        __ ldrsh(result, mem_operand);
         break;
       case kExternalUnsignedShortArray:
-        __ ldrh(result, MemOperand(external_pointer, key, LSL, 1));
+        __ ldrh(result, mem_operand);
         break;
       case kExternalIntArray:
-        __ ldr(result, MemOperand(external_pointer, key, LSL, 2));
+        __ ldr(result, mem_operand);
         break;
       case kExternalUnsignedIntArray:
-        __ ldr(result, MemOperand(external_pointer, key, LSL, 2));
+        __ ldr(result, mem_operand);
         __ cmp(result, Operand(0x80000000));
         // TODO(danno): we could be more clever here, perhaps having a special
         // version of the stub that detects if the overflow case actually
@@ -3245,39 +3319,50 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     LStoreKeyedSpecializedArrayElement* instr) {
 
   Register external_pointer = ToRegister(instr->external_pointer());
-  Register key = ToRegister(instr->key());
+  Register key = no_reg;
   ExternalArrayType array_type = instr->array_type();
+  bool key_is_constant = instr->key()->IsConstantOperand();
+  int constant_key = 0;
+  if (key_is_constant) {
+    constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
+    if (constant_key & 0xF0000000) {
+      Abort("array index constant value too big.");
+    }
+  } else {
+    key = ToRegister(instr->key());
+  }
+  int shift_size = ExternalArrayTypeToShiftSize(array_type);
 
-  if (array_type == kExternalFloatArray) {
+  if (array_type == kExternalFloatArray || array_type == kExternalDoubleArray) {
     CpuFeatures::Scope scope(VFP3);
     DwVfpRegister value(ToDoubleRegister(instr->value()));
-    __ add(scratch0(), external_pointer, Operand(key, LSL, 2));
-    __ vcvt_f32_f64(double_scratch0().low(), value);
-    __ vstr(double_scratch0().low(), scratch0(), 0);
-  } else if (array_type == kExternalDoubleArray) {
-    CpuFeatures::Scope scope(VFP3);
-    DwVfpRegister value(ToDoubleRegister(instr->value()));
-    __ add(scratch0(), external_pointer, Operand(key, LSL, 3));
-    __ vstr(value, scratch0(), 0);
+    Operand operand(key_is_constant ? Operand(constant_key * (1 << shift_size))
+                                    : Operand(key, LSL, shift_size));
+    __ add(scratch0(), external_pointer, operand);
+    if (array_type == kExternalFloatArray) {
+      __ vcvt_f32_f64(double_scratch0().low(), value);
+      __ vstr(double_scratch0().low(), scratch0(), 0);
+    } else {  // i.e. array_type == kExternalDoubleArray
+      __ vstr(value, scratch0(), 0);
+    }
   } else {
     Register value(ToRegister(instr->value()));
+    MemOperand mem_operand(key_is_constant
+        ? MemOperand(external_pointer, constant_key * (1 << shift_size))
+        : MemOperand(external_pointer, key, LSL, shift_size));
     switch (array_type) {
       case kExternalPixelArray:
-        // Clamp the value to [0..255].
-        __ Usat(value, 8, Operand(value));
-        __ strb(value, MemOperand(external_pointer, key));
-        break;
       case kExternalByteArray:
       case kExternalUnsignedByteArray:
-        __ strb(value, MemOperand(external_pointer, key));
+        __ strb(value, mem_operand);
         break;
       case kExternalShortArray:
       case kExternalUnsignedShortArray:
-        __ strh(value, MemOperand(external_pointer, key, LSL, 1));
+        __ strh(value, mem_operand);
         break;
       case kExternalIntArray:
       case kExternalUnsignedIntArray:
-        __ str(value, MemOperand(external_pointer, key, LSL, 2));
+        __ str(value, mem_operand);
         break;
       case kExternalFloatArray:
       case kExternalDoubleArray:
@@ -3867,22 +3952,41 @@ void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
 void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register scratch = scratch0();
-  InstanceType first = instr->hydrogen()->first();
-  InstanceType last = instr->hydrogen()->last();
 
   __ ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
   __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  __ cmp(scratch, Operand(first));
 
-  // If there is only one type in the interval check for equality.
-  if (first == last) {
-    DeoptimizeIf(ne, instr->environment());
+  if (instr->hydrogen()->is_interval_check()) {
+    InstanceType first;
+    InstanceType last;
+    instr->hydrogen()->GetCheckInterval(&first, &last);
+
+    __ cmp(scratch, Operand(first));
+
+    // If there is only one type in the interval check for equality.
+    if (first == last) {
+      DeoptimizeIf(ne, instr->environment());
+    } else {
+      DeoptimizeIf(lo, instr->environment());
+      // Omit check for the last type.
+      if (last != LAST_TYPE) {
+        __ cmp(scratch, Operand(last));
+        DeoptimizeIf(hi, instr->environment());
+      }
+    }
   } else {
-    DeoptimizeIf(lo, instr->environment());
-    // Omit check for the last type.
-    if (last != LAST_TYPE) {
-      __ cmp(scratch, Operand(last));
-      DeoptimizeIf(hi, instr->environment());
+    uint8_t mask;
+    uint8_t tag;
+    instr->hydrogen()->GetCheckMaskAndTag(&mask, &tag);
+
+    if (IsPowerOf2(mask)) {
+      ASSERT(tag == 0 || IsPowerOf2(tag));
+      __ tst(scratch, Operand(mask));
+      DeoptimizeIf(tag == 0 ? ne : eq, instr->environment());
+    } else {
+      __ and_(scratch, scratch, Operand(mask));
+      __ cmp(scratch, Operand(tag));
+      DeoptimizeIf(ne, instr->environment());
     }
   }
 }
@@ -3904,6 +4008,59 @@ void LCodeGen::DoCheckMap(LCheckMap* instr) {
   __ ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
   __ cmp(scratch, Operand(instr->hydrogen()->map()));
   DeoptimizeIf(ne, instr->environment());
+}
+
+
+void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
+  DoubleRegister value_reg = ToDoubleRegister(instr->unclamped());
+  Register result_reg = ToRegister(instr->result());
+  DoubleRegister temp_reg = ToDoubleRegister(instr->TempAt(0));
+  __ ClampDoubleToUint8(result_reg, value_reg, temp_reg);
+}
+
+
+void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
+  Register unclamped_reg = ToRegister(instr->unclamped());
+  Register result_reg = ToRegister(instr->result());
+  __ ClampUint8(result_reg, unclamped_reg);
+}
+
+
+void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
+  Register scratch = scratch0();
+  Register input_reg = ToRegister(instr->unclamped());
+  Register result_reg = ToRegister(instr->result());
+  DoubleRegister temp_reg = ToDoubleRegister(instr->TempAt(0));
+  Label is_smi, done, heap_number;
+
+  // Both smi and heap number cases are handled.
+  __ JumpIfSmi(input_reg, &is_smi);
+
+  // Check for heap number
+  __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
+  __ cmp(scratch, Operand(factory()->heap_number_map()));
+  __ b(eq, &heap_number);
+
+  // Check for undefined. Undefined is converted to zero for clamping
+  // conversions.
+  __ cmp(input_reg, Operand(factory()->undefined_value()));
+  DeoptimizeIf(ne, instr->environment());
+  __ movt(input_reg, 0);
+  __ jmp(&done);
+
+  // Heap number
+  __ bind(&heap_number);
+  __ vldr(double_scratch0(), FieldMemOperand(input_reg,
+                                             HeapNumber::kValueOffset));
+  __ ClampDoubleToUint8(result_reg, double_scratch0(), temp_reg);
+  __ jmp(&done);
+
+  // smi
+  __ bind(&is_smi);
+  __ SmiUntag(result_reg, input_reg);
+  __ ClampUint8(result_reg, result_reg);
+
+  __ bind(&done);
 }
 
 

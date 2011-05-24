@@ -97,58 +97,6 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
 }
 
 
-// Probe the string dictionary in the |elements| register. Jump to the
-// |done| label if a property with the given name is found leaving the
-// index into the dictionary in |r1|. Jump to the |miss| label
-// otherwise.
-static void GenerateStringDictionaryProbes(MacroAssembler* masm,
-                                           Label* miss,
-                                           Label* done,
-                                           Register elements,
-                                           Register name,
-                                           Register r0,
-                                           Register r1) {
-  // Assert that name contains a string.
-  if (FLAG_debug_code) __ AbortIfNotString(name);
-
-  // Compute the capacity mask.
-  const int kCapacityOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kCapacityIndex * kPointerSize;
-  __ SmiToInteger32(r0, FieldOperand(elements, kCapacityOffset));
-  __ decl(r0);
-
-  // Generate an unrolled loop that performs a few probes before
-  // giving up. Measurements done on Gmail indicate that 2 probes
-  // cover ~93% of loads from dictionaries.
-  static const int kProbes = 4;
-  const int kElementsStartOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kElementsStartIndex * kPointerSize;
-  for (int i = 0; i < kProbes; i++) {
-    // Compute the masked index: (hash + i + i * i) & mask.
-    __ movl(r1, FieldOperand(name, String::kHashFieldOffset));
-    __ shrl(r1, Immediate(String::kHashShift));
-    if (i > 0) {
-      __ addl(r1, Immediate(StringDictionary::GetProbeOffset(i)));
-    }
-    __ and_(r1, r0);
-
-    // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
-    __ lea(r1, Operand(r1, r1, times_2, 0));  // r1 = r1 * 3
-
-    // Check if the key is identical to the name.
-    __ cmpq(name, Operand(elements, r1, times_pointer_size,
-                          kElementsStartOffset - kHeapObjectTag));
-    if (i != kProbes - 1) {
-      __ j(equal, done);
-    } else {
-      __ j(not_equal, miss);
-    }
-  }
-}
-
 
 // Helper function used to load a property from a dictionary backing storage.
 // This function may return false negatives, so miss_label
@@ -179,13 +127,13 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   Label done;
 
   // Probe the dictionary.
-  GenerateStringDictionaryProbes(masm,
-                                 miss_label,
-                                 &done,
-                                 elements,
-                                 name,
-                                 r0,
-                                 r1);
+  StringDictionaryLookupStub::GeneratePositiveLookup(masm,
+                                                     miss_label,
+                                                     &done,
+                                                     elements,
+                                                     name,
+                                                     r0,
+                                                     r1);
 
   // If probing finds an entry in the dictionary, r0 contains the
   // index into the dictionary. Check that the value is a normal
@@ -237,13 +185,13 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
   Label done;
 
   // Probe the dictionary.
-  GenerateStringDictionaryProbes(masm,
-                                 miss_label,
-                                 &done,
-                                 elements,
-                                 name,
-                                 scratch0,
-                                 scratch1);
+  StringDictionaryLookupStub::GeneratePositiveLookup(masm,
+                                                     miss_label,
+                                                     &done,
+                                                     elements,
+                                                     name,
+                                                     scratch0,
+                                                     scratch1);
 
   // If probing finds an entry in the dictionary, scratch0 contains the
   // index into the dictionary. Check that the value is a normal
@@ -710,7 +658,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   char_at_generator.GenerateSlow(masm, call_helper);
 
   __ bind(&miss);
-  GenerateMiss(masm);
+  GenerateMiss(masm, false);
 }
 
 
@@ -753,7 +701,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
       1);
 
   __ bind(&slow);
-  GenerateMiss(masm);
+  GenerateMiss(masm, false);
 }
 
 
@@ -847,10 +795,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // rax: value
   // rbx: receiver's elements array (a FixedArray)
   // rcx: index
-  NearLabel non_smi_value;
+  Label non_smi_value;
   __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
           rax);
-  __ JumpIfNotSmi(rax, &non_smi_value);
+  __ JumpIfNotSmi(rax, &non_smi_value, Label::kNear);
   __ ret(0);
   __ bind(&non_smi_value);
   // Slow case that needs to retain rcx for use by RecordWrite.
@@ -1292,7 +1240,7 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
@@ -1308,8 +1256,10 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   __ push(rbx);  // return address
 
   // Perform tail call to the entry.
-  ExternalReference ref
-      = ExternalReference(IC_Utility(kKeyedLoadIC_Miss), masm->isolate());
+  ExternalReference ref = force_generic
+      ? ExternalReference(IC_Utility(kKeyedLoadIC_MissForceGeneric),
+                          masm->isolate())
+      : ExternalReference(IC_Utility(kKeyedLoadIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 2, 1);
 }
 
@@ -1493,7 +1443,7 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax     : value
   //  -- rcx     : key
@@ -1508,8 +1458,30 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   __ push(rbx);  // return address
 
   // Do tail-call to runtime routine.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
+  ExternalReference ref(IC_Utility(kKeyedStoreIC_Slow), masm->isolate());
+  __ TailCallExternalReference(ref, 3, 1);
+}
+
+
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
+  // ----------- S t a t e -------------
+  //  -- rax     : value
+  //  -- rcx     : key
+  //  -- rdx     : receiver
+  //  -- rsp[0]  : return address
+  // -----------------------------------
+
+  __ pop(rbx);
+  __ push(rdx);  // receiver
+  __ push(rcx);  // key
+  __ push(rax);  // value
+  __ push(rbx);  // return address
+
+  // Do tail-call to runtime routine.
+  ExternalReference ref = force_generic
+    ? ExternalReference(IC_Utility(kKeyedStoreIC_MissForceGeneric),
+                        masm->isolate())
+    : ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
   __ TailCallExternalReference(ref, 3, 1);
 }
 

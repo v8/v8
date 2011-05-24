@@ -28,6 +28,7 @@
 #ifndef V8_DATEPARSER_H_
 #define V8_DATEPARSER_H_
 
+#include "allocation.h"
 #include "char-predicates-inl.h"
 #include "scanner-base.h"
 

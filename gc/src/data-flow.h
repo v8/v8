@@ -30,6 +30,7 @@
 
 #include "v8.h"
 
+#include "allocation.h"
 #include "ast.h"
 #include "compiler.h"
 #include "zone-inl.h"

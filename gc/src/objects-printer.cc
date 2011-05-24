@@ -151,6 +151,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case CODE_TYPE:
       Code::cast(this)->CodePrint(out);
       break;
+    case JS_PROXY_TYPE:
+      JSProxy::cast(this)->JSProxyPrint(out);
+      break;
     case PROXY_TYPE:
       Proxy::cast(this)->ProxyPrint(out);
       break;
@@ -417,13 +420,13 @@ static const char* TypeToString(InstanceType type) {
     case JS_FUNCTION_TYPE: return "JS_FUNCTION";
     case CODE_TYPE: return "CODE";
     case JS_ARRAY_TYPE: return "JS_ARRAY";
+    case JS_PROXY_TYPE: return "JS_PROXY";
     case JS_REGEXP_TYPE: return "JS_REGEXP";
     case JS_VALUE_TYPE: return "JS_VALUE";
     case JS_GLOBAL_OBJECT_TYPE: return "JS_GLOBAL_OBJECT";
     case JS_BUILTINS_OBJECT_TYPE: return "JS_BUILTINS_OBJECT";
     case JS_GLOBAL_PROXY_TYPE: return "JS_GLOBAL_PROXY";
     case PROXY_TYPE: return "PROXY";
-    case LAST_STRING_TYPE: return "LAST_STRING_TYPE";
     case JS_MESSAGE_OBJECT_TYPE: return "JS_MESSAGE_OBJECT_TYPE";
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return #NAME;
   STRUCT_LIST(MAKE_STRUCT_CASE)
@@ -537,6 +540,15 @@ void String::StringPrint(FILE* out) {
   }
 
   if (!StringShape(this).IsSymbol()) PrintF(out, "\"");
+}
+
+
+void JSProxy::JSProxyPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSProxy");
+  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - handler = ");
+  handler()->Print(out);
+  PrintF(out, "\n");
 }
 
 

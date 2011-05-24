@@ -28,6 +28,7 @@
 #ifndef V8_FRAMES_H_
 #define V8_FRAMES_H_
 
+#include "allocation.h"
 #include "handles.h"
 #include "safepoint-table.h"
 
@@ -149,6 +150,12 @@ class StackFrame BASE_EMBEDDED {
     ID_MIN_VALUE = kMinInt,
     ID_MAX_VALUE = kMaxInt,
     NO_ID = 0
+  };
+
+  // Used to mark the outermost JS entry frame.
+  enum JsFrameMarker {
+    INNER_JSENTRY_FRAME = 0,
+    OUTERMOST_JSENTRY_FRAME = 1
   };
 
   struct State {

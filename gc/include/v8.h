@@ -159,7 +159,7 @@ typedef void (*WeakReferenceCallback)(Persistent<Value> object,
  *
  * It is safe to extract the object stored in the handle by
  * dereferencing the handle (for instance, to extract the Object* from
- * an Handle<Object>); the value will still be governed by a handle
+ * a Handle<Object>); the value will still be governed by a handle
  * behind the scenes and the same rules apply to these values as to
  * their handles.
  */
@@ -181,7 +181,7 @@ template <class T> class Handle {
    * constructor allows you to pass handles as arguments by value and
    * to assign between handles.  However, if you try to assign between
    * incompatible handles, for instance from a Handle<String> to a
-   * Handle<Number> it will cause a compiletime error.  Assigning
+   * Handle<Number> it will cause a compile-time error.  Assigning
    * between compatible handles, for instance assigning a
    * Handle<String> to a variable declared as Handle<Value>, is legal
    * because String is a subclass of Value.
@@ -325,7 +325,7 @@ template <class T> class Persistent : public Handle<T> {
    * handles as arguments by value and to assign between persistent
    * handles.  However, attempting to assign between incompatible
    * persistent handles, for instance from a Persistent<String> to a
-   * Persistent<Number> will cause a compiletime error.  Assigning
+   * Persistent<Number> will cause a compile-time error.  Assigning
    * between compatible persistent handles, for instance assigning a
    * Persistent<String> to a variable declared as Persistent<Value>,
    * is allowed as String is a subclass of Value.
@@ -371,7 +371,7 @@ template <class T> class Persistent : public Handle<T> {
   /**
    * Releases the storage cell referenced by this persistent handle.
    * Does not remove the reference to the cell from any handles.
-   * This handle's reference, and any any other references to the storage
+   * This handle's reference, and any other references to the storage
    * cell remain and IsEmpty will still return false.
    */
   inline void Dispose();
@@ -386,6 +386,15 @@ template <class T> class Persistent : public Handle<T> {
 
   /** Clears the weak reference to this object.*/
   inline void ClearWeak();
+
+  /**
+   * Marks the reference to this object independent. Garbage collector
+   * is free to ignore any object groups containing this object.
+   * Weak callback for an independent handle should not
+   * assume that it will be preceded by a global GC prologue callback
+   * or followed by a global GC epilogue callback.
+   */
+  inline void MarkIndependent();
 
   /**
    *Checks if the handle holds the only reference to an object.
@@ -775,7 +784,7 @@ class V8EXPORT StackTrace {
   Local<Array> AsArray();
 
   /**
-   * Grab a snapshot of the the current JavaScript execution stack.
+   * Grab a snapshot of the current JavaScript execution stack.
    *
    * \param frame_limit The maximum number of stack frames we want to capture.
    * \param options Enumerates the set of things we will capture for each
@@ -834,7 +843,7 @@ class V8EXPORT StackFrame {
   bool IsEval() const;
 
   /**
-   * Returns whther or not the associated function is called as a
+   * Returns whether or not the associated function is called as a
    * constructor via "new".
    */
   bool IsConstructor() const;
@@ -1182,7 +1191,7 @@ class String : public Primitive {
    * Associate an external string resource with this string by transforming it
    * in place so that existing references to this string in the JavaScript heap
    * will use the external string resource. The external string resource's
-   * character contents needs to be equivalent to this string.
+   * character contents need to be equivalent to this string.
    * Returns true if the string has been changed to be an external string.
    * The string is not modified if the operation fails. See NewExternal for
    * information on the lifetime of the resource.
@@ -1204,7 +1213,7 @@ class String : public Primitive {
    * Associate an external string resource with this string by transforming it
    * in place so that existing references to this string in the JavaScript heap
    * will use the external string resource. The external string resource's
-   * character contents needs to be equivalent to this string.
+   * character contents need to be equivalent to this string.
    * Returns true if the string has been changed to be an external string.
    * The string is not modified if the operation fails. See NewExternal for
    * information on the lifetime of the resource.
@@ -1540,8 +1549,8 @@ class Object : public Value {
   V8EXPORT void TurnOnAccessCheck();
 
   /**
-   * Returns the identity hash for this object. The current implemenation uses
-   * a hidden property on the object to store the identity hash.
+   * Returns the identity hash for this object. The current implementation
+   * uses a hidden property on the object to store the identity hash.
    *
    * The return value will never be 0. Also, it is not guaranteed to be
    * unique.
@@ -1607,12 +1616,27 @@ class Object : public Value {
   V8EXPORT int GetIndexedPropertiesExternalArrayDataLength();
 
   /**
+   * Checks whether a callback is set by the
+   * ObjectTemplate::SetCallAsFunctionHandler method.
+   * When an Object is callable this method returns true.
+   */
+  V8EXPORT bool IsCallable();
+
+  /**
    * Call an Object as a function if a callback is set by the 
    * ObjectTemplate::SetCallAsFunctionHandler method.
    */
   V8EXPORT Local<Value> CallAsFunction(Handle<Object> recv,
                                        int argc,
                                        Handle<Value> argv[]);
+
+  /**
+   * Call an Object as a constructor if a callback is set by the
+   * ObjectTemplate::SetCallAsFunctionHandler method.
+   * Note: This method behaves like the Function::NewInstance method.
+   */
+  V8EXPORT Local<Value> CallAsConstructor(int argc,
+                                          Handle<Value> argv[]);
 
   V8EXPORT static Local<Object> New();
   static inline Object* Cast(Value* obj);
@@ -2228,7 +2252,7 @@ class V8EXPORT ObjectTemplate : public Template {
    *
    * \param getter The callback to invoke when getting a property.
    * \param setter The callback to invoke when setting a property.
-   * \param query The callback to invoke to check is an object has a property.
+   * \param query The callback to invoke to check if an object has a property.
    * \param deleter The callback to invoke when deleting a property.
    * \param enumerator The callback to invoke to enumerate all the indexed
    *   properties of an object.
@@ -2646,6 +2670,17 @@ class V8EXPORT Isolate {
    */
   void Dispose();
 
+  /**
+   * Associate embedder-specific data with the isolate
+   */
+  void SetData(void* data);
+
+  /**
+   * Retrive embedder-specific data from the isolate.
+   * Returns NULL if SetData has never been called.
+   */
+  void* GetData();
+
  private:
 
   Isolate();
@@ -2691,7 +2726,7 @@ class V8EXPORT V8 {
    * This means that the fatal error handler is called and that V8 is
    * terminated.
    *
-   * IgnoreOutOfMemoryException can be used to not treat a
+   * IgnoreOutOfMemoryException can be used to not treat an
    * out-of-memory situation as a fatal error.  This way, the contexts
    * that did not cause the out of memory problem might be able to
    * continue execution.
@@ -2727,7 +2762,7 @@ class V8EXPORT V8 {
   /**
    * Adds a message listener.
    *
-   * The same message listener can be added more than once and it that
+   * The same message listener can be added more than once and in that
    * case it will be called more than once for each message.
    */
   static bool AddMessageListener(MessageCallback that,
@@ -3007,7 +3042,7 @@ class V8EXPORT V8 {
    * The termination is achieved by throwing an exception that is
    * uncatchable by JavaScript exception handlers.  Termination
    * exceptions act as if they were caught by a C++ TryCatch exception
-   * handlers.  If forceful termination is used, any C++ TryCatch
+   * handler.  If forceful termination is used, any C++ TryCatch
    * exception handler that catches an exception should check if that
    * exception is a termination exception and immediately return if
    * that is the case.  Returning immediately in that case will
@@ -3091,6 +3126,7 @@ class V8EXPORT V8 {
                        void* data,
                        WeakReferenceCallback);
   static void ClearWeak(internal::Object** global_handle);
+  static void MarkIndependent(internal::Object** global_handle);
   static bool IsGlobalNearDeath(internal::Object** global_handle);
   static bool IsGlobalWeak(internal::Object** global_handle);
   static void SetWrapperClassId(internal::Object** global_handle,
@@ -3393,41 +3429,37 @@ class V8EXPORT Context {
  * to the user of V8 to ensure (perhaps with locking) that this
  * constraint is not violated.
  *
- * More then one thread and multiple V8 isolates can be used
- * without any locking if each isolate is created and accessed
- * by a single thread only. For example, one thread can use
- * multiple isolates or multiple threads can each create and run
- * their own isolate.
+ * v8::Locker is a scoped lock object. While it's
+ * active (i.e. between its construction and destruction) the current thread is
+ * allowed to use the locked isolate. V8 guarantees that an isolate can be locked
+ * by at most one thread at any time. In other words, the scope of a v8::Locker is
+ * a critical section.
  *
- * If you wish to start using V8 isolate in more then one thread
- * you can do this by constructing a v8::Locker object to guard
- * access to the isolate. After the code using V8 has completed
- * for the current thread you can call the destructor.  This can
- * be combined with C++ scope-based construction as follows
- * (assumes the default isolate that is used if not specified as
- * a parameter for the Locker):
- *
- * \code
+ * Sample usage:
+* \code
  * ...
  * {
- *   v8::Locker locker;
+ *   v8::Locker locker(isolate);
+ *   v8::Isolate::Scope isolate_scope(isolate);
  *   ...
- *   // Code using V8 goes here.
+ *   // Code using V8 and isolate goes here.
  *   ...
  * } // Destructor called here
  * \endcode
  *
- * If you wish to stop using V8 in a thread A you can do this by either
+ * If you wish to stop using V8 in a thread A you can do this either
  * by destroying the v8::Locker object as above or by constructing a
  * v8::Unlocker object:
  *
  * \code
  * {
- *   v8::Unlocker unlocker;
+ *   isolate->Exit();
+ *   v8::Unlocker unlocker(isolate);
  *   ...
  *   // Code not using V8 goes here while V8 can run in another thread.
  *   ...
  * } // Destructor called here.
+ * isolate->Enter();
  * \endcode
  *
  * The Unlocker object is intended for use in a long-running callback
@@ -3447,38 +3479,51 @@ class V8EXPORT Context {
  * \code
  * // V8 not locked.
  * {
- *   v8::Locker locker;
+ *   v8::Locker locker(isolate);
+ *   Isolate::Scope isolate_scope(isolate);
  *   // V8 locked.
  *   {
- *     v8::Locker another_locker;
+ *     v8::Locker another_locker(isolate);
  *     // V8 still locked (2 levels).
  *     {
- *       v8::Unlocker unlocker;
+ *       isolate->Exit();
+ *       v8::Unlocker unlocker(isolate);
  *       // V8 not locked.
  *     }
+ *     isolate->Enter();
  *     // V8 locked again (2 levels).
  *   }
  *   // V8 still locked (1 level).
  * }
  * // V8 Now no longer locked.
  * \endcode
+ *
+ * 
  */
 class V8EXPORT Unlocker {
  public:
-  Unlocker();
+  /**
+   * Initialize Unlocker for a given Isolate. NULL means default isolate.
+   */
+  explicit Unlocker(Isolate* isolate = NULL);
   ~Unlocker();
+ private:
+  internal::Isolate* isolate_;
 };
 
 
 class V8EXPORT Locker {
  public:
-  Locker();
+  /**
+   * Initialize Locker for a given Isolate. NULL means default isolate.
+   */
+  explicit Locker(Isolate* isolate = NULL);
   ~Locker();
 
   /**
    * Start preemption.
    *
-   * When preemption is started, a timer is fired every n milli seconds
+   * When preemption is started, a timer is fired every n milliseconds
    * that will switch between multiple threads that are in contention
    * for the V8 lock.
    */
@@ -3490,9 +3535,10 @@ class V8EXPORT Locker {
   static void StopPreemption();
 
   /**
-   * Returns whether or not the locker is locked by the current thread.
+   * Returns whether or not the locker for a given isolate, or default isolate if NULL is given,
+   * is locked by the current thread.
    */
-  static bool IsLocked();
+  static bool IsLocked(Isolate* isolate = NULL);
 
   /**
    * Returns whether v8::Locker is being used by this V8 instance.
@@ -3502,6 +3548,7 @@ class V8EXPORT Locker {
  private:
   bool has_lock_;
   bool top_level_;
+  internal::Isolate* isolate_;
 
   static bool active_;
 
@@ -3656,7 +3703,7 @@ class Internals {
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
-  static const int kJSObjectType = 0xa2;
+  static const int kJSObjectType = 0xa3;
   static const int kFirstNonstringType = 0x80;
   static const int kProxyType = 0x85;
 
@@ -3780,6 +3827,11 @@ void Persistent<T>::MakeWeak(void* parameters, WeakReferenceCallback callback) {
 template <class T>
 void Persistent<T>::ClearWeak() {
   V8::ClearWeak(reinterpret_cast<internal::Object**>(**this));
+}
+
+template <class T>
+void Persistent<T>::MarkIndependent() {
+  V8::MarkIndependent(reinterpret_cast<internal::Object**>(**this));
 }
 
 template <class T>
