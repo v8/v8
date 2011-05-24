@@ -752,24 +752,23 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
     }
 
   } else if (prop != NULL) {
-    if (function != NULL || mode == Variable::CONST) {
-      // We are declaring a function or constant that rewrites to a
-      // property.  Use (keyed) IC to set the initial value.  We
-      // cannot visit the rewrite because it's shared and we risk
-      // recording duplicate AST IDs for bailouts from optimized code.
+    // A const declaration aliasing a parameter is an illegal redeclaration.
+    ASSERT(mode != Variable::CONST);
+    if (function != NULL) {
+      // We are declaring a function that rewrites to a property.
+      // Use (keyed) IC to set the initial value.  We cannot visit the
+      // rewrite because it's shared and we risk recording duplicate AST
+      // IDs for bailouts from optimized code.
       ASSERT(prop->obj()->AsVariableProxy() != NULL);
       { AccumulatorValueContext for_object(this);
         EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
       }
-      if (function != NULL) {
-        __ push(result_register());
-        VisitForAccumulatorValue(function);
-        __ mov(a0, result_register());
-        __ pop(a2);
-      } else {
-        __ mov(a2, result_register());
-        __ LoadRoot(a0, Heap::kTheHoleValueRootIndex);
-      }
+
+      __ push(result_register());
+      VisitForAccumulatorValue(function);
+      __ mov(a0, result_register());
+      __ pop(a2);
+
       ASSERT(prop->key()->AsLiteral() != NULL &&
              prop->key()->AsLiteral()->handle()->IsSmi());
       __ li(a1, Operand(prop->key()->AsLiteral()->handle()));

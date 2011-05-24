@@ -730,23 +730,20 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
     }
 
   } else if (prop != NULL) {
-    if (function != NULL || mode == Variable::CONST) {
-      // We are declaring a function or constant that rewrites to a
-      // property.  Use (keyed) IC to set the initial value.  We
-      // cannot visit the rewrite because it's shared and we risk
-      // recording duplicate AST IDs for bailouts from optimized code.
+    // A const declaration aliasing a parameter is an illegal redeclaration.
+    ASSERT(mode != Variable::CONST);
+    if (function != NULL) {
+      // We are declaring a function that rewrites to a property.
+      // Use (keyed) IC to set the initial value.  We cannot visit the
+      // rewrite because it's shared and we risk recording duplicate AST
+      // IDs for bailouts from optimized code.
       ASSERT(prop->obj()->AsVariableProxy() != NULL);
       { AccumulatorValueContext for_object(this);
         EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
       }
-      if (function != NULL) {
-        __ push(rax);
-        VisitForAccumulatorValue(function);
-        __ pop(rdx);
-      } else {
-        __ movq(rdx, rax);
-        __ LoadRoot(rax, Heap::kTheHoleValueRootIndex);
-      }
+      __ push(rax);
+      VisitForAccumulatorValue(function);
+      __ pop(rdx);
       ASSERT(prop->key()->AsLiteral() != NULL &&
              prop->key()->AsLiteral()->handle()->IsSmi());
       __ Move(rcx, prop->key()->AsLiteral()->handle());
@@ -754,7 +751,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       Handle<Code> ic = is_strict_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
           : isolate()->builtins()->KeyedStoreIC_Initialize();
-      EmitCallIC(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
+      EmitCallIC(ic, RelocInfo::CODE_TARGET, AstNode::kNoNumber);
     }
   }
 }
