@@ -283,7 +283,7 @@ void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
                               SmiCheckType smi_check_type) {
-  if (smi_check_type == DONT_DO_SMI_CHECK) {
+  if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
   cmp(FieldOperand(obj, HeapObject::kMapOffset), Immediate(map));
