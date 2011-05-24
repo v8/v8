@@ -81,26 +81,5 @@ test-debug/DebugBreakLoop: SKIP
 
 ##############################################################################
 [ $arch == mips ]
-test-accessors: SKIP
-test-alloc: SKIP
-test-api: SKIP
-test-compiler: SKIP
-test-cpu-profiler: SKIP
-test-debug: SKIP
-test-decls: SKIP
 test-deoptimization: SKIP
-test-func-name-inference: SKIP
-test-heap: SKIP
-test-heap-profiler: SKIP
-test-lockers: SKIP
-test-log: SKIP
-test-log-utils: SKIP
-test-mark-compact: SKIP
-test-parsing: SKIP
-test-profile-generator: SKIP
-test-regexp: SKIP
 test-serialize: SKIP
-test-sockets: SKIP
-test-strings: SKIP
-test-threads: SKIP
-test-thread-termination: SKIP

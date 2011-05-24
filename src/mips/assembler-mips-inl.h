@@ -95,24 +95,8 @@ Address RelocInfo::target_address() {
 
 
 Address RelocInfo::target_address_address() {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY
-                              || rmode_ == EMBEDDED_OBJECT
-                              || rmode_ == EXTERNAL_REFERENCE);
-  // Read the address of the word containing the target_address in an
-  // instruction stream.
-  // The only architecture-independent user of this function is the serializer.
-  // The serializer uses it to find out how many raw bytes of instruction to
-  // output before the next target.
-  // For an instructions like LUI/ORI where the target bits are mixed into the
-  // instruction bits, the size of the target will be zero, indicating that the
-  // serializer should not step forward in memory after a target is resolved
-  // and written.  In this case the target_address_address function should
-  // return the end of the instructions to be patched, allowing the
-  // deserializer to deserialize the instructions as raw bytes and put them in
-  // place, ready to be patched with the target. In our case, that is the
-  // address of the instruction that follows LUI/ORI instruction pair.
-  return reinterpret_cast<Address>(
-    pc_ + Assembler::kInstructionsFor32BitConstant * Assembler::kInstrSize);
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  return reinterpret_cast<Address>(pc_);
 }
 
 
@@ -144,12 +128,9 @@ Object** RelocInfo::target_object_address() {
   // Provide a "natural pointer" to the embedded object,
   // which can be de-referenced during heap iteration.
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  // TODO(mips): Commenting out, to simplify arch-independent changes.
-  // GC won't work like this, but this commit is for asm/disasm/sim.
-  // reconstructed_obj_ptr_ =
-  //   reinterpret_cast<Object*>(Assembler::target_address_at(pc_));
-  // return &reconstructed_obj_ptr_;
-  return NULL;
+  reconstructed_obj_ptr_ =
+      reinterpret_cast<Object*>(Assembler::target_address_at(pc_));
+  return &reconstructed_obj_ptr_;
 }
 
 
@@ -161,11 +142,8 @@ void RelocInfo::set_target_object(Object* target) {
 
 Address* RelocInfo::target_reference_address() {
   ASSERT(rmode_ == EXTERNAL_REFERENCE);
-  // TODO(mips): Commenting out, to simplify arch-independent changes.
-  // GC won't work like this, but this commit is for asm/disasm/sim.
-  // reconstructed_adr_ptr_ = Assembler::target_address_at(pc_);
-  // return &reconstructed_adr_ptr_;
-  return NULL;
+  reconstructed_adr_ptr_ = Assembler::target_address_at(pc_);
+  return &reconstructed_adr_ptr_;
 }
 
 
@@ -251,23 +229,18 @@ bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
 void RelocInfo::Visit(ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    // RelocInfo is needed when pointer must be updated/serialized, such as
-    // UpdatingVisitor in mark-compact.cc or Serializer in serialize.cc.
-    // It is ignored by visitors that do not need it.
-    // TODO(mips): Commenting out, to simplify arch-independent changes.
-    // GC won't work like this, but this commit is for asm/disasm/sim.
-    // visitor->VisitPointer(target_object_address(), this);
+    Object** p = target_object_address();
+    Object* orig = *p;
+    visitor->VisitPointer(p);
+    if (*p != orig) {
+      set_target_object(*p);
+    }
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(this);
   } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
     visitor->VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    // RelocInfo is needed when external-references must be serialized by
-    // Serializer Visitor in serialize.cc. It is ignored by visitors that
-    // do not need it.
-    // TODO(mips): Commenting out, to simplify arch-independent changes.
-    // Serializer won't work like this, but this commit is for asm/disasm/sim.
-    // visitor->VisitExternalReference(target_reference_address(), this);
+    visitor->VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // TODO(isolates): Get a cached isolate below.
   } else if (((RelocInfo::IsJSReturn(mode) &&
