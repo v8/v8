@@ -5509,8 +5509,16 @@ bool String::IsEqualTo(Vector<const char> str) {
 bool String::IsAsciiEqualTo(Vector<const char> str) {
   int slen = length();
   if (str.length() != slen) return false;
-  for (int i = 0; i < slen; i++) {
-    if (Get(i) != static_cast<uint16_t>(str[i])) return false;
+  if (this->IsSeqAsciiString()) {
+    SeqAsciiString* seq = SeqAsciiString::cast(this);
+    char* ch = seq->GetChars();
+    for (int i = 0; i < slen; i++, ch++) {
+      if (*ch != str[i]) return false;
+    }
+  } else {
+    for (int i = 0; i < slen; i++) {
+      if (Get(i) != static_cast<uint16_t>(str[i])) return false;
+    }
   }
   return true;
 }
@@ -8760,6 +8768,71 @@ class AsciiSymbolKey : public SequentialSymbolKey<char> {
 };
 
 
+class SubStringAsciiSymbolKey : public HashTableKey {
+ public:
+  explicit SubStringAsciiSymbolKey(Handle<SeqAsciiString> string,
+                                   int from,
+                                   int length)
+      : string_(string), from_(from), length_(length) { }
+
+  uint32_t Hash() {
+    ASSERT(length_ >= 0);
+    ASSERT(from_ + length_ <= string_->length());
+    StringHasher hasher(length_);
+
+    // Very long strings have a trivial hash that doesn't inspect the
+    // string contents.
+    if (hasher.has_trivial_hash()) {
+      hash_field_ = hasher.GetHashField();
+    } else {
+      int i = 0;
+      // Do the iterative array index computation as long as there is a
+      // chance this is an array index.
+      while (i < length_ && hasher.is_array_index()) {
+        hasher.AddCharacter(static_cast<uc32>(
+            string_->SeqAsciiStringGet(i + from_)));
+        i++;
+      }
+
+      // Process the remaining characters without updating the array
+      // index.
+      while (i < length_) {
+        hasher.AddCharacterNoIndex(static_cast<uc32>(
+            string_->SeqAsciiStringGet(i + from_)));
+        i++;
+      }
+      hash_field_ = hasher.GetHashField();
+    }
+
+    uint32_t result = hash_field_ >> String::kHashShift;
+    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+
+  uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  bool IsMatch(Object* string) {
+    Vector<const char> chars(string_->GetChars() + from_, length_);
+    return String::cast(string)->IsAsciiEqualTo(chars);
+  }
+
+  MaybeObject* AsObject() {
+    if (hash_field_ == 0) Hash();
+    Vector<const char> chars(string_->GetChars() + from_, length_);
+    return HEAP->AllocateAsciiSymbol(chars, hash_field_);
+  }
+
+ private:
+  Handle<SeqAsciiString> string_;
+  int from_;
+  int length_;
+  uint32_t hash_field_;
+};
+
+
 class TwoByteSymbolKey : public SequentialSymbolKey<uc16> {
  public:
   explicit TwoByteSymbolKey(Vector<const uc16> str)
@@ -9550,6 +9623,15 @@ MaybeObject* SymbolTable::LookupSymbol(Vector<const char> str, Object** s) {
 MaybeObject* SymbolTable::LookupAsciiSymbol(Vector<const char> str,
                                             Object** s) {
   AsciiSymbolKey key(str);
+  return LookupKey(&key, s);
+}
+
+
+MaybeObject* SymbolTable::LookupSubStringAsciiSymbol(Handle<SeqAsciiString> str,
+                                                     int from,
+                                                     int length,
+                                                     Object** s) {
+  SubStringAsciiSymbolKey key(str, from, length);
   return LookupKey(&key, s);
 }
 

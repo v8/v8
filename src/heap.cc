@@ -4179,6 +4179,26 @@ MaybeObject* Heap::LookupAsciiSymbol(Vector<const char> string) {
 }
 
 
+MaybeObject* Heap::LookupAsciiSymbol(Handle<SeqAsciiString> string,
+                                     int from,
+                                     int length) {
+  Object* symbol = NULL;
+  Object* new_table;
+  { MaybeObject* maybe_new_table =
+        symbol_table()->LookupSubStringAsciiSymbol(string,
+                                                   from,
+                                                   length,
+                                                   &symbol);
+    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
+  }
+  // Can't use set_symbol_table because SymbolTable::cast knows that
+  // SymbolTable is a singleton and checks for identity.
+  roots_[kSymbolTableRootIndex] = new_table;
+  ASSERT(symbol != NULL);
+  return symbol;
+}
+
+
 MaybeObject* Heap::LookupTwoByteSymbol(Vector<const uc16> string) {
   Object* symbol = NULL;
   Object* new_table;

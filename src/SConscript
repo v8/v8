@@ -85,6 +85,7 @@ SOURCES = {
     inspector.cc
     interpreter-irregexp.cc
     isolate.cc
+    json-parser.cc
     jsregexp.cc
     lithium-allocator.cc
     lithium.cc

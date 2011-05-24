@@ -111,11 +111,30 @@ Handle<String> Factory::LookupSymbol(Vector<const char> string) {
                      String);
 }
 
+// Symbols are created in the old generation (data space).
+Handle<String> Factory::LookupSymbol(Handle<String> string) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->LookupSymbol(*string),
+                     String);
+}
+
 Handle<String> Factory::LookupAsciiSymbol(Vector<const char> string) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->LookupAsciiSymbol(string),
                      String);
 }
+
+
+Handle<String> Factory::LookupAsciiSymbol(Handle<SeqAsciiString> string,
+                                          int from,
+                                          int length) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->LookupAsciiSymbol(string,
+                                                          from,
+                                                          length),
+                     String);
+}
+
 
 Handle<String> Factory::LookupTwoByteSymbol(Vector<const uc16> string) {
   CALL_HEAP_FUNCTION(isolate(),

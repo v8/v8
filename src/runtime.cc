@@ -42,6 +42,7 @@
 #include "execution.h"
 #include "global-handles.h"
 #include "jsregexp.h"
+#include "json-parser.h"
 #include "liveedit.h"
 #include "liveobjectlist-inl.h"
 #include "parser.h"

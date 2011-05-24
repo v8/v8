@@ -2451,6 +2451,8 @@ class SymbolTableShape {
   static const int kEntrySize = 1;
 };
 
+class SeqAsciiString;
+
 // SymbolTable.
 //
 // No special elements in the prefix and the element size is 1
@@ -2464,6 +2466,11 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   MUST_USE_RESULT MaybeObject* LookupSymbol(Vector<const char> str, Object** s);
   MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Vector<const char> str,
                                                  Object** s);
+  MUST_USE_RESULT MaybeObject* LookupSubStringAsciiSymbol(
+      Handle<SeqAsciiString> str,
+      int from,
+      int length,
+      Object** s);
   MUST_USE_RESULT MaybeObject* LookupTwoByteSymbol(Vector<const uc16> str,
                                                    Object** s);
   MUST_USE_RESULT MaybeObject* LookupString(String* key, Object** s);
