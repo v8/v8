@@ -484,6 +484,8 @@
             '../../src/inspector.h',
             '../../src/interpreter-irregexp.cc',
             '../../src/interpreter-irregexp.h',
+            '../../src/json-parser.cc',
+            '../../src/json-parser.h',
             '../../src/jsregexp.cc',
             '../../src/jsregexp.h',
             '../../src/isolate.cc',
