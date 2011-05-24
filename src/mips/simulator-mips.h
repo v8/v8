@@ -323,9 +323,12 @@ class Simulator {
   static void* RedirectExternalReference(void* external_function,
                                          ExternalReference::Type type);
 
-  // Used for real time calls that takes two double values as arguments and
-  // returns a double.
-  void SetFpResult(double result);
+  // For use in calls that take double value arguments.
+  void GetFpArgs(double* x, double* y);
+  void GetFpArgs(double* x);
+  void GetFpArgs(double* x, int32_t* y);
+  void SetFpResult(const double& result);
+
 
   // Architecture state.
   // Registers.

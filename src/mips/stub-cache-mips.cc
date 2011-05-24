@@ -3410,7 +3410,7 @@ MaybeObject* ExternalArrayStoreStubCompiler::CompileStore(
                  a3,
                  Handle<Map>(receiver->map()),
                  Handle<Code>(stub),
-                 DONT_DO_SMI_CHECK);
+                 DO_SMI_CHECK);
 
   Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
   __ Jump(ic, RelocInfo::CODE_TARGET);
@@ -3566,8 +3566,21 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset - kHeapObjectTag));
       __ Ret();
     } else {
-      WriteInt32ToHeapNumberStub stub(value, v0, t2, t3);
-      __ TailCallStub(&stub);
+      Register dst1 = t2;
+      Register dst2 = t3;
+      FloatingPointHelper::Destination dest =
+          FloatingPointHelper::kCoreRegisters;
+      FloatingPointHelper::ConvertIntToDouble(masm,
+                                              value,
+                                              dest,
+                                              f0,
+                                              dst1,
+                                              dst2,
+                                              t1,
+                                              f2);
+      __ sw(dst1, FieldMemOperand(v0, HeapNumber::kMantissaOffset));
+      __ sw(dst2, FieldMemOperand(v0, HeapNumber::kExponentOffset));
+      __ Ret();
     }
   } else if (array_type == kExternalUnsignedIntArray) {
     // The test is different for unsigned int values. Since we need

@@ -388,11 +388,8 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
     __ mtc1(scratch1, f12);
     __ cvt_d_w(f12, f12);
     if (destination == kCoreRegisters) {
-      __ mfc1(a2, f14);
-      __ mfc1(a3, f15);
-
-      __ mfc1(a0, f12);
-      __ mfc1(a1, f13);
+      __ Move(a2, a3, f14);
+      __ Move(a0, a1, f12);
     }
   } else {
     ASSERT(destination == kCoreRegisters);
@@ -478,8 +475,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
     __ cvt_d_w(dst, dst);
     if (destination == kCoreRegisters) {
       // Load the converted smi to dst1 and dst2 in double format.
-      __ mfc1(dst1, dst);
-      __ mfc1(dst2, FPURegister::from_code(dst.code() + 1));
+      __ Move(dst1, dst2, dst);
     }
   } else {
     ASSERT(destination == kCoreRegisters);
@@ -550,6 +546,8 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
                                              Register scratch2,
                                              FPURegister single_scratch) {
   ASSERT(!int_scratch.is(scratch2));
+  ASSERT(!int_scratch.is(dst1));
+  ASSERT(!int_scratch.is(dst2));
 
   Label done;
 
@@ -558,8 +556,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
     __ mtc1(int_scratch, single_scratch);
     __ cvt_d_w(double_dst, single_scratch);
     if (destination == kCoreRegisters) {
-      __ mfc1(dst1, double_dst);
-      __ mfc1(dst2, FPURegister::from_code(double_dst.code() + 1));
+      __ Move(dst1, dst2, double_dst);
     }
   } else {
     Label fewer_than_20_useful_bits;
@@ -683,8 +680,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     __ Branch(not_int32, ne, scratch2, Operand(zero_reg));
 
     if (destination == kCoreRegisters) {
-      __ mfc1(dst1, double_dst);
-      __ mfc1(dst2, FPURegister::from_code(double_dst.code() + 1));
+      __ Move(dst1, dst2, double_dst);
     }
 
   } else {
@@ -891,10 +887,8 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
     // calling is compiled with hard-float flag and expecting hard float ABI
     // (parameters in f12/f14 registers). We need to copy parameters from
     // a0-a3 registers to f12/f14 register pairs.
-    __ mtc1(a0, f12);
-    __ mtc1(a1, f13);
-    __ mtc1(a2, f14);
-    __ mtc1(a3, f15);
+    __ Move(f12, a0, a1);
+    __ Move(f14, a2, a3);
   }
   // Call C routine that may not cause GC or other trouble.
   __ CallCFunction(ExternalReference::double_fp_operation(op, masm->isolate()),
@@ -1171,10 +1165,8 @@ void EmitNanCheck(MacroAssembler* masm, Condition cc) {
   if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatures::Scope scope(FPU);
     // Lhs and rhs are already loaded to f12 and f14 register pairs.
-    __ mfc1(t0, f14);  // f14 has LS 32 bits of rhs.
-    __ mfc1(t1, f15);  // f15 has MS 32 bits of rhs.
-    __ mfc1(t2, f12);  // f12 has LS 32 bits of lhs.
-    __ mfc1(t3, f13);  // f13 has MS 32 bits of lhs.
+    __ Move(t0, t1, f14);
+    __ Move(t2, t3, f12);
   } else {
     // Lhs and rhs are already loaded to GP registers.
     __ mov(t0, a0);  // a0 has LS 32 bits of rhs.
@@ -1237,12 +1229,10 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
     // Exception: 0 and -0.
     bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
     if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+      CpuFeatures::Scope scope(FPU);
       // Lhs and rhs are already loaded to f12 and f14 register pairs.
-      __ mfc1(t0, f14);  // f14 has LS 32 bits of rhs.
-      __ mfc1(t1, f15);  // f15 has MS 32 bits of rhs.
-      __ mfc1(t2, f12);  // f12 has LS 32 bits of lhs.
-      __ mfc1(t3, f13);  // f13 has MS 32 bits of lhs.
+      __ Move(t0, t1, f14);
+      __ Move(t2, t3, f12);
     } else {
       // Lhs and rhs are already loaded to GP registers.
       __ mov(t0, a0);  // a0 has LS 32 bits of rhs.
@@ -1284,10 +1274,8 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
       // calling is compiled with hard-float flag and expecting hard float ABI
       // (parameters in f12/f14 registers). We need to copy parameters from
       // a0-a3 registers to f12/f14 register pairs.
-      __ mtc1(a0, f12);
-      __ mtc1(a1, f13);
-      __ mtc1(a2, f14);
-      __ mtc1(a3, f15);
+      __ Move(f12, a0, a1);
+      __ Move(f14, a2, a3);
     }
     __ CallCFunction(ExternalReference::compare_doubles(masm->isolate()), 4);
     __ pop(ra);  // Because this function returns int, result is in v0.
@@ -3192,8 +3180,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
       __ sra(t0, a0, kSmiTagSize);
       __ mtc1(t0, f4);
       __ cvt_d_w(f4, f4);
-      __ mfc1(a2, f4);
-      __ mfc1(a3, f5);
+      __ Move(a2, a3, f4);
       __ Branch(&loaded);
 
       __ bind(&input_not_smi);
@@ -3209,8 +3196,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
       __ lw(a3, FieldMemOperand(a0, HeapNumber::kValueOffset + 4));
     } else {
       // Input is untagged double in f4. Output goes to f4.
-      __ mfc1(a2, f4);
-      __ mfc1(a3, f5);
+      __ Move(a2, a3, f4);
     }
     __ bind(&loaded);
     // a2 = low 32 bits of double value.
@@ -3354,8 +3340,11 @@ void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
                                                     Register scratch) {
   __ push(ra);
   __ PrepareCallCFunction(2, scratch);
-  __ mfc1(v0, f4);
-  __ mfc1(v1, f5);
+  if (IsMipsSoftFloatABI) {
+    __ Move(v0, v1, f4);
+  } else {
+    __ mov_d(f12, f4);
+  }
   switch (type_) {
     case TranscendentalCache::SIN:
       __ CallCFunction(
@@ -3451,16 +3440,9 @@ void MathPowStub::Generate(MacroAssembler* masm) {
                           &call_runtime);
     __ push(ra);
     __ PrepareCallCFunction(3, scratch);
-    // ABI (o32) for func(double d, int x): d in f12, x in a2.
-    ASSERT(double_base.is(f12));
-    ASSERT(exponent.is(a2));
-    if (IsMipsSoftFloatABI) {
-      // Simulator case, supports FPU, but with soft-float passing.
-      __ mfc1(a0, double_base);
-      __ mfc1(a1, FPURegister::from_code(double_base.code() + 1));
-    }
+    __ SetCallCDoubleArguments(double_base, double_exponent);
     __ CallCFunction(
-        ExternalReference::power_double_int_function(masm->isolate()), 3);
+        ExternalReference::power_double_int_function(masm->isolate()), 4);
     __ pop(ra);
     __ GetCFunctionDoubleResult(double_result);
     __ sdc1(double_result,
@@ -3489,12 +3471,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     // ABI (o32) for func(double a, double b): a in f12, b in f14.
     ASSERT(double_base.is(f12));
     ASSERT(double_exponent.is(f14));
-    if (IsMipsSoftFloatABI) {
-      __ mfc1(a0, double_base);
-      __ mfc1(a1, FPURegister::from_code(double_base.code() + 1));
-      __ mfc1(a2, double_exponent);
-      __ mfc1(a3, FPURegister::from_code(double_exponent.code() + 1));
-    }
+    __ SetCallCDoubleArguments(double_base, double_exponent);
     __ CallCFunction(
         ExternalReference::power_double_double_function(masm->isolate()), 4);
     __ pop(ra);
@@ -3892,18 +3869,31 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 }
 
 
-// Uses registers a0 to t0. Expected input is
-// object in a0 (or at sp+1*kPointerSize) and function in
-// a1 (or at sp), depending on whether or not
-// args_in_registers() is true.
+// Uses registers a0 to t0.
+// Expected input (depending on whether args are in registers or on the stack):
+// * object: a0 or at sp + 1 * kPointerSize.
+// * function: a1 or at sp.
+//
+// Inlined call site patching is a crankshaft-specific feature that is not
+// implemented on MIPS.
 void InstanceofStub::Generate(MacroAssembler* masm) {
+  // This is a crankshaft-specific feature that has not been implemented yet.
+  ASSERT(!HasCallSiteInlineCheck());
+  // Call site inlining and patching implies arguments in registers.
+  ASSERT(HasArgsInRegisters() || !HasCallSiteInlineCheck());
+  // ReturnTrueFalse is only implemented for inlined call sites.
+  ASSERT(!ReturnTrueFalseObject() || HasCallSiteInlineCheck());
+
   // Fixed register usage throughout the stub:
   const Register object = a0;  // Object (lhs).
-  const Register map = a3;  // Map of the object.
+  Register map = a3;  // Map of the object.
   const Register function = a1;  // Function (rhs).
   const Register prototype = t0;  // Prototype of the function.
+  const Register inline_site = t5;
   const Register scratch = a2;
+
   Label slow, loop, is_instance, is_not_instance, not_js_object;
+
   if (!HasArgsInRegisters()) {
     __ lw(object, MemOperand(sp, 1 * kPointerSize));
     __ lw(function, MemOperand(sp, 0));
@@ -3913,47 +3903,70 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ JumpIfSmi(object, &not_js_object);
   __ IsObjectJSObjectType(object, map, scratch, &not_js_object);
 
-  // Look up the function and the map in the instanceof cache.
-  Label miss;
-  __ LoadRoot(t1, Heap::kInstanceofCacheFunctionRootIndex);
-  __ Branch(&miss, ne, function, Operand(t1));
-  __ LoadRoot(t1, Heap::kInstanceofCacheMapRootIndex);
-  __ Branch(&miss, ne, map, Operand(t1));
-  __ LoadRoot(v0, Heap::kInstanceofCacheAnswerRootIndex);
-  __ DropAndRet(HasArgsInRegisters() ? 0 : 2);
+  // If there is a call site cache don't look in the global cache, but do the
+  // real lookup and update the call site cache.
+  if (!HasCallSiteInlineCheck()) {
+    Label miss;
+    __ LoadRoot(t1, Heap::kInstanceofCacheFunctionRootIndex);
+    __ Branch(&miss, ne, function, Operand(t1));
+    __ LoadRoot(t1, Heap::kInstanceofCacheMapRootIndex);
+    __ Branch(&miss, ne, map, Operand(t1));
+    __ LoadRoot(v0, Heap::kInstanceofCacheAnswerRootIndex);
+    __ DropAndRet(HasArgsInRegisters() ? 0 : 2);
 
-  __ bind(&miss);
+    __ bind(&miss);
+  }
+
+  // Get the prototype of the function.
   __ TryGetFunctionPrototype(function, prototype, scratch, &slow);
 
   // Check that the function prototype is a JS object.
   __ JumpIfSmi(prototype, &slow);
   __ IsObjectJSObjectType(prototype, scratch, scratch, &slow);
 
-  __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
-  __ StoreRoot(map, Heap::kInstanceofCacheMapRootIndex);
+  // Update the global instanceof or call site inlined cache with the current
+  // map and function. The cached answer will be set when it is known below.
+  if (!HasCallSiteInlineCheck()) {
+    __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
+    __ StoreRoot(map, Heap::kInstanceofCacheMapRootIndex);
+  } else {
+    UNIMPLEMENTED_MIPS();
+  }
 
   // Register mapping: a3 is object map and t0 is function prototype.
   // Get prototype of object into a2.
   __ lw(scratch, FieldMemOperand(map, Map::kPrototypeOffset));
 
+  // We don't need map any more. Use it as a scratch register.
+  Register scratch2 = map;
+  map = no_reg;
+
   // Loop through the prototype chain looking for the function prototype.
+  __ LoadRoot(scratch2, Heap::kNullValueRootIndex);
   __ bind(&loop);
   __ Branch(&is_instance, eq, scratch, Operand(prototype));
-  __ LoadRoot(t1, Heap::kNullValueRootIndex);
-  __ Branch(&is_not_instance, eq, scratch, Operand(t1));
+  __ Branch(&is_not_instance, eq, scratch, Operand(scratch2));
   __ lw(scratch, FieldMemOperand(scratch, HeapObject::kMapOffset));
   __ lw(scratch, FieldMemOperand(scratch, Map::kPrototypeOffset));
   __ Branch(&loop);
 
   __ bind(&is_instance);
   ASSERT(Smi::FromInt(0) == 0);
-  __ mov(v0, zero_reg);
-  __ StoreRoot(v0, Heap::kInstanceofCacheAnswerRootIndex);
+  if (!HasCallSiteInlineCheck()) {
+    __ mov(v0, zero_reg);
+    __ StoreRoot(v0, Heap::kInstanceofCacheAnswerRootIndex);
+  } else {
+    UNIMPLEMENTED_MIPS();
+  }
   __ DropAndRet(HasArgsInRegisters() ? 0 : 2);
 
   __ bind(&is_not_instance);
-  __ li(v0, Operand(Smi::FromInt(1)));
-  __ StoreRoot(v0, Heap::kInstanceofCacheAnswerRootIndex);
+  if (!HasCallSiteInlineCheck()) {
+    __ li(v0, Operand(Smi::FromInt(1)));
+    __ StoreRoot(v0, Heap::kInstanceofCacheAnswerRootIndex);
+  } else {
+    UNIMPLEMENTED_MIPS();
+  }
   __ DropAndRet(HasArgsInRegisters() ? 0 : 2);
 
   Label object_not_null, object_not_null_or_smi;
@@ -3961,7 +3974,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Before null, smi and string value checks, check that the rhs is a function
   // as for a non-function rhs an exception needs to be thrown.
   __ JumpIfSmi(function, &slow);
-  __ GetObjectType(function, map, scratch);
+  __ GetObjectType(function, scratch2, scratch);
   __ Branch(&slow, ne, scratch, Operand(JS_FUNCTION_TYPE));
 
   // Null is not instance of anything.
@@ -3984,11 +3997,29 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Slow-case.  Tail call builtin.
   __ bind(&slow);
-  if (HasArgsInRegisters()) {
-    __ Push(a0, a1);
-  }
+  if (!ReturnTrueFalseObject()) {
+    if (HasArgsInRegisters()) {
+      __ Push(a0, a1);
+    }
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
+  } else {
+    __ EnterInternalFrame();
+    __ Push(a0, a1);
+    __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
+    __ LeaveInternalFrame();
+    __ mov(a0, v0);
+    __ LoadRoot(v0, Heap::kTrueValueRootIndex);
+    __ DropAndRet(HasArgsInRegisters() ? 0 : 2, eq, a0, Operand(zero_reg));
+    __ LoadRoot(v0, Heap::kFalseValueRootIndex);
+    __ DropAndRet(HasArgsInRegisters() ? 0 : 2);
+  }
 }
+
+
+Register InstanceofStub::left() { return a0; }
+
+
+Register InstanceofStub::right() { return a1; }
 
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {

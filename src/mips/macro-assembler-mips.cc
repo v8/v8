@@ -193,6 +193,77 @@ void MacroAssembler::RecordWriteHelper(Register object,
   sw(scratch, MemOperand(object, Page::kDirtyFlagOffset));
 }
 
+// Push and pop all registers that can hold pointers.
+void MacroAssembler::PushSafepointRegisters() {
+  // Safepoints expect a block of kNumSafepointRegisters values on the
+  // stack, so adjust the stack for unsaved registers.
+  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
+  ASSERT(num_unsaved >= 0);
+  Subu(sp, sp, Operand(num_unsaved * kPointerSize));
+  MultiPush(kSafepointSavedRegisters);
+}
+
+void MacroAssembler::PopSafepointRegisters() {
+  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
+  MultiPop(kSafepointSavedRegisters);
+  Addu(sp, sp, Operand(num_unsaved * kPointerSize));
+}
+
+void MacroAssembler::PushSafepointRegistersAndDoubles() {
+  PushSafepointRegisters();
+  Subu(sp, sp, Operand(FPURegister::kNumAllocatableRegisters * kDoubleSize));
+  for (int i = 0; i < FPURegister::kNumAllocatableRegisters; i+=2) {
+    FPURegister reg = FPURegister::FromAllocationIndex(i);
+    sdc1(reg, MemOperand(sp, i * kDoubleSize));
+  }
+}
+
+void MacroAssembler::PopSafepointRegistersAndDoubles() {
+  for (int i = 0; i < FPURegister::kNumAllocatableRegisters; i+=2) {
+    FPURegister reg = FPURegister::FromAllocationIndex(i);
+    ldc1(reg, MemOperand(sp, i * kDoubleSize));
+  }
+  Addu(sp, sp, Operand(FPURegister::kNumAllocatableRegisters * kDoubleSize));
+  PopSafepointRegisters();
+}
+
+void MacroAssembler::StoreToSafepointRegistersAndDoublesSlot(Register src,
+                                                             Register dst) {
+  sw(src, SafepointRegistersAndDoublesSlot(dst));
+}
+
+
+void MacroAssembler::StoreToSafepointRegisterSlot(Register src, Register dst) {
+  sw(src, SafepointRegisterSlot(dst));
+}
+
+
+void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
+  lw(dst, SafepointRegisterSlot(src));
+}
+
+
+int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
+  // The registers are pushed starting with the highest encoding,
+  // which means that lowest encodings are closest to the stack pointer.
+  return kSafepointRegisterStackIndexMap[reg_code];
+}
+
+
+MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
+  return MemOperand(sp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
+}
+
+
+MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
+  // General purpose registers are pushed last on the stack.
+  int doubles_size = FPURegister::kNumAllocatableRegisters * kDoubleSize;
+  int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
+  return MemOperand(sp, doubles_size + register_offset);
+}
+
+
+
 
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
@@ -1903,13 +1974,6 @@ void MacroAssembler::Call(Label* target) {
 }
 
 
-void MacroAssembler::Move(Register dst, Register src) {
-  if (!dst.is(src)) {
-    mov(dst, src);
-  }
-}
-
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 void MacroAssembler::DebugBreak() {
@@ -2585,16 +2649,55 @@ void MacroAssembler::CheckMap(Register obj,
 
 
 void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
+  CpuFeatures::Scope scope(FPU);
   if (IsMipsSoftFloatABI) {
-    mtc1(v0, dst);
-    mtc1(v1, FPURegister::from_code(dst.code() + 1));
+    Move(v0, v1, dst);
   } else {
-    if (!dst.is(f0)) {
-      mov_d(dst, f0);  // Reg f0 is o32 ABI FP return value.
-    }
+    Move(f0, dst);  // Reg f0 is o32 ABI FP return value.
   }
 }
 
+
+void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
+  CpuFeatures::Scope scope(FPU);
+  if (!IsMipsSoftFloatABI) {
+    Move(f12, dreg);
+  } else {
+    Move(a0, a1, dreg);
+  }
+}
+
+
+void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg1,
+                                             DoubleRegister dreg2) {
+  CpuFeatures::Scope scope(FPU);
+  if (!IsMipsSoftFloatABI) {
+    if (dreg2.is(f12)) {
+      ASSERT(!dreg1.is(f14));
+      Move(f14, dreg2);
+      Move(f12, dreg1);
+    } else {
+      Move(f12, dreg1);
+      Move(f14, dreg2);
+    }
+  } else {
+    Move(a0, a1, dreg1);
+    Move(a2, a3, dreg2);
+  }
+}
+
+
+void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg,
+                                             Register reg) {
+  CpuFeatures::Scope scope(FPU);
+  if (!IsMipsSoftFloatABI) {
+    Move(f12, dreg);
+    Move(a2, reg);
+  } else {
+    Move(a2, reg);
+    Move(a0, a1, dreg);
+  }
+}
 
 // -----------------------------------------------------------------------------
 // JavaScript invokes.
@@ -3490,14 +3593,27 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
   li(t8, Operand(ExternalReference(Isolate::k_context_address, isolate())));
   sw(cp, MemOperand(t8));
 
-  // Ensure we are not saving doubles, since it's not implemented yet.
-  ASSERT(save_doubles == 0);
+  const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
+  if (save_doubles) {
+    // The stack  must be allign to 0 modulo 8 for stores with sdc1.
+    ASSERT(kDoubleSize == frame_alignment);
+    if (frame_alignment > 0) {
+      ASSERT(IsPowerOf2(frame_alignment));
+      And(sp, sp, Operand(-frame_alignment));  // Align stack.
+    }
+    int space = FPURegister::kNumRegisters * kDoubleSize;
+    Subu(sp, sp, Operand(space));
+    // Remember: we only need to save every 2nd double FPU value.
+    for (int i = 0; i < FPURegister::kNumRegisters; i+=2) {
+      FPURegister reg = FPURegister::from_code(i);
+      sdc1(reg, MemOperand(sp, i * kDoubleSize));
+    }
+  }
 
   // Reserve place for the return address, stack space and an optional slot
   // (used by the DirectCEntryStub to hold the return value if a struct is
   // returned) and align the frame preparing for calling the runtime function.
   ASSERT(stack_space >= 0);
-  const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   Subu(sp, sp, Operand((stack_space + 2) * kPointerSize));
   if (frame_alignment > 0) {
     ASSERT(IsPowerOf2(frame_alignment));
@@ -3513,8 +3629,15 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     Register argument_count) {
-  // Ensure we are not restoring doubles, since it's not implemented yet.
-  ASSERT(save_doubles == 0);
+  // Optionally restore all double registers.
+  if (save_doubles) {
+    // Remember: we only need to restore every 2nd double FPU value.
+    lw(t8, MemOperand(fp, ExitFrameConstants::kSPOffset));
+    for (int i = 0; i < FPURegister::kNumRegisters; i+=2) {
+      FPURegister reg = FPURegister::from_code(i);
+      ldc1(reg, MemOperand(t8, i  * kDoubleSize + kPointerSize));
+    }
+  }
 
   // Clear top frame.
   li(t8, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
@@ -3835,6 +3958,17 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 
 
 #undef BRANCH_ARGS_CHECK
+
+
+void MacroAssembler::LoadInstanceDescriptors(Register map,
+                                             Register descriptors) {
+  lw(descriptors,
+     FieldMemOperand(map, Map::kInstanceDescriptorsOrBitField3Offset));
+  Label not_smi;
+  JumpIfNotSmi(descriptors, &not_smi);
+  li(descriptors, Operand(FACTORY->empty_descriptor_array()));
+  bind(&not_smi);
+}
 
 
 CodePatcher::CodePatcher(byte* address, int instructions)

@@ -930,8 +930,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // check for an enum cache.  Leave the map in a2 for the subsequent
   // prototype load.
   __ lw(a2, FieldMemOperand(a1, HeapObject::kMapOffset));
-  __ lw(a3, FieldMemOperand(a2, Map::kInstanceDescriptorsOffset));
-  __ Branch(&call_runtime, eq, a3, Operand(empty_descriptor_array_value));
+  __ lw(a3, FieldMemOperand(a2, Map::kInstanceDescriptorsOrBitField3Offset));
+  __ JumpIfSmi(a3, &call_runtime);
 
   // Check that there is an enum cache in the non-empty instance
   // descriptors (a3).  This is the case if the next enumeration
@@ -972,7 +972,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We got a map in register v0. Get the enumeration cache from it.
   __ bind(&use_cache);
-  __ lw(a1, FieldMemOperand(v0, Map::kInstanceDescriptorsOffset));
+  __ LoadInstanceDescriptors(v0, a1);
   __ lw(a1, FieldMemOperand(a1, DescriptorArray::kEnumerationIndexOffset));
   __ lw(a2, FieldMemOperand(a1, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
@@ -2551,7 +2551,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // Look for valueOf symbol in the descriptor array, and indicate false if
   // found. The type is not checked, so if it is a transition it is a false
   // negative.
-  __ lw(t0, FieldMemOperand(a1, Map::kInstanceDescriptorsOffset));
+  __ LoadInstanceDescriptors(a1, t0);
   __ lw(a3, FieldMemOperand(t0, FixedArray::kLengthOffset));
   // t0: descriptor array
   // a3: length of descriptor array
@@ -2866,11 +2866,9 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
     // 0x41300000 is the top half of 1.0 x 2^20 as a double.
     __ li(a1, Operand(0x41300000));
     // Move 0x41300000xxxxxxxx (x = random bits in v0) to FPU.
-    __ mtc1(a1, f13);
-    __ mtc1(v0, f12);
+    __ Move(f12, v0, a1);
     // Move 0x4130000000000000 to FPU.
-    __ mtc1(a1, f15);
-    __ mtc1(zero_reg, f14);
+    __ Move(f14, zero_reg, a1);
     // Subtract and store the result in the heap number.
     __ sub_d(f0, f12, f14);
     __ sdc1(f0, MemOperand(s0, HeapNumber::kValueOffset - kHeapObjectTag));
