@@ -44,6 +44,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
+
 static unsigned GetPropertyId(Property* property) {
   if (property->is_synthetic()) return AstNode::kNoNumber;
   return property->id();
