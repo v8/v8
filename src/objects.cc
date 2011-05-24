@@ -2535,8 +2535,8 @@ bool NormalizedMapCache::CheckHit(Map* slow,
                                     fast->inobject_properties()) &&
     slow->instance_type() == fast->instance_type() &&
     slow->bit_field() == fast->bit_field() &&
-    slow->bit_field3() == fast->bit_field3() &&
-    (slow->bit_field2() & ~(1<<Map::kIsShared)) == fast->bit_field2();
+    slow->bit_field2() == fast->bit_field2() &&
+    (slow->bit_field3() & ~(1<<Map::kIsShared)) == fast->bit_field3();
 }
 
 

@@ -3989,8 +3989,10 @@ class Map: public HeapObject {
   static const int kHasFastElements = 2;
   static const int kStringWrapperSafeForDefaultValueOf = 3;
   static const int kAttachedToSharedFunctionInfo = 4;
-  static const int kIsShared = 5;
-  static const int kHasExternalArrayElements = 6;
+  static const int kHasExternalArrayElements = 5;
+
+  // Bit positions for bit field 3
+  static const int kIsShared = 1;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;
