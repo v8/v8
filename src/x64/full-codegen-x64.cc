@@ -1672,7 +1672,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 
   __ bind(&stub_call);
   __ movq(rax, rcx);
-  TypeRecordingBinaryOpStub stub(op, mode);
+  BinaryOpStub stub(op, mode);
   EmitCallIC(stub.GetCode(), &patch_site, expr->id());
   __ jmp(&done, Label::kNear);
 
@@ -1719,7 +1719,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
                                      Token::Value op,
                                      OverwriteMode mode) {
   __ pop(rdx);
-  TypeRecordingBinaryOpStub stub(op, mode);
+  BinaryOpStub stub(op, mode);
   // NULL signals no inlined smi code.
   EmitCallIC(stub.GetCode(), NULL, expr->id());
   context()->Plug(rax);
@@ -3727,8 +3727,8 @@ void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
   bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
   UnaryOverwriteMode overwrite =
       can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-  TypeRecordingUnaryOpStub stub(expr->op(), overwrite);
-  // TypeRecordingUnaryOpStub expects the argument to be in the
+  UnaryOpStub stub(expr->op(), overwrite);
+  // UnaryOpStub expects the argument to be in the
   // accumulator register rax.
   VisitForAccumulatorValue(expr->expression());
   SetSourcePosition(expr->position());
@@ -3856,7 +3856,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   SetSourcePosition(expr->position());
 
   // Call stub for +1/-1.
-  TypeRecordingBinaryOpStub stub(expr->binary_op(), NO_OVERWRITE);
+  BinaryOpStub stub(expr->binary_op(), NO_OVERWRITE);
   if (expr->op() == Token::INC) {
     __ Move(rdx, Smi::FromInt(1));
   } else {

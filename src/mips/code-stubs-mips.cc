@@ -1807,14 +1807,13 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
-Handle<Code> GetTypeRecordingUnaryOpStub(int key,
-                                         TRUnaryOpIC::TypeInfo type_info) {
-  TypeRecordingUnaryOpStub stub(key, type_info);
+Handle<Code> GetUnaryOpStub(int key, UnaryOpIC::TypeInfo type_info) {
+  UnaryOpStub stub(key, type_info);
   return stub.GetCode();
 }
 
 
-const char* TypeRecordingUnaryOpStub::GetName() {
+const char* UnaryOpStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
   name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
@@ -1828,34 +1827,34 @@ const char* TypeRecordingUnaryOpStub::GetName() {
   }
 
   OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "TypeRecordingUnaryOpStub_%s_%s_%s",
+               "UnaryOpStub_%s_%s_%s",
                op_name,
                overwrite_name,
-               TRUnaryOpIC::GetName(operand_type_));
+               UnaryOpIC::GetName(operand_type_));
   return name_;
 }
 
 
 // TODO(svenpanne): Use virtual functions instead of switch.
-void TypeRecordingUnaryOpStub::Generate(MacroAssembler* masm) {
+void UnaryOpStub::Generate(MacroAssembler* masm) {
   switch (operand_type_) {
-    case TRUnaryOpIC::UNINITIALIZED:
+    case UnaryOpIC::UNINITIALIZED:
       GenerateTypeTransition(masm);
       break;
-    case TRUnaryOpIC::SMI:
+    case UnaryOpIC::SMI:
       GenerateSmiStub(masm);
       break;
-    case TRUnaryOpIC::HEAP_NUMBER:
+    case UnaryOpIC::HEAP_NUMBER:
       GenerateHeapNumberStub(masm);
       break;
-    case TRUnaryOpIC::GENERIC:
+    case UnaryOpIC::GENERIC:
       GenerateGenericStub(masm);
       break;
   }
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
+void UnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   // Argument is in a0 and v0 at this point, so we can overwrite a0.
   // Push this stub's key. Although the operation and the type info are
   // encoded into the key, the encoding is opaque, so push them too.
@@ -1866,7 +1865,7 @@ void TypeRecordingUnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   __ Push(v0, a2, a1, a0);
 
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kTypeRecordingUnaryOp_Patch),
+      ExternalReference(IC_Utility(IC::kUnaryOp_Patch),
                         masm->isolate()),
       4,
       1);
@@ -1874,7 +1873,7 @@ void TypeRecordingUnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
 
 
 // TODO(svenpanne): Use virtual functions instead of switch.
-void TypeRecordingUnaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   switch (op_) {
     case Token::SUB:
       GenerateSmiStubSub(masm);
@@ -1888,7 +1887,7 @@ void TypeRecordingUnaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateSmiStubSub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateSmiStubSub(MacroAssembler* masm) {
   Label non_smi, slow;
   GenerateSmiCodeSub(masm, &non_smi, &slow);
   __ bind(&non_smi);
@@ -1897,7 +1896,7 @@ void TypeRecordingUnaryOpStub::GenerateSmiStubSub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
+void UnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
   Label non_smi;
   GenerateSmiCodeBitNot(masm, &non_smi);
   __ bind(&non_smi);
@@ -1905,9 +1904,9 @@ void TypeRecordingUnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
-                                                  Label* non_smi,
-                                                  Label* slow) {
+void UnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
+                                     Label* non_smi,
+                                     Label* slow) {
   __ JumpIfNotSmi(a0, non_smi);
 
   // The result of negating zero or the smallest negative smi is not a smi.
@@ -1920,8 +1919,8 @@ void TypeRecordingUnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateSmiCodeBitNot(MacroAssembler* masm,
-                                                     Label* non_smi) {
+void UnaryOpStub::GenerateSmiCodeBitNot(MacroAssembler* masm,
+                                        Label* non_smi) {
   __ JumpIfNotSmi(a0, non_smi);
 
   // Flip bits and revert inverted smi-tag.
@@ -1932,7 +1931,7 @@ void TypeRecordingUnaryOpStub::GenerateSmiCodeBitNot(MacroAssembler* masm,
 
 
 // TODO(svenpanne): Use virtual functions instead of switch.
-void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
   switch (op_) {
     case Token::SUB:
       GenerateHeapNumberStubSub(masm);
@@ -1946,7 +1945,7 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
   Label non_smi, slow, call_builtin;
   GenerateSmiCodeSub(masm, &non_smi, &call_builtin);
   __ bind(&non_smi);
@@ -1958,8 +1957,7 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateHeapNumberStubBitNot(
-    MacroAssembler* masm) {
+void UnaryOpStub::GenerateHeapNumberStubBitNot(MacroAssembler* masm) {
   Label non_smi, slow;
   GenerateSmiCodeBitNot(masm, &non_smi);
   __ bind(&non_smi);
@@ -1968,8 +1966,8 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStubBitNot(
   GenerateTypeTransition(masm);
 }
 
-void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
-                                                         Label* slow) {
+void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
+                                            Label* slow) {
   EmitCheckForHeapNumber(masm, a0, a1, t2, slow);
   // a0 is a heap number.  Get a new heap number in a1.
   if (mode_ == UNARY_OVERWRITE) {
@@ -2001,8 +1999,9 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
-    MacroAssembler* masm, Label* slow) {
+void UnaryOpStub::GenerateHeapNumberCodeBitNot(
+    MacroAssembler* masm,
+    Label* slow) {
   EmitCheckForHeapNumber(masm, a0, a1, t2, slow);
   // Convert the heap number in a0 to an untagged integer in a1.
   __ ConvertToInt32(a0, a1, a2, a3, f0, slow);
@@ -2051,7 +2050,7 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
 
 
 // TODO(svenpanne): Use virtual functions instead of switch.
-void TypeRecordingUnaryOpStub::GenerateGenericStub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateGenericStub(MacroAssembler* masm) {
   switch (op_) {
     case Token::SUB:
       GenerateGenericStubSub(masm);
@@ -2065,7 +2064,7 @@ void TypeRecordingUnaryOpStub::GenerateGenericStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm) {
   Label non_smi, slow;
   GenerateSmiCodeSub(masm, &non_smi, &slow);
   __ bind(&non_smi);
@@ -2075,7 +2074,7 @@ void TypeRecordingUnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateGenericStubBitNot(MacroAssembler* masm) {
+void UnaryOpStub::GenerateGenericStubBitNot(MacroAssembler* masm) {
   Label non_smi, slow;
   GenerateSmiCodeBitNot(masm, &non_smi);
   __ bind(&non_smi);
@@ -2085,7 +2084,7 @@ void TypeRecordingUnaryOpStub::GenerateGenericStubBitNot(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateGenericCodeFallback(
+void UnaryOpStub::GenerateGenericCodeFallback(
     MacroAssembler* masm) {
   // Handle the slow case by jumping to the JavaScript builtin.
   __ push(a0);
@@ -2102,15 +2101,15 @@ void TypeRecordingUnaryOpStub::GenerateGenericCodeFallback(
 }
 
 
-Handle<Code> GetTypeRecordingBinaryOpStub(int key,
-    TRBinaryOpIC::TypeInfo type_info,
-    TRBinaryOpIC::TypeInfo result_type_info) {
-  TypeRecordingBinaryOpStub stub(key, type_info, result_type_info);
+Handle<Code> GetBinaryOpStub(int key,
+                             BinaryOpIC::TypeInfo type_info,
+                             BinaryOpIC::TypeInfo result_type_info) {
+  BinaryOpStub stub(key, type_info, result_type_info);
   return stub.GetCode();
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
+void BinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   Label get_result;
 
   __ Push(a1, a0);
@@ -2121,43 +2120,43 @@ void TypeRecordingBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   __ Push(a2, a1, a0);
 
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch),
+      ExternalReference(IC_Utility(IC::kBinaryOp_Patch),
                         masm->isolate()),
       5,
       1);
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateTypeTransitionWithSavedArgs(
+void BinaryOpStub::GenerateTypeTransitionWithSavedArgs(
     MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
 
-void TypeRecordingBinaryOpStub::Generate(MacroAssembler* masm) {
+void BinaryOpStub::Generate(MacroAssembler* masm) {
   switch (operands_type_) {
-    case TRBinaryOpIC::UNINITIALIZED:
+    case BinaryOpIC::UNINITIALIZED:
       GenerateTypeTransition(masm);
       break;
-    case TRBinaryOpIC::SMI:
+    case BinaryOpIC::SMI:
       GenerateSmiStub(masm);
       break;
-    case TRBinaryOpIC::INT32:
+    case BinaryOpIC::INT32:
       GenerateInt32Stub(masm);
       break;
-    case TRBinaryOpIC::HEAP_NUMBER:
+    case BinaryOpIC::HEAP_NUMBER:
       GenerateHeapNumberStub(masm);
       break;
-    case TRBinaryOpIC::ODDBALL:
+    case BinaryOpIC::ODDBALL:
       GenerateOddballStub(masm);
       break;
-    case TRBinaryOpIC::BOTH_STRING:
+    case BinaryOpIC::BOTH_STRING:
       GenerateBothStringStub(masm);
       break;
-    case TRBinaryOpIC::STRING:
+    case BinaryOpIC::STRING:
       GenerateStringStub(masm);
       break;
-    case TRBinaryOpIC::GENERIC:
+    case BinaryOpIC::GENERIC:
       GenerateGeneric(masm);
       break;
     default:
@@ -2166,7 +2165,7 @@ void TypeRecordingBinaryOpStub::Generate(MacroAssembler* masm) {
 }
 
 
-const char* TypeRecordingBinaryOpStub::GetName() {
+const char* BinaryOpStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
   name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
@@ -2182,17 +2181,16 @@ const char* TypeRecordingBinaryOpStub::GetName() {
   }
 
   OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "TypeRecordingBinaryOpStub_%s_%s_%s",
+               "BinaryOpStub_%s_%s_%s",
                op_name,
                overwrite_name,
-               TRBinaryOpIC::GetName(operands_type_));
+               BinaryOpIC::GetName(operands_type_));
   return name_;
 }
 
 
 
-void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
-    MacroAssembler* masm) {
+void BinaryOpStub::GenerateSmiSmiOperation(MacroAssembler* masm) {
   Register left = a1;
   Register right = a0;
 
@@ -2346,10 +2344,10 @@ void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
-                                                    bool smi_operands,
-                                                    Label* not_numbers,
-                                                    Label* gc_required) {
+void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
+                                       bool smi_operands,
+                                       Label* not_numbers,
+                                       Label* gc_required) {
   Register left = a1;
   Register right = a0;
   Register scratch1 = t3;
@@ -2562,7 +2560,8 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
 // generated. If the result is not a smi and heap number allocation is not
 // requested the code falls through. If number allocation is requested but a
 // heap number cannot be allocated the code jumps to the lable gc_required.
-void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
+void BinaryOpStub::GenerateSmiCode(
+    MacroAssembler* masm,
     Label* use_runtime,
     Label* gc_required,
     SmiCodeGenerateHeapNumberResults allow_heapnumber_results) {
@@ -2590,11 +2589,11 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
+void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   Label not_smis, call_runtime;
 
-  if (result_type_ == TRBinaryOpIC::UNINITIALIZED ||
-      result_type_ == TRBinaryOpIC::SMI) {
+  if (result_type_ == BinaryOpIC::UNINITIALIZED ||
+      result_type_ == BinaryOpIC::SMI) {
     // Only allow smi results.
     GenerateSmiCode(masm, &call_runtime, NULL, NO_HEAPNUMBER_RESULTS);
   } else {
@@ -2615,18 +2614,18 @@ void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
-  ASSERT(operands_type_ == TRBinaryOpIC::STRING);
+void BinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
+  ASSERT(operands_type_ == BinaryOpIC::STRING);
   // Try to add arguments as strings, otherwise, transition to the generic
-  // TRBinaryOpIC type.
+  // BinaryOpIC type.
   GenerateAddStrings(masm);
   GenerateTypeTransition(masm);
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
+void BinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
   Label call_runtime;
-  ASSERT(operands_type_ == TRBinaryOpIC::BOTH_STRING);
+  ASSERT(operands_type_ == BinaryOpIC::BOTH_STRING);
   ASSERT(op_ == Token::ADD);
   // If both arguments are strings, call the string add stub.
   // Otherwise, do a transition.
@@ -2654,8 +2653,8 @@ void TypeRecordingBinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
-  ASSERT(operands_type_ == TRBinaryOpIC::INT32);
+void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
+  ASSERT(operands_type_ == BinaryOpIC::INT32);
 
   Register left = a1;
   Register right = a0;
@@ -2764,7 +2763,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           __ srl(scratch2, scratch2, kFCSRFlagShift);
           __ And(scratch2, scratch2, kFCSRFlagMask);
 
-          if (result_type_ <= TRBinaryOpIC::INT32) {
+          if (result_type_ <= BinaryOpIC::INT32) {
             // If scratch2 != 0, result does not fit in a 32-bit integer.
             __ Branch(&transition, ne, scratch2, Operand(zero_reg));
           }
@@ -2789,8 +2788,8 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // DIV just falls through to allocating a heap number.
         }
 
-        if (result_type_ >= (op_ == Token::DIV) ? TRBinaryOpIC::HEAP_NUMBER
-                                                : TRBinaryOpIC::INT32) {
+        if (result_type_ >= (op_ == Token::DIV) ? BinaryOpIC::HEAP_NUMBER
+                                                : BinaryOpIC::INT32) {
           __ bind(&return_heap_number);
           // We are using FPU registers so s0 is available.
           heap_number_result = s0;
@@ -2898,14 +2897,14 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // The non FPU code does not support this special case, so jump to
           // runtime if we don't support it.
           if (CpuFeatures::IsSupported(FPU)) {
-            __ Branch((result_type_ <= TRBinaryOpIC::INT32)
+            __ Branch((result_type_ <= BinaryOpIC::INT32)
                         ? &transition
                         : &return_heap_number,
                        lt,
                        a2,
                        Operand(zero_reg));
           } else {
-            __ Branch((result_type_ <= TRBinaryOpIC::INT32)
+            __ Branch((result_type_ <= BinaryOpIC::INT32)
                         ? &transition
                         : &call_runtime,
                        lt,
@@ -2980,7 +2979,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
+void BinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
   Label call_runtime;
 
   if (op_ == Token::ADD) {
@@ -3013,7 +3012,7 @@ void TypeRecordingBinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
+void BinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
   Label call_runtime;
   GenerateFPOperation(masm, false, &call_runtime, &call_runtime);
 
@@ -3022,7 +3021,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
+void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
   Label call_runtime, call_string_add_or_runtime;
 
   GenerateSmiCode(masm, &call_runtime, &call_runtime, ALLOW_HEAPNUMBER_RESULTS);
@@ -3039,7 +3038,7 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
+void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   ASSERT(op_ == Token::ADD);
   Label left_not_string, call_runtime;
 
@@ -3070,7 +3069,7 @@ void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
+void BinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
   GenerateRegisterArgsPush(masm);
   switch (op_) {
     case Token::ADD:
@@ -3112,7 +3111,7 @@ void TypeRecordingBinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateHeapResultAllocation(
+void BinaryOpStub::GenerateHeapResultAllocation(
     MacroAssembler* masm,
     Register result,
     Register heap_number_map,
@@ -3146,7 +3145,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapResultAllocation(
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
+void BinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
   __ Push(a1, a0);
 }
 

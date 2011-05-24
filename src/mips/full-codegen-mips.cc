@@ -1723,14 +1723,14 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   patch_site.EmitJumpIfSmi(scratch1, &smi_case);
 
   __ bind(&stub_call);
-  TypeRecordingBinaryOpStub stub(op, mode);
+  BinaryOpStub stub(op, mode);
   EmitCallIC(stub.GetCode(), &patch_site, expr->id());
   __ jmp(&done);
 
   __ bind(&smi_case);
   // Smi case. This code works the same way as the smi-smi case in the type
   // recording binary operation stub, see
-  // TypeRecordingBinaryOpStub::GenerateSmiSmiOperation for comments.
+  // BinaryOpStub::GenerateSmiSmiOperation for comments.
   switch (op) {
     case Token::SAR:
       __ Branch(&stub_call);
@@ -1804,7 +1804,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
                                      OverwriteMode mode) {
   __ mov(a0, result_register());
   __ pop(a1);
-  TypeRecordingBinaryOpStub stub(op, mode);
+  BinaryOpStub stub(op, mode);
   EmitCallIC(stub.GetCode(), NULL, expr->id());
   context()->Plug(v0);
 }
@@ -3807,8 +3807,8 @@ void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
   bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
   UnaryOverwriteMode overwrite =
       can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-  TypeRecordingUnaryOpStub stub(expr->op(), overwrite);
-  // TypeRecordingGenericUnaryOpStub expects the argument to be in a0.
+  UnaryOpStub stub(expr->op(), overwrite);
+  // GenericUnaryOpStub expects the argument to be in a0.
   VisitForAccumulatorValue(expr->expression());
   SetSourcePosition(expr->position());
   __ mov(a0, result_register());
@@ -3929,7 +3929,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Record position before stub call.
   SetSourcePosition(expr->position());
 
-  TypeRecordingBinaryOpStub stub(Token::ADD, NO_OVERWRITE);
+  BinaryOpStub stub(Token::ADD, NO_OVERWRITE);
   EmitCallIC(stub.GetCode(), &patch_site, expr->CountId());
   __ bind(&done);
 

@@ -1568,8 +1568,8 @@ static void ReportCodeKindStatistics() {
       CASE(KEYED_STORE_IC);
       CASE(CALL_IC);
       CASE(KEYED_CALL_IC);
-      CASE(TYPE_RECORDING_UNARY_OP_IC);
-      CASE(TYPE_RECORDING_BINARY_OP_IC);
+      CASE(UNARY_OP_IC);
+      CASE(BINARY_OP_IC);
       CASE(COMPARE_IC);
     }
   }

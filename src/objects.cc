@@ -6591,8 +6591,8 @@ const char* Code::Kind2String(Kind kind) {
     case KEYED_STORE_IC: return "KEYED_STORE_IC";
     case CALL_IC: return "CALL_IC";
     case KEYED_CALL_IC: return "KEYED_CALL_IC";
-    case TYPE_RECORDING_UNARY_OP_IC: return "TYPE_RECORDING_UNARY_OP_IC";
-    case TYPE_RECORDING_BINARY_OP_IC: return "TYPE_RECORDING_BINARY_OP_IC";
+    case UNARY_OP_IC: return "UNARY_OP_IC";
+    case BINARY_OP_IC: return "BINARY_OP_IC";
     case COMPARE_IC: return "COMPARE_IC";
   }
   UNREACHABLE();

@@ -56,8 +56,8 @@ namespace internal {
   ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)                       \
-  ICU(TypeRecordingUnaryOp_Patch)                     \
-  ICU(TypeRecordingBinaryOp_Patch)                    \
+  ICU(UnaryOp_Patch)                                  \
+  ICU(BinaryOp_Patch)                                 \
   ICU(CompareIC_Miss)
 //
 // IC is the base class for LoadIC, StoreIC, CallIC, KeyedLoadIC,
@@ -621,7 +621,7 @@ class KeyedStoreIC: public KeyedIC {
 };
 
 
-class TRUnaryOpIC: public IC {
+class UnaryOpIC: public IC {
  public:
 
   // sorted: increasingly more unspecific (ignoring UNINITIALIZED)
@@ -633,7 +633,7 @@ class TRUnaryOpIC: public IC {
     GENERIC
   };
 
-  explicit TRUnaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
+  explicit UnaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
 
   void patch(Code* code);
 
@@ -648,7 +648,7 @@ class TRUnaryOpIC: public IC {
 
 
 // Type Recording BinaryOpIC, that records the types of the inputs and outputs.
-class TRBinaryOpIC: public IC {
+class BinaryOpIC: public IC {
  public:
 
   enum TypeInfo {
@@ -662,7 +662,7 @@ class TRBinaryOpIC: public IC {
     GENERIC
   };
 
-  explicit TRBinaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
+  explicit BinaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
 
   void patch(Code* code);
 
@@ -716,7 +716,7 @@ class CompareIC: public IC {
   Token::Value op_;
 };
 
-// Helper for TRBinaryOpIC and CompareIC.
+// Helper for BinaryOpIC and CompareIC.
 void PatchInlinedSmiCode(Address address);
 
 } }  // namespace v8::internal

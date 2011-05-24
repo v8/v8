@@ -1093,7 +1093,7 @@ void LCodeGen::DoDeferredBinaryOpStub(LTemplateInstruction<1, 2, T>* instr,
     __ mov(r0, right);
     __ mov(r1, left);
   }
-  TypeRecordingBinaryOpStub stub(op, OVERWRITE_LEFT);
+  BinaryOpStub stub(op, OVERWRITE_LEFT);
   __ CallStub(&stub);
   RecordSafepointWithRegistersAndDoubles(instr->pointer_map(),
                                          0,
@@ -1399,7 +1399,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   ASSERT(ToRegister(instr->InputAt(1)).is(r0));
   ASSERT(ToRegister(instr->result()).is(r0));
 
-  TypeRecordingBinaryOpStub stub(instr->op(), NO_OVERWRITE);
+  BinaryOpStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 

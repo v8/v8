@@ -3306,8 +3306,8 @@ class Code: public HeapObject {
     KEYED_CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
-    TYPE_RECORDING_UNARY_OP_IC,
-    TYPE_RECORDING_BINARY_OP_IC,
+    UNARY_OP_IC,
+    BINARY_OP_IC,
     COMPARE_IC,
     // No more than 16 kinds. The value currently encoded in four bits in
     // Flags.
@@ -3381,11 +3381,11 @@ class Code: public HeapObject {
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
   inline bool is_call_stub() { return kind() == CALL_IC; }
   inline bool is_keyed_call_stub() { return kind() == KEYED_CALL_IC; }
-  inline bool is_type_recording_unary_op_stub() {
-    return kind() == TYPE_RECORDING_UNARY_OP_IC;
+  inline bool is_unary_op_stub() {
+    return kind() == UNARY_OP_IC;
   }
-  inline bool is_type_recording_binary_op_stub() {
-    return kind() == TYPE_RECORDING_BINARY_OP_IC;
+  inline bool is_binary_op_stub() {
+    return kind() == BINARY_OP_IC;
   }
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
 
@@ -3435,15 +3435,15 @@ class Code: public HeapObject {
   inline ExternalArrayType external_array_type();
   inline void set_external_array_type(ExternalArrayType value);
 
-  // [type-recording unary op type]: For all TYPE_RECORDING_UNARY_OP_IC.
-  inline byte type_recording_unary_op_type();
-  inline void set_type_recording_unary_op_type(byte value);
+  // [type-recording unary op type]: For all UNARY_OP_IC.
+  inline byte unary_op_type();
+  inline void set_unary_op_type(byte value);
 
   // [type-recording binary op type]: For all TYPE_RECORDING_BINARY_OP_IC.
-  inline byte type_recording_binary_op_type();
-  inline void set_type_recording_binary_op_type(byte value);
-  inline byte type_recording_binary_op_result_type();
-  inline void set_type_recording_binary_op_result_type(byte value);
+  inline byte binary_op_type();
+  inline void set_binary_op_type(byte value);
+  inline byte binary_op_result_type();
+  inline void set_binary_op_result_type(byte value);
 
   // [compare state]: For kind compare IC stubs, tells what state the
   // stub is in.

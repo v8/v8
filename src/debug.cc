@@ -167,8 +167,8 @@ void BreakLocationIterator::Next() {
       Address target = original_rinfo()->target_address();
       Code* code = Code::GetCodeFromTargetAddress(target);
       if ((code->is_inline_cache_stub() &&
-           !code->is_type_recording_binary_op_stub() &&
-           !code->is_type_recording_unary_op_stub() &&
+           !code->is_binary_op_stub() &&
+           !code->is_unary_op_stub() &&
            !code->is_compare_ic_stub()) ||
           RelocInfo::IsConstructCall(rmode())) {
         break_point_++;
