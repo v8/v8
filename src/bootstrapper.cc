@@ -171,7 +171,7 @@ class Genesis BASE_EMBEDDED {
   // Creates the empty function.  Used for creating a context from scratch.
   Handle<JSFunction> CreateEmptyFunction(Isolate* isolate);
   // Creates the ThrowTypeError function. ECMA 5th Ed. 13.2.3
-  Handle<JSFunction> CreateThrowTypeErrorFunction(Builtins::Name builtin);
+  Handle<JSFunction> GetThrowTypeErrorFunction();
 
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
   // Creates the global objects using the global and the template passed in
@@ -265,6 +265,7 @@ class Genesis BASE_EMBEDDED {
   // These are the final, writable prototype, maps.
   Handle<Map> function_instance_map_writable_prototype_;
   Handle<Map> strict_mode_function_instance_map_writable_prototype_;
+  Handle<JSFunction> throw_type_error_function;
 
   BootstrapperActive active_;
   friend class Bootstrapper;
@@ -549,22 +550,22 @@ Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
 
 
 // ECMAScript 5th Edition, 13.2.3
-Handle<JSFunction> Genesis::CreateThrowTypeErrorFunction(
-    Builtins::Name builtin) {
-  Handle<String> name = factory()->LookupAsciiSymbol("ThrowTypeError");
-  Handle<JSFunction> throw_type_error =
-      factory()->NewFunctionWithoutPrototype(name, kStrictMode);
-  Handle<Code> code = Handle<Code>(
-      isolate()->builtins()->builtin(builtin));
+Handle<JSFunction> Genesis::GetThrowTypeErrorFunction() {
+  if (throw_type_error_function.is_null()) {
+    Handle<String> name = factory()->LookupAsciiSymbol("ThrowTypeError");
+    throw_type_error_function =
+      factory()->NewFunctionWithoutPrototype(name, kNonStrictMode);
+    Handle<Code> code(isolate()->builtins()->builtin(
+        Builtins::kStrictModePoisonPill));
+    throw_type_error_function->set_map(
+        global_context()->function_map());
+    throw_type_error_function->set_code(*code);
+    throw_type_error_function->shared()->set_code(*code);
+    throw_type_error_function->shared()->DontAdaptArguments();
 
-  throw_type_error->set_map(global_context()->strict_mode_function_map());
-  throw_type_error->set_code(*code);
-  throw_type_error->shared()->set_code(*code);
-  throw_type_error->shared()->DontAdaptArguments();
-
-  PreventExtensions(throw_type_error);
-
-  return throw_type_error;
+    PreventExtensions(throw_type_error_function);
+  }
+  return throw_type_error_function;
 }
 
 
@@ -621,17 +622,15 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
       CreateStrictModeFunctionMap(
           ADD_WRITEABLE_PROTOTYPE, empty, arguments, caller);
 
-  // Create the ThrowTypeError function instances.
-  Handle<JSFunction> arguments_throw =
-      CreateThrowTypeErrorFunction(Builtins::kStrictFunctionArguments);
-  Handle<JSFunction> caller_throw =
-      CreateThrowTypeErrorFunction(Builtins::kStrictFunctionCaller);
+  // Create the ThrowTypeError function instance.
+  Handle<JSFunction> throw_function =
+      GetThrowTypeErrorFunction();
 
   // Complete the callback fixed arrays.
-  arguments->set(0, *arguments_throw);
-  arguments->set(1, *arguments_throw);
-  caller->set(0, *caller_throw);
-  caller->set(1, *caller_throw);
+  arguments->set(0, *throw_function);
+  arguments->set(1, *throw_function);
+  caller->set(0, *throw_function);
+  caller->set(1, *throw_function);
 }
 
 
@@ -1061,16 +1060,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<FixedArray> callee = factory->NewFixedArray(2, TENURED);
     Handle<FixedArray> caller = factory->NewFixedArray(2, TENURED);
 
-    Handle<JSFunction> callee_throw =
-        CreateThrowTypeErrorFunction(Builtins::kStrictArgumentsCallee);
-    Handle<JSFunction> caller_throw =
-        CreateThrowTypeErrorFunction(Builtins::kStrictArgumentsCaller);
+    Handle<JSFunction> throw_function =
+        GetThrowTypeErrorFunction();
 
     // Install the ThrowTypeError functions.
-    callee->set(0, *callee_throw);
-    callee->set(1, *callee_throw);
-    caller->set(0, *caller_throw);
-    caller->set(1, *caller_throw);
+    callee->set(0, *throw_function);
+    callee->set(1, *throw_function);
+    caller->set(0, *throw_function);
+    caller->set(1, *throw_function);
 
     // Create the descriptor array for the arguments object.
     Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(3);

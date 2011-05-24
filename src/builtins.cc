@@ -983,33 +983,11 @@ BUILTIN(ArrayConcat) {
 // Strict mode poison pills
 
 
-BUILTIN(StrictArgumentsCallee) {
+BUILTIN(StrictModePoisonPill) {
   HandleScope scope;
   return isolate->Throw(*isolate->factory()->NewTypeError(
-      "strict_arguments_callee", HandleVector<Object>(NULL, 0)));
+      "strict_poison_pill", HandleVector<Object>(NULL, 0)));
 }
-
-
-BUILTIN(StrictArgumentsCaller) {
-  HandleScope scope;
-  return isolate->Throw(*isolate->factory()->NewTypeError(
-      "strict_arguments_caller", HandleVector<Object>(NULL, 0)));
-}
-
-
-BUILTIN(StrictFunctionCaller) {
-  HandleScope scope;
-  return isolate->Throw(*isolate->factory()->NewTypeError(
-      "strict_function_caller", HandleVector<Object>(NULL, 0)));
-}
-
-
-BUILTIN(StrictFunctionArguments) {
-  HandleScope scope;
-  return isolate->Throw(*isolate->factory()->NewTypeError(
-      "strict_function_arguments", HandleVector<Object>(NULL, 0)));
-}
-
 
 // -----------------------------------------------------------------------------
 //

@@ -235,10 +235,7 @@ function FormatMessage(message) {
       strict_function:              ["In strict mode code, functions can only be declared at top level or immediately within another function." ],
       strict_read_only_property:    ["Cannot assign to read only property '", "%0", "' of ", "%1"],
       strict_cannot_assign:         ["Cannot assign to read only '", "%0", "' in strict mode"],
-      strict_arguments_callee:      ["Cannot access property 'callee' of strict mode arguments"],
-      strict_arguments_caller:      ["Cannot access property 'caller' of strict mode arguments"],
-      strict_function_caller:       ["Cannot access property 'caller' of a strict mode function"],
-      strict_function_arguments:    ["Cannot access property 'arguments' of a strict mode function"],
+      strict_poison_pill:           ["'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them"],
       strict_caller:                ["Illegal access to a strict mode caller function."],
     };
   }
