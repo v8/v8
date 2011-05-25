@@ -57,23 +57,11 @@ void MacroAssembler::CheckPageFlag(
 }
 
 
-void MacroAssembler::InOldSpaceIsBlack(Register object,
-                                       Register scratch0,
-                                       Register scratch1,
-                                       Label* is_black,
-                                       Label::Distance is_black_near) {
-  HasColour(object, scratch0, scratch1,
-            is_black, is_black_near,
-            1, 0);  // kBlackBitPattern.
-  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
-}
-
-
-void MacroAssembler::InNewSpaceIsBlack(Register object,
-                                       Register scratch0,
-                                       Register scratch1,
-                                       Label* is_black,
-                                       Label::Distance is_black_near) {
+void MacroAssembler::IsBlack(Register object,
+                             Register scratch0,
+                             Register scratch1,
+                             Label* is_black,
+                             Label::Distance is_black_near) {
   HasColour(object, scratch0, scratch1,
             is_black, is_black_near,
             1, 0);  // kBlackBitPattern.

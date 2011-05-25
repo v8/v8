@@ -108,19 +108,11 @@ class MacroAssembler: public Assembler {
                         int first_bit,
                         int second_bit);
 
-  inline void InOldSpaceIsBlack(
-      Register object,
-      Register scratch0,
-      Register scratch1,
-      Label* is_black,
-      Label::Distance is_black_distance = Label::kFar);
-
-  inline void InNewSpaceIsBlack(
-      Register object,
-      Register scratch0,
-      Register scratch1,
-      Label* is_black,
-      Label::Distance is_black_distance = Label::kFar);
+  inline void IsBlack(Register object,
+                      Register scratch0,
+                      Register scratch1,
+                      Label* is_black,
+                      Label::Distance is_black_distance = Label::kFar);
 
   // Checks the colour of an object.  If the object is already grey or black
   // then we just fall through, since it is already live.  If it is white and

@@ -6317,10 +6317,10 @@ void RecordWriteStub::GenerateIncrementalValueIsInNewSpace(
       masm, &value_in_new_space_object_is_black_no_remembered_set);
 
   __ bind(&both_in_new_space);
-  __ InNewSpaceIsBlack(regs_.object(),
-                       regs_.scratch0(),
-                       regs_.scratch1(),
-                       &value_in_new_space_object_is_black_no_remembered_set);
+  __ IsBlack(regs_.object(),
+             regs_.scratch0(),
+             regs_.scratch1(),
+             &value_in_new_space_object_is_black_no_remembered_set);
   regs_.Restore(masm);
   __ ret(0);
 }
@@ -6333,11 +6333,11 @@ void RecordWriteStub::
 
   // Lets look at the colour of the object:  If it is not black we don't have to
   // inform the incremental marker.
-  __ InOldSpaceIsBlack(regs_.object(),
-                       regs_.scratch0(),
-                       regs_.scratch1(),
-                       &object_is_black,
-                       Label::kNear);
+  __ IsBlack(regs_.object(),
+             regs_.scratch0(),
+             regs_.scratch1(),
+             &object_is_black,
+             Label::kNear);
   regs_.Restore(masm);
   __ RememberedSetHelper(address_, value_, save_fp_regs_mode_);
   __ ret(0);
@@ -6389,11 +6389,11 @@ void RecordWriteStub::
         Label* value_in_new_space_object_is_black_no_remembered_set) {
   Label object_is_black, inform_incremental_marker;
 
-  __ InOldSpaceIsBlack(regs_.object(),
-                       regs_.scratch0(),
-                       regs_.scratch1(),
-                       &object_is_black,
-                       Label::kNear);
+  __ IsBlack(regs_.object(),
+             regs_.scratch0(),
+             regs_.scratch1(),
+             &object_is_black,
+             Label::kNear);
   regs_.Restore(masm);
   __ ret(0);
 
@@ -6450,19 +6450,19 @@ void RecordWriteStub::GenerateIncrementalValueIsInOldSpace(
                 &value_in_old_space_and_white_object_in_new_space);
 
   // Both in old space, value is white and can't be marked.
-  __ InOldSpaceIsBlack(regs_.object(),
-                       regs_.scratch0(),
-                       regs_.scratch1(),
-                       &slow_);
+  __ IsBlack(regs_.object(),
+             regs_.scratch0(),
+             regs_.scratch1(),
+             &slow_);
   regs_.Restore(masm);
   __ ret(0);
 
   // Object in new space, value in old space and white and can't be marked.
   __ bind(&value_in_old_space_and_white_object_in_new_space);
-  __ InNewSpaceIsBlack(regs_.object(),
-                       regs_.scratch0(),
-                       regs_.scratch1(),
-                       &slow_);
+  __ IsBlack(regs_.object(),
+             regs_.scratch0(),
+             regs_.scratch1(),
+             &slow_);
   regs_.Restore(masm);
   __ ret(0);
 }
