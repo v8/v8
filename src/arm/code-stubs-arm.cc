@@ -1903,6 +1903,8 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
 
 void UnaryOpStub::GenerateHeapNumberCodeBitNot(
     MacroAssembler* masm, Label* slow) {
+  Label impossible;
+
   EmitCheckForHeapNumber(masm, r0, r1, r6, slow);
   // Convert the heap number is r0 to an untagged integer in r1.
   __ ConvertToInt32(r0, r1, r2, r3, d0, slow);
@@ -1921,17 +1923,27 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
   __ bind(&try_float);
   if (mode_ == UNARY_NO_OVERWRITE) {
     Label slow_allocate_heapnumber, heapnumber_allocated;
-    __ AllocateHeapNumber(r0, r2, r3, r6, &slow_allocate_heapnumber);
+    // Allocate a new heap number without zapping r0, which we need if it fails.
+    __ AllocateHeapNumber(r2, r3, r4, r6, &slow_allocate_heapnumber);
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
     __ EnterInternalFrame();
-    __ push(r1);
-      __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ pop(r1);
+    __ push(r0);  // Push the heap number, not the untagged int32.
+    __ CallRuntime(Runtime::kNumberAlloc, 0);
+    __ mov(r2, r0);  // Move the new heap number into r2.
+    // Get the heap number into r0, now that the new heap number is in r2.
+    __ pop(r0);
     __ LeaveInternalFrame();
 
+    // Convert the heap number in r0 to an untagged integer in r1.
+    // This can't go slow-case because it's the same number we already
+    // converted once again.
+    __ ConvertToInt32(r0, r1, r3, r4, d0, &impossible);
+    __ mvn(r1, Operand(r1));
+
     __ bind(&heapnumber_allocated);
+    __ mov(r0, r2);  // Move newly allocated heap number to r0.
   }
 
   if (CpuFeatures::IsSupported(VFP3)) {
@@ -1947,6 +1959,11 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
     // have to set up a frame.
     WriteInt32ToHeapNumberStub stub(r1, r0, r2);
     __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+  }
+
+  __ bind(&impossible);
+  if (FLAG_debug_code) {
+    __ stop("Incorrect assumption in bit-not stub");
   }
 }
 
