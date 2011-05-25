@@ -3439,9 +3439,9 @@ void MathPowStub::Generate(MacroAssembler* masm) {
                           &call_runtime);
     __ push(ra);
     __ PrepareCallCFunction(3, scratch);
-    __ SetCallCDoubleArguments(double_base, double_exponent);
+    __ SetCallCDoubleArguments(double_base, exponent);
     __ CallCFunction(
-        ExternalReference::power_double_int_function(masm->isolate()), 4);
+        ExternalReference::power_double_int_function(masm->isolate()), 3);
     __ pop(ra);
     __ GetCFunctionDoubleResult(double_result);
     __ sdc1(double_result,

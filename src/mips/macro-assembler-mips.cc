@@ -2651,9 +2651,9 @@ void MacroAssembler::CheckMap(Register obj,
 void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
   CpuFeatures::Scope scope(FPU);
   if (IsMipsSoftFloatABI) {
-    Move(v0, v1, dst);
+    Move(dst, v0, v1);
   } else {
-    Move(f0, dst);  // Reg f0 is o32 ABI FP return value.
+    Move(dst, f0);  // Reg f0 is o32 ABI FP return value.
   }
 }
 
