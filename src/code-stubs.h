@@ -43,6 +43,7 @@ namespace internal {
   V(SubString)                           \
   V(StringCompare)                       \
   V(Compare)                             \
+  V(CompareIC)                           \
   V(MathPow)                             \
   V(TranscendentalCache)                 \
   V(Instanceof)                          \
