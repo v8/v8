@@ -1196,14 +1196,19 @@ class HStackCheck: public HTemplateInstruction<0> {
 
 class HEnterInlined: public HTemplateInstruction<0> {
  public:
-  HEnterInlined(Handle<JSFunction> closure, FunctionLiteral* function)
-      : closure_(closure), function_(function) {
+  HEnterInlined(Handle<JSFunction> closure,
+                FunctionLiteral* function,
+                CallKind call_kind)
+      : closure_(closure),
+        function_(function),
+        call_kind_(call_kind) {
   }
 
   virtual void PrintDataTo(StringStream* stream);
 
   Handle<JSFunction> closure() const { return closure_; }
   FunctionLiteral* function() const { return function_; }
+  CallKind call_kind() const { return call_kind_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
@@ -1214,6 +1219,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
  private:
   Handle<JSFunction> closure_;
   FunctionLiteral* function_;
+  CallKind call_kind_;
 };
 
 

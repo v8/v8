@@ -1005,6 +1005,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
+    name_buffer_->AppendBytes(ComputeMarker(code));
     name_buffer_->AppendString(name);
   }
   if (FLAG_ll_prof) {
@@ -1047,6 +1048,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
+    name_buffer_->AppendBytes(ComputeMarker(code));
     name_buffer_->AppendString(shared->DebugName());
     name_buffer_->AppendByte(' ');
     name_buffer_->AppendString(source);
@@ -1602,8 +1604,8 @@ void Logger::LogCodeObject(Object* object) {
       case Code::FUNCTION:
       case Code::OPTIMIZED_FUNCTION:
         return;  // We log this later using LogCompiledFunctions.
-      case Code::TYPE_RECORDING_UNARY_OP_IC:   // fall through
-      case Code::TYPE_RECORDING_BINARY_OP_IC:   // fall through
+      case Code::UNARY_OP_IC:   // fall through
+      case Code::BINARY_OP_IC:   // fall through
       case Code::COMPARE_IC:  // fall through
       case Code::STUB:
         description =

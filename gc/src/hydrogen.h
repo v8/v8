@@ -404,7 +404,8 @@ class HEnvironment: public ZoneObject {
   HEnvironment* CopyForInlining(Handle<JSFunction> target,
                                 FunctionLiteral* function,
                                 CompilationPhase compilation_phase,
-                                HConstant* undefined) const;
+                                HConstant* undefined,
+                                CallKind call_kind) const;
 
   void AddIncomingEdge(HBasicBlock* block, HEnvironment* other);
 
@@ -660,20 +661,7 @@ class HGraphBuilder: public AstVisitor {
     BreakAndContinueScope* next_;
   };
 
-  HGraphBuilder(CompilationInfo* info, TypeFeedbackOracle* oracle)
-      : function_state_(NULL),
-        initial_function_state_(this, info, oracle),
-        ast_context_(NULL),
-        break_scope_(NULL),
-        graph_(NULL),
-        current_block_(NULL),
-        inlined_count_(0),
-        zone_(info->isolate()->zone()) {
-    // This is not initialized in the initializer list because the
-    // constructor for the initial state relies on function_state_ == NULL
-    // to know it's the initial state.
-    function_state_= &initial_function_state_;
-  }
+  HGraphBuilder(CompilationInfo* info, TypeFeedbackOracle* oracle);
 
   HGraph* CreateGraph();
 
@@ -687,6 +675,8 @@ class HGraphBuilder: public AstVisitor {
   HEnvironment* environment() const {
     return current_block()->last_environment();
   }
+
+  bool inline_bailout() { return inline_bailout_; }
 
   // Adding instructions.
   HInstruction* AddInstruction(HInstruction* instr);
@@ -857,7 +847,9 @@ class HGraphBuilder: public AstVisitor {
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a
   // non-NULL reason string.
-  void TraceInline(Handle<JSFunction> target, const char* failure_reason);
+  void TraceInline(Handle<JSFunction> target,
+                   Handle<JSFunction> caller,
+                   const char* failure_reason);
 
   void HandleGlobalVariableAssignment(Variable* var,
                                       HValue* value,
@@ -973,6 +965,8 @@ class HGraphBuilder: public AstVisitor {
   int inlined_count_;
 
   Zone* zone_;
+
+  bool inline_bailout_;
 
   friend class FunctionState;  // Pushes and pops the state stack.
   friend class AstContext;  // Pushes and pops the AST context stack.

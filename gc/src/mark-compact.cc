@@ -1257,6 +1257,11 @@ void MarkCompactCollector::ProcessNewlyMarkedObject(HeapObject* object) {
     if (FLAG_cleanup_code_caches_at_gc) {
       map->ClearCodeCache(heap());
     }
+
+    // When map collection is enabled we have to mark through map's transitions
+    // in a special way to make transition links weak.
+    // Only maps with instance types between FIRST_JS_OBJECT_TYPE and
+    // JS_FUNCTION_TYPE can have transitions.
     if (FLAG_collect_maps &&
         map->instance_type() >= FIRST_JS_OBJECT_TYPE &&
         map->instance_type() <= JS_FUNCTION_TYPE) {
@@ -1278,8 +1283,13 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
   MarkBit mark = Marking::MarkBitFrom(prototype_transitions);
   if (!mark.Get()) mark.Set();
 
-  MarkDescriptorArray(reinterpret_cast<DescriptorArray*>(
-      *HeapObject::RawField(map, Map::kInstanceDescriptorsOffset)));
+  Object* raw_descriptor_array =
+      *HeapObject::RawField(map,
+                            Map::kInstanceDescriptorsOrBitField3Offset);
+  if (!raw_descriptor_array->IsSmi()) {
+    MarkDescriptorArray(
+        reinterpret_cast<DescriptorArray*>(raw_descriptor_array));
+  }
 
   // Mark the Object* fields of the Map.
   // Since the descriptor array has been marked already, it is fine

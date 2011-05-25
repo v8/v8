@@ -712,14 +712,15 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
 }
 
 
-void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
+                              CallKind call_kind) {
   Property* property = expression()->AsProperty();
   ASSERT(property != NULL);
   // Specialize for the receiver types seen at runtime.
   Literal* key = property->key()->AsLiteral();
   ASSERT(key != NULL && key->handle()->IsString());
   Handle<String> name = Handle<String>::cast(key->handle());
-  receiver_types_ = oracle->CallReceiverTypes(this, name);
+  receiver_types_ = oracle->CallReceiverTypes(this, name, call_kind);
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) {
     if (receiver_types_ != NULL) {

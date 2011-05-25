@@ -79,6 +79,43 @@ static const int kNumSafepointSavedRegisters =
 
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
+static const int kUndefIndex = -1;
+// Map with indexes on stack that corresponds to codes of saved registers.
+static const int kSafepointRegisterStackIndexMap[kNumRegs] = {
+  kUndefIndex,
+  kUndefIndex,
+  0,  // v0
+  kUndefIndex,
+  1,  // a0
+  2,  // a1
+  3,  // a2
+  4,  // a3
+  kUndefIndex,
+  kUndefIndex,
+  kUndefIndex,
+  kUndefIndex,
+  kUndefIndex,
+  kUndefIndex,
+  kUndefIndex,
+  kUndefIndex,
+  5,  // Saved temporaries.
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  kUndefIndex,
+  kUndefIndex,
+  kUndefIndex,
+  kUndefIndex,
+  13,  // gp
+  14,  // sp
+  15,  // fp
+  kUndefIndex
+};
+
 
 // ----------------------------------------------------
 

@@ -74,7 +74,7 @@ void FunctionLoggingParserRecorder::LogMessage(int start_pos,
   function_store_.Add((arg_opt == NULL) ? 0 : 1);
   STATIC_ASSERT(PreparseDataConstants::kMessageTextPos == 3);
   WriteString(CStrVector(message));
-  if (arg_opt) WriteString(CStrVector(arg_opt));
+  if (arg_opt != NULL) WriteString(CStrVector(arg_opt));
   is_recording_ = false;
 }
 

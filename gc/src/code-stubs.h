@@ -34,16 +34,14 @@
 namespace v8 {
 namespace internal {
 
-// List of code stubs used on all platforms. The order in this list is important
-// as only the stubs up to and including Instanceof allows nested stub calls.
+// List of code stubs used on all platforms.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
-  V(TypeRecordingUnaryOp)                \
-  V(TypeRecordingBinaryOp)               \
+  V(UnaryOp)                             \
+  V(BinaryOp)                            \
   V(StringAdd)                           \
   V(SubString)                           \
   V(StringCompare)                       \
-  V(SmiOp)                               \
   V(Compare)                             \
   V(CompareIC)                           \
   V(MathPow)                             \
@@ -52,13 +50,19 @@ namespace internal {
   V(RegExpExec)                          \
   V(TranscendentalCache)                 \
   V(Instanceof)                          \
+  /* All stubs above this line only exist in a few versions, which are  */  \
+  /* generated ahead of time.  Therefore compiling a call to one of     */  \
+  /* them can't cause a new stub to be compiled, so compiling a call to */  \
+  /* them is GC safe.  The ones below this line exist in many variants  */  \
+  /* so code compiling a call to one can cause a GC.  This means they   */  \
+  /* can't be called from other stubs, since stub generation code is    */  \
+  /* not GC safe.                                                       */  \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
   V(StackCheck)                          \
   V(FastNewClosure)                      \
   V(FastNewContext)                      \
   V(FastCloneShallowArray)               \
-  V(GenericUnaryOp)                      \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \
   V(ToNumber)                            \
@@ -172,10 +176,10 @@ class CodeStub BASE_EMBEDDED {
   // lazily generated function should be fully optimized or not.
   virtual InLoopFlag InLoop() { return NOT_IN_LOOP; }
 
-  // TypeRecordingBinaryOpStub needs to override this.
+  // BinaryOpStub needs to override this.
   virtual int GetCodeKind();
 
-  // TypeRecordingBinaryOpStub needs to override this.
+  // BinaryOpStub needs to override this.
   virtual InlineCacheState GetICState() {
     return UNINITIALIZED;
   }
@@ -198,6 +202,7 @@ class CodeStub BASE_EMBEDDED {
            MajorKeyBits::encode(MajorKey());
   }
 
+  // See comment above, where Instanceof is defined.
   bool AllowsStubCalls() { return MajorKey() <= Instanceof; }
 
   class MajorKeyBits: public BitField<uint32_t, 0, kMajorBits> {};
@@ -748,8 +753,9 @@ class CallFunctionStub: public CodeStub {
   }
 
   InLoopFlag InLoop() { return in_loop_; }
-  bool ReceiverMightBeValue() {
-    return (flags_ & RECEIVER_MIGHT_BE_VALUE) != 0;
+
+  bool ReceiverMightBeImplicit() {
+    return (flags_ & RECEIVER_MIGHT_BE_IMPLICIT) != 0;
   }
 };
 

@@ -29,6 +29,7 @@
 #define V8_IC_H_
 
 #include "macro-assembler.h"
+#include "type-info.h"
 
 namespace v8 {
 namespace internal {
@@ -56,8 +57,8 @@ namespace internal {
   ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)                       \
-  ICU(TypeRecordingUnaryOp_Patch)                     \
-  ICU(TypeRecordingBinaryOp_Patch)                    \
+  ICU(UnaryOp_Patch)                                  \
+  ICU(BinaryOp_Patch)                                 \
   ICU(CompareIC_Miss)
 //
 // IC is the base class for LoadIC, StoreIC, CallIC, KeyedLoadIC,
@@ -194,6 +195,10 @@ class IC_Utility {
 
 
 class CallICBase: public IC {
+ public:
+  class Contextual: public BitField<bool, 0, 1> {};
+  class StringStubState: public BitField<StringStubFeedback, 1, 1> {};
+
  protected:
   CallICBase(Code::Kind kind, Isolate* isolate)
       : IC(EXTRA_CALL_FRAME, isolate), kind_(kind) {}
@@ -234,6 +239,7 @@ class CallICBase: public IC {
   void ReceiverToObjectIfRequired(Handle<Object> callee, Handle<Object> object);
 
   static void Clear(Address address, Code* target);
+
   friend class IC;
 };
 
@@ -245,11 +251,17 @@ class CallIC: public CallICBase {
   }
 
   // Code generator routines.
-  static void GenerateInitialize(MacroAssembler* masm, int argc) {
-    GenerateMiss(masm, argc);
+  static void GenerateInitialize(MacroAssembler* masm,
+                                 int argc,
+                                 Code::ExtraICState extra_ic_state) {
+    GenerateMiss(masm, argc, extra_ic_state);
   }
-  static void GenerateMiss(MacroAssembler* masm, int argc);
-  static void GenerateMegamorphic(MacroAssembler* masm, int argc);
+  static void GenerateMiss(MacroAssembler* masm,
+                           int argc,
+                           Code::ExtraICState extra_ic_state);
+  static void GenerateMegamorphic(MacroAssembler* masm,
+                                  int argc,
+                                  Code::ExtraICState extra_ic_state);
   static void GenerateNormal(MacroAssembler* masm, int argc);
 };
 
@@ -621,7 +633,7 @@ class KeyedStoreIC: public KeyedIC {
 };
 
 
-class TRUnaryOpIC: public IC {
+class UnaryOpIC: public IC {
  public:
 
   // sorted: increasingly more unspecific (ignoring UNINITIALIZED)
@@ -633,7 +645,7 @@ class TRUnaryOpIC: public IC {
     GENERIC
   };
 
-  explicit TRUnaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
+  explicit UnaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
 
   void patch(Code* code);
 
@@ -648,7 +660,7 @@ class TRUnaryOpIC: public IC {
 
 
 // Type Recording BinaryOpIC, that records the types of the inputs and outputs.
-class TRBinaryOpIC: public IC {
+class BinaryOpIC: public IC {
  public:
 
   enum TypeInfo {
@@ -662,7 +674,7 @@ class TRBinaryOpIC: public IC {
     GENERIC
   };
 
-  explicit TRBinaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
+  explicit BinaryOpIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
 
   void patch(Code* code);
 
@@ -716,7 +728,7 @@ class CompareIC: public IC {
   Token::Value op_;
 };
 
-// Helper for TRBinaryOpIC and CompareIC.
+// Helper for BinaryOpIC and CompareIC.
 void PatchInlinedSmiCode(Address address);
 
 } }  // namespace v8::internal

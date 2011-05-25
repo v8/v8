@@ -1,4 +1,4 @@
-# Expectations for preparser tests.
+# Expectations for .js preparser tests.
 # Only mentions tests that throw SyntaxError, and optionally specifies
 # the message and location expected in the exception.
 # Format:
@@ -8,3 +8,7 @@ strict-octal-string:strict_octal_literal
 strict-octal-regexp:strict_octal_literal
 strict-octal-use-strict-after:strict_octal_literal
 strict-octal-use-strict-before:strict_octal_literal
+
+strict-const:strict_const
+
+strict-with:strict_mode_with

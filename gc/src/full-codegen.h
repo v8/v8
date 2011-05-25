@@ -407,7 +407,7 @@ class FullCodeGenerator: public AstVisitor {
   // Platform-specific code sequences for calls
   void EmitCallWithStub(Call* expr, CallFunctionFlags flags);
   void EmitCallWithIC(Call* expr, Handle<Object> name, RelocInfo::Mode mode);
-  void EmitKeyedCallWithIC(Call* expr, Expression* key, RelocInfo::Mode mode);
+  void EmitKeyedCallWithIC(Call* expr, Expression* key);
 
   // Platform-specific code for inline runtime calls.
   InlineFunctionGenerator FindInlineFunctionGenerator(Runtime::FunctionId id);

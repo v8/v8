@@ -521,6 +521,22 @@ HConstant* HGraph::GetConstantFalse() {
   return GetConstant(&constant_false_, isolate()->heap()->false_value());
 }
 
+HGraphBuilder::HGraphBuilder(CompilationInfo* info,
+                             TypeFeedbackOracle* oracle)
+    : function_state_(NULL),
+      initial_function_state_(this, info, oracle),
+      ast_context_(NULL),
+      break_scope_(NULL),
+      graph_(NULL),
+      current_block_(NULL),
+      inlined_count_(0),
+      zone_(info->isolate()->zone()),
+      inline_bailout_(false) {
+  // This is not initialized in the initializer list because the
+  // constructor for the initial state relies on function_state_ == NULL
+  // to know it's the initial state.
+  function_state_= &initial_function_state_;
+}
 
 HBasicBlock* HGraphBuilder::CreateJoin(HBasicBlock* first,
                                        HBasicBlock* second,
@@ -4019,22 +4035,17 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
 }
 
 
-void HGraphBuilder::TraceInline(Handle<JSFunction> target, const char* reason) {
+void HGraphBuilder::TraceInline(Handle<JSFunction> target,
+                                Handle<JSFunction> caller,
+                                const char* reason) {
   if (FLAG_trace_inlining) {
+    SmartPointer<char> target_name = target->shared()->DebugName()->ToCString();
+    SmartPointer<char> caller_name = caller->shared()->DebugName()->ToCString();
     if (reason == NULL) {
-      // We are currently in the context of inlined function thus we have
-      // to go to an outer FunctionState to get caller.
-      SmartPointer<char> callee = target->shared()->DebugName()->ToCString();
-      SmartPointer<char> caller =
-          function_state()->outer()->compilation_info()->function()->
-              debug_name()->ToCString();
-      PrintF("Inlined %s called from %s.\n", *callee, *caller);
+      PrintF("Inlined %s called from %s.\n", *target_name, *caller_name);
     } else {
-      SmartPointer<char> callee = target->shared()->DebugName()->ToCString();
-      SmartPointer<char> caller =
-          info()->function()->debug_name()->ToCString();
       PrintF("Did not inline %s called from %s (%s).\n",
-             *callee, *caller, reason);
+             *target_name, *caller_name, reason);
     }
   }
 }
@@ -4043,20 +4054,28 @@ void HGraphBuilder::TraceInline(Handle<JSFunction> target, const char* reason) {
 bool HGraphBuilder::TryInline(Call* expr) {
   if (!FLAG_use_inlining) return false;
 
+  // The function call we are inlining is a method call if the call
+  // is a property call.
+  CallKind call_kind = (expr->expression()->AsProperty() == NULL)
+      ? CALL_AS_FUNCTION
+      : CALL_AS_METHOD;
+
   // Precondition: call is monomorphic and we have found a target with the
   // appropriate arity.
+  Handle<JSFunction> caller = info()->closure();
   Handle<JSFunction> target = expr->target();
+  Handle<SharedFunctionInfo> target_shared(target->shared());
 
   // Do a quick check on source code length to avoid parsing large
   // inlining candidates.
   if (FLAG_limit_inlining && target->shared()->SourceSize() > kMaxSourceSize) {
-    TraceInline(target, "target text too big");
+    TraceInline(target, caller, "target text too big");
     return false;
   }
 
   // Target must be inlineable.
   if (!target->IsInlineable()) {
-    TraceInline(target, "target not inlineable");
+    TraceInline(target, caller, "target not inlineable");
     return false;
   }
 
@@ -4065,7 +4084,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
   if (target->context() != outer_info->closure()->context() ||
       outer_info->scope()->contains_with() ||
       outer_info->scope()->num_heap_slots() > 0) {
-    TraceInline(target, "target requires context change");
+    TraceInline(target, caller, "target requires context change");
     return false;
   }
 
@@ -4074,7 +4093,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
   int current_level = 1;
   while (env->outer() != NULL) {
     if (current_level == Compiler::kMaxInliningLevels) {
-      TraceInline(target, "inline depth limit reached");
+      TraceInline(target, caller, "inline depth limit reached");
       return false;
     }
     current_level++;
@@ -4082,14 +4101,14 @@ bool HGraphBuilder::TryInline(Call* expr) {
   }
 
   // Don't inline recursive functions.
-  if (target->shared() == outer_info->closure()->shared()) {
-    TraceInline(target, "target is recursive");
+  if (*target_shared == outer_info->closure()->shared()) {
+    TraceInline(target, caller, "target is recursive");
     return false;
   }
 
   // We don't want to add more than a certain number of nodes from inlining.
   if (FLAG_limit_inlining && inlined_count_ > kMaxInlinedNodes) {
-    TraceInline(target, "cumulative AST node limit reached");
+    TraceInline(target, caller, "cumulative AST node limit reached");
     return false;
   }
 
@@ -4102,14 +4121,14 @@ bool HGraphBuilder::TryInline(Call* expr) {
     if (target_info.isolate()->has_pending_exception()) {
       // Parse or scope error, never optimize this function.
       SetStackOverflow();
-      target->shared()->set_optimization_disabled(true);
+      target_shared->DisableOptimization(*target);
     }
-    TraceInline(target, "parse failure");
+    TraceInline(target, caller, "parse failure");
     return false;
   }
 
   if (target_info.scope()->num_heap_slots() > 0) {
-    TraceInline(target, "target has context-allocated variables");
+    TraceInline(target, caller, "target has context-allocated variables");
     return false;
   }
   FunctionLiteral* function = target_info.function();
@@ -4117,32 +4136,31 @@ bool HGraphBuilder::TryInline(Call* expr) {
   // Count the number of AST nodes added by inlining this call.
   int nodes_added = AstNode::Count() - count_before;
   if (FLAG_limit_inlining && nodes_added > kMaxInlinedSize) {
-    TraceInline(target, "target AST is too large");
+    TraceInline(target, caller, "target AST is too large");
     return false;
   }
 
   // Check if we can handle all declarations in the inlined functions.
   VisitDeclarations(target_info.scope()->declarations());
   if (HasStackOverflow()) {
-    TraceInline(target, "target has non-trivial declaration");
+    TraceInline(target, caller, "target has non-trivial declaration");
     ClearStackOverflow();
     return false;
   }
 
   // Don't inline functions that uses the arguments object or that
   // have a mismatching number of parameters.
-  Handle<SharedFunctionInfo> target_shared(target->shared());
   int arity = expr->arguments()->length();
   if (function->scope()->arguments() != NULL ||
       arity != target_shared->formal_parameter_count()) {
-    TraceInline(target, "target requires special argument handling");
+    TraceInline(target, caller, "target requires special argument handling");
     return false;
   }
 
   // All statements in the body must be inlineable.
   for (int i = 0, count = function->body()->length(); i < count; ++i) {
     if (!function->body()->at(i)->IsInlineable()) {
-      TraceInline(target, "target contains unsupported syntax");
+      TraceInline(target, caller, "target contains unsupported syntax");
       return false;
     }
   }
@@ -4154,7 +4172,7 @@ bool HGraphBuilder::TryInline(Call* expr) {
     // generating the optimized inline code.
     target_info.EnableDeoptimizationSupport();
     if (!FullCodeGenerator::MakeCode(&target_info)) {
-      TraceInline(target, "could not generate deoptimization info");
+      TraceInline(target, caller, "could not generate deoptimization info");
       return false;
     }
     target_shared->EnableDeoptimizationSupport(*target_info.code());
@@ -4177,25 +4195,30 @@ bool HGraphBuilder::TryInline(Call* expr) {
       environment()->CopyForInlining(target,
                                      function,
                                      HEnvironment::HYDROGEN,
-                                     undefined);
+                                     undefined,
+                                     call_kind);
   HBasicBlock* body_entry = CreateBasicBlock(inner_env);
   current_block()->Goto(body_entry);
 
   body_entry->SetJoinId(expr->ReturnId());
   set_current_block(body_entry);
-  AddInstruction(new(zone()) HEnterInlined(target, function));
+  AddInstruction(new(zone()) HEnterInlined(target,
+                                           function,
+                                           call_kind));
   VisitStatements(function->body());
   if (HasStackOverflow()) {
     // Bail out if the inline function did, as we cannot residualize a call
     // instead.
-    TraceInline(target, "inline graph construction failed");
+    TraceInline(target, caller, "inline graph construction failed");
+    target_shared->DisableOptimization(*target);
+    inline_bailout_ = true;
     return true;
   }
 
   // Update inlined nodes count.
   inlined_count_ += nodes_added;
 
-  TraceInline(target, NULL);
+  TraceInline(target, caller, NULL);
 
   if (current_block() != NULL) {
     // Add a return of undefined if control can fall off the body.  In a
@@ -4427,7 +4450,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
     }
 
     // Named function call.
-    expr->RecordTypeFeedback(oracle());
+    expr->RecordTypeFeedback(oracle(), CALL_AS_METHOD);
 
     if (TryCallApply(expr)) return;
 
@@ -4436,7 +4459,6 @@ void HGraphBuilder::VisitCall(Call* expr) {
 
     Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
 
-    expr->RecordTypeFeedback(oracle());
     ZoneMapList* types = expr->GetReceiverTypes();
 
     HValue* receiver =
@@ -4530,8 +4552,8 @@ void HGraphBuilder::VisitCall(Call* expr) {
         CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
         call = PreProcessCall(new(zone()) HCallGlobal(context,
-                                              var->name(),
-                                              argument_count));
+                                                      var->name(),
+                                                      argument_count));
       }
 
     } else {
@@ -5835,10 +5857,12 @@ HEnvironment* HEnvironment::CopyAsLoopHeader(HBasicBlock* loop_header) const {
 }
 
 
-HEnvironment* HEnvironment::CopyForInlining(Handle<JSFunction> target,
-                                            FunctionLiteral* function,
-                                            CompilationPhase compilation_phase,
-                                            HConstant* undefined) const {
+HEnvironment* HEnvironment::CopyForInlining(
+    Handle<JSFunction> target,
+    FunctionLiteral* function,
+    CompilationPhase compilation_phase,
+    HConstant* undefined,
+    CallKind call_kind) const {
   // Outer environment is a copy of this one without the arguments.
   int arity = function->scope()->num_parameters();
   HEnvironment* outer = Copy();
@@ -5859,6 +5883,12 @@ HEnvironment* HEnvironment::CopyForInlining(Handle<JSFunction> target,
       HValue* push = ExpressionStackAt(arity - i);
       inner->SetValueAt(i, push);
     }
+  }
+  // If the function we are inlining is a strict mode function, pass
+  // undefined as the receiver for function calls (instead of the
+  // global receiver).
+  if (function->strict_mode() && call_kind == CALL_AS_FUNCTION) {
+    inner->SetValueAt(0, undefined);
   }
   inner->SetValueAt(arity + 1, outer->LookupContext());
   for (int i = arity + 2; i < inner->length(); ++i) {

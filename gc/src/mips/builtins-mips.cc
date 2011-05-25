@@ -645,6 +645,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Set expected number of arguments to zero (not changing a0).
   __ mov(a2, zero_reg);
   __ GetBuiltinEntry(a3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ SetCallKind(t1, CALL_AS_METHOD);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
@@ -1102,6 +1103,8 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
 
   // Preserve the function.
   __ push(a1);
+  // Push call kind information.
+  __ push(t1);
 
   // Push the function on the stack as the argument to the runtime function.
   __ push(a1);
@@ -1109,6 +1112,9 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kLazyCompile, 1);
   // Calculate the entry point.
   __ addiu(t9, v0, Code::kHeaderSize - kHeapObjectTag);
+
+  // Restore call kind information.
+  __ pop(t1);
   // Restore saved function.
   __ pop(a1);
 
@@ -1126,12 +1132,17 @@ void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
 
   // Preserve the function.
   __ push(a1);
+  // Push call kind information.
+  __ push(t1);
 
   // Push the function on the stack as the argument to the runtime function.
   __ push(a1);
   __ CallRuntime(Runtime::kLazyRecompile, 1);
   // Calculate the entry point.
   __ Addu(t9, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+  // Restore call kind information.
+  __ pop(t1);
   // Restore saved function.
   __ pop(a1);
 
@@ -1202,13 +1213,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
                                  kSmiTagSize)));
     __ Branch(&shift_arguments, ne, t0, Operand(zero_reg));
 
-    // Do not transform the receiver for native (shared already in r2).
-    __ lw(a2, FieldMemOperand(a2, SharedFunctionInfo::kScriptOffset));
-    __ LoadRoot(a3, Heap::kUndefinedValueRootIndex);
-    __ Branch(&shift_arguments, eq, a2, Operand(a3));
-    __ lw(a2, FieldMemOperand(a2, Script::kTypeOffset));
-    __ sra(a2, a2, kSmiTagSize);
-    __ Branch(&shift_arguments, eq, a2, Operand(Script::TYPE_NATIVE));
+    // Do not transform the receiver for native (Compilerhints already in a3).
+    __ And(t0, a3, Operand(1 << (SharedFunctionInfo::kES5Native +
+                                 kSmiTagSize)));
+    __ Branch(&shift_arguments, ne, t0, Operand(zero_reg));
 
     // Compute the receiver in non-strict mode.
     // Load first argument in a2. a2 = -kPointerSize(sp + n_args << 2).
@@ -1220,14 +1228,15 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // a2: first argument
     __ JumpIfSmi(a2, &convert_to_object, t2);
 
-    // Heap::kUndefinedValueRootIndex is already in a3.
+    __ LoadRoot(a3, Heap::kUndefinedValueRootIndex);
     __ Branch(&use_global_receiver, eq, a2, Operand(a3));
     __ LoadRoot(a3, Heap::kNullValueRootIndex);
     __ Branch(&use_global_receiver, eq, a2, Operand(a3));
 
+    STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
+    STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
     __ GetObjectType(a2, a3, a3);
-    __ Branch(&convert_to_object, lt, a3, Operand(FIRST_JS_OBJECT_TYPE));
-    __ Branch(&shift_arguments, le, a3, Operand(LAST_JS_OBJECT_TYPE));
+    __ Branch(&shift_arguments, ge, a3, Operand(FIRST_JS_OBJECT_TYPE));
 
     __ bind(&convert_to_object);
     __ EnterInternalFrame();  // In order to preserve argument count.
@@ -1308,6 +1317,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ Branch(&function, ne, a1, Operand(zero_reg));
     __ mov(a2, zero_reg);  // expected arguments is 0 for CALL_NON_FUNCTION
     __ GetBuiltinEntry(a3, Builtins::CALL_NON_FUNCTION);
+    __ SetCallKind(t1, CALL_AS_METHOD);
     __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
     __ bind(&function);
@@ -1323,6 +1333,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
          FieldMemOperand(a3, SharedFunctionInfo::kFormalParameterCountOffset));
   __ sra(a2, a2, kSmiTagSize);
   __ lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+  __ SetCallKind(t1, CALL_AS_METHOD);
   // Check formal and actual parameter counts.
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET, ne, a2, Operand(a0));
@@ -1389,27 +1400,25 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
                                kSmiTagSize)));
   __ Branch(&push_receiver, ne, t0, Operand(zero_reg));
 
-  // Do not transform the receiver for native (shared already in a1).
-  __ lw(a1, FieldMemOperand(a1, SharedFunctionInfo::kScriptOffset));
-  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
-  __ Branch(&push_receiver, eq, a1, Operand(a2));
-  __ lw(a1, FieldMemOperand(a1, Script::kTypeOffset));
-  __ sra(a1, a1, kSmiTagSize);
-  __ Branch(&push_receiver, eq, a1, Operand(Script::TYPE_NATIVE));
+  // Do not transform the receiver for native (Compilerhints already in a2).
+  __ And(t0, a2, Operand(1 << (SharedFunctionInfo::kES5Native +
+                               kSmiTagSize)));
+  __ Branch(&push_receiver, ne, t0, Operand(zero_reg));
 
   // Compute the receiver in non-strict mode.
   __ And(t0, a0, Operand(kSmiTagMask));
   __ Branch(&call_to_object, eq, t0, Operand(zero_reg));
   __ LoadRoot(a1, Heap::kNullValueRootIndex);
   __ Branch(&use_global_receiver, eq, a0, Operand(a1));
-  // Heap::kUndefinedValueRootIndex is already in a2.
+  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
   __ Branch(&use_global_receiver, eq, a0, Operand(a2));
 
   // Check if the receiver is already a JavaScript object.
   // a0: receiver
+  STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
+  STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
   __ GetObjectType(a0, a1, a1);
-  __ Branch(&call_to_object, lt, a1, Operand(FIRST_JS_OBJECT_TYPE));
-  __ Branch(&push_receiver, le, a1, Operand(LAST_JS_OBJECT_TYPE));
+  __ Branch(&push_receiver, ge, a1, Operand(FIRST_JS_OBJECT_TYPE));
 
   // Convert the receiver to a regular object.
   // a0: receiver
@@ -1504,6 +1513,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- a1: function (passed through to callee)
   //  -- a2: expected arguments count
   //  -- a3: callee code entry
+  //  -- t1: call kind information
   // -----------------------------------
 
   Label invoke, dont_adapt_arguments;

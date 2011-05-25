@@ -760,68 +760,6 @@ class CompileTimeValue: public AllStatic {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompileTimeValue);
 };
 
-
-// ----------------------------------------------------------------------------
-// JSON PARSING
-
-// JSON is a subset of JavaScript, as specified in, e.g., the ECMAScript 5
-// specification section 15.12.1 (and appendix A.8).
-// The grammar is given section 15.12.1.2 (and appendix A.8.2).
-class JsonParser BASE_EMBEDDED {
- public:
-  // Parse JSON input as a single JSON value.
-  // Returns null handle and sets exception if parsing failed.
-  static Handle<Object> Parse(Handle<String> source) {
-    if (source->IsExternalTwoByteString()) {
-      ExternalTwoByteStringUC16CharacterStream stream(
-          Handle<ExternalTwoByteString>::cast(source), 0, source->length());
-      return JsonParser().ParseJson(source, &stream);
-    } else {
-      GenericStringUC16CharacterStream stream(source, 0, source->length());
-      return JsonParser().ParseJson(source, &stream);
-    }
-  }
-
- private:
-  JsonParser()
-      : isolate_(Isolate::Current()),
-        scanner_(isolate_->unicode_cache()) { }
-  ~JsonParser() { }
-
-  Isolate* isolate() { return isolate_; }
-
-  // Parse a string containing a single JSON value.
-  Handle<Object> ParseJson(Handle<String> script, UC16CharacterStream* source);
-  // Parse a single JSON value from input (grammar production JSONValue).
-  // A JSON value is either a (double-quoted) string literal, a number literal,
-  // one of "true", "false", or "null", or an object or array literal.
-  Handle<Object> ParseJsonValue();
-  // Parse a JSON object literal (grammar production JSONObject).
-  // An object literal is a squiggly-braced and comma separated sequence
-  // (possibly empty) of key/value pairs, where the key is a JSON string
-  // literal, the value is a JSON value, and the two are separated by a colon.
-  // A JSON array dosn't allow numbers and identifiers as keys, like a
-  // JavaScript array.
-  Handle<Object> ParseJsonObject();
-  // Parses a JSON array literal (grammar production JSONArray). An array
-  // literal is a square-bracketed and comma separated sequence (possibly empty)
-  // of JSON values.
-  // A JSON array doesn't allow leaving out values from the sequence, nor does
-  // it allow a terminal comma, like a JavaScript array does.
-  Handle<Object> ParseJsonArray();
-
-  // Mark that a parsing error has happened at the current token, and
-  // return a null handle. Primarily for readability.
-  Handle<Object> ReportUnexpectedToken() { return Handle<Object>::null(); }
-  // Converts the currently parsed literal to a JavaScript String.
-  Handle<String> GetString();
-  // Converts the currently parsed literal to a JavaScript Symbol String.
-  Handle<String> GetSymbol();
-
-  Isolate* isolate_;
-  JsonScanner scanner_;
-  bool stack_overflow_;
-};
 } }  // namespace v8::internal
 
 #endif  // V8_PARSER_H_

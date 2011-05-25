@@ -107,9 +107,20 @@ inline void* ZoneListAllocationPolicy::New(int size) {
 }
 
 
-ZoneScope::ZoneScope(ZoneScopeMode mode)
-    : isolate_(Isolate::Current()),
-      mode_(mode) {
+template <typename T>
+void* ZoneList<T>::operator new(size_t size) {
+  return ZONE->New(static_cast<int>(size));
+}
+
+
+template <typename T>
+void* ZoneList<T>::operator new(size_t size, Zone* zone) {
+  return zone->New(static_cast<int>(size));
+}
+
+
+ZoneScope::ZoneScope(Isolate* isolate, ZoneScopeMode mode)
+    : isolate_(isolate), mode_(mode) {
   isolate_->zone()->scope_nesting_++;
 }
 

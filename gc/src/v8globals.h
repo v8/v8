@@ -157,7 +157,7 @@ class Object;
 class MaybeObject;
 class OldSpace;
 class Property;
-class Proxy;
+class Foreign;
 class RegExpNode;
 struct RegExpCompileData;
 class RegExpTree;
@@ -313,7 +313,9 @@ enum InLoopFlag {
 
 enum CallFunctionFlags {
   NO_CALL_FUNCTION_FLAGS = 0,
-  RECEIVER_MIGHT_BE_VALUE = 1 << 0  // Receiver might not be a JSObject.
+  // Receiver might implicitly be the global objects. If it is, the
+  // hole is passed to the call function stub.
+  RECEIVER_MIGHT_BE_IMPLICIT = 1 << 0
 };
 
 
@@ -511,6 +513,14 @@ enum StrictModeFlag {
 enum SmiCheckType {
   DONT_DO_SMI_CHECK = 0,
   DO_SMI_CHECK
+};
+
+
+// Used to specify whether a receiver is implicitly or explicitly
+// provided to a call.
+enum CallKind {
+  CALL_AS_METHOD = 0,
+  CALL_AS_FUNCTION
 };
 
 } }  // namespace v8::internal

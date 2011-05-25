@@ -390,7 +390,7 @@ void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
                               SmiCheckType smi_check_type) {
-  if (smi_check_type == DONT_DO_SMI_CHECK) {
+  if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
   cmp(FieldOperand(obj, HeapObject::kMapOffset), Immediate(map));
@@ -403,7 +403,7 @@ void MacroAssembler::DispatchMap(Register obj,
                                  Handle<Code> success,
                                  SmiCheckType smi_check_type) {
   Label fail;
-  if (smi_check_type == DONT_DO_SMI_CHECK) {
+  if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, &fail);
   }
   cmp(FieldOperand(obj, HeapObject::kMapOffset), Immediate(map));
@@ -1639,6 +1639,23 @@ MaybeObject* MacroAssembler::TryJumpToExternalReference(
 }
 
 
+void MacroAssembler::SetCallKind(Register dst, CallKind call_kind) {
+  // This macro takes the dst register to make the code more readable
+  // at the call sites. However, the dst register has to be ecx to
+  // follow the calling convention which requires the call type to be
+  // in ecx.
+  ASSERT(dst.is(ecx));
+  if (call_kind == CALL_AS_FUNCTION) {
+    // Set to some non-zero smi by updating the least significant
+    // byte.
+    mov_b(Operand(dst), 1 << kSmiTagSize);
+  } else {
+    // Set to smi zero by clearing the register.
+    xor_(dst, Operand(dst));
+  }
+}
+
+
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     Handle<Code> code_constant,
@@ -1646,7 +1663,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Label* done,
                                     InvokeFlag flag,
                                     Label::Distance done_near,
-                                    const CallWrapper& call_wrapper) {
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
   bool definitely_matches = false;
   Label invoke;
   if (expected.is_immediate()) {
@@ -1697,10 +1715,12 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
+      SetCallKind(ecx, call_kind);
       call(adaptor, RelocInfo::CODE_TARGET);
       call_wrapper.AfterCall();
       jmp(done, done_near);
     } else {
+      SetCallKind(ecx, call_kind);
       jmp(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&invoke);
@@ -1712,16 +1732,20 @@ void MacroAssembler::InvokeCode(const Operand& code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
-                                const CallWrapper& call_wrapper) {
+                                const CallWrapper& call_wrapper,
+                                CallKind call_kind) {
   Label done;
   InvokePrologue(expected, actual, Handle<Code>::null(), code,
-                 &done, flag, Label::kNear, call_wrapper);
+                 &done, flag, Label::kNear, call_wrapper,
+                 call_kind);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(code));
+    SetCallKind(ecx, call_kind);
     call(code);
     call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
+    SetCallKind(ecx, call_kind);
     jmp(code);
   }
   bind(&done);
@@ -1733,17 +1757,20 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& actual,
                                 RelocInfo::Mode rmode,
                                 InvokeFlag flag,
-                                const CallWrapper& call_wrapper) {
+                                const CallWrapper& call_wrapper,
+                                CallKind call_kind) {
   Label done;
   Operand dummy(eax);
   InvokePrologue(expected, actual, code, dummy, &done, flag, Label::kNear,
-                 call_wrapper);
+                 call_wrapper, call_kind);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(code, rmode));
+    SetCallKind(ecx, call_kind);
     call(code, rmode);
     call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
+    SetCallKind(ecx, call_kind);
     jmp(code, rmode);
   }
   bind(&done);
@@ -1753,7 +1780,8 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 void MacroAssembler::InvokeFunction(Register fun,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper) {
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
   ASSERT(fun.is(edi));
   mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
@@ -1762,7 +1790,7 @@ void MacroAssembler::InvokeFunction(Register fun,
 
   ParameterCount expected(ebx);
   InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
-             expected, actual, flag, call_wrapper);
+             expected, actual, flag, call_wrapper, call_kind);
 }
 
 
@@ -2078,6 +2106,17 @@ void MacroAssembler::Abort(const char* msg) {
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
   int3();
+}
+
+
+void MacroAssembler::LoadInstanceDescriptors(Register map,
+                                             Register descriptors) {
+  mov(descriptors,
+      FieldOperand(map, Map::kInstanceDescriptorsOrBitField3Offset));
+  Label not_smi;
+  JumpIfNotSmi(descriptors, &not_smi);
+  mov(descriptors, isolate()->factory()->empty_descriptor_array());
+  bind(&not_smi);
 }
 
 

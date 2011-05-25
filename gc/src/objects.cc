@@ -175,11 +175,12 @@ MaybeObject* Object::GetPropertyWithCallback(Object* receiver,
                                              Object* holder) {
   Isolate* isolate = name->GetIsolate();
   // To accommodate both the old and the new api we switch on the
-  // data structure used to store the callbacks.  Eventually proxy
+  // data structure used to store the callbacks.  Eventually foreign
   // callbacks should be phased out.
-  if (structure->IsProxy()) {
+  if (structure->IsForeign()) {
     AccessorDescriptor* callback =
-        reinterpret_cast<AccessorDescriptor*>(Proxy::cast(structure)->proxy());
+        reinterpret_cast<AccessorDescriptor*>(
+            Foreign::cast(structure)->address());
     MaybeObject* value = (callback->getter)(receiver, callback->data);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return value;
@@ -1130,8 +1131,8 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       HeapNumber::cast(this)->HeapNumberPrint(accumulator);
       accumulator->Put('>');
       break;
-    case PROXY_TYPE:
-      accumulator->Add("<Proxy>");
+    case FOREIGN_TYPE:
+      accumulator->Add("<Foreign>");
       break;
     case JS_GLOBAL_PROPERTY_CELL_TYPE:
       accumulator->Add("Cell for ");
@@ -1202,8 +1203,8 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_PROXY_TYPE:
       JSProxy::BodyDescriptor::IterateBody(this, v);
       break;
-    case PROXY_TYPE:
-      reinterpret_cast<Proxy*>(this)->ProxyIterateBody(v);
+    case FOREIGN_TYPE:
+      reinterpret_cast<Foreign*>(this)->ForeignIterateBody(v);
       break;
     case MAP_TYPE:
       Map::BodyDescriptor::IterateBody(this, v);
@@ -1775,7 +1776,8 @@ MaybeObject* JSObject::SetProperty(String* name,
 MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
                                                String* name,
                                                Object* value,
-                                               JSObject* holder) {
+                                               JSObject* holder,
+                                               StrictModeFlag strict_mode) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
 
@@ -1785,11 +1787,12 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
   Handle<Object> value_handle(value, isolate);
 
   // To accommodate both the old and the new api we switch on the
-  // data structure used to store the callbacks.  Eventually proxy
+  // data structure used to store the callbacks.  Eventually foreign
   // callbacks should be phased out.
-  if (structure->IsProxy()) {
+  if (structure->IsForeign()) {
     AccessorDescriptor* callback =
-        reinterpret_cast<AccessorDescriptor*>(Proxy::cast(structure)->proxy());
+        reinterpret_cast<AccessorDescriptor*>(
+            Foreign::cast(structure)->address());
     MaybeObject* obj = (callback->setter)(this,  value, callback->data);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (obj->IsFailure()) return obj;
@@ -1822,6 +1825,9 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     if (setter->IsJSFunction()) {
      return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
     } else {
+      if (strict_mode == kNonStrictMode) {
+        return value;
+      }
       Handle<String> key(name);
       Handle<Object> holder_handle(holder, isolate);
       Handle<Object> args[2] = { key, holder_handle };
@@ -1879,9 +1885,11 @@ void JSObject::LookupCallbackSetterInPrototypes(String* name,
 }
 
 
-MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(uint32_t index,
-                                                                Object* value,
-                                                                bool* found) {
+MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
+    uint32_t index,
+    Object* value,
+    bool* found,
+    StrictModeFlag strict_mode) {
   Heap* heap = GetHeap();
   for (Object* pt = GetPrototype();
        pt != heap->null_value();
@@ -1895,8 +1903,11 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(uint32_t index,
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
         *found = true;
-        return SetElementWithCallback(
-            dictionary->ValueAt(entry), index, value, JSObject::cast(pt));
+        return SetElementWithCallback(dictionary->ValueAt(entry),
+                                      index,
+                                      value,
+                                      JSObject::cast(pt),
+                                      strict_mode);
       }
     }
   }
@@ -2078,10 +2089,12 @@ void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
 
 
 // We only need to deal with CALLBACKS and INTERCEPTORS
-MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
-                                                        String* name,
-                                                        Object* value,
-                                                        bool check_prototype) {
+MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
+    LookupResult* result,
+    String* name,
+    Object* value,
+    bool check_prototype,
+    StrictModeFlag strict_mode) {
   if (check_prototype && !result->IsProperty()) {
     LookupCallbackSetterInPrototypes(name, result);
   }
@@ -2097,7 +2110,8 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
               return SetPropertyWithCallback(result->GetCallbackObject(),
                                              name,
                                              value,
-                                             result->holder());
+                                             result->holder(),
+                                             strict_mode);
             }
           }
           break;
@@ -2108,8 +2122,11 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
           LookupResult r;
           LookupRealNamedProperty(name, &r);
           if (r.IsProperty()) {
-            return SetPropertyWithFailedAccessCheck(&r, name, value,
-                                                    check_prototype);
+            return SetPropertyWithFailedAccessCheck(&r,
+                                                    name,
+                                                    value,
+                                                    check_prototype,
+                                                    strict_mode);
           }
           break;
         }
@@ -2153,7 +2170,11 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
   // Check access rights if needed.
   if (IsAccessCheckNeeded()
       && !heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
-    return SetPropertyWithFailedAccessCheck(result, name, value, true);
+    return SetPropertyWithFailedAccessCheck(result,
+                                            name,
+                                            value,
+                                            true,
+                                            strict_mode);
   }
 
   if (IsJSGlobalProxy()) {
@@ -2173,7 +2194,8 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
       return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
                                      name,
                                      value,
-                                     accessor_result.holder());
+                                     accessor_result.holder(),
+                                     strict_mode);
     }
   }
   if (!result->IsFound()) {
@@ -2217,7 +2239,8 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
       return SetPropertyWithCallback(result->GetCallbackObject(),
                                      name,
                                      value,
-                                     result->holder());
+                                     result->holder(),
+                                     strict_mode);
     case INTERCEPTOR:
       return SetPropertyWithInterceptor(name, value, attributes, strict_mode);
     case CONSTANT_TRANSITION: {
@@ -2270,7 +2293,11 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   if (IsAccessCheckNeeded()) {
     Heap* heap = GetHeap();
     if (!heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
-      return SetPropertyWithFailedAccessCheck(&result, name, value, false);
+      return SetPropertyWithFailedAccessCheck(&result,
+                                              name,
+                                              value,
+                                              false,
+                                              kNonStrictMode);
     }
   }
 
@@ -2539,7 +2566,8 @@ bool NormalizedMapCache::CheckHit(Map* slow,
                                     fast->inobject_properties()) &&
     slow->instance_type() == fast->instance_type() &&
     slow->bit_field() == fast->bit_field() &&
-    (slow->bit_field2() & ~(1<<Map::kIsShared)) == fast->bit_field2();
+    slow->bit_field2() == fast->bit_field2() &&
+    (slow->bit_field3() & ~(1<<Map::kIsShared)) == fast->bit_field3();
 }
 
 
@@ -2661,7 +2689,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
                                      instance_size_delta);
 
   set_map(new_map);
-  new_map->set_instance_descriptors(current_heap->empty_descriptor_array());
+  new_map->clear_instance_descriptors();
 
   set_properties(dictionary);
 
@@ -3650,8 +3678,7 @@ MaybeObject* Map::CopyDropDescriptors() {
   // pointing to the same transition which is bad because the garbage
   // collector relies on being able to reverse pointers from transitions
   // to maps.  If properties need to be retained use CopyDropTransitions.
-  Map::cast(result)->set_instance_descriptors(
-      heap->empty_descriptor_array());
+  Map::cast(result)->clear_instance_descriptors();
   // Please note instance_type and instance_size are set when allocated.
   Map::cast(result)->set_inobject_properties(inobject_properties());
   Map::cast(result)->set_unused_property_fields(unused_property_fields());
@@ -3673,6 +3700,7 @@ MaybeObject* Map::CopyDropDescriptors() {
   }
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
+  Map::cast(result)->set_bit_field3(bit_field3());
   Map::cast(result)->set_is_shared(false);
   Map::cast(result)->ClearCodeCache(heap);
   return result;
@@ -3701,6 +3729,7 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
 
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
+  Map::cast(result)->set_bit_field3(bit_field3());
 
   Map::cast(result)->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
 
@@ -3776,8 +3805,8 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
   Map* meta_map = GetHeap()->meta_map();
   while (current != meta_map) {
     DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
-        *RawField(current, Map::kInstanceDescriptorsOffset));
-    if (d == GetHeap()->empty_descriptor_array()) {
+        *RawField(current, Map::kInstanceDescriptorsOrBitField3Offset));
+    if (d->IsEmpty()) {
       Map* prev = current->map();
       current->set_map(meta_map);
       callback(current, data);
@@ -4248,6 +4277,7 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors) {
         heap->AllocateFixedArray(number_of_descriptors << 1);
     if (!maybe_array->ToObject(&array)) return maybe_array;
   }
+  result->set(kBitField3StorageIndex, Smi::FromInt(0));
   result->set(kContentArrayIndex, array);
   result->set(kEnumerationIndexIndex,
               Smi::FromInt(PropertyDetails::kInitialIndex));
@@ -5509,8 +5539,16 @@ bool String::IsEqualTo(Vector<const char> str) {
 bool String::IsAsciiEqualTo(Vector<const char> str) {
   int slen = length();
   if (str.length() != slen) return false;
-  for (int i = 0; i < slen; i++) {
-    if (Get(i) != static_cast<uint16_t>(str[i])) return false;
+  if (this->IsSeqAsciiString()) {
+    SeqAsciiString* seq = SeqAsciiString::cast(this);
+    char* ch = seq->GetChars();
+    for (int i = 0; i < slen; i++, ch++) {
+      if (*ch != str[i]) return false;
+    }
+  } else {
+    for (int i = 0; i < slen; i++) {
+      if (Get(i) != static_cast<uint16_t>(str[i])) return false;
+    }
   }
   return true;
 }
@@ -5704,8 +5742,8 @@ void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
   // Live DescriptorArray objects will be marked, so we must use
   // low-level accessors to get and modify their data.
   DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
-      *RawField(this, Map::kInstanceDescriptorsOffset));
-  if (d == heap->raw_unchecked_empty_descriptor_array()) return;
+      *RawField(this, Map::kInstanceDescriptorsOrBitField3Offset));
+  if (d->IsEmpty()) return;
   Smi* NullDescriptorDetails =
     PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
   FixedArray* contents = reinterpret_cast<FixedArray*>(
@@ -6097,6 +6135,29 @@ void SharedFunctionInfo::EnableDeoptimizationSupport(Code* recompiled) {
     set_code(recompiled);
   }
   ASSERT(has_deoptimization_support());
+}
+
+
+void SharedFunctionInfo::DisableOptimization(JSFunction* function) {
+  // Disable optimization for the shared function info and mark the
+  // code as non-optimizable. The marker on the shared function info
+  // is there because we flush non-optimized code thereby loosing the
+  // non-optimizable information for the code. When the code is
+  // regenerated and set on the shared function info it is marked as
+  // non-optimizable if optimization is disabled for the shared
+  // function info.
+  set_optimization_disabled(true);
+  // Code should be the lazy compilation stub or else unoptimized.  If the
+  // latter, disable optimization for the code too.
+  ASSERT(code()->kind() == Code::FUNCTION || code()->kind() == Code::BUILTIN);
+  if (code()->kind() == Code::FUNCTION) {
+    code()->set_optimizable(false);
+  }
+  if (FLAG_trace_opt) {
+    PrintF("[disabled optimization for: ");
+    function->PrintName();
+    PrintF(" / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
+  }
 }
 
 
@@ -6562,8 +6623,8 @@ const char* Code::Kind2String(Kind kind) {
     case KEYED_STORE_IC: return "KEYED_STORE_IC";
     case CALL_IC: return "CALL_IC";
     case KEYED_CALL_IC: return "KEYED_CALL_IC";
-    case TYPE_RECORDING_UNARY_OP_IC: return "TYPE_RECORDING_UNARY_OP_IC";
-    case TYPE_RECORDING_BINARY_OP_IC: return "TYPE_RECORDING_BINARY_OP_IC";
+    case UNARY_OP_IC: return "UNARY_OP_IC";
+    case BINARY_OP_IC: return "BINARY_OP_IC";
     case COMPARE_IC: return "COMPARE_IC";
   }
   UNREACHABLE();
@@ -7332,7 +7393,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
                                               uint32_t index,
                                               Object* holder) {
   Isolate* isolate = GetIsolate();
-  ASSERT(!structure->IsProxy());
+  ASSERT(!structure->IsForeign());
 
   // api style callbacks.
   if (structure->IsAccessorInfo()) {
@@ -7377,7 +7438,8 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
 MaybeObject* JSObject::SetElementWithCallback(Object* structure,
                                               uint32_t index,
                                               Object* value,
-                                              JSObject* holder) {
+                                              JSObject* holder,
+                                              StrictModeFlag strict_mode) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
 
@@ -7387,9 +7449,9 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
   Handle<Object> value_handle(value, isolate);
 
   // To accommodate both the old and the new api we switch on the
-  // data structure used to store the callbacks.  Eventually proxy
+  // data structure used to store the callbacks.  Eventually foreign
   // callbacks should be phased out.
-  ASSERT(!structure->IsProxy());
+  ASSERT(!structure->IsForeign());
 
   if (structure->IsAccessorInfo()) {
     // api style callbacks
@@ -7416,10 +7478,13 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
   }
 
   if (structure->IsFixedArray()) {
-    Object* setter = FixedArray::cast(structure)->get(kSetterIndex);
+    Handle<Object> setter(FixedArray::cast(structure)->get(kSetterIndex));
     if (setter->IsJSFunction()) {
-     return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
+     return SetPropertyWithDefinedSetter(JSFunction::cast(*setter), value);
     } else {
+      if (strict_mode == kNonStrictMode) {
+        return value;
+      }
       Handle<Object> holder_handle(holder, isolate);
       Handle<Object> key(isolate->factory()->NewNumberFromUint(index));
       Handle<Object> args[2] = { key, holder_handle };
@@ -7453,8 +7518,10 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
   if (check_prototype &&
       (index >= elms_length || elms->get(index)->IsTheHole())) {
     bool found;
-    MaybeObject* result =
-        SetElementWithCallbackSetterInPrototypes(index, value, &found);
+    MaybeObject* result = SetElementWithCallbackSetterInPrototypes(index,
+                                                                   value,
+                                                                   &found,
+                                                                   strict_mode);
     if (found) return result;
   }
 
@@ -7598,7 +7665,11 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
         Object* element = dictionary->ValueAt(entry);
         PropertyDetails details = dictionary->DetailsAt(entry);
         if (details.type() == CALLBACKS) {
-          return SetElementWithCallback(element, index, value, this);
+          return SetElementWithCallback(element,
+                                        index,
+                                        value,
+                                        this,
+                                        strict_mode);
         } else {
           dictionary->UpdateMaxNumberKey(index);
           // If put fails instrict mode, throw exception.
@@ -7618,7 +7689,10 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
           bool found;
           MaybeObject* result =
               // Strict mode not needed. No-setter case already handled.
-              SetElementWithCallbackSetterInPrototypes(index, value, &found);
+              SetElementWithCallbackSetterInPrototypes(index,
+                                                       value,
+                                                       &found,
+                                                       strict_mode);
           if (found) return result;
         }
         // When we set the is_extensible flag to false we always force
@@ -8739,6 +8813,71 @@ class AsciiSymbolKey : public SequentialSymbolKey<char> {
 };
 
 
+class SubStringAsciiSymbolKey : public HashTableKey {
+ public:
+  explicit SubStringAsciiSymbolKey(Handle<SeqAsciiString> string,
+                                   int from,
+                                   int length)
+      : string_(string), from_(from), length_(length) { }
+
+  uint32_t Hash() {
+    ASSERT(length_ >= 0);
+    ASSERT(from_ + length_ <= string_->length());
+    StringHasher hasher(length_);
+
+    // Very long strings have a trivial hash that doesn't inspect the
+    // string contents.
+    if (hasher.has_trivial_hash()) {
+      hash_field_ = hasher.GetHashField();
+    } else {
+      int i = 0;
+      // Do the iterative array index computation as long as there is a
+      // chance this is an array index.
+      while (i < length_ && hasher.is_array_index()) {
+        hasher.AddCharacter(static_cast<uc32>(
+            string_->SeqAsciiStringGet(i + from_)));
+        i++;
+      }
+
+      // Process the remaining characters without updating the array
+      // index.
+      while (i < length_) {
+        hasher.AddCharacterNoIndex(static_cast<uc32>(
+            string_->SeqAsciiStringGet(i + from_)));
+        i++;
+      }
+      hash_field_ = hasher.GetHashField();
+    }
+
+    uint32_t result = hash_field_ >> String::kHashShift;
+    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+
+  uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  bool IsMatch(Object* string) {
+    Vector<const char> chars(string_->GetChars() + from_, length_);
+    return String::cast(string)->IsAsciiEqualTo(chars);
+  }
+
+  MaybeObject* AsObject() {
+    if (hash_field_ == 0) Hash();
+    Vector<const char> chars(string_->GetChars() + from_, length_);
+    return HEAP->AllocateAsciiSymbol(chars, hash_field_);
+  }
+
+ private:
+  Handle<SeqAsciiString> string_;
+  int from_;
+  int length_;
+  uint32_t hash_field_;
+};
+
+
 class TwoByteSymbolKey : public SequentialSymbolKey<uc16> {
  public:
   explicit TwoByteSymbolKey(Vector<const uc16> str)
@@ -9529,6 +9668,15 @@ MaybeObject* SymbolTable::LookupSymbol(Vector<const char> str, Object** s) {
 MaybeObject* SymbolTable::LookupAsciiSymbol(Vector<const char> str,
                                             Object** s) {
   AsciiSymbolKey key(str);
+  return LookupKey(&key, s);
+}
+
+
+MaybeObject* SymbolTable::LookupSubStringAsciiSymbol(Handle<SeqAsciiString> str,
+                                                     int from,
+                                                     int length,
+                                                     Object** s) {
+  SubStringAsciiSymbolKey key(str, from, length);
   return LookupKey(&key, s);
 }
 
