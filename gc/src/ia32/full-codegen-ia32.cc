@@ -685,11 +685,14 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
           VisitForAccumulatorValue(function);
           __ mov(ContextOperand(esi, slot->index()), result_register());
           int offset = Context::SlotOffset(slot->index());
+          // We know that we have written a function, which is not a smi.
           __ RecordWriteContextSlot(esi,
                                     offset,
                                     result_register(),
                                     ecx,
-                                    kDontSaveFPRegs);
+                                    kDontSaveFPRegs,
+                                    EMIT_REMEMBERED_SET,
+                                    OMIT_SMI_CHECK);
         }
         break;
 
@@ -3191,8 +3194,7 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
 
   __ mov(object, elements);
   // Since we are swapping two objects, the incremental marker is not disturbed,
-  // so we don't call the stub that handles this.  TODO(gc): Optimize by
-  // checking the scan_on_scavenge flag, probably by calling the stub.
+  // so we don't call the stub that handles this.
   __ RememberedSetHelper(index_1, temp, kDontSaveFPRegs);
   __ RememberedSetHelper(index_2, temp, kDontSaveFPRegs);
 

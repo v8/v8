@@ -139,6 +139,7 @@ SOURCES = {
     arm/builtins-arm.cc
     arm/code-stubs-arm.cc
     arm/codegen-arm.cc
+    arm/constants-arm.cc
     arm/cpu-arm.cc
     arm/debug-arm.cc
     arm/deoptimizer-arm.cc

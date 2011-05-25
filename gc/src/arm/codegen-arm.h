@@ -71,20 +71,6 @@ class CodeGenerator: public AstVisitor {
                               int pos,
                               bool right_here = false);
 
-  // Constants related to patching of inlined load/store.
-  static int GetInlinedKeyedLoadInstructionsAfterPatch() {
-    return FLAG_debug_code ? 32 : 13;
-  }
-  static const int kInlinedKeyedStoreInstructionsAfterPatch = 8;
-  static int GetInlinedNamedStoreInstructionsAfterPatch() {
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-    ASSERT(Isolate::Current()->inlined_write_barrier_size_ != -1);
-    return Isolate::Current()->inlined_write_barrier_size_ + 4;
-#else
-    return 4;
-#endif
-  }
-
  private:
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

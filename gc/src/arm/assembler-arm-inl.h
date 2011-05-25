@@ -74,9 +74,14 @@ int RelocInfo::target_address_size() {
 }
 
 
-void RelocInfo::set_target_address(Address target) {
+void RelocInfo::set_target_address(Address target, Code* code) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   Assembler::set_target_address_at(pc_, target);
+  if (code != NULL && IsCodeTarget(rmode_)) {
+    Object* target_code = Code::GetCodeFromTargetAddress(target);
+    code->GetHeap()->incremental_marking()->RecordWrite(
+        code, HeapObject::cast(target_code));
+  }
 }
 
 
@@ -98,9 +103,13 @@ Object** RelocInfo::target_object_address() {
 }
 
 
-void RelocInfo::set_target_object(Object* target) {
+void RelocInfo::set_target_object(Object* target, Code* code) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   Assembler::set_target_address_at(pc_, reinterpret_cast<Address>(target));
+  if (code != NULL && target->IsHeapObject()) {
+    code->GetHeap()->incremental_marking()->RecordWrite(
+        code, HeapObject::cast(target));
+  }
 }
 
 
@@ -127,10 +136,13 @@ JSGlobalPropertyCell* RelocInfo::target_cell() {
 }
 
 
-void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell) {
+void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell, Code* code) {
   ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
   Address address = cell->address() + JSGlobalPropertyCell::kValueOffset;
   Memory::Address_at(pc_) = address;
+  if (code != NULL) {
+    code->GetHeap()->incremental_marking()->RecordWrite(code, cell);
+  }
 }
 
 

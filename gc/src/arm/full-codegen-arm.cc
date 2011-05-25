@@ -39,6 +39,7 @@
 #include "stub-cache.h"
 
 #include "arm/code-stubs-arm.h"
+#include "arm/macro-assembler-arm.h"
 
 namespace v8 {
 namespace internal {
@@ -178,16 +179,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
         // Load parameter from stack.
         __ ldr(r0, MemOperand(fp, parameter_offset));
         // Store it in the context.
-        __ mov(r1, Operand(Context::SlotOffset(slot->index())));
-        __ str(r0, MemOperand(cp, r1));
+        MemOperand target = ContextOperand(cp, slot->index());
+        __ str(r0, target);
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-        // Update the write barrier. This clobbers all involved
-        // registers, so we have to use two more registers to avoid
-        // clobbering cp.
-        __ mov(r2, Operand(cp));
-        __ RecordWrite(r2, Operand(r1), r3, r0);
-#endif
+        // Update the write barrier.
+        __ RecordWriteContextSlot(cp, target.offset(), r0, r3, kDontSaveFPRegs);
       }
     }
   }
@@ -630,15 +626,11 @@ void FullCodeGenerator::Move(Slot* dst,
   MemOperand location = EmitSlotSearch(dst, scratch1);
   __ str(src, location);
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Emit the write barrier code if the location is in the heap.
   if (dst->type() == Slot::CONTEXT) {
-    __ RecordWrite(scratch1,
-                   Operand(Context::SlotOffset(dst->index())),
-                   scratch2,
-                   src);
+    __ RecordWriteContextSlot(
+        scratch1, location.offset(), src, scratch2, kDontSaveFPRegs);
   }
-#endif
 }
 
 
@@ -709,14 +701,17 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
           // No write barrier since the_hole_value is in old space.
         } else if (function != NULL) {
           VisitForAccumulatorValue(function);
-          __ str(result_register(), ContextOperand(cp, slot->index()));
+          MemOperand target = ContextOperand(cp, slot->index());
+          __ str(result_register(), target);
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-          int offset = Context::SlotOffset(slot->index());
           // We know that we have written a function, which is not a smi.
-          __ mov(r1, Operand(cp));
-          __ RecordWrite(r1, Operand(offset), r2, result_register());
-#endif
+          __ RecordWriteContextSlot(cp,
+                                    target.offset(),
+                                    result_register(),
+                                    r2,
+                                    kDontSaveFPRegs,
+                                    EMIT_REMEMBERED_SET,
+                                    OMIT_SMI_CHECK);
         }
         break;
 
@@ -1537,11 +1532,9 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     int offset = FixedArray::kHeaderSize + (i * kPointerSize);
     __ str(result_register(), FieldMemOperand(r1, offset));
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
     // Update the write barrier for the array store with r0 as the scratch
     // register.
-    __ RecordWrite(r1, Operand(offset), r2, result_register());
-#endif
+    __ RecordWriteField(r1, offset, result_register(), r2, kDontSaveFPRegs);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
@@ -1928,10 +1921,10 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
         __ cmp(r2, ip);
         __ b(ne, &skip);
-        __ str(r0, ContextOperand(r1, slot->index()));
-        int offset = Context::SlotOffset(slot->index());
+        MemOperand target = ContextOperand(r1, slot->index());
+        __ str(r0, target);
         __ mov(r3, r0);  // Preserve the stored value in r0.
-        __ RecordWrite(r1, Operand(offset), r3, r2);
+        __ RecordWriteContextSlot(r1, target.offset(), r3, r2, kDontSaveFPRegs);
         break;
       }
       case Slot::LOOKUP:
@@ -1958,12 +1951,10 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         MemOperand target = EmitSlotSearch(slot, r1);
         // Perform the assignment and issue the write barrier.
         __ str(result_register(), target);
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-        // RecordWrite may destroy all its register arguments.
+        // The value of the assignment is in result_register().  RecordWrite
+        // clobbers its second and third register arguments.
         __ mov(r3, result_register());
-        int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-        __ RecordWrite(r1, Operand(offset), r2, r3);
-#endif
+        __ RecordWriteContextSlot(r1, target.offset(), r3, r2, kDontSaveFPRegs);
         break;
       }
 
@@ -2966,11 +2957,10 @@ void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
 
   // Store the value.
   __ str(r0, FieldMemOperand(r1, JSValue::kValueOffset));
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Update the write barrier.  Save the value as it will be
   // overwritten by the write barrier code and is needed afterward.
-  __ RecordWrite(r1, Operand(JSValue::kValueOffset - kHeapObjectTag), r2, r3);
-#endif
+  __ mov(r2, r0);
+  __ RecordWriteField(r1, JSValue::kValueOffset, r2, r3, kDontSaveFPRegs);
 
   __ bind(&done);
   context()->Plug(r0);
@@ -3257,16 +3247,19 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ str(scratch1, MemOperand(index2, 0));
   __ str(scratch2, MemOperand(index1, 0));
 
-  Label new_space;
-  __ InNewSpace(elements, scratch1, eq, &new_space);
+  Label no_remembered_set;
+  __ CheckPageFlag(elements,
+                   scratch1,
+                   MemoryChunk::SCAN_ON_SCAVENGE,
+                   ne,
+                   &no_remembered_set);
   // Possible optimization: do a check that both values are Smis
   // (or them and test against Smi mask.)
 
-  __ mov(scratch1, elements);
-  __ RecordWriteHelper(elements, index1, scratch2);
-  __ RecordWriteHelper(scratch1, index2, scratch2);  // scratch1 holds elements.
+  __ RememberedSetHelper(index1, scratch2, kDontSaveFPRegs);
+  __ RememberedSetHelper(index2, scratch2, kDontSaveFPRegs);
 
-  __ bind(&new_space);
+  __ bind(&no_remembered_set);
   // We are done. Drop elements from the stack, and return undefined.
   __ Drop(3);
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);

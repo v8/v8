@@ -466,33 +466,6 @@ void MacroAssembler::StoreRoot(Register source,
 }
 
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-void MacroAssembler::RecordWriteHelper(Register object,
-                                       Register address,
-                                       Register scratch) {
-  if (emit_debug_code()) {
-    // Check that the object is not in new space.
-    Label not_in_new_space;
-    InNewSpace(object, scratch, ne, &not_in_new_space);
-    Abort("new-space object passed to RecordWriteHelper");
-    bind(&not_in_new_space);
-  }
-
-  // Calculate page address.
-  Bfc(object, 0, kPageSizeBits);
-
-  // Calculate region number.
-  Ubfx(address, address, Page::kRegionSizeLog2,
-       kPageSizeBits - Page::kRegionSizeLog2);
-
-  // Mark region dirty.
-  ldr(scratch, MemOperand(object, Page::kDirtyFlagOffset));
-  mov(ip, Operand(1));
-  orr(scratch, scratch, Operand(ip, LSL, address));
-  str(scratch, MemOperand(object, Page::kDirtyFlagOffset));
-}
-
-
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 Condition cond,
@@ -504,38 +477,44 @@ void MacroAssembler::InNewSpace(Register object,
 }
 
 
-// Will clobber 4 registers: object, offset, scratch, ip.  The
-// register 'object' contains a heap object pointer.  The heap object
-// tag is shifted away.
-void MacroAssembler::RecordWrite(Register object,
-                                 Operand offset,
-                                 Register scratch0,
-                                 Register scratch1) {
-  // The compiled code assumes that record write doesn't change the
-  // context register, so we check that none of the clobbered
-  // registers are cp.
-  ASSERT(!object.is(cp) && !scratch0.is(cp) && !scratch1.is(cp));
-
+void MacroAssembler::RecordWriteField(
+    Register object,
+    int offset,
+    Register value,
+    Register dst,
+    SaveFPRegsMode save_fp,
+    EmitRememberedSet emit_remembered_set,
+    SmiCheck smi_check) {
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis.
   Label done;
 
-  // First, test that the object is not in the new space.  We cannot set
-  // region marks for new space pages.
-  InNewSpace(object, scratch0, eq, &done);
+  // Skip barrier if writing a smi.
+  if (smi_check == INLINE_SMI_CHECK) {
+    JumpIfSmi(value, &done);
+  }
 
-  // Add offset into the object.
-  add(scratch0, object, offset);
+  // Although the object register is tagged, the offset is relative to the start
+  // of the object, so so offset must be a multiple of kPointerSize.
+  ASSERT(IsAligned(offset, kPointerSize));
 
-  // Record the actual write.
-  RecordWriteHelper(object, scratch0, scratch1);
+  add(dst, object, Operand(offset));
+  if (emit_debug_code()) {
+    Label ok;
+    JumpIfNotSmi(dst, &ok);
+    stop("Unaligned cell in write barrier");
+    bind(&ok);
+  }
+
+  RecordWrite(object, dst, value, save_fp, emit_remembered_set, OMIT_SMI_CHECK);
 
   bind(&done);
 
-  // Clobber all input registers when running with the debug-code flag
+  // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(object, Operand(BitCast<int32_t>(kZapValue)));
-    mov(scratch0, Operand(BitCast<int32_t>(kZapValue)));
-    mov(scratch1, Operand(BitCast<int32_t>(kZapValue)));
+    mov(value, Operand(BitCast<int32_t>(kZapValue + 4)));
+    mov(dst, Operand(BitCast<int32_t>(kZapValue + 8)));
   }
 }
 
@@ -545,11 +524,14 @@ void MacroAssembler::RecordWrite(Register object,
 // tag is shifted away.
 void MacroAssembler::RecordWrite(Register object,
                                  Register address,
-                                 Register scratch) {
+                                 Register scratch,
+                                 SaveFPRegsMode fp_mode,
+                                 EmitRememberedSet emit_remembered_set,
+                                 SmiCheck smi_check) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are cp.
-  ASSERT(!object.is(cp) && !address.is(cp) && !scratch.is(cp));
+  ASSERT(!address.is(cp) && !scratch.is(cp));
 
   Label done;
 
@@ -558,19 +540,44 @@ void MacroAssembler::RecordWrite(Register object,
   InNewSpace(object, scratch, eq, &done);
 
   // Record the actual write.
-  RecordWriteHelper(object, address, scratch);
+  RememberedSetHelper(address, scratch, fp_mode);
 
   bind(&done);
 
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(object, Operand(BitCast<int32_t>(kZapValue)));
-    mov(address, Operand(BitCast<int32_t>(kZapValue)));
-    mov(scratch, Operand(BitCast<int32_t>(kZapValue)));
+    mov(address, Operand(BitCast<int32_t>(kZapValue + 12)));
+    mov(scratch, Operand(BitCast<int32_t>(kZapValue + 16)));
   }
 }
-#endif
+
+
+void MacroAssembler::RememberedSetHelper(Register address,
+                                         Register scratch,
+                                         SaveFPRegsMode fp_mode) {
+  Label done;
+  // Load store buffer top.
+  ExternalReference store_buffer =
+      ExternalReference::store_buffer_top(isolate());
+  mov(ip, Operand(store_buffer));
+  ldr(scratch, MemOperand(ip));
+  // Store pointer to buffer and increment buffer top.
+  str(address, MemOperand(scratch, kPointerSize, PostIndex));
+  // Write back new top of buffer.
+  str(scratch, MemOperand(ip));
+  // Call stub on end of buffer.
+  // Check for end of buffer.
+  tst(scratch, Operand(StoreBuffer::kStoreBufferOverflowBit));
+  b(eq, &done);
+  push(lr);
+  StoreBufferOverflowStub store_buffer_overflow =
+      StoreBufferOverflowStub(fp_mode);
+  CallStub(&store_buffer_overflow);
+  pop(lr);
+  bind(&done);
+}
+
 
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
@@ -1747,7 +1754,8 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
 
 void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
-  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  // TODO(gc): Fix this!
+  // ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
@@ -2268,8 +2276,7 @@ void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
   const Runtime::Function* function = Runtime::FunctionForId(id);
   mov(r0, Operand(function->nargs));
   mov(r1, Operand(ExternalReference(function, isolate())));
-  CEntryStub stub(1);
-  stub.SaveDoubles();
+  CEntryStub stub(1, kSaveFPRegs);
   CallStub(&stub);
 }
 
@@ -3043,6 +3050,19 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
   and_(result, result, Operand(kLdrOffsetMask));
   add(result, ldr_location, Operand(result));
   add(result, result, Operand(kPCRegOffset));
+}
+
+
+void MacroAssembler::CheckPageFlag(
+    Register object,
+    Register scratch,
+    MemoryChunk::MemoryChunkFlags flag,
+    Condition cc,
+    Label* condition_met) {
+  and_(scratch, object, Operand(~Page::kPageAlignmentMask));
+  ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
+  tst(scratch, Operand(1 << flag));
+  b(cc, condition_met);
 }
 
 

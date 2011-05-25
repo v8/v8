@@ -71,6 +71,21 @@ class ToBooleanStub: public CodeStub {
 };
 
 
+class StoreBufferOverflowStub: public CodeStub {
+ public:
+  explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
+      : save_doubles_(save_fp) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  SaveFPRegsMode save_doubles_;
+
+  Major MajorKey() { return StoreBufferOverflow; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+};
+
+
 class TypeRecordingUnaryOpStub: public CodeStub {
  public:
   TypeRecordingUnaryOpStub(Token::Value op, UnaryOverwriteMode mode)
@@ -425,6 +440,124 @@ class NumberToStringStub: public CodeStub {
   void Generate(MacroAssembler* masm);
 
   const char* GetName() { return "NumberToStringStub"; }
+};
+
+
+class RecordWriteStub: public CodeStub {
+ public:
+  RecordWriteStub(Register object,
+                  Register value,
+                  Register address,
+                  EmitRememberedSet emit_remembered_set,
+                  SaveFPRegsMode fp_mode)
+      : object_(object),
+        value_(value),
+        address_(address),
+        emit_remembered_set_(emit_remembered_set),
+        save_fp_regs_mode_(fp_mode),
+        regs_(object,   // An input reg.
+              address,  // An input reg.
+              value) {  // One scratch reg.
+  }
+
+  static void Patch(Code* stub, bool enable) {
+    ASSERT(!enable);
+  }
+
+ private:
+  // This is a helper class for freeing up 3 scratch registers.  The input is
+  // two registers that must be preserved and one scratch register provided by
+  // the caller.
+  class RegisterAllocation {
+   public:
+    RegisterAllocation(Register object,
+                       Register address,
+                       Register scratch0)
+        : object_(object),
+          address_(address),
+          scratch0_(scratch0) {
+    }
+    void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
+      UNREACHABLE();  // TODO(gc): Save the caller save registers.
+      if (mode == kSaveFPRegs) {
+        CpuFeatures::Scope scope(SSE2);
+        masm->sub(sp,
+                  sp,
+                  Operand(kDoubleSize * (DwVfpRegister::kNumRegisters - 1)));
+        // Save all VFP registers except d0.
+        for (int i = DwVfpRegister::kNumRegisters - 1; i > 0; i--) {
+          DwVfpRegister reg = DwVfpRegister::from_code(i);
+          masm->vstr(reg, MemOperand(sp, (i - 1) * kDoubleSize));
+        }
+      }
+    }
+
+    inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
+                                           SaveFPRegsMode mode) {
+      if (mode == kSaveFPRegs) {
+        CpuFeatures::Scope scope(SSE2);
+        // Restore all VFP registers except d0.
+        for (int i = DwVfpRegister::kNumRegisters - 1; i > 0; i--) {
+          DwVfpRegister reg = DwVfpRegister::from_code(i);
+          masm->vldr(reg, MemOperand(sp, (i - 1) * kDoubleSize));
+        }
+        masm->add(sp,
+                  sp,
+                  Operand(kDoubleSize * (DwVfpRegister::kNumRegisters - 1)));
+      }
+      UNREACHABLE();  // TODO(gc): Restore the caller save registers.
+    }
+
+    inline Register object() { return object_; }
+    inline Register address() { return address_; }
+    inline Register scratch0() { return scratch0_; }
+
+   private:
+    Register object_;
+    Register address_;
+    Register scratch0_;
+
+    Register GetRegThatIsNotOneOf(Register r1,
+                                  Register r2,
+                                  Register r3) {
+      for (int i = 0; i < Register::kNumAllocatableRegisters; i++) {
+        Register candidate = Register::FromAllocationIndex(i);
+        if (candidate.is(r1)) continue;
+        if (candidate.is(r2)) continue;
+        if (candidate.is(r3)) continue;
+        return candidate;
+      }
+      UNREACHABLE();
+      return no_reg;
+    }
+    friend class RecordWriteStub;
+  };
+
+  void Generate(MacroAssembler* masm);
+
+  Major MajorKey() { return RecordWrite; }
+
+  int MinorKey() {
+    return ObjectBits::encode(object_.code()) |
+        ValueBits::encode(value_.code()) |
+        AddressBits::encode(address_.code()) |
+        EmitRememberedSetBits::encode(emit_remembered_set_) |
+        SaveFPRegsModeBits::encode(save_fp_regs_mode_);
+  }
+
+  class ObjectBits: public BitField<int, 0, 4> {};
+  class ValueBits: public BitField<int, 4, 4> {};
+  class AddressBits: public BitField<int, 8, 4> {};
+  class EmitRememberedSetBits: public BitField<EmitRememberedSet, 12, 1> {};
+  class SaveFPRegsModeBits: public BitField<SaveFPRegsMode, 13, 1> {};
+
+  Register object_;
+  Register value_;
+  Register address_;
+  EmitRememberedSet emit_remembered_set_;
+  SaveFPRegsMode save_fp_regs_mode_;
+  Label slow_;
+  RegisterAllocation regs_;
 };
 
 

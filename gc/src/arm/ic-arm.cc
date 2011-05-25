@@ -207,11 +207,9 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
   __ add(scratch2, scratch2, Operand(kValueOffset - kHeapObjectTag));
   __ str(value, MemOperand(scratch2));
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Update the write barrier. Make sure not to clobber the value.
   __ mov(scratch1, value);
-  __ RecordWrite(elements, scratch2, scratch1);
-#endif
+  __ RecordWrite(elements, scratch2, scratch1, kDontSaveFPRegs);
 }
 
 
@@ -1271,19 +1269,24 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Fall through to fast case.
 
   __ bind(&fast);
+  Register scratch_value = r4;
+  Register address = r5;
   // Fast case, store the value to the elements backing store.
-  __ add(r5, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ add(r5, r5, Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ str(value, MemOperand(r5));
+  __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(address, address, Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ str(value, MemOperand(address));
   // Skip write barrier if the written value is a smi.
   __ tst(value, Operand(kSmiTagMask));
   __ Ret(eq);
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
   // Update write barrier for the elements array address.
-  __ sub(r4, r5, Operand(elements));
-  __ RecordWrite(elements, Operand(r4), r5, r6);
-#endif
+  __ mov(scratch_value, value);  // Preserve the value which is returned.
+  __ RecordWrite(elements,
+                 address,
+                 scratch_value,
+                 kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET,
+                 OMIT_SMI_CHECK);
 
   __ Ret();
 }

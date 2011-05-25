@@ -78,7 +78,9 @@ static uint64_t CpuFeaturesImpliedByCompiler() {
 
 
 void CpuFeatures::Probe() {
-  ASSERT(!initialized_);
+  unsigned standard_features = (OS::CpuFeaturesImpliedByPlatform() |
+                                CpuFeaturesImpliedByCompiler());
+  ASSERT(supported_ == 0 || supported_ == standard_features);
 #ifdef DEBUG
   initialized_ = true;
 #endif
@@ -86,8 +88,7 @@ void CpuFeatures::Probe() {
   // Get the features implied by the OS and the compiler settings. This is the
   // minimal set of features which is also alowed for generated code in the
   // snapshot.
-  supported_ |= OS::CpuFeaturesImpliedByPlatform();
-  supported_ |= CpuFeaturesImpliedByCompiler();
+  supported_ |= standard_features;
 
   if (Serializer::enabled()) {
     // No probing for features if we might serialize (generate snapshot).

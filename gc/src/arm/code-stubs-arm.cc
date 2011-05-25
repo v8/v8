@@ -1705,6 +1705,39 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
+void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
+  // We don't allow a GC during a store buffer overflow so there is no need to
+  // store the registers in any particular way, but we do have to store and
+  // restore them.
+  __ stm(db_w, sp, kCallerSaved | lr.bit());
+  if (save_doubles_ == kSaveFPRegs) {
+    CpuFeatures::Scope scope(VFP3);
+    __ sub(sp, sp, Operand(kDoubleSize * DwVfpRegister::kNumRegisters));
+    for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
+      DwVfpRegister reg = DwVfpRegister::from_code(i);
+      __ vstr(reg, MemOperand(sp, i * kDoubleSize));
+    }
+  }
+  const int argument_count = 1;
+  const int fp_argument_count = 0;
+  const Register scratch = r1;
+  __ PrepareCallCFunction(argument_count, fp_argument_count, scratch);
+  __ mov(r0, Operand(ExternalReference::isolate_address()));
+  __ CallCFunction(
+      ExternalReference::store_buffer_overflow_function(masm->isolate()),
+      argument_count);
+  if (save_doubles_ == kSaveFPRegs) {
+    CpuFeatures::Scope scope(VFP3);
+    for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
+      DwVfpRegister reg = DwVfpRegister::from_code(i);
+      __ vldr(reg, MemOperand(sp, i * kDoubleSize));
+    }
+    __ add(sp, sp, Operand(kDoubleSize * DwVfpRegister::kNumRegisters));
+  }
+  __ ldm(ia_w, sp, kCallerSaved | pc.bit());  // Also pop pc to get Ret(0).
+}
+
+
 Handle<Code> GetTypeRecordingUnaryOpStub(int key,
                                          TRUnaryOpIC::TypeInfo type_info) {
   TypeRecordingUnaryOpStub stub(key, type_info);
@@ -1903,6 +1936,8 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
 
 void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
     MacroAssembler* masm, Label* slow) {
+  Label impossible;
+
   EmitCheckForHeapNumber(masm, r0, r1, r6, slow);
   // Convert the heap number is r0 to an untagged integer in r1.
   __ ConvertToInt32(r0, r1, r2, r3, d0, slow);
@@ -1921,17 +1956,27 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
   __ bind(&try_float);
   if (mode_ == UNARY_NO_OVERWRITE) {
     Label slow_allocate_heapnumber, heapnumber_allocated;
-    __ AllocateHeapNumber(r0, r2, r3, r6, &slow_allocate_heapnumber);
+    // Allocate a new heap number without zapping r0, which we need if it fails.
+    __ AllocateHeapNumber(r2, r3, r4, r6, &slow_allocate_heapnumber);
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
     __ EnterInternalFrame();
-    __ push(r1);
-      __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ pop(r1);
+    __ push(r0);  // Push the heap number, not the untagged int32.
+    __ CallRuntime(Runtime::kNumberAlloc, 0);
+    __ mov(r2, r0);  // Move the new heap number into r2.
+    // Get the heap number into r0, now that the new heap number is in r2.
+    __ pop(r0);
     __ LeaveInternalFrame();
 
+    // Convert the heap number in r0 to an untagged integer in r1.
+    // This can't go slow-case because it's the same number we already
+    // converted once again.
+    __ ConvertToInt32(r0, r1, r3, r4, d0, &impossible);
+    __ mvn(r1, Operand(r1));
+
     __ bind(&heapnumber_allocated);
+    __ mov(r0, r2);  // Move newly allocated heap number to r0.
   }
 
   if (CpuFeatures::IsSupported(VFP3)) {
@@ -1947,6 +1992,11 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
     // have to set up a frame.
     WriteInt32ToHeapNumberStub stub(r1, r0, r2);
     __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+  }
+
+  __ bind(&impossible);
+  if (FLAG_debug_code) {
+    __ stop("Incorrect assumption in bit-not stub");
   }
 }
 
@@ -4347,20 +4397,23 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ str(r2, FieldMemOperand(last_match_info_elements,
                              RegExpImpl::kLastCaptureCountOffset));
   // Store last subject and last input.
-  __ mov(r3, last_match_info_elements);  // Moved up to reduce latency.
   __ str(subject,
          FieldMemOperand(last_match_info_elements,
                          RegExpImpl::kLastSubjectOffset));
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-  __ RecordWrite(r3, Operand(RegExpImpl::kLastSubjectOffset), r2, r7);
-#endif
+  __ mov(r2, subject);
+  __ RecordWriteField(last_match_info_elements,
+                      RegExpImpl::kLastSubjectOffset,
+                      r2,
+                      r7,
+                      kDontSaveFPRegs);
   __ str(subject,
          FieldMemOperand(last_match_info_elements,
                          RegExpImpl::kLastInputOffset));
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-  __ mov(r3, last_match_info_elements);
-  __ RecordWrite(r3, Operand(RegExpImpl::kLastInputOffset), r2, r7);
-#endif
+  __ RecordWriteField(last_match_info_elements,
+                      RegExpImpl::kLastInputOffset,
+                      subject,
+                      r7,
+                      kDontSaveFPRegs);
 
   // Get the static offsets vector filled by the native regexp code.
   ExternalReference address_of_static_offsets_vector =

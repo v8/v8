@@ -79,6 +79,13 @@ enum ObjectToDoubleFlags {
 };
 
 
+enum EmitRememberedSet { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
+enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
+
+
+bool Aliasing(Register r1, Register r2, Register r3, Register r4);
+
+
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
  public:
@@ -157,41 +164,69 @@ class MacroAssembler: public Assembler {
                  Heap::RootListIndex index,
                  Condition cond = al);
 
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
+  // Enters the address into the store buffer.  RememberedSetHelper only works
+  // if the address is not in new space.
+  void RememberedSetHelper(Register address,
+                           Register scratch,
+                           SaveFPRegsMode save_fp);
+
   // Check if object is in new space.
   // scratch can be object itself, but it will be clobbered.
   void InNewSpace(Register object,
                   Register scratch,
-                  Condition cond,  // eq for new space, ne otherwise
+                  Condition cond,  // eq for new space, ne otherwise.
                   Label* branch);
 
+  void CheckPageFlag(Register object,
+                     Register scratch,
+                     MemoryChunk::MemoryChunkFlags flag,
+                     Condition cc,
+                     Label* condition_met);
 
-  // For the page containing |object| mark the region covering [address]
-  // dirty. The object address must be in the first 8K of an allocated page.
-  void RecordWriteHelper(Register object,
-                         Register address,
-                         Register scratch);
+  // Notify the garbage collector that we wrote a pointer into an object.
+  // |object| is the object being stored into, |value| is the object being
+  // stored.  All registers are clobbered by the operation.  RecordWriteField
+  // filters out smis so it does not update the write barrier if the value is a
+  // smi.  The offset is the offset from the start of the object, not the offset
+  // from the tagged HeapObject pointer.  For use with
+  // FieldMemOperand(reg, off)
+  void RecordWriteField(
+      Register object,
+      int offset,
+      Register value,
+      Register scratch,
+      SaveFPRegsMode save_fp,
+      EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
-  // For the page containing |object| mark the region covering
-  // [object+offset] dirty. The object address must be in the first 8K
-  // of an allocated page.  The 'scratch' registers are used in the
-  // implementation and all 3 registers are clobbered by the
-  // operation, as well as the ip register. RecordWrite updates the
-  // write barrier even when storing smis.
-  void RecordWrite(Register object,
-                   Operand offset,
-                   Register scratch0,
-                   Register scratch1);
+  // As above, but the offset has the tag presubtracted.  For use with
+  // MemOperand(reg, off).
+  inline void RecordWriteContextSlot(
+      Register context,
+      int offset,
+      Register value,
+      Register scratch,
+      SaveFPRegsMode save_fp,
+      EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK) {
+    RecordWriteField(context,
+                     offset + kHeapObjectTag,
+                     value,
+                     scratch,
+                     save_fp,
+                     emit_remembered_set,
+                     smi_check);
+  }
 
-  // For the page containing |object| mark the region covering
-  // [address] dirty. The object address must be in the first 8K of an
-  // allocated page.  All 3 registers are clobbered by the operation,
-  // as well as the ip register. RecordWrite updates the write barrier
-  // even when storing smis.
+  // For a given |object| notify the garbage collector that the slot |address|
+  // has been written.  |value| is the object being stored. The value and
+  // address registers are clobbered by the operation.
   void RecordWrite(Register object,
                    Register address,
-                   Register scratch);
-#endif
+                   Register value,
+                   SaveFPRegsMode save_fp,
+                   EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
+                   SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {
