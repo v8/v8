@@ -1425,11 +1425,14 @@ class JSObject: public HeapObject {
       LookupResult* result,
       String* name,
       Object* value,
-      bool check_prototype);
-  MUST_USE_RESULT MaybeObject* SetPropertyWithCallback(Object* structure,
-                                                       String* name,
-                                                       Object* value,
-                                                       JSObject* holder);
+      bool check_prototype,
+      StrictModeFlag strict_mode);
+  MUST_USE_RESULT MaybeObject* SetPropertyWithCallback(
+      Object* structure,
+      String* name,
+      Object* value,
+      JSObject* holder,
+      StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetPropertyWithDefinedSetter(JSFunction* setter,
                                                             Object* value);
   MUST_USE_RESULT MaybeObject* SetPropertyWithInterceptor(
@@ -1656,7 +1659,7 @@ class JSObject: public HeapObject {
   void LookupRealNamedPropertyInPrototypes(String* name, LookupResult* result);
   void LookupCallbackSetterInPrototypes(String* name, LookupResult* result);
   MUST_USE_RESULT MaybeObject* SetElementWithCallbackSetterInPrototypes(
-      uint32_t index, Object* value, bool* found);
+      uint32_t index, Object* value, bool* found, StrictModeFlag strict_mode);
   void LookupCallback(String* name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
@@ -1868,7 +1871,8 @@ class JSObject: public HeapObject {
   MaybeObject* SetElementWithCallback(Object* structure,
                                       uint32_t index,
                                       Object* value,
-                                      JSObject* holder);
+                                      JSObject* holder,
+                                      StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetElementWithInterceptor(
       uint32_t index,
       Object* value,

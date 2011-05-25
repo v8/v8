@@ -1771,7 +1771,8 @@ MaybeObject* JSObject::SetProperty(String* name,
 MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
                                                String* name,
                                                Object* value,
-                                               JSObject* holder) {
+                                               JSObject* holder,
+                                               StrictModeFlag strict_mode) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
 
@@ -1819,6 +1820,9 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     if (setter->IsJSFunction()) {
      return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
     } else {
+      if (strict_mode == kNonStrictMode) {
+        return value;
+      }
       Handle<String> key(name);
       Handle<Object> holder_handle(holder, isolate);
       Handle<Object> args[2] = { key, holder_handle };
@@ -1876,9 +1880,11 @@ void JSObject::LookupCallbackSetterInPrototypes(String* name,
 }
 
 
-MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(uint32_t index,
-                                                                Object* value,
-                                                                bool* found) {
+MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
+    uint32_t index,
+    Object* value,
+    bool* found,
+    StrictModeFlag strict_mode) {
   Heap* heap = GetHeap();
   for (Object* pt = GetPrototype();
        pt != heap->null_value();
@@ -1892,8 +1898,11 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(uint32_t index,
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
         *found = true;
-        return SetElementWithCallback(
-            dictionary->ValueAt(entry), index, value, JSObject::cast(pt));
+        return SetElementWithCallback(dictionary->ValueAt(entry),
+                                      index,
+                                      value,
+                                      JSObject::cast(pt),
+                                      strict_mode);
       }
     }
   }
@@ -2074,10 +2083,12 @@ void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
 
 
 // We only need to deal with CALLBACKS and INTERCEPTORS
-MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
-                                                        String* name,
-                                                        Object* value,
-                                                        bool check_prototype) {
+MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
+    LookupResult* result,
+    String* name,
+    Object* value,
+    bool check_prototype,
+    StrictModeFlag strict_mode) {
   if (check_prototype && !result->IsProperty()) {
     LookupCallbackSetterInPrototypes(name, result);
   }
@@ -2093,7 +2104,8 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
               return SetPropertyWithCallback(result->GetCallbackObject(),
                                              name,
                                              value,
-                                             result->holder());
+                                             result->holder(),
+                                             strict_mode);
             }
           }
           break;
@@ -2104,8 +2116,11 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
           LookupResult r;
           LookupRealNamedProperty(name, &r);
           if (r.IsProperty()) {
-            return SetPropertyWithFailedAccessCheck(&r, name, value,
-                                                    check_prototype);
+            return SetPropertyWithFailedAccessCheck(&r,
+                                                    name,
+                                                    value,
+                                                    check_prototype,
+                                                    strict_mode);
           }
           break;
         }
@@ -2149,7 +2164,11 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
   // Check access rights if needed.
   if (IsAccessCheckNeeded()
       && !heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
-    return SetPropertyWithFailedAccessCheck(result, name, value, true);
+    return SetPropertyWithFailedAccessCheck(result,
+                                            name,
+                                            value,
+                                            true,
+                                            strict_mode);
   }
 
   if (IsJSGlobalProxy()) {
@@ -2169,7 +2188,8 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
       return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
                                      name,
                                      value,
-                                     accessor_result.holder());
+                                     accessor_result.holder(),
+                                     strict_mode);
     }
   }
   if (!result->IsFound()) {
@@ -2213,7 +2233,8 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
       return SetPropertyWithCallback(result->GetCallbackObject(),
                                      name,
                                      value,
-                                     result->holder());
+                                     result->holder(),
+                                     strict_mode);
     case INTERCEPTOR:
       return SetPropertyWithInterceptor(name, value, attributes, strict_mode);
     case CONSTANT_TRANSITION: {
@@ -2266,7 +2287,11 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   if (IsAccessCheckNeeded()) {
     Heap* heap = GetHeap();
     if (!heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
-      return SetPropertyWithFailedAccessCheck(&result, name, value, false);
+      return SetPropertyWithFailedAccessCheck(&result,
+                                              name,
+                                              value,
+                                              false,
+                                              kNonStrictMode);
     }
   }
 
@@ -7406,7 +7431,8 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
 MaybeObject* JSObject::SetElementWithCallback(Object* structure,
                                               uint32_t index,
                                               Object* value,
-                                              JSObject* holder) {
+                                              JSObject* holder,
+                                              StrictModeFlag strict_mode) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
 
@@ -7445,10 +7471,13 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
   }
 
   if (structure->IsFixedArray()) {
-    Object* setter = FixedArray::cast(structure)->get(kSetterIndex);
+    Handle<Object> setter(FixedArray::cast(structure)->get(kSetterIndex));
     if (setter->IsJSFunction()) {
-     return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
+     return SetPropertyWithDefinedSetter(JSFunction::cast(*setter), value);
     } else {
+      if (strict_mode == kNonStrictMode) {
+        return value;
+      }
       Handle<Object> holder_handle(holder, isolate);
       Handle<Object> key(isolate->factory()->NewNumberFromUint(index));
       Handle<Object> args[2] = { key, holder_handle };
@@ -7482,8 +7511,10 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
   if (check_prototype &&
       (index >= elms_length || elms->get(index)->IsTheHole())) {
     bool found;
-    MaybeObject* result =
-        SetElementWithCallbackSetterInPrototypes(index, value, &found);
+    MaybeObject* result = SetElementWithCallbackSetterInPrototypes(index,
+                                                                   value,
+                                                                   &found,
+                                                                   strict_mode);
     if (found) return result;
   }
 
@@ -7627,7 +7658,11 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
         Object* element = dictionary->ValueAt(entry);
         PropertyDetails details = dictionary->DetailsAt(entry);
         if (details.type() == CALLBACKS) {
-          return SetElementWithCallback(element, index, value, this);
+          return SetElementWithCallback(element,
+                                        index,
+                                        value,
+                                        this,
+                                        strict_mode);
         } else {
           dictionary->UpdateMaxNumberKey(index);
           // If put fails instrict mode, throw exception.
@@ -7647,7 +7682,10 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
           bool found;
           MaybeObject* result =
               // Strict mode not needed. No-setter case already handled.
-              SetElementWithCallbackSetterInPrototypes(index, value, &found);
+              SetElementWithCallbackSetterInPrototypes(index,
+                                                       value,
+                                                       &found,
+                                                       strict_mode);
           if (found) return result;
         }
         // When we set the is_extensible flag to false we always force
