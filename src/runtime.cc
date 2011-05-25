@@ -42,6 +42,7 @@
 #include "execution.h"
 #include "global-handles.h"
 #include "jsregexp.h"
+#include "json-parser.h"
 #include "liveedit.h"
 #include "liveobjectlist-inl.h"
 #include "parser.h"
@@ -2613,7 +2614,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   int capture_count = regexp_handle->CaptureCount();
 
   // CompiledReplacement uses zone allocation.
-  CompilationZoneScope zone(DELETE_ON_EXIT);
+  CompilationZoneScope zone(isolate, DELETE_ON_EXIT);
   CompiledReplacement compiled_replacement;
   compiled_replacement.Compile(replacement_handle,
                                capture_count,
@@ -3127,7 +3128,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
   }
   int length = subject->length();
 
-  CompilationZoneScope zone_space(DELETE_ON_EXIT);
+  CompilationZoneScope zone_space(isolate, DELETE_ON_EXIT);
   ZoneList<int> offsets(8);
   do {
     int start;
@@ -5601,7 +5602,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
 
   static const int kMaxInitialListCapacity = 16;
 
-  ZoneScope scope(DELETE_ON_EXIT);
+  ZoneScope scope(isolate, DELETE_ON_EXIT);
 
   // Find (up to limit) indices of separator and end-of-string in subject
   int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);
@@ -7885,8 +7886,8 @@ static inline MaybeObject* Unhole(Heap* heap,
 }
 
 
-static JSObject* ComputeReceiverForNonGlobal(Isolate* isolate,
-                                             JSObject* holder) {
+static Object* ComputeReceiverForNonGlobal(Isolate* isolate,
+                                           JSObject* holder) {
   ASSERT(!holder->IsGlobalObject());
   Context* top = isolate->context();
   // Get the context extension function.
@@ -7898,10 +7899,11 @@ static JSObject* ComputeReceiverForNonGlobal(Isolate* isolate,
   // explicitly via a with-statement.
   Object* constructor = holder->map()->constructor();
   if (constructor != context_extension_function) return holder;
-  // Fall back to using the global object as the receiver if the
-  // property turns out to be a local variable allocated in a context
-  // extension object - introduced via eval.
-  return top->global()->global_receiver();
+  // Fall back to using the global object as the implicit receiver if
+  // the property turns out to be a local variable allocated in a
+  // context extension object - introduced via eval. Implicit global
+  // receivers are indicated with the hole value.
+  return isolate->heap()->the_hole_value();
 }
 
 
@@ -7929,9 +7931,10 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     // If the "property" we were looking for is a local variable or an
     // argument in a context, the receiver is the global object; see
     // ECMA-262, 3rd., 10.1.6 and 10.2.3.
-    // GetElement below can cause GC.
-    Handle<JSObject> receiver(
-        isolate->context()->global()->global_receiver());
+    //
+    // Use the hole as the receiver to signal that the receiver is
+    // implicit and that the global receiver should be used.
+    Handle<Object> receiver = isolate->factory()->the_hole_value();
     MaybeObject* value = (holder->IsContext())
         ? Context::cast(*holder)->get(index)
         : JSObject::cast(*holder)->GetElement(index);
@@ -7942,17 +7945,19 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
   if (!holder.is_null() && holder->IsJSObject()) {
     ASSERT(Handle<JSObject>::cast(holder)->HasProperty(*name));
     JSObject* object = JSObject::cast(*holder);
-    JSObject* receiver;
+    Object* receiver;
     if (object->IsGlobalObject()) {
       receiver = GlobalObject::cast(object)->global_receiver();
     } else if (context->is_exception_holder(*holder)) {
-      receiver = isolate->context()->global()->global_receiver();
+      // Use the hole as the receiver to signal that the receiver is
+      // implicit and that the global receiver should be used.
+      receiver = isolate->heap()->the_hole_value();
     } else {
       receiver = ComputeReceiverForNonGlobal(isolate, object);
     }
 
     // GetProperty below can cause GC.
-    Handle<JSObject> receiver_handle(receiver);
+    Handle<Object> receiver_handle(receiver);
 
     // No need to unhole the value here. This is taken care of by the
     // GetProperty function.
@@ -7967,7 +7972,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
                                               HandleVector(&name, 1));
     return MakePair(isolate->Throw(*reference_error), NULL);
   } else {
-    // The property doesn't exist - return undefined
+    // The property doesn't exist - return undefined.
     return MakePair(isolate->heap()->undefined_value(),
                     isolate->heap()->undefined_value());
   }
@@ -8479,8 +8484,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
     // 'eval' is not bound in the global context. Just call the function
     // with the given arguments. This is not necessarily the global eval.
     if (receiver->IsContext() || receiver->IsJSContextExtensionObject()) {
-      receiver = Handle<JSObject>(
-          isolate->context()->global()->global_receiver(), isolate);
+      receiver = isolate->factory()->the_hole_value();
     }
     return MakePair(*callee, *receiver);
   }
@@ -8489,8 +8493,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
   // Compare it to the builtin 'GlobalEval' function to make sure.
   if (*callee != isolate->global_context()->global_eval_fun() ||
       !args[1]->IsString()) {
-    return MakePair(*callee,
-                    isolate->context()->global()->global_receiver());
+    return MakePair(*callee, isolate->heap()->the_hole_value());
   }
 
   ASSERT(args[3]->IsSmi());
@@ -8512,8 +8515,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEvalNoLookup) {
   // Compare it to the builtin 'GlobalEval' function to make sure.
   if (*callee != isolate->global_context()->global_eval_fun() ||
       !args[1]->IsString()) {
-    return MakePair(*callee,
-                    isolate->context()->global()->global_receiver());
+    return MakePair(*callee, isolate->heap()->the_hole_value());
   }
 
   ASSERT(args[3]->IsSmi());

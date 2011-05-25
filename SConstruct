@@ -210,6 +210,9 @@ LIBRARY_FLAGS = {
       'LINKFLAGS':    ['-m32'],
       'mipsabi:softfloat': {
         'CPPDEFINES':    ['__mips_soft_float=1'],
+      },
+      'mipsabi:hardfloat': {
+        'CPPDEFINES':    ['__mips_hard_float=1'],
       }
     },
     'arch:x64': {
@@ -511,10 +514,29 @@ SAMPLE_FLAGS = {
     },
     'arch:mips': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
+      'mips_arch_variant:mips32r2': {
+        'CPPDEFINES':    ['_MIPS_ARCH_MIPS32R2']
+      },
       'simulator:none': {
-        'CCFLAGS':      ['-EL', '-mips32r2', '-Wa,-mips32r2', '-fno-inline'],
+        'CCFLAGS':      ['-EL'],
         'LINKFLAGS':    ['-EL'],
-        'LDFLAGS':      ['-EL']
+        'mips_arch_variant:mips32r2': {
+          'CCFLAGS':      ['-mips32r2', '-Wa,-mips32r2']
+        },
+        'mips_arch_variant:mips32r1': {
+          'CCFLAGS':      ['-mips32', '-Wa,-mips32']
+        },
+        'library:static': {
+          'LINKFLAGS':    ['-static', '-static-libgcc']
+        },
+        'mipsabi:softfloat': {
+          'CCFLAGS':      ['-msoft-float'],
+          'LINKFLAGS':    ['-msoft-float']
+        },
+        'mipsabi:hardfloat': {
+          'CCFLAGS':      ['-mhard-float'],
+          'LINKFLAGS':    ['-mhard-float']
+        }
       }
     },
     'simulator:arm': {
@@ -678,6 +700,9 @@ PREPARSER_FLAGS = {
       'LINKFLAGS':    ['-m32'],
       'mipsabi:softfloat': {
         'CPPDEFINES':    ['__mips_soft_float=1'],
+      },
+      'mipsabi:hardfloat': {
+        'CPPDEFINES':    ['__mips_hard_float=1'],
       }
     },
     'mode:release': {
@@ -1238,12 +1263,8 @@ def PostprocessOptions(options, os):
     if 'msvcltcg' in ARGUMENTS:
       print "Warning: forcing msvcltcg on as it is required for pgo (%s)" % options['pgo']
     options['msvcltcg'] = 'on'
-    if (options['simulator'] == 'mips' and options['mipsabi'] != 'softfloat'):
-      # Print a warning if soft-float ABI is not selected for mips simulator
-      print "Warning: forcing soft-float mips ABI when running on simulator"
-      options['mipsabi'] = 'softfloat'
-    if (options['mipsabi'] != 'none') and (options['arch'] != 'mips') and (options['simulator'] != 'mips'):
-      options['mipsabi'] = 'none'
+  if (options['mipsabi'] != 'none') and (options['arch'] != 'mips') and (options['simulator'] != 'mips'):
+    options['mipsabi'] = 'none'
   if options['liveobjectlist'] == 'on':
     if (options['debuggersupport'] != 'on') or (options['mode'] == 'release'):
       # Print a warning that liveobjectlist will implicitly enable the debugger

@@ -240,6 +240,10 @@ class PreParser {
       return Statement(kUnknownStatement);
     }
 
+    static Statement FunctionDeclaration() {
+      return Statement(kFunctionDeclaration);
+    }
+
     // Creates expression statement from expression.
     // Preserves being an unparenthesized string literal, possibly
     // "use strict".
@@ -263,11 +267,16 @@ class PreParser {
       return code_ == kUseStrictExpressionStatement;
     }
 
+    bool IsFunctionDeclaration() {
+      return code_ == kFunctionDeclaration;
+    }
+
    private:
     enum Type {
       kUnknownStatement,
       kStringLiteralExpressionStatement,
-      kUseStrictExpressionStatement
+      kUseStrictExpressionStatement,
+      kFunctionDeclaration
     };
 
     explicit Statement(Type code) : code_(code) {}

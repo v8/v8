@@ -25,9 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// In strict mode, it's illegal to declare "eval" as a variable.
+// See: http://code.google.com/p/v8/issues/detail?id=1403
 
-function test() {
-  "use strict";
-  var eval = 42;
-}
+a = [];
+Object.prototype.__proto__ = { __proto__: null };
+a.shift();
+
+a = [];
+Array.prototype.__proto__ = { __proto__: null };
+a.shift();

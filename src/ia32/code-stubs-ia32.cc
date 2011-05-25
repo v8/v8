@@ -517,14 +517,13 @@ static void IntegerConvert(MacroAssembler* masm,
 }
 
 
-Handle<Code> GetTypeRecordingUnaryOpStub(int key,
-                                         TRUnaryOpIC::TypeInfo type_info) {
-  TypeRecordingUnaryOpStub stub(key, type_info);
+Handle<Code> GetUnaryOpStub(int key, UnaryOpIC::TypeInfo type_info) {
+  UnaryOpStub stub(key, type_info);
   return stub.GetCode();
 }
 
 
-const char* TypeRecordingUnaryOpStub::GetName() {
+const char* UnaryOpStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
   name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
@@ -538,34 +537,34 @@ const char* TypeRecordingUnaryOpStub::GetName() {
   }
 
   OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "TypeRecordingUnaryOpStub_%s_%s_%s",
+               "UnaryOpStub_%s_%s_%s",
                op_name,
                overwrite_name,
-               TRUnaryOpIC::GetName(operand_type_));
+               UnaryOpIC::GetName(operand_type_));
   return name_;
 }
 
 
 // TODO(svenpanne): Use virtual functions instead of switch.
-void TypeRecordingUnaryOpStub::Generate(MacroAssembler* masm) {
+void UnaryOpStub::Generate(MacroAssembler* masm) {
   switch (operand_type_) {
-    case TRUnaryOpIC::UNINITIALIZED:
+    case UnaryOpIC::UNINITIALIZED:
       GenerateTypeTransition(masm);
       break;
-    case TRUnaryOpIC::SMI:
+    case UnaryOpIC::SMI:
       GenerateSmiStub(masm);
       break;
-    case TRUnaryOpIC::HEAP_NUMBER:
+    case UnaryOpIC::HEAP_NUMBER:
       GenerateHeapNumberStub(masm);
       break;
-    case TRUnaryOpIC::GENERIC:
+    case UnaryOpIC::GENERIC:
       GenerateGenericStub(masm);
       break;
   }
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
+void UnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   __ pop(ecx);  // Save return address.
   __ push(eax);
   // the argument is now on top.
@@ -580,15 +579,13 @@ void TypeRecordingUnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   // Patch the caller to an appropriate specialized stub and return the
   // operation result to the caller of the stub.
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kTypeRecordingUnaryOp_Patch),
-                        masm->isolate()),
-      4,
-      1);
+      ExternalReference(IC_Utility(IC::kUnaryOp_Patch),
+                        masm->isolate()), 4, 1);
 }
 
 
 // TODO(svenpanne): Use virtual functions instead of switch.
-void TypeRecordingUnaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   switch (op_) {
     case Token::SUB:
       GenerateSmiStubSub(masm);
@@ -602,7 +599,7 @@ void TypeRecordingUnaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateSmiStubSub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateSmiStubSub(MacroAssembler* masm) {
   Label non_smi, undo, slow;
   GenerateSmiCodeSub(masm, &non_smi, &undo, &slow,
                      Label::kNear, Label::kNear, Label::kNear);
@@ -614,7 +611,7 @@ void TypeRecordingUnaryOpStub::GenerateSmiStubSub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
+void UnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
   Label non_smi;
   GenerateSmiCodeBitNot(masm, &non_smi);
   __ bind(&non_smi);
@@ -622,13 +619,13 @@ void TypeRecordingUnaryOpStub::GenerateSmiStubBitNot(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
-                                                  Label* non_smi,
-                                                  Label* undo,
-                                                  Label* slow,
-                                                  Label::Distance non_smi_near,
-                                                  Label::Distance undo_near,
-                                                  Label::Distance slow_near) {
+void UnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
+                                     Label* non_smi,
+                                     Label* undo,
+                                     Label* slow,
+                                     Label::Distance non_smi_near,
+                                     Label::Distance undo_near,
+                                     Label::Distance slow_near) {
   // Check whether the value is a smi.
   __ test(eax, Immediate(kSmiTagMask));
   __ j(not_zero, non_smi, non_smi_near);
@@ -646,7 +643,7 @@ void TypeRecordingUnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateSmiCodeBitNot(
+void UnaryOpStub::GenerateSmiCodeBitNot(
     MacroAssembler* masm,
     Label* non_smi,
     Label::Distance non_smi_near) {
@@ -661,13 +658,13 @@ void TypeRecordingUnaryOpStub::GenerateSmiCodeBitNot(
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateSmiCodeUndo(MacroAssembler* masm) {
+void UnaryOpStub::GenerateSmiCodeUndo(MacroAssembler* masm) {
   __ mov(eax, Operand(edx));
 }
 
 
 // TODO(svenpanne): Use virtual functions instead of switch.
-void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
   switch (op_) {
     case Token::SUB:
       GenerateHeapNumberStubSub(masm);
@@ -681,7 +678,7 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
   Label non_smi, undo, slow, call_builtin;
   GenerateSmiCodeSub(masm, &non_smi, &undo, &call_builtin, Label::kNear);
   __ bind(&non_smi);
@@ -695,7 +692,7 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateHeapNumberStubBitNot(
+void UnaryOpStub::GenerateHeapNumberStubBitNot(
     MacroAssembler* masm) {
   Label non_smi, slow;
   GenerateSmiCodeBitNot(masm, &non_smi, Label::kNear);
@@ -706,8 +703,8 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberStubBitNot(
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
-                                                         Label* slow) {
+void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
+                                            Label* slow) {
   __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
   __ cmp(edx, masm->isolate()->factory()->heap_number_map());
   __ j(not_equal, slow);
@@ -742,9 +739,8 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
-    MacroAssembler* masm,
-    Label* slow) {
+void UnaryOpStub::GenerateHeapNumberCodeBitNot(MacroAssembler* masm,
+                                               Label* slow) {
   __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
   __ cmp(edx, masm->isolate()->factory()->heap_number_map());
   __ j(not_equal, slow);
@@ -803,7 +799,7 @@ void TypeRecordingUnaryOpStub::GenerateHeapNumberCodeBitNot(
 
 
 // TODO(svenpanne): Use virtual functions instead of switch.
-void TypeRecordingUnaryOpStub::GenerateGenericStub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateGenericStub(MacroAssembler* masm) {
   switch (op_) {
     case Token::SUB:
       GenerateGenericStubSub(masm);
@@ -817,7 +813,7 @@ void TypeRecordingUnaryOpStub::GenerateGenericStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm)  {
+void UnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm)  {
   Label non_smi, undo, slow;
   GenerateSmiCodeSub(masm, &non_smi, &undo, &slow, Label::kNear);
   __ bind(&non_smi);
@@ -829,7 +825,7 @@ void TypeRecordingUnaryOpStub::GenerateGenericStubSub(MacroAssembler* masm)  {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateGenericStubBitNot(MacroAssembler* masm) {
+void UnaryOpStub::GenerateGenericStubBitNot(MacroAssembler* masm) {
   Label non_smi, slow;
   GenerateSmiCodeBitNot(masm, &non_smi, Label::kNear);
   __ bind(&non_smi);
@@ -839,8 +835,7 @@ void TypeRecordingUnaryOpStub::GenerateGenericStubBitNot(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingUnaryOpStub::GenerateGenericCodeFallback(
-    MacroAssembler* masm) {
+void UnaryOpStub::GenerateGenericCodeFallback(MacroAssembler* masm) {
   // Handle the slow case by jumping to the corresponding JavaScript builtin.
   __ pop(ecx);  // pop return address.
   __ push(eax);
@@ -858,15 +853,15 @@ void TypeRecordingUnaryOpStub::GenerateGenericCodeFallback(
 }
 
 
-Handle<Code> GetTypeRecordingBinaryOpStub(int key,
-    TRBinaryOpIC::TypeInfo type_info,
-    TRBinaryOpIC::TypeInfo result_type_info) {
-  TypeRecordingBinaryOpStub stub(key, type_info, result_type_info);
+Handle<Code> GetBinaryOpStub(int key,
+    BinaryOpIC::TypeInfo type_info,
+    BinaryOpIC::TypeInfo result_type_info) {
+  BinaryOpStub stub(key, type_info, result_type_info);
   return stub.GetCode();
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
+void BinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   __ pop(ecx);  // Save return address.
   __ push(edx);
   __ push(eax);
@@ -882,7 +877,7 @@ void TypeRecordingBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   // Patch the caller to an appropriate specialized stub and return the
   // operation result to the caller of the stub.
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch),
+      ExternalReference(IC_Utility(IC::kBinaryOp_Patch),
                         masm->isolate()),
       5,
       1);
@@ -891,8 +886,7 @@ void TypeRecordingBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
 
 // Prepare for a type transition runtime call when the args are already on
 // the stack, under the return address.
-void TypeRecordingBinaryOpStub::GenerateTypeTransitionWithSavedArgs(
-    MacroAssembler* masm) {
+void BinaryOpStub::GenerateTypeTransitionWithSavedArgs(MacroAssembler* masm) {
   __ pop(ecx);  // Save return address.
   // Left and right arguments are already on top of the stack.
   // Push this stub's key. Although the operation and the type info are
@@ -906,37 +900,37 @@ void TypeRecordingBinaryOpStub::GenerateTypeTransitionWithSavedArgs(
   // Patch the caller to an appropriate specialized stub and return the
   // operation result to the caller of the stub.
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch),
+      ExternalReference(IC_Utility(IC::kBinaryOp_Patch),
                         masm->isolate()),
       5,
       1);
 }
 
 
-void TypeRecordingBinaryOpStub::Generate(MacroAssembler* masm) {
+void BinaryOpStub::Generate(MacroAssembler* masm) {
   switch (operands_type_) {
-    case TRBinaryOpIC::UNINITIALIZED:
+    case BinaryOpIC::UNINITIALIZED:
       GenerateTypeTransition(masm);
       break;
-    case TRBinaryOpIC::SMI:
+    case BinaryOpIC::SMI:
       GenerateSmiStub(masm);
       break;
-    case TRBinaryOpIC::INT32:
+    case BinaryOpIC::INT32:
       GenerateInt32Stub(masm);
       break;
-    case TRBinaryOpIC::HEAP_NUMBER:
+    case BinaryOpIC::HEAP_NUMBER:
       GenerateHeapNumberStub(masm);
       break;
-    case TRBinaryOpIC::ODDBALL:
+    case BinaryOpIC::ODDBALL:
       GenerateOddballStub(masm);
       break;
-    case TRBinaryOpIC::BOTH_STRING:
+    case BinaryOpIC::BOTH_STRING:
       GenerateBothStringStub(masm);
       break;
-    case TRBinaryOpIC::STRING:
+    case BinaryOpIC::STRING:
       GenerateStringStub(masm);
       break;
-    case TRBinaryOpIC::GENERIC:
+    case BinaryOpIC::GENERIC:
       GenerateGeneric(masm);
       break;
     default:
@@ -945,7 +939,7 @@ void TypeRecordingBinaryOpStub::Generate(MacroAssembler* masm) {
 }
 
 
-const char* TypeRecordingBinaryOpStub::GetName() {
+const char* BinaryOpStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
   name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
@@ -961,15 +955,16 @@ const char* TypeRecordingBinaryOpStub::GetName() {
   }
 
   OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "TypeRecordingBinaryOpStub_%s_%s_%s",
+               "BinaryOpStub_%s_%s_%s",
                op_name,
                overwrite_name,
-               TRBinaryOpIC::GetName(operands_type_));
+               BinaryOpIC::GetName(operands_type_));
   return name_;
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
+void BinaryOpStub::GenerateSmiCode(
+    MacroAssembler* masm,
     Label* slow,
     SmiCodeGenerateHeapNumberResults allow_heapnumber_results) {
   // 1. Move arguments into edx, eax except for DIV and MOD, which need the
@@ -1344,7 +1339,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
+void BinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   Label call_runtime;
 
   switch (op_) {
@@ -1366,8 +1361,8 @@ void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
       UNREACHABLE();
   }
 
-  if (result_type_ == TRBinaryOpIC::UNINITIALIZED ||
-      result_type_ == TRBinaryOpIC::SMI) {
+  if (result_type_ == BinaryOpIC::UNINITIALIZED ||
+      result_type_ == BinaryOpIC::SMI) {
     GenerateSmiCode(masm, &call_runtime, NO_HEAPNUMBER_RESULTS);
   } else {
     GenerateSmiCode(masm, &call_runtime, ALLOW_HEAPNUMBER_RESULTS);
@@ -1395,19 +1390,19 @@ void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
-  ASSERT(operands_type_ == TRBinaryOpIC::STRING);
+void BinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
+  ASSERT(operands_type_ == BinaryOpIC::STRING);
   ASSERT(op_ == Token::ADD);
   // Try to add arguments as strings, otherwise, transition to the generic
-  // TRBinaryOpIC type.
+  // BinaryOpIC type.
   GenerateAddStrings(masm);
   GenerateTypeTransition(masm);
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
+void BinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
   Label call_runtime;
-  ASSERT(operands_type_ == TRBinaryOpIC::BOTH_STRING);
+  ASSERT(operands_type_ == BinaryOpIC::BOTH_STRING);
   ASSERT(op_ == Token::ADD);
   // If both arguments are strings, call the string add stub.
   // Otherwise, do a transition.
@@ -1437,9 +1432,9 @@ void TypeRecordingBinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
+void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   Label call_runtime;
-  ASSERT(operands_type_ == TRBinaryOpIC::INT32);
+  ASSERT(operands_type_ == BinaryOpIC::INT32);
 
   // Floating point case.
   switch (op_) {
@@ -1461,7 +1456,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           default: UNREACHABLE();
         }
         // Check result type if it is currently Int32.
-        if (result_type_ <= TRBinaryOpIC::INT32) {
+        if (result_type_ <= BinaryOpIC::INT32) {
           __ cvttsd2si(ecx, Operand(xmm0));
           __ cvtsi2sd(xmm2, Operand(ecx));
           __ ucomisd(xmm0, xmm2);
@@ -1639,7 +1634,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
+void BinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
   if (op_ == Token::ADD) {
     // Handle string addition here, because it is the only operation
     // that does not do a ToNumber conversion on the operands.
@@ -1672,7 +1667,7 @@ void TypeRecordingBinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
+void BinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
   Label call_runtime;
 
   // Floating point case.
@@ -1853,7 +1848,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
+void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
   Label call_runtime;
 
   Counters* counters = masm->isolate()->counters();
@@ -2050,7 +2045,7 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
+void BinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
   ASSERT(op_ == Token::ADD);
   Label left_not_string, call_runtime;
 
@@ -2084,7 +2079,7 @@ void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateHeapResultAllocation(
+void BinaryOpStub::GenerateHeapResultAllocation(
     MacroAssembler* masm,
     Label* alloc_failure) {
   Label skip_allocation;
@@ -2126,7 +2121,7 @@ void TypeRecordingBinaryOpStub::GenerateHeapResultAllocation(
 }
 
 
-void TypeRecordingBinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
+void BinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
   __ pop(ecx);
   __ push(edx);
   __ push(eax);
@@ -3950,31 +3945,22 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow;
 
-  // If the receiver might be a value (string, number or boolean) check for this
-  // and box it if it is.
-  if (ReceiverMightBeValue()) {
+  // The receiver might implicitly be the global object. This is
+  // indicated by passing the hole as the receiver to the call
+  // function stub.
+  if (ReceiverMightBeImplicit()) {
+    Label call;
     // Get the receiver from the stack.
     // +1 ~ return address
-    Label receiver_is_value, receiver_is_js_object;
     __ mov(eax, Operand(esp, (argc_ + 1) * kPointerSize));
-
-    // Check if receiver is a smi (which is a number value).
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, &receiver_is_value);
-
-    // Check if the receiver is a valid JS object.
-    __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, edi);
-    __ j(above_equal, &receiver_is_js_object);
-
-    // Call the runtime to box the value.
-    __ bind(&receiver_is_value);
-    __ EnterInternalFrame();
-    __ push(eax);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-    __ LeaveInternalFrame();
-    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), eax);
-
-    __ bind(&receiver_is_js_object);
+    // Call as function is indicated with the hole.
+    __ cmp(eax, masm->isolate()->factory()->the_hole_value());
+    __ j(not_equal, &call, Label::kNear);
+    // Patch the receiver on the stack with the global receiver object.
+    __ mov(ebx, GlobalObjectOperand());
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
+    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), ebx);
+    __ bind(&call);
   }
 
   // Get the function to call from the stack.
@@ -3990,7 +3976,19 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Fast-case: Just invoke the function.
   ParameterCount actual(argc_);
-  __ InvokeFunction(edi, actual, JUMP_FUNCTION);
+
+  if (ReceiverMightBeImplicit()) {
+    Label call_as_function;
+    __ cmp(eax, masm->isolate()->factory()->the_hole_value());
+    __ j(equal, &call_as_function);
+    __ InvokeFunction(edi, actual, JUMP_FUNCTION);
+    __ bind(&call_as_function);
+  }
+  __ InvokeFunction(edi,
+                    actual,
+                    JUMP_FUNCTION,
+                    NullCallWrapper(),
+                    CALL_AS_FUNCTION);
 
   // Slow-case: Non-function called.
   __ bind(&slow);

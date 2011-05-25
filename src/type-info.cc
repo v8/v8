@@ -58,9 +58,6 @@ TypeInfo TypeInfo::TypeFromValue(Handle<Object> value) {
 }
 
 
-STATIC_ASSERT(DEFAULT_STRING_STUB == Code::kNoExtraICState);
-
-
 TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
                                        Handle<Context> global_context) {
   global_context_ = global_context;
@@ -147,15 +144,18 @@ ZoneMapList* TypeFeedbackOracle::StoreReceiverTypes(Assignment* expr,
 
 
 ZoneMapList* TypeFeedbackOracle::CallReceiverTypes(Call* expr,
-                                                   Handle<String> name) {
+                                                   Handle<String> name,
+                                                   CallKind call_kind) {
   int arity = expr->arguments()->length();
-  // Note: these flags won't let us get maps from stubs with
-  // non-default extra ic state in the megamorphic case. In the more
-  // important monomorphic case the map is obtained directly, so it's
-  // not a problem until we decide to emit more polymorphic code.
+
+  // Note: Currently we do not take string extra ic data into account
+  // here.
+  Code::ExtraICState extra_ic_state =
+      CallIC::Contextual::encode(call_kind == CALL_AS_FUNCTION);
+
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC,
                                                     NORMAL,
-                                                    Code::kNoExtraICState,
+                                                    extra_ic_state,
                                                     OWN_MAP,
                                                     NOT_IN_LOOP,
                                                     arity);
@@ -258,13 +258,13 @@ TypeInfo TypeFeedbackOracle::UnaryType(UnaryOperation* expr) {
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
-  ASSERT(code->is_type_recording_unary_op_stub());
-  TRUnaryOpIC::TypeInfo type = static_cast<TRUnaryOpIC::TypeInfo>(
-      code->type_recording_unary_op_type());
+  ASSERT(code->is_unary_op_stub());
+  UnaryOpIC::TypeInfo type = static_cast<UnaryOpIC::TypeInfo>(
+      code->unary_op_type());
   switch (type) {
-    case TRUnaryOpIC::SMI:
+    case UnaryOpIC::SMI:
       return TypeInfo::Smi();
-    case TRUnaryOpIC::HEAP_NUMBER:
+    case UnaryOpIC::HEAP_NUMBER:
       return TypeInfo::Double();
     default:
       return unknown;
@@ -277,41 +277,41 @@ TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
-  if (code->is_type_recording_binary_op_stub()) {
-    TRBinaryOpIC::TypeInfo type = static_cast<TRBinaryOpIC::TypeInfo>(
-        code->type_recording_binary_op_type());
-    TRBinaryOpIC::TypeInfo result_type = static_cast<TRBinaryOpIC::TypeInfo>(
-        code->type_recording_binary_op_result_type());
+  if (code->is_binary_op_stub()) {
+    BinaryOpIC::TypeInfo type = static_cast<BinaryOpIC::TypeInfo>(
+        code->binary_op_type());
+    BinaryOpIC::TypeInfo result_type = static_cast<BinaryOpIC::TypeInfo>(
+        code->binary_op_result_type());
 
     switch (type) {
-      case TRBinaryOpIC::UNINITIALIZED:
+      case BinaryOpIC::UNINITIALIZED:
         // Uninitialized means never executed.
         // TODO(fschneider): Introduce a separate value for never-executed ICs
         return unknown;
-      case TRBinaryOpIC::SMI:
+      case BinaryOpIC::SMI:
         switch (result_type) {
-          case TRBinaryOpIC::UNINITIALIZED:
-          case TRBinaryOpIC::SMI:
+          case BinaryOpIC::UNINITIALIZED:
+          case BinaryOpIC::SMI:
             return TypeInfo::Smi();
-          case TRBinaryOpIC::INT32:
+          case BinaryOpIC::INT32:
             return TypeInfo::Integer32();
-          case TRBinaryOpIC::HEAP_NUMBER:
+          case BinaryOpIC::HEAP_NUMBER:
             return TypeInfo::Double();
           default:
             return unknown;
         }
-      case TRBinaryOpIC::INT32:
+      case BinaryOpIC::INT32:
         if (expr->op() == Token::DIV ||
-            result_type == TRBinaryOpIC::HEAP_NUMBER) {
+            result_type == BinaryOpIC::HEAP_NUMBER) {
           return TypeInfo::Double();
         }
         return TypeInfo::Integer32();
-      case TRBinaryOpIC::HEAP_NUMBER:
+      case BinaryOpIC::HEAP_NUMBER:
         return TypeInfo::Double();
-      case TRBinaryOpIC::BOTH_STRING:
+      case BinaryOpIC::BOTH_STRING:
         return TypeInfo::String();
-      case TRBinaryOpIC::STRING:
-      case TRBinaryOpIC::GENERIC:
+      case BinaryOpIC::STRING:
+      case BinaryOpIC::GENERIC:
         return unknown;
      default:
         return unknown;
@@ -353,21 +353,21 @@ TypeInfo TypeFeedbackOracle::IncrementType(CountOperation* expr) {
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
-  if (!code->is_type_recording_binary_op_stub()) return unknown;
+  if (!code->is_binary_op_stub()) return unknown;
 
-  TRBinaryOpIC::TypeInfo type = static_cast<TRBinaryOpIC::TypeInfo>(
-      code->type_recording_binary_op_type());
+  BinaryOpIC::TypeInfo type = static_cast<BinaryOpIC::TypeInfo>(
+      code->binary_op_type());
   switch (type) {
-    case TRBinaryOpIC::UNINITIALIZED:
-    case TRBinaryOpIC::SMI:
+    case BinaryOpIC::UNINITIALIZED:
+    case BinaryOpIC::SMI:
       return TypeInfo::Smi();
-    case TRBinaryOpIC::INT32:
+    case BinaryOpIC::INT32:
       return TypeInfo::Integer32();
-    case TRBinaryOpIC::HEAP_NUMBER:
+    case BinaryOpIC::HEAP_NUMBER:
       return TypeInfo::Double();
-    case TRBinaryOpIC::BOTH_STRING:
-    case TRBinaryOpIC::STRING:
-    case TRBinaryOpIC::GENERIC:
+    case BinaryOpIC::BOTH_STRING:
+    case BinaryOpIC::STRING:
+    case BinaryOpIC::GENERIC:
       return unknown;
     default:
       return unknown;
@@ -441,8 +441,8 @@ void TypeFeedbackOracle::PopulateMap(Handle<Code> code) {
     InlineCacheState state = target->ic_state();
     Code::Kind kind = target->kind();
 
-    if (kind == Code::TYPE_RECORDING_BINARY_OP_IC ||
-        kind == Code::TYPE_RECORDING_UNARY_OP_IC ||
+    if (kind == Code::BINARY_OP_IC ||
+        kind == Code::UNARY_OP_IC ||
         kind == Code::COMPARE_IC) {
       SetInfo(id, target);
     } else if (state == MONOMORPHIC) {
@@ -484,9 +484,9 @@ void TypeFeedbackOracle::CollectIds(Code* code,
     if (target->is_inline_cache_stub()) {
       InlineCacheState state = target->ic_state();
       Code::Kind kind = target->kind();
-      if (kind == Code::TYPE_RECORDING_BINARY_OP_IC) {
-        if (target->type_recording_binary_op_type() ==
-            TRBinaryOpIC::GENERIC) {
+      if (kind == Code::BINARY_OP_IC) {
+        if (target->binary_op_type() ==
+            BinaryOpIC::GENERIC) {
           continue;
         }
       } else if (kind == Code::COMPARE_IC) {

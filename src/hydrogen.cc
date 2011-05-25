@@ -4054,6 +4054,12 @@ void HGraphBuilder::TraceInline(Handle<JSFunction> target,
 bool HGraphBuilder::TryInline(Call* expr) {
   if (!FLAG_use_inlining) return false;
 
+  // The function call we are inlining is a method call if the call
+  // is a property call.
+  CallKind call_kind = (expr->expression()->AsProperty() == NULL)
+      ? CALL_AS_FUNCTION
+      : CALL_AS_METHOD;
+
   // Precondition: call is monomorphic and we have found a target with the
   // appropriate arity.
   Handle<JSFunction> caller = info()->closure();
@@ -4189,13 +4195,16 @@ bool HGraphBuilder::TryInline(Call* expr) {
       environment()->CopyForInlining(target,
                                      function,
                                      HEnvironment::HYDROGEN,
-                                     undefined);
+                                     undefined,
+                                     call_kind);
   HBasicBlock* body_entry = CreateBasicBlock(inner_env);
   current_block()->Goto(body_entry);
 
   body_entry->SetJoinId(expr->ReturnId());
   set_current_block(body_entry);
-  AddInstruction(new(zone()) HEnterInlined(target, function));
+  AddInstruction(new(zone()) HEnterInlined(target,
+                                           function,
+                                           call_kind));
   VisitStatements(function->body());
   if (HasStackOverflow()) {
     // Bail out if the inline function did, as we cannot residualize a call
@@ -4441,7 +4450,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
     }
 
     // Named function call.
-    expr->RecordTypeFeedback(oracle());
+    expr->RecordTypeFeedback(oracle(), CALL_AS_METHOD);
 
     if (TryCallApply(expr)) return;
 
@@ -4450,7 +4459,6 @@ void HGraphBuilder::VisitCall(Call* expr) {
 
     Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
 
-    expr->RecordTypeFeedback(oracle());
     ZoneMapList* types = expr->GetReceiverTypes();
 
     HValue* receiver =
@@ -4544,8 +4552,8 @@ void HGraphBuilder::VisitCall(Call* expr) {
         CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
         call = PreProcessCall(new(zone()) HCallGlobal(context,
-                                              var->name(),
-                                              argument_count));
+                                                      var->name(),
+                                                      argument_count));
       }
 
     } else {
@@ -5849,10 +5857,12 @@ HEnvironment* HEnvironment::CopyAsLoopHeader(HBasicBlock* loop_header) const {
 }
 
 
-HEnvironment* HEnvironment::CopyForInlining(Handle<JSFunction> target,
-                                            FunctionLiteral* function,
-                                            CompilationPhase compilation_phase,
-                                            HConstant* undefined) const {
+HEnvironment* HEnvironment::CopyForInlining(
+    Handle<JSFunction> target,
+    FunctionLiteral* function,
+    CompilationPhase compilation_phase,
+    HConstant* undefined,
+    CallKind call_kind) const {
   // Outer environment is a copy of this one without the arguments.
   int arity = function->scope()->num_parameters();
   HEnvironment* outer = Copy();
@@ -5873,6 +5883,12 @@ HEnvironment* HEnvironment::CopyForInlining(Handle<JSFunction> target,
       HValue* push = ExpressionStackAt(arity - i);
       inner->SetValueAt(i, push);
     }
+  }
+  // If the function we are inlining is a strict mode function, pass
+  // undefined as the receiver for function calls (instead of the
+  // global receiver).
+  if (function->strict_mode() && call_kind == CALL_AS_FUNCTION) {
+    inner->SetValueAt(0, undefined);
   }
   inner->SetValueAt(arity + 1, outer->LookupContext());
   for (int i = arity + 2; i < inner->length(); ++i) {

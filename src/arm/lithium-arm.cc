@@ -2180,7 +2180,8 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
   HEnvironment* inner = outer->CopyForInlining(instr->closure(),
                                                instr->function(),
                                                HEnvironment::LITHIUM,
-                                               undefined);
+                                               undefined,
+                                               instr->call_kind());
   current_block_->UpdateEnvironment(inner);
   chunk_->AddInlinedClosure(instr->closure());
   return NULL;

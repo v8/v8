@@ -25,9 +25,5 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// In strict mode, it's illegal to assign to "arguments" as a lhs variable.
-
-function test() {
-  "use strict";
-  arguments++;
-}
+"use strict";
+const x = 42;

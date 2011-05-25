@@ -734,6 +734,15 @@ double StringToDouble(UnicodeCache* unicode_cache,
                                 empty_string_val);
 }
 
+double StringToDouble(UnicodeCache* unicode_cache,
+                      Vector<const uc16> str,
+                      int flags,
+                      double empty_string_val) {
+  const uc16* end = str.start() + str.length();
+  return InternalStringToDouble(unicode_cache, str.start(), end, flags,
+                                empty_string_val);
+}
+
 
 const char* DoubleToCString(double v, Vector<char> buffer) {
   switch (fpclassify(v)) {

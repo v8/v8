@@ -378,8 +378,7 @@ static bool ArrayPrototypeHasNoElements(Heap* heap,
   array_proto = JSObject::cast(proto);
   if (array_proto != global_context->initial_object_prototype()) return false;
   if (array_proto->elements() != heap->empty_fixed_array()) return false;
-  ASSERT(array_proto->GetPrototype()->IsNull());
-  return true;
+  return array_proto->GetPrototype()->IsNull();
 }
 
 
@@ -983,33 +982,11 @@ BUILTIN(ArrayConcat) {
 // Strict mode poison pills
 
 
-BUILTIN(StrictArgumentsCallee) {
+BUILTIN(StrictModePoisonPill) {
   HandleScope scope;
   return isolate->Throw(*isolate->factory()->NewTypeError(
-      "strict_arguments_callee", HandleVector<Object>(NULL, 0)));
+      "strict_poison_pill", HandleVector<Object>(NULL, 0)));
 }
-
-
-BUILTIN(StrictArgumentsCaller) {
-  HandleScope scope;
-  return isolate->Throw(*isolate->factory()->NewTypeError(
-      "strict_arguments_caller", HandleVector<Object>(NULL, 0)));
-}
-
-
-BUILTIN(StrictFunctionCaller) {
-  HandleScope scope;
-  return isolate->Throw(*isolate->factory()->NewTypeError(
-      "strict_function_caller", HandleVector<Object>(NULL, 0)));
-}
-
-
-BUILTIN(StrictFunctionArguments) {
-  HandleScope scope;
-  return isolate->Throw(*isolate->factory()->NewTypeError(
-      "strict_function_arguments", HandleVector<Object>(NULL, 0)));
-}
-
 
 // -----------------------------------------------------------------------------
 //

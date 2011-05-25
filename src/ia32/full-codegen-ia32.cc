@@ -44,6 +44,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
+
 static unsigned GetPropertyId(Property* property) {
   if (property->is_synthetic()) return AstNode::kNoNumber;
   return property->id();
@@ -129,6 +130,21 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ int3();
   }
 #endif
+
+  // Strict mode functions need to replace the receiver with undefined
+  // when called as functions (without an explicit receiver
+  // object). ecx is zero for method calls and non-zero for function
+  // calls.
+  if (info->is_strict_mode()) {
+    Label ok;
+    __ test(ecx, Operand(ecx));
+    __ j(zero, &ok, Label::kNear);
+    // +1 for return address.
+    int receiver_offset = (scope()->num_parameters() + 1) * kPointerSize;
+    __ mov(Operand(esp, receiver_offset),
+           Immediate(isolate()->factory()->undefined_value()));
+    __ bind(&ok);
+  }
 
   __ push(ebp);  // Caller's frame pointer.
   __ mov(ebp, esp);
@@ -711,24 +727,22 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
     }
 
   } else if (prop != NULL) {
-    if (function != NULL || mode == Variable::CONST) {
-      // We are declaring a function or constant that rewrites to a
-      // property.  Use (keyed) IC to set the initial value.  We cannot
-      // visit the rewrite because it's shared and we risk recording
-      // duplicate AST IDs for bailouts from optimized code.
+    // A const declaration aliasing a parameter is an illegal redeclaration.
+    ASSERT(mode != Variable::CONST);
+    if (function != NULL) {
+      // We are declaring a function that rewrites to a property.
+      // Use (keyed) IC to set the initial value.  We cannot visit the
+      // rewrite because it's shared and we risk recording duplicate AST
+      // IDs for bailouts from optimized code.
       ASSERT(prop->obj()->AsVariableProxy() != NULL);
       { AccumulatorValueContext for_object(this);
         EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
       }
 
-      if (function != NULL) {
-        __ push(eax);
-        VisitForAccumulatorValue(function);
-        __ pop(edx);
-      } else {
-        __ mov(edx, eax);
-        __ mov(eax, isolate()->factory()->the_hole_value());
-      }
+      __ push(eax);
+      VisitForAccumulatorValue(function);
+      __ pop(edx);
+
       ASSERT(prop->key()->AsLiteral() != NULL &&
              prop->key()->AsLiteral()->handle()->IsSmi());
       __ SafeSet(ecx, Immediate(prop->key()->AsLiteral()->handle()));
@@ -887,9 +901,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // check for an enum cache.  Leave the map in ebx for the subsequent
   // prototype load.
   __ mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
-  __ mov(edx, FieldOperand(ebx, Map::kInstanceDescriptorsOffset));
-  __ cmp(edx, isolate()->factory()->empty_descriptor_array());
-  __ j(equal, &call_runtime);
+  __ mov(edx, FieldOperand(ebx, Map::kInstanceDescriptorsOrBitField3Offset));
+  __ JumpIfSmi(edx, &call_runtime);
 
   // Check that there is an enum cache in the non-empty instance
   // descriptors (edx).  This is the case if the next enumeration
@@ -933,7 +946,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We got a map in register eax. Get the enumeration cache from it.
   __ bind(&use_cache);
-  __ mov(ecx, FieldOperand(eax, Map::kInstanceDescriptorsOffset));
+  __ LoadInstanceDescriptors(eax, ecx);
   __ mov(ecx, FieldOperand(ecx, DescriptorArray::kEnumerationIndexOffset));
   __ mov(edx, FieldOperand(ecx, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
@@ -1663,7 +1676,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 
   __ bind(&stub_call);
   __ mov(eax, ecx);
-  TypeRecordingBinaryOpStub stub(op, mode);
+  BinaryOpStub stub(op, mode);
   EmitCallIC(stub.GetCode(), &patch_site, expr->id());
   __ jmp(&done, Label::kNear);
 
@@ -1746,7 +1759,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
                                      Token::Value op,
                                      OverwriteMode mode) {
   __ pop(edx);
-  TypeRecordingBinaryOpStub stub(op, mode);
+  BinaryOpStub stub(op, mode);
   // NULL signals no inlined smi code.
   EmitCallIC(stub.GetCode(), NULL, expr->id());
   context()->Plug(eax);
@@ -2029,8 +2042,8 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   // Record source position of the IC call.
   SetSourcePosition(expr->position());
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(
-      arg_count, in_loop);
+  Handle<Code> ic =
+      isolate()->stub_cache()->ComputeCallInitialize(arg_count, in_loop, mode);
   EmitCallIC(ic, mode, expr->id());
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2040,8 +2053,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
 
 
 void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
-                                            Expression* key,
-                                            RelocInfo::Mode mode) {
+                                            Expression* key) {
   // Load the key.
   VisitForAccumulatorValue(key);
 
@@ -2065,7 +2077,7 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
   Handle<Code> ic = isolate()->stub_cache()->ComputeKeyedCallInitialize(
       arg_count, in_loop);
   __ mov(ecx, Operand(esp, (arg_count + 1) * kPointerSize));  // Key.
-  EmitCallIC(ic, mode, expr->id());
+  EmitCallIC(ic, RelocInfo::CODE_TARGET, expr->id());
   RecordJSReturnSite(expr);
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
@@ -2176,7 +2188,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // Record source position for debugger.
     SetSourcePosition(expr->position());
     InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-    CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_VALUE);
+    CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_IMPLICIT);
     __ CallStub(&stub);
     RecordJSReturnSite(expr);
     // Restore context register.
@@ -2224,9 +2236,10 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ bind(&call);
     }
 
-    // The receiver is either the global receiver or a JSObject found by
-    // LoadContextSlot.
-    EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
+    // The receiver is either the global receiver or an object found
+    // by LoadContextSlot. That object could be the hole if the
+    // receiver is implicitly the global object.
+    EmitCallWithStub(expr, RECEIVER_MIGHT_BE_IMPLICIT);
   } else if (fun->AsProperty() != NULL) {
     // Call to an object property.
     Property* prop = fun->AsProperty();
@@ -2269,7 +2282,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         { PreservePositionScope scope(masm()->positions_recorder());
           VisitForStackValue(prop->obj());
         }
-        EmitKeyedCallWithIC(expr, prop->key(), RelocInfo::CODE_TARGET);
+        EmitKeyedCallWithIC(expr, prop->key());
       }
     }
   } else {
@@ -2472,7 +2485,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // Look for valueOf symbol in the descriptor array, and indicate false if
   // found. The type is not checked, so if it is a transition it is a false
   // negative.
-  __ mov(ebx, FieldOperand(ebx, Map::kInstanceDescriptorsOffset));
+  __ LoadInstanceDescriptors(ebx, ebx);
   __ mov(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
   // ebx: descriptor array
   // ecx: length of descriptor array
@@ -3615,9 +3628,10 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     // Call the JS runtime function via a call IC.
     __ Set(ecx, Immediate(expr->name()));
     InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
+    RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
     Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(
-        arg_count, in_loop);
-    EmitCallIC(ic, RelocInfo::CODE_TARGET, expr->id());
+        arg_count, in_loop, mode);
+    EmitCallIC(ic, mode, expr->id());
     // Restore context register.
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   } else {
@@ -3752,8 +3766,8 @@ void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
   bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
   UnaryOverwriteMode overwrite =
       can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-  TypeRecordingUnaryOpStub stub(expr->op(), overwrite);
-  // TypeRecordingUnaryOpStub expects the argument to be in the
+  UnaryOpStub stub(expr->op(), overwrite);
+  // UnaryOpStub expects the argument to be in the
   // accumulator register eax.
   VisitForAccumulatorValue(expr->expression());
   SetSourcePosition(expr->position());
@@ -3885,7 +3899,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Call stub for +1/-1.
   __ mov(edx, eax);
   __ mov(eax, Immediate(Smi::FromInt(1)));
-  TypeRecordingBinaryOpStub stub(expr->binary_op(), NO_OVERWRITE);
+  BinaryOpStub stub(expr->binary_op(), NO_OVERWRITE);
   EmitCallIC(stub.GetCode(), &patch_site, expr->CountId());
   __ bind(&done);
 

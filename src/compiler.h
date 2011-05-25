@@ -294,7 +294,9 @@ class Compiler : public AllStatic {
 // clear this list of handles as well.
 class CompilationZoneScope : public ZoneScope {
  public:
-  explicit CompilationZoneScope(ZoneScopeMode mode) : ZoneScope(mode) { }
+  CompilationZoneScope(Isolate* isolate, ZoneScopeMode mode)
+      : ZoneScope(isolate, mode) {}
+
   virtual ~CompilationZoneScope() {
     if (ShouldDeleteOnExit()) {
       Isolate* isolate = Isolate::Current();

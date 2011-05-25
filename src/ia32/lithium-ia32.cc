@@ -2004,7 +2004,8 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
   LOperand* key = UseRegisterOrConstant(instr->key());
   LOperand* val = NULL;
   if (array_type == kExternalByteArray ||
-      array_type == kExternalUnsignedByteArray) {
+      array_type == kExternalUnsignedByteArray ||
+      array_type == kExternalPixelArray) {
     // We need a byte register in this case for the value.
     val = UseFixed(instr->value(), eax);
   } else {
@@ -2232,7 +2233,8 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
   HEnvironment* inner = outer->CopyForInlining(instr->closure(),
                                                instr->function(),
                                                HEnvironment::LITHIUM,
-                                               undefined);
+                                               undefined,
+                                               instr->call_kind());
   current_block_->UpdateEnvironment(inner);
   chunk_->AddInlinedClosure(instr->closure());
   return NULL;

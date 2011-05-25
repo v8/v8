@@ -1603,7 +1603,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_instance_size(instance_size);
   map->set_inobject_properties(0);
   map->set_pre_allocated_property_fields(0);
-  map->set_instance_descriptors(empty_descriptor_array());
+  map->init_instance_descriptors();
   map->set_code_cache(empty_fixed_array());
   map->set_prototype_transitions(empty_fixed_array());
   map->set_unused_property_fields(0);
@@ -1696,15 +1696,15 @@ bool Heap::CreateInitialMaps() {
   set_empty_descriptor_array(DescriptorArray::cast(obj));
 
   // Fix the instance_descriptors for the existing maps.
-  meta_map()->set_instance_descriptors(empty_descriptor_array());
+  meta_map()->init_instance_descriptors();
   meta_map()->set_code_cache(empty_fixed_array());
   meta_map()->set_prototype_transitions(empty_fixed_array());
 
-  fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
+  fixed_array_map()->init_instance_descriptors();
   fixed_array_map()->set_code_cache(empty_fixed_array());
   fixed_array_map()->set_prototype_transitions(empty_fixed_array());
 
-  oddball_map()->set_instance_descriptors(empty_descriptor_array());
+  oddball_map()->init_instance_descriptors();
   oddball_map()->set_code_cache(empty_fixed_array());
   oddball_map()->set_prototype_transitions(empty_fixed_array());
 
@@ -3228,10 +3228,9 @@ MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
   // Allocate map.
   // TODO(rossberg): Once we optimize proxies, think about a scheme to share
   // maps. Will probably depend on the identity of the handler object, too.
-  Object* map_obj;
+  Map* map;
   MaybeObject* maybe_map_obj = AllocateMap(JS_PROXY_TYPE, JSProxy::kSize);
-  if (!maybe_map_obj->ToObject(&map_obj)) return maybe_map_obj;
-  Map* map = Map::cast(map_obj);
+  if (!maybe_map_obj->To<Map>(&map)) return maybe_map_obj;
   map->set_prototype(prototype);
   map->set_pre_allocated_property_fields(1);
   map->set_inobject_properties(1);
@@ -3308,7 +3307,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
 
   // Setup the global object as a normalized object.
   global->set_map(new_map);
-  global->map()->set_instance_descriptors(empty_descriptor_array());
+  global->map()->clear_instance_descriptors();
   global->set_properties(dictionary);
 
   // Make sure result is a global object with properties in dictionary.
@@ -4170,6 +4169,26 @@ MaybeObject* Heap::LookupAsciiSymbol(Vector<const char> string) {
   Object* new_table;
   { MaybeObject* maybe_new_table =
         symbol_table()->LookupAsciiSymbol(string, &symbol);
+    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
+  }
+  // Can't use set_symbol_table because SymbolTable::cast knows that
+  // SymbolTable is a singleton and checks for identity.
+  roots_[kSymbolTableRootIndex] = new_table;
+  ASSERT(symbol != NULL);
+  return symbol;
+}
+
+
+MaybeObject* Heap::LookupAsciiSymbol(Handle<SeqAsciiString> string,
+                                     int from,
+                                     int length) {
+  Object* symbol = NULL;
+  Object* new_table;
+  { MaybeObject* maybe_new_table =
+        symbol_table()->LookupSubStringAsciiSymbol(string,
+                                                   from,
+                                                   length,
+                                                   &symbol);
     if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
   }
   // Can't use set_symbol_table because SymbolTable::cast knows that

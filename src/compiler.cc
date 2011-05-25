@@ -337,9 +337,8 @@ bool Compiler::MakeCodeForLiveEdit(CompilationInfo* info) {
 
 
 static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
-  CompilationZoneScope zone_scope(DELETE_ON_EXIT);
-
   Isolate* isolate = info->isolate();
+  CompilationZoneScope zone_scope(isolate, DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
 
   ASSERT(!isolate->global_context().is_null());
@@ -571,12 +570,13 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
 
 
 bool Compiler::CompileLazy(CompilationInfo* info) {
-  CompilationZoneScope zone_scope(DELETE_ON_EXIT);
+  Isolate* isolate = info->isolate();
+
+  CompilationZoneScope zone_scope(isolate, DELETE_ON_EXIT);
 
   // The VM is in the COMPILER state until exiting this function.
-  VMState state(info->isolate(), COMPILER);
+  VMState state(isolate, COMPILER);
 
-  Isolate* isolate = info->isolate();
   PostponeInterruptsScope postpone(isolate);
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
@@ -676,6 +676,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   CompilationInfo info(script);
   info.SetFunction(literal);
   info.SetScope(literal->scope());
+  if (literal->scope()->is_strict_mode()) info.MarkAsStrictMode();
 
   LiveEditFunctionTracker live_edit_tracker(info.isolate(), literal);
   // Determine if the function can be lazily compiled. This is necessary to

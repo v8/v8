@@ -814,7 +814,7 @@ class FunctionInfoListener {
 JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
                                      Handle<String> source) {
   Isolate* isolate = Isolate::Current();
-  CompilationZoneScope zone_scope(DELETE_ON_EXIT);
+  CompilationZoneScope zone_scope(isolate, DELETE_ON_EXIT);
 
   FunctionInfoListener listener;
   Handle<Object> original_source = Handle<Object>(script->source());
@@ -908,7 +908,7 @@ static void ReplaceCodeObject(Code* original, Code* substitution) {
   AssertNoAllocation no_allocations_please;
 
   // A zone scope for ReferenceCollectorVisitor.
-  ZoneScope scope(DELETE_ON_EXIT);
+  ZoneScope scope(Isolate::Current(), DELETE_ON_EXIT);
 
   ReferenceCollectorVisitor visitor(original);
 
@@ -1458,8 +1458,9 @@ static bool IsDropableFrame(StackFrame* frame) {
 // removing all listed function if possible and if do_drop is true.
 static const char* DropActivationsInActiveThread(
     Handle<JSArray> shared_info_array, Handle<JSArray> result, bool do_drop) {
-  Debug* debug = Isolate::Current()->debug();
-  ZoneScope scope(DELETE_ON_EXIT);
+  Isolate* isolate = Isolate::Current();
+  Debug* debug = isolate->debug();
+  ZoneScope scope(isolate, DELETE_ON_EXIT);
   Vector<StackFrame*> frames = CreateStackMap();
 
   int array_len = Smi::cast(shared_info_array->length())->value();

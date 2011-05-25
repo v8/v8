@@ -1,3 +1,20 @@
+2011-05-25: Version 3.3.10
+
+        Fixed calls of strict mode function with an implicit receiver.
+
+        Fixed fast handling of arrays to properly deal with changes to the
+        Object prototype (issue 1403).
+
+        Changed strict mode poison pill to be the same type error function
+        (issue 1387).
+
+        Fixed a debug crash in arguments object handling (issue 1227).
+
+        Fixed a bug in deoptimization on x64 (issue 1404).
+
+        Performance improvements and bug fixes on all platforms.
+
+
 2011-05-23: Version 3.3.9
 
         Added DateTimeFormat class to experimental i18n API.

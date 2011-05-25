@@ -880,13 +880,28 @@ void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
 }
 
 
+void MacroAssembler::SetCallKind(Register dst, CallKind call_kind) {
+  // This macro takes the dst register to make the code more readable
+  // at the call sites. However, the dst register has to be r5 to
+  // follow the calling convention which requires the call type to be
+  // in r5.
+  ASSERT(dst.is(r5));
+  if (call_kind == CALL_AS_FUNCTION) {
+    mov(dst, Operand(Smi::FromInt(1)));
+  } else {
+    mov(dst, Operand(Smi::FromInt(0)));
+  }
+}
+
+
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     Handle<Code> code_constant,
                                     Register code_reg,
                                     Label* done,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper) {
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
   bool definitely_matches = false;
   Label regular_invoke;
 
@@ -942,10 +957,12 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
         isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
+      SetCallKind(r5, call_kind);
       Call(adaptor, RelocInfo::CODE_TARGET);
       call_wrapper.AfterCall();
       b(done);
     } else {
+      SetCallKind(r5, call_kind);
       Jump(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&regular_invoke);
@@ -957,17 +974,20 @@ void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
-                                const CallWrapper& call_wrapper) {
+                                const CallWrapper& call_wrapper,
+                                CallKind call_kind) {
   Label done;
 
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
-                 call_wrapper);
+                 call_wrapper, call_kind);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(code));
+    SetCallKind(r5, call_kind);
     Call(code);
     call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
+    SetCallKind(r5, call_kind);
     Jump(code);
   }
 
@@ -981,13 +1001,17 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 RelocInfo::Mode rmode,
-                                InvokeFlag flag) {
+                                InvokeFlag flag,
+                                CallKind call_kind) {
   Label done;
 
-  InvokePrologue(expected, actual, code, no_reg, &done, flag);
+  InvokePrologue(expected, actual, code, no_reg, &done, flag,
+                 NullCallWrapper(), call_kind);
   if (flag == CALL_FUNCTION) {
+    SetCallKind(r5, call_kind);
     Call(code, rmode);
   } else {
+    SetCallKind(r5, call_kind);
     Jump(code, rmode);
   }
 
@@ -1000,7 +1024,8 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 void MacroAssembler::InvokeFunction(Register fun,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper) {
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
   // Contract with called JS functions requires that function is passed in r1.
   ASSERT(fun.is(r1));
 
@@ -1017,7 +1042,7 @@ void MacroAssembler::InvokeFunction(Register fun,
       FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(expected_reg);
-  InvokeCode(code_reg, expected, actual, flag, call_wrapper);
+  InvokeCode(code_reg, expected, actual, flag, call_wrapper, call_kind);
 }
 
 
@@ -3080,6 +3105,17 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
   vcvt_u32_f64(s0, temp_double_reg);
   vmov(result_reg, s0);
   bind(&done);
+}
+
+
+void MacroAssembler::LoadInstanceDescriptors(Register map,
+                                             Register descriptors) {
+  ldr(descriptors,
+      FieldMemOperand(map, Map::kInstanceDescriptorsOrBitField3Offset));
+  Label not_smi;
+  JumpIfNotSmi(descriptors, &not_smi);
+  mov(descriptors, Operand(FACTORY->empty_descriptor_array()));
+  bind(&not_smi);
 }
 
 

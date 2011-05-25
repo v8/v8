@@ -39,7 +39,9 @@ namespace i = v8::internal;
 
 // This file is only used for testing the stand-alone preparser
 // library.
-// The first argument must be the path of a JavaScript source file.
+// The first argument must be the path of a JavaScript source file, or
+// the flags "-e" and the next argument is then the source of a JavaScript
+// program.
 // Optionally this can be followed by the word "throws" (case sensitive),
 // which signals that the parsing is expected to throw - the default is
 // to expect the parsing to not throw.
@@ -57,7 +59,7 @@ namespace i = v8::internal;
 // Adapts an ASCII string to the UnicodeInputStream interface.
 class AsciiInputStream : public v8::UnicodeInputStream {
  public:
-  AsciiInputStream(uint8_t* buffer, size_t length)
+  AsciiInputStream(const uint8_t* buffer, size_t length)
       : buffer_(buffer),
         end_offset_(static_cast<int>(length)),
         offset_(0) { }
@@ -176,10 +178,16 @@ class PreparseDataInterpreter {
 template <typename T>
 class ScopedPointer {
  public:
+  explicit ScopedPointer() : pointer_(NULL) {}
   explicit ScopedPointer(T* pointer) : pointer_(pointer) {}
-  ~ScopedPointer() { delete[] pointer_; }
+  ~ScopedPointer() { if (pointer_ != NULL) delete[] pointer_; }
   T& operator[](int index) { return pointer_[index]; }
   T* operator*() { return pointer_ ;}
+  T* operator=(T* new_value) {
+    if (pointer_ != NULL) delete[] pointer_;
+    pointer_ = new_value;
+    return new_value;
+  }
  private:
   T* pointer_;
 };
@@ -234,8 +242,8 @@ void CheckException(v8::PreParserData* data,
     if (expects->type != NULL) {
       const char* actual_message = reader.message();
       if (strcmp(expects->type, actual_message)) {
-        fail(data, "Wrong error message. Expected <%s>, found <%s>\n",
-             expects->type, actual_message);
+        fail(data, "Wrong error message. Expected <%s>, found <%s> at %d..%d\n",
+             expects->type, actual_message, reader.beg_pos(), reader.end_pos());
       }
     }
     if (expects->beg_pos >= 0) {
@@ -298,49 +306,63 @@ ExceptionExpectation ParseExpectation(int argc, const char* argv[]) {
 
 int main(int argc, const char* argv[]) {
   // Parse command line.
-  // Format:  preparser <scriptfile> ["throws" [<exn-type> [<start> [<end>]]]]
-  // Any flags on the line are ignored.
+  // Format:  preparser (<scriptfile> | -e "<source>")
+  //                    ["throws" [<exn-type> [<start> [<end>]]]]
+  // Any flags (except an initial -s) are ignored.
 
   // Check for mandatory filename argument.
   int arg_index = 1;
-  while (argc > arg_index && IsFlag(argv[arg_index])) arg_index++;
   if (argc <= arg_index) {
     fail(NULL, "ERROR: No filename on command line.\n");
   }
+  const uint8_t* source = NULL;
   const char* filename = argv[arg_index];
+  if (!strcmp(filename, "-e")) {
+    arg_index++;
+    if (argc <= arg_index) {
+      fail(NULL, "ERROR: No source after -e on command line.\n");
+    }
+    source = reinterpret_cast<const uint8_t*>(argv[arg_index]);
+  }
   // Check remainder of command line for exception expectations.
   arg_index++;
   ExceptionExpectation expects =
       ParseExpectation(argc - arg_index, argv + arg_index);
 
-  // Open JS file.
-  FILE* input = fopen(filename, "rb");
-  if (input == NULL) {
-    perror("ERROR: Error opening file");
-    fflush(stderr);
-    return EXIT_FAILURE;
-  }
+  ScopedPointer<uint8_t> buffer;
+  size_t length;
 
-  // Find length of JS file.
-  if (fseek(input, 0, SEEK_END) != 0) {
-    perror("ERROR: Error during seek");
-    fflush(stderr);
-    return EXIT_FAILURE;
+  if (source == NULL) {
+    // Open JS file.
+    FILE* input = fopen(filename, "rb");
+    if (input == NULL) {
+      perror("ERROR: Error opening file");
+      fflush(stderr);
+      return EXIT_FAILURE;
+    }
+    // Find length of JS file.
+    if (fseek(input, 0, SEEK_END) != 0) {
+      perror("ERROR: Error during seek");
+      fflush(stderr);
+      return EXIT_FAILURE;
+    }
+    length = static_cast<size_t>(ftell(input));
+    rewind(input);
+    // Read JS file into memory buffer.
+    buffer = new uint8_t[length];
+    if (!ReadBuffer(input, *buffer, length)) {
+      perror("ERROR: Reading file");
+      fflush(stderr);
+      return EXIT_FAILURE;
+    }
+    fclose(input);
+    source = *buffer;
+  } else {
+    length = strlen(reinterpret_cast<const char*>(source));
   }
-  size_t length = static_cast<size_t>(ftell(input));
-  rewind(input);
-
-  // Read JS file into memory buffer.
-  ScopedPointer<uint8_t> buffer(new uint8_t[length]);
-  if (!ReadBuffer(input, *buffer, length)) {
-    perror("ERROR: Reading file");
-    fflush(stderr);
-    return EXIT_FAILURE;
-  }
-  fclose(input);
 
   // Preparse input file.
-  AsciiInputStream input_buffer(*buffer, length);
+  AsciiInputStream input_buffer(source, length);
   size_t kMaxStackSize = 64 * 1024 * sizeof(void*);  // NOLINT
   v8::PreParserData data = v8::Preparse(&input_buffer, kMaxStackSize);
 

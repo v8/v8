@@ -222,6 +222,11 @@ class BitField {
     return static_cast<uint32_t>(value) << shift;
   }
 
+  // Returns a uint32_t with the bit field value updated.
+  static uint32_t update(uint32_t previous, T value) {
+    return (previous & ~mask()) | encode(value);
+  }
+
   // Extracts the bit field from the value.
   static T decode(uint32_t value) {
     return static_cast<T>((value & mask()) >> shift);

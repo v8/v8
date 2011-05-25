@@ -2039,16 +2039,22 @@ class FixedArray: public HeapObject {
 
 // DescriptorArrays are fixed arrays used to hold instance descriptors.
 // The format of the these objects is:
-//   [0]: point to a fixed array with (value, detail) pairs.
-//   [1]: next enumeration index (Smi), or pointer to small fixed array:
+// TODO(1399): It should be possible to make room for bit_field3 in the map
+//             without overloading the instance descriptors field in the map
+//             (and storing it in the DescriptorArray when the map has one).
+//   [0]: storage for bit_field3 for Map owning this object (Smi)
+//   [1]: point to a fixed array with (value, detail) pairs.
+//   [2]: next enumeration index (Smi), or pointer to small fixed array:
 //          [0]: next enumeration index (Smi)
 //          [1]: pointer to fixed array with enum cache
-//   [2]: first key
+//   [3]: first key
 //   [length() - 1]: last key
 //
 class DescriptorArray: public FixedArray {
  public:
-  // Is this the singleton empty_descriptor_array?
+  // Returns true for both shared empty_descriptor_array and for smis, which the
+  // map uses to encode additional bit fields when the descriptor array is not
+  // yet used.
   inline bool IsEmpty();
 
   // Returns the number of descriptors in the array.
@@ -2084,6 +2090,12 @@ class DescriptorArray: public FixedArray {
     FixedArray* bridge = FixedArray::cast(get(kEnumerationIndexIndex));
     return bridge->get(kEnumCacheBridgeCacheIndex);
   }
+
+  // TODO(1399): It should be possible to make room for bit_field3 in the map
+  //             without overloading the instance descriptors field in the map
+  //             (and storing it in the DescriptorArray when the map has one).
+  inline int bit_field3_storage();
+  inline void set_bit_field3_storage(int value);
 
   // Initialize or change the enum cache,
   // using the supplied storage for the small "bridge".
@@ -2163,9 +2175,10 @@ class DescriptorArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  static const int kContentArrayIndex = 0;
-  static const int kEnumerationIndexIndex = 1;
-  static const int kFirstIndex = 2;
+  static const int kBitField3StorageIndex = 0;
+  static const int kContentArrayIndex = 1;
+  static const int kEnumerationIndexIndex = 2;
+  static const int kFirstIndex = 3;
 
   // The length of the "bridge" to the enum cache.
   static const int kEnumCacheBridgeLength = 2;
@@ -2173,7 +2186,8 @@ class DescriptorArray: public FixedArray {
   static const int kEnumCacheBridgeCacheIndex = 1;
 
   // Layout description.
-  static const int kContentArrayOffset = FixedArray::kHeaderSize;
+  static const int kBitField3StorageOffset = FixedArray::kHeaderSize;
+  static const int kContentArrayOffset = kBitField3StorageOffset + kPointerSize;
   static const int kEnumerationIndexOffset = kContentArrayOffset + kPointerSize;
   static const int kFirstOffset = kEnumerationIndexOffset + kPointerSize;
 
@@ -2437,6 +2451,8 @@ class SymbolTableShape {
   static const int kEntrySize = 1;
 };
 
+class SeqAsciiString;
+
 // SymbolTable.
 //
 // No special elements in the prefix and the element size is 1
@@ -2450,6 +2466,11 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   MUST_USE_RESULT MaybeObject* LookupSymbol(Vector<const char> str, Object** s);
   MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Vector<const char> str,
                                                  Object** s);
+  MUST_USE_RESULT MaybeObject* LookupSubStringAsciiSymbol(
+      Handle<SeqAsciiString> str,
+      int from,
+      int length,
+      Object** s);
   MUST_USE_RESULT MaybeObject* LookupTwoByteSymbol(Vector<const uc16> str,
                                                    Object** s);
   MUST_USE_RESULT MaybeObject* LookupString(String* key, Object** s);
@@ -3285,8 +3306,8 @@ class Code: public HeapObject {
     KEYED_CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
-    TYPE_RECORDING_UNARY_OP_IC,
-    TYPE_RECORDING_BINARY_OP_IC,
+    UNARY_OP_IC,
+    BINARY_OP_IC,
     COMPARE_IC,
     // No more than 16 kinds. The value currently encoded in four bits in
     // Flags.
@@ -3360,11 +3381,11 @@ class Code: public HeapObject {
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
   inline bool is_call_stub() { return kind() == CALL_IC; }
   inline bool is_keyed_call_stub() { return kind() == KEYED_CALL_IC; }
-  inline bool is_type_recording_unary_op_stub() {
-    return kind() == TYPE_RECORDING_UNARY_OP_IC;
+  inline bool is_unary_op_stub() {
+    return kind() == UNARY_OP_IC;
   }
-  inline bool is_type_recording_binary_op_stub() {
-    return kind() == TYPE_RECORDING_BINARY_OP_IC;
+  inline bool is_binary_op_stub() {
+    return kind() == BINARY_OP_IC;
   }
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
 
@@ -3414,15 +3435,15 @@ class Code: public HeapObject {
   inline ExternalArrayType external_array_type();
   inline void set_external_array_type(ExternalArrayType value);
 
-  // [type-recording unary op type]: For all TYPE_RECORDING_UNARY_OP_IC.
-  inline byte type_recording_unary_op_type();
-  inline void set_type_recording_unary_op_type(byte value);
+  // [type-recording unary op type]: For all UNARY_OP_IC.
+  inline byte unary_op_type();
+  inline void set_unary_op_type(byte value);
 
   // [type-recording binary op type]: For all TYPE_RECORDING_BINARY_OP_IC.
-  inline byte type_recording_binary_op_type();
-  inline void set_type_recording_binary_op_type(byte value);
-  inline byte type_recording_binary_op_result_type();
-  inline void set_type_recording_binary_op_result_type(byte value);
+  inline byte binary_op_type();
+  inline void set_binary_op_type(byte value);
+  inline byte binary_op_result_type();
+  inline void set_binary_op_result_type(byte value);
 
   // [compare state]: For kind compare IC stubs, tells what state the
   // stub is in.
@@ -3645,6 +3666,13 @@ class Map: public HeapObject {
   inline byte bit_field2();
   inline void set_bit_field2(byte value);
 
+  // Bit field 3.
+  // TODO(1399): It should be possible to make room for bit_field3 in the map
+  // without overloading the instance descriptors field (and storing it in the
+  // DescriptorArray when the map has one).
+  inline int bit_field3();
+  inline void set_bit_field3(int value);
+
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
   // property is set to a value that is not a JSObject, the prototype
@@ -3766,8 +3794,16 @@ class Map: public HeapObject {
 
   inline JSFunction* unchecked_constructor();
 
+  // Should only be called by the code that initializes map to set initial valid
+  // value of the instance descriptor member.
+  inline void init_instance_descriptors();
+
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
+
+  // Sets the instance descriptor array for the map to be an empty descriptor
+  // array.
+  inline void clear_instance_descriptors();
 
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
@@ -3894,9 +3930,19 @@ class Map: public HeapObject {
   static const int kInstanceAttributesOffset = kInstanceSizesOffset + kIntSize;
   static const int kPrototypeOffset = kInstanceAttributesOffset + kIntSize;
   static const int kConstructorOffset = kPrototypeOffset + kPointerSize;
-  static const int kInstanceDescriptorsOffset =
+  // Storage for instance descriptors is overloaded to also contain additional
+  // map flags when unused (bit_field3). When the map has instance descriptors,
+  // the flags are transferred to the instance descriptor array and accessed
+  // through an extra indirection.
+  // TODO(1399): It should be possible to make room for bit_field3 in the map
+  // without overloading the instance descriptors field, but the map is
+  // currently perfectly aligned to 32 bytes and extending it at all would
+  // double its size.  After the increment GC work lands, this size restriction
+  // could be loosened and bit_field3 moved directly back in the map.
+  static const int kInstanceDescriptorsOrBitField3Offset =
       kConstructorOffset + kPointerSize;
-  static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
+  static const int kCodeCacheOffset =
+      kInstanceDescriptorsOrBitField3Offset + kPointerSize;
   static const int kPrototypeTransitionsOffset =
       kCodeCacheOffset + kPointerSize;
   static const int kPadStart = kPrototypeTransitionsOffset + kPointerSize;
@@ -3943,8 +3989,10 @@ class Map: public HeapObject {
   static const int kHasFastElements = 2;
   static const int kStringWrapperSafeForDefaultValueOf = 3;
   static const int kAttachedToSharedFunctionInfo = 4;
-  static const int kIsShared = 5;
-  static const int kHasExternalArrayElements = 6;
+  static const int kHasExternalArrayElements = 5;
+
+  // Bit positions for bit field 3
+  static const int kIsShared = 1;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;

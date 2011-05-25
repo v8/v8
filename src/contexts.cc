@@ -162,7 +162,6 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         ASSERT(index >= 0);  // arguments must exist and be in the heap context
         Handle<JSObject> arguments(JSObject::cast(context->get(index)),
                                    isolate);
-        ASSERT(arguments->HasLocalProperty(isolate->heap()->length_symbol()));
         if (FLAG_trace_contexts) {
           PrintF("=> found parameter %d in arguments object\n", param_index);
         }

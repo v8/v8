@@ -128,6 +128,21 @@ bool LCodeGen::GeneratePrologue() {
   }
 #endif
 
+  // Strict mode functions need to replace the receiver with undefined
+  // when called as functions (without an explicit receiver
+  // object). ecx is zero for method calls and non-zero for function
+  // calls.
+  if (info_->is_strict_mode()) {
+    Label ok;
+    __ test(ecx, Operand(ecx));
+    __ j(zero, &ok, Label::kNear);
+    // +1 for return address.
+    int receiver_offset = (scope()->num_parameters() + 1) * kPointerSize;
+    __ mov(Operand(esp, receiver_offset),
+           Immediate(isolate()->factory()->undefined_value()));
+    __ bind(&ok);
+  }
+
   __ push(ebp);  // Caller's frame pointer.
   __ mov(ebp, esp);
   __ push(esi);  // Callee's context.
@@ -428,7 +443,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
 
   // Signal that we don't inline smi code before these stubs in the
   // optimizing code generator.
-  if (code->kind() == Code::TYPE_RECORDING_BINARY_OP_IC ||
+  if (code->kind() == Code::BINARY_OP_IC ||
       code->kind() == Code::COMPARE_IC) {
     __ nop();
   }
@@ -1300,7 +1315,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   ASSERT(ToRegister(instr->InputAt(1)).is(eax));
   ASSERT(ToRegister(instr->result()).is(eax));
 
-  TypeRecordingBinaryOpStub stub(instr->op(), NO_OVERWRITE);
+  BinaryOpStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr, RESTORE_CONTEXT);
 }
 
@@ -2685,7 +2700,8 @@ void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
 
 void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int arity,
-                                 LInstruction* instr) {
+                                 LInstruction* instr,
+                                 CallKind call_kind) {
   // Change context if needed.
   bool change_context =
       (info()->closure()->context() != function->context()) ||
@@ -2707,6 +2723,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   RecordPosition(pointers->position());
 
   // Invoke function.
+  __ SetCallKind(ecx, call_kind);
   if (*function == *info()->closure()) {
     __ CallSelf();
   } else {
@@ -2721,7 +2738,10 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
   __ mov(edi, instr->function());
-  CallKnownFunction(instr->function(), instr->arity(), instr);
+  CallKnownFunction(instr->function(),
+                    instr->arity(),
+                    instr,
+                    CALL_AS_METHOD);
 }
 
 
@@ -3084,10 +3104,11 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
 
   int arity = instr->arity();
-  Handle<Code> ic = isolate()->stub_cache()->
-      ComputeCallInitialize(arity, NOT_IN_LOOP);
+  RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
+  Handle<Code> ic =
+      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP, mode);
   __ mov(ecx, instr->name());
-  CallCode(ic, RelocInfo::CODE_TARGET, instr, CONTEXT_ADJUSTED);
+  CallCode(ic, mode, instr, CONTEXT_ADJUSTED);
 }
 
 
@@ -3096,7 +3117,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
 
   int arity = instr->arity();
-  CallFunctionStub stub(arity, NOT_IN_LOOP, RECEIVER_MIGHT_BE_VALUE);
+  CallFunctionStub stub(arity, NOT_IN_LOOP, RECEIVER_MIGHT_BE_IMPLICIT);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr, CONTEXT_ADJUSTED);
   __ Drop(1);
 }
@@ -3107,17 +3128,18 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
 
   int arity = instr->arity();
-  Handle<Code> ic = isolate()->stub_cache()->
-      ComputeCallInitialize(arity, NOT_IN_LOOP);
+  RelocInfo::Mode mode = RelocInfo::CODE_TARGET_CONTEXT;
+  Handle<Code> ic =
+      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP, mode);
   __ mov(ecx, instr->name());
-  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr, CONTEXT_ADJUSTED);
+  CallCode(ic, mode, instr, CONTEXT_ADJUSTED);
 }
 
 
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
   __ mov(edi, instr->target());
-  CallKnownFunction(instr->target(), instr->arity(), instr);
+  CallKnownFunction(instr->target(), instr->arity(), instr, CALL_AS_FUNCTION);
 }
 
 

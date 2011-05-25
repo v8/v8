@@ -85,6 +85,7 @@ bool LCodeGen::GenerateCode() {
   return GeneratePrologue() &&
       GenerateBody() &&
       GenerateDeferredCode() &&
+      GenerateDeoptJumpTable() &&
       GenerateSafepointTable();
 }
 
@@ -144,6 +145,20 @@ bool LCodeGen::GeneratePrologue() {
   // cp: Callee's context.
   // fp: Caller's frame pointer.
   // lr: Caller's pc.
+
+  // Strict mode functions need to replace the receiver with undefined
+  // when called as functions (without an explicit receiver
+  // object). r5 is zero for method calls and non-zero for function
+  // calls.
+  if (info_->is_strict_mode()) {
+    Label ok;
+    __ cmp(r5, Operand(0));
+    __ b(eq, &ok);
+    int receiver_offset = scope()->num_parameters() * kPointerSize;
+    __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
+    __ str(r2, MemOperand(sp, receiver_offset));
+    __ bind(&ok);
+  }
 
   __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
   __ add(fp, sp, Operand(2 * kPointerSize));  // Adjust FP to point to saved FP.
@@ -249,13 +264,43 @@ bool LCodeGen::GenerateDeferredCode() {
     __ jmp(code->exit());
   }
 
-  // Force constant pool emission at the end of deferred code to make
-  // sure that no constant pools are emitted after the official end of
-  // the instruction sequence.
+  // Force constant pool emission at the end of the deferred code to make
+  // sure that no constant pools are emitted after.
   masm()->CheckConstPool(true, false);
 
-  // Deferred code is the last part of the instruction sequence. Mark
-  // the generated code as done unless we bailed out.
+  return !is_aborted();
+}
+
+
+bool LCodeGen::GenerateDeoptJumpTable() {
+  // Check that the jump table is accessible from everywhere in the function
+  // code, ie that offsets to the table can be encoded in the 24bit signed
+  // immediate of a branch instruction.
+  // To simplify we consider the code size from the first instruction to the
+  // end of the jump table. We also don't consider the pc load delta.
+  // Each entry in the jump table generates one instruction and inlines one
+  // 32bit data after it.
+  if (!is_int24((masm()->pc_offset() / Assembler::kInstrSize) +
+      deopt_jump_table_.length() * 2)) {
+    Abort("Generated code is too large");
+  }
+
+  // Block the constant pool emission during the jump table emission.
+  __ BlockConstPoolFor(deopt_jump_table_.length());
+  __ RecordComment("[ Deoptimisation jump table");
+  Label table_start;
+  __ bind(&table_start);
+  for (int i = 0; i < deopt_jump_table_.length(); i++) {
+    __ bind(&deopt_jump_table_[i].label);
+    __ ldr(pc, MemOperand(pc, Assembler::kInstrSize - Assembler::kPcLoadDelta));
+    __ dd(reinterpret_cast<uint32_t>(deopt_jump_table_[i].address));
+  }
+  ASSERT(masm()->InstructionsGeneratedSince(&table_start) ==
+      deopt_jump_table_.length() * 2);
+  __ RecordComment("]");
+
+  // The deoptimization jump table is the last part of the instruction
+  // sequence. Mark the generated code as done unless we bailed out.
   if (!is_aborted()) status_ = DONE;
   return !is_aborted();
 }
@@ -595,19 +640,18 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
     return;
   }
 
+  if (FLAG_trap_on_deopt) __ stop("trap_on_deopt", cc);
+
   if (cc == al) {
-    if (FLAG_trap_on_deopt) __ stop("trap_on_deopt");
     __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
-    if (FLAG_trap_on_deopt) {
-      Label done;
-      __ b(&done, NegateCondition(cc));
-      __ stop("trap_on_deopt");
-      __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
-      __ bind(&done);
-    } else {
-      __ Jump(entry, RelocInfo::RUNTIME_ENTRY, cc);
+    // We often have several deopts to the same entry, reuse the last
+    // jump entry if this is the case.
+    if (deopt_jump_table_.is_empty() ||
+        (deopt_jump_table_.last().address != entry)) {
+      deopt_jump_table_.Add(JumpTableEntry(entry));
     }
+    __ b(cc, &deopt_jump_table_.last().label);
   }
 }
 
@@ -1063,7 +1107,7 @@ void LCodeGen::DoDeferredBinaryOpStub(LTemplateInstruction<1, 2, T>* instr,
     __ mov(r0, right);
     __ mov(r1, left);
   }
-  TypeRecordingBinaryOpStub stub(op, OVERWRITE_LEFT);
+  BinaryOpStub stub(op, OVERWRITE_LEFT);
   __ CallStub(&stub);
   RecordSafepointWithRegistersAndDoubles(instr->pointer_map(),
                                          0,
@@ -1369,7 +1413,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   ASSERT(ToRegister(instr->InputAt(1)).is(r0));
   ASSERT(ToRegister(instr->result()).is(r0));
 
-  TypeRecordingBinaryOpStub stub(instr->op(), NO_OVERWRITE);
+  BinaryOpStub stub(instr->op(), NO_OVERWRITE);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2768,7 +2812,8 @@ void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
 
 void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int arity,
-                                 LInstruction* instr) {
+                                 LInstruction* instr,
+                                 CallKind call_kind) {
   // Change context if needed.
   bool change_context =
       (info()->closure()->context() != function->context()) ||
@@ -2788,6 +2833,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   RecordPosition(pointers->position());
 
   // Invoke function.
+  __ SetCallKind(r5, call_kind);
   __ ldr(ip, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
   __ Call(ip);
 
@@ -2802,7 +2848,10 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
   __ mov(r1, Operand(instr->function()));
-  CallKnownFunction(instr->function(), instr->arity(), instr);
+  CallKnownFunction(instr->function(),
+                    instr->arity(),
+                    instr,
+                    CALL_AS_METHOD);
 }
 
 
@@ -3184,10 +3233,11 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
-  Handle<Code> ic = isolate()->stub_cache()->ComputeCallInitialize(
-      arity, NOT_IN_LOOP);
+  RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
+  Handle<Code> ic =
+      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP, mode);
   __ mov(r2, Operand(instr->name()));
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  CallCode(ic, mode, instr);
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
@@ -3197,7 +3247,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
-  CallFunctionStub stub(arity, NOT_IN_LOOP, RECEIVER_MIGHT_BE_VALUE);
+  CallFunctionStub stub(arity, NOT_IN_LOOP, RECEIVER_MIGHT_BE_IMPLICIT);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   __ Drop(1);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -3208,10 +3258,11 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
+  RelocInfo::Mode mode = RelocInfo::CODE_TARGET_CONTEXT;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP, mode);
   __ mov(r2, Operand(instr->name()));
-  CallCode(ic, RelocInfo::CODE_TARGET_CONTEXT, instr);
+  CallCode(ic, mode, instr);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
@@ -3219,7 +3270,7 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
   __ mov(r1, Operand(instr->target()));
-  CallKnownFunction(instr->target(), instr->arity(), instr);
+  CallKnownFunction(instr->target(), instr->arity(), instr, CALL_AS_FUNCTION);
 }
 
 

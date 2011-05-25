@@ -370,7 +370,10 @@ void PrettyPrinter::VisitCallRuntime(CallRuntime* node) {
 
 
 void PrettyPrinter::VisitUnaryOperation(UnaryOperation* node) {
-  Print("(%s", Token::String(node->op()));
+  Token::Value op = node->op();
+  bool needsSpace =
+      op == Token::DELETE || op == Token::TYPEOF || op == Token::VOID;
+  Print("(%s%s", Token::String(op), needsSpace ? " " : "");
   Visit(node->expression());
   Print(")");
 }
@@ -388,7 +391,7 @@ void PrettyPrinter::VisitCountOperation(CountOperation* node) {
 void PrettyPrinter::VisitBinaryOperation(BinaryOperation* node) {
   Print("(");
   Visit(node->left());
-  Print("%s", Token::String(node->op()));
+  Print(" %s ", Token::String(node->op()));
   Visit(node->right());
   Print(")");
 }
@@ -397,7 +400,7 @@ void PrettyPrinter::VisitBinaryOperation(BinaryOperation* node) {
 void PrettyPrinter::VisitCompareOperation(CompareOperation* node) {
   Print("(");
   Visit(node->left());
-  Print("%s", Token::String(node->op()));
+  Print(" %s ", Token::String(node->op()));
   Visit(node->right());
   Print(")");
 }

@@ -266,6 +266,11 @@ void Shell::ReportException(v8::TryCatch* try_catch) {
       printf("^");
     }
     printf("\n");
+    v8::String::Utf8Value stack_trace(try_catch->StackTrace());
+    if (stack_trace.length() > 0) {
+      const char* stack_trace_string = ToCString(stack_trace);
+      printf("%s\n", stack_trace_string);
+    }
   }
 }
 
@@ -791,6 +796,8 @@ int Shell::Main(int argc, char* argv[]) {
 }  // namespace v8
 
 
+#ifndef GOOGLE3
 int main(int argc, char* argv[]) {
   return v8::Shell::Main(argc, argv);
 }
+#endif

@@ -25,9 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// In strict mode, it's illegal to assign to "eval" as a lhs variable.
+// Tests that we always return the same type error function when trying to
+// access strict mode caller and callee.
 
-function test() {
-  "use strict";
-  eval += 42;
+function foo() {
+  'use strict';
+  return arguments;
 }
+
+var get1 = Object.getOwnPropertyDescriptor(foo(), "caller").get;
+var get2 = Object.getOwnPropertyDescriptor(foo(), "callee").get;
+assertEquals(get1, get2);

@@ -25,9 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// In strict mode, it's illegal to declare "eval" as a function.
+// See: http://code.google.com/p/v8/issues/detail?id=1401
 
-function test() {
-  "use strict";
-  function eval() { }
+var bottom = 0;
+var sizes = new Array();
+
+for (i = 0; i < 10; i++) {
+  sizes[i] = 0;
+}
+
+function foo() {
+  var size = bottom + 1 + 10;
+  var t =  (sizes[++bottom] = size);
+  return t;
+}
+
+for (i = 0; i < 5; i++) {
+  assertEquals(i + 11, foo());
 }

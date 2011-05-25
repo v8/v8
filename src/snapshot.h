@@ -33,7 +33,7 @@
 namespace v8 {
 namespace internal {
 
-STATIC_CLASS Snapshot {
+class Snapshot {
  public:
   // Initialize the VM from the given snapshot file. If snapshot_file is
   // NULL, use the internal snapshot instead. Returns false if no snapshot

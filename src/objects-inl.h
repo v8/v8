@@ -1674,9 +1674,21 @@ Object** FixedArray::data_start() {
 
 
 bool DescriptorArray::IsEmpty() {
-  ASSERT(this->length() > kFirstIndex ||
+  ASSERT(this->IsSmi() ||
+         this->length() > kFirstIndex ||
          this == HEAP->empty_descriptor_array());
-  return length() <= kFirstIndex;
+  return this->IsSmi() || length() <= kFirstIndex;
+}
+
+
+int DescriptorArray::bit_field3_storage() {
+  Object* storage = READ_FIELD(this, kBitField3StorageOffset);
+  return Smi::cast(storage)->value();
+}
+
+void DescriptorArray::set_bit_field3_storage(int value) {
+  ASSERT(!IsEmpty());
+  WRITE_FIELD(this, kBitField3StorageOffset, Smi::FromInt(value));
 }
 
 
@@ -2528,14 +2540,14 @@ bool Map::attached_to_shared_function_info() {
 
 void Map::set_is_shared(bool value) {
   if (value) {
-    set_bit_field2(bit_field2() | (1 << kIsShared));
+    set_bit_field3(bit_field3() | (1 << kIsShared));
   } else {
-    set_bit_field2(bit_field2() & ~(1 << kIsShared));
+    set_bit_field3(bit_field3() & ~(1 << kIsShared));
   }
 }
 
 bool Map::is_shared() {
-  return ((1 << kIsShared) & bit_field2()) != 0;
+  return ((1 << kIsShared) & bit_field3()) != 0;
 }
 
 
@@ -2607,7 +2619,8 @@ int Code::arguments_count() {
 
 int Code::major_key() {
   ASSERT(kind() == STUB ||
-         kind() == TYPE_RECORDING_BINARY_OP_IC ||
+         kind() == UNARY_OP_IC ||
+         kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC);
   return READ_BYTE_FIELD(this, kStubMajorKeyOffset);
 }
@@ -2615,8 +2628,8 @@ int Code::major_key() {
 
 void Code::set_major_key(int major) {
   ASSERT(kind() == STUB ||
-         kind() == TYPE_RECORDING_UNARY_OP_IC ||
-         kind() == TYPE_RECORDING_BINARY_OP_IC ||
+         kind() == UNARY_OP_IC ||
+         kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC);
   ASSERT(0 <= major && major < 256);
   WRITE_BYTE_FIELD(this, kStubMajorKeyOffset, major);
@@ -2724,38 +2737,38 @@ void Code::set_external_array_type(ExternalArrayType value) {
 }
 
 
-byte Code::type_recording_unary_op_type() {
-  ASSERT(is_type_recording_unary_op_stub());
+byte Code::unary_op_type() {
+  ASSERT(is_unary_op_stub());
   return READ_BYTE_FIELD(this, kUnaryOpTypeOffset);
 }
 
 
-void Code::set_type_recording_unary_op_type(byte value) {
-  ASSERT(is_type_recording_unary_op_stub());
+void Code::set_unary_op_type(byte value) {
+  ASSERT(is_unary_op_stub());
   WRITE_BYTE_FIELD(this, kUnaryOpTypeOffset, value);
 }
 
 
-byte Code::type_recording_binary_op_type() {
-  ASSERT(is_type_recording_binary_op_stub());
+byte Code::binary_op_type() {
+  ASSERT(is_binary_op_stub());
   return READ_BYTE_FIELD(this, kBinaryOpTypeOffset);
 }
 
 
-void Code::set_type_recording_binary_op_type(byte value) {
-  ASSERT(is_type_recording_binary_op_stub());
+void Code::set_binary_op_type(byte value) {
+  ASSERT(is_binary_op_stub());
   WRITE_BYTE_FIELD(this, kBinaryOpTypeOffset, value);
 }
 
 
-byte Code::type_recording_binary_op_result_type() {
-  ASSERT(is_type_recording_binary_op_stub());
+byte Code::binary_op_result_type() {
+  ASSERT(is_binary_op_stub());
   return READ_BYTE_FIELD(this, kBinaryOpReturnTypeOffset);
 }
 
 
-void Code::set_type_recording_binary_op_result_type(byte value) {
-  ASSERT(is_type_recording_binary_op_stub());
+void Code::set_binary_op_result_type(byte value) {
+  ASSERT(is_binary_op_stub());
   WRITE_BYTE_FIELD(this, kBinaryOpReturnTypeOffset, value);
 }
 
@@ -2785,11 +2798,10 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                PropertyType type,
                                int argc,
                                InlineCacheHolderFlag holder) {
-  // Extra IC state is only allowed for monomorphic call IC stubs
-  // or for store IC stubs.
+  // Extra IC state is only allowed for call IC stubs or for store IC
+  // stubs.
   ASSERT(extra_ic_state == kNoExtraICState ||
-         (kind == CALL_IC && (ic_state == MONOMORPHIC ||
-                              ic_state == MONOMORPHIC_PROTOTYPE_FAILURE)) ||
+         (kind == CALL_IC) ||
          (kind == STORE_IC) ||
          (kind == KEYED_STORE_IC));
   // Compute the bit mask.
@@ -2967,8 +2979,82 @@ MaybeObject* Map::GetSlowElementsMap() {
 }
 
 
-ACCESSORS(Map, instance_descriptors, DescriptorArray,
-          kInstanceDescriptorsOffset)
+DescriptorArray* Map::instance_descriptors() {
+  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBitField3Offset);
+  if (object->IsSmi()) {
+    return HEAP->empty_descriptor_array();
+  } else {
+    return DescriptorArray::cast(object);
+  }
+}
+
+
+void Map::init_instance_descriptors() {
+  WRITE_FIELD(this, kInstanceDescriptorsOrBitField3Offset, Smi::FromInt(0));
+}
+
+
+void Map::clear_instance_descriptors() {
+  Object* object = READ_FIELD(this,
+                              kInstanceDescriptorsOrBitField3Offset);
+  if (!object->IsSmi()) {
+    WRITE_FIELD(
+        this,
+        kInstanceDescriptorsOrBitField3Offset,
+        Smi::FromInt(DescriptorArray::cast(object)->bit_field3_storage()));
+  }
+}
+
+
+void Map::set_instance_descriptors(DescriptorArray* value,
+                                   WriteBarrierMode mode) {
+  Object* object = READ_FIELD(this,
+                              kInstanceDescriptorsOrBitField3Offset);
+  if (value == isolate()->heap()->empty_descriptor_array()) {
+    clear_instance_descriptors();
+    return;
+  } else {
+    if (object->IsSmi()) {
+      value->set_bit_field3_storage(Smi::cast(object)->value());
+    } else {
+      value->set_bit_field3_storage(
+          DescriptorArray::cast(object)->bit_field3_storage());
+    }
+  }
+  ASSERT(!is_shared());
+  WRITE_FIELD(this, kInstanceDescriptorsOrBitField3Offset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(),
+                            this,
+                            kInstanceDescriptorsOrBitField3Offset,
+                            mode);
+}
+
+
+int Map::bit_field3() {
+  Object* object = READ_FIELD(this,
+                              kInstanceDescriptorsOrBitField3Offset);
+  if (object->IsSmi()) {
+    return Smi::cast(object)->value();
+  } else {
+    return DescriptorArray::cast(object)->bit_field3_storage();
+  }
+}
+
+
+void Map::set_bit_field3(int value) {
+  ASSERT(Smi::IsValid(value));
+  Object* object = READ_FIELD(this,
+                              kInstanceDescriptorsOrBitField3Offset);
+  if (object->IsSmi()) {
+    WRITE_FIELD(this,
+                kInstanceDescriptorsOrBitField3Offset,
+                Smi::FromInt(value));
+  } else {
+    DescriptorArray::cast(object)->set_bit_field3_storage(value);
+  }
+}
+
+
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
 ACCESSORS(Map, prototype_transitions, FixedArray, kPrototypeTransitionsOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)

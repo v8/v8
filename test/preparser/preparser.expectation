@@ -1,4 +1,4 @@
-# Expectations for preparser tests.
+# Expectations for .js preparser tests.
 # Only mentions tests that throw SyntaxError, and optionally specifies
 # the message and location expected in the exception.
 # Format:
@@ -9,40 +9,6 @@ strict-octal-regexp:strict_octal_literal
 strict-octal-use-strict-after:strict_octal_literal
 strict-octal-use-strict-before:strict_octal_literal
 
-strict-eval-argument-own:strict_param_name
-strict-eval-argument:strict_param_name
-strict-eval-assign:strict_lhs_assignment
-strict-eval-op-assign:strict_lhs_assignment
-strict-eval-prefix:strict_lhs_prefix
-strict-eval-postfix:strict_lhs_postfix
-strict-eval-catch:strict_catch_variable
-strict-eval-func-own:strict_function_name
-strict-eval-func:strict_function_name
-strict-eval-funcexp:strict_function_name
-strict-eval-var:strict_var_name
-
-strict-arguments-argument-own:strict_param_name
-strict-arguments-argument:strict_param_name
-strict-arguments-assign:strict_lhs_assignment
-strict-arguments-op-assign:strict_lhs_assignment
-strict-arguments-prefix:strict_lhs_prefix
-strict-arguments-postfix:strict_lhs_postfix
-strict-arguments-catch:strict_catch_variable
-strict-arguments-func-own:strict_function_name
-strict-arguments-func:strict_function_name
-strict-arguments-funcexp:strict_function_name
-strict-arguments-var:strict_var_name
-
-strict-yield-argument-own:strict_reserved_word
-strict-yield-argument:strict_reserved_word
-strict-yield-assign:strict_reserved_word
-strict-yield-op-assign:strict_reserved_word
-strict-yield-prefix:strict_reserved_word
-strict-yield-postfix:strict_reserved_word
-strict-yield-catch:strict_reserved_word
-strict-yield-func-own:strict_reserved_word
-strict-yield-func:strict_reserved_word
-strict-yield-funcexp:strict_reserved_word
-strict-yield-var:strict_reserved_word
+strict-const:strict_const
 
 strict-with:strict_mode_with

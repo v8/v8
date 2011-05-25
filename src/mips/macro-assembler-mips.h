@@ -30,6 +30,7 @@
 
 #include "assembler.h"
 #include "mips/assembler-mips.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
@@ -206,9 +207,28 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   void Swap(Register reg1, Register reg2, Register scratch = no_reg);
 
   void Call(Label* target);
-  // May do nothing if the registers are identical.
-  void Move(Register dst, Register src);
 
+  inline void Move(Register dst, Register src) {
+    if (!dst.is(src)) {
+      mov(dst, src);
+    }
+  }
+
+  inline void Move(FPURegister dst, FPURegister src) {
+    if (!dst.is(src)) {
+      mov_d(dst, src);
+    }
+  }
+
+  inline void Move(Register dst_low, Register dst_high, FPURegister src) {
+    mfc1(dst_low, src);
+    mfc1(dst_high, FPURegister::from_code(src.code() + 1));
+  }
+
+  inline void Move(FPURegister dst, Register src_low, Register src_high) {
+    mtc1(src_low, dst);
+    mtc1(src_high, FPURegister::from_code(dst.code() + 1));
+  }
 
   // Jump unconditionally to given label.
   // We NEED a nop in the branch delay slot, as it used by v8, for example in
@@ -508,34 +528,19 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
     Addu(sp, sp, Operand(count * kPointerSize));
   }
 
-  // ---------------------------------------------------------------------------
-  // These functions are only used by crankshaft, so they are currently
-  // unimplemented.
-
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
-  void PushSafepointRegisters() {
-    UNIMPLEMENTED_MIPS();
-  }
-
-  void PopSafepointRegisters() {
-    UNIMPLEMENTED_MIPS();
-  }
-
-  void PushSafepointRegistersAndDoubles() {
-    UNIMPLEMENTED_MIPS();
-  }
-
-  void PopSafepointRegistersAndDoubles() {
-    UNIMPLEMENTED_MIPS();
-  }
-
-  static int SafepointRegisterStackIndex(int reg_code) {
-    UNIMPLEMENTED_MIPS();
-    return 0;
-  }
-
-  // ---------------------------------------------------------------------------
+  void PushSafepointRegisters();
+  void PopSafepointRegisters();
+  void PushSafepointRegistersAndDoubles();
+  void PopSafepointRegistersAndDoubles();
+  // Store value in register src in the safepoint stack slot for
+  // register dst.
+  void StoreToSafepointRegisterSlot(Register src, Register dst);
+  void StoreToSafepointRegistersAndDoublesSlot(Register src, Register dst);
+  // Load the value of the src register from its safepoint stack slot
+  // into register dst.
+  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // MIPS32 R2 instruction macro.
   void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
@@ -609,25 +614,33 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   // -------------------------------------------------------------------------
   // JavaScript invokes.
 
+  // Setup call kind marking in t1. The method takes t1 as an
+  // explicit first parameter to make the code more readable at the
+  // call sites.
+  void SetCallKind(Register dst, CallKind kind);
+
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper = NullCallWrapper());
+                  const CallWrapper& call_wrapper = NullCallWrapper(),
+                  CallKind call_kind = CALL_AS_METHOD);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
-                  InvokeFlag flag);
+                  InvokeFlag flag,
+                  CallKind call_kind = CALL_AS_METHOD);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper = NullCallWrapper());
+                      const CallWrapper& call_wrapper = NullCallWrapper(),
+                      CallKind call_kind = CALL_AS_METHOD);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
@@ -710,13 +723,22 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                 Register scratch,
                 Handle<Map> map,
                 Label* fail,
-                bool is_heap_object);
+                SmiCheckType smi_check_type);
 
   void CheckMap(Register obj,
                 Register scratch,
                 Heap::RootListIndex index,
                 Label* fail,
-                bool is_heap_object);
+                SmiCheckType smi_check_type);
+
+  // Check if the map of an object is equal to a specified map and branch to a
+  // specified target if equal. Skip the smi check if not required (object is
+  // known to be a heap object)
+  void DispatchMap(Register obj,
+                   Register scratch,
+                   Handle<Map> map,
+                   Handle<Code> success,
+                   SmiCheckType smi_check_type);
 
   // Generates code for reporting that an illegal operation has
   // occurred.
@@ -870,6 +892,14 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   void CallCFunction(ExternalReference function, int num_arguments);
   void CallCFunction(Register function, Register scratch, int num_arguments);
   void GetCFunctionDoubleResult(const DoubleRegister dst);
+
+  // There are two ways of passing double arguments on MIPS, depending on
+  // whether soft or hard floating point ABI is used. These functions
+  // abstract parameter passing for the three different ways we call
+  // C functions from generated code.
+  void SetCallCDoubleArguments(DoubleRegister dreg);
+  void SetCallCDoubleArguments(DoubleRegister dreg1, DoubleRegister dreg2);
+  void SetCallCDoubleArguments(DoubleRegister dreg, Register reg);
 
   // Calls an API function. Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions. Restores context.
@@ -1050,6 +1080,8 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                                            Register scratch2,
                                            Label* failure);
 
+  void LoadInstanceDescriptors(Register map, Register descriptors);
+
  private:
   void CallCFunctionHelper(Register function,
                            ExternalReference function_reference,
@@ -1074,7 +1106,8 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                       Register code_reg,
                       Label* done,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper = NullCallWrapper());
+                      const CallWrapper& call_wrapper = NullCallWrapper(),
+                      CallKind call_kind = CALL_AS_METHOD);
 
   // Get the code for the given builtin. Returns if able to resolve
   // the function in the 'resolved' flag.
@@ -1090,11 +1123,19 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                            Register scratch1,
                            Register scratch2);
 
+  // Compute memory operands for safepoint stack slots.
+  static int SafepointRegisterStackIndex(int reg_code);
+  MemOperand SafepointRegisterSlot(Register reg);
+  MemOperand SafepointRegistersAndDoublesSlot(Register reg);
 
   bool generating_stub_;
   bool allow_stub_calls_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
+
+  // Needs access to SafepointRegisterStackIndex for optimized frame
+  // traversal.
+  friend class OptimizedFrame;
 };
 
 
@@ -1171,4 +1212,3 @@ static inline MemOperand CFunctionArgumentOperand(int index) {
 } }  // namespace v8::internal
 
 #endif  // V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
-
