@@ -645,6 +645,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Set expected number of arguments to zero (not changing a0).
   __ mov(a2, zero_reg);
   __ GetBuiltinEntry(a3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ SetCallKind(t1, CALL_AS_METHOD);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
@@ -1102,6 +1103,8 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
 
   // Preserve the function.
   __ push(a1);
+  // Push call kind information.
+  __ push(t1);
 
   // Push the function on the stack as the argument to the runtime function.
   __ push(a1);
@@ -1109,6 +1112,9 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kLazyCompile, 1);
   // Calculate the entry point.
   __ addiu(t9, v0, Code::kHeaderSize - kHeapObjectTag);
+
+  // Restore call kind information.
+  __ pop(t1);
   // Restore saved function.
   __ pop(a1);
 
@@ -1126,12 +1132,17 @@ void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
 
   // Preserve the function.
   __ push(a1);
+  // Push call kind information.
+  __ push(t1);
 
   // Push the function on the stack as the argument to the runtime function.
   __ push(a1);
   __ CallRuntime(Runtime::kLazyRecompile, 1);
   // Calculate the entry point.
   __ Addu(t9, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+  // Restore call kind information.
+  __ pop(t1);
   // Restore saved function.
   __ pop(a1);
 
@@ -1306,6 +1317,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ Branch(&function, ne, a1, Operand(zero_reg));
     __ mov(a2, zero_reg);  // expected arguments is 0 for CALL_NON_FUNCTION
     __ GetBuiltinEntry(a3, Builtins::CALL_NON_FUNCTION);
+    __ SetCallKind(t1, CALL_AS_METHOD);
     __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
     __ bind(&function);
@@ -1321,6 +1333,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
          FieldMemOperand(a3, SharedFunctionInfo::kFormalParameterCountOffset));
   __ sra(a2, a2, kSmiTagSize);
   __ lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+  __ SetCallKind(t1, CALL_AS_METHOD);
   // Check formal and actual parameter counts.
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET, ne, a2, Operand(a0));
@@ -1500,6 +1513,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- a1: function (passed through to callee)
   //  -- a2: expected arguments count
   //  -- a3: callee code entry
+  //  -- t1: call kind information
   // -----------------------------------
 
   Label invoke, dont_adapt_arguments;

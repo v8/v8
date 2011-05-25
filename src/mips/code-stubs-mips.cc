@@ -4655,34 +4655,22 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow;
 
-  // If the receiver might be a value (string, number or boolean) check
-  // for this and box it if it is.
-  if (ReceiverMightBeValue()) {
+  // The receiver might implicitly be the global object. This is
+  // indicated by passing the hole as the receiver to the call
+  // function stub.
+  if (ReceiverMightBeImplicit()) {
+    Label call;
     // Get the receiver from the stack.
     // function, receiver [, arguments]
-    Label receiver_is_value, receiver_is_js_object;
-    __ lw(a1, MemOperand(sp, argc_ * kPointerSize));
-
-    // Check if receiver is a smi (which is a number value).
-    __ JumpIfSmi(a1, &receiver_is_value);
-
-    // Check if the receiver is a valid JS object.
-    __ GetObjectType(a1, a2, a2);
-    __ Branch(&receiver_is_js_object,
-              ge,
-              a2,
-              Operand(FIRST_JS_OBJECT_TYPE));
-
-    // Call the runtime to box the value.
-    __ bind(&receiver_is_value);
-    // We need natives to execute this.
-    __ EnterInternalFrame();
-    __ push(a1);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-    __ LeaveInternalFrame();
-    __ sw(v0, MemOperand(sp, argc_ * kPointerSize));
-
-    __ bind(&receiver_is_js_object);
+    __ lw(t0, MemOperand(sp, argc_ * kPointerSize));
+    // Call as function is indicated with the hole.
+    __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+    __ Branch(&call, ne, t0, Operand(at));
+    // Patch the receiver on the stack with the global receiver object.
+    __ lw(a1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ lw(a1, FieldMemOperand(a1, GlobalObject::kGlobalReceiverOffset));
+    __ sw(a1, MemOperand(sp, argc_ * kPointerSize));
+    __ bind(&call);
   }
 
   // Get the function to call from the stack.
@@ -4699,7 +4687,19 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Fast-case: Invoke the function now.
   // a1: pushed function
   ParameterCount actual(argc_);
-  __ InvokeFunction(a1, actual, JUMP_FUNCTION);
+
+  if (ReceiverMightBeImplicit()) {
+    Label call_as_function;
+    __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
+    __ Branch(&call_as_function, eq, t0, Operand(at));
+    __ InvokeFunction(a1, actual, JUMP_FUNCTION);
+    __ bind(&call_as_function);
+  }
+  __ InvokeFunction(a1,
+                    actual,
+                    JUMP_FUNCTION,
+                    NullCallWrapper(),
+                    CALL_AS_FUNCTION);
 
   // Slow-case: Non-function called.
   __ bind(&slow);

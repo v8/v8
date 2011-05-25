@@ -2699,6 +2699,21 @@ void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg,
   }
 }
 
+
+void MacroAssembler::SetCallKind(Register dst, CallKind call_kind) {
+  // This macro takes the dst register to make the code more readable
+  // at the call sites. However, the dst register has to be t1 to
+  // follow the calling convention which requires the call type to be
+  // in t1.
+  ASSERT(dst.is(t1));
+  if (call_kind == CALL_AS_FUNCTION) {
+    li(dst, Operand(Smi::FromInt(1)));
+  } else {
+    li(dst, Operand(Smi::FromInt(0)));
+  }
+}
+
+
 // -----------------------------------------------------------------------------
 // JavaScript invokes.
 
@@ -2708,7 +2723,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Register code_reg,
                                     Label* done,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper) {
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
   bool definitely_matches = false;
   Label regular_invoke;
 
@@ -2760,10 +2776,12 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
         isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
+      SetCallKind(t1, call_kind);
       Call(adaptor, RelocInfo::CODE_TARGET);
       call_wrapper.AfterCall();
       jmp(done);
     } else {
+      SetCallKind(t1, call_kind);
       Jump(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&regular_invoke);
@@ -2775,15 +2793,18 @@ void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
-                                const CallWrapper& call_wrapper) {
+                                const CallWrapper& call_wrapper,
+                                CallKind call_kind) {
   Label done;
 
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
-                 call_wrapper);
+                 call_wrapper, call_kind);
   if (flag == CALL_FUNCTION) {
+    SetCallKind(t1, call_kind);
     Call(code);
   } else {
     ASSERT(flag == JUMP_FUNCTION);
+    SetCallKind(t1, call_kind);
     Jump(code);
   }
   // Continue here if InvokePrologue does handle the invocation due to
@@ -2796,13 +2817,17 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 RelocInfo::Mode rmode,
-                                InvokeFlag flag) {
+                                InvokeFlag flag,
+                                CallKind call_kind) {
   Label done;
 
-  InvokePrologue(expected, actual, code, no_reg, &done, flag);
+  InvokePrologue(expected, actual, code, no_reg, &done, flag,
+                 NullCallWrapper(), call_kind);
   if (flag == CALL_FUNCTION) {
+    SetCallKind(t1, call_kind);
     Call(code, rmode);
   } else {
+    SetCallKind(t1, call_kind);
     Jump(code, rmode);
   }
   // Continue here if InvokePrologue does handle the invocation due to
@@ -2814,7 +2839,8 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper) {
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
   // Contract with called JS functions requires that function is passed in a1.
   ASSERT(function.is(a1));
   Register expected_reg = a2;
@@ -2829,7 +2855,7 @@ void MacroAssembler::InvokeFunction(Register function,
   lw(code_reg, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(expected_reg);
-  InvokeCode(code_reg, expected, actual, flag, call_wrapper);
+  InvokeCode(code_reg, expected, actual, flag, call_wrapper, call_kind);
 }
 
 

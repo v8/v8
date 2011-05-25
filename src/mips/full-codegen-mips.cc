@@ -147,6 +147,19 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
 #endif
 
+  // Strict mode functions need to replace the receiver with undefined
+  // when called as functions (without an explicit receiver
+  // object). t1 is zero for method calls and non-zero for function
+  // calls.
+  if (info->is_strict_mode()) {
+    Label ok;
+    __ Branch(&ok, eq, t1, Operand(zero_reg));
+    int receiver_offset = scope()->num_parameters() * kPointerSize;
+    __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
+    __ sw(a2, MemOperand(sp, receiver_offset));
+    __ bind(&ok);
+  }
+
   int locals_count = scope()->num_stack_slots();
 
   __ Push(ra, fp, cp, a1);
@@ -2105,7 +2118,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   // Call the IC initialization code.
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arg_count, in_loop);
+      isolate()->stub_cache()->ComputeCallInitialize(arg_count, in_loop, mode);
   EmitCallIC(ic, mode, expr->id());
   RecordJSReturnSite(expr);
   // Restore context register.
@@ -2115,8 +2128,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
 
 
 void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
-                                            Expression* key,
-                                            RelocInfo::Mode mode) {
+                                            Expression* key) {
   // Load the key.
   VisitForAccumulatorValue(key);
 
@@ -2141,7 +2153,7 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
   Handle<Code> ic =
       isolate()->stub_cache()->ComputeKeyedCallInitialize(arg_count, in_loop);
   __ lw(a2, MemOperand(sp, (arg_count + 1) * kPointerSize));  // Key.
-  EmitCallIC(ic, mode, expr->id());
+  EmitCallIC(ic, RelocInfo::CODE_TARGET, expr->id());
   RecordJSReturnSite(expr);
   // Restore context register.
   __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -2255,7 +2267,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // Record source position for debugger.
     SetSourcePosition(expr->position());
     InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-    CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_VALUE);
+    CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_IMPLICIT);
     __ CallStub(&stub);
     RecordJSReturnSite(expr);
     // Restore context register.
@@ -2305,9 +2317,10 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ bind(&call);
     }
 
-    // The receiver is either the global receiver or a JSObject found by
-    // LoadContextSlot.
-    EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
+    // The receiver is either the global receiver or an object found
+    // by LoadContextSlot. That object could be the hole if the
+    // receiver is implicitly the global object.
+    EmitCallWithStub(expr, RECEIVER_MIGHT_BE_IMPLICIT);
   } else if (fun->AsProperty() != NULL) {
     // Call to an object property.
     Property* prop = fun->AsProperty();
@@ -2348,7 +2361,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         { PreservePositionScope scope(masm()->positions_recorder());
           VisitForStackValue(prop->obj());
         }
-        EmitKeyedCallWithIC(expr, prop->key(), RelocInfo::CODE_TARGET);
+        EmitKeyedCallWithIC(expr, prop->key());
       }
     }
   } else {
@@ -3663,9 +3676,12 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->is_jsruntime()) {
     // Call the JS runtime function.
     __ li(a2, Operand(expr->name()));
+    RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
     Handle<Code> ic =
-        isolate()->stub_cache()->ComputeCallInitialize(arg_count, NOT_IN_LOOP);
-    EmitCallIC(ic, RelocInfo::CODE_TARGET, expr->id());
+        isolate()->stub_cache()->ComputeCallInitialize(arg_count,
+                                                       NOT_IN_LOOP,
+                                                       mode);
+    EmitCallIC(ic, mode, expr->id());
     // Restore context register.
     __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   } else {

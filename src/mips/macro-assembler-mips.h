@@ -614,25 +614,33 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   // -------------------------------------------------------------------------
   // JavaScript invokes.
 
+  // Setup call kind marking in t1. The method takes t1 as an
+  // explicit first parameter to make the code more readable at the
+  // call sites.
+  void SetCallKind(Register dst, CallKind kind);
+
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper = NullCallWrapper());
+                  const CallWrapper& call_wrapper = NullCallWrapper(),
+                  CallKind call_kind = CALL_AS_METHOD);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
-                  InvokeFlag flag);
+                  InvokeFlag flag,
+                  CallKind call_kind = CALL_AS_METHOD);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper = NullCallWrapper());
+                      const CallWrapper& call_wrapper = NullCallWrapper(),
+                      CallKind call_kind = CALL_AS_METHOD);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
@@ -1098,7 +1106,8 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                       Register code_reg,
                       Label* done,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper = NullCallWrapper());
+                      const CallWrapper& call_wrapper = NullCallWrapper(),
+                      CallKind call_kind = CALL_AS_METHOD);
 
   // Get the code for the given builtin. Returns if able to resolve
   // the function in the 'resolved' flag.
