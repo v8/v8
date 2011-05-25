@@ -5534,16 +5534,11 @@ bool String::IsEqualTo(Vector<const char> str) {
 bool String::IsAsciiEqualTo(Vector<const char> str) {
   int slen = length();
   if (str.length() != slen) return false;
-  if (this->IsSeqAsciiString()) {
-    SeqAsciiString* seq = SeqAsciiString::cast(this);
-    char* ch = seq->GetChars();
-    for (int i = 0; i < slen; i++, ch++) {
-      if (*ch != str[i]) return false;
-    }
-  } else {
-    for (int i = 0; i < slen; i++) {
-      if (Get(i) != static_cast<uint16_t>(str[i])) return false;
-    }
+  if (IsFlat() && IsAsciiRepresentation()) {
+    return CompareChars(ToAsciiVector().start(), str.start(), slen) == 0;
+  }
+  for (int i = 0; i < slen; i++) {
+    if (Get(i) != static_cast<uint16_t>(str[i])) return false;
   }
   return true;
 }
@@ -5552,6 +5547,9 @@ bool String::IsAsciiEqualTo(Vector<const char> str) {
 bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
   int slen = length();
   if (str.length() != slen) return false;
+  if (IsFlat() && IsTwoByteRepresentation()) {
+    return CompareChars(ToUC16Vector().start(), str.start(), slen) == 0;
+  }
   for (int i = 0; i < slen; i++) {
     if (Get(i) != str[i]) return false;
   }
