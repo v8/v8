@@ -1060,6 +1060,11 @@ void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
       map->ClearCodeCache(heap());
     }
     SetMark(map);
+
+    // When map collection is enabled we have to mark through map's transitions
+    // in a special way to make transition links weak.
+    // Only maps with instance types between FIRST_JS_OBJECT_TYPE and
+    // JS_FUNCTION_TYPE can have transitions.
     if (FLAG_collect_maps &&
         map->instance_type() >= FIRST_JS_OBJECT_TYPE &&
         map->instance_type() <= JS_FUNCTION_TYPE) {
