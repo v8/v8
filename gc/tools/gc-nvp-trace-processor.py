@@ -240,16 +240,18 @@ plots = [
          Item('Sweep', 'sweep', lc = 'blue'),
          Item('Compaction', 'compact', lc = 'red'),
          Item('External', 'external', lc = '#489D43'),
-         Item('Other', other_scope, lc = 'grey')),
+         Item('Other', other_scope, lc = 'grey'),
          Item('IGC Steps', 'stepstook', lc = '#FF6347'))
   ],
   [
     Set('style fill solid 0.5 noborder'),
     Set('style histogram rowstacked'),
     Set('style data histograms'),
-    Plot(Item('Marking', 'mark', lc = 'purple'),
+    Plot(Item('Scavenge', scavenge_scope, lc = 'green'),
+         Item('Marking', 'mark', lc = 'purple'),
          Item('Sweep', 'sweep', lc = 'blue'),
          Item('Compaction', 'compact', lc = 'red'),
+         Item('External', 'external', lc = '#489D43'),
          Item('Other', other_scope, lc = '#ADD8E6'),
          Item('External', 'external', lc = '#D3D3D3'))
   ],
