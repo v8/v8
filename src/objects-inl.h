@@ -3309,14 +3309,14 @@ void SharedFunctionInfo::set_strict_mode(bool value) {
 }
 
 
-bool SharedFunctionInfo::native() {
-  return BooleanBit::get(compiler_hints(), kNative);
+bool SharedFunctionInfo::es5_native() {
+  return BooleanBit::get(compiler_hints(), kES5Native);
 }
 
 
-void SharedFunctionInfo::set_native(bool value) {
+void SharedFunctionInfo::set_es5_native(bool value) {
   set_compiler_hints(BooleanBit::set(compiler_hints(),
-                                     kNative,
+                                     kES5Native,
                                      value));
 }
 

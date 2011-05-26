@@ -139,11 +139,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
 #endif
 
-  // Strict mode functions and builtins need to replace the receiver
-  // with undefined when called as functions (without an explicit
-  // receiver object). r5 is zero for method calls and non-zero for
-  // function calls.
-  if (info->is_strict_mode() || info->is_native()) {
+  // Strict mode functions need to replace the receiver with undefined
+  // when called as functions (without an explicit receiver
+  // object). r5 is zero for method calls and non-zero for function
+  // calls.
+  if (info->is_strict_mode()) {
     Label ok;
     __ cmp(r5, Operand(0));
     __ b(eq, &ok);

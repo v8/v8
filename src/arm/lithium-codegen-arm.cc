@@ -146,11 +146,11 @@ bool LCodeGen::GeneratePrologue() {
   // fp: Caller's frame pointer.
   // lr: Caller's pc.
 
-  // Strict mode functions and builtins need to replace the receiver
-  // with undefined when called as functions (without an explicit
-  // receiver object). r5 is zero for method calls and non-zero for
-  // function calls.
-  if (info_->is_strict_mode() || info_->is_native()) {
+  // Strict mode functions need to replace the receiver with undefined
+  // when called as functions (without an explicit receiver
+  // object). r5 is zero for method calls and non-zero for function
+  // calls.
+  if (info_->is_strict_mode()) {
     Label ok;
     __ cmp(r5, Operand(0));
     __ b(eq, &ok);

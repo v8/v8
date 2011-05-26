@@ -1255,7 +1255,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ b(ne, &shift_arguments);
 
     // Do not transform the receiver for native (Compilerhints already in r3).
-    __ tst(r3, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
+    __ tst(r3, Operand(1 << (SharedFunctionInfo::kES5Native +
+                             kSmiTagSize)));
     __ b(ne, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
@@ -1439,7 +1440,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ b(ne, &push_receiver);
 
   // Do not transform the receiver for strict mode functions.
-  __ tst(r2, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
+  __ tst(r2, Operand(1 << (SharedFunctionInfo::kES5Native +
+                           kSmiTagSize)));
   __ b(ne, &push_receiver);
 
   // Compute the receiver in non-strict mode.

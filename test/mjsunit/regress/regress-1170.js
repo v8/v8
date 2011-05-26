@@ -30,18 +30,18 @@ var setter_value = 0;
 __proto__.__defineSetter__("a", function(v) { setter_value = v; });
 eval("var a = 1");
 assertEquals(1, setter_value);
-assertFalse(this.hasOwnProperty("a"));
+assertFalse(hasOwnProperty("a"));
 
 eval("with({}) { eval('var a = 2') }");
 assertEquals(2, setter_value);
-assertFalse(this.hasOwnProperty("a"));
+assertFalse(hasOwnProperty("a"));
 
 // Function declarations are treated specially to match Safari. We do
 // not call setters for them.
 eval("function a() {}");
-assertTrue(this.hasOwnProperty("a"));
+assertTrue(hasOwnProperty("a"));
 
-__proto__.__defineSetter__("b", function(v) { assertUnreachable(); });
+__proto__.__defineSetter__("b", function(v) {   assertUnreachable(); });
 try {
   eval("const b = 23");
   assertUnreachable();
@@ -61,5 +61,6 @@ try {
   assertUnreachable();
 } catch(e) {
   assertEquals(42, e);
-  assertFalse(this.hasOwnProperty("c"));
+  assertFalse(hasOwnProperty("c"));
 }
+
