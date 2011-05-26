@@ -4406,12 +4406,12 @@ class SharedFunctionInfo: public HeapObject {
   inline bool strict_mode();
   inline void set_strict_mode(bool value);
 
-  // Indicates whether the function is a native ES5 function.
+  // Indicates whether the function is a native function.
   // These needs special threatment in .call and .apply since
   // null passed as the receiver should not be translated to the
   // global object.
-  inline bool es5_native();
-  inline void set_es5_native(bool value);
+  inline bool native();
+  inline void set_native(bool value);
 
   // Indicates whether or not the code in the shared function support
   // deoptimization.
@@ -4598,7 +4598,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCodeAgeMask = 0x7;
   static const int kOptimizationDisabled = 6;
   static const int kStrictModeFunction = 7;
-  static const int kES5Native = 8;
+  static const int kNative = 8;
 
  private:
 #if V8_HOST_ARCH_32_BIT
@@ -4613,26 +4613,26 @@ class SharedFunctionInfo: public HeapObject {
 
  public:
   // Constants for optimizing codegen for strict mode function and
-  // es5 native tests.
+  // native tests.
   // Allows to use byte-widgh instructions.
   static const int kStrictModeBitWithinByte =
       (kStrictModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
-  static const int kES5NativeBitWithinByte =
-      (kES5Native + kCompilerHintsSmiTagSize) % kBitsPerByte;
+  static const int kNativeBitWithinByte =
+      (kNative + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
-  static const int kES5NativeByteOffset = kCompilerHintsOffset +
-      (kES5Native + kCompilerHintsSmiTagSize) / kBitsPerByte;
+  static const int kNativeByteOffset = kCompilerHintsOffset +
+      (kNative + kCompilerHintsSmiTagSize) / kBitsPerByte;
 #elif __BYTE_ORDER == __BIG_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
       ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
-  static const int kES5NativeByteOffset = kCompilerHintsOffset +
+  static const int kNativeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
-      ((kES5Native + kCompilerHintsSmiTagSize) / kBitsPerByte);
+      ((kNative + kCompilerHintsSmiTagSize) / kBitsPerByte);
 #else
 #error Unknown byte ordering
 #endif

@@ -1214,8 +1214,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ Branch(&shift_arguments, ne, t0, Operand(zero_reg));
 
     // Do not transform the receiver for native (Compilerhints already in a3).
-    __ And(t0, a3, Operand(1 << (SharedFunctionInfo::kES5Native +
-                                 kSmiTagSize)));
+    __ And(t0, a3, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
     __ Branch(&shift_arguments, ne, t0, Operand(zero_reg));
 
     // Compute the receiver in non-strict mode.
@@ -1401,8 +1400,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ Branch(&push_receiver, ne, t0, Operand(zero_reg));
 
   // Do not transform the receiver for native (Compilerhints already in a2).
-  __ And(t0, a2, Operand(1 << (SharedFunctionInfo::kES5Native +
-                               kSmiTagSize)));
+  __ And(t0, a2, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
   __ Branch(&push_receiver, ne, t0, Operand(zero_reg));
 
   // Compute the receiver in non-strict mode.

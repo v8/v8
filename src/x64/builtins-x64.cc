@@ -673,8 +673,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     // Do not transform the receiver for natives.
     // SharedFunctionInfo is already loaded into rbx.
-    __ testb(FieldOperand(rbx, SharedFunctionInfo::kES5NativeByteOffset),
-             Immediate(1 << SharedFunctionInfo::kES5NativeBitWithinByte));
+    __ testb(FieldOperand(rbx, SharedFunctionInfo::kNativeByteOffset),
+             Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
     __ j(not_zero, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
@@ -844,8 +844,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ j(not_equal, &push_receiver);
 
   // Do not transform the receiver for natives.
-  __ testb(FieldOperand(rdx, SharedFunctionInfo::kES5NativeByteOffset),
-           Immediate(1 << SharedFunctionInfo::kES5NativeBitWithinByte));
+  __ testb(FieldOperand(rdx, SharedFunctionInfo::kNativeByteOffset),
+           Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
   __ j(not_zero, &push_receiver);
 
   // Compute the receiver in non-strict mode.

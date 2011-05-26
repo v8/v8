@@ -25,41 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var setter_value = 0;
+// See: http://code.google.com/p/v8/issues/detail?id=1365
 
-__proto__.__defineSetter__("a", function(v) { setter_value = v; });
-eval("var a = 1");
-assertEquals(1, setter_value);
-assertFalse(this.hasOwnProperty("a"));
+// Check that builtin methods are passed undefined as the receiver
+// when called as functions through variables.
 
-eval("with({}) { eval('var a = 2') }");
-assertEquals(2, setter_value);
-assertFalse(this.hasOwnProperty("a"));
+// Flags: --allow-natives-syntax
 
-// Function declarations are treated specially to match Safari. We do
-// not call setters for them.
-eval("function a() {}");
-assertTrue(this.hasOwnProperty("a"));
+// Global variable.
+var valueOf = Object.prototype.valueOf;
+var hasOwnProperty = Object.prototype.hasOwnProperty;
 
-__proto__.__defineSetter__("b", function(v) { assertUnreachable(); });
-try {
-  eval("const b = 23");
-  assertUnreachable();
-} catch(e) {
-  assertTrue(/TypeError/.test(e));
+function callGlobalValueOf() { valueOf(); }
+function callGlobalHasOwnProperty() { valueOf(); }
+
+assertEquals(Object.prototype, Object.prototype.valueOf());
+assertThrows(callGlobalValueOf);
+assertThrows(callGlobalHasOwnProperty);
+
+%OptimizeFunctionOnNextCall(Object.prototype.valueOf);
+Object.prototype.valueOf();
+
+assertEquals(Object.prototype, Object.prototype.valueOf());
+assertThrows(callGlobalValueOf);
+assertThrows(callGlobalHasOwnProperty);
+
+function CheckExceptionCallLocal() {
+  var valueOf = Object.prototype.valueOf;
+  var hasOwnProperty = Object.prototype.hasOwnProperty;
+  try { valueOf(); assertUnreachable(); } catch(e) { }
+  try { hasOwnProperty(); assertUnreachable(); } catch(e) { }
 }
-try {
-  eval("with({}) { eval('const b = 23') }");
-  assertUnreachable();
-} catch(e) {
-  assertTrue(/TypeError/.test(e));
-}
+CheckExceptionCallLocal();
 
-__proto__.__defineSetter__("c", function(v) { throw 42; });
-try {
-  eval("var c = 1");
-  assertUnreachable();
-} catch(e) {
-  assertEquals(42, e);
-  assertFalse(this.hasOwnProperty("c"));
+function CheckExceptionCallParameter(f) {
+  try { f(); assertUnreachable(); } catch(e) { }
 }
+CheckExceptionCallParameter(Object.prototype.valueOf);
+CheckExceptionCallParameter(Object.prototype.hasOwnProperty);
