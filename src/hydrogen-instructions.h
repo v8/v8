@@ -101,6 +101,7 @@ class LChunkBuilder;
   V(EnterInlined)                              \
   V(ExternalArrayLength)                       \
   V(FixedArrayLength)                          \
+  V(ToInt32)                                   \
   V(ForceRepresentation)                       \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
@@ -991,6 +992,14 @@ class HUnaryOperation: public HTemplateInstruction<1> {
     SetOperandAt(0, value);
   }
 
+  static HUnaryOperation* cast(HValue* value) {
+    return reinterpret_cast<HUnaryOperation*>(value);
+  }
+
+  virtual bool CanTruncateToInt32() const {
+    return CheckFlag(kTruncatingToInt32);
+  }
+
   HValue* value() { return OperandAt(0); }
   virtual void PrintDataTo(StringStream* stream);
 };
@@ -1055,8 +1064,6 @@ class HChange: public HUnaryOperation {
     return from_;
   }
 
-  bool CanTruncateToInt32() const { return CheckFlag(kTruncatingToInt32); }
-
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(Change)
@@ -1111,6 +1118,37 @@ class HClampToUint8: public HUnaryOperation {
 
  private:
   Representation input_rep_;
+};
+
+
+class HToInt32: public HUnaryOperation {
+ public:
+  explicit HToInt32(HValue* value)
+      : HUnaryOperation(value) {
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  virtual bool CanTruncateToInt32() const {
+    return true;
+  }
+
+  virtual HValue* Canonicalize() {
+    if (value()->representation().IsInteger32()) {
+      return value();
+    } else {
+      return this;
+    }
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ToInt32)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
 };
 
 

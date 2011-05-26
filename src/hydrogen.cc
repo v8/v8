@@ -3805,10 +3805,28 @@ HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
   HLoadExternalArrayPointer* external_elements =
       new(zone()) HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
-  if (expr->external_array_type() == kExternalPixelArray) {
-    HClampToUint8* clamp = new(zone()) HClampToUint8(val);
-    AddInstruction(clamp);
-    val = clamp;
+  ExternalArrayType array_type = expr->external_array_type();
+  switch (array_type) {
+    case kExternalPixelArray: {
+      HClampToUint8* clamp = new(zone()) HClampToUint8(val);
+      AddInstruction(clamp);
+      val = clamp;
+      break;
+    }
+    case kExternalByteArray:
+    case kExternalUnsignedByteArray:
+    case kExternalShortArray:
+    case kExternalUnsignedShortArray:
+    case kExternalIntArray:
+    case kExternalUnsignedIntArray: {
+      HToInt32* floor_val = new(zone()) HToInt32(val);
+      AddInstruction(floor_val);
+      val = floor_val;
+      break;
+    }
+    case kExternalFloatArray:
+    case kExternalDoubleArray:
+      break;
   }
   return new(zone()) HStoreKeyedSpecializedArrayElement(
       external_elements,

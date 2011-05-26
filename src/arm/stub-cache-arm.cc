@@ -3926,27 +3926,11 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ add(r5, r3, Operand(r4, LSL, 3));
         __ vstr(d0, r5, 0);
       } else {
-        // Need to perform float-to-int conversion.
-        // Test for NaN or infinity (both give zero).
-        __ ldr(r6, FieldMemOperand(value, HeapNumber::kExponentOffset));
-
         // Hoisted load.  vldr requires offset to be a multiple of 4 so we can
         // not include -kHeapObjectTag into it.
         __ sub(r5, value, Operand(kHeapObjectTag));
         __ vldr(d0, r5, HeapNumber::kValueOffset);
-
-        __ Sbfx(r6, r6, HeapNumber::kExponentShift, HeapNumber::kExponentBits);
-        // NaNs and Infinities have all-one exponents so they sign extend to -1.
-        __ cmp(r6, Operand(-1));
-        __ mov(r5, Operand(0), LeaveCC, eq);
-
-        // Not infinity or NaN simply convert to int.
-        if (IsElementTypeSigned(array_type)) {
-          __ vcvt_s32_f64(s0, d0, kDefaultRoundToZero, ne);
-        } else {
-          __ vcvt_u32_f64(s0, d0, kDefaultRoundToZero, ne);
-        }
-        __ vmov(r5, s0, ne);
+        __ EmitECMATruncate(r5, d0, s2, r6, r7, r9);
 
         switch (array_type) {
           case kExternalByteArray:
