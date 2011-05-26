@@ -459,9 +459,6 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
     li(dst, Operand(value), gen2instr);
   }
 
-  // Exception-generating instructions and debugging support.
-  void stop(const char* msg);
-
   // Push multiple registers on the stack.
   // Registers are saved in numerical order, with higher numbered registers
   // saved in higher memory addresses.

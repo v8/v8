@@ -670,14 +670,6 @@ void MacroAssembler::li(Register rd, Operand j, bool gen2instr) {
 }
 
 
-// Exception-generating instructions and debugging support.
-void MacroAssembler::stop(const char* msg) {
-  // TO_UPGRADE: Just a break for now. Maybe we could upgrade it.
-  // We use the 0x54321 value to be able to find it easily when reading memory.
-  break_(0x54321);
-}
-
-
 void MacroAssembler::MultiPush(RegList regs) {
   int16_t NumSaved = 0;
   int16_t NumToPush = NumberOfBitsSet(regs);
