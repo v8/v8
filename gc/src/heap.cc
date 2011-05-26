@@ -991,6 +991,18 @@ void StoreBufferRebuilder::Callback(MemoryChunk* page, StoreBufferEvent event) {
 }
 
 
+static void ScavengeObjectAndMarkSlot(HeapObject** p, HeapObject* object) {
+  Heap::ScavengeObject(p, object);
+
+  // TODO(gc) ISOLATES MERGE
+  if (HEAP->InNewSpace(*p)) {
+    ASSERT(HEAP->InToSpace(*p));
+    HEAP->store_buffer()->EnterDirectlyIntoStoreBuffer(
+        reinterpret_cast<Address>(p));
+  }
+}
+
+
 void Heap::Scavenge() {
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
@@ -1054,7 +1066,7 @@ void Heap::Scavenge() {
     StoreBufferRebuildScope scope(this,
                                   store_buffer(),
                                   &ScavengeStoreBufferCallback);
-    store_buffer()->IteratePointersToNewSpace(&ScavengeObject);
+    store_buffer()->IteratePointersToNewSpace(&ScavengeObjectAndMarkSlot);
   }
 
   // Copy objects reachable from cells by scavenging cell values directly.
@@ -1462,11 +1474,6 @@ class ScavengingVisitor : public StaticVisitorBase {
     Object* result =
         heap->new_space()->AllocateRaw(object_size)->ToObjectUnchecked();
     *slot = MigrateObject(heap, object, HeapObject::cast(result), object_size);
-    // TODO(gc) isolates
-    if (!HEAP->InNewSpace(reinterpret_cast<Address>(slot))) {
-      HEAP->store_buffer()->EnterDirectlyIntoStoreBuffer(
-          reinterpret_cast<Address>(slot));
-    }
     return;
   }
 
@@ -4035,7 +4042,7 @@ bool Heap::IdleNotification() {
 
   // Make sure that we have no pending context disposals and
   // conditionally uncommit from space.
-  ASSERT(contexts_disposed_ == 0);
+  ASSERT((contexts_disposed_ == 0) || incremental_marking()->IsMarking());
   if (uncommit) UncommitFromSpace();
   return finished;
 }
@@ -4414,6 +4421,8 @@ void Heap::IterateAndMarkPointersToFromSpace(Address start,
       if (InNewSpace(*slot)) {
         ASSERT(Heap::InToSpace(*slot));
         ASSERT((*slot)->IsHeapObject());
+        store_buffer_.EnterDirectlyIntoStoreBuffer(
+            reinterpret_cast<Address>(slot));
       }
     }
     slot_address += kPointerSize;

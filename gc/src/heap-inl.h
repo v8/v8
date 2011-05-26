@@ -416,11 +416,6 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
     HeapObject* dest = first_word.ToForwardingAddress();
     ASSERT(HEAP->InFromSpace(*p));
     *p = dest;
-    Address slot = reinterpret_cast<Address>(p);
-    if (HEAP->InNewSpace(dest) && !HEAP->InNewSpace(slot)) {
-      ASSERT(HEAP->InToSpace(dest));
-      HEAP->store_buffer_.EnterDirectlyIntoStoreBuffer(slot);
-    }
     return;
   }
 
