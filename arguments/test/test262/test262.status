@@ -32,6 +32,20 @@
 
 prefix ietestcenter
 
+
+#
+# Deliberate differences for compatibility with other browsers
+#
+# 15.9.5.43-0-9 and 15.9.5.43-0-10. V8 doesn't throw RangeError
+# from Date.prototype.toISOString when string is not a finite number.
+# This is compatible with Firefox and Safari.
+15.9.5.43-0-9: PASS || FAIL
+15.9.5.43-0-10: PASS || FAIL
+
+#
+# Unanalyzed failures which may be bugs or deliberate differences
+#
+
 # BUG: 7.6 - SyntaxError expected: reserved words used as Identifier
 #      Names in UTF8: class (class)
 7.6-30: FAIL
@@ -913,66 +927,6 @@ prefix ietestcenter
 #      of 'O', and 'desc' is accessor descriptor, test updating multiple
 #      attribute values of 'P' (10.6 [[DefineOwnProperty]] step 3)
 15.2.3.7-6-a-292: FAIL
-# Bug? Object.preventExtensions - indexed properties cannot be added into the
-#      returned object
-15.2.3.10-3-2: FAIL
-# Bug? Object.preventExtensions - indexed properties cannot be added into a
-#      Function object
-15.2.3.10-3-3: FAIL
-# Bug? Object.preventExtensions - indexed properties cannot be added into an
-#      Array object
-15.2.3.10-3-4: FAIL
-# Bug? Object.preventExtensions - indexed properties cannot be added into a
-#      String object
-15.2.3.10-3-5-1: FAIL
-# Bug? Object.preventExtensions - indexed properties cannot be added into a
-#      Boolean object
-15.2.3.10-3-6: FAIL
-# Bug? Object.preventExtensions - indexed properties cannot be added into a
-#      Number object
-15.2.3.10-3-7: FAIL
-# Bug? Object.preventExtensions - indexed properties cannot be added into a Date
-#      object
-15.2.3.10-3-8: FAIL
-# Bug? Object.preventExtensions - indexed properties cannot be added into a
-#      RegExp object
-15.2.3.10-3-9: FAIL
-# Bug? Object.preventExtensions - indexed properties cannot be added into an
-#      Error object
-15.2.3.10-3-10: FAIL
-# Bug? Object.preventExtensions - indexed properties cannot be added into an
-#      Arguments object
-15.2.3.10-3-11: FAIL
-# Bug? Object.preventExtensions - named properties cannot be added into the
-#      returned object
-15.2.3.10-3-12: FAIL
-# Bug? Object.preventExtensions - named properties cannot be added into a
-#      Function object
-15.2.3.10-3-13: FAIL
-# Bug? Object.preventExtensions - named properties cannot be added into an Array
-#      object
-15.2.3.10-3-14: FAIL
-# Bug? Object.preventExtensions - named properties cannot be added into a String
-#      object
-15.2.3.10-3-15: FAIL
-# Bug? Object.preventExtensions - named properties cannot be added into a
-#      Boolean object
-15.2.3.10-3-16: FAIL
-# Bug? Object.preventExtensions - named properties cannot be added into a Number
-#      object
-15.2.3.10-3-17: FAIL
-# Bug? Object.preventExtensions - named properties cannot be added into a Date
-#      object
-15.2.3.10-3-18: FAIL
-# Bug? Object.preventExtensions - named properties cannot be added into a RegExp
-#      object
-15.2.3.10-3-19: FAIL
-# Bug? Object.preventExtensions - named properties cannot be added into an Error
-#      object
-15.2.3.10-3-20: FAIL
-# Bug? Object.preventExtensions - named properties cannot be added into an
-#      Arguments object
-15.2.3.10-3-21: FAIL
 # Bug? Object.prototype.toString - '[object Undefined]' will be returned when
 #      'this' value is undefined
 15.2.4.2-1-1: FAIL

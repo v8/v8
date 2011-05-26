@@ -120,7 +120,7 @@ Scope::Scope(Type type)
     params_(0),
     unresolved_(0),
     decls_(0) {
-  SetDefaults(type, NULL, NULL);
+  SetDefaults(type, NULL, Handle<SerializedScopeInfo>::null());
   ASSERT(!resolved());
 }
 
@@ -132,7 +132,7 @@ Scope::Scope(Scope* outer_scope, Type type)
     params_(4),
     unresolved_(16),
     decls_(4) {
-  SetDefaults(type, outer_scope, NULL);
+  SetDefaults(type, outer_scope, Handle<SerializedScopeInfo>::null());
   // At some point we might want to provide outer scopes to
   // eval scopes (by walking the stack and reading the scope info).
   // In that case, the ASSERT below needs to be adjusted.
@@ -142,14 +142,14 @@ Scope::Scope(Scope* outer_scope, Type type)
 }
 
 
-Scope::Scope(Scope* inner_scope, SerializedScopeInfo* scope_info)
+Scope::Scope(Scope* inner_scope, Handle<SerializedScopeInfo> scope_info)
   : inner_scopes_(4),
     variables_(),
     temps_(4),
     params_(4),
     unresolved_(16),
     decls_(4) {
-  ASSERT(scope_info != NULL);
+  ASSERT(!scope_info.is_null());
   SetDefaults(FUNCTION_SCOPE, NULL, scope_info);
   ASSERT(resolved());
   if (scope_info->HasHeapAllocatedLocals()) {
@@ -157,6 +157,34 @@ Scope::Scope(Scope* inner_scope, SerializedScopeInfo* scope_info)
   }
 
   AddInnerScope(inner_scope);
+}
+
+
+void Scope::SetDefaults(Type type,
+                        Scope* outer_scope,
+                        Handle<SerializedScopeInfo> scope_info) {
+  outer_scope_ = outer_scope;
+  type_ = type;
+  scope_name_ = FACTORY->empty_symbol();
+  dynamics_ = NULL;
+  receiver_ = NULL;
+  function_ = NULL;
+  arguments_ = NULL;
+  illegal_redecl_ = NULL;
+  scope_inside_with_ = false;
+  scope_contains_with_ = false;
+  scope_calls_eval_ = false;
+  // Inherit the strict mode from the parent scope.
+  strict_mode_ = (outer_scope != NULL) && outer_scope->strict_mode_;
+  outer_scope_calls_eval_ = false;
+  outer_scope_calls_non_strict_eval_ = false;
+  inner_scope_calls_eval_ = false;
+  outer_scope_is_eval_scope_ = false;
+  force_eager_compilation_ = false;
+  num_var_or_const_ = 0;
+  num_stack_slots_ = 0;
+  num_heap_slots_ = 0;
+  scope_info_ = scope_info;
 }
 
 
@@ -172,8 +200,8 @@ Scope* Scope::DeserializeScopeChain(CompilationInfo* info,
     JSFunction* current = *info->closure();
     do {
       current = current->context()->closure();
-      SerializedScopeInfo* scope_info = current->shared()->scope_info();
-      if (scope_info != SerializedScopeInfo::Empty()) {
+      Handle<SerializedScopeInfo> scope_info(current->shared()->scope_info());
+      if (*scope_info != SerializedScopeInfo::Empty()) {
         scope = new Scope(scope, scope_info);
         if (innermost_scope == NULL) innermost_scope = scope;
       } else {
@@ -297,12 +325,17 @@ Variable* Scope::DeclareFunctionVar(Handle<String> name) {
 }
 
 
-Variable* Scope::DeclareLocal(Handle<String> name, Variable::Mode mode) {
+Variable* Scope::DeclareLocal(Handle<String> name,
+                              Variable::Mode mode,
+                              LocalType type) {
   // DYNAMIC variables are introduces during variable allocation,
   // INTERNAL variables are allocated explicitly, and TEMPORARY
   // variables are allocated via NewTemporary().
   ASSERT(!resolved());
   ASSERT(mode == Variable::VAR || mode == Variable::CONST);
+  if (type == VAR_OR_CONST) {
+    num_var_or_const_++;
+  }
   return variables_.Declare(this, name, mode, true, Variable::NORMAL);
 }
 
@@ -416,8 +449,17 @@ void Scope::AllocateVariables(Handle<Context> context) {
   // and assume they may invoke eval themselves. Eventually we could capture
   // this information in the ScopeInfo and then use it here (by traversing
   // the call chain stack, at compile time).
+
   bool eval_scope = is_eval_scope();
-  PropagateScopeInfo(eval_scope, eval_scope);
+  bool outer_scope_calls_eval = false;
+  bool outer_scope_calls_non_strict_eval = false;
+  if (!is_global_scope()) {
+    context->ComputeEvalScopeInfo(&outer_scope_calls_eval,
+                                  &outer_scope_calls_non_strict_eval);
+  }
+  PropagateScopeInfo(outer_scope_calls_eval,
+                     outer_scope_calls_non_strict_eval,
+                     eval_scope);
 
   // 2) Resolve variables.
   Scope* global_scope = NULL;
@@ -549,10 +591,14 @@ void Scope::Print(int n) {
   if (HasTrivialOuterContext()) {
     Indent(n1, "// scope has trivial outer context\n");
   }
+  if (is_strict_mode()) Indent(n1, "// strict mode scope\n");
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_contains_with_) Indent(n1, "// scope contains 'with'\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (outer_scope_calls_eval_) Indent(n1, "// outer scope calls 'eval'\n");
+  if (outer_scope_calls_non_strict_eval_) {
+    Indent(n1, "// outer scope calls 'eval' in non-strict context\n");
+  }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
   if (outer_scope_is_eval_scope_) {
     Indent(n1, "// outer scope is 'eval' scope\n");
@@ -779,9 +825,14 @@ void Scope::ResolveVariablesRecursively(Scope* global_scope,
 
 
 bool Scope::PropagateScopeInfo(bool outer_scope_calls_eval,
+                               bool outer_scope_calls_non_strict_eval,
                                bool outer_scope_is_eval_scope) {
   if (outer_scope_calls_eval) {
     outer_scope_calls_eval_ = true;
+  }
+
+  if (outer_scope_calls_non_strict_eval) {
+    outer_scope_calls_non_strict_eval_ = true;
   }
 
   if (outer_scope_is_eval_scope) {
@@ -790,9 +841,14 @@ bool Scope::PropagateScopeInfo(bool outer_scope_calls_eval,
 
   bool calls_eval = scope_calls_eval_ || outer_scope_calls_eval_;
   bool is_eval = is_eval_scope() || outer_scope_is_eval_scope_;
+  bool calls_non_strict_eval =
+      (scope_calls_eval_ && !is_strict_mode()) ||
+      outer_scope_calls_non_strict_eval_;
   for (int i = 0; i < inner_scopes_.length(); i++) {
     Scope* inner_scope = inner_scopes_[i];
-    if (inner_scope->PropagateScopeInfo(calls_eval, is_eval)) {
+    if (inner_scope->PropagateScopeInfo(calls_eval,
+                                        calls_non_strict_eval,
+                                        is_eval)) {
       inner_scope_calls_eval_ = true;
     }
     if (inner_scope->force_eager_compilation_) {

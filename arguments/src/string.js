@@ -62,6 +62,10 @@ function StringValueOf() {
 
 // ECMA-262, section 15.5.4.4
 function StringCharAt(pos) {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.charAt"]);
+  }
   var result = %_StringCharAt(this, pos);
   if (%_IsSmi(result)) {
     result = %_StringCharAt(TO_STRING_INLINE(this), TO_INTEGER(pos));
@@ -72,6 +76,10 @@ function StringCharAt(pos) {
 
 // ECMA-262 section 15.5.4.5
 function StringCharCodeAt(pos) {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.charCodeAt"]);
+  }
   var result = %_StringCharCodeAt(this, pos);
   if (!%_IsSmi(result)) {
     result = %_StringCharCodeAt(TO_STRING_INLINE(this), TO_INTEGER(pos));
@@ -82,6 +90,9 @@ function StringCharCodeAt(pos) {
 
 // ECMA-262, section 15.5.4.6
 function StringConcat() {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined", ["String.prototype.concat"]);
+  }
   var len = %_ArgumentsLength();
   var this_as_string = TO_STRING_INLINE(this);
   if (len === 1) {
@@ -102,6 +113,10 @@ function StringConcat() {
 
 // ECMA-262 section 15.5.4.7
 function StringIndexOf(pattern /* position */) {  // length == 1
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.indexOf"]);
+  }
   var subject = TO_STRING_INLINE(this);
   pattern = TO_STRING_INLINE(pattern);
   var index = 0;
@@ -117,6 +132,10 @@ function StringIndexOf(pattern /* position */) {  // length == 1
 
 // ECMA-262 section 15.5.4.8
 function StringLastIndexOf(pat /* position */) {  // length == 1
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.lastIndexOf"]);
+  }
   var sub = TO_STRING_INLINE(this);
   var subLength = sub.length;
   var pat = TO_STRING_INLINE(pat);
@@ -146,6 +165,10 @@ function StringLastIndexOf(pat /* position */) {  // length == 1
 // This function is implementation specific.  For now, we do not
 // do anything locale specific.
 function StringLocaleCompare(other) {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.localeCompare"]);
+  }
   if (%_ArgumentsLength() === 0) return 0;
   return %StringLocaleCompare(TO_STRING_INLINE(this), 
                               TO_STRING_INLINE(other));
@@ -154,6 +177,10 @@ function StringLocaleCompare(other) {
 
 // ECMA-262 section 15.5.4.10
 function StringMatch(regexp) {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.match"]);
+  }
   var subject = TO_STRING_INLINE(this);
   if (IS_REGEXP(regexp)) {
     if (!regexp.global) return RegExpExecNoTests(regexp, subject, 0);
@@ -187,6 +214,10 @@ var reusableMatchInfo = [2, "", "", -1, -1];
 
 // ECMA-262, section 15.5.4.11
 function StringReplace(search, replace) {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.replace"]);
+  }
   var subject = TO_STRING_INLINE(this);
 
   // Delegate to one of the regular expression variants if necessary.
@@ -467,6 +498,10 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
 
 // ECMA-262 section 15.5.4.12
 function StringSearch(re) {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.search"]);
+  }
   var regexp;
   if (IS_STRING(re)) {
     regexp = %_GetFromCache(STRING_TO_REGEXP_CACHE_ID, re);
@@ -485,6 +520,10 @@ function StringSearch(re) {
 
 // ECMA-262 section 15.5.4.13
 function StringSlice(start, end) {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.slice"]);
+  }
   var s = TO_STRING_INLINE(this);
   var s_len = s.length;
   var start_i = TO_INTEGER(start);
@@ -520,6 +559,10 @@ function StringSlice(start, end) {
 
 // ECMA-262 section 15.5.4.14
 function StringSplit(separator, limit) {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.split"]);
+  }
   var subject = TO_STRING_INLINE(this);
   limit = (IS_UNDEFINED(limit)) ? 0xffffffff : TO_UINT32(limit);
   if (limit === 0) return [];
@@ -613,6 +656,10 @@ function StringSplit(separator, limit) {
 
 // ECMA-262 section 15.5.4.15
 function StringSubstring(start, end) {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.subString"]);
+  }
   var s = TO_STRING_INLINE(this);
   var s_len = s.length;
 
@@ -646,6 +693,10 @@ function StringSubstring(start, end) {
 
 // This is not a part of ECMA-262.
 function StringSubstr(start, n) {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.substr"]);
+  }
   var s = TO_STRING_INLINE(this);
   var len;
 
@@ -686,37 +737,65 @@ function StringSubstr(start, n) {
 
 // ECMA-262, 15.5.4.16
 function StringToLowerCase() {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.toLowerCase"]);
+  }
   return %StringToLowerCase(TO_STRING_INLINE(this));
 }
 
 
 // ECMA-262, 15.5.4.17
 function StringToLocaleLowerCase() {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.toLocaleLowerCase"]);
+  }
   return %StringToLowerCase(TO_STRING_INLINE(this));
 }
 
 
 // ECMA-262, 15.5.4.18
 function StringToUpperCase() {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.toUpperCase"]);
+  }
   return %StringToUpperCase(TO_STRING_INLINE(this));
 }
 
 
 // ECMA-262, 15.5.4.19
 function StringToLocaleUpperCase() {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.toLocaleUpperCase"]);
+  }
   return %StringToUpperCase(TO_STRING_INLINE(this));
 }
 
 // ES5, 15.5.4.20
 function StringTrim() {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.trim"]);
+  }
   return %StringTrim(TO_STRING_INLINE(this), true, true);
 }
 
 function StringTrimLeft() {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.trimLeft"]);
+  }
   return %StringTrim(TO_STRING_INLINE(this), true, false);
 }
 
 function StringTrimRight() {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["String.prototype.trimRight"]);
+  }
   return %StringTrim(TO_STRING_INLINE(this), false, true);
 }
 

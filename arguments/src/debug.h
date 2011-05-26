@@ -28,6 +28,7 @@
 #ifndef V8_DEBUG_H_
 #define V8_DEBUG_H_
 
+#include "allocation.h"
 #include "arguments.h"
 #include "assembler.h"
 #include "debug-agent.h"
@@ -422,7 +423,8 @@ class Debug {
     FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
     // The top JS frame had been calling some C++ function. The return address
     // gets patched automatically.
-    FRAME_DROPPED_IN_DIRECT_CALL
+    FRAME_DROPPED_IN_DIRECT_CALL,
+    FRAME_DROPPED_IN_RETURN_CALL
   };
 
   void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
@@ -863,6 +865,7 @@ class EnterDebugger BASE_EMBEDDED {
   EnterDebugger()
       : isolate_(Isolate::Current()),
         prev_(isolate_->debug()->debugger_entry()),
+        it_(isolate_),
         has_js_frames_(!it_.done()),
         save_(isolate_) {
     Debug* debug = isolate_->debug();

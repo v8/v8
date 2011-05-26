@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -134,8 +134,8 @@ class ExternalTwoByteStringUC16CharacterStream: public UC16CharacterStream {
 
 class V8JavaScriptScanner : public JavaScriptScanner {
  public:
-  explicit V8JavaScriptScanner(ScannerConstants* scanner_constants)
-      : JavaScriptScanner(scanner_constants) {}
+  explicit V8JavaScriptScanner(UnicodeCache* unicode_cache)
+      : JavaScriptScanner(unicode_cache) {}
 
   void Initialize(UC16CharacterStream* source);
 };
@@ -143,7 +143,7 @@ class V8JavaScriptScanner : public JavaScriptScanner {
 
 class JsonScanner : public Scanner {
  public:
-  explicit JsonScanner(ScannerConstants* scanner_constants);
+  explicit JsonScanner(UnicodeCache* unicode_cache);
 
   void Initialize(UC16CharacterStream* source);
 

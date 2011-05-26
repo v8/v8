@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,7 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_ARM)
 
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "full-codegen.h"
@@ -584,7 +584,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   __ IncrementCounter(counters->string_ctor_conversions(), 1, r3, r4);
   __ EnterInternalFrame();
   __ push(r0);
-  __ InvokeBuiltin(Builtins::TO_STRING, CALL_JS);
+  __ InvokeBuiltin(Builtins::TO_STRING, CALL_FUNCTION);
   __ LeaveInternalFrame();
   __ pop(function);
   __ mov(argument, r0);
@@ -1238,8 +1238,13 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     // Do not transform the receiver for strict mode functions.
     __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-    __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kCompilerHintsOffset));
-    __ tst(r2, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
+    __ ldr(r3, FieldMemOperand(r2, SharedFunctionInfo::kCompilerHintsOffset));
+    __ tst(r3, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
+                             kSmiTagSize)));
+    __ b(ne, &shift_arguments);
+
+    // Do not transform the receiver for native (Compilerhints already in r3).
+    __ tst(r3, Operand(1 << (SharedFunctionInfo::kES5Native +
                              kSmiTagSize)));
     __ b(ne, &shift_arguments);
 
@@ -1252,10 +1257,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ tst(r2, Operand(kSmiTagMask));
     __ b(eq, &convert_to_object);
 
-    __ LoadRoot(r3, Heap::kNullValueRootIndex);
+    __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
     __ cmp(r2, r3);
     __ b(eq, &use_global_receiver);
-    __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(r3, Heap::kNullValueRootIndex);
     __ cmp(r2, r3);
     __ b(eq, &use_global_receiver);
 
@@ -1270,7 +1275,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ push(r0);
 
     __ push(r2);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS);
+    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
     __ mov(r2, r0);
 
     __ pop(r0);
@@ -1378,7 +1383,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ push(r0);
   __ ldr(r0, MemOperand(fp, kArgsOffset));  // get the args array
   __ push(r0);
-  __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_JS);
+  __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
 
   // Check the stack for overflow. We are not trying need to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
@@ -1396,7 +1401,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ ldr(r1, MemOperand(fp, kFunctionOffset));
   __ push(r1);
   __ push(r0);
-  __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_JS);
+  __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
   // End of stack check.
 
   // Push current limit and index.
@@ -1416,8 +1421,13 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ ldr(r0, MemOperand(fp, kRecvOffset));
 
   // Do not transform the receiver for strict mode functions.
-  __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCompilerHintsOffset));
-  __ tst(r1, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
+  __ ldr(r2, FieldMemOperand(r1, SharedFunctionInfo::kCompilerHintsOffset));
+  __ tst(r2, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
+                           kSmiTagSize)));
+  __ b(ne, &push_receiver);
+
+  // Do not transform the receiver for strict mode functions.
+  __ tst(r2, Operand(1 << (SharedFunctionInfo::kES5Native +
                            kSmiTagSize)));
   __ b(ne, &push_receiver);
 
@@ -1442,7 +1452,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // r0: receiver
   __ bind(&call_to_object);
   __ push(r0);
-  __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS);
+  __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
   __ b(&push_receiver);
 
   // Use the current global receiver object as the receiver.

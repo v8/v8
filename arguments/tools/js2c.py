@@ -204,7 +204,7 @@ def ReadMacros(lines):
 
 
 HEADER_TEMPLATE = """\
-// Copyright 2008 Google Inc. All Rights Reserved.
+// Copyright 2011 Google Inc. All Rights Reserved.
 
 // This file was generated from .js source files by SCons.  If you
 // want to make changes to this file you should either change the
@@ -288,7 +288,6 @@ def JS2C(source, target, env):
 
   minifier = jsmin.JavaScriptMinifier()
 
-  source_lines_empty = []
   for module in modules:
     filename = str(module)
     debugger = filename.endswith('-debugger.js')
@@ -305,7 +304,6 @@ def JS2C(source, target, env):
     else:
       ids.append((id, len(lines)))
     source_lines.append(SOURCE_DECLARATION % { 'id': id, 'data': data })
-    source_lines_empty.append(SOURCE_DECLARATION % { 'id': id, 'data': data })
 
   # Build debugger support functions
   get_index_cases = [ ]
@@ -356,25 +354,11 @@ def JS2C(source, target, env):
   })
   output.close()
 
-  if len(target) > 1:
-    output = open(str(target[1]), "w")
-    output.write(HEADER_TEMPLATE % {
-      'builtin_count': len(ids) + len(debugger_ids),
-      'debugger_count': len(debugger_ids),
-      'source_lines': "\n".join(source_lines_empty),
-      'get_index_cases': "".join(get_index_cases),
-      'get_script_source_cases': "".join(get_script_source_cases),
-      'get_script_name_cases': "".join(get_script_name_cases),
-      'type': env['TYPE']
-    })
-    output.close()
-
 def main():
   natives = sys.argv[1]
-  natives_empty = sys.argv[2]
-  type = sys.argv[3]
-  source_files = sys.argv[4:]
-  JS2C(source_files, [natives, natives_empty], { 'TYPE': type })
+  type = sys.argv[2]
+  source_files = sys.argv[3:]
+  JS2C(source_files, [natives], { 'TYPE': type })
 
 if __name__ == "__main__":
   main()

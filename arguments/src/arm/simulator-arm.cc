@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -67,6 +67,7 @@ class ArmDebugger {
   Simulator* sim_;
 
   int32_t GetRegisterValue(int regnum);
+  double GetRegisterPairDoubleValue(int regnum);
   double GetVFPDoubleRegisterValue(int regnum);
   bool GetValue(const char* desc, int32_t* value);
   bool GetVFPSingleValue(const char* desc, float* value);
@@ -165,6 +166,11 @@ int32_t ArmDebugger::GetRegisterValue(int regnum) {
   } else {
     return sim_->get_register(regnum);
   }
+}
+
+
+double ArmDebugger::GetRegisterPairDoubleValue(int regnum) {
+  return sim_->get_double_from_register_pair(regnum);
 }
 
 
@@ -305,14 +311,22 @@ void ArmDebugger::Debug() {
         // Leave the debugger shell.
         done = true;
       } else if ((strcmp(cmd, "p") == 0) || (strcmp(cmd, "print") == 0)) {
-        if (argc == 2) {
+        if (argc == 2 || (argc == 3 && strcmp(arg2, "fp") == 0)) {
           int32_t value;
           float svalue;
           double dvalue;
           if (strcmp(arg1, "all") == 0) {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
-              PrintF("%3s: 0x%08x %10d\n", Registers::Name(i), value, value);
+              PrintF("%3s: 0x%08x %10d", Registers::Name(i), value, value);
+              if ((argc == 3 && strcmp(arg2, "fp") == 0) &&
+                  i < 8 &&
+                  (i % 2) == 0) {
+                dvalue = GetRegisterPairDoubleValue(i);
+                PrintF(" (%f)\n", dvalue);
+              } else {
+                PrintF("\n");
+              }
             }
             for (int i = 0; i < kNumVFPDoubleRegisters; i++) {
               dvalue = GetVFPDoubleRegisterValue(i);
@@ -550,6 +564,7 @@ void ArmDebugger::Debug() {
         PrintF("print <register>\n");
         PrintF("  print register content (alias 'p')\n");
         PrintF("  use register name 'all' to print all registers\n");
+        PrintF("  add argument 'fp' to print register pair double values\n");
         PrintF("printobject <register>\n");
         PrintF("  print an object from a register (alias 'po')\n");
         PrintF("flags\n");
@@ -704,20 +719,21 @@ void Simulator::CheckICache(v8::internal::HashMap* i_cache,
 }
 
 
-void Simulator::Initialize() {
-  if (Isolate::Current()->simulator_initialized()) return;
-  Isolate::Current()->set_simulator_initialized(true);
-  ::v8::internal::ExternalReference::set_redirector(&RedirectExternalReference);
+void Simulator::Initialize(Isolate* isolate) {
+  if (isolate->simulator_initialized()) return;
+  isolate->set_simulator_initialized(true);
+  ::v8::internal::ExternalReference::set_redirector(isolate,
+                                                    &RedirectExternalReference);
 }
 
 
-Simulator::Simulator() : isolate_(Isolate::Current()) {
+Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   i_cache_ = isolate_->simulator_i_cache();
   if (i_cache_ == NULL) {
     i_cache_ = new v8::internal::HashMap(&ICacheMatch);
     isolate_->set_simulator_i_cache(i_cache_);
   }
-  Initialize();
+  Initialize(isolate);
   // Setup simulator support first. Some of this information is needed to
   // setup the architecture state.
   size_t stack_size = 1 * 1024*1024;  // allocate 1MB for stack
@@ -833,17 +849,13 @@ void* Simulator::RedirectExternalReference(void* external_function,
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =
-      Isolate::CurrentPerIsolateThreadData();
-  if (isolate_data == NULL) {
-    Isolate::EnterDefaultIsolate();
-    isolate_data = Isolate::CurrentPerIsolateThreadData();
-  }
+      isolate->FindOrAllocatePerThreadDataForThisThread();
   ASSERT(isolate_data != NULL);
 
   Simulator* sim = isolate_data->simulator();
   if (sim == NULL) {
     // TODO(146): delete the simulator object when a thread/isolate goes away.
-    sim = new Simulator();
+    sim = new Simulator(isolate);
     isolate_data->set_simulator(sim);
   }
   return sim;
@@ -870,6 +882,19 @@ int32_t Simulator::get_register(int reg) const {
   if (reg >= num_registers) return 0;
   // End stupid code.
   return registers_[reg] + ((reg == pc) ? Instruction::kPCReadOffset : 0);
+}
+
+
+double Simulator::get_double_from_register_pair(int reg) {
+  ASSERT((reg >= 0) && (reg < num_registers) && ((reg % 2) == 0));
+
+  double dm_val = 0.0;
+  // Read the bits from the unsigned integer register_[] array
+  // into the double precision floating point value and return it.
+  char buffer[2 * sizeof(vfp_register[0])];
+  memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
+  memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
+  return(dm_val);
 }
 
 
@@ -938,12 +963,7 @@ void Simulator::set_d_register_from_double(int dreg, const double& dbl) {
   // 2*sreg and 2*sreg+1.
   char buffer[2 * sizeof(vfp_register[0])];
   memcpy(buffer, &dbl, 2 * sizeof(vfp_register[0]));
-#ifndef BIG_ENDIAN_FLOATING_POINT
   memcpy(&vfp_register[dreg * 2], buffer, 2 * sizeof(vfp_register[0]));
-#else
-  memcpy(&vfp_register[dreg * 2], &buffer[4], sizeof(vfp_register[0]));
-  memcpy(&vfp_register[dreg * 2 + 1], &buffer[0], sizeof(vfp_register[0]));
-#endif
 }
 
 
@@ -980,37 +1000,80 @@ double Simulator::get_double_from_d_register(int dreg) {
   // Read the bits from the unsigned integer vfp_register[] array
   // into the double precision floating point value and return it.
   char buffer[2 * sizeof(vfp_register[0])];
-#ifdef BIG_ENDIAN_FLOATING_POINT
-  memcpy(&buffer[0], &vfp_register[2 * dreg + 1], sizeof(vfp_register[0]));
-  memcpy(&buffer[4], &vfp_register[2 * dreg], sizeof(vfp_register[0]));
-#else
   memcpy(buffer, &vfp_register[2 * dreg], 2 * sizeof(vfp_register[0]));
-#endif
   memcpy(&dm_val, buffer, 2 * sizeof(vfp_register[0]));
   return(dm_val);
 }
 
 
-// For use in calls that take two double values, constructed from r0, r1, r2
-// and r3.
+// For use in calls that take two double values, constructed either
+// from r0-r3 or d0 and d1.
 void Simulator::GetFpArgs(double* x, double* y) {
-  // We use a char buffer to get around the strict-aliasing rules which
-  // otherwise allow the compiler to optimize away the copy.
-  char buffer[2 * sizeof(registers_[0])];
-  // Registers 0 and 1 -> x.
-  memcpy(buffer, registers_, sizeof(buffer));
-  memcpy(x, buffer, sizeof(buffer));
-  // Registers 2 and 3 -> y.
-  memcpy(buffer, registers_ + 2, sizeof(buffer));
-  memcpy(y, buffer, sizeof(buffer));
+  if (use_eabi_hardfloat()) {
+    *x = vfp_register[0];
+    *y = vfp_register[1];
+  } else {
+    // We use a char buffer to get around the strict-aliasing rules which
+    // otherwise allow the compiler to optimize away the copy.
+    char buffer[sizeof(*x)];
+    // Registers 0 and 1 -> x.
+    memcpy(buffer, registers_, sizeof(*x));
+    memcpy(x, buffer, sizeof(*x));
+    // Registers 2 and 3 -> y.
+    memcpy(buffer, registers_ + 2, sizeof(*y));
+    memcpy(y, buffer, sizeof(*y));
+  }
+}
+
+// For use in calls that take one double value, constructed either
+// from r0 and r1 or d0.
+void Simulator::GetFpArgs(double* x) {
+  if (use_eabi_hardfloat()) {
+    *x = vfp_register[0];
+  } else {
+    // We use a char buffer to get around the strict-aliasing rules which
+    // otherwise allow the compiler to optimize away the copy.
+    char buffer[sizeof(*x)];
+    // Registers 0 and 1 -> x.
+    memcpy(buffer, registers_, sizeof(*x));
+    memcpy(x, buffer, sizeof(*x));
+  }
 }
 
 
+// For use in calls that take one double value constructed either
+// from r0 and r1 or d0 and one integer value.
+void Simulator::GetFpArgs(double* x, int32_t* y) {
+  if (use_eabi_hardfloat()) {
+    *x = vfp_register[0];
+    *y = registers_[1];
+  } else {
+    // We use a char buffer to get around the strict-aliasing rules which
+    // otherwise allow the compiler to optimize away the copy.
+    char buffer[sizeof(*x)];
+    // Registers 0 and 1 -> x.
+    memcpy(buffer, registers_, sizeof(*x));
+    memcpy(x, buffer, sizeof(*x));
+    // Register 2 -> y.
+    memcpy(buffer, registers_ + 2, sizeof(*y));
+    memcpy(y, buffer, sizeof(*y));
+  }
+}
+
+
+// The return value is either in r0/r1 or d0.
 void Simulator::SetFpResult(const double& result) {
-  char buffer[2 * sizeof(registers_[0])];
-  memcpy(buffer, &result, sizeof(buffer));
-  // result -> registers 0 and 1.
-  memcpy(registers_, buffer, sizeof(buffer));
+  if (use_eabi_hardfloat()) {
+    char buffer[2 * sizeof(vfp_register[0])];
+    memcpy(buffer, &result, sizeof(buffer));
+    // Copy result to d0.
+    memcpy(vfp_register, buffer, sizeof(buffer));
+  } else {
+    char buffer[2 * sizeof(registers_[0])];
+    memcpy(buffer, &result, sizeof(buffer));
+    // Copy result to r0 and r1.
+    memcpy(registers_, buffer, sizeof(buffer));
+  }
 }
 
 
@@ -1264,12 +1327,13 @@ void Simulator::SetVFlag(bool val) {
 
 
 // Calculate C flag value for additions.
-bool Simulator::CarryFrom(int32_t left, int32_t right) {
+bool Simulator::CarryFrom(int32_t left, int32_t right, int32_t carry) {
   uint32_t uleft = static_cast<uint32_t>(left);
   uint32_t uright = static_cast<uint32_t>(right);
   uint32_t urest  = 0xffffffffU - uleft;
 
-  return (uright > urest);
+  return (uright > urest) ||
+         (carry && (((uright + 1) > urest) || (uright > (urest - 1))));
 }
 
 
@@ -1504,36 +1568,34 @@ static int count_bits(int bit_vector) {
 }
 
 
-// Addressing Mode 4 - Load and Store Multiple
-void Simulator::HandleRList(Instruction* instr, bool load) {
+void Simulator::ProcessPUW(Instruction* instr,
+                           int num_regs,
+                           int reg_size,
+                           intptr_t* start_address,
+                           intptr_t* end_address) {
   int rn = instr->RnValue();
   int32_t rn_val = get_register(rn);
-  int rlist = instr->RlistValue();
-  int num_regs = count_bits(rlist);
-
-  intptr_t start_address = 0;
-  intptr_t end_address = 0;
   switch (instr->PUField()) {
     case da_x: {
       UNIMPLEMENTED();
       break;
     }
     case ia_x: {
-      start_address = rn_val;
-      end_address = rn_val + (num_regs * 4) - 4;
-      rn_val = rn_val + (num_regs * 4);
+      *start_address = rn_val;
+      *end_address = rn_val + (num_regs * reg_size) - reg_size;
+      rn_val = rn_val + (num_regs * reg_size);
       break;
     }
     case db_x: {
-      start_address = rn_val - (num_regs * 4);
-      end_address = rn_val - 4;
-      rn_val = start_address;
+      *start_address = rn_val - (num_regs * reg_size);
+      *end_address = rn_val - reg_size;
+      rn_val = *start_address;
       break;
     }
     case ib_x: {
-      start_address = rn_val + 4;
-      end_address = rn_val + (num_regs * 4);
-      rn_val = end_address;
+      *start_address = rn_val + reg_size;
+      *end_address = rn_val + (num_regs * reg_size);
+      rn_val = *end_address;
       break;
     }
     default: {
@@ -1544,6 +1606,17 @@ void Simulator::HandleRList(Instruction* instr, bool load) {
   if (instr->HasW()) {
     set_register(rn, rn_val);
   }
+}
+
+// Addressing Mode 4 - Load and Store Multiple
+void Simulator::HandleRList(Instruction* instr, bool load) {
+  int rlist = instr->RlistValue();
+  int num_regs = count_bits(rlist);
+
+  intptr_t start_address = 0;
+  intptr_t end_address = 0;
+  ProcessPUW(instr, num_regs, kPointerSize, &start_address, &end_address);
+
   intptr_t* address = reinterpret_cast<intptr_t*>(start_address);
   int reg = 0;
   while (rlist != 0) {
@@ -1559,6 +1632,57 @@ void Simulator::HandleRList(Instruction* instr, bool load) {
     rlist >>= 1;
   }
   ASSERT(end_address == ((intptr_t)address) - 4);
+}
+
+
+// Addressing Mode 6 - Load and Store Multiple Coprocessor registers.
+void Simulator::HandleVList(Instruction* instr) {
+  VFPRegPrecision precision =
+      (instr->SzValue() == 0) ? kSinglePrecision : kDoublePrecision;
+  int operand_size = (precision == kSinglePrecision) ? 4 : 8;
+
+  bool load = (instr->VLValue() == 0x1);
+
+  int vd;
+  int num_regs;
+  vd = instr->VFPDRegValue(precision);
+  if (precision == kSinglePrecision) {
+    num_regs = instr->Immed8Value();
+  } else {
+    num_regs = instr->Immed8Value() / 2;
+  }
+
+  intptr_t start_address = 0;
+  intptr_t end_address = 0;
+  ProcessPUW(instr, num_regs, operand_size, &start_address, &end_address);
+
+  intptr_t* address = reinterpret_cast<intptr_t*>(start_address);
+  for (int reg = vd; reg < vd + num_regs; reg++) {
+    if (precision == kSinglePrecision) {
+      if (load) {
+        set_s_register_from_sinteger(
+            reg, ReadW(reinterpret_cast<int32_t>(address), instr));
+      } else {
+        WriteW(reinterpret_cast<int32_t>(address),
+               get_sinteger_from_s_register(reg), instr);
+      }
+      address += 1;
+    } else {
+      if (load) {
+        set_s_register_from_sinteger(
+            2 * reg, ReadW(reinterpret_cast<int32_t>(address), instr));
+        set_s_register_from_sinteger(
+            2 * reg + 1, ReadW(reinterpret_cast<int32_t>(address + 1), instr));
+      } else {
+        WriteW(reinterpret_cast<int32_t>(address),
+               get_sinteger_from_s_register(2 * reg), instr);
+        WriteW(reinterpret_cast<int32_t>(address + 1),
+               get_sinteger_from_s_register(2 * reg + 1), instr);
+      }
+      address += 2;
+    }
+  }
+  ASSERT(reinterpret_cast<intptr_t>(address) - operand_size == end_address);
 }
 
 
@@ -1606,27 +1730,92 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       int32_t* stack_pointer = reinterpret_cast<int32_t*>(get_register(sp));
       int32_t arg4 = stack_pointer[0];
       int32_t arg5 = stack_pointer[1];
+      bool fp_call =
+         (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
+         (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
+         (redirection->type() == ExternalReference::BUILTIN_FP_CALL) ||
+         (redirection->type() == ExternalReference::BUILTIN_FP_INT_CALL);
+      if (use_eabi_hardfloat()) {
+        // With the hard floating point calling convention, double
+        // arguments are passed in VFP registers. Fetch the arguments
+        // from there and call the builtin using soft floating point
+        // convention.
+        switch (redirection->type()) {
+        case ExternalReference::BUILTIN_FP_FP_CALL:
+        case ExternalReference::BUILTIN_COMPARE_CALL:
+          arg0 = vfp_register[0];
+          arg1 = vfp_register[1];
+          arg2 = vfp_register[2];
+          arg3 = vfp_register[3];
+          break;
+        case ExternalReference::BUILTIN_FP_CALL:
+          arg0 = vfp_register[0];
+          arg1 = vfp_register[1];
+          break;
+        case ExternalReference::BUILTIN_FP_INT_CALL:
+          arg0 = vfp_register[0];
+          arg1 = vfp_register[1];
+          arg2 = get_register(0);
+          break;
+        default:
+          break;
+        }
+      }
       // This is dodgy but it works because the C entry stubs are never moved.
       // See comment in codegen-arm.cc and bug 1242173.
       int32_t saved_lr = get_register(lr);
       intptr_t external =
           reinterpret_cast<intptr_t>(redirection->external_function());
-      if (redirection->type() == ExternalReference::FP_RETURN_CALL) {
-        SimulatorRuntimeFPCall target =
-            reinterpret_cast<SimulatorRuntimeFPCall>(external);
+      if (fp_call) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
-          double x, y;
-          GetFpArgs(&x, &y);
-          PrintF("Call to host function at %p with args %f, %f",
-                 FUNCTION_ADDR(target), x, y);
+          SimulatorRuntimeFPCall target =
+              reinterpret_cast<SimulatorRuntimeFPCall>(external);
+          double dval0, dval1;
+          int32_t ival;
+          switch (redirection->type()) {
+          case ExternalReference::BUILTIN_FP_FP_CALL:
+          case ExternalReference::BUILTIN_COMPARE_CALL:
+            GetFpArgs(&dval0, &dval1);
+            PrintF("Call to host function at %p with args %f, %f",
+                FUNCTION_ADDR(target), dval0, dval1);
+            break;
+          case ExternalReference::BUILTIN_FP_CALL:
+            GetFpArgs(&dval0);
+            PrintF("Call to host function at %p with arg %f",
+                FUNCTION_ADDR(target), dval0);
+            break;
+          case ExternalReference::BUILTIN_FP_INT_CALL:
+            GetFpArgs(&dval0, &ival);
+            PrintF("Call to host function at %p with args %f, %d",
+                FUNCTION_ADDR(target), dval0, ival);
+            break;
+          default:
+            UNREACHABLE();
+            break;
+          }
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        double result = target(arg0, arg1, arg2, arg3);
-        SetFpResult(result);
+        if (redirection->type() != ExternalReference::BUILTIN_COMPARE_CALL) {
+          SimulatorRuntimeFPCall target =
+              reinterpret_cast<SimulatorRuntimeFPCall>(external);
+          double result = target(arg0, arg1, arg2, arg3);
+          SetFpResult(result);
+        } else {
+          SimulatorRuntimeCall target =
+              reinterpret_cast<SimulatorRuntimeCall>(external);
+          int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
+          int32_t lo_res = static_cast<int32_t>(result);
+          int32_t hi_res = static_cast<int32_t>(result >> 32);
+          if (::v8::internal::FLAG_trace_sim) {
+            PrintF("Returned %08x\n", lo_res);
+          }
+          set_register(r0, lo_res);
+          set_register(r1, hi_res);
+        }
       } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
         SimulatorRuntimeDirectApiCall target =
             reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
@@ -2131,8 +2320,15 @@ void Simulator::DecodeType01(Instruction* instr) {
       }
 
       case ADC: {
-        Format(instr, "adc'cond's 'rd, 'rn, 'shift_rm");
-        Format(instr, "adc'cond's 'rd, 'rn, 'imm");
+        // Format(instr, "adc'cond's 'rd, 'rn, 'shift_rm");
+        // Format(instr, "adc'cond's 'rd, 'rn, 'imm");
+        alu_out = rn_val + shifter_operand + GetCarry();
+        set_register(rd, alu_out);
+        if (instr->HasS()) {
+          SetNZFlags(alu_out);
+          SetCFlag(CarryFrom(rn_val, shifter_operand, GetCarry()));
+          SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, true));
+        }
         break;
       }
 
@@ -2945,9 +3141,17 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
         }
         break;
       }
+      case 0x4:
+      case 0x5:
+      case 0x6:
+      case 0x7:
+      case 0x9:
+      case 0xB:
+        // Load/store multiple single from memory: vldm/vstm.
+        HandleVList(instr);
+        break;
       default:
         UNIMPLEMENTED();  // Not used by V8.
-        break;
     }
   } else if (instr->CoprocessorValue() == 0xB) {
     switch (instr->OpcodeValue()) {
@@ -2994,9 +3198,14 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
         }
         break;
       }
+      case 0x4:
+      case 0x5:
+      case 0x9:
+        // Load/store multiple double from memory: vldm/vstm.
+        HandleVList(instr);
+        break;
       default:
         UNIMPLEMENTED();  // Not used by V8.
-        break;
     }
   } else {
     UNIMPLEMENTED();  // Not used by V8.

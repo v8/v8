@@ -1,3 +1,169 @@
+2011-05-23: Version 3.3.9
+
+        Added DateTimeFormat class to experimental i18n API.
+
+        Extended preparser to give early errors for some strict mode
+        restrictions.
+
+        Removed legacy execScript function from V8.
+
+        Extended isolate API with the ability to add embedder-specific
+        data to an isolate.
+
+        Added basic support for polymorphic loads from JS and external
+        arrays.
+
+        Fixed bug in handling of switch statements in the optimizing
+        compiler.
+
+
+2011-05-18: Version 3.3.8
+
+        Added MarkIndependent to the persistent handle API.  Independent
+        handles are independent of all other persistent handles and can be
+        garbage collected more frequently.
+
+        Implemented the get trap for Harmony proxies.  Proxies are enabled
+        with the --harmony-proxies flag.
+
+        Performance improvements and bug fixes on all platforms.
+
+
+2011-05-16: Version 3.3.7
+
+        Updated MIPS infrastructure files.
+
+        Performance improvements and bug fixes on all platforms.
+
+
+2011-05-11: Version 3.3.6
+
+        Updated MIPS infrastructure files.
+
+        Added method IsCallable for Object to the API.
+        Patch by Peter Varga.
+
+
+2011-05-09: Version 3.3.5
+
+        Fixed build on FreeBSD. Patch by Akinori MUSHA.
+
+        Added check that receiver is JSObject on API calls.
+
+        Implemented CallAsConstructor method for Object in the API (Issue 1348).
+        Patch by Peter Varga.
+
+        Added CallAsFunction method to the Object class in the API (Issue 1336).
+        Patch by Peter Varga.
+
+        Added per-isolate locking and unlocking.
+
+        Fixed bug in x64 >>> operator (Issue 1359).
+
+
+2011-05-04: Version 3.3.4
+
+        Implemented API to disallow code generation from strings for a context
+        (issue 1258).
+
+        Fixed bug with whitespaces in parseInt (issue 955).
+
+        Fixed bug with == comparison of Date objects (issue 1356).
+
+        Added GYP variables for ARM code generation:
+        v8_can_use_vfp_instructions, v8_can_use_unaligned_accesses
+        and v8_use_arm_eabi_hardfloat.
+
+
+2011-05-02: Version 3.3.3
+
+        Added support for generating Visual Studio solution and project files
+        using GYP.
+
+        Implemented support for ARM EABI calling convention variation where
+        floating-point arguments are passed in registers (hardfloat).
+
+        Added Object::HasOwnProperty() to the API.
+
+        Added support for compressing startup data to reduce binary size. This
+        includes build time support and an API for the embedder to decompress
+        the startup data before initializing V8.
+
+        Reduced the profiling hooks overhead from >400% to 25% when using
+        ll_prof.
+
+        Performance improvements and bug fixes on all platforms.
+
+
+2011-04-27: Version 3.3.2
+
+        Fixed crash bug on ARM with no VFP3 hardware.
+
+        Fixed compilation of V8 without debugger support.
+
+        Improved performance on JSLint.
+
+        Added support Float64 WebGL arrays.
+
+        Fixed crash bug in regexp replace.
+
+
+2011-04-20: Version 3.3.1
+
+        Reduced V8 binary size by removing virtual functions from hydrogen.
+
+        Fixed crash bug on x64.
+
+        Performance improvements on ARM and IA32.
+
+
+2011-04-18: Version 3.3.0
+
+        Fixed bug in floating point rounding in Crankshaft on ARM
+        (issue 958)
+
+        Fixed a number of issues with running without VFPv3 support on ARM
+        (issue 1315)
+
+        Introduced v8Locale.Collator, a partial implementation of Collator
+        per last ECMAScript meeting + mailing list.
+
+        Minor performance improvements and bug fixes.
+
+
+2011-04-13: Version 3.2.10
+
+        Fixed bug in external float arrays on ARM (issue 1323).
+
+        Minor performance improvements and bug fixes.
+
+
+2011-04-11: Version 3.2.9
+
+        Removed support for ABI prior to EABI on ARM.
+
+        Fixed multiple crash bugs.
+
+        Added GCMole to the repository, a simple static analysis tool that
+        searches for GC-unsafe evaluation order dependent callsites.
+
+        Made preparser API be exported in shared libraries.
+
+        Fixed multiple issues in EcmaScript 5 strict mode implementation.
+
+        Fixed mutable __proto__ property if object is not extensible
+        (Issue 1309).
+
+        Fixed auto suspension of the sampler thread.
+
+
+2011-04-06: Version 3.2.8
+
+        Exposed WebGL typed array constructors in the shell sample.
+
+        Performance improvements on all platforms.
+
+
 2011-04-04: Version 3.2.7
 
         Disabled the original 'classic' V8 code generator.  Crankshaft is

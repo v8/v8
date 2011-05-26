@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,8 +30,8 @@
 
 #include "liveedit.h"
 
-#include "compiler.h"
 #include "compilation-cache.h"
+#include "compiler.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "global-handles.h"
@@ -268,17 +268,10 @@ void Comparator::CalculateDifference(Comparator::Input* input,
 }
 
 
-static bool CompareSubstrings(Isolate* isolate, Handle<String> s1, int pos1,
+static bool CompareSubstrings(Handle<String> s1, int pos1,
                               Handle<String> s2, int pos2, int len) {
-  StringInputBuffer& buf1 = *isolate->liveedit_compare_substrings_buf1();
-  StringInputBuffer& buf2 = *isolate->liveedit_compare_substrings_buf2();
-  buf1.Reset(*s1);
-  buf1.Seek(pos1);
-  buf2.Reset(*s2);
-  buf2.Seek(pos2);
   for (int i = 0; i < len; i++) {
-    ASSERT(buf1.has_more() && buf2.has_more());
-    if (buf1.GetNext() != buf2.GetNext()) {
+    if (s1->Get(i + pos1) != s2->Get(i + pos2)) {
       return false;
     }
   }
@@ -410,9 +403,9 @@ class LineEndsWrapper {
 // Represents 2 strings as 2 arrays of lines.
 class LineArrayCompareInput : public Comparator::Input {
  public:
-  LineArrayCompareInput(Isolate* isolate, Handle<String> s1, Handle<String> s2,
+  LineArrayCompareInput(Handle<String> s1, Handle<String> s2,
                         LineEndsWrapper line_ends1, LineEndsWrapper line_ends2)
-      : isolate_(isolate), s1_(s1), s2_(s2), line_ends1_(line_ends1),
+      : s1_(s1), s2_(s2), line_ends1_(line_ends1),
         line_ends2_(line_ends2) {
   }
   int getLength1() {
@@ -431,12 +424,11 @@ class LineArrayCompareInput : public Comparator::Input {
     if (len1 != len2) {
       return false;
     }
-    return CompareSubstrings(isolate_, s1_, line_start1, s2_, line_start2,
+    return CompareSubstrings(s1_, line_start1, s2_, line_start2,
                              len1);
   }
 
  private:
-  Isolate* isolate_;
   Handle<String> s1_;
   Handle<String> s2_;
   LineEndsWrapper line_ends1_;
@@ -492,11 +484,13 @@ class TokenizingLineArrayCompareOutput : public Comparator::Output {
 
 Handle<JSArray> LiveEdit::CompareStrings(Handle<String> s1,
                                          Handle<String> s2) {
+  s1 = FlattenGetString(s1);
+  s2 = FlattenGetString(s2);
+
   LineEndsWrapper line_ends1(s1);
   LineEndsWrapper line_ends2(s2);
 
-  LineArrayCompareInput
-      input(Isolate::Current(), s1, s2, line_ends1, line_ends2);
+  LineArrayCompareInput input(s1, s2, line_ends1, line_ends2);
   TokenizingLineArrayCompareOutput output(line_ends1, line_ends2, s1, s2);
 
   Comparator::CalculateDifference(&input, &output);
@@ -533,12 +527,12 @@ static Handle<Object> UnwrapJSValue(Handle<JSValue> jsValue) {
 
 // Wraps any object into a OpaqueReference, that will hide the object
 // from JavaScript.
-static Handle<JSValue> WrapInJSValue(Object* object) {
+static Handle<JSValue> WrapInJSValue(Handle<Object> object) {
   Handle<JSFunction> constructor =
       Isolate::Current()->opaque_reference_function();
   Handle<JSValue> result =
       Handle<JSValue>::cast(FACTORY->NewJSObject(constructor));
-  result->set_value(object);
+  result->set_value(*object);
   return result;
 }
 
@@ -605,17 +599,17 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   }
   void SetFunctionCode(Handle<Code> function_code,
       Handle<Object> code_scope_info) {
-    Handle<JSValue> code_wrapper = WrapInJSValue(*function_code);
+    Handle<JSValue> code_wrapper = WrapInJSValue(function_code);
     this->SetField(kCodeOffset_, code_wrapper);
 
-    Handle<JSValue> scope_wrapper = WrapInJSValue(*code_scope_info);
+    Handle<JSValue> scope_wrapper = WrapInJSValue(code_scope_info);
     this->SetField(kCodeScopeInfoOffset_, scope_wrapper);
   }
   void SetOuterScopeInfo(Handle<Object> scope_info_array) {
     this->SetField(kOuterScopeInfoOffset_, scope_info_array);
   }
   void SetSharedFunctionInfo(Handle<SharedFunctionInfo> info) {
-    Handle<JSValue> info_holder = WrapInJSValue(*info);
+    Handle<JSValue> info_holder = WrapInJSValue(info);
     this->SetField(kSharedFunctionInfoOffset_, info_holder);
   }
   int GetParentIndex() {
@@ -672,7 +666,7 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
                      Handle<SharedFunctionInfo> info) {
     HandleScope scope;
     this->SetField(kFunctionNameOffset_, name);
-    Handle<JSValue> info_holder = WrapInJSValue(*info);
+    Handle<JSValue> info_holder = WrapInJSValue(info);
     this->SetField(kSharedInfoOffset_, info_holder);
     this->SetSmiValueField(kStartPositionOffset_, start_position);
     this->SetSmiValueField(kEndPositionOffset_, end_position);
@@ -1396,20 +1390,24 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   ASSERT(bottom_js_frame->is_java_script());
 
   // Check the nature of the top frame.
-  Code* pre_top_frame_code = pre_top_frame->LookupCode(Isolate::Current());
+  Isolate* isolate = Isolate::Current();
+  Code* pre_top_frame_code = pre_top_frame->LookupCode();
   if (pre_top_frame_code->is_inline_cache_stub() &&
       pre_top_frame_code->ic_state() == DEBUG_BREAK) {
     // OK, we can drop inline cache calls.
     *mode = Debug::FRAME_DROPPED_IN_IC_CALL;
   } else if (pre_top_frame_code ==
-             Isolate::Current()->debug()->debug_break_slot()) {
+             isolate->debug()->debug_break_slot()) {
     // OK, we can drop debug break slot.
     *mode = Debug::FRAME_DROPPED_IN_DEBUG_SLOT_CALL;
   } else if (pre_top_frame_code ==
-      Isolate::Current()->builtins()->builtin(
+      isolate->builtins()->builtin(
           Builtins::kFrameDropper_LiveEdit)) {
     // OK, we can drop our own code.
     *mode = Debug::FRAME_DROPPED_IN_DIRECT_CALL;
+  } else if (pre_top_frame_code ==
+      isolate->builtins()->builtin(Builtins::kReturn_DebugBreak)) {
+    *mode = Debug::FRAME_DROPPED_IN_RETURN_CALL;
   } else if (pre_top_frame_code->kind() == Code::STUB &&
       pre_top_frame_code->major_key()) {
     // Entry from our unit tests, it's fine, we support this case.
@@ -1570,8 +1568,8 @@ class InactiveThreadActivationsChecker : public ThreadVisitor {
       : shared_info_array_(shared_info_array), result_(result),
         has_blocked_functions_(false) {
   }
-  void VisitThread(ThreadLocalTop* top) {
-    for (StackFrameIterator it(top); !it.done(); it.Advance()) {
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+    for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       has_blocked_functions_ |= CheckActivation(
           shared_info_array_, result_, it.frame(),
           LiveEdit::FUNCTION_BLOCKED_ON_OTHER_STACK);
@@ -1681,7 +1679,7 @@ void LiveEditFunctionTracker::RecordRootFunctionInfo(Handle<Code> code) {
 }
 
 
-bool LiveEditFunctionTracker::IsActive() {
+bool LiveEditFunctionTracker::IsActive(Isolate* isolate) {
   return false;
 }
 

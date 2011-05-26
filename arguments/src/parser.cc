@@ -28,7 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
-#include "ast.h"
+#include "ast-inl.h"
 #include "bootstrapper.h"
 #include "codegen.h"
 #include "compiler.h"
@@ -40,9 +40,6 @@
 #include "runtime.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
-
-#include "ast-inl.h"
-#include "jump-target-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -463,7 +460,7 @@ class TargetScope BASE_EMBEDDED {
 // Parser's scope stack. The constructor sets the parser's top scope
 // to the incoming scope, and the destructor resets it.
 //
-// Additionlaly, it stores transient information used during parsing.
+// Additionally, it stores transient information used during parsing.
 // These scopes are not kept around after parsing or referenced by syntax
 // trees so they can be stack-allocated and hence used by the pre-parser.
 
@@ -497,9 +494,6 @@ class LexicalScope BASE_EMBEDDED {
   void AddProperty() { expected_property_count_++; }
   int expected_property_count() { return expected_property_count_; }
 
-  void AddLoop() { loop_count_++; }
-  bool ContainsLoops() const { return loop_count_ > 0; }
-
  private:
   // Captures the number of literals that need materialization in the
   // function.  Includes regexp literals, and boilerplate for object
@@ -514,15 +508,13 @@ class LexicalScope BASE_EMBEDDED {
   bool only_simple_this_property_assignments_;
   Handle<FixedArray> this_property_assignments_;
 
-  // Captures the number of loops inside the scope.
-  int loop_count_;
-
   // Bookkeeping
   Parser* parser_;
   // Previous values
   LexicalScope* lexical_scope_parent_;
   Scope* previous_scope_;
   int previous_with_nesting_level_;
+  unsigned previous_ast_node_id_;
 };
 
 
@@ -531,14 +523,15 @@ LexicalScope::LexicalScope(Parser* parser, Scope* scope, Isolate* isolate)
     expected_property_count_(0),
     only_simple_this_property_assignments_(false),
     this_property_assignments_(isolate->factory()->empty_fixed_array()),
-    loop_count_(0),
     parser_(parser),
     lexical_scope_parent_(parser->lexical_scope_),
     previous_scope_(parser->top_scope_),
-    previous_with_nesting_level_(parser->with_nesting_level_) {
+    previous_with_nesting_level_(parser->with_nesting_level_),
+    previous_ast_node_id_(isolate->ast_node_id()) {
   parser->top_scope_ = scope;
   parser->lexical_scope_ = this;
   parser->with_nesting_level_ = 0;
+  isolate->set_ast_node_id(AstNode::kFunctionEntryId + 1);
 }
 
 
@@ -547,6 +540,7 @@ LexicalScope::~LexicalScope() {
   parser_->top_scope_ = previous_scope_;
   parser_->lexical_scope_ = lexical_scope_parent_;
   parser_->with_nesting_level_ = previous_with_nesting_level_;
+  parser_->isolate()->set_ast_node_id(previous_ast_node_id_);
 }
 
 
@@ -580,7 +574,7 @@ Parser::Parser(Handle<Script> script,
     : isolate_(script->GetIsolate()),
       symbol_cache_(pre_data ? pre_data->symbol_count() : 0),
       script_(script),
-      scanner_(isolate_->scanner_constants()),
+      scanner_(isolate_->unicode_cache()),
       top_scope_(NULL),
       with_nesting_level_(0),
       lexical_scope_(NULL),
@@ -665,7 +659,6 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
           0,
           source->length(),
           false,
-          lexical_scope.ContainsLoops(),
           false);
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
@@ -1309,12 +1302,15 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // to the corresponding activation frame at runtime if necessary.
   // For instance declarations inside an eval scope need to be added
   // to the calling function context.
-  if (top_scope_->is_function_scope()) {
+  // Similarly, strict mode eval scope does not leak variable declarations to
+  // the caller's scope so we declare all locals, too.
+  if (top_scope_->is_function_scope() ||
+      top_scope_->is_strict_mode_eval_scope()) {
     // Declare the variable in the function scope.
     var = top_scope_->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
-      var = top_scope_->DeclareLocal(name, mode);
+      var = top_scope_->DeclareLocal(name, mode, Scope::VAR_OR_CONST);
     } else {
       // The name was declared before; check for conflicting
       // re-declarations. If the previous declaration was a const or the
@@ -1586,6 +1582,12 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
                        is_const /* always bound for CONST! */,
                        CHECK_OK);
     nvars++;
+    if (top_scope_->num_var_or_const() > kMaxNumFunctionLocals) {
+      ReportMessageAt(scanner().location(), "too_many_variables",
+                      Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    }
 
     // Parse initialization expression if present and/or needed. A
     // declaration of the form:
@@ -1910,7 +1912,7 @@ Block* Parser::WithHelper(Expression* obj,
                           bool is_catch_block,
                           bool* ok) {
   // Parse the statement and collect escaping labels.
-  ZoneList<BreakTarget*>* target_list = new ZoneList<BreakTarget*>(0);
+  ZoneList<Label*>* target_list = new ZoneList<Label*>(0);
   TargetCollector collector(target_list);
   Statement* stat;
   { Target target(&this->target_stack_, &collector);
@@ -2056,7 +2058,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   Expect(Token::TRY, CHECK_OK);
 
-  ZoneList<BreakTarget*>* target_list = new ZoneList<BreakTarget*>(0);
+  ZoneList<Label*>* target_list = new ZoneList<Label*>(0);
   TargetCollector collector(target_list);
   Block* try_block;
 
@@ -2079,7 +2081,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   // then we will need to collect jump targets from the catch block. Since
   // we don't know yet if there will be a finally block, we always collect
   // the jump targets.
-  ZoneList<BreakTarget*>* catch_target_list = new ZoneList<BreakTarget*>(0);
+  ZoneList<Label*>* catch_target_list = new ZoneList<Label*>(0);
   TargetCollector catch_collector(catch_target_list);
   bool has_catch = false;
   if (tok == Token::CATCH) {
@@ -2164,7 +2166,6 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   // DoStatement ::
   //   'do' Statement 'while' '(' Expression ')' ';'
 
-  lexical_scope_->AddLoop();
   DoWhileStatement* loop = new(zone()) DoWhileStatement(labels);
   Target target(&this->target_stack_, loop);
 
@@ -2179,7 +2180,6 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   }
 
   Expression* cond = ParseExpression(true, CHECK_OK);
-  if (cond != NULL) cond->set_is_loop_condition(true);
   Expect(Token::RPAREN, CHECK_OK);
 
   // Allow do-statements to be terminated with and without
@@ -2197,14 +2197,12 @@ WhileStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
   // WhileStatement ::
   //   'while' '(' Expression ')' Statement
 
-  lexical_scope_->AddLoop();
   WhileStatement* loop = new(zone()) WhileStatement(labels);
   Target target(&this->target_stack_, loop);
 
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   Expression* cond = ParseExpression(true, CHECK_OK);
-  if (cond != NULL) cond->set_is_loop_condition(true);
   Expect(Token::RPAREN, CHECK_OK);
   Statement* body = ParseStatement(NULL, CHECK_OK);
 
@@ -2217,7 +2215,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   // ForStatement ::
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
 
-  lexical_scope_->AddLoop();
   Statement* init = NULL;
 
   Expect(Token::FOR, CHECK_OK);
@@ -2286,7 +2283,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   Expression* cond = NULL;
   if (peek() != Token::SEMICOLON) {
     cond = ParseExpression(true, CHECK_OK);
-    if (cond != NULL) cond->set_is_loop_condition(true);
   }
   Expect(Token::SEMICOLON, CHECK_OK);
 
@@ -2496,7 +2492,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
         x = NewCompareNode(cmp, x, y, position);
         if (cmp != op) {
           // The comparison was negated - add a NOT.
-          x = new(zone()) UnaryOperation(Token::NOT, x);
+          x = new(zone()) UnaryOperation(Token::NOT, x, position);
         }
 
       } else {
@@ -2546,6 +2542,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
   Token::Value op = peek();
   if (Token::IsUnaryOp(op)) {
     op = Next();
+    int position = scanner().location().beg_pos;
     Expression* expression = ParseUnaryExpression(CHECK_OK);
 
     // Compute some expressions involving only number literals.
@@ -2573,7 +2570,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       }
     }
 
-    return new(zone()) UnaryOperation(op, expression);
+    return new(zone()) UnaryOperation(op, expression, position);
 
   } else if (Token::IsCountOp(op)) {
     op = Next();
@@ -2594,9 +2591,10 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     }
 
     int position = scanner().location().beg_pos;
-    IncrementOperation* increment =
-        new(zone()) IncrementOperation(op, expression);
-    return new(zone()) CountOperation(true /* prefix */, increment, position);
+    return new(zone()) CountOperation(op,
+                                      true /* prefix */,
+                                      expression,
+                                      position);
 
   } else {
     return ParsePostfixExpression(ok);
@@ -2628,10 +2626,11 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
 
     Token::Value next = Next();
     int position = scanner().location().beg_pos;
-    IncrementOperation* increment =
-        new(zone()) IncrementOperation(next, expression);
     expression =
-        new(zone()) CountOperation(false /* postfix */, increment, position);
+        new(zone()) CountOperation(next,
+                                   false /* postfix */,
+                                   expression,
+                                   position);
   }
   return expression;
 }
@@ -2904,7 +2903,8 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::NUMBER: {
       Consume(Token::NUMBER);
       ASSERT(scanner().is_literal_ascii());
-      double value = StringToDouble(scanner().literal_ascii_string(),
+      double value = StringToDouble(isolate()->unicode_cache(),
+                                    scanner().literal_ascii_string(),
                                     ALLOW_HEX | ALLOW_OCTALS);
       result = NewNumberLiteral(value);
       break;
@@ -3402,7 +3402,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       case Token::NUMBER: {
         Consume(Token::NUMBER);
         ASSERT(scanner().is_literal_ascii());
-        double value = StringToDouble(scanner().literal_ascii_string(),
+        double value = StringToDouble(isolate()->unicode_cache(),
+                                      scanner().literal_ascii_string(),
                                       ALLOW_HEX | ALLOW_OCTALS);
         key = NewNumberLiteral(value);
         break;
@@ -3533,20 +3534,26 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
   }
 
   int num_parameters = 0;
+  Scope* scope = NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
+  ZoneList<Statement*>* body = new ZoneList<Statement*>(8);
+  int materialized_literal_count;
+  int expected_property_count;
+  int start_pos;
+  int end_pos;
+  bool only_simple_this_property_assignments;
+  Handle<FixedArray> this_property_assignments;
+  bool has_duplicate_parameters = false;
   // Parse function body.
-  { Scope* scope =
-        NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
-    LexicalScope lexical_scope(this, scope, isolate());
+  { LexicalScope lexical_scope(this, scope, isolate());
     top_scope_->SetScopeName(name);
 
     //  FormalParameterList ::
     //    '(' (Identifier)*[','] ')'
     Expect(Token::LPAREN, CHECK_OK);
-    int start_pos = scanner().location().beg_pos;
-    Scanner::Location name_loc = Scanner::NoLocation();
-    Scanner::Location dupe_loc = Scanner::NoLocation();
-    Scanner::Location reserved_loc = Scanner::NoLocation();
-    bool has_duplicate_parameters = false;
+    start_pos = scanner().location().beg_pos;
+    Scanner::Location name_loc = Scanner::Location::invalid();
+    Scanner::Location dupe_loc = Scanner::Location::invalid();
+    Scanner::Location reserved_loc = Scanner::Location::invalid();
 
     bool done = (peek() == Token::RPAREN);
     while (!done) {
@@ -3566,7 +3573,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         reserved_loc = scanner().location();
       }
 
-      Variable* parameter = top_scope_->DeclareLocal(param_name, Variable::VAR);
+      Variable* parameter = top_scope_->DeclareLocal(param_name,
+                                                     Variable::VAR,
+                                                     Scope::PARAMETER);
       top_scope_->AddParameter(parameter);
       num_parameters++;
       if (num_parameters > kMaxNumFunctionParameters) {
@@ -3581,7 +3590,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     Expect(Token::RPAREN, CHECK_OK);
 
     Expect(Token::LBRACE, CHECK_OK);
-    ZoneList<Statement*>* body = new ZoneList<Statement*>(8);
 
     // If we have a named function expression, we add a local variable
     // declaration to the body of the function with the name of the
@@ -3609,11 +3617,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     parenthesized_function_ = false;  // The bit was set for this function only.
 
     int function_block_pos = scanner().location().beg_pos;
-    int materialized_literal_count;
-    int expected_property_count;
-    int end_pos;
-    bool only_simple_this_property_assignments;
-    Handle<FixedArray> this_property_assignments;
     if (is_lazily_compiled && pre_data() != NULL) {
       FunctionEntry entry = pre_data()->GetFunctionEntry(function_block_pos);
       if (!entry.is_valid()) {
@@ -3688,26 +3691,25 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       }
       CheckOctalLiteral(start_pos, end_pos, CHECK_OK);
     }
-
-    FunctionLiteral* function_literal =
-        new(zone()) FunctionLiteral(name,
-                                    top_scope_,
-                                    body,
-                                    materialized_literal_count,
-                                    expected_property_count,
-                                    only_simple_this_property_assignments,
-                                    this_property_assignments,
-                                    num_parameters,
-                                    start_pos,
-                                    end_pos,
-                                    function_name->length() > 0,
-                                    lexical_scope.ContainsLoops(),
-                                    has_duplicate_parameters);
-    function_literal->set_function_token_position(function_token_position);
-
-    if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);
-    return function_literal;
   }
+
+  FunctionLiteral* function_literal =
+      new(zone()) FunctionLiteral(name,
+                                  scope,
+                                  body,
+                                  materialized_literal_count,
+                                  expected_property_count,
+                                  only_simple_this_property_assignments,
+                                  this_property_assignments,
+                                  num_parameters,
+                                  start_pos,
+                                  end_pos,
+                                  (function_name->length() > 0),
+                                  has_duplicate_parameters);
+  function_literal->set_function_token_position(function_token_position);
+
+  if (fni_ != NULL && !is_named) fni_->AddFunction(function_literal);
+  return function_literal;
 }
 
 
@@ -3874,12 +3876,14 @@ void Parser::CheckStrictModeLValue(Expression* expression,
 }
 
 
-// Checks whether octal literal last seen is between beg_pos and end_pos.
-// If so, reports an error.
+// Checks whether an octal literal was last seen between beg_pos and end_pos.
+// If so, reports an error. Only called for strict mode.
 void Parser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
-  int octal = scanner().octal_position();
-  if (beg_pos <= octal && octal <= end_pos) {
-    ReportMessageAt(Scanner::Location(octal, octal + 1), "strict_octal_literal",
+  Scanner::Location octal = scanner().octal_position();
+  if (octal.IsValid() &&
+      beg_pos <= octal.beg_pos &&
+      octal.end_pos <= end_pos) {
+    ReportMessageAt(octal, "strict_octal_literal",
                     Vector<const char*>::empty());
     scanner().clear_octal_position();
     *ok = false;
@@ -3949,7 +3953,7 @@ IterationStatement* Parser::LookupContinueTarget(Handle<String> label,
 }
 
 
-void Parser::RegisterTargetUse(BreakTarget* target, Target* stop) {
+void Parser::RegisterTargetUse(Label* target, Target* stop) {
   // Register that a break target found at the given stop in the
   // target stack has been used from the top of the target stack. Add
   // the break target to any TargetCollectors passed on the stack.
@@ -4092,6 +4096,21 @@ Handle<String> JsonParser::GetString() {
 }
 
 
+Handle<String> JsonParser::GetSymbol() {
+  int literal_length = scanner_.literal_length();
+  if (literal_length == 0) {
+    return isolate()->factory()->empty_string();
+  }
+  if (scanner_.is_literal_ascii()) {
+    return isolate()->factory()->LookupAsciiSymbol(
+        scanner_.literal_ascii_string());
+  } else {
+    return isolate()->factory()->LookupTwoByteSymbol(
+        scanner_.literal_uc16_string());
+  }
+}
+
+
 // Parse any JSON value.
 Handle<Object> JsonParser::ParseJsonValue() {
   Token::Value token = scanner_.Next();
@@ -4133,7 +4152,7 @@ Handle<Object> JsonParser::ParseJsonObject() {
       if (scanner_.Next() != Token::STRING) {
         return ReportUnexpectedToken();
       }
-      Handle<String> key = GetString();
+      Handle<String> key = GetSymbol();
       if (scanner_.Next() != Token::COLON) {
         return ReportUnexpectedToken();
       }
@@ -5070,7 +5089,7 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
                                   bool allow_lazy,
                                   ParserRecorder* recorder) {
   Isolate* isolate = Isolate::Current();
-  V8JavaScriptScanner scanner(isolate->scanner_constants());
+  V8JavaScriptScanner scanner(isolate->unicode_cache());
   scanner.Initialize(source);
   intptr_t stack_limit = isolate->stack_guard()->real_climit();
   if (!preparser::PreParser::PreParseProgram(&scanner,

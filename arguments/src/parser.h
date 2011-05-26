@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -32,6 +32,7 @@
 #include "ast.h"
 #include "scanner.h"
 #include "scopes.h"
+#include "preparse-data-format.h"
 #include "preparse-data.h"
 
 namespace v8 {
@@ -448,6 +449,7 @@ class Parser {
   // construct a hashable id, so if more than 2^17 are allowed, this
   // should be checked.
   static const int kMaxNumFunctionParameters = 32766;
+  static const int kMaxNumFunctionLocals = 32767;
   FunctionLiteral* ParseLazy(CompilationInfo* info,
                              UC16CharacterStream* source,
                              ZoneScope* zone_scope);
@@ -655,7 +657,7 @@ class Parser {
   BreakableStatement* LookupBreakTarget(Handle<String> label, bool* ok);
   IterationStatement* LookupContinueTarget(Handle<String> label, bool* ok);
 
-  void RegisterTargetUse(BreakTarget* target, Target* stop);
+  void RegisterTargetUse(Label* target, Target* stop);
 
   // Factory methods.
 
@@ -783,7 +785,7 @@ class JsonParser BASE_EMBEDDED {
  private:
   JsonParser()
       : isolate_(Isolate::Current()),
-        scanner_(isolate_->scanner_constants()) { }
+        scanner_(isolate_->unicode_cache()) { }
   ~JsonParser() { }
 
   Isolate* isolate() { return isolate_; }
@@ -813,6 +815,8 @@ class JsonParser BASE_EMBEDDED {
   Handle<Object> ReportUnexpectedToken() { return Handle<Object>::null(); }
   // Converts the currently parsed literal to a JavaScript String.
   Handle<String> GetString();
+  // Converts the currently parsed literal to a JavaScript Symbol String.
+  Handle<String> GetSymbol();
 
   Isolate* isolate_;
   JsonScanner scanner_;

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -32,6 +32,7 @@
 #include "deoptimizer.h"
 #include "execution.h"
 #include "factory.h"
+#include "list-inl.h"
 #include "safepoint-table.h"
 #include "scopeinfo.h"
 
@@ -604,7 +605,7 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
 
   // Find the top invocation of the function by traversing frames.
   List<JSFunction*> functions(2);
-  for (JavaScriptFrameIterator it; !it.done(); it.Advance()) {
+  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     frame->GetFunctions(&functions);
     for (int i = functions.length() - 1; i >= 0; i--) {
@@ -693,7 +694,7 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
   Handle<JSFunction> function(holder, isolate);
 
   List<JSFunction*> functions(2);
-  for (JavaScriptFrameIterator it; !it.done(); it.Advance()) {
+  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     frame->GetFunctions(&functions);
     for (int i = functions.length() - 1; i >= 0; i--) {

@@ -28,6 +28,8 @@
 #ifndef V8_PROPERTY_H_
 #define V8_PROPERTY_H_
 
+#include "allocation.h"
+
 namespace v8 {
 namespace internal {
 
@@ -155,24 +157,15 @@ class ConstantFunctionDescriptor: public Descriptor {
 class CallbacksDescriptor:  public Descriptor {
  public:
   CallbacksDescriptor(String* key,
-                      Object* proxy,
+                      Object* foreign,
                       PropertyAttributes attributes,
                       int index = 0)
-      : Descriptor(key, proxy, attributes, CALLBACKS, index) {}
+      : Descriptor(key, foreign, attributes, CALLBACKS, index) {}
 };
 
 
 class LookupResult BASE_EMBEDDED {
  public:
-  // Where did we find the result;
-  enum {
-    NOT_FOUND,
-    DESCRIPTOR_TYPE,
-    DICTIONARY_TYPE,
-    INTERCEPTOR_TYPE,
-    CONSTANT_TYPE
-  } lookup_type_;
-
   LookupResult()
       : lookup_type_(NOT_FOUND),
         cacheable_(true),
@@ -182,6 +175,13 @@ class LookupResult BASE_EMBEDDED {
     lookup_type_ = DESCRIPTOR_TYPE;
     holder_ = holder;
     details_ = details;
+    number_ = number;
+  }
+
+  void DescriptorResult(JSObject* holder, Smi* details, int number) {
+    lookup_type_ = DESCRIPTOR_TYPE;
+    holder_ = holder;
+    details_ = PropertyDetails(details);
     number_ = number;
   }
 
@@ -200,6 +200,12 @@ class LookupResult BASE_EMBEDDED {
     holder_ = holder;
     details_ = holder->property_dictionary()->DetailsAt(entry);
     number_ = entry;
+  }
+
+  void HandlerResult() {
+    lookup_type_ = HANDLER_TYPE;
+    holder_ = NULL;
+    details_ = PropertyDetails(NONE, HANDLER);
   }
 
   void InterceptorResult(JSObject* holder) {
@@ -236,6 +242,7 @@ class LookupResult BASE_EMBEDDED {
   bool IsDontEnum() { return details_.IsDontEnum(); }
   bool IsDeleted() { return details_.IsDeleted(); }
   bool IsFound() { return lookup_type_ != NOT_FOUND; }
+  bool IsHandler() { return lookup_type_ == HANDLER_TYPE; }
 
   // Is the result is a property excluding transitions and the null
   // descriptor?
@@ -336,6 +343,16 @@ class LookupResult BASE_EMBEDDED {
   }
 
  private:
+  // Where did we find the result;
+  enum {
+    NOT_FOUND,
+    DESCRIPTOR_TYPE,
+    DICTIONARY_TYPE,
+    HANDLER_TYPE,
+    INTERCEPTOR_TYPE,
+    CONSTANT_TYPE
+  } lookup_type_;
+
   JSObject* holder_;
   int number_;
   bool cacheable_;

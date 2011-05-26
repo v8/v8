@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -87,17 +87,30 @@ void OS::Setup() {
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
+
+#ifdef __arm__
+  // When running on ARM hardware check that the EABI used by V8 and
+  // by the C code is the same.
+  bool hard_float = OS::ArmUsingHardFloat();
+  if (hard_float) {
+#if !USE_EABI_HARDFLOAT
+    PrintF("ERROR: Binary compiled with -mfloat-abi=hard but without "
+           "-DUSE_EABI_HARDFLOAT\n");
+    exit(1);
+#endif
+  } else {
+#if USE_EABI_HARDFLOAT
+    PrintF("ERROR: Binary not compiled with -mfloat-abi=hard but with "
+           "-DUSE_EABI_HARDFLOAT\n");
+    exit(1);
+#endif
+  }
+#endif
 }
 
 
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
-#if (defined(__VFP_FP__) && !defined(__SOFTFP__))
-  // Here gcc is telling us that we are on an ARM and gcc is assuming that we
-  // have VFP3 instructions.  If gcc can assume it then so can we.
-  return 1u << VFP3;
-#elif CAN_USE_ARMV7_INSTRUCTIONS
-  return 1u << ARMv7;
-#elif(defined(__mips_hard_float) && __mips_hard_float != 0)
+#if(defined(__mips_hard_float) && __mips_hard_float != 0)
     // Here gcc is telling us that we are on an MIPS and gcc is assuming that we
     // have FPU instructions.  If gcc can assume it then so can we.
     return 1u << FPU;
@@ -141,6 +154,7 @@ static bool CPUInfoContainsString(const char * search_string) {
   return false;
 }
 
+
 bool OS::ArmCpuHasFeature(CpuFeature feature) {
   const char* search_string = NULL;
   // Simple detection of VFP at runtime for Linux.
@@ -175,6 +189,50 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
   }
 
   return false;
+}
+
+
+// Simple helper function to detect whether the C code is compiled with
+// option -mfloat-abi=hard. The register d0 is loaded with 1.0 and the register
+// pair r0, r1 is loaded with 0.0. If -mfloat-abi=hard is pased to GCC then
+// calling this will return 1.0 and otherwise 0.0.
+static void ArmUsingHardFloatHelper() {
+  asm("mov r0, #0");
+#if defined(__VFP_FP__) && !defined(__SOFTFP__)
+  // Load 0x3ff00000 into r1 using instructions available in both ARM
+  // and Thumb mode.
+  asm("mov r1, #3");
+  asm("mov r2, #255");
+  asm("lsl r1, r1, #8");
+  asm("orr r1, r1, r2");
+  asm("lsl r1, r1, #20");
+  // For vmov d0, r0, r1 use ARM mode.
+#ifdef __thumb__
+  asm volatile(
+    "@   Enter ARM Mode  \n\t"
+    "    adr r3, 1f      \n\t"
+    "    bx  r3          \n\t"
+    "    .ALIGN 4        \n\t"
+    "    .ARM            \n"
+    "1:  vmov d0, r0, r1 \n\t"
+    "@   Enter THUMB Mode\n\t"
+    "    adr r3, 2f+1    \n\t"
+    "    bx  r3          \n\t"
+    "    .THUMB          \n"
+    "2:                  \n\t");
+#else
+  asm("vmov d0, r0, r1");
+#endif  // __thumb__
+#endif  // defined(__VFP_FP__) && !defined(__SOFTFP__)
+  asm("mov r1, #0");
+}
+
+
+bool OS::ArmUsingHardFloat() {
+  // Cast helper function from returning void to returning double.
+  typedef double (*F)();
+  F f = FUNCTION_CAST<F>(FUNCTION_ADDR(ArmUsingHardFloatHelper));
+  return f() == 1.0;
 }
 #endif  // def __arm__
 
@@ -588,50 +646,15 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 }
 
 
-class ThreadHandle::PlatformData : public Malloced {
+class Thread::PlatformData : public Malloced {
  public:
-  explicit PlatformData(ThreadHandle::Kind kind) {
-    Initialize(kind);
-  }
-
-  void Initialize(ThreadHandle::Kind kind) {
-    switch (kind) {
-      case ThreadHandle::SELF: thread_ = pthread_self(); break;
-      case ThreadHandle::INVALID: thread_ = kNoThread; break;
-    }
-  }
+  PlatformData() : thread_(kNoThread) {}
 
   pthread_t thread_;  // Thread handle for pthread.
 };
 
-
-ThreadHandle::ThreadHandle(Kind kind) {
-  data_ = new PlatformData(kind);
-}
-
-
-void ThreadHandle::Initialize(ThreadHandle::Kind kind) {
-  data_->Initialize(kind);
-}
-
-
-ThreadHandle::~ThreadHandle() {
-  delete data_;
-}
-
-
-bool ThreadHandle::IsSelf() const {
-  return pthread_equal(data_->thread_, pthread_self());
-}
-
-
-bool ThreadHandle::IsValid() const {
-  return data_->thread_ != kNoThread;
-}
-
-
 Thread::Thread(Isolate* isolate, const Options& options)
-    : ThreadHandle(ThreadHandle::INVALID),
+    : data_(new PlatformData()),
       isolate_(isolate),
       stack_size_(options.stack_size) {
   set_name(options.name);
@@ -639,7 +662,7 @@ Thread::Thread(Isolate* isolate, const Options& options)
 
 
 Thread::Thread(Isolate* isolate, const char* name)
-    : ThreadHandle(ThreadHandle::INVALID),
+    : data_(new PlatformData()),
       isolate_(isolate),
       stack_size_(0) {
   set_name(name);
@@ -647,6 +670,7 @@ Thread::Thread(Isolate* isolate, const char* name)
 
 
 Thread::~Thread() {
+  delete data_;
 }
 
 
@@ -658,8 +682,8 @@ static void* ThreadEntry(void* arg) {
   prctl(PR_SET_NAME,
         reinterpret_cast<unsigned long>(thread->name()),  // NOLINT
         0, 0, 0);
-  thread->thread_handle_data()->thread_ = pthread_self();
-  ASSERT(thread->IsValid());
+  thread->data()->thread_ = pthread_self();
+  ASSERT(thread->data()->thread_ != kNoThread);
   Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return NULL;
@@ -680,13 +704,13 @@ void Thread::Start() {
     pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
     attr_ptr = &attr;
   }
-  pthread_create(&thread_handle_data()->thread_, attr_ptr, ThreadEntry, this);
-  ASSERT(IsValid());
+  pthread_create(&data_->thread_, attr_ptr, ThreadEntry, this);
+  ASSERT(data_->thread_ != kNoThread);
 }
 
 
 void Thread::Join() {
-  pthread_join(thread_handle_data()->thread_, NULL);
+  pthread_join(data_->thread_, NULL);
 }
 
 
@@ -886,6 +910,11 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     // We require a fully initialized and entered isolate.
     return;
   }
+  if (v8::Locker::IsActive() &&
+      !isolate->thread_manager()->IsLockedByCurrentThread()) {
+    return;
+  }
+
   Sampler* sampler = isolate->logger()->sampler();
   if (sampler == NULL || !sampler->IsActive()) return;
 

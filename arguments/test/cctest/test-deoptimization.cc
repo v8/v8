@@ -97,8 +97,8 @@ class AllowNativesSyntaxNoInlining {
 };
 
 
-Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
-                                 const char* property_name) {
+static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
+                                        const char* property_name) {
   v8::Local<v8::Function> fun =
       v8::Local<v8::Function>::Cast(obj->Get(v8_str(property_name)));
   return v8::Utils::OpenHandle(*fun);

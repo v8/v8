@@ -60,7 +60,8 @@ class LCodeGen BASE_EMBEDDED {
         status_(UNUSED),
         deferred_(8),
         osr_pc_offset_(-1),
-        resolver_(this) {
+        resolver_(this),
+        expected_safepoint_kind_(Safepoint::kSimple) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
@@ -101,6 +102,7 @@ class LCodeGen BASE_EMBEDDED {
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
+  void DoGap(LGap* instr);
 
   // Emit frame translation commands for an environment.
   void WriteTranslation(LEnvironment* environment, Translation* translation);
@@ -124,7 +126,7 @@ class LCodeGen BASE_EMBEDDED {
   bool is_aborted() const { return status_ == ABORTED; }
 
   int strict_mode_flag() const {
-    return info()->is_strict() ? kStrictMode : kNonStrictMode;
+    return info()->is_strict_mode() ? kStrictMode : kNonStrictMode;
   }
 
   LChunk* chunk() const { return chunk_; }
@@ -140,8 +142,8 @@ class LCodeGen BASE_EMBEDDED {
                        Register input,
                        Register temporary);
 
-  int StackSlotCount() const { return chunk()->spill_slot_count(); }
-  int ParameterCount() const { return scope()->num_parameters(); }
+  int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
+  int GetParameterCount() const { return scope()->num_parameters(); }
 
   void Abort(const char* format, ...);
   void Comment(const char* format, ...);
@@ -156,18 +158,37 @@ class LCodeGen BASE_EMBEDDED {
   bool GenerateJumpTable();
   bool GenerateSafepointTable();
 
+  enum SafepointMode {
+    RECORD_SIMPLE_SAFEPOINT,
+    RECORD_SAFEPOINT_WITH_REGISTERS
+  };
+
+  void CallCodeGeneric(Handle<Code> code,
+                       RelocInfo::Mode mode,
+                       LInstruction* instr,
+                       SafepointMode safepoint_mode,
+                       int argc);
+
+
   void CallCode(Handle<Code> code,
                 RelocInfo::Mode mode,
                 LInstruction* instr);
+
   void CallRuntime(const Runtime::Function* function,
                    int num_arguments,
                    LInstruction* instr);
+
   void CallRuntime(Runtime::FunctionId id,
                    int num_arguments,
                    LInstruction* instr) {
     const Runtime::Function* function = Runtime::FunctionForId(id);
     CallRuntime(function, num_arguments, instr);
   }
+
+  void CallRuntimeFromDeferred(Runtime::FunctionId id,
+                               int argc,
+                               LInstruction* instr);
+
 
   // Generate a direct call to a known function.  Expects the function
   // to be in edi.
@@ -177,7 +198,9 @@ class LCodeGen BASE_EMBEDDED {
 
   void LoadHeapObject(Register result, Handle<HeapObject> object);
 
-  void RegisterLazyDeoptimization(LInstruction* instr);
+  void RegisterLazyDeoptimization(LInstruction* instr,
+                                  SafepointMode safepoint_mode,
+                                  int argc);
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
 
@@ -191,6 +214,9 @@ class LCodeGen BASE_EMBEDDED {
 
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
+  Operand BuildExternalArrayOperand(LOperand* external_pointer,
+                                    LOperand* key,
+                                    ExternalArrayType array_type);
 
   // Specific math operations - used from DoUnaryMathOperation.
   void EmitIntegerMathAbs(LUnaryMathOperation* instr);
@@ -241,16 +267,17 @@ class LCodeGen BASE_EMBEDDED {
   // Caller should branch on equal condition.
   void EmitIsConstructCall(Register temp);
 
-  void EmitLoadField(Register result,
-                     Register object,
-                     Handle<Map> type,
-                     Handle<String> name);
+  void EmitLoadFieldOrConstantFunction(Register result,
+                                       Register object,
+                                       Handle<Map> type,
+                                       Handle<String> name);
 
-  // Emits code for pushing a constant operand.
-  void EmitPushConstantOperand(LOperand* operand);
+  // Emits code for pushing either a tagged constant, a (non-double)
+  // register, or a stack slot operand.
+  void EmitPushTaggedOperand(LOperand* operand);
 
   struct JumpTableEntry {
-    inline JumpTableEntry(Address entry)
+    explicit inline JumpTableEntry(Address entry)
         : label(),
           address(entry) { }
     Label label;
@@ -280,6 +307,27 @@ class LCodeGen BASE_EMBEDDED {
 
   // Compiler from a set of parallel moves to a sequential list of moves.
   LGapResolver resolver_;
+
+  Safepoint::Kind expected_safepoint_kind_;
+
+  class PushSafepointRegistersScope BASE_EMBEDDED {
+   public:
+    explicit PushSafepointRegistersScope(LCodeGen* codegen)
+        : codegen_(codegen) {
+      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
+      codegen_->masm_->PushSafepointRegisters();
+      codegen_->expected_safepoint_kind_ = Safepoint::kWithRegisters;
+    }
+
+    ~PushSafepointRegistersScope() {
+      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
+      codegen_->masm_->PopSafepointRegisters();
+      codegen_->expected_safepoint_kind_ = Safepoint::kSimple;
+    }
+
+   private:
+    LCodeGen* codegen_;
+  };
 
   friend class LDeferredCode;
   friend class LEnvironment;

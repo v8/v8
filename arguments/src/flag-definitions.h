@@ -96,6 +96,9 @@ private:
 //
 #define FLAG FLAG_FULL
 
+// Flags for experimental language features.
+DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
+
 // Flags for Crankshaft.
 #ifdef V8_TARGET_ARCH_MIPS
   DEFINE_bool(crankshaft, false, "use crankshaft")
@@ -144,7 +147,6 @@ DEFINE_bool(optimize_closures, true, "optimize closures")
 DEFINE_bool(debug_code, false,
             "generate extra code (assertions) for debugging")
 DEFINE_bool(code_comments, false, "emit comments in code disassembly")
-DEFINE_bool(emit_branch_hints, false, "emit branch hints")
 DEFINE_bool(peephole_optimization, true,
             "perform peephole optimizations in assembly code")
 DEFINE_bool(print_peephole_optimization, false,
@@ -162,7 +164,8 @@ DEFINE_bool(enable_rdtsc, true,
 DEFINE_bool(enable_sahf, true,
             "enable use of SAHF instruction if available (X64 only)")
 DEFINE_bool(enable_vfp3, true,
-            "enable use of VFP3 instructions if available (ARM only)")
+            "enable use of VFP3 instructions if available - this implies "
+            "enabling ARMv7 instructions (ARM only)")
 DEFINE_bool(enable_armv7, true,
             "enable use of ARMv7 instructions if available (ARM only)")
 DEFINE_bool(enable_fpu, true,
@@ -218,6 +221,8 @@ DEFINE_bool(use_flow_graph, false, "perform flow-graph based optimizations")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
+
+DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
 
 // data-flow.cc
 DEFINE_bool(loop_peeling, false, "Peel off the first iteration of loops.")
@@ -282,10 +287,9 @@ DEFINE_bool(native_code_counters, false,
 DEFINE_bool(always_compact, false, "Perform compaction on every full GC")
 DEFINE_bool(never_compact, false,
             "Never perform compaction on full GC - testing only")
-DEFINE_bool(cleanup_ics_at_gc, true,
-            "Flush inline caches prior to mark compact collection.")
-DEFINE_bool(cleanup_caches_in_maps_at_gc, true,
-            "Flush code caches in maps during mark compact cycle.")
+DEFINE_bool(cleanup_code_caches_at_gc, true,
+            "Flush inline caches prior to mark compact collection and "
+            "flush code caches in maps during mark compact cycle.")
 DEFINE_int(random_seed, 0,
            "Default seed for initializing random generator "
            "(0, the default, means to use system random).")
@@ -322,7 +326,7 @@ DEFINE_int(stop_sim_at, 0, "Simulator stop after x number of instructions")
 DEFINE_int(sim_stack_alignment, 8,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")
 
-// top.cc
+// isolate.cc
 DEFINE_bool(trace_exception, false,
             "print stack trace when throwing exceptions")
 DEFINE_bool(preallocate_message_memory, false,

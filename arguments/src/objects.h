@@ -28,7 +28,9 @@
 #ifndef V8_OBJECTS_H_
 #define V8_OBJECTS_H_
 
+#include "allocation.h"
 #include "builtins.h"
+#include "list.h"
 #include "smart-pointer.h"
 #include "unicode-inl.h"
 #if V8_TARGET_ARCH_ARM
@@ -89,7 +91,8 @@
 //       - Code
 //       - Map
 //       - Oddball
-//       - Proxy
+//       - JSProxy
+//       - Foreign
 //       - SharedFunctionInfo
 //       - Struct
 //         - AccessorInfo
@@ -167,7 +170,7 @@ class PropertyDetails BASE_EMBEDDED {
   }
 
   // Conversion for storing details as Object*.
-  inline PropertyDetails(Smi* smi);
+  explicit inline PropertyDetails(Smi* smi);
   inline Smi* AsSmi();
 
   PropertyType type() { return TypeField::decode(value_); }
@@ -286,7 +289,8 @@ static const int kVariableSizeSentinel = 0;
   V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
                                                                                \
   V(HEAP_NUMBER_TYPE)                                                          \
-  V(PROXY_TYPE)                                                                \
+  V(JS_PROXY_TYPE)                                                             \
+  V(FOREIGN_TYPE)                                                              \
   V(BYTE_ARRAY_TYPE)                                                           \
   /* Note: the order of these external array */                                \
   /* types is relied upon in */                                                \
@@ -484,7 +488,6 @@ const uint32_t kShortcutTypeTag = kConsStringTag;
 
 enum InstanceType {
   // String types.
-  // FIRST_STRING_TYPE
   SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kSeqStringTag,
   ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kSeqStringTag,
   CONS_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kConsStringTag,
@@ -514,7 +517,8 @@ enum InstanceType {
   // "Data", objects that cannot contain non-map-word pointers to heap
   // objects.
   HEAP_NUMBER_TYPE,
-  PROXY_TYPE,
+  FOREIGN_TYPE,
+  JS_PROXY_TYPE,
   BYTE_ARRAY_TYPE,
   EXTERNAL_BYTE_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
   EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE,
@@ -523,6 +527,7 @@ enum InstanceType {
   EXTERNAL_INT_ARRAY_TYPE,
   EXTERNAL_UNSIGNED_INT_ARRAY_TYPE,
   EXTERNAL_FLOAT_ARRAY_TYPE,
+  EXTERNAL_DOUBLE_ARRAY_TYPE,
   EXTERNAL_PIXEL_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
   FILLER_TYPE,  // LAST_DATA_TYPE
 
@@ -566,8 +571,6 @@ enum InstanceType {
   LAST_TYPE = JS_FUNCTION_TYPE,
   INVALID_TYPE = FIRST_TYPE - 1,
   FIRST_NONSTRING_TYPE = MAP_TYPE,
-  FIRST_STRING_TYPE = FIRST_TYPE,
-  LAST_STRING_TYPE = FIRST_NONSTRING_TYPE - 1,
   // Boundaries for testing for an external array.
   FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_BYTE_ARRAY_TYPE,
   LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_PIXEL_ARRAY_TYPE,
@@ -588,7 +591,7 @@ static const int kExternalArrayTypeCount = LAST_EXTERNAL_ARRAY_TYPE -
 
 STATIC_CHECK(JS_OBJECT_TYPE == Internals::kJSObjectType);
 STATIC_CHECK(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
-STATIC_CHECK(PROXY_TYPE == Internals::kProxyType);
+STATIC_CHECK(FOREIGN_TYPE == Internals::kForeignType);
 
 
 enum CompareResult {
@@ -626,6 +629,7 @@ struct ValueInfo : public Malloced {
 // A template-ized version of the IsXXX functions.
 template <class C> static inline bool Is(Object* obj);
 
+class Failure;
 
 class MaybeObject BASE_EMBEDDED {
  public:
@@ -639,6 +643,10 @@ class MaybeObject BASE_EMBEDDED {
     *obj = reinterpret_cast<Object*>(this);
     return true;
   }
+  inline Failure* ToFailureUnchecked() {
+    ASSERT(IsFailure());
+    return reinterpret_cast<Failure*>(this);
+  }
   inline Object* ToObjectUnchecked() {
     ASSERT(!IsFailure());
     return reinterpret_cast<Object*>(this);
@@ -646,6 +654,13 @@ class MaybeObject BASE_EMBEDDED {
   inline Object* ToObjectChecked() {
     CHECK(!IsFailure());
     return reinterpret_cast<Object*>(this);
+  }
+
+  template<typename T>
+  inline bool To(T** obj) {
+    if (IsFailure()) return false;
+    *obj = T::cast(reinterpret_cast<Object*>(this));
+    return true;
   }
 
 #ifdef OBJECT_PRINT
@@ -691,6 +706,7 @@ class MaybeObject BASE_EMBEDDED {
   V(ExternalIntArray)                          \
   V(ExternalUnsignedIntArray)                  \
   V(ExternalFloatArray)                        \
+  V(ExternalDoubleArray)                       \
   V(ExternalPixelArray)                        \
   V(ByteArray)                                 \
   V(JSObject)                                  \
@@ -710,9 +726,10 @@ class MaybeObject BASE_EMBEDDED {
   V(JSValue)                                   \
   V(JSMessageObject)                           \
   V(StringWrapper)                             \
-  V(Proxy)                                     \
+  V(Foreign)                                   \
   V(Boolean)                                   \
   V(JSArray)                                   \
+  V(JSProxy)                                   \
   V(JSRegExp)                                  \
   V(HashTable)                                 \
   V(Dictionary)                                \
@@ -797,6 +814,9 @@ class Object : public MaybeObject {
                                                        Object* structure,
                                                        String* name,
                                                        Object* holder);
+  MUST_USE_RESULT MaybeObject* GetPropertyWithHandler(Object* receiver,
+                                                      String* name,
+                                                      Object* handler);
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
                                                             JSFunction* getter);
 
@@ -1293,14 +1313,9 @@ class HeapNumber: public HeapObject {
   // is a mixture of sign, exponent and mantissa.  Our current platforms are all
   // little endian apart from non-EABI arm which is little endian with big
   // endian floating point word ordering!
-#if !defined(V8_HOST_ARCH_ARM) || defined(USE_ARM_EABI)
   static const int kMantissaOffset = kValueOffset;
   static const int kExponentOffset = kValueOffset + 4;
-#else
-  static const int kMantissaOffset = kValueOffset + 4;
-  static const int kExponentOffset = kValueOffset;
-# define BIG_ENDIAN_FLOATING_POINT 1
-#endif
+
   static const int kSize = kValueOffset + kDoubleSize;
   static const uint32_t kSignMask = 0x80000000u;
   static const uint32_t kExponentMask = 0x7ff00000u;
@@ -1342,6 +1357,7 @@ class JSObject: public HeapObject {
     EXTERNAL_INT_ELEMENTS,
     EXTERNAL_UNSIGNED_INT_ELEMENTS,
     EXTERNAL_FLOAT_ELEMENTS,
+    EXTERNAL_DOUBLE_ELEMENTS,
     EXTERNAL_PIXEL_ELEMENTS
   };
 
@@ -1386,6 +1402,7 @@ class JSObject: public HeapObject {
   inline bool HasExternalIntElements();
   inline bool HasExternalUnsignedIntElements();
   inline bool HasExternalFloatElements();
+  inline bool HasExternalDoubleElements();
   bool HasFastArgumentsElements();
   bool HasDictionaryArgumentsElements();
   inline bool AllowsSetElementsLength();
@@ -2604,6 +2621,9 @@ class Dictionary: public HashTable<Shape, Key> {
   // Sets the entry to (key, value) pair.
   inline void SetEntry(int entry,
                        Object* key,
+                       Object* value);
+  inline void SetEntry(int entry,
+                       Object* key,
                        Object* value,
                        PropertyDetails details);
 
@@ -3123,6 +3143,34 @@ class ExternalFloatArray: public ExternalArray {
 };
 
 
+class ExternalDoubleArray: public ExternalArray {
+ public:
+  // Setter and getter.
+  inline double get(int index);
+  inline void set(int index, double value);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
+  MaybeObject* SetValue(uint32_t index, Object* value);
+
+  // Casting.
+  static inline ExternalDoubleArray* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  inline void ExternalDoubleArrayPrint() {
+    ExternalDoubleArrayPrint(stdout);
+  }
+  void ExternalDoubleArrayPrint(FILE* out);
+#endif  // OBJECT_PRINT
+#ifdef DEBUG
+  void ExternalDoubleArrayVerify();
+#endif  // DEBUG
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalDoubleArray);
+};
+
+
 // DeoptimizationInputData is a fixed array used to hold the deoptimization
 // data for code generated by the Hydrogen/Lithium compiler.  It also
 // contains information about functions that were inlined.  If N different
@@ -3261,13 +3309,11 @@ class Code: public HeapObject {
     BUILTIN,
     LOAD_IC,
     KEYED_LOAD_IC,
-    KEYED_EXTERNAL_ARRAY_LOAD_IC,
     CALL_IC,
     KEYED_CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
-    KEYED_EXTERNAL_ARRAY_STORE_IC,
-    BINARY_OP_IC,
+    TYPE_RECORDING_UNARY_OP_IC,
     TYPE_RECORDING_BINARY_OP_IC,
     COMPARE_IC,
     // No more than 16 kinds. The value currently encoded in four bits in
@@ -3310,6 +3356,12 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
+  // [code_flushing_candidate]: Field only used during garbage
+  // collection to hold code flushing candidates. The contents of this
+  // field does not have to be traced during garbage collection since
+  // it is only used by the garbage collector itself.
+  DECL_ACCESSORS(next_code_flushing_candidate, Object)
+
   // Unchecked accessors to be used during GC.
   inline ByteArray* unchecked_relocation_info();
   inline FixedArray* unchecked_deoptimization_data();
@@ -3336,17 +3388,13 @@ class Code: public HeapObject {
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
   inline bool is_call_stub() { return kind() == CALL_IC; }
   inline bool is_keyed_call_stub() { return kind() == KEYED_CALL_IC; }
-  inline bool is_binary_op_stub() { return kind() == BINARY_OP_IC; }
+  inline bool is_type_recording_unary_op_stub() {
+    return kind() == TYPE_RECORDING_UNARY_OP_IC;
+  }
   inline bool is_type_recording_binary_op_stub() {
     return kind() == TYPE_RECORDING_BINARY_OP_IC;
   }
   inline bool is_compare_ic_stub() { return kind() == COMPARE_IC; }
-  inline bool is_external_array_load_stub() {
-    return kind() == KEYED_EXTERNAL_ARRAY_LOAD_IC;
-  }
-  inline bool is_external_array_store_stub() {
-    return kind() == KEYED_EXTERNAL_ARRAY_STORE_IC;
-  }
 
   // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline int major_key();
@@ -3394,9 +3442,9 @@ class Code: public HeapObject {
   inline ExternalArrayType external_array_type();
   inline void set_external_array_type(ExternalArrayType value);
 
-  // [binary op type]: For all BINARY_OP_IC.
-  inline byte binary_op_type();
-  inline void set_binary_op_type(byte value);
+  // [type-recording unary op type]: For all TYPE_RECORDING_UNARY_OP_IC.
+  inline byte type_recording_unary_op_type();
+  inline void set_type_recording_unary_op_type(byte value);
 
   // [type-recording binary op type]: For all TYPE_RECORDING_BINARY_OP_IC.
   inline byte type_recording_binary_op_type();
@@ -3528,9 +3576,12 @@ class Code: public HeapObject {
   static const int kRelocationInfoOffset = kInstructionSizeOffset + kIntSize;
   static const int kDeoptimizationDataOffset =
       kRelocationInfoOffset + kPointerSize;
-  static const int kFlagsOffset = kDeoptimizationDataOffset + kPointerSize;
-  static const int kKindSpecificFlagsOffset  = kFlagsOffset + kIntSize;
+  static const int kNextCodeFlushingCandidateOffset =
+      kDeoptimizationDataOffset + kPointerSize;
+  static const int kFlagsOffset =
+      kNextCodeFlushingCandidateOffset + kPointerSize;
 
+  static const int kKindSpecificFlagsOffset = kFlagsOffset + kIntSize;
   static const int kKindSpecificFlagsSize = 2 * kIntSize;
 
   static const int kHeaderPaddingStart = kKindSpecificFlagsOffset +
@@ -3549,6 +3600,7 @@ class Code: public HeapObject {
   static const int kExternalArrayTypeOffset = kKindSpecificFlagsOffset;
 
   static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
+  static const int kUnaryOpTypeOffset = kStubMajorKeyOffset + 1;
   static const int kBinaryOpTypeOffset = kStubMajorKeyOffset + 1;
   static const int kHasDeoptimizationSupportOffset = kOptimizableOffset + 1;
 
@@ -3748,6 +3800,16 @@ class Map: public HeapObject {
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
 
+  // [prototype transitions]: cache of prototype transitions.
+  // Prototype transition is a transition that happens
+  // when we change object's prototype to a new one.
+  // Cache format:
+  //    0: finger - index of the first free cell in the cache
+  //    1 + 2 * i: prototype
+  //    2 + 2 * i: target map
+  DECL_ACCESSORS(prototype_transitions, FixedArray)
+  inline FixedArray* unchecked_prototype_transitions();
+
   // Lookup in the map's instance descriptors and fill out the result
   // with the given holder if the name is found. The holder may be
   // NULL when this function is used from the compiler.
@@ -3847,6 +3909,12 @@ class Map: public HeapObject {
 
   void TraverseTransitionTree(TraverseCallback callback, void* data);
 
+  static const int kMaxCachedPrototypeTransitions = 256;
+
+  Object* GetPrototypeTransition(Object* prototype);
+
+  MaybeObject* PutPrototypeTransition(Object* prototype, Map* map);
+
   static const int kMaxPreAllocatedPropertyFields = 255;
 
   // Layout description.
@@ -3857,14 +3925,16 @@ class Map: public HeapObject {
   static const int kInstanceDescriptorsOffset =
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
-  static const int kPadStart = kCodeCacheOffset + kPointerSize;
+  static const int kPrototypeTransitionsOffset =
+      kCodeCacheOffset + kPointerSize;
+  static const int kPadStart = kPrototypeTransitionsOffset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
   // being continiously allocated.
   static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
   static const int kPointerFieldsEndOffset =
-      Map::kCodeCacheOffset + kPointerSize;
+      Map::kPrototypeTransitionsOffset + kPointerSize;
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
@@ -3919,7 +3989,7 @@ class Map: public HeapObject {
 
 
 // An abstract superclass, a marker class really, for simple structure classes.
-// It doesn't carry much functionality but allows struct classes to me
+// It doesn't carry much functionality but allows struct classes to be
 // identified in the type system.
 class Struct: public HeapObject {
  public:
@@ -3967,7 +4037,7 @@ class Script: public Struct {
   DECL_ACCESSORS(context_data, Object)
 
   // [wrapper]: the wrapper cache.
-  DECL_ACCESSORS(wrapper, Proxy)
+  DECL_ACCESSORS(wrapper, Foreign)
 
   // [type]: the script type.
   DECL_ACCESSORS(type, Smi)
@@ -4313,12 +4383,24 @@ class SharedFunctionInfo: public HeapObject {
   // True if the function has any duplicated parameter names.
   DECL_BOOLEAN_ACCESSORS(has_duplicate_parameters)
 
+  // Indicates whether the function is a native ES5 function.
+  // These needs special threatment in .call and .apply since
+  // null passed as the receiver should not be translated to the
+  // global object.
+  inline bool es5_native();
+  inline void set_es5_native(bool value);
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support();
 
   // Enable deoptimization support through recompiled code.
   void EnableDeoptimizationSupport(Code* recompiled);
+
+  // Disable (further) attempted optimization of all functions sharing this
+  // shared function info.  The function is the one we actually tried to
+  // optimize.
+  void DisableOptimization(JSFunction* function);
 
   // Lookup the bailout ID and ASSERT that it exists in the non-optimized
   // code, returns whether it asserted (i.e., always true if assertions are
@@ -4488,6 +4570,7 @@ class SharedFunctionInfo: public HeapObject {
   // Bit positions in compiler_hints.
   static const int kCodeAgeSize = 3;
   static const int kCodeAgeMask = (1 << kCodeAgeSize) - 1;
+  static const int kES5Native = 8;
 
   enum CompilerHints {
     kHasOnlySimpleThisPropertyAssignments,
@@ -4512,18 +4595,27 @@ class SharedFunctionInfo: public HeapObject {
 #endif
 
  public:
-  // Constants for optimizing codegen for strict mode function tests.
+  // Constants for optimizing codegen for strict mode function and
+  // es5 native tests.
   // Allows to use byte-widgh instructions.
   static const int kStrictModeBitWithinByte =
       (kStrictModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
+  static const int kES5NativeBitWithinByte =
+      (kES5Native + kCompilerHintsSmiTagSize) % kBitsPerByte;
+
 #if __BYTE_ORDER == __LITTLE_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
-    (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
+      (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
+  static const int kES5NativeByteOffset = kCompilerHintsOffset +
+      (kES5Native + kCompilerHintsSmiTagSize) / kBitsPerByte;
 #elif __BYTE_ORDER == __BIG_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
-    (kCompilerHintsSize - 1) -
-    ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
+      (kCompilerHintsSize - 1) -
+      ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
+  static const int kES5NativeByteOffset = kCompilerHintsOffset +
+      (kCompilerHintsSize - 1) -
+      ((kES5Native + kCompilerHintsSmiTagSize) / kBitsPerByte);
 #else
 #error Unknown byte ordering
 #endif
@@ -4568,6 +4660,9 @@ class JSFunction: public JSObject {
 
   // Tells whether or not this function has been optimized.
   inline bool IsOptimized();
+
+  // Tells whether or not this function can be optimized.
+  inline bool IsOptimizable();
 
   // Mark this function for lazy recompilation. The function will be
   // recompiled the next time it is executed.
@@ -4694,7 +4789,7 @@ class JSFunction: public JSObject {
 
 class JSGlobalProxy : public JSObject {
  public:
-  // [context]: the owner global context of this proxy object.
+  // [context]: the owner global context of this global proxy object.
   // It is null value if this object is not used by any context.
   DECL_ACCESSORS(context, Object)
 
@@ -5193,7 +5288,7 @@ enum RobustnessFlag {ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL};
 
 class StringHasher {
  public:
-  inline StringHasher(int length);
+  explicit inline StringHasher(int length);
 
   // Returns true if the hash of this string can be computed without
   // looking at the contents.
@@ -5898,8 +5993,8 @@ class Relocatable BASE_EMBEDDED {
 
   static void PostGarbageCollectionProcessing();
   static int ArchiveSpacePerThread();
-  static char* ArchiveState(char* to);
-  static char* RestoreState(char* from);
+  static char* ArchiveState(Isolate* isolate, char* to);
+  static char* RestoreState(Isolate* isolate, char* from);
   static void Iterate(ObjectVisitor* v);
   static void Iterate(ObjectVisitor* v, Relocatable* top);
   static char* Iterate(ObjectVisitor* v, char* t);
@@ -5940,7 +6035,7 @@ class StringInputBuffer: public unibrow::InputBuffer<String, String*, 1024> {
  public:
   virtual void Seek(unsigned pos);
   inline StringInputBuffer(): unibrow::InputBuffer<String, String*, 1024>() {}
-  inline StringInputBuffer(String* backing):
+  explicit inline StringInputBuffer(String* backing):
       unibrow::InputBuffer<String, String*, 1024>(backing) {}
 };
 
@@ -5951,7 +6046,7 @@ class SafeStringInputBuffer
   virtual void Seek(unsigned pos);
   inline SafeStringInputBuffer()
       : unibrow::InputBuffer<String, String**, 256>() {}
-  inline SafeStringInputBuffer(String** backing)
+  explicit inline SafeStringInputBuffer(String** backing)
       : unibrow::InputBuffer<String, String**, 256>(backing) {}
 };
 
@@ -6053,44 +6148,77 @@ class JSGlobalPropertyCell: public HeapObject {
 };
 
 
-
-// Proxy describes objects pointing from JavaScript to C structures.
-// Since they cannot contain references to JS HeapObjects they can be
-// placed in old_data_space.
-class Proxy: public HeapObject {
+// The JSProxy describes EcmaScript Harmony proxies
+class JSProxy: public HeapObject {
  public:
-  // [proxy]: field containing the address.
-  inline Address proxy();
-  inline void set_proxy(Address value);
+  // [handler]: The handler property.
+  DECL_ACCESSORS(handler, Object)
 
   // Casting.
-  static inline Proxy* cast(Object* obj);
+  static inline JSProxy* cast(Object* obj);
 
   // Dispatched behavior.
-  inline void ProxyIterateBody(ObjectVisitor* v);
-
-  template<typename StaticVisitor>
-  inline void ProxyIterateBody();
-
 #ifdef OBJECT_PRINT
-  inline void ProxyPrint() {
-    ProxyPrint(stdout);
+  inline void JSProxyPrint() {
+    JSProxyPrint(stdout);
   }
-  void ProxyPrint(FILE* out);
+  void JSProxyPrint(FILE* out);
 #endif
 #ifdef DEBUG
-  void ProxyVerify();
+  void JSProxyVerify();
+#endif
+
+  // Layout description.
+  static const int kHandlerOffset = HeapObject::kHeaderSize;
+  static const int kSize = kHandlerOffset + kPointerSize;
+
+  typedef FixedBodyDescriptor<kHandlerOffset,
+                              kHandlerOffset + kPointerSize,
+                              kSize> BodyDescriptor;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
+};
+
+
+
+// Foreign describes objects pointing from JavaScript to C structures.
+// Since they cannot contain references to JS HeapObjects they can be
+// placed in old_data_space.
+class Foreign: public HeapObject {
+ public:
+  // [address]: field containing the address.
+  inline Address address();
+  inline void set_address(Address value);
+
+  // Casting.
+  static inline Foreign* cast(Object* obj);
+
+  // Dispatched behavior.
+  inline void ForeignIterateBody(ObjectVisitor* v);
+
+  template<typename StaticVisitor>
+  inline void ForeignIterateBody();
+
+#ifdef OBJECT_PRINT
+  inline void ForeignPrint() {
+    ForeignPrint(stdout);
+  }
+  void ForeignPrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void ForeignVerify();
 #endif
 
   // Layout description.
 
-  static const int kProxyOffset = HeapObject::kHeaderSize;
-  static const int kSize = kProxyOffset + kPointerSize;
+  static const int kAddressOffset = HeapObject::kHeaderSize;
+  static const int kSize = kAddressOffset + kPointerSize;
 
-  STATIC_CHECK(kProxyOffset == Internals::kProxyProxyOffset);
+  STATIC_CHECK(kAddressOffset == Internals::kForeignAddressOffset);
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Proxy);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Foreign);
 };
 
 

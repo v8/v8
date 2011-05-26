@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -64,7 +64,7 @@ TEST(MIPS0) {
   InitializeVM();
   v8::HandleScope scope;
 
-  MacroAssembler assm(NULL, 0);
+  MacroAssembler assm(Isolate::Current(), NULL, 0);
 
   // Addition.
   __ addu(v0, a0, a1);
@@ -89,7 +89,7 @@ TEST(MIPS1) {
   InitializeVM();
   v8::HandleScope scope;
 
-  MacroAssembler assm(NULL, 0);
+  MacroAssembler assm(Isolate::Current(), NULL, 0);
   Label L, C;
 
   __ mov(a1, a0);
@@ -127,7 +127,7 @@ TEST(MIPS2) {
   InitializeVM();
   v8::HandleScope scope;
 
-  MacroAssembler assm(NULL, 0);
+  MacroAssembler assm(Isolate::Current(), NULL, 0);
 
   Label exit, error;
 
@@ -281,10 +281,10 @@ TEST(MIPS3) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles t.a ... t.f.
-  MacroAssembler assm(NULL, 0);
+  MacroAssembler assm(Isolate::Current(), NULL, 0);
   Label L, C;
 
-  if (Isolate::Current()->cpu_features()->IsSupported(FPU)) {
+  if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatures::Scope scope(FPU);
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
@@ -354,10 +354,10 @@ TEST(MIPS4) {
   } T;
   T t;
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
   Label L, C;
 
-  if (Isolate::Current()->cpu_features()->IsSupported(FPU)) {
+  if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatures::Scope scope(FPU);
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
@@ -415,10 +415,10 @@ TEST(MIPS5) {
   } T;
   T t;
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
   Label L, C;
 
-  if (Isolate::Current()->cpu_features()->IsSupported(FPU)) {
+  if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatures::Scope scope(FPU);
 
     // Load all structure elements to registers.
@@ -490,7 +490,7 @@ TEST(MIPS6) {
   } T;
   T t;
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
   Label L, C;
 
   // Basic word load/store.
@@ -563,10 +563,10 @@ TEST(MIPS7) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles t.a ... t.f.
-  MacroAssembler assm(NULL, 0);
+  MacroAssembler assm(Isolate::Current(), NULL, 0);
   Label neither_is_nan, less_than, outa_here;
 
-  if (Isolate::Current()->cpu_features()->IsSupported(FPU)) {
+  if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatures::Scope scope(FPU);
 
     __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
@@ -645,7 +645,7 @@ TEST(MIPS8) {
   } T;
   T t;
 
-  MacroAssembler assm(NULL, 0);
+  MacroAssembler assm(Isolate::Current(), NULL, 0);
 
   // Basic word load.
   __ lw(t0, MemOperand(a0, OFFSET_OF(T, input)) );
@@ -730,7 +730,7 @@ TEST(MIPS9) {
   InitializeVM();
   v8::HandleScope scope;
 
-  MacroAssembler assm(NULL, 0);
+  MacroAssembler assm(Isolate::Current(), NULL, 0);
   Label exit, exit2, exit3;
 
   __ Branch(&exit, ge, a0, Operand(0x00000000));
@@ -771,10 +771,10 @@ TEST(MIPS10) {
   } T;
   T t;
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
   Label L, C;
 
-  if (Isolate::Current()->cpu_features()->IsSupported(FPU)) {
+  if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatures::Scope scope(FPU);
 
     // Load all structure elements to registers.
@@ -855,7 +855,7 @@ TEST(MIPS11) {
   } T;
   T t;
 
-  Assembler assm(NULL, 0);
+  Assembler assm(Isolate::Current(), NULL, 0);
 
   // Test all combinations of LWL and vAddr.
   __ lw(t0, MemOperand(a0, OFFSET_OF(T, reg_init)) );
@@ -986,7 +986,7 @@ TEST(MIPS12) {
   } T;
   T t;
 
-  MacroAssembler assm(NULL, 0);
+  MacroAssembler assm(Isolate::Current(), NULL, 0);
 
   __ mov(t6, fp);  // Save frame pointer.
   __ mov(fp, a0);  // Access struct T by fp.
@@ -996,18 +996,18 @@ TEST(MIPS12) {
   __ addu(t1, t0, t3);
   __ subu(t4, t0, t3);
   __ nop();
-  __ Push(t0);  // These instructions disappear after opt.
+  __ push(t0);  // These instructions disappear after opt.
   __ Pop();
   __ addu(t0, t0, t0);
   __ nop();
   __ Pop();     // These instructions disappear after opt.
-  __ Push(t3);
+  __ push(t3);
   __ nop();
-  __ Push(t3);  // These instructions disappear after opt.
-  __ Pop(t3);
+  __ push(t3);  // These instructions disappear after opt.
+  __ pop(t3);
   __ nop();
-  __ Push(t3);
-  __ Pop(t4);
+  __ push(t3);
+  __ pop(t4);
   __ nop();
   __ sw(t0, MemOperand(fp, OFFSET_OF(T, y)) );
   __ lw(t0, MemOperand(fp, OFFSET_OF(T, y)) );
@@ -1015,25 +1015,25 @@ TEST(MIPS12) {
   __ sw(t0, MemOperand(fp, OFFSET_OF(T, y)) );
   __ lw(t1, MemOperand(fp, OFFSET_OF(T, y)) );
   __ nop();
-  __ Push(t1);
+  __ push(t1);
   __ lw(t1, MemOperand(fp, OFFSET_OF(T, y)) );
-  __ Pop(t1);
+  __ pop(t1);
   __ nop();
-  __ Push(t1);
+  __ push(t1);
   __ lw(t2, MemOperand(fp, OFFSET_OF(T, y)) );
-  __ Pop(t1);
+  __ pop(t1);
   __ nop();
-  __ Push(t1);
+  __ push(t1);
   __ lw(t2, MemOperand(fp, OFFSET_OF(T, y)) );
-  __ Pop(t2);
+  __ pop(t2);
   __ nop();
-  __ Push(t2);
+  __ push(t2);
   __ lw(t2, MemOperand(fp, OFFSET_OF(T, y)) );
-  __ Pop(t1);
+  __ pop(t1);
   __ nop();
-  __ Push(t1);
+  __ push(t1);
   __ lw(t2, MemOperand(fp, OFFSET_OF(T, y)) );
-  __ Pop(t3);
+  __ pop(t3);
   __ nop();
 
   __ mov(fp, t6);
@@ -1077,9 +1077,9 @@ TEST(MIPS13) {
   } T;
   T t;
 
-  MacroAssembler assm(NULL, 0);
+  MacroAssembler assm(Isolate::Current(), NULL, 0);
 
-  if (Isolate::Current()->cpu_features()->IsSupported(FPU)) {
+  if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatures::Scope scope(FPU);
 
     __ sw(t0, MemOperand(a0, OFFSET_OF(T, cvt_small_in)));
@@ -1134,10 +1134,10 @@ TEST(MIPS14) {
   int32_t x##_down_out; \
   int32_t neg_##x##_up_out; \
   int32_t neg_##x##_down_out; \
-  int32_t x##_err1_out; \
-  int32_t x##_err2_out; \
-  int32_t x##_err3_out; \
-  int32_t x##_err4_out; \
+  uint32_t x##_err1_out; \
+  uint32_t x##_err2_out; \
+  uint32_t x##_err3_out; \
+  uint32_t x##_err4_out; \
   int32_t x##_invalid_result;
 
   typedef struct {
@@ -1160,9 +1160,9 @@ TEST(MIPS14) {
 
 #undef ROUND_STRUCT_ELEMENT
 
-  MacroAssembler assm(NULL, 0);
+  MacroAssembler assm(Isolate::Current(), NULL, 0);
 
-  if (Isolate::Current()->cpu_features()->IsSupported(FPU)) {
+  if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatures::Scope scope(FPU);
 
     // Save FCSR.
@@ -1246,20 +1246,20 @@ TEST(MIPS14) {
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
     USE(dummy);
 
-#define GET_FPU_ERR(x) ((x >> 2) & (32 - 1))
+#define GET_FPU_ERR(x) (static_cast<int>((x >> kFCSRFlagShift) & kFCSRFlagMask))
 
     CHECK_EQ(124, t.round_up_out);
     CHECK_EQ(123, t.round_down_out);
     CHECK_EQ(-124, t.neg_round_up_out);
     CHECK_EQ(-123, t.neg_round_down_out);
 
-    // Inaccurate.
-    CHECK_EQ(1, GET_FPU_ERR(t.round_err1_out));
+    // Inexact.
+    CHECK_EQ(kFCSRInexactFlagBit, GET_FPU_ERR(t.round_err1_out));
     // No error.
     CHECK_EQ(0, GET_FPU_ERR(t.round_err2_out));
     // Invalid operation.
-    CHECK_EQ(16, GET_FPU_ERR(t.round_err3_out));
-    CHECK_EQ(16, GET_FPU_ERR(t.round_err4_out));
+    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.round_err3_out));
+    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.round_err4_out));
     CHECK_EQ(kFPUInvalidResult, t.round_invalid_result);
 
     CHECK_EQ(123, t.floor_up_out);
@@ -1267,13 +1267,13 @@ TEST(MIPS14) {
     CHECK_EQ(-124, t.neg_floor_up_out);
     CHECK_EQ(-124, t.neg_floor_down_out);
 
-    // Inaccurate.
-    CHECK_EQ(1, GET_FPU_ERR(t.floor_err1_out));
+    // Inexact.
+    CHECK_EQ(kFCSRInexactFlagBit, GET_FPU_ERR(t.floor_err1_out));
     // No error.
     CHECK_EQ(0, GET_FPU_ERR(t.floor_err2_out));
     // Invalid operation.
-    CHECK_EQ(16, GET_FPU_ERR(t.floor_err3_out));
-    CHECK_EQ(16, GET_FPU_ERR(t.floor_err4_out));
+    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.floor_err3_out));
+    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.floor_err4_out));
     CHECK_EQ(kFPUInvalidResult, t.floor_invalid_result);
 
     CHECK_EQ(124, t.ceil_up_out);
@@ -1281,13 +1281,13 @@ TEST(MIPS14) {
     CHECK_EQ(-123, t.neg_ceil_up_out);
     CHECK_EQ(-123, t.neg_ceil_down_out);
 
-    // Inaccurate.
-    CHECK_EQ(1, GET_FPU_ERR(t.ceil_err1_out));
+    // Inexact.
+    CHECK_EQ(kFCSRInexactFlagBit, GET_FPU_ERR(t.ceil_err1_out));
     // No error.
     CHECK_EQ(0, GET_FPU_ERR(t.ceil_err2_out));
     // Invalid operation.
-    CHECK_EQ(16, GET_FPU_ERR(t.ceil_err3_out));
-    CHECK_EQ(16, GET_FPU_ERR(t.ceil_err4_out));
+    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.ceil_err3_out));
+    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.ceil_err4_out));
     CHECK_EQ(kFPUInvalidResult, t.ceil_invalid_result);
 
     // In rounding mode 0 cvt should behave like round.
@@ -1296,13 +1296,13 @@ TEST(MIPS14) {
     CHECK_EQ(t.neg_round_up_out, t.neg_cvt_up_out);
     CHECK_EQ(t.neg_round_down_out, t.neg_cvt_down_out);
 
-    // Inaccurate.
-    CHECK_EQ(1, GET_FPU_ERR(t.cvt_err1_out));
+    // Inexact.
+    CHECK_EQ(kFCSRInexactFlagBit, GET_FPU_ERR(t.cvt_err1_out));
     // No error.
     CHECK_EQ(0, GET_FPU_ERR(t.cvt_err2_out));
     // Invalid operation.
-    CHECK_EQ(16, GET_FPU_ERR(t.cvt_err3_out));
-    CHECK_EQ(16, GET_FPU_ERR(t.cvt_err4_out));
+    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.cvt_err3_out));
+    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.cvt_err4_out));
     CHECK_EQ(kFPUInvalidResult, t.cvt_invalid_result);
   }
 }

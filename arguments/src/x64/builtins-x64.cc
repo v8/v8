@@ -29,7 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_X64)
 
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "deoptimizer.h"
 #include "full-codegen.h"
 
@@ -96,7 +96,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // rax: number of arguments
   __ bind(&non_function_call);
   // Set expected number of arguments to zero (not changing rax).
-  __ movq(rbx, Immediate(0));
+  __ Set(rbx, 0);
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
@@ -576,15 +576,15 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ SmiToInteger32(rcx, Operand(rsp, 1 * kPointerSize));
 
   // Switch on the state.
-  NearLabel not_no_registers, not_tos_rax;
+  Label not_no_registers, not_tos_rax;
   __ cmpq(rcx, Immediate(FullCodeGenerator::NO_REGISTERS));
-  __ j(not_equal, &not_no_registers);
+  __ j(not_equal, &not_no_registers, Label::kNear);
   __ ret(1 * kPointerSize);  // Remove state.
 
   __ bind(&not_no_registers);
   __ movq(rax, Operand(rsp, 2 * kPointerSize));
   __ cmpq(rcx, Immediate(FullCodeGenerator::TOS_REG));
-  __ j(not_equal, &not_tos_rax);
+  __ j(not_equal, &not_tos_rax, Label::kNear);
   __ ret(2 * kPointerSize);  // Remove state, rax.
 
   __ bind(&not_tos_rax);
@@ -657,6 +657,12 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ testb(FieldOperand(rbx, SharedFunctionInfo::kStrictModeByteOffset),
              Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
     __ j(not_equal, &shift_arguments);
+
+    // Do not transform the receiver for natives.
+    // SharedFunctionInfo is already loaded into rbx.
+    __ testb(FieldOperand(rbx, SharedFunctionInfo::kES5NativeByteOffset),
+             Immediate(1 << SharedFunctionInfo::kES5NativeBitWithinByte));
+    __ j(not_zero, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
     __ movq(rbx, Operand(rsp, rax, times_pointer_size, 0));
@@ -821,6 +827,11 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ testb(FieldOperand(rdx, SharedFunctionInfo::kStrictModeByteOffset),
            Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
   __ j(not_equal, &push_receiver);
+
+  // Do not transform the receiver for natives.
+  __ testb(FieldOperand(rdx, SharedFunctionInfo::kES5NativeByteOffset),
+           Immediate(1 << SharedFunctionInfo::kES5NativeBitWithinByte));
+  __ j(not_zero, &push_receiver);
 
   // Compute the receiver in non-strict mode.
   __ JumpIfSmi(rbx, &call_to_object);
@@ -1372,7 +1383,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(rax, Operand(rbp, rax, times_pointer_size, offset));
-    __ movq(rcx, Immediate(-1));  // account for receiver
+    __ Set(rcx, -1);  // account for receiver
 
     Label copy;
     __ bind(&copy);
@@ -1391,7 +1402,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(rdi, Operand(rbp, rax, times_pointer_size, offset));
-    __ movq(rcx, Immediate(-1));  // account for receiver
+    __ Set(rcx, -1);  // account for receiver
 
     Label copy;
     __ bind(&copy);
@@ -1456,17 +1467,17 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 
   // If the result was -1 it means that we couldn't optimize the
   // function. Just return and continue in the unoptimized version.
-  NearLabel skip;
+  Label skip;
   __ SmiCompare(rax, Smi::FromInt(-1));
-  __ j(not_equal, &skip);
+  __ j(not_equal, &skip, Label::kNear);
   __ ret(0);
 
   // If we decide not to perform on-stack replacement we perform a
   // stack guard check to enable interrupts.
   __ bind(&stack_check);
-  NearLabel ok;
+  Label ok;
   __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
-  __ j(above_equal, &ok);
+  __ j(above_equal, &ok, Label::kNear);
 
   StackCheckStub stub;
   __ TailCallStub(&stub);

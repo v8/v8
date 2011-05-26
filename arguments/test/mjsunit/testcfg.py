@@ -107,7 +107,7 @@ class MjsunitTestCase(test.TestCase):
     return self_script
 
   def AfterRun(self, result):
-    if self.self_script and (not result.HasPreciousOutput()):
+    if self.self_script and (not result or (not result.HasPreciousOutput())):
       test.CheckedUnlink(self.self_script)
 
 class MjsunitTestConfiguration(test.TestConfiguration):

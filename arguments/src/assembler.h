@@ -30,11 +30,12 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 #ifndef V8_ASSEMBLER_H_
 #define V8_ASSEMBLER_H_
 
+#include "allocation.h"
 #include "gdb-jit.h"
 #include "runtime.h"
 #include "token.h"
@@ -42,18 +43,20 @@
 namespace v8 {
 namespace internal {
 
-
+const unsigned kNoASTId = -1;
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.
 
 class AssemblerBase: public Malloced {
  public:
-  explicit AssemblerBase(Isolate* isolate) : isolate_(isolate) {}
+  explicit AssemblerBase(Isolate* isolate);
 
   Isolate* isolate() const { return isolate_; }
+  int jit_cookie() { return jit_cookie_; }
 
  private:
   Isolate* isolate_;
+  int jit_cookie_;
 };
 
 // -----------------------------------------------------------------------------
@@ -64,6 +67,8 @@ class DoubleConstant: public AllStatic {
   static const double min_int;
   static const double one_half;
   static const double minus_zero;
+  static const double zero;
+  static const double uint8_max_value;
   static const double negative_infinity;
   static const double nan;
 };
@@ -77,18 +82,28 @@ class DoubleConstant: public AllStatic {
 
 class Label BASE_EMBEDDED {
  public:
-  INLINE(Label())                 { Unuse(); }
+  enum Distance {
+    kNear, kFar
+  };
+
+  INLINE(Label()) {
+    Unuse();
+    UnuseNear();
+  }
   INLINE(~Label())                { ASSERT(!is_linked()); }
 
   INLINE(void Unuse())            { pos_ = 0; }
+  INLINE(void UnuseNear())        { near_link_pos_ = 0; }
 
   INLINE(bool is_bound() const)  { return pos_ <  0; }
-  INLINE(bool is_unused() const)  { return pos_ == 0; }
+  INLINE(bool is_unused() const)  { return pos_ == 0 && near_link_pos_ == 0; }
   INLINE(bool is_linked() const)  { return pos_ >  0; }
+  INLINE(bool is_near_linked() const) { return near_link_pos_ > 0; }
 
   // Returns the position of bound or linked labels. Cannot be used
   // for unused labels.
   int pos() const;
+  int near_link_pos() const { return near_link_pos_ - 1; }
 
  private:
   // pos_ encodes both the binding state (via its sign)
@@ -99,71 +114,27 @@ class Label BASE_EMBEDDED {
   // pos_ >  0  linked label, pos() returns the last reference position
   int pos_;
 
+  // Behaves like |pos_| in the "> 0" case, but for near jumps to this label.
+  int near_link_pos_;
+
   void bind_to(int pos)  {
     pos_ = -pos - 1;
     ASSERT(is_bound());
   }
-  void link_to(int pos)  {
-    pos_ =  pos + 1;
-    ASSERT(is_linked());
+  void link_to(int pos, Distance distance = kFar) {
+    if (distance == kNear) {
+      near_link_pos_ = pos + 1;
+      ASSERT(is_near_linked());
+    } else {
+      pos_ = pos + 1;
+      ASSERT(is_linked());
+    }
   }
 
   friend class Assembler;
   friend class RegexpAssembler;
   friend class Displacement;
-  friend class ShadowTarget;
   friend class RegExpMacroAssemblerIrregexp;
-};
-
-
-// -----------------------------------------------------------------------------
-// NearLabels are labels used for short jumps (in Intel jargon).
-// NearLabels should be used if it can be guaranteed that the jump range is
-// within -128 to +127. We already use short jumps when jumping backwards,
-// so using a NearLabel will only have performance impact if used for forward
-// jumps.
-class NearLabel BASE_EMBEDDED {
- public:
-  NearLabel() { Unuse(); }
-  ~NearLabel() { ASSERT(!is_linked()); }
-
-  void Unuse() {
-    pos_ = -1;
-    unresolved_branches_ = 0;
-#ifdef DEBUG
-    for (int i = 0; i < kMaxUnresolvedBranches; i++) {
-      unresolved_positions_[i] = -1;
-    }
-#endif
-  }
-
-  int pos() {
-    ASSERT(is_bound());
-    return pos_;
-  }
-
-  bool is_bound() { return pos_ >= 0; }
-  bool is_linked() { return !is_bound() && unresolved_branches_ > 0; }
-  bool is_unused() { return !is_bound() && unresolved_branches_ == 0; }
-
-  void bind_to(int position) {
-    ASSERT(!is_bound());
-    pos_ = position;
-  }
-
-  void link_to(int position) {
-    ASSERT(!is_bound());
-    ASSERT(unresolved_branches_ < kMaxUnresolvedBranches);
-    unresolved_positions_[unresolved_branches_++] = position;
-  }
-
- private:
-  static const int kMaxUnresolvedBranches = 8;
-  int pos_;
-  int unresolved_branches_;
-  int unresolved_positions_[kMaxUnresolvedBranches];
-
-  friend class Assembler;
 };
 
 
@@ -210,10 +181,11 @@ class RelocInfo BASE_EMBEDDED {
 
   enum Mode {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
+    CODE_TARGET,  // Code target which is not any of the above.
+    CODE_TARGET_WITH_ID,
     CONSTRUCT_CALL,  // code target that is a call to a JavaScript constructor.
     CODE_TARGET_CONTEXT,  // Code target used for contextual loads and stores.
     DEBUG_BREAK,  // Code target for the debugger statement.
-    CODE_TARGET,  // Code target which is not any of the above.
     EMBEDDED_OBJECT,
     GLOBAL_PROPERTY_CELL,
 
@@ -229,10 +201,12 @@ class RelocInfo BASE_EMBEDDED {
 
     // add more as needed
     // Pseudo-types
-    NUMBER_OF_MODES,  // must be no greater than 14 - see RelocInfoWriter
+    NUMBER_OF_MODES,  // There are at most 14 modes with noncompact encoding.
     NONE,  // never recorded
-    LAST_CODE_ENUM = CODE_TARGET,
-    LAST_GCED_ENUM = GLOBAL_PROPERTY_CELL
+    LAST_CODE_ENUM = DEBUG_BREAK,
+    LAST_GCED_ENUM = GLOBAL_PROPERTY_CELL,
+    // Modes <= LAST_COMPACT_ENUM are guaranteed to have compact encoding.
+    LAST_COMPACT_ENUM = CODE_TARGET_WITH_ID
   };
 
 
@@ -362,7 +336,8 @@ class RelocInfo BASE_EMBEDDED {
 
   static const int kCodeTargetMask = (1 << (LAST_CODE_ENUM + 1)) - 1;
   static const int kPositionMask = 1 << POSITION | 1 << STATEMENT_POSITION;
-  static const int kDebugMask = kPositionMask | 1 << COMMENT;
+  static const int kDataMask =
+      (1 << CODE_TARGET_WITH_ID) | kPositionMask | (1 << COMMENT);
   static const int kApplyMask;  // Modes affected by apply. Depends on arch.
 
  private:
@@ -381,9 +356,14 @@ class RelocInfo BASE_EMBEDDED {
 // lower addresses.
 class RelocInfoWriter BASE_EMBEDDED {
  public:
-  RelocInfoWriter() : pos_(NULL), last_pc_(NULL), last_data_(0) {}
-  RelocInfoWriter(byte* pos, byte* pc) : pos_(pos), last_pc_(pc),
-                                         last_data_(0) {}
+  RelocInfoWriter() : pos_(NULL),
+                      last_pc_(NULL),
+                      last_id_(0),
+                      last_position_(0) {}
+  RelocInfoWriter(byte* pos, byte* pc) : pos_(pos),
+                                         last_pc_(pc),
+                                         last_id_(0),
+                                         last_position_(0) {}
 
   byte* pos() const { return pos_; }
   byte* last_pc() const { return last_pc_; }
@@ -408,13 +388,15 @@ class RelocInfoWriter BASE_EMBEDDED {
   inline uint32_t WriteVariableLengthPCJump(uint32_t pc_delta);
   inline void WriteTaggedPC(uint32_t pc_delta, int tag);
   inline void WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag);
+  inline void WriteExtraTaggedIntData(int data_delta, int top_tag);
   inline void WriteExtraTaggedData(intptr_t data_delta, int top_tag);
   inline void WriteTaggedData(intptr_t data_delta, int tag);
   inline void WriteExtraTag(int extra_tag, int top_tag);
 
   byte* pos_;
   byte* last_pc_;
-  intptr_t last_data_;
+  int last_id_;
+  int last_position_;
   DISALLOW_COPY_AND_ASSIGN(RelocInfoWriter);
 };
 
@@ -456,12 +438,13 @@ class RelocIterator: public Malloced {
   int GetTopTag();
   void ReadTaggedPC();
   void AdvanceReadPC();
+  void AdvanceReadId();
+  void AdvanceReadPosition();
   void AdvanceReadData();
   void AdvanceReadVariableLengthPCJump();
-  int GetPositionTypeTag();
-  void ReadTaggedData();
-
-  static RelocInfo::Mode DebugInfoModeFromTag(int tag);
+  int GetLocatableTypeTag();
+  void ReadTaggedId();
+  void ReadTaggedPosition();
 
   // If the given mode is wanted, set it in rinfo_ and return true.
   // Else return false. Used for efficiently skipping unwanted modes.
@@ -474,6 +457,8 @@ class RelocIterator: public Malloced {
   RelocInfo rinfo_;
   bool done_;
   int mode_mask_;
+  int last_id_;
+  int last_position_;
   DISALLOW_COPY_AND_ASSIGN(RelocIterator);
 };
 
@@ -502,9 +487,21 @@ class ExternalReference BASE_EMBEDDED {
     // MaybeObject* f(v8::internal::Arguments).
     BUILTIN_CALL,  // default
 
+    // Builtin that takes float arguments and returns an int.
+    // int f(double, double).
+    BUILTIN_COMPARE_CALL,
+
     // Builtin call that returns floating point.
     // double f(double, double).
-    FP_RETURN_CALL,
+    BUILTIN_FP_FP_CALL,
+
+    // Builtin call that returns floating point.
+    // double f(double).
+    BUILTIN_FP_CALL,
+
+    // Builtin call that returns floating point.
+    // double f(double, int).
+    BUILTIN_FP_INT_CALL,
 
     // Direct call to API function callback.
     // Handle<Value> f(v8::Arguments&)
@@ -612,6 +609,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_min_int();
   static ExternalReference address_of_one_half();
   static ExternalReference address_of_minus_zero();
+  static ExternalReference address_of_zero();
+  static ExternalReference address_of_uint8_max_value();
   static ExternalReference address_of_negative_infinity();
   static ExternalReference address_of_nan();
 
@@ -648,10 +647,11 @@ class ExternalReference BASE_EMBEDDED {
 
   // This lets you register a function that rewrites all external references.
   // Used by the ARM simulator to catch calls to external references.
-  static void set_redirector(ExternalReferenceRedirector* redirector) {
+  static void set_redirector(Isolate* isolate,
+                             ExternalReferenceRedirector* redirector) {
     // We can't stack them.
-    ASSERT(Isolate::Current()->external_reference_redirector() == NULL);
-    Isolate::Current()->set_external_reference_redirector(
+    ASSERT(isolate->external_reference_redirector() == NULL);
+    isolate->set_external_reference_redirector(
         reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
   }
 
@@ -817,6 +817,28 @@ static inline int NumberOfBitsSet(uint32_t x) {
 // Computes pow(x, y) with the special cases in the spec for Math.pow.
 double power_double_int(double x, int y);
 double power_double_double(double x, double y);
+
+// Helper class for generating code or data associated with the code
+// right after a call instruction. As an example this can be used to
+// generate safepoint data after calls for crankshaft.
+class CallWrapper {
+ public:
+  CallWrapper() { }
+  virtual ~CallWrapper() { }
+  // Called just before emitting a call. Argument is the size of the generated
+  // call code.
+  virtual void BeforeCall(int call_size) const = 0;
+  // Called just after emitting a call, i.e., at the return site for the call.
+  virtual void AfterCall() const = 0;
+};
+
+class NullCallWrapper : public CallWrapper {
+ public:
+  NullCallWrapper() { }
+  virtual ~NullCallWrapper() { }
+  virtual void BeforeCall(int call_size) const { }
+  virtual void AfterCall() const { }
+};
 
 } }  // namespace v8::internal
 

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,11 +30,11 @@
 #include "accessors.h"
 #include "api.h"
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "compilation-cache.h"
 #include "debug.h"
-#include "heap-profiler.h"
 #include "global-handles.h"
+#include "heap-profiler.h"
 #include "liveobjectlist-inl.h"
 #include "mark-compact.h"
 #include "natives.h"
@@ -127,6 +127,7 @@ Heap::Heap()
       global_gc_prologue_callback_(NULL),
       global_gc_epilogue_callback_(NULL),
       gc_safe_size_of_old_object_(NULL),
+      total_regexp_code_generated_(0),
       tracer_(NULL),
       young_survivors_after_last_gc_(0),
       high_survival_rate_period_length_(0),
@@ -770,11 +771,10 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
   isolate_->counters()->objs_since_last_young()->Set(0);
 
-  if (collector == MARK_COMPACTOR) {
-    DisableAssertNoAllocation allow_allocation;
+  { DisableAssertNoAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     next_gc_likely_to_collect_more =
-        isolate_->global_handles()->PostGarbageCollectionProcessing();
+        isolate_->global_handles()->PostGarbageCollectionProcessing(collector);
   }
 
   // Update relocatables.
@@ -934,6 +934,12 @@ void Heap::CheckNewSpaceExpansionCriteria() {
 }
 
 
+static bool IsUnscavengedHeapObject(Heap* heap, Object** p) {
+  return heap->InNewSpace(*p) &&
+      !HeapObject::cast(*p)->map_word().IsForwardingAddress();
+}
+
+
 void Heap::Scavenge() {
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
@@ -1028,6 +1034,11 @@ void Heap::Scavenge() {
   scavenge_visitor.VisitPointer(BitCast<Object**>(&global_contexts_list_));
 
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
+  isolate_->global_handles()->IdentifyWeakIndependentHandles(
+      &IsUnscavengedHeapObject);
+  isolate_->global_handles()->IterateWeakIndependentRoots(&scavenge_visitor);
+  new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
+
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
@@ -1347,7 +1358,7 @@ class ScavengingVisitor : public StaticVisitorBase {
 #if defined(ENABLE_LOGGING_AND_PROFILING)
       Isolate* isolate = heap->isolate();
       if (isolate->logger()->is_logging() ||
-          isolate->cpu_profiler()->is_profiling()) {
+          CpuProfiler::is_profiling(isolate)) {
         if (target->IsSharedFunctionInfo()) {
           PROFILE(isolate, SharedFunctionInfoMoveEvent(
               source->address(), target->address()));
@@ -1522,8 +1533,8 @@ void Heap::SwitchScavengingVisitorsTableIfProfilingWasEnabled() {
     return;
   }
 
-  if (isolate()->logger()->is_logging() ||
-      isolate()->cpu_profiler()->is_profiling() ||
+  if (isolate()->logger()->is_logging() |
+      CpuProfiler::is_profiling(isolate()) ||
       (isolate()->heap_profiler() != NULL &&
        isolate()->heap_profiler()->is_profiling())) {
     // If one of the isolates is doing scavenge at this moment of time
@@ -1594,6 +1605,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_pre_allocated_property_fields(0);
   map->set_instance_descriptors(empty_descriptor_array());
   map->set_code_cache(empty_fixed_array());
+  map->set_prototype_transitions(empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2((1 << Map::kIsExtensible) | (1 << Map::kHasFastElements));
@@ -1686,12 +1698,15 @@ bool Heap::CreateInitialMaps() {
   // Fix the instance_descriptors for the existing maps.
   meta_map()->set_instance_descriptors(empty_descriptor_array());
   meta_map()->set_code_cache(empty_fixed_array());
+  meta_map()->set_prototype_transitions(empty_fixed_array());
 
   fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
   fixed_array_map()->set_code_cache(empty_fixed_array());
+  fixed_array_map()->set_prototype_transitions(empty_fixed_array());
 
   oddball_map()->set_instance_descriptors(empty_descriptor_array());
   oddball_map()->set_code_cache(empty_fixed_array());
+  oddball_map()->set_prototype_transitions(empty_fixed_array());
 
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
@@ -1715,10 +1730,10 @@ bool Heap::CreateInitialMaps() {
   }
   set_heap_number_map(Map::cast(obj));
 
-  { MaybeObject* maybe_obj = AllocateMap(PROXY_TYPE, Proxy::kSize);
+  { MaybeObject* maybe_obj = AllocateMap(FOREIGN_TYPE, Foreign::kSize);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_proxy_map(Map::cast(obj));
+  set_foreign_map(Map::cast(obj));
 
   for (unsigned i = 0; i < ARRAY_SIZE(string_type_table); i++) {
     const StringTypeTable& entry = string_type_table[i];
@@ -1805,6 +1820,12 @@ bool Heap::CreateInitialMaps() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_non_strict_arguments_elements_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateMap(EXTERNAL_DOUBLE_ARRAY_TYPE,
+                                         ExternalArray::kAlignedSize);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_external_double_array_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateMap(CODE_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -2103,12 +2124,12 @@ bool Heap::CreateInitialObjects() {
   }
   hidden_symbol_ = String::cast(obj);
 
-  // Allocate the proxy for __proto__.
+  // Allocate the foreign for __proto__.
   { MaybeObject* maybe_obj =
-        AllocateProxy((Address) &Accessors::ObjectPrototype);
+        AllocateForeign((Address) &Accessors::ObjectPrototype);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_prototype_accessors(Proxy::cast(obj));
+  set_prototype_accessors(Foreign::cast(obj));
 
   // Allocate the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
@@ -2294,6 +2315,8 @@ Heap::RootListIndex Heap::RootIndexForExternalArrayType(
       return kExternalUnsignedIntArrayMapRootIndex;
     case kExternalFloatArray:
       return kExternalFloatArrayMapRootIndex;
+    case kExternalDoubleArray:
+      return kExternalDoubleArrayMapRootIndex;
     case kExternalPixelArray:
       return kExternalPixelArrayMapRootIndex;
     default:
@@ -2324,16 +2347,16 @@ MaybeObject* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
 }
 
 
-MaybeObject* Heap::AllocateProxy(Address proxy, PretenureFlag pretenure) {
-  // Statically ensure that it is safe to allocate proxies in paged spaces.
-  STATIC_ASSERT(Proxy::kSize <= Page::kMaxHeapObjectSize);
+MaybeObject* Heap::AllocateForeign(Address address, PretenureFlag pretenure) {
+  // Statically ensure that it is safe to allocate foreigns in paged spaces.
+  STATIC_ASSERT(Foreign::kSize <= Page::kMaxHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   Object* result;
-  { MaybeObject* maybe_result = Allocate(proxy_map(), space);
+  { MaybeObject* maybe_result = Allocate(foreign_map(), space);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  Proxy::cast(result)->set_proxy(proxy);
+  Foreign::cast(result)->set_address(address);
   return result;
 }
 
@@ -2371,6 +2394,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_num_literals(0);
   share->set_end_position(0);
   share->set_function_token_position(0);
+  share->set_es5_native(false);
   return result;
 }
 
@@ -2793,6 +2817,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
   code->set_deoptimization_data(empty_fixed_array());
+  code->set_next_code_flushing_candidate(undefined_value());
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_reference.is_null()) {
@@ -3205,6 +3230,26 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
 }
 
 
+MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
+  // Allocate map.
+  // TODO(rossberg): Once we optimize proxies, think about a scheme to share
+  // maps. Will probably depend on the identity of the handler object, too.
+  Map* map;
+  MaybeObject* maybe_map_obj = AllocateMap(JS_PROXY_TYPE, JSProxy::kSize);
+  if (!maybe_map_obj->To<Map>(&map)) return maybe_map_obj;
+  map->set_prototype(prototype);
+  map->set_pre_allocated_property_fields(1);
+  map->set_inobject_properties(1);
+
+  // Allocate the proxy object.
+  Object* result;
+  MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
+  if (!maybe_result->ToObject(&result)) return maybe_result;
+  JSProxy::cast(result)->set_handler(handler);
+  return result;
+}
+
+
 MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   ASSERT(constructor->has_initial_map());
   Map* map = constructor->initial_map();
@@ -3237,7 +3282,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   // Fill these accessors into the dictionary.
   DescriptorArray* descs = map->instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    PropertyDetails details = descs->GetDetails(i);
+    PropertyDetails details(descs->GetDetails(i));
     ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
     PropertyDetails d =
         PropertyDetails(details.attributes(), CALLBACKS, details.index());
@@ -3392,8 +3437,8 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
   const uc32 kMaxSupportedChar = 0xFFFF;
   // Count the number of characters in the UTF-8 string and check if
   // it is an ASCII string.
-  Access<ScannerConstants::Utf8Decoder>
-      decoder(isolate_->scanner_constants()->utf8_decoder());
+  Access<UnicodeCache::Utf8Decoder>
+      decoder(isolate_->unicode_cache()->utf8_decoder());
   decoder->Reset(string.start(), string.length());
   int chars = 0;
   while (decoder->has_more()) {
@@ -4462,7 +4507,8 @@ void Heap::IterateRoots(ObjectVisitor* v, VisitMode mode) {
 void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointer(reinterpret_cast<Object**>(&roots_[kSymbolTableRootIndex]));
   v->Synchronize("symbol_table");
-  if (mode != VISIT_ALL_IN_SCAVENGE) {
+  if (mode != VISIT_ALL_IN_SCAVENGE &&
+      mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     // Scavenge collections have special processing for this.
     external_string_table_.Iterate(v);
   }
@@ -4498,16 +4544,24 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   // Iterate over the builtin code objects and code stubs in the
   // heap. Note that it is not necessary to iterate over code objects
   // on scavenge collections.
-  if (mode != VISIT_ALL_IN_SCAVENGE) {
+  if (mode != VISIT_ALL_IN_SCAVENGE &&
+      mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     isolate_->builtins()->IterateBuiltins(v);
   }
   v->Synchronize("builtins");
 
   // Iterate over global handles.
-  if (mode == VISIT_ONLY_STRONG) {
-    isolate_->global_handles()->IterateStrongRoots(v);
-  } else {
-    isolate_->global_handles()->IterateAllRoots(v);
+  switch (mode) {
+    case VISIT_ONLY_STRONG:
+      isolate_->global_handles()->IterateStrongRoots(v);
+      break;
+    case VISIT_ALL_IN_SCAVENGE:
+      isolate_->global_handles()->IterateStrongAndDependentRoots(v);
+      break;
+    case VISIT_ALL_IN_SWEEP_NEWSPACE:
+    case VISIT_ALL:
+      isolate_->global_handles()->IterateAllRoots(v);
+      break;
   }
   v->Synchronize("globalhandles");
 

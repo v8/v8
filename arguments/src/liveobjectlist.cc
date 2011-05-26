@@ -118,7 +118,7 @@ typedef int (*RawComparer)(const void*, const void*);
   v(Code, "meta: Code") \
   v(Map, "meta: Map") \
   v(Oddball, "Oddball") \
-  v(Proxy, "meta: Proxy") \
+  v(Foreign, "meta: Foreign") \
   v(SharedFunctionInfo, "meta: SharedFunctionInfo") \
   v(Struct, "meta: Struct") \
   \

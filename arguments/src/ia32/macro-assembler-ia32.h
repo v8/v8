@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,7 +29,7 @@
 #define V8_IA32_MACRO_ASSEMBLER_IA32_H_
 
 #include "assembler.h"
-#include "type-info.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
@@ -45,13 +45,10 @@ enum AllocationFlags {
   RESULT_CONTAINS_TOP = 1 << 1
 };
 
+
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.
 typedef Operand MemOperand;
-
-// Forward declaration.
-class JumpTarget;
-class PostCallGenerator;
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
@@ -74,11 +71,11 @@ class MacroAssembler: public Assembler {
 
   // Check if object is in new space.
   // scratch can be object itself, but it will be clobbered.
-  template <typename LabelType>
   void InNewSpace(Register object,
                   Register scratch,
                   Condition cc,  // equal for new space, not_equal otherwise.
-                  LabelType* branch);
+                  Label* branch,
+                  Label::Distance branch_near = Label::kFar);
 
   // For page containing |object| mark region covering [object+offset]
   // dirty. |object| is the object being stored into, |value| is the
@@ -161,32 +158,32 @@ class MacroAssembler: public Assembler {
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  PostCallGenerator* post_call_generator = NULL);
+                  const CallWrapper& call_wrapper = NullCallWrapper());
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
                   InvokeFlag flag,
-                  PostCallGenerator* post_call_generator = NULL);
+                  const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id,
                      InvokeFlag flag,
-                     PostCallGenerator* post_call_generator = NULL);
+                     const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, Builtins::JavaScript id);
@@ -198,6 +195,11 @@ class MacroAssembler: public Assembler {
   void Set(Register dst, const Immediate& x);
   void Set(const Operand& dst, const Immediate& x);
 
+  // Support for constant splitting.
+  bool IsUnsafeImmediate(const Immediate& x);
+  void SafeSet(Register dst, const Immediate& x);
+  void SafePush(const Immediate& x);
+
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
   void CmpObjectType(Register heap_object, InstanceType type, Register map);
@@ -205,13 +207,21 @@ class MacroAssembler: public Assembler {
   // Compare instance type for map.
   void CmpInstanceType(Register map, InstanceType type);
 
-  // Check if the map of an object is equal to a specified map and
-  // branch to label if not. Skip the smi check if not required
-  // (object is known to be a heap object)
+  // Check if the map of an object is equal to a specified map and branch to
+  // label if not. Skip the smi check if not required (object is known to be a
+  // heap object)
   void CheckMap(Register obj,
                 Handle<Map> map,
                 Label* fail,
-                bool is_heap_object);
+                SmiCheckType smi_check_type);
+
+  // Check if the map of an object is equal to a specified map and branch to a
+  // specified target if equal. Skip the smi check if not required (object is
+  // known to be a heap object)
+  void DispatchMap(Register obj,
+                   Handle<Map> map,
+                   Handle<Code> success,
+                   SmiCheckType smi_check_type);
 
   // Check if the object in register heap_object is a string. Afterwards the
   // register map contains the object map and the register instance_type
@@ -238,6 +248,13 @@ class MacroAssembler: public Assembler {
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();
 
+  void ClampUint8(Register reg);
+
+  void ClampDoubleToUint8(XMMRegister input_reg,
+                          XMMRegister scratch_reg,
+                          Register result_reg);
+
+
   // Smi tagging support.
   void SmiTag(Register reg) {
     ASSERT(kSmiTag == 0);
@@ -246,16 +263,6 @@ class MacroAssembler: public Assembler {
   }
   void SmiUntag(Register reg) {
     sar(reg, kSmiTagSize);
-  }
-
-  // Modifies the register even if it does not contain a Smi!
-  void SmiUntag(Register reg, TypeInfo info, Label* non_smi) {
-    ASSERT(kSmiTagSize == 1);
-    sar(reg, kSmiTagSize);
-    if (info.IsSmi()) {
-      ASSERT(kSmiTag == 0);
-      j(carry, non_smi);
-    }
   }
 
   // Modifies the register even if it does not contain a Smi!
@@ -269,24 +276,13 @@ class MacroAssembler: public Assembler {
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label) {
     test(value, Immediate(kSmiTagMask));
-    j(zero, smi_label, not_taken);
+    j(zero, smi_label);
   }
   // Jump if register contain a non-smi.
   inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
     test(value, Immediate(kSmiTagMask));
-    j(not_zero, not_smi_label, not_taken);
+    j(not_zero, not_smi_label);
   }
-
-  // Assumes input is a heap object.
-  void JumpIfNotNumber(Register reg, TypeInfo info, Label* on_not_number);
-
-  // Assumes input is a heap number.  Jumps on things out of range.  Also jumps
-  // on the min negative int32.  Ignores frational parts.
-  void ConvertToInt32(Register dst,
-                      Register src,      // Can be the same as dst.
-                      Register scratch,  // Can be no_reg or dst, but not src.
-                      TypeInfo info,
-                      Label* on_not_int32);
 
   void LoadPowerOf2(XMMRegister dst, Register scratch, int power);
 
@@ -424,12 +420,6 @@ class MacroAssembler: public Assembler {
   // Check if result is zero and op is negative.
   void NegativeZeroTest(Register result, Register op, Label* then_label);
 
-  // Check if result is zero and op is negative in code using jump targets.
-  void NegativeZeroTest(CodeGenerator* cgen,
-                        Register result,
-                        Register op,
-                        JumpTarget* then_target);
-
   // Check if result is zero and any of op1 and op2 are negative.
   // Register scratch is destroyed, and it must be different from op2.
   void NegativeZeroTest(Register result, Register op1, Register op2,
@@ -459,7 +449,7 @@ class MacroAssembler: public Assembler {
   // Runtime calls
 
   // Call a code stub.  Generate the code if necessary.
-  void CallStub(CodeStub* stub);
+  void CallStub(CodeStub* stub, unsigned ast_id = kNoASTId);
 
   // Call a code stub and return the code object called.  Try to generate
   // the code if necessary.  Do not perform a GC but instead return a retry
@@ -642,6 +632,10 @@ class MacroAssembler: public Assembler {
                                            Register scratch2,
                                            Label* on_not_flat_ascii_strings);
 
+  static int SafepointRegisterStackIndex(Register reg) {
+    return SafepointRegisterStackIndex(reg.code());
+  }
+
  private:
   bool generating_stub_;
   bool allow_stub_calls_;
@@ -653,9 +647,10 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& actual,
                       Handle<Code> code_constant,
                       const Operand& code_operand,
-                      NearLabel* done,
+                      Label* done,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      Label::Distance done_near = Label::kFar,
+                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -690,33 +685,6 @@ class MacroAssembler: public Assembler {
 };
 
 
-template <typename LabelType>
-void MacroAssembler::InNewSpace(Register object,
-                                Register scratch,
-                                Condition cc,
-                                LabelType* branch) {
-  ASSERT(cc == equal || cc == not_equal);
-  if (Serializer::enabled()) {
-    // Can't do arithmetic on external references if it might get serialized.
-    mov(scratch, Operand(object));
-    // The mask isn't really an address.  We load it as an external reference in
-    // case the size of the new space is different between the snapshot maker
-    // and the running system.
-    and_(Operand(scratch),
-         Immediate(ExternalReference::new_space_mask(isolate())));
-    cmp(Operand(scratch),
-        Immediate(ExternalReference::new_space_start(isolate())));
-    j(cc, branch);
-  } else {
-    int32_t new_space_start = reinterpret_cast<int32_t>(
-        ExternalReference::new_space_start(isolate()).address());
-    lea(scratch, Operand(object, -new_space_start));
-    and_(scratch, isolate()->heap()->NewSpaceMask());
-    j(cc, branch);
-  }
-}
-
-
 // The code patcher is used to patch (typically) small parts of code e.g. for
 // debugging and other types of instrumentation. When using the code patcher
 // the exact number of bytes specified must be emitted. Is not legal to emit
@@ -734,17 +702,6 @@ class CodePatcher {
   byte* address_;  // The address of the code being patched.
   int size_;  // Number of bytes of the expected patch size.
   MacroAssembler masm_;  // Macro assembler used to generate the code.
-};
-
-
-// Helper class for generating code or data associated with the code
-// right after a call instruction. As an example this can be used to
-// generate safepoint data after calls for crankshaft.
-class PostCallGenerator {
- public:
-  PostCallGenerator() { }
-  virtual ~PostCallGenerator() { }
-  virtual void Generate() = 0;
 };
 
 

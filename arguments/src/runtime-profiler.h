@@ -40,18 +40,16 @@ class Object;
 class PendingListNode;
 class Semaphore;
 
-
-enum SamplerState {
-  IN_NON_JS_STATE = 0,
-  IN_JS_STATE = 1
-};
-
-
 class RuntimeProfiler {
  public:
   explicit RuntimeProfiler(Isolate* isolate);
 
-  static bool IsEnabled();
+  static void GlobalSetup();
+
+  static inline bool IsEnabled() {
+    ASSERT(has_been_globally_setup_);
+    return enabled_;
+  }
 
   void OptimizeNow();
   void OptimizeSoon(JSFunction* function);
@@ -101,6 +99,11 @@ class RuntimeProfiler {
   static const int kSamplerWindowSize = 16;
   static const int kStateWindowSize = 128;
 
+  enum SamplerState {
+    IN_NON_JS_STATE = 0,
+    IN_JS_STATE = 1
+  };
+
   static void HandleWakeUp(Isolate* isolate);
 
   void Optimize(JSFunction* function, bool eager, int delay);
@@ -137,6 +140,7 @@ class RuntimeProfiler {
 
   SamplerState state_window_[kStateWindowSize];
   int state_window_position_;
+  int state_window_ticks_;
   int state_counts_[2];
 
   // Possible state values:
@@ -144,6 +148,11 @@ class RuntimeProfiler {
   //   0 or positive => the number of isolates running JavaScript code.
   static Atomic32 state_;
   static Semaphore* semaphore_;
+
+#ifdef DEBUG
+  static bool has_been_globally_setup_;
+#endif
+  static bool enabled_;
 };
 
 

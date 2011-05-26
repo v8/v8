@@ -116,6 +116,9 @@ void HeapObject::HeapObjectVerify() {
     case EXTERNAL_FLOAT_ARRAY_TYPE:
       ExternalFloatArray::cast(this)->ExternalFloatArrayVerify();
       break;
+    case EXTERNAL_DOUBLE_ARRAY_TYPE:
+      ExternalDoubleArray::cast(this)->ExternalDoubleArrayVerify();
+      break;
     case CODE_TYPE:
       Code::cast(this)->CodeVerify();
       break;
@@ -152,8 +155,11 @@ void HeapObject::HeapObjectVerify() {
       break;
     case FILLER_TYPE:
       break;
-    case PROXY_TYPE:
-      Proxy::cast(this)->ProxyVerify();
+    case JS_PROXY_TYPE:
+      JSProxy::cast(this)->JSProxyVerify();
+      break;
+    case FOREIGN_TYPE:
+      Foreign::cast(this)->ForeignVerify();
       break;
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::cast(this)->SharedFunctionInfoVerify();
@@ -229,6 +235,11 @@ void ExternalUnsignedIntArray::ExternalUnsignedIntArrayVerify() {
 
 void ExternalFloatArray::ExternalFloatArrayVerify() {
   ASSERT(IsExternalFloatArray());
+}
+
+
+void ExternalDoubleArray::ExternalDoubleArrayVerify() {
+  ASSERT(IsExternalDoubleArray());
 }
 
 
@@ -453,8 +464,13 @@ void JSRegExp::JSRegExpVerify() {
 }
 
 
-void Proxy::ProxyVerify() {
-  ASSERT(IsProxy());
+void JSProxy::JSProxyVerify() {
+  ASSERT(IsJSProxy());
+  VerifyPointer(handler());
+}
+
+void Foreign::ForeignVerify() {
+  ASSERT(IsForeign());
 }
 
 

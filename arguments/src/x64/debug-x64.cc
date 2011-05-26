@@ -29,7 +29,8 @@
 
 #if defined(V8_TARGET_ARCH_X64)
 
-#include "codegen-inl.h"
+#include "assembler.h"
+#include "codegen.h"
 #include "debug.h"
 
 

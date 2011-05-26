@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,7 +28,9 @@
 #ifndef V8_GLOBAL_HANDLES_H_
 #define V8_GLOBAL_HANDLES_H_
 
-#include "list-inl.h"
+#include "../include/v8-profiler.h"
+
+#include "list.h"
 
 namespace v8 {
 namespace internal {
@@ -42,37 +44,67 @@ namespace internal {
 // An object group is treated like a single JS object: if one of object in
 // the group is alive, all objects in the same group are considered alive.
 // An object group is used to simulate object relationship in a DOM tree.
-class ObjectGroup : public Malloced {
+class ObjectGroup {
  public:
-  ObjectGroup() : objects_(4) {}
-  ObjectGroup(size_t capacity, v8::RetainedObjectInfo* info)
-      : objects_(static_cast<int>(capacity)),
-        info_(info) { }
-  ~ObjectGroup();
+  static ObjectGroup* New(Object*** handles,
+                          size_t length,
+                          v8::RetainedObjectInfo* info) {
+    ASSERT(length > 0);
+    ObjectGroup* group = reinterpret_cast<ObjectGroup*>(
+        malloc(OFFSET_OF(ObjectGroup, objects_[length])));
+    group->length_ = length;
+    group->info_ = info;
+    CopyWords(group->objects_, handles, static_cast<int>(length));
+    return group;
+  }
 
-  List<Object**> objects_;
+  void Dispose() {
+    if (info_ != NULL) info_->Dispose();
+    free(this);
+  }
+
+  size_t length_;
   v8::RetainedObjectInfo* info_;
+  Object** objects_[1];  // Variable sized array.
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(ObjectGroup);
+  void* operator new(size_t size);
+  void operator delete(void* p);
+  ~ObjectGroup();
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ObjectGroup);
 };
 
 
 // An implicit references group consists of two parts: a parent object and
 // a list of children objects.  If the parent is alive, all the children
 // are alive too.
-class ImplicitRefGroup : public Malloced {
+class ImplicitRefGroup {
  public:
-  ImplicitRefGroup() : children_(4) {}
-  ImplicitRefGroup(HeapObject* parent, size_t capacity)
-      : parent_(parent),
-        children_(static_cast<int>(capacity)) { }
+  static ImplicitRefGroup* New(HeapObject** parent,
+                               Object*** children,
+                               size_t length) {
+    ASSERT(length > 0);
+    ImplicitRefGroup* group = reinterpret_cast<ImplicitRefGroup*>(
+        malloc(OFFSET_OF(ImplicitRefGroup, children_[length])));
+    group->parent_ = parent;
+    group->length_ = length;
+    CopyWords(group->children_, children, static_cast<int>(length));
+    return group;
+  }
 
-  HeapObject* parent_;
-  List<Object**> children_;
+  void Dispose() {
+    free(this);
+  }
+
+  HeapObject** parent_;
+  size_t length_;
+  Object** children_[1];  // Variable sized array.
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(ImplicitRefGroup);
+  void* operator new(size_t size);
+  void operator delete(void* p);
+  ~ImplicitRefGroup();
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ImplicitRefGroup);
 };
 
 
@@ -114,6 +146,9 @@ class GlobalHandles {
   // Clear the weakness of a global handle.
   void ClearWeakness(Object** location);
 
+  // Clear the weakness of a global handle.
+  void MarkIndependent(Object** location);
+
   // Tells whether global handle is near death.
   static bool IsNearDeath(Object** location);
 
@@ -122,10 +157,13 @@ class GlobalHandles {
 
   // Process pending weak handles.
   // Returns true if next major GC is likely to collect more garbage.
-  bool PostGarbageCollectionProcessing();
+  bool PostGarbageCollectionProcessing(GarbageCollector collector);
 
   // Iterates over all strong handles.
   void IterateStrongRoots(ObjectVisitor* v);
+
+  // Iterates over all strong and dependent handles.
+  void IterateStrongAndDependentRoots(ObjectVisitor* v);
 
   // Iterates over all handles.
   void IterateAllRoots(ObjectVisitor* v);
@@ -136,6 +174,9 @@ class GlobalHandles {
   // Iterates over all weak roots in heap.
   void IterateWeakRoots(ObjectVisitor* v);
 
+  // Iterates over all weak independent roots in heap.
+  void IterateWeakIndependentRoots(ObjectVisitor* v);
+
   // Iterates over weak roots that are bound to a given callback.
   void IterateWeakRoots(WeakReferenceGuest f,
                         WeakReferenceCallback callback);
@@ -143,6 +184,10 @@ class GlobalHandles {
   // Find all weak handles satisfying the callback predicate, mark
   // them as pending.
   void IdentifyWeakHandles(WeakSlotCallback f);
+
+  // Find all weak independent handles satisfying the callback predicate, mark
+  // them as pending.
+  void IdentifyWeakIndependentHandles(WeakSlotCallbackWithHeap f);
 
   // Add an object group.
   // Should be only used in GC callback function before a collection.
@@ -154,7 +199,7 @@ class GlobalHandles {
   // Add an implicit references' group.
   // Should be only used in GC callback function before a collection.
   // All groups are destroyed after a mark-compact collection.
-  void AddImplicitReferences(HeapObject* parent,
+  void AddImplicitReferences(HeapObject** parent,
                              Object*** children,
                              size_t length);
 

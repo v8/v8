@@ -71,66 +71,30 @@ class ToBooleanStub: public CodeStub {
 };
 
 
-// Flag that indicates how to generate code for the stub GenericBinaryOpStub.
-enum GenericBinaryFlags {
-  NO_GENERIC_BINARY_FLAGS = 0,
-  NO_SMI_CODE_IN_STUB = 1 << 0  // Omit smi code in stub.
-};
-
-
-class GenericBinaryOpStub: public CodeStub {
+class TypeRecordingUnaryOpStub: public CodeStub {
  public:
-  GenericBinaryOpStub(Token::Value op,
-                      OverwriteMode mode,
-                      GenericBinaryFlags flags,
-                      TypeInfo operands_type = TypeInfo::Unknown())
+  TypeRecordingUnaryOpStub(Token::Value op, UnaryOverwriteMode mode)
       : op_(op),
         mode_(mode),
-        flags_(flags),
-        args_in_registers_(false),
-        args_reversed_(false),
-        static_operands_type_(operands_type),
-        runtime_operands_type_(BinaryOpIC::DEFAULT),
+        operand_type_(TRUnaryOpIC::UNINITIALIZED),
         name_(NULL) {
-    ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
 
-  GenericBinaryOpStub(int key, BinaryOpIC::TypeInfo runtime_operands_type)
+  TypeRecordingUnaryOpStub(
+      int key,
+      TRUnaryOpIC::TypeInfo operand_type)
       : op_(OpBits::decode(key)),
         mode_(ModeBits::decode(key)),
-        flags_(FlagBits::decode(key)),
-        args_in_registers_(ArgsInRegistersBits::decode(key)),
-        args_reversed_(ArgsReversedBits::decode(key)),
-        static_operands_type_(TypeInfo::ExpandedRepresentation(
-            StaticTypeInfoBits::decode(key))),
-        runtime_operands_type_(runtime_operands_type),
+        operand_type_(operand_type),
         name_(NULL) {
-  }
-
-  // Generate code to call the stub with the supplied arguments. This will add
-  // code at the call site to prepare arguments either in registers or on the
-  // stack together with the actual call.
-  void GenerateCall(MacroAssembler* masm, Register left, Register right);
-  void GenerateCall(MacroAssembler* masm, Register left, Smi* right);
-  void GenerateCall(MacroAssembler* masm, Smi* left, Register right);
-
-  bool ArgsInRegistersSupported() {
-    return (op_ == Token::ADD) || (op_ == Token::SUB)
-        || (op_ == Token::MUL) || (op_ == Token::DIV);
   }
 
  private:
   Token::Value op_;
-  OverwriteMode mode_;
-  GenericBinaryFlags flags_;
-  bool args_in_registers_;  // Arguments passed in registers not on the stack.
-  bool args_reversed_;  // Left and right argument are swapped.
-
-  // Number type information of operands, determined by code generator.
-  TypeInfo static_operands_type_;
+  UnaryOverwriteMode mode_;
 
   // Operand type information determined at runtime.
-  BinaryOpIC::TypeInfo runtime_operands_type_;
+  TRUnaryOpIC::TypeInfo operand_type_;
 
   char* name_;
 
@@ -138,75 +102,64 @@ class GenericBinaryOpStub: public CodeStub {
 
 #ifdef DEBUG
   void Print() {
-    PrintF("GenericBinaryOpStub %d (op %s), "
-           "(mode %d, flags %d, registers %d, reversed %d, type_info %s)\n",
+    PrintF("TypeRecordingUnaryOpStub %d (op %s), "
+           "(mode %d, runtime_type_info %s)\n",
            MinorKey(),
            Token::String(op_),
            static_cast<int>(mode_),
-           static_cast<int>(flags_),
-           static_cast<int>(args_in_registers_),
-           static_cast<int>(args_reversed_),
-           static_operands_type_.ToString());
+           TRUnaryOpIC::GetName(operand_type_));
   }
 #endif
 
-  // Minor key encoding in 17 bits TTNNNFRAOOOOOOOMM.
-  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
-  class OpBits: public BitField<Token::Value, 2, 7> {};
-  class ArgsInRegistersBits: public BitField<bool, 9, 1> {};
-  class ArgsReversedBits: public BitField<bool, 10, 1> {};
-  class FlagBits: public BitField<GenericBinaryFlags, 11, 1> {};
-  class StaticTypeInfoBits: public BitField<int, 12, 3> {};
-  class RuntimeTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 15, 3> {};
+  class ModeBits: public BitField<UnaryOverwriteMode, 0, 1> {};
+  class OpBits: public BitField<Token::Value, 1, 7> {};
+  class OperandTypeInfoBits: public BitField<TRUnaryOpIC::TypeInfo, 8, 3> {};
 
-  Major MajorKey() { return GenericBinaryOp; }
+  Major MajorKey() { return TypeRecordingUnaryOp; }
   int MinorKey() {
-    // Encode the parameters in a unique 18 bit value.
-    return OpBits::encode(op_)
-           | ModeBits::encode(mode_)
-           | FlagBits::encode(flags_)
-           | ArgsInRegistersBits::encode(args_in_registers_)
-           | ArgsReversedBits::encode(args_reversed_)
-           | StaticTypeInfoBits::encode(
-               static_operands_type_.ThreeBitRepresentation())
-           | RuntimeTypeInfoBits::encode(runtime_operands_type_);
+    return ModeBits::encode(mode_)
+           | OpBits::encode(op_)
+           | OperandTypeInfoBits::encode(operand_type_);
   }
 
+  // Note: A lot of the helper functions below will vanish when we use virtual
+  // function instead of switch more often.
   void Generate(MacroAssembler* masm);
-  void GenerateSmiCode(MacroAssembler* masm, Label* slow);
-  void GenerateLoadArguments(MacroAssembler* masm);
-  void GenerateReturn(MacroAssembler* masm);
-  void GenerateRegisterArgsPush(MacroAssembler* masm);
+
   void GenerateTypeTransition(MacroAssembler* masm);
 
-  bool IsOperationCommutative() {
-    return (op_ == Token::ADD) || (op_ == Token::MUL);
-  }
+  void GenerateSmiStub(MacroAssembler* masm);
+  void GenerateSmiStubSub(MacroAssembler* masm);
+  void GenerateSmiStubBitNot(MacroAssembler* masm);
+  void GenerateSmiCodeSub(MacroAssembler* masm,
+                          Label* non_smi,
+                          Label* slow,
+                          Label::Distance non_smi_near = Label::kFar,
+                          Label::Distance slow_near = Label::kFar);
+  void GenerateSmiCodeBitNot(MacroAssembler* masm,
+                             Label* non_smi,
+                             Label::Distance non_smi_near);
 
-  void SetArgsInRegisters() { args_in_registers_ = true; }
-  void SetArgsReversed() { args_reversed_ = true; }
-  bool HasSmiCodeInStub() { return (flags_ & NO_SMI_CODE_IN_STUB) == 0; }
-  bool HasArgsInRegisters() { return args_in_registers_; }
-  bool HasArgsReversed() { return args_reversed_; }
+  void GenerateHeapNumberStub(MacroAssembler* masm);
+  void GenerateHeapNumberStubSub(MacroAssembler* masm);
+  void GenerateHeapNumberStubBitNot(MacroAssembler* masm);
+  void GenerateHeapNumberCodeSub(MacroAssembler* masm, Label* slow);
+  void GenerateHeapNumberCodeBitNot(MacroAssembler* masm, Label* slow);
 
-  bool ShouldGenerateSmiCode() {
-    return HasSmiCodeInStub() &&
-        runtime_operands_type_ != BinaryOpIC::HEAP_NUMBERS &&
-        runtime_operands_type_ != BinaryOpIC::STRINGS;
-  }
+  void GenerateGenericStub(MacroAssembler* masm);
+  void GenerateGenericStubSub(MacroAssembler* masm);
+  void GenerateGenericStubBitNot(MacroAssembler* masm);
+  void GenerateGenericCodeFallback(MacroAssembler* masm);
 
-  bool ShouldGenerateFPCode() {
-    return runtime_operands_type_ != BinaryOpIC::STRINGS;
-  }
-
-  virtual int GetCodeKind() { return Code::BINARY_OP_IC; }
+  virtual int GetCodeKind() { return Code::TYPE_RECORDING_UNARY_OP_IC; }
 
   virtual InlineCacheState GetICState() {
-    return BinaryOpIC::ToState(runtime_operands_type_);
+    return TRUnaryOpIC::ToState(operand_type_);
   }
 
-  friend class CodeGenerator;
-  friend class LCodeGen;
+  virtual void FinishCode(Code* code) {
+    code->set_type_recording_unary_op_type(operand_type_);
+  }
 };
 
 
@@ -291,6 +244,7 @@ class TypeRecordingBinaryOpStub: public CodeStub {
   void GenerateHeapNumberStub(MacroAssembler* masm);
   void GenerateOddballStub(MacroAssembler* masm);
   void GenerateStringStub(MacroAssembler* masm);
+  void GenerateBothStringStub(MacroAssembler* masm);
   void GenerateGenericStub(MacroAssembler* masm);
 
   void GenerateHeapResultAllocation(MacroAssembler* masm, Label* alloc_failure);
@@ -415,10 +369,9 @@ class SubStringStub: public CodeStub {
 
 class StringCompareStub: public CodeStub {
  public:
-  explicit StringCompareStub() {}
+  StringCompareStub() {}
 
-  // Compare two flat ascii strings and returns result in rax after popping two
-  // arguments from the stack.
+  // Compares two flat ASCII strings and returns result in rax.
   static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                               Register left,
                                               Register right,
@@ -427,11 +380,27 @@ class StringCompareStub: public CodeStub {
                                               Register scratch3,
                                               Register scratch4);
 
- private:
-  Major MajorKey() { return StringCompare; }
-  int MinorKey() { return 0; }
+  // Compares two flat ASCII strings for equality and returns result
+  // in rax.
+  static void GenerateFlatAsciiStringEquals(MacroAssembler* masm,
+                                            Register left,
+                                            Register right,
+                                            Register scratch1,
+                                            Register scratch2);
 
-  void Generate(MacroAssembler* masm);
+ private:
+  virtual Major MajorKey() { return StringCompare; }
+  virtual int MinorKey() { return 0; }
+  virtual void Generate(MacroAssembler* masm);
+
+  static void GenerateAsciiCharsCompareLoop(
+      MacroAssembler* masm,
+      Register left,
+      Register right,
+      Register length,
+      Register scratch,
+      Label* chars_not_equal,
+      Label::Distance near_jump = Label::kFar);
 };
 
 
@@ -469,6 +438,74 @@ class NumberToStringStub: public CodeStub {
     PrintF("NumberToStringStub\n");
   }
 #endif
+};
+
+
+class StringDictionaryLookupStub: public CodeStub {
+ public:
+  enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
+
+  StringDictionaryLookupStub(Register dictionary,
+                             Register result,
+                             Register index,
+                             LookupMode mode)
+      : dictionary_(dictionary), result_(result), index_(index), mode_(mode) { }
+
+  void Generate(MacroAssembler* masm);
+
+  MUST_USE_RESULT static MaybeObject* GenerateNegativeLookup(
+      MacroAssembler* masm,
+      Label* miss,
+      Label* done,
+      Register properties,
+      String* name,
+      Register r0);
+
+  static void GeneratePositiveLookup(MacroAssembler* masm,
+                                     Label* miss,
+                                     Label* done,
+                                     Register elements,
+                                     Register name,
+                                     Register r0,
+                                     Register r1);
+
+ private:
+  static const int kInlinedProbes = 4;
+  static const int kTotalProbes = 20;
+
+  static const int kCapacityOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kCapacityIndex * kPointerSize;
+
+  static const int kElementsStartOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
+
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("StringDictionaryLookupStub\n");
+  }
+#endif
+
+  Major MajorKey() { return StringDictionaryNegativeLookup; }
+
+  int MinorKey() {
+    return DictionaryBits::encode(dictionary_.code()) |
+        ResultBits::encode(result_.code()) |
+        IndexBits::encode(index_.code()) |
+        LookupModeBits::encode(mode_);
+  }
+
+  class DictionaryBits: public BitField<int, 0, 4> {};
+  class ResultBits: public BitField<int, 4, 4> {};
+  class IndexBits: public BitField<int, 8, 4> {};
+  class LookupModeBits: public BitField<LookupMode, 12, 1> {};
+
+  Register dictionary_;
+  Register result_;
+  Register index_;
+  LookupMode mode_;
 };
 
 

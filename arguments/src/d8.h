@@ -28,9 +28,13 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
+#include "allocation.h"
 #include "v8.h"
 #include "hashmap.h"
 
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+#error Using compressed startup data is not supported for D8
+#endif
 
 namespace v8 {
 

@@ -38,8 +38,7 @@ namespace internal {
 
 
 Address ExitFrame::ComputeStackPointer(Address fp) {
-  UNIMPLEMENTED_MIPS();
-  return fp;
+  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
 }
 
 

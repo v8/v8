@@ -43,7 +43,7 @@ var ES5Harness = (function() {
   }
 
   Test262Error.prototype.toString = function() {
-    return this.result;
+    return this.result + " " + error;
   }
 
   function registerTest(test) {
@@ -52,22 +52,24 @@ var ES5Harness = (function() {
       try {
         var res = test.test.call($this);
       } catch(e) {
-        print(e);
-        res = 'fail'; error = e;
+        res = 'fail';
+        error = e;
       }
       var retVal = /^s/i.test(test.id)
           ? (res === true || typeof res == 'undefined' ? 'pass' : 'fail')
           : (res === true ? 'pass' : 'fail');
 
       if (retVal != 'pass') {
+         var precondition = (test.precondition !== undefined)
+             ? test.precondition.toString()
+             : '';
+
          throw new Test262Error(
             test.id,
             test.path,
             test.description,
             test.test.toString(),
-            (test.precondition !== undefined)
-                ? test.precondition.toString()
-                : '',
+            precondition,
             retVal,
             error);
       }

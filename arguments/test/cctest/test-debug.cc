@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -501,7 +501,11 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   CHECK(Debug::HasDebugInfo(shared));
   TestBreakLocationIterator it1(Debug::GetDebugInfo(shared));
   it1.FindBreakLocationFromPosition(position);
-  CHECK_EQ(mode, it1.it()->rinfo()->rmode());
+  v8::internal::RelocInfo::Mode actual_mode = it1.it()->rinfo()->rmode();
+  if (actual_mode == v8::internal::RelocInfo::CODE_TARGET_WITH_ID) {
+    actual_mode = v8::internal::RelocInfo::CODE_TARGET;
+  }
+  CHECK_EQ(mode, actual_mode);
   if (mode != v8::internal::RelocInfo::JS_RETURN) {
     CHECK_EQ(debug_break,
         Code::GetCodeFromTargetAddress(it1.it()->rinfo()->target_address()));
@@ -516,7 +520,11 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   CHECK(debug->EnsureDebugInfo(shared));
   TestBreakLocationIterator it2(Debug::GetDebugInfo(shared));
   it2.FindBreakLocationFromPosition(position);
-  CHECK_EQ(mode, it2.it()->rinfo()->rmode());
+  actual_mode = it2.it()->rinfo()->rmode();
+  if (actual_mode == v8::internal::RelocInfo::CODE_TARGET_WITH_ID) {
+    actual_mode = v8::internal::RelocInfo::CODE_TARGET;
+  }
+  CHECK_EQ(mode, actual_mode);
   if (mode == v8::internal::RelocInfo::JS_RETURN) {
     CHECK(!Debug::IsDebugBreakAtReturn(it2.it()->rinfo()));
   }
@@ -4256,9 +4264,9 @@ TEST(InterceptorPropertyMirror) {
                  "named_values[%d] instanceof debug.PropertyMirror", i);
     CHECK(CompileRun(buffer.start())->BooleanValue());
 
-    // 4 is PropertyType.Interceptor
+    // 5 is PropertyType.Interceptor
     OS::SNPrintF(buffer, "named_values[%d].propertyType()", i);
-    CHECK_EQ(4, CompileRun(buffer.start())->Int32Value());
+    CHECK_EQ(5, CompileRun(buffer.start())->Int32Value());
 
     OS::SNPrintF(buffer, "named_values[%d].isNative()", i);
     CHECK(CompileRun(buffer.start())->BooleanValue());
@@ -6305,8 +6313,7 @@ static void ExecuteScriptForContextCheck() {
   v8::Persistent<v8::Context> context_1;
   v8::Handle<v8::ObjectTemplate> global_template =
       v8::Handle<v8::ObjectTemplate>();
-  v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>();
-  context_1 = v8::Context::New(NULL, global_template, global_object);
+  context_1 = v8::Context::New(NULL, global_template);
 
   // Default data value is undefined.
   CHECK(context_1->GetData()->IsUndefined());
@@ -6371,11 +6378,11 @@ static void DebugEvalContextCheckMessageHandler(
       const int kBufferSize = 1000;
       uint16_t buffer[kBufferSize];
       const char* eval_command =
-        "{\"seq\":0,"
-         "\"type\":\"request\","
-         "\"command\":\"evaluate\","
-         "arguments:{\"expression\":\"debugger;\","
-         "\"global\":true,\"disable_break\":false}}";
+          "{\"seq\":0,"
+          "\"type\":\"request\","
+          "\"command\":\"evaluate\","
+          "\"arguments\":{\"expression\":\"debugger;\","
+          "\"global\":true,\"disable_break\":false}}";
 
       // Send evaluate command.
       v8::Debug::SendCommand(buffer, AsciiToUtf16(eval_command, buffer));

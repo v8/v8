@@ -88,6 +88,11 @@ inline Address* StackHandler::pc_address() const {
 }
 
 
+inline StackFrame::StackFrame(StackFrameIterator* iterator)
+    : iterator_(iterator), isolate_(iterator_->isolate()) {
+}
+
+
 inline StackHandler* StackFrame::top_handler() const {
   return iterator_->handler();
 }
@@ -143,15 +148,26 @@ inline bool StandardFrame::IsConstructFrame(Address fp) {
 }
 
 
+Address JavaScriptFrame::GetParameterSlot(int index) const {
+  int param_count = ComputeParametersCount();
+  ASSERT(-1 <= index && index < param_count);
+  int parameter_offset = (param_count - index - 1) * kPointerSize;
+  return caller_sp() + parameter_offset;
+}
+
+
+Object* JavaScriptFrame::GetParameter(int index) const {
+  return Memory::Object_at(GetParameterSlot(index));
+}
+
+
 inline Object* JavaScriptFrame::receiver() const {
-  const int offset = JavaScriptFrameConstants::kReceiverOffset;
-  return Memory::Object_at(caller_sp() + offset);
+  return GetParameter(-1);
 }
 
 
 inline void JavaScriptFrame::set_receiver(Object* value) {
-  const int offset = JavaScriptFrameConstants::kReceiverOffset;
-  Memory::Object_at(caller_sp() + offset) = value;
+  Memory::Object_at(GetParameterSlot(-1)) = value;
 }
 
 
@@ -168,6 +184,13 @@ inline Object* JavaScriptFrame::function() const {
 
 
 template<typename Iterator>
+inline JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
+    Isolate* isolate)
+    : iterator_(isolate) {
+  if (!done()) Advance();
+}
+
+template<typename Iterator>
 inline JavaScriptFrame* JavaScriptFrameIteratorTemp<Iterator>::frame() const {
   // TODO(1233797): The frame hierarchy needs to change. It's
   // problematic that we can't use the safe-cast operator to cast to
@@ -181,11 +204,9 @@ inline JavaScriptFrame* JavaScriptFrameIteratorTemp<Iterator>::frame() const {
 
 template<typename Iterator>
 JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
-    StackFrame::Id id) {
-  while (!done()) {
-    Advance();
-    if (frame()->id() == id) return;
-  }
+    Isolate* isolate, StackFrame::Id id)
+    : iterator_(isolate) {
+  AdvanceToId(id);
 }
 
 
@@ -202,6 +223,15 @@ void JavaScriptFrameIteratorTemp<Iterator>::AdvanceToArgumentsFrame() {
   if (!frame()->has_adapted_arguments()) return;
   iterator_.Advance();
   ASSERT(iterator_.frame()->is_arguments_adaptor());
+}
+
+
+template<typename Iterator>
+void JavaScriptFrameIteratorTemp<Iterator>::AdvanceToId(StackFrame::Id id) {
+  while (!done()) {
+    Advance();
+    if (frame()->id() == id) return;
+  }
 }
 
 

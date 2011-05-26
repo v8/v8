@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 #include "v8.h"
 
@@ -51,24 +51,30 @@ unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::found_by_runtime_probing_ = 0;
 
 
-#ifdef __arm__
+// Get the CPU features enabled by the build. For cross compilation the
+// preprocessor symbols CAN_USE_ARMV7_INSTRUCTIONS and CAN_USE_VFP_INSTRUCTIONS
+// can be defined to enable ARMv7 and VFPv3 instructions when building the
+// snapshot.
 static uint64_t CpuFeaturesImpliedByCompiler() {
   uint64_t answer = 0;
 #ifdef CAN_USE_ARMV7_INSTRUCTIONS
   answer |= 1u << ARMv7;
 #endif  // def CAN_USE_ARMV7_INSTRUCTIONS
+#ifdef CAN_USE_VFP_INSTRUCTIONS
+  answer |= 1u << VFP3 | 1u << ARMv7;
+#endif  // def CAN_USE_VFP_INSTRUCTIONS
+
+#ifdef __arm__
   // If the compiler is allowed to use VFP then we can use VFP too in our code
   // generation even when generating snapshots.  This won't work for cross
-  // compilation.
+  // compilation. VFPv3 implies ARMv7, see ARM DDI 0406B, page A1-6.
 #if defined(__VFP_FP__) && !defined(__SOFTFP__)
-  answer |= 1u << VFP3;
+  answer |= 1u << VFP3 | 1u << ARMv7;
 #endif  // defined(__VFP_FP__) && !defined(__SOFTFP__)
-#ifdef CAN_USE_VFP_INSTRUCTIONS
-  answer |= 1u << VFP3;
-#endif  // def CAN_USE_VFP_INSTRUCTIONS
+#endif  // def __arm__
+
   return answer;
 }
-#endif  // def __arm__
 
 
 void CpuFeatures::Probe() {
@@ -76,30 +82,39 @@ void CpuFeatures::Probe() {
 #ifdef DEBUG
   initialized_ = true;
 #endif
+
+  // Get the features implied by the OS and the compiler settings. This is the
+  // minimal set of features which is also alowed for generated code in the
+  // snapshot.
+  supported_ |= OS::CpuFeaturesImpliedByPlatform();
+  supported_ |= CpuFeaturesImpliedByCompiler();
+
+  if (Serializer::enabled()) {
+    // No probing for features if we might serialize (generate snapshot).
+    return;
+  }
+
 #ifndef __arm__
-  // For the simulator=arm build, use VFP when FLAG_enable_vfp3 is enabled.
+  // For the simulator=arm build, use VFP when FLAG_enable_vfp3 is
+  // enabled. VFPv3 implies ARMv7, see ARM DDI 0406B, page A1-6.
   if (FLAG_enable_vfp3) {
-    supported_ |= 1u << VFP3;
+    supported_ |= 1u << VFP3 | 1u << ARMv7;
   }
   // For the simulator=arm build, use ARMv7 when FLAG_enable_armv7 is enabled
   if (FLAG_enable_armv7) {
     supported_ |= 1u << ARMv7;
   }
 #else  // def __arm__
-  if (Serializer::enabled()) {
-    supported_ |= OS::CpuFeaturesImpliedByPlatform();
-    supported_ |= CpuFeaturesImpliedByCompiler();
-    return;  // No features if we might serialize.
+  // Probe for additional features not already known to be available.
+  if (!IsSupported(VFP3) && OS::ArmCpuHasFeature(VFP3)) {
+    // This implementation also sets the VFP flags if runtime
+    // detection of VFP returns true. VFPv3 implies ARMv7, see ARM DDI
+    // 0406B, page A1-6.
+    supported_ |= 1u << VFP3 | 1u << ARMv7;
+    found_by_runtime_probing_ |= 1u << VFP3 | 1u << ARMv7;
   }
 
-  if (OS::ArmCpuHasFeature(VFP3)) {
-    // This implementation also sets the VFP flags if
-    // runtime detection of VFP returns true.
-    supported_ |= 1u << VFP3;
-    found_by_runtime_probing_ |= 1u << VFP3;
-  }
-
-  if (OS::ArmCpuHasFeature(ARMv7)) {
+  if (!IsSupported(ARMv7) && OS::ArmCpuHasFeature(ARMv7)) {
     supported_ |= 1u << ARMv7;
     found_by_runtime_probing_ |= 1u << ARMv7;
   }
@@ -274,9 +289,7 @@ static const int kMinimalBufferSize = 4*KB;
 Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
     : AssemblerBase(arg_isolate),
       positions_recorder_(this),
-      allow_peephole_optimization_(false),
       emit_debug_code_(FLAG_debug_code) {
-  allow_peephole_optimization_ = FLAG_peephole_optimization;
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
@@ -313,6 +326,7 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
   no_const_pool_before_ = 0;
   last_const_pool_end_ = 0;
   last_bound_pos_ = 0;
+  ast_id_for_reloc_info_ = kNoASTId;
 }
 
 
@@ -1080,20 +1094,6 @@ void Assembler::rsb(Register dst, Register src1, const Operand& src2,
 void Assembler::add(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
   addrmod1(cond | ADD | s, src1, dst, src2);
-
-  // Eliminate pattern: push(r), pop()
-  //   str(src, MemOperand(sp, 4, NegPreIndex), al);
-  //   add(sp, sp, Operand(kPointerSize));
-  // Both instructions can be eliminated.
-  if (can_peephole_optimize(2) &&
-      // Pattern.
-      instr_at(pc_ - 1 * kInstrSize) == kPopInstruction &&
-      (instr_at(pc_ - 2 * kInstrSize) & ~kRdMask) == kPushRegPattern) {
-    pc_ -= 2 * kInstrSize;
-    if (FLAG_print_peephole_optimization) {
-      PrintF("%x push(reg)/pop() eliminated\n", pc_offset());
-    }
-  }
 }
 
 
@@ -1398,195 +1398,11 @@ void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
     positions_recorder()->WriteRecordedPositions();
   }
   addrmod2(cond | B26 | L, dst, src);
-
-  // Eliminate pattern: push(ry), pop(rx)
-  //   str(ry, MemOperand(sp, 4, NegPreIndex), al)
-  //   ldr(rx, MemOperand(sp, 4, PostIndex), al)
-  // Both instructions can be eliminated if ry = rx.
-  // If ry != rx, a register copy from ry to rx is inserted
-  // after eliminating the push and the pop instructions.
-  if (can_peephole_optimize(2)) {
-    Instr push_instr = instr_at(pc_ - 2 * kInstrSize);
-    Instr pop_instr = instr_at(pc_ - 1 * kInstrSize);
-
-    if (IsPush(push_instr) && IsPop(pop_instr)) {
-      if (Instruction::RdValue(pop_instr) != Instruction::RdValue(push_instr)) {
-        // For consecutive push and pop on different registers,
-        // we delete both the push & pop and insert a register move.
-        // push ry, pop rx --> mov rx, ry
-        Register reg_pushed, reg_popped;
-        reg_pushed = GetRd(push_instr);
-        reg_popped = GetRd(pop_instr);
-        pc_ -= 2 * kInstrSize;
-        // Insert a mov instruction, which is better than a pair of push & pop
-        mov(reg_popped, reg_pushed);
-        if (FLAG_print_peephole_optimization) {
-          PrintF("%x push/pop (diff reg) replaced by a reg move\n",
-                 pc_offset());
-        }
-      } else {
-        // For consecutive push and pop on the same register,
-        // both the push and the pop can be deleted.
-        pc_ -= 2 * kInstrSize;
-        if (FLAG_print_peephole_optimization) {
-          PrintF("%x push/pop (same reg) eliminated\n", pc_offset());
-        }
-      }
-    }
-  }
-
-  if (can_peephole_optimize(2)) {
-    Instr str_instr = instr_at(pc_ - 2 * kInstrSize);
-    Instr ldr_instr = instr_at(pc_ - 1 * kInstrSize);
-
-    if ((IsStrRegFpOffset(str_instr) &&
-         IsLdrRegFpOffset(ldr_instr)) ||
-       (IsStrRegFpNegOffset(str_instr) &&
-         IsLdrRegFpNegOffset(ldr_instr))) {
-      if ((ldr_instr & kLdrStrInstrArgumentMask) ==
-            (str_instr & kLdrStrInstrArgumentMask)) {
-        // Pattern: Ldr/str same fp+offset, same register.
-        //
-        // The following:
-        // str rx, [fp, #-12]
-        // ldr rx, [fp, #-12]
-        //
-        // Becomes:
-        // str rx, [fp, #-12]
-
-        pc_ -= 1 * kInstrSize;
-        if (FLAG_print_peephole_optimization) {
-          PrintF("%x str/ldr (fp + same offset), same reg\n", pc_offset());
-        }
-      } else if ((ldr_instr & kLdrStrOffsetMask) ==
-                 (str_instr & kLdrStrOffsetMask)) {
-        // Pattern: Ldr/str same fp+offset, different register.
-        //
-        // The following:
-        // str rx, [fp, #-12]
-        // ldr ry, [fp, #-12]
-        //
-        // Becomes:
-        // str rx, [fp, #-12]
-        // mov ry, rx
-
-        Register reg_stored, reg_loaded;
-        reg_stored = GetRd(str_instr);
-        reg_loaded = GetRd(ldr_instr);
-        pc_ -= 1 * kInstrSize;
-        // Insert a mov instruction, which is better than ldr.
-        mov(reg_loaded, reg_stored);
-        if (FLAG_print_peephole_optimization) {
-          PrintF("%x str/ldr (fp + same offset), diff reg \n", pc_offset());
-        }
-      }
-    }
-  }
-
-  if (can_peephole_optimize(3)) {
-    Instr mem_write_instr = instr_at(pc_ - 3 * kInstrSize);
-    Instr ldr_instr = instr_at(pc_ - 2 * kInstrSize);
-    Instr mem_read_instr = instr_at(pc_ - 1 * kInstrSize);
-    if (IsPush(mem_write_instr) &&
-        IsPop(mem_read_instr)) {
-      if ((IsLdrRegFpOffset(ldr_instr) ||
-        IsLdrRegFpNegOffset(ldr_instr))) {
-        if (Instruction::RdValue(mem_write_instr) ==
-                                  Instruction::RdValue(mem_read_instr)) {
-          // Pattern: push & pop from/to same register,
-          // with a fp+offset ldr in between
-          //
-          // The following:
-          // str rx, [sp, #-4]!
-          // ldr rz, [fp, #-24]
-          // ldr rx, [sp], #+4
-          //
-          // Becomes:
-          // if(rx == rz)
-          //   delete all
-          // else
-          //   ldr rz, [fp, #-24]
-
-          if (Instruction::RdValue(mem_write_instr) ==
-              Instruction::RdValue(ldr_instr)) {
-            pc_ -= 3 * kInstrSize;
-          } else {
-            pc_ -= 3 * kInstrSize;
-            // Reinsert back the ldr rz.
-            emit(ldr_instr);
-          }
-          if (FLAG_print_peephole_optimization) {
-            PrintF("%x push/pop -dead ldr fp+offset in middle\n", pc_offset());
-          }
-        } else {
-          // Pattern: push & pop from/to different registers
-          // with a fp+offset ldr in between
-          //
-          // The following:
-          // str rx, [sp, #-4]!
-          // ldr rz, [fp, #-24]
-          // ldr ry, [sp], #+4
-          //
-          // Becomes:
-          // if(ry == rz)
-          //   mov ry, rx;
-          // else if(rx != rz)
-          //   ldr rz, [fp, #-24]
-          //   mov ry, rx
-          // else if((ry != rz) || (rx == rz)) becomes:
-          //   mov ry, rx
-          //   ldr rz, [fp, #-24]
-
-          Register reg_pushed, reg_popped;
-          if (Instruction::RdValue(mem_read_instr) ==
-              Instruction::RdValue(ldr_instr)) {
-            reg_pushed = GetRd(mem_write_instr);
-            reg_popped = GetRd(mem_read_instr);
-            pc_ -= 3 * kInstrSize;
-            mov(reg_popped, reg_pushed);
-          } else if (Instruction::RdValue(mem_write_instr) !=
-                     Instruction::RdValue(ldr_instr)) {
-            reg_pushed = GetRd(mem_write_instr);
-            reg_popped = GetRd(mem_read_instr);
-            pc_ -= 3 * kInstrSize;
-            emit(ldr_instr);
-            mov(reg_popped, reg_pushed);
-          } else if ((Instruction::RdValue(mem_read_instr) !=
-                      Instruction::RdValue(ldr_instr)) ||
-                     (Instruction::RdValue(mem_write_instr) ==
-                      Instruction::RdValue(ldr_instr))) {
-            reg_pushed = GetRd(mem_write_instr);
-            reg_popped = GetRd(mem_read_instr);
-            pc_ -= 3 * kInstrSize;
-            mov(reg_popped, reg_pushed);
-            emit(ldr_instr);
-          }
-          if (FLAG_print_peephole_optimization) {
-            PrintF("%x push/pop (ldr fp+off in middle)\n", pc_offset());
-          }
-        }
-      }
-    }
-  }
 }
 
 
 void Assembler::str(Register src, const MemOperand& dst, Condition cond) {
   addrmod2(cond | B26, src, dst);
-
-  // Eliminate pattern: pop(), push(r)
-  //     add sp, sp, #4 LeaveCC, al; str r, [sp, #-4], al
-  // ->  str r, [sp, 0], al
-  if (can_peephole_optimize(2) &&
-     // Pattern.
-     instr_at(pc_ - 1 * kInstrSize) == (kPushRegPattern | src.code() * B12) &&
-     instr_at(pc_ - 2 * kInstrSize) == kPopInstruction) {
-    pc_ -= 2 * kInstrSize;
-    emit(al | B26 | 0 | Offset | sp.code() * B16 | src.code() * B12);
-    if (FLAG_print_peephole_optimization) {
-      PrintF("%x pop()/push(reg) eliminated\n", pc_offset());
-    }
-  }
 }
 
 
@@ -1824,45 +1640,6 @@ void Assembler::ldc2(Coprocessor coproc,
 }
 
 
-void Assembler::stc(Coprocessor coproc,
-                    CRegister crd,
-                    const MemOperand& dst,
-                    LFlag l,
-                    Condition cond) {
-  addrmod5(cond | B27 | B26 | l | coproc*B8, crd, dst);
-}
-
-
-void Assembler::stc(Coprocessor coproc,
-                    CRegister crd,
-                    Register rn,
-                    int option,
-                    LFlag l,
-                    Condition cond) {
-  // Unindexed addressing.
-  ASSERT(is_uint8(option));
-  emit(cond | B27 | B26 | U | l | rn.code()*B16 | crd.code()*B12 |
-       coproc*B8 | (option & 255));
-}
-
-
-void Assembler::stc2(Coprocessor
-                     coproc, CRegister crd,
-                     const MemOperand& dst,
-                     LFlag l) {  // v5 and above
-  stc(coproc, crd, dst, l, kSpecialCondition);
-}
-
-
-void Assembler::stc2(Coprocessor coproc,
-                     CRegister crd,
-                     Register rn,
-                     int option,
-                     LFlag l) {  // v5 and above
-  stc(coproc, crd, rn, option, l, kSpecialCondition);
-}
-
-
 // Support for VFP.
 
 void Assembler::vldr(const DwVfpRegister dst,
@@ -2034,6 +1811,88 @@ void Assembler::vstr(const SwVfpRegister src,
   vldr(src, operand.rn(), operand.offset(), cond);
 }
 
+
+void  Assembler::vldm(BlockAddrMode am,
+                      Register base,
+                      DwVfpRegister first,
+                      DwVfpRegister last,
+                      Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-626.
+  // cond(31-28) | 110(27-25)| PUDW1(24-20) | Rbase(19-16) |
+  // first(15-12) | 1010(11-8) | (count * 2)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT_LE(first.code(), last.code());
+  ASSERT(am == ia || am == ia_w || am == db_w);
+  ASSERT(!base.is(pc));
+
+  int sd, d;
+  first.split_code(&sd, &d);
+  int count = last.code() - first.code() + 1;
+  emit(cond | B27 | B26 | am | d*B22 | B20 | base.code()*B16 | sd*B12 |
+       0xB*B8 | count*2);
+}
+
+
+void  Assembler::vstm(BlockAddrMode am,
+                      Register base,
+                      DwVfpRegister first,
+                      DwVfpRegister last,
+                      Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-784.
+  // cond(31-28) | 110(27-25)| PUDW0(24-20) | Rbase(19-16) |
+  // first(15-12) | 1011(11-8) | (count * 2)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT_LE(first.code(), last.code());
+  ASSERT(am == ia || am == ia_w || am == db_w);
+  ASSERT(!base.is(pc));
+
+  int sd, d;
+  first.split_code(&sd, &d);
+  int count = last.code() - first.code() + 1;
+  emit(cond | B27 | B26 | am | d*B22 | base.code()*B16 | sd*B12 |
+       0xB*B8 | count*2);
+}
+
+void  Assembler::vldm(BlockAddrMode am,
+                      Register base,
+                      SwVfpRegister first,
+                      SwVfpRegister last,
+                      Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-626.
+  // cond(31-28) | 110(27-25)| PUDW1(24-20) | Rbase(19-16) |
+  // first(15-12) | 1010(11-8) | (count/2)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT_LE(first.code(), last.code());
+  ASSERT(am == ia || am == ia_w || am == db_w);
+  ASSERT(!base.is(pc));
+
+  int sd, d;
+  first.split_code(&sd, &d);
+  int count = last.code() - first.code() + 1;
+  emit(cond | B27 | B26 | am | d*B22 | B20 | base.code()*B16 | sd*B12 |
+       0xA*B8 | count);
+}
+
+
+void  Assembler::vstm(BlockAddrMode am,
+                      Register base,
+                      SwVfpRegister first,
+                      SwVfpRegister last,
+                      Condition cond) {
+  // Instruction details available in ARM DDI 0406A, A8-784.
+  // cond(31-28) | 110(27-25)| PUDW0(24-20) | Rbase(19-16) |
+  // first(15-12) | 1011(11-8) | (count/2)
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT_LE(first.code(), last.code());
+  ASSERT(am == ia || am == ia_w || am == db_w);
+  ASSERT(!base.is(pc));
+
+  int sd, d;
+  first.split_code(&sd, &d);
+  int count = last.code() - first.code() + 1;
+  emit(cond | B27 | B26 | am | d*B22 | base.code()*B16 | sd*B12 |
+       0xA*B8 | count);
+}
 
 static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
   uint64_t i;
@@ -2677,7 +2536,14 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       }
     }
     ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
-    reloc_info_writer.Write(&rinfo);
+    if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
+      ASSERT(ast_id_for_reloc_info_ != kNoASTId);
+      RelocInfo reloc_info_with_ast_id(pc_, rmode, ast_id_for_reloc_info_);
+      ast_id_for_reloc_info_ = kNoASTId;
+      reloc_info_writer.Write(&reloc_info_with_ast_id);
+    } else {
+      reloc_info_writer.Write(&rinfo);
+    }
   }
 }
 

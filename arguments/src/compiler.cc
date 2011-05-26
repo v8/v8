@@ -30,9 +30,8 @@
 #include "compiler.h"
 
 #include "bootstrapper.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "compilation-cache.h"
-#include "data-flow.h"
 #include "debug.h"
 #include "full-codegen.h"
 #include "gdb-jit.h"
@@ -95,22 +94,23 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
 }
 
 
+// Disable optimization for the rest of the compilation pipeline.
 void CompilationInfo::DisableOptimization() {
-  if (FLAG_optimize_closures) {
-    // If we allow closures optimizations and it's an optimizable closure
-    // mark it correspondingly.
-    bool is_closure = closure_.is_null() && !scope_->HasTrivialOuterContext();
-    if (is_closure) {
-      bool is_optimizable_closure =
-          !scope_->outer_scope_calls_eval() && !scope_->inside_with();
-      if (is_optimizable_closure) {
-        SetMode(BASE);
-        return;
-      }
-    }
-  }
+  bool is_optimizable_closure =
+    FLAG_optimize_closures &&
+    closure_.is_null() &&
+    !scope_->HasTrivialOuterContext() &&
+    !scope_->outer_scope_calls_non_strict_eval() &&
+    !scope_->inside_with();
+  SetMode(is_optimizable_closure ? BASE : NONOPT);
+}
 
-  SetMode(NONOPT);
+
+void CompilationInfo::AbortOptimization() {
+  Handle<Code> code(shared_info()->code());
+  SetCode(code);
+  Isolate* isolate = code->GetIsolate();
+  isolate->compilation_cache()->MarkForLazyOptimizing(closure());
 }
 
 
@@ -122,17 +122,20 @@ void CompilationInfo::DisableOptimization() {
 // all. However crankshaft support recompilation of functions, so in this case
 // the full compiler need not be be used if a debugger is attached, but only if
 // break points has actually been set.
-static bool AlwaysFullCompiler() {
+static bool is_debugging_active() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Isolate* isolate = Isolate::Current();
-  if (V8::UseCrankshaft()) {
-    return FLAG_always_full_compiler || isolate->debug()->has_break_points();
-  } else {
-    return FLAG_always_full_compiler || isolate->debugger()->IsDebuggerActive();
-  }
+  return V8::UseCrankshaft() ?
+    isolate->debug()->has_break_points() :
+    isolate->debugger()->IsDebuggerActive();
 #else
-  return FLAG_always_full_compiler;
+  return false;
 #endif
+}
+
+
+static bool AlwaysFullCompiler() {
+  return FLAG_always_full_compiler || is_debugging_active();
 }
 
 
@@ -158,31 +161,6 @@ static void FinishOptimization(Handle<JSFunction> function, int64_t start) {
            compiled_functions,
            code_size,
            compilation_time);
-  }
-}
-
-
-static void AbortAndDisable(CompilationInfo* info) {
-  // Disable optimization for the shared function info and mark the
-  // code as non-optimizable. The marker on the shared function info
-  // is there because we flush non-optimized code thereby loosing the
-  // non-optimizable information for the code. When the code is
-  // regenerated and set on the shared function info it is marked as
-  // non-optimizable if optimization is disabled for the shared
-  // function info.
-  Handle<SharedFunctionInfo> shared = info->shared_info();
-  shared->set_optimization_disabled(true);
-  Handle<Code> code = Handle<Code>(shared->code());
-  ASSERT(code->kind() == Code::FUNCTION);
-  code->set_optimizable(false);
-  info->SetCode(code);
-  Isolate* isolate = code->GetIsolate();
-  isolate->compilation_cache()->MarkForLazyOptimizing(info->closure());
-  if (FLAG_trace_opt) {
-    PrintF("[disabled optimization for: ");
-    info->closure()->PrintName();
-    PrintF(" / %" V8PRIxPTR "]\n",
-           reinterpret_cast<intptr_t>(*info->closure()));
   }
 }
 
@@ -220,7 +198,9 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   const int kMaxOptCount =
       FLAG_deopt_every_n_times == 0 ? Compiler::kDefaultMaxOptCount : 1000;
   if (info->shared_info()->opt_count() > kMaxOptCount) {
-    AbortAndDisable(info);
+    info->AbortOptimization();
+    Handle<JSFunction> closure = info->closure();
+    info->shared_info()->DisableOptimization(*closure);
     // True indicates the compilation pipeline is still going, not
     // necessarily that we optimized the code.
     return true;
@@ -237,7 +217,9 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   Scope* scope = info->scope();
   if ((scope->num_parameters() + 1) > limit ||
       scope->num_stack_slots() > limit) {
-    AbortAndDisable(info);
+    info->AbortOptimization();
+    Handle<JSFunction> closure = info->closure();
+    info->shared_info()->DisableOptimization(*closure);
     // True indicates the compilation pipeline is still going, not
     // necessarily that we optimized the code.
     return true;
@@ -310,12 +292,24 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
     }
   }
 
-  // Compilation with the Hydrogen compiler failed. Keep using the
-  // shared code but mark it as unoptimizable.
-  AbortAndDisable(info);
+  // Keep using the shared code.
+  info->AbortOptimization();
+  if (!builder.inline_bailout()) {
+    // Mark the shared code as unoptimizable unless it was an inlined
+    // function that bailed out.
+    Handle<JSFunction> closure = info->closure();
+    info->shared_info()->DisableOptimization(*closure);
+  }
   // True indicates the compilation pipeline is still going, not necessarily
   // that we optimized the code.
   return true;
+}
+
+
+static bool GenerateCode(CompilationInfo* info) {
+  return V8::UseCrankshaft() ?
+    MakeCrankshaftCode(info) :
+    FullCodeGenerator::MakeCode(info);
 }
 
 
@@ -323,15 +317,7 @@ static bool MakeCode(CompilationInfo* info) {
   // Precondition: code has been parsed.  Postcondition: the code field in
   // the compilation info is set if compilation succeeded.
   ASSERT(info->function() != NULL);
-
-  if (Rewriter::Rewrite(info) && Scope::Analyze(info)) {
-    if (V8::UseCrankshaft()) return MakeCrankshaftCode(info);
-    // If crankshaft is not supported fall back to full code generator
-    // for all compilation.
-    return FullCodeGenerator::MakeCode(info);
-  }
-
-  return false;
+  return Rewriter::Rewrite(info) && Scope::Analyze(info) && GenerateCode(info);
 }
 
 
@@ -367,11 +353,11 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
     // For eval scripts add information on the function from which eval was
     // called.
     if (info->is_eval()) {
-      StackTraceFrameIterator it;
+      StackTraceFrameIterator it(isolate);
       if (!it.done()) {
         script->set_eval_from_shared(
             JSFunction::cast(it.frame()->function())->shared());
-        Code* code = it.frame()->LookupCode(isolate);
+        Code* code = it.frame()->LookupCode();
         int offset = static_cast<int>(
             it.frame()->pc() - code->instruction_start());
         script->set_eval_from_instructions_offset(Smi::FromInt(offset));
@@ -567,7 +553,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     CompilationInfo info(script);
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
-    if (strict_mode == kStrictMode) info.MarkAsStrict();
+    if (strict_mode == kStrictMode) info.MarkAsStrictMode();
     info.SetCallingContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
@@ -603,6 +589,12 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
     // rest of the function into account to avoid overlap with the lazy
     // parsing statistics.
     HistogramTimerScope timer(isolate->counters()->compile_lazy());
+
+    // After parsing we know function's strict mode. Remember it.
+    if (info->function()->strict_mode()) {
+      shared->set_strict_mode(true);
+      info->MarkAsStrictMode();
+    }
 
     // Compile the code.
     if (!MakeCode(info)) {
@@ -658,7 +650,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
           // version of the function right away - unless the debugger is
           // active as it makes no sense to compile optimized code then.
           if (FLAG_always_opt &&
-              !Isolate::Current()->debug()->has_break_points()) {
+              !Isolate::Current()->DebuggerHasBreakPoints()) {
             CompilationInfo optimized(function);
             optimized.SetOptimizing(AstNode::kNoNumber);
             return CompileLazy(&optimized);
@@ -763,7 +755,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
-  if (info->isolate()->logger()->is_logging() || CpuProfiler::is_profiling()) {
+  if (info->isolate()->logger()->is_logging() ||
+      CpuProfiler::is_profiling(info->isolate())) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
     if (*code == info->isolate()->builtins()->builtin(Builtins::kLazyCompile))
@@ -786,7 +779,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     }
   }
 
-  GDBJIT(AddCode(name,
+  GDBJIT(AddCode(Handle<String>(shared->DebugName()),
                  Handle<Script>(info->script()),
                  Handle<Code>(info->code())));
 }

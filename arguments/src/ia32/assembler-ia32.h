@@ -249,23 +249,6 @@ inline Condition ReverseCondition(Condition cc) {
 }
 
 
-enum Hint {
-  no_hint = 0,
-  not_taken = 0x2e,
-  taken = 0x3e
-};
-
-
-// The result of negating a hint is as if the corresponding condition
-// were negated by NegateCondition.  That is, no_hint is mapped to
-// itself and not_taken and taken are mapped to each other.
-inline Hint NegateHint(Hint hint) {
-  return (hint == no_hint)
-      ? no_hint
-      : ((hint == not_taken) ? taken : not_taken);
-}
-
-
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates
 
@@ -296,6 +279,7 @@ class Immediate BASE_EMBEDDED {
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
+  friend class MacroAssembler;
 };
 
 
@@ -842,30 +826,30 @@ class Assembler : public AssemblerBase {
   // but it may be bound only once.
 
   void bind(Label* L);  // binds an unbound label L to the current code position
-  void bind(NearLabel* L);
 
   // Calls
   void call(Label* L);
   void call(byte* entry, RelocInfo::Mode rmode);
+  int CallSize(const Operand& adr);
   void call(const Operand& adr);
-  void call(Handle<Code> code, RelocInfo::Mode rmode);
+  int CallSize(Handle<Code> code, RelocInfo::Mode mode);
+  void call(Handle<Code> code,
+            RelocInfo::Mode rmode,
+            unsigned ast_id = kNoASTId);
 
   // Jumps
-  void jmp(Label* L);  // unconditional jump to L
+  // unconditional jump to L
+  void jmp(Label* L, Label::Distance distance = Label::kFar);
   void jmp(byte* entry, RelocInfo::Mode rmode);
   void jmp(const Operand& adr);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
 
-  // Short jump
-  void jmp(NearLabel* L);
-
   // Conditional jumps
-  void j(Condition cc, Label* L, Hint hint = no_hint);
-  void j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint = no_hint);
-  void j(Condition cc, Handle<Code> code, Hint hint = no_hint);
-
-  // Conditional short jump
-  void j(Condition cc, NearLabel* L, Hint hint = no_hint);
+  void j(Condition cc,
+         Label* L,
+         Label::Distance distance = Label::kFar);
+  void j(Condition cc, byte* entry, RelocInfo::Mode rmode);
+  void j(Condition cc, Handle<Code> code);
 
   // Floating-point operations
   void fld(int i);
@@ -950,6 +934,7 @@ class Assembler : public AssemblerBase {
   void mulsd(XMMRegister dst, XMMRegister src);
   void divsd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
+  void xorps(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
   void andpd(XMMRegister dst, XMMRegister src);
@@ -1070,7 +1055,9 @@ class Assembler : public AssemblerBase {
   void GrowBuffer();
   inline void emit(uint32_t x);
   inline void emit(Handle<Object> handle);
-  inline void emit(uint32_t x, RelocInfo::Mode rmode);
+  inline void emit(uint32_t x,
+                   RelocInfo::Mode rmode,
+                   unsigned ast_id = kNoASTId);
   inline void emit(const Immediate& x);
   inline void emit_w(const Immediate& x);
 
@@ -1098,6 +1085,7 @@ class Assembler : public AssemblerBase {
   inline Displacement disp_at(Label* L);
   inline void disp_at_put(Label* L, Displacement disp);
   inline void emit_disp(Label* L, Displacement::Type type);
+  inline void emit_near_disp(Label* L);
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
@@ -1115,9 +1103,6 @@ class Assembler : public AssemblerBase {
   // code generation
   byte* pc_;  // the program counter; moves forward
   RelocInfoWriter reloc_info_writer;
-
-  // push-pop elimination
-  byte* last_pc_;
 
   PositionsRecorder positions_recorder_;
 

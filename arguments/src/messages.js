@@ -142,6 +142,7 @@ function FormatMessage(message) {
     kMessages = {
       // Error
       cyclic_proto:                 ["Cyclic __proto__ value"],
+      code_gen_from_strings:        ["Code generation from strings disallowed for this context"],
       // TypeError
       unexpected_token:             ["Unexpected token ", "%0"],
       unexpected_token_number:      ["Unexpected number"],
@@ -190,6 +191,8 @@ function FormatMessage(message) {
       property_desc_object:         ["Property description must be an object: ", "%0"],
       redefine_disallowed:          ["Cannot redefine property: ", "%0"],
       define_disallowed:            ["Cannot define property, object is not extensible: ", "%0"],
+      non_extensible_proto:         ["%0", " is not extensible"],
+      handler_trap_missing:         ["Proxy handler ", "%0", " has no '", "%1", "' trap"],
       // RangeError
       invalid_array_length:         ["Invalid array length"],
       stack_overflow:               ["Maximum call stack size exceeded"],
@@ -205,13 +208,15 @@ function FormatMessage(message) {
       invalid_json:                 ["String '", "%0", "' is not valid JSON"],
       circular_structure:           ["Converting circular structure to JSON"],
       obj_ctor_property_non_object: ["Object.", "%0", " called on non-object"],
+      called_on_null_or_undefined:  ["%0", " called on null or undefined"],
       array_indexof_not_defined:    ["Array.getIndexOf: Argument undefined"],
       object_not_extensible:        ["Can't add property ", "%0", ", object is not extensible"],
       illegal_access:               ["Illegal access"],
       invalid_preparser_data:       ["Invalid preparser data for function ", "%0"],
       strict_mode_with:             ["Strict mode code may not include a with statement"],
       strict_catch_variable:        ["Catch variable may not be eval or arguments in strict mode"],
-      too_many_parameters:          ["Too many parameters in function definition"],
+      too_many_parameters:          ["Too many parameters in function definition (only 32766 allowed)"],
+      too_many_variables:           ["Too many variables declared (only 32767 allowed)"],
       strict_param_name:            ["Parameter name eval or arguments is not allowed in strict mode"],
       strict_param_dupe:            ["Strict mode function may not have duplicate parameter names"],
       strict_var_name:              ["Variable name may not be eval or arguments in strict mode"],
@@ -1068,6 +1073,10 @@ function errorToStringDetectCycle() {
 }
 
 function errorToString() {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["Error.prototype.toString"]);
+  }
   // This helper function is needed because access to properties on
   // the builtins object do not work inside of a catch clause.
   function isCyclicErrorMarker(o) { return o === cyclic_error_marker; }

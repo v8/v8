@@ -52,6 +52,7 @@
 #undef MAP_TYPE
 
 #include "v8.h"
+#include "v8threads.h"
 
 #include "platform.h"
 #include "vm-state-inl.h"
@@ -391,49 +392,14 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 }
 
 
-class ThreadHandle::PlatformData : public Malloced {
+class Thread::PlatformData : public Malloced {
  public:
-  explicit PlatformData(ThreadHandle::Kind kind) {
-    Initialize(kind);
-  }
-
-  void Initialize(ThreadHandle::Kind kind) {
-    switch (kind) {
-      case ThreadHandle::SELF: thread_ = pthread_self(); break;
-      case ThreadHandle::INVALID: thread_ = kNoThread; break;
-    }
-  }
   pthread_t thread_;  // Thread handle for pthread.
 };
 
 
-ThreadHandle::ThreadHandle(Kind kind) {
-  data_ = new PlatformData(kind);
-}
-
-
-void ThreadHandle::Initialize(ThreadHandle::Kind kind) {
-  data_->Initialize(kind);
-}
-
-
-ThreadHandle::~ThreadHandle() {
-  delete data_;
-}
-
-
-bool ThreadHandle::IsSelf() const {
-  return pthread_equal(data_->thread_, pthread_self());
-}
-
-
-bool ThreadHandle::IsValid() const {
-  return data_->thread_ != kNoThread;
-}
-
-
 Thread::Thread(Isolate* isolate, const Options& options)
-    : ThreadHandle(ThreadHandle::INVALID),
+    : data_(new PlatformData),
       isolate_(isolate),
       stack_size_(options.stack_size) {
   set_name(options.name);
@@ -441,7 +407,7 @@ Thread::Thread(Isolate* isolate, const Options& options)
 
 
 Thread::Thread(Isolate* isolate, const char* name)
-    : ThreadHandle(ThreadHandle::INVALID),
+    : data_(new PlatformData),
       isolate_(isolate),
       stack_size_(0) {
   set_name(name);
@@ -449,6 +415,7 @@ Thread::Thread(Isolate* isolate, const char* name)
 
 
 Thread::~Thread() {
+  delete data_;
 }
 
 
@@ -457,8 +424,8 @@ static void* ThreadEntry(void* arg) {
   // This is also initialized by the first argument to pthread_create() but we
   // don't know which thread will run first (the original thread or the new
   // one) so we initialize it here too.
-  thread->thread_handle_data()->thread_ = pthread_self();
-  ASSERT(thread->IsValid());
+  thread->data()->thread_ = pthread_self();
+  ASSERT(thread->data()->thread_ != kNoThread);
   Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return NULL;
@@ -479,13 +446,13 @@ void Thread::Start() {
     pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
     attr_ptr = &attr;
   }
-  pthread_create(&thread_handle_data()->thread_, attr_ptr, ThreadEntry, this);
-  ASSERT(IsValid());
+  pthread_create(&data_->thread_, attr_ptr, ThreadEntry, this);
+  ASSERT(data_->thread_ != kNoThread);
 }
 
 
 void Thread::Join() {
-  pthread_join(thread_handle_data()->thread_, NULL);
+  pthread_join(data_->thread_, NULL);
 }
 
 
@@ -651,6 +618,11 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     // We require a fully initialized and entered isolate.
     return;
   }
+  if (v8::Locker::IsActive() &&
+      !isolate->thread_manager()->IsLockedByCurrentThread()) {
+    return;
+  }
+
   Sampler* sampler = isolate->logger()->sampler();
   if (sampler == NULL || !sampler->IsActive()) return;
 

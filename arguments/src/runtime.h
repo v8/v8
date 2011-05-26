@@ -28,6 +28,7 @@
 #ifndef V8_RUNTIME_H_
 #define V8_RUNTIME_H_
 
+#include "allocation.h"
 #include "zone.h"
 
 namespace v8 {
@@ -85,10 +86,14 @@ namespace internal {
   F(LazyRecompile, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyOSR, 0, 1) \
-  F(DeoptimizeFunction, 1, 1)             \
+  F(DeoptimizeFunction, 1, 1) \
+  F(OptimizeFunctionOnNextCall, 1, 1) \
+  F(GetOptimizationStatus, 1, 1) \
+  F(GetOptimizationCount, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \
+  F(SetES5Flag, 1, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
@@ -132,6 +137,7 @@ namespace internal {
   F(StringAdd, 2, 1) \
   F(StringBuilderConcat, 3, 1) \
   F(StringBuilderJoin, 3, 1) \
+  F(SparseJoinWithSeparator, 3, 1)            \
   \
   /* Bit operations */ \
   F(NumberOr, 2, 1) \
@@ -269,6 +275,9 @@ namespace internal {
   F(CreateObjectLiteralShallow, 4, 1) \
   F(CreateArrayLiteral, 3, 1) \
   F(CreateArrayLiteralShallow, 3, 1) \
+  \
+  /* Harmony proxies */ \
+  F(CreateJSProxy, 2, 1) \
   \
   /* Catch context extension objects */ \
   F(CreateCatchExtensionObject, 2, 1) \

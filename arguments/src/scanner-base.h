@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,14 +30,13 @@
 #ifndef V8_SCANNER_BASE_H_
 #define V8_SCANNER_BASE_H_
 
-#include "globals.h"
-#include "checks.h"
 #include "allocation.h"
+#include "char-predicates.h"
+#include "checks.h"
+#include "globals.h"
 #include "token.h"
 #include "unicode-inl.h"
-#include "char-predicates.h"
 #include "utils.h"
-#include "list-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -119,11 +118,11 @@ class UC16CharacterStream {
 };
 
 
-class ScannerConstants {
+class UnicodeCache {
 // ---------------------------------------------------------------------
-// Constants used by scanners.
+// Caching predicates used by scanners.
  public:
-  ScannerConstants() {}
+  UnicodeCache() {}
   typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
 
   StaticResource<Utf8Decoder>* utf8_decoder() {
@@ -135,8 +134,6 @@ class ScannerConstants {
   bool IsLineTerminator(unibrow::uchar c) { return kIsLineTerminator.get(c); }
   bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
 
-  bool IsIdentifier(unibrow::CharacterStream* buffer);
-
  private:
 
   unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
@@ -145,8 +142,9 @@ class ScannerConstants {
   unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
   StaticResource<Utf8Decoder> utf8_decoder_;
 
-  DISALLOW_COPY_AND_ASSIGN(ScannerConstants);
+  DISALLOW_COPY_AND_ASSIGN(UnicodeCache);
 };
+
 
 // ----------------------------------------------------------------------------
 // LiteralBuffer -  Collector of chars of literals.
@@ -272,7 +270,7 @@ class Scanner {
     bool complete_;
   };
 
-  explicit Scanner(ScannerConstants* scanner_contants);
+  explicit Scanner(UnicodeCache* scanner_contants);
 
   // Returns the current token again.
   Token::Value current_token() { return current_.token; }
@@ -288,22 +286,16 @@ class Scanner {
       return beg_pos >= 0 && end_pos >= beg_pos;
     }
 
+    static Location invalid() { return Location(-1, -1); }
+
     int beg_pos;
     int end_pos;
   };
-
-  static Location NoLocation() {
-    return Location(-1, -1);
-  }
 
   // Returns the location information for the current token
   // (the token returned by Next()).
   Location location() const { return current_.location; }
   Location peek_location() const { return next_.location; }
-
-  // Returns the location of the last seen octal literal
-  int octal_position() const { return octal_pos_; }
-  void clear_octal_position() { octal_pos_ = -1; }
 
   // Returns the literal string, if any, for the current token (the
   // token returned by Next()). The string is 0-terminated and in
@@ -326,6 +318,16 @@ class Scanner {
   int literal_length() const {
     ASSERT_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->length();
+  }
+
+  bool literal_contains_escapes() const {
+    Location location = current_.location;
+    int source_length = (location.end_pos - location.beg_pos);
+    if (current_.token == Token::STRING) {
+      // Subtract delimiters.
+      source_length -= 2;
+    }
+    return current_.literal_chars->length() != source_length;
   }
 
   // Returns the literal string for the next token (the token that
@@ -419,15 +421,12 @@ class Scanner {
 
   uc32 ScanHexEscape(uc32 c, int length);
 
-  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
-  uc32 ScanOctalEscape(uc32 c, int length);
-
   // Return the current source position.
   int source_pos() {
     return source_->pos() - kCharacterLookaheadBufferSize;
   }
 
-  ScannerConstants* scanner_constants_;
+  UnicodeCache* unicode_cache_;
 
   // Buffers collecting literal strings, numbers, etc.
   LiteralBuffer literal_buffer1_;
@@ -438,9 +437,6 @@ class Scanner {
 
   // Input stream. Must be initialized to an UC16CharacterStream.
   UC16CharacterStream* source_;
-
-  // Start position of the octal literal last scanned.
-  int octal_pos_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;
@@ -473,7 +469,7 @@ class JavaScriptScanner : public Scanner {
     bool complete_;
   };
 
-  explicit JavaScriptScanner(ScannerConstants* scanner_contants);
+  explicit JavaScriptScanner(UnicodeCache* scanner_contants);
 
   // Returns the next token.
   Token::Value Next();
@@ -493,6 +489,13 @@ class JavaScriptScanner : public Scanner {
   // Tells whether the buffer contains an identifier (no escapes).
   // Used for checking if a property name is an identifier.
   static bool IsIdentifier(unibrow::CharacterStream* buffer);
+
+  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
+  uc32 ScanOctalEscape(uc32 c, int length);
+
+  // Returns the location of the last seen octal literal
+  Location octal_position() const { return octal_pos_; }
+  void clear_octal_position() { octal_pos_ = Location::invalid(); }
 
   // Seek forward to the given position.  This operation does not
   // work in general, for instance when there are pushed back
@@ -522,6 +525,9 @@ class JavaScriptScanner : public Scanner {
   // Decodes a unicode escape-sequence which is part of an identifier.
   // If the escape sequence cannot be decoded the result is kBadChar.
   uc32 ScanIdentifierUnicodeEscape();
+
+  // Start position of the octal literal last scanned.
+  Location octal_pos_;
 
   bool has_line_terminator_before_next_;
 };

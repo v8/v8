@@ -206,7 +206,7 @@ class HeapGraphNode;
 
 /**
  * HeapSnapshotEdge represents a directed connection between heap
- * graph nodes: from retaners to retained nodes.
+ * graph nodes: from retainers to retained nodes.
  */
 class V8EXPORT HeapGraphEdge {
  public:
@@ -357,7 +357,7 @@ class V8EXPORT HeapSnapshot {
    * Prepare a serialized representation of the snapshot. The result
    * is written into the stream provided in chunks of specified size.
    * The total length of the serialized snapshot is unknown in
-   * advance, it is can be roughly equal to JS heap size (that means,
+   * advance, it can be roughly equal to JS heap size (that means,
    * it can be really big - tens of megabytes).
    *
    * For the JSON format, heap contents are represented as an object

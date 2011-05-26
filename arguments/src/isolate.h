@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -72,7 +72,7 @@ class PreallocatedMemoryThread;
 class ProducerHeapProfile;
 class RegExpStack;
 class SaveContext;
-class ScannerConstants;
+class UnicodeCache;
 class StringInputBuffer;
 class StringTracker;
 class StubCache;
@@ -136,8 +136,59 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 #endif
 
 
+// Platform-independent, reliable thread identifier.
+class ThreadId {
+ public:
+  // Creates an invalid ThreadId.
+  ThreadId() : id_(kInvalidId) {}
+
+  // Returns ThreadId for current thread.
+  static ThreadId Current() { return ThreadId(GetCurrentThreadId()); }
+
+  // Returns invalid ThreadId (guaranteed not to be equal to any thread).
+  static ThreadId Invalid() { return ThreadId(kInvalidId); }
+
+  // Compares ThreadIds for equality.
+  INLINE(bool Equals(const ThreadId& other) const) {
+    return id_ == other.id_;
+  }
+
+  // Checks whether this ThreadId refers to any thread.
+  INLINE(bool IsValid() const) {
+    return id_ != kInvalidId;
+  }
+
+  // Converts ThreadId to an integer representation
+  // (required for public API: V8::V8::GetCurrentThreadId).
+  int ToInteger() const { return id_; }
+
+  // Converts ThreadId to an integer representation
+  // (required for public API: V8::V8::TerminateExecution).
+  static ThreadId FromInteger(int id) { return ThreadId(id); }
+
+ private:
+  static const int kInvalidId = -1;
+
+  explicit ThreadId(int id) : id_(id) {}
+
+  static int AllocateThreadId();
+
+  static int GetCurrentThreadId();
+
+  int id_;
+
+  static Atomic32 highest_thread_id_;
+
+  friend class Isolate;
+};
+
+
 class ThreadLocalTop BASE_EMBEDDED {
  public:
+  // Does early low-level initialization that does not depend on the
+  // isolate being present.
+  ThreadLocalTop();
+
   // Initialize the thread data.
   void Initialize();
 
@@ -173,13 +224,13 @@ class ThreadLocalTop BASE_EMBEDDED {
     ASSERT(try_catch_handler_address_ == NULL);
   }
 
+  Isolate* isolate_;
   // The context where the current execution method is created and for variable
   // lookups.
   Context* context_;
-  int thread_id_;
+  ThreadId thread_id_;
   MaybeObject* pending_exception_;
   bool has_pending_message_;
-  const char* pending_message_;
   Object* pending_message_obj_;
   Script* pending_message_script_;
   int pending_message_start_pos_;
@@ -218,6 +269,8 @@ class ThreadLocalTop BASE_EMBEDDED {
   v8::FailedAccessCheckCallback failed_access_check_callback_;
 
  private:
+  void InitializeInternal();
+
   Address try_catch_handler_address_;
 };
 
@@ -242,7 +295,6 @@ class HashMap;
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
-  V(uint64_t, enabled_cpu_features, 0)                                         \
   V(v8::Debug::EventCallback, debug_event_callback, NULL)                      \
   V(DebuggerAgent*, debugger_agent_instance, NULL)
 #else
@@ -294,6 +346,7 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   /* A previously allocated buffer of kMinimalBufferSize bytes, or NULL. */    \
   V(byte*, assembler_spare_buffer, NULL)                                       \
   V(FatalErrorCallback, exception_behavior, NULL)                              \
+  V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, NULL)     \
   V(v8::Debug::MessageHandler, message_handler, NULL)                          \
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the global context. */                                  \
@@ -316,6 +369,9 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   /* AstNode state. */                                                         \
   V(unsigned, ast_node_id, 0)                                                  \
   V(unsigned, ast_node_count, 0)                                               \
+  /* SafeStackFrameIterator activations count. */                              \
+  V(int, safe_stack_iterator_counter, 0)                                       \
+  V(uint64_t, enabled_cpu_features, 0)                                         \
   ISOLATE_PLATFORM_INIT_LIST(V)                                                \
   ISOLATE_LOGGING_INIT_LIST(V)                                                 \
   ISOLATE_DEBUGGER_INIT_LIST(V)
@@ -327,8 +383,6 @@ class Isolate {
   class EntryStackItem;
  public:
   ~Isolate();
-
-  typedef int ThreadId;
 
   // A thread has a PerIsolateThreadData instance for each isolate that it has
   // entered. That instance is allocated when the isolate is initially entered
@@ -362,7 +416,7 @@ class Isolate {
 #endif
 
     bool Matches(Isolate* isolate, ThreadId thread_id) const {
-      return isolate_ == isolate && thread_id_ == thread_id;
+      return isolate_ == isolate && thread_id_.Equals(thread_id);
     }
 
    private:
@@ -434,9 +488,15 @@ class Isolate {
   // Safe to call multiple times.
   static void EnsureDefaultIsolate();
 
+  // Find the PerThread for this particular (isolate, thread) combination
+  // If one does not yet exist, return null.
+  PerIsolateThreadData* FindPerThreadDataForThisThread();
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Get the debugger from the default isolate. Preinitializes the
   // default isolate if needed.
   static Debugger* GetDefaultIsolateDebugger();
+#endif
 
   // Get the stack guard from the default isolate. Preinitializes the
   // default isolate if needed.
@@ -453,9 +513,6 @@ class Isolate {
   static Thread::LocalStorageKey thread_id_key() {
     return thread_id_key_;
   }
-
-  // Atomically allocates a new thread ID.
-  static ThreadId AllocateThreadId();
 
   // If a client attempts to create a Locker without specifying an isolate,
   // we assume that the client is using legacy behavior. Set up the current
@@ -482,8 +539,8 @@ class Isolate {
   }
 
   // Access to current thread id.
-  int thread_id() { return thread_local_top_.thread_id_; }
-  void set_thread_id(int id) { thread_local_top_.thread_id_ = id; }
+  ThreadId thread_id() { return thread_local_top_.thread_id_; }
+  void set_thread_id(ThreadId id) { thread_local_top_.thread_id_ = id; }
 
   // Interface to pending exception.
   MaybeObject* pending_exception() {
@@ -492,6 +549,9 @@ class Isolate {
   }
   bool external_caught_exception() {
     return thread_local_top_.external_caught_exception_;
+  }
+  void set_external_caught_exception(bool value) {
+    thread_local_top_.external_caught_exception_ = value;
   }
   void set_pending_exception(MaybeObject* exception) {
     thread_local_top_.pending_exception_ = exception;
@@ -507,7 +567,6 @@ class Isolate {
   }
   void clear_pending_message() {
     thread_local_top_.has_pending_message_ = false;
-    thread_local_top_.pending_message_ = NULL;
     thread_local_top_.pending_message_obj_ = heap_.the_hole_value();
     thread_local_top_.pending_message_script_ = NULL;
   }
@@ -519,6 +578,12 @@ class Isolate {
   }
   bool* external_caught_exception_address() {
     return &thread_local_top_.external_caught_exception_;
+  }
+  v8::TryCatch* catcher() {
+    return thread_local_top_.catcher_;
+  }
+  void set_catcher(v8::TryCatch* catcher) {
+    thread_local_top_.catcher_ = catcher;
   }
 
   MaybeObject** scheduled_exception_address() {
@@ -590,6 +655,27 @@ class Isolate {
   // JavaScript code.  If an exception is scheduled true is returned.
   bool OptionalRescheduleException(bool is_bottom_call);
 
+  class ExceptionScope {
+   public:
+    explicit ExceptionScope(Isolate* isolate) :
+      // Scope currently can only be used for regular exceptions, not
+      // failures like OOM or termination exception.
+      isolate_(isolate),
+      pending_exception_(isolate_->pending_exception()->ToObjectUnchecked()),
+      catcher_(isolate_->catcher())
+    { }
+
+    ~ExceptionScope() {
+      isolate_->set_catcher(catcher_);
+      isolate_->set_pending_exception(*pending_exception_);
+    }
+
+   private:
+    Isolate* isolate_;
+    Handle<Object> pending_exception_;
+    v8::TryCatch* catcher_;
+  };
+
   void SetCaptureStackTraceForUncaughtExceptions(
       bool capture,
       int frame_limit,
@@ -634,9 +720,7 @@ class Isolate {
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
   Failure* PromoteScheduledException();
-  void DoThrow(MaybeObject* exception,
-               MessageLocation* location,
-               const char* message);
+  void DoThrow(MaybeObject* exception, MessageLocation* location);
   // Checks if exception should be reported and finds out if it's
   // caught externally.
   bool ShouldReportException(bool* can_be_caught_externally,
@@ -749,8 +833,8 @@ class Isolate {
   }
   Zone* zone() { return &zone_; }
 
-  ScannerConstants* scanner_constants() {
-    return scanner_constants_;
+  UnicodeCache* unicode_cache() {
+    return unicode_cache_;
   }
 
   PcToCodeCache* pc_to_code_cache() { return pc_to_code_cache_; }
@@ -793,14 +877,6 @@ class Isolate {
 
   RuntimeState* runtime_state() { return &runtime_state_; }
 
-  StringInputBuffer* liveedit_compare_substrings_buf1() {
-    return &liveedit_compare_substrings_buf1_;
-  }
-
-  StringInputBuffer* liveedit_compare_substrings_buf2() {
-    return &liveedit_compare_substrings_buf2_;
-  }
-
   StaticResource<SafeStringInputBuffer>* compiler_safe_string_input_buffer() {
     return &compiler_safe_string_input_buffer_;
   }
@@ -835,6 +911,8 @@ class Isolate {
   Debugger* debugger() { return debugger_; }
   Debug* debug() { return debug_; }
 #endif
+
+  inline bool DebuggerHasBreakPoints();
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   ProducerHeapProfile* producer_heap_profile() {
@@ -895,13 +973,19 @@ class Isolate {
 
   void SetCurrentVMState(StateTag state) {
     if (RuntimeProfiler::IsEnabled()) {
-      if (state == JS) {
-        // JS or non-JS -> JS transition.
+      StateTag current_state = thread_local_top_.current_vm_state_;
+      if (current_state != JS && state == JS) {
+        // Non-JS -> JS transition.
         RuntimeProfiler::IsolateEnteredJS(this);
-      } else if (thread_local_top_.current_vm_state_ == JS) {
+      } else if (current_state == JS && state != JS) {
         // JS -> non-JS transition.
         ASSERT(RuntimeProfiler::IsSomeIsolateInJS());
         RuntimeProfiler::IsolateExitedJS(this);
+      } else {
+        // Other types of state transitions are not interesting to the
+        // runtime profiler, because they don't affect whether we're
+        // in JS or not.
+        ASSERT((current_state == JS) == (state == JS));
       }
     }
     thread_local_top_.current_vm_state_ = state;
@@ -909,6 +993,9 @@ class Isolate {
 #endif
 
   void ResetEagerOptimizingData();
+
+  void SetData(void* data) { embedder_data_ = data; }
+  void* GetData() { return embedder_data_; }
 
  private:
   Isolate();
@@ -962,7 +1049,6 @@ class Isolate {
   static Thread::LocalStorageKey thread_id_key_;
   static Isolate* default_isolate_;
   static ThreadDataTable* thread_data_table_;
-  static ThreadId highest_thread_id_;
 
   bool PreInit();
 
@@ -988,7 +1074,7 @@ class Isolate {
   // If one does not yet exist, allocate a new one.
   PerIsolateThreadData* FindOrAllocatePerThreadDataForThisThread();
 
-  // PreInits and returns a default isolate. Needed when a new thread tries
+// PreInits and returns a default isolate. Needed when a new thread tries
   // to create a Locker for the first time (the lock itself is in the isolate).
   static Isolate* GetDefaultIsolateForLocking();
 
@@ -1014,6 +1100,8 @@ class Isolate {
                            ThreadLocalTop* archived_thread_data);
 
   void FillCache();
+
+  void PropagatePendingExceptionToExternalTryCatch();
 
   int stack_trace_nesting_level_;
   StringStream* incomplete_message_;
@@ -1045,7 +1133,7 @@ class Isolate {
   DescriptorLookupCache* descriptor_lookup_cache_;
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
-  ScannerConstants* scanner_constants_;
+  UnicodeCache* unicode_cache_;
   Zone zone_;
   PreallocatedStorage in_use_list_;
   PreallocatedStorage free_list_;
@@ -1057,8 +1145,6 @@ class Isolate {
   ThreadManager* thread_manager_;
   AstSentinels* ast_sentinels_;
   RuntimeState runtime_state_;
-  StringInputBuffer liveedit_compare_substrings_buf1_;
-  StringInputBuffer liveedit_compare_substrings_buf2_;
   StaticResource<SafeStringInputBuffer> compiler_safe_string_input_buffer_;
   Builtins builtins_;
   StringTracker* string_tracker_;
@@ -1073,6 +1159,7 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   ZoneObjectList frame_element_constant_list_;
   ZoneObjectList result_constant_list_;
+  void* embedder_data_;
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
     defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
@@ -1120,8 +1207,13 @@ class Isolate {
 
   friend class ExecutionAccess;
   friend class IsolateInitializer;
+  friend class ThreadManager;
+  friend class Simulator;
+  friend class StackGuard;
+  friend class ThreadId;
   friend class v8::Isolate;
   friend class v8::Locker;
+  friend class v8::Unlocker;
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
@@ -1142,7 +1234,7 @@ class SaveContext BASE_EMBEDDED {
     isolate->set_save_context(this);
 
     // If there is no JS frame under the current C frame, use the value 0.
-    JavaScriptFrameIterator it;
+    JavaScriptFrameIterator it(isolate);
     js_sp_ = it.done() ? 0 : it.frame()->sp();
   }
 

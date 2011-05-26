@@ -39,12 +39,6 @@ namespace internal {
 // Forward declarations.
 class LCodeGen;
 
-#define LITHIUM_ALL_INSTRUCTION_LIST(V)         \
-  V(ControlInstruction)                         \
-  V(Call)                                       \
-  LITHIUM_CONCRETE_INSTRUCTION_LIST(V)
-
-
 #define LITHIUM_CONCRETE_INSTRUCTION_LIST(V)    \
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
@@ -73,12 +67,17 @@ class LCodeGen;
   V(CheckNonSmi)                                \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
+  V(ClampDToUint8)                              \
+  V(ClampIToUint8)                              \
+  V(ClampTToUint8)                              \
   V(ClassOfTest)                                \
   V(ClassOfTestAndBranch)                       \
   V(CmpID)                                      \
   V(CmpIDAndBranch)                             \
   V(CmpJSObjectEq)                              \
   V(CmpJSObjectEqAndBranch)                     \
+  V(CmpSymbolEq)                                \
+  V(CmpSymbolEqAndBranch)                       \
   V(CmpMapAndBranch)                            \
   V(CmpT)                                       \
   V(CmpTAndBranch)                              \
@@ -93,7 +92,6 @@ class LCodeGen;
   V(ExternalArrayLength)                        \
   V(FixedArrayLength)                           \
   V(FunctionLiteral)                            \
-  V(Gap)                                        \
   V(GetCachedArrayIndex)                        \
   V(GlobalObject)                               \
   V(GlobalReceiver)                             \
@@ -102,18 +100,23 @@ class LCodeGen;
   V(HasCachedArrayIndexAndBranch)               \
   V(HasInstanceType)                            \
   V(HasInstanceTypeAndBranch)                   \
+  V(In)                                         \
   V(InstanceOf)                                 \
   V(InstanceOfAndBranch)                        \
   V(InstanceOfKnownGlobal)                      \
+  V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
+  V(InvokeFunction)                             \
+  V(IsConstructCall)                            \
+  V(IsConstructCallAndBranch)                   \
   V(IsNull)                                     \
   V(IsNullAndBranch)                            \
   V(IsObject)                                   \
   V(IsObjectAndBranch)                          \
   V(IsSmi)                                      \
   V(IsSmiAndBranch)                             \
-  V(IsConstructCall)                            \
-  V(IsConstructCallAndBranch)                   \
+  V(IsUndetectable)                             \
+  V(IsUndetectableAndBranch)                    \
   V(JSArrayLength)                              \
   V(Label)                                      \
   V(LazyBailout)                                \
@@ -154,6 +157,7 @@ class LCodeGen;
   V(StoreKeyedSpecializedArrayElement)          \
   V(StoreNamedField)                            \
   V(StoreNamedGeneric)                          \
+  V(StringAdd)                                  \
   V(StringCharCodeAt)                           \
   V(StringCharFromCode)                         \
   V(StringLength)                               \
@@ -169,18 +173,14 @@ class LCodeGen;
   V(ValueOf)
 
 
-#define DECLARE_INSTRUCTION(type)                \
-  virtual bool Is##type() const { return true; } \
-  static L##type* cast(LInstruction* instr) {    \
-    ASSERT(instr->Is##type());                   \
-    return reinterpret_cast<L##type*>(instr);    \
+#define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
+  virtual Opcode opcode() const { return LInstruction::k##type; } \
+  virtual void CompileToNative(LCodeGen* generator);              \
+  virtual const char* Mnemonic() const { return mnemonic; }       \
+  static L##type* cast(LInstruction* instr) {                     \
+    ASSERT(instr->Is##type());                                    \
+    return reinterpret_cast<L##type*>(instr);                     \
   }
-
-
-#define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)        \
-  virtual void CompileToNative(LCodeGen* generator);        \
-  virtual const char* Mnemonic() const { return mnemonic; } \
-  DECLARE_INSTRUCTION(type)
 
 
 #define DECLARE_HYDROGEN_ACCESSOR(type)     \
@@ -204,10 +204,25 @@ class LInstruction: public ZoneObject {
   virtual void PrintDataTo(StringStream* stream) = 0;
   virtual void PrintOutputOperandTo(StringStream* stream) = 0;
 
-  // Declare virtual type testers.
-#define DECLARE_DO(type) virtual bool Is##type() const { return false; }
-  LITHIUM_ALL_INSTRUCTION_LIST(DECLARE_DO)
-#undef DECLARE_DO
+  enum Opcode {
+    // Declare a unique enum value for each instruction.
+#define DECLARE_OPCODE(type) k##type,
+    LITHIUM_CONCRETE_INSTRUCTION_LIST(DECLARE_OPCODE)
+    kNumberOfInstructions
+#undef DECLARE_OPCODE
+  };
+
+  virtual Opcode opcode() const = 0;
+
+  // Declare non-virtual type testers for all leaf IR classes.
+#define DECLARE_PREDICATE(type) \
+  bool Is##type() const { return opcode() == k##type; }
+  LITHIUM_CONCRETE_INSTRUCTION_LIST(DECLARE_PREDICATE)
+#undef DECLARE_PREDICATE
+
+  // Declare virtual predicates for instructions that don't have
+  // an opcode.
+  virtual bool IsGap() const { return false; }
 
   virtual bool IsControl() const { return false; }
   virtual void SetBranchTargets(int true_block_id, int false_block_id) { }
@@ -327,16 +342,20 @@ class LTemplateInstruction: public LInstruction {
 
 class LGap: public LTemplateInstruction<0, 0, 0> {
  public:
-  explicit LGap(HBasicBlock* block)
-      : block_(block) {
+  explicit LGap(HBasicBlock* block) : block_(block) {
     parallel_moves_[BEFORE] = NULL;
     parallel_moves_[START] = NULL;
     parallel_moves_[END] = NULL;
     parallel_moves_[AFTER] = NULL;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(Gap, "gap")
+  // Can't use the DECLARE-macro here because of sub-classes.
+  virtual bool IsGap() const { return true; }
   virtual void PrintDataTo(StringStream* stream);
+  static LGap* cast(LInstruction* instr) {
+    ASSERT(instr->IsGap());
+    return reinterpret_cast<LGap*>(instr);
+  }
 
   bool IsRedundant() const;
 
@@ -363,6 +382,14 @@ class LGap: public LTemplateInstruction<0, 0, 0> {
  private:
   LParallelMove* parallel_moves_[LAST_INNER_POSITION + 1];
   HBasicBlock* block_;
+};
+
+
+class LInstructionGap: public LGap {
+ public:
+  explicit LInstructionGap(HBasicBlock* block) : LGap(block) { }
+
+  DECLARE_CONCRETE_INSTRUCTION(InstructionGap, "gap")
 };
 
 
@@ -460,7 +487,6 @@ class LUnknownOSRValue: public LTemplateInstruction<1, 0, 0> {
 template<int I, int T>
 class LControlInstruction: public LTemplateInstruction<0, I, T> {
  public:
-  DECLARE_INSTRUCTION(ControlInstruction)
   virtual bool IsControl() const { return true; }
 
   int true_block_id() const { return true_block_id_; }
@@ -647,6 +673,28 @@ class LCmpJSObjectEqAndBranch: public LControlInstruction<2, 0> {
 };
 
 
+class LCmpSymbolEq: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LCmpSymbolEq(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpSymbolEq, "cmp-symbol-eq")
+};
+
+
+class LCmpSymbolEqAndBranch: public LControlInstruction<2, 0> {
+ public:
+  LCmpSymbolEqAndBranch(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CmpSymbolEqAndBranch, "cmp-symbol-eq-and-branch")
+};
+
+
 class LIsNull: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LIsNull(LOperand* value) {
@@ -719,6 +767,31 @@ class LIsSmiAndBranch: public LControlInstruction<1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(IsSmiAndBranch, "is-smi-and-branch")
+
+  virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class LIsUndetectable: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LIsUndetectable(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsUndetectable, "is-undetectable")
+  DECLARE_HYDROGEN_ACCESSOR(IsUndetectable)
+};
+
+
+class LIsUndetectableAndBranch: public LControlInstruction<1, 1> {
+ public:
+  explicit LIsUndetectableAndBranch(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(IsUndetectableAndBranch,
+                               "is-undetectable-and-branch")
 
   virtual void PrintDataTo(StringStream* stream);
 };
@@ -1130,6 +1203,7 @@ class LArithmeticD: public LTemplateInstruction<1, 2, 0> {
 
   Token::Value op() const { return op_; }
 
+  virtual Opcode opcode() const { return LInstruction::kArithmeticD; }
   virtual void CompileToNative(LCodeGen* generator);
   virtual const char* Mnemonic() const;
 
@@ -1146,6 +1220,7 @@ class LArithmeticT: public LTemplateInstruction<1, 2, 0> {
     inputs_[1] = right;
   }
 
+  virtual Opcode opcode() const { return LInstruction::kArithmeticT; }
   virtual void CompileToNative(LCodeGen* generator);
   virtual const char* Mnemonic() const;
 
@@ -1346,6 +1421,7 @@ class LStoreGlobalGeneric: public LTemplateInstruction<0, 3, 0> {
   LOperand* global_object() { return InputAt(1); }
   Handle<Object> name() const { return hydrogen()->name(); }
   LOperand* value() { return InputAt(2); }
+  bool strict_mode() { return hydrogen()->strict_mode(); }
 };
 
 
@@ -1445,6 +1521,25 @@ class LCallConstantFunction: public LTemplateInstruction<1, 0, 0> {
   virtual void PrintDataTo(StringStream* stream);
 
   Handle<JSFunction> function() { return hydrogen()->function(); }
+  int arity() const { return hydrogen()->argument_count() - 1; }
+};
+
+
+class LInvokeFunction: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LInvokeFunction(LOperand* context, LOperand* function) {
+    inputs_[0] = context;
+    inputs_[1] = function;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(InvokeFunction, "invoke-function")
+  DECLARE_HYDROGEN_ACCESSOR(InvokeFunction)
+
+  LOperand* context() { return inputs_[0]; }
+  LOperand* function() { return inputs_[1]; }
+
+  virtual void PrintDataTo(StringStream* stream);
+
   int arity() const { return hydrogen()->argument_count() - 1; }
 };
 
@@ -1694,6 +1789,7 @@ class LStoreNamedGeneric: public LTemplateInstruction<0, 3, 0> {
   LOperand* object() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
   Handle<Object> name() const { return hydrogen()->name(); }
+  bool strict_mode() { return hydrogen()->strict_mode(); }
 };
 
 
@@ -1717,16 +1813,14 @@ class LStoreKeyedFastElement: public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LStoreKeyedSpecializedArrayElement: public LTemplateInstruction<0, 3, 1> {
+class LStoreKeyedSpecializedArrayElement: public LTemplateInstruction<0, 3, 0> {
  public:
   LStoreKeyedSpecializedArrayElement(LOperand* external_pointer,
                                      LOperand* key,
-                                     LOperand* val,
-                                     LOperand* temp) {
+                                     LOperand* val) {
     inputs_[0] = external_pointer;
     inputs_[1] = key;
     inputs_[2] = val;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement,
@@ -1755,6 +1849,7 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 4, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedGeneric, "store-keyed-generic")
+  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedGeneric)
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -1762,6 +1857,22 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 4, 0> {
   LOperand* object() { return inputs_[1]; }
   LOperand* key() { return inputs_[2]; }
   LOperand* value() { return inputs_[3]; }
+  bool strict_mode() { return hydrogen()->strict_mode(); }
+};
+
+
+class LStringAdd: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LStringAdd(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StringAdd, "string-add")
+  DECLARE_HYDROGEN_ACCESSOR(StringAdd)
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
 };
 
 
@@ -1861,6 +1972,43 @@ class LCheckSmi: public LTemplateInstruction<0, 1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckSmi, "check-smi")
+};
+
+
+class LClampDToUint8: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LClampDToUint8(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* unclamped() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ClampDToUint8, "clamp-d-to-uint8")
+};
+
+
+class LClampIToUint8: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LClampIToUint8(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  LOperand* unclamped() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ClampIToUint8, "clamp-i-to-uint8")
+};
+
+
+class LClampTToUint8: public LTemplateInstruction<1, 1, 1> {
+ public:
+  LClampTToUint8(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* unclamped() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ClampTToUint8, "clamp-t-to-uint8")
 };
 
 
@@ -2001,6 +2149,20 @@ class LOsrEntry: public LTemplateInstruction<0, 0, 0> {
 class LStackCheck: public LTemplateInstruction<0, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(StackCheck, "stack-check")
+};
+
+
+class LIn: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LIn(LOperand* key, LOperand* object) {
+    inputs_[0] = key;
+    inputs_[1] = object;
+  }
+
+  LOperand* key() { return inputs_[0]; }
+  LOperand* object() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(In, "in")
 };
 
 
@@ -2227,7 +2389,6 @@ class LChunkBuilder BASE_EMBEDDED {
 };
 
 #undef DECLARE_HYDROGEN_ACCESSOR
-#undef DECLARE_INSTRUCTION
 #undef DECLARE_CONCRETE_INSTRUCTION
 
 } }  // namespace v8::internal

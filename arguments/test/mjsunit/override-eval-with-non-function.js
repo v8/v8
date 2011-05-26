@@ -30,7 +30,7 @@
 
 function test() {
   eval = /foo/;
-  assertEquals("foo", eval("foobar"));
+  assertEquals(["foo"], eval("foobar"));
 }
 
 test();

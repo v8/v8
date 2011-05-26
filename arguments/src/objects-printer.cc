@@ -114,6 +114,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case EXTERNAL_FLOAT_ARRAY_TYPE:
       ExternalFloatArray::cast(this)->ExternalFloatArrayPrint(out);
       break;
+    case EXTERNAL_DOUBLE_ARRAY_TYPE:
+      ExternalDoubleArray::cast(this)->ExternalDoubleArrayPrint(out);
+      break;
     case FILLER_TYPE:
       PrintF(out, "filler");
       break;
@@ -145,8 +148,11 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case CODE_TYPE:
       Code::cast(this)->CodePrint(out);
       break;
-    case PROXY_TYPE:
-      Proxy::cast(this)->ProxyPrint(out);
+    case JS_PROXY_TYPE:
+      JSProxy::cast(this)->JSProxyPrint(out);
+      break;
+    case FOREIGN_TYPE:
+      Foreign::cast(this)->ForeignPrint(out);
       break;
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::cast(this)->SharedFunctionInfoPrint(out);
@@ -214,6 +220,11 @@ void ExternalUnsignedIntArray::ExternalUnsignedIntArrayPrint(FILE* out) {
 
 void ExternalFloatArray::ExternalFloatArrayPrint(FILE* out) {
   PrintF(out, "external float array");
+}
+
+
+void ExternalDoubleArray::ExternalDoubleArrayPrint(FILE* out) {
+  PrintF(out, "external double array");
 }
 
 
@@ -330,6 +341,13 @@ void JSObject::PrintElements(FILE* out) {
       }
       break;
     }
+    case EXTERNAL_DOUBLE_ELEMENTS: {
+      ExternalDoubleArray* p = ExternalDoubleArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        PrintF(out, "  %d: %f\n", i, p->get(i));
+      }
+      break;
+    }
     case DICTIONARY_ELEMENTS:
       elements()->Print(out);
       break;
@@ -383,6 +401,7 @@ static const char* TypeToString(InstanceType type) {
     case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
       return "EXTERNAL_UNSIGNED_INT_ARRAY";
     case EXTERNAL_FLOAT_ARRAY_TYPE: return "EXTERNAL_FLOAT_ARRAY";
+    case EXTERNAL_DOUBLE_ARRAY_TYPE: return "EXTERNAL_DOUBLE_ARRAY";
     case FILLER_TYPE: return "FILLER";
     case JS_OBJECT_TYPE: return "JS_OBJECT";
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE: return "JS_CONTEXT_EXTENSION_OBJECT";
@@ -392,19 +411,19 @@ static const char* TypeToString(InstanceType type) {
     case JS_FUNCTION_TYPE: return "JS_FUNCTION";
     case CODE_TYPE: return "CODE";
     case JS_ARRAY_TYPE: return "JS_ARRAY";
+    case JS_PROXY_TYPE: return "JS_PROXY";
     case JS_REGEXP_TYPE: return "JS_REGEXP";
     case JS_VALUE_TYPE: return "JS_VALUE";
     case JS_GLOBAL_OBJECT_TYPE: return "JS_GLOBAL_OBJECT";
     case JS_BUILTINS_OBJECT_TYPE: return "JS_BUILTINS_OBJECT";
     case JS_GLOBAL_PROXY_TYPE: return "JS_GLOBAL_PROXY";
-    case PROXY_TYPE: return "PROXY";
-    case LAST_STRING_TYPE: return "LAST_STRING_TYPE";
+    case FOREIGN_TYPE: return "FOREIGN";
     case JS_MESSAGE_OBJECT_TYPE: return "JS_MESSAGE_OBJECT_TYPE";
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return #NAME;
   STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
+    default: return "UNKNOWN";
   }
-  return "UNKNOWN";
 }
 
 
@@ -515,6 +534,15 @@ void String::StringPrint(FILE* out) {
 }
 
 
+void JSProxy::JSProxyPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSProxy");
+  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - handler = ");
+  handler()->Print(out);
+  PrintF(out, "\n");
+}
+
+
 void JSFunction::JSFunctionPrint(FILE* out) {
   HeapObject::PrintHeader(out, "Function");
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
@@ -607,8 +635,8 @@ void Code::CodePrint(FILE* out) {
 }
 
 
-void Proxy::ProxyPrint(FILE* out) {
-  PrintF(out, "proxy to %p", proxy());
+void Foreign::ForeignPrint(FILE* out) {
+  PrintF(out, "foreign address : %p", address());
 }
 
 

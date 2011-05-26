@@ -184,12 +184,13 @@ void ProfilerEventsProcessor::RegExpCodeCreateEvent(
 void ProfilerEventsProcessor::AddCurrentStack() {
   TickSampleEventRecord record;
   TickSample* sample = &record.sample;
-  sample->state = Isolate::Current()->current_vm_state();
+  Isolate* isolate = Isolate::Current();
+  sample->state = isolate->current_vm_state();
   sample->pc = reinterpret_cast<Address>(sample);  // Not NULL.
   sample->tos = NULL;
   sample->has_external_callback = false;
   sample->frames_count = 0;
-  for (StackTraceFrameIterator it;
+  for (StackTraceFrameIterator it(isolate);
        !it.done() && sample->frames_count < TickSample::kMaxFramesCount;
        it.Advance()) {
     sample->stack[sample->frames_count++] = it.frame()->pc();
@@ -243,7 +244,7 @@ bool ProfilerEventsProcessor::ProcessTicks(unsigned dequeue_order) {
       // A paranoid check to make sure that we don't get a memory overrun
       // in case of frames_count having a wild value.
       if (record.sample.frames_count < 0
-          || record.sample.frames_count >= TickSample::kMaxFramesCount)
+          || record.sample.frames_count > TickSample::kMaxFramesCount)
         record.sample.frames_count = 0;
       generator_->RecordTickSample(record.sample);
       ticks_buffer_.FinishDequeue();
@@ -287,14 +288,16 @@ void CpuProfiler::StartProfiling(String* title) {
 
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
-  return is_profiling() ?
-      Isolate::Current()->cpu_profiler()->StopCollectingProfile(title) : NULL;
+  Isolate* isolate = Isolate::Current();
+  return is_profiling(isolate) ?
+      isolate->cpu_profiler()->StopCollectingProfile(title) : NULL;
 }
 
 
 CpuProfile* CpuProfiler::StopProfiling(Object* security_token, String* title) {
-  return is_profiling() ?
-      Isolate::Current()->cpu_profiler()->StopCollectingProfile(
+  Isolate* isolate = Isolate::Current();
+  return is_profiling(isolate) ?
+      isolate->cpu_profiler()->StopCollectingProfile(
           security_token, title) : NULL;
 }
 
@@ -335,8 +338,9 @@ TickSample* CpuProfiler::TickSampleEvent(Isolate* isolate) {
 void CpuProfiler::DeleteAllProfiles() {
   Isolate* isolate = Isolate::Current();
   ASSERT(isolate->cpu_profiler() != NULL);
-  if (is_profiling())
+  if (is_profiling(isolate)) {
     isolate->cpu_profiler()->StopProcessor();
+  }
   isolate->cpu_profiler()->ResetProfiles();
 }
 

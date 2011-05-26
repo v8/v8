@@ -63,8 +63,8 @@ bool V8::Initialize(Deserializer* des) {
   }
 
   ASSERT(i::Isolate::CurrentPerIsolateThreadData() != NULL);
-  ASSERT(i::Isolate::CurrentPerIsolateThreadData()->thread_id() ==
-         i::Thread::GetThreadLocalInt(i::Isolate::thread_id_key()));
+  ASSERT(i::Isolate::CurrentPerIsolateThreadData()->thread_id().Equals(
+           i::ThreadId::Current()));
   ASSERT(i::Isolate::CurrentPerIsolateThreadData()->isolate() ==
          i::Isolate::Current());
 
@@ -193,11 +193,7 @@ void V8::InitializeOncePerProcess() {
   // Setup the platform OS support.
   OS::Setup();
 
-#if defined(V8_TARGET_ARCH_ARM) && !defined(USE_ARM_EABI)
-  use_crankshaft_ = false;
-#else
   use_crankshaft_ = FLAG_crankshaft;
-#endif
 
   if (Serializer::enabled()) {
     use_crankshaft_ = false;
@@ -207,6 +203,8 @@ void V8::InitializeOncePerProcess() {
   if (!CPU::SupportsCrankshaft()) {
     use_crankshaft_ = false;
   }
+
+  RuntimeProfiler::GlobalSetup();
 
   // Peephole optimization might interfere with deoptimization.
   FLAG_peephole_optimization = !use_crankshaft_;

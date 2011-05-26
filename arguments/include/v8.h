@@ -1,4 +1,4 @@
-// Copyright 2007-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -115,7 +115,7 @@ class Isolate;
 }
 
 
-// --- W e a k  H a n d l e s
+// --- Weak Handles ---
 
 
 /**
@@ -131,7 +131,7 @@ typedef void (*WeakReferenceCallback)(Persistent<Value> object,
                                       void* parameter);
 
 
-// --- H a n d l e s ---
+// --- Handles ---
 
 #define TYPE_CHECK(T, S)                                       \
   while (false) {                                              \
@@ -159,7 +159,7 @@ typedef void (*WeakReferenceCallback)(Persistent<Value> object,
  *
  * It is safe to extract the object stored in the handle by
  * dereferencing the handle (for instance, to extract the Object* from
- * an Handle<Object>); the value will still be governed by a handle
+ * a Handle<Object>); the value will still be governed by a handle
  * behind the scenes and the same rules apply to these values as to
  * their handles.
  */
@@ -181,7 +181,7 @@ template <class T> class Handle {
    * constructor allows you to pass handles as arguments by value and
    * to assign between handles.  However, if you try to assign between
    * incompatible handles, for instance from a Handle<String> to a
-   * Handle<Number> it will cause a compiletime error.  Assigning
+   * Handle<Number> it will cause a compile-time error.  Assigning
    * between compatible handles, for instance assigning a
    * Handle<String> to a variable declared as Handle<Value>, is legal
    * because String is a subclass of Value.
@@ -325,7 +325,7 @@ template <class T> class Persistent : public Handle<T> {
    * handles as arguments by value and to assign between persistent
    * handles.  However, attempting to assign between incompatible
    * persistent handles, for instance from a Persistent<String> to a
-   * Persistent<Number> will cause a compiletime error.  Assigning
+   * Persistent<Number> will cause a compile-time error.  Assigning
    * between compatible persistent handles, for instance assigning a
    * Persistent<String> to a variable declared as Persistent<Value>,
    * is allowed as String is a subclass of Value.
@@ -371,7 +371,7 @@ template <class T> class Persistent : public Handle<T> {
   /**
    * Releases the storage cell referenced by this persistent handle.
    * Does not remove the reference to the cell from any handles.
-   * This handle's reference, and any any other references to the storage
+   * This handle's reference, and any other references to the storage
    * cell remain and IsEmpty will still return false.
    */
   inline void Dispose();
@@ -386,6 +386,15 @@ template <class T> class Persistent : public Handle<T> {
 
   /** Clears the weak reference to this object.*/
   inline void ClearWeak();
+
+  /**
+   * Marks the reference to this object independent. Garbage collector
+   * is free to ignore any object groups containing this object.
+   * Weak callback for an independent handle should not
+   * assume that it will be preceded by a global GC prologue callback
+   * or followed by a global GC epilogue callback.
+   */
+  inline void MarkIndependent();
 
   /**
    *Checks if the handle holds the only reference to an object.
@@ -483,7 +492,7 @@ class V8EXPORT HandleScope {
 };
 
 
-// --- S p e c i a l   o b j e c t s ---
+// --- Special objects ---
 
 
 /**
@@ -775,7 +784,7 @@ class V8EXPORT StackTrace {
   Local<Array> AsArray();
 
   /**
-   * Grab a snapshot of the the current JavaScript execution stack.
+   * Grab a snapshot of the current JavaScript execution stack.
    *
    * \param frame_limit The maximum number of stack frames we want to capture.
    * \param options Enumerates the set of things we will capture for each
@@ -834,14 +843,14 @@ class V8EXPORT StackFrame {
   bool IsEval() const;
 
   /**
-   * Returns whther or not the associated function is called as a
+   * Returns whether or not the associated function is called as a
    * constructor via "new".
    */
   bool IsConstructor() const;
 };
 
 
-// --- V a l u e ---
+// --- Value ---
 
 
 /**
@@ -1182,7 +1191,7 @@ class String : public Primitive {
    * Associate an external string resource with this string by transforming it
    * in place so that existing references to this string in the JavaScript heap
    * will use the external string resource. The external string resource's
-   * character contents needs to be equivalent to this string.
+   * character contents need to be equivalent to this string.
    * Returns true if the string has been changed to be an external string.
    * The string is not modified if the operation fails. See NewExternal for
    * information on the lifetime of the resource.
@@ -1204,7 +1213,7 @@ class String : public Primitive {
    * Associate an external string resource with this string by transforming it
    * in place so that existing references to this string in the JavaScript heap
    * will use the external string resource. The external string resource's
-   * character contents needs to be equivalent to this string.
+   * character contents need to be equivalent to this string.
    * Returns true if the string has been changed to be an external string.
    * The string is not modified if the operation fails. See NewExternal for
    * information on the lifetime of the resource.
@@ -1349,87 +1358,6 @@ class Uint32 : public Integer {
 };
 
 
-/**
- * An instance of the built-in Date constructor (ECMA-262, 15.9).
- */
-class Date : public Value {
- public:
-  V8EXPORT static Local<Value> New(double time);
-
-  /**
-   * A specialization of Value::NumberValue that is more efficient
-   * because we know the structure of this object.
-   */
-  V8EXPORT double NumberValue() const;
-
-  static inline Date* Cast(v8::Value* obj);
-
-  /**
-   * Notification that the embedder has changed the time zone,
-   * daylight savings time, or other date / time configuration
-   * parameters.  V8 keeps a cache of various values used for
-   * date / time computation.  This notification will reset
-   * those cached values for the current context so that date /
-   * time configuration changes would be reflected in the Date
-   * object.
-   *
-   * This API should not be called more than needed as it will
-   * negatively impact the performance of date operations.
-   */
-  V8EXPORT static void DateTimeConfigurationChangeNotification();
-
- private:
-  V8EXPORT static void CheckCast(v8::Value* obj);
-};
-
-
-/**
- * An instance of the built-in RegExp constructor (ECMA-262, 15.10).
- */
-class RegExp : public Value {
- public:
-  /**
-   * Regular expression flag bits. They can be or'ed to enable a set
-   * of flags.
-   */
-  enum Flags {
-    kNone = 0,
-    kGlobal = 1,
-    kIgnoreCase = 2,
-    kMultiline = 4
-  };
-
-  /**
-   * Creates a regular expression from the given pattern string and
-   * the flags bit field. May throw a JavaScript exception as
-   * described in ECMA-262, 15.10.4.1.
-   *
-   * For example,
-   *   RegExp::New(v8::String::New("foo"),
-   *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
-   * is equivalent to evaluating "/foo/gm".
-   */
-  V8EXPORT static Local<RegExp> New(Handle<String> pattern,
-                                    Flags flags);
-
-  /**
-   * Returns the value of the source property: a string representing
-   * the regular expression.
-   */
-  V8EXPORT Local<String> GetSource() const;
-
-  /**
-   * Returns the flags bit field.
-   */
-  V8EXPORT Flags GetFlags() const;
-
-  static inline RegExp* Cast(v8::Value* obj);
-
- private:
-  V8EXPORT static void CheckCast(v8::Value* obj);
-};
-
-
 enum PropertyAttribute {
   None       = 0,
   ReadOnly   = 1 << 0,
@@ -1445,6 +1373,7 @@ enum ExternalArrayType {
   kExternalIntArray,
   kExternalUnsignedIntArray,
   kExternalFloatArray,
+  kExternalDoubleArray,
   kExternalPixelArray
 };
 
@@ -1587,6 +1516,7 @@ class Object : public Value {
   V8EXPORT void SetPointerInInternalField(int index, void* value);
 
   // Testers for local properties.
+  V8EXPORT bool HasOwnProperty(Handle<String> key);
   V8EXPORT bool HasRealNamedProperty(Handle<String> key);
   V8EXPORT bool HasRealIndexedProperty(uint32_t index);
   V8EXPORT bool HasRealNamedCallbackProperty(Handle<String> key);
@@ -1619,8 +1549,8 @@ class Object : public Value {
   V8EXPORT void TurnOnAccessCheck();
 
   /**
-   * Returns the identity hash for this object. The current implemenation uses
-   * a hidden property on the object to store the identity hash.
+   * Returns the identity hash for this object. The current implementation
+   * uses a hidden property on the object to store the identity hash.
    *
    * The return value will never be 0. Also, it is not guaranteed to be
    * unique.
@@ -1684,6 +1614,29 @@ class Object : public Value {
   V8EXPORT void* GetIndexedPropertiesExternalArrayData();
   V8EXPORT ExternalArrayType GetIndexedPropertiesExternalArrayDataType();
   V8EXPORT int GetIndexedPropertiesExternalArrayDataLength();
+
+  /**
+   * Checks whether a callback is set by the
+   * ObjectTemplate::SetCallAsFunctionHandler method.
+   * When an Object is callable this method returns true.
+   */
+  V8EXPORT bool IsCallable();
+
+  /**
+   * Call an Object as a function if a callback is set by the 
+   * ObjectTemplate::SetCallAsFunctionHandler method.
+   */
+  V8EXPORT Local<Value> CallAsFunction(Handle<Object> recv,
+                                       int argc,
+                                       Handle<Value> argv[]);
+
+  /**
+   * Call an Object as a constructor if a callback is set by the
+   * ObjectTemplate::SetCallAsFunctionHandler method.
+   * Note: This method behaves like the Function::NewInstance method.
+   */
+  V8EXPORT Local<Value> CallAsConstructor(int argc,
+                                          Handle<Value> argv[]);
 
   V8EXPORT static Local<Object> New();
   static inline Object* Cast(Value* obj);
@@ -1755,6 +1708,87 @@ class Function : public Object {
 
 
 /**
+ * An instance of the built-in Date constructor (ECMA-262, 15.9).
+ */
+class Date : public Object {
+ public:
+  V8EXPORT static Local<Value> New(double time);
+
+  /**
+   * A specialization of Value::NumberValue that is more efficient
+   * because we know the structure of this object.
+   */
+  V8EXPORT double NumberValue() const;
+
+  static inline Date* Cast(v8::Value* obj);
+
+  /**
+   * Notification that the embedder has changed the time zone,
+   * daylight savings time, or other date / time configuration
+   * parameters.  V8 keeps a cache of various values used for
+   * date / time computation.  This notification will reset
+   * those cached values for the current context so that date /
+   * time configuration changes would be reflected in the Date
+   * object.
+   *
+   * This API should not be called more than needed as it will
+   * negatively impact the performance of date operations.
+   */
+  V8EXPORT static void DateTimeConfigurationChangeNotification();
+
+ private:
+  V8EXPORT static void CheckCast(v8::Value* obj);
+};
+
+
+/**
+ * An instance of the built-in RegExp constructor (ECMA-262, 15.10).
+ */
+class RegExp : public Object {
+ public:
+  /**
+   * Regular expression flag bits. They can be or'ed to enable a set
+   * of flags.
+   */
+  enum Flags {
+    kNone = 0,
+    kGlobal = 1,
+    kIgnoreCase = 2,
+    kMultiline = 4
+  };
+
+  /**
+   * Creates a regular expression from the given pattern string and
+   * the flags bit field. May throw a JavaScript exception as
+   * described in ECMA-262, 15.10.4.1.
+   *
+   * For example,
+   *   RegExp::New(v8::String::New("foo"),
+   *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
+   * is equivalent to evaluating "/foo/gm".
+   */
+  V8EXPORT static Local<RegExp> New(Handle<String> pattern,
+                                    Flags flags);
+
+  /**
+   * Returns the value of the source property: a string representing
+   * the regular expression.
+   */
+  V8EXPORT Local<String> GetSource() const;
+
+  /**
+   * Returns the flags bit field.
+   */
+  V8EXPORT Flags GetFlags() const;
+
+  static inline RegExp* Cast(v8::Value* obj);
+
+ private:
+  V8EXPORT static void CheckCast(v8::Value* obj);
+};
+
+
+/**
  * A JavaScript value that wraps a C++ void*.  This type of value is
  * mainly used to associate C++ data structures with JavaScript
  * objects.
@@ -1781,7 +1815,7 @@ class External : public Value {
 };
 
 
-// --- T e m p l a t e s ---
+// --- Templates ---
 
 
 /**
@@ -2218,7 +2252,7 @@ class V8EXPORT ObjectTemplate : public Template {
    *
    * \param getter The callback to invoke when getting a property.
    * \param setter The callback to invoke when setting a property.
-   * \param query The callback to invoke to check is an object has a property.
+   * \param query The callback to invoke to check if an object has a property.
    * \param deleter The callback to invoke when deleting a property.
    * \param enumerator The callback to invoke to enumerate all the indexed
    *   properties of an object.
@@ -2315,7 +2349,7 @@ class V8EXPORT TypeSwitch : public Data {
 };
 
 
-// --- E x t e n s i o n s ---
+// --- Extensions ---
 
 
 /**
@@ -2367,7 +2401,7 @@ class V8EXPORT DeclareExtension {
 };
 
 
-// --- S t a t i c s ---
+// --- Statics ---
 
 
 Handle<Primitive> V8EXPORT Undefined();
@@ -2408,7 +2442,7 @@ class V8EXPORT ResourceConstraints {
 bool V8EXPORT SetResourceConstraints(ResourceConstraints* constraints);
 
 
-// --- E x c e p t i o n s ---
+// --- Exceptions ---
 
 
 typedef void (*FatalErrorCallback)(const char* location, const char* message);
@@ -2439,7 +2473,7 @@ class V8EXPORT Exception {
 };
 
 
-// --- C o u n t e r s  C a l l b a c k s ---
+// --- Counters Callbacks ---
 
 typedef int* (*CounterLookupCallback)(const char* name);
 
@@ -2450,7 +2484,7 @@ typedef void* (*CreateHistogramCallback)(const char* name,
 
 typedef void (*AddHistogramSampleCallback)(void* histogram, int sample);
 
-// --- M e m o r y  A l l o c a t i o n   C a l l b a c k ---
+// --- Memory Allocation Callback ---
   enum ObjectSpace {
     kObjectSpaceNewSpace = 1 << 0,
     kObjectSpaceOldPointerSpace = 1 << 1,
@@ -2474,12 +2508,20 @@ typedef void (*MemoryAllocationCallback)(ObjectSpace space,
                                          AllocationAction action,
                                          int size);
 
-// --- F a i l e d A c c e s s C h e c k C a l l b a c k ---
+// --- Failed Access Check Callback ---
 typedef void (*FailedAccessCheckCallback)(Local<Object> target,
                                           AccessType type,
                                           Local<Value> data);
 
-// --- G a r b a g e C o l l e c t i o n  C a l l b a c k s
+// --- AllowCodeGenerationFromStrings callbacks ---
+
+/**
+ * Callback to check if code generation from strings is allowed. See
+ * Context::AllowCodeGenerationFromStrings.
+ */
+typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context);
+
+// --- Garbage Collection Callbacks ---
 
 /**
  * Applications can register callback functions which will be called
@@ -2628,6 +2670,17 @@ class V8EXPORT Isolate {
    */
   void Dispose();
 
+  /**
+   * Associate embedder-specific data with the isolate
+   */
+  void SetData(void* data);
+
+  /**
+   * Retrive embedder-specific data from the isolate.
+   * Returns NULL if SetData has never been called.
+   */
+  void* GetData();
+
  private:
 
   Isolate();
@@ -2639,6 +2692,18 @@ class V8EXPORT Isolate {
 };
 
 
+class StartupData {
+ public:
+  enum CompressionAlgorithm {
+    kUncompressed,
+    kBZip2
+  };
+
+  const char* data;
+  int compressed_size;
+  int raw_size;
+};
+
 /**
  * Container class for static utility functions.
  */
@@ -2648,13 +2713,20 @@ class V8EXPORT V8 {
   static void SetFatalErrorHandler(FatalErrorCallback that);
 
   /**
+   * Set the callback to invoke to check if code generation from
+   * strings should be allowed.
+   */
+  static void SetAllowCodeGenerationFromStringsCallback(
+      AllowCodeGenerationFromStringsCallback that);
+
+  /**
    * Ignore out-of-memory exceptions.
    *
    * V8 running out of memory is treated as a fatal error by default.
    * This means that the fatal error handler is called and that V8 is
    * terminated.
    *
-   * IgnoreOutOfMemoryException can be used to not treat a
+   * IgnoreOutOfMemoryException can be used to not treat an
    * out-of-memory situation as a fatal error.  This way, the contexts
    * that did not cause the out of memory problem might be able to
    * continue execution.
@@ -2668,9 +2740,29 @@ class V8EXPORT V8 {
   static bool IsDead();
 
   /**
+   * The following 4 functions are to be used when V8 is built with
+   * the 'compress_startup_data' flag enabled. In this case, the
+   * embedder must decompress startup data prior to initializing V8.
+   *
+   * This is how interaction with V8 should look like:
+   *   int compressed_data_count = v8::V8::GetCompressedStartupDataCount();
+   *   v8::StartupData* compressed_data =
+   *     new v8::StartupData[compressed_data_count];
+   *   v8::V8::GetCompressedStartupData(compressed_data);
+   *   ... decompress data (compressed_data can be updated in-place) ...
+   *   v8::V8::SetDecompressedStartupData(compressed_data);
+   *   ... now V8 can be initialized
+   *   ... make sure the decompressed data stays valid until V8 shutdown
+   */
+  static StartupData::CompressionAlgorithm GetCompressedStartupDataAlgorithm();
+  static int GetCompressedStartupDataCount();
+  static void GetCompressedStartupData(StartupData* compressed_data);
+  static void SetDecompressedStartupData(StartupData* decompressed_data);
+
+  /**
    * Adds a message listener.
    *
-   * The same message listener can be added more than once and it that
+   * The same message listener can be added more than once and in that
    * case it will be called more than once for each message.
    */
   static bool AddMessageListener(MessageCallback that,
@@ -2950,7 +3042,7 @@ class V8EXPORT V8 {
    * The termination is achieved by throwing an exception that is
    * uncatchable by JavaScript exception handlers.  Termination
    * exceptions act as if they were caught by a C++ TryCatch exception
-   * handlers.  If forceful termination is used, any C++ TryCatch
+   * handler.  If forceful termination is used, any C++ TryCatch
    * exception handler that catches an exception should check if that
    * exception is a termination exception and immediately return if
    * that is the case.  Returning immediately in that case will
@@ -3034,6 +3126,7 @@ class V8EXPORT V8 {
                        void* data,
                        WeakReferenceCallback);
   static void ClearWeak(internal::Object** global_handle);
+  static void MarkIndependent(internal::Object** global_handle);
   static bool IsGlobalNearDeath(internal::Object** global_handle);
   static bool IsGlobalWeak(internal::Object** global_handle);
   static void SetWrapperClassId(internal::Object** global_handle,
@@ -3155,7 +3248,7 @@ class V8EXPORT TryCatch {
 };
 
 
-// --- C o n t e x t ---
+// --- Context ---
 
 
 /**
@@ -3291,12 +3384,27 @@ class V8EXPORT Context {
   Local<Value> GetData();
 
   /**
+   * Control whether code generation from strings is allowed. Calling
+   * this method with false will disable 'eval' and the 'Function'
+   * constructor for code running in this context. If 'eval' or the
+   * 'Function' constructor are used an exception will be thrown.
+   *
+   * If code generation from strings is not allowed the
+   * V8::AllowCodeGenerationFromStrings callback will be invoked if
+   * set before blocking the call to 'eval' or the 'Function'
+   * constructor. If that callback returns true, the call will be
+   * allowed, otherwise an exception will be thrown. If no callback is
+   * set an exception will be thrown.
+   */
+  void AllowCodeGenerationFromStrings(bool allow);
+
+  /**
    * Stack-allocated class which sets the execution context for all
    * operations executed within a local scope.
    */
   class Scope {
    public:
-    inline Scope(Handle<Context> context) : context_(context) {
+    explicit inline Scope(Handle<Context> context) : context_(context) {
       context_->Enter();
     }
     inline ~Scope() { context_->Exit(); }
@@ -3321,41 +3429,37 @@ class V8EXPORT Context {
  * to the user of V8 to ensure (perhaps with locking) that this
  * constraint is not violated.
  *
- * More then one thread and multiple V8 isolates can be used
- * without any locking if each isolate is created and accessed
- * by a single thread only. For example, one thread can use
- * multiple isolates or multiple threads can each create and run
- * their own isolate.
+ * v8::Locker is a scoped lock object. While it's
+ * active (i.e. between its construction and destruction) the current thread is
+ * allowed to use the locked isolate. V8 guarantees that an isolate can be locked
+ * by at most one thread at any time. In other words, the scope of a v8::Locker is
+ * a critical section.
  *
- * If you wish to start using V8 isolate in more then one thread
- * you can do this by constructing a v8::Locker object to guard
- * access to the isolate. After the code using V8 has completed
- * for the current thread you can call the destructor.  This can
- * be combined with C++ scope-based construction as follows
- * (assumes the default isolate that is used if not specified as
- * a parameter for the Locker):
- *
- * \code
+ * Sample usage:
+* \code
  * ...
  * {
- *   v8::Locker locker;
+ *   v8::Locker locker(isolate);
+ *   v8::Isolate::Scope isolate_scope(isolate);
  *   ...
- *   // Code using V8 goes here.
+ *   // Code using V8 and isolate goes here.
  *   ...
  * } // Destructor called here
  * \endcode
  *
- * If you wish to stop using V8 in a thread A you can do this by either
+ * If you wish to stop using V8 in a thread A you can do this either
  * by destroying the v8::Locker object as above or by constructing a
  * v8::Unlocker object:
  *
  * \code
  * {
- *   v8::Unlocker unlocker;
+ *   isolate->Exit();
+ *   v8::Unlocker unlocker(isolate);
  *   ...
  *   // Code not using V8 goes here while V8 can run in another thread.
  *   ...
  * } // Destructor called here.
+ * isolate->Enter();
  * \endcode
  *
  * The Unlocker object is intended for use in a long-running callback
@@ -3375,38 +3479,51 @@ class V8EXPORT Context {
  * \code
  * // V8 not locked.
  * {
- *   v8::Locker locker;
+ *   v8::Locker locker(isolate);
+ *   Isolate::Scope isolate_scope(isolate);
  *   // V8 locked.
  *   {
- *     v8::Locker another_locker;
+ *     v8::Locker another_locker(isolate);
  *     // V8 still locked (2 levels).
  *     {
- *       v8::Unlocker unlocker;
+ *       isolate->Exit();
+ *       v8::Unlocker unlocker(isolate);
  *       // V8 not locked.
  *     }
+ *     isolate->Enter();
  *     // V8 locked again (2 levels).
  *   }
  *   // V8 still locked (1 level).
  * }
  * // V8 Now no longer locked.
  * \endcode
+ *
+ * 
  */
 class V8EXPORT Unlocker {
  public:
-  Unlocker();
+  /**
+   * Initialize Unlocker for a given Isolate. NULL means default isolate.
+   */
+  explicit Unlocker(Isolate* isolate = NULL);
   ~Unlocker();
+ private:
+  internal::Isolate* isolate_;
 };
 
 
 class V8EXPORT Locker {
  public:
-  Locker();
+  /**
+   * Initialize Locker for a given Isolate. NULL means default isolate.
+   */
+  explicit Locker(Isolate* isolate = NULL);
   ~Locker();
 
   /**
    * Start preemption.
    *
-   * When preemption is started, a timer is fired every n milli seconds
+   * When preemption is started, a timer is fired every n milliseconds
    * that will switch between multiple threads that are in contention
    * for the V8 lock.
    */
@@ -3418,9 +3535,10 @@ class V8EXPORT Locker {
   static void StopPreemption();
 
   /**
-   * Returns whether or not the locker is locked by the current thread.
+   * Returns whether or not the locker for a given isolate, or default isolate if NULL is given,
+   * is locked by the current thread.
    */
-  static bool IsLocked();
+  static bool IsLocked(Isolate* isolate = NULL);
 
   /**
    * Returns whether v8::Locker is being used by this V8 instance.
@@ -3430,6 +3548,7 @@ class V8EXPORT Locker {
  private:
   bool has_lock_;
   bool top_level_;
+  internal::Isolate* isolate_;
 
   static bool active_;
 
@@ -3486,7 +3605,7 @@ class V8EXPORT ActivityControl {  // NOLINT
 };
 
 
-// --- I m p l e m e n t a t i o n ---
+// --- Implementation ---
 
 
 namespace internal {
@@ -3579,14 +3698,14 @@ class Internals {
   static const int kStringResourceOffset =
       InternalConstants<kApiPointerSize>::kStringResourceOffset;
 
-  static const int kProxyProxyOffset = kApiPointerSize;
+  static const int kForeignAddressOffset = kApiPointerSize;
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
-  static const int kJSObjectType = 0xa0;
+  static const int kJSObjectType = 0xa2;
   static const int kFirstNonstringType = 0x80;
-  static const int kProxyType = 0x85;
+  static const int kForeignType = 0x85;
 
   static inline bool HasHeapObjectTag(internal::Object* value) {
     return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
@@ -3615,8 +3734,8 @@ class Internals {
   static inline void* GetExternalPointer(internal::Object* obj) {
     if (HasSmiTag(obj)) {
       return GetExternalPointerFromSmi(obj);
-    } else if (GetInstanceType(obj) == kProxyType) {
-      return ReadField<void*>(obj, kProxyProxyOffset);
+    } else if (GetInstanceType(obj) == kForeignType) {
+      return ReadField<void*>(obj, kForeignAddressOffset);
     } else {
       return NULL;
     }
@@ -3708,6 +3827,11 @@ void Persistent<T>::MakeWeak(void* parameters, WeakReferenceCallback callback) {
 template <class T>
 void Persistent<T>::ClearWeak() {
   V8::ClearWeak(reinterpret_cast<internal::Object**>(**this));
+}
+
+template <class T>
+void Persistent<T>::MarkIndependent() {
+  V8::MarkIndependent(reinterpret_cast<internal::Object**>(**this));
 }
 
 template <class T>

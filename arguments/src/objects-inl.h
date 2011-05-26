@@ -406,6 +406,13 @@ bool Object::IsExternalFloatArray() {
 }
 
 
+bool Object::IsExternalDoubleArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_DOUBLE_ARRAY_TYPE;
+}
+
+
 bool MaybeObject::IsFailure() {
   return HAS_FAILURE_TAG(this);
 }
@@ -577,9 +584,15 @@ bool Object::IsStringWrapper() {
 }
 
 
-bool Object::IsProxy() {
+bool Object::IsJSProxy() {
   return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() == PROXY_TYPE;
+      && HeapObject::cast(this)->map()->instance_type() == JS_PROXY_TYPE;
+}
+
+
+bool Object::IsForeign() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() == FOREIGN_TYPE;
 }
 
 
@@ -1744,8 +1757,8 @@ Object* DescriptorArray::GetCallbacksObject(int descriptor_number) {
 
 AccessorDescriptor* DescriptorArray::GetCallbacks(int descriptor_number) {
   ASSERT(GetType(descriptor_number) == CALLBACKS);
-  Proxy* p = Proxy::cast(GetCallbacksObject(descriptor_number));
-  return reinterpret_cast<AccessorDescriptor*>(p->proxy());
+  Foreign* p = Foreign::cast(GetCallbacksObject(descriptor_number));
+  return reinterpret_cast<AccessorDescriptor*>(p->address());
 }
 
 
@@ -1774,7 +1787,7 @@ bool DescriptorArray::IsDontEnum(int descriptor_number) {
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(GetKey(descriptor_number),
              GetValue(descriptor_number),
-             GetDetails(descriptor_number));
+             PropertyDetails(GetDetails(descriptor_number)));
 }
 
 
@@ -1891,7 +1904,8 @@ CAST_ACCESSOR(JSBuiltinsObject)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSRegExp)
-CAST_ACCESSOR(Proxy)
+CAST_ACCESSOR(JSProxy)
+CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(ExternalArray)
 CAST_ACCESSOR(ExternalByteArray)
@@ -1901,6 +1915,7 @@ CAST_ACCESSOR(ExternalUnsignedShortArray)
 CAST_ACCESSOR(ExternalIntArray)
 CAST_ACCESSOR(ExternalUnsignedIntArray)
 CAST_ACCESSOR(ExternalFloatArray)
+CAST_ACCESSOR(ExternalDoubleArray)
 CAST_ACCESSOR(ExternalPixelArray)
 CAST_ACCESSOR(Struct)
 
@@ -2315,6 +2330,20 @@ void ExternalFloatArray::set(int index, float value) {
 }
 
 
+double ExternalDoubleArray::get(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  double* ptr = static_cast<double*>(external_pointer());
+  return ptr[index];
+}
+
+
+void ExternalDoubleArray::set(int index, double value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  double* ptr = static_cast<double*>(external_pointer());
+  ptr[index] = value;
+}
+
+
 int Map::visitor_id() {
   return READ_BYTE_FIELD(this, kVisitorIdOffset);
 }
@@ -2515,6 +2544,12 @@ JSFunction* Map::unchecked_constructor() {
 }
 
 
+FixedArray* Map::unchecked_prototype_transitions() {
+  return reinterpret_cast<FixedArray*>(
+      READ_FIELD(this, kPrototypeTransitionsOffset));
+}
+
+
 Code::Flags Code::flags() {
   return static_cast<Flags>(READ_INT_FIELD(this, kFlagsOffset));
 }
@@ -2560,7 +2595,6 @@ Code::ExtraICState Code::extra_ic_state() {
 
 
 PropertyType Code::type() {
-  ASSERT(ic_state() == MONOMORPHIC);
   return ExtractTypeFromFlags(flags());
 }
 
@@ -2573,7 +2607,6 @@ int Code::arguments_count() {
 
 int Code::major_key() {
   ASSERT(kind() == STUB ||
-         kind() == BINARY_OP_IC ||
          kind() == TYPE_RECORDING_BINARY_OP_IC ||
          kind() == COMPARE_IC);
   return READ_BYTE_FIELD(this, kStubMajorKeyOffset);
@@ -2582,7 +2615,7 @@ int Code::major_key() {
 
 void Code::set_major_key(int major) {
   ASSERT(kind() == STUB ||
-         kind() == BINARY_OP_IC ||
+         kind() == TYPE_RECORDING_UNARY_OP_IC ||
          kind() == TYPE_RECORDING_BINARY_OP_IC ||
          kind() == COMPARE_IC);
   ASSERT(0 <= major && major < 256);
@@ -2679,27 +2712,27 @@ void Code::set_check_type(CheckType value) {
 
 
 ExternalArrayType Code::external_array_type() {
-  ASSERT(is_external_array_load_stub() || is_external_array_store_stub());
+  ASSERT(is_keyed_load_stub() || is_keyed_store_stub());
   byte type = READ_BYTE_FIELD(this, kExternalArrayTypeOffset);
   return static_cast<ExternalArrayType>(type);
 }
 
 
 void Code::set_external_array_type(ExternalArrayType value) {
-  ASSERT(is_external_array_load_stub() || is_external_array_store_stub());
+  ASSERT(is_keyed_load_stub() || is_keyed_store_stub());
   WRITE_BYTE_FIELD(this, kExternalArrayTypeOffset, value);
 }
 
 
-byte Code::binary_op_type() {
-  ASSERT(is_binary_op_stub());
-  return READ_BYTE_FIELD(this, kBinaryOpTypeOffset);
+byte Code::type_recording_unary_op_type() {
+  ASSERT(is_type_recording_unary_op_stub());
+  return READ_BYTE_FIELD(this, kUnaryOpTypeOffset);
 }
 
 
-void Code::set_binary_op_type(byte value) {
-  ASSERT(is_binary_op_stub());
-  WRITE_BYTE_FIELD(this, kBinaryOpTypeOffset, value);
+void Code::set_type_recording_unary_op_type(byte value) {
+  ASSERT(is_type_recording_unary_op_stub());
+  WRITE_BYTE_FIELD(this, kUnaryOpTypeOffset, value);
 }
 
 
@@ -2937,6 +2970,7 @@ MaybeObject* Map::GetSlowElementsMap() {
 ACCESSORS(Map, instance_descriptors, DescriptorArray,
           kInstanceDescriptorsOffset)
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
+ACCESSORS(Map, prototype_transitions, FixedArray, kPrototypeTransitionsOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
@@ -3010,7 +3044,7 @@ ACCESSORS(Script, line_offset, Smi, kLineOffsetOffset)
 ACCESSORS(Script, column_offset, Smi, kColumnOffsetOffset)
 ACCESSORS(Script, data, Object, kDataOffset)
 ACCESSORS(Script, context_data, Object, kContextOffset)
-ACCESSORS(Script, wrapper, Proxy, kWrapperOffset)
+ACCESSORS(Script, wrapper, Foreign, kWrapperOffset)
 ACCESSORS(Script, type, Smi, kTypeOffset)
 ACCESSORS(Script, compilation_type, Smi, kCompilationTypeOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
@@ -3185,6 +3219,18 @@ BOOL_ACCESSORS(SharedFunctionInfo,
                kStrictModeFunction)
 
 
+bool SharedFunctionInfo::es5_native() {
+  return BooleanBit::get(compiler_hints(), kES5Native);
+}
+
+
+void SharedFunctionInfo::set_es5_native(bool value) {
+  set_compiler_hints(BooleanBit::set(compiler_hints(),
+                                     kES5Native,
+                                     value));
+}
+
+
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
 
@@ -3316,6 +3362,11 @@ bool JSFunction::NeedsArgumentsAdaption() {
 
 bool JSFunction::IsOptimized() {
   return code()->kind() == Code::OPTIMIZED_FUNCTION;
+}
+
+
+bool JSFunction::IsOptimizable() {
+  return code()->kind() == Code::FUNCTION && code()->optimizable();
 }
 
 
@@ -3471,13 +3522,16 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
 }
 
 
-Address Proxy::proxy() {
-  return AddressFrom<Address>(READ_INTPTR_FIELD(this, kProxyOffset));
+ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
+
+
+Address Foreign::address() {
+  return AddressFrom<Address>(READ_INTPTR_FIELD(this, kAddressOffset));
 }
 
 
-void Proxy::set_proxy(Address value) {
-  WRITE_INTPTR_FIELD(this, kProxyOffset, OffsetFrom(value));
+void Foreign::set_address(Address value) {
+  WRITE_INTPTR_FIELD(this, kAddressOffset, OffsetFrom(value));
 }
 
 
@@ -3510,6 +3564,8 @@ JSMessageObject* JSMessageObject::cast(Object* obj) {
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
 ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
+ACCESSORS(Code, next_code_flushing_candidate,
+          Object, kNextCodeFlushingCandidateOffset)
 
 
 byte* Code::instruction_start()  {
@@ -3632,27 +3688,33 @@ JSObject::ElementsKind JSObject::GetElementsKind() {
     ASSERT(array->IsDictionary());
     return DICTIONARY_ELEMENTS;
   }
-  ASSERT(array->IsExternalArray());
-  switch (array->map()->instance_type()) {
-    case EXTERNAL_BYTE_ARRAY_TYPE:
-      return EXTERNAL_BYTE_ELEMENTS;
-    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-      return EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
-    case EXTERNAL_SHORT_ARRAY_TYPE:
-      return EXTERNAL_SHORT_ELEMENTS;
-    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-      return EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
-    case EXTERNAL_INT_ARRAY_TYPE:
-      return EXTERNAL_INT_ELEMENTS;
-    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-      return EXTERNAL_UNSIGNED_INT_ELEMENTS;
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
-      return EXTERNAL_PIXEL_ELEMENTS;
-    default:
-      break;
+  ASSERT(!map()->has_fast_elements());
+  if (array->IsExternalArray()) {
+    switch (array->map()->instance_type()) {
+      case EXTERNAL_BYTE_ARRAY_TYPE:
+        return EXTERNAL_BYTE_ELEMENTS;
+      case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+        return EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
+      case EXTERNAL_SHORT_ARRAY_TYPE:
+        return EXTERNAL_SHORT_ELEMENTS;
+      case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+        return EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
+      case EXTERNAL_INT_ARRAY_TYPE:
+        return EXTERNAL_INT_ELEMENTS;
+      case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+        return EXTERNAL_UNSIGNED_INT_ELEMENTS;
+      case EXTERNAL_FLOAT_ARRAY_TYPE:
+        return EXTERNAL_FLOAT_ELEMENTS;
+      case EXTERNAL_DOUBLE_ARRAY_TYPE:
+        return EXTERNAL_DOUBLE_ELEMENTS;
+      case EXTERNAL_PIXEL_ARRAY_TYPE:
+        return EXTERNAL_PIXEL_ELEMENTS;
+      default:
+        break;
+    }
   }
-  ASSERT(array->map()->instance_type() == EXTERNAL_FLOAT_ARRAY_TYPE);
-  return EXTERNAL_FLOAT_ELEMENTS;
+  UNREACHABLE();
+  return DICTIONARY_ELEMENTS;
 }
 
 
@@ -3693,6 +3755,8 @@ EXTERNAL_ELEMENTS_CHECK(UnsignedInt,
                         EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)
 EXTERNAL_ELEMENTS_CHECK(Float,
                         EXTERNAL_FLOAT_ARRAY_TYPE)
+EXTERNAL_ELEMENTS_CHECK(Double,
+                        EXTERNAL_DOUBLE_ARRAY_TYPE)
 EXTERNAL_ELEMENTS_CHECK(Pixel, EXTERNAL_PIXEL_ARRAY_TYPE)
 
 
@@ -3951,6 +4015,15 @@ void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
   set_flag(Smi::FromInt(rest_value | AttributesField::encode(attributes)));
 }
 
+
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::SetEntry(int entry,
+                                      Object* key,
+                                      Object* value) {
+  SetEntry(entry, key, value, PropertyDetails(Smi::FromInt(0)));
+}
+
+
 template<typename Shape, typename Key>
 void Dictionary<Shape, Key>::SetEntry(int entry,
                                       Object* key,
@@ -4075,16 +4148,16 @@ int JSObject::BodyDescriptor::SizeOf(Map* map, HeapObject* object) {
 }
 
 
-void Proxy::ProxyIterateBody(ObjectVisitor* v) {
+void Foreign::ForeignIterateBody(ObjectVisitor* v) {
   v->VisitExternalReference(
-      reinterpret_cast<Address *>(FIELD_ADDR(this, kProxyOffset)));
+      reinterpret_cast<Address *>(FIELD_ADDR(this, kAddressOffset)));
 }
 
 
 template<typename StaticVisitor>
-void Proxy::ProxyIterateBody() {
+void Foreign::ForeignIterateBody() {
   StaticVisitor::VisitExternalReference(
-      reinterpret_cast<Address *>(FIELD_ADDR(this, kProxyOffset)));
+      reinterpret_cast<Address *>(FIELD_ADDR(this, kAddressOffset)));
 }
 
 

@@ -218,8 +218,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       fp_to_sp_delta_(fp_to_sp_delta),
       output_count_(0),
       output_(NULL),
-      integer32_values_(NULL),
-      double_values_(NULL) {
+      deferred_heap_numbers_(0) {
   if (FLAG_trace_deopt && type != OSR) {
     PrintF("**** DEOPT: ");
     function->PrintName();
@@ -258,8 +257,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
 
 Deoptimizer::~Deoptimizer() {
   ASSERT(input_ == NULL && output_ == NULL);
-  delete[] integer32_values_;
-  delete[] double_values_;
 }
 
 
@@ -390,13 +387,8 @@ void Deoptimizer::DoComputeOutputFrames() {
   int count = iterator.Next();
   ASSERT(output_ == NULL);
   output_ = new FrameDescription*[count];
-  // Per-frame lists of untagged and unboxed int32 and double values.
-  integer32_values_ = new List<ValueDescriptionInteger32>[count];
-  double_values_ = new List<ValueDescriptionDouble>[count];
   for (int i = 0; i < count; ++i) {
     output_[i] = NULL;
-    integer32_values_[i].Initialize(0);
-    double_values_[i].Initialize(0);
   }
   output_count_ = count;
 
@@ -424,37 +416,19 @@ void Deoptimizer::DoComputeOutputFrames() {
 }
 
 
-void Deoptimizer::InsertHeapNumberValues(int index, JavaScriptFrame* frame) {
-  // We need to adjust the stack index by one for the top-most frame.
-  int extra_slot_count = (index == output_count() - 1) ? 1 : 0;
-  List<ValueDescriptionInteger32>* ints = &integer32_values_[index];
-  for (int i = 0; i < ints->length(); i++) {
-    ValueDescriptionInteger32 value = ints->at(i);
-    double val = static_cast<double>(value.int32_value());
-    InsertHeapNumberValue(frame, value.stack_index(), val, extra_slot_count);
+void Deoptimizer::MaterializeHeapNumbers() {
+  for (int i = 0; i < deferred_heap_numbers_.length(); i++) {
+    HeapNumberMaterializationDescriptor d = deferred_heap_numbers_[i];
+    Handle<Object> num = isolate_->factory()->NewNumber(d.value());
+    if (FLAG_trace_deopt) {
+      PrintF("Materializing a new heap number %p [%e] in slot %p\n",
+             reinterpret_cast<void*>(*num),
+             d.value(),
+             d.slot_address());
+    }
+
+    Memory::Object_at(d.slot_address()) = *num;
   }
-
-  // Iterate over double values and convert them to a heap number.
-  List<ValueDescriptionDouble>* doubles = &double_values_[index];
-  for (int i = 0; i < doubles->length(); ++i) {
-    ValueDescriptionDouble value = doubles->at(i);
-    InsertHeapNumberValue(frame, value.stack_index(), value.double_value(),
-                          extra_slot_count);
-  }
-}
-
-
-void Deoptimizer::InsertHeapNumberValue(JavaScriptFrame* frame,
-                                        int stack_index,
-                                        double val,
-                                        int extra_slot_count) {
-  // Add one to the TOS index to take the 'state' pushed before jumping
-  // to the stub that calls Runtime::NotifyDeoptimized into account.
-  int tos_index = stack_index + extra_slot_count;
-  int index = (frame->ComputeExpressionsCount() - 1) - tos_index;
-  if (FLAG_trace_deopt) PrintF("Allocating a new heap number: %e\n", val);
-  Handle<Object> num = isolate_->factory()->NewNumber(val);
-  frame->SetExpression(index, *num);
 }
 
 
@@ -500,7 +474,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       int input_reg = iterator->Next();
       intptr_t value = input_->GetRegister(input_reg);
       bool is_smi = Smi::IsValid(value);
-      unsigned output_index = output_offset / kPointerSize;
       if (FLAG_trace_deopt) {
         PrintF(
             "    0x%08" V8PRIxPTR ": [top + %d] <- %" V8PRIdPTR " ; %s (%s)\n",
@@ -517,9 +490,8 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       } else {
         // We save the untagged value on the side and store a GC-safe
         // temporary placeholder in the frame.
-        AddInteger32Value(frame_index,
-                          output_index,
-                          static_cast<int32_t>(value));
+        AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
+                       static_cast<double>(static_cast<int32_t>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
       }
       return;
@@ -528,7 +500,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::DOUBLE_REGISTER: {
       int input_reg = iterator->Next();
       double value = input_->GetDoubleRegister(input_reg);
-      unsigned output_index = output_offset / kPointerSize;
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- %e ; %s\n",
                output_[frame_index]->GetTop() + output_offset,
@@ -538,7 +509,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       }
       // We save the untagged value on the side and store a GC-safe
       // temporary placeholder in the frame.
-      AddDoubleValue(frame_index, output_index, value);
+      AddDoubleValue(output_[frame_index]->GetTop() + output_offset, value);
       output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
       return;
     }
@@ -566,7 +537,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
           input_->GetOffsetFromSlotIndex(this, input_slot_index);
       intptr_t value = input_->GetFrameSlot(input_offset);
       bool is_smi = Smi::IsValid(value);
-      unsigned output_index = output_offset / kPointerSize;
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": ",
                output_[frame_index]->GetTop() + output_offset);
@@ -583,9 +553,8 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       } else {
         // We save the untagged value on the side and store a GC-safe
         // temporary placeholder in the frame.
-        AddInteger32Value(frame_index,
-                          output_index,
-                          static_cast<int32_t>(value));
+        AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
+                       static_cast<double>(static_cast<int32_t>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
       }
       return;
@@ -596,7 +565,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       unsigned input_offset =
           input_->GetOffsetFromSlotIndex(this, input_slot_index);
       double value = input_->GetDoubleFrameSlot(input_offset);
-      unsigned output_index = output_offset / kPointerSize;
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- %e ; [esp + %d]\n",
                output_[frame_index]->GetTop() + output_offset,
@@ -606,7 +574,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       }
       // We save the untagged value on the side and store a GC-safe
       // temporary placeholder in the frame.
-      AddDoubleValue(frame_index, output_index, value);
+      AddDoubleValue(output_[frame_index]->GetTop() + output_offset, value);
       output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
       return;
     }
@@ -910,19 +878,11 @@ Object* Deoptimizer::ComputeLiteral(int index) const {
 }
 
 
-void Deoptimizer::AddInteger32Value(int frame_index,
-                                    int slot_index,
-                                    int32_t value) {
-  ValueDescriptionInteger32 value_desc(slot_index, value);
-  integer32_values_[frame_index].Add(value_desc);
-}
-
-
-void Deoptimizer::AddDoubleValue(int frame_index,
-                                 int slot_index,
+void Deoptimizer::AddDoubleValue(intptr_t slot_address,
                                  double value) {
-  ValueDescriptionDouble value_desc(slot_index, value);
-  double_values_[frame_index].Add(value_desc);
+  HeapNumberMaterializationDescriptor value_desc(
+      reinterpret_cast<Address>(slot_address), value);
+  deferred_heap_numbers_.Add(value_desc);
 }
 
 

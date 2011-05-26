@@ -166,4 +166,25 @@ void LPointerMap::PrintTo(StringStream* stream) {
 }
 
 
+int ExternalArrayTypeToShiftSize(ExternalArrayType type) {
+  switch (type) {
+    case kExternalByteArray:
+    case kExternalUnsignedByteArray:
+    case kExternalPixelArray:
+      return 0;
+    case kExternalShortArray:
+    case kExternalUnsignedShortArray:
+      return 1;
+    case kExternalIntArray:
+    case kExternalUnsignedIntArray:
+    case kExternalFloatArray:
+      return 2;
+    case kExternalDoubleArray:
+      return 3;
+  }
+  UNREACHABLE();
+  return 0;
+}
+
+
 } }  // namespace v8::internal

@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 // A light-weight IA32 Assembler.
 
@@ -311,8 +311,12 @@ void Assembler::emit(Handle<Object> handle) {
 }
 
 
-void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
-  if (rmode != RelocInfo::NONE) RecordRelocInfo(rmode);
+void Assembler::emit(uint32_t x, RelocInfo::Mode rmode, unsigned id) {
+  if (rmode == RelocInfo::CODE_TARGET && id != kNoASTId) {
+    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, static_cast<intptr_t>(id));
+  } else if (rmode != RelocInfo::NONE) {
+    RecordRelocInfo(rmode);
+  }
   emit(x);
 }
 
@@ -373,6 +377,18 @@ void Assembler::emit_disp(Label* L, Displacement::Type type) {
   Displacement disp(L, type);
   L->link_to(pc_offset());
   emit(static_cast<int>(disp.data()));
+}
+
+
+void Assembler::emit_near_disp(Label* L) {
+  byte disp = 0x00;
+  if (L->is_near_linked()) {
+    int offset = L->near_link_pos() - pc_offset();
+    ASSERT(is_int8(offset));
+    disp = static_cast<byte>(offset & 0xFF);
+  }
+  L->link_to(pc_offset(), Label::kNear);
+  *pc_++ = disp;
 }
 
 

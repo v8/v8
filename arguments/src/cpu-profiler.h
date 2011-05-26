@@ -30,6 +30,7 @@
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+#include "allocation.h"
 #include "atomicops.h"
 #include "circular-queue.h"
 #include "unbound-queue.h"
@@ -133,8 +134,8 @@ class TickSampleEventRecord BASE_EMBEDDED {
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public Thread {
  public:
-  explicit ProfilerEventsProcessor(Isolate* isolate,
-                                   ProfileGenerator* generator);
+  ProfilerEventsProcessor(Isolate* isolate,
+                          ProfileGenerator* generator);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.
@@ -197,12 +198,12 @@ class ProfilerEventsProcessor : public Thread {
 } }  // namespace v8::internal
 
 
-#define PROFILE(isolate, Call)                         \
-  LOG(isolate, Call);                                  \
-  do {                                                 \
-    if (v8::internal::CpuProfiler::is_profiling()) {   \
-      v8::internal::CpuProfiler::Call;                 \
-    }                                                  \
+#define PROFILE(isolate, Call)                                \
+  LOG(isolate, Call);                                         \
+  do {                                                        \
+    if (v8::internal::CpuProfiler::is_profiling(isolate)) {   \
+      v8::internal::CpuProfiler::Call;                        \
+    }                                                         \
   } while (false)
 #else
 #define PROFILE(isolate, Call) LOG(isolate, Call)
@@ -261,10 +262,6 @@ class CpuProfiler {
 
   // TODO(isolates): this doesn't have to use atomics anymore.
 
-  static INLINE(bool is_profiling()) {
-    return is_profiling(Isolate::Current());
-  }
-
   static INLINE(bool is_profiling(Isolate* isolate)) {
     CpuProfiler* profiler = isolate->cpu_profiler();
     return profiler != NULL && NoBarrier_Load(&profiler->is_profiling_);
@@ -292,7 +289,7 @@ class CpuProfiler {
   Atomic32 is_profiling_;
 
 #else
-  static INLINE(bool is_profiling()) { return false; }
+  static INLINE(bool is_profiling(Isolate* isolate)) { return false; }
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
  private:

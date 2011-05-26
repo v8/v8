@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -305,13 +305,11 @@ class CodeFlusher {
     *GetNextCandidateField(candidate) = next_candidate;
   }
 
-  STATIC_ASSERT(kPointerSize <= Code::kHeaderSize - Code::kHeaderPaddingStart);
-
   static SharedFunctionInfo** GetNextCandidateField(
       SharedFunctionInfo* candidate) {
     Code* code = candidate->unchecked_code();
     return reinterpret_cast<SharedFunctionInfo**>(
-        code->address() + Code::kHeaderPaddingStart);
+        code->address() + Code::kNextCodeFlushingCandidateOffset);
   }
 
   static SharedFunctionInfo* GetNextCandidate(SharedFunctionInfo* candidate) {
@@ -459,7 +457,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* code = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    if (FLAG_cleanup_ics_at_gc && code->is_inline_cache_stub()) {
+    if (FLAG_cleanup_code_caches_at_gc && code->is_inline_cache_stub()) {
       IC::Clear(rinfo->pc());
       // Please note targets for cleared inline cached do not have to be
       // marked since they are contained in HEAP->non_monomorphic_cache().
@@ -890,8 +888,8 @@ class CodeMarkingVisitor : public ThreadVisitor {
   explicit CodeMarkingVisitor(MarkCompactCollector* collector)
       : collector_(collector) {}
 
-  void VisitThread(ThreadLocalTop* top) {
-    for (StackFrameIterator it(top); !it.done(); it.Advance()) {
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+    for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       collector_->MarkObject(it.frame()->unchecked_code());
     }
   }
@@ -1058,7 +1056,7 @@ void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
   ASSERT(HEAP->Contains(object));
   if (object->IsMap()) {
     Map* map = Map::cast(object);
-    if (FLAG_cleanup_caches_in_maps_at_gc) {
+    if (FLAG_cleanup_code_caches_at_gc) {
       map->ClearCodeCache(heap());
     }
     SetMark(map);
@@ -1077,6 +1075,12 @@ void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
 
 
 void MarkCompactCollector::MarkMapContents(Map* map) {
+  // Mark prototype transitions array but don't push it into marking stack.
+  // This will make references from it weak. We will clean dead prototype
+  // transitions in ClearNonLiveTransitions.
+  FixedArray* prototype_transitions = map->unchecked_prototype_transitions();
+  if (!prototype_transitions->IsMarked()) SetMark(prototype_transitions);
+
   MarkDescriptorArray(reinterpret_cast<DescriptorArray*>(
       *HeapObject::RawField(map, Map::kInstanceDescriptorsOffset)));
 
@@ -1217,13 +1221,14 @@ void MarkCompactCollector::MarkObjectGroups() {
   List<ObjectGroup*>* object_groups =
       heap()->isolate()->global_handles()->object_groups();
 
+  int last = 0;
   for (int i = 0; i < object_groups->length(); i++) {
     ObjectGroup* entry = object_groups->at(i);
-    if (entry == NULL) continue;
+    ASSERT(entry != NULL);
 
-    List<Object**>& objects = entry->objects_;
+    Object*** objects = entry->objects_;
     bool group_marked = false;
-    for (int j = 0; j < objects.length(); j++) {
+    for (size_t j = 0; j < entry->length_; j++) {
       Object* object = *objects[j];
       if (object->IsHeapObject() && HeapObject::cast(object)->IsMarked()) {
         group_marked = true;
@@ -1231,21 +1236,24 @@ void MarkCompactCollector::MarkObjectGroups() {
       }
     }
 
-    if (!group_marked) continue;
+    if (!group_marked) {
+      (*object_groups)[last++] = entry;
+      continue;
+    }
 
-    // An object in the group is marked, so mark as gray all white heap
-    // objects in the group.
-    for (int j = 0; j < objects.length(); ++j) {
+    // An object in the group is marked, so mark all heap objects in
+    // the group.
+    for (size_t j = 0; j < entry->length_; ++j) {
       if ((*objects[j])->IsHeapObject()) {
         MarkObject(HeapObject::cast(*objects[j]));
       }
     }
 
-    // Once the entire group has been colored gray, set the object group
-    // to NULL so it won't be processed again.
-    delete entry;
-    object_groups->at(i) = NULL;
+    // Once the entire group has been marked, dispose it because it's
+    // not needed anymore.
+    entry->Dispose();
   }
+  object_groups->Rewind(last);
 }
 
 
@@ -1253,26 +1261,29 @@ void MarkCompactCollector::MarkImplicitRefGroups() {
   List<ImplicitRefGroup*>* ref_groups =
       heap()->isolate()->global_handles()->implicit_ref_groups();
 
+  int last = 0;
   for (int i = 0; i < ref_groups->length(); i++) {
     ImplicitRefGroup* entry = ref_groups->at(i);
-    if (entry == NULL) continue;
+    ASSERT(entry != NULL);
 
-    if (!entry->parent_->IsMarked()) continue;
+    if (!(*entry->parent_)->IsMarked()) {
+      (*ref_groups)[last++] = entry;
+      continue;
+    }
 
-    List<Object**>& children = entry->children_;
-    // A parent object is marked, so mark as gray all child white heap
-    // objects.
-    for (int j = 0; j < children.length(); ++j) {
+    Object*** children = entry->children_;
+    // A parent object is marked, so mark all child heap objects.
+    for (size_t j = 0; j < entry->length_; ++j) {
       if ((*children[j])->IsHeapObject()) {
         MarkObject(HeapObject::cast(*children[j]));
       }
     }
 
-    // Once the entire group has been colored gray, set the  group
-    // to NULL so it won't be processed again.
-    delete entry;
-    ref_groups->at(i) = NULL;
+    // Once the entire group has been marked, dispose it because it's
+    // not needed anymore.
+    entry->Dispose();
   }
+  ref_groups->Rewind(last);
 }
 
 
@@ -1487,7 +1498,7 @@ bool MarkCompactCollector::SafeIsMap(HeapObject* object) {
 
 
 void MarkCompactCollector::ClearNonLiveTransitions() {
-  HeapObjectIterator map_iterator(heap() ->map_space(), &SizeOfMarkedObject);
+  HeapObjectIterator map_iterator(heap()->map_space(), &SizeOfMarkedObject);
   // Iterate over the map space, setting map transitions that go from
   // a marked map to an unmarked map to null transitions.  At the same time,
   // set all the prototype fields of maps back to their original value,
@@ -1513,6 +1524,41 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
       // from SharedFunctionInfo during the mark phase.
       // Since it survived the GC, reattach it now.
       map->unchecked_constructor()->unchecked_shared()->AttachInitialMap(map);
+    }
+
+    // Clear dead prototype transitions.
+    FixedArray* prototype_transitions = map->unchecked_prototype_transitions();
+    if (prototype_transitions->length() > 0) {
+      int finger = Smi::cast(prototype_transitions->get(0))->value();
+      int new_finger = 1;
+      for (int i = 1; i < finger; i += 2) {
+        Object* prototype = prototype_transitions->get(i);
+        Object* cached_map = prototype_transitions->get(i + 1);
+        if (HeapObject::cast(prototype)->IsMarked() &&
+            HeapObject::cast(cached_map)->IsMarked()) {
+          if (new_finger != i) {
+            prototype_transitions->set_unchecked(heap_,
+                                                 new_finger,
+                                                 prototype,
+                                                 UPDATE_WRITE_BARRIER);
+            prototype_transitions->set_unchecked(heap_,
+                                                 new_finger + 1,
+                                                 cached_map,
+                                                 SKIP_WRITE_BARRIER);
+          }
+          new_finger += 2;
+        }
+      }
+
+      // Fill slots that became free with undefined value.
+      Object* undefined = heap()->raw_unchecked_undefined_value();
+      for (int i = new_finger; i < finger; i++) {
+        prototype_transitions->set_unchecked(heap_,
+                                             i,
+                                             undefined,
+                                             SKIP_WRITE_BARRIER);
+      }
+      prototype_transitions->set_unchecked(0, Smi::FromInt(new_finger));
     }
 
     // Follow the chain of back pointers to find the prototype.
@@ -2007,7 +2053,7 @@ static void SweepNewSpace(Heap* heap, NewSpace* space) {
   }
 
   // Update roots.
-  heap->IterateRoots(&updating_visitor, VISIT_ALL_IN_SCAVENGE);
+  heap->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
   LiveObjectList::IterateElements(&updating_visitor);
 
   // Update pointers in old spaces.

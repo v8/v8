@@ -33,46 +33,6 @@
 namespace v8 {
 namespace internal {
 
-// Variables and AST expression nodes can track their "type" to enable
-// optimizations and removal of redundant checks when generating code.
-
-class StaticType {
- public:
-  enum Kind {
-    UNKNOWN,
-    LIKELY_SMI
-  };
-
-  StaticType() : kind_(UNKNOWN) {}
-
-  bool Is(Kind kind) const { return kind_ == kind; }
-
-  bool IsKnown() const { return !Is(UNKNOWN); }
-  bool IsUnknown() const { return Is(UNKNOWN); }
-  bool IsLikelySmi() const { return Is(LIKELY_SMI); }
-
-  void CopyFrom(StaticType* other) {
-    kind_ = other->kind_;
-  }
-
-  static const char* Type2String(StaticType* type);
-
-  // LIKELY_SMI accessors
-  void SetAsLikelySmi() {
-    kind_ = LIKELY_SMI;
-  }
-
-  void SetAsLikelySmiIfUnknown() {
-    if (IsUnknown()) {
-      SetAsLikelySmi();
-    }
-  }
-
- private:
-  Kind kind_;
-};
-
-
 // The AST refers to variables via VariableProxies - placeholders for the actual
 // variables. Variables themselves are never directly referred to from the AST,
 // they are maintained by scopes, and referred to from VariableProxies and Slots
@@ -122,6 +82,7 @@ class Variable: public ZoneObject {
   static const char* Mode2String(Mode mode);
 
   // Type testing & conversion.  Global variables are not slots.
+  Property* AsProperty() const;
   Slot* AsSlot() const;
 
   bool IsValidLeftHandSide() { return is_valid_LHS_; }
@@ -180,8 +141,6 @@ class Variable: public ZoneObject {
   Slot* rewrite() const { return rewrite_; }
   void set_rewrite(Slot* slot) { rewrite_ = slot; }
 
-  StaticType* type() { return &type_; }
-
  private:
   Scope* scope_;
   Handle<String> name_;
@@ -189,9 +148,6 @@ class Variable: public ZoneObject {
   Kind kind_;
 
   Variable* local_if_not_shadowed_;
-
-  // Static type information
-  StaticType type_;
 
   // Code generation.
   Slot* rewrite_;

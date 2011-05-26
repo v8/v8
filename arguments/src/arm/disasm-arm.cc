@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -371,25 +371,34 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 int Decoder::FormatVFPRegister(Instruction* instr, const char* format) {
   ASSERT((format[0] == 'S') || (format[0] == 'D'));
 
+  VFPRegPrecision precision =
+      format[0] == 'D' ? kDoublePrecision : kSinglePrecision;
+
+  int retval = 2;
+  int reg = -1;
   if (format[1] == 'n') {
-    int reg = instr->VnValue();
-    if (format[0] == 'S') PrintSRegister(((reg << 1) | instr->NValue()));
-    if (format[0] == 'D') PrintDRegister(reg);
-    return 2;
+    reg = instr->VFPNRegValue(precision);
   } else if (format[1] == 'm') {
-    int reg = instr->VmValue();
-    if (format[0] == 'S') PrintSRegister(((reg << 1) | instr->MValue()));
-    if (format[0] == 'D') PrintDRegister(reg);
-    return 2;
+    reg = instr->VFPMRegValue(precision);
   } else if (format[1] == 'd') {
-    int reg = instr->VdValue();
-    if (format[0] == 'S') PrintSRegister(((reg << 1) | instr->DValue()));
-    if (format[0] == 'D') PrintDRegister(reg);
-    return 2;
+    reg = instr->VFPDRegValue(precision);
+    if (format[2] == '+') {
+      int immed8 = instr->Immed8Value();
+      if (format[0] == 'S') reg += immed8 - 1;
+      if (format[0] == 'D') reg += (immed8 / 2 - 1);
+    }
+    if (format[2] == '+') retval = 3;
+  } else {
+    UNREACHABLE();
   }
 
-  UNREACHABLE();
-  return -1;
+  if (precision == kSinglePrecision) {
+    PrintSRegister(reg);
+  } else {
+    PrintDRegister(reg);
+  }
+
+  return retval;
 }
 
 
@@ -493,13 +502,16 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         ASSERT(STRING_STARTS_WITH(format, "memop"));
         if (instr->HasL()) {
           Print("ldr");
-        } else if ((instr->Bits(27, 25) == 0) && (instr->Bit(20) == 0)) {
-          if (instr->Bits(7, 4) == 0xf) {
-            Print("strd");
-          } else {
-            Print("ldrd");
-          }
         } else {
+          if ((instr->Bits(27, 25) == 0) && (instr->Bit(20) == 0) &&
+              (instr->Bits(7, 6) == 3) && (instr->Bit(4) == 1)) {
+            if (instr->Bit(5) == 1) {
+              Print("strd");
+            } else {
+              Print("ldrd");
+            }
+            return 5;
+          }
           Print("str");
         }
         return 5;
@@ -1077,10 +1089,10 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
         }
       } else if ((instr->Opc2Value() == 0x0) && (instr->Opc3Value() == 0x3)) {
         // vabs
-        Format(instr, "vabs'cond 'Dd, 'Dm");
+        Format(instr, "vabs.f64'cond 'Dd, 'Dm");
       } else if ((instr->Opc2Value() == 0x1) && (instr->Opc3Value() == 0x1)) {
         // vneg
-        Format(instr, "vneg'cond 'Dd, 'Dm");
+        Format(instr, "vneg.f64'cond 'Dd, 'Dm");
       } else if ((instr->Opc2Value() == 0x7) && (instr->Opc3Value() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
       } else if ((instr->Opc2Value() == 0x8) && (instr->Opc3Value() & 0x1)) {
@@ -1273,9 +1285,22 @@ void Decoder::DecodeType6CoprocessorIns(Instruction* instr) {
           Format(instr, "vstr'cond 'Sd, ['rn + 4*'imm08@00]");
         }
         break;
+      case 0x4:
+      case 0x5:
+      case 0x6:
+      case 0x7:
+      case 0x9:
+      case 0xB: {
+        bool to_vfp_register = (instr->VLValue() == 0x1);
+        if (to_vfp_register) {
+          Format(instr, "vldm'cond'pu 'rn'w, {'Sd-'Sd+}");
+        } else {
+          Format(instr, "vstm'cond'pu 'rn'w, {'Sd-'Sd+}");
+        }
+        break;
+      }
       default:
         Unknown(instr);  // Not used by V8.
-        break;
     }
   } else if (instr->CoprocessorValue() == 0xB) {
     switch (instr->OpcodeValue()) {
@@ -1303,9 +1328,19 @@ void Decoder::DecodeType6CoprocessorIns(Instruction* instr) {
           Format(instr, "vstr'cond 'Dd, ['rn + 4*'imm08@00]");
         }
         break;
+      case 0x4:
+      case 0x5:
+      case 0x9: {
+        bool to_vfp_register = (instr->VLValue() == 0x1);
+        if (to_vfp_register) {
+          Format(instr, "vldm'cond'pu 'rn'w, {'Dd-'Dd+}");
+        } else {
+          Format(instr, "vstm'cond'pu 'rn'w, {'Dd-'Dd+}");
+        }
+        break;
+      }
       default:
         Unknown(instr);  // Not used by V8.
-        break;
     }
   } else {
     Unknown(instr);  // Not used by V8.

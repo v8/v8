@@ -838,8 +838,8 @@ BUILTIN(ArraySplice) {
       const int delta = actual_delete_count - item_count;
 
       if (actual_start > 0) {
-        Object** start = elms->data_start();
-        memmove(start + delta, start, actual_start * kPointerSize);
+        AssertNoAllocation no_gc;
+        MoveElements(heap, &no_gc, elms, delta, elms, 0, actual_start);
       }
 
       elms = LeftTrimFixedArray(heap, elms, delta);
@@ -1026,6 +1026,8 @@ static inline Object* TypeCheck(Heap* heap,
                                 Object** argv,
                                 FunctionTemplateInfo* info) {
   Object* recv = argv[0];
+  // API calls are only supported with JSObject receivers.
+  if (!recv->IsJSObject()) return heap->null_value();
   Object* sig_obj = info->signature();
   if (sig_obj->IsUndefined()) return recv;
   SignatureInfo* sig = SignatureInfo::cast(sig_obj);
@@ -1339,8 +1341,18 @@ static void Generate_KeyedLoadIC_Initialize(MacroAssembler* masm) {
 }
 
 
+static void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
+  KeyedLoadIC::GenerateRuntimeGetProperty(masm);
+}
+
+
 static void Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMiss(masm);
+  KeyedLoadIC::GenerateMiss(masm, false);
+}
+
+
+static void Generate_KeyedLoadIC_MissForceGeneric(MacroAssembler* masm) {
+  KeyedLoadIC::GenerateMiss(masm, true);
 }
 
 
@@ -1432,7 +1444,17 @@ static void Generate_KeyedStoreIC_Generic_Strict(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMiss(masm);
+  KeyedStoreIC::GenerateMiss(masm, false);
+}
+
+
+static void Generate_KeyedStoreIC_MissForceGeneric(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateMiss(masm, true);
+}
+
+
+static void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateSlow(masm);
 }
 
 

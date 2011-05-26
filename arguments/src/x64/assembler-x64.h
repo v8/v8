@@ -327,22 +327,6 @@ inline Condition ReverseCondition(Condition cc) {
 }
 
 
-enum Hint {
-  no_hint = 0,
-  not_taken = 0x2e,
-  taken = 0x3e
-};
-
-// The result of negating a hint is as if the corresponding condition
-// were negated by NegateCondition.  That is, no_hint is mapped to
-// itself and not_taken and taken are mapped to each other.
-inline Hint NegateHint(Hint hint) {
-  return (hint == no_hint)
-      ? no_hint
-      : ((hint == not_taken) ? taken : not_taken);
-}
-
-
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates
 
@@ -1178,12 +1162,13 @@ class Assembler : public AssemblerBase {
   // but it may be bound only once.
 
   void bind(Label* L);  // binds an unbound label L to the current code position
-  void bind(NearLabel* L);
 
   // Calls
   // Call near relative 32-bit displacement, relative to next instruction.
   void call(Label* L);
-  void call(Handle<Code> target, RelocInfo::Mode rmode);
+  void call(Handle<Code> target,
+            RelocInfo::Mode rmode,
+            unsigned ast_id = kNoASTId);
 
   // Calls directly to the given address using a relative offset.
   // Should only ever be used in Code objects for calls within the
@@ -1200,7 +1185,8 @@ class Assembler : public AssemblerBase {
   // Jumps
   // Jump short or near relative.
   // Use a 32-bit signed displacement.
-  void jmp(Label* L);  // unconditional jump to L
+  // Unconditional jump to L
+  void jmp(Label* L, Label::Distance distance = Label::kFar);
   void jmp(Handle<Code> target, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
@@ -1209,15 +1195,11 @@ class Assembler : public AssemblerBase {
   // Jump near absolute indirect (m64)
   void jmp(const Operand& src);
 
-  // Short jump
-  void jmp(NearLabel* L);
-
   // Conditional jumps
-  void j(Condition cc, Label* L);
+  void j(Condition cc,
+         Label* L,
+         Label::Distance distance = Label::kFar);
   void j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode);
-
-  // Conditional short jump
-  void j(Condition cc, NearLabel* L, Hint hint = no_hint);
 
   // Floating-point operations
   void fld(int i);
@@ -1291,14 +1273,23 @@ class Assembler : public AssemblerBase {
   void movd(Register dst, XMMRegister src);
   void movq(XMMRegister dst, Register src);
   void movq(Register dst, XMMRegister src);
+  void movq(XMMRegister dst, XMMRegister src);
   void extractps(Register dst, XMMRegister src, byte imm8);
 
-  void movsd(const Operand& dst, XMMRegister src);
+  // Don't use this unless it's important to keep the
+  // top half of the destination register unchanged.
+  // Used movaps when moving double values and movq for integer
+  // values in xmm registers.
   void movsd(XMMRegister dst, XMMRegister src);
+
+  void movsd(const Operand& dst, XMMRegister src);
   void movsd(XMMRegister dst, const Operand& src);
 
   void movdqa(const Operand& dst, XMMRegister src);
   void movdqa(XMMRegister dst, const Operand& src);
+
+  void movapd(XMMRegister dst, XMMRegister src);
+  void movaps(XMMRegister dst, XMMRegister src);
 
   void movss(XMMRegister dst, const Operand& src);
   void movss(const Operand& dst, XMMRegister src);
@@ -1331,10 +1322,20 @@ class Assembler : public AssemblerBase {
   void andpd(XMMRegister dst, XMMRegister src);
   void orpd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
+  void xorps(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
   void ucomisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, const Operand& src);
+
+  enum RoundingMode {
+    kRoundToNearest = 0x0,
+    kRoundDown      = 0x1,
+    kRoundUp        = 0x2,
+    kRoundToZero    = 0x3
+  };
+
+  void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
   void movmskpd(Register dst, XMMRegister src);
 
@@ -1408,7 +1409,9 @@ class Assembler : public AssemblerBase {
   inline void emitl(uint32_t x);
   inline void emitq(uint64_t x, RelocInfo::Mode rmode);
   inline void emitw(uint16_t x);
-  inline void emit_code_target(Handle<Code> target, RelocInfo::Mode rmode);
+  inline void emit_code_target(Handle<Code> target,
+                               RelocInfo::Mode rmode,
+                               unsigned ast_id = kNoASTId);
   void emit(Immediate x) { emitl(x.value_); }
 
   // Emits a REX prefix that encodes a 64-bit operand size and
@@ -1589,8 +1592,6 @@ class Assembler : public AssemblerBase {
   RelocInfoWriter reloc_info_writer;
 
   List< Handle<Code> > code_targets_;
-  // push-pop elimination
-  byte* last_pc_;
 
   PositionsRecorder positions_recorder_;
 

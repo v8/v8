@@ -28,6 +28,8 @@
 #ifndef V8_LOG_UTILS_H_
 #define V8_LOG_UTILS_H_
 
+#include "allocation.h"
+
 namespace v8 {
 namespace internal {
 
@@ -154,8 +156,8 @@ class Log {
   // mutex_ should be acquired before using output_handle_ or output_buffer_.
   FILE* output_handle_;
 
-  // Used when low-level profiling is active to save code object contents.
-  FILE* output_code_handle_;
+  // Used when low-level profiling is active.
+  FILE* ll_output_handle_;
 
   LogDynamicBuffer* output_buffer_;
 

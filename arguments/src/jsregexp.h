@@ -28,6 +28,7 @@
 #ifndef V8_JSREGEXP_H_
 #define V8_JSREGEXP_H_
 
+#include "allocation.h"
 #include "macro-assembler.h"
 #include "zone-inl.h"
 
@@ -174,6 +175,14 @@ class RegExpImpl {
   static int IrregexpNumberOfRegisters(FixedArray* re);
   static ByteArray* IrregexpByteCode(FixedArray* re, bool is_ascii);
   static Code* IrregexpNativeCode(FixedArray* re, bool is_ascii);
+
+  // Limit the space regexps take up on the heap.  In order to limit this we
+  // would like to keep track of the amount of regexp code on the heap.  This
+  // is not tracked, however.  As a conservative approximation we track the
+  // total regexp code compiled including code that has subsequently been freed
+  // and the total executable memory at any point.
+  static const int kRegExpExecutableMemoryLimit = 16 * MB;
+  static const int kRegWxpCompiledLimit = 1 * MB;
 
  private:
   static String* last_ascii_string_;
@@ -1447,7 +1456,7 @@ class RegExpEngine: public AllStatic {
 
 class OffsetsVector {
  public:
-  inline OffsetsVector(int num_registers)
+  explicit inline OffsetsVector(int num_registers)
       : offsets_vector_length_(num_registers) {
     if (offsets_vector_length_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
       vector_ = NewArray<int>(offsets_vector_length_);

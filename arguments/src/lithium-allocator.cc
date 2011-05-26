@@ -1029,6 +1029,22 @@ void LAllocator::ResolvePhis(HBasicBlock* block) {
       chunk_->AddGapMove(cur_block->last_instruction_index() - 1,
                          operand,
                          phi_operand);
+
+      // We are going to insert a move before the branch instruction.
+      // Some branch instructions (e.g. loops' back edges)
+      // can potentially cause a GC so they have a pointer map.
+      // By inserting a move we essentially create a copy of a
+      // value which is invisible to PopulatePointerMaps(), because we store
+      // it into a location different from the operand of a live range
+      // covering a branch instruction.
+      // Thus we need to manually record a pointer.
+      if (phi->representation().IsTagged()) {
+        LInstruction* branch =
+            InstructionAt(cur_block->last_instruction_index());
+        if (branch->HasPointerMap()) {
+          branch->pointer_map()->RecordPointer(phi_operand);
+        }
+      }
     }
 
     LiveRange* live_range = LiveRangeFor(phi->id());
@@ -1116,7 +1132,7 @@ void LAllocator::ResolveControlFlow(LiveRange* range,
         // We are going to insert a move before the branch instruction.
         // Some branch instructions (e.g. loops' back edges)
         // can potentially cause a GC so they have a pointer map.
-        // By insterting a move we essentially create a copy of a
+        // By inserting a move we essentially create a copy of a
         // value which is invisible to PopulatePointerMaps(), because we store
         // it into a location different from the operand of a live range
         // covering a branch instruction.
@@ -2013,12 +2029,12 @@ LifetimePosition LAllocator::FindOptimalSplitPos(LifetimePosition start,
   // We have no choice
   if (start_instr == end_instr) return end;
 
-  HBasicBlock* end_block = GetBlock(start);
-  HBasicBlock* start_block = GetBlock(end);
+  HBasicBlock* start_block = GetBlock(start);
+  HBasicBlock* end_block = GetBlock(end);
 
   if (end_block == start_block) {
-    // The interval is split in the same basic block. Split at latest possible
-    // position.
+    // The interval is split in the same basic block. Split at the latest
+    // possible position.
     return end;
   }
 
@@ -2029,7 +2045,9 @@ LifetimePosition LAllocator::FindOptimalSplitPos(LifetimePosition start,
     block = block->parent_loop_header();
   }
 
-  if (block == end_block) return end;
+  // We did not find any suitable outer loop. Split at the latest possible
+  // position unless end_block is a loop header itself.
+  if (block == end_block && !end_block->IsLoopHeader()) return end;
 
   return LifetimePosition::FromInstructionIndex(
       block->first_instruction_index());

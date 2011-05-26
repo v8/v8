@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -35,29 +35,10 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// Compound predicates.
-
-bool ScannerConstants::IsIdentifier(unibrow::CharacterStream* buffer) {
-  // Checks whether the buffer contains an identifier (no escape).
-  if (!buffer->has_more()) return false;
-  if (!kIsIdentifierStart.get(buffer->GetNext())) {
-    return false;
-  }
-  while (buffer->has_more()) {
-    if (!kIsIdentifierPart.get(buffer->GetNext())) {
-      return false;
-    }
-  }
-  return true;
-}
-
-// ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(ScannerConstants* scanner_constants)
-    : scanner_constants_(scanner_constants),
-      octal_pos_(kNoOctalLocation) {
-}
+Scanner::Scanner(UnicodeCache* unicode_cache)
+    : unicode_cache_(unicode_cache) { }
 
 
 uc32 Scanner::ScanHexEscape(uc32 c, int length) {
@@ -88,34 +69,12 @@ uc32 Scanner::ScanHexEscape(uc32 c, int length) {
 }
 
 
-// Octal escapes of the forms '\0xx' and '\xxx' are not a part of
-// ECMA-262. Other JS VMs support them.
-uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
-  uc32 x = c - '0';
-  int i = 0;
-  for (; i < length; i++) {
-    int d = c0_ - '0';
-    if (d < 0 || d > 7) break;
-    int nx = x * 8 + d;
-    if (nx >= 256) break;
-    x = nx;
-    Advance();
-  }
-  // Anything excelt '\0' is an octal escape sequence, illegal in strict mode.
-  // Remember the position of octal escape sequences so that better error
-  // can be reported later (in strict mode).
-  if (c != '0' || i > 0) {
-    octal_pos_ = source_pos() - i - 1;     // Already advanced
-  }
-  return x;
-}
-
 
 // ----------------------------------------------------------------------------
 // JavaScriptScanner
 
-JavaScriptScanner::JavaScriptScanner(ScannerConstants* scanner_contants)
-    : Scanner(scanner_contants) { }
+JavaScriptScanner::JavaScriptScanner(UnicodeCache* scanner_contants)
+  : Scanner(scanner_contants), octal_pos_(Location::invalid()) { }
 
 
 Token::Value JavaScriptScanner::Next() {
@@ -144,9 +103,9 @@ bool JavaScriptScanner::SkipWhiteSpace() {
   while (true) {
     // We treat byte-order marks (BOMs) as whitespace for better
     // compatibility with Spidermonkey and other JavaScript engines.
-    while (scanner_constants_->IsWhiteSpace(c0_) || IsByteOrderMark(c0_)) {
+    while (unicode_cache_->IsWhiteSpace(c0_) || IsByteOrderMark(c0_)) {
       // IsWhiteSpace() includes line terminators!
-      if (scanner_constants_->IsLineTerminator(c0_)) {
+      if (unicode_cache_->IsLineTerminator(c0_)) {
         // Ignore line terminators, but remember them. This is necessary
         // for automatic semicolon insertion.
         has_line_terminator_before_next_ = true;
@@ -186,7 +145,7 @@ Token::Value JavaScriptScanner::SkipSingleLineComment() {
   // separately by the lexical grammar and becomes part of the
   // stream of input elements for the syntactic grammar (see
   // ECMA-262, section 7.4, page 12).
-  while (c0_ >= 0 && !scanner_constants_->IsLineTerminator(c0_)) {
+  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
     Advance();
   }
 
@@ -451,7 +410,7 @@ void JavaScriptScanner::Scan() {
         break;
 
       default:
-        if (scanner_constants_->IsIdentifierStart(c0_)) {
+        if (unicode_cache_->IsIdentifierStart(c0_)) {
           token = ScanIdentifierOrKeyword();
         } else if (IsDecimalDigit(c0_)) {
           token = ScanNumber(false);
@@ -499,7 +458,7 @@ void JavaScriptScanner::ScanEscape() {
   Advance();
 
   // Skip escaped newlines.
-  if (scanner_constants_->IsLineTerminator(c)) {
+  if (unicode_cache_->IsLineTerminator(c)) {
     // Allow CR+LF newlines in multiline string literals.
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance();
     // Allow LF+CR newlines in multiline string literals.
@@ -536,13 +495,38 @@ void JavaScriptScanner::ScanEscape() {
 }
 
 
+// Octal escapes of the forms '\0xx' and '\xxx' are not a part of
+// ECMA-262. Other JS VMs support them.
+uc32 JavaScriptScanner::ScanOctalEscape(uc32 c, int length) {
+  uc32 x = c - '0';
+  int i = 0;
+  for (; i < length; i++) {
+    int d = c0_ - '0';
+    if (d < 0 || d > 7) break;
+    int nx = x * 8 + d;
+    if (nx >= 256) break;
+    x = nx;
+    Advance();
+  }
+  // Anything except '\0' is an octal escape sequence, illegal in strict mode.
+  // Remember the position of octal escape sequences so that an error
+  // can be reported later (in strict mode).
+  // We don't report the error immediately, because the octal escape can
+  // occur before the "use strict" directive.
+  if (c != '0' || i > 0) {
+    octal_pos_ = Location(source_pos() - i - 1, source_pos() - 1);
+  }
+  return x;
+}
+
+
 Token::Value JavaScriptScanner::ScanString() {
   uc32 quote = c0_;
   Advance();  // consume quote
 
   LiteralScope literal(this);
   while (c0_ != quote && c0_ >= 0
-         && !scanner_constants_->IsLineTerminator(c0_)) {
+         && !unicode_cache_->IsLineTerminator(c0_)) {
     uc32 c = c0_;
     Advance();
     if (c == '\\') {
@@ -580,6 +564,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
   } else {
     // if the first character is '0' we must check for octals and hex
     if (c0_ == '0') {
+      int start_pos = source_pos();  // For reporting octal positions.
       AddLiteralCharAdvance();
 
       // either 0, 0exxx, 0Exxx, 0.xxx, an octal number, or a hex number
@@ -604,7 +589,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
           }
           if (c0_  < '0' || '7'  < c0_) {
             // Octal literal finished.
-            octal_pos_ = next_.location.beg_pos;
+            octal_pos_ = Location(start_pos, source_pos());
             break;
           }
           AddLiteralCharAdvance();
@@ -641,7 +626,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
   // not be an identifier start or a decimal digit; see ECMA-262
   // section 7.8.3, page 17 (note that we read only one decimal digit
   // if the value is 0).
-  if (IsDecimalDigit(c0_) || scanner_constants_->IsIdentifierStart(c0_))
+  if (IsDecimalDigit(c0_) || unicode_cache_->IsIdentifierStart(c0_))
     return Token::ILLEGAL;
 
   literal.Complete();
@@ -663,14 +648,14 @@ uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
 
 
 Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
-  ASSERT(scanner_constants_->IsIdentifierStart(c0_));
+  ASSERT(unicode_cache_->IsIdentifierStart(c0_));
   LiteralScope literal(this);
   KeywordMatcher keyword_match;
   // Scan identifier start character.
   if (c0_ == '\\') {
     uc32 c = ScanIdentifierUnicodeEscape();
     // Only allow legal identifier start characters.
-    if (!scanner_constants_->IsIdentifierStart(c)) return Token::ILLEGAL;
+    if (!unicode_cache_->IsIdentifierStart(c)) return Token::ILLEGAL;
     AddLiteralChar(c);
     return ScanIdentifierSuffix(&literal);
   }
@@ -683,7 +668,7 @@ Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
   }
 
   // Scan the rest of the identifier characters.
-  while (scanner_constants_->IsIdentifierPart(c0_)) {
+  while (unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ != '\\') {
       uc32 next_char = c0_;
       Advance();
@@ -701,11 +686,11 @@ Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
 
 Token::Value JavaScriptScanner::ScanIdentifierSuffix(LiteralScope* literal) {
   // Scan the rest of the identifier characters.
-  while (scanner_constants_->IsIdentifierPart(c0_)) {
+  while (unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       // Only allow legal identifier part characters.
-      if (!scanner_constants_->IsIdentifierPart(c)) return Token::ILLEGAL;
+      if (!unicode_cache_->IsIdentifierPart(c)) return Token::ILLEGAL;
       AddLiteralChar(c);
     } else {
       AddLiteralChar(c0_);
@@ -735,10 +720,10 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
     AddLiteralChar('=');
 
   while (c0_ != '/' || in_character_class) {
-    if (scanner_constants_->IsLineTerminator(c0_) || c0_ < 0) return false;
+    if (unicode_cache_->IsLineTerminator(c0_) || c0_ < 0) return false;
     if (c0_ == '\\') {  // Escape sequence.
       AddLiteralCharAdvance();
-      if (scanner_constants_->IsLineTerminator(c0_) || c0_ < 0) return false;
+      if (unicode_cache_->IsLineTerminator(c0_) || c0_ < 0) return false;
       AddLiteralCharAdvance();
       // If the escape allows more characters, i.e., \x??, \u????, or \c?,
       // only "safe" characters are allowed (letters, digits, underscore),
@@ -747,6 +732,9 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
       // worrying whether the following characters are part of the escape
       // or not, since any '/', '\\' or '[' is guaranteed to not be part
       // of the escape sequence.
+
+      // TODO(896): At some point, parse RegExps more throughly to capture
+      // octal esacpes in strict mode.
     } else {  // Unescaped character.
       if (c0_ == '[') in_character_class = true;
       if (c0_ == ']') in_character_class = false;
@@ -764,7 +752,7 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
 bool JavaScriptScanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   LiteralScope literal(this);
-  while (scanner_constants_->IsIdentifierPart(c0_)) {
+  while (unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       if (c != static_cast<uc32>(unibrow::Utf8::kBadChar)) {
