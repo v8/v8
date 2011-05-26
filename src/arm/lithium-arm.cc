@@ -1787,7 +1787,7 @@ LInstruction* LChunkBuilder::DoToInt32(HToInt32* instr) {
     LOperand* temp2 = TempRegister();
     LOperand* temp3 = FixedTemp(d3);
     LTaggedToI* res = new LTaggedToI(reg, temp1, temp2, temp3);
-    return AssigneEnvironment(DefineSameAsFirst(res));
+    return AssignEnvironment(DefineSameAsFirst(res));
   }
 }
 
