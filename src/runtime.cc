@@ -5109,7 +5109,7 @@ static inline SinkChar* WriteQuoteJsonString(
     SourceChar c = *(read_cursor++);
     if (sizeof(SourceChar) > 1u &&
         static_cast<unsigned>(c) >= kQuoteTableLength) {
-      *(write_cursor++) = c;
+      *(write_cursor++) = static_cast<SinkChar>(c);
     } else {
       int len = JsonQuoteLengths[static_cast<unsigned>(c)];
       const char* replacement = JsonQuotes +
