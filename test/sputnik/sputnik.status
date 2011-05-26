@@ -50,10 +50,6 @@ S15.8.2.13_A23: PASS || FAIL_OK
 S15.10.6.2_A1_T16: FAIL_OK
 S15.10.6.3_A1_T16: FAIL_OK
 
-# We allow regexps to be called as functions for compatibility reasons.
-S15.10.7_A1_T1: FAIL_OK
-S15.10.7_A1_T2: FAIL_OK
-
 # We are silent in some regexp cases where the spec wants us to give
 # errors, for compatibility.
 S15.10.2.11_A1_T2: FAIL
@@ -243,12 +239,6 @@ S15.9.5.6_A1_T2: FAIL_OK
 S15.9.5.7_A1_T2: FAIL_OK
 S15.9.5.8_A1_T2: FAIL_OK
 S15.9.5.9_A1_T2: FAIL_OK
-
-# Regexps have type "function", not "object".
-S11.4.3_A3.6: FAIL_OK
-S15.10.7_A3_T2: FAIL_OK
-S15.10.7_A3_T1: FAIL_OK
-
 
 [ $arch == arm ]
 

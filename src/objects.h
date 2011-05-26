@@ -562,9 +562,9 @@ enum InstanceType {
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
 
-  JS_REGEXP_TYPE,  // LAST_JS_OBJECT_TYPE, FIRST_FUNCTION_CLASS_TYPE
+  JS_REGEXP_TYPE,  // LAST_JS_OBJECT_TYPE
 
-  JS_FUNCTION_TYPE,
+  JS_FUNCTION_TYPE,  // FIRST_FUNCTION_CLASS_TYPE
 
   // Pseudo-types
   FIRST_TYPE = 0x0,
@@ -583,7 +583,7 @@ enum InstanceType {
   LAST_JS_OBJECT_TYPE = JS_REGEXP_TYPE,
   // RegExp objects have [[Class]] "function" because they are callable.
   // All types from this type and above are objects with [[Class]] "function".
-  FIRST_FUNCTION_CLASS_TYPE = JS_REGEXP_TYPE
+  FIRST_FUNCTION_CLASS_TYPE = JS_FUNCTION_TYPE
 };
 
 static const int kExternalArrayTypeCount = LAST_EXTERNAL_ARRAY_TYPE -

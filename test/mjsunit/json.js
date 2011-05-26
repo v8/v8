@@ -67,7 +67,7 @@ var d4 = {toJSON: Date.prototype.toJSON,
           valueOf: "not callable",
           toString: "not callable either",
           toISOString: function() { return 42; }};
-assertThrows("d4.toJSON()", TypeError);  // ToPrimitive throws. 
+assertThrows("d4.toJSON()", TypeError);  // ToPrimitive throws.
 
 var d5 = {toJSON: Date.prototype.toJSON,
           valueOf: "not callable",
@@ -195,9 +195,6 @@ TestInvalid('"\\012 invalid escape"');
 TestInvalid('"Unterminated string');
 TestInvalid('"Unterminated string\\"');
 TestInvalid('"Unterminated string\\\\\\"');
-
-// JavaScript RegExp literals not valid in JSON.
-TestInvalid('/true/');
 
 // Test bad JSON that would be good JavaScript (ES5).
 TestInvalid("{true:42}");
@@ -382,7 +379,7 @@ var reJSON = /Is callable/;
 reJSON.toJSON = function() { return "has toJSON"; };
 
 assertEquals(
-    '[37,null,1,"foo","37","true",null,"has toJSON",null,"has toJSON"]',
+    '[37,null,1,"foo","37","true",null,"has toJSON",{},"has toJSON"]',
     JSON.stringify([num37, numFoo, numTrue,
                     strFoo, str37, strTrue,
                     func, funcJSON, re, reJSON]));
@@ -397,6 +394,9 @@ var callCount = 0;
 var counter = { get toJSON() { getCount++;
                                return function() { callCount++;
                                                    return 42; }; } };
+
+// RegExps are not callable, so they are stringified as objects.
+assertEquals('{}', JSON.stringify(/regexp/));
 assertEquals('42', JSON.stringify(counter));
 assertEquals(1, getCount);
 assertEquals(1, callCount);
@@ -419,9 +419,9 @@ assertEquals('"42"', JSON.stringify(falseNum));
 // We don't currently allow plain properties called __proto__ in JSON
 // objects in JSON.parse. Instead we read them as we would JS object
 // literals. If we change that, this test should change with it.
-// 
-// Parse a non-object value as __proto__. This must not create a 
-// __proto__ property different from the original, and should not 
+//
+// Parse a non-object value as __proto__. This must not create a
+// __proto__ property different from the original, and should not
 // change the original.
 var o = JSON.parse('{"__proto__":5}');
 assertEquals(Object.prototype, o.__proto__);  // __proto__ isn't changed.

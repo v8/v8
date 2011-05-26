@@ -4637,7 +4637,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
       }
       ASSERT(heap_obj->IsUndefined());
       return isolate->heap()->undefined_symbol();
-    case JS_FUNCTION_TYPE: case JS_REGEXP_TYPE:
+    case JS_FUNCTION_TYPE:
       return isolate->heap()->function_symbol();
     default:
       // For any kind of object not handled above, the spec rule for

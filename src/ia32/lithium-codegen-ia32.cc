@@ -4281,17 +4281,13 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 
   } else if (type_name->Equals(heap()->function_symbol())) {
     __ JumpIfSmi(input, false_label);
-    __ CmpObjectType(input, JS_FUNCTION_TYPE, input);
-    __ j(equal, true_label);
-    // Regular expressions => 'function' (they are callable).
-    __ CmpInstanceType(input, JS_REGEXP_TYPE);
-    final_branch_condition = equal;
+    __ CmpObjectType(input, FIRST_FUNCTION_CLASS_TYPE, input);
+    final_branch_condition = above_equal;
 
   } else if (type_name->Equals(heap()->object_symbol())) {
     __ JumpIfSmi(input, false_label);
     __ cmp(input, factory()->null_value());
     __ j(equal, true_label);
-    // Regular expressions => 'function', not 'object'.
     __ CmpObjectType(input, FIRST_JS_OBJECT_TYPE, input);
     __ j(below, false_label);
     __ CmpInstanceType(input, FIRST_FUNCTION_CLASS_TYPE);
