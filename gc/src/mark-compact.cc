@@ -1391,7 +1391,7 @@ static inline int MarkWordToObjectStarts(uint32_t mark_bits, int* starts);
 
 
 static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque, Page* p) {
-  ASSERT(strcmp(Marking::kWhiteBitPattern, "10") == 0);
+  ASSERT(strcmp(Marking::kWhiteBitPattern, "00") == 0);
   ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
   ASSERT(strcmp(Marking::kGreyBitPattern, "11") == 0);
   ASSERT(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
