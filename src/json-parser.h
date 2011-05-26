@@ -135,7 +135,7 @@ class JsonParser BASE_EMBEDDED {
     int end_pos;
   };
 
-  static const int kInitialSpecialStringSize = 100;
+  static const int kInitialSpecialStringSize = 1024;
 
 
  private:

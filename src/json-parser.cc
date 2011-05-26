@@ -380,7 +380,7 @@ Token::Value JsonParser::SlowScanJsonString() {
   while (c0_ != '"') {
     // Create new seq string
     if (count >= kInitialSpecialStringSize * allocation_count) {
-      allocation_count++;
+      allocation_count = allocation_count * 2;
       int new_size = allocation_count * kInitialSpecialStringSize;
       Handle<String> new_two_byte =
           isolate()->factory()->NewRawTwoByteString(new_size,
@@ -443,10 +443,18 @@ Token::Value JsonParser::SlowScanJsonString() {
   Advance();
 
   // Shrink the the string to our length.
-  isolate()->heap()->
-      new_space()->
-      ShrinkStringAtAllocationBoundary<SeqTwoByteString>(*seq_two_byte,
-                                                         count);
+  if (isolate()->heap()->InNewSpace(*seq_two_byte)) {
+    isolate()->heap()->new_space()->
+          ShrinkStringAtAllocationBoundary<SeqTwoByteString>(*seq_two_byte,
+                                                             count);
+  } else {
+    int string_size = SeqTwoByteString::SizeFor(count);
+    int allocated_string_size =
+        SeqTwoByteString::SizeFor(kInitialSpecialStringSize * allocation_count);
+    int delta = allocated_string_size - string_size;
+    Address start_filler_object = seq_two_byte->address() + string_size;
+    isolate()->heap()->CreateFillerObjectAt(start_filler_object, delta);
+  }
   string_val_ = isolate()->factory()->NewConsString(ascii, seq_two_byte);
   return Token::STRING;
 }
