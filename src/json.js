@@ -191,16 +191,21 @@ function BasicSerializeArray(value, stack, builder) {
   var val = value[0];
   if (IS_STRING(val)) {
     // First entry is a string. Remaining entries are likely to be strings too.
-    builder.push(%QuoteJSONString(val));
-    for (var i = 1; i < len; i++) {
-      val = value[i];
-      if (IS_STRING(val)) {
-        builder.push(%QuoteJSONStringComma(val));
-      } else {
-        builder.push(",");
-        var before = builder.length;
-        BasicJSONSerialize(i, value[i], stack, builder);
-        if (before == builder.length) builder[before - 1] = ",null";
+    var array_string = %QuoteJSONStringArray(value);
+    if (!IS_UNDEFINED(array_string)) {
+      builder[builder.length - 1] = array_string;     
+    } else {
+      builder.push(%QuoteJSONString(val));
+      for (var i = 1; i < len; i++) {
+        val = value[i];
+        if (IS_STRING(val)) {
+          builder.push(%QuoteJSONStringComma(val));
+        } else {
+          builder.push(",");
+          var before = builder.length;
+          BasicJSONSerialize(i, value[i], stack, builder);
+          if (before == builder.length) builder[before - 1] = ",null";
+        }
       }
     }
   } else if (IS_NUMBER(val)) {
