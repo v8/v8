@@ -611,30 +611,21 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
   ASSERT(Register::kNumRegisters == kNumberOfRegisters);
-  ASSERT(kNumberOfRegisters % 2 == 0);
-
-  Label arm_loop;
-  __ add(r6, r1, Operand(FrameDescription::registers_offset()));
-  __ mov(r5, Operand(sp));
-  __ mov(r4, Operand(kNumberOfRegisters / 2));
-
-  __ bind(&arm_loop);
-  __ Ldrd(r2, r3, MemOperand(r5, kPointerSize * 2, PostIndex));
-  __ sub(r4, r4, Operand(1), SetCC);
-  __ Strd(r2, r3, MemOperand(r6, kPointerSize * 2, PostIndex));
-  __ b(gt, &arm_loop);
+  for (int i = 0; i < kNumberOfRegisters; i++) {
+    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
+    __ ldr(r2, MemOperand(sp, i * kPointerSize));
+    __ str(r2, MemOperand(r1, offset));
+  }
 
   // Copy VFP registers to
   // double_registers_[DoubleRegister::kNumAllocatableRegisters]
-  Label vfp_loop;
-  __ add(r6, r1, Operand(FrameDescription::double_registers_offset()));
-  __ mov(r4, Operand(DwVfpRegister::kNumAllocatableRegisters));
-
-  __ bind(&vfp_loop);
-  __ Ldrd(r2, r3, MemOperand(r5, kDoubleSize, PostIndex));
-  __ sub(r4, r4, Operand(1), SetCC);
-  __ Strd(r2, r3, MemOperand(r6, kDoubleSize, PostIndex));
-  __ b(gt, &vfp_loop);
+  int double_regs_offset = FrameDescription::double_registers_offset();
+  for (int i = 0; i < DwVfpRegister::kNumAllocatableRegisters; ++i) {
+    int dst_offset = i * kDoubleSize + double_regs_offset;
+    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    __ vldr(d0, sp, src_offset);
+    __ vstr(d0, r1, dst_offset);
+  }
 
   // Remove the bailout id, eventually return address, and the saved registers
   // from the stack.
