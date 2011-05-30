@@ -97,8 +97,6 @@ class Scope: public ZoneObject {
 
   Scope(Scope* outer_scope, Type type);
 
-  virtual ~Scope() { }
-
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
@@ -110,22 +108,17 @@ class Scope: public ZoneObject {
   // The scope name is only used for printing/debugging.
   void SetScopeName(Handle<String> scope_name) { scope_name_ = scope_name; }
 
-  virtual void Initialize(bool inside_with);
-
-  // Called just before leaving a scope.
-  virtual void Leave() {
-    // No cleanup or fixup necessary.
-  }
+  void Initialize(bool inside_with);
 
   // ---------------------------------------------------------------------------
   // Declarations
 
   // Lookup a variable in this scope. Returns the variable or NULL if not found.
-  virtual Variable* LocalLookup(Handle<String> name);
+  Variable* LocalLookup(Handle<String> name);
 
   // Lookup a variable in this scope or outer scopes.
   // Returns the variable or NULL if not found.
-  virtual Variable* Lookup(Handle<String> name);
+  Variable* Lookup(Handle<String> name);
 
   // Declare the function variable for a function literal. This variable
   // is in an intermediate scope between this function scope and the the
@@ -148,9 +141,9 @@ class Scope: public ZoneObject {
   Variable* DeclareGlobal(Handle<String> name);
 
   // Create a new unresolved variable.
-  virtual VariableProxy* NewUnresolved(Handle<String> name,
-                                       bool inside_with,
-                                       int position = RelocInfo::kNoPosition);
+  VariableProxy* NewUnresolved(Handle<String> name,
+                               bool inside_with,
+                               int position = RelocInfo::kNoPosition);
 
   // Remove a unresolved variable. During parsing, an unresolved variable
   // may have been added optimistically, but then only the variable name
@@ -164,7 +157,7 @@ class Scope: public ZoneObject {
   // for printing and cannot be used to find the variable.  In particular,
   // the only way to get hold of the temporary is by keeping the Variable*
   // around.
-  virtual Variable* NewTemporary(Handle<String> name);
+  Variable* NewTemporary(Handle<String> name);
 
   // Adds the specific declaration node to the list of declarations in
   // this scope. The declarations are processed as part of entering
@@ -269,7 +262,6 @@ class Scope: public ZoneObject {
   ZoneList<Declaration*>* declarations() { return &decls_; }
 
 
-
   // ---------------------------------------------------------------------------
   // Variable allocation.
 
@@ -301,7 +293,7 @@ class Scope: public ZoneObject {
   bool AllowsLazyCompilation() const;
 
   // True if the outer context of this scope is always the global context.
-  virtual bool HasTrivialOuterContext() const;
+  bool HasTrivialOuterContext() const;
 
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);
@@ -440,59 +432,6 @@ class Scope: public ZoneObject {
                    Scope* outer_scope,
                    Handle<SerializedScopeInfo> scope_info);
 };
-
-
-// Scope used during pre-parsing.
-class DummyScope : public Scope {
- public:
-  DummyScope()
-      : Scope(GLOBAL_SCOPE),
-        nesting_level_(1),  // Allows us to Leave the initial scope.
-        inside_with_level_(kNotInsideWith) {
-    outer_scope_ = this;
-    scope_inside_with_ = false;
-  }
-
-  virtual void Initialize(bool inside_with) {
-    nesting_level_++;
-    if (inside_with && inside_with_level_ == kNotInsideWith) {
-      inside_with_level_ = nesting_level_;
-    }
-    ASSERT(inside_with_level_ <= nesting_level_);
-  }
-
-  virtual void Leave() {
-    nesting_level_--;
-    ASSERT(nesting_level_ >= 0);
-    if (nesting_level_ < inside_with_level_) {
-      inside_with_level_ = kNotInsideWith;
-    }
-    ASSERT(inside_with_level_ <= nesting_level_);
-  }
-
-  virtual Variable* Lookup(Handle<String> name)  { return NULL; }
-
-  virtual VariableProxy* NewUnresolved(Handle<String> name,
-                                       bool inside_with,
-                                       int position = RelocInfo::kNoPosition) {
-    return NULL;
-  }
-
-  virtual Variable* NewTemporary(Handle<String> name)  { return NULL; }
-
-  virtual bool HasTrivialOuterContext() const {
-    return (nesting_level_ == 0 || inside_with_level_ <= 0);
-  }
-
- private:
-  static const int kNotInsideWith = -1;
-  // Number of surrounding scopes of the current scope.
-  int nesting_level_;
-  // Nesting level of outermost scope that is contained in a with statement,
-  // or kNotInsideWith if there are no with's around the current scope.
-  int inside_with_level_;
-};
-
 
 } }  // namespace v8::internal
 

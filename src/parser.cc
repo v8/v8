@@ -536,7 +536,6 @@ LexicalScope::LexicalScope(Parser* parser, Scope* scope, Isolate* isolate)
 
 
 LexicalScope::~LexicalScope() {
-  parser_->top_scope_->Leave();
   parser_->top_scope_ = previous_scope_;
   parser_->lexical_scope_ = lexical_scope_parent_;
   parser_->with_nesting_level_ = previous_with_nesting_level_;
