@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -95,11 +95,6 @@ class Scope: public ZoneObject {
     GLOBAL_SCOPE    // the top-level scope for a program or a top-level eval
   };
 
-  enum LocalType {
-    PARAMETER,
-    VAR_OR_CONST
-  };
-
   Scope(Scope* outer_scope, Type type);
 
   virtual ~Scope() { }
@@ -137,23 +132,20 @@ class Scope: public ZoneObject {
   // outer scope. Only possible for function scopes; at most one variable.
   Variable* DeclareFunctionVar(Handle<String> name);
 
+  // Declare a parameter in this scope.  When there are duplicated
+  // parameters the rightmost one 'wins'.  However, the implementation
+  // expects all parameters to be declared and from left to right.
+  void DeclareParameter(Handle<String> name);
+
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
-  virtual Variable* DeclareLocal(Handle<String> name,
-                                 Variable::Mode mode,
-                                 LocalType type);
+  Variable* DeclareLocal(Handle<String> name, Variable::Mode mode);
 
   // Declare an implicit global variable in this scope which must be a
   // global scope.  The variable was introduced (possibly from an inner
   // scope) by a reference to an unresolved variable with no intervening
   // with statements or eval calls.
   Variable* DeclareGlobal(Handle<String> name);
-
-  // Add a parameter to the parameter list. The parameter must have been
-  // declared via Declare. The same parameter may occur more than once in
-  // the parameter list; they must be added in source order, from left to
-  // right.
-  void AddParameter(Variable* var);
 
   // Create a new unresolved variable.
   virtual VariableProxy* NewUnresolved(Handle<String> name,

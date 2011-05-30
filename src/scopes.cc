@@ -366,17 +366,22 @@ Variable* Scope::DeclareFunctionVar(Handle<String> name) {
 }
 
 
-Variable* Scope::DeclareLocal(Handle<String> name,
-                              Variable::Mode mode,
-                              LocalType type) {
-  // DYNAMIC variables are introduces during variable allocation,
-  // INTERNAL variables are allocated explicitly, and TEMPORARY
-  // variables are allocated via NewTemporary().
+void Scope::DeclareParameter(Handle<String> name) {
   ASSERT(!resolved());
+  ASSERT(is_function_scope());
+  Variable* var =
+      variables_.Declare(this, name, Variable::VAR, true, Variable::NORMAL);
+  params_.Add(var);
+}
+
+
+Variable* Scope::DeclareLocal(Handle<String> name, Variable::Mode mode) {
+  ASSERT(!resolved());
+  // This function handles VAR and CONST modes.  DYNAMIC variables are
+  // introduces during variable allocation, INTERNAL variables are allocated
+  // explicitly, and TEMPORARY variables are allocated via NewTemporary().
   ASSERT(mode == Variable::VAR || mode == Variable::CONST);
-  if (type == VAR_OR_CONST) {
-    num_var_or_const_++;
-  }
+  ++num_var_or_const_;
   return variables_.Declare(this, name, mode, true, Variable::NORMAL);
 }
 
@@ -385,13 +390,6 @@ Variable* Scope::DeclareGlobal(Handle<String> name) {
   ASSERT(is_global_scope());
   return variables_.Declare(this, name, Variable::DYNAMIC_GLOBAL, true,
                             Variable::NORMAL);
-}
-
-
-void Scope::AddParameter(Variable* var) {
-  ASSERT(is_function_scope());
-  ASSERT(LocalLookup(var->name()) == var);
-  params_.Add(var);
 }
 
 
