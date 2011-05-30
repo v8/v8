@@ -1602,6 +1602,28 @@ void HeapObjectsSet::Insert(Object* obj) {
 }
 
 
+const char* HeapObjectsSet::GetTag(Object* obj) {
+  HeapObject* object = HeapObject::cast(obj);
+  HashMap::Entry* cache_entry =
+      entries_.Lookup(object, HeapEntriesMap::Hash(object), false);
+  if (cache_entry != NULL
+      && cache_entry->value != HeapEntriesMap::kHeapEntryPlaceholder) {
+    return reinterpret_cast<const char*>(cache_entry->value);
+  } else {
+    return NULL;
+  }
+}
+
+
+void HeapObjectsSet::SetTag(Object* obj, const char* tag) {
+  if (!obj->IsHeapObject()) return;
+  HeapObject* object = HeapObject::cast(obj);
+  HashMap::Entry* cache_entry =
+      entries_.Lookup(object, HeapEntriesMap::Hash(object), true);
+  cache_entry->value = const_cast<char*>(tag);
+}
+
+
 HeapObject *const V8HeapExplorer::kInternalRootObject =
     reinterpret_cast<HeapObject*>(
         static_cast<intptr_t>(HeapObjectsMap::kInternalRootObjectId));
@@ -1639,6 +1661,18 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
     return snapshot_->AddRootEntry(children_count);
   } else if (object == kGcRootsObject) {
     return snapshot_->AddGcRootsEntry(children_count, retainers_count);
+  } else if (object->IsJSGlobalObject()) {
+    const char* tag = objects_tags_.GetTag(object);
+    const char* name = collection_->names()->GetName(
+        GetConstructorNameForHeapProfile(JSObject::cast(object)));
+    if (tag != NULL) {
+      name = collection_->names()->GetFormatted("%s / %s", name, tag);
+    }
+    return AddEntry(object,
+                    HeapEntry::kObject,
+                    name,
+                    children_count,
+                    retainers_count);
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
@@ -1780,6 +1814,7 @@ class IndexedReferencesExtractor : public ObjectVisitor {
     ASSERT(Memory::Object_at(field)->IsHeapObject());
     *field |= kFailureTag;
   }
+
  private:
   bool CheckVisitedAndUnmark(Object** field) {
     if ((*field)->IsFailure()) {
@@ -2206,6 +2241,64 @@ void V8HeapExplorer::SetGcRootsReference(Object* child_obj) {
 }
 
 
+class GlobalObjectsEnumerator : public ObjectVisitor {
+ public:
+  virtual void VisitPointers(Object** start, Object** end) {
+    for (Object** p = start; p < end; p++) {
+      if ((*p)->IsGlobalContext()) {
+        Context* context = Context::cast(*p);
+        JSObject* proxy = context->global_proxy();
+        if (proxy->IsJSGlobalProxy()) {
+          Object* global = proxy->map()->prototype();
+          if (global->IsJSGlobalObject()) {
+            objects_.Add(Handle<JSGlobalObject>(JSGlobalObject::cast(global)));
+          }
+        }
+      }
+    }
+  }
+  int count() { return objects_.length(); }
+  Handle<JSGlobalObject>& at(int i) { return objects_[i]; }
+
+ private:
+  List<Handle<JSGlobalObject> > objects_;
+};
+
+
+// Modifies heap. Must not be run during heap traversal.
+void V8HeapExplorer::TagGlobalObjects() {
+  Isolate* isolate = Isolate::Current();
+  GlobalObjectsEnumerator enumerator;
+  isolate->global_handles()->IterateAllRoots(&enumerator);
+  Handle<String> document_string =
+      isolate->factory()->NewStringFromAscii(CStrVector("document"));
+  Handle<String> url_string =
+      isolate->factory()->NewStringFromAscii(CStrVector("URL"));
+  const char** urls = NewArray<const char*>(enumerator.count());
+  for (int i = 0, l = enumerator.count(); i < l; ++i) {
+    urls[i] = NULL;
+    Handle<JSGlobalObject> global_obj = enumerator.at(i);
+    Object* obj_document;
+    if (global_obj->GetProperty(*document_string)->ToObject(&obj_document) &&
+       obj_document->IsJSObject()) {
+      JSObject* document = JSObject::cast(obj_document);
+      Object* obj_url;
+      if (document->GetProperty(*url_string)->ToObject(&obj_url) &&
+          obj_url->IsString()) {
+        urls[i] = collection_->names()->GetName(String::cast(obj_url));
+      }
+    }
+  }
+
+  AssertNoAllocation no_allocation;
+  for (int i = 0, l = enumerator.count(); i < l; ++i) {
+    objects_tags_.SetTag(*enumerator.at(i), urls[i]);
+  }
+
+  DeleteArray(urls);
+}
+
+
 class GlobalHandlesExtractor : public ObjectVisitor {
  public:
   explicit GlobalHandlesExtractor(NativeObjectsExplorer* explorer)
@@ -2448,6 +2541,7 @@ class SnapshotCounter : public SnapshotFillerInterface {
                                   HeapEntry*) {
     entries_->CountReference(parent_ptr, child_ptr);
   }
+
  private:
   HeapEntriesMap* entries_;
 };
@@ -2519,6 +2613,7 @@ class SnapshotFiller : public SnapshotFillerInterface {
                               child_entry,
                               retainer_index);
   }
+
  private:
   HeapSnapshot* snapshot_;
   HeapSnapshotsCollection* collection_;
@@ -2527,6 +2622,8 @@ class SnapshotFiller : public SnapshotFillerInterface {
 
 
 bool HeapSnapshotGenerator::GenerateSnapshot() {
+  v8_heap_explorer_.TagGlobalObjects();
+
   AssertNoAllocation no_alloc;
 
   SetProgressTotal(4);  // 2 passes + dominators + sizes.

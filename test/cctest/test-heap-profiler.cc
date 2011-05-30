@@ -416,8 +416,8 @@ static const v8::HeapGraphNode* GetGlobalObject(
   CHECK_EQ(2, snapshot->GetRoot()->GetChildrenCount());
   const v8::HeapGraphNode* global_obj =
       snapshot->GetRoot()->GetChild(0)->GetToNode();
-  CHECK_EQ("Object", const_cast<i::HeapEntry*>(
-      reinterpret_cast<const i::HeapEntry*>(global_obj))->name());
+  CHECK_EQ(0, strncmp("Object", const_cast<i::HeapEntry*>(
+      reinterpret_cast<const i::HeapEntry*>(global_obj))->name(), 6));
   return global_obj;
 }
 
@@ -1320,6 +1320,56 @@ TEST(DeleteHeapSnapshot) {
   const_cast<v8::HeapSnapshot*>(s3)->Delete();
   CHECK_EQ(0, v8::HeapProfiler::GetSnapshotsCount());
   CHECK_EQ(NULL, v8::HeapProfiler::FindSnapshot(uid3));
+}
+
+
+TEST(DocumentURL) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun("document = { URL:\"abcdefgh\" };");
+
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("document"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NE(NULL, global);
+  CHECK_EQ("Object / abcdefgh",
+           const_cast<i::HeapEntry*>(
+               reinterpret_cast<const i::HeapEntry*>(global))->name());
+}
+
+
+TEST(DocumentWithException) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun(
+      "this.__defineGetter__(\"document\", function() { throw new Error(); })");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("document"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NE(NULL, global);
+  CHECK_EQ("Object",
+           const_cast<i::HeapEntry*>(
+               reinterpret_cast<const i::HeapEntry*>(global))->name());
+}
+
+
+TEST(DocumentURLWithException) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun(
+      "function URLWithException() {}\n"
+      "URLWithException.prototype = { get URL() { throw new Error(); } };\n"
+      "document = { URL: new URLWithException() };");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8::String::New("document"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NE(NULL, global);
+  CHECK_EQ("Object",
+           const_cast<i::HeapEntry*>(
+               reinterpret_cast<const i::HeapEntry*>(global))->name());
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
