@@ -2608,6 +2608,9 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   ASSERT(function.is(rdi));  // Required by InvokeFunction.
   ASSERT(ToRegister(instr->result()).is(rax));
 
+  // TODO(1412): This is not correct if the called function is a
+  // strict mode function or a native.
+  //
   // If the receiver is null or undefined, we have to pass the global object
   // as a receiver.
   Label global_object, receiver_ok;
@@ -2627,8 +2630,9 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // TODO(kmillikin): We have a hydrogen value for the global object.  See
   // if it's better to use it than to explicitly fetch it from the context
   // here.
-  __ movq(receiver, Operand(rbp, StandardFrameConstants::kContextOffset));
-  __ movq(receiver, ContextOperand(receiver, Context::GLOBAL_INDEX));
+  __ movq(receiver, ContextOperand(rsi, Context::GLOBAL_INDEX));
+  __ movq(receiver,
+          FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);
 
   // Copy the arguments to this function possibly from the
@@ -2662,7 +2666,8 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
                                          pointers,
                                          env->deoptimization_index());
   v8::internal::ParameterCount actual(rax);
-  __ InvokeFunction(function, actual, CALL_FUNCTION, safepoint_generator);
+  __ InvokeFunction(function, actual, CALL_FUNCTION,
+                    safepoint_generator, CALL_AS_METHOD);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
@@ -3075,7 +3080,7 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   RegisterEnvironmentForDeoptimization(env);
   SafepointGenerator generator(this, pointers, env->deoptimization_index());
   ParameterCount count(instr->arity());
-  __ InvokeFunction(rdi, count, CALL_FUNCTION, generator);
+  __ InvokeFunction(rdi, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 

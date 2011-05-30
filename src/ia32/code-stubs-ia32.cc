@@ -3981,7 +3981,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     Label call_as_function;
     __ cmp(eax, masm->isolate()->factory()->the_hole_value());
     __ j(equal, &call_as_function);
-    __ InvokeFunction(edi, actual, JUMP_FUNCTION);
+    __ InvokeFunction(edi,
+                      actual,
+                      JUMP_FUNCTION,
+                      NullCallWrapper(),
+                      CALL_AS_METHOD);
     __ bind(&call_as_function);
   }
   __ InvokeFunction(edi,

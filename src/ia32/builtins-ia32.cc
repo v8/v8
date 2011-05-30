@@ -340,11 +340,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     Handle<Code> code =
         masm->isolate()->builtins()->HandleApiCallConstruct();
     ParameterCount expected(0);
-    __ InvokeCode(code, expected, expected,
-                  RelocInfo::CODE_TARGET, CALL_FUNCTION);
+    __ InvokeCode(code, expected, expected, RelocInfo::CODE_TARGET,
+                  CALL_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
   } else {
     ParameterCount actual(eax);
-    __ InvokeFunction(edi, actual, CALL_FUNCTION);
+    __ InvokeFunction(edi, actual, CALL_FUNCTION,
+                      NullCallWrapper(), CALL_AS_METHOD);
   }
 
   // Restore context from the frame.
@@ -443,7 +444,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
             RelocInfo::CODE_TARGET);
   } else {
     ParameterCount actual(eax);
-    __ InvokeFunction(edi, actual, CALL_FUNCTION);
+    __ InvokeFunction(edi, actual, CALL_FUNCTION,
+                      NullCallWrapper(), CALL_AS_METHOD);
   }
 
   // Exit the JS frame. Notice that this also removes the empty
@@ -715,7 +717,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline());
 
   ParameterCount expected(0);
-  __ InvokeCode(Operand(edx), expected, expected, JUMP_FUNCTION);
+  __ InvokeCode(Operand(edx), expected, expected, JUMP_FUNCTION,
+                NullCallWrapper(), CALL_AS_METHOD);
 }
 
 
@@ -845,7 +848,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   ParameterCount actual(eax);
   __ SmiUntag(eax);
   __ mov(edi, Operand(ebp, 4 * kPointerSize));
-  __ InvokeFunction(edi, actual, CALL_FUNCTION);
+  __ InvokeFunction(edi, actual, CALL_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
 
   __ LeaveInternalFrame();
   __ ret(3 * kPointerSize);  // remove this, receiver, and arguments

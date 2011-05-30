@@ -877,7 +877,8 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 
   // Invoke the function.
   ParameterCount actual(argc);
-  __ InvokeFunction(edi, actual, JUMP_FUNCTION);
+  __ InvokeFunction(edi, actual, JUMP_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
 }
 
 // The generated code falls through if the call should be handled by runtime.

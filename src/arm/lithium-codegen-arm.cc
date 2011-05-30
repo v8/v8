@@ -2707,6 +2707,9 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   ASSERT(function.is(r1));  // Required by InvokeFunction.
   ASSERT(ToRegister(instr->result()).is(r0));
 
+  // TODO(1412): This is not correct if the called function is a
+  // strict mode function or a native.
+  //
   // If the receiver is null or undefined, we have to pass the global object
   // as a receiver.
   Label global_object, receiver_ok;
@@ -2726,6 +2729,8 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
   __ bind(&global_object);
   __ ldr(receiver, GlobalObjectOperand());
+  __ ldr(receiver,
+         FieldMemOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);
 
   // Copy the arguments to this function possibly from the
@@ -2765,7 +2770,8 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // The number of arguments is stored in receiver which is r0, as expected
   // by InvokeFunction.
   v8::internal::ParameterCount actual(receiver);
-  __ InvokeFunction(function, actual, CALL_FUNCTION, safepoint_generator);
+  __ InvokeFunction(function, actual, CALL_FUNCTION,
+                    safepoint_generator, CALL_AS_METHOD);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
@@ -3213,7 +3219,7 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   RegisterEnvironmentForDeoptimization(env);
   SafepointGenerator generator(this, pointers, env->deoptimization_index());
   ParameterCount count(instr->arity());
-  __ InvokeFunction(r1, count, CALL_FUNCTION, generator);
+  __ InvokeFunction(r1, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 

@@ -915,10 +915,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         masm->isolate()->builtins()->HandleApiCallConstruct();
     ParameterCount expected(0);
     __ InvokeCode(code, expected, expected,
-                  RelocInfo::CODE_TARGET, CALL_FUNCTION);
+                  RelocInfo::CODE_TARGET, CALL_FUNCTION, CALL_AS_METHOD);
   } else {
     ParameterCount actual(r0);
-    __ InvokeFunction(r1, actual, CALL_FUNCTION);
+    __ InvokeFunction(r1, actual, CALL_FUNCTION,
+                      NullCallWrapper(), CALL_AS_METHOD);
   }
 
   // Pop the function from the stack.
@@ -1050,7 +1051,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
             RelocInfo::CODE_TARGET);
   } else {
     ParameterCount actual(r0);
-    __ InvokeFunction(r1, actual, CALL_FUNCTION);
+    __ InvokeFunction(r1, actual, CALL_FUNCTION,
+                      NullCallWrapper(), CALL_AS_METHOD);
   }
 
   // Exit the JS frame and remove the parameters (except function), and return.
@@ -1379,7 +1381,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
           ne);
 
   ParameterCount expected(0);
-  __ InvokeCode(r3, expected, expected, JUMP_FUNCTION);
+  __ InvokeCode(r3, expected, expected, JUMP_FUNCTION,
+                NullCallWrapper(), CALL_AS_METHOD);
 }
 
 
@@ -1515,7 +1518,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   ParameterCount actual(r0);
   __ mov(r0, Operand(r0, ASR, kSmiTagSize));
   __ ldr(r1, MemOperand(fp, kFunctionOffset));
-  __ InvokeFunction(r1, actual, CALL_FUNCTION);
+  __ InvokeFunction(r1, actual, CALL_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
 
   // Tear down the internal frame and remove function, receiver and args.
   __ LeaveInternalFrame();

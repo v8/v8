@@ -174,3 +174,19 @@ outer_eval_conversion3(non_strict_eval, 'object');
 // global context is used and the global object is passed as the
 // receiver.
 outer_eval_conversion3(eval, 'object');
+
+function test_constant_function() {
+  var o = { f: function() { "use strict"; return this; } };
+  this.__proto__ = o;
+  for (var i = 0; i < 10; i++) assertEquals(void 0, f());
+}
+test_constant_function();
+
+function test_field() {
+  var o = { };
+  o.f = function() {};
+  o.f = function() { "use strict"; return this; };
+  this.__proto__ = o;
+  for (var i = 0; i < 10; i++) assertEquals(void 0, f());
+}
+test_field();
