@@ -453,6 +453,7 @@ Token::Value JsonParser::SlowScanJsonString() {
         SeqTwoByteString::SizeFor(kInitialSpecialStringSize * allocation_count);
     int delta = allocated_string_size - string_size;
     Address start_filler_object = seq_two_byte->address() + string_size;
+    seq_two_byte->set_length(count);
     isolate()->heap()->CreateFillerObjectAt(start_filler_object, delta);
   }
   string_val_ = isolate()->factory()->NewConsString(ascii, seq_two_byte);
