@@ -1767,6 +1767,31 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoToInt32(HToInt32* instr) {
+  HValue* value = instr->value();
+  Representation input_rep = value->representation();
+  LOperand* reg = UseRegister(value);
+  if (input_rep.IsDouble()) {
+    LOperand* temp1 = TempRegister();
+    LOperand* temp2 = TempRegister();
+    LDoubleToI* res = new LDoubleToI(reg, temp1, temp2);
+    return AssignEnvironment(DefineAsRegister(res));
+  } else if (input_rep.IsInteger32()) {
+    // Canonicalization should already have removed the hydrogen instruction in
+    // this case, since it is a noop.
+    UNREACHABLE();
+    return NULL;
+  } else {
+    ASSERT(input_rep.IsTagged());
+    LOperand* temp1 = TempRegister();
+    LOperand* temp2 = TempRegister();
+    LOperand* temp3 = FixedTemp(d3);
+    LTaggedToI* res = new LTaggedToI(reg, temp1, temp2, temp3);
+    return AssignEnvironment(DefineSameAsFirst(res));
+  }
+}
+
+
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
   return new LReturn(UseFixed(instr->value(), r0));
 }

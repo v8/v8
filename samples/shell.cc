@@ -41,7 +41,7 @@
 // #ifndef USING_V8_SHARED/#endif is a hack until we can resolve whether to
 // still use the shell sample for testing or change to use the developer
 // shell d8 TODO(1272).
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
 #include "../src/v8.h"
 #endif  // USING_V8_SHARED
 
@@ -86,7 +86,7 @@ static bool last_run = true;
 class SourceGroup {
  public:
   SourceGroup() :
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
                   next_semaphore_(v8::internal::OS::CreateSemaphore(0)),
                   done_semaphore_(v8::internal::OS::CreateSemaphore(0)),
                   thread_(NULL),
@@ -134,7 +134,7 @@ class SourceGroup {
     }
   }
 
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
   void StartExecuteInThread() {
     if (thread_ == NULL) {
       thread_ = new IsolateThread(this);
@@ -155,7 +155,7 @@ class SourceGroup {
 #endif  // USING_V8_SHARED
 
  private:
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
   static v8::internal::Thread::Options GetThreadOptions() {
     v8::internal::Thread::Options options;
     options.name = "IsolateThread";
@@ -228,7 +228,7 @@ int RunMain(int argc, char* argv[]) {
   int num_isolates = 1;
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--isolate") == 0) {
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
       ++num_isolates;
 #else  // USING_V8_SHARED
       printf("Error: --isolate not supported when linked with shared "
@@ -259,14 +259,14 @@ int RunMain(int argc, char* argv[]) {
     }
     current->End(argc);
   }
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
   for (int i = 1; i < num_isolates; ++i) {
     isolate_sources[i].StartExecuteInThread();
   }
 #endif  // USING_V8_SHARED
   isolate_sources[0].Execute();
   if (run_shell) RunShell(context);
-#ifndef USING_V8_SHARED
+#if !(defined(USING_V8_SHARED) || defined(V8_SHARED))
   for (int i = 1; i < num_isolates; ++i) {
     isolate_sources[i].WaitForThread();
   }

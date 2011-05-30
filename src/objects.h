@@ -562,9 +562,9 @@ enum InstanceType {
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
 
-  JS_REGEXP_TYPE,  // LAST_JS_OBJECT_TYPE, FIRST_FUNCTION_CLASS_TYPE
+  JS_REGEXP_TYPE,  // LAST_JS_OBJECT_TYPE
 
-  JS_FUNCTION_TYPE,
+  JS_FUNCTION_TYPE,  // FIRST_FUNCTION_CLASS_TYPE
 
   // Pseudo-types
   FIRST_TYPE = 0x0,
@@ -583,7 +583,7 @@ enum InstanceType {
   LAST_JS_OBJECT_TYPE = JS_REGEXP_TYPE,
   // RegExp objects have [[Class]] "function" because they are callable.
   // All types from this type and above are objects with [[Class]] "function".
-  FIRST_FUNCTION_CLASS_TYPE = JS_REGEXP_TYPE
+  FIRST_FUNCTION_CLASS_TYPE = JS_FUNCTION_TYPE
 };
 
 static const int kExternalArrayTypeCount = LAST_EXTERNAL_ARRAY_TYPE -
@@ -1425,11 +1425,14 @@ class JSObject: public HeapObject {
       LookupResult* result,
       String* name,
       Object* value,
-      bool check_prototype);
-  MUST_USE_RESULT MaybeObject* SetPropertyWithCallback(Object* structure,
-                                                       String* name,
-                                                       Object* value,
-                                                       JSObject* holder);
+      bool check_prototype,
+      StrictModeFlag strict_mode);
+  MUST_USE_RESULT MaybeObject* SetPropertyWithCallback(
+      Object* structure,
+      String* name,
+      Object* value,
+      JSObject* holder,
+      StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetPropertyWithDefinedSetter(JSFunction* setter,
                                                             Object* value);
   MUST_USE_RESULT MaybeObject* SetPropertyWithInterceptor(
@@ -1656,7 +1659,7 @@ class JSObject: public HeapObject {
   void LookupRealNamedPropertyInPrototypes(String* name, LookupResult* result);
   void LookupCallbackSetterInPrototypes(String* name, LookupResult* result);
   MUST_USE_RESULT MaybeObject* SetElementWithCallbackSetterInPrototypes(
-      uint32_t index, Object* value, bool* found);
+      uint32_t index, Object* value, bool* found, StrictModeFlag strict_mode);
   void LookupCallback(String* name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
@@ -1868,7 +1871,8 @@ class JSObject: public HeapObject {
   MaybeObject* SetElementWithCallback(Object* structure,
                                       uint32_t index,
                                       Object* value,
-                                      JSObject* holder);
+                                      JSObject* holder,
+                                      StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetElementWithInterceptor(
       uint32_t index,
       Object* value,

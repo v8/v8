@@ -536,7 +536,6 @@ LexicalScope::LexicalScope(Parser* parser, Scope* scope, Isolate* isolate)
 
 
 LexicalScope::~LexicalScope() {
-  parser_->top_scope_->Leave();
   parser_->top_scope_ = previous_scope_;
   parser_->lexical_scope_ = lexical_scope_parent_;
   parser_->with_nesting_level_ = previous_with_nesting_level_;
@@ -1310,7 +1309,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
     var = top_scope_->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
-      var = top_scope_->DeclareLocal(name, mode, Scope::VAR_OR_CONST);
+      var = top_scope_->DeclareLocal(name, mode);
     } else {
       // The name was declared before; check for conflicting
       // re-declarations. If the previous declaration was a const or the
@@ -3573,10 +3572,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
         reserved_loc = scanner().location();
       }
 
-      Variable* parameter = top_scope_->DeclareLocal(param_name,
-                                                     Variable::VAR,
-                                                     Scope::PARAMETER);
-      top_scope_->AddParameter(parameter);
+      top_scope_->DeclareParameter(param_name);
       num_parameters++;
       if (num_parameters > kMaxNumFunctionParameters) {
         ReportMessageAt(scanner().location(), "too_many_parameters",

@@ -1655,8 +1655,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LOperand* value = UseRegister(instr->value());
       bool needs_check = !instr->value()->type().IsSmi();
       if (needs_check) {
-        LOperand* xmm_temp = instr->CanTruncateToInt32() ? NULL
-                                                         : FixedTemp(xmm1);
+        bool truncating = instr->CanTruncateToInt32();
+        LOperand* xmm_temp = truncating ? NULL : FixedTemp(xmm1);
         LTaggedToI* res = new LTaggedToI(value, xmm_temp);
         return AssignEnvironment(DefineSameAsFirst(res));
       } else {
@@ -1753,6 +1753,32 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
                                                 TempRegister(),
                                                 FixedTemp(xmm1));
     return AssignEnvironment(DefineSameAsFirst(result));
+  }
+}
+
+
+LInstruction* LChunkBuilder::DoToInt32(HToInt32* instr) {
+  HValue* value = instr->value();
+  Representation input_rep = value->representation();
+  LOperand* reg = UseRegister(value);
+  if (input_rep.IsDouble()) {
+    return AssignEnvironment(DefineAsRegister(new LDoubleToI(reg)));
+  } else if (input_rep.IsInteger32()) {
+    // Canonicalization should already have removed the hydrogen instruction in
+    // this case, since it is a noop.
+    UNREACHABLE();
+    return NULL;
+  } else {
+    ASSERT(input_rep.IsTagged());
+    LOperand* reg = UseRegister(value);
+    // Register allocator doesn't (yet) support allocation of double
+    // temps. Reserve xmm1 explicitly.
+    LOperand* xmm_temp =
+        CpuFeatures::IsSupported(SSE3)
+        ? NULL
+        : FixedTemp(xmm1);
+    return AssignEnvironment(
+        DefineSameAsFirst(new LTaggedToI(reg, xmm_temp)));
   }
 }
 

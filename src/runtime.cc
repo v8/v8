@@ -3534,13 +3534,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToRadixString) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
+  CONVERT_SMI_CHECKED(radix, args[1]);
+  RUNTIME_ASSERT(2 <= radix && radix <= 36);
 
   // Fast case where the result is a one character string.
-  if (args[0]->IsSmi() && args[1]->IsSmi()) {
+  if (args[0]->IsSmi()) {
     int value = Smi::cast(args[0])->value();
-    int radix = Smi::cast(args[1])->value();
     if (value >= 0 && value < radix) {
-      RUNTIME_ASSERT(radix <= 36);
       // Character array used for conversion.
       static const char kCharTable[] = "0123456789abcdefghijklmnopqrstuvwxyz";
       return isolate->heap()->
@@ -3559,9 +3559,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToRadixString) {
     }
     return isolate->heap()->AllocateStringFromAscii(CStrVector("Infinity"));
   }
-  CONVERT_DOUBLE_CHECKED(radix_number, args[1]);
-  int radix = FastD2I(radix_number);
-  RUNTIME_ASSERT(2 <= radix && radix <= 36);
   char* str = DoubleToRadixCString(value, radix);
   MaybeObject* result =
       isolate->heap()->AllocateStringFromAscii(CStrVector(str));
@@ -4637,7 +4634,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
       }
       ASSERT(heap_obj->IsUndefined());
       return isolate->heap()->undefined_symbol();
-    case JS_FUNCTION_TYPE: case JS_REGEXP_TYPE:
+    case JS_FUNCTION_TYPE:
       return isolate->heap()->function_symbol();
     default:
       // For any kind of object not handled above, the spec rule for
@@ -5011,6 +5008,8 @@ static const int kMaxGuaranteedNewSpaceString = 32 * 1024;
 // Doing JSON quoting cannot make the string more than this many times larger.
 static const int kJsonQuoteWorstCaseBlowup = 6;
 
+static const int kSpaceForQuotesAndComma = 3;
+static const int kSpaceForBrackets = 2;
 
 // Covers the entire ASCII range (all other characters are unchanged by JSON
 // quoting).
@@ -5098,13 +5097,49 @@ static MaybeObject* SlowQuoteJsonString(Isolate* isolate,
 }
 
 
+template <typename SinkChar, typename SourceChar>
+static inline SinkChar* WriteQuoteJsonString(
+    Isolate* isolate,
+    SinkChar* write_cursor,
+    Vector<const SourceChar> characters) {
+  const SourceChar* read_cursor = characters.start();
+  const SourceChar* end = read_cursor + characters.length();
+  *(write_cursor++) = '"';
+  while (read_cursor < end) {
+    SourceChar c = *(read_cursor++);
+    if (sizeof(SourceChar) > 1u &&
+        static_cast<unsigned>(c) >= kQuoteTableLength) {
+      *(write_cursor++) = static_cast<SinkChar>(c);
+    } else {
+      int len = JsonQuoteLengths[static_cast<unsigned>(c)];
+      const char* replacement = JsonQuotes +
+          static_cast<unsigned>(c) * kJsonQuotesCharactersPerEntry;
+      write_cursor[0] = replacement[0];
+      if (len > 1) {
+        write_cursor[1] = replacement[1];
+        if (len > 2) {
+          ASSERT(len == 6);
+          write_cursor[2] = replacement[2];
+          write_cursor[3] = replacement[3];
+          write_cursor[4] = replacement[4];
+          write_cursor[5] = replacement[5];
+        }
+      }
+      write_cursor += len;
+    }
+  }
+  *(write_cursor++) = '"';
+  return write_cursor;
+}
+
+
 template <typename Char, typename StringType, bool comma>
 static MaybeObject* QuoteJsonString(Isolate* isolate,
                                     Vector<const Char> characters) {
   int length = characters.length();
   isolate->counters()->quote_json_char_count()->Increment(length);
-  const int kSpaceForQuotes = 2 + (comma ? 1 :0);
-  int worst_case_length = length * kJsonQuoteWorstCaseBlowup + kSpaceForQuotes;
+  int worst_case_length =
+        length * kJsonQuoteWorstCaseBlowup + kSpaceForQuotesAndComma;
   if (worst_case_length > kMaxGuaranteedNewSpaceString) {
     return SlowQuoteJsonString<Char, StringType, comma>(isolate, characters);
   }
@@ -5129,34 +5164,9 @@ static MaybeObject* QuoteJsonString(Isolate* isolate,
   Char* write_cursor = reinterpret_cast<Char*>(
       new_string->address() + SeqAsciiString::kHeaderSize);
   if (comma) *(write_cursor++) = ',';
-  *(write_cursor++) = '"';
-
-  const Char* read_cursor = characters.start();
-  const Char* end = read_cursor + length;
-  while (read_cursor < end) {
-    Char c = *(read_cursor++);
-    if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= kQuoteTableLength) {
-      *(write_cursor++) = c;
-    } else {
-      int len = JsonQuoteLengths[static_cast<unsigned>(c)];
-      const char* replacement = JsonQuotes +
-          static_cast<unsigned>(c) * kJsonQuotesCharactersPerEntry;
-      write_cursor[0] = replacement[0];
-      if (len > 1) {
-        write_cursor[1] = replacement[1];
-        if (len > 2) {
-          ASSERT(len == 6);
-          write_cursor[2] = replacement[2];
-          write_cursor[3] = replacement[3];
-          write_cursor[4] = replacement[4];
-          write_cursor[5] = replacement[5];
-        }
-      }
-      write_cursor += len;
-    }
-  }
-  *(write_cursor++) = '"';
-
+  write_cursor = WriteQuoteJsonString<Char, Char>(isolate,
+                                                  write_cursor,
+                                                  characters);
   int final_length = static_cast<int>(
       write_cursor - reinterpret_cast<Char*>(
           new_string->address() + SeqAsciiString::kHeaderSize));
@@ -5209,6 +5219,101 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringComma) {
                                                        str->ToAsciiVector());
   }
 }
+
+
+template <typename Char, typename StringType>
+static MaybeObject* QuoteJsonStringArray(Isolate* isolate,
+                                         FixedArray* array,
+                                         int worst_case_length) {
+  int length = array->length();
+
+  MaybeObject* new_alloc = AllocateRawString<StringType>(isolate,
+                                                         worst_case_length);
+  Object* new_object;
+  if (!new_alloc->ToObject(&new_object)) {
+    return new_alloc;
+  }
+  if (!isolate->heap()->new_space()->Contains(new_object)) {
+    // Even if our string is small enough to fit in new space we still have to
+    // handle it being allocated in old space as may happen in the third
+    // attempt.  See CALL_AND_RETRY in heap-inl.h and similar code in
+    // CEntryStub::GenerateCore.
+    return isolate->heap()->undefined_value();
+  }
+  AssertNoAllocation no_gc;
+  StringType* new_string = StringType::cast(new_object);
+  ASSERT(isolate->heap()->new_space()->Contains(new_string));
+
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  Char* write_cursor = reinterpret_cast<Char*>(
+      new_string->address() + SeqAsciiString::kHeaderSize);
+  *(write_cursor++) = '[';
+  for (int i = 0; i < length; i++) {
+    if (i != 0) *(write_cursor++) = ',';
+    String* str = String::cast(array->get(i));
+    if (str->IsTwoByteRepresentation()) {
+      write_cursor = WriteQuoteJsonString<Char, uc16>(isolate,
+                                                      write_cursor,
+                                                      str->ToUC16Vector());
+    } else {
+      write_cursor = WriteQuoteJsonString<Char, char>(isolate,
+                                                      write_cursor,
+                                                      str->ToAsciiVector());
+    }
+  }
+  *(write_cursor++) = ']';
+
+  int final_length = static_cast<int>(
+      write_cursor - reinterpret_cast<Char*>(
+          new_string->address() + SeqAsciiString::kHeaderSize));
+  isolate->heap()->new_space()->
+      template ShrinkStringAtAllocationBoundary<StringType>(
+          new_string, final_length);
+  return new_string;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringArray) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSArray, array, args[0]);
+
+  if (!array->HasFastElements()) return isolate->heap()->undefined_value();
+  FixedArray* elements = FixedArray::cast(array->elements());
+  int n = elements->length();
+  bool ascii = true;
+  int total_length = 0;
+
+  for (int i = 0; i < n; i++) {
+    Object* elt = elements->get(i);
+    if (!elt->IsString()) return isolate->heap()->undefined_value();
+    String* element = String::cast(elt);
+    if (!element->IsFlat()) return isolate->heap()->undefined_value();
+    total_length += element->length();
+    if (ascii && element->IsTwoByteRepresentation()) {
+      ascii = false;
+    }
+  }
+
+  int worst_case_length =
+      kSpaceForBrackets + n * kSpaceForQuotesAndComma
+      + total_length * kJsonQuoteWorstCaseBlowup;
+
+  if (worst_case_length > kMaxGuaranteedNewSpaceString) {
+    return isolate->heap()->undefined_value();
+  }
+
+  if (ascii) {
+    return QuoteJsonStringArray<char, SeqAsciiString>(isolate,
+                                                      elements,
+                                                      worst_case_length);
+  } else {
+    return QuoteJsonStringArray<uc16, SeqTwoByteString>(isolate,
+                                                        elements,
+                                                        worst_case_length);
+  }
+}
+
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseInt) {
   NoHandleAllocation ha;

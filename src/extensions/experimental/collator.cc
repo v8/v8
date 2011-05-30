@@ -153,6 +153,11 @@ v8::Handle<v8::Value> Collator::JSCollator(const v8::Arguments& args) {
   bool ignore_case, ignore_accents, numeric;
 
   if (ExtractBooleanOption(options, "ignoreCase", &ignore_case)) {
+    // We need to explicitly set the level to secondary to get case ignored.
+    // The default L3 ignores UCOL_CASE_LEVEL == UCOL_OFF !
+    if (ignore_case) {
+      collator->setStrength(icu::Collator::SECONDARY);
+    }
     collator->setAttribute(UCOL_CASE_LEVEL, ignore_case ? UCOL_OFF : UCOL_ON,
                            status);
     if (U_FAILURE(status)) {

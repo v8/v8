@@ -1684,8 +1684,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LOperand* value = UseRegister(instr->value());
       bool needs_check = !instr->value()->type().IsSmi();
       if (needs_check) {
+        bool truncating = instr->CanTruncateToInt32();
         LOperand* xmm_temp =
-            (instr->CanTruncateToInt32() && CpuFeatures::IsSupported(SSE3))
+            (truncating && CpuFeatures::IsSupported(SSE3))
             ? NULL
             : FixedTemp(xmm1);
         LTaggedToI* res = new LTaggedToI(value, xmm_temp);
@@ -1705,8 +1706,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       return AssignPointerMap(Define(result, result_temp));
     } else {
       ASSERT(to.IsInteger32());
-      bool needs_temp = instr->CanTruncateToInt32() &&
-          !CpuFeatures::IsSupported(SSE3);
+      bool truncating = instr->CanTruncateToInt32();
+      bool needs_temp = truncating && !CpuFeatures::IsSupported(SSE3);
       LOperand* value = needs_temp ?
           UseTempRegister(instr->value()) : UseRegister(instr->value());
       LOperand* temp = needs_temp ? TempRegister() : NULL;
@@ -1790,6 +1791,34 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
     LClampTToUint8* result = new LClampTToUint8(reg, temp);
     return AssignEnvironment(DefineFixed(result, eax));
   }
+}
+
+
+LInstruction* LChunkBuilder::DoToInt32(HToInt32* instr) {
+  HValue* value = instr->value();
+  Representation input_rep = value->representation();
+
+  LInstruction* result;
+  if (input_rep.IsDouble()) {
+    LOperand* reg = UseRegister(value);
+    LOperand* temp_reg =
+        CpuFeatures::IsSupported(SSE3) ? NULL : TempRegister();
+    result = DefineAsRegister(new LDoubleToI(reg, temp_reg));
+  } else if (input_rep.IsInteger32()) {
+    // Canonicalization should already have removed the hydrogen instruction in
+    // this case, since it is a noop.
+    UNREACHABLE();
+    return NULL;
+  } else {
+    ASSERT(input_rep.IsTagged());
+    LOperand* reg = UseRegister(value);
+    // Register allocator doesn't (yet) support allocation of double
+    // temps. Reserve xmm1 explicitly.
+    LOperand* xmm_temp =
+        CpuFeatures::IsSupported(SSE3) ? NULL : FixedTemp(xmm1);
+    result = DefineSameAsFirst(new LTaggedToI(reg, xmm_temp));
+  }
+  return AssignEnvironment(result);
 }
 
 

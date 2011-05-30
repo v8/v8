@@ -432,6 +432,14 @@ js1_2/regexp/RegExp_lastIndex: FAIL_OK
 js1_2/regexp/string_split: FAIL_OK
 
 
+# RegExps are not callable.
+js1_2/regexp/simple_form: FAIL_OK
+js1_2/regexp/regress-6359: FAIL_OK
+js1_2/regexp/regress-9141: FAIL_OK
+js1_5/Regress/regress-224956: FAIL_OK
+js1_5/Regress/regress-325925: FAIL_OK
+ecma_2/RegExp/regress-001: FAIL_OK
+
 # We do not check for bad surrogate pairs when quoting strings.
 js1_5/Regress/regress-315974: FAIL_OK
 

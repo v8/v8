@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,54 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that exceptions are not thrown when setting properties on object
-// that have only a getter in a prototype object, except when we are in strict
-// mode where exceptsions should be thrown.
+// Test that the expected string is parsed in the json parser when the length
+// is so big that the string can't fit in new space, and it includes special
+// characters.
 
-var o = {};
-var p = {};
-p.__defineGetter__('x', function(){});
-p.__defineGetter__(0, function(){});
-o.__proto__ = p;
-
-assertDoesNotThrow("o.x = 42");
-assertDoesNotThrow("o[0] = 42");
-
-assertThrows(function() { 'use strict'; o.x = 42; });
-assertThrows(function() { 'use strict'; o[0] = 42; });
-
-function f() {
-  with(o) {
-    x = 42;
-  }
+var json = '{"key":"';
+var key = '';
+var expected = '';
+for(var i = 0; i < 60000; i++) {
+  key = key + "TESTING" + i + "\\n";
+  expected = expected + "TESTING" + i + "\n";
 }
-
-assertDoesNotThrow(f);
-
-__proto__ = p;
-function g() {
-  eval('1');
-  x = 42;
-}
-
-function g_strict() {
-  'use strict';
-  eval('1');
-  x = 42;
-}
-
-assertDoesNotThrow(g);
-assertThrows(g_strict);
-
-__proto__ = p;
-function g2() {
-  this[0] = 42;
-}
-
-function g2_strict() {
-  'use strict';
-  this[0] = 42;
-}
-
-assertDoesNotThrow(g2);
-assertThrows(g2_strict);
+json = json + key  + '"}';
+var out = JSON.parse(json);
+assertEquals(expected, out.key);

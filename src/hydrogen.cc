@@ -3805,10 +3805,28 @@ HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
   HLoadExternalArrayPointer* external_elements =
       new(zone()) HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
-  if (expr->external_array_type() == kExternalPixelArray) {
-    HClampToUint8* clamp = new(zone()) HClampToUint8(val);
-    AddInstruction(clamp);
-    val = clamp;
+  ExternalArrayType array_type = expr->external_array_type();
+  switch (array_type) {
+    case kExternalPixelArray: {
+      HClampToUint8* clamp = new(zone()) HClampToUint8(val);
+      AddInstruction(clamp);
+      val = clamp;
+      break;
+    }
+    case kExternalByteArray:
+    case kExternalUnsignedByteArray:
+    case kExternalShortArray:
+    case kExternalUnsignedShortArray:
+    case kExternalIntArray:
+    case kExternalUnsignedIntArray: {
+      HToInt32* floor_val = new(zone()) HToInt32(val);
+      AddInstruction(floor_val);
+      val = floor_val;
+      break;
+    }
+    case kExternalFloatArray:
+    case kExternalDoubleArray:
+      break;
   }
   return new(zone()) HStoreKeyedSpecializedArrayElement(
       external_elements,
@@ -3846,6 +3864,13 @@ bool HGraphBuilder::TryArgumentsAccess(Property* expr) {
   if (!proxy->var()->IsStackAllocated()) return false;
   if (!environment()->Lookup(proxy->var())->CheckFlag(HValue::kIsArguments)) {
     return false;
+  }
+
+  // Our implementation of arguments (based on this stack frame or an
+  // adapter below it) does not work for inlined functions.
+  if (function_state()->outer() != NULL) {
+    Bailout("arguments access in inlined function");
+    return true;
   }
 
   HInstruction* result = NULL;
@@ -4395,6 +4420,13 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
 
   if (!expr->IsMonomorphic() ||
       expr->check_type() != RECEIVER_MAP_CHECK) return false;
+
+  // Our implementation of arguments (based on this stack frame or an
+  // adapter below it) does not work for inlined functions.
+  if (function_state()->outer() != NULL) {
+    Bailout("Function.prototype.apply optimization in inlined function");
+    return true;
+  }
 
   // Found pattern f.apply(receiver, arguments).
   VisitForValue(prop->obj());
@@ -5422,6 +5454,10 @@ void HGraphBuilder::GenerateIsConstructCall(CallRuntime* call) {
 
 // Support for arguments.length and arguments[?].
 void HGraphBuilder::GenerateArgumentsLength(CallRuntime* call) {
+  // Our implementation of arguments (based on this stack frame or an
+  // adapter below it) does not work for inlined functions.  This runtime
+  // function is blacklisted by AstNode::IsInlineable.
+  ASSERT(function_state()->outer() == NULL);
   ASSERT(call->arguments()->length() == 0);
   HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
   HArgumentsLength* result = new(zone()) HArgumentsLength(elements);
@@ -5430,6 +5466,10 @@ void HGraphBuilder::GenerateArgumentsLength(CallRuntime* call) {
 
 
 void HGraphBuilder::GenerateArguments(CallRuntime* call) {
+  // Our implementation of arguments (based on this stack frame or an
+  // adapter below it) does not work for inlined functions.  This runtime
+  // function is blacklisted by AstNode::IsInlineable.
+  ASSERT(function_state()->outer() == NULL);
   ASSERT(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* index = Pop();

@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,54 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that exceptions are not thrown when setting properties on object
-// that have only a getter in a prototype object, except when we are in strict
-// mode where exceptsions should be thrown.
+// Test that an exception is not thrown when trying to set a value for
+// a property that has only a defined getter, except when in strict mode.
 
-var o = {};
-var p = {};
-p.__defineGetter__('x', function(){});
-p.__defineGetter__(0, function(){});
-o.__proto__ = p;
+var foo = Object.defineProperty({}, "bar", {
+ get: function () {
+      return 10;
+    }
+  });
 
-assertDoesNotThrow("o.x = 42");
-assertDoesNotThrow("o[0] = 42");
+assertDoesNotThrow("foo.bar = 20");
 
-assertThrows(function() { 'use strict'; o.x = 42; });
-assertThrows(function() { 'use strict'; o[0] = 42; });
-
-function f() {
-  with(o) {
-    x = 42;
-  }
-}
-
-assertDoesNotThrow(f);
-
-__proto__ = p;
-function g() {
-  eval('1');
-  x = 42;
-}
-
-function g_strict() {
+function shouldThrow() {
   'use strict';
-  eval('1');
-  x = 42;
+  foo.bar = 20;
 }
 
-assertDoesNotThrow(g);
-assertThrows(g_strict);
-
-__proto__ = p;
-function g2() {
-  this[0] = 42;
-}
-
-function g2_strict() {
-  'use strict';
-  this[0] = 42;
-}
-
-assertDoesNotThrow(g2);
-assertThrows(g2_strict);
+assertThrows("shouldThrow()");

@@ -25,12 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// When 'eval' is overridden with a non-function object we should
-// check whether the object is callable.
+// Flags: --allow-natives-syntax
 
-function test() {
-  eval = /foo/;
-  assertEquals(["foo"], eval("foobar"));
-}
+// Test inlining functions that use arguments.
+function f() { return g(1, 2, 3); }
 
-test();
+function g(x, y, z) { return %_ArgumentsLength(); }
+
+for (var i = 0; i < 5; ++i) f();
+%OptimizeFunctionOnNextCall(f);
+assertEquals(3, f());

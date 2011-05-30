@@ -1639,7 +1639,7 @@ class LDoubleToI: public LTemplateInstruction<1, 1, 2> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(DoubleToI, "double-to-i")
-  DECLARE_HYDROGEN_ACCESSOR(Change)
+  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
 
   bool truncating() { return hydrogen()->CanTruncateToInt32(); }
 };
@@ -1659,7 +1659,7 @@ class LTaggedToI: public LTemplateInstruction<1, 1, 3> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(TaggedToI, "tagged-to-i")
-  DECLARE_HYDROGEN_ACCESSOR(Change)
+  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
 
   bool truncating() { return hydrogen()->CanTruncateToInt32(); }
 };

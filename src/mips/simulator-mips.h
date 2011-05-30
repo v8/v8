@@ -289,6 +289,18 @@ class Simulator {
   // Used for breakpoints and traps.
   void SoftwareInterrupt(Instruction* instr);
 
+  // Stop helper functions.
+  bool IsWatchpoint(uint32_t code);
+  void PrintWatchpoint(uint32_t code);
+  void HandleStop(uint32_t code, Instruction* instr);
+  bool IsStopInstruction(Instruction* instr);
+  bool IsEnabledStop(uint32_t code);
+  void EnableStop(uint32_t code);
+  void DisableStop(uint32_t code);
+  void IncreaseStopCounter(uint32_t code);
+  void PrintStopInfo(uint32_t code);
+
+
   // Executes one instruction.
   void InstructionDecode(Instruction* instr);
   // Execute one instruction placed in a branch delay slot.
@@ -354,6 +366,19 @@ class Simulator {
   // Registered breakpoints.
   Instruction* break_pc_;
   Instr break_instr_;
+
+  // Stop is disabled if bit 31 is set.
+  static const uint32_t kStopDisabledBit = 1 << 31;
+
+  // A stop is enabled, meaning the simulator will stop when meeting the
+  // instruction, if bit 31 of watched_stops[code].count is unset.
+  // The value watched_stops[code].count & ~(1 << 31) indicates how many times
+  // the breakpoint was hit or gone through.
+  struct StopCountAndDesc {
+    uint32_t count;
+    char* desc;
+  };
+  StopCountAndDesc watched_stops[kMaxStopCode + 1];
 };
 
 
@@ -398,4 +423,3 @@ class SimulatorStack : public v8::internal::AllStatic {
 
 #endif  // !defined(USE_SIMULATOR)
 #endif  // V8_MIPS_SIMULATOR_MIPS_H_
-
