@@ -256,6 +256,7 @@ assertEquals("[1,2,[3,[4],5],6,7]",
              JSON.stringify([1, 2, [3, [4], 5], 6, 7], null));
 assertEquals("[2,4,[6,[8],10],12,14]",
              JSON.stringify([1, 2, [3, [4], 5], 6, 7], DoubleNumbers));
+assertEquals('["a","ab","abc"]', JSON.stringify(["a","ab","abc"]));
 
 var circular = [1, 2, 3];
 circular[2] = circular;

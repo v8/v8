@@ -193,7 +193,10 @@ function BasicSerializeArray(value, stack, builder) {
     // First entry is a string. Remaining entries are likely to be strings too.
     var array_string = %QuoteJSONStringArray(value);
     if (!IS_UNDEFINED(array_string)) {
-      builder[builder.length - 1] = array_string;     
+      // array_string also includes bracket characters so we are done.
+      builder[builder.length - 1] = array_string;
+      stack.pop();
+      return;
     } else {
       builder.push(%QuoteJSONString(val));
       for (var i = 1; i < len; i++) {
