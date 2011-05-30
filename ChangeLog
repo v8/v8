@@ -1,3 +1,15 @@
+2011-05-30: Version 3.4.0
+
+        Changed calls to undefined property setters to not throw (issue 1355).
+
+        Made RegExp objects not callable.
+
+        Fixed issues on special case large JSON strings in new json parser
+        (issues http://crbug.com/83877 and http://crbug.com/84186).
+
+        Performance improvements on all platforms.
+
+
 2011-05-25: Version 3.3.10
 
         Fixed calls of strict mode function with an implicit receiver.
