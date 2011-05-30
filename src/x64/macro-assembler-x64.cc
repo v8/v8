@@ -800,7 +800,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
   GetBuiltinEntry(rdx, id);
-  InvokeCode(rdx, expected, expected, flag, call_wrapper);
+  InvokeCode(rdx, expected, expected, flag, call_wrapper, CALL_AS_METHOD);
 }
 
 
@@ -2878,7 +2878,8 @@ void MacroAssembler::InvokeFunction(Register function,
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper) {
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
   ASSERT(function->is_compiled());
   // Get the function and setup the context.
   Move(rdi, Handle<JSFunction>(function));
@@ -2889,7 +2890,7 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
     // the Code object every time we call the function.
     movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
     ParameterCount expected(function->shared()->formal_parameter_count());
-    InvokeCode(rdx, expected, actual, flag, call_wrapper);
+    InvokeCode(rdx, expected, actual, flag, call_wrapper, call_kind);
   } else {
     // Invoke the cached code.
     Handle<Code> code(function->code());
@@ -2899,7 +2900,8 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
                actual,
                RelocInfo::CODE_TARGET,
                flag,
-               call_wrapper);
+               call_wrapper,
+               call_kind);
   }
 }
 

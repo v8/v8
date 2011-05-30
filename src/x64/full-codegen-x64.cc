@@ -3067,7 +3067,8 @@ void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
   // InvokeFunction requires the function in rdi. Move it in there.
   __ movq(rdi, result_register());
   ParameterCount count(arg_count);
-  __ InvokeFunction(rdi, count, CALL_FUNCTION);
+  __ InvokeFunction(rdi, count, CALL_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   context()->Plug(rax);
 }

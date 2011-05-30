@@ -748,25 +748,30 @@ class CallStubCompiler: public StubCompiler {
                    Code::ExtraICState extra_ic_state,
                    InlineCacheHolderFlag cache_holder);
 
-  MUST_USE_RESULT MaybeObject* CompileCallField(JSObject* object,
-                                                JSObject* holder,
-                                                int index,
-                                                String* name);
-  MUST_USE_RESULT MaybeObject* CompileCallConstant(Object* object,
-                                                   JSObject* holder,
-                                                   JSFunction* function,
-                                                   String* name,
-                                                   CheckType check);
-  MUST_USE_RESULT MaybeObject* CompileCallInterceptor(JSObject* object,
-                                                      JSObject* holder,
-                                                      String* name);
+  MUST_USE_RESULT MaybeObject* CompileCallField(
+      JSObject* object,
+      JSObject* holder,
+      int index,
+      String* name);
+
+  MUST_USE_RESULT MaybeObject* CompileCallConstant(
+      Object* object,
+      JSObject* holder,
+      JSFunction* function,
+      String* name,
+      CheckType check);
+
+  MUST_USE_RESULT MaybeObject* CompileCallInterceptor(
+      JSObject* object,
+      JSObject* holder,
+      String* name);
+
   MUST_USE_RESULT MaybeObject* CompileCallGlobal(
       JSObject* object,
       GlobalObject* holder,
       JSGlobalPropertyCell* cell,
       JSFunction* function,
-      String* name,
-      Code::ExtraICState extra_ic_state);
+      String* name);
 
   static bool HasCustomCallGenerator(JSFunction* function);
 

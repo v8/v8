@@ -3175,7 +3175,8 @@ void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
   // InvokeFunction requires the function in r1. Move it in there.
   __ mov(r1, result_register());
   ParameterCount count(arg_count);
-  __ InvokeFunction(r1, count, CALL_FUNCTION);
+  __ InvokeFunction(r1, count, CALL_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   context()->Plug(r0);
 }

@@ -4523,7 +4523,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     Label call_as_function;
     __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
     __ b(eq, &call_as_function);
-    __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+    __ InvokeFunction(r1,
+                      actual,
+                      JUMP_FUNCTION,
+                      NullCallWrapper(),
+                      CALL_AS_METHOD);
     __ bind(&call_as_function);
   }
   __ InvokeFunction(r1,

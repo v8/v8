@@ -3115,7 +3115,8 @@ void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
   // InvokeFunction requires the function in edi. Move it in there.
   __ mov(edi, result_register());
   ParameterCount count(arg_count);
-  __ InvokeFunction(edi, count, CALL_FUNCTION);
+  __ InvokeFunction(edi, count, CALL_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   context()->Plug(eax);
 }
