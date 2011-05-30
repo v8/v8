@@ -1634,6 +1634,11 @@ LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoUseConst(HUseConst* instr) {
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoForceRepresentation(HForceRepresentation* bad) {
   // All HForceRepresentation instructions should be eliminated in the
   // representation change phase of Hydrogen.

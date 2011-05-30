@@ -521,6 +521,12 @@ HConstant* HGraph::GetConstantFalse() {
   return GetConstant(&constant_false_, isolate()->heap()->false_value());
 }
 
+
+HConstant* HGraph::GetConstantHole() {
+  return GetConstant(&constant_hole_, isolate()->heap()->the_hole_value());
+}
+
+
 HGraphBuilder::HGraphBuilder(CompilationInfo* info,
                              TypeFeedbackOracle* oracle)
     : function_state_(NULL),
@@ -826,6 +832,10 @@ bool HGraph::CollectPhis() {
       phi_list_->Add(phi);
       // We don't support phi uses of arguments for now.
       if (phi->CheckFlag(HValue::kIsArguments)) return false;
+      // Check for the hole value (from an uninitialized const).
+      for (int k = 0; k < phi->OperandCount(); k++) {
+        if (phi->OperandAt(k) == GetConstantHole()) return false;
+      }
     }
   }
   return true;
@@ -2225,7 +2235,7 @@ HGraph* HGraphBuilder::CreateGraph() {
   graph()->EliminateRedundantPhis();
   if (FLAG_eliminate_dead_phis) graph()->EliminateUnreachablePhis();
   if (!graph()->CollectPhis()) {
-    Bailout("Phi-use of arguments object");
+    Bailout("Unsupported phi-use");
     return NULL;
   }
 
@@ -2996,7 +3006,12 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   if (variable == NULL) {
     return Bailout("reference to rewritten variable");
   } else if (variable->IsStackAllocated()) {
-    ast_context()->ReturnValue(environment()->Lookup(variable));
+    HValue* value = environment()->Lookup(variable);
+    if (variable->mode() == Variable::CONST &&
+        value == graph()->GetConstantHole()) {
+      return Bailout("reference to uninitialized const variable");
+    }
+    ast_context()->ReturnValue(value);
   } else if (variable->IsContextSlot()) {
     if (variable->mode() == Variable::CONST) {
       return Bailout("reference to const context slot");
@@ -3451,6 +3466,10 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
   BinaryOperation* operation = expr->binary_operation();
 
   if (var != NULL) {
+    if (var->mode() == Variable::CONST)  {
+      return Bailout("unsupported const compound assignment");
+    }
+
     CHECK_ALIVE(VisitForValue(operation));
 
     if (var->is_global()) {
@@ -3557,6 +3576,16 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
   }
 
   if (var != NULL) {
+    if (var->mode() == Variable::CONST) {
+      if (expr->op() != Token::INIT_CONST) {
+        return Bailout("non-initializer assignment to const");
+      }
+      // We insert a use of the old value to detect unsupported uses of const
+      // variables (e.g. initialization inside a loop).
+      HValue* old_value = environment()->Lookup(var);
+      AddInstruction(new HUseConst(old_value));
+    }
+
     if (proxy->IsArguments()) return Bailout("assignment to arguments");
 
     // Handle the assignment.
@@ -4871,6 +4900,9 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
   HValue* after = NULL;  // The result after incrementing or decrementing.
 
   if (var != NULL) {
+    if (var->mode() == Variable::CONST)  {
+      return Bailout("unsupported count operation with const");
+    }
     // Argument of the count operation is a variable, not a property.
     ASSERT(prop == NULL);
     CHECK_ALIVE(VisitForValue(target));
@@ -5335,16 +5367,19 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 void HGraphBuilder::VisitDeclaration(Declaration* decl) {
   // We allow only declarations that do not require code generation.
-  // The following all require code generation: global variables and
-  // functions, variables with slot type LOOKUP, declarations with
-  // mode CONST, and functions.
+  // The following all require code generation: global variables,
+  // functions, and variables with slot type LOOKUP
   Variable* var = decl->proxy()->var();
   Slot* slot = var->AsSlot();
   if (var->is_global() ||
+      !var->IsStackAllocated() ||
       (slot != NULL && slot->type() == Slot::LOOKUP) ||
-      decl->mode() == Variable::CONST ||
       decl->fun() != NULL) {
     return Bailout("unsupported declaration");
+  }
+
+  if (decl->mode() == Variable::CONST) {
+    environment()->Bind(var, graph()->GetConstantHole());
   }
 }
 

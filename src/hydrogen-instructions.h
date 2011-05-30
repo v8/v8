@@ -168,6 +168,7 @@ class LChunkBuilder;
   V(TypeofIs)                                  \
   V(UnaryMathOperation)                        \
   V(UnknownOSRValue)                           \
+  V(UseConst)                                  \
   V(ValueOf)
 
 #define GVN_FLAG_LIST(V)                       \
@@ -1016,6 +1017,18 @@ class HThrow: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Throw)
+};
+
+
+class HUseConst: public HUnaryOperation {
+ public:
+  explicit HUseConst(HValue* old_value) : HUnaryOperation(old_value) { }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(UseConst)
 };
 
 

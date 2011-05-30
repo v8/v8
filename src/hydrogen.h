@@ -238,6 +238,7 @@ class HGraph: public ZoneObject {
   HConstant* GetConstantMinus1();
   HConstant* GetConstantTrue();
   HConstant* GetConstantFalse();
+  HConstant* GetConstantHole();
 
   HBasicBlock* CreateBasicBlock();
   HArgumentsObject* GetArgumentsObject() const {
@@ -299,6 +300,7 @@ class HGraph: public ZoneObject {
   SetOncePointer<HConstant> constant_minus1_;
   SetOncePointer<HConstant> constant_true_;
   SetOncePointer<HConstant> constant_false_;
+  SetOncePointer<HConstant> constant_hole_;
   SetOncePointer<HArgumentsObject> arguments_object_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
