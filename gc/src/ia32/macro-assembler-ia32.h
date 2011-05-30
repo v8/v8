@@ -80,13 +80,12 @@ class MacroAssembler: public Assembler {
                            Register scratch,
                            SaveFPRegsMode save_fp);
 
-  inline void CheckPageFlag(
-      Register object,
-      Register scratch,
-      MemoryChunk::MemoryChunkFlags flag,
-      Condition cc,
-      Label* condition_met,
-      Label::Distance condition_met_distance = Label::kFar);
+  void CheckPageFlag(Register object,
+                     Register scratch,
+                     MemoryChunk::MemoryChunkFlags flag,
+                     Condition cc,
+                     Label* condition_met,
+                     Label::Distance condition_met_distance = Label::kFar);
 
 
   void InNewSpace(Register object,
@@ -100,39 +99,39 @@ class MacroAssembler: public Assembler {
   // indicated by the mask: bits that are zero in the mask are used for the
   // address of the bitmap, and bits that are one in the mask are used for the
   // index of the bit.
-  inline void HasColour(Register object,
-                        Register scratch0,
-                        Register scratch1,
-                        Label* has_colour,
-                        Label::Distance has_colour_distance,
-                        int first_bit,
-                        int second_bit);
+  void HasColour(Register object,
+                 Register scratch0,
+                 Register scratch1,
+                 Label* has_colour,
+                 Label::Distance has_colour_distance,
+                 int first_bit,
+                 int second_bit);
 
-  inline void IsBlack(Register object,
-                      Register scratch0,
-                      Register scratch1,
-                      Label* is_black,
-                      Label::Distance is_black_distance = Label::kFar);
+  void IsBlack(Register object,
+               Register scratch0,
+               Register scratch1,
+               Label* is_black,
+               Label::Distance is_black_distance = Label::kFar);
 
   // Checks the colour of an object.  If the object is already grey or black
   // then we just fall through, since it is already live.  If it is white and
   // we can determine that it doesn't need to be scanned, then we just mark it
   // black and fall through.  For the rest we jump to the label so the
   // incremental marker can fix its assumptions.
-  inline void EnsureNotWhite(Register object,
-                             Register scratch1,
-                             Register scratch2,
-                             Label* object_is_white_and_not_data,
-                             Label::Distance distance,
-                             bool in_new_space);
+  void EnsureNotWhite(Register object,
+                      Register scratch1,
+                      Register scratch2,
+                      Label* object_is_white_and_not_data,
+                      Label::Distance distance,
+                      bool in_new_space);
 
   // Checks whether an object is data-only, ie it does need to be scanned by the
   // garbage collector.
-  inline void IsDataObject(Register value,
-                           Register scratch,
-                           Label* not_data_object,
-                           Label::Distance not_data_object_distance,
-                           bool in_new_space);
+  void IsDataObject(Register value,
+                    Register scratch,
+                    Label* not_data_object,
+                    Label::Distance not_data_object_distance,
+                    bool in_new_space);
 
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
@@ -151,7 +150,7 @@ class MacroAssembler: public Assembler {
 
   // As above, but the offset has the tag presubtracted.  For use with
   // Operand(reg, off).
-  inline void RecordWriteContextSlot(
+  void RecordWriteContextSlot(
       Register context,
       int offset,
       Register value,

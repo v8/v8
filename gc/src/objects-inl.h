@@ -2863,7 +2863,7 @@ void Map::set_instance_descriptors(DescriptorArray* value,
                                    WriteBarrierMode mode) {
   Object* object = READ_FIELD(this,
                               kInstanceDescriptorsOrBitField3Offset);
-  Heap* heap = GetHeap();;
+  Heap* heap = GetHeap();
   if (value == heap->empty_descriptor_array()) {
     clear_instance_descriptors();
     return;

@@ -34,7 +34,6 @@
 #include "compiler.h"
 #include "debug.h"
 #include "full-codegen.h"
-#include "macro-assembler-ia32-inl.h"
 #include "parser.h"
 #include "scopes.h"
 #include "stub-cache.h"

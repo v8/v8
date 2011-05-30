@@ -33,7 +33,6 @@
 #include "code-stubs.h"
 #include "isolate.h"
 #include "jsregexp.h"
-#include "macro-assembler-ia32-inl.h"
 #include "regexp-macro-assembler.h"
 
 namespace v8 {
