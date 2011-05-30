@@ -925,6 +925,7 @@ Local<TypeSwitch> TypeSwitch::New(int argc, Handle<FunctionTemplate> types[]) {
 int TypeSwitch::match(v8::Handle<Value> value) {
   i::Isolate* isolate = i::Isolate::Current();
   LOG_API(isolate, "TypeSwitch::match");
+  USE(isolate);
   i::Handle<i::Object> obj = Utils::OpenHandle(*value);
   i::Handle<i::TypeSwitchInfo> info = Utils::OpenHandle(this);
   i::FixedArray* types = i::FixedArray::cast(info->types());
@@ -3392,6 +3393,7 @@ Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
 void Function::SetName(v8::Handle<v8::String> name) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
+  USE(isolate);
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   func->shared()->set_name(*Utils::OpenHandle(*name));
 }

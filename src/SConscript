@@ -311,7 +311,10 @@ def ConfigureObjectFiles():
   env.Replace(**context.flags['v8'])
   context.ApplyEnvOverrides(env)
   env['BUILDERS']['JS2C'] = Builder(action=js2c.JS2C)
-  env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET --logfile "$LOGFILE" --log-snapshot-positions')
+  if 'ENABLE_LOGGING_AND_PROFILING' in env['CPPDEFINES']:
+    env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET --logfile "$LOGFILE" --log-snapshot-positions')
+  else:
+    env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET')
 
   # Build the standard platform-independent source files.
   source_files = context.GetRelevantSources(SOURCES)
