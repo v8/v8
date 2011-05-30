@@ -6664,7 +6664,7 @@ THREADED_TEST(ShadowObject) {
   context->Global()->Set(v8_str("__proto__"), o);
 
   Local<Value> value =
-      Script::Compile(v8_str("propertyIsEnumerable(0)"))->Run();
+      Script::Compile(v8_str("this.propertyIsEnumerable(0)"))->Run();
   CHECK(value->IsBoolean());
   CHECK(!value->BooleanValue());
 

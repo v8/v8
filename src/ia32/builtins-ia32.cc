@@ -615,8 +615,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_equal, &shift_arguments);
 
     // Do not transform the receiver for natives (shared already in ebx).
-    __ test_b(FieldOperand(ebx, SharedFunctionInfo::kES5NativeByteOffset),
-              1 << SharedFunctionInfo::kES5NativeBitWithinByte);
+    __ test_b(FieldOperand(ebx, SharedFunctionInfo::kNativeByteOffset),
+              1 << SharedFunctionInfo::kNativeBitWithinByte);
     __ j(not_equal, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
@@ -780,8 +780,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   Factory* factory = masm->isolate()->factory();
 
   // Do not transform the receiver for natives (shared already in ecx).
-  __ test_b(FieldOperand(ecx, SharedFunctionInfo::kES5NativeByteOffset),
-            1 << SharedFunctionInfo::kES5NativeBitWithinByte);
+  __ test_b(FieldOperand(ecx, SharedFunctionInfo::kNativeByteOffset),
+            1 << SharedFunctionInfo::kNativeBitWithinByte);
   __ j(not_equal, &push_receiver);
 
   // Compute the receiver in non-strict mode.

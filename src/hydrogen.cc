@@ -5959,10 +5959,11 @@ HEnvironment* HEnvironment::CopyForInlining(
       inner->SetValueAt(i, push);
     }
   }
-  // If the function we are inlining is a strict mode function, pass
-  // undefined as the receiver for function calls (instead of the
-  // global receiver).
-  if (function->strict_mode() && call_kind == CALL_AS_FUNCTION) {
+  // If the function we are inlining is a strict mode function or a
+  // builtin function, pass undefined as the receiver for function
+  // calls (instead of the global receiver).
+  if ((target->shared()->native() || function->strict_mode()) &&
+      call_kind == CALL_AS_FUNCTION) {
     inner->SetValueAt(0, undefined);
   }
   inner->SetValueAt(arity + 1, outer->LookupContext());

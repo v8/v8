@@ -508,7 +508,10 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     info.MarkAsGlobal();
     info.SetExtension(extension);
     info.SetPreParseData(pre_data);
-    if (natives == NATIVES_CODE) info.MarkAsAllowingNativesSyntax();
+    if (natives == NATIVES_CODE) {
+      info.MarkAsAllowingNativesSyntax();
+      info.MarkAsNative();
+    }
     result = MakeFunctionInfo(&info);
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, result);
@@ -677,6 +680,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   info.SetFunction(literal);
   info.SetScope(literal->scope());
   if (literal->scope()->is_strict_mode()) info.MarkAsStrictMode();
+  if (script->type()->value() == Script::TYPE_NATIVE) info.MarkAsNative();
 
   LiveEditFunctionTracker live_edit_tracker(info.isolate(), literal);
   // Determine if the function can be lazily compiled. This is necessary to

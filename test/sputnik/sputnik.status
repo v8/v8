@@ -175,6 +175,23 @@ S11.1.5_A4.2: FAIL_OK
 S9.9_A1: FAIL_OK
 S9.9_A2: FAIL_OK
 
+# Calls builtins without an explicit receiver which means that
+# undefined is passed to the builtin. The tests expect the global
+# object to be passed which was true in ES3 but not in ES5.
+S11.1.1_A2: FAIL_OK
+S15.5.4.4_A1_T3: FAIL_OK
+S15.5.4.5_A1_T3: FAIL_OK
+S15.5.4.6_A1_T3: FAIL_OK
+S15.5.4.7_A1_T3: FAIL_OK
+S15.5.4.8_A1_T3: FAIL_OK
+S15.5.4.9_A1_T3: FAIL_OK
+S15.5.4.10_A1_T3: FAIL_OK
+S15.5.4.11_A1_T3: FAIL_OK
+S15.5.4.12_A1_T3: FAIL_OK
+S15.5.4.13_A1_T3: FAIL_OK
+S15.5.4.14_A1_T3: FAIL_OK
+S15.5.4.15_A1_T3: FAIL_OK
+
 ##################### SKIPPED TESTS #####################
 
 # These tests take a looong time to run in debug mode.
