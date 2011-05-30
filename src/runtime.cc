@@ -5102,6 +5102,8 @@ static inline SinkChar* WriteQuoteJsonString(
     Isolate* isolate,
     SinkChar* write_cursor,
     Vector<const SourceChar> characters) {
+  // SinkChar is only char if SourceChar is guaranteed to be char.
+  ASSERT(sizeof(SinkChar) >= sizeof(SourceChar));
   const SourceChar* read_cursor = characters.start();
   const SourceChar* end = read_cursor + characters.length();
   *(write_cursor++) = '"';
