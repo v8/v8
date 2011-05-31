@@ -135,7 +135,7 @@ class AstNode: public ZoneObject {
   static const int kNoNumber = -1;
   static const int kFunctionEntryId = 2;  // Using 0 could disguise errors.
 
-  AstNode() : id_(GetNextId()) {
+  AstNode() {
     Isolate* isolate = Isolate::Current();
     isolate->set_ast_node_count(isolate->ast_node_count() + 1);
   }
@@ -164,24 +164,15 @@ class AstNode: public ZoneObject {
 
   static int Count() { return Isolate::Current()->ast_node_count(); }
   static void ResetIds() { Isolate::Current()->set_ast_node_id(0); }
-  unsigned id() const { return id_; }
 
  protected:
-  static unsigned GetNextId() {
-    Isolate* isolate = Isolate::Current();
-    unsigned tmp = isolate->ast_node_id();
-    isolate->set_ast_node_id(tmp + 1);
-    return tmp;
-  }
+  static unsigned GetNextId() { return ReserveIdRange(1); }
   static unsigned ReserveIdRange(int n) {
     Isolate* isolate = Isolate::Current();
     unsigned tmp = isolate->ast_node_id();
     isolate->set_ast_node_id(tmp + n);
     return tmp;
   }
-
- private:
-  unsigned id_;
 
   friend class CaseClause;  // Generates AST IDs.
 };
@@ -220,7 +211,7 @@ class Expression: public AstNode {
     kTest
   };
 
-  Expression() {}
+  Expression() : id_(GetNextId()) {}
 
   virtual int position() const {
     UNREACHABLE();
@@ -278,8 +269,11 @@ class Expression: public AstNode {
     external_array_type_ = array_type;
   }
 
+  unsigned id() const { return id_; }
+
  private:
   ExternalArrayType external_array_type_;
+  unsigned id_;
 };
 
 
@@ -715,6 +709,7 @@ class IfStatement: public Statement {
       : condition_(condition),
         then_statement_(then_statement),
         else_statement_(else_statement),
+        if_id_(GetNextId()),
         then_id_(GetNextId()),
         else_id_(GetNextId()) {
   }
@@ -730,6 +725,7 @@ class IfStatement: public Statement {
   Statement* then_statement() const { return then_statement_; }
   Statement* else_statement() const { return else_statement_; }
 
+  int IfId() const { return if_id_; }
   int ThenId() const { return then_id_; }
   int ElseId() const { return else_id_; }
 
@@ -737,6 +733,7 @@ class IfStatement: public Statement {
   Expression* condition_;
   Statement* then_statement_;
   Statement* else_statement_;
+  int if_id_;
   int then_id_;
   int else_id_;
 };

@@ -369,7 +369,7 @@ class FullCodeGenerator: public AstVisitor {
                          Label* fall_through);
 
   // Bailout support.
-  void PrepareForBailout(AstNode* node, State state);
+  void PrepareForBailout(Expression* node, State state);
   void PrepareForBailoutForId(int id, State state);
 
   // Record a call's return site offset, used to rebuild the frame if the

@@ -2443,7 +2443,7 @@ void HGraphBuilder::VisitIfStatement(IfStatement* stmt) {
       cond_false = NULL;
     }
 
-    HBasicBlock* join = CreateJoin(cond_true, cond_false, stmt->id());
+    HBasicBlock* join = CreateJoin(cond_true, cond_false, stmt->IfId());
     set_current_block(join);
   }
 }

@@ -348,7 +348,7 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
 }
 
 
-void FullCodeGenerator::PrepareForBailout(AstNode* node, State state) {
+void FullCodeGenerator::PrepareForBailout(Expression* node, State state) {
   PrepareForBailoutForId(node->id(), state);
 }
 
@@ -942,7 +942,7 @@ void FullCodeGenerator::VisitIfStatement(IfStatement* stmt) {
     PrepareForBailoutForId(stmt->ElseId(), NO_REGISTERS);
   }
   __ bind(&done);
-  PrepareForBailoutForId(stmt->id(), NO_REGISTERS);
+  PrepareForBailoutForId(stmt->IfId(), NO_REGISTERS);
 }
 
 
