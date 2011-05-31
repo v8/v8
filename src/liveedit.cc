@@ -66,7 +66,7 @@ void SetElementNonStrict(Handle<JSObject> object,
 class Differencer {
  public:
   explicit Differencer(Comparator::Input* input)
-      : input_(input), len1_(input->getLength1()), len2_(input->getLength2()) {
+      : input_(input), len1_(input->GetLength1()), len2_(input->GetLength2()) {
     buffer_ = NewArray<int>(len1_ * len2_);
   }
   ~Differencer() {
@@ -151,7 +151,7 @@ class Differencer {
         if (cached_res == kEmptyCellValue) {
           Direction dir;
           int res;
-          if (input_->equals(pos1, pos2)) {
+          if (input_->Equals(pos1, pos2)) {
             res = CompareUpToTail(pos1 + 1, pos2 + 1);
             dir = EQ;
           } else {
@@ -279,6 +279,70 @@ static bool CompareSubstrings(Handle<String> s1, int pos1,
 }
 
 
+// Additional to Input interface. Lets switch Input range to subrange.
+// More elegant way would be to wrap one Input as another Input object
+// and translate positions there, but that would cost us additional virtual
+// call per comparison.
+class SubrangableInput : public Comparator::Input {
+ public:
+  virtual void SetSubrange1(int offset, int len) = 0;
+  virtual void SetSubrange2(int offset, int len) = 0;
+};
+
+
+class SubrangableOutput : public Comparator::Output {
+ public:
+  virtual void SetSubrange1(int offset, int len) = 0;
+  virtual void SetSubrange2(int offset, int len) = 0;
+};
+
+
+static int min(int a, int b) {
+  return a < b ? a : b;
+}
+
+
+// Finds common prefix and suffix in input. This parts shouldn't take space in
+// linear programming table. Enable subranging in input and output.
+static void NarrowDownInput(SubrangableInput* input,
+    SubrangableOutput* output) {
+  const int len1 = input->GetLength1();
+  const int len2 = input->GetLength2();
+
+  int common_prefix_len;
+  int common_suffix_len;
+
+  {
+    common_prefix_len = 0;
+    int prefix_limit = min(len1, len2);
+    while (common_prefix_len < prefix_limit &&
+        input->Equals(common_prefix_len, common_prefix_len)) {
+      common_prefix_len++;
+    }
+
+    common_suffix_len = 0;
+    int suffix_limit = min(len1 - common_prefix_len, len2 - common_prefix_len);
+
+    while (common_suffix_len < suffix_limit &&
+        input->Equals(len1 - common_suffix_len - 1,
+        len2 - common_suffix_len - 1)) {
+      common_suffix_len++;
+    }
+  }
+
+  if (common_prefix_len > 0 || common_suffix_len > 0) {
+    int new_len1 = len1 - common_suffix_len - common_prefix_len;
+    int new_len2 = len2 - common_suffix_len - common_prefix_len;
+
+    input->SetSubrange1(common_prefix_len, new_len1);
+    input->SetSubrange2(common_prefix_len, new_len2);
+
+    output->SetSubrange1(common_prefix_len, new_len1);
+    output->SetSubrange2(common_prefix_len, new_len2);
+  }
+}
+
+
 // A helper class that writes chunk numbers into JSArray.
 // Each chunk is stored as 3 array elements: (pos1_begin, pos1_end, pos2_end).
 class CompareOutputArrayWriter {
@@ -319,13 +383,13 @@ class TokensCompareInput : public Comparator::Input {
       : s1_(s1), offset1_(offset1), len1_(len1),
         s2_(s2), offset2_(offset2), len2_(len2) {
   }
-  virtual int getLength1() {
+  virtual int GetLength1() {
     return len1_;
   }
-  virtual int getLength2() {
+  virtual int GetLength2() {
     return len2_;
   }
-  bool equals(int index1, int index2) {
+  bool Equals(int index1, int index2) {
     return s1_->Get(offset1_ + index1) == s2_->Get(offset2_ + index2);
   }
 
@@ -401,20 +465,26 @@ class LineEndsWrapper {
 
 
 // Represents 2 strings as 2 arrays of lines.
-class LineArrayCompareInput : public Comparator::Input {
+class LineArrayCompareInput : public SubrangableInput {
  public:
   LineArrayCompareInput(Handle<String> s1, Handle<String> s2,
                         LineEndsWrapper line_ends1, LineEndsWrapper line_ends2)
       : s1_(s1), s2_(s2), line_ends1_(line_ends1),
-        line_ends2_(line_ends2) {
+        line_ends2_(line_ends2),
+        subrange_offset1_(0), subrange_offset2_(0),
+        subrange_len1_(line_ends1_.length()),
+        subrange_len2_(line_ends2_.length()) {
   }
-  int getLength1() {
-    return line_ends1_.length();
+  int GetLength1() {
+    return subrange_len1_;
   }
-  int getLength2() {
-    return line_ends2_.length();
+  int GetLength2() {
+    return subrange_len2_;
   }
-  bool equals(int index1, int index2) {
+  bool Equals(int index1, int index2) {
+    index1 += subrange_offset1_;
+    index2 += subrange_offset2_;
+
     int line_start1 = line_ends1_.GetLineStart(index1);
     int line_start2 = line_ends2_.GetLineStart(index2);
     int line_end1 = line_ends1_.GetLineEnd(index1);
@@ -427,26 +497,42 @@ class LineArrayCompareInput : public Comparator::Input {
     return CompareSubstrings(s1_, line_start1, s2_, line_start2,
                              len1);
   }
+  void SetSubrange1(int offset, int len) {
+    subrange_offset1_ = offset;
+    subrange_len1_ = len;
+  }
+  void SetSubrange2(int offset, int len) {
+    subrange_offset2_ = offset;
+    subrange_len2_ = len;
+  }
 
  private:
   Handle<String> s1_;
   Handle<String> s2_;
   LineEndsWrapper line_ends1_;
   LineEndsWrapper line_ends2_;
+  int subrange_offset1_;
+  int subrange_offset2_;
+  int subrange_len1_;
+  int subrange_len2_;
 };
 
 
 // Stores compare result in JSArray. For each chunk tries to conduct
 // a fine-grained nested diff token-wise.
-class TokenizingLineArrayCompareOutput : public Comparator::Output {
+class TokenizingLineArrayCompareOutput : public SubrangableOutput {
  public:
   TokenizingLineArrayCompareOutput(LineEndsWrapper line_ends1,
                                    LineEndsWrapper line_ends2,
                                    Handle<String> s1, Handle<String> s2)
-      : line_ends1_(line_ends1), line_ends2_(line_ends2), s1_(s1), s2_(s2) {
+      : line_ends1_(line_ends1), line_ends2_(line_ends2), s1_(s1), s2_(s2),
+        subrange_offset1_(0), subrange_offset2_(0) {
   }
 
   void AddChunk(int line_pos1, int line_pos2, int line_len1, int line_len2) {
+    line_pos1 += subrange_offset1_;
+    line_pos2 += subrange_offset2_;
+
     int char_pos1 = line_ends1_.GetLineStart(line_pos1);
     int char_pos2 = line_ends2_.GetLineStart(line_pos2);
     int char_len1 = line_ends1_.GetLineStart(line_pos1 + line_len1) - char_pos1;
@@ -466,6 +552,12 @@ class TokenizingLineArrayCompareOutput : public Comparator::Output {
       array_writer_.WriteChunk(char_pos1, char_pos2, char_len1, char_len2);
     }
   }
+  void SetSubrange1(int offset, int len) {
+    subrange_offset1_ = offset;
+  }
+  void SetSubrange2(int offset, int len) {
+    subrange_offset2_ = offset;
+  }
 
   Handle<JSArray> GetResult() {
     return array_writer_.GetResult();
@@ -479,6 +571,8 @@ class TokenizingLineArrayCompareOutput : public Comparator::Output {
   LineEndsWrapper line_ends2_;
   Handle<String> s1_;
   Handle<String> s2_;
+  int subrange_offset1_;
+  int subrange_offset2_;
 };
 
 
@@ -492,6 +586,8 @@ Handle<JSArray> LiveEdit::CompareStrings(Handle<String> s1,
 
   LineArrayCompareInput input(s1, s2, line_ends1, line_ends2);
   TokenizingLineArrayCompareOutput output(line_ends1, line_ends2, s1, s2);
+
+  NarrowDownInput(&input, &output);
 
   Comparator::CalculateDifference(&input, &output);
 
