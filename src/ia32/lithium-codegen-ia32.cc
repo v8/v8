@@ -2689,6 +2689,12 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
 }
 
 
+void LCodeGen::DoThisFunction(LThisFunction* instr) {
+  Register result = ToRegister(instr->result());
+  __ mov(result, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+}
+
+
 void LCodeGen::DoContext(LContext* instr) {
   Register result = ToRegister(instr->result());
   __ mov(result, Operand(ebp, StandardFrameConstants::kContextOffset));

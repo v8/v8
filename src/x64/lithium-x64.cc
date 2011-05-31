@@ -1191,6 +1191,11 @@ LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoThisFunction(HThisFunction* instr) {
+  return instr->HasNoUses() ? NULL : DefineAsRegister(new LThisFunction);
+}
+
+
 LInstruction* LChunkBuilder::DoContext(HContext* instr) {
   return instr->HasNoUses() ? NULL : DefineAsRegister(new LContext);
 }

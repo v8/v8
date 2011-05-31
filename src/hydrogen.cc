@@ -2308,9 +2308,6 @@ HInstruction* HGraphBuilder::PreProcessCall(HCall<V>* call) {
 
 
 void HGraphBuilder::SetupScope(Scope* scope) {
-  // We don't yet handle the function name for named function expressions.
-  if (scope->function() != NULL) return Bailout("named function expression");
-
   HConstant* undefined_constant = new(zone()) HConstant(
       isolate()->factory()->undefined_value(), Representation::Tagged());
   AddInstruction(undefined_constant);
@@ -5361,7 +5358,8 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  return Bailout("ThisFunction");
+  HThisFunction* self = new(zone()) HThisFunction;
+  return ast_context()->ReturnInstruction(self, expr->id());
 }
 
 

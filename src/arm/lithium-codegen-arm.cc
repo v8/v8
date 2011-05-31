@@ -2801,6 +2801,12 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
 }
 
 
+void LCodeGen::DoThisFunction(LThisFunction* instr) {
+  Register result = ToRegister(instr->result());
+  __ ldr(result, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+}
+
+
 void LCodeGen::DoContext(LContext* instr) {
   Register result = ToRegister(instr->result());
   __ mov(result, cp);

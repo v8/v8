@@ -101,15 +101,14 @@ class LChunkBuilder;
   V(EnterInlined)                              \
   V(ExternalArrayLength)                       \
   V(FixedArrayLength)                          \
-  V(ToInt32)                                   \
   V(ForceRepresentation)                       \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
   V(GlobalObject)                              \
   V(GlobalReceiver)                            \
   V(Goto)                                      \
-  V(HasInstanceType)                           \
   V(HasCachedArrayIndex)                       \
+  V(HasInstanceType)                           \
   V(In)                                        \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
@@ -152,8 +151,8 @@ class LChunkBuilder;
   V(StoreGlobalCell)                           \
   V(StoreGlobalGeneric)                        \
   V(StoreKeyedFastElement)                     \
-  V(StoreKeyedSpecializedArrayElement)         \
   V(StoreKeyedGeneric)                         \
+  V(StoreKeyedSpecializedArrayElement)         \
   V(StoreNamedField)                           \
   V(StoreNamedGeneric)                         \
   V(StringAdd)                                 \
@@ -162,8 +161,10 @@ class LChunkBuilder;
   V(StringLength)                              \
   V(Sub)                                       \
   V(Test)                                      \
+  V(ThisFunction)                              \
   V(Throw)                                     \
   V(ToFastProperties)                          \
+  V(ToInt32)                                   \
   V(Typeof)                                    \
   V(TypeofIs)                                  \
   V(UnaryMathOperation)                        \
@@ -1302,6 +1303,24 @@ class HPushArgument: public HUnaryOperation {
 };
 
 
+class HThisFunction: public HTemplateInstruction<0> {
+ public:
+  HThisFunction() {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ThisFunction)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
 class HContext: public HTemplateInstruction<0> {
  public:
   HContext() {
@@ -1313,7 +1332,7 @@ class HContext: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(Context);
+  DECLARE_CONCRETE_INSTRUCTION(Context)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }

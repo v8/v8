@@ -36,6 +36,9 @@ test-debug/DebuggerAgent: PASS, (PASS || FAIL) if $system == linux
 # BUG(382): Weird test. Can't guarantee that it never times out.
 test-api/ApplyInterruption: PASS || TIMEOUT
 
+# BUG(1417): Crashes with --stress-opt --always-opt.
+test-log/Issue23768: PASS || CRASH
+
 # These tests always fail.  They are here to test test.py.  If
 # they don't fail then test.py has failed.
 test-serialize/TestThatAlwaysFails: FAIL
