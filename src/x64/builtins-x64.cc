@@ -849,7 +849,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Do not transform the receiver for natives.
   __ testb(FieldOperand(rdx, SharedFunctionInfo::kNativeByteOffset),
            Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
-  __ j(not_zero, &push_receiver);
+  __ j(not_equal, &push_receiver);
 
   // Compute the receiver in non-strict mode.
   __ JumpIfSmi(rbx, &call_to_object, Label::kNear);

@@ -2602,12 +2602,25 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   ASSERT(function.is(edi));  // Required by InvokeFunction.
   ASSERT(ToRegister(instr->result()).is(eax));
 
-  // TODO(1412): This is not correct if the called function is a
-  // strict mode function or a native.
-  //
-  // If the receiver is null or undefined, we have to pass the global object
-  // as a receiver.
+  // If the receiver is null or undefined, we have to pass the global
+  // object as a receiver to normal functions. Values have to be
+  // passed unchanged to builtins and strict-mode functions.
   Label global_object, receiver_ok;
+
+  // Do not transform the receiver to object for strict mode
+  // functions.
+  __ mov(scratch,
+         FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+  __ test_b(FieldOperand(scratch, SharedFunctionInfo::kStrictModeByteOffset),
+            1 << SharedFunctionInfo::kStrictModeBitWithinByte);
+  __ j(not_equal, &receiver_ok, Label::kNear);
+
+  // Do not transform the receiver to object for builtins.
+  __ test_b(FieldOperand(scratch, SharedFunctionInfo::kNativeByteOffset),
+            1 << SharedFunctionInfo::kNativeBitWithinByte);
+  __ j(not_equal, &receiver_ok, Label::kNear);
+
+  // Normal function. Replace undefined or null with global receiver.
   __ cmp(receiver, factory()->null_value());
   __ j(equal, &global_object, Label::kNear);
   __ cmp(receiver, factory()->undefined_value());
