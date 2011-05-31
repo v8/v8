@@ -64,8 +64,6 @@ class ToBooleanStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  virtual bool SometimesSetsUpAFrame() { return false; }
-
  private:
   Register tos_;
   Major MajorKey() { return ToBoolean; }
@@ -639,8 +637,6 @@ class StringDictionaryLookupStub: public CodeStub {
                                      Register r0,
                                      Register r1);
 
-  virtual bool SometimesSetsUpAFrame() { return false; }
-
  private:
   static const int kInlinedProbes = 4;
   static const int kTotalProbes = 20;
@@ -660,7 +656,7 @@ class StringDictionaryLookupStub: public CodeStub {
   }
 #endif
 
-  Major MajorKey() { return StringDictionaryLookup; }
+  Major MajorKey() { return StringDictionaryNegativeLookup; }
 
   int MinorKey() {
     return LookupModeBits::encode(mode_);

@@ -396,12 +396,9 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ add(edx, Operand(esi));
     __ mov(Operand(esp, 0 * kPointerSize), edx);
 
-    {
-      AllowExternalCallThatCantCauseGC scope(masm_);
-      ExternalReference compare =
-          ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
-      __ CallCFunction(compare, argument_count);
-    }
+    ExternalReference compare =
+        ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
+    __ CallCFunction(compare, argument_count);
     // Pop original values before reacting on result value.
     __ pop(ebx);
     __ pop(backtrack_stackpointer());
@@ -671,12 +668,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
   // Entry code:
   __ bind(&entry_label_);
-
-  // Tell the system that we have a stack frame.  Because the type is MANUAL, no
-  // is generated.
-  FrameScope scope(masm_, StackFrame::MANUAL);
-
-  // Actually emit code to start a new stack frame.
+  // Start new stack frame.
   __ push(ebp);
   __ mov(ebp, esp);
   // Save callee-save registers. Order here should correspond to order of

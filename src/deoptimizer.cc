@@ -58,9 +58,6 @@ DeoptimizerData::~DeoptimizerData() {
   }
 }
 
-
-// We rely on this function not causing a GC.  It is called from generated code
-// without having a real stack frame in place.
 Deoptimizer* Deoptimizer::New(JSFunction* function,
                               BailoutType type,
                               unsigned bailout_id,
@@ -354,8 +351,6 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
 }
 
 
-// We rely on this function not causing a GC.  It is called from generated code
-// without having a real stack frame in place.
 void Deoptimizer::DoComputeOutputFrames() {
   if (bailout_type_ == OSR) {
     DoComputeOsrOutputFrame();

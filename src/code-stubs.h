@@ -75,7 +75,7 @@ namespace internal {
   V(KeyedLoadExternalArray)              \
   V(KeyedStoreExternalArray)             \
   V(DebuggerStatement)                   \
-  V(StringDictionaryLookup)
+  V(StringDictionaryNegativeLookup)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -144,13 +144,6 @@ class CodeStub BASE_EMBEDDED {
 
   virtual ~CodeStub() {}
 
-  // See comment above, where Instanceof is defined.
-  virtual bool CompilingCallsToThisStubIsGCSafe() {
-    return MajorKey() <= Instanceof;
-  }
-
-  virtual bool SometimesSetsUpAFrame() { return true; }
-
  protected:
   static const int kMajorBits = 6;
   static const int kMinorBits = kBitsPerInt - kSmiTagSize - kMajorBits;
@@ -206,6 +199,9 @@ class CodeStub BASE_EMBEDDED {
     return MinorKeyBits::encode(MinorKey()) |
            MajorKeyBits::encode(MajorKey());
   }
+
+  // See comment above, where Instanceof is defined.
+  bool AllowsStubCalls() { return MajorKey() <= Instanceof; }
 
   class MajorKeyBits: public BitField<uint32_t, 0, kMajorBits> {};
   class MinorKeyBits: public BitField<uint32_t, kMajorBits, kMinorBits> {};
@@ -578,11 +574,6 @@ class CEntryStub : public CodeStub {
 
   void Generate(MacroAssembler* masm);
   void SaveDoubles() { save_doubles_ = true; }
-
-  // The version of this stub that doesn't save doubles is generated ahead of
-  // time, so it's OK to call it from other stubs that can't cope with GC during
-  // their code generation.
-  virtual bool CompilingCallsToThisStubIsGCSafe() { return !save_doubles_; }
 
  private:
   void GenerateCore(MacroAssembler* masm,

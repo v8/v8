@@ -3431,9 +3431,9 @@ class V8EXPORT Context {
  *
  * v8::Locker is a scoped lock object. While it's
  * active (i.e. between its construction and destruction) the current thread is
- * allowed to use the locked isolate. V8 guarantees that an isolate can be
- * locked by at most one thread at any time. In other words, the scope of a
- * v8::Locker is a critical section.
+ * allowed to use the locked isolate. V8 guarantees that an isolate can be locked
+ * by at most one thread at any time. In other words, the scope of a v8::Locker is
+ * a critical section.
  *
  * Sample usage:
 * \code
@@ -3535,8 +3535,8 @@ class V8EXPORT Locker {
   static void StopPreemption();
 
   /**
-   * Returns whether or not the locker for a given isolate, or default isolate
-   * if NULL is given, is locked by the current thread.
+   * Returns whether or not the locker for a given isolate, or default isolate if NULL is given,
+   * is locked by the current thread.
    */
   static bool IsLocked(Isolate* isolate = NULL);
 

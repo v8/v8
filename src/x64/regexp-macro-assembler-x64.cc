@@ -431,14 +431,9 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Isolate.
     __ LoadAddress(rcx, ExternalReference::isolate_address());
 #endif
-
-    { // NOLINT: Can't find a way to open this scope without confusing the
-      // linter.
-      AllowExternalCallThatCantCauseGC scope(&masm_);
-      ExternalReference compare =
-          ExternalReference::re_case_insensitive_compare_uc16(masm_.isolate());
-      __ CallCFunction(compare, num_arguments);
-    }
+    ExternalReference compare =
+        ExternalReference::re_case_insensitive_compare_uc16(masm_.isolate());
+    __ CallCFunction(compare, num_arguments);
 
     // Restore original values before reacting on result value.
     __ Move(code_object_pointer(), masm_.CodeObject());
@@ -713,12 +708,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // registers we need.
   // Entry code:
   __ bind(&entry_label_);
-
-  // Tell the system that we have a stack frame.  Because the type is MANUAL, no
-  // is generated.
-  FrameScope scope(&masm_, StackFrame::MANUAL);
-
-  // Actually emit code to start a new stack frame.
+  // Start new stack frame.
   __ push(rbp);
   __ movq(rbp, rsp);
   // Save parameters and callee-save registers. Order here should correspond
