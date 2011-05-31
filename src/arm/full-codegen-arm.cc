@@ -2300,9 +2300,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ bind(&done);
       // Push function.
       __ push(r0);
-      // Push global receiver.
-      __ ldr(r1, GlobalObjectOperand());
-      __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
+      // The receiver is implicitly the global receiver. Indicate this
+      // by passing the hole to the call function stub.
+      __ LoadRoot(r1, Heap::kTheHoleValueRootIndex);
       __ push(r1);
       __ bind(&call);
     }

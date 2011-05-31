@@ -2230,9 +2230,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ bind(&done);
       // Push function.
       __ push(eax);
-      // Push global receiver.
-      __ mov(ebx, GlobalObjectOperand());
-      __ push(FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
+      // The receiver is implicitly the global receiver. Indicate this
+      // by passing the hole to the call function stub.
+      __ push(Immediate(isolate()->factory()->the_hole_value()));
       __ bind(&call);
     }
 
