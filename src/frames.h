@@ -138,7 +138,10 @@ class StackFrame BASE_EMBEDDED {
   enum Type {
     NONE = 0,
     STACK_FRAME_TYPE_LIST(DECLARE_TYPE)
-    NUMBER_OF_TYPES
+    NUMBER_OF_TYPES,
+    // Used by FrameScope to indicate that the stack frame is constructed
+    // manually and the FrameScope does not need to emit code.
+    MANUAL
   };
 #undef DECLARE_TYPE
 

@@ -950,21 +950,22 @@ static void GenerateCallMiss(MacroAssembler* masm,
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
   // Enter an internal frame.
-  __ EnterInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-  // Push the receiver and the name of the function.
-  __ push(rdx);
-  __ push(rcx);
+    // Push the receiver and the name of the function.
+    __ push(rdx);
+    __ push(rcx);
 
-  // Call the entry.
-  CEntryStub stub(1);
-  __ Set(rax, 2);
-  __ LoadAddress(rbx, ExternalReference(IC_Utility(id), masm->isolate()));
-  __ CallStub(&stub);
+    // Call the entry.
+    CEntryStub stub(1);
+    __ Set(rax, 2);
+    __ LoadAddress(rbx, ExternalReference(IC_Utility(id), masm->isolate()));
+    __ CallStub(&stub);
 
-  // Move result to rdi and exit the internal frame.
-  __ movq(rdi, rax);
-  __ LeaveInternalFrame();
+    // Move result to rdi and exit the internal frame.
+    __ movq(rdi, rax);
+  }
 
   // Check if the receiver is a global object of some sort.
   // This can happen only for regular CallIC but not KeyedCallIC.
@@ -1106,13 +1107,14 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // This branch is taken when calling KeyedCallIC_Miss is neither required
   // nor beneficial.
   __ IncrementCounter(counters->keyed_call_generic_slow_load(), 1);
-  __ EnterInternalFrame();
-  __ push(rcx);  // save the key
-  __ push(rdx);  // pass the receiver
-  __ push(rcx);  // pass the key
-  __ CallRuntime(Runtime::kKeyedGetProperty, 2);
-  __ pop(rcx);  // restore the key
-  __ LeaveInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(rcx);  // save the key
+    __ push(rdx);  // pass the receiver
+    __ push(rcx);  // pass the key
+    __ CallRuntime(Runtime::kKeyedGetProperty, 2);
+    __ pop(rcx);  // restore the key
+  }
   __ movq(rdi, rax);
   __ jmp(&do_call);
 

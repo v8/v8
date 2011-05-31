@@ -29,6 +29,7 @@
 #define V8_X64_MACRO_ASSEMBLER_X64_H_
 
 #include "assembler.h"
+#include "frames.h"
 #include "v8globals.h"
 
 namespace v8 {
@@ -71,6 +72,7 @@ struct SmiIndex {
   Register reg;
   ScaleFactor scale;
 };
+
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
@@ -191,15 +193,6 @@ class MacroAssembler: public Assembler {
 
   void DebugBreak();
 #endif
-
-  // ---------------------------------------------------------------------------
-  // Activation frames
-
-  void EnterInternalFrame() { EnterFrame(StackFrame::INTERNAL); }
-  void LeaveInternalFrame() { LeaveFrame(StackFrame::INTERNAL); }
-
-  void EnterConstructFrame() { EnterFrame(StackFrame::CONSTRUCT); }
-  void LeaveConstructFrame() { LeaveFrame(StackFrame::CONSTRUCT); }
 
   // Enter specific kind of exit frame; either in normal or
   // debug mode. Expects the number of arguments in register rax and
@@ -1125,10 +1118,17 @@ class MacroAssembler: public Assembler {
   bool generating_stub() { return generating_stub_; }
   void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
   bool allow_stub_calls() { return allow_stub_calls_; }
+  void set_has_frame(bool value) { has_frame_ = value; }
+  bool has_frame() { return has_frame_; }
+  inline bool AllowThisStubCall(CodeStub* stub);
 
   static int SafepointRegisterStackIndex(Register reg) {
     return SafepointRegisterStackIndex(reg.code());
   }
+
+  // Activation support.
+  void EnterFrame(StackFrame::Type type);
+  void LeaveFrame(StackFrame::Type type);
 
  private:
   // Order general registers are pushed by Pushad.
@@ -1139,6 +1139,7 @@ class MacroAssembler: public Assembler {
 
   bool generating_stub_;
   bool allow_stub_calls_;
+  bool has_frame_;
   bool root_array_available_;
 
   // Returns a register holding the smi value. The register MUST NOT be
@@ -1161,10 +1162,6 @@ class MacroAssembler: public Assembler {
                       Label::Distance near_jump = Label::kFar,
                       const CallWrapper& call_wrapper = NullCallWrapper(),
                       CallKind call_kind = CALL_AS_METHOD);
-
-  // Activation support.
-  void EnterFrame(StackFrame::Type type);
-  void LeaveFrame(StackFrame::Type type);
 
   void EnterExitFramePrologue(bool save_rax);
 

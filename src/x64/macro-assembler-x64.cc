@@ -44,6 +44,7 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
       allow_stub_calls_(true),
+      has_frame_(false),
       root_array_available_(true) {
   if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
@@ -397,7 +398,7 @@ void MacroAssembler::Check(Condition cc, const char* msg) {
   Label L;
   j(cc, &L, Label::kNear);
   Abort(msg);
-  // will not return here
+  // Control will not return here.
   bind(&L);
 }
 
@@ -445,9 +446,6 @@ void MacroAssembler::Abort(const char* msg) {
     RecordComment(msg);
   }
 #endif
-  // Disable stub call restrictions to always allow calls to abort.
-  AllowStubCallsScope allow_scope(this, true);
-
   push(rax);
   movq(kScratchRegister, p0, RelocInfo::NONE);
   push(kScratchRegister);
@@ -455,20 +453,28 @@ void MacroAssembler::Abort(const char* msg) {
        reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(p1 - p0))),
        RelocInfo::NONE);
   push(kScratchRegister);
-  CallRuntime(Runtime::kAbort, 2);
-  // will not return here
+
+  if (!has_frame_) {
+    // We don't actually want to generate a pile of code for this, so just
+    // claim there is a stack frame, without generating one.
+    FrameScope scope(this, StackFrame::NONE);
+    CallRuntime(Runtime::kAbort, 2);
+  } else {
+    CallRuntime(Runtime::kAbort, 2);
+  }
+  // Control will not return here.
   int3();
 }
 
 
 void MacroAssembler::CallStub(CodeStub* stub, unsigned ast_id) {
-  ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
+  ASSERT(AllowThisStubCall(stub));  // Calls are not allowed in some stubs
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
 }
 
 
 MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
+  ASSERT(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.
   MaybeObject* result = stub->TryGetCode();
   if (!result->IsFailure()) {
     call(Handle<Code>(Code::cast(result->ToObjectUnchecked())),
@@ -479,13 +485,12 @@ MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub) {
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
+  ASSERT(stub->CompilingCallsToThisStubIsGCSafe() || allow_stub_calls_);
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
 MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // Calls are not allowed in some stubs.
   MaybeObject* result = stub->TryGetCode();
   if (!result->IsFailure()) {
     jmp(Handle<Code>(Code::cast(result->ToObjectUnchecked())),
@@ -498,6 +503,12 @@ MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub) {
 void MacroAssembler::StubReturn(int argc) {
   ASSERT(argc >= 1 && generating_stub());
   ret((argc - 1) * kPointerSize);
+}
+
+
+bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
+  if (!has_frame_ && stub->SometimesSetsUpAFrame()) return false;
+  return stub->CompilingCallsToThisStubIsGCSafe() || allow_stub_calls_;
 }
 
 
@@ -792,8 +803,8 @@ MaybeObject* MacroAssembler::TryJumpToExternalReference(
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
                                    const CallWrapper& call_wrapper) {
-  // Calls are not allowed in some stubs.
-  ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
+  // You can't call a builtin without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Rely on the assertion to check that the number of provided
   // arguments match the expected number of arguments. Fake a
@@ -2771,10 +2782,10 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
-  ASSERT(allow_stub_calls());
   Set(rax, 0);  // No arguments.
   LoadAddress(rbx, ExternalReference(Runtime::kDebugBreak, isolate()));
   CEntryStub ces(1);
+  ASSERT(AllowThisStubCall(&ces));
   Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
 #endif  // ENABLE_DEBUGGER_SUPPORT
@@ -2800,6 +2811,9 @@ void MacroAssembler::InvokeCode(Register code,
                                 InvokeFlag flag,
                                 const CallWrapper& call_wrapper,
                                 CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   Label done;
   InvokePrologue(expected,
                  actual,
@@ -2831,6 +2845,9 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 InvokeFlag flag,
                                 const CallWrapper& call_wrapper,
                                 CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   Label done;
   Register dummy = rax;
   InvokePrologue(expected,
@@ -2861,6 +2878,9 @@ void MacroAssembler::InvokeFunction(Register function,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   ASSERT(function.is(rdi));
   movq(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
@@ -2880,6 +2900,9 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   ASSERT(function->is_compiled());
   // Get the function and setup the context.
   Move(rdi, Handle<JSFunction>(function));
@@ -3708,6 +3731,7 @@ void MacroAssembler::CallCFunction(ExternalReference function,
 
 
 void MacroAssembler::CallCFunction(Register function, int num_arguments) {
+  ASSERT(has_frame());
   // Check stack alignment.
   if (emit_debug_code()) {
     CheckStackAlignment();

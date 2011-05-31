@@ -232,6 +232,8 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 
 
 void ToBooleanStub::Generate(MacroAssembler* masm) {
+  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
+  // we cannot call anything that could cause a GC from this stub.
   Label false_result, true_result, not_string;
   __ movq(rax, Operand(rsp, 1 * kPointerSize));
 
@@ -564,12 +566,13 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
-    __ EnterInternalFrame();
-    __ push(rax);
-    __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ movq(rcx, rax);
-    __ pop(rax);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(rax);
+      __ CallRuntime(Runtime::kNumberAlloc, 0);
+      __ movq(rcx, rax);
+      __ pop(rax);
+    }
     __ bind(&heapnumber_allocated);
     // rcx: allocated 'empty' number
 
@@ -1419,11 +1422,12 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ addq(rsp, Immediate(kDoubleSize));
     // We return the value in xmm1 without adding it to the cache, but
     // we cause a scavenging GC so that future allocations will succeed.
-    __ EnterInternalFrame();
-    // Allocate an unused object bigger than a HeapNumber.
-    __ Push(Smi::FromInt(2 * kDoubleSize));
-    __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      // Allocate an unused object bigger than a HeapNumber.
+      __ Push(Smi::FromInt(2 * kDoubleSize));
+      __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
+    }
     __ Ret();
   }
 
@@ -1439,10 +1443,11 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ bind(&runtime_call);
     __ AllocateHeapNumber(rax, rdi, &skip_cache);
     __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm1);
-    __ EnterInternalFrame();
-    __ push(rax);
-    __ CallRuntime(RuntimeFunction(), 1);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(rax);
+      __ CallRuntime(RuntimeFunction(), 1);
+    }
     __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
     __ Ret();
   }
@@ -4908,12 +4913,13 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   // Call the runtime system in a fresh internal frame.
   ExternalReference miss =
       ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
-  __ EnterInternalFrame();
-  __ push(rdx);
-  __ push(rax);
-  __ Push(Smi::FromInt(op_));
-  __ CallExternalReference(miss, 3);
-  __ LeaveInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(rdx);
+    __ push(rax);
+    __ Push(Smi::FromInt(op_));
+    __ CallExternalReference(miss, 3);
+  }
 
   // Compute the entry point of the rewritten stub.
   __ lea(rdi, FieldOperand(rax, Code::kHeaderSize));
@@ -5044,6 +5050,8 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
 
 
 void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
+  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
+  // we cannot call anything that could cause a GC from this stub.
   // Stack frame on entry:
   //  esp[0 * kPointerSize]: return address.
   //  esp[1 * kPointerSize]: key's hash.

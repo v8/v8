@@ -81,6 +81,12 @@ bool LCodeGen::GenerateCode() {
   HPhase phase("Code generation", chunk());
   ASSERT(is_unused());
   status_ = GENERATING;
+
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // MANUAL indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done in GeneatePrologue).
+  FrameScope frame_scope(masm_, StackFrame::MANUAL);
+
   return GeneratePrologue() &&
       GenerateBody() &&
       GenerateDeferredCode() &&
