@@ -42,24 +42,31 @@ eval("function a() {}");
 assertTrue(this.hasOwnProperty("a"));
 
 __proto__.__defineSetter__("b", function(v) { assertUnreachable(); });
+var exception = false;
 try {
   eval("const b = 23");
-  assertUnreachable();
 } catch(e) {
+  exception = true;
   assertTrue(/TypeError/.test(e));
 }
+assertTrue(exception);
+
+exception = false;
 try {
   eval("with({}) { eval('const b = 23') }");
-  assertUnreachable();
 } catch(e) {
+  exception = true;
   assertTrue(/TypeError/.test(e));
 }
+assertTrue(exception);
 
 __proto__.__defineSetter__("c", function(v) { throw 42; });
+exception = false;
 try {
   eval("var c = 1");
-  assertUnreachable();
 } catch(e) {
+  exception = true;
   assertEquals(42, e);
   assertFalse(this.hasOwnProperty("c"));
 }
+assertTrue(exception);

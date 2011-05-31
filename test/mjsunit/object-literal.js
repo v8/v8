@@ -141,11 +141,14 @@ var keywords = [
 ];
 
 function testKeywordProperty(keyword) {
+  var exception = false;
   try {
     // Sanity check that what we get is a keyword.
     eval("var " + keyword + " = 42;");
-    assertUnreachable("Not a keyword: " + keyword);
-  } catch (e) { }
+  } catch (e) {
+    exception = true;
+  }
+  assertTrue(exception);
 
   // Simple property, read and write.
   var x = eval("({" + keyword + ": 42})");
