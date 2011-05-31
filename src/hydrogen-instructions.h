@@ -1905,8 +1905,8 @@ class HCheckFunction: public HUnaryOperation {
 
 class HCheckInstanceType: public HUnaryOperation {
  public:
-  static HCheckInstanceType* NewIsJSObjectOrJSFunction(HValue* value) {
-    return new HCheckInstanceType(value, IS_JS_OBJECT_OR_JS_FUNCTION);
+  static HCheckInstanceType* NewIsSpecObject(HValue* value) {
+    return new HCheckInstanceType(value, IS_SPEC_OBJECT);
   }
   static HCheckInstanceType* NewIsJSArray(HValue* value) {
     return new HCheckInstanceType(value, IS_JS_ARRAY);
@@ -1954,7 +1954,7 @@ class HCheckInstanceType: public HUnaryOperation {
 
  private:
   enum Check {
-    IS_JS_OBJECT_OR_JS_FUNCTION,
+    IS_SPEC_OBJECT,
     IS_JS_ARRAY,
     IS_STRING,
     IS_SYMBOL,

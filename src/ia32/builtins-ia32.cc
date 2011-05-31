@@ -361,8 +361,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   __ j(zero, &use_receiver);
 
   // If the type of the result (stored in its map) is less than
-  // FIRST_JS_OBJECT_TYPE, it is not an object in the ECMA sense.
-  __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
+  // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
+  __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
   __ j(above_equal, &exit);
 
   // Throw away the result of the constructor invocation and use the
@@ -630,9 +630,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(equal, &use_global_receiver);
     __ cmp(ebx, factory->undefined_value());
     __ j(equal, &use_global_receiver);
-    STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
-    STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-    __ CmpObjectType(ebx, FIRST_JS_OBJECT_TYPE, ecx);
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ CmpObjectType(ebx, FIRST_SPEC_OBJECT_TYPE, ecx);
     __ j(above_equal, &shift_arguments);
 
     __ bind(&convert_to_object);
@@ -793,9 +792,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ j(equal, &use_global_receiver);
   __ cmp(ebx, factory->undefined_value());
   __ j(equal, &use_global_receiver);
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
-  STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-  __ CmpObjectType(ebx, FIRST_JS_OBJECT_TYPE, ecx);
+  STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+  __ CmpObjectType(ebx, FIRST_SPEC_OBJECT_TYPE, ecx);
   __ j(above_equal, &push_receiver);
 
   __ bind(&call_to_object);

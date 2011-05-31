@@ -121,7 +121,7 @@ MUST_USE_RESULT static MaybeObject* GenerateDictionaryNegativeLookup(
 
   // Check that receiver is a JSObject.
   __ ldrb(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ cmp(scratch0, Operand(FIRST_JS_OBJECT_TYPE));
+  __ cmp(scratch0, Operand(FIRST_SPEC_OBJECT_TYPE));
   __ b(lt, miss_label);
 
   // Load properties array.

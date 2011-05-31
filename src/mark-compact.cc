@@ -1063,11 +1063,9 @@ void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
 
     // When map collection is enabled we have to mark through map's transitions
     // in a special way to make transition links weak.
-    // Only maps with instance types between FIRST_JS_OBJECT_TYPE and
-    // JS_FUNCTION_TYPE can have transitions.
-    if (FLAG_collect_maps &&
-        map->instance_type() >= FIRST_JS_OBJECT_TYPE &&
-        map->instance_type() <= JS_FUNCTION_TYPE) {
+    // Only maps for subclasses of JSReceiver can have transitions.
+    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+    if (FLAG_collect_maps && map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
       MarkMapContents(map);
     } else {
       marking_stack_.Push(map);
@@ -1149,8 +1147,8 @@ void MarkCompactCollector::CreateBackPointers() {
        next_object != NULL; next_object = iterator.next()) {
     if (next_object->IsMap()) {  // Could also be ByteArray on free list.
       Map* map = Map::cast(next_object);
-      if (map->instance_type() >= FIRST_JS_OBJECT_TYPE &&
-          map->instance_type() <= JS_FUNCTION_TYPE) {
+      STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+      if (map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
         map->CreateBackPointers();
       } else {
         ASSERT(map->instance_descriptors() == heap()->empty_descriptor_array());
@@ -1526,8 +1524,8 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
 
     ASSERT(SafeIsMap(map));
     // Only JSObject and subtypes have map transitions and back pointers.
-    if (map->instance_type() < FIRST_JS_OBJECT_TYPE) continue;
-    if (map->instance_type() > JS_FUNCTION_TYPE) continue;
+    STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+    if (map->instance_type() < FIRST_JS_RECEIVER_TYPE) continue;
 
     if (map->IsMarked() && map->attached_to_shared_function_info()) {
       // This map is used for inobject slack tracking and has been detached

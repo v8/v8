@@ -258,7 +258,7 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 }
 
 
-Handle<Object> SetProperty(Handle<JSObject> object,
+Handle<Object> SetProperty(Handle<JSReceiver> object,
                            Handle<String> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
@@ -353,22 +353,11 @@ Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
 }
 
 
-Handle<Object> GetProperty(Handle<JSObject> obj,
+Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name) {
   Isolate* isolate = obj->GetIsolate();
   Handle<String> str = isolate->factory()->LookupAsciiSymbol(name);
   CALL_HEAP_FUNCTION(isolate, obj->GetProperty(*str), Object);
-}
-
-
-Handle<Object> GetProperty(Handle<Object> obj,
-                           const char* name,
-                           LookupResult* result) {
-  Isolate* isolate = Isolate::Current();
-  Handle<String> str = isolate->factory()->LookupAsciiSymbol(name);
-  PropertyAttributes attributes;
-  CALL_HEAP_FUNCTION(
-      isolate, obj->GetProperty(*obj, result, *str, &attributes), Object);
 }
 
 
@@ -380,7 +369,7 @@ Handle<Object> GetProperty(Handle<Object> obj,
 }
 
 
-Handle<Object> GetProperty(Handle<JSObject> obj,
+Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            Handle<String> name,
                            LookupResult* result) {
   PropertyAttributes attributes;

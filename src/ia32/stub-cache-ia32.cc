@@ -129,7 +129,7 @@ static MaybeObject* GenerateDictionaryNegativeLookup(MacroAssembler* masm,
   __ j(not_zero, miss_label);
 
   // Check that receiver is a JSObject.
-  __ CmpInstanceType(r0, FIRST_JS_OBJECT_TYPE);
+  __ CmpInstanceType(r0, FIRST_SPEC_OBJECT_TYPE);
   __ j(below, miss_label);
 
   // Load properties array.

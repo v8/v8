@@ -140,6 +140,8 @@ void Object::Lookup(String* name, LookupResult* result) {
     HeapObject* heap_object = HeapObject::cast(this);
     if (heap_object->IsJSObject()) {
       return JSObject::cast(this)->Lookup(name, result);
+    } else if (heap_object->IsJSProxy()) {
+      return result->HandlerResult();
     }
     Context* global_context = Isolate::Current()->context()->global_context();
     if (heap_object->IsString()) {
@@ -148,8 +150,6 @@ void Object::Lookup(String* name, LookupResult* result) {
       holder = global_context->number_function()->instance_prototype();
     } else if (heap_object->IsBoolean()) {
       holder = global_context->boolean_function()->instance_prototype();
-    } else if (heap_object->IsJSProxy()) {
-      return result->HandlerResult();
     }
   }
   ASSERT(holder != NULL);  // Cannot handle null or undefined.
@@ -236,9 +236,9 @@ MaybeObject* Object::GetPropertyWithHandler(Object* receiver_raw,
   Handle<Object> handler(handler_raw);
 
   // Extract trap function.
-  LookupResult lookup;
-  Handle<Object> trap(v8::internal::GetProperty(handler, "get", &lookup));
-  if (!lookup.IsFound()) {
+  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("get");
+  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (trap->IsUndefined()) {
     // Get the derived `get' property.
     trap = isolate->derived_get_trap();
   }
@@ -1281,8 +1281,8 @@ void HeapNumber::HeapNumberPrint(StringStream* accumulator) {
 }
 
 
-String* JSObject::class_name() {
-  if (IsJSFunction()) {
+String* JSReceiver::class_name() {
+  if (IsJSFunction() && IsJSFunctionProxy()) {
     return GetHeap()->function_class_symbol();
   }
   if (map()->constructor()->IsJSFunction()) {
@@ -1294,7 +1294,7 @@ String* JSObject::class_name() {
 }
 
 
-String* JSObject::constructor_name() {
+String* JSReceiver::constructor_name() {
   if (map()->constructor()->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(map()->constructor());
     String* name = String::cast(constructor->shared()->name());
@@ -1304,6 +1304,7 @@ String* JSObject::constructor_name() {
     Object* proto = GetPrototype();
     if (proto->IsJSObject()) return JSObject::cast(proto)->constructor_name();
   }
+  // TODO(rossberg): what about proxies?
   // If the constructor is not present, return "Object".
   return GetHeap()->Object_symbol();
 }
@@ -1758,10 +1759,10 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
 }
 
 
-MaybeObject* JSObject::SetProperty(String* name,
-                                   Object* value,
-                                   PropertyAttributes attributes,
-                                   StrictModeFlag strict_mode) {
+MaybeObject* JSReceiver::SetProperty(String* name,
+                                     Object* value,
+                                     PropertyAttributes attributes,
+                                     StrictModeFlag strict_mode) {
   LookupResult result;
   LocalLookup(name, &result);
   return SetProperty(&result, name, value, attributes, strict_mode);
@@ -2139,7 +2140,89 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
 }
 
 
-MaybeObject* JSObject::SetProperty(LookupResult* result,
+MaybeObject* JSReceiver::SetProperty(LookupResult* result,
+                                     String* key,
+                                     Object* value,
+                                     PropertyAttributes attributes,
+                                     StrictModeFlag strict_mode) {
+  if (result->IsFound() && result->type() == HANDLER) {
+    return JSProxy::cast(this)->SetPropertyWithHandler(
+        key, value, attributes, strict_mode);
+  } else {
+    return JSObject::cast(this)->SetPropertyForResult(
+        result, key, value, attributes, strict_mode);
+  }
+}
+
+
+MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
+    String* name_raw,
+    Object* value_raw,
+    PropertyAttributes attributes,
+    StrictModeFlag strict_mode) {
+  Isolate* isolate = GetIsolate();
+  HandleScope scope;
+  Handle<Object> receiver(this);
+  Handle<Object> name(name_raw);
+  Handle<Object> value(value_raw);
+  Handle<Object> handler(this->handler());
+
+  // Extract trap function.
+  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("set");
+  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (trap->IsUndefined()) {
+    trap = isolate->derived_set_trap();
+  }
+
+  // Call trap function.
+  Object** args[] = {
+      receiver.location(), name.location(), value.location()
+  };
+  bool has_exception;
+  Handle<Object> result =
+      Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
+  if (has_exception) return Failure::Exception();
+
+  return value_raw;
+}
+
+
+MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
+    JSReceiver* receiver_raw,
+    String* name_raw,
+    bool* has_exception) {
+  Isolate* isolate = GetIsolate();
+  HandleScope scope;
+  Handle<JSReceiver> receiver(receiver_raw);
+  Handle<Object> name(name_raw);
+  Handle<Object> handler(this->handler());
+
+  // Extract trap function.
+  Handle<String> trap_name =
+      isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
+  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (trap->IsUndefined()) {
+    Handle<Object> args[] = { handler, trap_name };
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "handler_trap_missing", HandleVector(args, ARRAY_SIZE(args)));
+    isolate->Throw(*error);
+    *has_exception = true;
+    return NONE;
+  }
+
+  // Call trap function.
+  Object** args[] = { name.location() };
+  Handle<Object> result =
+      Execution::Call(trap, handler, ARRAY_SIZE(args), args, has_exception);
+  if (has_exception) return NONE;
+
+  // TODO(rossberg): convert result to PropertyAttributes
+  USE(result);
+  return NONE;
+}
+
+
+MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
                                    String* name,
                                    Object* value,
                                    PropertyAttributes attributes,
@@ -2424,12 +2507,13 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
 }
 
 
-PropertyAttributes JSObject::GetPropertyAttributeWithReceiver(
-      JSObject* receiver,
+PropertyAttributes JSReceiver::GetPropertyAttributeWithReceiver(
+      JSReceiver* receiver,
       String* key) {
   uint32_t index = 0;
-  if (key->AsArrayIndex(&index)) {
-    if (HasElementWithReceiver(receiver, index)) return NONE;
+  if (IsJSObject() && key->AsArrayIndex(&index)) {
+    if (JSObject::cast(this)->HasElementWithReceiver(receiver, index))
+      return NONE;
     return ABSENT;
   }
   // Named property.
@@ -2439,18 +2523,17 @@ PropertyAttributes JSObject::GetPropertyAttributeWithReceiver(
 }
 
 
-PropertyAttributes JSObject::GetPropertyAttribute(JSObject* receiver,
-                                                  LookupResult* result,
-                                                  String* name,
-                                                  bool continue_search) {
+PropertyAttributes JSReceiver::GetPropertyAttribute(JSReceiver* receiver,
+                                                    LookupResult* result,
+                                                    String* name,
+                                                    bool continue_search) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
+    JSObject* this_obj = JSObject::cast(this);
     Heap* heap = GetHeap();
-    if (!heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_HAS)) {
-      return GetPropertyAttributeWithFailedAccessCheck(receiver,
-                                                       result,
-                                                       name,
-                                                       continue_search);
+    if (!heap->isolate()->MayNamedAccess(this_obj, name, v8::ACCESS_HAS)) {
+      return this_obj->GetPropertyAttributeWithFailedAccessCheck(
+          receiver, result, name, continue_search);
     }
   }
   if (result->IsProperty()) {
@@ -2460,9 +2543,15 @@ PropertyAttributes JSObject::GetPropertyAttribute(JSObject* receiver,
       case CONSTANT_FUNCTION:
       case CALLBACKS:
         return result->GetAttributes();
+      case HANDLER: {
+        // TODO(rossberg): propagate exceptions properly.
+        bool has_exception = false;
+        return JSProxy::cast(this)->GetPropertyAttributeWithHandler(
+            receiver, name, &has_exception);
+      }
       case INTERCEPTOR:
-        return result->holder()->
-          GetPropertyAttributeWithInterceptor(receiver, name, continue_search);
+        return result->holder()->GetPropertyAttributeWithInterceptor(
+            JSObject::cast(receiver), name, continue_search);
       default:
         UNREACHABLE();
     }
@@ -2471,11 +2560,11 @@ PropertyAttributes JSObject::GetPropertyAttribute(JSObject* receiver,
 }
 
 
-PropertyAttributes JSObject::GetLocalPropertyAttribute(String* name) {
+PropertyAttributes JSReceiver::GetLocalPropertyAttribute(String* name) {
   // Check whether the name is an array index.
   uint32_t index = 0;
-  if (name->AsArrayIndex(&index)) {
-    if (HasLocalElement(index)) return NONE;
+  if (IsJSObject() && name->AsArrayIndex(&index)) {
+    if (JSObject::cast(this)->HasLocalElement(index)) return NONE;
     return ABSENT;
   }
   // Named property.
@@ -3228,6 +3317,15 @@ AccessorDescriptor* Map::FindAccessor(String* name) {
 }
 
 
+void JSReceiver::LocalLookup(String* name, LookupResult* result) {
+  if (IsJSProxy()) {
+    result->HandlerResult();
+  } else {
+    JSObject::cast(this)->LocalLookup(name, result);
+  }
+}
+
+
 void JSObject::LocalLookup(String* name, LookupResult* result) {
   ASSERT(name->IsString());
 
@@ -3263,7 +3361,7 @@ void JSObject::LocalLookup(String* name, LookupResult* result) {
 }
 
 
-void JSObject::Lookup(String* name, LookupResult* result) {
+void JSReceiver::Lookup(String* name, LookupResult* result) {
   // Ecma-262 3rd 8.6.2.4
   Heap* heap = GetHeap();
   for (Object* current = this;
@@ -7026,12 +7124,12 @@ MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
 }
 
 
-MaybeObject* JSObject::SetPrototype(Object* value,
-                                    bool skip_hidden_prototypes) {
+MaybeObject* JSReceiver::SetPrototype(Object* value,
+                                      bool skip_hidden_prototypes) {
   Heap* heap = GetHeap();
   // Silently ignore the change if value is not a JSObject or null.
   // SpiderMonkey behaves this way.
-  if (!value->IsJSObject() && !value->IsNull()) return value;
+  if (!value->IsJSReceiver() && !value->IsNull()) return value;
 
   // From 8.6.2 Object Internal Methods
   // ...
@@ -7062,7 +7160,7 @@ MaybeObject* JSObject::SetPrototype(Object* value,
     }
   }
 
-  JSObject* real_receiver = this;
+  JSReceiver* real_receiver = this;
 
   if (skip_hidden_prototypes) {
     // Find the first object in the chain whose prototype object is not
@@ -7103,7 +7201,7 @@ MaybeObject* JSObject::SetPrototype(Object* value,
 }
 
 
-bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
+bool JSObject::HasElementPostInterceptor(JSReceiver* receiver, uint32_t index) {
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
       uint32_t length = IsJSArray() ?
@@ -7158,14 +7256,14 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
 }
 
 
-bool JSObject::HasElementWithInterceptor(JSObject* receiver, uint32_t index) {
+bool JSObject::HasElementWithInterceptor(JSReceiver* receiver, uint32_t index) {
   Isolate* isolate = GetIsolate();
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
   HandleScope scope(isolate);
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
-  Handle<JSObject> receiver_handle(receiver);
+  Handle<JSReceiver> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
   CustomArguments args(isolate, interceptor->data(), receiver, this);
   v8::AccessorInfo info(args.end());
@@ -7274,7 +7372,7 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
 }
 
 
-bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
+bool JSObject::HasElementWithReceiver(JSReceiver* receiver, uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
     Heap* heap = GetHeap();
@@ -8157,7 +8255,7 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 
 
 MaybeObject* JSObject::GetPropertyPostInterceptor(
-    JSObject* receiver,
+    JSReceiver* receiver,
     String* name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
@@ -8175,7 +8273,7 @@ MaybeObject* JSObject::GetPropertyPostInterceptor(
 
 
 MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
-    JSObject* receiver,
+    JSReceiver* receiver,
     String* name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
@@ -8189,13 +8287,13 @@ MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
 
 
 MaybeObject* JSObject::GetPropertyWithInterceptor(
-    JSObject* receiver,
+    JSReceiver* receiver,
     String* name,
     PropertyAttributes* attributes) {
   Isolate* isolate = GetIsolate();
   InterceptorInfo* interceptor = GetNamedInterceptor();
   HandleScope scope(isolate);
-  Handle<JSObject> receiver_handle(receiver);
+  Handle<JSReceiver> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
 

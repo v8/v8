@@ -446,9 +446,27 @@ Failure* Failure::cast(MaybeObject* obj) {
 }
 
 
+bool Object::IsJSReceiver() {
+  return IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() >= FIRST_JS_RECEIVER_TYPE;
+}
+
+
 bool Object::IsJSObject() {
-  return IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() >= FIRST_JS_OBJECT_TYPE;
+  return IsJSReceiver() && !IsJSProxy();
+}
+
+
+bool Object::IsJSProxy() {
+  return Object::IsHeapObject() &&
+     (HeapObject::cast(this)->map()->instance_type() == JS_PROXY_TYPE ||
+      HeapObject::cast(this)->map()->instance_type() == JS_FUNCTION_PROXY_TYPE);
+}
+
+
+bool Object::IsJSFunctionProxy() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() == JS_FUNCTION_PROXY_TYPE;
 }
 
 
@@ -581,12 +599,6 @@ bool Object::IsJSMessageObject() {
 
 bool Object::IsStringWrapper() {
   return IsJSValue() && JSValue::cast(this)->value()->IsString();
-}
-
-
-bool Object::IsJSProxy() {
-  return Object::IsHeapObject()
-      && HeapObject::cast(this)->map()->instance_type() == JS_PROXY_TYPE;
 }
 
 
@@ -1900,6 +1912,7 @@ CAST_ACCESSOR(ConsString)
 CAST_ACCESSOR(ExternalString)
 CAST_ACCESSOR(ExternalAsciiString)
 CAST_ACCESSOR(ExternalTwoByteString)
+CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(Smi)
 CAST_ACCESSOR(HeapObject)
@@ -1917,6 +1930,7 @@ CAST_ACCESSOR(Code)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSProxy)
+CAST_ACCESSOR(JSFunctionProxy)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(ExternalArray)
@@ -4002,12 +4016,12 @@ bool String::AsArrayIndex(uint32_t* index) {
 }
 
 
-Object* JSObject::GetPrototype() {
-  return JSObject::cast(this)->map()->prototype();
+Object* JSReceiver::GetPrototype() {
+  return HeapObject::cast(this)->map()->prototype();
 }
 
 
-PropertyAttributes JSObject::GetPropertyAttribute(String* key) {
+PropertyAttributes JSReceiver::GetPropertyAttribute(String* key) {
   return GetPropertyAttributeWithReceiver(this, key);
 }
 

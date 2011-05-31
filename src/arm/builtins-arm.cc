@@ -950,8 +950,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   __ b(eq, &use_receiver);
 
   // If the type of the result (stored in its map) is less than
-  // FIRST_JS_OBJECT_TYPE, it is not an object in the ECMA sense.
-  __ CompareObjectType(r0, r3, r3, FIRST_JS_OBJECT_TYPE);
+  // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
+  __ CompareObjectType(r0, r3, r3, FIRST_SPEC_OBJECT_TYPE);
   __ b(ge, &exit);
 
   // Throw away the result of the constructor invocation and use the
@@ -1276,9 +1276,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ cmp(r2, r3);
     __ b(eq, &use_global_receiver);
 
-    STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
-    STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-    __ CompareObjectType(r2, r3, r3, FIRST_JS_OBJECT_TYPE);
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ CompareObjectType(r2, r3, r3, FIRST_SPEC_OBJECT_TYPE);
     __ b(ge, &shift_arguments);
 
     __ bind(&convert_to_object);
@@ -1457,9 +1456,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
   // Check if the receiver is already a JavaScript object.
   // r0: receiver
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
-  STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-  __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE);
+  STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+  __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE);
   __ b(ge, &push_receiver);
 
   // Convert the receiver to a regular object.

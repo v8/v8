@@ -60,6 +60,7 @@ $Proxy.createFunction = function(handler, callTrap, constructTrap) {
 }
 
 $Proxy.create = function(handler, proto) {
+  if (!IS_SPEC_OBJECT(handler)) throw TypeError
   if (!IS_SPEC_OBJECT(proto)) proto = $Object.prototype
   return %CreateJSProxy(handler, proto)
 }
@@ -73,11 +74,59 @@ $Proxy.create = function(handler, proto) {
 
 function DerivedGetTrap(receiver, name) {
   var desc = this.getPropertyDescriptor(name)
-  if (IS_UNDEFINED(desc)) { return desc; }
+  if (IS_UNDEFINED(desc)) { return desc }
   if ('value' in desc) {
     return desc.value
   } else {
-    if (IS_UNDEFINED(desc.get)) { return desc.get; }
-    return desc.get.call(receiver)  // The proposal says so...
+    if (IS_UNDEFINED(desc.get)) { return desc.get }
+    // The proposal says: desc.get.call(receiver)
+    return %_CallFunction(receiver, desc.get)
   }
+}
+
+function DerivedSetTrap(receiver, name, val) {
+  var desc = this.getOwnPropertyDescriptor(name)
+  if (desc) {
+    if ('writable' in desc) {
+      if (desc.writable) {
+        desc.value = val
+        this.defineProperty(name, desc)
+        return true
+      } else {
+        return false
+      }
+    } else { // accessor
+      if (desc.set) {
+        // The proposal says: desc.set.call(receiver, val)
+        %_CallFunction(receiver, val, desc.set)
+        return true
+      } else {
+        return false
+      }
+    }
+  }
+  desc = this.getPropertyDescriptor(name)
+  if (desc) {
+    if ('writable' in desc) {
+      if (desc.writable) {
+        // fall through
+      } else {
+        return false
+      }
+    } else { // accessor
+      if (desc.set) {
+        // The proposal says: desc.set.call(receiver, val)
+        %_CallFunction(receiver, val, desc.set)
+        return true
+      } else {
+        return false
+      }
+    }
+  }
+  this.defineProperty(name, {
+    value: val,
+    writable: true,
+    enumerable: true,
+    configurable: true});
+  return true;
 }

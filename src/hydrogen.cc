@@ -5318,9 +5318,9 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       case Token::EQ:
       case Token::EQ_STRICT: {
         AddInstruction(new(zone()) HCheckNonSmi(left));
-        AddInstruction(HCheckInstanceType::NewIsJSObjectOrJSFunction(left));
+        AddInstruction(HCheckInstanceType::NewIsSpecObject(left));
         AddInstruction(new(zone()) HCheckNonSmi(right));
-        AddInstruction(HCheckInstanceType::NewIsJSObjectOrJSFunction(right));
+        AddInstruction(HCheckInstanceType::NewIsSpecObject(right));
         instr = new(zone()) HCompareJSObjectEq(left, right);
         break;
       }
@@ -5398,7 +5398,9 @@ void HGraphBuilder::GenerateIsSpecObject(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* value = Pop();
   HHasInstanceType* result =
-      new(zone()) HHasInstanceType(value, FIRST_JS_OBJECT_TYPE, LAST_TYPE);
+      new(zone()) HHasInstanceType(value,
+                                   FIRST_SPEC_OBJECT_TYPE,
+                                   LAST_SPEC_OBJECT_TYPE);
   ast_context()->ReturnInstruction(result, call->id());
 }
 

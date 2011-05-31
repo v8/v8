@@ -747,7 +747,7 @@ void HUnaryOperation::PrintDataTo(StringStream* stream) {
 void HHasInstanceType::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   switch (from_) {
-    case FIRST_JS_OBJECT_TYPE:
+    case FIRST_JS_RECEIVER_TYPE:
       if (to_ == LAST_TYPE) stream->Add(" spec_object");
       break;
     case JS_REGEXP_TYPE:
@@ -785,10 +785,9 @@ void HCheckInstanceType::GetCheckInterval(InstanceType* first,
                                           InstanceType* last) {
   ASSERT(is_interval_check());
   switch (check_) {
-    case IS_JS_OBJECT_OR_JS_FUNCTION:
-      STATIC_ASSERT((LAST_JS_OBJECT_TYPE + 1) == JS_FUNCTION_TYPE);
-      *first = FIRST_JS_OBJECT_TYPE;
-      *last = JS_FUNCTION_TYPE;
+    case IS_SPEC_OBJECT:
+      *first = FIRST_SPEC_OBJECT_TYPE;
+      *last = LAST_SPEC_OBJECT_TYPE;
       return;
     case IS_JS_ARRAY:
       *first = *last = JS_ARRAY_TYPE;

@@ -3721,8 +3721,7 @@ MaybeObject* Runtime::GetObjectProperty(Isolate* isolate,
   if (name->AsArrayIndex(&index)) {
     return GetElementOrCharAt(isolate, object, index);
   } else {
-    PropertyAttributes attr;
-    return object->GetProperty(*name, &attr);
+    return object->GetProperty(*name);
   }
 }
 

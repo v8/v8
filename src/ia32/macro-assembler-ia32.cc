@@ -330,8 +330,9 @@ void MacroAssembler::IsInstanceJSObjectType(Register map,
                                             Register scratch,
                                             Label* fail) {
   movzx_b(scratch, FieldOperand(map, Map::kInstanceTypeOffset));
-  sub(Operand(scratch), Immediate(FIRST_JS_OBJECT_TYPE));
-  cmp(scratch, LAST_JS_OBJECT_TYPE - FIRST_JS_OBJECT_TYPE);
+  sub(Operand(scratch), Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+  cmp(scratch,
+      LAST_NONCALLABLE_SPEC_OBJECT_TYPE - FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
   j(above, fail);
 }
 

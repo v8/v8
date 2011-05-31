@@ -1355,15 +1355,16 @@ static bool StoreICableLookup(LookupResult* lookup) {
 }
 
 
-static bool LookupForWrite(JSObject* object,
+static bool LookupForWrite(JSReceiver* receiver,
                            String* name,
                            LookupResult* lookup) {
-  object->LocalLookup(name, lookup);
+  receiver->LocalLookup(name, lookup);
   if (!StoreICableLookup(lookup)) {
     return false;
   }
 
   if (lookup->type() == INTERCEPTOR) {
+    JSObject* object = JSObject::cast(receiver);
     if (object->GetNamedInterceptor()->setter()->IsUndefined()) {
       object->LocalLookupRealNamedProperty(name, lookup);
       return StoreICableLookup(lookup);
@@ -1385,7 +1386,7 @@ MaybeObject* StoreIC::Store(State state,
     return TypeError("non_object_property_store", object, name);
   }
 
-  if (!object->IsJSObject()) {
+  if (!object->IsJSReceiver()) {
     // The length property of string values is read-only. Throw in strict mode.
     if (strict_mode == kStrictMode && object->IsString() &&
         name->Equals(isolate()->heap()->length_symbol())) {
@@ -1393,6 +1394,12 @@ MaybeObject* StoreIC::Store(State state,
     }
     // Ignore stores where the receiver is not a JSObject.
     return *value;
+  }
+
+  // Handle proxies.
+  if (object->IsJSProxy()) {
+    return JSReceiver::cast(*object)->
+        SetProperty(*name, *value, NONE, strict_mode);
   }
 
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
@@ -1409,7 +1416,7 @@ MaybeObject* StoreIC::Store(State state,
   // Use specialized code for setting the length of arrays.
   if (receiver->IsJSArray()
       && name->Equals(isolate()->heap()->length_symbol())
-      && receiver->AllowsSetElementsLength()) {
+      && JSArray::cast(*receiver)->AllowsSetElementsLength()) {
 #ifdef DEBUG
     if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
 #endif

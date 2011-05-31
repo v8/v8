@@ -1773,9 +1773,9 @@ Condition LCodeGen::EmitIsObject(Register input,
 
   // Load instance type and check that it is in object type range.
   __ ldrb(temp2, FieldMemOperand(temp1, Map::kInstanceTypeOffset));
-  __ cmp(temp2, Operand(FIRST_JS_OBJECT_TYPE));
+  __ cmp(temp2, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
   __ b(lt, is_not_object);
-  __ cmp(temp2, Operand(LAST_JS_OBJECT_TYPE));
+  __ cmp(temp2, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
   return le;
 }
 
@@ -1982,26 +1982,27 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   ASSERT(!temp.is(temp2));  // But input and temp2 may be the same register.
   __ tst(input, Operand(kSmiTagMask));
   __ b(eq, is_false);
-  __ CompareObjectType(input, temp, temp2, FIRST_JS_OBJECT_TYPE);
+  __ CompareObjectType(input, temp, temp2, FIRST_SPEC_OBJECT_TYPE);
   __ b(lt, is_false);
 
   // Map is now in temp.
   // Functions have class 'Function'.
-  __ CompareInstanceType(temp, temp2, JS_FUNCTION_TYPE);
+  __ CompareInstanceType(temp, temp2, FIRST_CALLABLE_SPEC_OBJECT_TYPE);
   if (class_name->IsEqualTo(CStrVector("Function"))) {
-    __ b(eq, is_true);
+    __ b(ge, is_true);
   } else {
-    __ b(eq, is_false);
+    __ b(ge, is_false);
   }
 
   // Check if the constructor in the map is a function.
   __ ldr(temp, FieldMemOperand(temp, Map::kConstructorOffset));
 
-  // As long as JS_FUNCTION_TYPE is the last instance type and it is
-  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
-  // LAST_JS_OBJECT_TYPE.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+  // As long as LAST_CALLABLE_SPEC_OBJECT_TYPE is the last instance type and
+  // FIRST_CALLABLE_SPEC_OBJECT_TYPE comes right after
+  // LAST_NONCALLABLE_SPEC_OBJECT_TYPE, we can avoid checking for the latter.
+  STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_CALLABLE_SPEC_OBJECT_TYPE ==
+                LAST_NONCALLABLE_SPEC_OBJECT_TYPE + 1);
 
   // Objects with a non-function constructor have class 'Object'.
   __ CompareObjectType(temp, temp2, temp2, JS_FUNCTION_TYPE);
@@ -2737,8 +2738,8 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // Deoptimize if the receiver is not a JS object.
   __ tst(receiver, Operand(kSmiTagMask));
   DeoptimizeIf(eq, instr->environment());
-  __ CompareObjectType(receiver, scratch, scratch, FIRST_JS_OBJECT_TYPE);
-  DeoptimizeIf(lo, instr->environment());
+  __ CompareObjectType(receiver, scratch, scratch, FIRST_SPEC_OBJECT_TYPE);
+  DeoptimizeIf(lt, instr->environment());
   __ jmp(&receiver_ok);
 
   __ bind(&global_object);
@@ -4396,17 +4397,19 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 
   } else if (type_name->Equals(heap()->function_symbol())) {
     __ JumpIfSmi(input, false_label);
-    __ CompareObjectType(input, input, scratch, FIRST_FUNCTION_CLASS_TYPE);
+    __ CompareObjectType(input, input, scratch,
+                         FIRST_CALLABLE_SPEC_OBJECT_TYPE);
     final_branch_condition = ge;
 
   } else if (type_name->Equals(heap()->object_symbol())) {
     __ JumpIfSmi(input, false_label);
     __ CompareRoot(input, Heap::kNullValueRootIndex);
     __ b(eq, true_label);
-    __ CompareObjectType(input, input, scratch, FIRST_JS_OBJECT_TYPE);
-    __ b(lo, false_label);
-    __ CompareInstanceType(input, scratch, FIRST_FUNCTION_CLASS_TYPE);
-    __ b(hs, false_label);
+    __ CompareObjectType(input, input, scratch,
+                         FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
+    __ b(lt, false_label);
+    __ CompareInstanceType(input, scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
+    __ b(gt, false_label);
     // Check for undetectable objects => false.
     __ ldrb(ip, FieldMemOperand(input, Map::kBitFieldOffset));
     __ tst(ip, Operand(1 << Map::kIsUndetectable));
