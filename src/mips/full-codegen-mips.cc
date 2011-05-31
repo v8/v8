@@ -4039,7 +4039,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     context()->Plug(v0);
   } else {
     // This expression cannot throw a reference error at the top level.
-    context()->HandleExpression(expr);
+    VisitInCurrentContext(expr);
   }
 }
 
