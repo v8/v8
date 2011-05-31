@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "collator.h"
+#include "src/extensions/experimental/collator.h"
 
 #include "unicode/coll.h"
 #include "unicode/locid.h"
@@ -220,4 +220,3 @@ v8::Handle<v8::Value> Collator::JSCollator(const v8::Arguments& args) {
 }
 
 } }  // namespace v8::internal
-

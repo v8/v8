@@ -25,44 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/extensions/experimental/i18n-extension.h"
-
-#include "src/extensions/experimental/break-iterator.h"
-#include "src/extensions/experimental/collator.h"
-#include "src/extensions/experimental/i18n-locale.h"
-#include "src/extensions/experimental/i18n-natives.h"
+#ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_
+#define V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_
 
 namespace v8 {
 namespace internal {
 
-I18NExtension* I18NExtension::extension_ = NULL;
-
-I18NExtension::I18NExtension()
-    : v8::Extension("v8/i18n", I18Natives::GetScriptSource()) {
-}
-
-v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
-    v8::Handle<v8::String> name) {
-  if (name->Equals(v8::String::New("NativeJSLocale"))) {
-    return v8::FunctionTemplate::New(I18NLocale::JSLocale);
-  } else if (name->Equals(v8::String::New("NativeJSBreakIterator"))) {
-    return v8::FunctionTemplate::New(BreakIterator::JSBreakIterator);
-  } else if (name->Equals(v8::String::New("NativeJSCollator"))) {
-    return v8::FunctionTemplate::New(Collator::JSCollator);
-  }
-
-  return v8::Handle<v8::FunctionTemplate>();
-}
-
-I18NExtension* I18NExtension::get() {
-  if (!extension_) {
-    extension_ = new I18NExtension();
-  }
-  return extension_;
-}
-
-void I18NExtension::Register() {
-  static v8::DeclareExtension i18n_extension_declaration(I18NExtension::get());
-}
+class I18Natives {
+ public:
+  // Gets script source from generated file.
+  // Source is statically allocated string.
+  static const char* GetScriptSource();
+};
 
 } }  // namespace v8::internal
+
+#endif  // V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_
