@@ -92,17 +92,17 @@ class JsonParser BASE_EMBEDDED {
   // literals. The string must only be double-quoted (not single-quoted), and
   // the only allowed backslash-escapes are ", /, \, b, f, n, r, t and
   // four-digit hex escapes (uXXXX). Any other use of backslashes is invalid.
-  Handle<Object> ParseJsonString() {
+  Handle<String> ParseJsonString() {
     return ScanJsonString<false>();
   }
-  Handle<Object> ParseJsonSymbol() {
+  Handle<String> ParseJsonSymbol() {
     return ScanJsonString<true>();
   }
   template <bool is_symbol>
-  Handle<Object> ScanJsonString();
+  Handle<String> ScanJsonString();
   // Slow version for unicode support, uses the first ascii_count characters,
   // as first part of a ConsString
-  Handle<Object> SlowScanJsonString();
+  Handle<String> SlowScanJsonString();
 
   // A JSON number (production JSONNumber) is a subset of the valid JavaScript
   // decimal number literals.

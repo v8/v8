@@ -167,6 +167,7 @@ Handle<Object> JsonParser::ParseJsonObject() {
   AdvanceSkipWhitespace();
   if (c0_ != '}') {
     do {
+      if (c0_ != '"') return ReportUnexpectedCharacter();
       Handle<String> key = ParseJsonSymbol();
       if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
       AdvanceSkipWhitespace();
@@ -283,7 +284,7 @@ Handle<Object> JsonParser::ParseJsonNumber() {
   return isolate()->factory()->NewNumber(number_);
 }
 
-Handle<Object> JsonParser::SlowScanJsonString() {
+Handle<String> JsonParser::SlowScanJsonString() {
   // The currently scanned ascii characters.
   Handle<String> ascii(isolate()->factory()->NewSubString(source_,
                                                           beg_pos_,
@@ -312,7 +313,7 @@ Handle<Object> JsonParser::SlowScanJsonString() {
     }
 
     // Check for control character (0x00-0x1f) or unterminated string (<0).
-    if (c0_ < 0x20) return ReportUnexpectedCharacter();
+    if (c0_ < 0x20) return Handle<String>::null();
     if (c0_ != '\\') {
       seq_two_byte->SeqTwoByteStringSet(count++, c0_);
       Advance();
@@ -345,7 +346,7 @@ Handle<Object> JsonParser::SlowScanJsonString() {
             Advance();
             int digit = HexValue(c0_);
             if (digit < 0) {
-              return ReportUnexpectedCharacter();
+              return Handle<String>::null();
             }
             value = value * 16 + digit;
           }
@@ -353,7 +354,7 @@ Handle<Object> JsonParser::SlowScanJsonString() {
           break;
         }
         default:
-          return ReportUnexpectedCharacter();
+          return Handle<String>::null();
       }
       Advance();
     }
@@ -381,14 +382,14 @@ Handle<Object> JsonParser::SlowScanJsonString() {
 
 
 template <bool is_symbol>
-Handle<Object> JsonParser::ScanJsonString() {
+Handle<String> JsonParser::ScanJsonString() {
   ASSERT_EQ('"', c0_);
   Advance();
   beg_pos_ = position_;
   // Fast case for ascii only without escape characters.
   while (c0_ != '"') {
     // Check for control character (0x00-0x1f) or unterminated string (<0).
-    if (c0_ < 0x20) return ReportUnexpectedCharacter();
+    if (c0_ < 0x20) return Handle<String>::null();
     if (c0_ != '\\' && c0_ < kMaxAsciiCharCode) {
       Advance();
     } else {
