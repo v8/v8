@@ -988,11 +988,7 @@ Debug.LiveEdit = new function() {
   this.SetScriptSource = SetScriptSource;
 
   function CompareStrings(s1, s2) {
-    try {
-      return %LiveEditCompareStrings(s1, s2);
-    } catch (e) {
-      throw new Failure("Failed to calculate text difference: " + String(e));
-    }
+    return %LiveEditCompareStrings(s1, s2);
   }
 
   // Applies the change to the script.

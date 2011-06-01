@@ -11594,7 +11594,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditCompareStrings) {
   CONVERT_ARG_CHECKED(String, s1, 0);
   CONVERT_ARG_CHECKED(String, s2, 1);
 
-  return LiveEdit::CompareStrings(s1, s2);
+  return *LiveEdit::CompareStrings(s1, s2);
 }
 
 

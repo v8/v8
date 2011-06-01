@@ -95,18 +95,12 @@ void CompareStringsOneWay(const char* s1, const char* s2,
                           int expected_diff_parameter = -1) {
   StringCompareInput input(s1, s2);
 
-  Isolate* isolate = Isolate::Current();
-  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
 
   DiffChunkStruct* first_chunk;
   ListDiffOutputWriter writer(&first_chunk);
 
-  {
-    MaybeObject* maybe_result =
-        Comparator::CalculateDifference(&input, &writer, isolate);
-    ASSERT_EQ(maybe_result->IsFailure(), false);
-    USE(maybe_result);
-  }
+  Comparator::CalculateDifference(&input, &writer);
 
   int len1 = StrLength(s1);
   int len2 = StrLength(s2);
