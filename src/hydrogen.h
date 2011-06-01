@@ -753,8 +753,8 @@ class HGraphBuilder: public AstVisitor {
   void VisitNot(UnaryOperation* expr);
 
   void VisitComma(BinaryOperation* expr);
-  void VisitAndOr(BinaryOperation* expr, bool is_logical_and);
-  void VisitCommon(BinaryOperation* expr);
+  void VisitLogicalExpression(BinaryOperation* expr);
+  void VisitArithmeticExpression(BinaryOperation* expr);
 
   void PreProcessOsrEntry(IterationStatement* statement);
   // True iff. we are compiling for OSR and the statement is the entry.

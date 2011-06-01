@@ -5093,10 +5093,13 @@ void HGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   switch (expr->op()) {
-    case Token::COMMA: return VisitComma(expr);
-    case Token::OR: return VisitAndOr(expr, false);
-    case Token::AND: return VisitAndOr(expr, true);
-    default: return VisitCommon(expr);
+    case Token::COMMA:
+      return VisitComma(expr);
+    case Token::OR:
+    case Token::AND:
+      return VisitLogicalExpression(expr);
+    default:
+      return VisitArithmeticExpression(expr);
   }
 }
 
@@ -5109,7 +5112,8 @@ void HGraphBuilder::VisitComma(BinaryOperation* expr) {
 }
 
 
-void HGraphBuilder::VisitAndOr(BinaryOperation* expr, bool is_logical_and) {
+void HGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
+  bool is_logical_and = expr->op() == Token::AND;
   if (ast_context()->IsTest()) {
     TestContext* context = TestContext::cast(ast_context());
     // Translate left subexpression.
@@ -5196,7 +5200,7 @@ void HGraphBuilder::VisitAndOr(BinaryOperation* expr, bool is_logical_and) {
 }
 
 
-void HGraphBuilder::VisitCommon(BinaryOperation* expr) {
+void HGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
   HValue* right = Pop();
