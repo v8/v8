@@ -147,11 +147,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
 #endif
 
-  // Strict mode functions need to replace the receiver with undefined
-  // when called as functions (without an explicit receiver
-  // object). t1 is zero for method calls and non-zero for function
-  // calls.
-  if (info->is_strict_mode()) {
+  // Strict mode functions and builtins need to replace the receiver
+  // with undefined when called as functions (without an explicit
+  // receiver object). t1 is zero for method calls and non-zero for
+  // function calls.
+  if (info->is_strict_mode() || info->is_native()) {
     Label ok;
     __ Branch(&ok, eq, t1, Operand(zero_reg));
     int receiver_offset = scope()->num_parameters() * kPointerSize;

@@ -1575,20 +1575,20 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Adjust for return address and receiver.
     __ Addu(a0, a0, Operand(2 * kPointerSize));
     // Compute copy end address. Also adjust for return address.
-    __ Addu(t1, fp, kPointerSize);
+    __ Addu(t3, fp, kPointerSize);
 
     // Copy the arguments (including the receiver) to the new stack frame.
     // a0: copy start address
     // a1: function
     // a2: expected number of arguments
     // a3: code entry to call
-    // t1: copy end address
+    // t3: copy end address
     Label copy;
     __ bind(&copy);
     __ lw(t0, MemOperand(a0));  // Adjusted above for return addr and receiver.
     __ push(t0);
     __ Subu(a0, a0, kPointerSize);
-    __ Branch(&copy, ne, a0, Operand(t1));
+    __ Branch(&copy, ne, a0, Operand(t3));
 
     // Fill the remaining expected arguments with undefined.
     // a1: function
