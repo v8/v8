@@ -1528,6 +1528,7 @@ static void InitializeScavengingVisitorsTables() {
 
 
 void Heap::SwitchScavengingVisitorsTableIfProfilingWasEnabled() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   if (scavenging_visitors_table_mode_ == LOGGING_AND_PROFILING_ENABLED) {
     // Table was already updated by some isolate.
     return;
@@ -1553,6 +1554,7 @@ void Heap::SwitchScavengingVisitorsTableIfProfilingWasEnabled() {
     Release_Store(&scavenging_visitors_table_mode_,
                   LOGGING_AND_PROFILING_ENABLED);
   }
+#endif
 }
 
 
@@ -2388,7 +2390,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_num_literals(0);
   share->set_end_position(0);
   share->set_function_token_position(0);
-  share->set_es5_native(false);
+  share->set_native(false);
   return result;
 }
 

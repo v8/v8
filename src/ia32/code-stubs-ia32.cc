@@ -276,7 +276,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(not_zero, &false_result, Label::kNear);
 
   // JavaScript object => true.
-  __ CmpInstanceType(edx, FIRST_JS_OBJECT_TYPE);
+  __ CmpInstanceType(edx, FIRST_SPEC_OBJECT_TYPE);
   __ j(above_equal, &true_result, Label::kNear);
 
   // String value => false iff empty.
@@ -3650,7 +3650,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ j(equal, &heap_number, Label::kNear);
       if (cc_ != equal) {
         // Call runtime on identical JSObjects.  Otherwise return equal.
-        __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
+        __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
         __ j(above_equal, &not_identical);
       }
       __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
@@ -3738,8 +3738,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
     // Get the type of the first operand.
     // If the first object is a JS object, we have done pointer comparison.
     Label first_non_object;
-    STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-    __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
+    STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
+    __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
     __ j(below, &first_non_object, Label::kNear);
 
     // Return non-zero (eax is not zero)
@@ -3753,7 +3753,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ CmpInstanceType(ecx, ODDBALL_TYPE);
     __ j(equal, &return_not_equal);
 
-    __ CmpObjectType(edx, FIRST_JS_OBJECT_TYPE, ecx);
+    __ CmpObjectType(edx, FIRST_SPEC_OBJECT_TYPE, ecx);
     __ j(above_equal, &return_not_equal);
 
     // Check for oddballs: true, false, null, undefined.
@@ -3877,9 +3877,9 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ lea(ecx, Operand(eax, edx, times_1, 0));
     __ test(ecx, Immediate(kSmiTagMask));
     __ j(not_zero, &not_both_objects, Label::kNear);
-    __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
+    __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
     __ j(below, &not_both_objects, Label::kNear);
-    __ CmpObjectType(edx, FIRST_JS_OBJECT_TYPE, ebx);
+    __ CmpObjectType(edx, FIRST_SPEC_OBJECT_TYPE, ebx);
     __ j(below, &not_both_objects, Label::kNear);
     // We do not bail out after this point.  Both are JSObjects, and
     // they are equal if and only if both are undetectable.
@@ -3981,7 +3981,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     Label call_as_function;
     __ cmp(eax, masm->isolate()->factory()->the_hole_value());
     __ j(equal, &call_as_function);
-    __ InvokeFunction(edi, actual, JUMP_FUNCTION);
+    __ InvokeFunction(edi,
+                      actual,
+                      JUMP_FUNCTION,
+                      NullCallWrapper(),
+                      CALL_AS_METHOD);
     __ bind(&call_as_function);
   }
   __ InvokeFunction(edi,

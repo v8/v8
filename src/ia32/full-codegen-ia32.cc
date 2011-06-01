@@ -131,11 +131,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
 #endif
 
-  // Strict mode functions need to replace the receiver with undefined
-  // when called as functions (without an explicit receiver
-  // object). ecx is zero for method calls and non-zero for function
-  // calls.
-  if (info->is_strict_mode()) {
+  // Strict mode functions and builtins need to replace the receiver
+  // with undefined when called as functions (without an explicit
+  // receiver object). ecx is zero for method calls and non-zero for
+  // function calls.
+  if (info->is_strict_mode() || info->is_native()) {
     Label ok;
     __ test(ecx, Operand(ecx));
     __ j(zero, &ok, Label::kNear);
@@ -875,7 +875,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label convert, done_convert;
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, &convert, Label::kNear);
-  __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
+  __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
   __ j(above_equal, &done_convert, Label::kNear);
   __ bind(&convert);
   __ push(eax);
@@ -2230,9 +2230,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ bind(&done);
       // Push function.
       __ push(eax);
-      // Push global receiver.
-      __ mov(ebx, GlobalObjectOperand());
-      __ push(FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
+      // The receiver is implicitly the global receiver. Indicate this
+      // by passing the hole to the call function stub.
+      __ push(Immediate(isolate()->factory()->the_hole_value()));
       __ bind(&call);
     }
 
@@ -2398,9 +2398,9 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
   __ test(ecx, Immediate(1 << Map::kIsUndetectable));
   __ j(not_zero, if_false);
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+  __ cmp(ecx, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
   __ j(below, if_false);
-  __ cmp(ecx, LAST_JS_OBJECT_TYPE);
+  __ cmp(ecx, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(below_equal, if_true, if_false, fall_through);
 
@@ -2422,7 +2422,7 @@ void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
 
   __ test(eax, Immediate(kSmiTagMask));
   __ j(equal, if_false);
-  __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ebx);
+  __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ebx);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(above_equal, if_true, if_false, fall_through);
 
@@ -2708,16 +2708,18 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
-  __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, eax);  // Map is now in eax.
+  __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, eax);
+  // Map is now in eax.
   __ j(below, &null);
 
-  // As long as JS_FUNCTION_TYPE is the last instance type and it is
-  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
-  // LAST_JS_OBJECT_TYPE.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-  __ CmpInstanceType(eax, JS_FUNCTION_TYPE);
-  __ j(equal, &function);
+  // As long as LAST_CALLABLE_SPEC_OBJECT_TYPE is the last instance type, and
+  // FIRST_CALLABLE_SPEC_OBJECT_TYPE comes right after
+  // LAST_NONCALLABLE_SPEC_OBJECT_TYPE, we can avoid checking for the latter.
+  STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_CALLABLE_SPEC_OBJECT_TYPE ==
+                LAST_NONCALLABLE_SPEC_OBJECT_TYPE + 1);
+  __ CmpInstanceType(eax, FIRST_CALLABLE_SPEC_OBJECT_TYPE);
+  __ j(above_equal, &function);
 
   // Check if the constructor in the map is a function.
   __ mov(eax, FieldOperand(eax, Map::kConstructorOffset));
@@ -3115,7 +3117,8 @@ void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
   // InvokeFunction requires the function in edi. Move it in there.
   __ mov(edi, result_register());
   ParameterCount count(arg_count);
-  __ InvokeFunction(edi, count, CALL_FUNCTION);
+  __ InvokeFunction(edi, count, CALL_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   context()->Plug(eax);
 }
@@ -4001,7 +4004,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     context()->Plug(eax);
   } else {
     // This expression cannot throw a reference error at the top level.
-    context()->HandleExpression(expr);
+    VisitInCurrentContext(expr);
   }
 }
 
@@ -4057,16 +4060,16 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
     Split(not_zero, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->function_symbol())) {
     __ JumpIfSmi(eax, if_false);
-    __ CmpObjectType(eax, FIRST_FUNCTION_CLASS_TYPE, edx);
+    __ CmpObjectType(eax, FIRST_CALLABLE_SPEC_OBJECT_TYPE, edx);
     Split(above_equal, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->object_symbol())) {
     __ JumpIfSmi(eax, if_false);
     __ cmp(eax, isolate()->factory()->null_value());
     __ j(equal, if_true);
-    __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, edx);
+    __ CmpObjectType(eax, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, edx);
     __ j(below, if_false);
-    __ CmpInstanceType(edx, FIRST_FUNCTION_CLASS_TYPE);
-    __ j(above_equal, if_false);
+    __ CmpInstanceType(edx, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
+    __ j(above, if_false);
     // Check for undetectable objects => false.
     __ test_b(FieldOperand(edx, Map::kBitFieldOffset),
               1 << Map::kIsUndetectable);

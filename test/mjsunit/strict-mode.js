@@ -842,12 +842,14 @@ repeat(10, function() {
   }
 
   for (var i = 0; i < 10; i ++) {
+    var exception = false;
     try {
       strict(o, name);
-      assertUnreachable();
     } catch(e) {
+      exception = true;
       assertInstanceof(e, TypeError);
     }
+    assertTrue(exception);
   }
 })();
 

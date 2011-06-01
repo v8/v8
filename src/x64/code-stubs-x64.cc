@@ -266,7 +266,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(not_zero, &false_result, Label::kNear);
 
   // JavaScript object => true.
-  __ cmpq(rcx, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ cmpq(rcx, Immediate(FIRST_SPEC_OBJECT_TYPE));
   __ j(above_equal, &true_result, Label::kNear);
 
   // String value => false iff empty.
@@ -2712,8 +2712,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
              factory->heap_number_map());
       __ j(equal, &heap_number, Label::kNear);
       if (cc_ != equal) {
-        // Call runtime on identical JSObjects.  Otherwise return equal.
-        __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
+        // Call runtime on identical objects.  Otherwise return equal.
+        __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rcx);
         __ j(above_equal, &not_identical, Label::kNear);
       }
       __ Set(rax, EQUAL);
@@ -2769,9 +2769,9 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // There is no test for undetectability in strict equality.
 
       // If the first object is a JS object, we have done pointer comparison.
-      STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
       Label first_non_object;
-      __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
+      __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rcx);
       __ j(below, &first_non_object, Label::kNear);
       // Return non-zero (eax (not rax) is not zero)
       Label return_not_equal;
@@ -2784,7 +2784,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ CmpInstanceType(rcx, ODDBALL_TYPE);
       __ j(equal, &return_not_equal);
 
-      __ CmpObjectType(rdx, FIRST_JS_OBJECT_TYPE, rcx);
+      __ CmpObjectType(rdx, FIRST_SPEC_OBJECT_TYPE, rcx);
       __ j(above_equal, &return_not_equal);
 
       // Check for oddballs: true, false, null, undefined.
@@ -2880,9 +2880,9 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ lea(rcx, Operand(rax, rdx, times_1, 0));
     __ testb(rcx, Immediate(kSmiTagMask));
     __ j(not_zero, &not_both_objects, Label::kNear);
-    __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rbx);
+    __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rbx);
     __ j(below, &not_both_objects, Label::kNear);
-    __ CmpObjectType(rdx, FIRST_JS_OBJECT_TYPE, rcx);
+    __ CmpObjectType(rdx, FIRST_SPEC_OBJECT_TYPE, rcx);
     __ j(below, &not_both_objects, Label::kNear);
     __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
@@ -2982,7 +2982,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     Label call_as_function;
     __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
     __ j(equal, &call_as_function);
-    __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
+    __ InvokeFunction(rdi,
+                      actual,
+                      JUMP_FUNCTION,
+                      NullCallWrapper(),
+                      CALL_AS_METHOD);
     __ bind(&call_as_function);
   }
   __ InvokeFunction(rdi,
@@ -3414,9 +3418,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ JumpIfSmi(rax, &slow);
 
   // Check that the left hand is a JS object. Leave its map in rax.
-  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rax);
+  __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rax);
   __ j(below, &slow);
-  __ CmpInstanceType(rax, LAST_JS_OBJECT_TYPE);
+  __ CmpInstanceType(rax, LAST_SPEC_OBJECT_TYPE);
   __ j(above, &slow);
 
   // Get the prototype of the function.
@@ -3441,9 +3445,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Check that the function prototype is a JS object.
   __ JumpIfSmi(rbx, &slow);
-  __ CmpObjectType(rbx, FIRST_JS_OBJECT_TYPE, kScratchRegister);
+  __ CmpObjectType(rbx, FIRST_SPEC_OBJECT_TYPE, kScratchRegister);
   __ j(below, &slow);
-  __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
+  __ CmpInstanceType(kScratchRegister, LAST_SPEC_OBJECT_TYPE);
   __ j(above, &slow);
 
   // Register mapping:

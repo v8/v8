@@ -25,15 +25,44 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Verifies that exception thrown from JS accessors when attempting a call
-// are properly treated.
+// Flags: --allow-natives-syntax
 
-Object.prototype.__defineGetter__(0, function() { throw 42; });
-var exception = false;
-try {
-  Object[0]();
-} catch(e) {
-  exception = true;
-  assertEquals(42, e);
+// Test const initialization and assignments.
+function f() {
+  var x = 42;
+  while (true) {
+    const y = x;
+    if (--x == 0) return y;
+  }
 }
-assertTrue(exception);
+
+function g() {
+  const x = 42;
+  x += 1;
+  return x;
+}
+
+for (var i = 0; i < 5; i++) {
+  f();
+  g();
+}
+
+%OptimizeFunctionOnNextCall(f);
+%OptimizeFunctionOnNextCall(g);
+
+assertEquals(42, f());
+assertEquals(42, g());
+
+
+function h(a, b) {
+  var r = a + b;
+  const X = 42;
+  return r + X;
+}
+
+for (var i = 0; i < 5; i++) h(1,2);
+
+%OptimizeFunctionOnNextCall(h);
+
+assertEquals(45, h(1,2));
+assertEquals("foo742", h("foo", 7));

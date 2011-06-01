@@ -128,11 +128,11 @@ bool LCodeGen::GeneratePrologue() {
   }
 #endif
 
-  // Strict mode functions need to replace the receiver with undefined
-  // when called as functions (without an explicit receiver
-  // object). ecx is zero for method calls and non-zero for function
-  // calls.
-  if (info_->is_strict_mode()) {
+  // Strict mode functions and builtins need to replace the receiver
+  // with undefined when called as functions (without an explicit
+  // receiver object). ecx is zero for method calls and non-zero for
+  // function calls.
+  if (info_->is_strict_mode() || info_->is_native()) {
     Label ok;
     __ test(ecx, Operand(ecx));
     __ j(zero, &ok, Label::kNear);
@@ -1674,9 +1674,9 @@ Condition LCodeGen::EmitIsObject(Register input,
   __ j(not_zero, is_not_object);
 
   __ movzx_b(temp2, FieldOperand(temp1, Map::kInstanceTypeOffset));
-  __ cmp(temp2, FIRST_JS_OBJECT_TYPE);
+  __ cmp(temp2, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
   __ j(below, is_not_object);
-  __ cmp(temp2, LAST_JS_OBJECT_TYPE);
+  __ cmp(temp2, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
   return below_equal;
 }
 
@@ -1889,26 +1889,27 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   ASSERT(!temp.is(temp2));  // But input and temp2 may be the same register.
   __ test(input, Immediate(kSmiTagMask));
   __ j(zero, is_false);
-  __ CmpObjectType(input, FIRST_JS_OBJECT_TYPE, temp);
+  __ CmpObjectType(input, FIRST_SPEC_OBJECT_TYPE, temp);
   __ j(below, is_false);
 
   // Map is now in temp.
   // Functions have class 'Function'.
-  __ CmpInstanceType(temp, JS_FUNCTION_TYPE);
+  __ CmpInstanceType(temp, FIRST_CALLABLE_SPEC_OBJECT_TYPE);
   if (class_name->IsEqualTo(CStrVector("Function"))) {
-    __ j(equal, is_true);
+    __ j(above_equal, is_true);
   } else {
-    __ j(equal, is_false);
+    __ j(above_equal, is_false);
   }
 
   // Check if the constructor in the map is a function.
   __ mov(temp, FieldOperand(temp, Map::kConstructorOffset));
 
-  // As long as JS_FUNCTION_TYPE is the last instance type and it is
-  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
-  // LAST_JS_OBJECT_TYPE.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+  // As long as LAST_CALLABLE_SPEC_OBJECT_TYPE is the last instance type, and
+  // FIRST_CALLABLE_SPEC_OBJECT_TYPE comes right after
+  // LAST_NONCALLABLE_SPEC_OBJECT_TYPE, we can avoid checking for the latter.
+  STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_CALLABLE_SPEC_OBJECT_TYPE ==
+                LAST_NONCALLABLE_SPEC_OBJECT_TYPE + 1);
 
   // Objects with a non-function constructor have class 'Object'.
   __ CmpObjectType(temp, JS_FUNCTION_TYPE, temp2);
@@ -2602,9 +2603,25 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   ASSERT(function.is(edi));  // Required by InvokeFunction.
   ASSERT(ToRegister(instr->result()).is(eax));
 
-  // If the receiver is null or undefined, we have to pass the global object
-  // as a receiver.
+  // If the receiver is null or undefined, we have to pass the global
+  // object as a receiver to normal functions. Values have to be
+  // passed unchanged to builtins and strict-mode functions.
   Label global_object, receiver_ok;
+
+  // Do not transform the receiver to object for strict mode
+  // functions.
+  __ mov(scratch,
+         FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+  __ test_b(FieldOperand(scratch, SharedFunctionInfo::kStrictModeByteOffset),
+            1 << SharedFunctionInfo::kStrictModeBitWithinByte);
+  __ j(not_equal, &receiver_ok, Label::kNear);
+
+  // Do not transform the receiver to object for builtins.
+  __ test_b(FieldOperand(scratch, SharedFunctionInfo::kNativeByteOffset),
+            1 << SharedFunctionInfo::kNativeBitWithinByte);
+  __ j(not_equal, &receiver_ok, Label::kNear);
+
+  // Normal function. Replace undefined or null with global receiver.
   __ cmp(receiver, factory()->null_value());
   __ j(equal, &global_object, Label::kNear);
   __ cmp(receiver, factory()->undefined_value());
@@ -2613,7 +2630,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // The receiver should be a JS object.
   __ test(receiver, Immediate(kSmiTagMask));
   DeoptimizeIf(equal, instr->environment());
-  __ CmpObjectType(receiver, FIRST_JS_OBJECT_TYPE, scratch);
+  __ CmpObjectType(receiver, FIRST_SPEC_OBJECT_TYPE, scratch);
   DeoptimizeIf(below, instr->environment());
   __ jmp(&receiver_ok, Label::kNear);
 
@@ -2623,6 +2640,8 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   // here.
   __ mov(receiver, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ mov(receiver, ContextOperand(receiver, Context::GLOBAL_INDEX));
+  __ mov(receiver,
+         FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);
 
   // Copy the arguments to this function possibly from the
@@ -2656,7 +2675,8 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
                                          pointers,
                                          env->deoptimization_index());
   ParameterCount actual(eax);
-  __ InvokeFunction(function, actual, CALL_FUNCTION, safepoint_generator);
+  __ InvokeFunction(function, actual, CALL_FUNCTION,
+                    safepoint_generator, CALL_AS_METHOD);
 }
 
 
@@ -2667,6 +2687,12 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
   } else {
     __ push(ToOperand(argument));
   }
+}
+
+
+void LCodeGen::DoThisFunction(LThisFunction* instr) {
+  Register result = ToRegister(instr->result());
+  __ mov(result, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
 }
 
 
@@ -3083,7 +3109,7 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   RegisterEnvironmentForDeoptimization(env);
   SafepointGenerator generator(this, pointers, env->deoptimization_index());
   ParameterCount count(instr->arity());
-  __ InvokeFunction(edi, count, CALL_FUNCTION, generator);
+  __ InvokeFunction(edi, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
 }
 
 
@@ -4280,18 +4306,19 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     final_branch_condition = not_zero;
 
   } else if (type_name->Equals(heap()->function_symbol())) {
+    STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
     __ JumpIfSmi(input, false_label);
-    __ CmpObjectType(input, FIRST_FUNCTION_CLASS_TYPE, input);
+    __ CmpObjectType(input, FIRST_CALLABLE_SPEC_OBJECT_TYPE, input);
     final_branch_condition = above_equal;
 
   } else if (type_name->Equals(heap()->object_symbol())) {
     __ JumpIfSmi(input, false_label);
     __ cmp(input, factory()->null_value());
     __ j(equal, true_label);
-    __ CmpObjectType(input, FIRST_JS_OBJECT_TYPE, input);
+    __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
     __ j(below, false_label);
-    __ CmpInstanceType(input, FIRST_FUNCTION_CLASS_TYPE);
-    __ j(above_equal, false_label);
+    __ CmpInstanceType(input, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
+    __ j(above, false_label);
     // Check for undetectable objects => false.
     __ test_b(FieldOperand(input, Map::kBitFieldOffset),
               1 << Map::kIsUndetectable);

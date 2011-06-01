@@ -859,6 +859,8 @@ class HeapObjectsSet {
   void Clear();
   bool Contains(Object* object);
   void Insert(Object* obj);
+  const char* GetTag(Object* obj);
+  void SetTag(Object* obj, const char* tag);
 
  private:
   HashMap entries_;
@@ -920,6 +922,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void AddRootEntries(SnapshotFillerInterface* filler);
   int EstimateObjectsCount();
   bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
+  void TagGlobalObjects();
 
   static HeapObject* const kInternalRootObject;
 
@@ -978,6 +981,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapSnapshotsCollection* collection_;
   SnapshottingProgressReportingInterface* progress_;
   SnapshotFillerInterface* filler_;
+  HeapObjectsSet objects_tags_;
 
   static HeapObject* const kGcRootsObject;
 

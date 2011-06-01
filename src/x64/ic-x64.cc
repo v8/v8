@@ -76,11 +76,11 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
   // Check that the receiver is a valid JS object.
   __ movq(r1, FieldOperand(receiver, HeapObject::kMapOffset));
   __ movb(r0, FieldOperand(r1, Map::kInstanceTypeOffset));
-  __ cmpb(r0, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ cmpb(r0, Immediate(FIRST_SPEC_OBJECT_TYPE));
   __ j(below, miss);
 
   // If this assert fails, we have to check upper bound too.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
 
   GenerateGlobalInstanceTypeCheck(masm, r0, miss);
 
@@ -730,9 +730,13 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 
   __ CmpInstanceType(rbx, JS_ARRAY_TYPE);
   __ j(equal, &array);
-  // Check that the object is some kind of JS object.
-  __ CmpInstanceType(rbx, FIRST_JS_OBJECT_TYPE);
+  // Check that the object is some kind of JSObject.
+  __ CmpInstanceType(rbx, FIRST_JS_RECEIVER_TYPE);
   __ j(below, &slow);
+  __ CmpInstanceType(rbx, JS_PROXY_TYPE);
+  __ j(equal, &slow);
+  __ CmpInstanceType(rbx, JS_FUNCTION_PROXY_TYPE);
+  __ j(equal, &slow);
 
   // Object case: Check key against length in the elements array.
   // rax: value
@@ -892,7 +896,8 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 
   // Invoke the function.
   ParameterCount actual(argc);
-  __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
+  __ InvokeFunction(rdi, actual, JUMP_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
 }
 
 

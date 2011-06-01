@@ -1195,6 +1195,11 @@ LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoThisFunction(HThisFunction* instr) {
+  return instr->HasNoUses() ? NULL : DefineAsRegister(new LThisFunction);
+}
+
+
 LInstruction* LChunkBuilder::DoContext(HContext* instr) {
   return instr->HasNoUses() ? NULL : DefineAsRegister(new LContext);
 }
@@ -1630,6 +1635,11 @@ LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
 LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
   LOperand* value = UseFixed(instr->value(), r0);
   return MarkAsCall(new LThrow(value), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoUseConst(HUseConst* instr) {
+  return NULL;
 }
 
 

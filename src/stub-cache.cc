@@ -929,12 +929,7 @@ MaybeObject* StubCache::ComputeCallGlobal(int argc,
     CallStubCompiler compiler(
         argc, in_loop, kind, extra_ic_state, cache_holder);
     { MaybeObject* maybe_code =
-          compiler.CompileCallGlobal(receiver,
-                                     holder,
-                                     cell,
-                                     function,
-                                     name,
-                                     extra_ic_state);
+          compiler.CompileCallGlobal(receiver, holder, cell, function, name);
       if (!maybe_code->ToObject(&code)) return maybe_code;
     }
     ASSERT_EQ(flags, Code::cast(code)->flags());

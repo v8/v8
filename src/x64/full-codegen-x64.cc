@@ -131,11 +131,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
 #endif
 
-  // Strict mode functions need to replace the receiver with undefined
-  // when called as functions (without an explicit receiver
-  // object). rcx is zero for method calls and non-zero for function
-  // calls.
-  if (info->is_strict_mode()) {
+  // Strict mode functions and builtins need to replace the receiver
+  // with undefined when called as functions (without an explicit
+  // receiver object). rcx is zero for method calls and non-zero for
+  // function calls.
+  if (info->is_strict_mode() || info->is_native()) {
     Label ok;
     __ testq(rcx, rcx);
     __ j(zero, &ok, Label::kNear);
@@ -878,7 +878,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Convert the object to a JS object.
   Label convert, done_convert;
   __ JumpIfSmi(rax, &convert);
-  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
+  __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rcx);
   __ j(above_equal, &done_convert);
   __ bind(&convert);
   __ push(rax);
@@ -2206,9 +2206,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ bind(&done);
       // Push function.
       __ push(rax);
-      // Push global receiver.
-      __ movq(rbx, GlobalObjectOperand());
-      __ push(FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
+      // The receiver is implicitly the global receiver. Indicate this
+      // by passing the hole to the call function stub.
+      __ PushRoot(Heap::kTheHoleValueRootIndex);
       __ bind(&call);
     }
 
@@ -2373,9 +2373,9 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
            Immediate(1 << Map::kIsUndetectable));
   __ j(not_zero, if_false);
   __ movzxbq(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
-  __ cmpq(rbx, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ cmpq(rbx, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
   __ j(below, if_false);
-  __ cmpq(rbx, Immediate(LAST_JS_OBJECT_TYPE));
+  __ cmpq(rbx, Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(below_equal, if_true, if_false, fall_through);
 
@@ -2396,7 +2396,7 @@ void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
                          &if_true, &if_false, &fall_through);
 
   __ JumpIfSmi(rax, if_false);
-  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rbx);
+  __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rbx);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(above_equal, if_true, if_false, fall_through);
 
@@ -2675,16 +2675,18 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
-  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rax);  // Map is now in rax.
+  __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rax);
+  // Map is now in rax.
   __ j(below, &null);
 
-  // As long as JS_FUNCTION_TYPE is the last instance type and it is
-  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
-  // LAST_JS_OBJECT_TYPE.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-  __ CmpInstanceType(rax, JS_FUNCTION_TYPE);
-  __ j(equal, &function);
+  // As long as LAST_CALLABLE_SPEC_OBJECT_TYPE is the last instance type, and
+  // FIRST_CALLABLE_SPEC_OBJECT_TYPE comes right after
+  // LAST_NONCALLABLE_SPEC_OBJECT_TYPE, we can avoid checking for the latter.
+  STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_CALLABLE_SPEC_OBJECT_TYPE ==
+                LAST_NONCALLABLE_SPEC_OBJECT_TYPE + 1);
+  __ CmpInstanceType(rax, FIRST_CALLABLE_SPEC_OBJECT_TYPE);
+  __ j(above_equal, &function);
 
   // Check if the constructor in the map is a function.
   __ movq(rax, FieldOperand(rax, Map::kConstructorOffset));
@@ -3067,7 +3069,8 @@ void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
   // InvokeFunction requires the function in rdi. Move it in there.
   __ movq(rdi, result_register());
   ParameterCount count(arg_count);
-  __ InvokeFunction(rdi, count, CALL_FUNCTION);
+  __ InvokeFunction(rdi, count, CALL_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   context()->Plug(rax);
 }
@@ -3977,7 +3980,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     context()->Plug(rax);
   } else {
     // This expression cannot throw a reference error at the top level.
-    context()->HandleExpression(expr);
+    VisitInCurrentContext(expr);
   }
 }
 
@@ -4033,16 +4036,17 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
     Split(not_zero, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->function_symbol())) {
     __ JumpIfSmi(rax, if_false);
-    __ CmpObjectType(rax, FIRST_FUNCTION_CLASS_TYPE, rdx);
+    STATIC_ASSERT(LAST_CALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ CmpObjectType(rax, FIRST_CALLABLE_SPEC_OBJECT_TYPE, rdx);
     Split(above_equal, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->object_symbol())) {
     __ JumpIfSmi(rax, if_false);
     __ CompareRoot(rax, Heap::kNullValueRootIndex);
     __ j(equal, if_true);
-    __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rdx);
+    __ CmpObjectType(rax, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, rdx);
     __ j(below, if_false);
-    __ CmpInstanceType(rdx, FIRST_FUNCTION_CLASS_TYPE);
-    __ j(above_equal, if_false);
+    __ CmpInstanceType(rdx, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
+    __ j(above, if_false);
     // Check for undetectable objects => false.
     __ testb(FieldOperand(rdx, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));

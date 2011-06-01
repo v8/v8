@@ -28,7 +28,7 @@
 #ifndef V8_EXTENSIONS_EXPERIMENTAL_COLLATOR_H
 #define V8_EXTENSIONS_EXPERIMENTAL_COLLATOR_H_
 
-#include <v8.h>
+#include "include/v8.h"
 
 #include "unicode/uversion.h"
 
@@ -66,4 +66,3 @@ class Collator {
 } }  // namespace v8::internal
 
 #endif  // V8_EXTENSIONS_EXPERIMENTAL_COLLATOR
-

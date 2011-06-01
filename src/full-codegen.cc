@@ -348,7 +348,7 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
 }
 
 
-void FullCodeGenerator::PrepareForBailout(AstNode* node, State state) {
+void FullCodeGenerator::PrepareForBailout(Expression* node, State state) {
   PrepareForBailoutForId(node->id(), state);
 }
 
@@ -701,143 +701,116 @@ void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* node) {
 
 
 void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
-  Comment cmnt(masm_, "[ BinaryOperation");
-  Token::Value op = expr->op();
-  Expression* left = expr->left();
-  Expression* right = expr->right();
-
-  OverwriteMode mode = NO_OVERWRITE;
-  if (left->ResultOverwriteAllowed()) {
-    mode = OVERWRITE_LEFT;
-  } else if (right->ResultOverwriteAllowed()) {
-    mode = OVERWRITE_RIGHT;
-  }
-
-  switch (op) {
+  switch (expr->op()) {
     case Token::COMMA:
-      VisitForEffect(left);
-      if (context()->IsTest()) ForwardBailoutToChild(expr);
-      context()->HandleExpression(right);
-      break;
-
+      return VisitComma(expr);
     case Token::OR:
     case Token::AND:
-      EmitLogicalOperation(expr);
-      break;
-
-    case Token::ADD:
-    case Token::SUB:
-    case Token::DIV:
-    case Token::MOD:
-    case Token::MUL:
-    case Token::BIT_OR:
-    case Token::BIT_AND:
-    case Token::BIT_XOR:
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR: {
-      // Load both operands.
-      VisitForStackValue(left);
-      VisitForAccumulatorValue(right);
-
-      SetSourcePosition(expr->position());
-      if (ShouldInlineSmiCase(op)) {
-        EmitInlineSmiBinaryOp(expr, op, mode, left, right);
-      } else {
-        EmitBinaryOp(expr, op, mode);
-      }
-      break;
-    }
-
+      return VisitLogicalExpression(expr);
     default:
-      UNREACHABLE();
+      return VisitArithmeticExpression(expr);
   }
 }
 
 
-void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
-  Label eval_right, done;
-
-  context()->EmitLogicalLeft(expr, &eval_right, &done);
-
-  PrepareForBailoutForId(expr->RightId(), NO_REGISTERS);
-  __ bind(&eval_right);
+void FullCodeGenerator::VisitComma(BinaryOperation* expr) {
+  Comment cmnt(masm_, "[ Comma");
+  VisitForEffect(expr->left());
   if (context()->IsTest()) ForwardBailoutToChild(expr);
-  context()->HandleExpression(expr->right());
+  VisitInCurrentContext(expr->right());
+}
 
+
+void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
+  bool is_logical_and = expr->op() == Token::AND;
+  Comment cmnt(masm_, is_logical_and ? "[ Logical AND" :  "[ Logical OR");
+  Expression* left = expr->left();
+  Expression* right = expr->right();
+  int right_id = expr->RightId();
+  Label done;
+
+  if (context()->IsTest()) {
+    Label eval_right;
+    const TestContext* test = TestContext::cast(context());
+    if (is_logical_and) {
+      VisitForControl(left, &eval_right, test->false_label(), &eval_right);
+    } else {
+      VisitForControl(left, test->true_label(), &eval_right, &eval_right);
+    }
+    PrepareForBailoutForId(right_id, NO_REGISTERS);
+    __ bind(&eval_right);
+    ForwardBailoutToChild(expr);
+
+  } else if (context()->IsAccumulatorValue()) {
+    VisitForAccumulatorValue(left);
+    // We want the value in the accumulator for the test, and on the stack in
+    // case we need it.
+    __ push(result_register());
+    Label discard, restore;
+    PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
+    if (is_logical_and) {
+      DoTest(&discard, &restore, &restore);
+    } else {
+      DoTest(&restore, &discard, &restore);
+    }
+    __ bind(&restore);
+    __ pop(result_register());
+    __ jmp(&done);
+    __ bind(&discard);
+    __ Drop(1);
+    PrepareForBailoutForId(right_id, NO_REGISTERS);
+
+  } else if (context()->IsStackValue()) {
+    VisitForAccumulatorValue(left);
+    // We want the value in the accumulator for the test, and on the stack in
+    // case we need it.
+    __ push(result_register());
+    Label discard;
+    PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
+    if (is_logical_and) {
+      DoTest(&discard, &done, &discard);
+    } else {
+      DoTest(&done, &discard, &discard);
+    }
+    __ bind(&discard);
+    __ Drop(1);
+    PrepareForBailoutForId(right_id, NO_REGISTERS);
+
+  } else {
+    ASSERT(context()->IsEffect());
+    Label eval_right;
+    if (is_logical_and) {
+      VisitForControl(left, &eval_right, &done, &eval_right);
+    } else {
+      VisitForControl(left, &done, &eval_right, &eval_right);
+    }
+    PrepareForBailoutForId(right_id, NO_REGISTERS);
+    __ bind(&eval_right);
+  }
+
+  VisitInCurrentContext(right);
   __ bind(&done);
 }
 
 
-void FullCodeGenerator::EffectContext::EmitLogicalLeft(BinaryOperation* expr,
-                                                       Label* eval_right,
-                                                       Label* done) const {
-  if (expr->op() == Token::OR) {
-    codegen()->VisitForControl(expr->left(), done, eval_right, eval_right);
+void FullCodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
+  Token::Value op = expr->op();
+  Comment cmnt(masm_, "[ ArithmeticExpression");
+  Expression* left = expr->left();
+  Expression* right = expr->right();
+  OverwriteMode mode =
+      left->ResultOverwriteAllowed()
+      ? OVERWRITE_LEFT
+      : (right->ResultOverwriteAllowed() ? OVERWRITE_RIGHT : NO_OVERWRITE);
+
+  VisitForStackValue(left);
+  VisitForAccumulatorValue(right);
+
+  SetSourcePosition(expr->position());
+  if (ShouldInlineSmiCase(op)) {
+    EmitInlineSmiBinaryOp(expr, op, mode, left, right);
   } else {
-    ASSERT(expr->op() == Token::AND);
-    codegen()->VisitForControl(expr->left(), eval_right, done, eval_right);
-  }
-}
-
-
-void FullCodeGenerator::AccumulatorValueContext::EmitLogicalLeft(
-    BinaryOperation* expr,
-    Label* eval_right,
-    Label* done) const {
-  HandleExpression(expr->left());
-  // We want the value in the accumulator for the test, and on the stack in case
-  // we need it.
-  __ push(result_register());
-  Label discard, restore;
-  if (expr->op() == Token::OR) {
-    codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
-    codegen()->DoTest(&restore, &discard, &restore);
-  } else {
-    ASSERT(expr->op() == Token::AND);
-    codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
-    codegen()->DoTest(&discard, &restore, &restore);
-  }
-  __ bind(&restore);
-  __ pop(result_register());
-  __ jmp(done);
-  __ bind(&discard);
-  __ Drop(1);
-}
-
-
-void FullCodeGenerator::StackValueContext::EmitLogicalLeft(
-    BinaryOperation* expr,
-    Label* eval_right,
-    Label* done) const {
-  codegen()->VisitForAccumulatorValue(expr->left());
-  // We want the value in the accumulator for the test, and on the stack in case
-  // we need it.
-  __ push(result_register());
-  Label discard;
-  if (expr->op() == Token::OR) {
-    codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
-    codegen()->DoTest(done, &discard, &discard);
-  } else {
-    ASSERT(expr->op() == Token::AND);
-    codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
-    codegen()->DoTest(&discard, done, &discard);
-  }
-  __ bind(&discard);
-  __ Drop(1);
-}
-
-
-void FullCodeGenerator::TestContext::EmitLogicalLeft(BinaryOperation* expr,
-                                                     Label* eval_right,
-                                                     Label* done) const {
-  if (expr->op() == Token::OR) {
-    codegen()->VisitForControl(expr->left(),
-                               true_label_, eval_right, eval_right);
-  } else {
-    ASSERT(expr->op() == Token::AND);
-    codegen()->VisitForControl(expr->left(),
-                               eval_right, false_label_, eval_right);
+    EmitBinaryOp(expr, op, mode);
   }
 }
 
@@ -850,46 +823,23 @@ void FullCodeGenerator::ForwardBailoutToChild(Expression* expr) {
 }
 
 
-void FullCodeGenerator::EffectContext::HandleExpression(
-    Expression* expr) const {
-  codegen()->HandleInNonTestContext(expr, NO_REGISTERS);
-}
-
-
-void FullCodeGenerator::AccumulatorValueContext::HandleExpression(
-    Expression* expr) const {
-  codegen()->HandleInNonTestContext(expr, TOS_REG);
-}
-
-
-void FullCodeGenerator::StackValueContext::HandleExpression(
-    Expression* expr) const {
-  codegen()->HandleInNonTestContext(expr, NO_REGISTERS);
-}
-
-
-void FullCodeGenerator::TestContext::HandleExpression(Expression* expr) const {
-  codegen()->VisitInTestContext(expr);
-}
-
-
-void FullCodeGenerator::HandleInNonTestContext(Expression* expr, State state) {
-  ASSERT(forward_bailout_pending_ == NULL);
-  AstVisitor::Visit(expr);
-  PrepareForBailout(expr, state);
-  // Forwarding bailouts to children is a one shot operation. It
-  // should have been processed at this point.
-  ASSERT(forward_bailout_pending_ == NULL);
-}
-
-
-void FullCodeGenerator::VisitInTestContext(Expression* expr) {
-  ForwardBailoutStack stack(expr, forward_bailout_pending_);
-  ForwardBailoutStack* saved = forward_bailout_stack_;
-  forward_bailout_pending_ = NULL;
-  forward_bailout_stack_ = &stack;
-  AstVisitor::Visit(expr);
-  forward_bailout_stack_ = saved;
+void FullCodeGenerator::VisitInCurrentContext(Expression* expr) {
+  if (context()->IsTest()) {
+    ForwardBailoutStack stack(expr, forward_bailout_pending_);
+    ForwardBailoutStack* saved = forward_bailout_stack_;
+    forward_bailout_pending_ = NULL;
+    forward_bailout_stack_ = &stack;
+    Visit(expr);
+    forward_bailout_stack_ = saved;
+  } else {
+    ASSERT(forward_bailout_pending_ == NULL);
+    Visit(expr);
+    State state = context()->IsAccumulatorValue() ? TOS_REG : NO_REGISTERS;
+    PrepareForBailout(expr, state);
+    // Forwarding bailouts to children is a one shot operation. It should have
+    // been processed at this point.
+    ASSERT(forward_bailout_pending_ == NULL);
+  }
 }
 
 
@@ -942,7 +892,7 @@ void FullCodeGenerator::VisitIfStatement(IfStatement* stmt) {
     PrepareForBailoutForId(stmt->ElseId(), NO_REGISTERS);
   }
   __ bind(&done);
-  PrepareForBailoutForId(stmt->id(), NO_REGISTERS);
+  PrepareForBailoutForId(stmt->IfId(), NO_REGISTERS);
 }
 
 
@@ -1287,7 +1237,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
                     for_test->false_label(),
                     NULL);
   } else {
-    context()->HandleExpression(expr->then_expression());
+    VisitInCurrentContext(expr->then_expression());
     __ jmp(&done);
   }
 
@@ -1296,7 +1246,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
   if (context()->IsTest()) ForwardBailoutToChild(expr);
   SetExpressionPosition(expr->else_expression(),
                         expr->else_expression_position());
-  context()->HandleExpression(expr->else_expression());
+  VisitInCurrentContext(expr->else_expression());
   // If control flow falls through Visit, merge it with true case here.
   if (!context()->IsTest()) {
     __ bind(&done);

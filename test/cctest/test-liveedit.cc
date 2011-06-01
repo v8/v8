@@ -44,13 +44,13 @@ class StringCompareInput : public Comparator::Input {
  public:
   StringCompareInput(const char* s1, const char* s2) : s1_(s1), s2_(s2) {
   }
-  int getLength1() {
+  int GetLength1() {
     return StrLength(s1_);
   }
-  int getLength2() {
+  int GetLength2() {
     return StrLength(s2_);
   }
-  bool equals(int index1, int index2) {
+  bool Equals(int index1, int index2) {
     return s1_[index1] == s2_[index2];
   }
 

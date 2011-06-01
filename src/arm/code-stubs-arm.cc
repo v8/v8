@@ -931,14 +931,14 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
     // They are both equal and they are not both Smis so both of them are not
     // Smis.  If it's not a heap number, then return equal.
     if (cond == lt || cond == gt) {
-      __ CompareObjectType(r0, r4, r4, FIRST_JS_OBJECT_TYPE);
+      __ CompareObjectType(r0, r4, r4, FIRST_SPEC_OBJECT_TYPE);
       __ b(ge, slow);
     } else {
       __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
       __ b(eq, &heap_number);
       // Comparing JS objects with <=, >= is complicated.
       if (cond != eq) {
-        __ cmp(r4, Operand(FIRST_JS_OBJECT_TYPE));
+        __ cmp(r4, Operand(FIRST_SPEC_OBJECT_TYPE));
         __ b(ge, slow);
         // Normally here we fall through to return_equal, but undefined is
         // special: (undefined == undefined) == true, but
@@ -1220,14 +1220,14 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     ASSERT((lhs.is(r0) && rhs.is(r1)) ||
            (lhs.is(r1) && rhs.is(r0)));
 
-    // If either operand is a JSObject or an oddball value, then they are
+    // If either operand is a JS object or an oddball value, then they are
     // not equal since their pointers are different.
     // There is no test for undetectability in strict equality.
-    STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+    STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
     Label first_non_object;
     // Get the type of the first operand into r2 and compare it with
-    // FIRST_JS_OBJECT_TYPE.
-    __ CompareObjectType(rhs, r2, r2, FIRST_JS_OBJECT_TYPE);
+    // FIRST_SPEC_OBJECT_TYPE.
+    __ CompareObjectType(rhs, r2, r2, FIRST_SPEC_OBJECT_TYPE);
     __ b(lt, &first_non_object);
 
     // Return non-zero (r0 is not zero)
@@ -1240,7 +1240,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     __ cmp(r2, Operand(ODDBALL_TYPE));
     __ b(eq, &return_not_equal);
 
-    __ CompareObjectType(lhs, r3, r3, FIRST_JS_OBJECT_TYPE);
+    __ CompareObjectType(lhs, r3, r3, FIRST_SPEC_OBJECT_TYPE);
     __ b(ge, &return_not_equal);
 
     // Check for oddballs: true, false, null, undefined.
@@ -1317,9 +1317,9 @@ static void EmitCheckForSymbolsOrObjects(MacroAssembler* masm,
   __ Ret();
 
   __ bind(&object_test);
-  __ cmp(r2, Operand(FIRST_JS_OBJECT_TYPE));
+  __ cmp(r2, Operand(FIRST_SPEC_OBJECT_TYPE));
   __ b(lt, not_both_strings);
-  __ CompareObjectType(lhs, r2, r3, FIRST_JS_OBJECT_TYPE);
+  __ CompareObjectType(lhs, r2, r3, FIRST_SPEC_OBJECT_TYPE);
   __ b(lt, not_both_strings);
   // If both objects are undetectable, they are equal. Otherwise, they
   // are not equal, since they are different objects and an object is not
@@ -1679,7 +1679,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // JavaScript object => true.
   __ ldr(scratch, FieldMemOperand(tos_, HeapObject::kMapOffset));
   __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  __ cmp(scratch, Operand(FIRST_JS_OBJECT_TYPE));
+  __ cmp(scratch, Operand(FIRST_SPEC_OBJECT_TYPE));
   // "tos_" is a register and contains a non-zero value.
   // Hence we implicitly return true if the greater than
   // condition is satisfied.
@@ -4540,7 +4540,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     Label call_as_function;
     __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
     __ b(eq, &call_as_function);
-    __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+    __ InvokeFunction(r1,
+                      actual,
+                      JUMP_FUNCTION,
+                      NullCallWrapper(),
+                      CALL_AS_METHOD);
     __ bind(&call_as_function);
   }
   __ InvokeFunction(r1,

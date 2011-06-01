@@ -32,21 +32,25 @@
 // Test that we throw an error if an object is not passed as argument.
 var non_objects = new Array(undefined, null, 1, -1, 0, 42.43);
 for (var key in non_objects) {
+  var exception = false;
   try {
     Object.seal(non_objects[key]);
-    assertUnreachable();
   } catch(e) {
+    exception = true;
     assertTrue(/Object.seal called on non-object/.test(e));
   }
+  assertTrue(exception);
 }
 
 for (var key in non_objects) {
+  exception = false;
   try {
     Object.isSealed(non_objects[key]);
-    assertUnreachable();
   } catch(e) {
+    exception = true;
     assertTrue(/Object.isSealed called on non-object/.test(e));
   }
+  assertTrue(exception);
 }
 
 // Test normal data properties.

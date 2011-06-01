@@ -101,15 +101,14 @@ class LChunkBuilder;
   V(EnterInlined)                              \
   V(ExternalArrayLength)                       \
   V(FixedArrayLength)                          \
-  V(ToInt32)                                   \
   V(ForceRepresentation)                       \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
   V(GlobalObject)                              \
   V(GlobalReceiver)                            \
   V(Goto)                                      \
-  V(HasInstanceType)                           \
   V(HasCachedArrayIndex)                       \
+  V(HasInstanceType)                           \
   V(In)                                        \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
@@ -152,8 +151,8 @@ class LChunkBuilder;
   V(StoreGlobalCell)                           \
   V(StoreGlobalGeneric)                        \
   V(StoreKeyedFastElement)                     \
-  V(StoreKeyedSpecializedArrayElement)         \
   V(StoreKeyedGeneric)                         \
+  V(StoreKeyedSpecializedArrayElement)         \
   V(StoreNamedField)                           \
   V(StoreNamedGeneric)                         \
   V(StringAdd)                                 \
@@ -162,12 +161,15 @@ class LChunkBuilder;
   V(StringLength)                              \
   V(Sub)                                       \
   V(Test)                                      \
+  V(ThisFunction)                              \
   V(Throw)                                     \
   V(ToFastProperties)                          \
+  V(ToInt32)                                   \
   V(Typeof)                                    \
   V(TypeofIs)                                  \
   V(UnaryMathOperation)                        \
   V(UnknownOSRValue)                           \
+  V(UseConst)                                  \
   V(ValueOf)
 
 #define GVN_FLAG_LIST(V)                       \
@@ -1019,6 +1021,18 @@ class HThrow: public HUnaryOperation {
 };
 
 
+class HUseConst: public HUnaryOperation {
+ public:
+  explicit HUseConst(HValue* old_value) : HUnaryOperation(old_value) { }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(UseConst)
+};
+
+
 class HForceRepresentation: public HTemplateInstruction<1> {
  public:
   HForceRepresentation(HValue* value, Representation required_representation) {
@@ -1289,6 +1303,24 @@ class HPushArgument: public HUnaryOperation {
 };
 
 
+class HThisFunction: public HTemplateInstruction<0> {
+ public:
+  HThisFunction() {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ThisFunction)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
 class HContext: public HTemplateInstruction<0> {
  public:
   HContext() {
@@ -1300,7 +1332,7 @@ class HContext: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(Context);
+  DECLARE_CONCRETE_INSTRUCTION(Context)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
@@ -1873,8 +1905,8 @@ class HCheckFunction: public HUnaryOperation {
 
 class HCheckInstanceType: public HUnaryOperation {
  public:
-  static HCheckInstanceType* NewIsJSObjectOrJSFunction(HValue* value) {
-    return new HCheckInstanceType(value, IS_JS_OBJECT_OR_JS_FUNCTION);
+  static HCheckInstanceType* NewIsSpecObject(HValue* value) {
+    return new HCheckInstanceType(value, IS_SPEC_OBJECT);
   }
   static HCheckInstanceType* NewIsJSArray(HValue* value) {
     return new HCheckInstanceType(value, IS_JS_ARRAY);
@@ -1922,7 +1954,7 @@ class HCheckInstanceType: public HUnaryOperation {
 
  private:
   enum Check {
-    IS_JS_OBJECT_OR_JS_FUNCTION,
+    IS_SPEC_OBJECT,
     IS_JS_ARRAY,
     IS_STRING,
     IS_SYMBOL,

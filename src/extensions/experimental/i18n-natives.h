@@ -25,15 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Verifies that exception thrown from JS accessors when attempting a call
-// are properly treated.
+#ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_
+#define V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_
 
-Object.prototype.__defineGetter__(0, function() { throw 42; });
-var exception = false;
-try {
-  Object[0]();
-} catch(e) {
-  exception = true;
-  assertEquals(42, e);
-}
-assertTrue(exception);
+namespace v8 {
+namespace internal {
+
+class I18Natives {
+ public:
+  // Gets script source from generated file.
+  // Source is statically allocated string.
+  static const char* GetScriptSource();
+};
+
+} }  // namespace v8::internal
+
+#endif  // V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_

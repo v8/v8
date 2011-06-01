@@ -1279,9 +1279,11 @@ Handle<Context> Isolate::GetCallingGlobalContext() {
 
 
 char* Isolate::ArchiveThread(char* to) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   if (RuntimeProfiler::IsEnabled() && current_vm_state() == JS) {
     RuntimeProfiler::IsolateExitedJS(this);
   }
+#endif
   memcpy(to, reinterpret_cast<char*>(thread_local_top()),
          sizeof(ThreadLocalTop));
   InitializeThreadLocal();
@@ -1301,9 +1303,11 @@ char* Isolate::RestoreThread(char* from) {
   thread_local_top()->simulator_ = Simulator::current(this);
 #endif
 #endif
+#ifdef ENABLE_LOGGING_AND_PROFILING
   if (RuntimeProfiler::IsEnabled() && current_vm_state() == JS) {
     RuntimeProfiler::IsolateEnteredJS(this);
   }
+#endif
   return from + sizeof(ThreadLocalTop);
 }
 

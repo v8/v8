@@ -129,7 +129,7 @@ static MaybeObject* GenerateDictionaryNegativeLookup(MacroAssembler* masm,
   __ j(not_zero, miss_label);
 
   // Check that receiver is a JSObject.
-  __ CmpInstanceType(r0, FIRST_JS_OBJECT_TYPE);
+  __ CmpInstanceType(r0, FIRST_SPEC_OBJECT_TYPE);
   __ j(below, miss_label);
 
   // Load properties array.
@@ -488,10 +488,12 @@ class CallInterceptorCompiler BASE_EMBEDDED {
  public:
   CallInterceptorCompiler(StubCompiler* stub_compiler,
                           const ParameterCount& arguments,
-                          Register name)
+                          Register name,
+                          Code::ExtraICState extra_ic_state)
       : stub_compiler_(stub_compiler),
         arguments_(arguments),
-        name_(name) {}
+        name_(name),
+        extra_ic_state_(extra_ic_state) {}
 
   MaybeObject* Compile(MacroAssembler* masm,
                        JSObject* object,
@@ -616,8 +618,11 @@ class CallInterceptorCompiler BASE_EMBEDDED {
           GenerateFastApiCall(masm, optimization, arguments_.immediate());
       if (result->IsFailure()) return result;
     } else {
+      CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+          ? CALL_AS_FUNCTION
+          : CALL_AS_METHOD;
       __ InvokeFunction(optimization.constant_function(), arguments_,
-                        JUMP_FUNCTION);
+                        JUMP_FUNCTION, NullCallWrapper(), call_kind);
     }
 
     // Deferred code for fast API call case---clean preallocated space.
@@ -696,6 +701,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   StubCompiler* stub_compiler_;
   const ParameterCount& arguments_;
   Register name_;
+  Code::ExtraICState extra_ic_state_;
 };
 
 
@@ -1383,7 +1389,11 @@ MUST_USE_RESULT MaybeObject* CallStubCompiler::CompileCallField(
   }
 
   // Invoke the function.
-  __ InvokeFunction(edi, arguments(), JUMP_FUNCTION);
+  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+      ? CALL_AS_FUNCTION
+      : CALL_AS_METHOD;
+  __ InvokeFunction(edi, arguments(), JUMP_FUNCTION,
+                    NullCallWrapper(), call_kind);
 
   // Handle call cache miss.
   __ bind(&miss);
@@ -1869,7 +1879,11 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
   __ bind(&slow);
-  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+      ? CALL_AS_FUNCTION
+      : CALL_AS_METHOD;
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION,
+                    NullCallWrapper(), call_kind);
 
   __ bind(&miss);
   // ecx: function name.
@@ -1999,7 +2013,8 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
   __ bind(&slow);
-  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
 
   __ bind(&miss);
   // ecx: function name.
@@ -2104,7 +2119,8 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
   __ bind(&slow);
-  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
 
   __ bind(&miss);
   // ecx: function name.
@@ -2178,11 +2194,12 @@ MaybeObject* CallStubCompiler::CompileFastApiCall(
 }
 
 
-MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
-                                                   JSObject* holder,
-                                                   JSFunction* function,
-                                                   String* name,
-                                                   CheckType check) {
+MaybeObject* CallStubCompiler::CompileCallConstant(
+    Object* object,
+    JSObject* holder,
+    JSFunction* function,
+    String* name,
+    CheckType check) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
   //  -- esp[0]              : return address
@@ -2300,7 +2317,11 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       UNREACHABLE();
   }
 
-  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+      ? CALL_AS_FUNCTION
+      : CALL_AS_METHOD;
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION,
+                    NullCallWrapper(), call_kind);
 
   // Handle call cache miss.
   __ bind(&miss);
@@ -2335,7 +2356,7 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
   // Get the receiver from the stack.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
 
-  CallInterceptorCompiler compiler(this, arguments(), ecx);
+  CallInterceptorCompiler compiler(this, arguments(), ecx, extra_ic_state_);
   MaybeObject* result = compiler.Compile(masm(),
                                          object,
                                          holder,
@@ -2366,7 +2387,11 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   // Invoke the function.
   __ mov(edi, eax);
-  __ InvokeFunction(edi, arguments(), JUMP_FUNCTION);
+  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+      ? CALL_AS_FUNCTION
+      : CALL_AS_METHOD;
+  __ InvokeFunction(edi, arguments(), JUMP_FUNCTION,
+                    NullCallWrapper(), call_kind);
 
   // Handle load cache miss.
   __ bind(&miss);
@@ -2383,8 +2408,7 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(
     GlobalObject* holder,
     JSGlobalPropertyCell* cell,
     JSFunction* function,
-    String* name,
-    Code::ExtraICState extra_ic_state) {
+    String* name) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
   //  -- esp[0]              : return address
@@ -2427,7 +2451,7 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(
   __ IncrementCounter(counters->call_global_inline(), 1);
   ASSERT(function->is_compiled());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state)
+  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
   if (V8::UseCrankshaft()) {

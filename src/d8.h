@@ -154,6 +154,15 @@ class Shell: public i::AllStatic {
   static Handle<Value> Read(const Arguments& args);
   static Handle<Value> ReadLine(const Arguments& args);
   static Handle<Value> Load(const Arguments& args);
+  static Handle<Value> Int8Array(const Arguments& args);
+  static Handle<Value> Uint8Array(const Arguments& args);
+  static Handle<Value> Int16Array(const Arguments& args);
+  static Handle<Value> Uint16Array(const Arguments& args);
+  static Handle<Value> Int32Array(const Arguments& args);
+  static Handle<Value> Uint32Array(const Arguments& args);
+  static Handle<Value> Float32Array(const Arguments& args);
+  static Handle<Value> Float64Array(const Arguments& args);
+  static Handle<Value> PixelArray(const Arguments& args);
   // The OS object on the global object contains methods for performing
   // operating system calls:
   //
@@ -205,6 +214,10 @@ class Shell: public i::AllStatic {
   static CounterCollection* counters_;
   static i::OS::MemoryMappedFile* counters_file_;
   static Counter* GetCounter(const char* name, bool is_histogram);
+  static Handle<Value> CreateExternalArray(const Arguments& args,
+                                           ExternalArrayType type,
+                                           int element_size);
+  static void ExternalArrayWeakCallback(Persistent<Value> object, void* data);
 };
 
 

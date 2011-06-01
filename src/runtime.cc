@@ -3721,8 +3721,7 @@ MaybeObject* Runtime::GetObjectProperty(Isolate* isolate,
   if (name->AsArrayIndex(&index)) {
     return GetElementOrCharAt(isolate, object, index);
   } else {
-    PropertyAttributes attr;
-    return object->GetProperty(*name, &attr);
+    return object->GetProperty(*name);
   }
 }
 
@@ -4117,10 +4116,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
 }
 
 
-// Set the ES5 native flag on the function.
+// Set the native flag on the function.
 // This is used to decide if we should transform null and undefined
 // into the global object when doing call and apply.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SetES5Flag) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetNativeFlag) {
   NoHandleAllocation ha;
   RUNTIME_ASSERT(args.length() == 1);
 
@@ -4128,7 +4127,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetES5Flag) {
 
   if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(*object);
-    func->shared()->set_es5_native(true);
+    func->shared()->set_native(true);
   }
   return isolate->heap()->undefined_value();
 }
@@ -5102,6 +5101,8 @@ static inline SinkChar* WriteQuoteJsonString(
     Isolate* isolate,
     SinkChar* write_cursor,
     Vector<const SourceChar> characters) {
+  // SinkChar is only char if SourceChar is guaranteed to be char.
+  ASSERT(sizeof(SinkChar) >= sizeof(SourceChar));
   const SourceChar* read_cursor = characters.start();
   const SourceChar* end = read_cursor + characters.length();
   *(write_cursor++) = '"';

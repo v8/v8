@@ -89,6 +89,12 @@ class CompilationInfo BASE_EMBEDDED {
   bool allows_natives_syntax() const {
     return IsNativesSyntaxAllowed::decode(flags_);
   }
+  void MarkAsNative() {
+    flags_ |= IsNative::encode(true);
+  }
+  bool is_native() const {
+    return IsNative::decode(flags_);
+  }
   void SetFunction(FunctionLiteral* literal) {
     ASSERT(function_ == NULL);
     function_ = literal;
@@ -167,8 +173,9 @@ class CompilationInfo BASE_EMBEDDED {
 
   void Initialize(Mode mode) {
     mode_ = V8::UseCrankshaft() ? mode : NONOPT;
-    if (!shared_info_.is_null() && shared_info_->strict_mode()) {
-      MarkAsStrictMode();
+    if (!shared_info_.is_null()) {
+      if (shared_info_->strict_mode()) MarkAsStrictMode();
+      if (shared_info_->native()) MarkAsNative();
     }
   }
 
@@ -191,6 +198,9 @@ class CompilationInfo BASE_EMBEDDED {
   class IsStrictMode: public BitField<bool, 4, 1> {};
   // Native syntax (%-stuff) allowed?
   class IsNativesSyntaxAllowed: public BitField<bool, 5, 1> {};
+  // Is this a function from our natives.
+  class IsNative: public BitField<bool, 6, 1> {};
+
 
   unsigned flags_;
 

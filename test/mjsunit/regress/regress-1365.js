@@ -25,44 +25,58 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/extensions/experimental/i18n-extension.h"
+// See: http://code.google.com/p/v8/issues/detail?id=1365
 
-#include "src/extensions/experimental/break-iterator.h"
-#include "src/extensions/experimental/collator.h"
-#include "src/extensions/experimental/i18n-locale.h"
-#include "src/extensions/experimental/i18n-natives.h"
+// Check that builtin methods are passed undefined as the receiver
+// when called as functions through variables.
 
-namespace v8 {
-namespace internal {
+// Flags: --allow-natives-syntax
 
-I18NExtension* I18NExtension::extension_ = NULL;
+// Global variable.
+var valueOf = Object.prototype.valueOf;
+var hasOwnProperty = Object.prototype.hasOwnProperty;
 
-I18NExtension::I18NExtension()
-    : v8::Extension("v8/i18n", I18Natives::GetScriptSource()) {
+function callGlobalValueOf() { valueOf(); }
+function callGlobalHasOwnProperty() { valueOf(); }
+
+assertEquals(Object.prototype, Object.prototype.valueOf());
+assertThrows(callGlobalValueOf);
+assertThrows(callGlobalHasOwnProperty);
+
+%OptimizeFunctionOnNextCall(Object.prototype.valueOf);
+Object.prototype.valueOf();
+
+assertEquals(Object.prototype, Object.prototype.valueOf());
+assertThrows(callGlobalValueOf);
+assertThrows(callGlobalHasOwnProperty);
+
+function CheckExceptionCallLocal() {
+  var valueOf = Object.prototype.valueOf;
+  var hasOwnProperty = Object.prototype.hasOwnProperty;
+  var exception = false;
+  try { valueOf(); } catch(e) { exception = true; }
+  assertTrue(exception);
+  exception = false;
+  try { hasOwnProperty(); } catch(e) { exception = true; }
+  assertTrue(exception);
 }
+CheckExceptionCallLocal();
 
-v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
-    v8::Handle<v8::String> name) {
-  if (name->Equals(v8::String::New("NativeJSLocale"))) {
-    return v8::FunctionTemplate::New(I18NLocale::JSLocale);
-  } else if (name->Equals(v8::String::New("NativeJSBreakIterator"))) {
-    return v8::FunctionTemplate::New(BreakIterator::JSBreakIterator);
-  } else if (name->Equals(v8::String::New("NativeJSCollator"))) {
-    return v8::FunctionTemplate::New(Collator::JSCollator);
+function CheckExceptionCallParameter(f) {
+  var exception = false;
+  try { f(); } catch(e) { exception = true; }
+  assertTrue(exception);
+}
+CheckExceptionCallParameter(Object.prototype.valueOf);
+CheckExceptionCallParameter(Object.prototype.hasOwnProperty);
+
+function CheckPotentiallyShadowedByEval() {
+  var exception = false;
+  try {
+    eval("hasOwnProperty('x')");
+  } catch(e) {
+    exception = true;
   }
-
-  return v8::Handle<v8::FunctionTemplate>();
+  assertTrue(exception);
 }
-
-I18NExtension* I18NExtension::get() {
-  if (!extension_) {
-    extension_ = new I18NExtension();
-  }
-  return extension_;
-}
-
-void I18NExtension::Register() {
-  static v8::DeclareExtension i18n_extension_declaration(I18NExtension::get());
-}
-
-} }  // namespace v8::internal
+CheckPotentiallyShadowedByEval();

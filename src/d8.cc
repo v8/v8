@@ -218,6 +218,80 @@ Handle<Value> Shell::Load(const Arguments& args) {
 }
 
 
+Handle<Value> Shell::CreateExternalArray(const Arguments& args,
+                                         ExternalArrayType type,
+                                         int element_size) {
+  if (args.Length() != 1) {
+    return ThrowException(
+        String::New("Array constructor needs one parameter."));
+  }
+  int length = args[0]->Int32Value();
+  void* data = malloc(length * element_size);
+  memset(data, 0, length * element_size);
+  Handle<Object> array = Object::New();
+  Persistent<Object> persistent_array = Persistent<Object>::New(array);
+  persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
+  persistent_array.MarkIndependent();
+  array->SetIndexedPropertiesToExternalArrayData(data, type, length);
+  array->Set(String::New("length"), Int32::New(length), ReadOnly);
+  array->Set(String::New("BYTES_PER_ELEMENT"), Int32::New(element_size));
+  return array;
+}
+
+
+void Shell::ExternalArrayWeakCallback(Persistent<Value> object, void* data) {
+  free(data);
+  object.Dispose();
+}
+
+
+Handle<Value> Shell::Int8Array(const Arguments& args) {
+  return CreateExternalArray(args, v8::kExternalByteArray, sizeof(int8_t));
+}
+
+
+Handle<Value> Shell::Uint8Array(const Arguments& args) {
+  return CreateExternalArray(args, kExternalUnsignedByteArray, sizeof(uint8_t));
+}
+
+
+Handle<Value> Shell::Int16Array(const Arguments& args) {
+  return CreateExternalArray(args, kExternalShortArray, sizeof(int16_t));
+}
+
+
+Handle<Value> Shell::Uint16Array(const Arguments& args) {
+  return CreateExternalArray(args, kExternalUnsignedShortArray,
+                             sizeof(uint16_t));
+}
+
+Handle<Value> Shell::Int32Array(const Arguments& args) {
+  return CreateExternalArray(args, kExternalIntArray, sizeof(int32_t));
+}
+
+
+Handle<Value> Shell::Uint32Array(const Arguments& args) {
+  return CreateExternalArray(args, kExternalUnsignedIntArray, sizeof(uint32_t));
+}
+
+
+Handle<Value> Shell::Float32Array(const Arguments& args) {
+  return CreateExternalArray(args, kExternalFloatArray,
+                             sizeof(float));  // NOLINT
+}
+
+
+Handle<Value> Shell::Float64Array(const Arguments& args) {
+  return CreateExternalArray(args, kExternalDoubleArray,
+                             sizeof(double));  // NOLINT
+}
+
+
+Handle<Value> Shell::PixelArray(const Arguments& args) {
+  return CreateExternalArray(args, kExternalPixelArray, sizeof(uint8_t));
+}
+
+
 Handle<Value> Shell::Yield(const Arguments& args) {
   v8::Unlocker unlocker;
   return Undefined();
@@ -431,6 +505,26 @@ void Shell::Initialize() {
   global_template->Set(String::New("load"), FunctionTemplate::New(Load));
   global_template->Set(String::New("quit"), FunctionTemplate::New(Quit));
   global_template->Set(String::New("version"), FunctionTemplate::New(Version));
+
+  // Bind the handlers for external arrays.
+  global_template->Set(String::New("Int8Array"),
+                       FunctionTemplate::New(Int8Array));
+  global_template->Set(String::New("Uint8Array"),
+                       FunctionTemplate::New(Uint8Array));
+  global_template->Set(String::New("Int16Array"),
+                       FunctionTemplate::New(Int16Array));
+  global_template->Set(String::New("Uint16Array"),
+                       FunctionTemplate::New(Uint16Array));
+  global_template->Set(String::New("Int32Array"),
+                       FunctionTemplate::New(Int32Array));
+  global_template->Set(String::New("Uint32Array"),
+                       FunctionTemplate::New(Uint32Array));
+  global_template->Set(String::New("Float32Array"),
+                       FunctionTemplate::New(Float32Array));
+  global_template->Set(String::New("Float64Array"),
+                       FunctionTemplate::New(Float64Array));
+  global_template->Set(String::New("PixelArray"),
+                       FunctionTemplate::New(PixelArray));
 
 #ifdef LIVE_OBJECT_LIST
   global_template->Set(String::New("lol_is_enabled"), Boolean::New(true));

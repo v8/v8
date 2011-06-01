@@ -1878,7 +1878,11 @@ bool Logger::Setup() {
 
 
 Sampler* Logger::sampler() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   return ticker_;
+#else
+  return NULL;
+#endif
 }
 
 
@@ -1955,8 +1959,10 @@ bool SamplerRegistry::IterateActiveSamplers(VisitSampler func, void* param) {
 
 
 static void ComputeCpuProfiling(Sampler* sampler, void* flag_ptr) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   bool* flag = reinterpret_cast<bool*>(flag_ptr);
   *flag |= sampler->IsProfiling();
+#endif
 }
 
 

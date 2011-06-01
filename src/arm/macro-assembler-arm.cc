@@ -1048,7 +1048,8 @@ void MacroAssembler::InvokeFunction(Register fun,
 
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
-                                    InvokeFlag flag) {
+                                    InvokeFlag flag,
+                                    CallKind call_kind) {
   ASSERT(function->is_compiled());
 
   // Get the function and setup the context.
@@ -1063,9 +1064,9 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
     // code field in the function to allow recompilation to take effect
     // without changing any of the call sites.
     ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
-    InvokeCode(r3, expected, actual, flag);
+    InvokeCode(r3, expected, actual, flag, NullCallWrapper(), call_kind);
   } else {
-    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag, call_kind);
   }
 }
 
@@ -1083,9 +1084,9 @@ void MacroAssembler::IsInstanceJSObjectType(Register map,
                                             Register scratch,
                                             Label* fail) {
   ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  cmp(scratch, Operand(FIRST_JS_OBJECT_TYPE));
+  cmp(scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
   b(lt, fail);
-  cmp(scratch, Operand(LAST_JS_OBJECT_TYPE));
+  cmp(scratch, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
   b(gt, fail);
 }
 
@@ -2369,10 +2370,12 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   GetBuiltinEntry(r2, id);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(r2));
+    SetCallKind(r5, CALL_AS_METHOD);
     Call(r2);
     call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
+    SetCallKind(r5, CALL_AS_METHOD);
     Jump(r2);
   }
 }

@@ -25,15 +25,35 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Verifies that exception thrown from JS accessors when attempting a call
-// are properly treated.
+// Test that the apply with arguments optimization passes values
+// unchanged to strict-mode functions and builtins.
 
-Object.prototype.__defineGetter__(0, function() { throw 42; });
+// Flags: --allow-natives-syntax
+
+function strict() { "use strict"; return this; }
+
+function test_strict() {
+  assertEquals(void 0, strict.apply(undefined, arguments));
+  assertEquals(42, strict.apply(42, arguments));
+  assertEquals("asdf", strict.apply("asdf", arguments));
+}
+
+for (var i = 0; i < 10; i++) test_strict();
+%OptimizeFunctionOnNextCall(test_strict);
+test_strict();
+
+function test_builtin(receiver) {
+  Object.prototype.valueOf.apply(receiver, arguments);
+}
+
+for (var i = 0; i < 10; i++) test_builtin(this);
+%OptimizeFunctionOnNextCall(test_builtin);
+test_builtin(this);
+
 var exception = false;
 try {
-  Object[0]();
+  test_builtin(undefined);
 } catch(e) {
   exception = true;
-  assertEquals(42, e);
 }
 assertTrue(exception);

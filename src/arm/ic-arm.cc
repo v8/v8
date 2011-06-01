@@ -83,11 +83,11 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
   __ b(eq, miss);
 
   // Check that the receiver is a valid JS object.
-  __ CompareObjectType(receiver, t0, t1, FIRST_JS_OBJECT_TYPE);
+  __ CompareObjectType(receiver, t0, t1, FIRST_SPEC_OBJECT_TYPE);
   __ b(lt, miss);
 
   // If this assert fails, we have to check upper bound too.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
 
   GenerateGlobalInstanceTypeCheck(masm, t1, miss);
 
@@ -557,7 +557,8 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 
   // Invoke the function.
   ParameterCount actual(argc);
-  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
 }
 
 
@@ -1229,9 +1230,13 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ ldrb(r4, FieldMemOperand(r4, Map::kInstanceTypeOffset));
   __ cmp(r4, Operand(JS_ARRAY_TYPE));
   __ b(eq, &array);
-  // Check that the object is some kind of JS object.
-  __ cmp(r4, Operand(FIRST_JS_OBJECT_TYPE));
+  // Check that the object is some kind of JSObject.
+  __ cmp(r4, Operand(FIRST_JS_RECEIVER_TYPE));
   __ b(lt, &slow);
+  __ cmp(r4, Operand(JS_PROXY_TYPE));
+  __ b(eq, &slow);
+  __ cmp(r4, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ b(eq, &slow);
 
   // Object case: Check key against length in the elements array.
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));

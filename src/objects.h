@@ -48,16 +48,19 @@
 //   - Object
 //     - Smi          (immediate small integer)
 //     - HeapObject   (superclass for everything allocated in the heap)
-//       - JSObject
-//         - JSArray
-//         - JSRegExp
-//         - JSFunction
-//         - GlobalObject
-//           - JSGlobalObject
-//           - JSBuiltinsObject
-//         - JSGlobalProxy
-//         - JSValue
-//         - JSMessageObject
+//       - JSReceiver  (suitable for property access)
+//         - JSObject
+//           - JSArray
+//           - JSRegExp
+//           - JSFunction
+//           - GlobalObject
+//             - JSGlobalObject
+//             - JSBuiltinsObject
+//           - JSGlobalProxy
+//           - JSValue
+//           - JSMessageObject
+//         - JSProxy
+//           - JSFunctionProxy
 //       - ByteArray
 //       - ExternalArray
 //         - ExternalPixelArray
@@ -91,7 +94,6 @@
 //       - Code
 //       - Map
 //       - Oddball
-//       - JSProxy
 //       - Foreign
 //       - SharedFunctionInfo
 //       - Struct
@@ -289,7 +291,6 @@ static const int kVariableSizeSentinel = 0;
   V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
                                                                                \
   V(HEAP_NUMBER_TYPE)                                                          \
-  V(JS_PROXY_TYPE)                                                             \
   V(FOREIGN_TYPE)                                                              \
   V(BYTE_ARRAY_TYPE)                                                           \
   /* Note: the order of these external array */                                \
@@ -328,9 +329,11 @@ static const int kVariableSizeSentinel = 0;
   V(JS_BUILTINS_OBJECT_TYPE)                                                   \
   V(JS_GLOBAL_PROXY_TYPE)                                                      \
   V(JS_ARRAY_TYPE)                                                             \
+  V(JS_PROXY_TYPE)                                                             \
   V(JS_REGEXP_TYPE)                                                            \
                                                                                \
   V(JS_FUNCTION_TYPE)                                                          \
+  V(JS_FUNCTION_PROXY_TYPE)                                                    \
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #define INSTANCE_TYPE_LIST_DEBUGGER(V)                                         \
@@ -518,7 +521,6 @@ enum InstanceType {
   // objects.
   HEAP_NUMBER_TYPE,
   FOREIGN_TYPE,
-  JS_PROXY_TYPE,
   BYTE_ARRAY_TYPE,
   EXTERNAL_BYTE_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
   EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE,
@@ -554,21 +556,23 @@ enum InstanceType {
 
   JS_MESSAGE_OBJECT_TYPE,
 
-  JS_VALUE_TYPE,  // FIRST_JS_OBJECT_TYPE
+  JS_VALUE_TYPE,  // FIRST_NON_CALLABLE_OBJECT_TYPE, FIRST_JS_RECEIVER_TYPE
   JS_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
   JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
+  JS_PROXY_TYPE,
 
-  JS_REGEXP_TYPE,  // LAST_JS_OBJECT_TYPE
+  JS_REGEXP_TYPE,  // LAST_NONCALLABLE_SPEC_OBJECT_TYPE
 
-  JS_FUNCTION_TYPE,  // FIRST_FUNCTION_CLASS_TYPE
+  JS_FUNCTION_TYPE,  // FIRST_CALLABLE_SPEC_OBJECT_TYPE
+  JS_FUNCTION_PROXY_TYPE,  // LAST_CALLABLE_SPEC_OBJECT_TYPE
 
   // Pseudo-types
   FIRST_TYPE = 0x0,
-  LAST_TYPE = JS_FUNCTION_TYPE,
+  LAST_TYPE = JS_FUNCTION_PROXY_TYPE,
   INVALID_TYPE = FIRST_TYPE - 1,
   FIRST_NONSTRING_TYPE = MAP_TYPE,
   // Boundaries for testing for an external array.
@@ -576,14 +580,22 @@ enum InstanceType {
   LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_PIXEL_ARRAY_TYPE,
   // Boundary for promotion to old data space/old pointer space.
   LAST_DATA_TYPE = FILLER_TYPE,
-  // Boundaries for testing the type is a JavaScript "object".  Note that
-  // function objects are not counted as objects, even though they are
-  // implemented as such; only values whose typeof is "object" are included.
-  FIRST_JS_OBJECT_TYPE = JS_VALUE_TYPE,
-  LAST_JS_OBJECT_TYPE = JS_REGEXP_TYPE,
-  // RegExp objects have [[Class]] "function" because they are callable.
-  // All types from this type and above are objects with [[Class]] "function".
-  FIRST_FUNCTION_CLASS_TYPE = JS_FUNCTION_TYPE
+  // Boundary for objects represented as JSReceiver (i.e. JSObject or JSProxy).
+  // Note that there is no range for JSObject or JSProxy, since their subtypes
+  // are not continuous in this enum! The enum ranges instead reflect the
+  // external class names, where proxies are treated as either ordinary objects,
+  // or functions.
+  FIRST_JS_RECEIVER_TYPE = JS_VALUE_TYPE,
+  LAST_JS_RECEIVER_TYPE = LAST_TYPE,
+  // Boundaries for testing the types for which typeof is "object".
+  FIRST_NONCALLABLE_SPEC_OBJECT_TYPE = JS_VALUE_TYPE,
+  LAST_NONCALLABLE_SPEC_OBJECT_TYPE = JS_REGEXP_TYPE,
+  // Boundaries for testing the types for which typeof is "function".
+  FIRST_CALLABLE_SPEC_OBJECT_TYPE = JS_FUNCTION_TYPE,
+  LAST_CALLABLE_SPEC_OBJECT_TYPE = JS_FUNCTION_PROXY_TYPE,
+  // Boundaries for testing whether the type is a JavaScript object.
+  FIRST_SPEC_OBJECT_TYPE = FIRST_NONCALLABLE_SPEC_OBJECT_TYPE,
+  LAST_SPEC_OBJECT_TYPE = LAST_CALLABLE_SPEC_OBJECT_TYPE
 };
 
 static const int kExternalArrayTypeCount = LAST_EXTERNAL_ARRAY_TYPE -
@@ -709,6 +721,7 @@ class MaybeObject BASE_EMBEDDED {
   V(ExternalDoubleArray)                       \
   V(ExternalPixelArray)                        \
   V(ByteArray)                                 \
+  V(JSReceiver)                                \
   V(JSObject)                                  \
   V(JSContextExtensionObject)                  \
   V(Map)                                       \
@@ -730,6 +743,7 @@ class MaybeObject BASE_EMBEDDED {
   V(Boolean)                                   \
   V(JSArray)                                   \
   V(JSProxy)                                   \
+  V(JSFunctionProxy)                           \
   V(JSRegExp)                                  \
   V(HashTable)                                 \
   V(Dictionary)                                \
@@ -1332,11 +1346,72 @@ class HeapNumber: public HeapObject {
 };
 
 
+// JSReceiver includes types on which properties can be defined, i.e.,
+// JSObject and JSProxy.
+class JSReceiver: public HeapObject {
+ public:
+  // Casting.
+  static inline JSReceiver* cast(Object* obj);
+
+  // Can cause GC.
+  MUST_USE_RESULT MaybeObject* SetProperty(String* key,
+                                           Object* value,
+                                           PropertyAttributes attributes,
+                                           StrictModeFlag strict_mode);
+  MUST_USE_RESULT MaybeObject* SetProperty(LookupResult* result,
+                                           String* key,
+                                           Object* value,
+                                           PropertyAttributes attributes,
+                                           StrictModeFlag strict_mode);
+
+  // Returns the class name ([[Class]] property in the specification).
+  String* class_name();
+
+  // Returns the constructor name (the name (possibly, inferred name) of the
+  // function that was used to instantiate the object).
+  String* constructor_name();
+
+  inline PropertyAttributes GetPropertyAttribute(String* name);
+  PropertyAttributes GetPropertyAttributeWithReceiver(JSReceiver* receiver,
+                                                      String* name);
+  PropertyAttributes GetLocalPropertyAttribute(String* name);
+
+  // Can cause a GC.
+  bool HasProperty(String* name) {
+    return GetPropertyAttribute(name) != ABSENT;
+  }
+
+  // Can cause a GC.
+  bool HasLocalProperty(String* name) {
+    return GetLocalPropertyAttribute(name) != ABSENT;
+  }
+
+  // Return the object's prototype (might be Heap::null_value()).
+  inline Object* GetPrototype();
+
+  // Set the object's prototype (only JSReceiver and null are allowed).
+  MUST_USE_RESULT MaybeObject* SetPrototype(Object* value,
+                                            bool skip_hidden_prototypes);
+
+  // Lookup a property.  If found, the result is valid and has
+  // detailed information.
+  void LocalLookup(String* name, LookupResult* result);
+  void Lookup(String* name, LookupResult* result);
+
+ private:
+  PropertyAttributes GetPropertyAttribute(JSReceiver* receiver,
+                                          LookupResult* result,
+                                          String* name,
+                                          bool continue_search);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
+};
+
 // The JSObject describes real heap allocated JavaScript objects with
 // properties.
 // Note that the map of JSObject changes during execution to enable inline
 // caching.
-class JSObject: public HeapObject {
+class JSObject: public JSReceiver {
  public:
   enum DeleteMode {
     NORMAL_DELETION,
@@ -1412,11 +1487,7 @@ class JSObject: public HeapObject {
   // a dictionary, and it will stay a dictionary.
   MUST_USE_RESULT MaybeObject* PrepareSlowElementsForSort(uint32_t limit);
 
-  MUST_USE_RESULT MaybeObject* SetProperty(String* key,
-                                           Object* value,
-                                           PropertyAttributes attributes,
-                                           StrictModeFlag strict_mode);
-  MUST_USE_RESULT MaybeObject* SetProperty(LookupResult* result,
+  MUST_USE_RESULT MaybeObject* SetPropertyForResult(LookupResult* result,
                                            String* key,
                                            Object* value,
                                            PropertyAttributes attributes,
@@ -1468,21 +1539,22 @@ class JSObject: public HeapObject {
   MUST_USE_RESULT MaybeObject* DeleteNormalizedProperty(String* name,
                                                         DeleteMode mode);
 
-  // Returns the class name ([[Class]] property in the specification).
-  String* class_name();
-
-  // Returns the constructor name (the name (possibly, inferred name) of the
-  // function that was used to instantiate the object).
-  String* constructor_name();
-
   // Retrieve interceptors.
   InterceptorInfo* GetNamedInterceptor();
   InterceptorInfo* GetIndexedInterceptor();
 
-  inline PropertyAttributes GetPropertyAttribute(String* name);
-  PropertyAttributes GetPropertyAttributeWithReceiver(JSObject* receiver,
-                                                      String* name);
-  PropertyAttributes GetLocalPropertyAttribute(String* name);
+  // Used from JSReceiver.
+  PropertyAttributes GetPropertyAttributePostInterceptor(JSObject* receiver,
+                                                         String* name,
+                                                         bool continue_search);
+  PropertyAttributes GetPropertyAttributeWithInterceptor(JSObject* receiver,
+                                                         String* name,
+                                                         bool continue_search);
+  PropertyAttributes GetPropertyAttributeWithFailedAccessCheck(
+      Object* receiver,
+      LookupResult* result,
+      String* name,
+      bool continue_search);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(String* name,
                                               bool is_getter,
@@ -1499,29 +1571,20 @@ class JSObject: public HeapObject {
       String* name,
       PropertyAttributes* attributes);
   MaybeObject* GetPropertyWithInterceptor(
-      JSObject* receiver,
+      JSReceiver* receiver,
       String* name,
       PropertyAttributes* attributes);
   MaybeObject* GetPropertyPostInterceptor(
-      JSObject* receiver,
+      JSReceiver* receiver,
       String* name,
       PropertyAttributes* attributes);
-  MaybeObject* GetLocalPropertyPostInterceptor(JSObject* receiver,
+  MaybeObject* GetLocalPropertyPostInterceptor(JSReceiver* receiver,
                                                String* name,
                                                PropertyAttributes* attributes);
 
   // Returns true if this is an instance of an api function and has
   // been modified since it was created.  May give false positives.
   bool IsDirty();
-
-  bool HasProperty(String* name) {
-    return GetPropertyAttribute(name) != ABSENT;
-  }
-
-  // Can cause a GC if it hits an interceptor.
-  bool HasLocalProperty(String* name) {
-    return GetLocalPropertyAttribute(name) != ABSENT;
-  }
 
   // If the receiver is a JSGlobalProxy this method will return its prototype,
   // otherwise the result is the receiver itself.
@@ -1560,16 +1623,9 @@ class JSObject: public HeapObject {
   // elements.
   bool ShouldConvertToFastElements();
 
-  // Return the object's prototype (might be Heap::null_value()).
-  inline Object* GetPrototype();
-
-  // Set the object's prototype (only JSObject and null are allowed).
-  MUST_USE_RESULT MaybeObject* SetPrototype(Object* value,
-                                            bool skip_hidden_prototypes);
-
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
-  bool HasElementWithReceiver(JSObject* receiver, uint32_t index);
+  bool HasElementWithReceiver(JSReceiver* receiver, uint32_t index);
 
   // Computes the new capacity when expanding the elements of a JSObject.
   static int NewElementsCapacity(int old_capacity) {
@@ -1597,8 +1653,8 @@ class JSObject: public HeapObject {
 
   LocalElementType HasLocalElement(uint32_t index);
 
-  bool HasElementWithInterceptor(JSObject* receiver, uint32_t index);
-  bool HasElementPostInterceptor(JSObject* receiver, uint32_t index);
+  bool HasElementWithInterceptor(JSReceiver* receiver, uint32_t index);
+  bool HasElementPostInterceptor(JSReceiver* receiver, uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
                                               Object* value,
@@ -1651,7 +1707,6 @@ class JSObject: public HeapObject {
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
   void LocalLookup(String* name, LookupResult* result);
-  void Lookup(String* name, LookupResult* result);
 
   // The following lookup functions skip interceptors.
   void LocalLookupRealNamedProperty(String* name, LookupResult* result);
@@ -1893,22 +1948,6 @@ class JSObject: public HeapObject {
   MUST_USE_RESULT MaybeObject* DeleteElementPostInterceptor(uint32_t index,
                                                             DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeleteElementWithInterceptor(uint32_t index);
-
-  PropertyAttributes GetPropertyAttributePostInterceptor(JSObject* receiver,
-                                                         String* name,
-                                                         bool continue_search);
-  PropertyAttributes GetPropertyAttributeWithInterceptor(JSObject* receiver,
-                                                         String* name,
-                                                         bool continue_search);
-  PropertyAttributes GetPropertyAttributeWithFailedAccessCheck(
-      Object* receiver,
-      LookupResult* result,
-      String* name,
-      bool continue_search);
-  PropertyAttributes GetPropertyAttribute(JSObject* receiver,
-                                          LookupResult* result,
-                                          String* name,
-                                          bool continue_search);
 
   // Returns true if most of the elements backing storage is used.
   bool HasDenseElements();
@@ -4406,12 +4445,12 @@ class SharedFunctionInfo: public HeapObject {
   inline bool strict_mode();
   inline void set_strict_mode(bool value);
 
-  // Indicates whether the function is a native ES5 function.
+  // Indicates whether the function is a native function.
   // These needs special threatment in .call and .apply since
   // null passed as the receiver should not be translated to the
   // global object.
-  inline bool es5_native();
-  inline void set_es5_native(bool value);
+  inline bool native();
+  inline void set_native(bool value);
 
   // Indicates whether or not the code in the shared function support
   // deoptimization.
@@ -4598,7 +4637,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kCodeAgeMask = 0x7;
   static const int kOptimizationDisabled = 6;
   static const int kStrictModeFunction = 7;
-  static const int kES5Native = 8;
+  static const int kNative = 8;
 
  private:
 #if V8_HOST_ARCH_32_BIT
@@ -4613,26 +4652,26 @@ class SharedFunctionInfo: public HeapObject {
 
  public:
   // Constants for optimizing codegen for strict mode function and
-  // es5 native tests.
+  // native tests.
   // Allows to use byte-widgh instructions.
   static const int kStrictModeBitWithinByte =
       (kStrictModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
-  static const int kES5NativeBitWithinByte =
-      (kES5Native + kCompilerHintsSmiTagSize) % kBitsPerByte;
+  static const int kNativeBitWithinByte =
+      (kNative + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
-  static const int kES5NativeByteOffset = kCompilerHintsOffset +
-      (kES5Native + kCompilerHintsSmiTagSize) / kBitsPerByte;
+  static const int kNativeByteOffset = kCompilerHintsOffset +
+      (kNative + kCompilerHintsSmiTagSize) / kBitsPerByte;
 #elif __BYTE_ORDER == __BIG_ENDIAN
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
       ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);
-  static const int kES5NativeByteOffset = kCompilerHintsOffset +
+  static const int kNativeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
-      ((kES5Native + kCompilerHintsSmiTagSize) / kBitsPerByte);
+      ((kNative + kCompilerHintsSmiTagSize) / kBitsPerByte);
 #else
 #error Unknown byte ordering
 #endif
@@ -6166,13 +6205,24 @@ class JSGlobalPropertyCell: public HeapObject {
 
 
 // The JSProxy describes EcmaScript Harmony proxies
-class JSProxy: public HeapObject {
+class JSProxy: public JSReceiver {
  public:
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
 
   // Casting.
   static inline JSProxy* cast(Object* obj);
+
+  MUST_USE_RESULT MaybeObject* SetPropertyWithHandler(
+      String* name_raw,
+      Object* value_raw,
+      PropertyAttributes attributes,
+      StrictModeFlag strict_mode);
+
+  MUST_USE_RESULT PropertyAttributes GetPropertyAttributeWithHandler(
+      JSReceiver* receiver,
+      String* name_raw,
+      bool* has_exception);
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
@@ -6197,6 +6247,16 @@ class JSProxy: public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };
 
+
+// TODO(rossberg): Only a stub for now.
+class JSFunctionProxy: public JSProxy {
+ public:
+  // Casting.
+  static inline JSFunctionProxy* cast(Object* obj);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunctionProxy);
+};
 
 
 // Foreign describes objects pointing from JavaScript to C structures.

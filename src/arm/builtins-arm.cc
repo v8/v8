@@ -915,10 +915,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         masm->isolate()->builtins()->HandleApiCallConstruct();
     ParameterCount expected(0);
     __ InvokeCode(code, expected, expected,
-                  RelocInfo::CODE_TARGET, CALL_FUNCTION);
+                  RelocInfo::CODE_TARGET, CALL_FUNCTION, CALL_AS_METHOD);
   } else {
     ParameterCount actual(r0);
-    __ InvokeFunction(r1, actual, CALL_FUNCTION);
+    __ InvokeFunction(r1, actual, CALL_FUNCTION,
+                      NullCallWrapper(), CALL_AS_METHOD);
   }
 
   // Pop the function from the stack.
@@ -949,8 +950,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   __ b(eq, &use_receiver);
 
   // If the type of the result (stored in its map) is less than
-  // FIRST_JS_OBJECT_TYPE, it is not an object in the ECMA sense.
-  __ CompareObjectType(r0, r3, r3, FIRST_JS_OBJECT_TYPE);
+  // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
+  __ CompareObjectType(r0, r3, r3, FIRST_SPEC_OBJECT_TYPE);
   __ b(ge, &exit);
 
   // Throw away the result of the constructor invocation and use the
@@ -1050,7 +1051,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
             RelocInfo::CODE_TARGET);
   } else {
     ParameterCount actual(r0);
-    __ InvokeFunction(r1, actual, CALL_FUNCTION);
+    __ InvokeFunction(r1, actual, CALL_FUNCTION,
+                      NullCallWrapper(), CALL_AS_METHOD);
   }
 
   // Exit the JS frame and remove the parameters (except function), and return.
@@ -1255,8 +1257,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ b(ne, &shift_arguments);
 
     // Do not transform the receiver for native (Compilerhints already in r3).
-    __ tst(r3, Operand(1 << (SharedFunctionInfo::kES5Native +
-                             kSmiTagSize)));
+    __ tst(r3, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
     __ b(ne, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
@@ -1275,9 +1276,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ cmp(r2, r3);
     __ b(eq, &use_global_receiver);
 
-    STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
-    STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-    __ CompareObjectType(r2, r3, r3, FIRST_JS_OBJECT_TYPE);
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ CompareObjectType(r2, r3, r3, FIRST_SPEC_OBJECT_TYPE);
     __ b(ge, &shift_arguments);
 
     __ bind(&convert_to_object);
@@ -1379,7 +1379,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
           ne);
 
   ParameterCount expected(0);
-  __ InvokeCode(r3, expected, expected, JUMP_FUNCTION);
+  __ InvokeCode(r3, expected, expected, JUMP_FUNCTION,
+                NullCallWrapper(), CALL_AS_METHOD);
 }
 
 
@@ -1440,8 +1441,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ b(ne, &push_receiver);
 
   // Do not transform the receiver for strict mode functions.
-  __ tst(r2, Operand(1 << (SharedFunctionInfo::kES5Native +
-                           kSmiTagSize)));
+  __ tst(r2, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
   __ b(ne, &push_receiver);
 
   // Compute the receiver in non-strict mode.
@@ -1456,9 +1456,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
   // Check if the receiver is already a JavaScript object.
   // r0: receiver
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
-  STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-  __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE);
+  STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+  __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE);
   __ b(ge, &push_receiver);
 
   // Convert the receiver to a regular object.
@@ -1515,7 +1514,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   ParameterCount actual(r0);
   __ mov(r0, Operand(r0, ASR, kSmiTagSize));
   __ ldr(r1, MemOperand(fp, kFunctionOffset));
-  __ InvokeFunction(r1, actual, CALL_FUNCTION);
+  __ InvokeFunction(r1, actual, CALL_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
 
   // Tear down the internal frame and remove function, receiver and args.
   __ LeaveInternalFrame();

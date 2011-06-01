@@ -340,11 +340,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     Handle<Code> code =
         masm->isolate()->builtins()->HandleApiCallConstruct();
     ParameterCount expected(0);
-    __ InvokeCode(code, expected, expected,
-                  RelocInfo::CODE_TARGET, CALL_FUNCTION);
+    __ InvokeCode(code, expected, expected, RelocInfo::CODE_TARGET,
+                  CALL_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
   } else {
     ParameterCount actual(eax);
-    __ InvokeFunction(edi, actual, CALL_FUNCTION);
+    __ InvokeFunction(edi, actual, CALL_FUNCTION,
+                      NullCallWrapper(), CALL_AS_METHOD);
   }
 
   // Restore context from the frame.
@@ -360,8 +361,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   __ j(zero, &use_receiver);
 
   // If the type of the result (stored in its map) is less than
-  // FIRST_JS_OBJECT_TYPE, it is not an object in the ECMA sense.
-  __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, ecx);
+  // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
+  __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
   __ j(above_equal, &exit);
 
   // Throw away the result of the constructor invocation and use the
@@ -443,7 +444,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
             RelocInfo::CODE_TARGET);
   } else {
     ParameterCount actual(eax);
-    __ InvokeFunction(edi, actual, CALL_FUNCTION);
+    __ InvokeFunction(edi, actual, CALL_FUNCTION,
+                      NullCallWrapper(), CALL_AS_METHOD);
   }
 
   // Exit the JS frame. Notice that this also removes the empty
@@ -613,8 +615,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_equal, &shift_arguments);
 
     // Do not transform the receiver for natives (shared already in ebx).
-    __ test_b(FieldOperand(ebx, SharedFunctionInfo::kES5NativeByteOffset),
-              1 << SharedFunctionInfo::kES5NativeBitWithinByte);
+    __ test_b(FieldOperand(ebx, SharedFunctionInfo::kNativeByteOffset),
+              1 << SharedFunctionInfo::kNativeBitWithinByte);
     __ j(not_equal, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
@@ -628,9 +630,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(equal, &use_global_receiver);
     __ cmp(ebx, factory->undefined_value());
     __ j(equal, &use_global_receiver);
-    STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
-    STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-    __ CmpObjectType(ebx, FIRST_JS_OBJECT_TYPE, ecx);
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ CmpObjectType(ebx, FIRST_SPEC_OBJECT_TYPE, ecx);
     __ j(above_equal, &shift_arguments);
 
     __ bind(&convert_to_object);
@@ -715,7 +716,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline());
 
   ParameterCount expected(0);
-  __ InvokeCode(Operand(edx), expected, expected, JUMP_FUNCTION);
+  __ InvokeCode(Operand(edx), expected, expected, JUMP_FUNCTION,
+                NullCallWrapper(), CALL_AS_METHOD);
 }
 
 
@@ -777,8 +779,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   Factory* factory = masm->isolate()->factory();
 
   // Do not transform the receiver for natives (shared already in ecx).
-  __ test_b(FieldOperand(ecx, SharedFunctionInfo::kES5NativeByteOffset),
-            1 << SharedFunctionInfo::kES5NativeBitWithinByte);
+  __ test_b(FieldOperand(ecx, SharedFunctionInfo::kNativeByteOffset),
+            1 << SharedFunctionInfo::kNativeBitWithinByte);
   __ j(not_equal, &push_receiver);
 
   // Compute the receiver in non-strict mode.
@@ -790,9 +792,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ j(equal, &use_global_receiver);
   __ cmp(ebx, factory->undefined_value());
   __ j(equal, &use_global_receiver);
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE + 1 == LAST_TYPE);
-  STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-  __ CmpObjectType(ebx, FIRST_JS_OBJECT_TYPE, ecx);
+  STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+  __ CmpObjectType(ebx, FIRST_SPEC_OBJECT_TYPE, ecx);
   __ j(above_equal, &push_receiver);
 
   __ bind(&call_to_object);
@@ -845,7 +846,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   ParameterCount actual(eax);
   __ SmiUntag(eax);
   __ mov(edi, Operand(ebp, 4 * kPointerSize));
-  __ InvokeFunction(edi, actual, CALL_FUNCTION);
+  __ InvokeFunction(edi, actual, CALL_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
 
   __ LeaveInternalFrame();
   __ ret(3 * kPointerSize);  // remove this, receiver, and arguments

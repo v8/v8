@@ -169,6 +169,7 @@ class LCodeGen;
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
+  V(ThisFunction)                               \
   V(Throw)                                      \
   V(ToFastProperties)                           \
   V(Typeof)                                     \
@@ -1437,6 +1438,11 @@ class LPushArgument: public LTemplateInstruction<0, 1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(PushArgument, "push-argument")
+};
+
+
+class LThisFunction: public LTemplateInstruction<1, 0, 0> {
+  DECLARE_CONCRETE_INSTRUCTION(ThisFunction, "this-function")
 };
 
 

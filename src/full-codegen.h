@@ -328,17 +328,17 @@ class FullCodeGenerator: public AstVisitor {
 
   void VisitForEffect(Expression* expr) {
     EffectContext context(this);
-    HandleInNonTestContext(expr, NO_REGISTERS);
+    VisitInCurrentContext(expr);
   }
 
   void VisitForAccumulatorValue(Expression* expr) {
     AccumulatorValueContext context(this);
-    HandleInNonTestContext(expr, TOS_REG);
+    VisitInCurrentContext(expr);
   }
 
   void VisitForStackValue(Expression* expr) {
     StackValueContext context(this);
-    HandleInNonTestContext(expr, NO_REGISTERS);
+    VisitInCurrentContext(expr);
   }
 
   void VisitForControl(Expression* expr,
@@ -346,14 +346,8 @@ class FullCodeGenerator: public AstVisitor {
                        Label* if_false,
                        Label* fall_through) {
     TestContext context(this, if_true, if_false, fall_through);
-    VisitInTestContext(expr);
-    // Forwarding bailouts to children is a one shot operation. It
-    // should have been processed at this point.
-    ASSERT(forward_bailout_pending_ == NULL);
+    VisitInCurrentContext(expr);
   }
-
-  void HandleInNonTestContext(Expression* expr, State state);
-  void VisitInTestContext(Expression* expr);
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void DeclareGlobals(Handle<FixedArray> pairs);
@@ -369,7 +363,7 @@ class FullCodeGenerator: public AstVisitor {
                          Label* fall_through);
 
   // Bailout support.
-  void PrepareForBailout(AstNode* node, State state);
+  void PrepareForBailout(Expression* node, State state);
   void PrepareForBailoutForId(int id, State state);
 
   // Record a call's return site offset, used to rebuild the frame if the
@@ -549,8 +543,10 @@ class FullCodeGenerator: public AstVisitor {
 
   void EmitUnaryOperation(UnaryOperation* expr, const char* comment);
 
-  // Handles the shortcutted logical binary operations in VisitBinaryOperation.
-  void EmitLogicalOperation(BinaryOperation* expr);
+  void VisitComma(BinaryOperation* expr);
+  void VisitLogicalExpression(BinaryOperation* expr);
+  void VisitArithmeticExpression(BinaryOperation* expr);
+  void VisitInCurrentContext(Expression* expr);
 
   void VisitForTypeofValue(Expression* expr);
 
@@ -598,11 +594,6 @@ class FullCodeGenerator: public AstVisitor {
     // context.
     virtual void DropAndPlug(int count, Register reg) const = 0;
 
-    // For shortcutting operations || and &&.
-    virtual void EmitLogicalLeft(BinaryOperation* expr,
-                                 Label* eval_right,
-                                 Label* done) const = 0;
-
     // Set up branch labels for a test expression.  The three Label** parameters
     // are output parameters.
     virtual void PrepareTest(Label* materialize_true,
@@ -611,11 +602,13 @@ class FullCodeGenerator: public AstVisitor {
                              Label** if_false,
                              Label** fall_through) const = 0;
 
-    virtual void HandleExpression(Expression* expr) const = 0;
-
     // Returns true if we are evaluating only for side effects (ie if the result
     // will be discarded).
     virtual bool IsEffect() const { return false; }
+
+    // Returns true if we are evaluating for the value (in accu/on stack).
+    virtual bool IsAccumulatorValue() const { return false; }
+    virtual bool IsStackValue() const { return false; }
 
     // Returns true if we are branching on the value rather than materializing
     // it.  Only used for asserts.
@@ -644,15 +637,12 @@ class FullCodeGenerator: public AstVisitor {
     virtual void Plug(Heap::RootListIndex) const;
     virtual void PlugTOS() const;
     virtual void DropAndPlug(int count, Register reg) const;
-    virtual void EmitLogicalLeft(BinaryOperation* expr,
-                                 Label* eval_right,
-                                 Label* done) const;
     virtual void PrepareTest(Label* materialize_true,
                              Label* materialize_false,
                              Label** if_true,
                              Label** if_false,
                              Label** fall_through) const;
-    virtual void HandleExpression(Expression* expr) const;
+    virtual bool IsAccumulatorValue() const { return true; }
   };
 
   class StackValueContext : public ExpressionContext {
@@ -668,15 +658,12 @@ class FullCodeGenerator: public AstVisitor {
     virtual void Plug(Heap::RootListIndex) const;
     virtual void PlugTOS() const;
     virtual void DropAndPlug(int count, Register reg) const;
-    virtual void EmitLogicalLeft(BinaryOperation* expr,
-                                 Label* eval_right,
-                                 Label* done) const;
     virtual void PrepareTest(Label* materialize_true,
                              Label* materialize_false,
                              Label** if_true,
                              Label** if_false,
                              Label** fall_through) const;
-    virtual void HandleExpression(Expression* expr) const;
+    virtual bool IsStackValue() const { return true; }
   };
 
   class TestContext : public ExpressionContext {
@@ -707,15 +694,11 @@ class FullCodeGenerator: public AstVisitor {
     virtual void Plug(Heap::RootListIndex) const;
     virtual void PlugTOS() const;
     virtual void DropAndPlug(int count, Register reg) const;
-    virtual void EmitLogicalLeft(BinaryOperation* expr,
-                                 Label* eval_right,
-                                 Label* done) const;
     virtual void PrepareTest(Label* materialize_true,
                              Label* materialize_false,
                              Label** if_true,
                              Label** if_false,
                              Label** fall_through) const;
-    virtual void HandleExpression(Expression* expr) const;
     virtual bool IsTest() const { return true; }
 
    private:
@@ -737,15 +720,11 @@ class FullCodeGenerator: public AstVisitor {
     virtual void Plug(Heap::RootListIndex) const;
     virtual void PlugTOS() const;
     virtual void DropAndPlug(int count, Register reg) const;
-    virtual void EmitLogicalLeft(BinaryOperation* expr,
-                                 Label* eval_right,
-                                 Label* done) const;
     virtual void PrepareTest(Label* materialize_true,
                              Label* materialize_false,
                              Label** if_true,
                              Label** if_false,
                              Label** fall_through) const;
-    virtual void HandleExpression(Expression* expr) const;
     virtual bool IsEffect() const { return true; }
   };
 

@@ -330,8 +330,9 @@ void MacroAssembler::IsInstanceJSObjectType(Register map,
                                             Register scratch,
                                             Label* fail) {
   movzx_b(scratch, FieldOperand(map, Map::kInstanceTypeOffset));
-  sub(Operand(scratch), Immediate(FIRST_JS_OBJECT_TYPE));
-  cmp(scratch, LAST_JS_OBJECT_TYPE - FIRST_JS_OBJECT_TYPE);
+  sub(Operand(scratch), Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+  cmp(scratch,
+      LAST_NONCALLABLE_SPEC_OBJECT_TYPE - FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
   j(above, fail);
 }
 
@@ -1690,7 +1691,8 @@ void MacroAssembler::InvokeFunction(Register fun,
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper) {
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
   ASSERT(function->is_compiled());
   // Get the function and setup the context.
   mov(edi, Immediate(Handle<JSFunction>(function)));
@@ -1702,11 +1704,11 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
     // code field in the function to allow recompilation to take effect
     // without changing any of the call sites.
     InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
-               expected, actual, flag, call_wrapper);
+               expected, actual, flag, call_wrapper, call_kind);
   } else {
     Handle<Code> code(function->code());
     InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET,
-               flag, call_wrapper);
+               flag, call_wrapper, call_kind);
   }
 }
 
@@ -1723,7 +1725,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   ParameterCount expected(0);
   GetBuiltinFunction(edi, id);
   InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
-             expected, expected, flag, call_wrapper);
+             expected, expected, flag, call_wrapper, CALL_AS_METHOD);
 }
 
 void MacroAssembler::GetBuiltinFunction(Register target,

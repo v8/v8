@@ -139,11 +139,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
 #endif
 
-  // Strict mode functions need to replace the receiver with undefined
-  // when called as functions (without an explicit receiver
-  // object). r5 is zero for method calls and non-zero for function
-  // calls.
-  if (info->is_strict_mode()) {
+  // Strict mode functions and builtins need to replace the receiver
+  // with undefined when called as functions (without an explicit
+  // receiver object). r5 is zero for method calls and non-zero for
+  // function calls.
+  if (info->is_strict_mode() || info->is_native()) {
     Label ok;
     __ cmp(r5, Operand(0));
     __ b(eq, &ok);
@@ -912,8 +912,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Convert the object to a JS object.
   Label convert, done_convert;
   __ JumpIfSmi(r0, &convert);
-  __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE);
-  __ b(hs, &done_convert);
+  __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE);
+  __ b(ge, &done_convert);
   __ bind(&convert);
   __ push(r0);
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
@@ -2300,9 +2300,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ bind(&done);
       // Push function.
       __ push(r0);
-      // Push global receiver.
-      __ ldr(r1, GlobalObjectOperand());
-      __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
+      // The receiver is implicitly the global receiver. Indicate this
+      // by passing the hole to the call function stub.
+      __ LoadRoot(r1, Heap::kTheHoleValueRootIndex);
       __ push(r1);
       __ bind(&call);
     }
@@ -2468,9 +2468,9 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
   __ tst(r1, Operand(1 << Map::kIsUndetectable));
   __ b(ne, if_false);
   __ ldrb(r1, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  __ cmp(r1, Operand(FIRST_JS_OBJECT_TYPE));
+  __ cmp(r1, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
   __ b(lt, if_false);
-  __ cmp(r1, Operand(LAST_JS_OBJECT_TYPE));
+  __ cmp(r1, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(le, if_true, if_false, fall_through);
 
@@ -2491,7 +2491,7 @@ void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
                          &if_true, &if_false, &fall_through);
 
   __ JumpIfSmi(r0, if_false);
-  __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE);
+  __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
   Split(ge, if_true, if_false, fall_through);
 
@@ -2774,16 +2774,18 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
-  __ CompareObjectType(r0, r0, r1, FIRST_JS_OBJECT_TYPE);  // Map is now in r0.
+  __ CompareObjectType(r0, r0, r1, FIRST_SPEC_OBJECT_TYPE);
+  // Map is now in r0.
   __ b(lt, &null);
 
-  // As long as JS_FUNCTION_TYPE is the last instance type and it is
-  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
-  // LAST_JS_OBJECT_TYPE.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-  __ cmp(r1, Operand(JS_FUNCTION_TYPE));
-  __ b(eq, &function);
+  // As long as LAST_CALLABLE_SPEC_OBJECT_TYPE is the last instance type, and
+  // FIRST_CALLABLE_SPEC_OBJECT_TYPE comes right after
+  // LAST_NONCALLABLE_SPEC_OBJECT_TYPE, we can avoid checking for the latter.
+  STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_CALLABLE_SPEC_OBJECT_TYPE ==
+                LAST_NONCALLABLE_SPEC_OBJECT_TYPE + 1);
+  __ cmp(r1, Operand(FIRST_CALLABLE_SPEC_OBJECT_TYPE));
+  __ b(ge, &function);
 
   // Check if the constructor in the map is a function.
   __ ldr(r0, FieldMemOperand(r0, Map::kConstructorOffset));
@@ -3175,7 +3177,8 @@ void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
   // InvokeFunction requires the function in r1. Move it in there.
   __ mov(r1, result_register());
   ParameterCount count(arg_count);
-  __ InvokeFunction(r1, count, CALL_FUNCTION);
+  __ InvokeFunction(r1, count, CALL_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   context()->Plug(r0);
 }
@@ -4023,7 +4026,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     context()->Plug(r0);
   } else {
     // This expression cannot throw a reference error at the top level.
-    context()->HandleExpression(expr);
+    VisitInCurrentContext(expr);
   }
 }
 
@@ -4081,7 +4084,7 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
 
   } else if (check->Equals(isolate()->heap()->function_symbol())) {
     __ JumpIfSmi(r0, if_false);
-    __ CompareObjectType(r0, r1, r0, FIRST_FUNCTION_CLASS_TYPE);
+    __ CompareObjectType(r0, r1, r0, FIRST_CALLABLE_SPEC_OBJECT_TYPE);
     Split(ge, if_true, if_false, fall_through);
 
   } else if (check->Equals(isolate()->heap()->object_symbol())) {
@@ -4089,10 +4092,10 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
     __ CompareRoot(r0, Heap::kNullValueRootIndex);
     __ b(eq, if_true);
     // Check for JS objects => true.
-    __ CompareObjectType(r0, r0, r1, FIRST_JS_OBJECT_TYPE);
-    __ b(lo, if_false);
-    __ CompareInstanceType(r0, r1, FIRST_FUNCTION_CLASS_TYPE);
-    __ b(hs, if_false);
+    __ CompareObjectType(r0, r0, r1, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
+    __ b(lt, if_false);
+    __ CompareInstanceType(r0, r1, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
+    __ b(gt, if_false);
     // Check for undetectable objects => false.
     __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
     __ tst(r1, Operand(1 << Map::kIsUndetectable));

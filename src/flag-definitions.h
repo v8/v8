@@ -131,7 +131,6 @@ DEFINE_bool(stress_environments, false, "environment for every instruction")
 DEFINE_int(deopt_every_n_times,
            0,
            "deoptimize every n times a deopt point is passed")
-DEFINE_bool(process_arguments_object, true, "try to deal with arguments object")
 DEFINE_bool(trap_on_deopt, false, "put a break point before deoptimizing")
 DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
@@ -149,8 +148,6 @@ DEFINE_bool(debug_code, false,
 DEFINE_bool(code_comments, false, "emit comments in code disassembly")
 DEFINE_bool(peephole_optimization, true,
             "perform peephole optimizations in assembly code")
-DEFINE_bool(print_peephole_optimization, false,
-            "print peephole optimizations in assembly code")
 DEFINE_bool(enable_sse2, true,
             "enable use of SSE2 instructions if available")
 DEFINE_bool(enable_sse3, true,
@@ -189,7 +186,6 @@ DEFINE_bool(stack_trace_on_abort, true,
 
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(trace, false, "trace function calls")
-DEFINE_bool(defer_negation, true, "defer negation operation")
 DEFINE_bool(mask_constants_with_cookie,
             true,
             "use random jit cookie to mask large constants")
@@ -210,25 +206,17 @@ DEFINE_bool(trace_deopt, false, "trace deoptimization")
 DEFINE_bool(strict, false, "strict error checking")
 DEFINE_int(min_preparse_length, 1024,
            "minimum length for automatic enable preparsing")
-DEFINE_bool(full_compiler, true, "enable dedicated backend for run-once code")
 DEFINE_bool(always_full_compiler, false,
             "try to use the dedicated run-once backend for all code")
 DEFINE_bool(trace_bailout, false,
             "print reasons for falling back to using the classic V8 backend")
-DEFINE_bool(safe_int32_compiler, true,
-            "enable optimized side-effect-free int32 expressions.")
-DEFINE_bool(use_flow_graph, false, "perform flow-graph based optimizations")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
 
 DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
 
-// data-flow.cc
-DEFINE_bool(loop_peeling, false, "Peel off the first iteration of loops.")
-
 // debug.cc
-DEFINE_bool(remote_debugging, false, "enable remote debugging")
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
 DEFINE_bool(debugger_auto_break, true,
             "automatically set the debug break flag when debugger commands are "
@@ -316,9 +304,6 @@ DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
 DEFINE_bool(allow_natives_syntax, false, "allow natives syntax")
 DEFINE_bool(strict_mode, true, "allow strict mode directives")
 
-// rewriter.cc
-DEFINE_bool(optimize_ast, true, "optimize the ast")
-
 // simulator-arm.cc and simulator-mips.cc
 DEFINE_bool(trace_sim, false, "Trace simulator execution")
 DEFINE_bool(check_icache, false, "Check icache flushes in ARM simulator")
@@ -337,7 +322,6 @@ DEFINE_bool(preemption, false,
             "activate a 100ms timer that switches between V8 threads")
 
 // Regexp
-DEFINE_bool(trace_regexps, false, "trace regexp execution")
 DEFINE_bool(regexp_optimization, true, "generate optimized regexp code")
 DEFINE_bool(regexp_entry_native, true, "use native code to enter regexp")
 
@@ -414,16 +398,11 @@ DEFINE_bool(print_builtin_ast, false, "print source AST for builtins")
 DEFINE_bool(print_json_ast, false, "print source AST as JSON")
 DEFINE_bool(print_builtin_json_ast, false,
             "print source AST for builtins as JSON")
-DEFINE_bool(trace_calls, false, "trace calls")
-DEFINE_bool(trace_builtin_calls, false, "trace builtins calls")
 DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
 
 // compiler.cc
 DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins")
 DEFINE_bool(print_scopes, false, "print scopes")
-DEFINE_bool(print_ir, false, "print the AST as seen by the backend")
-DEFINE_bool(print_graph_text, false,
-            "print a text representation of the flow graph")
 
 // contexts.cc
 DEFINE_bool(trace_contexts, false, "trace contexts operations")
