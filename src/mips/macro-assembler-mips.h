@@ -573,6 +573,16 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                                    Register input_low,
                                    Register scratch);
 
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
+  // Exits with 'result' holding the answer and all other registers clobbered.
+  void EmitECMATruncate(Register result,
+                        FPURegister double_input,
+                        FPURegister single_scratch,
+                        Register scratch,
+                        Register scratch2,
+                        Register scratch3);
+
   // -------------------------------------------------------------------------
   // Activation frames.
 

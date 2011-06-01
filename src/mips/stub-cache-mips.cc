@@ -3934,27 +3934,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ addu(t8, a3, t8);
         __ sdc1(f0, MemOperand(t8, 0));
       } else {
-        Label done;
+        __ EmitECMATruncate(t3, f0, f2, t2, t1, t5);
 
-        // Need to perform float-to-int conversion.
-        // Test whether exponent equal to 0x7FF (infinity or NaN).
-
-        __ mfc1(t3, f1);  // Move exponent word of double to t3 (as raw bits).
-        __ li(t1, Operand(0x7FF00000));
-        __ And(t3, t3, Operand(t1));
-        __ Branch(USE_DELAY_SLOT, &done, eq, t3, Operand(t1));
-        __ mov(t3, zero_reg);  // In delay slot.
-
-        // Not infinity or NaN simply convert to int.
-        if (IsElementTypeSigned(array_type)) {
-          __ trunc_w_d(f0, f0);
-          __ mfc1(t3, f0);
-        } else {
-          __ Trunc_uw_d(f0, t3);
-        }
-
-        // t3: HeapNumber converted to integer
-        __ bind(&done);
         switch (array_type) {
           case kExternalByteArray:
           case kExternalUnsignedByteArray:

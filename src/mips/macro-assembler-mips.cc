@@ -1044,6 +1044,51 @@ void MacroAssembler::EmitOutOfInt32RangeTruncate(Register result,
 }
 
 
+void MacroAssembler::EmitECMATruncate(Register result,
+                                      FPURegister double_input,
+                                      FPURegister single_scratch,
+                                      Register scratch,
+                                      Register input_high,
+                                      Register input_low) {
+  CpuFeatures::Scope scope(FPU);
+  ASSERT(!input_high.is(result));
+  ASSERT(!input_low.is(result));
+  ASSERT(!input_low.is(input_high));
+  ASSERT(!scratch.is(result) &&
+         !scratch.is(input_high) &&
+         !scratch.is(input_low));
+  ASSERT(!single_scratch.is(double_input));
+
+  Label done;
+  Label manual;
+
+  // Clear cumulative exception flags and save the FCSR.
+  Register scratch2 = input_high;
+  cfc1(scratch2, FCSR);
+  ctc1(zero_reg, FCSR);
+  // Try a conversion to a signed integer.
+  trunc_w_d(single_scratch, double_input);
+  mfc1(result, single_scratch);
+  // Retrieve and restore the FCSR.
+  cfc1(scratch, FCSR);
+  ctc1(scratch2, FCSR);
+  // Check for overflow and NaNs.
+  And(scratch,
+      scratch,
+      kFCSROverflowFlagMask | kFCSRUnderflowFlagMask | kFCSRInvalidOpFlagMask);
+  // If we had no exceptions we are done.
+  Branch(&done, eq, scratch, Operand(zero_reg));
+
+  // Load the double value and perform a manual truncation.
+  Move(input_low, input_high, double_input);
+  EmitOutOfInt32RangeTruncate(result,
+                              input_high,
+                              input_low,
+                              scratch);
+  bind(&done);
+}
+
+
 void MacroAssembler::GetLeastBitsFromSmi(Register dst,
                                          Register src,
                                          int num_least_bits) {
