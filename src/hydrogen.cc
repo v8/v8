@@ -3577,6 +3577,9 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
       if (expr->op() != Token::INIT_CONST) {
         return Bailout("non-initializer assignment to const");
       }
+      if (!var->IsStackAllocated()) {
+        return Bailout("assignment to const context slot");
+      }
       // We insert a use of the old value to detect unsupported uses of const
       // variables (e.g. initialization inside a loop).
       HValue* old_value = environment()->Lookup(var);
@@ -3595,7 +3598,8 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
       Bind(var, value);
       ast_context()->ReturnValue(value);
 
-    } else if (var->IsContextSlot() && var->mode() != Variable::CONST) {
+    } else if (var->IsContextSlot()) {
+      ASSERT(var->mode() != Variable::CONST);
       CHECK_ALIVE(VisitForValue(expr->value()));
       HValue* context = BuildContextChainWalk(var);
       int index = var->AsSlot()->index();
@@ -5381,6 +5385,7 @@ void HGraphBuilder::VisitDeclaration(Declaration* decl) {
   }
 
   if (decl->mode() == Variable::CONST) {
+    ASSERT(var->IsStackAllocated());
     environment()->Bind(var, graph()->GetConstantHole());
   }
 }
