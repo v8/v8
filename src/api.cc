@@ -4264,6 +4264,9 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (isolate->string_tracker()->IsFreshUnusedString(obj)) {
     return false;
   }
+  if (isolate->heap()->IsInGCPostProcessing()) {
+    return false;
+  }
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
     isolate->heap()->external_string_table()->AddString(*obj);
@@ -4294,6 +4297,9 @@ bool v8::String::MakeExternal(
   }
   ENTER_V8(isolate);
   if (isolate->string_tracker()->IsFreshUnusedString(obj)) {
+    return false;
+  }
+  if (isolate->heap()->IsInGCPostProcessing()) {
     return false;
   }
   bool result = obj->MakeExternal(resource);

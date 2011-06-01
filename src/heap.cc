@@ -107,6 +107,7 @@ Heap::Heap()
       cell_space_(NULL),
       lo_space_(NULL),
       gc_state_(NOT_IN_GC),
+      gc_post_processing_depth_(0),
       mc_count_(0),
       ms_count_(0),
       gc_count_(0),
@@ -793,12 +794,14 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   }
 
   isolate_->counters()->objs_since_last_young()->Set(0);
-
+  
+  gc_post_processing_depth_++;
   { DisableAssertNoAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     next_gc_likely_to_collect_more =
         isolate_->global_handles()->PostGarbageCollectionProcessing(collector);
   }
+  gc_post_processing_depth_--;
 
   // Update relocatables.
   Relocatable::PostGarbageCollectionProcessing();
