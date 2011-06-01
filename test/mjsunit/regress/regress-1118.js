@@ -55,6 +55,8 @@ function h() {
     while (%GetOptimizationStatus(h) == 2) {
       for (var j = 0; j < 100; j++) g();
     }
+    assertTrue(%GetOptimizationStatus(h) == 1 ||
+               %GetOptimizationStatus(h) == 3);
     g();
   }
 }

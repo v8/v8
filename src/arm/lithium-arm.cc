@@ -808,11 +808,6 @@ LInstruction* LChunkBuilder::DoBlockEntry(HBlockEntry* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoSoftDeoptimize(HSoftDeoptimize* instr) {
-  return AssignEnvironment(new LDeoptimize);
-}
-
-
 LInstruction* LChunkBuilder::DoDeoptimize(HDeoptimize* instr) {
   return AssignEnvironment(new LDeoptimize);
 }
