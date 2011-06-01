@@ -29,6 +29,7 @@
 
 #include "src/extensions/experimental/break-iterator.h"
 #include "src/extensions/experimental/collator.h"
+#include "src/extensions/experimental/datetime-format.h"
 #include "src/extensions/experimental/i18n-locale.h"
 #include "src/extensions/experimental/i18n-natives.h"
 
@@ -49,6 +50,8 @@ v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(
     return v8::FunctionTemplate::New(BreakIterator::JSBreakIterator);
   } else if (name->Equals(v8::String::New("NativeJSCollator"))) {
     return v8::FunctionTemplate::New(Collator::JSCollator);
+  } else if (name->Equals(v8::String::New("NativeJSDateTimeFormat"))) {
+    return v8::FunctionTemplate::New(DateTimeFormat::JSDateTimeFormat);
   }
 
   return v8::Handle<v8::FunctionTemplate>();
