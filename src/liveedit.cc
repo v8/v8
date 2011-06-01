@@ -59,18 +59,64 @@ void SetElementNonStrict(Handle<JSObject> object,
   USE(no_failure);
 }
 
+// Creates string expression and throws it in V8 isolate.
+void ThrowStringException(const char* str, Isolate* isolate) {
+  Vector<const char> str_vector(str, strlen(str));
+  MaybeObject* maybe_exception =
+      isolate->heap()->AllocateStringFromAscii(str_vector);
+  Object* exception;
+  if (maybe_exception->ToObject(&exception)) {
+    isolate->Throw(exception, NULL);
+  }
+}
+
 // A simple implementation of dynamic programming algorithm. It solves
-// the problem of finding the difference of 2 arrays. It uses a table of results
-// of subproblems. Each cell contains a number together with 2-bit flag
+// the problem of finding the difference of 2 arrays. It uses a table of
+// results of subproblems. Each cell contains a number together with 2-bit flag
 // that helps building the chunk list.
 class Differencer {
  public:
-  explicit Differencer(Comparator::Input* input)
-      : input_(input), len1_(input->GetLength1()), len2_(input->GetLength2()) {
-    buffer_ = NewArray<int>(len1_ * len2_);
+  explicit Differencer(Comparator::Input* input, Isolate* isolate,
+                       bool* has_exception)
+      : input_(input), buffer_(NULL), len1_(input->GetLength1()),
+        len2_(input->GetLength2()) {
+    // Put multiply result into a bigger integer.
+    int64_t multiply =
+        static_cast<int64_t>(len1_) * static_cast<int64_t>(len2_);
+
+    // Maximum table size is max_int. Within this limit it's easy to check
+    // for multiply overflow. Should we support bigger numbers?
+    if (multiply > kMaxInt) {
+      ThrowStringException("Too many lines: differencer table size is too big",
+          isolate);
+      *has_exception = true;
+      return;
+    }
+    multiply *= sizeof(int);  // NOLINT
+    size_t size = multiply;
+    if (size != multiply) {
+      // Shouldn't be reachable.
+      ThrowStringException(
+          "Too many lines: "
+          "differencer table buffer size doesn't fit into size_t", isolate);
+      *has_exception = true;
+      return;
+    }
+    void* p = malloc(size);
+    if (p == NULL) {
+      ThrowStringException(
+          "Too many lines: not enough memory for differencer table buffer",
+          isolate);
+      *has_exception = true;
+      return;
+    }
+    buffer_ = reinterpret_cast<int*>(p);
   }
+
   ~Differencer() {
-    DeleteArray(buffer_);
+    if (buffer_ != NULL) {
+      free(buffer_);
+    }
   }
 
   void Initialize() {
@@ -259,12 +305,18 @@ class Differencer {
 };
 
 
-void Comparator::CalculateDifference(Comparator::Input* input,
-                                     Comparator::Output* result_writer) {
-  Differencer differencer(input);
+MUST_USE_RESULT MaybeObject/*<void>*/* Comparator::CalculateDifference(
+    Comparator::Input* input, Comparator::Output* result_writer,
+    Isolate* isolate) {
+  bool has_exception = false;
+  Differencer differencer(input, isolate, &has_exception);
+  if (has_exception) {
+    return Failure::Exception();
+  }
   differencer.Initialize();
   differencer.FillTable();
   differencer.SaveResult(result_writer);
+  return Smi::FromInt(0);  // Unused value.
 }
 
 
@@ -524,9 +576,10 @@ class TokenizingLineArrayCompareOutput : public SubrangableOutput {
  public:
   TokenizingLineArrayCompareOutput(LineEndsWrapper line_ends1,
                                    LineEndsWrapper line_ends2,
-                                   Handle<String> s1, Handle<String> s2)
+                                   Handle<String> s1, Handle<String> s2,
+                                   Isolate* isolate)
       : line_ends1_(line_ends1), line_ends2_(line_ends2), s1_(s1), s2_(s2),
-        subrange_offset1_(0), subrange_offset2_(0) {
+        subrange_offset1_(0), subrange_offset2_(0), isolate_(isolate) {
   }
 
   void AddChunk(int line_pos1, int line_pos2, int line_len1, int line_len2) {
@@ -547,7 +600,12 @@ class TokenizingLineArrayCompareOutput : public SubrangableOutput {
       TokensCompareOutput tokens_output(&array_writer_, char_pos1,
                                           char_pos2);
 
-      Comparator::CalculateDifference(&tokens_input, &tokens_output);
+      MaybeObject* res = Comparator::CalculateDifference(&tokens_input,
+          &tokens_output, isolate_);
+      if (res->IsFailure()) {
+        // We asked for a small amount of memory, this should not happen.
+        UNREACHABLE();
+      }
     } else {
       array_writer_.WriteChunk(char_pos1, char_pos2, char_len1, char_len2);
     }
@@ -573,11 +631,14 @@ class TokenizingLineArrayCompareOutput : public SubrangableOutput {
   Handle<String> s2_;
   int subrange_offset1_;
   int subrange_offset2_;
+  Isolate* isolate_;
 };
 
 
-Handle<JSArray> LiveEdit::CompareStrings(Handle<String> s1,
-                                         Handle<String> s2) {
+MUST_USE_RESULT MaybeObject/*<JSArray>*/* LiveEdit::CompareStrings(
+    Handle<String> s1, Handle<String> s2) {
+
+  Isolate* isolate = Isolate::Current();
   s1 = FlattenGetString(s1);
   s2 = FlattenGetString(s2);
 
@@ -585,13 +646,18 @@ Handle<JSArray> LiveEdit::CompareStrings(Handle<String> s1,
   LineEndsWrapper line_ends2(s2);
 
   LineArrayCompareInput input(s1, s2, line_ends1, line_ends2);
-  TokenizingLineArrayCompareOutput output(line_ends1, line_ends2, s1, s2);
+  TokenizingLineArrayCompareOutput output(line_ends1, line_ends2, s1, s2,
+      isolate);
 
   NarrowDownInput(&input, &output);
 
-  Comparator::CalculateDifference(&input, &output);
+  MaybeObject* result = Comparator::CalculateDifference(&input, &output,
+      isolate);
+  if (result->IsFailure()) {
+    return result;
+  }
 
-  return output.GetResult();
+  return *output.GetResult();
 }
 
 

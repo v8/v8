@@ -135,8 +135,8 @@ class LiveEdit : AllStatic {
   // Compares 2 strings line-by-line, then token-wise and returns diff in form
   // of array of triplets (pos1, pos1_end, pos2_end) describing list
   // of diff chunks.
-  static Handle<JSArray> CompareStrings(Handle<String> s1,
-                                        Handle<String> s2);
+  static MUST_USE_RESULT MaybeObject/*<JSArray>*/* CompareStrings(
+      Handle<String> s1, Handle<String> s2);
 };
 
 
@@ -168,8 +168,8 @@ class Comparator {
   };
 
   // Finds the difference between 2 arrays of elements.
-  static void CalculateDifference(Input* input,
-                                  Output* result_writer);
+  static MUST_USE_RESULT MaybeObject/*<void>*/* CalculateDifference(
+      Input* input, Output* result_writer, Isolate* isolate);
 };
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
