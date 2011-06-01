@@ -60,8 +60,9 @@ $Proxy.createFunction = function(handler, callTrap, constructTrap) {
 }
 
 $Proxy.create = function(handler, proto) {
-  if (!IS_SPEC_OBJECT(handler)) throw TypeError
-  if (!IS_SPEC_OBJECT(proto)) proto = $Object.prototype
+  if (!IS_SPEC_OBJECT(handler))
+    throw MakeTypeError("handler_non_object", ["create"])
+  if (!IS_SPEC_OBJECT(proto)) proto = null  // Mozilla does this...
   return %CreateJSProxy(handler, proto)
 }
 
@@ -129,4 +130,8 @@ function DerivedSetTrap(receiver, name, val) {
     enumerable: true,
     configurable: true});
   return true;
+}
+
+function DerivedHasTrap(name) {
+  return !!this.getPropertyDescriptor(name)
 }

@@ -638,7 +638,7 @@ Object* Object::GetPrototype() {
 
   // The object is either a number, a string, a boolean,
   // a real JS object, or a Harmony proxy.
-  if (heap_object->IsJSObject() || heap_object->IsJSProxy()) {
+  if (heap_object->IsJSReceiver()) {
     return heap_object->map()->prototype();
   }
   Heap* heap = heap_object->GetHeap();
@@ -3345,8 +3345,7 @@ void JSObject::LocalLookup(String* name, LookupResult* result) {
   }
 
   // Check __proto__ before interceptor.
-  if (name->Equals(heap->Proto_symbol()) &&
-      !IsJSContextExtensionObject()) {
+  if (name->Equals(heap->Proto_symbol()) && !IsJSContextExtensionObject()) {
     result->ConstantResult(this);
     return;
   }

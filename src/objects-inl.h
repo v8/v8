@@ -2961,7 +2961,7 @@ Object* Map::prototype() {
 
 
 void Map::set_prototype(Object* value, WriteBarrierMode mode) {
-  ASSERT(value->IsNull() || value->IsJSObject());
+  ASSERT(value->IsNull() || value->IsJSReceiver());
   WRITE_FIELD(this, kPrototypeOffset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kPrototypeOffset, mode);
 }
