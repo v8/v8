@@ -4194,14 +4194,6 @@ bool HGraphBuilder::TryInline(Call* expr) {
     return false;
   }
 
-  // Check if we can handle all declarations in the inlined functions.
-  VisitDeclarations(target_info.scope()->declarations());
-  if (HasStackOverflow()) {
-    TraceInline(target, caller, "target has non-trivial declaration");
-    ClearStackOverflow();
-    return false;
-  }
-
   // Don't inline functions that uses the arguments object or that
   // have a mismatching number of parameters.
   int arity = expr->arguments()->length();
@@ -4211,6 +4203,15 @@ bool HGraphBuilder::TryInline(Call* expr) {
     return false;
   }
 
+  // All declarations must be inlineable.
+  ZoneList<Declaration*>* decls = target_info.scope()->declarations();
+  int decl_count = decls->length();
+  for (int i = 0; i < decl_count; ++i) {
+    if (!decls->at(i)->IsInlineable()) {
+      TraceInline(target, caller, "target has non-trivial declaration");
+      return false;
+    }
+  }
   // All statements in the body must be inlineable.
   for (int i = 0, count = function->body()->length(); i < count; ++i) {
     if (!function->body()->at(i)->IsInlineable()) {
@@ -4236,6 +4237,9 @@ bool HGraphBuilder::TryInline(Call* expr) {
   }
 
   // ----------------------------------------------------------------
+  // After this point, we've made a decision to inline this function (so
+  // TryInline should always return true).
+
   // Save the pending call context and type feedback oracle. Set up new ones
   // for the inlined function.
   ASSERT(target_shared->has_deoptimization_support());
@@ -4253,12 +4257,12 @@ bool HGraphBuilder::TryInline(Call* expr) {
                                      call_kind);
   HBasicBlock* body_entry = CreateBasicBlock(inner_env);
   current_block()->Goto(body_entry);
-
   body_entry->SetJoinId(expr->ReturnId());
   set_current_block(body_entry);
   AddInstruction(new(zone()) HEnterInlined(target,
                                            function,
                                            call_kind));
+  VisitDeclarations(target_info.scope()->declarations());
   VisitStatements(function->body());
   if (HasStackOverflow()) {
     // Bail out if the inline function did, as we cannot residualize a call
@@ -5406,15 +5410,9 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 
 void HGraphBuilder::VisitDeclaration(Declaration* decl) {
-  // We allow only declarations that do not require code generation.
-  // The following all require code generation: global variables,
-  // functions, and variables with slot type LOOKUP
+  // We support only declarations that do not require code generation.
   Variable* var = decl->proxy()->var();
-  Slot* slot = var->AsSlot();
-  if (var->is_global() ||
-      !var->IsStackAllocated() ||
-      (slot != NULL && slot->type() == Slot::LOOKUP) ||
-      decl->fun() != NULL) {
+  if (!var->IsStackAllocated() || decl->fun() != NULL) {
     return Bailout("unsupported declaration");
   }
 
