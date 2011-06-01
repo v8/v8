@@ -140,6 +140,8 @@ void Object::Lookup(String* name, LookupResult* result) {
     HeapObject* heap_object = HeapObject::cast(this);
     if (heap_object->IsJSObject()) {
       return JSObject::cast(this)->Lookup(name, result);
+    } else if (heap_object->IsJSProxy()) {
+      return result->HandlerResult();
     }
     Context* global_context = Isolate::Current()->context()->global_context();
     if (heap_object->IsString()) {
@@ -148,8 +150,6 @@ void Object::Lookup(String* name, LookupResult* result) {
       holder = global_context->number_function()->instance_prototype();
     } else if (heap_object->IsBoolean()) {
       holder = global_context->boolean_function()->instance_prototype();
-    } else if (heap_object->IsJSProxy()) {
-      return result->HandlerResult();
     }
   }
   ASSERT(holder != NULL);  // Cannot handle null or undefined.
@@ -236,9 +236,9 @@ MaybeObject* Object::GetPropertyWithHandler(Object* receiver_raw,
   Handle<Object> handler(handler_raw);
 
   // Extract trap function.
-  LookupResult lookup;
-  Handle<Object> trap(v8::internal::GetProperty(handler, "get", &lookup));
-  if (!lookup.IsFound()) {
+  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("get");
+  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (trap->IsUndefined()) {
     // Get the derived `get' property.
     trap = isolate->derived_get_trap();
   }
@@ -1281,8 +1281,8 @@ void HeapNumber::HeapNumberPrint(StringStream* accumulator) {
 }
 
 
-String* JSObject::class_name() {
-  if (IsJSFunction()) {
+String* JSReceiver::class_name() {
+  if (IsJSFunction() && IsJSFunctionProxy()) {
     return GetHeap()->function_class_symbol();
   }
   if (map()->constructor()->IsJSFunction()) {
@@ -1294,7 +1294,7 @@ String* JSObject::class_name() {
 }
 
 
-String* JSObject::constructor_name() {
+String* JSReceiver::constructor_name() {
   if (map()->constructor()->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(map()->constructor());
     String* name = String::cast(constructor->shared()->name());
@@ -1304,6 +1304,7 @@ String* JSObject::constructor_name() {
     Object* proto = GetPrototype();
     if (proto->IsJSObject()) return JSObject::cast(proto)->constructor_name();
   }
+  // TODO(rossberg): what about proxies?
   // If the constructor is not present, return "Object".
   return GetHeap()->Object_symbol();
 }
@@ -1758,10 +1759,10 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
 }
 
 
-MaybeObject* JSObject::SetProperty(String* name,
-                                   Object* value,
-                                   PropertyAttributes attributes,
-                                   StrictModeFlag strict_mode) {
+MaybeObject* JSReceiver::SetProperty(String* name,
+                                     Object* value,
+                                     PropertyAttributes attributes,
+                                     StrictModeFlag strict_mode) {
   LookupResult result;
   LocalLookup(name, &result);
   return SetProperty(&result, name, value, attributes, strict_mode);
@@ -1771,7 +1772,8 @@ MaybeObject* JSObject::SetProperty(String* name,
 MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
                                                String* name,
                                                Object* value,
-                                               JSObject* holder) {
+                                               JSObject* holder,
+                                               StrictModeFlag strict_mode) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
 
@@ -1819,6 +1821,9 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     if (setter->IsJSFunction()) {
      return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
     } else {
+      if (strict_mode == kNonStrictMode) {
+        return value;
+      }
       Handle<String> key(name);
       Handle<Object> holder_handle(holder, isolate);
       Handle<Object> args[2] = { key, holder_handle };
@@ -1876,9 +1881,11 @@ void JSObject::LookupCallbackSetterInPrototypes(String* name,
 }
 
 
-MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(uint32_t index,
-                                                                Object* value,
-                                                                bool* found) {
+MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
+    uint32_t index,
+    Object* value,
+    bool* found,
+    StrictModeFlag strict_mode) {
   Heap* heap = GetHeap();
   for (Object* pt = GetPrototype();
        pt != heap->null_value();
@@ -1892,8 +1899,11 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(uint32_t index,
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
         *found = true;
-        return SetElementWithCallback(
-            dictionary->ValueAt(entry), index, value, JSObject::cast(pt));
+        return SetElementWithCallback(dictionary->ValueAt(entry),
+                                      index,
+                                      value,
+                                      JSObject::cast(pt),
+                                      strict_mode);
       }
     }
   }
@@ -2074,10 +2084,12 @@ void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
 
 
 // We only need to deal with CALLBACKS and INTERCEPTORS
-MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
-                                                        String* name,
-                                                        Object* value,
-                                                        bool check_prototype) {
+MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
+    LookupResult* result,
+    String* name,
+    Object* value,
+    bool check_prototype,
+    StrictModeFlag strict_mode) {
   if (check_prototype && !result->IsProperty()) {
     LookupCallbackSetterInPrototypes(name, result);
   }
@@ -2093,7 +2105,8 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
               return SetPropertyWithCallback(result->GetCallbackObject(),
                                              name,
                                              value,
-                                             result->holder());
+                                             result->holder(),
+                                             strict_mode);
             }
           }
           break;
@@ -2104,8 +2117,11 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
           LookupResult r;
           LookupRealNamedProperty(name, &r);
           if (r.IsProperty()) {
-            return SetPropertyWithFailedAccessCheck(&r, name, value,
-                                                    check_prototype);
+            return SetPropertyWithFailedAccessCheck(&r,
+                                                    name,
+                                                    value,
+                                                    check_prototype,
+                                                    strict_mode);
           }
           break;
         }
@@ -2124,7 +2140,89 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
 }
 
 
-MaybeObject* JSObject::SetProperty(LookupResult* result,
+MaybeObject* JSReceiver::SetProperty(LookupResult* result,
+                                     String* key,
+                                     Object* value,
+                                     PropertyAttributes attributes,
+                                     StrictModeFlag strict_mode) {
+  if (result->IsFound() && result->type() == HANDLER) {
+    return JSProxy::cast(this)->SetPropertyWithHandler(
+        key, value, attributes, strict_mode);
+  } else {
+    return JSObject::cast(this)->SetPropertyForResult(
+        result, key, value, attributes, strict_mode);
+  }
+}
+
+
+MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
+    String* name_raw,
+    Object* value_raw,
+    PropertyAttributes attributes,
+    StrictModeFlag strict_mode) {
+  Isolate* isolate = GetIsolate();
+  HandleScope scope;
+  Handle<Object> receiver(this);
+  Handle<Object> name(name_raw);
+  Handle<Object> value(value_raw);
+  Handle<Object> handler(this->handler());
+
+  // Extract trap function.
+  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("set");
+  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (trap->IsUndefined()) {
+    trap = isolate->derived_set_trap();
+  }
+
+  // Call trap function.
+  Object** args[] = {
+      receiver.location(), name.location(), value.location()
+  };
+  bool has_exception;
+  Handle<Object> result =
+      Execution::Call(trap, handler, ARRAY_SIZE(args), args, &has_exception);
+  if (has_exception) return Failure::Exception();
+
+  return value_raw;
+}
+
+
+MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
+    JSReceiver* receiver_raw,
+    String* name_raw,
+    bool* has_exception) {
+  Isolate* isolate = GetIsolate();
+  HandleScope scope;
+  Handle<JSReceiver> receiver(receiver_raw);
+  Handle<Object> name(name_raw);
+  Handle<Object> handler(this->handler());
+
+  // Extract trap function.
+  Handle<String> trap_name =
+      isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
+  Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
+  if (trap->IsUndefined()) {
+    Handle<Object> args[] = { handler, trap_name };
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "handler_trap_missing", HandleVector(args, ARRAY_SIZE(args)));
+    isolate->Throw(*error);
+    *has_exception = true;
+    return NONE;
+  }
+
+  // Call trap function.
+  Object** args[] = { name.location() };
+  Handle<Object> result =
+      Execution::Call(trap, handler, ARRAY_SIZE(args), args, has_exception);
+  if (has_exception) return NONE;
+
+  // TODO(rossberg): convert result to PropertyAttributes
+  USE(result);
+  return NONE;
+}
+
+
+MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
                                    String* name,
                                    Object* value,
                                    PropertyAttributes attributes,
@@ -2149,7 +2247,11 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
   // Check access rights if needed.
   if (IsAccessCheckNeeded()
       && !heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
-    return SetPropertyWithFailedAccessCheck(result, name, value, true);
+    return SetPropertyWithFailedAccessCheck(result,
+                                            name,
+                                            value,
+                                            true,
+                                            strict_mode);
   }
 
   if (IsJSGlobalProxy()) {
@@ -2169,7 +2271,8 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
       return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
                                      name,
                                      value,
-                                     accessor_result.holder());
+                                     accessor_result.holder(),
+                                     strict_mode);
     }
   }
   if (!result->IsFound()) {
@@ -2213,7 +2316,8 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
       return SetPropertyWithCallback(result->GetCallbackObject(),
                                      name,
                                      value,
-                                     result->holder());
+                                     result->holder(),
+                                     strict_mode);
     case INTERCEPTOR:
       return SetPropertyWithInterceptor(name, value, attributes, strict_mode);
     case CONSTANT_TRANSITION: {
@@ -2266,7 +2370,11 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   if (IsAccessCheckNeeded()) {
     Heap* heap = GetHeap();
     if (!heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
-      return SetPropertyWithFailedAccessCheck(&result, name, value, false);
+      return SetPropertyWithFailedAccessCheck(&result,
+                                              name,
+                                              value,
+                                              false,
+                                              kNonStrictMode);
     }
   }
 
@@ -2399,12 +2507,13 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
 }
 
 
-PropertyAttributes JSObject::GetPropertyAttributeWithReceiver(
-      JSObject* receiver,
+PropertyAttributes JSReceiver::GetPropertyAttributeWithReceiver(
+      JSReceiver* receiver,
       String* key) {
   uint32_t index = 0;
-  if (key->AsArrayIndex(&index)) {
-    if (HasElementWithReceiver(receiver, index)) return NONE;
+  if (IsJSObject() && key->AsArrayIndex(&index)) {
+    if (JSObject::cast(this)->HasElementWithReceiver(receiver, index))
+      return NONE;
     return ABSENT;
   }
   // Named property.
@@ -2414,18 +2523,17 @@ PropertyAttributes JSObject::GetPropertyAttributeWithReceiver(
 }
 
 
-PropertyAttributes JSObject::GetPropertyAttribute(JSObject* receiver,
-                                                  LookupResult* result,
-                                                  String* name,
-                                                  bool continue_search) {
+PropertyAttributes JSReceiver::GetPropertyAttribute(JSReceiver* receiver,
+                                                    LookupResult* result,
+                                                    String* name,
+                                                    bool continue_search) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
+    JSObject* this_obj = JSObject::cast(this);
     Heap* heap = GetHeap();
-    if (!heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_HAS)) {
-      return GetPropertyAttributeWithFailedAccessCheck(receiver,
-                                                       result,
-                                                       name,
-                                                       continue_search);
+    if (!heap->isolate()->MayNamedAccess(this_obj, name, v8::ACCESS_HAS)) {
+      return this_obj->GetPropertyAttributeWithFailedAccessCheck(
+          receiver, result, name, continue_search);
     }
   }
   if (result->IsProperty()) {
@@ -2435,9 +2543,15 @@ PropertyAttributes JSObject::GetPropertyAttribute(JSObject* receiver,
       case CONSTANT_FUNCTION:
       case CALLBACKS:
         return result->GetAttributes();
+      case HANDLER: {
+        // TODO(rossberg): propagate exceptions properly.
+        bool has_exception = false;
+        return JSProxy::cast(this)->GetPropertyAttributeWithHandler(
+            receiver, name, &has_exception);
+      }
       case INTERCEPTOR:
-        return result->holder()->
-          GetPropertyAttributeWithInterceptor(receiver, name, continue_search);
+        return result->holder()->GetPropertyAttributeWithInterceptor(
+            JSObject::cast(receiver), name, continue_search);
       default:
         UNREACHABLE();
     }
@@ -2446,11 +2560,11 @@ PropertyAttributes JSObject::GetPropertyAttribute(JSObject* receiver,
 }
 
 
-PropertyAttributes JSObject::GetLocalPropertyAttribute(String* name) {
+PropertyAttributes JSReceiver::GetLocalPropertyAttribute(String* name) {
   // Check whether the name is an array index.
   uint32_t index = 0;
-  if (name->AsArrayIndex(&index)) {
-    if (HasLocalElement(index)) return NONE;
+  if (IsJSObject() && name->AsArrayIndex(&index)) {
+    if (JSObject::cast(this)->HasLocalElement(index)) return NONE;
     return ABSENT;
   }
   // Named property.
@@ -2535,7 +2649,8 @@ bool NormalizedMapCache::CheckHit(Map* slow,
                                     fast->inobject_properties()) &&
     slow->instance_type() == fast->instance_type() &&
     slow->bit_field() == fast->bit_field() &&
-    (slow->bit_field2() & ~(1<<Map::kIsShared)) == fast->bit_field2();
+    slow->bit_field2() == fast->bit_field2() &&
+    (slow->bit_field3() & ~(1<<Map::kIsShared)) == fast->bit_field3();
 }
 
 
@@ -2657,7 +2772,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
                                      instance_size_delta);
 
   set_map(new_map);
-  new_map->set_instance_descriptors(current_heap->empty_descriptor_array());
+  new_map->clear_instance_descriptors();
 
   set_properties(dictionary);
 
@@ -3269,6 +3384,15 @@ AccessorDescriptor* Map::FindAccessor(String* name) {
 }
 
 
+void JSReceiver::LocalLookup(String* name, LookupResult* result) {
+  if (IsJSProxy()) {
+    result->HandlerResult();
+  } else {
+    JSObject::cast(this)->LocalLookup(name, result);
+  }
+}
+
+
 void JSObject::LocalLookup(String* name, LookupResult* result) {
   ASSERT(name->IsString());
 
@@ -3304,7 +3428,7 @@ void JSObject::LocalLookup(String* name, LookupResult* result) {
 }
 
 
-void JSObject::Lookup(String* name, LookupResult* result) {
+void JSReceiver::Lookup(String* name, LookupResult* result) {
   // Ecma-262 3rd 8.6.2.4
   Heap* heap = GetHeap();
   for (Object* current = this;
@@ -3753,8 +3877,7 @@ MaybeObject* Map::CopyDropDescriptors() {
   // pointing to the same transition which is bad because the garbage
   // collector relies on being able to reverse pointers from transitions
   // to maps.  If properties need to be retained use CopyDropTransitions.
-  Map::cast(result)->set_instance_descriptors(
-      heap->empty_descriptor_array());
+  Map::cast(result)->clear_instance_descriptors();
   // Please note instance_type and instance_size are set when allocated.
   Map::cast(result)->set_inobject_properties(inobject_properties());
   Map::cast(result)->set_unused_property_fields(unused_property_fields());
@@ -3776,6 +3899,7 @@ MaybeObject* Map::CopyDropDescriptors() {
   }
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
+  Map::cast(result)->set_bit_field3(bit_field3());
   Map::cast(result)->set_is_shared(false);
   Map::cast(result)->ClearCodeCache(heap);
   return result;
@@ -3804,6 +3928,7 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
 
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
+  Map::cast(result)->set_bit_field3(bit_field3());
 
   Map::cast(result)->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
 
@@ -3879,8 +4004,8 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
   Map* meta_map = heap()->meta_map();
   while (current != meta_map) {
     DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
-        *RawField(current, Map::kInstanceDescriptorsOffset));
-    if (d == heap()->empty_descriptor_array()) {
+        *RawField(current, Map::kInstanceDescriptorsOrBitField3Offset));
+    if (d->IsEmpty()) {
       Map* prev = current->map();
       current->set_map(meta_map);
       callback(current, data);
@@ -4362,6 +4487,7 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors) {
         heap->AllocateFixedArray(number_of_descriptors << 1);
     if (!maybe_array->ToObject(&array)) return maybe_array;
   }
+  result->set(kBitField3StorageIndex, Smi::FromInt(0));
   result->set(kContentArrayIndex, array);
   result->set(kEnumerationIndexIndex,
               Smi::FromInt(PropertyDetails::kInitialIndex));
@@ -5623,6 +5749,9 @@ bool String::IsEqualTo(Vector<const char> str) {
 bool String::IsAsciiEqualTo(Vector<const char> str) {
   int slen = length();
   if (str.length() != slen) return false;
+  if (IsFlat() && IsAsciiRepresentation()) {
+    return CompareChars(ToAsciiVector().start(), str.start(), slen) == 0;
+  }
   for (int i = 0; i < slen; i++) {
     if (Get(i) != static_cast<uint16_t>(str[i])) return false;
   }
@@ -5633,6 +5762,9 @@ bool String::IsAsciiEqualTo(Vector<const char> str) {
 bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
   int slen = length();
   if (str.length() != slen) return false;
+  if (IsFlat() && IsTwoByteRepresentation()) {
+    return CompareChars(ToUC16Vector().start(), str.start(), slen) == 0;
+  }
   for (int i = 0; i < slen; i++) {
     if (Get(i) != str[i]) return false;
   }
@@ -5818,8 +5950,8 @@ void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
   // Live DescriptorArray objects will be marked, so we must use
   // low-level accessors to get and modify their data.
   DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
-      *RawField(this, Map::kInstanceDescriptorsOffset));
-  if (d == heap->raw_unchecked_empty_descriptor_array()) return;
+      *RawField(this, Map::kInstanceDescriptorsOrBitField3Offset));
+  if (d->IsEmpty()) return;
   Smi* NullDescriptorDetails =
     PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
   FixedArray* contents = reinterpret_cast<FixedArray*>(
@@ -6697,8 +6829,8 @@ const char* Code::Kind2String(Kind kind) {
     case KEYED_STORE_IC: return "KEYED_STORE_IC";
     case CALL_IC: return "CALL_IC";
     case KEYED_CALL_IC: return "KEYED_CALL_IC";
-    case TYPE_RECORDING_UNARY_OP_IC: return "TYPE_RECORDING_UNARY_OP_IC";
-    case TYPE_RECORDING_BINARY_OP_IC: return "TYPE_RECORDING_BINARY_OP_IC";
+    case UNARY_OP_IC: return "UNARY_OP_IC";
+    case BINARY_OP_IC: return "BINARY_OP_IC";
     case COMPARE_IC: return "COMPARE_IC";
   }
   UNREACHABLE();
@@ -7170,12 +7302,12 @@ MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
 }
 
 
-MaybeObject* JSObject::SetPrototype(Object* value,
-                                    bool skip_hidden_prototypes) {
+MaybeObject* JSReceiver::SetPrototype(Object* value,
+                                      bool skip_hidden_prototypes) {
   Heap* heap = GetHeap();
   // Silently ignore the change if value is not a JSObject or null.
   // SpiderMonkey behaves this way.
-  if (!value->IsJSObject() && !value->IsNull()) return value;
+  if (!value->IsJSReceiver() && !value->IsNull()) return value;
 
   // From 8.6.2 Object Internal Methods
   // ...
@@ -7206,7 +7338,7 @@ MaybeObject* JSObject::SetPrototype(Object* value,
     }
   }
 
-  JSObject* real_receiver = this;
+  JSReceiver* real_receiver = this;
 
   if (skip_hidden_prototypes) {
     // Find the first object in the chain whose prototype object is not
@@ -7247,7 +7379,7 @@ MaybeObject* JSObject::SetPrototype(Object* value,
 }
 
 
-bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
+bool JSObject::HasElementPostInterceptor(JSReceiver* receiver, uint32_t index) {
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
       uint32_t length = IsJSArray() ?
@@ -7302,14 +7434,14 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
 }
 
 
-bool JSObject::HasElementWithInterceptor(JSObject* receiver, uint32_t index) {
+bool JSObject::HasElementWithInterceptor(JSReceiver* receiver, uint32_t index) {
   Isolate* isolate = GetIsolate();
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
   HandleScope scope(isolate);
   Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
-  Handle<JSObject> receiver_handle(receiver);
+  Handle<JSReceiver> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
   CustomArguments args(isolate, interceptor->data(), receiver, this);
   v8::AccessorInfo info(args.end());
@@ -7460,7 +7592,7 @@ bool JSObject::HasElementInElements(FixedArray* elements,
 }
 
 
-bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
+bool JSObject::HasElementWithReceiver(JSReceiver* receiver, uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
     Heap* heap = GetHeap();
@@ -7477,10 +7609,13 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
 
   ElementsKind kind = GetElementsKind();
   switch (kind) {
-    case FAST_ELEMENTS:
-    case DICTIONARY_ELEMENTS: {
-      FixedArray* elements = FixedArray::cast(this->elements());
-      if (HasElementInElements(elements, kind, index)) return true;
+    case FAST_ELEMENTS: {
+      uint32_t length = IsJSArray() ?
+          static_cast<uint32_t>
+              (Smi::cast(JSArray::cast(this)->length())->value()) :
+          static_cast<uint32_t>(FixedArray::cast(elements())->length());
+      if ((index < length) &&
+          !FixedArray::cast(elements())->get(index)->IsTheHole()) return true;
       break;
     }
     case EXTERNAL_PIXEL_ELEMENTS: {
@@ -7500,6 +7635,13 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
     case EXTERNAL_DOUBLE_ELEMENTS: {
       ExternalArray* array = ExternalArray::cast(elements());
       if (index < static_cast<uint32_t>(array->length())) {
+        return true;
+      }
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      if (element_dictionary()->FindEntry(index)
+          != NumberDictionary::kNotFound) {
         return true;
       }
       break;
@@ -7616,7 +7758,8 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
 MaybeObject* JSObject::SetElementWithCallback(Object* structure,
                                               uint32_t index,
                                               Object* value,
-                                              JSObject* holder) {
+                                              JSObject* holder,
+                                              StrictModeFlag strict_mode) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
 
@@ -7655,10 +7798,13 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
   }
 
   if (structure->IsFixedArray()) {
-    Object* setter = FixedArray::cast(structure)->get(kSetterIndex);
+    Handle<Object> setter(FixedArray::cast(structure)->get(kSetterIndex));
     if (setter->IsJSFunction()) {
-     return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
+     return SetPropertyWithDefinedSetter(JSFunction::cast(*setter), value);
     } else {
+      if (strict_mode == kNonStrictMode) {
+        return value;
+      }
       Handle<Object> holder_handle(holder, isolate);
       Handle<Object> key(isolate->factory()->NewNumberFromUint(index));
       Handle<Object> args[2] = { key, holder_handle };
@@ -7720,8 +7866,10 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
   if (check_prototype &&
       (index >= length || backing_store->get(index)->IsTheHole())) {
     bool found;
-    MaybeObject* result =
-        SetElementWithCallbackSetterInPrototypes(index, value, &found);
+    MaybeObject* result = SetElementWithCallbackSetterInPrototypes(index,
+                                                                   value,
+                                                                   &found,
+                                                                   strict_mode);
     if (found) return result;
   }
 
@@ -7786,7 +7934,7 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
     Object* element = dictionary->ValueAt(entry);
     PropertyDetails details = dictionary->DetailsAt(entry);
     if (details.type() == CALLBACKS) {
-      return SetElementWithCallback(element, index, value, this);
+      return SetElementWithCallback(element, index, value, this, strict_mode);
     } else {
       dictionary->UpdateMaxNumberKey(index);
       // If put fails in strict mode, throw an exception.
@@ -7805,8 +7953,8 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
     if (check_prototype) {
       bool found;
       MaybeObject* result =
-          // Strict mode not needed. No-setter case already handled.
-          SetElementWithCallbackSetterInPrototypes(index, value, &found);
+          SetElementWithCallbackSetterInPrototypes(
+              index, value, &found, strict_mode);
       if (found) return result;
     }
     // When we set the is_extensible flag to false we always force the
@@ -7951,6 +8099,10 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
       ExternalFloatArray* array = ExternalFloatArray::cast(elements());
       return array->SetValue(index, value);
     }
+    case EXTERNAL_DOUBLE_ELEMENTS: {
+      ExternalDoubleArray* array = ExternalDoubleArray::cast(elements());
+      return array->SetValue(index, value);
+    }
     case NON_STRICT_ARGUMENTS_ELEMENTS: {
       FixedArray* parameter_map = FixedArray::cast(elements());
       uint32_t length = parameter_map->length();
@@ -7972,10 +8124,6 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
           return SetFastElement(index, value, strict_mode, check_prototype);
         }
       }
-    }
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      ExternalDoubleArray* array = ExternalDoubleArray::cast(elements());
-      return array->SetValue(index, value);
     }
   }
   // All possible cases have been handled above. Add a return to avoid the
@@ -8436,7 +8584,7 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 
 
 MaybeObject* JSObject::GetPropertyPostInterceptor(
-    JSObject* receiver,
+    JSReceiver* receiver,
     String* name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
@@ -8454,7 +8602,7 @@ MaybeObject* JSObject::GetPropertyPostInterceptor(
 
 
 MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
-    JSObject* receiver,
+    JSReceiver* receiver,
     String* name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
@@ -8468,13 +8616,13 @@ MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
 
 
 MaybeObject* JSObject::GetPropertyWithInterceptor(
-    JSObject* receiver,
+    JSReceiver* receiver,
     String* name,
     PropertyAttributes* attributes) {
   Isolate* isolate = GetIsolate();
   InterceptorInfo* interceptor = GetNamedInterceptor();
   HandleScope scope(isolate);
-  Handle<JSObject> receiver_handle(receiver);
+  Handle<JSReceiver> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
 
@@ -9102,6 +9250,71 @@ class AsciiSymbolKey : public SequentialSymbolKey<char> {
     if (hash_field_ == 0) Hash();
     return HEAP->AllocateAsciiSymbol(string_, hash_field_);
   }
+};
+
+
+class SubStringAsciiSymbolKey : public HashTableKey {
+ public:
+  explicit SubStringAsciiSymbolKey(Handle<SeqAsciiString> string,
+                                   int from,
+                                   int length)
+      : string_(string), from_(from), length_(length) { }
+
+  uint32_t Hash() {
+    ASSERT(length_ >= 0);
+    ASSERT(from_ + length_ <= string_->length());
+    StringHasher hasher(length_);
+
+    // Very long strings have a trivial hash that doesn't inspect the
+    // string contents.
+    if (hasher.has_trivial_hash()) {
+      hash_field_ = hasher.GetHashField();
+    } else {
+      int i = 0;
+      // Do the iterative array index computation as long as there is a
+      // chance this is an array index.
+      while (i < length_ && hasher.is_array_index()) {
+        hasher.AddCharacter(static_cast<uc32>(
+            string_->SeqAsciiStringGet(i + from_)));
+        i++;
+      }
+
+      // Process the remaining characters without updating the array
+      // index.
+      while (i < length_) {
+        hasher.AddCharacterNoIndex(static_cast<uc32>(
+            string_->SeqAsciiStringGet(i + from_)));
+        i++;
+      }
+      hash_field_ = hasher.GetHashField();
+    }
+
+    uint32_t result = hash_field_ >> String::kHashShift;
+    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+
+  uint32_t HashForObject(Object* other) {
+    return String::cast(other)->Hash();
+  }
+
+  bool IsMatch(Object* string) {
+    Vector<const char> chars(string_->GetChars() + from_, length_);
+    return String::cast(string)->IsAsciiEqualTo(chars);
+  }
+
+  MaybeObject* AsObject() {
+    if (hash_field_ == 0) Hash();
+    Vector<const char> chars(string_->GetChars() + from_, length_);
+    return HEAP->AllocateAsciiSymbol(chars, hash_field_);
+  }
+
+ private:
+  Handle<SeqAsciiString> string_;
+  int from_;
+  int length_;
+  uint32_t hash_field_;
 };
 
 
@@ -9895,6 +10108,15 @@ MaybeObject* SymbolTable::LookupSymbol(Vector<const char> str, Object** s) {
 MaybeObject* SymbolTable::LookupAsciiSymbol(Vector<const char> str,
                                             Object** s) {
   AsciiSymbolKey key(str);
+  return LookupKey(&key, s);
+}
+
+
+MaybeObject* SymbolTable::LookupSubStringAsciiSymbol(Handle<SeqAsciiString> str,
+                                                     int from,
+                                                     int length,
+                                                     Object** s) {
+  SubStringAsciiSymbolKey key(str, from, length);
   return LookupKey(&key, s);
 }
 

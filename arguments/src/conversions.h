@@ -101,6 +101,10 @@ double StringToDouble(UnicodeCache* unicode_cache,
                       Vector<const char> str,
                       int flags,
                       double empty_string_val = 0);
+double StringToDouble(UnicodeCache* unicode_cache,
+                      Vector<const uc16> str,
+                      int flags,
+                      double empty_string_val = 0);
 // This version expects a zero-terminated character array.
 double StringToDouble(UnicodeCache* unicode_cache,
                       const char* str,

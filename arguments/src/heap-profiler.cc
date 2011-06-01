@@ -474,7 +474,7 @@ const JSObjectsClusterTreeConfig::Value JSObjectsClusterTreeConfig::kNoValue;
 
 
 ConstructorHeapProfile::ConstructorHeapProfile()
-    : zscope_(DELETE_ON_EXIT) {
+    : zscope_(Isolate::Current(), DELETE_ON_EXIT) {
 }
 
 
@@ -584,7 +584,7 @@ inline int ClustersCoarser::ClusterBackRefs::Compare(
 
 
 ClustersCoarser::ClustersCoarser()
-    : zscope_(DELETE_ON_EXIT),
+    : zscope_(Isolate::Current(), DELETE_ON_EXIT),
       sim_list_(ClustersCoarser::kInitialSimilarityListCapacity),
       current_pair_(NULL),
       current_set_(NULL),
@@ -699,7 +699,7 @@ const JSObjectsRetainerTreeConfig::Value JSObjectsRetainerTreeConfig::kNoValue =
 
 
 RetainerHeapProfile::RetainerHeapProfile()
-    : zscope_(DELETE_ON_EXIT),
+    : zscope_(Isolate::Current(), DELETE_ON_EXIT),
       aggregator_(NULL) {
   JSObjectsCluster roots(JSObjectsCluster::ROOTS);
   ReferencesExtractor extractor(roots, this);
@@ -1027,7 +1027,7 @@ class AggregatingRetainerTreeIterator {
     if (coarser_ != NULL &&
         !coarser_->GetCoarseEquivalent(cluster).is_null()) return;
     JSObjectsClusterTree* tree_to_iterate = tree;
-    ZoneScope zs(DELETE_ON_EXIT);
+    ZoneScope zs(Isolate::Current(), DELETE_ON_EXIT);
     JSObjectsClusterTree dest_tree_;
     if (coarser_ != NULL) {
       RetainersAggregator retainers_aggregator(coarser_, &dest_tree_);

@@ -306,8 +306,8 @@ void IC::Clear(Address address) {
       return KeyedStoreIC::Clear(address, target);
     case Code::CALL_IC: return CallIC::Clear(address, target);
     case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
-    case Code::TYPE_RECORDING_UNARY_OP_IC:
-    case Code::TYPE_RECORDING_BINARY_OP_IC:
+    case Code::UNARY_OP_IC:
+    case Code::BINARY_OP_IC:
     case Code::COMPARE_IC:
       // Clearing these is tricky and does not
       // make any performance difference.
@@ -318,12 +318,14 @@ void IC::Clear(Address address) {
 
 
 void CallICBase::Clear(Address address, Code* target) {
+  bool contextual = CallICBase::Contextual::decode(target->extra_ic_state());
   State state = target->ic_state();
   if (state == UNINITIALIZED) return;
   Code* code =
       Isolate::Current()->stub_cache()->FindCallInitialize(
           target->arguments_count(),
           target->ic_in_loop(),
+          contextual ? RelocInfo::CODE_TARGET_CONTEXT : RelocInfo::CODE_TARGET,
           target->kind());
   SetTargetAtAddress(address, code);
 }
@@ -574,7 +576,7 @@ bool CallICBase::TryUpdateExtraICState(LookupResult* lookup,
         ASSERT(string == args[0] || string == JSValue::cast(args[0])->value());
         // If we're in the default (fastest) state and the index is
         // out of bounds, update the state to record this fact.
-        if (*extra_ic_state == DEFAULT_STRING_STUB &&
+        if (StringStubState::decode(*extra_ic_state) == DEFAULT_STRING_STUB &&
             argc >= 1 && args[1]->IsNumber()) {
           double index;
           if (args[1]->IsSmi()) {
@@ -584,7 +586,9 @@ bool CallICBase::TryUpdateExtraICState(LookupResult* lookup,
             index = DoubleToInteger(HeapNumber::cast(args[1])->value());
           }
           if (index < 0 || index >= string->length()) {
-            *extra_ic_state = STRING_INDEX_OUT_OF_BOUNDS;
+            *extra_ic_state =
+                StringStubState::update(*extra_ic_state,
+                                        STRING_INDEX_OUT_OF_BOUNDS);
             return true;
           }
         }
@@ -612,6 +616,7 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
       maybe_code = isolate()->stub_cache()->ComputeCallField(argc,
                                                              in_loop,
                                                              kind_,
+                                                             extra_ic_state,
                                                              *name,
                                                              *object,
                                                              lookup->holder(),
@@ -647,6 +652,7 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
         maybe_code = isolate()->stub_cache()->ComputeCallGlobal(argc,
                                                                 in_loop,
                                                                 kind_,
+                                                                extra_ic_state,
                                                                 *name,
                                                                 *receiver,
                                                                 global,
@@ -661,6 +667,7 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
         maybe_code = isolate()->stub_cache()->ComputeCallNormal(argc,
                                                                 in_loop,
                                                                 kind_,
+                                                                extra_ic_state,
                                                                 *name,
                                                                 *receiver);
       }
@@ -671,6 +678,7 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
       maybe_code = isolate()->stub_cache()->ComputeCallInterceptor(
           argc,
           kind_,
+          extra_ic_state,
           *name,
           *object,
           lookup->holder());
@@ -709,9 +717,11 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
-    maybe_code = isolate()->stub_cache()->ComputeCallPreMonomorphic(argc,
-                                                                    in_loop,
-                                                                    kind_);
+    maybe_code =
+        isolate()->stub_cache()->ComputeCallPreMonomorphic(argc,
+                                                           in_loop,
+                                                           kind_,
+                                                           extra_ic_state);
   } else if (state == MONOMORPHIC) {
     if (kind_ == Code::CALL_IC &&
         TryUpdateExtraICState(lookup, object, &extra_ic_state)) {
@@ -731,9 +741,11 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
                                           object,
                                           name);
     } else {
-      maybe_code = isolate()->stub_cache()->ComputeCallMegamorphic(argc,
-                                                                   in_loop,
-                                                                   kind_);
+      maybe_code =
+          isolate()->stub_cache()->ComputeCallMegamorphic(argc,
+                                                          in_loop,
+                                                          kind_,
+                                                          extra_ic_state);
     }
   } else {
     maybe_code = ComputeMonomorphicStub(lookup,
@@ -804,9 +816,10 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
             "KeyedCallIC", key, state, target(), in_loop ? " (in-loop)" : "");
 #endif
       }
-    } else if (!object->IsAccessCheckNeeded()) {
+    } else if (FLAG_use_ic && state != MEGAMORPHIC &&
+               !object->IsAccessCheckNeeded()) {
       MaybeObject* maybe_code = isolate()->stub_cache()->ComputeCallMegamorphic(
-          argc, in_loop, Code::KEYED_CALL_IC);
+          argc, in_loop, Code::KEYED_CALL_IC, Code::kNoExtraICState);
       Object* code;
       if (maybe_code->ToObject(&code)) {
         set_target(Code::cast(code));
@@ -1363,15 +1376,16 @@ static bool StoreICableLookup(LookupResult* lookup) {
 }
 
 
-static bool LookupForWrite(JSObject* object,
+static bool LookupForWrite(JSReceiver* receiver,
                            String* name,
                            LookupResult* lookup) {
-  object->LocalLookup(name, lookup);
+  receiver->LocalLookup(name, lookup);
   if (!StoreICableLookup(lookup)) {
     return false;
   }
 
   if (lookup->type() == INTERCEPTOR) {
+    JSObject* object = JSObject::cast(receiver);
     if (object->GetNamedInterceptor()->setter()->IsUndefined()) {
       object->LocalLookupRealNamedProperty(name, lookup);
       return StoreICableLookup(lookup);
@@ -1393,7 +1407,7 @@ MaybeObject* StoreIC::Store(State state,
     return TypeError("non_object_property_store", object, name);
   }
 
-  if (!object->IsJSObject()) {
+  if (!object->IsJSReceiver()) {
     // The length property of string values is read-only. Throw in strict mode.
     if (strict_mode == kStrictMode && object->IsString() &&
         name->Equals(isolate()->heap()->length_symbol())) {
@@ -1401,6 +1415,12 @@ MaybeObject* StoreIC::Store(State state,
     }
     // Ignore stores where the receiver is not a JSObject.
     return *value;
+  }
+
+  // Handle proxies.
+  if (object->IsJSProxy()) {
+    return JSReceiver::cast(*object)->
+        SetProperty(*name, *value, NONE, strict_mode);
   }
 
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
@@ -1417,7 +1437,7 @@ MaybeObject* StoreIC::Store(State state,
   // Use specialized code for setting the length of arrays.
   if (receiver->IsJSArray()
       && name->Equals(isolate()->heap()->length_symbol())
-      && receiver->AllowsSetElementsLength()) {
+      && JSArray::cast(*receiver)->AllowsSetElementsLength()) {
 #ifdef DEBUG
     if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
 #endif
@@ -2183,12 +2203,12 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
 }
 
 
-void TRUnaryOpIC::patch(Code* code) {
+void UnaryOpIC::patch(Code* code) {
   set_target(code);
 }
 
 
-const char* TRUnaryOpIC::GetName(TypeInfo type_info) {
+const char* UnaryOpIC::GetName(TypeInfo type_info) {
   switch (type_info) {
     case UNINITIALIZED: return "Uninitialized";
     case SMI: return "Smi";
@@ -2199,7 +2219,7 @@ const char* TRUnaryOpIC::GetName(TypeInfo type_info) {
 }
 
 
-TRUnaryOpIC::State TRUnaryOpIC::ToState(TypeInfo type_info) {
+UnaryOpIC::State UnaryOpIC::ToState(TypeInfo type_info) {
   switch (type_info) {
     case UNINITIALIZED:
       return ::v8::internal::UNINITIALIZED;
@@ -2213,7 +2233,7 @@ TRUnaryOpIC::State TRUnaryOpIC::ToState(TypeInfo type_info) {
   return ::v8::internal::UNINITIALIZED;
 }
 
-TRUnaryOpIC::TypeInfo TRUnaryOpIC::GetTypeInfo(Handle<Object> operand) {
+UnaryOpIC::TypeInfo UnaryOpIC::GetTypeInfo(Handle<Object> operand) {
   ::v8::internal::TypeInfo operand_type =
       ::v8::internal::TypeInfo::TypeFromValue(operand);
   if (operand_type.IsSmi()) {
@@ -2226,34 +2246,34 @@ TRUnaryOpIC::TypeInfo TRUnaryOpIC::GetTypeInfo(Handle<Object> operand) {
 }
 
 
-TRUnaryOpIC::TypeInfo TRUnaryOpIC::ComputeNewType(
-    TRUnaryOpIC::TypeInfo type,
-    TRUnaryOpIC::TypeInfo previous) {
-  switch (previous) {
-    case TRUnaryOpIC::UNINITIALIZED:
-      return type;
-    case TRUnaryOpIC::SMI:
-      return (type == TRUnaryOpIC::GENERIC)
-          ? TRUnaryOpIC::GENERIC
-          : TRUnaryOpIC::HEAP_NUMBER;
-    case TRUnaryOpIC::HEAP_NUMBER:
-      return TRUnaryOpIC::GENERIC;
-    case TRUnaryOpIC::GENERIC:
+UnaryOpIC::TypeInfo UnaryOpIC::ComputeNewType(
+    UnaryOpIC::TypeInfo current_type,
+    UnaryOpIC::TypeInfo previous_type) {
+  switch (previous_type) {
+    case UnaryOpIC::UNINITIALIZED:
+      return current_type;
+    case UnaryOpIC::SMI:
+      return (current_type == UnaryOpIC::GENERIC)
+          ? UnaryOpIC::GENERIC
+          : UnaryOpIC::HEAP_NUMBER;
+    case UnaryOpIC::HEAP_NUMBER:
+      return UnaryOpIC::GENERIC;
+    case UnaryOpIC::GENERIC:
       // We should never do patching if we are in GENERIC state.
       UNREACHABLE();
-      return TRUnaryOpIC::GENERIC;
+      return UnaryOpIC::GENERIC;
   }
   UNREACHABLE();
-  return TRUnaryOpIC::GENERIC;
+  return UnaryOpIC::GENERIC;
 }
 
 
-void TRBinaryOpIC::patch(Code* code) {
+void BinaryOpIC::patch(Code* code) {
   set_target(code);
 }
 
 
-const char* TRBinaryOpIC::GetName(TypeInfo type_info) {
+const char* BinaryOpIC::GetName(TypeInfo type_info) {
   switch (type_info) {
     case UNINITIALIZED: return "Uninitialized";
     case SMI: return "SMI";
@@ -2268,7 +2288,7 @@ const char* TRBinaryOpIC::GetName(TypeInfo type_info) {
 }
 
 
-TRBinaryOpIC::State TRBinaryOpIC::ToState(TypeInfo type_info) {
+BinaryOpIC::State BinaryOpIC::ToState(TypeInfo type_info) {
   switch (type_info) {
     case UNINITIALIZED:
       return ::v8::internal::UNINITIALIZED;
@@ -2287,8 +2307,8 @@ TRBinaryOpIC::State TRBinaryOpIC::ToState(TypeInfo type_info) {
 }
 
 
-TRBinaryOpIC::TypeInfo TRBinaryOpIC::JoinTypes(TRBinaryOpIC::TypeInfo x,
-                                               TRBinaryOpIC::TypeInfo y) {
+BinaryOpIC::TypeInfo BinaryOpIC::JoinTypes(BinaryOpIC::TypeInfo x,
+                                           BinaryOpIC::TypeInfo y) {
   if (x == UNINITIALIZED) return y;
   if (y == UNINITIALIZED) return x;
   if (x == y) return x;
@@ -2302,8 +2322,8 @@ TRBinaryOpIC::TypeInfo TRBinaryOpIC::JoinTypes(TRBinaryOpIC::TypeInfo x,
 }
 
 
-TRBinaryOpIC::TypeInfo TRBinaryOpIC::GetTypeInfo(Handle<Object> left,
-                                                 Handle<Object> right) {
+BinaryOpIC::TypeInfo BinaryOpIC::GetTypeInfo(Handle<Object> left,
+                                             Handle<Object> right) {
   ::v8::internal::TypeInfo left_type =
       ::v8::internal::TypeInfo::TypeFromValue(left);
   ::v8::internal::TypeInfo right_type =
@@ -2341,32 +2361,31 @@ TRBinaryOpIC::TypeInfo TRBinaryOpIC::GetTypeInfo(Handle<Object> left,
 
 // defined in code-stubs-<arch>.cc
 // Only needed to remove dependency of ic.cc on code-stubs-<arch>.h.
-Handle<Code> GetTypeRecordingUnaryOpStub(int key,
-                                         TRUnaryOpIC::TypeInfo type_info);
+Handle<Code> GetUnaryOpStub(int key, UnaryOpIC::TypeInfo type_info);
 
 
-RUNTIME_FUNCTION(MaybeObject*, TypeRecordingUnaryOp_Patch) {
+RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
   ASSERT(args.length() == 4);
 
   HandleScope scope(isolate);
   Handle<Object> operand = args.at<Object>(0);
   int key = Smi::cast(args[1])->value();
   Token::Value op = static_cast<Token::Value>(Smi::cast(args[2])->value());
-  TRUnaryOpIC::TypeInfo previous_type =
-      static_cast<TRUnaryOpIC::TypeInfo>(Smi::cast(args[3])->value());
+  UnaryOpIC::TypeInfo previous_type =
+      static_cast<UnaryOpIC::TypeInfo>(Smi::cast(args[3])->value());
 
-  TRUnaryOpIC::TypeInfo type = TRUnaryOpIC::GetTypeInfo(operand);
-  type = TRUnaryOpIC::ComputeNewType(type, previous_type);
+  UnaryOpIC::TypeInfo type = UnaryOpIC::GetTypeInfo(operand);
+  type = UnaryOpIC::ComputeNewType(type, previous_type);
 
-  Handle<Code> code = GetTypeRecordingUnaryOpStub(key, type);
+  Handle<Code> code = GetUnaryOpStub(key, type);
   if (!code.is_null()) {
     if (FLAG_trace_ic) {
-      PrintF("[TypeRecordingUnaryOpIC (%s->%s)#%s]\n",
-             TRUnaryOpIC::GetName(previous_type),
-             TRUnaryOpIC::GetName(type),
+      PrintF("[UnaryOpIC (%s->%s)#%s]\n",
+             UnaryOpIC::GetName(previous_type),
+             UnaryOpIC::GetName(type),
              Token::Name(op));
     }
-    TRUnaryOpIC ic(isolate);
+    UnaryOpIC ic(isolate);
     ic.patch(*code);
   }
 
@@ -2397,12 +2416,12 @@ RUNTIME_FUNCTION(MaybeObject*, TypeRecordingUnaryOp_Patch) {
 
 // defined in code-stubs-<arch>.cc
 // Only needed to remove dependency of ic.cc on code-stubs-<arch>.h.
-Handle<Code> GetTypeRecordingBinaryOpStub(int key,
-                                          TRBinaryOpIC::TypeInfo type_info,
-                                          TRBinaryOpIC::TypeInfo result_type);
+Handle<Code> GetBinaryOpStub(int key,
+                             BinaryOpIC::TypeInfo type_info,
+                             BinaryOpIC::TypeInfo result_type);
 
 
-RUNTIME_FUNCTION(MaybeObject*, TypeRecordingBinaryOp_Patch) {
+RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   ASSERT(args.length() == 5);
 
   HandleScope scope(isolate);
@@ -2410,17 +2429,17 @@ RUNTIME_FUNCTION(MaybeObject*, TypeRecordingBinaryOp_Patch) {
   Handle<Object> right = args.at<Object>(1);
   int key = Smi::cast(args[2])->value();
   Token::Value op = static_cast<Token::Value>(Smi::cast(args[3])->value());
-  TRBinaryOpIC::TypeInfo previous_type =
-      static_cast<TRBinaryOpIC::TypeInfo>(Smi::cast(args[4])->value());
+  BinaryOpIC::TypeInfo previous_type =
+      static_cast<BinaryOpIC::TypeInfo>(Smi::cast(args[4])->value());
 
-  TRBinaryOpIC::TypeInfo type = TRBinaryOpIC::GetTypeInfo(left, right);
-  type = TRBinaryOpIC::JoinTypes(type, previous_type);
-  TRBinaryOpIC::TypeInfo result_type = TRBinaryOpIC::UNINITIALIZED;
-  if ((type == TRBinaryOpIC::STRING || type == TRBinaryOpIC::BOTH_STRING) &&
+  BinaryOpIC::TypeInfo type = BinaryOpIC::GetTypeInfo(left, right);
+  type = BinaryOpIC::JoinTypes(type, previous_type);
+  BinaryOpIC::TypeInfo result_type = BinaryOpIC::UNINITIALIZED;
+  if ((type == BinaryOpIC::STRING || type == BinaryOpIC::BOTH_STRING) &&
       op != Token::ADD) {
-    type = TRBinaryOpIC::GENERIC;
+    type = BinaryOpIC::GENERIC;
   }
-  if (type == TRBinaryOpIC::SMI && previous_type == TRBinaryOpIC::SMI) {
+  if (type == BinaryOpIC::SMI && previous_type == BinaryOpIC::SMI) {
     if (op == Token::DIV ||
         op == Token::MUL ||
         op == Token::SHR ||
@@ -2429,31 +2448,31 @@ RUNTIME_FUNCTION(MaybeObject*, TypeRecordingBinaryOp_Patch) {
       // That is the only way to get here from the Smi stub.
       // With 32-bit Smis, all overflows give heap numbers, but with
       // 31-bit Smis, most operations overflow to int32 results.
-      result_type = TRBinaryOpIC::HEAP_NUMBER;
+      result_type = BinaryOpIC::HEAP_NUMBER;
     } else {
       // Other operations on SMIs that overflow yield int32s.
-      result_type = TRBinaryOpIC::INT32;
+      result_type = BinaryOpIC::INT32;
     }
   }
-  if (type == TRBinaryOpIC::INT32 && previous_type == TRBinaryOpIC::INT32) {
+  if (type == BinaryOpIC::INT32 && previous_type == BinaryOpIC::INT32) {
     // We must be here because an operation on two INT32 types overflowed.
-    result_type = TRBinaryOpIC::HEAP_NUMBER;
+    result_type = BinaryOpIC::HEAP_NUMBER;
   }
 
-  Handle<Code> code = GetTypeRecordingBinaryOpStub(key, type, result_type);
+  Handle<Code> code = GetBinaryOpStub(key, type, result_type);
   if (!code.is_null()) {
     if (FLAG_trace_ic) {
-      PrintF("[TypeRecordingBinaryOpIC (%s->(%s->%s))#%s]\n",
-             TRBinaryOpIC::GetName(previous_type),
-             TRBinaryOpIC::GetName(type),
-             TRBinaryOpIC::GetName(result_type),
+      PrintF("[BinaryOpIC (%s->(%s->%s))#%s]\n",
+             BinaryOpIC::GetName(previous_type),
+             BinaryOpIC::GetName(type),
+             BinaryOpIC::GetName(result_type),
              Token::Name(op));
     }
-    TRBinaryOpIC ic(isolate);
+    BinaryOpIC ic(isolate);
     ic.patch(*code);
 
     // Activate inlined smi code.
-    if (previous_type == TRBinaryOpIC::UNINITIALIZED) {
+    if (previous_type == BinaryOpIC::UNINITIALIZED) {
       PatchInlinedSmiCode(ic.address());
     }
   }

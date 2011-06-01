@@ -42,6 +42,7 @@
 #include "execution.h"
 #include "global-handles.h"
 #include "jsregexp.h"
+#include "json-parser.h"
 #include "liveedit.h"
 #include "liveobjectlist-inl.h"
 #include "parser.h"
@@ -2619,7 +2620,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   int capture_count = regexp_handle->CaptureCount();
 
   // CompiledReplacement uses zone allocation.
-  CompilationZoneScope zone(DELETE_ON_EXIT);
+  CompilationZoneScope zone(isolate, DELETE_ON_EXIT);
   CompiledReplacement compiled_replacement;
   compiled_replacement.Compile(replacement_handle,
                                capture_count,
@@ -3133,7 +3134,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
   }
   int length = subject->length();
 
-  CompilationZoneScope zone_space(DELETE_ON_EXIT);
+  CompilationZoneScope zone_space(isolate, DELETE_ON_EXIT);
   ZoneList<int> offsets(8);
   do {
     int start;
@@ -3539,13 +3540,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToRadixString) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
+  CONVERT_SMI_CHECKED(radix, args[1]);
+  RUNTIME_ASSERT(2 <= radix && radix <= 36);
 
   // Fast case where the result is a one character string.
-  if (args[0]->IsSmi() && args[1]->IsSmi()) {
+  if (args[0]->IsSmi()) {
     int value = Smi::cast(args[0])->value();
-    int radix = Smi::cast(args[1])->value();
     if (value >= 0 && value < radix) {
-      RUNTIME_ASSERT(radix <= 36);
       // Character array used for conversion.
       static const char kCharTable[] = "0123456789abcdefghijklmnopqrstuvwxyz";
       return isolate->heap()->
@@ -3564,9 +3565,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToRadixString) {
     }
     return isolate->heap()->AllocateStringFromAscii(CStrVector("Infinity"));
   }
-  CONVERT_DOUBLE_CHECKED(radix_number, args[1]);
-  int radix = FastD2I(radix_number);
-  RUNTIME_ASSERT(2 <= radix && radix <= 36);
   char* str = DoubleToRadixCString(value, radix);
   MaybeObject* result =
       isolate->heap()->AllocateStringFromAscii(CStrVector(str));
@@ -3729,8 +3727,7 @@ MaybeObject* Runtime::GetObjectProperty(Isolate* isolate,
   if (name->AsArrayIndex(&index)) {
     return GetElementOrCharAt(isolate, object, index);
   } else {
-    PropertyAttributes attr;
-    return object->GetProperty(*name, &attr);
+    return object->GetProperty(*name);
   }
 }
 
@@ -4125,10 +4122,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
 }
 
 
-// Set the ES5 native flag on the function.
+// Set the native flag on the function.
 // This is used to decide if we should transform null and undefined
 // into the global object when doing call and apply.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SetES5Flag) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetNativeFlag) {
   NoHandleAllocation ha;
   RUNTIME_ASSERT(args.length() == 1);
 
@@ -4136,7 +4133,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetES5Flag) {
 
   if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(*object);
-    func->shared()->set_es5_native(true);
+    func->shared()->set_native(true);
   }
   return isolate->heap()->undefined_value();
 }
@@ -4642,7 +4639,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
       }
       ASSERT(heap_obj->IsUndefined());
       return isolate->heap()->undefined_symbol();
-    case JS_FUNCTION_TYPE: case JS_REGEXP_TYPE:
+    case JS_FUNCTION_TYPE:
       return isolate->heap()->function_symbol();
     default:
       // For any kind of object not handled above, the spec rule for
@@ -5016,6 +5013,8 @@ static const int kMaxGuaranteedNewSpaceString = 32 * 1024;
 // Doing JSON quoting cannot make the string more than this many times larger.
 static const int kJsonQuoteWorstCaseBlowup = 6;
 
+static const int kSpaceForQuotesAndComma = 3;
+static const int kSpaceForBrackets = 2;
 
 // Covers the entire ASCII range (all other characters are unchanged by JSON
 // quoting).
@@ -5103,13 +5102,51 @@ static MaybeObject* SlowQuoteJsonString(Isolate* isolate,
 }
 
 
+template <typename SinkChar, typename SourceChar>
+static inline SinkChar* WriteQuoteJsonString(
+    Isolate* isolate,
+    SinkChar* write_cursor,
+    Vector<const SourceChar> characters) {
+  // SinkChar is only char if SourceChar is guaranteed to be char.
+  ASSERT(sizeof(SinkChar) >= sizeof(SourceChar));
+  const SourceChar* read_cursor = characters.start();
+  const SourceChar* end = read_cursor + characters.length();
+  *(write_cursor++) = '"';
+  while (read_cursor < end) {
+    SourceChar c = *(read_cursor++);
+    if (sizeof(SourceChar) > 1u &&
+        static_cast<unsigned>(c) >= kQuoteTableLength) {
+      *(write_cursor++) = static_cast<SinkChar>(c);
+    } else {
+      int len = JsonQuoteLengths[static_cast<unsigned>(c)];
+      const char* replacement = JsonQuotes +
+          static_cast<unsigned>(c) * kJsonQuotesCharactersPerEntry;
+      write_cursor[0] = replacement[0];
+      if (len > 1) {
+        write_cursor[1] = replacement[1];
+        if (len > 2) {
+          ASSERT(len == 6);
+          write_cursor[2] = replacement[2];
+          write_cursor[3] = replacement[3];
+          write_cursor[4] = replacement[4];
+          write_cursor[5] = replacement[5];
+        }
+      }
+      write_cursor += len;
+    }
+  }
+  *(write_cursor++) = '"';
+  return write_cursor;
+}
+
+
 template <typename Char, typename StringType, bool comma>
 static MaybeObject* QuoteJsonString(Isolate* isolate,
                                     Vector<const Char> characters) {
   int length = characters.length();
   isolate->counters()->quote_json_char_count()->Increment(length);
-  const int kSpaceForQuotes = 2 + (comma ? 1 :0);
-  int worst_case_length = length * kJsonQuoteWorstCaseBlowup + kSpaceForQuotes;
+  int worst_case_length =
+        length * kJsonQuoteWorstCaseBlowup + kSpaceForQuotesAndComma;
   if (worst_case_length > kMaxGuaranteedNewSpaceString) {
     return SlowQuoteJsonString<Char, StringType, comma>(isolate, characters);
   }
@@ -5134,34 +5171,9 @@ static MaybeObject* QuoteJsonString(Isolate* isolate,
   Char* write_cursor = reinterpret_cast<Char*>(
       new_string->address() + SeqAsciiString::kHeaderSize);
   if (comma) *(write_cursor++) = ',';
-  *(write_cursor++) = '"';
-
-  const Char* read_cursor = characters.start();
-  const Char* end = read_cursor + length;
-  while (read_cursor < end) {
-    Char c = *(read_cursor++);
-    if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= kQuoteTableLength) {
-      *(write_cursor++) = c;
-    } else {
-      int len = JsonQuoteLengths[static_cast<unsigned>(c)];
-      const char* replacement = JsonQuotes +
-          static_cast<unsigned>(c) * kJsonQuotesCharactersPerEntry;
-      write_cursor[0] = replacement[0];
-      if (len > 1) {
-        write_cursor[1] = replacement[1];
-        if (len > 2) {
-          ASSERT(len == 6);
-          write_cursor[2] = replacement[2];
-          write_cursor[3] = replacement[3];
-          write_cursor[4] = replacement[4];
-          write_cursor[5] = replacement[5];
-        }
-      }
-      write_cursor += len;
-    }
-  }
-  *(write_cursor++) = '"';
-
+  write_cursor = WriteQuoteJsonString<Char, Char>(isolate,
+                                                  write_cursor,
+                                                  characters);
   int final_length = static_cast<int>(
       write_cursor - reinterpret_cast<Char*>(
           new_string->address() + SeqAsciiString::kHeaderSize));
@@ -5214,6 +5226,101 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringComma) {
                                                        str->ToAsciiVector());
   }
 }
+
+
+template <typename Char, typename StringType>
+static MaybeObject* QuoteJsonStringArray(Isolate* isolate,
+                                         FixedArray* array,
+                                         int worst_case_length) {
+  int length = array->length();
+
+  MaybeObject* new_alloc = AllocateRawString<StringType>(isolate,
+                                                         worst_case_length);
+  Object* new_object;
+  if (!new_alloc->ToObject(&new_object)) {
+    return new_alloc;
+  }
+  if (!isolate->heap()->new_space()->Contains(new_object)) {
+    // Even if our string is small enough to fit in new space we still have to
+    // handle it being allocated in old space as may happen in the third
+    // attempt.  See CALL_AND_RETRY in heap-inl.h and similar code in
+    // CEntryStub::GenerateCore.
+    return isolate->heap()->undefined_value();
+  }
+  AssertNoAllocation no_gc;
+  StringType* new_string = StringType::cast(new_object);
+  ASSERT(isolate->heap()->new_space()->Contains(new_string));
+
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  Char* write_cursor = reinterpret_cast<Char*>(
+      new_string->address() + SeqAsciiString::kHeaderSize);
+  *(write_cursor++) = '[';
+  for (int i = 0; i < length; i++) {
+    if (i != 0) *(write_cursor++) = ',';
+    String* str = String::cast(array->get(i));
+    if (str->IsTwoByteRepresentation()) {
+      write_cursor = WriteQuoteJsonString<Char, uc16>(isolate,
+                                                      write_cursor,
+                                                      str->ToUC16Vector());
+    } else {
+      write_cursor = WriteQuoteJsonString<Char, char>(isolate,
+                                                      write_cursor,
+                                                      str->ToAsciiVector());
+    }
+  }
+  *(write_cursor++) = ']';
+
+  int final_length = static_cast<int>(
+      write_cursor - reinterpret_cast<Char*>(
+          new_string->address() + SeqAsciiString::kHeaderSize));
+  isolate->heap()->new_space()->
+      template ShrinkStringAtAllocationBoundary<StringType>(
+          new_string, final_length);
+  return new_string;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringArray) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSArray, array, args[0]);
+
+  if (!array->HasFastElements()) return isolate->heap()->undefined_value();
+  FixedArray* elements = FixedArray::cast(array->elements());
+  int n = elements->length();
+  bool ascii = true;
+  int total_length = 0;
+
+  for (int i = 0; i < n; i++) {
+    Object* elt = elements->get(i);
+    if (!elt->IsString()) return isolate->heap()->undefined_value();
+    String* element = String::cast(elt);
+    if (!element->IsFlat()) return isolate->heap()->undefined_value();
+    total_length += element->length();
+    if (ascii && element->IsTwoByteRepresentation()) {
+      ascii = false;
+    }
+  }
+
+  int worst_case_length =
+      kSpaceForBrackets + n * kSpaceForQuotesAndComma
+      + total_length * kJsonQuoteWorstCaseBlowup;
+
+  if (worst_case_length > kMaxGuaranteedNewSpaceString) {
+    return isolate->heap()->undefined_value();
+  }
+
+  if (ascii) {
+    return QuoteJsonStringArray<char, SeqAsciiString>(isolate,
+                                                      elements,
+                                                      worst_case_length);
+  } else {
+    return QuoteJsonStringArray<uc16, SeqTwoByteString>(isolate,
+                                                        elements,
+                                                        worst_case_length);
+  }
+}
+
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseInt) {
   NoHandleAllocation ha;
@@ -5607,7 +5714,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
 
   static const int kMaxInitialListCapacity = 16;
 
-  ZoneScope scope(DELETE_ON_EXIT);
+  ZoneScope scope(isolate, DELETE_ON_EXIT);
 
   // Find (up to limit) indices of separator and end-of-string in subject
   int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);
@@ -7988,8 +8095,8 @@ static inline MaybeObject* Unhole(Heap* heap,
 }
 
 
-static JSObject* ComputeReceiverForNonGlobal(Isolate* isolate,
-                                             JSObject* holder) {
+static Object* ComputeReceiverForNonGlobal(Isolate* isolate,
+                                           JSObject* holder) {
   ASSERT(!holder->IsGlobalObject());
   Context* top = isolate->context();
   // Get the context extension function.
@@ -8001,10 +8108,11 @@ static JSObject* ComputeReceiverForNonGlobal(Isolate* isolate,
   // explicitly via a with-statement.
   Object* constructor = holder->map()->constructor();
   if (constructor != context_extension_function) return holder;
-  // Fall back to using the global object as the receiver if the
-  // property turns out to be a local variable allocated in a context
-  // extension object - introduced via eval.
-  return top->global()->global_receiver();
+  // Fall back to using the global object as the implicit receiver if
+  // the property turns out to be a local variable allocated in a
+  // context extension object - introduced via eval. Implicit global
+  // receivers are indicated with the hole value.
+  return isolate->heap()->the_hole_value();
 }
 
 
@@ -8032,9 +8140,10 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
     // If the "property" we were looking for is a local variable or an
     // argument in a context, the receiver is the global object; see
     // ECMA-262, 3rd., 10.1.6 and 10.2.3.
-    // GetElement below can cause GC.
-    Handle<JSObject> receiver(
-        isolate->context()->global()->global_receiver());
+    //
+    // Use the hole as the receiver to signal that the receiver is
+    // implicit and that the global receiver should be used.
+    Handle<Object> receiver = isolate->factory()->the_hole_value();
     MaybeObject* value = (holder->IsContext())
         ? Context::cast(*holder)->get(index)
         : JSObject::cast(*holder)->GetElement(index);
@@ -8045,17 +8154,19 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
   if (!holder.is_null() && holder->IsJSObject()) {
     ASSERT(Handle<JSObject>::cast(holder)->HasProperty(*name));
     JSObject* object = JSObject::cast(*holder);
-    JSObject* receiver;
+    Object* receiver;
     if (object->IsGlobalObject()) {
       receiver = GlobalObject::cast(object)->global_receiver();
     } else if (context->is_exception_holder(*holder)) {
-      receiver = isolate->context()->global()->global_receiver();
+      // Use the hole as the receiver to signal that the receiver is
+      // implicit and that the global receiver should be used.
+      receiver = isolate->heap()->the_hole_value();
     } else {
       receiver = ComputeReceiverForNonGlobal(isolate, object);
     }
 
     // GetProperty below can cause GC.
-    Handle<JSObject> receiver_handle(receiver);
+    Handle<Object> receiver_handle(receiver);
 
     // No need to unhole the value here. This is taken care of by the
     // GetProperty function.
@@ -8070,7 +8181,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
                                               HandleVector(&name, 1));
     return MakePair(isolate->Throw(*reference_error), NULL);
   } else {
-    // The property doesn't exist - return undefined
+    // The property doesn't exist - return undefined.
     return MakePair(isolate->heap()->undefined_value(),
                     isolate->heap()->undefined_value());
   }
@@ -8582,8 +8693,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
     // 'eval' is not bound in the global context. Just call the function
     // with the given arguments. This is not necessarily the global eval.
     if (receiver->IsContext() || receiver->IsJSContextExtensionObject()) {
-      receiver = Handle<JSObject>(
-          isolate->context()->global()->global_receiver(), isolate);
+      receiver = isolate->factory()->the_hole_value();
     }
     return MakePair(*callee, *receiver);
   }
@@ -8592,8 +8702,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
   // Compare it to the builtin 'GlobalEval' function to make sure.
   if (*callee != isolate->global_context()->global_eval_fun() ||
       !args[1]->IsString()) {
-    return MakePair(*callee,
-                    isolate->context()->global()->global_receiver());
+    return MakePair(*callee, isolate->heap()->the_hole_value());
   }
 
   ASSERT(args[3]->IsSmi());
@@ -8615,8 +8724,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEvalNoLookup) {
   // Compare it to the builtin 'GlobalEval' function to make sure.
   if (*callee != isolate->global_context()->global_eval_fun() ||
       !args[1]->IsString()) {
-    return MakePair(*callee,
-                    isolate->context()->global()->global_receiver());
+    return MakePair(*callee, isolate->heap()->the_hole_value());
   }
 
   ASSERT(args[3]->IsSmi());

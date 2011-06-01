@@ -238,6 +238,7 @@ class HGraph: public ZoneObject {
   HConstant* GetConstantMinus1();
   HConstant* GetConstantTrue();
   HConstant* GetConstantFalse();
+  HConstant* GetConstantHole();
 
   HBasicBlock* CreateBasicBlock();
   HArgumentsObject* GetArgumentsObject() const {
@@ -299,6 +300,7 @@ class HGraph: public ZoneObject {
   SetOncePointer<HConstant> constant_minus1_;
   SetOncePointer<HConstant> constant_true_;
   SetOncePointer<HConstant> constant_false_;
+  SetOncePointer<HConstant> constant_hole_;
   SetOncePointer<HArgumentsObject> arguments_object_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
@@ -404,7 +406,8 @@ class HEnvironment: public ZoneObject {
   HEnvironment* CopyForInlining(Handle<JSFunction> target,
                                 FunctionLiteral* function,
                                 CompilationPhase compilation_phase,
-                                HConstant* undefined) const;
+                                HConstant* undefined,
+                                CallKind call_kind) const;
 
   void AddIncomingEdge(HBasicBlock* block, HEnvironment* other);
 
@@ -750,8 +753,8 @@ class HGraphBuilder: public AstVisitor {
   void VisitNot(UnaryOperation* expr);
 
   void VisitComma(BinaryOperation* expr);
-  void VisitAndOr(BinaryOperation* expr, bool is_logical_and);
-  void VisitCommon(BinaryOperation* expr);
+  void VisitLogicalExpression(BinaryOperation* expr);
+  void VisitArithmeticExpression(BinaryOperation* expr);
 
   void PreProcessOsrEntry(IterationStatement* statement);
   // True iff. we are compiling for OSR and the statement is the entry.
@@ -875,10 +878,6 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildBinaryOperation(BinaryOperation* expr,
                                      HValue* left,
                                      HValue* right);
-  HInstruction* BuildBinaryOperation(Token::Value op,
-                                     HValue* left,
-                                     HValue* right,
-                                     TypeInfo info);
   HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
   HLoadNamedField* BuildLoadNamedField(HValue* object,

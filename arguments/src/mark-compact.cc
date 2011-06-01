@@ -1060,9 +1060,12 @@ void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
       map->ClearCodeCache(heap());
     }
     SetMark(map);
-    if (FLAG_collect_maps &&
-        map->instance_type() >= FIRST_JS_OBJECT_TYPE &&
-        map->instance_type() <= JS_FUNCTION_TYPE) {
+
+    // When map collection is enabled we have to mark through map's transitions
+    // in a special way to make transition links weak.
+    // Only maps for subclasses of JSReceiver can have transitions.
+    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+    if (FLAG_collect_maps && map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
       MarkMapContents(map);
     } else {
       marking_stack_.Push(map);
@@ -1081,8 +1084,13 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
   FixedArray* prototype_transitions = map->unchecked_prototype_transitions();
   if (!prototype_transitions->IsMarked()) SetMark(prototype_transitions);
 
-  MarkDescriptorArray(reinterpret_cast<DescriptorArray*>(
-      *HeapObject::RawField(map, Map::kInstanceDescriptorsOffset)));
+  Object* raw_descriptor_array =
+      *HeapObject::RawField(map,
+                            Map::kInstanceDescriptorsOrBitField3Offset);
+  if (!raw_descriptor_array->IsSmi()) {
+    MarkDescriptorArray(
+        reinterpret_cast<DescriptorArray*>(raw_descriptor_array));
+  }
 
   // Mark the Object* fields of the Map.
   // Since the descriptor array has been marked already, it is fine
@@ -1139,8 +1147,8 @@ void MarkCompactCollector::CreateBackPointers() {
        next_object != NULL; next_object = iterator.next()) {
     if (next_object->IsMap()) {  // Could also be ByteArray on free list.
       Map* map = Map::cast(next_object);
-      if (map->instance_type() >= FIRST_JS_OBJECT_TYPE &&
-          map->instance_type() <= JS_FUNCTION_TYPE) {
+      STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+      if (map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
         map->CreateBackPointers();
       } else {
         ASSERT(map->instance_descriptors() == heap()->empty_descriptor_array());
@@ -1516,8 +1524,8 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
 
     ASSERT(SafeIsMap(map));
     // Only JSObject and subtypes have map transitions and back pointers.
-    if (map->instance_type() < FIRST_JS_OBJECT_TYPE) continue;
-    if (map->instance_type() > JS_FUNCTION_TYPE) continue;
+    STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+    if (map->instance_type() < FIRST_JS_RECEIVER_TYPE) continue;
 
     if (map->IsMarked() && map->attached_to_shared_function_info()) {
       // This map is used for inobject slack tracking and has been detached

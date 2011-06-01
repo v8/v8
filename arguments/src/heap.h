@@ -790,6 +790,10 @@ class Heap {
     return LookupSymbol(CStrVector(str));
   }
   MUST_USE_RESULT MaybeObject* LookupSymbol(String* str);
+  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Handle<SeqAsciiString> string,
+                                                 int from,
+                                                 int length);
+
   bool LookupSymbolIfExists(String* str, String** symbol);
   bool LookupTwoCharsSymbolIfExists(String* str, String** symbol);
 

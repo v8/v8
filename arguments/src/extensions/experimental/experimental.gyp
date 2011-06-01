@@ -45,6 +45,7 @@
         'i18n-extension.h',
         'i18n-locale.cc',
         'i18n-locale.h',
+        'i18n-natives.h',
         'i18n-utils.cc',
         'i18n-utils.h',
         'language-matcher.cc',
@@ -53,13 +54,20 @@
       ],
       'include_dirs': [
         '<(icu_src_dir)/public/common',
-        '../..',
+        # v8/ is root for all includes.
+        '../../..'
       ],
       'dependencies': [
         '<(icu_src_dir)/icu.gyp:*',
         'js2c_i18n#host',
         '../../../tools/gyp/v8.gyp:v8',
       ],
+      'direct_dependent_settings': {
+        # Adds -Iv8 for embedders.
+        'include_dirs': [
+          '../../..'
+        ],
+      },
     },
     {
       'target_name': 'js2c_i18n',
@@ -74,7 +82,7 @@
         {
           'action_name': 'js2c_i18n',
           'inputs': [
-            '../../../tools/js2c.py',
+            'i18n-js2c.py',
             '<@(library_files)',
           ],
           'outputs': [
@@ -82,9 +90,8 @@
           ],
           'action': [
             'python',
-            '../../../tools/js2c.py',
+            'i18n-js2c.py',
             '<@(_outputs)',
-            'I18N',
             '<@(library_files)'
           ],
         },

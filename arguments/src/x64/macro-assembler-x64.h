@@ -241,31 +241,40 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
+  // Setup call kind marking in rcx. The method takes rcx as an
+  // explicit first parameter to make the code more readable at the
+  // call sites.
+  void SetCallKind(Register dst, CallKind kind);
+
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper = NullCallWrapper());
+                  const CallWrapper& call_wrapper,
+                  CallKind call_kind);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper = NullCallWrapper());
+                  const CallWrapper& call_wrapper,
+                  CallKind call_kind);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper = NullCallWrapper());
+                      const CallWrapper& call_wrapper,
+                      CallKind call_kind);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper = NullCallWrapper());
+                      const CallWrapper& call_wrapper,
+                      CallKind call_kind);
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
@@ -782,6 +791,8 @@ class MacroAssembler: public Assembler {
                           Register result_reg,
                           Register temp_reg);
 
+  void LoadInstanceDescriptors(Register map, Register descriptors);
+
   // Abort execution if argument is not a number. Used in debug code.
   void AbortIfNotNumber(Register object);
 
@@ -1147,8 +1158,9 @@ class MacroAssembler: public Assembler {
                       Register code_register,
                       Label* done,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      Label::Distance near_jump = Label::kFar);
+                      Label::Distance near_jump = Label::kFar,
+                      const CallWrapper& call_wrapper = NullCallWrapper(),
+                      CallKind call_kind = CALL_AS_METHOD);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);

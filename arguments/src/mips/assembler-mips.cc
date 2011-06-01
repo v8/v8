@@ -1336,10 +1336,34 @@ void Assembler::lui(Register rd, int32_t j) {
 //-------------Misc-instructions--------------
 
 // Break / Trap instructions.
-void Assembler::break_(uint32_t code) {
+void Assembler::break_(uint32_t code, bool break_as_stop) {
   ASSERT((code & ~0xfffff) == 0);
+  // We need to invalidate breaks that could be stops as well because the
+  // simulator expects a char pointer after the stop instruction.
+  // See constants-mips.h for explanation.
+  ASSERT((break_as_stop &&
+          code <= kMaxStopCode &&
+          code > kMaxWatchpointCode) ||
+         (!break_as_stop &&
+          (code > kMaxStopCode ||
+           code <= kMaxWatchpointCode)));
   Instr break_instr = SPECIAL | BREAK | (code << 6);
   emit(break_instr);
+}
+
+
+void Assembler::stop(const char* msg, uint32_t code) {
+  ASSERT(code > kMaxWatchpointCode);
+  ASSERT(code <= kMaxStopCode);
+#if defined(V8_HOST_ARCH_MIPS)
+  break_(0x54321);
+#else  // V8_HOST_ARCH_MIPS
+  BlockTrampolinePoolFor(2);
+  // The Simulator will handle the stop instruction and get the message address.
+  // On MIPS stop() is just a special kind of break_().
+  break_(code, true);
+  emit(reinterpret_cast<Instr>(msg));
+#endif
 }
 
 

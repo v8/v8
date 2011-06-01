@@ -800,7 +800,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
   GetBuiltinEntry(rdx, id);
-  InvokeCode(rdx, expected, expected, flag, call_wrapper);
+  InvokeCode(rdx, expected, expected, flag, call_wrapper, CALL_AS_METHOD);
 }
 
 
@@ -2601,6 +2601,17 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
 }
 
 
+void MacroAssembler::LoadInstanceDescriptors(Register map,
+                                             Register descriptors) {
+  movq(descriptors, FieldOperand(map,
+                                 Map::kInstanceDescriptorsOrBitField3Offset));
+  Label not_smi;
+  JumpIfNotSmi(descriptors, &not_smi, Label::kNear);
+  Move(descriptors, isolate()->factory()->empty_descriptor_array());
+  bind(&not_smi);
+}
+
+
 void MacroAssembler::DispatchMap(Register obj,
                                  Handle<Map> map,
                                  Handle<Code> success,
@@ -2769,11 +2780,26 @@ void MacroAssembler::DebugBreak() {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
+void MacroAssembler::SetCallKind(Register dst, CallKind call_kind) {
+  // This macro takes the dst register to make the code more readable
+  // at the call sites. However, the dst register has to be rcx to
+  // follow the calling convention which requires the call type to be
+  // in rcx.
+  ASSERT(dst.is(rcx));
+  if (call_kind == CALL_AS_FUNCTION) {
+    LoadSmiConstant(dst, Smi::FromInt(1));
+  } else {
+    LoadSmiConstant(dst, Smi::FromInt(0));
+  }
+}
+
+
 void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
-                                const CallWrapper& call_wrapper) {
+                                const CallWrapper& call_wrapper,
+                                CallKind call_kind) {
   Label done;
   InvokePrologue(expected,
                  actual,
@@ -2781,14 +2807,17 @@ void MacroAssembler::InvokeCode(Register code,
                  code,
                  &done,
                  flag,
+                 Label::kNear,
                  call_wrapper,
-                 Label::kNear);
+                 call_kind);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(code));
+    SetCallKind(rcx, call_kind);
     call(code);
     call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
+    SetCallKind(rcx, call_kind);
     jmp(code);
   }
   bind(&done);
@@ -2800,7 +2829,8 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& actual,
                                 RelocInfo::Mode rmode,
                                 InvokeFlag flag,
-                                const CallWrapper& call_wrapper) {
+                                const CallWrapper& call_wrapper,
+                                CallKind call_kind) {
   Label done;
   Register dummy = rax;
   InvokePrologue(expected,
@@ -2809,14 +2839,17 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                  dummy,
                  &done,
                  flag,
+                 Label::kNear,
                  call_wrapper,
-                 Label::kNear);
+                 call_kind);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(code));
+    SetCallKind(rcx, call_kind);
     Call(code, rmode);
     call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
+    SetCallKind(rcx, call_kind);
     Jump(code, rmode);
   }
   bind(&done);
@@ -2826,7 +2859,8 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper) {
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
   ASSERT(function.is(rdi));
   movq(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
@@ -2837,14 +2871,15 @@ void MacroAssembler::InvokeFunction(Register function,
   movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(rbx);
-  InvokeCode(rdx, expected, actual, flag, call_wrapper);
+  InvokeCode(rdx, expected, actual, flag, call_wrapper, call_kind);
 }
 
 
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
-                                    const CallWrapper& call_wrapper) {
+                                    const CallWrapper& call_wrapper,
+                                    CallKind call_kind) {
   ASSERT(function->is_compiled());
   // Get the function and setup the context.
   Move(rdi, Handle<JSFunction>(function));
@@ -2855,7 +2890,7 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
     // the Code object every time we call the function.
     movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
     ParameterCount expected(function->shared()->formal_parameter_count());
-    InvokeCode(rdx, expected, actual, flag, call_wrapper);
+    InvokeCode(rdx, expected, actual, flag, call_wrapper, call_kind);
   } else {
     // Invoke the cached code.
     Handle<Code> code(function->code());
@@ -2865,7 +2900,8 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
                actual,
                RelocInfo::CODE_TARGET,
                flag,
-               call_wrapper);
+               call_wrapper,
+               call_kind);
   }
 }
 
@@ -2876,8 +2912,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Register code_register,
                                     Label* done,
                                     InvokeFlag flag,
+                                    Label::Distance near_jump,
                                     const CallWrapper& call_wrapper,
-                                    Label::Distance near_jump) {
+                                    CallKind call_kind) {
   bool definitely_matches = false;
   Label invoke;
   if (expected.is_immediate()) {
@@ -2927,10 +2964,12 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(adaptor));
+      SetCallKind(rcx, call_kind);
       Call(adaptor, RelocInfo::CODE_TARGET);
       call_wrapper.AfterCall();
       jmp(done, near_jump);
     } else {
+      SetCallKind(rcx, call_kind);
       Jump(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&invoke);

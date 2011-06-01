@@ -152,6 +152,29 @@ Heap::Heap()
   max_semispace_size_ = reserved_semispace_size_ = V8_MAX_SEMISPACE_SIZE;
 #endif
 
+  intptr_t max_virtual = OS::MaxVirtualMemory();
+
+  if (max_virtual > 0) {
+    intptr_t half = max_virtual >> 1;
+    intptr_t quarter = max_virtual >> 2;
+    // If we have limits on the amount of virtual memory we can use then we may
+    // be forced to lower the allocation limits.  We reserve one quarter of the
+    // memory for young space and off-heap data.  The rest is distributed as
+    // described below.
+    if (code_range_size_ > 0) {
+      // Reserve a quarter of the memory for the code range.  The old space
+      // heap gets the remaining half.  There is some unavoidable double
+      // counting going on here since the heap size is measured in committed
+      // virtual memory and the code range is only reserved virtual memory.
+      code_range_size_ = Min(code_range_size_, quarter);
+      max_old_generation_size_ = Min(max_old_generation_size_, half);
+    } else {
+      // Reserve three quarters of the memory for the old space heap including
+      // the executable code.
+      max_old_generation_size_ = Min(max_old_generation_size_, half + quarter);
+    }
+  }
+
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   global_contexts_list_ = NULL;
   mark_compact_collector_.heap_ = this;
@@ -1528,6 +1551,7 @@ static void InitializeScavengingVisitorsTables() {
 
 
 void Heap::SwitchScavengingVisitorsTableIfProfilingWasEnabled() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   if (scavenging_visitors_table_mode_ == LOGGING_AND_PROFILING_ENABLED) {
     // Table was already updated by some isolate.
     return;
@@ -1553,6 +1577,7 @@ void Heap::SwitchScavengingVisitorsTableIfProfilingWasEnabled() {
     Release_Store(&scavenging_visitors_table_mode_,
                   LOGGING_AND_PROFILING_ENABLED);
   }
+#endif
 }
 
 
@@ -1603,7 +1628,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_instance_size(instance_size);
   map->set_inobject_properties(0);
   map->set_pre_allocated_property_fields(0);
-  map->set_instance_descriptors(empty_descriptor_array());
+  map->init_instance_descriptors();
   map->set_code_cache(empty_fixed_array());
   map->set_prototype_transitions(empty_fixed_array());
   map->set_unused_property_fields(0);
@@ -1696,15 +1721,15 @@ bool Heap::CreateInitialMaps() {
   set_empty_descriptor_array(DescriptorArray::cast(obj));
 
   // Fix the instance_descriptors for the existing maps.
-  meta_map()->set_instance_descriptors(empty_descriptor_array());
+  meta_map()->init_instance_descriptors();
   meta_map()->set_code_cache(empty_fixed_array());
   meta_map()->set_prototype_transitions(empty_fixed_array());
 
-  fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
+  fixed_array_map()->init_instance_descriptors();
   fixed_array_map()->set_code_cache(empty_fixed_array());
   fixed_array_map()->set_prototype_transitions(empty_fixed_array());
 
-  oddball_map()->set_instance_descriptors(empty_descriptor_array());
+  oddball_map()->init_instance_descriptors();
   oddball_map()->set_code_cache(empty_fixed_array());
   oddball_map()->set_prototype_transitions(empty_fixed_array());
 
@@ -2394,7 +2419,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_num_literals(0);
   share->set_end_position(0);
   share->set_function_token_position(0);
-  share->set_es5_native(false);
+  share->set_native(false);
   return result;
 }
 
@@ -3313,7 +3338,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
 
   // Setup the global object as a normalized object.
   global->set_map(new_map);
-  global->map()->set_instance_descriptors(empty_descriptor_array());
+  global->map()->clear_instance_descriptors();
   global->set_properties(dictionary);
 
   // Make sure result is a global object with properties in dictionary.
@@ -4175,6 +4200,26 @@ MaybeObject* Heap::LookupAsciiSymbol(Vector<const char> string) {
   Object* new_table;
   { MaybeObject* maybe_new_table =
         symbol_table()->LookupAsciiSymbol(string, &symbol);
+    if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
+  }
+  // Can't use set_symbol_table because SymbolTable::cast knows that
+  // SymbolTable is a singleton and checks for identity.
+  roots_[kSymbolTableRootIndex] = new_table;
+  ASSERT(symbol != NULL);
+  return symbol;
+}
+
+
+MaybeObject* Heap::LookupAsciiSymbol(Handle<SeqAsciiString> string,
+                                     int from,
+                                     int length) {
+  Object* symbol = NULL;
+  Object* new_table;
+  { MaybeObject* maybe_new_table =
+        symbol_table()->LookupSubStringAsciiSymbol(string,
+                                                   from,
+                                                   length,
+                                                   &symbol);
     if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
   }
   // Can't use set_symbol_table because SymbolTable::cast knows that

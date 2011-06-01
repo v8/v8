@@ -134,6 +134,10 @@ read_var = StrictTemplate("read-reserved-$id", """
   var x = $id;
 """)
 
+setter_arg = StrictTemplate("setter-param-$id", """
+  var x = {set foo($id) { }};
+""")
+
 non_strict_use = Template("nonstrict-$id", """
   var $id = 42;
   $id++;
@@ -144,6 +148,8 @@ non_strict_use = Template("nonstrict-$id", """
   $id -= 10;
   try {} catch ($id) { }
   function $id($id) { }
+  var x = {$id: 42};
+  x = {get $id() {}, set $id(value) {}};
   function foo() { "use strict;" }
   var $id = 42;
   $id++;
@@ -154,6 +160,8 @@ non_strict_use = Template("nonstrict-$id", """
   $id -= 10;
   try {} catch ($id) { }
   function $id($id) { }
+  x = {$id: 42};
+  x = {get $id() {}, set $id(value) {}};
 """)
 
 # ----------------------------------------------------------------------
@@ -165,6 +173,7 @@ for id in ["eval", "arguments"]:
   arg_name_nested({"id": id}, "strict_param_name")
   func_name_own({"id": id}, "strict_function_name")
   func_name_nested({"id": id}, "strict_function_name")
+  setter_arg({"id": id}, "strict_param_name")
   for op in assign_ops.keys():
     assign_var({"id": id, "op":op, "opname": assign_ops[op]},
                "strict_lhs_assignment")
@@ -184,6 +193,7 @@ for reserved_word in reserved_words + strict_reserved_words:
   if (reserved_word == "const"): message = "unexpected_token"
   arg_name_own({"id":reserved_word}, message)
   arg_name_nested({"id":reserved_word}, message)
+  setter_arg({"id": reserved_word}, message)
   func_name_own({"id":reserved_word}, message)
   func_name_nested({"id":reserved_word}, message)
   for op in assign_ops.keys():

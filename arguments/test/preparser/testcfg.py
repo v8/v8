@@ -106,7 +106,8 @@ class PreparserTestConfiguration(test.TestConfiguration):
       test = PreparserTestCase(self.root,
                                current_path + [filename, name],
                                executable,
-                               mode, throws, self.context, source)
+                               mode, throws, self.context,
+                               source.replace("\n", " "))
       result.append(test)
     def Template(name, source):
       def MkTest(replacement, expectation):

@@ -107,8 +107,8 @@ class LChunkBuilder;
   V(GlobalObject)                              \
   V(GlobalReceiver)                            \
   V(Goto)                                      \
-  V(HasInstanceType)                           \
   V(HasCachedArrayIndex)                       \
+  V(HasInstanceType)                           \
   V(In)                                        \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
@@ -146,13 +146,14 @@ class LChunkBuilder;
   V(Shl)                                       \
   V(Shr)                                       \
   V(Simulate)                                  \
+  V(SoftDeoptimize)                            \
   V(StackCheck)                                \
   V(StoreContextSlot)                          \
   V(StoreGlobalCell)                           \
   V(StoreGlobalGeneric)                        \
   V(StoreKeyedFastElement)                     \
-  V(StoreKeyedSpecializedArrayElement)         \
   V(StoreKeyedGeneric)                         \
+  V(StoreKeyedSpecializedArrayElement)         \
   V(StoreNamedField)                           \
   V(StoreNamedGeneric)                         \
   V(StringAdd)                                 \
@@ -161,12 +162,15 @@ class LChunkBuilder;
   V(StringLength)                              \
   V(Sub)                                       \
   V(Test)                                      \
+  V(ThisFunction)                              \
   V(Throw)                                     \
   V(ToFastProperties)                          \
+  V(ToInt32)                                   \
   V(Typeof)                                    \
   V(TypeofIs)                                  \
   V(UnaryMathOperation)                        \
   V(UnknownOSRValue)                           \
+  V(UseConst)                                  \
   V(ValueOf)
 
 #define GVN_FLAG_LIST(V)                       \
@@ -844,6 +848,19 @@ class HBlockEntry: public HTemplateInstruction<0> {
 };
 
 
+// We insert soft-deoptimize when we hit code with unknown typefeedback,
+// so that we get a chance of re-optimizing with useful typefeedback.
+// HSoftDeoptimize does not end a basic block as opposed to HDeoptimize.
+class HSoftDeoptimize: public HTemplateInstruction<0> {
+ public:
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(SoftDeoptimize)
+};
+
+
 class HDeoptimize: public HControlInstruction {
  public:
   explicit HDeoptimize(int environment_length)
@@ -856,6 +873,7 @@ class HDeoptimize: public HControlInstruction {
 
   virtual int OperandCount() { return values_.length(); }
   virtual HValue* OperandAt(int index) { return values_[index]; }
+  virtual void PrintDataTo(StringStream* stream);
 
   void AddEnvironmentValue(HValue* value) {
     values_.Add(NULL);
@@ -991,6 +1009,14 @@ class HUnaryOperation: public HTemplateInstruction<1> {
     SetOperandAt(0, value);
   }
 
+  static HUnaryOperation* cast(HValue* value) {
+    return reinterpret_cast<HUnaryOperation*>(value);
+  }
+
+  virtual bool CanTruncateToInt32() const {
+    return CheckFlag(kTruncatingToInt32);
+  }
+
   HValue* value() { return OperandAt(0); }
   virtual void PrintDataTo(StringStream* stream);
 };
@@ -1007,6 +1033,18 @@ class HThrow: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Throw)
+};
+
+
+class HUseConst: public HUnaryOperation {
+ public:
+  explicit HUseConst(HValue* old_value) : HUnaryOperation(old_value) { }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(UseConst)
 };
 
 
@@ -1054,8 +1092,6 @@ class HChange: public HUnaryOperation {
   virtual Representation RequiredInputRepresentation(int index) const {
     return from_;
   }
-
-  bool CanTruncateToInt32() const { return CheckFlag(kTruncatingToInt32); }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -1111,6 +1147,37 @@ class HClampToUint8: public HUnaryOperation {
 
  private:
   Representation input_rep_;
+};
+
+
+class HToInt32: public HUnaryOperation {
+ public:
+  explicit HToInt32(HValue* value)
+      : HUnaryOperation(value) {
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  virtual bool CanTruncateToInt32() const {
+    return true;
+  }
+
+  virtual HValue* Canonicalize() {
+    if (value()->representation().IsInteger32()) {
+      return value();
+    } else {
+      return this;
+    }
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ToInt32)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
 };
 
 
@@ -1196,14 +1263,19 @@ class HStackCheck: public HTemplateInstruction<0> {
 
 class HEnterInlined: public HTemplateInstruction<0> {
  public:
-  HEnterInlined(Handle<JSFunction> closure, FunctionLiteral* function)
-      : closure_(closure), function_(function) {
+  HEnterInlined(Handle<JSFunction> closure,
+                FunctionLiteral* function,
+                CallKind call_kind)
+      : closure_(closure),
+        function_(function),
+        call_kind_(call_kind) {
   }
 
   virtual void PrintDataTo(StringStream* stream);
 
   Handle<JSFunction> closure() const { return closure_; }
   FunctionLiteral* function() const { return function_; }
+  CallKind call_kind() const { return call_kind_; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
@@ -1214,6 +1286,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
  private:
   Handle<JSFunction> closure_;
   FunctionLiteral* function_;
+  CallKind call_kind_;
 };
 
 
@@ -1245,6 +1318,24 @@ class HPushArgument: public HUnaryOperation {
 };
 
 
+class HThisFunction: public HTemplateInstruction<0> {
+ public:
+  HThisFunction() {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ThisFunction)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
 class HContext: public HTemplateInstruction<0> {
  public:
   HContext() {
@@ -1256,7 +1347,7 @@ class HContext: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(Context);
+  DECLARE_CONCRETE_INSTRUCTION(Context)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
@@ -1829,8 +1920,8 @@ class HCheckFunction: public HUnaryOperation {
 
 class HCheckInstanceType: public HUnaryOperation {
  public:
-  static HCheckInstanceType* NewIsJSObjectOrJSFunction(HValue* value) {
-    return new HCheckInstanceType(value, IS_JS_OBJECT_OR_JS_FUNCTION);
+  static HCheckInstanceType* NewIsSpecObject(HValue* value) {
+    return new HCheckInstanceType(value, IS_SPEC_OBJECT);
   }
   static HCheckInstanceType* NewIsJSArray(HValue* value) {
     return new HCheckInstanceType(value, IS_JS_ARRAY);
@@ -1878,7 +1969,7 @@ class HCheckInstanceType: public HUnaryOperation {
 
  private:
   enum Check {
-    IS_JS_OBJECT_OR_JS_FUNCTION,
+    IS_SPEC_OBJECT,
     IS_JS_ARRAY,
     IS_STRING,
     IS_SYMBOL,

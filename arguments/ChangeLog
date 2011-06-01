@@ -1,3 +1,43 @@
+2011-06-01: Version 3.4.1
+
+        Fixed JSON stringify issue with arrays.
+
+        Changed calls to JS builtins to be passed undefined when called with
+        implicit receiver.
+
+        Implemented the set trap for Harmony proxies. Proxies still need to
+        be enabled with the --harmony-proxies flag.
+
+
+2011-05-30: Version 3.4.0
+
+        Changed calls to undefined property setters to not throw (issue 1355).
+
+        Made RegExp objects not callable.
+
+        Fixed issues on special case large JSON strings in new json parser
+        (issues http://crbug.com/83877 and http://crbug.com/84186).
+
+        Performance improvements on all platforms.
+
+
+2011-05-25: Version 3.3.10
+
+        Fixed calls of strict mode function with an implicit receiver.
+
+        Fixed fast handling of arrays to properly deal with changes to the
+        Object prototype (issue 1403).
+
+        Changed strict mode poison pill to be the same type error function
+        (issue 1387).
+
+        Fixed a debug crash in arguments object handling (issue 1227).
+
+        Fixed a bug in deoptimization on x64 (issue 1404).
+
+        Performance improvements and bug fixes on all platforms.
+
+
 2011-05-23: Version 3.3.9
 
         Added DateTimeFormat class to experimental i18n API.

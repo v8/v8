@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -92,7 +92,7 @@ static Handle<Code> ComputeCallDebugBreak(int argc, Code::Kind kind) {
 }
 
 
-static Handle<Code> ComputeCallDebugPrepareStepIn(int argc,  Code::Kind kind) {
+static Handle<Code> ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind) {
   Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(
       isolate,
@@ -167,8 +167,8 @@ void BreakLocationIterator::Next() {
       Address target = original_rinfo()->target_address();
       Code* code = Code::GetCodeFromTargetAddress(target);
       if ((code->is_inline_cache_stub() &&
-           !code->is_type_recording_binary_op_stub() &&
-           !code->is_type_recording_unary_op_stub() &&
+           !code->is_binary_op_stub() &&
+           !code->is_unary_op_stub() &&
            !code->is_compare_ic_stub()) ||
           RelocInfo::IsConstructCall(rmode())) {
         break_point_++;

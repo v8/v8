@@ -303,6 +303,11 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result) {
   // we need to split use positons in a special way.
   bool split_at_start = false;
 
+  if (current->start().Value() == position.Value()) {
+    // When splitting at start we need to locate the previous use interval.
+    current = first_interval_;
+  }
+
   while (current != NULL) {
     if (current->Contains(position)) {
       current->SplitAt(position);
@@ -351,6 +356,11 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result) {
     first_pos_ = NULL;
   }
   result->first_pos_ = use_after;
+
+  // Discard cached iteration state. It might be pointing
+  // to the use that no longer belongs to this live range.
+  last_processed_use_ = NULL;
+  current_interval_ = NULL;
 
   // Link the new live range in the chain before any of the other
   // ranges linked from the range before the split.

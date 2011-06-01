@@ -544,6 +544,17 @@ bool CallNew::IsInlineable() const {
 
 
 bool CallRuntime::IsInlineable() const {
+  // Don't try to inline JS runtime calls because we don't (currently) even
+  // optimize them.
+  if (is_jsruntime()) return false;
+  // Don't inline the %_ArgumentsLength or %_Arguments because their
+  // implementation will not work.  There is no stack frame to get them
+  // from.
+  if (function()->intrinsic_type == Runtime::INLINE &&
+      (name()->IsEqualTo(CStrVector("_ArgumentsLength")) ||
+       name()->IsEqualTo(CStrVector("_Arguments")))) {
+    return false;
+  }
   const int count = arguments()->length();
   for (int i = 0; i < count; ++i) {
     if (!arguments()->at(i)->IsInlineable()) return false;
@@ -712,14 +723,15 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
 }
 
 
-void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
+                              CallKind call_kind) {
   Property* property = expression()->AsProperty();
   ASSERT(property != NULL);
   // Specialize for the receiver types seen at runtime.
   Literal* key = property->key()->AsLiteral();
   ASSERT(key != NULL && key->handle()->IsString());
   Handle<String> name = Handle<String>::cast(key->handle());
-  receiver_types_ = oracle->CallReceiverTypes(this, name);
+  receiver_types_ = oracle->CallReceiverTypes(this, name, call_kind);
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) {
     if (receiver_types_ != NULL) {

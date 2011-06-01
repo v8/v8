@@ -169,6 +169,7 @@ class LCodeGen;
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
+  V(ThisFunction)                               \
   V(Throw)                                      \
   V(ToFastProperties)                           \
   V(Typeof)                                     \
@@ -1441,6 +1442,11 @@ class LPushArgument: public LTemplateInstruction<0, 1, 0> {
 };
 
 
+class LThisFunction: public LTemplateInstruction<1, 0, 0> {
+  DECLARE_CONCRETE_INSTRUCTION(ThisFunction, "this-function")
+};
+
+
 class LContext: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(Context, "context")
@@ -1634,7 +1640,7 @@ class LDoubleToI: public LTemplateInstruction<1, 1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(DoubleToI, "double-to-i")
-  DECLARE_HYDROGEN_ACCESSOR(Change)
+  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
 
   bool truncating() { return hydrogen()->CanTruncateToInt32(); }
 };
@@ -1649,7 +1655,7 @@ class LTaggedToI: public LTemplateInstruction<1, 1, 1> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(TaggedToI, "tagged-to-i")
-  DECLARE_HYDROGEN_ACCESSOR(Change)
+  DECLARE_HYDROGEN_ACCESSOR(UnaryOperation)
 
   bool truncating() { return hydrogen()->CanTruncateToInt32(); }
 };

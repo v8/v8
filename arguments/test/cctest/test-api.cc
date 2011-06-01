@@ -6664,7 +6664,7 @@ THREADED_TEST(ShadowObject) {
   context->Global()->Set(v8_str("__proto__"), o);
 
   Local<Value> value =
-      Script::Compile(v8_str("propertyIsEnumerable(0)"))->Run();
+      Script::Compile(v8_str("this.propertyIsEnumerable(0)"))->Run();
   CHECK(value->IsBoolean());
   CHECK(!value->BooleanValue());
 
@@ -9576,6 +9576,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   // the first garbage collection but some of the maps have already
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
+  HEAP->global_context_map();
   HEAP->CollectAllGarbage(false);
   HEAP->CollectAllGarbage(false);
   int count = GetGlobalObjectsCount();

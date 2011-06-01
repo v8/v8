@@ -206,6 +206,10 @@ ecma_3/RegExp/regress-85721: PASS || FAIL if $mode == debug
 # This section is for tests that fail in both V8 and JSC.  Thus they
 # have been determined to be incompatible between Mozilla and V8/JSC.
 
+# Fail because it calls builtins as functions and do not expect the
+# builtin to have undefined as the receiver.
+ecma/String/15.5.4.6-2: FAIL_OK
+
 # Fail because of toLowerCase and toUpperCase conversion.
 ecma/String/15.5.4.11-2: FAIL_OK
 ecma/String/15.5.4.11-5: FAIL_OK
@@ -431,6 +435,14 @@ js1_2/version120/regress-99663: FAIL_OK
 js1_2/regexp/RegExp_lastIndex: FAIL_OK
 js1_2/regexp/string_split: FAIL_OK
 
+
+# RegExps are not callable.
+js1_2/regexp/simple_form: FAIL_OK
+js1_2/regexp/regress-6359: FAIL_OK
+js1_2/regexp/regress-9141: FAIL_OK
+js1_5/Regress/regress-224956: FAIL_OK
+js1_5/Regress/regress-325925: FAIL_OK
+ecma_2/RegExp/regress-001: FAIL_OK
 
 # We do not check for bad surrogate pairs when quoting strings.
 js1_5/Regress/regress-315974: FAIL_OK

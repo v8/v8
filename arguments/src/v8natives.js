@@ -56,7 +56,7 @@ function InstallFunctions(object, attributes, functions) {
     %FunctionSetName(f, key);
     %FunctionRemovePrototype(f);
     %SetProperty(object, key, f, attributes);
-    %SetES5Flag(f);
+    %SetNativeFlag(f);
   }
   %ToFastProperties(object);
 }
@@ -132,10 +132,19 @@ function GlobalParseFloat(string) {
 function GlobalEval(x) {
   if (!IS_STRING(x)) return x;
 
+  var receiver = this;
   var global_receiver = %GlobalReceiver(global);
-  var this_is_global_receiver = (this === global_receiver);
+
+  if (receiver == null && !IS_UNDETECTABLE(receiver)) {
+    receiver = global_receiver;
+  }
+
+  var this_is_global_receiver = (receiver === global_receiver);
   var global_is_detached = (global === global_receiver);
 
+  // For consistency with JSC we require the global object passed to
+  // eval to be the global object from which 'eval' originated. This
+  // is not mandated by the spec.
   if (!this_is_global_receiver || global_is_detached) {
     throw new $EvalError('The "this" object passed to eval must ' +
                          'be the global object from which eval originated');
@@ -144,7 +153,7 @@ function GlobalEval(x) {
   var f = %CompileString(x);
   if (!IS_FUNCTION(f)) return f;
 
-  return %_CallFunction(this, f);
+  return %_CallFunction(receiver, f);
 }
 
 
@@ -246,8 +255,9 @@ function ObjectPropertyIsEnumerable(V) {
 
 // Extensions for providing property getters and setters.
 function ObjectDefineGetter(name, fun) {
-  if (this == null && !IS_UNDETECTABLE(this)) {
-    throw new $TypeError('Object.prototype.__defineGetter__: this is Null');
+  var receiver = this;
+  if (receiver == null && !IS_UNDETECTABLE(receiver)) {
+    receiver = %GlobalReceiver(global);
   }
   if (!IS_FUNCTION(fun)) {
     throw new $TypeError('Object.prototype.__defineGetter__: Expecting function');
@@ -256,21 +266,23 @@ function ObjectDefineGetter(name, fun) {
   desc.setGet(fun);
   desc.setEnumerable(true);
   desc.setConfigurable(true);
-  DefineOwnProperty(ToObject(this), ToString(name), desc, false);
+  DefineOwnProperty(ToObject(receiver), ToString(name), desc, false);
 }
 
 
 function ObjectLookupGetter(name) {
-  if (this == null && !IS_UNDETECTABLE(this)) {
-    throw new $TypeError('Object.prototype.__lookupGetter__: this is Null');
+  var receiver = this;
+  if (receiver == null && !IS_UNDETECTABLE(receiver)) {
+    receiver = %GlobalReceiver(global);
   }
-  return %LookupAccessor(ToObject(this), ToString(name), GETTER);
+  return %LookupAccessor(ToObject(receiver), ToString(name), GETTER);
 }
 
 
 function ObjectDefineSetter(name, fun) {
-  if (this == null && !IS_UNDETECTABLE(this)) {
-    throw new $TypeError('Object.prototype.__defineSetter__: this is Null');
+  var receiver = this;
+  if (receiver == null && !IS_UNDETECTABLE(receiver)) {
+    receiver = %GlobalReceiver(global);
   }
   if (!IS_FUNCTION(fun)) {
     throw new $TypeError(
@@ -280,15 +292,16 @@ function ObjectDefineSetter(name, fun) {
   desc.setSet(fun);
   desc.setEnumerable(true);
   desc.setConfigurable(true);
-  DefineOwnProperty(ToObject(this), ToString(name), desc, false);
+  DefineOwnProperty(ToObject(receiver), ToString(name), desc, false);
 }
 
 
 function ObjectLookupSetter(name) {
-  if (this == null && !IS_UNDETECTABLE(this)) {
-    throw new $TypeError('Object.prototype.__lookupSetter__: this is Null');
+  var receiver = this;
+  if (receiver == null && !IS_UNDETECTABLE(receiver)) {
+    receiver = %GlobalReceiver(global);
   }
-  return %LookupAccessor(ToObject(this), ToString(name), SETTER);
+  return %LookupAccessor(ToObject(receiver), ToString(name), SETTER);
 }
 
 

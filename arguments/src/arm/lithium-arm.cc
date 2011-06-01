@@ -808,6 +808,11 @@ LInstruction* LChunkBuilder::DoBlockEntry(HBlockEntry* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoSoftDeoptimize(HSoftDeoptimize* instr) {
+  return AssignEnvironment(new LDeoptimize);
+}
+
+
 LInstruction* LChunkBuilder::DoDeoptimize(HDeoptimize* instr) {
   return AssignEnvironment(new LDeoptimize);
 }
@@ -1192,6 +1197,11 @@ LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
   ++argument_count_;
   LOperand* argument = Use(instr->argument());
   return new LPushArgument(argument);
+}
+
+
+LInstruction* LChunkBuilder::DoThisFunction(HThisFunction* instr) {
+  return instr->HasNoUses() ? NULL : DefineAsRegister(new LThisFunction);
 }
 
 
@@ -1633,6 +1643,11 @@ LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoUseConst(HUseConst* instr) {
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoForceRepresentation(HForceRepresentation* bad) {
   // All HForceRepresentation instructions should be eliminated in the
   // representation change phase of Hydrogen.
@@ -1763,6 +1778,31 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
     // temps. Reserve d1 explicitly.
     LClampTToUint8* result = new LClampTToUint8(reg, FixedTemp(d1));
     return AssignEnvironment(DefineAsRegister(result));
+  }
+}
+
+
+LInstruction* LChunkBuilder::DoToInt32(HToInt32* instr) {
+  HValue* value = instr->value();
+  Representation input_rep = value->representation();
+  LOperand* reg = UseRegister(value);
+  if (input_rep.IsDouble()) {
+    LOperand* temp1 = TempRegister();
+    LOperand* temp2 = TempRegister();
+    LDoubleToI* res = new LDoubleToI(reg, temp1, temp2);
+    return AssignEnvironment(DefineAsRegister(res));
+  } else if (input_rep.IsInteger32()) {
+    // Canonicalization should already have removed the hydrogen instruction in
+    // this case, since it is a noop.
+    UNREACHABLE();
+    return NULL;
+  } else {
+    ASSERT(input_rep.IsTagged());
+    LOperand* temp1 = TempRegister();
+    LOperand* temp2 = TempRegister();
+    LOperand* temp3 = FixedTemp(d3);
+    LTaggedToI* res = new LTaggedToI(reg, temp1, temp2, temp3);
+    return AssignEnvironment(DefineSameAsFirst(res));
   }
 }
 
@@ -2180,7 +2220,8 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
   HEnvironment* inner = outer->CopyForInlining(instr->closure(),
                                                instr->function(),
                                                HEnvironment::LITHIUM,
-                                               undefined);
+                                               undefined,
+                                               instr->call_kind());
   current_block_->UpdateEnvironment(inner);
   chunk_->AddInlinedClosure(instr->closure());
   return NULL;

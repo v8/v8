@@ -36,6 +36,9 @@ test-debug/DebuggerAgent: PASS, (PASS || FAIL) if $system == linux
 # BUG(382): Weird test. Can't guarantee that it never times out.
 test-api/ApplyInterruption: PASS || TIMEOUT
 
+# BUG(1417): Crashes with --stress-opt --always-opt.
+test-log/Issue23768: PASS || CRASH
+
 # These tests always fail.  They are here to test test.py.  If
 # they don't fail then test.py has failed.
 test-serialize/TestThatAlwaysFails: FAIL
@@ -81,26 +84,5 @@ test-debug/DebugBreakLoop: SKIP
 
 ##############################################################################
 [ $arch == mips ]
-test-accessors: SKIP
-test-alloc: SKIP
-test-api: SKIP
-test-compiler: SKIP
-test-cpu-profiler: SKIP
-test-debug: SKIP
-test-decls: SKIP
 test-deoptimization: SKIP
-test-func-name-inference: SKIP
-test-heap: SKIP
-test-heap-profiler: SKIP
-test-lockers: SKIP
-test-log: SKIP
-test-log-utils: SKIP
-test-mark-compact: SKIP
-test-parsing: SKIP
-test-profile-generator: SKIP
-test-regexp: SKIP
 test-serialize: SKIP
-test-sockets: SKIP
-test-strings: SKIP
-test-threads: SKIP
-test-thread-termination: SKIP

@@ -1604,8 +1604,8 @@ void Logger::LogCodeObject(Object* object) {
       case Code::FUNCTION:
       case Code::OPTIMIZED_FUNCTION:
         return;  // We log this later using LogCompiledFunctions.
-      case Code::TYPE_RECORDING_UNARY_OP_IC:   // fall through
-      case Code::TYPE_RECORDING_BINARY_OP_IC:   // fall through
+      case Code::UNARY_OP_IC:   // fall through
+      case Code::BINARY_OP_IC:   // fall through
       case Code::COMPARE_IC:  // fall through
       case Code::STUB:
         description =
@@ -1878,7 +1878,11 @@ bool Logger::Setup() {
 
 
 Sampler* Logger::sampler() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   return ticker_;
+#else
+  return NULL;
+#endif
 }
 
 
@@ -1955,8 +1959,10 @@ bool SamplerRegistry::IterateActiveSamplers(VisitSampler func, void* param) {
 
 
 static void ComputeCpuProfiling(Sampler* sampler, void* flag_ptr) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   bool* flag = reinterpret_cast<bool*>(flag_ptr);
   *flag |= sampler->IsProfiling();
+#endif
 }
 
 

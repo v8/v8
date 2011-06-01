@@ -224,7 +224,9 @@ class TypeFeedbackOracle BASE_EMBEDDED {
 
   ZoneMapList* LoadReceiverTypes(Property* expr, Handle<String> name);
   ZoneMapList* StoreReceiverTypes(Assignment* expr, Handle<String> name);
-  ZoneMapList* CallReceiverTypes(Call* expr, Handle<String> name);
+  ZoneMapList* CallReceiverTypes(Call* expr,
+                                 Handle<String> name,
+                                 CallKind call_kind);
 
   ExternalArrayType GetKeyedLoadExternalArrayType(Property* expr);
   ExternalArrayType GetKeyedStoreExternalArrayType(Expression* expr);

@@ -25,12 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// When 'eval' is overridden with a non-function object we should
-// check whether the object is callable.
+// See: http://code.google.com/p/v8/issues/detail?id=1401
 
-function test() {
-  eval = /foo/;
-  assertEquals(["foo"], eval("foobar"));
+var bottom = 0;
+var sizes = new Array();
+
+for (i = 0; i < 10; i++) {
+  sizes[i] = 0;
 }
 
-test();
+function foo() {
+  var size = bottom + 1 + 10;
+  var t =  (sizes[++bottom] = size);
+  return t;
+}
+
+for (i = 0; i < 5; i++) {
+  assertEquals(i + 11, foo());
+}

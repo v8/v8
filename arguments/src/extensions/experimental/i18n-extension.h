@@ -28,7 +28,7 @@
 #ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
 #define V8_EXTENSIONS_EXPERIMENTAL_I18N_EXTENSION_H_
 
-#include <v8.h>
+#include "include/v8.h"
 
 namespace v8 {
 namespace internal {

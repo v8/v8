@@ -148,9 +148,9 @@ class Comparator {
   // element from the first array and element from the second array.
   class Input {
    public:
-    virtual int getLength1() = 0;
-    virtual int getLength2() = 0;
-    virtual bool equals(int index1, int index2) = 0;
+    virtual int GetLength1() = 0;
+    virtual int GetLength2() = 0;
+    virtual bool Equals(int index1, int index2) = 0;
 
    protected:
     virtual ~Input() {}

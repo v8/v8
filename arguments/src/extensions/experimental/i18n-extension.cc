@@ -25,30 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "i18n-extension.h"
+#include "src/extensions/experimental/i18n-extension.h"
 
-#include "break-iterator.h"
-#include "collator.h"
-#include "i18n-locale.h"
-#include "natives.h"
+#include "src/extensions/experimental/break-iterator.h"
+#include "src/extensions/experimental/collator.h"
+#include "src/extensions/experimental/i18n-locale.h"
+#include "src/extensions/experimental/i18n-natives.h"
 
 namespace v8 {
 namespace internal {
 
 I18NExtension* I18NExtension::extension_ = NULL;
 
-// Returns a pointer to static string containing the actual
-// JavaScript code generated from i18n.js file.
-static const char* GetScriptSource() {
-  int index = NativesCollection<I18N>::GetIndex("i18n");
-  Vector<const char> script_data =
-      NativesCollection<I18N>::GetScriptSource(index);
-
-  return script_data.start();
-}
-
 I18NExtension::I18NExtension()
-    : v8::Extension("v8/i18n", GetScriptSource()) {
+    : v8::Extension("v8/i18n", I18Natives::GetScriptSource()) {
 }
 
 v8::Handle<v8::FunctionTemplate> I18NExtension::GetNativeFunction(

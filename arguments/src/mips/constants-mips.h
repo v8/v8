@@ -47,6 +47,19 @@
 #endif
 
 
+#if(defined(__mips_hard_float) && __mips_hard_float != 0)
+// Use floating-point coprocessor instructions. This flag is raised when
+// -mhard-float is passed to the compiler.
+static const bool IsMipsSoftFloatABI = false;
+#elif(defined(__mips_soft_float) && __mips_soft_float != 0)
+// Not using floating-point coprocessor instructions. This flag is raised when
+// -msoft-float is passed to the compiler.
+static const bool IsMipsSoftFloatABI = true;
+#else
+static const bool IsMipsSoftFloatABI = true;
+#endif
+
+
 // Defines constants and accessor classes to assemble, disassemble and
 // simulate MIPS32 instructions.
 //
@@ -144,6 +157,18 @@ enum SoftwareInterruptCodes {
   // Transition to C code.
   call_rt_redirected = 0xfffff
 };
+
+// On MIPS Simulator breakpoints can have different codes:
+// - Breaks between 0 and kMaxWatchpointCode are treated as simple watchpoints,
+//   the simulator will run through them and print the registers.
+// - Breaks between kMaxWatchpointCode and kMaxStopCode are treated as stop()
+//   instructions (see Assembler::stop()).
+// - Breaks larger than kMaxStopCode are simple breaks, dropping you into the
+//   debugger.
+static const uint32_t kMaxWatchpointCode = 31;
+static const uint32_t kMaxStopCode = 127;
+STATIC_ASSERT(kMaxWatchpointCode < kMaxStopCode);
+
 
 // ----- Fields offset and length.
 static const int kOpcodeShift   = 26;

@@ -37,18 +37,6 @@
 namespace v8 {
 namespace internal {
 
-#if(defined(__mips_hard_float) && __mips_hard_float != 0)
-// Use floating-point coprocessor instructions. This flag is raised when
-// -mhard-float is passed to the compiler.
-static const bool IsMipsSoftFloatABI = false;
-#elif(defined(__mips_soft_float) && __mips_soft_float != 0)
-// Not using floating-point coprocessor instructions. This flag is raised when
-// -msoft-float is passed to the compiler.
-static const bool IsMipsSoftFloatABI = true;
-#else
-static const bool IsMipsSoftFloatABI = true;
-#endif
-
 // Forward declarations
 class CompilationInfo;
 
