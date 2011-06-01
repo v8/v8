@@ -1,3 +1,14 @@
+2011-06-01: Version 3.4.1
+
+        Fixed JSON stringify issue with arrays.
+
+        Changed calls to JS builtins to be passed undefined when called with
+        implicit receiver.
+
+        Implemented the set trap for Harmony proxies. Proxies still need to
+        be enabled with the --harmony-proxies flag.
+
+
 2011-05-30: Version 3.4.0
 
         Changed calls to undefined property setters to not throw (issue 1355).
