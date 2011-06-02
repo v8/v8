@@ -67,7 +67,6 @@ namespace internal {
   F(SpecialArrayFunctions, 1, 1) \
   F(GetGlobalReceiver, 0, 1) \
   \
-  F(GetPrototype, 1, 1) \
   F(IsInPrototypeChain, 2, 1) \
   F(SetHiddenPrototype, 2, 1) \
   \
@@ -279,8 +278,6 @@ namespace internal {
   \
   /* Harmony proxies */ \
   F(CreateJSProxy, 2, 1) \
-  F(IsJSProxy, 1, 1) \
-  F(GetHandler, 1, 1) \
   \
   /* Catch context extension objects */ \
   F(CreateCatchExtensionObject, 2, 1) \
