@@ -1028,10 +1028,11 @@ class SignalSender : public Thread {
       bool cpu_profiling_enabled =
           (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
       bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
-      if (cpu_profiling_enabled && !signal_handler_installed_)
+      if (cpu_profiling_enabled && !signal_handler_installed_) {
         InstallSignalHandler();
-      else if (!cpu_profiling_enabled && signal_handler_installed_)
+      } else if (!cpu_profiling_enabled && signal_handler_installed_) {
         RestoreSignalHandler();
+      }
       // When CPU profiling is enabled both JavaScript and C++ code is
       // profiled. We must not suspend.
       if (!cpu_profiling_enabled) {
