@@ -363,6 +363,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
   // If the type of the result (stored in its map) is less than
   // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
+  STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
   __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rcx);
   __ j(above_equal, &exit);
 
