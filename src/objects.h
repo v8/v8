@@ -3868,6 +3868,26 @@ class Map: public HeapObject {
   DECL_ACCESSORS(prototype_transitions, FixedArray)
   inline FixedArray* unchecked_prototype_transitions();
 
+  static const int kProtoTransitionHeaderSize = 1;
+  static const int kProtoTransitionNumberOfEntriesOffset = 0;
+  static const int kProtoTransitionElementsPerEntry = 2;
+  static const int kProtoTransitionPrototypeOffset = 0;
+  static const int kProtoTransitionMapOffset = 1;
+
+  inline int NumberOfProtoTransitions() {
+    FixedArray* cache = unchecked_prototype_transitions();
+    if (cache->length() == 0) return 0;
+    return
+        Smi::cast(cache->get(kProtoTransitionNumberOfEntriesOffset))->value();
+  }
+
+  inline void SetNumberOfProtoTransitions(int value) {
+    FixedArray* cache = unchecked_prototype_transitions();
+    ASSERT(cache->length() != 0);
+    cache->set_unchecked(kProtoTransitionNumberOfEntriesOffset,
+                         Smi::FromInt(value));
+  }
+
   // Lookup in the map's instance descriptors and fill out the result
   // with the given holder if the name is found. The holder may be
   // NULL when this function is used from the compiler.
