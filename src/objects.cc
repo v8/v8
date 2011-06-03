@@ -1941,6 +1941,42 @@ void Map::LookupInDescriptors(JSObject* holder,
 }
 
 
+static JSObject::ElementsKind GetElementsKindFromExternalArrayType(
+    ExternalArrayType array_type) {
+  switch (array_type) {
+    case kExternalByteArray:
+      return JSObject::EXTERNAL_BYTE_ELEMENTS;
+      break;
+    case kExternalUnsignedByteArray:
+      return JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
+      break;
+    case kExternalShortArray:
+      return JSObject::EXTERNAL_SHORT_ELEMENTS;
+      break;
+    case kExternalUnsignedShortArray:
+      return JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
+      break;
+    case kExternalIntArray:
+      return JSObject::EXTERNAL_INT_ELEMENTS;
+      break;
+    case kExternalUnsignedIntArray:
+      return JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS;
+      break;
+    case kExternalFloatArray:
+      return JSObject::EXTERNAL_FLOAT_ELEMENTS;
+      break;
+    case kExternalDoubleArray:
+      return JSObject::EXTERNAL_DOUBLE_ELEMENTS;
+      break;
+    case kExternalPixelArray:
+      return JSObject::EXTERNAL_PIXEL_ELEMENTS;
+      break;
+  }
+  UNREACHABLE();
+  return JSObject::DICTIONARY_ELEMENTS;
+}
+
+
 MaybeObject* Map::GetExternalArrayElementsMap(ExternalArrayType array_type,
                                               bool safe_to_add_transition) {
   Heap* current_heap = heap();
@@ -1983,8 +2019,7 @@ MaybeObject* Map::GetExternalArrayElementsMap(ExternalArrayType array_type,
   }
   Map* new_map = Map::cast(obj);
 
-  new_map->set_has_fast_elements(false);
-  new_map->set_has_external_array_elements(true);
+  new_map->set_elements_kind(GetElementsKindFromExternalArrayType(array_type));
   GetIsolate()->counters()->map_to_external_array_elements()->Increment();
 
   // Only remember the map transition if the object's map is NOT equal to the

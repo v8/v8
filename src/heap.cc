@@ -1636,7 +1636,8 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_prototype_transitions(empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
-  map->set_bit_field2((1 << Map::kIsExtensible) | (1 << Map::kHasFastElements));
+  map->set_bit_field2(1 << Map::kIsExtensible);
+  map->set_elements_kind(JSObject::FAST_ELEMENTS);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
   if (Map::kPadStart < Map::kSize) {

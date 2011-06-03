@@ -279,6 +279,16 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 }
 
 
+void MacroAssembler::CheckFastElements(Register map,
+                                       Label* fail,
+                                       Label::Distance distance) {
+  STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
+  cmpb(FieldOperand(map, Map::kBitField2Offset),
+       Map::kMaximumBitField2FastElementValue);
+  j(above, fail, distance);
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,

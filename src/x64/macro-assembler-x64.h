@@ -754,6 +754,12 @@ class MacroAssembler: public Assembler {
   // Always use unsigned comparisons: above and below, not less and greater.
   void CmpInstanceType(Register map, InstanceType type);
 
+  // Check if a map for a JSObject indicates that the object has fast elements.
+  // Jump to the specified label if it does not.
+  void CheckFastElements(Register map,
+                         Label* fail,
+                         Label::Distance distance = Label::kFar);
+
   // Check if the map of an object is equal to a specified map and
   // branch to label if not. Skip the smi check if not required
   // (object is known to be a heap object)

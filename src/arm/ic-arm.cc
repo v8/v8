@@ -944,11 +944,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   GenerateKeyedLoadReceiverCheck(
       masm, receiver, r2, r3, Map::kHasIndexedInterceptor, &slow);
 
-  // Check the "has fast elements" bit in the receiver's map which is
-  // now in r2.
-  __ ldrb(r3, FieldMemOperand(r2, Map::kBitField2Offset));
-  __ tst(r3, Operand(1 << Map::kHasFastElements));
-  __ b(eq, &check_number_dictionary);
+  // Check the receiver's map to see if it has fast elements.
+  __ CheckFastElements(r2, r3, &check_number_dictionary);
 
   GenerateFastArrayLoad(
       masm, receiver, key, r4, r3, r2, r0, NULL, &slow);

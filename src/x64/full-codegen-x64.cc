@@ -3333,9 +3333,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ j(not_equal, &bailout);
 
   // Check that the array has fast elements.
-  __ testb(FieldOperand(scratch, Map::kBitField2Offset),
-           Immediate(1 << Map::kHasFastElements));
-  __ j(zero, &bailout);
+  __ CheckFastElements(scratch, &bailout);
 
   // Array has fast elements, so its length must be a smi.
   // If the array has length zero, return the empty string.
