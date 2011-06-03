@@ -3713,39 +3713,68 @@ void Map::RemoveFromCodeCache(String* name, Code* code, int index) {
 
 
 void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
+  // Traverse the transition tree without using a stack.  We do this by
+  // reversing the pointers in the maps and descriptor arrays.
   Map* current = this;
   Map* meta_map = heap()->meta_map();
+  Object** map_or_index_field = NULL;
   while (current != meta_map) {
     DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
         *RawField(current, Map::kInstanceDescriptorsOffset));
-    if (d == heap()->empty_descriptor_array()) {
-      Map* prev = current->map();
-      current->set_map(meta_map);
-      callback(current, data);
-      current = prev;
-      continue;
+    if (!d->IsEmpty()) {
+      FixedArray* contents = reinterpret_cast<FixedArray*>(
+          d->get(DescriptorArray::kContentArrayIndex));
+      map_or_index_field = RawField(contents, HeapObject::kMapOffset);
+      Object* map_or_index = *map_or_index_field;
+      bool map_done = true;  // Controls a nested continue statement.
+      for (int i = map_or_index->IsSmi() ? Smi::cast(map_or_index)->value() : 0;
+           i < contents->length();
+           i += 2) {
+        PropertyDetails details(Smi::cast(contents->get(i + 1)));
+        if (details.IsTransition()) {
+          // Found a map in the transition array.  We record our progress in
+          // the transition array by recording the current map in the map field
+          // of the next map and recording the index in the transition array in
+          // the map field of the array.
+          Map* next = Map::cast(contents->get(i));
+          next->set_map(current);
+          *map_or_index_field = Smi::FromInt(i + 2);
+          current = next;
+          map_done = false;
+          break;
+        }
+      }
+      if (!map_done) continue;
     }
-
-    FixedArray* contents = reinterpret_cast<FixedArray*>(
-        d->get(DescriptorArray::kContentArrayIndex));
-    Object** map_or_index_field = RawField(contents, HeapObject::kMapOffset);
-    Object* map_or_index = *map_or_index_field;
-    bool map_done = true;
-    for (int i = map_or_index->IsSmi() ? Smi::cast(map_or_index)->value() : 0;
-         i < contents->length();
-         i += 2) {
-      PropertyDetails details(Smi::cast(contents->get(i + 1)));
-      if (details.IsTransition()) {
-        Map* next = reinterpret_cast<Map*>(contents->get(i));
+    // That was the regular transitions, now for the prototype transitions.
+    FixedArray* prototype_transitions =
+        current->unchecked_prototype_transitions();
+    Object** proto_map_or_index_field =
+        RawField(prototype_transitions, HeapObject::kMapOffset);
+    Object* map_or_index = *proto_map_or_index_field;
+    const int start = 2;
+    int i = map_or_index->IsSmi() ? Smi::cast(map_or_index)->value() : start;
+    if (i < prototype_transitions->length()) {
+      // Found a map in the prototype transition array.  Record progress in
+      // an analogous way to the regular transitions array above.
+      Object* perhaps_map = prototype_transitions->get(i);
+      if (perhaps_map->IsMap()) {
+        Map* next = Map::cast(perhaps_map);
         next->set_map(current);
-        *map_or_index_field = Smi::FromInt(i + 2);
+        *proto_map_or_index_field =
+            Smi::FromInt(i + 2);
         current = next;
-        map_done = false;
-        break;
+        continue;
       }
     }
-    if (!map_done) continue;
-    *map_or_index_field = heap()->fixed_array_map();
+    *proto_map_or_index_field = heap()->fixed_array_map();
+    if (map_or_index_field != NULL) {
+      *map_or_index_field = heap()->fixed_array_map();
+    }
+
+    // The callback expects a map to have a real map as its map, so we save
+    // the map field, which is being used to track the traversal and put the
+    // correct map (the meta_map) in place while we do the callback.
     Map* prev = current->map();
     current->set_map(meta_map);
     callback(current, data);
