@@ -224,7 +224,8 @@ TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
   switch (state) {
     case CompareIC::UNINITIALIZED:
       // Uninitialized means never executed.
-      return TypeInfo::Uninitialized();
+      // TODO(fschneider): Introduce a separate value for never-executed ICs.
+      return unknown;
     case CompareIC::SMIS:
       return TypeInfo::Smi();
     case CompareIC::HEAP_NUMBERS:
@@ -285,7 +286,8 @@ TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
     switch (type) {
       case BinaryOpIC::UNINITIALIZED:
         // Uninitialized means never executed.
-        return TypeInfo::Uninitialized();
+        // TODO(fschneider): Introduce a separate value for never-executed ICs
+        return unknown;
       case BinaryOpIC::SMI:
         switch (result_type) {
           case BinaryOpIC::UNINITIALIZED:

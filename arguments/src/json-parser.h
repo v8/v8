@@ -47,41 +47,62 @@ class JsonParser BASE_EMBEDDED {
   Handle<Object> ParseJson(Handle<String> source);
 
   inline void Advance() {
-    if (position_ >= source_length_) {
-      position_++;
+    position_++;
+    if (position_ > source_length_) {
       c0_ = kEndOfString;
     } else if (is_sequential_ascii_) {
-      position_++;
       c0_ = seq_source_->SeqAsciiStringGet(position_);
     } else {
-      position_++;
       c0_ = source_->Get(position_);
     }
   }
 
-  inline Isolate* isolate() { return isolate_; }
+  // The JSON lexical grammar is specified in the ECMAScript 5 standard,
+  // section 15.12.1.1. The only allowed whitespace characters between tokens
+  // are tab, carriage-return, newline and space.
 
-  // Get the string for the current string token.
-  Handle<String> GetString(bool hint_symbol);
-  Handle<String> GetString();
-  Handle<String> GetSymbol();
+  inline void AdvanceSkipWhitespace() {
+    do {
+      Advance();
+    } while (c0_ == '\t' || c0_ == '\r' || c0_ == '\n' || c0_ == ' ');
+  }
 
-  // Scan a single JSON token. The JSON lexical grammar is specified in the
-  // ECMAScript 5 standard, section 15.12.1.1.
-  // Recognizes all of the single-character tokens directly, or calls a function
-  // to scan a number, string or identifier literal.
-  // The only allowed whitespace characters between tokens are tab,
-  // carriage-return, newline and space.
-  void ScanJson();
+  inline void SkipWhitespace() {
+    while (c0_ == '\t' || c0_ == '\r' || c0_ == '\n' || c0_ == ' ') {
+      Advance();
+    }
+  }
+
+  inline uc32 AdvanceGetChar() {
+    Advance();
+    return c0_;
+  }
+
+  // Checks that current charater is c.
+  // If so, then consume c and skip whitespace.
+  inline bool MatchSkipWhiteSpace(uc32 c) {
+    if (c0_ == c) {
+      AdvanceSkipWhitespace();
+      return true;
+    }
+    return false;
+  }
 
   // A JSON string (production JSONString) is subset of valid JavaScript string
   // literals. The string must only be double-quoted (not single-quoted), and
   // the only allowed backslash-escapes are ", /, \, b, f, n, r, t and
   // four-digit hex escapes (uXXXX). Any other use of backslashes is invalid.
-  Token::Value ScanJsonString();
+  Handle<String> ParseJsonString() {
+    return ScanJsonString<false>();
+  }
+  Handle<String> ParseJsonSymbol() {
+    return ScanJsonString<true>();
+  }
+  template <bool is_symbol>
+  Handle<String> ScanJsonString();
   // Slow version for unicode support, uses the first ascii_count characters,
   // as first part of a ConsString
-  Token::Value SlowScanJsonString();
+  Handle<String> SlowScanJsonString();
 
   // A JSON number (production JSONNumber) is a subset of the valid JavaScript
   // decimal number literals.
@@ -89,12 +110,7 @@ class JsonParser BASE_EMBEDDED {
   // digit before and after a decimal point, may not have prefixed zeros (unless
   // the integer part is zero), and may include an exponent part (e.g., "e-10").
   // Hexadecimal and octal numbers are not allowed.
-  Token::Value ScanJsonNumber();
-
-  // Used to recognizes one of the literals "true", "false", or "null". These
-  // are the only valid JSON identifiers (productions JSONBooleanLiteral,
-  // JSONNullLiteral).
-  Token::Value ScanJsonIdentifier(const char* text, Token::Value token);
+  Handle<Object> ParseJsonNumber();
 
   // Parse a single JSON value from input (grammar production JSONValue).
   // A JSON value is either a (double-quoted) string literal, a number literal,
@@ -119,21 +135,11 @@ class JsonParser BASE_EMBEDDED {
 
   // Mark that a parsing error has happened at the current token, and
   // return a null handle. Primarily for readability.
-  Handle<Object> ReportUnexpectedToken() { return Handle<Object>::null(); }
+  inline Handle<Object> ReportUnexpectedCharacter() {
+    return Handle<Object>::null();
+  }
 
-  // Peek at the next token.
-  Token::Value Peek() { return next_.token; }
-  // Scan the next token and return the token scanned on the last call.
-  Token::Value Next();
-
-  struct TokenInfo {
-    TokenInfo() : token(Token::ILLEGAL),
-                  beg_pos(0),
-                  end_pos(0) { }
-    Token::Value token;
-    int beg_pos;
-    int end_pos;
-  };
+  inline Isolate* isolate() { return isolate_; }
 
   static const int kInitialSpecialStringSize = 1024;
 
@@ -144,15 +150,14 @@ class JsonParser BASE_EMBEDDED {
   Handle<SeqAsciiString> seq_source_;
 
   bool is_sequential_ascii_;
-  // Current and next token
-  TokenInfo current_;
-  TokenInfo next_;
+  // begin and end position of scanned string or number
+  int beg_pos_;
+  int end_pos_;
+
   Isolate* isolate_;
   uc32 c0_;
   int position_;
 
-
-  Handle<String> string_val_;
   double number_;
 };
 

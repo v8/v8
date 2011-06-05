@@ -341,8 +341,7 @@ bool BinaryOperation::ResultOverwriteAllowed() {
 // Inlining support
 
 bool Declaration::IsInlineable() const {
-  UNREACHABLE();
-  return false;
+  return proxy()->var()->IsStackAllocated() && fun() == NULL;
 }
 
 

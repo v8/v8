@@ -1054,6 +1054,8 @@ class Heap {
   enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
   inline HeapState gc_state() { return gc_state_; }
 
+  inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
+
 #ifdef DEBUG
   bool IsAllocationAllowed() { return allocation_allowed_; }
   inline bool allow_allocation(bool enable);
@@ -1277,6 +1279,7 @@ class Heap {
   CellSpace* cell_space_;
   LargeObjectSpace* lo_space_;
   HeapState gc_state_;
+  int gc_post_processing_depth_;
 
   // Returns the size of object residing in non new spaces.
   intptr_t PromotedSpaceSize();

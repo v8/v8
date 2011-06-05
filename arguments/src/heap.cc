@@ -107,6 +107,7 @@ Heap::Heap()
       cell_space_(NULL),
       lo_space_(NULL),
       gc_state_(NOT_IN_GC),
+      gc_post_processing_depth_(0),
       mc_count_(0),
       ms_count_(0),
       gc_count_(0),
@@ -794,11 +795,13 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
   isolate_->counters()->objs_since_last_young()->Set(0);
 
+  gc_post_processing_depth_++;
   { DisableAssertNoAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     next_gc_likely_to_collect_more =
         isolate_->global_handles()->PostGarbageCollectionProcessing(collector);
   }
+  gc_post_processing_depth_--;
 
   // Update relocatables.
   Relocatable::PostGarbageCollectionProcessing();
@@ -1633,7 +1636,8 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_prototype_transitions(empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
-  map->set_bit_field2((1 << Map::kIsExtensible) | (1 << Map::kHasFastElements));
+  map->set_bit_field2(1 << Map::kIsExtensible);
+  map->set_elements_kind(JSObject::FAST_ELEMENTS);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
   if (Map::kPadStart < Map::kSize) {
