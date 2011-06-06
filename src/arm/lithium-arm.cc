@@ -1412,13 +1412,16 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     LOperand* left = UseRegisterAtStart(instr->LeastConstantOperand());
     LOperand* right = UseOrConstant(instr->MostConstantOperand());
     LOperand* temp = NULL;
-    if (instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    if (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
+        (instr->CheckFlag(HValue::kCanOverflow) ||
+        !right->IsConstantOperand())) {
       temp = TempRegister();
     }
-    LMulI* mul = new LMulI(left, right, temp);
-    return AssignEnvironment(DefineSameAsFirst(mul));
+    return AssignEnvironment(DefineSameAsFirst(new LMulI(left, right, temp)));
+
   } else if (instr->representation().IsDouble()) {
     return DoArithmeticD(Token::MUL, instr);
+
   } else {
     return DoArithmeticT(Token::MUL, instr);
   }

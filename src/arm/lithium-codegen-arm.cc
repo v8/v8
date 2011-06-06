@@ -1118,40 +1118,98 @@ void LCodeGen::DoDeferredBinaryOpStub(LTemplateInstruction<1, 2, T>* instr,
 
 
 void LCodeGen::DoMulI(LMulI* instr) {
+  ASSERT(instr->result()->Equals(instr->InputAt(0)));
   Register scratch = scratch0();
+  Register result = ToRegister(instr->result());
   Register left = ToRegister(instr->InputAt(0));
-  Register right = EmitLoadRegister(instr->InputAt(1), scratch);
+  LOperand* right_op = instr->InputAt(1);
 
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero) &&
-      !instr->InputAt(1)->IsConstantOperand()) {
-    __ orr(ToRegister(instr->TempAt(0)), left, right);
-  }
+  bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
+  bool bailout_on_minus_zero =
+    instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero);
 
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
-    // scratch:left = left * right.
-    __ smull(left, scratch, left, right);
-    __ mov(ip, Operand(left, ASR, 31));
-    __ cmp(ip, Operand(scratch));
-    DeoptimizeIf(ne, instr->environment());
+  if (right_op->IsConstantOperand() && !can_overflow) {
+    // Use optimized code for specific constants.
+    int32_t constant = ToInteger32(LConstantOperand::cast(right_op));
+
+    if (bailout_on_minus_zero && (constant < 0)) {
+      // The case of a null constant will be handled separately.
+      // If constant is negative and left is null, the result should be -0.
+      __ cmp(left, Operand(0));
+      DeoptimizeIf(eq, instr->environment());
+    }
+
+    switch (constant) {
+      case -1:
+        __ rsb(result, left, Operand(0));
+        break;
+      case 0:
+        if (bailout_on_minus_zero) {
+          // If left is strictly negative and the constant is null, the
+          // result is -0. Deoptimize if required, otherwise return 0.
+          __ cmp(left, Operand(0));
+          DeoptimizeIf(mi, instr->environment());
+        }
+        __ mov(result, Operand(0));
+        break;
+      case 1:
+        // Nothing to do.
+        break;
+      default:
+        // Multiplying by powers of two and powers of two plus or minus
+        // one can be done faster with shifted operands.
+        // For other constants we emit standard code.
+        int32_t mask = constant >> 31;
+        uint32_t constant_abs = (constant + mask) ^ mask;
+
+        if (IsPowerOf2(constant_abs) ||
+            IsPowerOf2(constant_abs - 1) ||
+            IsPowerOf2(constant_abs + 1)) {
+          if (IsPowerOf2(constant_abs)) {
+            int32_t shift = WhichPowerOf2(constant_abs);
+            __ mov(result, Operand(left, LSL, shift));
+          } else if (IsPowerOf2(constant_abs - 1)) {
+            int32_t shift = WhichPowerOf2(constant_abs - 1);
+            __ add(result, left, Operand(left, LSL, shift));
+          } else if (IsPowerOf2(constant_abs + 1)) {
+            int32_t shift = WhichPowerOf2(constant_abs + 1);
+            __ rsb(result, left, Operand(left, LSL, shift));
+          }
+
+          // Correct the sign of the result is the constant is negative.
+          if (constant < 0)  __ rsb(result, result, Operand(0));
+
+        } else {
+          // Generate standard code.
+          __ mov(ip, Operand(constant));
+          __ mul(result, left, ip);
+        }
+    }
+
   } else {
-    __ mul(left, left, right);
-  }
+    Register right = EmitLoadRegister(right_op, scratch);
+    if (bailout_on_minus_zero) {
+      __ orr(ToRegister(instr->TempAt(0)), left, right);
+    }
 
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    // Bail out if the result is supposed to be negative zero.
-    Label done;
-    __ cmp(left, Operand(0));
-    __ b(ne, &done);
-    if (instr->InputAt(1)->IsConstantOperand()) {
-      if (ToInteger32(LConstantOperand::cast(instr->InputAt(1))) <= 0) {
-        DeoptimizeIf(al, instr->environment());
-      }
+    if (can_overflow) {
+      // scratch:result = left * right.
+      __ smull(result, scratch, left, right);
+      __ cmp(scratch, Operand(result, ASR, 31));
+      DeoptimizeIf(ne, instr->environment());
     } else {
-      // Test the non-zero operand for negative sign.
+      __ mul(result, left, right);
+    }
+
+    if (bailout_on_minus_zero) {
+      // Bail out if the result is supposed to be negative zero.
+      Label done;
+      __ cmp(result, Operand(0));
+      __ b(ne, &done);
       __ cmp(ToRegister(instr->TempAt(0)), Operand(0));
       DeoptimizeIf(mi, instr->environment());
+      __ bind(&done);
     }
-    __ bind(&done);
   }
 }
 
