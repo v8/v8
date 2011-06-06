@@ -1220,8 +1220,6 @@ TEST(MIPS14) {
     // Restore FCSR.
     __ ctc1(a1, FCSR);
 
-#undef RUN_ROUND_TEST
-
     __ jr(ra);
     __ nop();
 
@@ -1246,66 +1244,19 @@ TEST(MIPS14) {
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
     USE(dummy);
 
-#define GET_FPU_ERR(x) (static_cast<int>((x >> kFCSRFlagShift) & kFCSRFlagMask))
+#define GET_FPU_ERR(x) (static_cast<int>(x & kFCSRFlagMask))
+#define CHECK_ROUND_RESULT(type) \
+  CHECK(GET_FPU_ERR(t.type##_err1_out) & kFCSRInexactFlagMask); \
+  CHECK_EQ(0, GET_FPU_ERR(t.type##_err2_out)); \
+  CHECK(GET_FPU_ERR(t.type##_err3_out) & kFCSRInvalidOpFlagMask); \
+  CHECK(GET_FPU_ERR(t.type##_err4_out) & kFCSRInvalidOpFlagMask); \
+  CHECK_EQ(kFPUInvalidResult, t.type##_invalid_result);
 
-    CHECK_EQ(124, t.round_up_out);
-    CHECK_EQ(123, t.round_down_out);
-    CHECK_EQ(-124, t.neg_round_up_out);
-    CHECK_EQ(-123, t.neg_round_down_out);
-
-    // Inexact.
-    CHECK_EQ(kFCSRInexactFlagBit, GET_FPU_ERR(t.round_err1_out));
-    // No error.
-    CHECK_EQ(0, GET_FPU_ERR(t.round_err2_out));
-    // Invalid operation.
-    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.round_err3_out));
-    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.round_err4_out));
-    CHECK_EQ(kFPUInvalidResult, t.round_invalid_result);
-
-    CHECK_EQ(123, t.floor_up_out);
-    CHECK_EQ(123, t.floor_down_out);
-    CHECK_EQ(-124, t.neg_floor_up_out);
-    CHECK_EQ(-124, t.neg_floor_down_out);
-
-    // Inexact.
-    CHECK_EQ(kFCSRInexactFlagBit, GET_FPU_ERR(t.floor_err1_out));
-    // No error.
-    CHECK_EQ(0, GET_FPU_ERR(t.floor_err2_out));
-    // Invalid operation.
-    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.floor_err3_out));
-    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.floor_err4_out));
-    CHECK_EQ(kFPUInvalidResult, t.floor_invalid_result);
-
-    CHECK_EQ(124, t.ceil_up_out);
-    CHECK_EQ(124, t.ceil_down_out);
-    CHECK_EQ(-123, t.neg_ceil_up_out);
-    CHECK_EQ(-123, t.neg_ceil_down_out);
-
-    // Inexact.
-    CHECK_EQ(kFCSRInexactFlagBit, GET_FPU_ERR(t.ceil_err1_out));
-    // No error.
-    CHECK_EQ(0, GET_FPU_ERR(t.ceil_err2_out));
-    // Invalid operation.
-    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.ceil_err3_out));
-    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.ceil_err4_out));
-    CHECK_EQ(kFPUInvalidResult, t.ceil_invalid_result);
-
-    // In rounding mode 0 cvt should behave like round.
-    CHECK_EQ(t.round_up_out, t.cvt_up_out);
-    CHECK_EQ(t.round_down_out, t.cvt_down_out);
-    CHECK_EQ(t.neg_round_up_out, t.neg_cvt_up_out);
-    CHECK_EQ(t.neg_round_down_out, t.neg_cvt_down_out);
-
-    // Inexact.
-    CHECK_EQ(kFCSRInexactFlagBit, GET_FPU_ERR(t.cvt_err1_out));
-    // No error.
-    CHECK_EQ(0, GET_FPU_ERR(t.cvt_err2_out));
-    // Invalid operation.
-    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.cvt_err3_out));
-    CHECK_EQ(kFCSRInvalidOpFlagBit, GET_FPU_ERR(t.cvt_err4_out));
-    CHECK_EQ(kFPUInvalidResult, t.cvt_invalid_result);
+    CHECK_ROUND_RESULT(round);
+    CHECK_ROUND_RESULT(floor);
+    CHECK_ROUND_RESULT(ceil);
+    CHECK_ROUND_RESULT(cvt);
   }
 }
-
 
 #undef __

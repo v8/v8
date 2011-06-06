@@ -672,9 +672,8 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     // Restore FCSR.
     __ ctc1(scratch1, FCSR);
 
-    // Check for inexact conversion.
-    __ srl(scratch2, scratch2, kFCSRFlagShift);
-    __ And(scratch2, scratch2, (kFCSRFlagMask | kFCSRInexactFlagBit));
+    // Check for inexact conversion or exception.
+    __ And(scratch2, scratch2, kFCSRFlagMask);
 
     // Jump to not_int32 if the operation did not succeed.
     __ Branch(not_int32, ne, scratch2, Operand(zero_reg));
@@ -757,9 +756,8 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
     // Restore FCSR.
     __ ctc1(scratch1, FCSR);
 
-    // Check for inexact conversion.
-    __ srl(scratch2, scratch2, kFCSRFlagShift);
-    __ And(scratch2, scratch2, (kFCSRFlagMask | kFCSRInexactFlagBit));
+    // Check for inexact conversion or exception.
+    __ And(scratch2, scratch2, kFCSRFlagMask);
 
     // Jump to not_int32 if the operation did not succeed.
     __ Branch(not_int32, ne, scratch2, Operand(zero_reg));
@@ -1966,6 +1964,7 @@ void UnaryOpStub::GenerateHeapNumberStubBitNot(MacroAssembler* masm) {
   GenerateTypeTransition(masm);
 }
 
+
 void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
                                             Label* slow) {
   EmitCheckForHeapNumber(masm, a0, a1, t2, slow);
@@ -2777,8 +2776,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // Restore FCSR.
           __ ctc1(scratch1, FCSR);
 
-          // Check for inexact conversion.
-          __ srl(scratch2, scratch2, kFCSRFlagShift);
+          // Check for inexact conversion or exception.
           __ And(scratch2, scratch2, kFCSRFlagMask);
 
           if (result_type_ <= BinaryOpIC::INT32) {
@@ -6374,6 +6372,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   __ Jump(a2);
 }
 
+
 void DirectCEntryStub::Generate(MacroAssembler* masm) {
   // No need to pop or drop anything, LeaveExitFrame will restore the old
   // stack, thus dropping the allocated space for the return value.
@@ -6397,6 +6396,7 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   __ li(t9, Operand(function));
   this->GenerateCall(masm, t9);
 }
+
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
