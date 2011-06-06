@@ -467,17 +467,6 @@ void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
 }
 
 
-void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
-  for (int i = 0; i < new_space_nodes_.length(); ++i) {
-    Node* node = new_space_nodes_[i];
-    ASSERT(node->is_in_new_space_list());
-    if (node->is_independent() && node->IsWeakRetainer()) {
-      v->VisitPointer(node->location());
-    }
-  }
-}
-
-
 void GlobalHandles::IterateWeakRoots(WeakReferenceGuest f,
                                      WeakReferenceCallback callback) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
@@ -497,6 +486,17 @@ void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback f) {
 }
 
 
+void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(ObjectVisitor* v) {
+  for (int i = 0; i < new_space_nodes_.length(); ++i) {
+    Node* node = new_space_nodes_[i];
+    if (node->IsStrongRetainer() ||
+        (node->IsWeakRetainer() && !node->is_independent())) {
+      v->VisitPointer(node->location());
+    }
+  }
+}
+
+
 void GlobalHandles::IdentifyNewSpaceWeakIndependentHandles(
     WeakSlotCallbackWithHeap f) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
@@ -505,6 +505,17 @@ void GlobalHandles::IdentifyNewSpaceWeakIndependentHandles(
     if (node->is_independent() && node->IsWeak() &&
         f(isolate_->heap(), node->location())) {
       node->MarkPending();
+    }
+  }
+}
+
+
+void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
+  for (int i = 0; i < new_space_nodes_.length(); ++i) {
+    Node* node = new_space_nodes_[i];
+    ASSERT(node->is_in_new_space_list());
+    if (node->is_independent() && node->IsWeakRetainer()) {
+      v->VisitPointer(node->location());
     }
   }
 }
@@ -581,17 +592,6 @@ void GlobalHandles::IterateAllRoots(ObjectVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     if (it.node()->IsRetainer()) {
       v->VisitPointer(it.node()->location());
-    }
-  }
-}
-
-
-void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(ObjectVisitor* v) {
-  for (int i = 0; i < new_space_nodes_.length(); ++i) {
-    Node* node = new_space_nodes_[i];
-    if (node->IsStrongRetainer() ||
-        (node->IsWeakRetainer() && !node->is_independent())) {
-      v->VisitPointer(node->location());
     }
   }
 }

@@ -162,9 +162,6 @@ class GlobalHandles {
   // Iterates over all strong handles.
   void IterateStrongRoots(ObjectVisitor* v);
 
-  // Iterates over all strong and dependent handles.
-  void IterateNewSpaceStrongAndDependentRoots(ObjectVisitor* v);
-
   // Iterates over all handles.
   void IterateAllRoots(ObjectVisitor* v);
 
@@ -174,9 +171,6 @@ class GlobalHandles {
   // Iterates over all weak roots in heap.
   void IterateWeakRoots(ObjectVisitor* v);
 
-  // Iterates over all weak independent roots in heap.
-  void IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v);
-
   // Iterates over weak roots that are bound to a given callback.
   void IterateWeakRoots(WeakReferenceGuest f,
                         WeakReferenceCallback callback);
@@ -185,9 +179,20 @@ class GlobalHandles {
   // them as pending.
   void IdentifyWeakHandles(WeakSlotCallback f);
 
-  // Find all weak independent handles satisfying the callback predicate, mark
-  // them as pending.
+  // NOTE: Three ...NewSpace... functions below are used during
+  // scavenge collections and iterate over sets of handles that are
+  // guaranteed to contain all handles holding new space objects (but
+  // may also include old space objects).
+
+  // Iterates over strong and dependent handles. See the node above.
+  void IterateNewSpaceStrongAndDependentRoots(ObjectVisitor* v);
+
+  // Finds weak independent handles satisfying the callback predicate
+  // and marks them as pending. See the note above.
   void IdentifyNewSpaceWeakIndependentHandles(WeakSlotCallbackWithHeap f);
+
+  // Iterates over weak independent handles. See the note above.
+  void IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v);
 
   // Add an object group.
   // Should be only used in GC callback function before a collection.
