@@ -530,12 +530,12 @@ class RecordWriteStub: public CodeStub {
   RecordWriteStub(Register object,
                   Register value,
                   Register address,
-                  EmitRememberedSet emit_remembered_set,
+                  RememberedSetAction remembered_set_action,
                   SaveFPRegsMode fp_mode)
       : object_(object),
         value_(value),
         address_(address),
-        emit_remembered_set_(emit_remembered_set),
+        remembered_set_action_(remembered_set_action),
         save_fp_regs_mode_(fp_mode),
         regs_(object,   // An input reg.
               address,  // An input reg.
@@ -703,15 +703,17 @@ class RecordWriteStub: public CodeStub {
     friend class RecordWriteStub;
   };
 
+  enum OnNoNeedToInformIncrementalMarker {
+    kReturnOnNoNeedToInformIncrementalMarker,
+    kRememberedSetOnNoNeedToInformIncrementalMarker
+  };
+
   void Generate(MacroAssembler* masm);
   void GenerateIncremental(MacroAssembler* masm);
-  void GenerateIncrementalValueIsInNewSpace(MacroAssembler* masm);
-  void GenerateIncrementalValueIsInNewSpaceObjectIsInOldSpaceRememberedSet(
-        MacroAssembler* masm);
-  void GenerateIncrementalValueIsInNewSpaceObjectIsInOldSpaceNoRememberedSet(
-        MacroAssembler* masm,
-        Label* value_in_new_space_object_is_black_no_remembered_set);
-  void GenerateIncrementalValueIsInOldSpace(MacroAssembler* masm);
+  void CheckNeedsToInformIncrementalMarker(
+      MacroAssembler* masm,
+      OnNoNeedToInformIncrementalMarker on_no_need);
+  void InformIncrementalMarker(MacroAssembler* masm);
 
   Major MajorKey() { return RecordWrite; }
 
@@ -719,22 +721,21 @@ class RecordWriteStub: public CodeStub {
     return ObjectBits::encode(object_.code()) |
         ValueBits::encode(value_.code()) |
         AddressBits::encode(address_.code()) |
-        EmitRememberedSetBits::encode(emit_remembered_set_) |
+        RememberedSetActionBits::encode(remembered_set_action_) |
         SaveFPRegsModeBits::encode(save_fp_regs_mode_);
   }
 
   class ObjectBits: public BitField<int, 0, 3> {};
   class ValueBits: public BitField<int, 3, 3> {};
   class AddressBits: public BitField<int, 6, 3> {};
-  class EmitRememberedSetBits: public BitField<EmitRememberedSet, 9, 1> {};
+  class RememberedSetActionBits: public BitField<RememberedSetAction, 9, 1> {};
   class SaveFPRegsModeBits: public BitField<SaveFPRegsMode, 10, 1> {};
 
   Register object_;
   Register value_;
   Register address_;
-  EmitRememberedSet emit_remembered_set_;
+  RememberedSetAction remembered_set_action_;
   SaveFPRegsMode save_fp_regs_mode_;
-  Label slow_;
   RegisterAllocation regs_;
 };
 

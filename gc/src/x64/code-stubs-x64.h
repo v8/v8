@@ -536,12 +536,12 @@ class RecordWriteStub: public CodeStub {
   RecordWriteStub(Register object,
                   Register value,
                   Register address,
-                  EmitRememberedSet emit_remembered_set,
+                  RememberedSetAction remembered_set_action,
                   SaveFPRegsMode fp_mode)
       : object_(object),
         value_(value),
         address_(address),
-        emit_remembered_set_(emit_remembered_set),
+        remembered_set_action_(remembered_set_action),
         save_fp_regs_mode_(fp_mode),
         regs_(object,   // An input reg.
               address,  // An input reg.
@@ -717,20 +717,20 @@ class RecordWriteStub: public CodeStub {
     return ObjectBits::encode(object_.code()) |
         ValueBits::encode(value_.code()) |
         AddressBits::encode(address_.code()) |
-        EmitRememberedSetBits::encode(emit_remembered_set_) |
+        RememberedSetActionBits::encode(remembered_set_action_) |
         SaveFPRegsModeBits::encode(save_fp_regs_mode_);
   }
 
   class ObjectBits: public BitField<int, 0, 4> {};
   class ValueBits: public BitField<int, 4, 4> {};
   class AddressBits: public BitField<int, 8, 4> {};
-  class EmitRememberedSetBits: public BitField<EmitRememberedSet, 12, 1> {};
+  class RememberedSetActionBits: public BitField<RememberedSetAction, 12, 1> {};
   class SaveFPRegsModeBits: public BitField<SaveFPRegsMode, 13, 1> {};
 
   Register object_;
   Register value_;
   Register address_;
-  EmitRememberedSet emit_remembered_set_;
+  RememberedSetAction remembered_set_action_;
   SaveFPRegsMode save_fp_regs_mode_;
   Label slow_;
   RegisterAllocation regs_;

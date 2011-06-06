@@ -79,7 +79,7 @@ enum ObjectToDoubleFlags {
 };
 
 
-enum EmitRememberedSet { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
+enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
 
@@ -196,7 +196,7 @@ class MacroAssembler: public Assembler {
       Register value,
       Register scratch,
       SaveFPRegsMode save_fp,
-      EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // As above, but the offset has the tag presubtracted.  For use with
@@ -207,26 +207,27 @@ class MacroAssembler: public Assembler {
       Register value,
       Register scratch,
       SaveFPRegsMode save_fp,
-      EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK) {
     RecordWriteField(context,
                      offset + kHeapObjectTag,
                      value,
                      scratch,
                      save_fp,
-                     emit_remembered_set,
+                     remembered_set_action,
                      smi_check);
   }
 
   // For a given |object| notify the garbage collector that the slot |address|
   // has been written.  |value| is the object being stored. The value and
   // address registers are clobbered by the operation.
-  void RecordWrite(Register object,
-                   Register address,
-                   Register value,
-                   SaveFPRegsMode save_fp,
-                   EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
-                   SmiCheck smi_check = INLINE_SMI_CHECK);
+  void RecordWrite(
+      Register object,
+      Register address,
+      Register value,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {

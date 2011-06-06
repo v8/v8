@@ -1160,6 +1160,9 @@ void SemiSpace::Flip(intptr_t flags, intptr_t mask) {
       page->SetFlag(MemoryChunk::IN_FROM_SPACE);
       page->ClearFlag(MemoryChunk::IN_TO_SPACE);
     }
+    ASSERT(page->IsFlagSet(MemoryChunk::SCAN_ON_SCAVENGE));
+    ASSERT(page->IsFlagSet(MemoryChunk::IN_TO_SPACE) ||
+           page->IsFlagSet(MemoryChunk::IN_FROM_SPACE));
     page = page->next_page();
   }
 }

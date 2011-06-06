@@ -3207,8 +3207,10 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ mov(object, elements);
   // Since we are swapping two objects, the incremental marker is not disturbed,
   // so we don't call the stub that handles this.
-  __ RememberedSetHelper(index_1, temp, kDontSaveFPRegs);
-  __ RememberedSetHelper(index_2, temp, kDontSaveFPRegs);
+  __ RememberedSetHelper(
+      index_1, temp, kDontSaveFPRegs, MacroAssembler::kFallThroughAtEnd);
+  __ RememberedSetHelper(
+      index_2, temp, kDontSaveFPRegs, MacroAssembler::kFallThroughAtEnd);
 
   __ bind(&no_remembered_set);
 

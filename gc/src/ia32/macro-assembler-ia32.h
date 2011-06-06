@@ -50,7 +50,7 @@ enum AllocationFlags {
 // distinguish memory operands from other operands on ia32.
 typedef Operand MemOperand;
 
-enum EmitRememberedSet { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
+enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
 
@@ -73,12 +73,18 @@ class MacroAssembler: public Assembler {
                                            Register value,
                                            Register address);
 
+  enum RememberedSetFinalAction {
+    kReturnAtEnd,
+    kFallThroughAtEnd
+  };
+
   // For page containing |object| mark region covering |addr| dirty.
   // RememberedSetHelper only works if the object is not in new
   // space.
   void RememberedSetHelper(Register addr,
                            Register scratch,
-                           SaveFPRegsMode save_fp);
+                           SaveFPRegsMode save_fp,
+                           RememberedSetFinalAction and_then);
 
   void CheckPageFlag(Register object,
                      Register scratch,
@@ -86,7 +92,6 @@ class MacroAssembler: public Assembler {
                      Condition cc,
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
-
 
   void InNewSpace(Register object,
                   Register scratch,
@@ -122,16 +127,14 @@ class MacroAssembler: public Assembler {
                       Register scratch1,
                       Register scratch2,
                       Label* object_is_white_and_not_data,
-                      Label::Distance distance,
-                      bool in_new_space);
+                      Label::Distance distance);
 
   // Checks whether an object is data-only, ie it does need to be scanned by the
   // garbage collector.
   void IsDataObject(Register value,
                     Register scratch,
                     Label* not_data_object,
-                    Label::Distance not_data_object_distance,
-                    bool in_new_space);
+                    Label::Distance not_data_object_distance);
 
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
@@ -145,7 +148,7 @@ class MacroAssembler: public Assembler {
       Register value,
       Register scratch,
       SaveFPRegsMode save_fp,
-      EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // As above, but the offset has the tag presubtracted.  For use with
@@ -156,14 +159,14 @@ class MacroAssembler: public Assembler {
       Register value,
       Register scratch,
       SaveFPRegsMode save_fp,
-      EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK) {
     RecordWriteField(context,
                      offset + kHeapObjectTag,
                      value,
                      scratch,
                      save_fp,
-                     emit_remembered_set,
+                     remembered_set_action,
                      smi_check);
   }
 
@@ -178,7 +181,7 @@ class MacroAssembler: public Assembler {
       Register value,
       Register index,
       SaveFPRegsMode save_fp,
-      EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // For page containing |object| mark region covering |address|
@@ -186,12 +189,13 @@ class MacroAssembler: public Assembler {
   // object being stored. All registers are clobbered by the
   // operation. RecordWrite filters out smis so it does not update the
   // write barrier if the value is a smi.
-  void RecordWrite(Register object,
-                   Register address,
-                   Register value,
-                   SaveFPRegsMode save_fp,
-                   EmitRememberedSet emit_remembered_set = EMIT_REMEMBERED_SET,
-                   SmiCheck smi_check = INLINE_SMI_CHECK);
+  void RecordWrite(
+      Register object,
+      Register address,
+      Register value,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------

@@ -73,7 +73,7 @@ void MacroAssembler::InNewSpace(
   // If non-zero, the page belongs to new-space.
   test_b(Operand(scratch, MemoryChunk::kFlagsOffset),
          static_cast<uint8_t>(mask));
-  j(NegateCondition(cc), condition_met, condition_met_distance);
+  j(cc, condition_met, condition_met_distance);
 }
 
 
@@ -115,9 +115,11 @@ void MacroAssembler::IncrementalMarkingRecordWriteHelper(
 }
 
 
-void MacroAssembler::RememberedSetHelper(Register addr,
-                                         Register scratch,
-                                         SaveFPRegsMode save_fp) {
+void MacroAssembler::RememberedSetHelper(
+    Register addr,
+    Register scratch,
+    SaveFPRegsMode save_fp,
+    MacroAssembler::RememberedSetFinalAction and_then) {
   Label done;
   // Load store buffer top.
   ExternalReference store_buffer =
@@ -132,11 +134,24 @@ void MacroAssembler::RememberedSetHelper(Register addr,
   // Call stub on end of buffer.
   // Check for end of buffer.
   test(scratch, Immediate(StoreBuffer::kStoreBufferOverflowBit));
-  j(equal, &done, Label::kNear);
+  if (and_then == kReturnAtEnd) {
+    Label buffer_overflowed;
+    j(not_equal, &buffer_overflowed, Label::kNear);
+    ret(0);
+    bind(&buffer_overflowed);
+  } else {
+    ASSERT(and_then == kFallThroughAtEnd);
+    j(equal, &done, Label::kNear);
+  }
   StoreBufferOverflowStub store_buffer_overflow =
       StoreBufferOverflowStub(save_fp);
   CallStub(&store_buffer_overflow);
-  bind(&done);
+  if (and_then == kReturnAtEnd) {
+    ret(0);
+  } else {
+    ASSERT(and_then == kFallThroughAtEnd);
+    bind(&done);
+  }
 }
 
 
@@ -174,7 +189,7 @@ void MacroAssembler::RecordWriteArray(Register object,
                                       Register value,
                                       Register index,
                                       SaveFPRegsMode save_fp,
-                                      EmitRememberedSet emit_remembered_set,
+                                      RememberedSetAction remembered_set_action,
                                       SmiCheck smi_check) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
@@ -198,7 +213,8 @@ void MacroAssembler::RecordWriteArray(Register object,
   lea(dst, Operand(object, index, times_half_pointer_size,
                    FixedArray::kHeaderSize - kHeapObjectTag));
 
-  RecordWrite(object, dst, value, save_fp, emit_remembered_set, OMIT_SMI_CHECK);
+  RecordWrite(
+      object, dst, value, save_fp, remembered_set_action, OMIT_SMI_CHECK);
 
   bind(&done);
 
@@ -217,7 +233,7 @@ void MacroAssembler::RecordWriteField(
     Register value,
     Register dst,
     SaveFPRegsMode save_fp,
-    EmitRememberedSet emit_remembered_set,
+    RememberedSetAction remembered_set_action,
     SmiCheck smi_check) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
@@ -243,7 +259,8 @@ void MacroAssembler::RecordWriteField(
     bind(&ok);
   }
 
-  RecordWrite(object, dst, value, save_fp, emit_remembered_set, OMIT_SMI_CHECK);
+  RecordWrite(
+      object, dst, value, save_fp, remembered_set_action, OMIT_SMI_CHECK);
 
   bind(&done);
 
@@ -260,7 +277,7 @@ void MacroAssembler::RecordWrite(Register object,
                                  Register address,
                                  Register value,
                                  SaveFPRegsMode fp_mode,
-                                 EmitRememberedSet emit_remembered_set,
+                                 RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
   ASSERT(!object.is(value));
   ASSERT(!object.is(address));
@@ -269,7 +286,7 @@ void MacroAssembler::RecordWrite(Register object,
     AbortIfSmi(object);
   }
 
-  if (emit_remembered_set == OMIT_REMEMBERED_SET &&
+  if (remembered_set_action == OMIT_REMEMBERED_SET &&
       FLAG_incremental_marking == false) {
     return;
   }
@@ -306,7 +323,7 @@ void MacroAssembler::RecordWrite(Register object,
                 &done,
                 Label::kNear);
 
-  RecordWriteStub stub(object, value, address, emit_remembered_set, fp_mode);
+  RecordWriteStub stub(object, value, address, remembered_set_action, fp_mode);
   CallStub(&stub);
 
   bind(&done);
@@ -2315,30 +2332,20 @@ void MacroAssembler::HasColour(Register object,
 void MacroAssembler::IsDataObject(Register value,
                                   Register scratch,
                                   Label* not_data_object,
-                                  Label::Distance not_data_object_distance,
-                                  bool in_new_space) {
-  if (in_new_space) {
-    Label is_data_object;
-    mov(scratch, FieldOperand(value, HeapObject::kMapOffset));
-    cmp(scratch, FACTORY->heap_number_map());
-    j(equal, &is_data_object, Label::kNear);
-    ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
-    ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
-    // If it's a string and it's not a cons string then it's an object that
-    // doesn't need scanning.
-    test_b(FieldOperand(scratch, Map::kInstanceTypeOffset),
-           kIsConsStringMask | kIsNotStringMask);
-    // Jump if we need to mark it grey and push it.
-    j(not_zero, not_data_object, not_data_object_distance);
-    bind(&is_data_object);
-  } else {
-    mov(scratch, Operand(value));
-    and_(scratch, ~Page::kPageAlignmentMask);
-    test_b(Operand(scratch, MemoryChunk::kFlagsOffset),
-           1 << MemoryChunk::CONTAINS_ONLY_DATA);
-    // Jump if we need to mark it grey and push it.
-    j(zero, not_data_object, not_data_object_distance);
-  }
+                                  Label::Distance not_data_object_distance) {
+  Label is_data_object;
+  mov(scratch, FieldOperand(value, HeapObject::kMapOffset));
+  cmp(scratch, FACTORY->heap_number_map());
+  j(equal, &is_data_object, Label::kNear);
+  ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
+  ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
+  // If it's a string and it's not a cons string then it's an object that
+  // doesn't need scanning.
+  test_b(FieldOperand(scratch, Map::kInstanceTypeOffset),
+         kIsConsStringMask | kIsNotStringMask);
+  // Jump if we need to mark it grey and push it.
+  j(not_zero, not_data_object, not_data_object_distance);
+  bind(&is_data_object);
 }
 
 
@@ -2368,8 +2375,7 @@ void MacroAssembler::EnsureNotWhite(
     Register bitmap_scratch,
     Register mask_scratch,
     Label* value_is_white_and_not_data,
-    Label::Distance distance,
-    bool in_new_space) {
+    Label::Distance distance) {
   ASSERT(!Aliasing(value, bitmap_scratch, mask_scratch, ecx));
   MarkBits(value, bitmap_scratch, mask_scratch);
 
@@ -2400,7 +2406,7 @@ void MacroAssembler::EnsureNotWhite(
   }
 
   // Value is white.  We check whether it is data that doesn't need scanning.
-  IsDataObject(value, ecx, value_is_white_and_not_data, distance, in_new_space);
+  IsDataObject(value, ecx, value_is_white_and_not_data, distance);
 
   // Value is a data object, and it is white.  Mark it black.  Since we know
   // that the object is white we can make it black by flipping one bit.

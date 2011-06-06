@@ -483,7 +483,7 @@ void MacroAssembler::RecordWriteField(
     Register value,
     Register dst,
     SaveFPRegsMode save_fp,
-    EmitRememberedSet emit_remembered_set,
+    RememberedSetAction remembered_set_action,
     SmiCheck smi_check) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
@@ -506,7 +506,8 @@ void MacroAssembler::RecordWriteField(
     bind(&ok);
   }
 
-  RecordWrite(object, dst, value, save_fp, emit_remembered_set, OMIT_SMI_CHECK);
+  RecordWrite(
+      object, dst, value, save_fp, remembered_set_action, OMIT_SMI_CHECK);
 
   bind(&done);
 
@@ -526,7 +527,7 @@ void MacroAssembler::RecordWrite(Register object,
                                  Register address,
                                  Register scratch,
                                  SaveFPRegsMode fp_mode,
-                                 EmitRememberedSet emit_remembered_set,
+                                 RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
