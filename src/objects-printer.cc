@@ -472,6 +472,13 @@ void CodeCache::CodeCachePrint(FILE* out) {
 }
 
 
+void PolymorphicCodeCache::PolymorphicCodeCachePrint(FILE* out) {
+  HeapObject::PrintHeader(out, "PolymorphicCodeCache");
+  PrintF(out, "\n - cache: ");
+  cache()->ShortPrint(out);
+}
+
+
 void FixedArray::FixedArrayPrint(FILE* out) {
   HeapObject::PrintHeader(out, "FixedArray");
   PrintF(out, " - length: %d", length());

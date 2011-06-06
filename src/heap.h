@@ -120,6 +120,7 @@ inline Heap* _inline_get_heap_();
   V(Foreign, prototype_accessors, PrototypeAccessors)                          \
   V(NumberDictionary, code_stubs, CodeStubs)                                   \
   V(NumberDictionary, non_monomorphic_cache, NonMonomorphicCache)              \
+  V(PolymorphicCodeCache, polymorphic_code_cache, PolymorphicCodeCache)        \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
@@ -476,6 +477,9 @@ class Heap {
 
   // Allocates an empty code cache.
   MUST_USE_RESULT MaybeObject* AllocateCodeCache();
+
+  // Allocates an empty PolymorphicCodeCache.
+  MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();

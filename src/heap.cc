@@ -877,6 +877,9 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
   CompletelyClearInstanceofCache();
 
   if (is_compacting) FlushNumberStringCache();
+  if (FLAG_cleanup_code_caches_at_gc) {
+    polymorphic_code_cache()->set_cache(undefined_value());
+  }
 
   ClearNormalizedMapCaches();
 }
@@ -1661,6 +1664,11 @@ MaybeObject* Heap::AllocateCodeCache() {
 }
 
 
+MaybeObject* Heap::AllocatePolymorphicCodeCache() {
+  return AllocateStruct(POLYMORPHIC_CODE_CACHE_TYPE);
+}
+
+
 const Heap::StringTypeTable Heap::string_type_table[] = {
 #define STRING_TYPE_ELEMENT(type, size, name, camel_name)                      \
   {type, size, k##camel_name##MapRootIndex},
@@ -2167,6 +2175,11 @@ bool Heap::CreateInitialObjects() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_non_monomorphic_cache(NumberDictionary::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocatePolymorphicCodeCache();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_polymorphic_code_cache(PolymorphicCodeCache::cast(obj));
 
   set_instanceof_cache_function(Smi::FromInt(0));
   set_instanceof_cache_map(Smi::FromInt(0));

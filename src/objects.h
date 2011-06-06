@@ -316,6 +316,7 @@ static const int kVariableSizeSentinel = 0;
   V(TYPE_SWITCH_INFO_TYPE)                                                     \
   V(SCRIPT_TYPE)                                                               \
   V(CODE_CACHE_TYPE)                                                           \
+  V(POLYMORPHIC_CODE_CACHE_TYPE)                                               \
                                                                                \
   V(FIXED_ARRAY_TYPE)                                                          \
   V(SHARED_FUNCTION_INFO_TYPE)                                                 \
@@ -427,7 +428,8 @@ static const int kVariableSizeSentinel = 0;
   V(SIGNATURE_INFO, SignatureInfo, signature_info)                             \
   V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                        \
   V(SCRIPT, Script, script)                                                    \
-  V(CODE_CACHE, CodeCache, code_cache)
+  V(CODE_CACHE, CodeCache, code_cache)                                         \
+  V(POLYMORPHIC_CODE_CACHE, PolymorphicCodeCache, polymorphic_code_cache)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #define STRUCT_LIST_DEBUGGER(V)                                                \
@@ -544,6 +546,7 @@ enum InstanceType {
   TYPE_SWITCH_INFO_TYPE,
   SCRIPT_TYPE,
   CODE_CACHE_TYPE,
+  POLYMORPHIC_CODE_CACHE_TYPE,
   // The following two instance types are only used when ENABLE_DEBUGGER_SUPPORT
   // is defined. However as include/v8.h contain some of the instance type
   // constants always having them avoids them getting different numbers
@@ -752,6 +755,7 @@ class MaybeObject BASE_EMBEDDED {
   V(NormalizedMapCache)                        \
   V(CompilationCacheTable)                     \
   V(CodeCacheHashTable)                        \
+  V(PolymorphicCodeCacheHashTable)             \
   V(MapCache)                                  \
   V(Primitive)                                 \
   V(GlobalObject)                              \
@@ -2840,11 +2844,6 @@ class NormalizedMapCache: public FixedArray {
 #ifdef DEBUG
   void NormalizedMapCacheVerify();
 #endif
-
- private:
-  static int Hash(Map* fast);
-
-  static bool CheckHit(Map* slow, Map* fast, PropertyNormalizationMode mode);
 };
 
 
@@ -3963,6 +3962,21 @@ class Map: public HeapObject {
   // transitions, so that we do not process this map again while
   // following back pointers.
   void ClearNonLiveTransitions(Heap* heap, Object* real_prototype);
+
+  // Computes a hash value for this map, to be used in HashTables and such.
+  int Hash();
+
+  // Compares this map to another to see if they describe equivalent objects.
+  // If |mode| is set to CLEAR_INOBJECT_PROPERTIES, |other| is treated as if
+  // it had exactly zero inobject properties.
+  // The "shared" flags of both this map and |other| are ignored.
+  bool EquivalentToForNormalization(Map* other, PropertyNormalizationMode mode);
+
+  // Returns true if this map and |other| describe equivalent objects.
+  // The "shared" flags of both this map and |other| are ignored.
+  bool EquivalentTo(Map* other) {
+    return EquivalentToForNormalization(other, KEEP_INOBJECT_PROPERTIES);
+  }
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
@@ -5370,6 +5384,49 @@ class CodeCacheHashTable: public HashTable<CodeCacheHashTableShape,
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CodeCacheHashTable);
+};
+
+
+class PolymorphicCodeCache: public Struct {
+ public:
+  DECL_ACCESSORS(cache, Object)
+
+  MUST_USE_RESULT MaybeObject* Update(MapList* maps,
+                                      Code::Flags flags,
+                                      Code* code);
+  Object* Lookup(MapList* maps, Code::Flags flags);
+
+  static inline PolymorphicCodeCache* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  inline void PolymorphicCodeCachePrint() {
+    PolymorphicCodeCachePrint(stdout);
+  }
+  void PolymorphicCodeCachePrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void PolymorphicCodeCacheVerify();
+#endif
+
+  static const int kCacheOffset = HeapObject::kHeaderSize;
+  static const int kSize = kCacheOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PolymorphicCodeCache);
+};
+
+
+class PolymorphicCodeCacheHashTable
+    : public HashTable<CodeCacheHashTableShape, HashTableKey*> {
+ public:
+  Object* Lookup(MapList* maps, int code_kind);
+  MUST_USE_RESULT MaybeObject* Put(MapList* maps, int code_kind, Code* code);
+
+  static inline PolymorphicCodeCacheHashTable* cast(Object* obj);
+
+  static const int kInitialSize = 64;
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PolymorphicCodeCacheHashTable);
 };
 
 
