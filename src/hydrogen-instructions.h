@@ -146,6 +146,7 @@ class LChunkBuilder;
   V(Shl)                                       \
   V(Shr)                                       \
   V(Simulate)                                  \
+  V(SoftDeoptimize)                            \
   V(StackCheck)                                \
   V(StoreContextSlot)                          \
   V(StoreGlobalCell)                           \
@@ -847,6 +848,19 @@ class HBlockEntry: public HTemplateInstruction<0> {
 };
 
 
+// We insert soft-deoptimize when we hit code with unknown typefeedback,
+// so that we get a chance of re-optimizing with useful typefeedback.
+// HSoftDeoptimize does not end a basic block as opposed to HDeoptimize.
+class HSoftDeoptimize: public HTemplateInstruction<0> {
+ public:
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(SoftDeoptimize)
+};
+
+
 class HDeoptimize: public HControlInstruction {
  public:
   explicit HDeoptimize(int environment_length)
@@ -859,6 +873,7 @@ class HDeoptimize: public HControlInstruction {
 
   virtual int OperandCount() { return values_.length(); }
   virtual HValue* OperandAt(int index) { return values_[index]; }
+  virtual void PrintDataTo(StringStream* stream);
 
   void AddEnvironmentValue(HValue* value) {
     values_.Add(NULL);

@@ -14038,48 +14038,6 @@ TEST(DontDeleteCellLoadICAPI) {
 }
 
 
-TEST(GlobalLoadICGC) {
-  const char* function_code =
-      "function readCell() { while (true) { return cell; } }";
-
-  // Check inline load code for a don't delete cell is cleared during
-  // GC.
-  {
-    v8::HandleScope scope;
-    LocalContext context;
-    CompileRun("var cell = \"value\";");
-    ExpectBoolean("delete cell", false);
-    CompileRun(function_code);
-    ExpectString("readCell()", "value");
-    ExpectString("readCell()", "value");
-  }
-  {
-    v8::HandleScope scope;
-    LocalContext context2;
-    // Hold the code object in the second context.
-    CompileRun(function_code);
-    CheckSurvivingGlobalObjectsCount(1);
-  }
-
-  // Check inline load code for a deletable cell is cleared during GC.
-  {
-    v8::HandleScope scope;
-    LocalContext context;
-    CompileRun("cell = \"value\";");
-    CompileRun(function_code);
-    ExpectString("readCell()", "value");
-    ExpectString("readCell()", "value");
-  }
-  {
-    v8::HandleScope scope;
-    LocalContext context2;
-    // Hold the code object in the second context.
-    CompileRun(function_code);
-    CheckSurvivingGlobalObjectsCount(1);
-  }
-}
-
-
 TEST(RegExp) {
   v8::HandleScope scope;
   LocalContext context;

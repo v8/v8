@@ -68,8 +68,7 @@ HBasicBlock::HBasicBlock(HGraph* graph)
       last_instruction_index_(-1),
       deleted_phis_(4),
       parent_loop_header_(NULL),
-      is_inline_return_target_(false) {
-}
+      is_inline_return_target_(false) { }
 
 
 void HBasicBlock::AttachLoopInformation() {
@@ -4310,21 +4309,22 @@ bool HGraphBuilder::TryInline(Call* expr) {
   if (inlined_test_context() != NULL) {
     HBasicBlock* if_true = inlined_test_context()->if_true();
     HBasicBlock* if_false = inlined_test_context()->if_false();
-    if_true->SetJoinId(expr->id());
-    if_false->SetJoinId(expr->id());
-    ASSERT(ast_context() == inlined_test_context());
+
     // Pop the return test context from the expression context stack.
+    ASSERT(ast_context() == inlined_test_context());
     ClearInlinedTestContext();
 
     // Forward to the real test context.
-    HBasicBlock* true_target = TestContext::cast(ast_context())->if_true();
-    HBasicBlock* false_target = TestContext::cast(ast_context())->if_false();
-    if_true->Goto(true_target, false);
-    if_false->Goto(false_target, false);
-
-    // TODO(kmillikin): Come up with a better way to handle this. It is too
-    // subtle. NULL here indicates that the enclosing context has no control
-    // flow to handle.
+    if (if_true->HasPredecessor()) {
+      if_true->SetJoinId(expr->id());
+      HBasicBlock* true_target = TestContext::cast(ast_context())->if_true();
+      if_true->Goto(true_target, false);
+    }
+    if (if_false->HasPredecessor()) {
+      if_false->SetJoinId(expr->id());
+      HBasicBlock* false_target = TestContext::cast(ast_context())->if_false();
+      if_false->Goto(false_target, false);
+    }
     set_current_block(NULL);
 
   } else if (function_return()->HasPredecessor()) {
@@ -4791,6 +4791,10 @@ void HGraphBuilder::VisitSub(UnaryOperation* expr) {
   HValue* value = Pop();
   HInstruction* instr = new(zone()) HMul(value, graph_->GetConstantMinus1());
   TypeInfo info = oracle()->UnaryType(expr);
+  if (info.IsUninitialized()) {
+    AddInstruction(new(zone()) HSoftDeoptimize);
+    info = TypeInfo::Unknown();
+  }
   Representation rep = ToRepresentation(info);
   TraceRepresentation(expr->op(), info, instr, rep);
   instr->AssumeRepresentation(rep);
@@ -4801,6 +4805,10 @@ void HGraphBuilder::VisitSub(UnaryOperation* expr) {
 void HGraphBuilder::VisitBitNot(UnaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->expression()));
   HValue* value = Pop();
+  TypeInfo info = oracle()->UnaryType(expr);
+  if (info.IsUninitialized()) {
+    AddInstruction(new(zone()) HSoftDeoptimize);
+  }
   HInstruction* instr = new(zone()) HBitNot(value);
   ast_context()->ReturnInstruction(instr, expr->id());
 }
@@ -5032,7 +5040,57 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
                                                   HValue* left,
                                                   HValue* right) {
   TypeInfo info = oracle()->BinaryType(expr);
-  HInstruction* instr = BuildBinaryOperation(expr->op(), left, right, info);
+  if (info.IsUninitialized()) {
+    AddInstruction(new(zone()) HSoftDeoptimize);
+    info = TypeInfo::Unknown();
+  }
+  HInstruction* instr = NULL;
+  switch (expr->op()) {
+    case Token::ADD:
+      if (info.IsString()) {
+        AddInstruction(new(zone()) HCheckNonSmi(left));
+        AddInstruction(HCheckInstanceType::NewIsString(left));
+        AddInstruction(new(zone()) HCheckNonSmi(right));
+        AddInstruction(HCheckInstanceType::NewIsString(right));
+        instr = new(zone()) HStringAdd(left, right);
+      } else {
+        instr = new(zone()) HAdd(left, right);
+      }
+      break;
+    case Token::SUB:
+      instr = new(zone()) HSub(left, right);
+      break;
+    case Token::MUL:
+      instr = new(zone()) HMul(left, right);
+      break;
+    case Token::MOD:
+      instr = new(zone()) HMod(left, right);
+      break;
+    case Token::DIV:
+      instr = new(zone()) HDiv(left, right);
+      break;
+    case Token::BIT_XOR:
+      instr = new(zone()) HBitXor(left, right);
+      break;
+    case Token::BIT_AND:
+      instr = new(zone()) HBitAnd(left, right);
+      break;
+    case Token::BIT_OR:
+      instr = new(zone()) HBitOr(left, right);
+      break;
+    case Token::SAR:
+      instr = new(zone()) HSar(left, right);
+      break;
+    case Token::SHR:
+      instr = new(zone()) HShr(left, right);
+      break;
+    case Token::SHL:
+      instr = new(zone()) HShl(left, right);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
   // If we hit an uninitialized binary op stub we will get type info
   // for a smi operation. If one of the operands is a constant string
   // do not generate code assuming it is a smi operation.
@@ -5049,36 +5107,6 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
   TraceRepresentation(expr->op(), info, instr, rep);
   instr->AssumeRepresentation(rep);
   return instr;
-}
-
-
-HInstruction* HGraphBuilder::BuildBinaryOperation(
-    Token::Value op, HValue* left, HValue* right, TypeInfo info) {
-  switch (op) {
-    case Token::ADD:
-      if (info.IsString()) {
-        AddInstruction(new(zone()) HCheckNonSmi(left));
-        AddInstruction(HCheckInstanceType::NewIsString(left));
-        AddInstruction(new(zone()) HCheckNonSmi(right));
-        AddInstruction(HCheckInstanceType::NewIsString(right));
-        return new(zone()) HStringAdd(left, right);
-      } else {
-        return new(zone()) HAdd(left, right);
-      }
-    case Token::SUB: return new(zone()) HSub(left, right);
-    case Token::MUL: return new(zone()) HMul(left, right);
-    case Token::MOD: return new(zone()) HMod(left, right);
-    case Token::DIV: return new(zone()) HDiv(left, right);
-    case Token::BIT_XOR: return new(zone()) HBitXor(left, right);
-    case Token::BIT_AND: return new(zone()) HBitAnd(left, right);
-    case Token::BIT_OR: return new(zone()) HBitOr(left, right);
-    case Token::SAR: return new(zone()) HSar(left, right);
-    case Token::SHR: return new(zone()) HShr(left, right);
-    case Token::SHL: return new(zone()) HShl(left, right);
-    default:
-      UNREACHABLE();
-      return NULL;
-  }
 }
 
 
@@ -5279,6 +5307,13 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return;
   }
 
+  TypeInfo type_info = oracle()->CompareType(expr);
+  // Check if this expression was ever executed according to type feedback.
+  if (type_info.IsUninitialized()) {
+    AddInstruction(new(zone()) HSoftDeoptimize);
+    type_info = TypeInfo::Unknown();
+  }
+
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
 
@@ -5286,7 +5321,6 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   HValue* left = Pop();
   Token::Value op = expr->op();
 
-  TypeInfo type_info = oracle()->CompareType(expr);
   HInstruction* instr = NULL;
   if (op == Token::INSTANCEOF) {
     // Check to see if the rhs of the instanceof is a global function not
