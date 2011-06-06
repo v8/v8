@@ -1400,8 +1400,6 @@ Isolate::Isolate()
       ast_sentinels_(NULL),
       string_tracker_(NULL),
       regexp_stack_(NULL),
-      frame_element_constant_list_(0),
-      result_constant_list_(0),
       embedder_data_(NULL) {
   TRACE_ISOLATE(constructor);
 
