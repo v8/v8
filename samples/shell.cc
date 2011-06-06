@@ -213,6 +213,34 @@ class SourceGroup {
 static SourceGroup* isolate_sources = NULL;
 
 
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+class BZip2Decompressor : public v8::StartupDataDecompressor {
+ public:
+  virtual ~BZip2Decompressor() { }
+
+ protected:
+  virtual int DecompressData(char* raw_data,
+                             int* raw_data_size,
+                             const char* compressed_data,
+                             int compressed_data_size) {
+    ASSERT_EQ(v8::StartupData::kBZip2,
+              v8::V8::GetCompressedStartupDataAlgorithm());
+    unsigned int decompressed_size = *raw_data_size;
+    int result =
+        BZ2_bzBuffToBuffDecompress(raw_data,
+                                   &decompressed_size,
+                                   const_cast<char*>(compressed_data),
+                                   compressed_data_size,
+                                   0, 1);
+    if (result == BZ_OK) {
+      *raw_data_size = decompressed_size;
+    }
+    return result;
+  }
+};
+#endif
+
+
 int RunMain(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::HandleScope handle_scope;
@@ -303,29 +331,13 @@ int main(int argc, char* argv[]) {
   }
 
 #ifdef COMPRESS_STARTUP_DATA_BZ2
-  ASSERT_EQ(v8::StartupData::kBZip2,
-            v8::V8::GetCompressedStartupDataAlgorithm());
-  int compressed_data_count = v8::V8::GetCompressedStartupDataCount();
-  v8::StartupData* compressed_data = new v8::StartupData[compressed_data_count];
-  v8::V8::GetCompressedStartupData(compressed_data);
-  for (int i = 0; i < compressed_data_count; ++i) {
-    char* decompressed = new char[compressed_data[i].raw_size];
-    unsigned int decompressed_size = compressed_data[i].raw_size;
-    int result =
-        BZ2_bzBuffToBuffDecompress(decompressed,
-                                   &decompressed_size,
-                                   const_cast<char*>(compressed_data[i].data),
-                                   compressed_data[i].compressed_size,
-                                   0, 1);
-    if (result != BZ_OK) {
-      fprintf(stderr, "bzip error code: %d\n", result);
-      exit(1);
-    }
-    compressed_data[i].data = decompressed;
-    compressed_data[i].raw_size = decompressed_size;
+  BZip2Decompressor startup_data_decompressor;
+  int bz2_result = startup_data_decompressor.Decompress();
+  if (bz2_result != BZ_OK) {
+    fprintf(stderr, "bzip error code: %d\n", bz2_result);
+    exit(1);
   }
-  v8::V8::SetDecompressedStartupData(compressed_data);
-#endif  // COMPRESS_STARTUP_DATA_BZ2
+#endif
 
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   int result = 0;
@@ -347,13 +359,6 @@ int main(int argc, char* argv[]) {
     result = RunMain(argc, argv);
   }
   v8::V8::Dispose();
-
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-  for (int i = 0; i < compressed_data_count; ++i) {
-    delete[] compressed_data[i].data;
-  }
-  delete[] compressed_data;
-#endif  // COMPRESS_STARTUP_DATA_BZ2
 
   return result;
 }

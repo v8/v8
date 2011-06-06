@@ -47,8 +47,9 @@ namespace internal {
 
 NativesExternalStringResource::NativesExternalStringResource(
     Bootstrapper* bootstrapper,
-    const char* source)
-    : data_(source), length_(StrLength(source)) {
+    const char* source,
+    size_t length)
+    : data_(source), length_(length) {
   if (bootstrapper->delete_these_non_arrays_on_tear_down_ == NULL) {
     bootstrapper->delete_these_non_arrays_on_tear_down_ = new List<char*>(2);
   }
@@ -75,16 +76,18 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
   if (heap->natives_source_cache()->get(index)->IsUndefined()) {
     if (!Snapshot::IsEnabled() || FLAG_new_snapshot) {
       // We can use external strings for the natives.
+      Vector<const char> source = Natives::GetRawScriptSource(index);
       NativesExternalStringResource* resource =
           new NativesExternalStringResource(this,
-              Natives::GetScriptSource(index).start());
+                                            source.start(),
+                                            source.length());
       Handle<String> source_code =
           factory->NewExternalStringFromAscii(resource);
       heap->natives_source_cache()->set(index, *source_code);
     } else {
       // Old snapshot code can't cope with external strings at all.
       Handle<String> source_code =
-        factory->NewStringFromAscii(Natives::GetScriptSource(index));
+        factory->NewStringFromAscii(Natives::GetRawScriptSource(index));
       heap->natives_source_cache()->set(index, *source_code);
     }
   }
@@ -1182,7 +1185,8 @@ bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
   Vector<const char> name = ExperimentalNatives::GetScriptName(index);
   Factory* factory = isolate->factory();
   Handle<String> source_code =
-      factory->NewStringFromAscii(ExperimentalNatives::GetScriptSource(index));
+      factory->NewStringFromAscii(
+          ExperimentalNatives::GetRawScriptSource(index));
   return CompileNative(name, source_code);
 }
 

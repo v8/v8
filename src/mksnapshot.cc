@@ -136,6 +136,7 @@ class PartialSnapshotSink : public i::SnapshotByteSink {
     return true;
   }
   int raw_size() { return raw_size_; }
+
  private:
   i::List<char> data_;
   int raw_size_;
@@ -265,6 +266,32 @@ class BZip2Compressor : public Compressor {
  private:
   i::ScopedVector<char>* output_;
 };
+
+
+class BZip2Decompressor : public StartupDataDecompressor {
+ public:
+  virtual ~BZip2Decompressor() { }
+
+ protected:
+  virtual int DecompressData(char* raw_data,
+                             int* raw_data_size,
+                             const char* compressed_data,
+                             int compressed_data_size) {
+    ASSERT_EQ(StartupData::kBZip2,
+              V8::GetCompressedStartupDataAlgorithm());
+    unsigned int decompressed_size = *raw_data_size;
+    int result =
+        BZ2_bzBuffToBuffDecompress(raw_data,
+                                   &decompressed_size,
+                                   const_cast<char*>(compressed_data),
+                                   compressed_data_size,
+                                   0, 1);
+    if (result == BZ_OK) {
+      *raw_data_size = decompressed_size;
+    }
+    return result;
+  }
+};
 #endif
 
 
@@ -281,6 +308,14 @@ int main(int argc, char** argv) {
     i::FlagList::PrintHelp();
     return !i::FLAG_help;
   }
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+  BZip2Decompressor natives_decompressor;
+  int bz2_result = natives_decompressor.Decompress();
+  if (bz2_result != BZ_OK) {
+    fprintf(stderr, "bzip error code: %d\n", bz2_result);
+    exit(1);
+  }
+#endif
   i::Serializer::Enable();
   Persistent<Context> context = v8::Context::New();
   ASSERT(!context.IsEmpty());

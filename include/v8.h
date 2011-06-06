@@ -2704,6 +2704,31 @@ class StartupData {
   int raw_size;
 };
 
+
+/**
+ * A helper class for driving V8 startup data decompression.  It is based on
+ * "CompressedStartupData" API functions from the V8 class.  It isn't mandatory
+ * for an embedder to use this class, instead, API functions can be used
+ * directly.
+ *
+ * For an example of the class usage, see the "shell.cc" sample application.
+ */
+class V8EXPORT StartupDataDecompressor {
+ public:
+  StartupDataDecompressor();
+  virtual ~StartupDataDecompressor();
+  int Decompress();
+
+ protected:
+  virtual int DecompressData(char* raw_data,
+                             int* raw_data_size,
+                             const char* compressed_data,
+                             int compressed_data_size) = 0;
+
+ private:
+  char** raw_data;
+};
+
 /**
  * Container class for static utility functions.
  */
@@ -2753,6 +2778,10 @@ class V8EXPORT V8 {
    *   v8::V8::SetDecompressedStartupData(compressed_data);
    *   ... now V8 can be initialized
    *   ... make sure the decompressed data stays valid until V8 shutdown
+   *
+   * A helper class StartupDataDecompressor is provided. It implements
+   * the protocol of the interaction described above, and can be used in
+   * most cases instead of calling these API functions directly.
    */
   static StartupData::CompressionAlgorithm GetCompressedStartupDataAlgorithm();
   static int GetCompressedStartupDataCount();

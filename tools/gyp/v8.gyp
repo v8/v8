@@ -30,7 +30,7 @@
     'use_system_v8%': 0,
     'msvs_use_common_release': 0,
     'gcc_version%': 'unknown',
-    'v8_compress_startup_data%': 'false',
+    'v8_compress_startup_data%': 'off',
     'v8_target_arch%': '<(target_arch)',
 
     # Setting 'v8_can_use_unaligned_accesses' to 'true' will allow the code
@@ -902,6 +902,7 @@
                 '../../tools/js2c.py',
                 '<@(_outputs)',
                 'CORE',
+                '<(v8_compress_startup_data)',
                 '<@(library_files)'
               ],
             },
@@ -919,6 +920,7 @@
                 '../../tools/js2c.py',
                 '<@(_outputs)',
                 'EXPERIMENTAL',
+                '<(v8_compress_startup_data)',
                 '<@(experimental_library_files)'
               ],
             },

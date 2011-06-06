@@ -38,6 +38,7 @@
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "messages.h"
+#include "natives.h"
 #include "parser.h"
 #include "platform.h"
 #include "profile-generator-inl.h"
@@ -311,6 +312,46 @@ static inline i::Isolate* EnterIsolateIfNeeded() {
 }
 
 
+StartupDataDecompressor::StartupDataDecompressor()
+    : raw_data(i::NewArray<char*>(V8::GetCompressedStartupDataCount())) {
+  for (int i = 0; i < V8::GetCompressedStartupDataCount(); ++i) {
+    raw_data[i] = NULL;
+  }  
+}
+
+
+StartupDataDecompressor::~StartupDataDecompressor() {
+  for (int i = 0; i < V8::GetCompressedStartupDataCount(); ++i) {
+    i::DeleteArray(raw_data[i]);
+  }
+  i::DeleteArray(raw_data);
+}
+
+
+int StartupDataDecompressor::Decompress() {
+  int compressed_data_count = V8::GetCompressedStartupDataCount();
+  StartupData* compressed_data =
+      i::NewArray<StartupData>(compressed_data_count);
+  V8::GetCompressedStartupData(compressed_data);
+  for (int i = 0; i < compressed_data_count; ++i) {
+    char* decompressed = raw_data[i] =
+        i::NewArray<char>(compressed_data[i].raw_size);
+    if (compressed_data[i].compressed_size != 0) {
+      int result = DecompressData(decompressed,
+                                  &compressed_data[i].raw_size,
+                                  compressed_data[i].data,
+                                  compressed_data[i].compressed_size);
+      if (result != 0) return result;
+    } else {
+      ASSERT_EQ(0, compressed_data[i].raw_size);
+    }
+    compressed_data[i].data = decompressed;
+  }
+  V8::SetDecompressedStartupData(compressed_data);
+  return 0;
+}
+
+
 StartupData::CompressionAlgorithm V8::GetCompressedStartupDataAlgorithm() {
 #ifdef COMPRESS_STARTUP_DATA_BZ2
   return StartupData::kBZip2;
@@ -323,6 +364,8 @@ StartupData::CompressionAlgorithm V8::GetCompressedStartupDataAlgorithm() {
 enum CompressedStartupDataItems {
   kSnapshot = 0,
   kSnapshotContext,
+  kLibraries,
+  kExperimentalLibraries,
   kCompressedStartupDataCount
 };
 
@@ -347,6 +390,21 @@ void V8::GetCompressedStartupData(StartupData* compressed_data) {
   compressed_data[kSnapshotContext].compressed_size =
       i::Snapshot::context_size();
   compressed_data[kSnapshotContext].raw_size = i::Snapshot::context_raw_size();
+
+  i::Vector<const i::byte> libraries_source = i::Natives::GetScriptsSource();
+  compressed_data[kLibraries].data =
+      reinterpret_cast<const char*>(libraries_source.start());
+  compressed_data[kLibraries].compressed_size = libraries_source.length();
+  compressed_data[kLibraries].raw_size = i::Natives::GetRawScriptsSize();
+
+  i::Vector<const i::byte> exp_libraries_source =
+      i::ExperimentalNatives::GetScriptsSource();
+  compressed_data[kExperimentalLibraries].data =
+      reinterpret_cast<const char*>(exp_libraries_source.start());
+  compressed_data[kExperimentalLibraries].compressed_size =
+      exp_libraries_source.length();
+  compressed_data[kExperimentalLibraries].raw_size =
+      i::ExperimentalNatives::GetRawScriptsSize();
 #endif
 }
 
@@ -362,6 +420,20 @@ void V8::SetDecompressedStartupData(StartupData* decompressed_data) {
   i::Snapshot::set_context_raw_data(
       reinterpret_cast<const i::byte*>(
           decompressed_data[kSnapshotContext].data));
+
+  ASSERT_EQ(i::Natives::GetRawScriptsSize(),
+            decompressed_data[kLibraries].raw_size);
+  i::Vector<const char> libraries_source(
+      decompressed_data[kLibraries].data,
+      decompressed_data[kLibraries].raw_size);
+  i::Natives::SetRawScriptsSource(libraries_source);
+
+  ASSERT_EQ(i::ExperimentalNatives::GetRawScriptsSize(),
+            decompressed_data[kExperimentalLibraries].raw_size);
+  i::Vector<const char> exp_libraries_source(
+      decompressed_data[kExperimentalLibraries].data,
+      decompressed_data[kExperimentalLibraries].raw_size);
+  i::ExperimentalNatives::SetRawScriptsSource(exp_libraries_source);
 #endif
 }
 
