@@ -1637,7 +1637,7 @@ class HeapStats {
   int* weak_global_handle_count;        // 15
   int* pending_global_handle_count;     // 16
   int* near_death_global_handle_count;  // 17
-  int* destroyed_global_handle_count;   // 18
+  int* free_global_handle_count;        // 18
   intptr_t* memory_allocator_size;           // 19
   intptr_t* memory_allocator_capacity;       // 20
   int* objects_per_type;                // 21

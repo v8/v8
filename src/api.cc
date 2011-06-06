@@ -176,8 +176,8 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.pending_global_handle_count = &pending_global_handle_count;
   int near_death_global_handle_count;
   heap_stats.near_death_global_handle_count = &near_death_global_handle_count;
-  int destroyed_global_handle_count;
-  heap_stats.destroyed_global_handle_count = &destroyed_global_handle_count;
+  int free_global_handle_count;
+  heap_stats.free_global_handle_count = &free_global_handle_count;
   intptr_t memory_allocator_size;
   heap_stats.memory_allocator_size = &memory_allocator_size;
   intptr_t memory_allocator_capacity;

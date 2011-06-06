@@ -1063,9 +1063,10 @@ void Heap::Scavenge() {
   scavenge_visitor.VisitPointer(BitCast<Object**>(&global_contexts_list_));
 
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
-  isolate_->global_handles()->IdentifyWeakIndependentHandles(
+  isolate_->global_handles()->IdentifyNewSpaceWeakIndependentHandles(
       &IsUnscavengedHeapObject);
-  isolate_->global_handles()->IterateWeakIndependentRoots(&scavenge_visitor);
+  isolate_->global_handles()->IterateNewSpaceWeakIndependentRoots(
+      &scavenge_visitor);
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
 
@@ -4612,7 +4613,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
       isolate_->global_handles()->IterateStrongRoots(v);
       break;
     case VISIT_ALL_IN_SCAVENGE:
-      isolate_->global_handles()->IterateStrongAndDependentRoots(v);
+      isolate_->global_handles()->IterateNewSpaceStrongAndDependentRoots(v);
       break;
     case VISIT_ALL_IN_SWEEP_NEWSPACE:
     case VISIT_ALL:
