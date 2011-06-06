@@ -3446,9 +3446,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ Branch(&bailout, ne, scratch2, Operand(JS_ARRAY_TYPE));
 
   // Check that the array has fast elements.
-  __ lbu(scratch2, FieldMemOperand(scratch1, Map::kBitField2Offset));
-  __ And(scratch3, scratch2, Operand(1 << Map::kHasFastElements));
-  __ Branch(&bailout, eq, scratch3, Operand(zero_reg));
+  __ CheckFastElements(scratch1, scratch2, &bailout);
 
   // If the array has length zero, return the empty string.
   __ lw(array_length, FieldMemOperand(array, JSArray::kLengthOffset));
