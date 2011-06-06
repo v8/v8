@@ -80,10 +80,10 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
 
   // Check that the receiver is a valid JS object.
   __ GetObjectType(receiver, scratch0, scratch1);
-  __ Branch(miss, lt, scratch1, Operand(FIRST_JS_OBJECT_TYPE));
+  __ Branch(miss, lt, scratch1, Operand(FIRST_SPEC_OBJECT_TYPE));
 
   // If this assert fails, we have to check upper bound too.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
 
   GenerateGlobalInstanceTypeCheck(masm, scratch1, miss);
 
@@ -1174,8 +1174,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ lbu(t3, FieldMemOperand(t3, Map::kInstanceTypeOffset));
 
   __ Branch(&array, eq, t3, Operand(JS_ARRAY_TYPE));
-  // Check that the object is some kind of JS object.
-  __ Branch(&slow, lt, t3, Operand(FIRST_JS_OBJECT_TYPE));
+  // Check that the object is some kind of JSObject.
+  __ Branch(&slow, lt, t3, Operand(FIRST_JS_RECEIVER_TYPE));
+  __ Branch(&slow, eq, t3, Operand(JS_PROXY_TYPE));
+  __ Branch(&slow, eq, t3, Operand(JS_FUNCTION_PROXY_TYPE));
 
   // Object case: Check key against length in the elements array.
   __ lw(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));

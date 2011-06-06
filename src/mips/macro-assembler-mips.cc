@@ -2935,8 +2935,8 @@ void MacroAssembler::IsInstanceJSObjectType(Register map,
                                             Register scratch,
                                             Label* fail) {
   lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  Branch(fail, lt, scratch, Operand(FIRST_JS_OBJECT_TYPE));
-  Branch(fail, gt, scratch, Operand(LAST_JS_OBJECT_TYPE));
+  Branch(fail, lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+  Branch(fail, gt, scratch, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
 }
 
 
