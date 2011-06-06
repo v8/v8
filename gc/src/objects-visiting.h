@@ -270,52 +270,7 @@ class FixedBodyVisitor : public BodyVisitorBase<StaticVisitor> {
 template<typename StaticVisitor>
 class StaticNewSpaceVisitor : public StaticVisitorBase {
  public:
-  static void Initialize() {
-    table_.Register(kVisitShortcutCandidate,
-                    &FixedBodyVisitor<StaticVisitor,
-                                      ConsString::BodyDescriptor,
-                                      int>::Visit);
-
-    table_.Register(kVisitConsString,
-                    &FixedBodyVisitor<StaticVisitor,
-                                      ConsString::BodyDescriptor,
-                                      int>::Visit);
-
-    table_.Register(kVisitFixedArray,
-                    &FlexibleBodyVisitor<StaticVisitor,
-                                         FixedArray::BodyDescriptor,
-                                         int>::Visit);
-
-    table_.Register(kVisitGlobalContext,
-                    &FixedBodyVisitor<StaticVisitor,
-                                      Context::ScavengeBodyDescriptor,
-                                      int>::Visit);
-
-    table_.Register(kVisitByteArray, &VisitByteArray);
-
-    table_.Register(kVisitSharedFunctionInfo,
-                    &FixedBodyVisitor<StaticVisitor,
-                                      SharedFunctionInfo::BodyDescriptor,
-                                      int>::Visit);
-
-    table_.Register(kVisitSeqAsciiString, &VisitSeqAsciiString);
-
-    table_.Register(kVisitSeqTwoByteString, &VisitSeqTwoByteString);
-
-    table_.Register(kVisitJSFunction,
-                    &JSObjectVisitor::
-                        template VisitSpecialized<JSFunction::kSize>);
-
-    table_.RegisterSpecializations<DataObjectVisitor,
-                                   kVisitDataObject,
-                                   kVisitDataObjectGeneric>();
-    table_.RegisterSpecializations<JSObjectVisitor,
-                                   kVisitJSObject,
-                                   kVisitJSObjectGeneric>();
-    table_.RegisterSpecializations<StructVisitor,
-                                   kVisitStruct,
-                                   kVisitStructGeneric>();
-  }
+  static void Initialize();
 
   static inline int IterateBody(Map* map, HeapObject* obj) {
     return table_.GetVisitor(map)(map, obj);
@@ -369,55 +324,6 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
 template<typename StaticVisitor>
 VisitorDispatchTable<typename StaticNewSpaceVisitor<StaticVisitor>::Callback>
   StaticNewSpaceVisitor<StaticVisitor>::table_;
-
-
-void Code::CodeIterateBody(ObjectVisitor* v) {
-  int mode_mask = RelocInfo::kCodeTargetMask |
-                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::GLOBAL_PROPERTY_CELL) |
-                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-                  RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
-                  RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
-                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
-
-  // Use the relocation info pointer before it is visited by
-  // the heap compaction in the next statement.
-  RelocIterator it(this, mode_mask);
-
-  IteratePointer(v, kRelocationInfoOffset);
-  IteratePointer(v, kDeoptimizationDataOffset);
-
-  for (; !it.done(); it.next()) {
-    it.rinfo()->Visit(v);
-  }
-}
-
-
-template<typename StaticVisitor>
-void Code::CodeIterateBody(Heap* heap) {
-  int mode_mask = RelocInfo::kCodeTargetMask |
-                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::GLOBAL_PROPERTY_CELL) |
-                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-                  RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
-                  RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
-                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
-
-  // Use the relocation info pointer before it is visited by
-  // the heap compaction in the next statement.
-  RelocIterator it(this, mode_mask);
-
-  StaticVisitor::VisitPointer(
-      heap,
-      reinterpret_cast<Object**>(this->address() + kRelocationInfoOffset));
-  StaticVisitor::VisitPointer(
-      heap,
-      reinterpret_cast<Object**>(this->address() + kDeoptimizationDataOffset));
-
-  for (; !it.done(); it.next()) {
-    it.rinfo()->template Visit<StaticVisitor>(heap);
-  }
-}
 
 
 } }  // namespace v8::internal

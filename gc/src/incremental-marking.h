@@ -49,6 +49,8 @@ class IncrementalMarking : public AllStatic {
 
   explicit IncrementalMarking(Heap* heap);
 
+  void TearDown();
+
   State state() {
     ASSERT(state_ == STOPPED || FLAG_incremental_marking);
     return state_;
@@ -172,9 +174,13 @@ class IncrementalMarking : public AllStatic {
   static void SetOldSpacePageFlags(MemoryChunk* chunk, bool is_marking);
   static void SetNewSpacePageFlags(MemoryChunk* chunk, bool is_marking);
 
+  void EnsureMarkingDequeIsCommitted();
+
   Heap* heap_;
 
   State state_;
+
+  VirtualMemory* marking_deque_memory_;
   MarkingDeque marking_deque_;
 
   int steps_count_;

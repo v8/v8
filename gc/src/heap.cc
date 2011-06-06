@@ -40,6 +40,7 @@
 #include "mark-compact.h"
 #include "natives.h"
 #include "objects-visiting.h"
+#include "objects-visiting-inl.h"
 #include "runtime-profiler.h"
 #include "scanner-base.h"
 #include "scopeinfo.h"
@@ -1311,22 +1312,6 @@ enum LoggingAndProfiling {
 
 enum MarksHandling { TRANSFER_MARKS, IGNORE_MARKS };
 
-typedef void (*ScavengingCallback)(Map* map,
-                                   HeapObject** slot,
-                                   HeapObject* object);
-
-
-static Atomic32 scavenging_visitors_table_mode_;
-// TODO(gc) ISOLATES MERGE: this table can no longer be static!
-static VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
-
-
-static inline void DoScavengeObject(Map* map,
-                                    HeapObject** slot,
-                                    HeapObject* obj) {
-  scavenging_visitors_table_.GetVisitor(map)(map, slot, obj);
-}
-
 
 template<MarksHandling marks_handling,
          LoggingAndProfiling logging_and_profiling_mode>
@@ -1426,7 +1411,6 @@ class ScavengingVisitor : public StaticVisitorBase {
 #endif
     }
 
-
     if (marks_handling == TRANSFER_MARKS) {
       Marking::TransferColor(source, target);
     }
@@ -1524,15 +1508,17 @@ class ScavengingVisitor : public StaticVisitorBase {
                                                HeapObject* object) {
     ASSERT(IsShortcutCandidate(map->instance_type()));
 
+    Heap* heap = map->GetHeap();
+
     if (marks_handling == IGNORE_MARKS &&
         ConsString::cast(object)->unchecked_second() ==
-        map->GetHeap()->empty_string()) {
+        heap->empty_string()) {
       HeapObject* first =
           HeapObject::cast(ConsString::cast(object)->unchecked_first());
 
       *slot = first;
 
-      if (!map->GetHeap()->InNewSpace(first)) {
+      if (!heap->InNewSpace(first)) {
         object->set_map_word(MapWord::FromForwardingAddress(first));
         return;
       }
@@ -1546,7 +1532,7 @@ class ScavengingVisitor : public StaticVisitorBase {
         return;
       }
 
-      DoScavengeObject(first->map(), slot, first);
+      heap->DoScavengeObject(first->map(), slot, first);
       object->set_map_word(MapWord::FromForwardingAddress(*slot));
       return;
     }
@@ -1590,16 +1576,23 @@ static void InitializeScavengingVisitorsTables() {
   ScavengingVisitor<TRANSFER_MARKS,
                     LOGGING_AND_PROFILING_ENABLED>::Initialize();
   ScavengingVisitor<IGNORE_MARKS, LOGGING_AND_PROFILING_ENABLED>::Initialize();
-  scavenging_visitors_table_.CopyFrom(
-      ScavengingVisitor<IGNORE_MARKS,
-                        LOGGING_AND_PROFILING_DISABLED>::GetTable());
-  scavenging_visitors_table_mode_ = LOGGING_AND_PROFILING_DISABLED;
 }
 
 
 void Heap::SelectScavengingVisitorsTable() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  bool logging_and_profiling =
+      isolate()->logger()->is_logging() ||
+      CpuProfiler::is_profiling(isolate()) ||
+      (isolate()->heap_profiler() != NULL &&
+       isolate()->heap_profiler()->is_profiling());
+#else
+  bool logging_and_profiling = false;
+#endif
+
+
   if (!incremental_marking()->IsMarking()) {
-    if (scavenging_visitors_table_mode_ == LOGGING_AND_PROFILING_DISABLED) {
+    if (!logging_and_profiling) {
       scavenging_visitors_table_.CopyFrom(
           ScavengingVisitor<IGNORE_MARKS,
                             LOGGING_AND_PROFILING_DISABLED>::GetTable());
@@ -1609,7 +1602,7 @@ void Heap::SelectScavengingVisitorsTable() {
                             LOGGING_AND_PROFILING_ENABLED>::GetTable());
     }
   } else {
-    if (scavenging_visitors_table_mode_ == LOGGING_AND_PROFILING_DISABLED) {
+    if (!logging_and_profiling) {
       scavenging_visitors_table_.CopyFrom(
           ScavengingVisitor<TRANSFER_MARKS,
                             LOGGING_AND_PROFILING_DISABLED>::GetTable());
@@ -1627,7 +1620,7 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
   MapWord first_word = object->map_word();
   ASSERT(!first_word.IsForwardingAddress());
   Map* map = first_word.ToMap();
-  DoScavengeObject(map, p, object);
+  map->GetHeap()->DoScavengeObject(map, p, object);
 }
 
 
@@ -5235,6 +5228,7 @@ void Heap::TearDown() {
   }
 
   store_buffer()->TearDown();
+  incremental_marking()->TearDown();
 
   isolate_->memory_allocator()->TearDown();
 

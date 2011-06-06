@@ -38,11 +38,17 @@ namespace internal {
 IncrementalMarking::IncrementalMarking(Heap* heap)
     : heap_(heap),
       state_(STOPPED),
+      marking_deque_memory_(NULL),
       steps_count_(0),
       steps_took_(0),
       should_hurry_(false),
       allocation_marking_factor_(0),
       allocated_(0) {
+}
+
+
+void IncrementalMarking::TearDown() {
+  delete marking_deque_memory_;
 }
 
 
@@ -271,15 +277,12 @@ static void PatchIncrementalMarkingRecordWriteStubs(bool enable) {
 }
 
 
-static VirtualMemory* marking_deque_memory = NULL;
-
-
-static void EnsureMarkingDequeIsCommitted() {
-  if (marking_deque_memory == NULL) {
-    marking_deque_memory = new VirtualMemory(4 * MB);
-    marking_deque_memory->Commit(
-        reinterpret_cast<Address>(marking_deque_memory->address()),
-        marking_deque_memory->size(),
+void IncrementalMarking::EnsureMarkingDequeIsCommitted() {
+  if (marking_deque_memory_ == NULL) {
+    marking_deque_memory_ = new VirtualMemory(4 * MB);
+    marking_deque_memory_->Commit(
+        reinterpret_cast<Address>(marking_deque_memory_->address()),
+        marking_deque_memory_->size(),
         false);  // Not executable.
   }
 }
@@ -320,8 +323,8 @@ void IncrementalMarking::StartMarking() {
   EnsureMarkingDequeIsCommitted();
 
   // Initialize marking stack.
-  Address addr = static_cast<Address>(marking_deque_memory->address());
-  int size = marking_deque_memory->size();
+  Address addr = static_cast<Address>(marking_deque_memory_->address());
+  int size = marking_deque_memory_->size();
   if (FLAG_force_marking_deque_overflows) size = 64 * kPointerSize;
   marking_deque_.Initialize(addr, addr + size);
 
@@ -358,6 +361,8 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
   HeapObject** array = marking_deque_.array();
   intptr_t new_top = current;
 
+  Map* filler_map = heap_->one_pointer_filler_map();
+
   while (current != limit) {
     HeapObject* obj = array[current];
     current = ((current + 1) & mask);
@@ -368,12 +373,15 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
         array[new_top] = dest;
         new_top = ((new_top + 1) & mask);
         ASSERT(new_top != marking_deque_.bottom());
-        ASSERT(Marking::Color(obj) == Marking::Color(dest));
+        ASSERT(Marking::IsGrey(Marking::MarkBitFrom(obj)));
       }
-    } else {
+    } else if (obj->map() != filler_map) {
+      // Skip one word filler objects that appear on the
+      // stack when we perform in place array shift.
       array[new_top] = obj;
       new_top = ((new_top + 1) & mask);
       ASSERT(new_top != marking_deque_.bottom());
+      ASSERT(Marking::IsGrey(Marking::MarkBitFrom(obj)));
     }
   }
   marking_deque_.set_top(new_top);

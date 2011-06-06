@@ -35,6 +35,7 @@
 #include "incremental-marking.h"
 #include "list.h"
 #include "mark-compact.h"
+#include "objects-visiting.h"
 #include "spaces.h"
 #include "splay-tree-inl.h"
 #include "store-buffer.h"
@@ -290,6 +291,11 @@ class PromotionQueue {
 
   DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
 };
+
+
+typedef void (*ScavengingCallback)(Map* map,
+                                   HeapObject** slot,
+                                   HeapObject* object);
 
 
 // External strings table is a place where all external strings are
@@ -1321,6 +1327,10 @@ class Heap {
 
   inline bool OldGenerationAllocationLimitReached();
 
+  inline void DoScavengeObject(Map* map, HeapObject** slot, HeapObject* obj) {
+    scavenging_visitors_table_.GetVisitor(map)(map, slot, obj);
+  }
+
  private:
   Heap();
 
@@ -1535,8 +1545,6 @@ class Heap {
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
 
-  void SwitchScavengingVisitorsTableIfProfilingWasEnabled();
-
   // Performs a minor collection in new generation.
   void Scavenge();
 
@@ -1678,6 +1686,8 @@ class Heap {
   bool configured_;
 
   ExternalStringTable external_string_table_;
+
+  VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
 
   friend class Factory;
   friend class GCTracer;

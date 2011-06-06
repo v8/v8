@@ -37,6 +37,7 @@
 #include "liveobjectlist-inl.h"
 #include "mark-compact.h"
 #include "objects-visiting.h"
+#include "objects-visiting-inl.h"
 #include "stub-cache.h"
 
 namespace v8 {

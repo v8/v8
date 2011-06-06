@@ -671,7 +671,7 @@ class MaybeObject BASE_EMBEDDED {
   // Prints this object with details.
   inline void Print() {
     Print(stdout);
-  };
+  }
   inline void PrintLn() {
     PrintLn(stdout);
   }

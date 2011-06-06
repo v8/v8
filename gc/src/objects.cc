@@ -38,6 +38,7 @@
 #include "hydrogen.h"
 #include "objects-inl.h"
 #include "objects-visiting.h"
+#include "objects-visiting-inl.h"
 #include "macro-assembler.h"
 #include "mark-compact.h"
 #include "safepoint-table.h"
