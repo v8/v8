@@ -2713,7 +2713,7 @@ class StartupData {
  *
  * For an example of the class usage, see the "shell.cc" sample application.
  */
-class V8EXPORT StartupDataDecompressor {
+class V8EXPORT StartupDataDecompressor {  // NOLINT
  public:
   StartupDataDecompressor();
   virtual ~StartupDataDecompressor();

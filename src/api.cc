@@ -316,7 +316,7 @@ StartupDataDecompressor::StartupDataDecompressor()
     : raw_data(i::NewArray<char*>(V8::GetCompressedStartupDataCount())) {
   for (int i = 0; i < V8::GetCompressedStartupDataCount(); ++i) {
     raw_data[i] = NULL;
-  }  
+  }
 }
 
 
