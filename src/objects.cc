@@ -638,7 +638,7 @@ Object* Object::GetPrototype() {
 
   // The object is either a number, a string, a boolean,
   // a real JS object, or a Harmony proxy.
-  if (heap_object->IsJSObject() || heap_object->IsJSProxy()) {
+  if (heap_object->IsJSReceiver()) {
     return heap_object->map()->prototype();
   }
   Heap* heap = heap_object->GetHeap();
@@ -1941,6 +1941,42 @@ void Map::LookupInDescriptors(JSObject* holder,
 }
 
 
+static JSObject::ElementsKind GetElementsKindFromExternalArrayType(
+    ExternalArrayType array_type) {
+  switch (array_type) {
+    case kExternalByteArray:
+      return JSObject::EXTERNAL_BYTE_ELEMENTS;
+      break;
+    case kExternalUnsignedByteArray:
+      return JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
+      break;
+    case kExternalShortArray:
+      return JSObject::EXTERNAL_SHORT_ELEMENTS;
+      break;
+    case kExternalUnsignedShortArray:
+      return JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
+      break;
+    case kExternalIntArray:
+      return JSObject::EXTERNAL_INT_ELEMENTS;
+      break;
+    case kExternalUnsignedIntArray:
+      return JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS;
+      break;
+    case kExternalFloatArray:
+      return JSObject::EXTERNAL_FLOAT_ELEMENTS;
+      break;
+    case kExternalDoubleArray:
+      return JSObject::EXTERNAL_DOUBLE_ELEMENTS;
+      break;
+    case kExternalPixelArray:
+      return JSObject::EXTERNAL_PIXEL_ELEMENTS;
+      break;
+  }
+  UNREACHABLE();
+  return JSObject::DICTIONARY_ELEMENTS;
+}
+
+
 MaybeObject* Map::GetExternalArrayElementsMap(ExternalArrayType array_type,
                                               bool safe_to_add_transition) {
   Heap* current_heap = heap();
@@ -1983,8 +2019,7 @@ MaybeObject* Map::GetExternalArrayElementsMap(ExternalArrayType array_type,
   }
   Map* new_map = Map::cast(obj);
 
-  new_map->set_has_fast_elements(false);
-  new_map->set_has_external_array_elements(true);
+  new_map->set_elements_kind(GetElementsKindFromExternalArrayType(array_type));
   GetIsolate()->counters()->map_to_external_array_elements()->Increment();
 
   // Only remember the map transition if the object's map is NOT equal to the
@@ -3345,8 +3380,7 @@ void JSObject::LocalLookup(String* name, LookupResult* result) {
   }
 
   // Check __proto__ before interceptor.
-  if (name->Equals(heap->Proto_symbol()) &&
-      !IsJSContextExtensionObject()) {
+  if (name->Equals(heap->Proto_symbol()) && !IsJSContextExtensionObject()) {
     result->ConstantResult(this);
     return;
   }
@@ -3894,39 +3928,68 @@ void Map::RemoveFromCodeCache(String* name, Code* code, int index) {
 
 
 void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
+  // Traverse the transition tree without using a stack.  We do this by
+  // reversing the pointers in the maps and descriptor arrays.
   Map* current = this;
   Map* meta_map = heap()->meta_map();
+  Object** map_or_index_field = NULL;
   while (current != meta_map) {
     DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
         *RawField(current, Map::kInstanceDescriptorsOrBitField3Offset));
-    if (d->IsEmpty()) {
-      Map* prev = current->map();
-      current->set_map(meta_map);
-      callback(current, data);
-      current = prev;
-      continue;
+    if (!d->IsEmpty()) {
+      FixedArray* contents = reinterpret_cast<FixedArray*>(
+          d->get(DescriptorArray::kContentArrayIndex));
+      map_or_index_field = RawField(contents, HeapObject::kMapOffset);
+      Object* map_or_index = *map_or_index_field;
+      bool map_done = true;  // Controls a nested continue statement.
+      for (int i = map_or_index->IsSmi() ? Smi::cast(map_or_index)->value() : 0;
+           i < contents->length();
+           i += 2) {
+        PropertyDetails details(Smi::cast(contents->get(i + 1)));
+        if (details.IsTransition()) {
+          // Found a map in the transition array.  We record our progress in
+          // the transition array by recording the current map in the map field
+          // of the next map and recording the index in the transition array in
+          // the map field of the array.
+          Map* next = Map::cast(contents->get(i));
+          next->set_map(current);
+          *map_or_index_field = Smi::FromInt(i + 2);
+          current = next;
+          map_done = false;
+          break;
+        }
+      }
+      if (!map_done) continue;
     }
-
-    FixedArray* contents = reinterpret_cast<FixedArray*>(
-        d->get(DescriptorArray::kContentArrayIndex));
-    Object** map_or_index_field = RawField(contents, HeapObject::kMapOffset);
-    Object* map_or_index = *map_or_index_field;
-    bool map_done = true;
-    for (int i = map_or_index->IsSmi() ? Smi::cast(map_or_index)->value() : 0;
-         i < contents->length();
-         i += 2) {
-      PropertyDetails details(Smi::cast(contents->get(i + 1)));
-      if (details.IsTransition()) {
-        Map* next = reinterpret_cast<Map*>(contents->get(i));
+    // That was the regular transitions, now for the prototype transitions.
+    FixedArray* prototype_transitions =
+        current->unchecked_prototype_transitions();
+    Object** proto_map_or_index_field =
+        RawField(prototype_transitions, HeapObject::kMapOffset);
+    Object* map_or_index = *proto_map_or_index_field;
+    const int start = kProtoTransitionHeaderSize + kProtoTransitionMapOffset;
+    int i = map_or_index->IsSmi() ? Smi::cast(map_or_index)->value() : start;
+    if (i < prototype_transitions->length()) {
+      // Found a map in the prototype transition array.  Record progress in
+      // an analogous way to the regular transitions array above.
+      Object* perhaps_map = prototype_transitions->get(i);
+      if (perhaps_map->IsMap()) {
+        Map* next = Map::cast(perhaps_map);
         next->set_map(current);
-        *map_or_index_field = Smi::FromInt(i + 2);
+        *proto_map_or_index_field =
+            Smi::FromInt(i + kProtoTransitionElementsPerEntry);
         current = next;
-        map_done = false;
-        break;
+        continue;
       }
     }
-    if (!map_done) continue;
-    *map_or_index_field = heap()->fixed_array_map();
+    *proto_map_or_index_field = heap()->fixed_array_map();
+    if (map_or_index_field != NULL) {
+      *map_or_index_field = heap()->fixed_array_map();
+    }
+
+    // The callback expects a map to have a real map as its map, so we save
+    // the map field, which is being used to track the traversal and put the
+    // correct map (the meta_map) in place while we do the callback.
     Map* prev = current->map();
     current->set_map(meta_map);
     callback(current, data);
@@ -6364,6 +6427,7 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
   if (slack != 0) {
     // Resize the initial map and all maps in its transition tree.
     map->TraverseTransitionTree(&ShrinkInstanceSize, &slack);
+
     // Give the correct expected_nof_properties to initial maps created later.
     ASSERT(expected_nof_properties() >= slack);
     set_expected_nof_properties(expected_nof_properties() - slack);
@@ -7083,42 +7147,59 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
 
 Object* Map::GetPrototypeTransition(Object* prototype) {
   FixedArray* cache = prototype_transitions();
-  int capacity = cache->length();
-  if (capacity == 0) return NULL;
-  int finger = Smi::cast(cache->get(0))->value();
-  for (int i = 1; i < finger; i += 2) {
-    if (cache->get(i) == prototype) return cache->get(i + 1);
+  int number_of_transitions = NumberOfProtoTransitions();
+  const int proto_offset =
+      kProtoTransitionHeaderSize + kProtoTransitionPrototypeOffset;
+  const int map_offset = kProtoTransitionHeaderSize + kProtoTransitionMapOffset;
+  const int step = kProtoTransitionElementsPerEntry;
+  for (int i = 0; i < number_of_transitions; i++) {
+    if (cache->get(proto_offset + i * step) == prototype) {
+      Object* map = cache->get(map_offset + i * step);
+      ASSERT(map->IsMap());
+      return map;
+    }
   }
   return NULL;
 }
 
 
 MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
+  ASSERT(map->IsMap());
+  ASSERT(HeapObject::cast(prototype)->map()->IsMap());
   // Don't cache prototype transition if this map is shared.
   if (is_shared() || !FLAG_cache_prototype_transitions) return this;
 
   FixedArray* cache = prototype_transitions();
 
-  int capacity = cache->length();
+  const int step = kProtoTransitionElementsPerEntry;
+  const int header = kProtoTransitionHeaderSize;
 
-  int finger = (capacity == 0) ? 1 : Smi::cast(cache->get(0))->value();
+  int capacity = (cache->length() - header) / step;
 
-  if (finger >= capacity) {
+  int transitions = NumberOfProtoTransitions() + 1;
+
+  if (transitions > capacity) {
     if (capacity > kMaxCachedPrototypeTransitions) return this;
 
     FixedArray* new_cache;
-    { MaybeObject* maybe_cache = heap()->AllocateFixedArray(finger * 2 + 1);
+    // Grow array by factor 2 over and above what we need.
+    { MaybeObject* maybe_cache =
+          heap()->AllocateFixedArray(transitions * 2 * step + header);
       if (!maybe_cache->To<FixedArray>(&new_cache)) return maybe_cache;
     }
 
-    for (int i = 1; i < capacity; i++) new_cache->set(i, cache->get(i));
+    for (int i = 0; i < capacity * step; i++) {
+      new_cache->set(i + header, cache->get(i + header));
+    }
     cache = new_cache;
     set_prototype_transitions(cache);
   }
 
-  cache->set(finger, prototype);
-  cache->set(finger + 1, map);
-  cache->set(0, Smi::FromInt(finger + 2));
+  int last = transitions - 1;
+
+  cache->set(header + last * step + kProtoTransitionPrototypeOffset, prototype);
+  cache->set(header + last * step + kProtoTransitionMapOffset, map);
+  SetNumberOfProtoTransitions(transitions);
 
   return cache;
 }
@@ -7126,6 +7207,10 @@ MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
 
 MaybeObject* JSReceiver::SetPrototype(Object* value,
                                       bool skip_hidden_prototypes) {
+#ifdef DEBUG
+  int size = Size();
+#endif
+
   Heap* heap = GetHeap();
   // Silently ignore the change if value is not a JSObject or null.
   // SpiderMonkey behaves this way.
@@ -7196,7 +7281,7 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
   real_receiver->set_map(Map::cast(new_map));
 
   heap->ClearInstanceofCache();
-
+  ASSERT(size == Size());
   return value;
 }
 

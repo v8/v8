@@ -80,10 +80,10 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
 
   // Check that the receiver is a valid JS object.
   __ GetObjectType(receiver, scratch0, scratch1);
-  __ Branch(miss, lt, scratch1, Operand(FIRST_JS_OBJECT_TYPE));
+  __ Branch(miss, lt, scratch1, Operand(FIRST_SPEC_OBJECT_TYPE));
 
   // If this assert fails, we have to check upper bound too.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
 
   GenerateGlobalInstanceTypeCheck(masm, scratch1, miss);
 
@@ -567,7 +567,8 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 
   // Invoke the function.
   ParameterCount actual(argc);
-  __ InvokeFunction(a1, actual, JUMP_FUNCTION);
+  __ InvokeFunction(a1, actual, JUMP_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
 }
 
 
@@ -949,11 +950,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   GenerateKeyedLoadReceiverCheck(
       masm, receiver, a2, a3, Map::kHasIndexedInterceptor, &slow);
 
-  // Check the "has fast elements" bit in the receiver's map which is
-  // now in a2.
-  __ lbu(a3, FieldMemOperand(a2, Map::kBitField2Offset));
-  __ And(at, a3, Operand(1 << Map::kHasFastElements));
-  __ Branch(&check_number_dictionary, eq, at, Operand(zero_reg));
+  // Check the receiver's map to see if it has fast elements.
+  __ CheckFastElements(a2, a3, &check_number_dictionary);
 
   GenerateFastArrayLoad(
       masm, receiver, key, t0, a3, a2, v0, NULL, &slow);
@@ -1173,8 +1171,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ lbu(t3, FieldMemOperand(t3, Map::kInstanceTypeOffset));
 
   __ Branch(&array, eq, t3, Operand(JS_ARRAY_TYPE));
-  // Check that the object is some kind of JS object.
-  __ Branch(&slow, lt, t3, Operand(FIRST_JS_OBJECT_TYPE));
+  // Check that the object is some kind of JSObject.
+  __ Branch(&slow, lt, t3, Operand(FIRST_JS_RECEIVER_TYPE));
+  __ Branch(&slow, eq, t3, Operand(JS_PROXY_TYPE));
+  __ Branch(&slow, eq, t3, Operand(JS_FUNCTION_PROXY_TYPE));
 
   // Object case: Check key against length in the elements array.
   __ lw(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));

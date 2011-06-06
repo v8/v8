@@ -594,9 +594,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSProxy) {
   Object* handler = args[0];
   Object* prototype = args[1];
   Object* used_prototype =
-      (prototype->IsJSObject() || prototype->IsJSProxy()) ? prototype
-          : isolate->heap()->null_value();
+      prototype->IsJSReceiver() ? prototype : isolate->heap()->null_value();
   return isolate->heap()->AllocateJSProxy(handler, used_prototype);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSProxy) {
+  ASSERT(args.length() == 1);
+  Object* obj = args[0];
+  return obj->IsJSProxy()
+      ? isolate->heap()->true_value() : isolate->heap()->false_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHandler) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSProxy, proxy, args[0]);
+  return proxy->handler();
 }
 
 
@@ -631,6 +645,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClassOf) {
   Object* obj = args[0];
   if (!obj->IsJSObject()) return isolate->heap()->null_value();
   return JSObject::cast(obj)->class_name();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  Object* obj = args[0];
+  obj = obj->GetPrototype();
+  while (obj->IsJSObject() &&
+         JSObject::cast(obj)->map()->is_hidden_prototype()) {
+    obj = obj->GetPrototype();
+  }
+  return obj;
 }
 
 

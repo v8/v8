@@ -147,11 +147,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
 #endif
 
-  // Strict mode functions need to replace the receiver with undefined
-  // when called as functions (without an explicit receiver
-  // object). t1 is zero for method calls and non-zero for function
-  // calls.
-  if (info->is_strict_mode()) {
+  // Strict mode functions and builtins need to replace the receiver
+  // with undefined when called as functions (without an explicit
+  // receiver object). t1 is zero for method calls and non-zero for
+  // function calls.
+  if (info->is_strict_mode() || info->is_native()) {
     Label ok;
     __ Branch(&ok, eq, t1, Operand(zero_reg));
     int receiver_offset = scope()->num_parameters() * kPointerSize;
@@ -918,7 +918,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label convert, done_convert;
   __ JumpIfSmi(a0, &convert);
   __ GetObjectType(a0, a1, a1);
-  __ Branch(&done_convert, hs, a1, Operand(FIRST_JS_OBJECT_TYPE));
+  __ Branch(&done_convert, ge, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
   __ bind(&convert);
   __ push(a0);
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
@@ -2310,9 +2310,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ bind(&done);
       // Push function.
       __ push(v0);
-      // Push global receiver.
-      __ lw(a1, GlobalObjectOperand());
-      __ lw(a1, FieldMemOperand(a1, GlobalObject::kGlobalReceiverOffset));
+      // The receiver is implicitly the global receiver. Indicate this
+      // by passing the hole to the call function stub.
+      __ LoadRoot(a1, Heap::kTheHoleValueRootIndex);
       __ push(a1);
       __ bind(&call);
     }
@@ -2477,9 +2477,10 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
   __ And(at, a1, Operand(1 << Map::kIsUndetectable));
   __ Branch(if_false, ne, at, Operand(zero_reg));
   __ lbu(a1, FieldMemOperand(a2, Map::kInstanceTypeOffset));
-  __ Branch(if_false, lt, a1, Operand(FIRST_JS_OBJECT_TYPE));
+  __ Branch(if_false, lt, a1, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-  Split(le, a1, Operand(LAST_JS_OBJECT_TYPE), if_true, if_false, fall_through);
+  Split(le, a1, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE),
+        if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
 }
@@ -2500,7 +2501,7 @@ void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
   __ JumpIfSmi(v0, if_false);
   __ GetObjectType(v0, a1, a1);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-  Split(ge, a1, Operand(FIRST_JS_OBJECT_TYPE),
+  Split(ge, a1, Operand(FIRST_SPEC_OBJECT_TYPE),
         if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -2779,14 +2780,15 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
   __ GetObjectType(v0, v0, a1);  // Map is now in v0.
-  __ Branch(&null, lt, a1, Operand(FIRST_JS_OBJECT_TYPE));
+  __ Branch(&null, lt, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
 
-  // As long as JS_FUNCTION_TYPE is the last instance type and it is
-  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
-  // LAST_JS_OBJECT_TYPE.
-  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-  __ Branch(&function, eq, a1, Operand(JS_FUNCTION_TYPE));
+  // As long as LAST_CALLABLE_SPEC_OBJECT_TYPE is the last instance type, and
+  // FIRST_CALLABLE_SPEC_OBJECT_TYPE comes right after
+  // LAST_NONCALLABLE_SPEC_OBJECT_TYPE, we can avoid checking for the latter.
+  STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_CALLABLE_SPEC_OBJECT_TYPE ==
+                LAST_NONCALLABLE_SPEC_OBJECT_TYPE + 1);
+  __ Branch(&function, ge, a1, Operand(FIRST_CALLABLE_SPEC_OBJECT_TYPE));
 
   // Check if the constructor in the map is a function.
   __ lw(v0, FieldMemOperand(v0, Map::kConstructorOffset));
@@ -3184,7 +3186,8 @@ void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
   // InvokeFunction requires the function in a1. Move it in there.
   __ mov(a1, result_register());
   ParameterCount count(arg_count);
-  __ InvokeFunction(a1, count, CALL_FUNCTION);
+  __ InvokeFunction(a1, count, CALL_FUNCTION,
+                    NullCallWrapper(), CALL_AS_METHOD);
   __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   context()->Plug(v0);
 }
@@ -3443,9 +3446,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ Branch(&bailout, ne, scratch2, Operand(JS_ARRAY_TYPE));
 
   // Check that the array has fast elements.
-  __ lbu(scratch2, FieldMemOperand(scratch1, Map::kBitField2Offset));
-  __ And(scratch3, scratch2, Operand(1 << Map::kHasFastElements));
-  __ Branch(&bailout, eq, scratch3, Operand(zero_reg));
+  __ CheckFastElements(scratch1, scratch2, &bailout);
 
   // If the array has length zero, return the empty string.
   __ lw(array_length, FieldMemOperand(array, JSArray::kLengthOffset));
@@ -4097,7 +4098,7 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
   } else if (check->Equals(isolate()->heap()->function_symbol())) {
     __ JumpIfSmi(v0, if_false);
     __ GetObjectType(v0, a1, v0);  // Leave map in a1.
-    Split(ge, v0, Operand(FIRST_FUNCTION_CLASS_TYPE),
+    Split(ge, v0, Operand(FIRST_CALLABLE_SPEC_OBJECT_TYPE),
         if_true, if_false, fall_through);
 
   } else if (check->Equals(isolate()->heap()->object_symbol())) {
@@ -4106,9 +4107,9 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
     __ Branch(if_true, eq, v0, Operand(at));
     // Check for JS objects => true.
     __ GetObjectType(v0, v0, a1);
-    __ Branch(if_false, lo, a1, Operand(FIRST_JS_OBJECT_TYPE));
+    __ Branch(if_false, lt, a1, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
     __ lbu(a1, FieldMemOperand(v0, Map::kInstanceTypeOffset));
-    __ Branch(if_false, hs, a1, Operand(FIRST_FUNCTION_CLASS_TYPE));
+    __ Branch(if_false, gt, a1, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
     // Check for undetectable objects => false.
     __ lbu(a1, FieldMemOperand(v0, Map::kBitFieldOffset));
     __ And(a1, a1, Operand(1 << Map::kIsUndetectable));

@@ -126,7 +126,7 @@ MUST_USE_RESULT static MaybeObject* GenerateDictionaryNegativeLookup(
 
   // Check that receiver is a JSObject.
   __ lbu(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ Branch(miss_label, lt, scratch0, Operand(FIRST_JS_OBJECT_TYPE));
+  __ Branch(miss_label, lt, scratch0, Operand(FIRST_SPEC_OBJECT_TYPE));
 
   // Load properties array.
   Register properties = scratch0;
@@ -472,7 +472,8 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 static void GenerateCallFunction(MacroAssembler* masm,
                                  Object* object,
                                  const ParameterCount& arguments,
-                                 Label* miss) {
+                                 Label* miss,
+                                 Code::ExtraICState extra_ic_state) {
   // ----------- S t a t e -------------
   //  -- a0: receiver
   //  -- a1: function to call
@@ -490,7 +491,10 @@ static void GenerateCallFunction(MacroAssembler* masm,
   }
 
   // Invoke the function.
-  __ InvokeFunction(a1, arguments, JUMP_FUNCTION);
+  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state)
+      ? CALL_AS_FUNCTION
+      : CALL_AS_METHOD;
+  __ InvokeFunction(a1, arguments, JUMP_FUNCTION, NullCallWrapper(), call_kind);
 }
 
 
@@ -629,10 +633,12 @@ class CallInterceptorCompiler BASE_EMBEDDED {
  public:
   CallInterceptorCompiler(StubCompiler* stub_compiler,
                           const ParameterCount& arguments,
-                          Register name)
+                          Register name,
+                          Code::ExtraICState extra_ic_state)
       : stub_compiler_(stub_compiler),
         arguments_(arguments),
-        name_(name) {}
+        name_(name),
+        extra_ic_state_(extra_ic_state) {}
 
   MaybeObject* Compile(MacroAssembler* masm,
                        JSObject* object,
@@ -760,8 +766,11 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                                                       arguments_.immediate());
       if (result->IsFailure()) return result;
     } else {
+      CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+          ? CALL_AS_FUNCTION
+          : CALL_AS_METHOD;
       __ InvokeFunction(optimization.constant_function(), arguments_,
-                        JUMP_FUNCTION);
+                        JUMP_FUNCTION, call_kind);
     }
 
     // Deferred code for fast API call case---clean preallocated space.
@@ -844,6 +853,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   StubCompiler* stub_compiler_;
   const ParameterCount& arguments_;
   Register name_;
+  Code::ExtraICState extra_ic_state_;
 };
 
 
@@ -1503,7 +1513,7 @@ MaybeObject* CallStubCompiler::CompileCallField(JSObject* object,
   Register reg = CheckPrototypes(object, a0, holder, a1, a3, t0, name, &miss);
   GenerateFastPropertyLoad(masm(), a1, reg, holder, index);
 
-  GenerateCallFunction(masm(), object, arguments(), &miss);
+  GenerateCallFunction(masm(), object, arguments(), &miss, extra_ic_state_);
 
   // Handle call cache miss.
   __ bind(&miss);
@@ -2001,7 +2011,7 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
   __ bind(&slow);
-  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION, CALL_AS_METHOD);
 
   __ bind(&miss);
   // a2: function name.
@@ -2086,9 +2096,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
 
   // Retrieve FCSR and check for fpu errors.
   __ cfc1(t5, FCSR);
-  __ srl(t5, t5, kFCSRFlagShift);
-  // Flag 1 marks an inaccurate but still good result so we ignore it.
-  __ And(t5, t5, Operand(kFCSRFlagMask ^ 1));
+  __ And(t5, t5, Operand(kFCSRExceptionFlagMask));
   __ Branch(&no_fpu_error, eq, t5, Operand(zero_reg));
 
   // Check for NaN, Infinity, and -Infinity.
@@ -2137,7 +2145,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   __ bind(&slow);
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
-  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION, CALL_AS_METHOD);
 
   __ bind(&miss);
   // a2: function name.
@@ -2239,7 +2247,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
   // Tail call the full function. We do not have to patch the receiver
   // because the function makes no use of it.
   __ bind(&slow);
-  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION, CALL_AS_METHOD);
 
   __ bind(&miss);
   // a2: function name.
@@ -2425,7 +2433,10 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       UNREACHABLE();
   }
 
-  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+      ? CALL_AS_FUNCTION
+      : CALL_AS_METHOD;
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION, call_kind);
 
   // Handle call cache miss.
   __ bind(&miss);
@@ -2459,7 +2470,7 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
   // Get the receiver from the stack.
   __ lw(a1, MemOperand(sp, argc * kPointerSize));
 
-  CallInterceptorCompiler compiler(this, arguments(), a2);
+  CallInterceptorCompiler compiler(this, arguments(), a2, extra_ic_state_);
   MaybeObject* result = compiler.Compile(masm(),
                                          object,
                                          holder,
@@ -2479,7 +2490,7 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
   // Restore receiver.
   __ lw(a0, MemOperand(sp, argc * kPointerSize));
 
-  GenerateCallFunction(masm(), object, arguments(), &miss);
+  GenerateCallFunction(masm(), object, arguments(), &miss, extra_ic_state_);
 
   // Handle call cache miss.
   __ bind(&miss);
@@ -2491,13 +2502,11 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 }
 
 
-MaybeObject* CallStubCompiler::CompileCallGlobal(
-    JSObject* object,
-    GlobalObject* holder,
-    JSGlobalPropertyCell* cell,
-    JSFunction* function,
-    String* name,
-    Code::ExtraICState extra_ic_state) {
+MaybeObject* CallStubCompiler::CompileCallGlobal(JSObject* object,
+                                                 GlobalObject* holder,
+                                                 JSGlobalPropertyCell* cell,
+                                                 JSFunction* function,
+                                                 String* name) {
   // ----------- S t a t e -------------
   //  -- a2    : name
   //  -- ra    : return address
@@ -2538,7 +2547,7 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(
   ASSERT(function->is_compiled());
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state)
+  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
   if (V8::UseCrankshaft()) {
@@ -3934,27 +3943,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ addu(t8, a3, t8);
         __ sdc1(f0, MemOperand(t8, 0));
       } else {
-        Label done;
+        __ EmitECMATruncate(t3, f0, f2, t2, t1, t5);
 
-        // Need to perform float-to-int conversion.
-        // Test whether exponent equal to 0x7FF (infinity or NaN).
-
-        __ mfc1(t3, f1);  // Move exponent word of double to t3 (as raw bits).
-        __ li(t1, Operand(0x7FF00000));
-        __ And(t3, t3, Operand(t1));
-        __ Branch(USE_DELAY_SLOT, &done, eq, t3, Operand(t1));
-        __ mov(t3, zero_reg);  // In delay slot.
-
-        // Not infinity or NaN simply convert to int.
-        if (IsElementTypeSigned(array_type)) {
-          __ trunc_w_d(f0, f0);
-          __ mfc1(t3, f0);
-        } else {
-          __ Trunc_uw_d(f0, t3);
-        }
-
-        // t3: HeapNumber converted to integer
-        __ bind(&done);
         switch (array_type) {
           case kExternalByteArray:
           case kExternalUnsignedByteArray:

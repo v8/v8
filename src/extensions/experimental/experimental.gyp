@@ -41,6 +41,8 @@
         'break-iterator.h',
         'collator.cc',
         'collator.h',
+        'datetime-format.cc',
+        'datetime-format.h',
         'i18n-extension.cc',
         'i18n-extension.h',
         'i18n-locale.cc',

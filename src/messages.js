@@ -192,7 +192,11 @@ function FormatMessage(message) {
       redefine_disallowed:          ["Cannot redefine property: ", "%0"],
       define_disallowed:            ["Cannot define property, object is not extensible: ", "%0"],
       non_extensible_proto:         ["%0", " is not extensible"],
+      handler_non_object:           ["Proxy.", "%0", " called with non-object as handler"],
       handler_trap_missing:         ["Proxy handler ", "%0", " has no '", "%1", "' trap"],
+      proxy_prop_not_configurable:  ["Trap ", "%1", " of proxy handler ", "%0", " returned non-configurable descriptor for property ", "%2"],
+      proxy_non_object_prop_names:  ["Trap ", "%1", " returned non-object ", "%0"],
+      proxy_repeated_prop_name:     ["Trap ", "%1", " returned repeated property name ", "%2"],
       // RangeError
       invalid_array_length:         ["Invalid array length"],
       stack_overflow:               ["Maximum call stack size exceeded"],

@@ -107,6 +107,7 @@ Heap::Heap()
       cell_space_(NULL),
       lo_space_(NULL),
       gc_state_(NOT_IN_GC),
+      gc_post_processing_depth_(0),
       mc_count_(0),
       ms_count_(0),
       gc_count_(0),
@@ -151,6 +152,29 @@ Heap::Heap()
 #if defined(V8_MAX_SEMISPACE_SIZE)
   max_semispace_size_ = reserved_semispace_size_ = V8_MAX_SEMISPACE_SIZE;
 #endif
+
+  intptr_t max_virtual = OS::MaxVirtualMemory();
+
+  if (max_virtual > 0) {
+    intptr_t half = max_virtual >> 1;
+    intptr_t quarter = max_virtual >> 2;
+    // If we have limits on the amount of virtual memory we can use then we may
+    // be forced to lower the allocation limits.  We reserve one quarter of the
+    // memory for young space and off-heap data.  The rest is distributed as
+    // described below.
+    if (code_range_size_ > 0) {
+      // Reserve a quarter of the memory for the code range.  The old space
+      // heap gets the remaining half.  There is some unavoidable double
+      // counting going on here since the heap size is measured in committed
+      // virtual memory and the code range is only reserved virtual memory.
+      code_range_size_ = Min(code_range_size_, quarter);
+      max_old_generation_size_ = Min(max_old_generation_size_, half);
+    } else {
+      // Reserve three quarters of the memory for the old space heap including
+      // the executable code.
+      max_old_generation_size_ = Min(max_old_generation_size_, half + quarter);
+    }
+  }
 
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   global_contexts_list_ = NULL;
@@ -771,11 +795,13 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
   isolate_->counters()->objs_since_last_young()->Set(0);
 
+  gc_post_processing_depth_++;
   { DisableAssertNoAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     next_gc_likely_to_collect_more =
         isolate_->global_handles()->PostGarbageCollectionProcessing(collector);
   }
+  gc_post_processing_depth_--;
 
   // Update relocatables.
   Relocatable::PostGarbageCollectionProcessing();
@@ -1610,7 +1636,8 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_prototype_transitions(empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
-  map->set_bit_field2((1 << Map::kIsExtensible) | (1 << Map::kHasFastElements));
+  map->set_bit_field2(1 << Map::kIsExtensible);
+  map->set_elements_kind(JSObject::FAST_ELEMENTS);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
   if (Map::kPadStart < Map::kSize) {

@@ -573,6 +573,16 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                                    Register input_low,
                                    Register scratch);
 
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
+  // Exits with 'result' holding the answer and all other registers clobbered.
+  void EmitECMATruncate(Register result,
+                        FPURegister double_input,
+                        FPURegister single_scratch,
+                        Register scratch,
+                        Register scratch2,
+                        Register scratch3);
+
   // -------------------------------------------------------------------------
   // Activation frames.
 
@@ -621,27 +631,28 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper = NullCallWrapper(),
-                  CallKind call_kind = CALL_AS_METHOD);
+                  const CallWrapper& call_wrapper,
+                  CallKind call_kind);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
                   InvokeFlag flag,
-                  CallKind call_kind = CALL_AS_METHOD);
+                  CallKind call_kind);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper = NullCallWrapper(),
-                      CallKind call_kind = CALL_AS_METHOD);
+                      const CallWrapper& call_wrapper,
+                      CallKind call_kind);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      CallKind call_kind);
 
 
   void IsObjectJSObjectType(Register heap_object,
@@ -711,6 +722,12 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   void GetObjectType(Register function,
                      Register map,
                      Register type_reg);
+
+  // Check if a map for a JSObject indicates that the object has fast elements.
+  // Jump to the specified label if it does not.
+  void CheckFastElements(Register map,
+                         Register scratch,
+                         Label* fail);
 
   // Check if the map of an object is equal to a specified map (either
   // given directly or as an index into the root list) and branch to
@@ -1103,8 +1120,8 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
                       Register code_reg,
                       Label* done,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper = NullCallWrapper(),
-                      CallKind call_kind = CALL_AS_METHOD);
+                      const CallWrapper& call_wrapper,
+                      CallKind call_kind);
 
   // Get the code for the given builtin. Returns if able to resolve
   // the function in the 'resolved' flag.

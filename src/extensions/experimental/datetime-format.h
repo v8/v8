@@ -25,44 +25,59 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/extensions/experimental/i18n-utils.h"
+#ifndef V8_EXTENSIONS_EXPERIMENTAL_DATETIME_FORMAT_H_
+#define V8_EXTENSIONS_EXPERIMENTAL_DATETIME_FORMAT_H_
 
-#include <string.h>
+#include "include/v8.h"
 
-#include "unicode/unistr.h"
+#include "unicode/uversion.h"
+
+namespace U_ICU_NAMESPACE {
+class SimpleDateFormat;
+}
 
 namespace v8 {
 namespace internal {
 
-// static
-void I18NUtils::StrNCopy(char* dest, int length, const char* src) {
-  if (!dest || !src) return;
+class DateTimeFormat {
+ public:
+  static v8::Handle<v8::Value> JSDateTimeFormat(const v8::Arguments& args);
 
-  strncpy(dest, src, length);
-  dest[length - 1] = '\0';
-}
+  // Helper methods for various bindings.
 
-// static
-bool I18NUtils::ExtractStringSetting(const v8::Handle<v8::Object>& settings,
-                                     const char* setting,
-                                     icu::UnicodeString* result) {
-  if (!setting || !result) return false;
+  // Unpacks date format object from corresponding JavaScript object.
+  static icu::SimpleDateFormat* UnpackDateTimeFormat(
+      v8::Handle<v8::Object> obj);
 
-  v8::HandleScope handle_scope;
-  v8::TryCatch try_catch;
-  v8::Handle<v8::Value> value = settings->Get(v8::String::New(setting));
-  if (try_catch.HasCaught()) {
-    return false;
-  }
-  // No need to check if |value| is empty because it's taken care of
-  // by TryCatch above.
-  if (!value->IsUndefined() && !value->IsNull() && value->IsString()) {
-    v8::String::Utf8Value utf8_value(value);
-    if (*utf8_value == NULL) return false;
-    result->setTo(icu::UnicodeString::fromUTF8(*utf8_value));
-    return true;
-  }
-  return false;
-}
+  // Release memory we allocated for the DateFormat once the JS object that
+  // holds the pointer gets garbage collected.
+  static void DeleteDateTimeFormat(v8::Persistent<v8::Value> object,
+                                   void* param);
+
+  // Formats date and returns corresponding string.
+  static v8::Handle<v8::Value> Format(const v8::Arguments& args);
+
+  // All date time symbol methods below return stand-alone names in
+  // either narrow, abbreviated or wide width.
+
+  // Get list of months.
+  static v8::Handle<v8::Value> GetMonths(const v8::Arguments& args);
+
+  // Get list of weekdays.
+  static v8::Handle<v8::Value> GetWeekdays(const v8::Arguments& args);
+
+  // Get list of eras.
+  static v8::Handle<v8::Value> GetEras(const v8::Arguments& args);
+
+  // Get list of day periods.
+  static v8::Handle<v8::Value> GetAmPm(const v8::Arguments& args);
+
+ private:
+  DateTimeFormat();
+
+  static v8::Persistent<v8::FunctionTemplate> datetime_format_template_;
+};
 
 } }  // namespace v8::internal
+
+#endif  // V8_EXTENSIONS_EXPERIMENTAL_DATETIME_FORMAT_H_

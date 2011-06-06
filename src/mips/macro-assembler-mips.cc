@@ -193,6 +193,7 @@ void MacroAssembler::RecordWriteHelper(Register object,
   sw(scratch, MemOperand(object, Page::kDirtyFlagOffset));
 }
 
+
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
   // Safepoints expect a block of kNumSafepointRegisters values on the
@@ -203,11 +204,13 @@ void MacroAssembler::PushSafepointRegisters() {
   MultiPush(kSafepointSavedRegisters);
 }
 
+
 void MacroAssembler::PopSafepointRegisters() {
   const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
   MultiPop(kSafepointSavedRegisters);
   Addu(sp, sp, Operand(num_unsaved * kPointerSize));
 }
+
 
 void MacroAssembler::PushSafepointRegistersAndDoubles() {
   PushSafepointRegisters();
@@ -218,6 +221,7 @@ void MacroAssembler::PushSafepointRegistersAndDoubles() {
   }
 }
 
+
 void MacroAssembler::PopSafepointRegistersAndDoubles() {
   for (int i = 0; i < FPURegister::kNumAllocatableRegisters; i+=2) {
     FPURegister reg = FPURegister::FromAllocationIndex(i);
@@ -226,6 +230,7 @@ void MacroAssembler::PopSafepointRegistersAndDoubles() {
   Addu(sp, sp, Operand(FPURegister::kNumAllocatableRegisters * kDoubleSize));
   PopSafepointRegisters();
 }
+
 
 void MacroAssembler::StoreToSafepointRegistersAndDoublesSlot(Register src,
                                                              Register dst) {
@@ -1040,6 +1045,51 @@ void MacroAssembler::EmitOutOfInt32RangeTruncate(Register result,
   sign = no_reg;
   Subu(result, zero_reg, input_high);
   movz(result, input_high, scratch);
+  bind(&done);
+}
+
+
+void MacroAssembler::EmitECMATruncate(Register result,
+                                      FPURegister double_input,
+                                      FPURegister single_scratch,
+                                      Register scratch,
+                                      Register input_high,
+                                      Register input_low) {
+  CpuFeatures::Scope scope(FPU);
+  ASSERT(!input_high.is(result));
+  ASSERT(!input_low.is(result));
+  ASSERT(!input_low.is(input_high));
+  ASSERT(!scratch.is(result) &&
+         !scratch.is(input_high) &&
+         !scratch.is(input_low));
+  ASSERT(!single_scratch.is(double_input));
+
+  Label done;
+  Label manual;
+
+  // Clear cumulative exception flags and save the FCSR.
+  Register scratch2 = input_high;
+  cfc1(scratch2, FCSR);
+  ctc1(zero_reg, FCSR);
+  // Try a conversion to a signed integer.
+  trunc_w_d(single_scratch, double_input);
+  mfc1(result, single_scratch);
+  // Retrieve and restore the FCSR.
+  cfc1(scratch, FCSR);
+  ctc1(scratch2, FCSR);
+  // Check for overflow and NaNs.
+  And(scratch,
+      scratch,
+      kFCSROverflowFlagMask | kFCSRUnderflowFlagMask | kFCSRInvalidOpFlagMask);
+  // If we had no exceptions we are done.
+  Branch(&done, eq, scratch, Operand(zero_reg));
+
+  // Load the double value and perform a manual truncation.
+  Move(input_low, input_high, double_input);
+  EmitOutOfInt32RangeTruncate(result,
+                              input_high,
+                              input_low,
+                              scratch);
   bind(&done);
 }
 
@@ -2597,6 +2647,16 @@ void MacroAssembler::CopyBytes(Register src,
 }
 
 
+void MacroAssembler::CheckFastElements(Register map,
+                                       Register scratch,
+                                       Label* fail) {
+  STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
+  lbu(scratch, FieldMemOperand(map, Map::kBitField2Offset));
+  And(scratch, scratch, Operand(Map::kMaximumBitField2FastElementValue));
+  Branch(fail, hi, scratch, Operand(zero_reg));
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,
@@ -2853,7 +2913,8 @@ void MacroAssembler::InvokeFunction(Register function,
 
 void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
-                                    InvokeFlag flag) {
+                                    InvokeFlag flag,
+                                    CallKind call_kind) {
   ASSERT(function->is_compiled());
 
   // Get the function and setup the context.
@@ -2866,7 +2927,7 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   if (V8::UseCrankshaft()) {
     UNIMPLEMENTED_MIPS();
   } else {
-    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag, call_kind);
   }
 }
 
@@ -2884,8 +2945,8 @@ void MacroAssembler::IsInstanceJSObjectType(Register map,
                                             Register scratch,
                                             Label* fail) {
   lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  Branch(fail, lt, scratch, Operand(FIRST_JS_OBJECT_TYPE));
-  Branch(fail, gt, scratch, Operand(LAST_JS_OBJECT_TYPE));
+  Branch(fail, lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+  Branch(fail, gt, scratch, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
 }
 
 
@@ -2981,11 +3042,11 @@ MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub, Condition cond,
 }
 
 
-
 void MacroAssembler::TailCallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
+
 
 MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub,
                                              Condition cond,
@@ -3307,6 +3368,7 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
   JumpToExternalReference(ext);
 }
 
+
 MaybeObject* MacroAssembler::TryTailCallExternalReference(
     const ExternalReference& ext, int num_arguments, int result_size) {
   // TODO(1236192): Most runtime routines don't need the number of
@@ -3348,10 +3410,12 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   GetBuiltinEntry(t9, id);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(t9));
+    SetCallKind(t1, CALL_AS_METHOD);
     Call(t9);
     call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
+    SetCallKind(t1, CALL_AS_METHOD);
     Jump(t9);
   }
 }
@@ -3709,6 +3773,7 @@ int MacroAssembler::ActivationFrameAlignment() {
   return FLAG_sim_stack_alignment;
 #endif  // defined(V8_HOST_ARCH_MIPS)
 }
+
 
 void MacroAssembler::AssertStackIsAligned() {
   if (emit_debug_code()) {

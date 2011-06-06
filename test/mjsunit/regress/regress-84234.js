@@ -25,44 +25,31 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/extensions/experimental/i18n-utils.h"
+// Flags: --expose-gc --noopt
 
-#include <string.h>
+var gTestcases = new Array();
 
-#include "unicode/unistr.h"
-
-namespace v8 {
-namespace internal {
-
-// static
-void I18NUtils::StrNCopy(char* dest, int length, const char* src) {
-  if (!dest || !src) return;
-
-  strncpy(dest, src, length);
-  dest[length - 1] = '\0';
+function TestCase(n, d, e, a) {
+  gTestcases[gTc++] = this;
+  for ( gTc=0; gTc < gTestcases.length; gTc++ );
 }
 
-// static
-bool I18NUtils::ExtractStringSetting(const v8::Handle<v8::Object>& settings,
-                                     const char* setting,
-                                     icu::UnicodeString* result) {
-  if (!setting || !result) return false;
-
-  v8::HandleScope handle_scope;
-  v8::TryCatch try_catch;
-  v8::Handle<v8::Value> value = settings->Get(v8::String::New(setting));
-  if (try_catch.HasCaught()) {
-    return false;
-  }
-  // No need to check if |value| is empty because it's taken care of
-  // by TryCatch above.
-  if (!value->IsUndefined() && !value->IsNull() && value->IsString()) {
-    v8::String::Utf8Value utf8_value(value);
-    if (*utf8_value == NULL) return false;
-    result->setTo(icu::UnicodeString::fromUTF8(*utf8_value));
-    return true;
-  }
-  return false;
+for ( var i = 0x0530; i <= 0x058F; i++ ) {
+  new TestCase("15.5.4.11-6",
+               eval("var s = new String(String.fromCharCode(i)); s.toLowerCase().charCodeAt(0)"));
 }
+var gTc= 0;
 
-} }  // namespace v8::internal
+
+for (var j = 0; j < 10; j++) {
+  test();
+  function test() {
+    for ( 0; gTc < gTestcases.length; gTc++ ) {
+      var MYOBJECT = new MyObject();
+    }
+    gc();
+  }
+  function MyObject( n ) {
+    this.__proto__ = Number.prototype;
+  }
+}

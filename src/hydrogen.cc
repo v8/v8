@@ -3577,6 +3577,9 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
       if (expr->op() != Token::INIT_CONST) {
         return Bailout("non-initializer assignment to const");
       }
+      if (!var->IsStackAllocated()) {
+        return Bailout("assignment to const context slot");
+      }
       // We insert a use of the old value to detect unsupported uses of const
       // variables (e.g. initialization inside a loop).
       HValue* old_value = environment()->Lookup(var);
@@ -3595,7 +3598,8 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
       Bind(var, value);
       ast_context()->ReturnValue(value);
 
-    } else if (var->IsContextSlot() && var->mode() != Variable::CONST) {
+    } else if (var->IsContextSlot()) {
+      ASSERT(var->mode() != Variable::CONST);
       CHECK_ALIVE(VisitForValue(expr->value()));
       HValue* context = BuildContextChainWalk(var);
       int index = var->AsSlot()->index();
@@ -4191,14 +4195,6 @@ bool HGraphBuilder::TryInline(Call* expr) {
     return false;
   }
 
-  // Check if we can handle all declarations in the inlined functions.
-  VisitDeclarations(target_info.scope()->declarations());
-  if (HasStackOverflow()) {
-    TraceInline(target, caller, "target has non-trivial declaration");
-    ClearStackOverflow();
-    return false;
-  }
-
   // Don't inline functions that uses the arguments object or that
   // have a mismatching number of parameters.
   int arity = expr->arguments()->length();
@@ -4208,6 +4204,15 @@ bool HGraphBuilder::TryInline(Call* expr) {
     return false;
   }
 
+  // All declarations must be inlineable.
+  ZoneList<Declaration*>* decls = target_info.scope()->declarations();
+  int decl_count = decls->length();
+  for (int i = 0; i < decl_count; ++i) {
+    if (!decls->at(i)->IsInlineable()) {
+      TraceInline(target, caller, "target has non-trivial declaration");
+      return false;
+    }
+  }
   // All statements in the body must be inlineable.
   for (int i = 0, count = function->body()->length(); i < count; ++i) {
     if (!function->body()->at(i)->IsInlineable()) {
@@ -4233,6 +4238,9 @@ bool HGraphBuilder::TryInline(Call* expr) {
   }
 
   // ----------------------------------------------------------------
+  // After this point, we've made a decision to inline this function (so
+  // TryInline should always return true).
+
   // Save the pending call context and type feedback oracle. Set up new ones
   // for the inlined function.
   ASSERT(target_shared->has_deoptimization_support());
@@ -4250,12 +4258,12 @@ bool HGraphBuilder::TryInline(Call* expr) {
                                      call_kind);
   HBasicBlock* body_entry = CreateBasicBlock(inner_env);
   current_block()->Goto(body_entry);
-
   body_entry->SetJoinId(expr->ReturnId());
   set_current_block(body_entry);
   AddInstruction(new(zone()) HEnterInlined(target,
                                            function,
                                            call_kind));
+  VisitDeclarations(target_info.scope()->declarations());
   VisitStatements(function->body());
   if (HasStackOverflow()) {
     // Bail out if the inline function did, as we cannot residualize a call
@@ -5093,10 +5101,13 @@ void HGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   switch (expr->op()) {
-    case Token::COMMA: return VisitComma(expr);
-    case Token::OR: return VisitAndOr(expr, false);
-    case Token::AND: return VisitAndOr(expr, true);
-    default: return VisitCommon(expr);
+    case Token::COMMA:
+      return VisitComma(expr);
+    case Token::OR:
+    case Token::AND:
+      return VisitLogicalExpression(expr);
+    default:
+      return VisitArithmeticExpression(expr);
   }
 }
 
@@ -5109,7 +5120,8 @@ void HGraphBuilder::VisitComma(BinaryOperation* expr) {
 }
 
 
-void HGraphBuilder::VisitAndOr(BinaryOperation* expr, bool is_logical_and) {
+void HGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
+  bool is_logical_and = expr->op() == Token::AND;
   if (ast_context()->IsTest()) {
     TestContext* context = TestContext::cast(ast_context());
     // Translate left subexpression.
@@ -5196,7 +5208,7 @@ void HGraphBuilder::VisitAndOr(BinaryOperation* expr, bool is_logical_and) {
 }
 
 
-void HGraphBuilder::VisitCommon(BinaryOperation* expr) {
+void HGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
   CHECK_ALIVE(VisitForValue(expr->left()));
   CHECK_ALIVE(VisitForValue(expr->right()));
   HValue* right = Pop();
@@ -5364,19 +5376,14 @@ void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 
 void HGraphBuilder::VisitDeclaration(Declaration* decl) {
-  // We allow only declarations that do not require code generation.
-  // The following all require code generation: global variables,
-  // functions, and variables with slot type LOOKUP
+  // We support only declarations that do not require code generation.
   Variable* var = decl->proxy()->var();
-  Slot* slot = var->AsSlot();
-  if (var->is_global() ||
-      !var->IsStackAllocated() ||
-      (slot != NULL && slot->type() == Slot::LOOKUP) ||
-      decl->fun() != NULL) {
+  if (!var->IsStackAllocated() || decl->fun() != NULL) {
     return Bailout("unsupported declaration");
   }
 
   if (decl->mode() == Variable::CONST) {
+    ASSERT(var->IsStackAllocated());
     environment()->Bind(var, graph()->GetConstantHole());
   }
 }

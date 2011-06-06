@@ -1,3 +1,21 @@
+2011-06-06: Version 3.4.2
+
+        More work on ES-Harmony proxies.  Still hidden behind a flag.
+
+        Fixed some crash bugs and improved performance.
+
+        Fixed building with gdb debugging support.
+
+        Do not install SIGPROF handler until it is needed.
+
+        Added DateTimeFormat to i18n API.
+
+        Fixed compilation on OpenBSD.
+
+        Take the ulimit into account when sizing the heap.  OpenBSD users
+        may still have to increase the default ulimit to run heavy pages in
+        the browser.
+
 2011-06-01: Version 3.4.1
 
         Fixed JSON stringify issue with arrays.

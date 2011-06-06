@@ -2961,7 +2961,7 @@ Object* Map::prototype() {
 
 
 void Map::set_prototype(Object* value, WriteBarrierMode mode) {
-  ASSERT(value->IsNull() || value->IsJSObject());
+  ASSERT(value->IsNull() || value->IsJSReceiver());
   WRITE_FIELD(this, kPrototypeOffset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kPrototypeOffset, mode);
 }
@@ -2974,7 +2974,7 @@ MaybeObject* Map::GetFastElementsMap() {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   Map* new_map = Map::cast(obj);
-  new_map->set_has_fast_elements(true);
+  new_map->set_elements_kind(JSObject::FAST_ELEMENTS);
   isolate()->counters()->map_slow_to_fast_elements()->Increment();
   return new_map;
 }
@@ -2987,7 +2987,7 @@ MaybeObject* Map::GetSlowElementsMap() {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   Map* new_map = Map::cast(obj);
-  new_map->set_has_fast_elements(false);
+  new_map->set_elements_kind(JSObject::DICTIONARY_ELEMENTS);
   isolate()->counters()->map_fast_to_slow_elements()->Increment();
   return new_map;
 }
@@ -3776,45 +3776,15 @@ void JSRegExp::SetDataAt(int index, Object* value) {
 
 
 JSObject::ElementsKind JSObject::GetElementsKind() {
-  if (map()->has_fast_elements()) {
-    ASSERT(elements()->map() == GetHeap()->fixed_array_map() ||
-           elements()->map() == GetHeap()->fixed_cow_array_map());
-    return FAST_ELEMENTS;
-  }
-  HeapObject* array = elements();
-  if (array->IsFixedArray()) {
-    // FAST_ELEMENTS or DICTIONARY_ELEMENTS are both stored in a
-    // FixedArray, but FAST_ELEMENTS is already handled above.
-    ASSERT(array->IsDictionary());
-    return DICTIONARY_ELEMENTS;
-  }
-  ASSERT(!map()->has_fast_elements());
-  if (array->IsExternalArray()) {
-    switch (array->map()->instance_type()) {
-      case EXTERNAL_BYTE_ARRAY_TYPE:
-        return EXTERNAL_BYTE_ELEMENTS;
-      case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-        return EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
-      case EXTERNAL_SHORT_ARRAY_TYPE:
-        return EXTERNAL_SHORT_ELEMENTS;
-      case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-        return EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
-      case EXTERNAL_INT_ARRAY_TYPE:
-        return EXTERNAL_INT_ELEMENTS;
-      case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-        return EXTERNAL_UNSIGNED_INT_ELEMENTS;
-      case EXTERNAL_FLOAT_ARRAY_TYPE:
-        return EXTERNAL_FLOAT_ELEMENTS;
-      case EXTERNAL_DOUBLE_ARRAY_TYPE:
-        return EXTERNAL_DOUBLE_ELEMENTS;
-      case EXTERNAL_PIXEL_ARRAY_TYPE:
-        return EXTERNAL_PIXEL_ELEMENTS;
-      default:
-        break;
-    }
-  }
-  UNREACHABLE();
-  return DICTIONARY_ELEMENTS;
+  ElementsKind kind = map()->elements_kind();
+  ASSERT((kind == FAST_ELEMENTS &&
+          (elements()->map() == GetHeap()->fixed_array_map() ||
+           elements()->map() == GetHeap()->fixed_cow_array_map())) ||
+         (kind == DICTIONARY_ELEMENTS &&
+          elements()->IsFixedArray() &&
+          elements()->IsDictionary()) ||
+         (kind > DICTIONARY_ELEMENTS));
+  return kind;
 }
 
 

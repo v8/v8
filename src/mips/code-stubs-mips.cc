@@ -672,9 +672,8 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     // Restore FCSR.
     __ ctc1(scratch1, FCSR);
 
-    // Check for inexact conversion.
-    __ srl(scratch2, scratch2, kFCSRFlagShift);
-    __ And(scratch2, scratch2, (kFCSRFlagMask | kFCSRInexactFlagBit));
+    // Check for inexact conversion or exception.
+    __ And(scratch2, scratch2, kFCSRFlagMask);
 
     // Jump to not_int32 if the operation did not succeed.
     __ Branch(not_int32, ne, scratch2, Operand(zero_reg));
@@ -757,9 +756,8 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
     // Restore FCSR.
     __ ctc1(scratch1, FCSR);
 
-    // Check for inexact conversion.
-    __ srl(scratch2, scratch2, kFCSRFlagShift);
-    __ And(scratch2, scratch2, (kFCSRFlagMask | kFCSRInexactFlagBit));
+    // Check for inexact conversion or exception.
+    __ And(scratch2, scratch2, kFCSRFlagMask);
 
     // Jump to not_int32 if the operation did not succeed.
     __ Branch(not_int32, ne, scratch2, Operand(zero_reg));
@@ -985,13 +983,13 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
     // Smis. If it's not a heap number, then return equal.
     if (cc == less || cc == greater) {
       __ GetObjectType(a0, t4, t4);
-      __ Branch(slow, greater, t4, Operand(FIRST_JS_OBJECT_TYPE));
+      __ Branch(slow, greater, t4, Operand(FIRST_SPEC_OBJECT_TYPE));
     } else {
       __ GetObjectType(a0, t4, t4);
       __ Branch(&heap_number, eq, t4, Operand(HEAP_NUMBER_TYPE));
       // Comparing JS objects with <=, >= is complicated.
       if (cc != eq) {
-      __ Branch(slow, greater, t4, Operand(FIRST_JS_OBJECT_TYPE));
+      __ Branch(slow, greater, t4, Operand(FIRST_SPEC_OBJECT_TYPE));
         // Normally here we fall through to return_equal, but undefined is
         // special: (undefined == undefined) == true, but
         // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
@@ -1309,15 +1307,15 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
 static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
                                            Register lhs,
                                            Register rhs) {
-    // If either operand is a JSObject or an oddball value, then they are
+    // If either operand is a JS object or an oddball value, then they are
     // not equal since their pointers are different.
     // There is no test for undetectability in strict equality.
-    STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+    STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
     Label first_non_object;
     // Get the type of the first operand into a2 and compare it with
-    // FIRST_JS_OBJECT_TYPE.
+    // FIRST_SPEC_OBJECT_TYPE.
     __ GetObjectType(lhs, a2, a2);
-    __ Branch(&first_non_object, less, a2, Operand(FIRST_JS_OBJECT_TYPE));
+    __ Branch(&first_non_object, less, a2, Operand(FIRST_SPEC_OBJECT_TYPE));
 
     // Return non-zero.
     Label return_not_equal;
@@ -1330,7 +1328,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     __ Branch(&return_not_equal, eq, a2, Operand(ODDBALL_TYPE));
 
     __ GetObjectType(rhs, a3, a3);
-    __ Branch(&return_not_equal, greater, a3, Operand(FIRST_JS_OBJECT_TYPE));
+    __ Branch(&return_not_equal, greater, a3, Operand(FIRST_SPEC_OBJECT_TYPE));
 
     // Check for oddballs: true, false, null, undefined.
     __ Branch(&return_not_equal, eq, a3, Operand(ODDBALL_TYPE));
@@ -1406,9 +1404,9 @@ static void EmitCheckForSymbolsOrObjects(MacroAssembler* masm,
   __ Ret();
 
   __ bind(&object_test);
-  __ Branch(not_both_strings, lt, a2, Operand(FIRST_JS_OBJECT_TYPE));
+  __ Branch(not_both_strings, lt, a2, Operand(FIRST_SPEC_OBJECT_TYPE));
   __ GetObjectType(rhs, a2, a3);
-  __ Branch(not_both_strings, lt, a3, Operand(FIRST_JS_OBJECT_TYPE));
+  __ Branch(not_both_strings, lt, a3, Operand(FIRST_SPEC_OBJECT_TYPE));
 
   // If both objects are undetectable, they are equal.  Otherwise, they
   // are not equal, since they are different objects and an object is not
@@ -1784,7 +1782,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // "tos_" is a register and contains a non-zero value.
   // Hence we implicitly return true if the greater than
   // condition is satisfied.
-  __ Ret(gt, scratch0, Operand(FIRST_JS_OBJECT_TYPE));
+  __ Ret(gt, scratch0, Operand(FIRST_SPEC_OBJECT_TYPE));
 
   // Check for string.
   __ lw(scratch0, FieldMemOperand(tos_, HeapObject::kMapOffset));
@@ -1965,6 +1963,7 @@ void UnaryOpStub::GenerateHeapNumberStubBitNot(MacroAssembler* masm) {
   __ bind(&slow);
   GenerateTypeTransition(masm);
 }
+
 
 void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
                                             Label* slow) {
@@ -2777,8 +2776,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // Restore FCSR.
           __ ctc1(scratch1, FCSR);
 
-          // Check for inexact conversion.
-          __ srl(scratch2, scratch2, kFCSRFlagShift);
+          // Check for inexact conversion or exception.
           __ And(scratch2, scratch2, kFCSRFlagMask);
 
           if (result_type_ <= BinaryOpIC::INT32) {
@@ -4710,7 +4708,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     Label call_as_function;
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
     __ Branch(&call_as_function, eq, t0, Operand(at));
-    __ InvokeFunction(a1, actual, JUMP_FUNCTION);
+    __ InvokeFunction(a1,
+                      actual,
+                      JUMP_FUNCTION,
+                      NullCallWrapper(),
+                      CALL_AS_METHOD);
     __ bind(&call_as_function);
   }
   __ InvokeFunction(a1,
@@ -6370,6 +6372,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   __ Jump(a2);
 }
 
+
 void DirectCEntryStub::Generate(MacroAssembler* masm) {
   // No need to pop or drop anything, LeaveExitFrame will restore the old
   // stack, thus dropping the allocated space for the return value.
@@ -6393,6 +6396,7 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   __ li(t9, Operand(function));
   this->GenerateCall(masm, t9);
 }
+
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {

@@ -330,7 +330,8 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
              !src2.must_use_constant_pool() &&
              CpuFeatures::IsSupported(ARMv7) &&
              IsPowerOf2(src2.immediate() + 1)) {
-    ubfx(dst, src1, 0, WhichPowerOf2(src2.immediate() + 1), cond);
+    ubfx(dst, src1, 0,
+        WhichPowerOf2(static_cast<uint32_t>(src2.immediate()) + 1), cond);
 
   } else {
     and_(dst, src1, src2, LeaveCC, cond);
@@ -1674,6 +1675,16 @@ void MacroAssembler::CompareRoot(Register obj,
   ASSERT(!obj.is(ip));
   LoadRoot(ip, index);
   cmp(obj, ip);
+}
+
+
+void MacroAssembler::CheckFastElements(Register map,
+                                       Register scratch,
+                                       Label* fail) {
+  STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
+  ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  cmp(scratch, Operand(Map::kMaximumBitField2FastElementValue));
+  b(hi, fail);
 }
 
 

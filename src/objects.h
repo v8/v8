@@ -1420,10 +1420,12 @@ class JSObject: public JSReceiver {
   };
 
   enum ElementsKind {
-    // The only "fast" kind.
+    // The "fast" kind for tagged values. Must be first to make it possible
+    // to efficiently check maps if they have fast elements.
     FAST_ELEMENTS,
-    // All the kinds below are "slow".
+    // The "slow" kind.
     DICTIONARY_ELEMENTS,
+    // The "fast" kind for external arrays
     EXTERNAL_BYTE_ELEMENTS,
     EXTERNAL_UNSIGNED_BYTE_ELEMENTS,
     EXTERNAL_SHORT_ELEMENTS,
@@ -1432,8 +1434,17 @@ class JSObject: public JSReceiver {
     EXTERNAL_UNSIGNED_INT_ELEMENTS,
     EXTERNAL_FLOAT_ELEMENTS,
     EXTERNAL_DOUBLE_ELEMENTS,
-    EXTERNAL_PIXEL_ELEMENTS
+    EXTERNAL_PIXEL_ELEMENTS,
+
+    // Derived constants from ElementsKind
+    FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_BYTE_ELEMENTS,
+    LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS,
+    FIRST_ELEMENTS_KIND = FAST_ELEMENTS,
+    LAST_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS
   };
+
+  static const int kElementsKindCount =
+    LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
 
   // [properties]: Backing storage for properties.
   // properties is a FixedArray in the fast case and a Dictionary in the
@@ -3784,31 +3795,27 @@ class Map: public HeapObject {
   inline void set_is_extensible(bool value);
   inline bool is_extensible();
 
-  // Tells whether the instance has fast elements.
-  // Equivalent to instance->GetElementsKind() == FAST_ELEMENTS.
-  inline void set_has_fast_elements(bool value) {
-    if (value) {
-      set_bit_field2(bit_field2() | (1 << kHasFastElements));
-    } else {
-      set_bit_field2(bit_field2() & ~(1 << kHasFastElements));
-    }
+  inline void set_elements_kind(JSObject::ElementsKind elements_kind) {
+    ASSERT(elements_kind < JSObject::kElementsKindCount);
+    ASSERT(JSObject::kElementsKindCount <= (1 << kElementsKindBitCount));
+    set_bit_field2((bit_field2() & ~kElementsKindMask) |
+        (elements_kind << kElementsKindShift));
+    ASSERT(this->elements_kind() == elements_kind);
+  }
+
+  inline JSObject::ElementsKind elements_kind() {
+    return static_cast<JSObject::ElementsKind>(
+        (bit_field2() & kElementsKindMask) >> kElementsKindShift);
   }
 
   inline bool has_fast_elements() {
-    return ((1 << kHasFastElements) & bit_field2()) != 0;
-  }
-
-  // Tells whether an instance has pixel array elements.
-  inline void set_has_external_array_elements(bool value) {
-    if (value) {
-      set_bit_field2(bit_field2() | (1 << kHasExternalArrayElements));
-    } else {
-      set_bit_field2(bit_field2() & ~(1 << kHasExternalArrayElements));
-    }
+    return elements_kind() == JSObject::FAST_ELEMENTS;
   }
 
   inline bool has_external_array_elements() {
-    return ((1 << kHasExternalArrayElements) & bit_field2()) != 0;
+    JSObject::ElementsKind kind(elements_kind());
+    return kind >= JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
+        kind <= JSObject::LAST_EXTERNAL_ARRAY_ELEMENTS_KIND;
   }
 
   // Tells whether the map is attached to SharedFunctionInfo
@@ -3860,6 +3867,26 @@ class Map: public HeapObject {
   //    2 + 2 * i: target map
   DECL_ACCESSORS(prototype_transitions, FixedArray)
   inline FixedArray* unchecked_prototype_transitions();
+
+  static const int kProtoTransitionHeaderSize = 1;
+  static const int kProtoTransitionNumberOfEntriesOffset = 0;
+  static const int kProtoTransitionElementsPerEntry = 2;
+  static const int kProtoTransitionPrototypeOffset = 0;
+  static const int kProtoTransitionMapOffset = 1;
+
+  inline int NumberOfProtoTransitions() {
+    FixedArray* cache = unchecked_prototype_transitions();
+    if (cache->length() == 0) return 0;
+    return
+        Smi::cast(cache->get(kProtoTransitionNumberOfEntriesOffset))->value();
+  }
+
+  inline void SetNumberOfProtoTransitions(int value) {
+    FixedArray* cache = unchecked_prototype_transitions();
+    ASSERT(cache->length() != 0);
+    cache->set_unchecked(kProtoTransitionNumberOfEntriesOffset,
+                         Smi::FromInt(value));
+  }
 
   // Lookup in the map's instance descriptors and fill out the result
   // with the given holder if the name is found. The holder may be
@@ -4029,13 +4056,21 @@ class Map: public HeapObject {
   // Bit positions for bit field 2
   static const int kIsExtensible = 0;
   static const int kFunctionWithPrototype = 1;
-  static const int kHasFastElements = 2;
-  static const int kStringWrapperSafeForDefaultValueOf = 3;
-  static const int kAttachedToSharedFunctionInfo = 4;
-  static const int kHasExternalArrayElements = 5;
+  static const int kStringWrapperSafeForDefaultValueOf = 2;
+  static const int kAttachedToSharedFunctionInfo = 3;
+  // No bits can be used after kElementsKindFirstBit, they are all reserved for
+  // storing ElementKind.  for anything other than storing the ElementKind.
+  static const int kElementsKindShift = 4;
+  static const int kElementsKindBitCount = 4;
+
+  // Derived values from bit field 2
+  static const int kElementsKindMask = (-1 << kElementsKindShift) &
+      ((1 << (kElementsKindShift + kElementsKindBitCount)) - 1);
+  static const int8_t kMaximumBitField2FastElementValue = static_cast<int8_t>(
+      (JSObject::FAST_ELEMENTS + 1) << Map::kElementsKindShift) - 1;
 
   // Bit positions for bit field 3
-  static const int kIsShared = 1;
+  static const int kIsShared = 0;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;

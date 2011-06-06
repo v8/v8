@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -901,6 +901,9 @@ LargeObjectChunk* Deoptimizer::CreateCode(BailoutType type) {
   ASSERT(desc.reloc_size == 0);
 
   LargeObjectChunk* chunk = LargeObjectChunk::New(desc.instr_size, EXECUTABLE);
+  if (chunk == NULL) {
+    V8::FatalProcessOutOfMemory("Not enough memory for deoptimization table");
+  }
   memcpy(chunk->GetStartAddress(), desc.buffer, desc.instr_size);
   CPU::FlushICache(chunk->GetStartAddress(), desc.instr_size);
   return chunk;

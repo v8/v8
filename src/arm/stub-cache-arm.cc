@@ -2381,7 +2381,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       } else {
         // Check that the object is a two-byte string or a symbol.
         __ CompareObjectType(r1, r3, r3, FIRST_NONSTRING_TYPE);
-        __ b(hs, &miss);
+        __ b(ge, &miss);
         // Check that the maps starting from the prototype haven't changed.
         GenerateDirectLoadGlobalFunctionPrototype(
             masm(), Context::STRING_FUNCTION_INDEX, r0, &miss);

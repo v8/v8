@@ -1535,38 +1535,45 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
     }
 
     // Clear dead prototype transitions.
+    int number_of_transitions = map->NumberOfProtoTransitions();
     FixedArray* prototype_transitions = map->unchecked_prototype_transitions();
-    if (prototype_transitions->length() > 0) {
-      int finger = Smi::cast(prototype_transitions->get(0))->value();
-      int new_finger = 1;
-      for (int i = 1; i < finger; i += 2) {
-        Object* prototype = prototype_transitions->get(i);
-        Object* cached_map = prototype_transitions->get(i + 1);
-        if (HeapObject::cast(prototype)->IsMarked() &&
-            HeapObject::cast(cached_map)->IsMarked()) {
-          if (new_finger != i) {
-            prototype_transitions->set_unchecked(heap_,
-                                                 new_finger,
-                                                 prototype,
-                                                 UPDATE_WRITE_BARRIER);
-            prototype_transitions->set_unchecked(heap_,
-                                                 new_finger + 1,
-                                                 cached_map,
-                                                 SKIP_WRITE_BARRIER);
-          }
-          new_finger += 2;
+    int new_number_of_transitions = 0;
+    const int header = Map::kProtoTransitionHeaderSize;
+    const int proto_offset =
+        header + Map::kProtoTransitionPrototypeOffset;
+    const int map_offset = header + Map::kProtoTransitionMapOffset;
+    const int step = Map::kProtoTransitionElementsPerEntry;
+    for (int i = 0; i < number_of_transitions; i++) {
+      Object* prototype = prototype_transitions->get(proto_offset + i * step);
+      Object* cached_map = prototype_transitions->get(map_offset + i * step);
+      if (HeapObject::cast(prototype)->IsMarked() &&
+          HeapObject::cast(cached_map)->IsMarked()) {
+        if (new_number_of_transitions != i) {
+          prototype_transitions->set_unchecked(
+              heap_,
+              proto_offset + new_number_of_transitions * step,
+              prototype,
+              UPDATE_WRITE_BARRIER);
+          prototype_transitions->set_unchecked(
+              heap_,
+              map_offset + new_number_of_transitions * step,
+              cached_map,
+              SKIP_WRITE_BARRIER);
         }
+        new_number_of_transitions++;
       }
 
       // Fill slots that became free with undefined value.
       Object* undefined = heap()->raw_unchecked_undefined_value();
-      for (int i = new_finger; i < finger; i++) {
+      for (int i = new_number_of_transitions * step;
+           i < number_of_transitions * step;
+           i++) {
         prototype_transitions->set_unchecked(heap_,
-                                             i,
+                                             header + i,
                                              undefined,
                                              SKIP_WRITE_BARRIER);
       }
-      prototype_transitions->set_unchecked(0, Smi::FromInt(new_finger));
+      map->SetNumberOfProtoTransitions(new_number_of_transitions);
     }
 
     // Follow the chain of back pointers to find the prototype.
