@@ -1607,26 +1607,27 @@ void Script::SetData(v8::Handle<String> data) {
 
 
 v8::TryCatch::TryCatch()
-    : next_(i::Isolate::Current()->try_catch_handler_address()),
-      exception_(HEAP->the_hole_value()),
+    : isolate_(i::Isolate::Current()),
+      next_(isolate_->try_catch_handler_address()),
+      exception_(isolate_->heap()->the_hole_value()),
       message_(i::Smi::FromInt(0)),
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
       rethrow_(false) {
-  i::Isolate::Current()->RegisterTryCatchHandler(this);
+  isolate_->RegisterTryCatchHandler(this);
 }
 
 
 v8::TryCatch::~TryCatch() {
-  i::Isolate* isolate = i::Isolate::Current();
+  ASSERT(isolate_ == i::Isolate::Current());
   if (rethrow_) {
     v8::HandleScope scope;
     v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(Exception());
-    isolate->UnregisterTryCatchHandler(this);
+    isolate_->UnregisterTryCatchHandler(this);
     v8::ThrowException(exc);
   } else {
-    isolate->UnregisterTryCatchHandler(this);
+    isolate_->UnregisterTryCatchHandler(this);
   }
 }
 
@@ -1649,10 +1650,11 @@ v8::Handle<v8::Value> v8::TryCatch::ReThrow() {
 
 
 v8::Local<Value> v8::TryCatch::Exception() const {
+  ASSERT(isolate_ == i::Isolate::Current());
   if (HasCaught()) {
     // Check for out of memory exception.
     i::Object* exception = reinterpret_cast<i::Object*>(exception_);
-    return v8::Utils::ToLocal(i::Handle<i::Object>(exception));
+    return v8::Utils::ToLocal(i::Handle<i::Object>(exception, isolate_));
   } else {
     return v8::Local<Value>();
   }
@@ -1660,15 +1662,15 @@ v8::Local<Value> v8::TryCatch::Exception() const {
 
 
 v8::Local<Value> v8::TryCatch::StackTrace() const {
+  ASSERT(isolate_ == i::Isolate::Current());
   if (HasCaught()) {
     i::Object* raw_obj = reinterpret_cast<i::Object*>(exception_);
     if (!raw_obj->IsJSObject()) return v8::Local<Value>();
-    v8::HandleScope scope;
-    i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj));
-    i::Handle<i::String> name = FACTORY->LookupAsciiSymbol("stack");
-    if (!obj->HasProperty(*name))
-      return v8::Local<Value>();
-    return scope.Close(v8::Utils::ToLocal(i::GetProperty(obj, name)));
+    i::HandleScope scope(isolate_);
+    i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
+    i::Handle<i::String> name = isolate_->factory()->LookupAsciiSymbol("stack");
+    if (!obj->HasProperty(*name)) return v8::Local<Value>();
+    return v8::Utils::ToLocal(scope.CloseAndEscape(i::GetProperty(obj, name)));
   } else {
     return v8::Local<Value>();
   }
@@ -1676,9 +1678,10 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
 
 
 v8::Local<v8::Message> v8::TryCatch::Message() const {
+  ASSERT(isolate_ == i::Isolate::Current());
   if (HasCaught() && message_ != i::Smi::FromInt(0)) {
     i::Object* message = reinterpret_cast<i::Object*>(message_);
-    return v8::Utils::MessageToLocal(i::Handle<i::Object>(message));
+    return v8::Utils::MessageToLocal(i::Handle<i::Object>(message, isolate_));
   } else {
     return v8::Local<v8::Message>();
   }
@@ -1686,7 +1689,8 @@ v8::Local<v8::Message> v8::TryCatch::Message() const {
 
 
 void v8::TryCatch::Reset() {
-  exception_ = HEAP->the_hole_value();
+  ASSERT(isolate_ == i::Isolate::Current());
+  exception_ = isolate_->heap()->the_hole_value();
   message_ = i::Smi::FromInt(0);
 }
 

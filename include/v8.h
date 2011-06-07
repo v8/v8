@@ -3259,6 +3259,7 @@ class V8EXPORT TryCatch {
   void SetCaptureMessage(bool value);
 
  private:
+  v8::internal::Isolate* isolate_;
   void* next_;
   void* exception_;
   void* message_;
