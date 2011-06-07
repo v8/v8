@@ -1049,7 +1049,6 @@ void NewSpace::Verify() {
   NewSpacePage* page = to_space_.first_page();
   Address current = page->body();
   CHECK_EQ(current, to_space_.space_low());
-  CHECK(end_page->ContainsLimit(top()));
 
   while (current != top()) {
     if (current == page->body_limit()) {
@@ -1096,30 +1095,19 @@ void NewSpace::Verify() {
 
 bool SemiSpace::Commit() {
   ASSERT(!is_committed());
-  // TODO(gc): Rewrite completely when switching to n-page new-space.
-  // Create one page.
-  int pagesize = Page::kPageSize;
-  if (!heap()->isolate()->memory_allocator()->CommitBlock(
-      start_, pagesize, executable())) {
+  int pages = capacity_ / Page::kPageSize;
+  if (!heap()->isolate()->memory_allocator()->CommitBlock(start_,
+                                                          capacity_,
+                                                          executable())) {
     return false;
   }
-  NewSpacePage* page = NewSpacePage::Initialize(heap(), start_, this);
-  page->InsertAfter(&anchor_);
 
-  // Maybe create a second.
-  if (capacity_ >= 2 * pagesize) {
-    Address last_page_address =
-      start_ + ((capacity_ - pagesize) & ~Page::kPageAlignmentMask);
-    if (heap()->isolate()->memory_allocator()->CommitBlock(
-        last_page_address, pagesize, executable())) {
-      NewSpacePage* last_page = NewSpacePage::Initialize(heap(),
-                                                         last_page_address,
-                                                         this);
-      last_page->InsertAfter(page);
-    } else {
-      UNREACHABLE();  // TODO(gc): Don't rely on this. Splitting the commit
-                      // is only temporary.
-    }
+  NewSpacePage* page = anchor();
+  for (int i = 0; i < pages; i++) {
+    NewSpacePage* new_page =
+      NewSpacePage::Initialize(heap(), start_ + i * Page::kPageSize, this);
+    new_page->InsertAfter(page);
+    page = new_page;
   }
 
   committed_ = true;
@@ -1130,17 +1118,12 @@ bool SemiSpace::Commit() {
 
 bool SemiSpace::Uncommit() {
   ASSERT(is_committed());
-  // TODO(gc): Rewrite completely when switching to n-page new-space.
-  NewSpacePage* last_page = anchor()->prev_page();
-  while (last_page != anchor()) {
-    NewSpacePage* temp_page = last_page->prev_page();
-    last_page->Unlink();
-    if (!heap()->isolate()->memory_allocator()->UncommitBlock(
-      last_page->address(), Page::kPageSize)) {
-      return false;
-    }
-    last_page = temp_page;
+  if (!heap()->isolate()->memory_allocator()->UncommitBlock(start_,
+                                                            capacity_)) {
+    return false;
   }
+  anchor()->set_next_page(anchor());
+  anchor()->set_prev_page(anchor());
 
   committed_ = false;
   return true;
