@@ -292,6 +292,7 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
   // An object should be promoted if:
   // - the object has survived a scavenge operation or
   // - to space is already 25% full.
+  // TODO(gc): Do something about age-mark in paged new-space.
   return old_address < new_space_.age_mark()
       || (new_space_.Size() + object_size) >= (new_space_.Capacity() >> 2);
 }

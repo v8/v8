@@ -60,6 +60,38 @@ Page* PageIterator::next() {
 
 
 // -----------------------------------------------------------------------------
+// NewSpacePageIterator
+
+
+NewSpacePageIterator::NewSpacePageIterator(SemiSpace* space)
+    : prev_page_(&space->anchor_),
+      next_page_(prev_page_->next_page()),
+      last_page_(prev_page_->prev_page()) { }
+
+  NewSpacePageIterator::NewSpacePageIterator(Address start, Address limit)
+    : prev_page_(NewSpacePage::FromAddress(start)->prev_page()),
+      next_page_(NewSpacePage::FromAddress(start)),
+      last_page_(NewSpacePage::FromLimit(limit)) {
+#ifdef DEBUG
+    SemiSpace::ValidateRange(start, limit);
+#endif
+}
+
+
+bool NewSpacePageIterator::has_next() {
+  return prev_page_ != last_page_;
+}
+
+
+NewSpacePage* NewSpacePageIterator::next() {
+  ASSERT(has_next());
+  prev_page_ = next_page_;
+  next_page_ = next_page_->next_page();
+  return prev_page_;
+}
+
+
+// -----------------------------------------------------------------------------
 // HeapObjectIterator
 HeapObject* HeapObjectIterator::FromCurrentPage() {
   while (cur_addr_ != cur_end_) {
@@ -249,9 +281,10 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
 // NewSpace
 
 MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes) {
-  Address new_top = allocation_info_.top + size_in_bytes;
+  Address old_top = allocation_info_.top;
+  Address new_top = old_top + size_in_bytes;
   if (new_top > allocation_info_.limit) {
-    Address high = to_space_.high();
+    Address high = to_space_.page_high();
     if (allocation_info_.limit < high) {
       allocation_info_.limit = Min(
           allocation_info_.limit + inline_alloction_limit_step_,
@@ -259,6 +292,12 @@ MaybeObject* NewSpace::AllocateRawInternal(int size_in_bytes) {
       int bytes_allocated = new_top - top_on_previous_step_;
       heap()->incremental_marking()->Step(bytes_allocated);
       top_on_previous_step_ = new_top;
+      return AllocateRawInternal(size_in_bytes);
+    } else if (AddFreshPage()) {
+      // Switched to new page. Try allocating again.
+      int bytes_allocated = old_top - top_on_previous_step_;
+      heap()->incremental_marking()->Step(bytes_allocated);
+      top_on_previous_step_ = to_space_.page_low();
       return AllocateRawInternal(size_in_bytes);
     } else {
       return Failure::RetryAfterGC();

@@ -371,6 +371,13 @@ class MemoryChunk {
     return addr >= body() && addr < address() + size();
   }
 
+  // Checks whether addr can be a limit of addresses in this page.
+  // It's a limit if it's in the page, or if it's just after the
+  // last byte of the page.
+  bool ContainsLimit(Address addr) {
+    return addr >= body() && addr <= address() + size();
+  }
+
   enum MemoryChunkFlags {
     IS_EXECUTABLE,
     WAS_SWEPT_CONSERVATIVELY,
@@ -1329,7 +1336,7 @@ class PagedSpace : public Space {
   bool EnsureCapacity(int capacity);
 
   // The dummy page that anchors the linked list of pages.
-  Page *anchor() { return &anchor_; }
+  Page* anchor() { return &anchor_; }
 
 #ifdef ENABLE_HEAP_PROTECTION
   // Protect/unprotect the space by marking it read-only/writable.
@@ -1509,17 +1516,29 @@ class NewSpacePage : public MemoryChunk {
     return reinterpret_cast<SemiSpace*>(owner());
   }
 
- private:
-  NewSpacePage(SemiSpace* owner) {
-    InitializeAsAnchor(owner);
-  }
+  bool is_anchor() { return !this->InNewSpace(); }
 
   // Finds the NewSpacePage containg the given address.
-  static NewSpacePage* FromAddress(Address address_in_page) {
+  static inline NewSpacePage* FromAddress(Address address_in_page) {
     Address page_start =
         reinterpret_cast<Address>(reinterpret_cast<uintptr_t>(address_in_page) &
                                   ~Page::kPageAlignmentMask);
-    return reinterpret_cast<NewSpacePage*>(page_start);
+    NewSpacePage* page = reinterpret_cast<NewSpacePage*>(page_start);
+    ASSERT(page->InNewSpace());
+    return page;
+  }
+
+  // Find the page for a limit address. A limit address is either an address
+  // inside a page, or the address right after the last byte of a page.
+  static inline NewSpacePage* FromLimit(Address address_limit) {
+    return NewSpacePage::FromAddress(address_limit - 1);
+  }
+
+ private:
+  // Create a NewSpacePage object that is only used as anchor
+  // for the doubly-linked list of real pages.
+  explicit NewSpacePage(SemiSpace* owner) {
+    InitializeAsAnchor(owner);
   }
 
   static NewSpacePage* Initialize(Heap* heap,
@@ -1528,7 +1547,7 @@ class NewSpacePage : public MemoryChunk {
 
   // Intialize a fake NewSpacePage used as sentinel at the ends
   // of a doubly-linked list of real NewSpacePages.
-  // Only uses the prev/next links.
+  // Only uses the prev/next links, and sets flags to not be in new-space.
   void InitializeAsAnchor(SemiSpace* owner);
 
   friend class SemiSpace;
@@ -1580,7 +1599,7 @@ class SemiSpace : public Space {
   bool ShrinkTo(int new_capacity);
 
   // Returns the start address of the first page of the space.
-  Address low() {
+  Address space_low() {
     ASSERT(anchor_.next_page() != &anchor_);
     return anchor_.next_page()->body();
   }
@@ -1592,9 +1611,20 @@ class SemiSpace : public Space {
   }
 
   // Returns one past the end address of the space.
-  Address high() {
-    // TODO(gc): Change when there is more than one page.
+  Address space_high() {
+    return anchor_.prev_page()->body_limit();
+  }
+
+  // Returns one past the end address of the current page of the space.
+  Address page_high() {
     return current_page_->body_limit();
+  }
+
+  bool AdvancePage() {
+    NewSpacePage* next_page = current_page_->next_page();
+    if (next_page == &anchor_) return false;
+    current_page_ = next_page;
+    return true;
   }
 
   // Resets the space to using the first page.
@@ -1603,11 +1633,6 @@ class SemiSpace : public Space {
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
   void set_age_mark(Address mark) { age_mark_ = mark; }
-
-  // The offset of an address from the beginning of the space.
-  int SpaceOffsetForAddress(Address addr) {
-    return static_cast<int>(addr - low());
-  }
 
   // If we don't have these here then SemiSpace will be abstract.  However
   // they should never be called.
@@ -1625,7 +1650,7 @@ class SemiSpace : public Space {
   bool Commit();
   bool Uncommit();
 
-  NewSpacePage* first_page() { return NewSpacePage::FromAddress(start_); }
+  NewSpacePage* first_page() { return anchor_.next_page(); }
   NewSpacePage* current_page() { return current_page_; }
 
 #ifdef ENABLE_HEAP_PROTECTION
@@ -1637,6 +1662,7 @@ class SemiSpace : public Space {
 #ifdef DEBUG
   virtual void Print();
   virtual void Verify();
+  static void ValidateRange(Address from, Address to);
 #endif
 
   // Returns the current capacity of the semi space.
@@ -1656,6 +1682,8 @@ class SemiSpace : public Space {
   // Flips the semispace between being from-space and to-space.
   // Copies the flags into the masked positions on all pages in the space.
   void FlipPages(intptr_t flags, intptr_t flag_mask);
+
+  NewSpacePage* anchor() { return &anchor_; }
 
   // The current and maximum capacity of the space.
   int capacity_;
@@ -1678,6 +1706,8 @@ class SemiSpace : public Space {
   NewSpacePage anchor_;
   NewSpacePage* current_page_;
 
+  friend class SemiSpaceIterator;
+  friend class NewSpacePageIterator;
  public:
   TRACK_MEMORY("SemiSpace")
 };
@@ -1693,15 +1723,26 @@ class SemiSpaceIterator : public ObjectIterator {
   // Create an iterator over the objects in the given space.  If no start
   // address is given, the iterator starts from the bottom of the space.  If
   // no size function is given, the iterator calls Object::Size().
+
+  // Iterate over all of allocated to-space.
   explicit SemiSpaceIterator(NewSpace* space);
+  // Iterate over all of allocated to-space, with a custome size function.
   SemiSpaceIterator(NewSpace* space, HeapObjectCallback size_func);
+  // Iterate over part of allocated to-space, from start to the end
+  // of allocation.
   SemiSpaceIterator(NewSpace* space, Address start);
+  // Iterate from one address to another in the same semi-space.
+  SemiSpaceIterator(Address from, Address to);
 
   HeapObject* Next() {
-    if (current_ == current_page_limit_) {
-      // TODO(gc): Add something here when we have more than one page.
-    }
     if (current_ == limit_) return NULL;
+    if (current_ == current_page_limit_) {
+      NewSpacePage* page = NewSpacePage::FromAddress(current_ - 1);
+      page = page->next_page();
+      ASSERT(!page->is_anchor());
+      current_ = page->body();
+      if (current_ == limit_) return NULL;
+    }
 
     HeapObject* object = HeapObject::FromAddress(current_);
     int size = (size_func_ == NULL) ? object->Size() : size_func_(object);
@@ -1714,13 +1755,10 @@ class SemiSpaceIterator : public ObjectIterator {
   virtual HeapObject* next_object() { return Next(); }
 
  private:
-  void Initialize(NewSpace* space,
-                  Address start,
+  void Initialize(Address start,
                   Address end,
                   HeapObjectCallback size_func);
 
-  // The semispace.
-  SemiSpace* space_;
   // The current iteration point.
   Address current_;
   // The end of the current page.
@@ -1729,6 +1767,30 @@ class SemiSpaceIterator : public ObjectIterator {
   Address limit_;
   // The callback function.
   HeapObjectCallback size_func_;
+};
+
+
+// -----------------------------------------------------------------------------
+// A PageIterator iterates the pages in a semi-space.
+class NewSpacePageIterator BASE_EMBEDDED {
+ public:
+  // Make an iterator that runs over all pages in the given semispace,
+  // even those not used in allocation.
+  explicit inline NewSpacePageIterator(SemiSpace* space);
+  // Make iterator that iterates from the page containing start
+  // to the page that contains limit in the same semispace.
+  inline NewSpacePageIterator(Address start, Address limit);
+
+  inline bool has_next();
+  inline NewSpacePage* next();
+
+ private:
+  NewSpacePage* prev_page_;  // Previous page returned.
+  // Next page that will be returned.  Cached here so that we can use this
+  // iterator for operations that deallocate pages.
+  NewSpacePage* next_page_;
+  // Last page returned.
+  NewSpacePage* last_page_;
 };
 
 
@@ -1818,8 +1880,11 @@ class NewSpace : public Space {
     return Capacity();
   }
 
-  // Return the available bytes without growing in the active semispace.
-  intptr_t Available() { return Capacity() - Size(); }
+  // Return the available bytes without growing or switching page in the
+  // active semispace.
+  intptr_t Available() {
+    return allocation_info_.limit - allocation_info_.top;
+  }
 
   // Return the maximum capacity of a semispace.
   int MaximumCapacity() {
@@ -1836,7 +1901,7 @@ class NewSpace : public Space {
   // Return the address of the allocation pointer in the active semispace.
   Address top() { return allocation_info_.top; }
   // Return the address of the first object in the active semispace.
-  Address bottom() { return to_space_.low(); }
+  Address bottom() { return to_space_.space_low(); }
 
   // Get the age mark of the inactive semispace.
   Address age_mark() { return from_space_.age_mark(); }
@@ -1873,7 +1938,7 @@ class NewSpace : public Space {
   void LowerInlineAllocationLimit(intptr_t step) {
     inline_alloction_limit_step_ = step;
     if (step == 0) {
-      allocation_info_.limit = to_space_.high();
+      allocation_info_.limit = to_space_.page_high();
     } else {
       allocation_info_.limit = Min(
           allocation_info_.top + inline_alloction_limit_step_,
@@ -1882,22 +1947,15 @@ class NewSpace : public Space {
     top_on_previous_step_ = allocation_info_.top;
   }
 
-  // Get the extent of the inactive semispace (for use as a marking stack).
-  Address FromSpaceLow() { return from_space_.low(); }
-  Address FromSpaceHigh() { return from_space_.high(); }
+  // Get the extent of the inactive semispace (for use as a marking stack,
+  // or to zap it).
+  Address FromSpacePageLow() { return from_space_.page_low(); }
+  Address FromSpaceLow() { return from_space_.space_low(); }
+  Address FromSpaceHigh() { return from_space_.space_high(); }
 
-  // Get the extent of the active semispace (to sweep newly copied objects
-  // during a scavenge collection).
-  Address ToSpaceLow() { return to_space_.low(); }
-  Address ToSpaceHigh() { return to_space_.high(); }
-
-  // Offsets from the beginning of the semispaces.
-  int ToSpaceOffsetForAddress(Address a) {
-    return to_space_.SpaceOffsetForAddress(a);
-  }
-  int FromSpaceOffsetForAddress(Address a) {
-    return from_space_.SpaceOffsetForAddress(a);
-  }
+  // Get the extent of the active semispace's pages' memory.
+  Address ToSpaceLow() { return to_space_.space_low(); }
+  Address ToSpaceHigh() { return to_space_.space_high(); }
 
   inline bool ToSpaceContains(Address address) {
     MemoryChunk* page = MemoryChunk::FromAddress(address);
@@ -1923,6 +1981,12 @@ class NewSpace : public Space {
     Address address = reinterpret_cast<Address>(o);
     return FromSpaceContains(address);
   }
+
+  // Try to switch the active semispace to a new, empty, page.
+  // Returns false if this isn't possible or reasonable (i.e., there
+  // are no pages, or the current page is already empty), or true
+  // if successful.
+  bool AddFreshPage();
 
   virtual bool ReserveSpace(int bytes);
 
@@ -1983,6 +2047,9 @@ class NewSpace : public Space {
   }
 
  private:
+  // Update allocation info to match the current to-space page.
+  void UpdateAllocationInfo();
+
   Address chunk_base_;
   uintptr_t chunk_size_;
 
@@ -2055,9 +2122,9 @@ class OldSpace : public PagedSpace {
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.
 #define ASSERT_SEMISPACE_ALLOCATION_INFO(info, space) \
-  ASSERT((space).low() <= (info).top                  \
-         && (info).top <= (space).high()              \
-         && (info).limit <= (space).high())
+  ASSERT((space).page_low() <= (info).top             \
+         && (info).top <= (space).page_high()         \
+         && (info).limit <= (space).page_high())
 
 
 // -----------------------------------------------------------------------------

@@ -12252,6 +12252,9 @@ void Runtime::PerformGC(Object* result) {
   Isolate* isolate = Isolate::Current();
   Failure* failure = Failure::cast(result);
   if (failure->IsRetryAfterGC()) {
+    if (isolate->heap()->new_space()->AddFreshPage()) {
+      return;
+    }
     // Try to do a garbage collection; ignore it if it fails. The C
     // entry stub will throw an out-of-memory exception in that case.
     isolate->heap()->CollectGarbage(failure->allocation_space());

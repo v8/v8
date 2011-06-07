@@ -114,7 +114,17 @@ static void VerifyMarking(Page* p) {
 
 
 static void VerifyMarking(NewSpace* space) {
-  VerifyMarking(space->bottom(), space->top());
+  Address end = space->top();
+  NewSpacePageIterator it(space->bottom(), end);
+  // The bottom position is at the start of its page. Allows us to use
+  // page->body() as start of range on all pages.
+  ASSERT_EQ(space->bottom(),
+            NewSpacePage::FromAddress(space->bottom())->body());
+  while (it.has_next()) {
+    NewSpacePage* page = it.next();
+    Address limit = it.has_next() ? page->body_limit() : end;
+    VerifyMarking(page->body(), limit);
+  }
 }
 
 
@@ -1697,9 +1707,9 @@ void MarkCompactCollector::MarkLiveObjects() {
   ASSERT(state_ == PREPARE_GC);
   state_ = MARK_LIVE_OBJECTS;
 #endif
-  // The to space contains live objects, the from space is used as a marking
-  // stack.
-  Address marking_deque_start = heap()->new_space()->FromSpaceLow();
+  // The to space contains live objects, a page in from space is used as a
+  // marking stack.
+  Address marking_deque_start = heap()->new_space()->FromSpacePageLow();
   Address marking_deque_end = heap()->new_space()->FromSpaceHigh();
   if (FLAG_force_marking_deque_overflows) {
     marking_deque_end = marking_deque_start + 64 * kPointerSize;
@@ -1927,7 +1937,7 @@ static void MigrateObject(Heap* heap,
                           int size,
                           bool to_old_space) {
   if (to_old_space) {
-    HEAP->CopyBlockToOldSpaceAndUpdateWriteBarrier(dst, src, size);
+    heap->CopyBlockToOldSpaceAndUpdateWriteBarrier(dst, src, size);
   } else {
     heap->CopyBlock(dst, src, size);
   }
@@ -2064,6 +2074,7 @@ static bool TryPromoteObject(Heap* heap, HeapObject* object, int object_size) {
 void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
   heap_->CheckNewSpaceExpansionCriteria();
 
+  // Store allocation range before flipping semispaces.
   Address from_bottom = space->bottom();
   Address from_top = space->top();
 
@@ -2072,22 +2083,22 @@ void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
   space->Flip();
   space->ResetAllocationInfo();
 
-  int size = 0;
   int survivors_size = 0;
 
   // First pass: traverse all objects in inactive semispace, remove marks,
   // migrate live objects and write forwarding addresses.  This stage puts
   // new entries in the store buffer and may cause some pages to be marked
   // scan-on-scavenge.
-  for (Address current = from_bottom; current < from_top; current += size) {
-    HeapObject* object = HeapObject::FromAddress(current);
-
+  SemiSpaceIterator from_it(from_bottom, from_top);
+  for (HeapObject* object = from_it.Next();
+       object != NULL;
+       object = from_it.Next()) {
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (mark_bit.Get()) {
       mark_bit.Clear();
       heap_->mark_compact_collector()->tracer()->decrement_marked_count();
 
-      size = object->Size();
+      int size = object->Size();
       survivors_size += size;
 
       // Aggressively promote young survivors to the old space.
@@ -2096,21 +2107,29 @@ void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
       }
 
       // Promotion failed. Just migrate object to another semispace.
-      // Allocation cannot fail at this point: semispaces are of equal size.
-      Object* target = space->AllocateRaw(size)->ToObjectUnchecked();
-
+      MaybeObject* allocation = space->AllocateRaw(size);
+      if (allocation->IsFailure()) {
+        if (!space->AddFreshPage()) {
+          // Shouldn't happen. We are sweeping linearly, and to-space
+          // has the same number of pages as from-space, so there is
+          // always room.
+          UNREACHABLE();
+        }
+        allocation = space->AllocateRaw(size);
+        ASSERT(!allocation->IsFailure());
+      }
+      Object* target = allocation->ToObjectUnchecked();
       MigrateObject(heap_,
                     HeapObject::cast(target)->address(),
-                    current,
+                    object->address(),
                     size,
                     false);
     } else {
       // Process the dead object before we write a NULL into its header.
       LiveObjectList::ProcessNonLive(object);
 
-      size = object->Size();
       // Mark dead objects in the new space with null in their map field.
-      Memory::Address_at(current) = NULL;
+      Memory::Address_at(object->address()) = NULL;
     }
   }
 
@@ -2118,12 +2137,12 @@ void MarkCompactCollector::SweepNewSpace(NewSpace* space) {
   PointersToNewGenUpdatingVisitor updating_visitor(heap_);
 
   // Update pointers in to space.
-  Address current = space->bottom();
-  while (current < space->top()) {
-    HeapObject* object = HeapObject::FromAddress(current);
-    current +=
-        StaticPointersToNewGenUpdatingVisitor::IterateBody(object->map(),
-                                                           object);
+  SemiSpaceIterator to_it(space->bottom(), space->top());
+  for (HeapObject* object = to_it.Next();
+       object != NULL;
+       object = to_it.Next()) {
+    StaticPointersToNewGenUpdatingVisitor::IterateBody(object->map(),
+                                                       object);
   }
 
   // Update roots.
@@ -2720,7 +2739,19 @@ int MarkCompactCollector::IterateLiveObjectsInRange(
 int MarkCompactCollector::IterateLiveObjects(
     NewSpace* space, LiveObjectCallback size_f) {
   ASSERT(MARK_LIVE_OBJECTS < state_ && state_ <= RELOCATE_OBJECTS);
-  return IterateLiveObjectsInRange(space->bottom(), space->top(), size_f);
+  int accumulator = 0;
+  Address end = space->top();
+  NewSpacePageIterator it(space->bottom(), end);
+  // The bottom is at the start of its page.
+  ASSERT_EQ(space->bottom(),
+            NewSpacePage::FromAddress(space->bottom())->body());
+  while (it.has_next()) {
+    NewSpacePage* page = it.next();
+    Address start = page->body();
+    Address limit = it.has_next() ? page->body_limit() : end;
+    accumulator += IterateLiveObjectsInRange(start, limit, size_f);
+  }
+  return accumulator;
 }
 
 

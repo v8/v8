@@ -4314,11 +4314,15 @@ bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
 
 #ifdef DEBUG
 void Heap::ZapFromSpace() {
-  ASSERT(reinterpret_cast<Object*>(kFromSpaceZapValue)->IsFailure());
-  for (Address a = new_space_.FromSpaceLow();
-       a < new_space_.FromSpaceHigh();
-       a += kPointerSize) {
-    Memory::Address_at(a) = kFromSpaceZapValue;
+  NewSpacePageIterator it(new_space_.FromSpaceLow(),
+                          new_space_.FromSpaceHigh());
+  while (it.has_next()) {
+    NewSpacePage* page = it.next();
+    for (Address cursor = page->body(), limit = page->body_limit();
+         cursor < limit;
+         cursor += kPointerSize) {
+      Memory::Address_at(cursor) = kFromSpaceZapValue;
+    }
   }
 }
 #endif  // DEBUG

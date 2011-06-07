@@ -419,6 +419,9 @@ void NewSpacePage::InitializeAsAnchor(SemiSpace* semi_space) {
   set_owner(semi_space);
   set_next_chunk(this);
   set_prev_chunk(this);
+  // Flags marks this invalid page as not being in new-space.
+  // All real new-space pages will be in new-space.
+  SetFlags(0, ~0);
 }
 
 
@@ -964,7 +967,7 @@ void NewSpace::Grow() {
       }
     }
   }
-  allocation_info_.limit = to_space_.high();
+  allocation_info_.limit = to_space_.page_high();
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
@@ -986,21 +989,56 @@ void NewSpace::Shrink() {
       }
     }
   }
-  allocation_info_.limit = to_space_.high();
+  allocation_info_.limit = to_space_.page_high();
+  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+}
+
+
+void NewSpace::UpdateAllocationInfo() {
+  allocation_info_.top = to_space_.page_low();
+  allocation_info_.limit = to_space_.page_high();
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
 
 void NewSpace::ResetAllocationInfo() {
   to_space_.Reset();
-  allocation_info_.top = to_space_.page_low();
-  allocation_info_.limit = to_space_.high();
-  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+  UpdateAllocationInfo();
+  // Clear all mark-bits in the to-space.
+  NewSpacePageIterator it(to_space_.space_low(), to_space_.space_high());
+  while (it.has_next()) {
+    NewSpacePage* page = it.next();
+    page->markbits()->Clear();
+  }
+}
+
+
+bool NewSpace::AddFreshPage() {
+  Address top = allocation_info_.top;
+  if (top == NewSpacePage::FromLimit(top)->body()) {
+    // The current page is already empty. Don't try to make another.
+
+    // We should only get here if someone asks to allocate more
+    // than what can be stored in a single page.
+    // TODO(gc): Change the limit on new-space allocation to prevent this
+    // from happening (all such allocations should go directly to LOSpace).
+    return false;
+  }
+  if (!to_space_.AdvancePage()) {
+    // Failed to get a new page in to-space.
+    return false;
+  }
+  // Clear remainder of current page.
+  int remaining_in_page =
+    static_cast<int>(NewSpacePage::FromLimit(top)->body_limit() - top);
+  heap()->CreateFillerObjectAt(top, remaining_in_page);
+  UpdateAllocationInfo();
+  return true;
 }
 
 
 #ifdef DEBUG
-// We do not use the SemispaceIterator because verification doesn't assume
+// We do not use the SemiSpaceIterator because verification doesn't assume
 // that it works (it depends on the invariants we are checking).
 void NewSpace::Verify() {
   // The allocation pointer should be in the space or at the very end.
@@ -1008,8 +1046,22 @@ void NewSpace::Verify() {
 
   // There should be objects packed in from the low address up to the
   // allocation pointer.
-  Address current = to_space_.low();
-  while (current < top()) {
+  NewSpacePage* page = to_space_.first_page();
+  Address current = page->body();
+  CHECK_EQ(current, to_space_.space_low());
+  CHECK(end_page->ContainsLimit(top()));
+
+  while (current != top()) {
+    if (current == page->body_limit()) {
+      // At end of page, switch to next page.
+      page = page->next_page();
+      // Next page should be valid.
+      CHECK(!page->is_anchor());
+      current = page->body();
+    }
+    // The allocation pointer should not be in the middle of an object.
+    CHECK(!page->ContainsLimit(top()) || current < top());
+
     HeapObject* object = HeapObject::FromAddress(current);
 
     // The first word should be a map, and we expect all map pointers to
@@ -1033,9 +1085,6 @@ void NewSpace::Verify() {
     current += size;
   }
 
-  // The allocation pointer should not be in the middle of an object.
-  ASSERT(current == top());
-
   // Check semi-spaces.
   ASSERT_EQ(from_space_.id(), kFromSpace);
   ASSERT_EQ(to_space_.id(), kToSpace);
@@ -1047,26 +1096,52 @@ void NewSpace::Verify() {
 
 bool SemiSpace::Commit() {
   ASSERT(!is_committed());
+  // TODO(gc): Rewrite completely when switching to n-page new-space.
+  // Create one page.
+  int pagesize = Page::kPageSize;
   if (!heap()->isolate()->memory_allocator()->CommitBlock(
-      start_, capacity_, executable())) {
+      start_, pagesize, executable())) {
     return false;
   }
-  committed_ = true;
-  // TODO(gc): When more than one page is present, initialize and
-  // chain them all.
   NewSpacePage* page = NewSpacePage::Initialize(heap(), start_, this);
   page->InsertAfter(&anchor_);
-  current_page_ = anchor_.next_page();
+
+  // Maybe create a second.
+  if (capacity_ >= 2 * pagesize) {
+    Address last_page_address =
+      start_ + ((capacity_ - pagesize) & ~Page::kPageAlignmentMask);
+    if (heap()->isolate()->memory_allocator()->CommitBlock(
+        last_page_address, pagesize, executable())) {
+      NewSpacePage* last_page = NewSpacePage::Initialize(heap(),
+                                                         last_page_address,
+                                                         this);
+      last_page->InsertAfter(page);
+    } else {
+      UNREACHABLE();  // TODO(gc): Don't rely on this. Splitting the commit
+                      // is only temporary.
+    }
+  }
+
+  committed_ = true;
+  Reset();
   return true;
 }
 
 
 bool SemiSpace::Uncommit() {
   ASSERT(is_committed());
-  if (!heap()->isolate()->memory_allocator()->UncommitBlock(
-      start_, capacity_)) {
-    return false;
+  // TODO(gc): Rewrite completely when switching to n-page new-space.
+  NewSpacePage* last_page = anchor()->prev_page();
+  while (last_page != anchor()) {
+    NewSpacePage* temp_page = last_page->prev_page();
+    last_page->Unlink();
+    if (!heap()->isolate()->memory_allocator()->UncommitBlock(
+      last_page->address(), Page::kPageSize)) {
+      return false;
+    }
+    last_page = temp_page;
   }
+
   committed_ = false;
   return true;
 }
@@ -1112,12 +1187,7 @@ bool SemiSpace::Setup(Address start,
   // space is used as the marking stack. It requires contiguous memory
   // addresses.
   ASSERT(maximum_capacity >= Page::kPageSize);
-  if (initial_capacity < Page::kPageSize) {
-    initial_capacity = Page::kPageSize;
-  } else {
-    initial_capacity &= ~Page::kPageAlignmentMask;
-  }
-  initial_capacity_ = initial_capacity;
+  initial_capacity_ = initial_capacity & ~Page::kPageAlignmentMask;
   capacity_ = initial_capacity;
   maximum_capacity_ = maximum_capacity;
   committed_ = false;
@@ -1144,7 +1214,7 @@ bool SemiSpace::Grow() {
   int extra = Min(RoundUp(capacity_, static_cast<int>(OS::AllocateAlignment())),
                   maximum_extra);
   if (!heap()->isolate()->memory_allocator()->CommitBlock(
-      high(), extra, executable())) {
+      space_high(), extra, executable())) {
     return false;
   }
   capacity_ += extra;
@@ -1159,7 +1229,7 @@ bool SemiSpace::GrowTo(int new_capacity) {
   size_t delta = new_capacity - capacity_;
   ASSERT(IsAligned(delta, OS::AllocateAlignment()));
   if (!heap()->isolate()->memory_allocator()->CommitBlock(
-      high(), delta, executable())) {
+      space_high(), delta, executable())) {
     return false;
   }
   capacity_ = new_capacity;
@@ -1174,7 +1244,7 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
   size_t delta = capacity_ - new_capacity;
   ASSERT(IsAligned(delta, OS::AllocateAlignment()));
   if (!heap()->isolate()->memory_allocator()->UncommitBlock(
-      high() - delta, delta)) {
+      space_high() - delta, delta)) {
     return false;
   }
   capacity_ = new_capacity;
@@ -1228,40 +1298,62 @@ void SemiSpace::Verify() {
     page = page->next_page();
   }
 }
+
+
+void SemiSpace::ValidateRange(Address start, Address end) {
+  // Addresses belong to same semi-space
+  NewSpacePage* page = NewSpacePage::FromAddress(start);
+  NewSpacePage* end_page = NewSpacePage::FromLimit(end);
+  SemiSpace* space = page->semi_space();
+  CHECK_EQ(space, end_page->semi_space());
+  // Start address is before end address, either on same page,
+  // or end address is on a later page in the linked list of
+  // semi-space pages.
+  if (page == end_page) {
+    CHECK(start <= end);
+  } else {
+    while (page != end_page) {
+      page = page->next_page();
+      CHECK_NE(page, space->anchor());
+    }
+  }
+}
 #endif
 
 
 // -----------------------------------------------------------------------------
 // SemiSpaceIterator implementation.
 SemiSpaceIterator::SemiSpaceIterator(NewSpace* space) {
-  Initialize(space, space->bottom(), space->top(), NULL);
+  Initialize(space->bottom(), space->top(), NULL);
 }
 
 
 SemiSpaceIterator::SemiSpaceIterator(NewSpace* space,
                                      HeapObjectCallback size_func) {
-  Initialize(space, space->bottom(), space->top(), size_func);
+  Initialize(space->bottom(), space->top(), size_func);
 }
 
 
 SemiSpaceIterator::SemiSpaceIterator(NewSpace* space, Address start) {
-  Initialize(space, start, space->top(), NULL);
+  Initialize(start, space->top(), NULL);
 }
 
 
-void SemiSpaceIterator::Initialize(NewSpace* space,
-                                   Address start,
+SemiSpaceIterator::SemiSpaceIterator(Address from, Address to) {
+  Initialize(from, to, NULL);
+}
+
+
+void SemiSpaceIterator::Initialize(Address start,
                                    Address end,
                                    HeapObjectCallback size_func) {
-  ASSERT(space->ToSpaceContains(start));
-  ASSERT(space->ToSpaceLow() <= end
-         && end <= space->ToSpaceHigh());
-  space_ = &space->to_space_;
-  current_ = start;
+#ifdef DEBUG
+  SemiSpace::ValidateRange(start, end);
+#endif
   NewSpacePage* page = NewSpacePage::FromAddress(start);
-  current_page_limit_ = page->body() + page->body_size();
-  if (current_page_limit_ > end) current_page_limit_ = end;
+  current_ = start;
   limit_ = end;
+  current_page_limit_ = page->body_limit();
   size_func_ = size_func;
 }
 
