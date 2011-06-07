@@ -482,6 +482,7 @@ void MacroAssembler::RecordWriteField(
     int offset,
     Register value,
     Register dst,
+    LinkRegisterStatus lr_status,
     SaveFPRegsMode save_fp,
     RememberedSetAction remembered_set_action,
     SmiCheck smi_check) {
@@ -506,8 +507,13 @@ void MacroAssembler::RecordWriteField(
     bind(&ok);
   }
 
-  RecordWrite(
-      object, dst, value, save_fp, remembered_set_action, OMIT_SMI_CHECK);
+  RecordWrite(object,
+              dst,
+              value,
+              lr_status,
+              save_fp,
+              remembered_set_action,
+              OMIT_SMI_CHECK);
 
   bind(&done);
 
@@ -525,38 +531,60 @@ void MacroAssembler::RecordWriteField(
 // tag is shifted away.
 void MacroAssembler::RecordWrite(Register object,
                                  Register address,
-                                 Register scratch,
+                                 Register value,
+                                 LinkRegisterStatus lr_status,
                                  SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are cp.
-  ASSERT(!address.is(cp) && !scratch.is(cp));
+  ASSERT(!address.is(cp) && !value.is(cp));
 
   Label done;
 
-  // First, test that the object is not in the new space.  We cannot set
-  // region marks for new space pages.
-  InNewSpace(object, scratch, eq, &done);
+  if (smi_check == INLINE_SMI_CHECK) {
+    ASSERT_EQ(0, kSmiTag);
+    tst(value, Operand(kSmiTagMask));
+    b(eq, &done);
+  }
+
+  CheckPageFlag(value,
+                value,  // Used as scratch.
+                MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING,
+                eq,
+                &done);
+  CheckPageFlag(object,
+                value,  // Used as scratch.
+                MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING,
+                eq,
+                &done);
 
   // Record the actual write.
-  RememberedSetHelper(address, scratch, fp_mode);
+  if (lr_status == kLRHasNotBeenSaved) {
+    push(lr);
+  }
+  RecordWriteStub stub(object, value, address, remembered_set_action, fp_mode);
+  CallStub(&stub);
+  if (lr_status == kLRHasNotBeenSaved) {
+    pop(lr);
+  }
 
   bind(&done);
 
-  // Clobber all input registers when running with the debug-code flag
+  // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
     mov(address, Operand(BitCast<int32_t>(kZapValue + 12)));
-    mov(scratch, Operand(BitCast<int32_t>(kZapValue + 16)));
+    mov(value, Operand(BitCast<int32_t>(kZapValue + 16)));
   }
 }
 
 
 void MacroAssembler::RememberedSetHelper(Register address,
                                          Register scratch,
-                                         SaveFPRegsMode fp_mode) {
+                                         SaveFPRegsMode fp_mode,
+                                         RememberedSetFinalAction and_then) {
   Label done;
   // Load store buffer top.
   ExternalReference store_buffer =
@@ -570,13 +598,21 @@ void MacroAssembler::RememberedSetHelper(Register address,
   // Call stub on end of buffer.
   // Check for end of buffer.
   tst(scratch, Operand(StoreBuffer::kStoreBufferOverflowBit));
-  b(eq, &done);
+  if (and_then == kFallThroughAtEnd) {
+    b(eq, &done);
+  } else {
+    ASSERT(and_then == kReturnAtEnd);
+    Ret(ne);
+  }
   push(lr);
   StoreBufferOverflowStub store_buffer_overflow =
       StoreBufferOverflowStub(fp_mode);
   CallStub(&store_buffer_overflow);
   pop(lr);
   bind(&done);
+  if (and_then == kReturnAtEnd) {
+    Ret();
+  }
 }
 
 
@@ -3092,6 +3128,58 @@ void MacroAssembler::CheckPageFlag(
 }
 
 
+void MacroAssembler::IsBlack(Register object,
+                             Register scratch0,
+                             Register scratch1,
+                             Label* is_black) {
+  HasColor(object, scratch0, scratch1, is_black, 1, 0);  // kBlackBitPattern.
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
+}
+
+
+void MacroAssembler::HasColor(Register object,
+                              Register bitmap_scratch,
+                              Register mask_scratch,
+                              Label* has_color,
+                              int first_bit,
+                              int second_bit) {
+  ASSERT(!Aliasing(object, bitmap_scratch, mask_scratch, no_reg));
+
+  GetMarkBits(object, bitmap_scratch, mask_scratch);
+
+  Label other_color, word_boundary;
+  ldr(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  tst(ip, Operand(mask_scratch));
+  b(first_bit == 1 ? eq : ne, &other_color);
+  // Shift left 1 by adding.
+  add(mask_scratch, mask_scratch, Operand(mask_scratch), SetCC);
+  b(eq, &word_boundary);
+  tst(ip, Operand(mask_scratch));
+  b(second_bit == 1 ? ne : eq, has_color);
+  jmp(&other_color);
+
+  bind(&word_boundary);
+  ldr(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize + kPointerSize));
+  tst(ip, Operand(1));
+  b(second_bit == 1 ? ne : eq, has_color);
+  bind(&other_color);
+}
+
+
+void MacroAssembler::GetMarkBits(Register addr_reg,
+                                 Register bitmap_reg,
+                                 Register mask_reg) {
+  ASSERT(!Aliasing(addr_reg, bitmap_reg, mask_reg, no_reg));
+  and_(bitmap_reg, addr_reg, Operand(~Page::kPageAlignmentMask));
+  Ubfx(mask_reg, addr_reg, kPointerSizeLog2, Bitmap::kBitsPerCellLog2);
+  const int kLowBits = kPointerSizeLog2 + Bitmap::kBitsPerCellLog2;
+  Ubfx(ip, addr_reg, kLowBits, kPageSizeBits - kLowBits);
+  add(bitmap_reg, bitmap_reg, Operand(ip, LSL, kPointerSizeLog2));
+  mov(ip, Operand(1));
+  mov(mask_reg, Operand(ip, LSL, mask_reg));
+}
+
+
 void MacroAssembler::ClampUint8(Register output_reg, Register input_reg) {
   Usat(output_reg, 8, Operand(input_reg));
 }
@@ -3138,6 +3226,17 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
   JumpIfNotSmi(descriptors, &not_smi);
   mov(descriptors, Operand(FACTORY->empty_descriptor_array()));
   bind(&not_smi);
+}
+
+
+bool Aliasing(Register r1, Register r2, Register r3, Register r4) {
+  if (r1.is(r2)) return true;
+  if (r1.is(r3)) return true;
+  if (r1.is(r4)) return true;
+  if (r2.is(r3)) return true;
+  if (r2.is(r4)) return true;
+  if (r3.is(r4)) return true;
+  return false;
 }
 
 

@@ -433,8 +433,12 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     // Update the write barrier for the array address.
     // Pass the now unused name_reg as a scratch register.
     __ mov(name_reg, r0);
-    __ RecordWriteField(
-        receiver_reg, offset, name_reg, scratch, kDontSaveFPRegs);
+    __ RecordWriteField(receiver_reg,
+                        offset,
+                        name_reg,
+                        scratch,
+                        kLRHasNotBeenSaved,
+                        kDontSaveFPRegs);
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
@@ -445,8 +449,12 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     // Update the write barrier for the array address.
     // Ok to clobber receiver_reg and name_reg, since we return.
     __ mov(name_reg, r0);
-    __ RecordWriteField(
-        scratch, offset, name_reg, receiver_reg, kDontSaveFPRegs);
+    __ RecordWriteField(scratch,
+                        offset,
+                        name_reg,
+                        receiver_reg,
+                        kLRHasNotBeenSaved,
+                        kDontSaveFPRegs);
   }
 
   // Return the value (register r0).
@@ -1594,6 +1602,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ RecordWrite(elements,
                      end_elements,
                      r4,
+                     kLRHasNotBeenSaved,
                      kDontSaveFPRegs,
                      EMIT_REMEMBERED_SET,
                      OMIT_SMI_CHECK);
@@ -4228,6 +4237,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
   __ RecordWrite(elements_reg,  // Object.
                  scratch,       // Address.
                  receiver_reg,  // Value.
+                 kLRHasNotBeenSaved,
                  kDontSaveFPRegs);
 
   // value_reg (r0) is preserved.

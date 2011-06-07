@@ -6318,7 +6318,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     RecordWriteStub::OnNoNeedToInformIncrementalMarker on_no_need) {
   Label object_is_black, need_incremental;
 
-  // Let's look at the colour of the object:  If it is not black we don't have
+  // Let's look at the color of the object:  If it is not black we don't have
   // to inform the incremental marker.
   __ IsBlack(regs_.object(),
              regs_.scratch0(),

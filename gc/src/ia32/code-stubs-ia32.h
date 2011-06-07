@@ -525,6 +525,8 @@ class StringDictionaryLookupStub: public CodeStub {
   Register index_;
   LookupMode mode_;
 };
+
+
 class RecordWriteStub: public CodeStub {
  public:
   RecordWriteStub(Register object,

@@ -81,6 +81,7 @@ enum ObjectToDoubleFlags {
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
+enum LinkRegisterStatus { kLRHasNotBeenSaved, kLRHasBeenSaved };
 
 
 bool Aliasing(Register r1, Register r2, Register r3, Register r4);
@@ -164,11 +165,31 @@ class MacroAssembler: public Assembler {
                  Heap::RootListIndex index,
                  Condition cond = al);
 
-  // Enters the address into the store buffer.  RememberedSetHelper only works
-  // if the address is not in new space.
-  void RememberedSetHelper(Register address,
+  // ---------------------------------------------------------------------------
+  // GC Support
+
+  void IncrementalMarkingRecordWriteHelper(Register object,
+                                           Register value,
+                                           Register address);
+
+  enum RememberedSetFinalAction {
+    kReturnAtEnd,
+    kFallThroughAtEnd
+  };
+
+  // For page containing |object| mark region covering |addr| dirty.
+  // RememberedSetHelper only works if the object is not in new
+  // space.
+  void RememberedSetHelper(Register addr,
                            Register scratch,
-                           SaveFPRegsMode save_fp);
+                           SaveFPRegsMode save_fp,
+                           RememberedSetFinalAction and_then);
+
+  void CheckPageFlag(Register object,
+                     Register scratch,
+                     MemoryChunk::MemoryChunkFlags flag,
+                     Condition cc,
+                     Label* condition_met);
 
   // Check if object is in new space.
   // scratch can be object itself, but it will be clobbered.
@@ -177,11 +198,40 @@ class MacroAssembler: public Assembler {
                   Condition cond,  // eq for new space, ne otherwise.
                   Label* branch);
 
-  void CheckPageFlag(Register object,
-                     Register scratch,
-                     MemoryChunk::MemoryChunkFlags flag,
-                     Condition cc,
-                     Label* condition_met);
+  // Check if an object has a given incremental marking color.  The color bits
+  // are found by splitting the address at the bit offset indicated by the
+  // mask: bits that are zero in the mask are used for the address of the
+  // bitmap, and bits that are one in the mask are used for the index of the
+  // bit.
+  void HasColor(Register object,
+                Register scratch0,
+                Register scratch1,
+                Label* has_color,
+                int first_bit,
+                int second_bit);
+
+  void IsBlack(Register object,
+               Register scratch0,
+               Register scratch1,
+               Label* is_black);
+
+  // Checks the color of an object.  If the object is already grey or black
+  // then we just fall through, since it is already live.  If it is white and
+  // we can determine that it doesn't need to be scanned, then we just mark it
+  // black and fall through.  For the rest we jump to the label so the
+  // incremental marker can fix its assumptions.
+  void EnsureNotWhite(Register object,
+                      Register scratch1,
+                      Register scratch2,
+                      Label* object_is_white_and_not_data,
+                      Label::Distance distance);
+
+  // Checks whether an object is data-only, ie it does need to be scanned by the
+  // garbage collector.
+  void IsDataObject(Register value,
+                    Register scratch,
+                    Label* not_data_object,
+                    Label::Distance not_data_object_distance);
 
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
@@ -195,6 +245,7 @@ class MacroAssembler: public Assembler {
       int offset,
       Register value,
       Register scratch,
+      LinkRegisterStatus lr_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
@@ -206,6 +257,7 @@ class MacroAssembler: public Assembler {
       int offset,
       Register value,
       Register scratch,
+      LinkRegisterStatus lr_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK) {
@@ -213,6 +265,7 @@ class MacroAssembler: public Assembler {
                      offset + kHeapObjectTag,
                      value,
                      scratch,
+                     lr_status,
                      save_fp,
                      remembered_set_action,
                      smi_check);
@@ -225,6 +278,7 @@ class MacroAssembler: public Assembler {
       Register object,
       Register address,
       Register value,
+      LinkRegisterStatus lr_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
@@ -1085,6 +1139,13 @@ class MacroAssembler: public Assembler {
                            Heap::RootListIndex map_index,
                            Register scratch1,
                            Register scratch2);
+
+  // Helper for finding the mark bits for an address.  Afterwards, the
+  // bitmap register points at the word with the mark bits and the mask
+  // the position of the first bit.  Leaves addr_reg unchanged.
+  inline void GetMarkBits(Register addr_reg,
+                          Register bitmap_reg,
+                          Register mask_reg);
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);

@@ -203,7 +203,8 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
         __ str(r0, target);
 
         // Update the write barrier.
-        __ RecordWriteContextSlot(cp, target.offset(), r0, r3, kDontSaveFPRegs);
+        __ RecordWriteContextSlot(
+            cp, target.offset(), r0, r3, kLRHasBeenSaved, kDontSaveFPRegs);
       }
     }
   }
@@ -648,8 +649,12 @@ void FullCodeGenerator::Move(Slot* dst,
 
   // Emit the write barrier code if the location is in the heap.
   if (dst->type() == Slot::CONTEXT) {
-    __ RecordWriteContextSlot(
-        scratch1, location.offset(), src, scratch2, kDontSaveFPRegs);
+    __ RecordWriteContextSlot(scratch1,
+                              location.offset(),
+                              src,
+                              scratch2,
+                              kLRHasBeenSaved,
+                              kDontSaveFPRegs);
   }
 }
 
@@ -729,6 +734,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
                                     target.offset(),
                                     result_register(),
                                     r2,
+                                    kLRHasBeenSaved,
                                     kDontSaveFPRegs,
                                     EMIT_REMEMBERED_SET,
                                     OMIT_SMI_CHECK);
@@ -1553,7 +1559,8 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
     // Update the write barrier for the array store with r0 as the scratch
     // register.
-    __ RecordWriteField(r1, offset, result_register(), r2, kDontSaveFPRegs);
+    __ RecordWriteField(
+        r1, offset, result_register(), r2, kLRHasBeenSaved, kDontSaveFPRegs);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
@@ -1935,7 +1942,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         MemOperand target = ContextOperand(r1, slot->index());
         __ str(r0, target);
         __ mov(r3, r0);  // Preserve the stored value in r0.
-        __ RecordWriteContextSlot(r1, target.offset(), r3, r2, kDontSaveFPRegs);
+        __ RecordWriteContextSlot(
+            r1, target.offset(), r3, r2, kLRHasBeenSaved, kDontSaveFPRegs);
         break;
       }
       case Slot::LOOKUP:
@@ -1965,7 +1973,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         // The value of the assignment is in result_register().  RecordWrite
         // clobbers its second and third register arguments.
         __ mov(r3, result_register());
-        __ RecordWriteContextSlot(r1, target.offset(), r3, r2, kDontSaveFPRegs);
+        __ RecordWriteContextSlot(
+            r1, target.offset(), r3, r2, kLRHasBeenSaved, kDontSaveFPRegs);
         break;
       }
 
@@ -2969,7 +2978,8 @@ void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
   // Update the write barrier.  Save the value as it will be
   // overwritten by the write barrier code and is needed afterward.
   __ mov(r2, r0);
-  __ RecordWriteField(r1, JSValue::kValueOffset, r2, r3, kDontSaveFPRegs);
+  __ RecordWriteField(
+      r1, JSValue::kValueOffset, r2, r3, kLRHasBeenSaved, kDontSaveFPRegs);
 
   __ bind(&done);
   context()->Plug(r0);
@@ -3265,8 +3275,10 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   // Possible optimization: do a check that both values are Smis
   // (or them and test against Smi mask.)
 
-  __ RememberedSetHelper(index1, scratch2, kDontSaveFPRegs);
-  __ RememberedSetHelper(index2, scratch2, kDontSaveFPRegs);
+  __ RememberedSetHelper(
+      index1, scratch2, kDontSaveFPRegs, MacroAssembler::kFallThroughAtEnd);
+  __ RememberedSetHelper(
+      index2, scratch2, kDontSaveFPRegs, MacroAssembler::kFallThroughAtEnd);
 
   __ bind(&no_remembered_set);
   // We are done. Drop elements from the stack, and return undefined.

@@ -4403,6 +4403,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                       RegExpImpl::kLastSubjectOffset,
                       r2,
                       r7,
+                      kLRHasNotBeenSaved,
                       kDontSaveFPRegs);
   __ str(subject,
          FieldMemOperand(last_match_info_elements,
@@ -4411,6 +4412,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                       RegExpImpl::kLastInputOffset,
                       subject,
                       r7,
+                      kLRHasNotBeenSaved,
                       kDontSaveFPRegs);
 
   // Get the static offsets vector filled by the native regexp code.
@@ -6444,6 +6446,19 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
   __ bind(&not_in_dictionary);
   __ mov(result, Operand(0));
+  __ Ret();
+}
+
+
+// Takes the input in 3 registers: address_ value_ and object_.  A pointer to
+// the value has just been written into the object, now this stub makes sure
+// we keep the GC informed.  The word in the object where the value has been
+// written is in the address register.
+void RecordWriteStub::Generate(MacroAssembler* masm) {
+  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
+    __ RememberedSetHelper(
+        address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
+  }
   __ Ret();
 }
 

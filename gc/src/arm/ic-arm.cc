@@ -209,7 +209,8 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 
   // Update the write barrier. Make sure not to clobber the value.
   __ mov(scratch1, value);
-  __ RecordWrite(elements, scratch2, scratch1, kDontSaveFPRegs);
+  __ RecordWrite(
+      elements, scratch2, scratch1, kLRHasNotBeenSaved, kDontSaveFPRegs);
 }
 
 
@@ -1302,6 +1303,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ RecordWrite(elements,
                  address,
                  scratch_value,
+                 kLRHasNotBeenSaved,
                  kDontSaveFPRegs,
                  EMIT_REMEMBERED_SET,
                  OMIT_SMI_CHECK);

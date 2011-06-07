@@ -2294,38 +2294,38 @@ void MacroAssembler::IsBlack(Register object,
                              Register scratch1,
                              Label* is_black,
                              Label::Distance is_black_near) {
-  HasColour(object, scratch0, scratch1,
-            is_black, is_black_near,
-            1, 0);  // kBlackBitPattern.
+  HasColor(object, scratch0, scratch1,
+           is_black, is_black_near,
+           1, 0);  // kBlackBitPattern.
   ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
 }
 
 
-void MacroAssembler::HasColour(Register object,
-                               Register bitmap_scratch,
-                               Register mask_scratch,
-                               Label* has_colour,
-                               Label::Distance has_colour_distance,
-                               int first_bit,
-                               int second_bit) {
+void MacroAssembler::HasColor(Register object,
+                              Register bitmap_scratch,
+                              Register mask_scratch,
+                              Label* has_color,
+                              Label::Distance has_color_distance,
+                              int first_bit,
+                              int second_bit) {
   ASSERT(!Aliasing(object, bitmap_scratch, mask_scratch, ecx));
 
-  MarkBits(object, bitmap_scratch, mask_scratch);
+  GetMarkBits(object, bitmap_scratch, mask_scratch);
 
-  Label other_colour, word_boundary;
+  Label other_color, word_boundary;
   test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  j(first_bit == 1 ? zero : not_zero, &other_colour, Label::kNear);
+  j(first_bit == 1 ? zero : not_zero, &other_color, Label::kNear);
   add(mask_scratch, Operand(mask_scratch));  // Shift left 1 by adding.
   j(zero, &word_boundary, Label::kNear);
   test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  j(second_bit == 1 ? not_zero : zero, has_colour, has_colour_distance);
-  jmp(&other_colour, Label::kNear);
+  j(second_bit == 1 ? not_zero : zero, has_color, has_color_distance);
+  jmp(&other_color, Label::kNear);
 
   bind(&word_boundary);
   test_b(Operand(bitmap_scratch, MemoryChunk::kHeaderSize + kPointerSize), 1);
 
-  j(second_bit == 1 ? not_zero : zero, has_colour, has_colour_distance);
-  bind(&other_colour);
+  j(second_bit == 1 ? not_zero : zero, has_color, has_color_distance);
+  bind(&other_color);
 }
 
 
@@ -2349,9 +2349,9 @@ void MacroAssembler::IsDataObject(Register value,
 }
 
 
-void MacroAssembler::MarkBits(Register addr_reg,
-                              Register bitmap_reg,
-                              Register mask_reg) {
+void MacroAssembler::GetMarkBits(Register addr_reg,
+                                 Register bitmap_reg,
+                                 Register mask_reg) {
   ASSERT(!Aliasing(addr_reg, bitmap_reg, mask_reg, ecx));
   mov(bitmap_reg, Operand(addr_reg));
   and_(bitmap_reg, ~Page::kPageAlignmentMask);
@@ -2377,7 +2377,7 @@ void MacroAssembler::EnsureNotWhite(
     Label* value_is_white_and_not_data,
     Label::Distance distance) {
   ASSERT(!Aliasing(value, bitmap_scratch, mask_scratch, ecx));
-  MarkBits(value, bitmap_scratch, mask_scratch);
+  GetMarkBits(value, bitmap_scratch, mask_scratch);
 
   // If the value is black or grey we don't need to do anything.
   ASSERT(strcmp(Marking::kWhiteBitPattern, "00") == 0);

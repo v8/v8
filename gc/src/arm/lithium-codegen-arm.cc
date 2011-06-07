@@ -208,7 +208,8 @@ bool LCodeGen::GeneratePrologue() {
         MemOperand target = ContextOperand(cp, slot->index());
         __ str(r0, target);
         // Update the write barrier. This clobbers r3 and r0.
-        __ RecordWriteContextSlot(cp, target.offset(), r0, r3, kSaveFPRegs);
+        __ RecordWriteContextSlot(
+            cp, target.offset(), r0, r3, kLRHasBeenSaved, kSaveFPRegs);
       }
     }
     Comment(";;; End allocate local context");
@@ -2364,8 +2365,12 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   MemOperand target = ContextOperand(context, instr->slot_index());
   __ str(value, target);
   if (instr->needs_write_barrier()) {
-    __ RecordWriteContextSlot(
-        context, target.offset(), value, scratch0(), kSaveFPRegs);
+    __ RecordWriteContextSlot(context,
+                              target.offset(),
+                              value,
+                              scratch0(),
+                              kLRHasBeenSaved,
+                              kSaveFPRegs);
   }
 }
 
@@ -3305,7 +3310,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     __ str(value, FieldMemOperand(object, offset));
     if (instr->needs_write_barrier()) {
       // Update the write barrier for the object for in-object properties.
-      __ RecordWriteField(object, offset, value, scratch, kSaveFPRegs);
+      __ RecordWriteField(
+          object, offset, value, scratch, kLRHasBeenSaved, kSaveFPRegs);
     }
   } else {
     __ ldr(scratch, FieldMemOperand(object, JSObject::kPropertiesOffset));
@@ -3313,7 +3319,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     if (instr->needs_write_barrier()) {
       // Update the write barrier for the properties array.
       // object is used as a scratch register.
-      __ RecordWriteField(scratch, offset, value, object, kSaveFPRegs);
+      __ RecordWriteField(
+          scratch, offset, value, object, kLRHasBeenSaved, kSaveFPRegs);
     }
   }
 }
@@ -3359,7 +3366,7 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     // Compute address of modified element and store it into key register.
     __ add(key, scratch, Operand(FixedArray::kHeaderSize));
-    __ RecordWrite(elements, key, value, kSaveFPRegs);
+    __ RecordWrite(elements, key, value, kLRHasBeenSaved, kSaveFPRegs);
   }
 }
 
