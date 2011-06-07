@@ -98,13 +98,11 @@ namespace v8 {
     }                                                                          \
   } while (false)
 
-// TODO(isolates): Add a parameter to this macro for an isolate.
 
-#define API_ENTRY_CHECK(msg)                                                   \
+#define API_ENTRY_CHECK(isolate, msg)                                          \
   do {                                                                         \
     if (v8::Locker::IsActive()) {                                              \
-      ApiCheck(i::Isolate::Current()->thread_manager()->                       \
-                  IsLockedByCurrentThread(),                                   \
+      ApiCheck(isolate->thread_manager()->IsLockedByCurrentThread(),           \
                msg,                                                            \
                "Entering the V8 API without proper locking in place");         \
     }                                                                          \
@@ -645,8 +643,8 @@ void V8::DisposeGlobal(i::Object** obj) {
 
 
 HandleScope::HandleScope() {
-  API_ENTRY_CHECK("HandleScope::HandleScope");
   i::Isolate* isolate = i::Isolate::Current();
+  API_ENTRY_CHECK(isolate, "HandleScope::HandleScope");
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate->handle_scope_data();
   isolate_ = isolate;
@@ -702,12 +700,11 @@ i::Object** HandleScope::CreateHandle(i::HeapObject* value) {
 
 
 void Context::Enter() {
-  // TODO(isolates): Context should have a pointer to isolate.
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  i::Isolate* isolate = env->GetIsolate();
   if (IsDeadCheck(isolate, "v8::Context::Enter()")) return;
   ENTER_V8(isolate);
 
-  i::Handle<i::Context> env = Utils::OpenHandle(this);
   isolate->handle_scope_implementer()->EnterContext(env);
 
   isolate->handle_scope_implementer()->SaveContext(isolate->context());
@@ -716,7 +713,9 @@ void Context::Enter() {
 
 
 void Context::Exit() {
-  // TODO(isolates): Context should have a pointer to isolate.
+  // Exit is essentially a static function and doesn't use the
+  // receiver, so we have to get the current isolate from the thread
+  // local.
   i::Isolate* isolate = i::Isolate::Current();
   if (!isolate->IsInitialized()) return;
 
@@ -734,41 +733,31 @@ void Context::Exit() {
 
 
 void Context::SetData(v8::Handle<String> data) {
-  // TODO(isolates): Context should have a pointer to isolate.
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  i::Isolate* isolate = env->GetIsolate();
   if (IsDeadCheck(isolate, "v8::Context::SetData()")) return;
-  ENTER_V8(isolate);
-  {
-    i::HandleScope scope(isolate);
-    i::Handle<i::Context> env = Utils::OpenHandle(this);
-    i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
-    ASSERT(env->IsGlobalContext());
-    if (env->IsGlobalContext()) {
-      env->set_data(*raw_data);
-    }
+  i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
+  ASSERT(env->IsGlobalContext());
+  if (env->IsGlobalContext()) {
+    env->set_data(*raw_data);
   }
 }
 
 
 v8::Local<v8::Value> Context::GetData() {
-  // TODO(isolates): Context should have a pointer to isolate.
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  i::Isolate* isolate = env->GetIsolate();
   if (IsDeadCheck(isolate, "v8::Context::GetData()")) {
     return v8::Local<Value>();
   }
-  ENTER_V8(isolate);
   i::Object* raw_result = NULL;
-  {
-    i::HandleScope scope(isolate);
-    i::Handle<i::Context> env = Utils::OpenHandle(this);
-    ASSERT(env->IsGlobalContext());
-    if (env->IsGlobalContext()) {
-      raw_result = env->data();
-    } else {
-      return Local<Value>();
-    }
+  ASSERT(env->IsGlobalContext());
+  if (env->IsGlobalContext()) {
+    raw_result = env->data();
+  } else {
+    return Local<Value>();
   }
-  i::Handle<i::Object> result(raw_result);
+  i::Handle<i::Object> result(raw_result, isolate);
   return Utils::ToLocal(result);
 }
 
@@ -4886,7 +4875,7 @@ int V8::GetCurrentThreadId() {
 void V8::TerminateExecution(int thread_id) {
   i::Isolate* isolate = i::Isolate::Current();
   if (!isolate->IsInitialized()) return;
-  API_ENTRY_CHECK("V8::TerminateExecution()");
+  API_ENTRY_CHECK(isolate, "V8::TerminateExecution()");
   // If the thread_id identifies the current thread just terminate
   // execution right away.  Otherwise, ask the thread manager to
   // terminate the thread with the given id if any.
