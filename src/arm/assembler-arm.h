@@ -500,6 +500,7 @@ class CpuFeatures : public AllStatic {
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
+
    public:
     explicit Scope(CpuFeature f) {
       unsigned mask = 1u << f;
@@ -519,10 +520,12 @@ class CpuFeatures : public AllStatic {
         isolate_->set_enabled_cpu_features(old_enabled_);
       }
     }
+
    private:
     Isolate* isolate_;
     unsigned old_enabled_;
 #else
+
    public:
     explicit Scope(CpuFeature f) {}
 #endif

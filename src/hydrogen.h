@@ -1048,7 +1048,6 @@ class HStatistics: public Malloced {
   }
 
  private:
-
   HStatistics()
       : timing_(5),
         names_(5),

@@ -1947,6 +1947,7 @@ class RegExpCharacterClass: public RegExpTree {
   uc16 standard_type() { return set_.standard_set_type(); }
   ZoneList<CharacterRange>* ranges() { return set_.ranges(); }
   bool is_negated() { return is_negated_; }
+
  private:
   CharacterSet set_;
   bool is_negated_;
@@ -2031,6 +2032,7 @@ class RegExpQuantifier: public RegExpTree {
   bool is_non_greedy() { return type_ == NON_GREEDY; }
   bool is_greedy() { return type_ == GREEDY; }
   RegExpTree* body() { return body_; }
+
  private:
   RegExpTree* body_;
   int min_;
@@ -2063,6 +2065,7 @@ class RegExpCapture: public RegExpTree {
   int index() { return index_; }
   static int StartRegister(int index) { return index * 2; }
   static int EndRegister(int index) { return index * 2 + 1; }
+
  private:
   RegExpTree* body_;
   int index_;
@@ -2093,6 +2096,7 @@ class RegExpLookahead: public RegExpTree {
   bool is_positive() { return is_positive_; }
   int capture_count() { return capture_count_; }
   int capture_from() { return capture_from_; }
+
  private:
   RegExpTree* body_;
   bool is_positive_;

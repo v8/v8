@@ -9955,6 +9955,7 @@ class TwoCharHashTableKey : public HashTableKey {
     UNREACHABLE();
     return NULL;
   }
+
  private:
   uint32_t c1_;
   uint32_t c2_;

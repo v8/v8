@@ -133,7 +133,6 @@ class Registers {
   static const int32_t kMinValue = 0x80000000;
 
  private:
-
   static const char* names_[kNumSimuRegisters];
   static const RegisterAlias aliases_[];
 };
@@ -153,7 +152,6 @@ class FPURegisters {
   };
 
  private:
-
   static const char* names_[kNumFPURegisters];
   static const RegisterAlias aliases_[];
 };

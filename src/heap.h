@@ -1905,6 +1905,7 @@ class DescriptorLookupCache {
   void Clear();
 
   static const int kAbsent = -2;
+
  private:
   DescriptorLookupCache() {
     for (int i = 0; i < kLength; ++i) {

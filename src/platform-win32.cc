@@ -1590,7 +1590,6 @@ void Thread::YieldCPU() {
 
 class Win32Mutex : public Mutex {
  public:
-
   Win32Mutex() { InitializeCriticalSection(&cs_); }
 
   virtual ~Win32Mutex() { DeleteCriticalSection(&cs_); }

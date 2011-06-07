@@ -165,7 +165,6 @@ typedef void (*WeakReferenceCallback)(Persistent<Value> object,
  */
 template <class T> class Handle {
  public:
-
   /**
    * Creates an empty handle.
    */
@@ -312,7 +311,6 @@ template <class T> class Local : public Handle<T> {
  */
 template <class T> class Persistent : public Handle<T> {
  public:
-
   /**
    * Creates an empty persistent handle that doesn't point to any
    * storage cell.
@@ -586,7 +584,6 @@ class ScriptOrigin {
  */
 class V8EXPORT Script {
  public:
-
   /**
    * Compiles the specified script (context-independent).
    *
@@ -858,7 +855,6 @@ class V8EXPORT StackFrame {
  */
 class Value : public Data {
  public:
-
   /**
    * Returns true if this value is the undefined value.  See ECMA-262
    * 4.3.10.
@@ -990,7 +986,6 @@ class Boolean : public Primitive {
  */
 class String : public Primitive {
  public:
-
   /**
    * Returns the number of characters in this string.
    */
@@ -1640,6 +1635,7 @@ class Object : public Value {
 
   V8EXPORT static Local<Object> New();
   static inline Object* Cast(Value* obj);
+
  private:
   V8EXPORT Object();
   V8EXPORT static void CheckCast(Value* obj);
@@ -2682,7 +2678,6 @@ class V8EXPORT Isolate {
   void* GetData();
 
  private:
-
   Isolate();
   Isolate(const Isolate&);
   ~Isolate();
@@ -3173,7 +3168,6 @@ class V8EXPORT V8 {
  */
 class V8EXPORT TryCatch {
  public:
-
   /**
    * Creates a new try/catch block and registers it with v8.
    */
@@ -3719,7 +3713,6 @@ template <> struct InternalConstants<8> {
  */
 class Internals {
  public:
-
   // These values match non-compiler-dependent values defined within
   // the implementation of v8.
   static const int kHeapObjectMapOffset = 0;

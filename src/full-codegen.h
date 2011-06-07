@@ -151,9 +151,11 @@ class FullCodeGenerator: public AstVisitor {
       return stack_depth;
     }
     NestedStatement* outer() { return previous_; }
-   protected:
+
+ protected:
     MacroAssembler* masm() { return codegen_->masm(); }
-   private:
+
+ private:
     FullCodeGenerator* codegen_;
     NestedStatement* previous_;
     DISALLOW_COPY_AND_ASSIGN(NestedStatement);

@@ -811,6 +811,7 @@ class RegExpCompiler {
   inline bool ascii() { return ascii_; }
 
   static const int kNoRegister = -1;
+
  private:
   EndNode* accept_;
   int next_register_;
@@ -2767,6 +2768,7 @@ class AlternativeGenerationList {
   AlternativeGeneration* at(int i) {
     return alt_gens_[i];
   }
+
  private:
   static const int kAFew = 10;
   ZoneList<AlternativeGeneration*> alt_gens_;
@@ -3326,6 +3328,7 @@ class TableEntryHeaderPrinter {
     }
     stream()->Add("}}");
   }
+
  private:
   bool first_;
   StringStream* stream() { return stream_; }

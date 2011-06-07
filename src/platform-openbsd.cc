@@ -490,7 +490,6 @@ void Thread::YieldCPU() {
 
 class OpenBSDMutex : public Mutex {
  public:
-
   OpenBSDMutex() {
     pthread_mutexattr_t attrs;
     int result = pthread_mutexattr_init(&attrs);

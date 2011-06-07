@@ -136,7 +136,6 @@ namespace internal {
 // They are used both in property dictionaries and instance descriptors.
 class PropertyDetails BASE_EMBEDDED {
  public:
-
   PropertyDetails(PropertyAttributes attributes,
                   PropertyType type,
                   int index = 0) {
@@ -216,6 +215,7 @@ class PropertyDetails BASE_EMBEDDED {
   class StorageField:    public BitField<uint32_t,           8, 32-8> {};
 
   static const int kInitialIndex = 1;
+
  private:
   uint32_t value_;
 };
@@ -2423,7 +2423,6 @@ class HashTable: public FixedArray {
   int FindEntry(Isolate* isolate, Key key);
 
  protected:
-
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
   uint32_t FindInsertionEntry(uint32_t hash);
@@ -2590,7 +2589,6 @@ class MapCache: public HashTable<MapCacheShape, HashTableKey*> {
 template <typename Shape, typename Key>
 class Dictionary: public HashTable<Shape, Key> {
  public:
-
   static inline Dictionary<Shape, Key>* cast(Object* obj) {
     return reinterpret_cast<Dictionary<Shape, Key>*>(obj);
   }
@@ -4879,6 +4877,7 @@ class JSFunction: public JSObject {
   // Layout of the literals array.
   static const int kLiteralsPrefixSize = 1;
   static const int kLiteralGlobalContextIndex = 0;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);
 };
@@ -4917,7 +4916,6 @@ class JSGlobalProxy : public JSObject {
   static const int kSize = kContextOffset + kPointerSize;
 
  private:
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
 };
 
@@ -4973,7 +4971,6 @@ class GlobalObject: public JSObject {
 // JavaScript global object.
 class JSGlobalObject: public GlobalObject {
  public:
-
   // Casting.
   static inline JSGlobalObject* cast(Object* obj);
 
@@ -5468,7 +5465,6 @@ class StringHasher {
   static uint32_t MakeArrayIndexHash(uint32_t value, int length);
 
  private:
-
   uint32_t array_index() {
     ASSERT(is_array_index());
     return array_index_;
@@ -5525,6 +5521,7 @@ class StringShape BASE_EMBEDDED {
 #else
   inline void invalidate() { }
 #endif
+
  private:
   uint32_t type_;
 #ifdef DEBUG
@@ -5862,7 +5859,6 @@ class String: public HeapObject {
 // The SeqString abstract class captures sequential string values.
 class SeqString: public String {
  public:
-
   // Casting.
   static inline SeqString* cast(Object* obj);
 

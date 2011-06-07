@@ -10472,6 +10472,7 @@ class RegExpInterruptTest {
     CHECK(regexp_success_);
     CHECK(gc_success_);
   }
+
  private:
   // Number of garbage collections required.
   static const int kRequiredGCs = 5;
@@ -10594,6 +10595,7 @@ class ApplyInterruptTest {
     CHECK(apply_success_);
     CHECK(gc_success_);
   }
+
  private:
   // Number of garbage collections required.
   static const int kRequiredGCs = 2;
@@ -10887,8 +10889,8 @@ class RegExpStringModificationTest {
     CHECK(regexp_success_);
     CHECK(morph_success_);
   }
- private:
 
+ private:
   // Number of string modifications required.
   static const int kRequiredModifications = 5;
   static const int kMaxModifications = 100;

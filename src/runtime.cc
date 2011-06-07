@@ -2365,6 +2365,7 @@ class CompiledReplacement {
   int parts() {
     return parts_.length();
   }
+
  private:
   enum PartType {
     SUBJECT_PREFIX = 1,
