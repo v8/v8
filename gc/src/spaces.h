@@ -363,6 +363,8 @@ class MemoryChunk {
 
   Address body() { return address() + kObjectStartOffset; }
 
+  Address body_limit() { return address() + size(); }
+
   int body_size() { return size() - kObjectStartOffset; }
 
   bool Contains(Address addr) {
@@ -1475,6 +1477,9 @@ enum SemiSpaceId {
 };
 
 
+class SemiSpace;
+
+
 class NewSpacePage : public MemoryChunk {
  public:
   // GC related flags copied from from-space to to-space when
@@ -1491,7 +1496,24 @@ class NewSpacePage : public MemoryChunk {
   inline void set_next_page(NewSpacePage* page) {
     set_next_chunk(page);
   }
+
+  inline NewSpacePage* prev_page() const {
+    return static_cast<NewSpacePage*>(prev_chunk());
+  }
+
+  inline void set_prev_page(NewSpacePage* page) {
+    set_prev_chunk(page);
+  }
+
+  SemiSpace* semi_space() {
+    return reinterpret_cast<SemiSpace*>(owner());
+  }
+
  private:
+  NewSpacePage(SemiSpace* owner) {
+    InitializeAsAnchor(owner);
+  }
+
   // Finds the NewSpacePage containg the given address.
   static NewSpacePage* FromAddress(Address address_in_page) {
     Address page_start =
@@ -1502,7 +1524,12 @@ class NewSpacePage : public MemoryChunk {
 
   static NewSpacePage* Initialize(Heap* heap,
                                   Address start,
-                                  SemiSpaceId semispace);
+                                  SemiSpace* semi_space);
+
+  // Intialize a fake NewSpacePage used as sentinel at the ends
+  // of a doubly-linked list of real NewSpacePages.
+  // Only uses the prev/next links.
+  void InitializeAsAnchor(SemiSpace* owner);
 
   friend class SemiSpace;
   friend class SemiSpaceIterator;
@@ -1523,7 +1550,9 @@ class SemiSpace : public Space {
     : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
       start_(NULL),
       age_mark_(NULL),
-      id_(semispace) { }
+      id_(semispace),
+      anchor_(this),
+      current_page_(NULL) { }
 
   // Sets up the semispace using the given chunk.
   bool Setup(Address start, int initial_capacity, int maximum_capacity);
@@ -1550,20 +1579,26 @@ class SemiSpace : public Space {
   // semispace and less than the current capacity.
   bool ShrinkTo(int new_capacity);
 
-  // Flips the semispace between being from-space and to-space.
-  // Copies the flags into the masked positions on all pages in the space.
-  void Flip(intptr_t flags, intptr_t flag_mask);
-
-  // Returns the start address of the space.
+  // Returns the start address of the first page of the space.
   Address low() {
-    return NewSpacePage::FromAddress(start_)->body();
+    ASSERT(anchor_.next_page() != &anchor_);
+    return anchor_.next_page()->body();
+  }
+
+  // Returns the start address of the current page of the space.
+  Address page_low() {
+    ASSERT(anchor_.next_page() != &anchor_);
+    return current_page_->body();
   }
 
   // Returns one past the end address of the space.
   Address high() {
     // TODO(gc): Change when there is more than one page.
-    return current_page_->body() + current_page_->body_size();
+    return current_page_->body_limit();
   }
+
+  // Resets the space to using the first page.
+  void Reset();
 
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
@@ -1613,7 +1648,15 @@ class SemiSpace : public Space {
   // Returns the initial capacity of the semi space.
   int InitialCapacity() { return initial_capacity_; }
 
+  SemiSpaceId id() { return id_; }
+
+  static void Swap(SemiSpace* from, SemiSpace* to);
+
  private:
+  // Flips the semispace between being from-space and to-space.
+  // Copies the flags into the masked positions on all pages in the space.
+  void FlipPages(intptr_t flags, intptr_t flag_mask);
+
   // The current and maximum capacity of the space.
   int capacity_;
   int maximum_capacity_;
@@ -1632,6 +1675,7 @@ class SemiSpace : public Space {
   bool committed_;
   SemiSpaceId id_;
 
+  NewSpacePage anchor_;
   NewSpacePage* current_page_;
 
  public:

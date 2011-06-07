@@ -396,22 +396,29 @@ void Page::InitializeAsAnchor(PagedSpace* owner) {
 
 NewSpacePage* NewSpacePage::Initialize(Heap* heap,
                                        Address start,
-                                       SemiSpaceId semispace_id) {
+                                       SemiSpace* semi_space) {
   MemoryChunk* chunk = MemoryChunk::Initialize(heap,
                                                start,
                                                Page::kPageSize,
                                                NOT_EXECUTABLE,
-                                               heap->new_space());
+                                               semi_space);
   chunk->set_next_chunk(NULL);
   chunk->set_prev_chunk(NULL);
   chunk->initialize_scan_on_scavenge(true);
-  bool in_to_space = (semispace_id != kFromSpace);
+  bool in_to_space = (semi_space->id() != kFromSpace);
   chunk->SetFlag(in_to_space ? MemoryChunk::IN_TO_SPACE
                              : MemoryChunk::IN_FROM_SPACE);
   ASSERT(!chunk->IsFlagSet(in_to_space ? MemoryChunk::IN_FROM_SPACE
                                        : MemoryChunk::IN_TO_SPACE));
   heap->incremental_marking()->SetNewSpacePageFlags(chunk);
   return static_cast<NewSpacePage*>(chunk);
+}
+
+
+void NewSpacePage::InitializeAsAnchor(SemiSpace* semi_space) {
+  set_owner(semi_space);
+  set_next_chunk(this);
+  set_prev_chunk(this);
 }
 
 
@@ -939,15 +946,7 @@ void NewSpace::Unprotect() {
 
 
 void NewSpace::Flip() {
-  SemiSpace tmp = from_space_;
-  from_space_ = to_space_;
-  to_space_ = tmp;
-
-  // Copy GC flags from old active space (from-space) to new (to-space).
-  intptr_t flags = from_space_.current_page()->GetFlags();
-  to_space_.Flip(flags, NewSpacePage::kCopyOnFlipFlagsMask);
-
-  from_space_.Flip(0, 0);
+  SemiSpace::Swap(&from_space_, &to_space_);
 }
 
 
@@ -993,7 +992,8 @@ void NewSpace::Shrink() {
 
 
 void NewSpace::ResetAllocationInfo() {
-  allocation_info_.top = to_space_.low();
+  to_space_.Reset();
+  allocation_info_.top = to_space_.page_low();
   allocation_info_.limit = to_space_.high();
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
@@ -1015,12 +1015,12 @@ void NewSpace::Verify() {
     // The first word should be a map, and we expect all map pointers to
     // be in map space.
     Map* map = object->map();
-    ASSERT(map->IsMap());
-    ASSERT(heap()->map_space()->Contains(map));
+    CHECK(map->IsMap());
+    CHECK(heap()->map_space()->Contains(map));
 
     // The object should not be code or a map.
-    ASSERT(!object->IsMap());
-    ASSERT(!object->IsCode());
+    CHECK(!object->IsMap());
+    CHECK(!object->IsCode());
 
     // The object itself should look OK.
     object->Verify();
@@ -1035,6 +1035,12 @@ void NewSpace::Verify() {
 
   // The allocation pointer should not be in the middle of an object.
   ASSERT(current == top());
+
+  // Check semi-spaces.
+  ASSERT_EQ(from_space_.id(), kFromSpace);
+  ASSERT_EQ(to_space_.id(), kToSpace);
+  from_space_.Verify();
+  to_space_.Verify();
 }
 #endif
 
@@ -1048,7 +1054,9 @@ bool SemiSpace::Commit() {
   committed_ = true;
   // TODO(gc): When more than one page is present, initialize and
   // chain them all.
-  current_page_ = NewSpacePage::Initialize(heap(), start_, id_);
+  NewSpacePage* page = NewSpacePage::Initialize(heap(), start_, this);
+  page->InsertAfter(&anchor_);
+  current_page_ = anchor_.next_page();
   return true;
 }
 
@@ -1061,6 +1069,33 @@ bool SemiSpace::Uncommit() {
   }
   committed_ = false;
   return true;
+}
+
+
+void SemiSpace::Reset() {
+  ASSERT(anchor_.next_page() != &anchor_);
+  current_page_ = anchor_.next_page();
+}
+
+
+void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
+  // We won't be swapping semispaces without data in them.
+  ASSERT(from->anchor_.next_page() != &from->anchor_);
+  ASSERT(to->anchor_.next_page() != &to->anchor_);
+
+  // Swap bits.
+  SemiSpace tmp = *from;
+  *from = *to;
+  *to = tmp;
+
+  // Fixup back-pointers to the page list anchor now that its address
+  // has changed.
+  // Swap to/from-space bits on pages.
+  // Copy GC flags from old active space (from-space) to new (to-space).
+  intptr_t flags = from->current_page()->GetFlags();
+  to->FlipPages(flags, NewSpacePage::kCopyOnFlipFlagsMask);
+
+  from->FlipPages(0, 0);
 }
 
 
@@ -1147,11 +1182,18 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
 }
 
 
-void SemiSpace::Flip(intptr_t flags, intptr_t mask) {
+void SemiSpace::FlipPages(intptr_t flags, intptr_t mask) {
+  anchor_.set_owner(this);
+  // Fixup back-pointers to anchor. Address of anchor changes
+  // when we swap.
+  anchor_.prev_page()->set_next_page(&anchor_);
+  anchor_.next_page()->set_prev_page(&anchor_);
+
   bool becomes_to_space = (id_ == kFromSpace);
   id_ = becomes_to_space ? kToSpace : kFromSpace;
-  NewSpacePage* page = NewSpacePage::FromAddress(start_);
-  while (page != NULL) {
+  NewSpacePage* page = anchor_.next_page();
+  while (page != &anchor_) {
+    page->set_owner(this);
     page->SetFlags(flags, mask);
     if (becomes_to_space) {
       page->ClearFlag(MemoryChunk::IN_FROM_SPACE);
@@ -1171,7 +1213,21 @@ void SemiSpace::Flip(intptr_t flags, intptr_t mask) {
 void SemiSpace::Print() { }
 
 
-void SemiSpace::Verify() { }
+void SemiSpace::Verify() {
+  bool is_from_space = (id_ == kFromSpace);
+  NewSpacePage* page = anchor_.next_page();
+  CHECK(anchor_.semi_space() == this);
+  while (page != &anchor_) {
+    CHECK(page->semi_space() == this);
+    CHECK(page->InNewSpace());
+    CHECK(page->IsFlagSet(is_from_space ? MemoryChunk::IN_FROM_SPACE
+                                        : MemoryChunk::IN_TO_SPACE));
+    CHECK(!page->IsFlagSet(is_from_space ? MemoryChunk::IN_TO_SPACE
+                                         : MemoryChunk::IN_FROM_SPACE));
+    CHECK(page->prev_page()->next_page() == page);
+    page = page->next_page();
+  }
+}
 #endif
 
 
