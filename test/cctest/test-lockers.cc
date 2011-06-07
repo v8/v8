@@ -607,3 +607,23 @@ TEST(LockUnlockLockDefaultIsolateMultithreaded) {
   }
   StartJoinAndDeleteThreads(threads);
 }
+
+
+TEST(Regress1433) {
+  for (int i = 0; i < 10; i++) {
+    v8::Isolate* isolate = v8::Isolate::New();
+    {
+      v8::Locker lock(isolate);
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope;
+      v8::Persistent<Context> context = v8::Context::New();
+      v8::Context::Scope context_scope(context);
+      v8::Handle<String> source = v8::String::New("1+1");
+      v8::Handle<Script> script = v8::Script::Compile(source);
+      v8::Handle<Value> result = script->Run();
+      v8::String::AsciiValue ascii(result);
+      context.Dispose();
+    }
+    isolate->Dispose();
+  }
+}

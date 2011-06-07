@@ -529,6 +529,7 @@ class Isolate {
   // Access to top context (where the current function object was created).
   Context* context() { return thread_local_top_.context_; }
   void set_context(Context* context) {
+    ASSERT(context == NULL || context->IsContext());
     thread_local_top_.context_ = context;
   }
   Context** context_address() { return &thread_local_top_.context_; }
@@ -1003,6 +1004,7 @@ class Isolate {
     void Insert(PerIsolateThreadData* data);
     void Remove(Isolate* isolate, ThreadId thread_id);
     void Remove(PerIsolateThreadData* data);
+    void RemoveAllThreads(Isolate* isolate);
 
    private:
     PerIsolateThreadData* list_;
