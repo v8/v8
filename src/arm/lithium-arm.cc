@@ -1055,16 +1055,15 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 
 LInstruction* LChunkBuilder::DoTest(HTest* instr) {
   HValue* v = instr->value();
-  if (!v->EmitAtUses()) {
-    return new LBranch(UseRegisterAtStart(v));
-  } else if (v->IsClassOfTest()) {
+  if (!v->EmitAtUses()) return new LBranch(UseRegisterAtStart(v));
+  ASSERT(!v->HasSideEffects());
+  if (v->IsClassOfTest()) {
     HClassOfTest* compare = HClassOfTest::cast(v);
     ASSERT(compare->value()->representation().IsTagged());
     return new LClassOfTestAndBranch(UseTempRegister(compare->value()),
                                      TempRegister());
   } else if (v->IsCompare()) {
     HCompare* compare = HCompare::cast(v);
-    Token::Value op = compare->token();
     HValue* left = compare->left();
     HValue* right = compare->right();
     Representation r = compare->GetInputRepresentation();
@@ -1073,19 +1072,12 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       ASSERT(right->representation().IsInteger32());
       return new LCmpIDAndBranch(UseRegisterAtStart(left),
                                  UseRegisterAtStart(right));
-    } else if (r.IsDouble()) {
+    } else {
+      ASSERT(r.IsDouble());
       ASSERT(left->representation().IsDouble());
       ASSERT(right->representation().IsDouble());
       return new LCmpIDAndBranch(UseRegisterAtStart(left),
                                  UseRegisterAtStart(right));
-    } else {
-      ASSERT(left->representation().IsTagged());
-      ASSERT(right->representation().IsTagged());
-      bool reversed = op == Token::GT || op == Token::LTE;
-      LOperand* left_operand = UseFixed(left, reversed ? r0 : r1);
-      LOperand* right_operand = UseFixed(right, reversed ? r1 : r0);
-      LInstruction* result = new LCmpTAndBranch(left_operand, right_operand);
-      return MarkAsCall(result, instr);
     }
   } else if (v->IsIsSmi()) {
     HIsSmi* compare = HIsSmi::cast(v);
@@ -1122,12 +1114,6 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     HCompareSymbolEq* compare = HCompareSymbolEq::cast(v);
     return new LCmpSymbolEqAndBranch(UseRegisterAtStart(compare->left()),
                                      UseRegisterAtStart(compare->right()));
-  } else if (v->IsInstanceOf()) {
-    HInstanceOf* instance_of = HInstanceOf::cast(v);
-    LInstruction* result =
-        new LInstanceOfAndBranch(UseFixed(instance_of->left(), r0),
-                                 UseFixed(instance_of->right(), r1));
-    return MarkAsCall(result, instr);
   } else if (v->IsTypeofIs()) {
     HTypeofIs* typeof_is = HTypeofIs::cast(v);
     return new LTypeofIsAndBranch(UseTempRegister(typeof_is->value()));

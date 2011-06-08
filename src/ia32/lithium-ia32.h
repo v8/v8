@@ -80,7 +80,6 @@ class LCodeGen;
   V(CmpSymbolEqAndBranch)                       \
   V(CmpMapAndBranch)                            \
   V(CmpT)                                       \
-  V(CmpTAndBranch)                              \
   V(ConstantD)                                  \
   V(ConstantI)                                  \
   V(ConstantT)                                  \
@@ -102,7 +101,6 @@ class LCodeGen;
   V(HasInstanceTypeAndBranch)                   \
   V(In)                                         \
   V(InstanceOf)                                 \
-  V(InstanceOfAndBranch)                        \
   V(InstanceOfKnownGlobal)                      \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
@@ -920,20 +918,6 @@ class LCmpT: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LCmpTAndBranch: public LControlInstruction<2, 0> {
- public:
-  LCmpTAndBranch(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CmpTAndBranch, "cmp-t-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(Compare)
-
-  Token::Value op() const { return hydrogen()->token(); }
-};
-
-
 class LInstanceOf: public LTemplateInstruction<1, 3, 0> {
  public:
   LInstanceOf(LOperand* context, LOperand* left, LOperand* right) {
@@ -943,20 +927,6 @@ class LInstanceOf: public LTemplateInstruction<1, 3, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance-of")
-
-  LOperand* context() { return inputs_[0]; }
-};
-
-
-class LInstanceOfAndBranch: public LControlInstruction<3, 0> {
- public:
-  LInstanceOfAndBranch(LOperand* context, LOperand* left, LOperand* right) {
-    inputs_[0] = context;
-    inputs_[1] = left;
-    inputs_[2] = right;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(InstanceOfAndBranch, "instance-of-and-branch")
 
   LOperand* context() { return inputs_[0]; }
 };

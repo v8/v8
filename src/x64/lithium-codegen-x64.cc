@@ -2014,19 +2014,6 @@ void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
 }
 
 
-void LCodeGen::DoInstanceOfAndBranch(LInstanceOfAndBranch* instr) {
-  int true_block = chunk_->LookupDestination(instr->true_block_id());
-  int false_block = chunk_->LookupDestination(instr->false_block_id());
-
-  InstanceofStub stub(InstanceofStub::kNoFlags);
-  __ push(ToRegister(instr->InputAt(0)));
-  __ push(ToRegister(instr->InputAt(1)));
-  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-  __ testq(rax, rax);
-  EmitBranch(true_block, false_block, zero);
-}
-
-
 void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   class DeferredInstanceOfKnownGlobal: public LDeferredCode {
    public:
@@ -2155,25 +2142,6 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
   __ bind(&true_value);
   __ LoadRoot(ToRegister(instr->result()), Heap::kTrueValueRootIndex);
   __ bind(&done);
-}
-
-
-void LCodeGen::DoCmpTAndBranch(LCmpTAndBranch* instr) {
-  Token::Value op = instr->op();
-  int true_block = chunk_->LookupDestination(instr->true_block_id());
-  int false_block = chunk_->LookupDestination(instr->false_block_id());
-
-  Handle<Code> ic = CompareIC::GetUninitialized(op);
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-
-  // The compare stub expects compare condition and the input operands
-  // reversed for GT and LTE.
-  Condition condition = TokenToCondition(op, false);
-  if (op == Token::GT || op == Token::LTE) {
-    condition = ReverseCondition(condition);
-  }
-  __ testq(rax, rax);
-  EmitBranch(true_block, false_block, condition);
 }
 
 
