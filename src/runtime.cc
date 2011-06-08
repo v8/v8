@@ -3914,7 +3914,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
     PropertyDetails details = PropertyDetails(attr, NORMAL);
-    NumberDictionarySet(dictionary, index, obj_value, details);
+    Handle<NumberDictionary> extended_dictionary =
+        NumberDictionarySet(dictionary, index, obj_value, details);
+    if (*extended_dictionary != *dictionary) {
+      js_object->set_elements(*extended_dictionary);
+    }
     return *obj_value;
   }
 
