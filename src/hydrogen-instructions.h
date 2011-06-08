@@ -727,10 +727,6 @@ class HInstruction: public HValue {
   virtual void Verify();
 #endif
 
-  // Returns whether this is some kind of deoptimizing check
-  // instruction.
-  virtual bool IsCheckInstruction() const { return false; }
-
   virtual bool IsCall() { return false; }
 
   DECLARE_ABSTRACT_INSTRUCTION(Instruction)
@@ -1856,8 +1852,6 @@ class HCheckMap: public HUnaryOperation {
     SetFlag(kDependsOnMaps);
   }
 
-  virtual bool IsCheckInstruction() const { return true; }
-
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -1890,8 +1884,6 @@ class HCheckFunction: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -1932,8 +1924,6 @@ class HCheckInstanceType: public HUnaryOperation {
   static HCheckInstanceType* NewIsSymbol(HValue* value) {
     return new HCheckInstanceType(value, IS_SYMBOL);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -1993,8 +1983,6 @@ class HCheckNonSmi: public HUnaryOperation {
     SetFlag(kUseGVN);
   }
 
-  virtual bool IsCheckInstruction() const { return true; }
-
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -2031,8 +2019,6 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
     SetFlag(kUseGVN);
     SetFlag(kDependsOnMaps);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
 #ifdef DEBUG
   virtual void Verify();
@@ -2073,8 +2059,6 @@ class HCheckSmi: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -2421,8 +2405,6 @@ class HBoundsCheck: public HBinaryOperation {
       : HBinaryOperation(index, length) {
     SetFlag(kUseGVN);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Integer32();
