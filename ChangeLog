@@ -1,3 +1,10 @@
+2011-06-06: Version 3.4.2.1
+
+        Reverted 8133: Lower heap size limits on systems that are short
+        of virtual memory.  It was causing problems with layout tests on
+        MacOS.
+
+
 2011-06-06: Version 3.4.2
 
         More work on ES-Harmony proxies.  Still hidden behind a flag.
