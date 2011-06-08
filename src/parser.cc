@@ -2114,7 +2114,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
           new(zone()) TryFinallyStatement(inner_body, inner_finally);
       inner_try_finally->set_escaping_targets(inner_collector.targets());
 
-      catch_block = new (zone()) Block(NULL, 1, false);
+      catch_block = new(zone()) Block(NULL, 1, false);
       catch_block->AddStatement(inner_try_finally);
     } else {
       Expect(Token::LBRACE, CHECK_OK);
