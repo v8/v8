@@ -298,6 +298,12 @@ void MacroAssembler::Call(Label* target) {
 }
 
 
+void MacroAssembler::Push(Handle<Object> handle) {
+  mov(ip, Operand(handle));
+  push(ip);
+}
+
+
 void MacroAssembler::Move(Register dst, Handle<Object> value) {
   mov(dst, Operand(value));
 }

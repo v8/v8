@@ -3187,14 +3187,6 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void HGraphBuilder::VisitCatchExtensionObject(CatchExtensionObject* expr) {
-  ASSERT(!HasStackOverflow());
-  ASSERT(current_block() != NULL);
-  ASSERT(current_block()->HasPredecessor());
-  return Bailout("CatchExtensionObject");
-}
-
-
 // Sets the lookup result and returns true if the store can be inlined.
 static bool ComputeStoredField(Handle<Map> type,
                                Handle<String> name,

@@ -192,6 +192,9 @@ class MacroAssembler: public Assembler {
                    Register address,
                    Register scratch);
 
+  // Push a handle.
+  void Push(Handle<Object> handle);
+
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {
     ASSERT(!src1.is(src2));

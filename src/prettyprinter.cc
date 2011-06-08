@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -201,7 +201,8 @@ void PrettyPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   Print("try ");
   Visit(node->try_block());
   Print(" catch (");
-  Visit(node->catch_var());
+  const bool quote = false;
+  PrintLiteral(node->name(), quote);
   Print(") ");
   Visit(node->catch_block());
 }
@@ -279,15 +280,6 @@ void PrettyPrinter::VisitArrayLiteral(ArrayLiteral* node) {
     Visit(node->values()->at(i));
   }
   Print(" ]");
-}
-
-
-void PrettyPrinter::VisitCatchExtensionObject(CatchExtensionObject* node) {
-  Print("{ ");
-  Visit(node->key());
-  Print(": ");
-  Visit(node->value());
-  Print(" }");
 }
 
 
@@ -862,7 +854,8 @@ void AstPrinter::VisitForInStatement(ForInStatement* node) {
 void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   IndentedScope indent(this, "TRY CATCH");
   PrintIndentedVisit("TRY", node->try_block());
-  PrintIndentedVisit("CATCHVAR", node->catch_var());
+  const bool quote = false;
+  PrintLiteralIndented("CATCHVAR", node->name(), quote);
   PrintIndentedVisit("CATCH", node->catch_block());
 }
 
@@ -959,13 +952,6 @@ void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
       Visit(node->values()->at(i));
     }
   }
-}
-
-
-void AstPrinter::VisitCatchExtensionObject(CatchExtensionObject* node) {
-  IndentedScope indent(this, "CatchExtensionObject");
-  PrintIndentedVisit("KEY", node->key());
-  PrintIndentedVisit("VALUE", node->value());
 }
 
 
@@ -1254,8 +1240,10 @@ void JsonAstBuilder::VisitForInStatement(ForInStatement* stmt) {
 
 void JsonAstBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   TagScope tag(this, "TryCatchStatement");
+  { AttributesScope attributes(this);
+    AddAttribute("variable", stmt->name());
+  }
   Visit(stmt->try_block());
-  Visit(stmt->catch_var());
   Visit(stmt->catch_block());
 }
 
@@ -1357,13 +1345,6 @@ void JsonAstBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
 void JsonAstBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   TagScope tag(this, "ArrayLiteral");
-}
-
-
-void JsonAstBuilder::VisitCatchExtensionObject(CatchExtensionObject* expr) {
-  TagScope tag(this, "CatchExtensionObject");
-  Visit(expr->key());
-  Visit(expr->value());
 }
 
 

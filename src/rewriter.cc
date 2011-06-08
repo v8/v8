@@ -252,12 +252,6 @@ void Processor::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 
-void Processor::VisitCatchExtensionObject(CatchExtensionObject* node) {
-  USE(node);
-  UNREACHABLE();
-}
-
-
 void Processor::VisitAssignment(Assignment* node) {
   USE(node);
   UNREACHABLE();
