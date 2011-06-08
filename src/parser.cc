@@ -591,7 +591,7 @@ Parser::Parser(Handle<Script> script,
 FunctionLiteral* Parser::ParseProgram(Handle<String> source,
                                       bool in_global_context,
                                       StrictModeFlag strict_mode) {
-  CompilationZoneScope zone_scope(isolate(), DONT_DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate(), DONT_DELETE_ON_EXIT);
 
   HistogramTimerScope timer(isolate()->counters()->parse());
   isolate()->counters()->total_parse_size()->Increment(source->length());
@@ -673,7 +673,7 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
 }
 
 FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
-  CompilationZoneScope zone_scope(isolate(), DONT_DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate(), DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(isolate()->counters()->parse_lazy());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
@@ -3505,6 +3505,12 @@ ZoneList<Expression*>* Parser::ParseArguments(bool* ok) {
   while (!done) {
     Expression* argument = ParseAssignmentExpression(true, CHECK_OK);
     result->Add(argument);
+    if (result->length() > kMaxNumFunctionParameters) {
+      ReportMessageAt(scanner().location(), "too_many_arguments",
+                      Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    }
     done = (peek() == Token::RPAREN);
     if (!done) Expect(Token::COMMA, CHECK_OK);
   }

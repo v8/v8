@@ -27,38 +27,39 @@
 
 // Flags: --allow-natives-syntax
 
-// An exception thrown in a function optimized by on-stack replacement (OSR)
-// should be able to construct a receiver from all optimized stack frames.
+// Test that the Lithium environment iterator does stop iteration early.
+"use strict";
 
-function A() { }
-A.prototype.f = function() { }
+function f0() {
+  return f1('literal', true);
+}
 
-function B() { }
+function f1(x, y) {
+  return f2(x, y);
+}
 
-var o = new A();
-
-// This function throws if o does not have an f property, and should not be
-// inlined.
-function g() { try { return o.f(); } finally { }}
-
-// Optimization status (see runtime.cc):
-// 1 - yes, 2 - no, 3 - always, 4 - never.
-
-// This function should be optimized via OSR.
-function h() {
-  var optstatus = %GetOptimizationStatus(h);
-  if (optstatus == 4) {
-    // Optimizations are globally disabled; just run once.
-    g();
-  } else {
-    // Run for a bit as long as h is unoptimized.
-    while (%GetOptimizationStatus(h) == 2) {
-      for (var j = 0; j < 100; j++) g();
+// Because it's strict, f2 has an environment containing only the constants
+// undefined, 'literal', and false.  Bug 1423 would cause environment
+// iteration to stop early.
+//
+// Bug manifests as UNREACHABLE code (due to an unallocated register) in
+// debug builds.
+function f2(x, y) {
+  if (y) {
+    if (f3(x, 'other-literal')) {
+      return 0;
+    } else {
+      return 1;
     }
-    g();
+  } else {
+    return 2;
   }
 }
 
-h();
-o = new B();
-assertThrows("h()");
+function f3(x, y) {
+  return x === y;
+}
+
+for (var i = 0; i < 5; ++i) f0();
+%OptimizeFunctionOnNextCall(f0);
+assertEquals(1, f0());

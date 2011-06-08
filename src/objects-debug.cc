@@ -289,6 +289,12 @@ void CodeCache::CodeCacheVerify() {
 }
 
 
+void PolymorphicCodeCache::PolymorphicCodeCacheVerify() {
+  VerifyHeapPointer(cache());
+  ASSERT(cache()->IsUndefined() || cache()->IsPolymorphicCodeCacheHashTable());
+}
+
+
 void FixedArray::FixedArrayVerify() {
   for (int i = 0; i < length(); i++) {
     Object* e = get(i);

@@ -120,6 +120,7 @@ inline Heap* _inline_get_heap_();
   V(Foreign, prototype_accessors, PrototypeAccessors)                          \
   V(NumberDictionary, code_stubs, CodeStubs)                                   \
   V(NumberDictionary, non_monomorphic_cache, NonMonomorphicCache)              \
+  V(PolymorphicCodeCache, polymorphic_code_cache, PolymorphicCodeCache)        \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
@@ -476,6 +477,9 @@ class Heap {
 
   // Allocates an empty code cache.
   MUST_USE_RESULT MaybeObject* AllocateCodeCache();
+
+  // Allocates an empty PolymorphicCodeCache.
+  MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
@@ -1633,7 +1637,7 @@ class HeapStats {
   int* weak_global_handle_count;        // 15
   int* pending_global_handle_count;     // 16
   int* near_death_global_handle_count;  // 17
-  int* destroyed_global_handle_count;   // 18
+  int* free_global_handle_count;        // 18
   intptr_t* memory_allocator_size;           // 19
   intptr_t* memory_allocator_capacity;       // 20
   int* objects_per_type;                // 21
@@ -1901,6 +1905,7 @@ class DescriptorLookupCache {
   void Clear();
 
   static const int kAbsent = -2;
+
  private:
   DescriptorLookupCache() {
     for (int i = 0; i < kLength; ++i) {

@@ -1083,6 +1083,16 @@ void HSimulate::PrintDataTo(StringStream* stream) {
 }
 
 
+void HDeoptimize::PrintDataTo(StringStream* stream) {
+  if (OperandCount() == 0) return;
+  OperandAt(0)->PrintNameTo(stream);
+  for (int i = 1; i < OperandCount(); ++i) {
+    stream->Add(" ");
+    OperandAt(i)->PrintNameTo(stream);
+  }
+}
+
+
 void HEnterInlined::PrintDataTo(StringStream* stream) {
   SmartPointer<char> name = function()->debug_name()->ToCString();
   stream->Add("%s, id=%d", *name, function()->id());

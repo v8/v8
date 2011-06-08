@@ -750,7 +750,6 @@ void Thread::YieldCPU() {
 
 class LinuxMutex : public Mutex {
  public:
-
   LinuxMutex() {
     pthread_mutexattr_t attrs;
     int result = pthread_mutexattr_init(&attrs);

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,38 +27,10 @@
 
 // Flags: --allow-natives-syntax
 
-// An exception thrown in a function optimized by on-stack replacement (OSR)
-// should be able to construct a receiver from all optimized stack frames.
-
-function A() { }
-A.prototype.f = function() { }
-
-function B() { }
-
-var o = new A();
-
-// This function throws if o does not have an f property, and should not be
-// inlined.
-function g() { try { return o.f(); } finally { }}
-
-// Optimization status (see runtime.cc):
-// 1 - yes, 2 - no, 3 - always, 4 - never.
-
-// This function should be optimized via OSR.
-function h() {
-  var optstatus = %GetOptimizationStatus(h);
-  if (optstatus == 4) {
-    // Optimizations are globally disabled; just run once.
-    g();
-  } else {
-    // Run for a bit as long as h is unoptimized.
-    while (%GetOptimizationStatus(h) == 2) {
-      for (var j = 0; j < 100; j++) g();
-    }
-    g();
-  }
+function compare(a, b) {
+  return a === b;
 }
 
-h();
-o = new B();
-assertThrows("h()");
+compare(1.5, 2.5);
+%OptimizeFunctionOnNextCall(compare);
+assertTrue(compare(undefined, undefined));

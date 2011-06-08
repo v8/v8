@@ -78,13 +78,13 @@ void LInstruction::VerifyCall() {
   ASSERT(Output() == NULL ||
          LUnallocated::cast(Output())->HasFixedPolicy() ||
          !LUnallocated::cast(Output())->HasRegisterPolicy());
-  for (UseIterator it(this); it.HasNext(); it.Advance()) {
-    LUnallocated* operand = LUnallocated::cast(it.Next());
+  for (UseIterator it(this); !it.Done(); it.Advance()) {
+    LUnallocated* operand = LUnallocated::cast(it.Current());
     ASSERT(operand->HasFixedPolicy() ||
            operand->IsUsedAtStart());
   }
-  for (TempIterator it(this); it.HasNext(); it.Advance()) {
-    LUnallocated* operand = LUnallocated::cast(it.Next());
+  for (TempIterator it(this); !it.Done(); it.Advance()) {
+    LUnallocated* operand = LUnallocated::cast(it.Current());
     ASSERT(operand->HasFixedPolicy() ||!operand->HasRegisterPolicy());
   }
 }
@@ -801,6 +801,11 @@ LOperand* LChunkBuilder::FixedTemp(XMMRegister reg) {
 
 LInstruction* LChunkBuilder::DoBlockEntry(HBlockEntry* instr) {
   return new LLabel(instr->block());
+}
+
+
+LInstruction* LChunkBuilder::DoSoftDeoptimize(HSoftDeoptimize* instr) {
+  return AssignEnvironment(new LDeoptimize);
 }
 
 

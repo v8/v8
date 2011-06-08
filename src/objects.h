@@ -136,7 +136,6 @@ namespace internal {
 // They are used both in property dictionaries and instance descriptors.
 class PropertyDetails BASE_EMBEDDED {
  public:
-
   PropertyDetails(PropertyAttributes attributes,
                   PropertyType type,
                   int index = 0) {
@@ -216,6 +215,7 @@ class PropertyDetails BASE_EMBEDDED {
   class StorageField:    public BitField<uint32_t,           8, 32-8> {};
 
   static const int kInitialIndex = 1;
+
  private:
   uint32_t value_;
 };
@@ -316,6 +316,7 @@ static const int kVariableSizeSentinel = 0;
   V(TYPE_SWITCH_INFO_TYPE)                                                     \
   V(SCRIPT_TYPE)                                                               \
   V(CODE_CACHE_TYPE)                                                           \
+  V(POLYMORPHIC_CODE_CACHE_TYPE)                                               \
                                                                                \
   V(FIXED_ARRAY_TYPE)                                                          \
   V(SHARED_FUNCTION_INFO_TYPE)                                                 \
@@ -427,7 +428,8 @@ static const int kVariableSizeSentinel = 0;
   V(SIGNATURE_INFO, SignatureInfo, signature_info)                             \
   V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                        \
   V(SCRIPT, Script, script)                                                    \
-  V(CODE_CACHE, CodeCache, code_cache)
+  V(CODE_CACHE, CodeCache, code_cache)                                         \
+  V(POLYMORPHIC_CODE_CACHE, PolymorphicCodeCache, polymorphic_code_cache)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #define STRUCT_LIST_DEBUGGER(V)                                                \
@@ -544,6 +546,7 @@ enum InstanceType {
   TYPE_SWITCH_INFO_TYPE,
   SCRIPT_TYPE,
   CODE_CACHE_TYPE,
+  POLYMORPHIC_CODE_CACHE_TYPE,
   // The following two instance types are only used when ENABLE_DEBUGGER_SUPPORT
   // is defined. However as include/v8.h contain some of the instance type
   // constants always having them avoids them getting different numbers
@@ -752,6 +755,7 @@ class MaybeObject BASE_EMBEDDED {
   V(NormalizedMapCache)                        \
   V(CompilationCacheTable)                     \
   V(CodeCacheHashTable)                        \
+  V(PolymorphicCodeCacheHashTable)             \
   V(MapCache)                                  \
   V(Primitive)                                 \
   V(GlobalObject)                              \
@@ -2419,7 +2423,6 @@ class HashTable: public FixedArray {
   int FindEntry(Isolate* isolate, Key key);
 
  protected:
-
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
   uint32_t FindInsertionEntry(uint32_t hash);
@@ -2586,7 +2589,6 @@ class MapCache: public HashTable<MapCacheShape, HashTableKey*> {
 template <typename Shape, typename Key>
 class Dictionary: public HashTable<Shape, Key> {
  public:
-
   static inline Dictionary<Shape, Key>* cast(Object* obj) {
     return reinterpret_cast<Dictionary<Shape, Key>*>(obj);
   }
@@ -2840,11 +2842,6 @@ class NormalizedMapCache: public FixedArray {
 #ifdef DEBUG
   void NormalizedMapCacheVerify();
 #endif
-
- private:
-  static int Hash(Map* fast);
-
-  static bool CheckHit(Map* slow, Map* fast, PropertyNormalizationMode mode);
 };
 
 
@@ -3964,6 +3961,21 @@ class Map: public HeapObject {
   // following back pointers.
   void ClearNonLiveTransitions(Heap* heap, Object* real_prototype);
 
+  // Computes a hash value for this map, to be used in HashTables and such.
+  int Hash();
+
+  // Compares this map to another to see if they describe equivalent objects.
+  // If |mode| is set to CLEAR_INOBJECT_PROPERTIES, |other| is treated as if
+  // it had exactly zero inobject properties.
+  // The "shared" flags of both this map and |other| are ignored.
+  bool EquivalentToForNormalization(Map* other, PropertyNormalizationMode mode);
+
+  // Returns true if this map and |other| describe equivalent objects.
+  // The "shared" flags of both this map and |other| are ignored.
+  bool EquivalentTo(Map* other) {
+    return EquivalentToForNormalization(other, KEEP_INOBJECT_PROPERTIES);
+  }
+
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
   inline void MapPrint() {
@@ -4865,6 +4877,7 @@ class JSFunction: public JSObject {
   // Layout of the literals array.
   static const int kLiteralsPrefixSize = 1;
   static const int kLiteralGlobalContextIndex = 0;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);
 };
@@ -4903,7 +4916,6 @@ class JSGlobalProxy : public JSObject {
   static const int kSize = kContextOffset + kPointerSize;
 
  private:
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
 };
 
@@ -4959,7 +4971,6 @@ class GlobalObject: public JSObject {
 // JavaScript global object.
 class JSGlobalObject: public GlobalObject {
  public:
-
   // Casting.
   static inline JSGlobalObject* cast(Object* obj);
 
@@ -5373,6 +5384,49 @@ class CodeCacheHashTable: public HashTable<CodeCacheHashTableShape,
 };
 
 
+class PolymorphicCodeCache: public Struct {
+ public:
+  DECL_ACCESSORS(cache, Object)
+
+  MUST_USE_RESULT MaybeObject* Update(MapList* maps,
+                                      Code::Flags flags,
+                                      Code* code);
+  Object* Lookup(MapList* maps, Code::Flags flags);
+
+  static inline PolymorphicCodeCache* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  inline void PolymorphicCodeCachePrint() {
+    PolymorphicCodeCachePrint(stdout);
+  }
+  void PolymorphicCodeCachePrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void PolymorphicCodeCacheVerify();
+#endif
+
+  static const int kCacheOffset = HeapObject::kHeaderSize;
+  static const int kSize = kCacheOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PolymorphicCodeCache);
+};
+
+
+class PolymorphicCodeCacheHashTable
+    : public HashTable<CodeCacheHashTableShape, HashTableKey*> {
+ public:
+  Object* Lookup(MapList* maps, int code_kind);
+  MUST_USE_RESULT MaybeObject* Put(MapList* maps, int code_kind, Code* code);
+
+  static inline PolymorphicCodeCacheHashTable* cast(Object* obj);
+
+  static const int kInitialSize = 64;
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PolymorphicCodeCacheHashTable);
+};
+
+
 enum AllowNullsFlag {ALLOW_NULLS, DISALLOW_NULLS};
 enum RobustnessFlag {ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL};
 
@@ -5411,7 +5465,6 @@ class StringHasher {
   static uint32_t MakeArrayIndexHash(uint32_t value, int length);
 
  private:
-
   uint32_t array_index() {
     ASSERT(is_array_index());
     return array_index_;
@@ -5468,6 +5521,7 @@ class StringShape BASE_EMBEDDED {
 #else
   inline void invalidate() { }
 #endif
+
  private:
   uint32_t type_;
 #ifdef DEBUG
@@ -5805,7 +5859,6 @@ class String: public HeapObject {
 // The SeqString abstract class captures sequential string values.
 class SeqString: public String {
  public:
-
   // Casting.
   static inline SeqString* cast(Object* obj);
 

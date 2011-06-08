@@ -566,7 +566,7 @@ void Shell::Initialize() {
   // Run the d8 shell utility script in the utility context
   int source_index = i::NativesCollection<i::D8>::GetIndex("d8");
   i::Vector<const char> shell_source
-      = i::NativesCollection<i::D8>::GetScriptSource(source_index);
+      = i::NativesCollection<i::D8>::GetRawScriptSource(source_index);
   i::Vector<const char> shell_source_name
       = i::NativesCollection<i::D8>::GetScriptName(source_index);
   Handle<String> source = String::New(shell_source.start(),

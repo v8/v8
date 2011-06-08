@@ -66,7 +66,6 @@ namespace internal {
 //
 class IC {
  public:
-
   // The ids for utility called from the generated code.
   enum UtilityId {
   #define CONST_NAME(name) k##name,
@@ -635,7 +634,6 @@ class KeyedStoreIC: public KeyedIC {
 
 class UnaryOpIC: public IC {
  public:
-
   // sorted: increasingly more unspecific (ignoring UNINITIALIZED)
   // TODO(svenpanne) Using enums+switch is an antipattern, use a class instead.
   enum TypeInfo {
@@ -662,7 +660,6 @@ class UnaryOpIC: public IC {
 // Type Recording BinaryOpIC, that records the types of the inputs and outputs.
 class BinaryOpIC: public IC {
  public:
-
   enum TypeInfo {
     UNINITIALIZED,
     SMI,

@@ -498,7 +498,6 @@ namespace internal {
 
 class RuntimeState {
  public:
-
   StaticResource<StringInputBuffer>* string_input_buffer() {
     return &string_input_buffer_;
   }

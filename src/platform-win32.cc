@@ -407,13 +407,11 @@ void Time::TzSet() {
   }
 
   // Make standard and DST timezone names.
-  OS::SNPrintF(Vector<char>(std_tz_name_, kTzNameSize),
-               "%S",
-               tzinfo_.StandardName);
+  WideCharToMultiByte(CP_UTF8, 0, tzinfo_.StandardName, -1,
+                      std_tz_name_, kTzNameSize, NULL, NULL);
   std_tz_name_[kTzNameSize - 1] = '\0';
-  OS::SNPrintF(Vector<char>(dst_tz_name_, kTzNameSize),
-               "%S",
-               tzinfo_.DaylightName);
+  WideCharToMultiByte(CP_UTF8, 0, tzinfo_.DaylightName, -1,
+                      dst_tz_name_, kTzNameSize, NULL, NULL);
   dst_tz_name_[kTzNameSize - 1] = '\0';
 
   // If OS returned empty string or resource id (like "@tzres.dll,-211")
@@ -1585,7 +1583,6 @@ void Thread::YieldCPU() {
 
 class Win32Mutex : public Mutex {
  public:
-
   Win32Mutex() { InitializeCriticalSection(&cs_); }
 
   virtual ~Win32Mutex() { DeleteCriticalSection(&cs_); }

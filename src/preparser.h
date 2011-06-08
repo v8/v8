@@ -98,6 +98,7 @@ class PreParser {
     bool IsEvalOrArguments() { return type_ >= kEvalIdentifier; }
     bool IsFutureReserved() { return type_ == kFutureReservedIdentifier; }
     bool IsValidStrictVariable() { return type_ == kUnknownIdentifier; }
+
    private:
     enum Type {
       kUnknownIdentifier,

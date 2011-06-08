@@ -1636,79 +1636,40 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
     return generic_stub;
   }
 
-  // TODO(1385): Currently MEGAMORPHIC stubs are cached in the receiver map stub
-  // cache, but that can put receiver types together from unrelated call sites
-  // into the same stub--they always handle the union of all receiver maps seen
-  // at all call sites involving the receiver map. This is only an
-  // approximation: ideally, there would be a global cache that mapped sets of
-  // receiver maps to MEGAMORPHIC stubs. The complexity of the MEGAMORPHIC stub
-  // computation also leads to direct manipulation of the stub cache from the IC
-  // code, which the global cache solution would avoid.
-  Code::Kind kind = this->kind();
-  Code::Flags flags = Code::ComputeFlags(kind,
-                                         NOT_IN_LOOP,
-                                         MEGAMORPHIC,
-                                         strict_mode);
-  String* megamorphic_name = GetStubNameForCache(MEGAMORPHIC);
-  Object* maybe_cached_stub = receiver->map()->FindInCodeCache(megamorphic_name,
-                                                               flags);
-
-  // Create a set of all receiver maps that have been seen at the IC call site
-  // and those seen by the MEGAMORPHIC cached stub, if that's the stub that's
-  // been selected.
-  MapList receiver_maps;
-  if (!maybe_cached_stub->IsUndefined()) {
-    GetReceiverMapsForStub(Code::cast(maybe_cached_stub), &receiver_maps);
-  }
-  bool added_map = false;
-  for (int i = 0; i < target_receiver_maps.length(); ++i) {
-    if (AddOneReceiverMapIfMissing(&receiver_maps,
-                                   target_receiver_maps.at(i))) {
-      added_map = true;
-    }
-  }
-  ASSERT(receiver_maps.length() > 0);
-
-  // If the maximum number of receiver maps has been exceeded, use the Generic
+  // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
-  if (receiver_maps.length() > KeyedIC::kMaxKeyedPolymorphism) {
+  if (target_receiver_maps.length() > KeyedIC::kMaxKeyedPolymorphism) {
     return generic_stub;
   }
 
-  // If no maps have been seen at the call site that aren't in the cached
-  // stub, then use it.
-  if (!added_map) {
-    ASSERT(!maybe_cached_stub->IsUndefined());
+  PolymorphicCodeCache* cache = isolate()->heap()->polymorphic_code_cache();
+  Code::Flags flags = Code::ComputeFlags(this->kind(),
+                                         NOT_IN_LOOP,
+                                         MEGAMORPHIC,
+                                         strict_mode);
+  Object* maybe_cached_stub = cache->Lookup(&target_receiver_maps, flags);
+  // If there is a cached stub, use it.
+  if (!maybe_cached_stub->IsUndefined()) {
     ASSERT(maybe_cached_stub->IsCode());
     return Code::cast(maybe_cached_stub);
   }
-
-  // Lookup all of the receiver maps in the cache, they should all already
-  // have MONOMORPHIC stubs.
-  CodeList handler_ics(KeyedIC::kMaxKeyedPolymorphism);
-  for (int current = 0; current < receiver_maps.length(); ++current) {
-    Map* receiver_map(receiver_maps.at(current));
+  // Collect MONOMORPHIC stubs for all target_receiver_maps.
+  CodeList handler_ics(target_receiver_maps.length());
+  for (int i = 0; i < target_receiver_maps.length(); ++i) {
+    Map* receiver_map(target_receiver_maps.at(i));
     MaybeObject* maybe_cached_stub = ComputeMonomorphicStubWithoutMapCheck(
-        receiver_map,
-        strict_mode,
-        generic_stub);
+        receiver_map, strict_mode, generic_stub);
     Code* cached_stub;
-    if (!maybe_cached_stub->To(&cached_stub)) {
-      return maybe_cached_stub;
-    }
+    if (!maybe_cached_stub->To(&cached_stub)) return maybe_cached_stub;
     handler_ics.Add(cached_stub);
   }
-
-  Code* stub;
   // Build the MEGAMORPHIC stub.
-  maybe_stub = ConstructMegamorphicStub(&receiver_maps,
+  Code* stub;
+  maybe_stub = ConstructMegamorphicStub(&target_receiver_maps,
                                         &handler_ics,
                                         strict_mode);
   if (!maybe_stub->To(&stub)) return maybe_stub;
-
-  MaybeObject* maybe_update = receiver->UpdateMapCodeCache(
-      megamorphic_name,
-      stub);
+  MaybeObject* maybe_update = cache->Update(&target_receiver_maps, flags, stub);
   if (maybe_update->IsFailure()) return maybe_update;
   return stub;
 }

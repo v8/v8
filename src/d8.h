@@ -108,6 +108,7 @@ class CounterMap {
     i::HashMap* map_;
     i::HashMap::Entry* entry_;
   };
+
  private:
   static int Hash(const char* name);
   static bool Match(void* key1, void* key2);
@@ -204,6 +205,7 @@ class Shell: public i::AllStatic {
 
   static const char* kHistoryFileName;
   static const char* kPrompt;
+
  private:
   static Persistent<Context> utility_context_;
   static Persistent<Context> evaluation_context_;

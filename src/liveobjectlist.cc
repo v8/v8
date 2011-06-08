@@ -1649,7 +1649,6 @@ Object* LiveObjectList::GetObjId(Handle<String> address) {
 // Helper class for copying HeapObjects.
 class LolVisitor: public ObjectVisitor {
  public:
-
   LolVisitor(HeapObject* target, Handle<HeapObject> handle_to_skip)
       : target_(target), handle_to_skip_(handle_to_skip), found_(false) {}
 

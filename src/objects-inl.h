@@ -688,6 +688,11 @@ bool Object::IsCodeCacheHashTable() {
 }
 
 
+bool Object::IsPolymorphicCodeCacheHashTable() {
+  return IsHashTable();
+}
+
+
 bool Object::IsMapCache() {
   return IsHashTable();
 }
@@ -1903,6 +1908,7 @@ CAST_ACCESSOR(JSFunctionResultCache)
 CAST_ACCESSOR(NormalizedMapCache)
 CAST_ACCESSOR(CompilationCacheTable)
 CAST_ACCESSOR(CodeCacheHashTable)
+CAST_ACCESSOR(PolymorphicCodeCacheHashTable)
 CAST_ACCESSOR(MapCache)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(SeqString)
@@ -3337,6 +3343,8 @@ void SharedFunctionInfo::set_native(bool value) {
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
+
+ACCESSORS(PolymorphicCodeCache, cache, Object, kCacheOffset)
 
 bool Script::HasValidSource() {
   Object* src = this->source();

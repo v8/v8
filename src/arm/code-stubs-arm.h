@@ -471,7 +471,6 @@ class DirectCEntryStub: public CodeStub {
 
 class FloatingPointHelper : public AllStatic {
  public:
-
   enum Destination {
     kVFPRegisters,
     kCoreRegisters

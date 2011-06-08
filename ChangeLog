@@ -1,9 +1,18 @@
-2011-06-06: Version 3.4.2.1
+2011-06-08: Version 3.4.3
 
-        Reverted 8133: Lower heap size limits on systems that are short
-        of virtual memory.  It was causing problems with layout tests on
-        MacOS.
+        Clear the global thread table when an isolate is disposed
+        (issue 1433).
 
+        Converted time zone name to UTF8 on Windows (issue 1290).
+
+        Limited the number of arguments in a function call to 32766
+        (issue 1413).
+
+        Compress sources of JS libraries in addition to the snapshot.
+
+        Fixed a bug in Lithium environment iteration.
+
+        Performance improvements on all platforms.
 
 2011-06-06: Version 3.4.2
 

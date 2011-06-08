@@ -274,7 +274,6 @@ class StackCheckStub : public CodeStub {
   void Generate(MacroAssembler* masm);
 
  private:
-
   const char* GetName() { return "StackCheckStub"; }
 
   Major MajorKey() { return StackCheck; }

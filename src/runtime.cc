@@ -2365,6 +2365,7 @@ class CompiledReplacement {
   int parts() {
     return parts_.length();
   }
+
  private:
   enum PartType {
     SUBJECT_PREFIX = 1,
@@ -2641,7 +2642,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   int capture_count = regexp_handle->CaptureCount();
 
   // CompiledReplacement uses zone allocation.
-  CompilationZoneScope zone(isolate, DELETE_ON_EXIT);
+  ZoneScope zone(isolate, DELETE_ON_EXIT);
   CompiledReplacement compiled_replacement;
   compiled_replacement.Compile(replacement_handle,
                                capture_count,
@@ -3155,7 +3156,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
   }
   int length = subject->length();
 
-  CompilationZoneScope zone_space(isolate, DELETE_ON_EXIT);
+  ZoneScope zone_space(isolate, DELETE_ON_EXIT);
   ZoneList<int> offsets(8);
   do {
     int start;
@@ -3913,7 +3914,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
     PropertyDetails details = PropertyDetails(attr, NORMAL);
-    NumberDictionarySet(dictionary, index, obj_value, details);
+    Handle<NumberDictionary> extended_dictionary =
+        NumberDictionarySet(dictionary, index, obj_value, details);
+    if (*extended_dictionary != *dictionary) {
+      js_object->set_elements(*extended_dictionary);
+    }
     return *obj_value;
   }
 
@@ -8479,7 +8484,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
   ASSERT_EQ(1, args.length());
   CONVERT_ARG_CHECKED(String, source, 0);
 
-  Handle<Object> result = JsonParser::Parse(source);
+  source = Handle<String>(source->TryFlattenGetString());
+  // Optimized fast case where we only have ascii characters.
+  Handle<Object> result;
+  if (source->IsSeqAsciiString()) {
+    result = JsonParser<true>::Parse(source);
+  } else {
+    result = JsonParser<false>::Parse(source);
+  }
   if (result.is_null()) {
     // Syntax error or stack overflow in scanner.
     ASSERT(isolate->has_pending_exception());

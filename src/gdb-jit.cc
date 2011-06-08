@@ -644,7 +644,6 @@ class ELFSymbolTable : public ELFSection {
 
 class CodeDescription BASE_EMBEDDED {
  public:
-
 #ifdef V8_TARGET_ARCH_X64
   enum StackState {
     POST_RBP_PUSH,

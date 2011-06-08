@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -173,10 +173,11 @@ void NormalizeProperties(Handle<JSObject> object,
 void NormalizeElements(Handle<JSObject> object);
 void TransformToFastProperties(Handle<JSObject> object,
                                int unused_property_fields);
-void NumberDictionarySet(Handle<NumberDictionary> dictionary,
-                         uint32_t index,
-                         Handle<Object> value,
-                         PropertyDetails details);
+MUST_USE_RESULT Handle<NumberDictionary> NumberDictionarySet(
+    Handle<NumberDictionary> dictionary,
+    uint32_t index,
+    Handle<Object> value,
+    PropertyDetails details);
 
 // Flattens a string.
 void FlattenString(Handle<String> str);

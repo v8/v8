@@ -631,7 +631,9 @@ function ArraySlice(start, end) {
 
   if (end_i < start_i) return result;
 
-  if (IS_ARRAY(this)) {
+  if (IS_ARRAY(this) &&
+      (end_i > 1000) &&
+      (%EstimateNumberOfElements(this) < end_i)) {
     SmartSlice(this, start_i, end_i - start_i, len, result);
   } else {
     SimpleSlice(this, start_i, end_i - start_i, len, result);

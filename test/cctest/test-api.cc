@@ -10472,6 +10472,7 @@ class RegExpInterruptTest {
     CHECK(regexp_success_);
     CHECK(gc_success_);
   }
+
  private:
   // Number of garbage collections required.
   static const int kRequiredGCs = 5;
@@ -10594,6 +10595,7 @@ class ApplyInterruptTest {
     CHECK(apply_success_);
     CHECK(gc_success_);
   }
+
  private:
   // Number of garbage collections required.
   static const int kRequiredGCs = 2;
@@ -10887,8 +10889,8 @@ class RegExpStringModificationTest {
     CHECK(regexp_success_);
     CHECK(morph_success_);
   }
- private:
 
+ private:
   // Number of string modifications required.
   static const int kRequiredModifications = 5;
   static const int kMaxModifications = 100;
@@ -14035,48 +14037,6 @@ TEST(DontDeleteCellLoadICAPI) {
                "  }"
                "})()",
                "ReferenceError: cell is not defined");
-}
-
-
-TEST(GlobalLoadICGC) {
-  const char* function_code =
-      "function readCell() { while (true) { return cell; } }";
-
-  // Check inline load code for a don't delete cell is cleared during
-  // GC.
-  {
-    v8::HandleScope scope;
-    LocalContext context;
-    CompileRun("var cell = \"value\";");
-    ExpectBoolean("delete cell", false);
-    CompileRun(function_code);
-    ExpectString("readCell()", "value");
-    ExpectString("readCell()", "value");
-  }
-  {
-    v8::HandleScope scope;
-    LocalContext context2;
-    // Hold the code object in the second context.
-    CompileRun(function_code);
-    CheckSurvivingGlobalObjectsCount(1);
-  }
-
-  // Check inline load code for a deletable cell is cleared during GC.
-  {
-    v8::HandleScope scope;
-    LocalContext context;
-    CompileRun("cell = \"value\";");
-    CompileRun(function_code);
-    ExpectString("readCell()", "value");
-    ExpectString("readCell()", "value");
-  }
-  {
-    v8::HandleScope scope;
-    LocalContext context2;
-    // Hold the code object in the second context.
-    CompileRun(function_code);
-    CheckSurvivingGlobalObjectsCount(1);
-  }
 }
 
 
