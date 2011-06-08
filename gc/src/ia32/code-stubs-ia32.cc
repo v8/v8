@@ -6236,10 +6236,16 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
 // written is in the address register.
 void RecordWriteStub::Generate(MacroAssembler* masm) {
   Label skip_non_incremental_part;
+
+  // The first instruction is generated as a label so as to get the offset
+  // fixed up correctly by the bind(Label*) call.  We patch it back and forth
+  // between a 2-byte compare instruction (a nop in this position) and the real
+  // branch when we start and stop incremental heap marking.
   __ jmp(&skip_non_incremental_part, Label::kNear);
-  if (!HEAP->incremental_marking()->IsMarking()) {
-    ASSERT(masm->get_opcode(-2) == kSkipNonIncrementalPartInstruction);
-    masm->set_opcode(-2, kTwoByteNopInstruction);
+  if (!masm->isolate()->heap()->incremental_marking()->IsMarking()) {
+    ASSERT(masm->byte_at(masm->pc_offset() - 2) ==
+           kSkipNonIncrementalPartInstruction);
+    masm->set_byte_at(masm->pc_offset() - 2, kTwoByteNopInstruction);
   }
 
   if (remembered_set_action_ == EMIT_REMEMBERED_SET) {

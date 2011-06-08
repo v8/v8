@@ -775,7 +775,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
     __ movq(name_reg, rax);
-    __ RecordWrite(receiver_reg, offset, name_reg, scratch, kDontSaveFPRegs);
+    __ RecordWriteField(
+        receiver_reg, offset, name_reg, scratch, kDontSaveFPRegs);
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
@@ -786,7 +787,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
     __ movq(name_reg, rax);
-    __ RecordWrite(scratch, offset, name_reg, receiver_reg, kDontSaveFPRegs);
+    __ RecordWriteField(
+        scratch, offset, name_reg, receiver_reg, kDontSaveFPRegs);
   }
 
   // Return the value (register rax).
@@ -1446,9 +1448,8 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       __ bind(&with_write_barrier);
 
-      __ InNewSpace(rbx, rcx, equal, &exit);
-
-      __ RecordWriteHelper(rbx, rdx, rcx, kDontSaveFPRegs);
+      __ RecordWrite(
+          rbx, rdx, rcx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
       __ ret((argc + 1) * kPointerSize);
 

@@ -3143,7 +3143,7 @@ void MacroAssembler::HasColor(Register object,
                               Label* has_color,
                               int first_bit,
                               int second_bit) {
-  ASSERT(!Aliasing(object, bitmap_scratch, mask_scratch, no_reg));
+  ASSERT(!AreAliased(object, bitmap_scratch, mask_scratch, no_reg));
 
   GetMarkBits(object, bitmap_scratch, mask_scratch);
 
@@ -3169,7 +3169,7 @@ void MacroAssembler::HasColor(Register object,
 void MacroAssembler::GetMarkBits(Register addr_reg,
                                  Register bitmap_reg,
                                  Register mask_reg) {
-  ASSERT(!Aliasing(addr_reg, bitmap_reg, mask_reg, no_reg));
+  ASSERT(!AreAliased(addr_reg, bitmap_reg, mask_reg, no_reg));
   and_(bitmap_reg, addr_reg, Operand(~Page::kPageAlignmentMask));
   Ubfx(mask_reg, addr_reg, kPointerSizeLog2, Bitmap::kBitsPerCellLog2);
   const int kLowBits = kPointerSizeLog2 + Bitmap::kBitsPerCellLog2;
@@ -3229,7 +3229,7 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
 }
 
 
-bool Aliasing(Register r1, Register r2, Register r3, Register r4) {
+bool AreAliased(Register r1, Register r2, Register r3, Register r4) {
   if (r1.is(r2)) return true;
   if (r1.is(r3)) return true;
   if (r1.is(r4)) return true;

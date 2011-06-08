@@ -2427,16 +2427,18 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Store last subject and last input.
   __ movq(rax, Operand(rsp, kSubjectOffset));
   __ movq(FieldOperand(rbx, RegExpImpl::kLastSubjectOffset), rax);
-  __ movq(rcx, rbx);
-  __ RecordWrite(rcx,
-                 RegExpImpl::kLastSubjectOffset,
-                 rax,
-                 rdi,
-                 kDontSaveFPRegs);
+  __ RecordWriteField(rbx,
+                      RegExpImpl::kLastSubjectOffset,
+                      rax,
+                      rdi,
+                      kDontSaveFPRegs);
   __ movq(rax, Operand(rsp, kSubjectOffset));
   __ movq(FieldOperand(rbx, RegExpImpl::kLastInputOffset), rax);
-  __ movq(rcx, rbx);
-  __ RecordWrite(rcx, RegExpImpl::kLastInputOffset, rax, rdi, kDontSaveFPRegs);
+  __ RecordWriteField(rbx,
+                      RegExpImpl::kLastInputOffset,
+                      rax,
+                      rdi,
+                      kDontSaveFPRegs);
 
   // Get the static offsets vector filled by the native regexp code.
   __ LoadAddress(rcx,
@@ -5175,6 +5177,36 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
   __ movq(scratch, Immediate(0));
   __ Drop(1);
   __ ret(2 * kPointerSize);
+}
+
+
+// Takes the input in 3 registers: address_ value_ and object_.  A pointer to
+// the value has just been written into the object, now this stub makes sure
+// we keep the GC informed.  The word in the object where the value has been
+// written is in the address register.
+void RecordWriteStub::Generate(MacroAssembler* masm) {
+  Label skip_non_incremental_part;
+
+  // The first instruction is generated as a label so as to get the offset
+  // fixed up correctly by the bind(Label*) call.  We patch it back and forth
+  // between a 2-byte compare instruction (a nop in this position) and the real
+  // branch when we start and stop incremental heap marking.
+  __ jmp(&skip_non_incremental_part, Label::kNear);
+  if (!masm->isolate()->heap()->incremental_marking()->IsMarking()) {
+    ASSERT(masm->byte_at(masm->pc_offset() - 2) ==
+           kSkipNonIncrementalPartInstruction);
+    masm->set_byte_at(masm->pc_offset() - 2, kTwoByteNopInstruction);
+  }
+
+  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
+    __ RememberedSetHelper(
+        address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
+  } else {
+    __ ret(0);
+  }
+
+  __ bind(&skip_non_incremental_part);
+  __ int3();
 }
 
 

@@ -196,18 +196,10 @@ void MacroAssembler::CompareRoot(const Operand& with,
 }
 
 
-void MacroAssembler::RecordWriteHelper(Register object,
-                                         Register addr,
-                                       Register scratch,
-                                       SaveFPRegsMode save_fp) {
-  if (emit_debug_code()) {
-    // Check that the object is not in new space.
-    Label not_in_new_space;
-    InNewSpace(object, scratch, not_equal, &not_in_new_space, Label::kNear);
-    Abort("new-space object passed to RecordWriteHelper");
-    bind(&not_in_new_space);
-  }
-
+void MacroAssembler::RememberedSetHelper(Register addr,
+                                         Register scratch,
+                                         SaveFPRegsMode save_fp,
+                                         RememberedSetFinalAction and_then) {
   // Load store buffer top.
   LoadRoot(scratch, Heap::kStoreBufferTopRootIndex);
   // Store pointer to buffer.
@@ -217,14 +209,27 @@ void MacroAssembler::RecordWriteHelper(Register object,
   // Write back new top of buffer.
   StoreRoot(scratch, Heap::kStoreBufferTopRootIndex);
   // Call stub on end of buffer.
-  Label no_overflow;
+  Label done;
   // Check for end of buffer.
   testq(scratch, Immediate(StoreBuffer::kStoreBufferOverflowBit));
-  j(equal, &no_overflow, Label::kNear);
+  if (and_then == kReturnAtEnd) {
+    Label buffer_overflowed;
+    j(not_equal, &buffer_overflowed, Label::kNear);
+    ret(0);
+    bind(&buffer_overflowed);
+  } else {
+    ASSERT(and_then == kFallThroughAtEnd);
+    j(equal, &done, Label::kNear);
+  }
   StoreBufferOverflowStub store_buffer_overflow =
       StoreBufferOverflowStub(save_fp);
   CallStub(&store_buffer_overflow);
-  bind(&no_overflow);
+  if (and_then == kReturnAtEnd) {
+    ret(0);
+  } else {
+    ASSERT(and_then == kFallThroughAtEnd);
+    bind(&done);
+  }
 }
 
 
@@ -264,32 +269,51 @@ void MacroAssembler::InNewSpace(Register object,
 }
 
 
-void MacroAssembler::RecordWrite(Register object,
-                                 int offset,
-                                 Register value,
-                                 Register index,
-                                 SaveFPRegsMode save_fp) {
+void MacroAssembler::RecordWriteField(
+    Register object,
+    int offset,
+    Register value,
+    Register dst,
+    SaveFPRegsMode save_fp,
+    RememberedSetAction remembered_set_action,
+    SmiCheck smi_check) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are rsi.
-  ASSERT(!value.is(rsi) && !index.is(rsi));
+  ASSERT(!value.is(rsi) && !dst.is(rsi));
 
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of smis and stores into the young generation.
+  // catch stores of Smis.
   Label done;
-  JumpIfSmi(value, &done);
 
-  RecordWriteNonSmi(object, offset, value, index, save_fp);
+  // Skip barrier if writing a smi.
+  if (smi_check == INLINE_SMI_CHECK) {
+    JumpIfSmi(value, &done);
+  }
+
+  // Although the object register is tagged, the offset is relative to the start
+  // of the object, so so offset must be a multiple of kPointerSize.
+  ASSERT(IsAligned(offset, kPointerSize));
+
+  lea(dst, FieldOperand(object, offset));
+  if (emit_debug_code()) {
+    Label ok;
+    testb(dst, Immediate((1 << kPointerSizeLog2) - 1));
+    j(zero, &ok, Label::kNear);
+    int3();
+    bind(&ok);
+  }
+
+  RecordWrite(
+      object, dst, value, save_fp, remembered_set_action, OMIT_SMI_CHECK);
+
   bind(&done);
 
-  // Clobber all input registers when running with the debug-code flag
-  // turned on to provoke errors. This clobbering repeats the
-  // clobbering done inside RecordWriteNonSmi but it's necessary to
-  // avoid having the fast case for smis leave the registers
-  // unchanged.
+  // Clobber clobbered input registers when running with the debug-code flag
+  // turned on to provoke errors.
   if (emit_debug_code()) {
     movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
-    movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(dst, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
 }
 
@@ -297,86 +321,71 @@ void MacroAssembler::RecordWrite(Register object,
 void MacroAssembler::RecordWrite(Register object,
                                  Register address,
                                  Register value,
-                                 SaveFPRegsMode save_fp) {
+                                 SaveFPRegsMode fp_mode,
+                                 RememberedSetAction remembered_set_action,
+                                 SmiCheck smi_check) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are rsi.
-  ASSERT(!object.is(rsi) && !value.is(rsi) && !address.is(rsi));
+  ASSERT(!value.is(rsi) && !address.is(rsi));
+  if (remembered_set_action == OMIT_REMEMBERED_SET &&
+      !FLAG_incremental_marking) {
+    return;
+  }
+
+  ASSERT(!object.is(value));
+  ASSERT(!object.is(address));
+  ASSERT(!value.is(address));
+  if (emit_debug_code()) {
+    AbortIfSmi(object);
+  }
+
+  if (remembered_set_action == OMIT_REMEMBERED_SET &&
+      !FLAG_incremental_marking) {
+    return;
+  }
+
+  if (FLAG_debug_code) {
+    Label ok;
+    cmpq(value, Operand(address, 0));
+    j(equal, &ok, Label::kNear);
+    int3();
+    bind(&ok);
+  }
 
   // First, check if a write barrier is even needed. The tests below
   // catch stores of smis and stores into the young generation.
   Label done;
-  JumpIfSmi(value, &done);
 
-  InNewSpace(object, value, equal, &done);
+  if (smi_check == INLINE_SMI_CHECK) {
+    // Skip barrier if writing a smi.
+    JumpIfSmi(value, &done);
+  }
 
-  RecordWriteHelper(object, address, value, save_fp);
+  CheckPageFlag(value,
+                value,  // Used as scratch.
+                MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING,
+                zero,
+                &done,
+                Label::kNear);
+
+  CheckPageFlag(object,
+                value,  // Used as scratch.
+                MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING,
+                zero,
+                &done,
+                Label::kNear);
+
+  RecordWriteStub stub(object, value, address, remembered_set_action, fp_mode);
+  CallStub(&stub);
 
   bind(&done);
 
-  // Clobber all input registers when running with the debug-code flag
+  // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
     movq(address, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
-  }
-}
-
-
-void MacroAssembler::RecordWriteNonSmi(Register object,
-                                       int offset,
-                                       Register scratch,
-                                       Register index,
-                                       SaveFPRegsMode save_fp) {
-  Label done;
-
-  if (emit_debug_code()) {
-    Label okay;
-    JumpIfNotSmi(object, &okay, Label::kNear);
-    Abort("MacroAssembler::RecordWriteNonSmi cannot deal with smis");
-    bind(&okay);
-
-    if (offset == 0) {
-      // index must be int32.
-      Register tmp = index.is(rax) ? rbx : rax;
-      push(tmp);
-      movl(tmp, index);
-      cmpq(tmp, index);
-      Check(equal, "Index register for RecordWrite must be untagged int32.");
-      pop(tmp);
-    }
-  }
-
-  // Test that the object address is not in the new space. We cannot
-  // update page dirty marks for new space pages.
-  InNewSpace(object, scratch, equal, &done);
-
-  // The offset is relative to a tagged or untagged HeapObject pointer,
-  // so either offset or offset + kHeapObjectTag must be a
-  // multiple of kPointerSize.
-  ASSERT(IsAligned(offset, kPointerSize) ||
-         IsAligned(offset + kHeapObjectTag, kPointerSize));
-
-  Register dst = index;
-  if (offset != 0) {
-    lea(dst, Operand(object, offset));
-  } else {
-    // array access: calculate the destination address in the same manner as
-    // KeyedStoreIC::GenerateGeneric.
-    lea(dst, FieldOperand(object,
-                          index,
-                          times_pointer_size,
-                          FixedArray::kHeaderSize));
-  }
-  RecordWriteHelper(object, dst, scratch, save_fp);
-
-  bind(&done);
-
-  // Clobber all input registers when running with the debug-code flag
-  // turned on to provoke errors.
-  if (emit_debug_code()) {
-    movq(scratch, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
-    movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
 }
 
@@ -3729,6 +3738,17 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
 }
 
 
+bool AreAliased(Register r1, Register r2, Register r3, Register r4) {
+  if (r1.is(r2)) return true;
+  if (r1.is(r3)) return true;
+  if (r1.is(r4)) return true;
+  if (r2.is(r3)) return true;
+  if (r2.is(r4)) return true;
+  if (r3.is(r4)) return true;
+  return false;
+}
+
+
 CodePatcher::CodePatcher(byte* address, int size)
     : address_(address),
       size_(size),
@@ -3747,6 +3767,30 @@ CodePatcher::~CodePatcher() {
   // Check that the code was patched as expected.
   ASSERT(masm_.pc_ == address_ + size_);
   ASSERT(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
+}
+
+
+void MacroAssembler::CheckPageFlag(
+    Register object,
+    Register scratch,
+    MemoryChunk::MemoryChunkFlags flag,
+    Condition cc,
+    Label* condition_met,
+    Label::Distance condition_met_distance) {
+  ASSERT(cc == zero || cc == not_zero);
+  if (scratch.is(object)) {
+    and_(scratch, Immediate(~Page::kPageAlignmentMask));
+  } else {
+    movq(scratch, Immediate(~Page::kPageAlignmentMask));
+    and_(scratch, object);
+  }
+  if (flag < kBitsPerByte) {
+    testb(Operand(scratch, MemoryChunk::kFlagsOffset),
+          Immediate(static_cast<uint8_t>(1u << flag)));
+  } else {
+    testl(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(1 << flag));
+  }
+  j(cc, condition_met, condition_met_distance);
 }
 
 } }  // namespace v8::internal

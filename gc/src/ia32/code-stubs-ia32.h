@@ -577,7 +577,7 @@ class RecordWriteStub: public CodeStub {
           object_(object),
           address_(address),
           scratch0_(scratch0) {
-      ASSERT(!Aliasing(scratch0, object, address, no_reg));
+      ASSERT(!AreAliased(scratch0, object, address, no_reg));
       scratch1_ = GetRegThatIsNotEcxOr(object_, address_, scratch0_);
       if (scratch0.is(ecx)) {
         scratch0_ = GetRegThatIsNotEcxOr(object_, address_, scratch1_);
@@ -588,15 +588,15 @@ class RecordWriteStub: public CodeStub {
       if (address.is(ecx)) {
         address_ = GetRegThatIsNotEcxOr(object_, scratch0_, scratch1_);
       }
-      ASSERT(!Aliasing(scratch0_, object_, address_, ecx));
+      ASSERT(!AreAliased(scratch0_, object_, address_, ecx));
     }
 
     void Save(MacroAssembler* masm) {
       ASSERT(!address_orig_.is(object_));
       ASSERT(object_.is(object_orig_) || address_.is(address_orig_));
-      ASSERT(!Aliasing(object_, address_, scratch1_, scratch0_));
-      ASSERT(!Aliasing(object_orig_, address_, scratch1_, scratch0_));
-      ASSERT(!Aliasing(object_, address_orig_, scratch1_, scratch0_));
+      ASSERT(!AreAliased(object_, address_, scratch1_, scratch0_));
+      ASSERT(!AreAliased(object_orig_, address_, scratch1_, scratch0_));
+      ASSERT(!AreAliased(object_, address_orig_, scratch1_, scratch0_));
       // We don't have to save scratch0_orig_ because it was given to us as
       // a scratch register.  But if we had to switch to a different reg then
       // we should save the new scratch0_.

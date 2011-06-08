@@ -287,7 +287,7 @@ void MacroAssembler::RecordWrite(Register object,
   }
 
   if (remembered_set_action == OMIT_REMEMBERED_SET &&
-      FLAG_incremental_marking == false) {
+      !FLAG_incremental_marking) {
     return;
   }
 
@@ -2233,7 +2233,7 @@ void MacroAssembler::CallCFunction(Register function,
 }
 
 
-bool Aliasing(Register r1, Register r2, Register r3, Register r4) {
+bool AreAliased(Register r1, Register r2, Register r3, Register r4) {
   if (r1.is(r2)) return true;
   if (r1.is(r3)) return true;
   if (r1.is(r4)) return true;
@@ -2271,7 +2271,7 @@ void MacroAssembler::CheckPageFlag(
     MemoryChunk::MemoryChunkFlags flag,
     Condition cc,
     Label* condition_met,
-    Label::Distance condition_met_near) {
+    Label::Distance condition_met_distance) {
   ASSERT(cc == zero || cc == not_zero);
   if (scratch.is(object)) {
     and_(scratch, Immediate(~Page::kPageAlignmentMask));
@@ -2285,7 +2285,7 @@ void MacroAssembler::CheckPageFlag(
   } else {
     test(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(1 << flag));
   }
-  j(cc, condition_met, condition_met_near);
+  j(cc, condition_met, condition_met_distance);
 }
 
 
@@ -2308,7 +2308,7 @@ void MacroAssembler::HasColor(Register object,
                               Label::Distance has_color_distance,
                               int first_bit,
                               int second_bit) {
-  ASSERT(!Aliasing(object, bitmap_scratch, mask_scratch, ecx));
+  ASSERT(!AreAliased(object, bitmap_scratch, mask_scratch, ecx));
 
   GetMarkBits(object, bitmap_scratch, mask_scratch);
 
@@ -2352,7 +2352,7 @@ void MacroAssembler::IsDataObject(Register value,
 void MacroAssembler::GetMarkBits(Register addr_reg,
                                  Register bitmap_reg,
                                  Register mask_reg) {
-  ASSERT(!Aliasing(addr_reg, bitmap_reg, mask_reg, ecx));
+  ASSERT(!AreAliased(addr_reg, bitmap_reg, mask_reg, ecx));
   mov(bitmap_reg, Operand(addr_reg));
   and_(bitmap_reg, ~Page::kPageAlignmentMask);
   mov(ecx, Operand(addr_reg));
@@ -2376,7 +2376,7 @@ void MacroAssembler::EnsureNotWhite(
     Register mask_scratch,
     Label* value_is_white_and_not_data,
     Label::Distance distance) {
-  ASSERT(!Aliasing(value, bitmap_scratch, mask_scratch, ecx));
+  ASSERT(!AreAliased(value, bitmap_scratch, mask_scratch, ecx));
   GetMarkBits(value, bitmap_scratch, mask_scratch);
 
   // If the value is black or grey we don't need to do anything.

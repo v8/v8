@@ -84,7 +84,7 @@ enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 enum LinkRegisterStatus { kLRHasNotBeenSaved, kLRHasBeenSaved };
 
 
-bool Aliasing(Register r1, Register r2, Register r3, Register r4);
+bool AreAliased(Register r1, Register r2, Register r3, Register r4);
 
 
 // MacroAssembler implements a collection of frequently used macros.
@@ -177,9 +177,9 @@ class MacroAssembler: public Assembler {
     kFallThroughAtEnd
   };
 
-  // For page containing |object| mark region covering |addr| dirty.
-  // RememberedSetHelper only works if the object is not in new
-  // space.
+  // Record in the remembered set the fact that we have a pointer to new space
+  // at the address pointed to by the addr register.  Only works if addr is not
+  // in new space.
   void RememberedSetHelper(Register addr,
                            Register scratch,
                            SaveFPRegsMode save_fp,
@@ -235,11 +235,9 @@ class MacroAssembler: public Assembler {
 
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
-  // stored.  All registers are clobbered by the operation.  RecordWriteField
-  // filters out smis so it does not update the write barrier if the value is a
-  // smi.  The offset is the offset from the start of the object, not the offset
-  // from the tagged HeapObject pointer.  For use with
-  // FieldMemOperand(reg, off)
+  // stored.  value and scratch registers are clobbered by the operation.
+  // The offset is the offset from the start of the object, not the offset from
+  // the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
   void RecordWriteField(
       Register object,
       int offset,

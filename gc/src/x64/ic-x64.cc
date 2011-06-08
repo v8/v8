@@ -804,7 +804,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Slow case that needs to retain rcx for use by RecordWrite.
   // Update write barrier for the elements array address.
   __ movq(rdx, rax);
-  __ RecordWriteNonSmi(rbx, 0, rdx, rcx, kDontSaveFPRegs);
+  __ lea(rcx,
+         FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize));
+  __ RecordWrite(
+      rbx, rcx, rdx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ ret(0);
 }
 

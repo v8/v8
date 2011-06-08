@@ -1394,13 +1394,14 @@ class Assembler : public AssemblerBase {
   static const int kMaximalBufferSize = 512*MB;
   static const int kMinimalBufferSize = 4*KB;
 
+  byte byte_at(int pos)  { return buffer_[pos]; }
+  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
+
  protected:
   bool emit_debug_code() const { return emit_debug_code_; }
 
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }
-  byte byte_at(int pos)  { return buffer_[pos]; }
-  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
   uint32_t long_at(int pos)  {
     return *reinterpret_cast<uint32_t*>(addr_at(pos));
   }

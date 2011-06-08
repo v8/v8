@@ -1403,10 +1403,6 @@ class LStoreGlobalCell: public LTemplateInstruction<0, 1, 2> {
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store-global-cell")
   DECLARE_HYDROGEN_ACCESSOR(StoreGlobalCell)
-
- private:
-  LOperand* temp1_;
-  LOperand* temp2_;
 };
 
 

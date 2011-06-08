@@ -64,7 +64,7 @@ typedef Operand MemOperand;
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
-bool Aliasing(Register r1, Register r2, Register r3, Register r4);
+bool AreAliased(Register r1, Register r2, Register r3, Register r4);
 
 // Forward declaration.
 class JumpTarget;
@@ -142,13 +142,25 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
-  // For page containing |object| mark region covering |addr| dirty.
-  // RecordWriteHelper only works if the object is not in new
-  // space.
-  void RecordWriteHelper(Register object,
-                         Register addr,
-                         Register scratch,
-                         SaveFPRegsMode save_fp);
+  enum RememberedSetFinalAction {
+    kReturnAtEnd,
+    kFallThroughAtEnd
+  };
+
+  // Record in the remembered set the fact that we have a pointer to new space
+  // at the address pointed to by the addr register.  Only works if addr is not
+  // in new space.
+  void RememberedSetHelper(Register addr,
+                           Register scratch,
+                           SaveFPRegsMode save_fp,
+                           RememberedSetFinalAction and_then);
+
+  void CheckPageFlag(Register object,
+                     Register scratch,
+                     MemoryChunk::MemoryChunkFlags flag,
+                     Condition cc,
+                     Label* condition_met,
+                     Label::Distance condition_met_distance = Label::kFar);
 
   // Check if object is in new space. The condition cc can be equal or
   // not_equal. If it is equal a jump will be done if the object is on new
@@ -159,40 +171,65 @@ class MacroAssembler: public Assembler {
                   Label* branch,
                   Label::Distance near_jump = Label::kFar);
 
-  // For page containing |object| mark region covering [object+offset]
-  // dirty. |object| is the object being stored into, |value| is the
-  // object being stored. If |offset| is zero, then the |scratch|
-  // register contains the array index into the elements array
-  // represented as an untagged 32-bit integer. All registers are
-  // clobbered by the operation. RecordWrite filters out smis so it
-  // does not update the write barrier if the value is a smi.
-  void RecordWrite(Register object,
-                   int offset,
-                   Register value,
-                   Register scratch,
-                   SaveFPRegsMode save_fp);
+  // Notify the garbage collector that we wrote a pointer into an object.
+  // |object| is the object being stored into, |value| is the object being
+  // stored.  value and scratch registers are clobbered by the operation.
+  // The offset is the offset from the start of the object, not the offset from
+  // the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
+  void RecordWriteField(
+      Register object,
+      int offset,
+      Register value,
+      Register scratch,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
+
+  // As above, but the offset has the tag presubtracted.  For use with
+  // Operand(reg, off).
+  void RecordWriteContextSlot(
+      Register context,
+      int offset,
+      Register value,
+      Register scratch,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK) {
+    RecordWriteField(context,
+                     offset + kHeapObjectTag,
+                     value,
+                     scratch,
+                     save_fp,
+                     remembered_set_action,
+                     smi_check);
+  }
+
+  // Notify the garbage collector that we wrote a pointer into a fixed array.
+  // |array| is the array being stored into, |value| is the
+  // object being stored.  |index| is the array index represented as a
+  // Smi. All registers are clobbered by the operation RecordWriteArray
+  // filters out smis so it does not update the write barrier if the
+  // value is a smi.
+  void RecordWriteArray(
+      Register array,
+      Register value,
+      Register index,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // For page containing |object| mark region covering [address]
   // dirty. |object| is the object being stored into, |value| is the
   // object being stored. All registers are clobbered by the
   // operation.  RecordWrite filters out smis so it does not update
   // the write barrier if the value is a smi.
-  void RecordWrite(Register object,
-                   Register address,
-                   Register value,
-                   SaveFPRegsMode save_fp);
-
-  // For page containing |object| mark region covering [object+offset] dirty.
-  // The value is known to not be a smi.
-  // object is the object being stored into, value is the object being stored.
-  // If offset is zero, then the scratch register contains the array index into
-  // the elements array represented as an untagged 32-bit integer.
-  // All registers are clobbered by the operation.
-  void RecordWriteNonSmi(Register object,
-                         int offset,
-                         Register value,
-                         Register scratch,
-                         SaveFPRegsMode save_fp);
+  void RecordWrite(
+      Register object,
+      Register address,
+      Register value,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
