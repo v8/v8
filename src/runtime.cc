@@ -8480,7 +8480,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
   ASSERT_EQ(1, args.length());
   CONVERT_ARG_CHECKED(String, source, 0);
 
-  Handle<Object> result = JsonParser::Parse(source);
+  source = Handle<String>(source->TryFlattenGetString());
+  // Optimized fast case where we only have ascii characters.
+  Handle<Object> result;
+  if (source->IsSeqAsciiString()) {
+    result = JsonParser<true>::Parse(source);
+  } else {
+    result = JsonParser<false>::Parse(source);
+  }
   if (result.is_null()) {
     // Syntax error or stack overflow in scanner.
     ASSERT(isolate->has_pending_exception());
