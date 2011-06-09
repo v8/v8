@@ -221,6 +221,7 @@ class HGraph: public ZoneObject {
   void Canonicalize();
   void OrderBlocks();
   void AssignDominators();
+  void ReplaceCheckedValues();
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.

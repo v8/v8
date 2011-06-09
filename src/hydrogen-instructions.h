@@ -2133,6 +2133,7 @@ class HBoundsCheck: public HBinaryOperation {
  public:
   HBoundsCheck(HValue* index, HValue* length)
       : HBinaryOperation(index, length) {
+    set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
   }
 
