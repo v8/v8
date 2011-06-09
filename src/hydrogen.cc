@@ -3896,6 +3896,8 @@ HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
     }
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
     case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+      break;
+
     case JSObject::FAST_ELEMENTS:
     case JSObject::FAST_DOUBLE_ELEMENTS:
     case JSObject::DICTIONARY_ELEMENTS:
