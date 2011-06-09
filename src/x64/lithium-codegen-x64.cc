@@ -2682,8 +2682,7 @@ void LCodeGen::DoOuterContext(LOuterContext* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
   __ movq(result,
-          Operand(context, Context::SlotOffset(Context::CLOSURE_INDEX)));
-  __ movq(result, FieldOperand(result, JSFunction::kContextOffset));
+          Operand(context, Context::SlotOffset(Context::PREVIOUS_INDEX)));
 }
 
 

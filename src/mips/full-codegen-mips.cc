@@ -1128,8 +1128,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
         __ Branch(slow, ne, temp, Operand(zero_reg));
       }
       // Load next context in chain.
-      __ lw(next, ContextOperand(current, Context::CLOSURE_INDEX));
-      __ lw(next, FieldMemOperand(next, JSFunction::kContextOffset));
+      __ lw(next, ContextOperand(current, Context::PREVIOUS_INDEX));
       // Walk the rest of the chain without clobbering cp.
       current = next;
     }
@@ -1153,8 +1152,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
     __ lw(temp, ContextOperand(next, Context::EXTENSION_INDEX));
     __ Branch(slow, ne, temp, Operand(zero_reg));
     // Load next context in chain.
-    __ lw(next, ContextOperand(next, Context::CLOSURE_INDEX));
-    __ lw(next, FieldMemOperand(next, JSFunction::kContextOffset));
+    __ lw(next, ContextOperand(next, Context::PREVIOUS_INDEX));
     __ Branch(&loop);
     __ bind(&fast);
   }
@@ -1184,8 +1182,7 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(
         __ lw(temp, ContextOperand(context, Context::EXTENSION_INDEX));
         __ Branch(slow, ne, temp, Operand(zero_reg));
       }
-      __ lw(next, ContextOperand(context, Context::CLOSURE_INDEX));
-      __ lw(next, FieldMemOperand(next, JSFunction::kContextOffset));
+      __ lw(next, ContextOperand(context, Context::PREVIOUS_INDEX));
       // Walk the rest of the chain without clobbering cp.
       context = next;
     }
