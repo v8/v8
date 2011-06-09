@@ -2262,7 +2262,29 @@ HGraph* HGraphBuilder::CreateGraph() {
     gvn.Analyze();
   }
 
+  // Replace the results of check instructions with the original value, if the
+  // result is used. This is safe now, since we don't do code motion after this
+  // point. It enables better register allocation since the value produced by
+  // check instructions is really a copy of the original value.
+  graph()->ReplaceCheckedValues();
+
   return graph();
+}
+
+
+void HGraph::ReplaceCheckedValues() {
+  HPhase phase("Replace checked values", this);
+  for (int i = 0; i < blocks()->length(); ++i) {
+    HInstruction* instr = blocks()->at(i)->first();
+    while (instr != NULL) {
+      if (instr->IsBoundsCheck()) {
+        // Replace all uses of the checked value with the original input.
+        ASSERT(instr->UseCount() > 0);
+        instr->ReplaceAllUsesWith(HBoundsCheck::cast(instr)->index());
+      }
+      instr = instr->next();
+    }
+  }
 }
 
 
@@ -3714,16 +3736,17 @@ HInstruction* HGraphBuilder::BuildLoadKeyedFastElement(HValue* object,
   bool is_array = (map->instance_type() == JS_ARRAY_TYPE);
   HLoadElements* elements = new(zone()) HLoadElements(object);
   HInstruction* length = NULL;
+  HInstruction* checked_key = NULL;
   if (is_array) {
     length = AddInstruction(new(zone()) HJSArrayLength(object));
-    AddInstruction(new(zone()) HBoundsCheck(key, length));
+    checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
     AddInstruction(elements);
   } else {
     AddInstruction(elements);
     length = AddInstruction(new(zone()) HFixedArrayLength(elements));
-    AddInstruction(new(zone()) HBoundsCheck(key, length));
+    checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
   }
-  return new(zone()) HLoadKeyedFastElement(elements, key);
+  return new(zone()) HLoadKeyedFastElement(elements, checked_key);
 }
 
 
@@ -3741,13 +3764,14 @@ HInstruction* HGraphBuilder::BuildLoadKeyedSpecializedArrayElement(
   AddInstruction(elements);
   HInstruction* length = new(zone()) HExternalArrayLength(elements);
   AddInstruction(length);
-  AddInstruction(new(zone()) HBoundsCheck(key, length));
+  HInstruction* checked_key =
+      AddInstruction(new(zone()) HBoundsCheck(key, length));
   HLoadExternalArrayPointer* external_elements =
       new(zone()) HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
   HLoadKeyedSpecializedArrayElement* pixel_array_value =
       new(zone()) HLoadKeyedSpecializedArrayElement(
-          external_elements, key, expr->external_array_type());
+          external_elements, checked_key, expr->external_array_type());
   return pixel_array_value;
 }
 
@@ -3802,8 +3826,9 @@ HInstruction* HGraphBuilder::BuildStoreKeyedFastElement(HValue* object,
   } else {
     length = AddInstruction(new(zone()) HFixedArrayLength(elements));
   }
-  AddInstruction(new(zone()) HBoundsCheck(key, length));
-  return new(zone()) HStoreKeyedFastElement(elements, key, val);
+  HInstruction* checked_key =
+      AddInstruction(new(zone()) HBoundsCheck(key, length));
+  return new(zone()) HStoreKeyedFastElement(elements, checked_key, val);
 }
 
 
@@ -3822,7 +3847,8 @@ HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
   AddInstruction(elements);
   HInstruction* length = AddInstruction(
       new(zone()) HExternalArrayLength(elements));
-  AddInstruction(new(zone()) HBoundsCheck(key, length));
+  HInstruction* checked_key =
+      AddInstruction(new(zone()) HBoundsCheck(key, length));
   HLoadExternalArrayPointer* external_elements =
       new(zone()) HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
@@ -3851,7 +3877,7 @@ HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
   }
   return new(zone()) HStoreKeyedSpecializedArrayElement(
       external_elements,
-      key,
+      checked_key,
       val,
       expr->external_array_type());
 }
@@ -3909,8 +3935,9 @@ bool HGraphBuilder::TryArgumentsAccess(Property* expr) {
     HInstruction* elements = AddInstruction(new(zone()) HArgumentsElements);
     HInstruction* length = AddInstruction(
         new(zone()) HArgumentsLength(elements));
-    AddInstruction(new(zone()) HBoundsCheck(key, length));
-    result = new(zone()) HAccessArgumentsAt(elements, length, key);
+    HInstruction* checked_key =
+        AddInstruction(new(zone()) HBoundsCheck(key, length));
+    result = new(zone()) HAccessArgumentsAt(elements, length, checked_key);
   }
   ast_context()->ReturnInstruction(result, expr->id());
   return true;
@@ -5023,8 +5050,9 @@ HStringCharCodeAt* HGraphBuilder::BuildStringCharCodeAt(HValue* string,
   AddInstruction(HCheckInstanceType::NewIsString(string));
   HStringLength* length = new(zone()) HStringLength(string);
   AddInstruction(length);
-  AddInstruction(new(zone()) HBoundsCheck(index, length));
-  return new(zone()) HStringCharCodeAt(string, index);
+  HInstruction* checked_index =
+      AddInstruction(new(zone()) HBoundsCheck(index, length));
+  return new(zone()) HStringCharCodeAt(string, checked_index);
 }
 
 

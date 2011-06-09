@@ -1734,7 +1734,6 @@ void HSimulate::Verify() {
 
 void HBoundsCheck::Verify() {
   HInstruction::Verify();
-  ASSERT(HasNoUses());
 }
 
 
