@@ -7720,6 +7720,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeoptimizeFunction) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_RunningInSimulator) {
+#if defined(USE_SIMULATOR)
+  return isolate->heap()->true_value();
+#else
+  return isolate->heap()->false_value();
+#endif
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
