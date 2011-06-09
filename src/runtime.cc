@@ -8607,11 +8607,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
     // Stop search when eval is found or when the global context is
     // reached.
     if (attributes != ABSENT || context->IsGlobalContext()) break;
-    if (context->IsFunctionContext()) {
-      context = Handle<Context>(context->closure()->context(), isolate);
-    } else {
-      context = Handle<Context>(context->previous(), isolate);
-    }
+    context = Handle<Context>(context->previous(), isolate);
   }
 
   // If eval could not be resolved, it has been deleted and we need to
@@ -10268,11 +10264,7 @@ class ScopeIterator {
     }
 
     // Move to the next context.
-    if (context_->IsFunctionContext()) {
-      context_ = Handle<Context>(context_->closure()->context());
-    } else {
-      context_ = Handle<Context>(context_->previous());
-    }
+    context_ = Handle<Context>(context_->previous(), isolate_);
 
     // If passing the local scope indicate that the current scope is now the
     // local scope.

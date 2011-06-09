@@ -187,11 +187,9 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       }
     }
 
-    // proceed with enclosing context
+    // Proceed with the previous context.
     if (context->IsGlobalContext()) {
       follow_context_chain = false;
-    } else if (context->IsFunctionContext()) {
-      context = Handle<Context>(context->closure()->context(), isolate);
     } else {
       context = Handle<Context>(context->previous(), isolate);
     }
@@ -234,7 +232,7 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
     // Check context only holding the function name variable.
     index = scope_info->FunctionContextSlotIndex(*name);
     if (index >= 0) return false;
-    context = Context::cast(context->closure()->context());
+    context = context->previous();
   }
 
   // No local or potential with statement found so the variable is
@@ -245,8 +243,10 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
 
 void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_eval,
                                    bool* outer_scope_calls_non_strict_eval) {
-  Context* context = this;
-  while (true) {
+  // Skip up the context chain checking all the function contexts to see
+  // whether they call eval.
+  Context* context = fcontext();
+  while (!context->IsGlobalContext()) {
     Handle<SerializedScopeInfo> scope_info(
         context->closure()->shared()->scope_info());
     if (scope_info->CallsEval()) {
@@ -258,8 +258,7 @@ void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_eval,
         return;
       }
     }
-    if (context->IsGlobalContext()) break;
-    context = Context::cast(context->closure()->context());
+    context = context->previous()->fcontext();
   }
 }
 

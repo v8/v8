@@ -133,10 +133,10 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ Set(rbx, 0);  // Set to NULL.
   __ movq(Operand(rax, Context::SlotOffset(Context::CLOSURE_INDEX)), rcx);
   __ movq(Operand(rax, Context::SlotOffset(Context::FCONTEXT_INDEX)), rax);
-  __ movq(Operand(rax, Context::SlotOffset(Context::PREVIOUS_INDEX)), rbx);
+  __ movq(Operand(rax, Context::SlotOffset(Context::PREVIOUS_INDEX)), rsi);
   __ movq(Operand(rax, Context::SlotOffset(Context::EXTENSION_INDEX)), rbx);
 
-  // Copy the global object from the surrounding context.
+  // Copy the global object from the previous context.
   __ movq(rbx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ movq(Operand(rax, Context::SlotOffset(Context::GLOBAL_INDEX)), rbx);
 

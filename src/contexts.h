@@ -166,9 +166,6 @@ enum ContextLookupFlags {
 //   the moment we also use it in generated code for context slot accesses -
 //   and there we don't want a loop because of code bloat - but we may not
 //   need it there after all (see comment in codegen_*.cc).
-//
-// - If we cannot get rid of fcontext, consider making 'previous' never NULL
-//   except for the global context. This could simplify Context::Lookup.
 
 class Context: public FixedArray {
  public:

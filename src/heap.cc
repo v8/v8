@@ -3928,7 +3928,7 @@ MaybeObject* Heap::AllocateFunctionContext(int length, JSFunction* function) {
   context->set_map(function_context_map());
   context->set_closure(function);
   context->set_fcontext(context);
-  context->set_previous(NULL);
+  context->set_previous(function->context());
   context->set_extension(NULL);
   context->set_global(function->context()->global());
   return context;
