@@ -904,7 +904,6 @@ int Shell::RunMain(int argc, char* argv[]) {
     if (threads.length() > 0 && use_preemption) {
       Locker::StartPreemption(preemption_interval);
     }
-
   }
 
   for (int i = 0; i < threads.length(); i++) {
@@ -980,7 +979,7 @@ int Shell::Main(int argc, char* argv[]) {
   return result;
 }
 
-} // namespace v8
+}  // namespace v8
 
 
 #ifndef GOOGLE3
