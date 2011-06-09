@@ -2016,6 +2016,12 @@ void MacroAssembler::Call(Label* target) {
 }
 
 
+void MacroAssembler::Push(Handle<Object> handle) {
+  li(at, Operand(handle));
+  push(at);
+}
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 void MacroAssembler::DebugBreak() {

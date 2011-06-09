@@ -471,6 +471,9 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
     sw(src, MemOperand(sp, 0));
   }
 
+  // Push a handle.
+  void Push(Handle<Object> handle);
+
   // Push two registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
     Subu(sp, sp, Operand(2 * kPointerSize));
