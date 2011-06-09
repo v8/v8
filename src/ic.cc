@@ -1070,10 +1070,10 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 
 String* KeyedLoadIC::GetStubNameForCache(IC::State ic_state) {
   if (ic_state == MONOMORPHIC) {
-    return isolate()->heap()->KeyedLoadSpecializedMonomorphic_symbol();
+    return isolate()->heap()->KeyedLoadElementMonomorphic_symbol();
   } else {
     ASSERT(ic_state == MEGAMORPHIC);
-    return isolate()->heap()->KeyedLoadSpecializedPolymorphic_symbol();
+    return isolate()->heap()->KeyedLoadElementPolymorphic_symbol();
   }
 }
 
@@ -1085,8 +1085,8 @@ MaybeObject* KeyedLoadIC::GetFastElementStubWithoutMapCheck(
 
 
 MaybeObject* KeyedLoadIC::GetExternalArrayStubWithoutMapCheck(
-    ExternalArrayType array_type) {
-  return KeyedLoadExternalArrayStub(array_type).TryGetCode();
+    JSObject::ElementsKind elements_kind) {
+  return KeyedLoadExternalArrayStub(elements_kind).TryGetCode();
 }
 
 
@@ -1697,8 +1697,8 @@ MaybeObject* KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
       return generic_stub;
     }
     Code* default_stub = Code::cast(maybe_default_stub);
-    return GetExternalArrayStubWithoutMapCheck(
-        default_stub->external_array_type());
+    Map* first_map = default_stub->FindFirstMap();
+    return GetExternalArrayStubWithoutMapCheck(first_map->elements_kind());
   } else if (receiver_map->has_fast_elements()) {
     bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
     return GetFastElementStubWithoutMapCheck(is_js_array);
@@ -1713,14 +1713,10 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
                                              StrictModeFlag strict_mode,
                                              Code* generic_stub) {
   Code* result = NULL;
-  if (receiver->HasExternalArrayElements()) {
+  if (receiver->HasFastElements() ||
+      receiver->HasExternalArrayElements()) {
     MaybeObject* maybe_stub =
-        isolate()->stub_cache()->ComputeKeyedLoadOrStoreExternalArray(
-            receiver, is_store, strict_mode);
-    if (!maybe_stub->To(&result)) return maybe_stub;
-  } else if (receiver->map()->has_fast_elements()) {
-    MaybeObject* maybe_stub =
-        isolate()->stub_cache()->ComputeKeyedLoadOrStoreFastElement(
+        isolate()->stub_cache()->ComputeKeyedLoadOrStoreElement(
             receiver, is_store, strict_mode);
     if (!maybe_stub->To(&result)) return maybe_stub;
   } else {
@@ -1732,10 +1728,10 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
 
 String* KeyedStoreIC::GetStubNameForCache(IC::State ic_state) {
   if (ic_state == MONOMORPHIC) {
-    return isolate()->heap()->KeyedStoreSpecializedMonomorphic_symbol();
+    return isolate()->heap()->KeyedStoreElementMonomorphic_symbol();
   } else {
     ASSERT(ic_state == MEGAMORPHIC);
-    return isolate()->heap()->KeyedStoreSpecializedPolymorphic_symbol();
+    return isolate()->heap()->KeyedStoreElementPolymorphic_symbol();
   }
 }
 
@@ -1747,8 +1743,8 @@ MaybeObject* KeyedStoreIC::GetFastElementStubWithoutMapCheck(
 
 
 MaybeObject* KeyedStoreIC::GetExternalArrayStubWithoutMapCheck(
-    ExternalArrayType array_type) {
-  return KeyedStoreExternalArrayStub(array_type).TryGetCode();
+    JSObject::ElementsKind elements_kind) {
+  return KeyedStoreExternalArrayStub(elements_kind).TryGetCode();
 }
 
 

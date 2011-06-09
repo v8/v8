@@ -182,14 +182,14 @@ inline Heap* _inline_get_heap_();
   V(value_of_symbol, "valueOf")                                          \
   V(InitializeVarGlobal_symbol, "InitializeVarGlobal")                   \
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
-  V(KeyedLoadSpecializedMonomorphic_symbol,                              \
-    "KeyedLoadSpecializedMonomorphic")                                   \
-  V(KeyedLoadSpecializedPolymorphic_symbol,                              \
-    "KeyedLoadSpecializedPolymorphic")                                   \
-  V(KeyedStoreSpecializedMonomorphic_symbol,                             \
-    "KeyedStoreSpecializedMonomorphic")                                  \
-  V(KeyedStoreSpecializedPolymorphic_symbol,                             \
-    "KeyedStoreSpecializedPolymorphic")                                  \
+  V(KeyedLoadElementMonomorphic_symbol,                                  \
+    "KeyedLoadElementMonomorphic")                                       \
+  V(KeyedLoadElementPolymorphic_symbol,                                  \
+    "KeyedLoadElementPolymorphic")                                       \
+  V(KeyedStoreElementMonomorphic_symbol,                                 \
+    "KeyedStoreElementMonomorphic")                                      \
+  V(KeyedStoreElementPolymorphic_symbol,                                 \
+    "KeyedStoreElementPolymorphic")                                      \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
   V(illegal_access_symbol, "illegal access")                             \
   V(out_of_memory_symbol, "out-of-memory")                               \

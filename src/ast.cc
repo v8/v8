@@ -607,9 +607,6 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     is_string_access_ = true;
   } else if (is_monomorphic_) {
     monomorphic_receiver_type_ = oracle->LoadMonomorphicReceiverType(this);
-    if (monomorphic_receiver_type_->has_external_array_elements()) {
-      set_external_array_type(oracle->GetKeyedLoadExternalArrayType(this));
-    }
   }
 }
 
@@ -627,9 +624,6 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   } else if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed loads.
     monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
-    if (monomorphic_receiver_type_->has_external_array_elements()) {
-      set_external_array_type(oracle->GetKeyedStoreExternalArrayType(this));
-    }
   }
 }
 
@@ -639,9 +633,6 @@ void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed loads.
     monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
-    if (monomorphic_receiver_type_->has_external_array_elements()) {
-      set_external_array_type(oracle->GetKeyedStoreExternalArrayType(this));
-    }
   }
 }
 

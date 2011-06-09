@@ -3809,7 +3809,7 @@ HInstruction* HGraphBuilder::BuildLoadKeyedSpecializedArrayElement(
   AddInstruction(external_elements);
   HLoadKeyedSpecializedArrayElement* pixel_array_value =
       new(zone()) HLoadKeyedSpecializedArrayElement(
-          external_elements, checked_key, expr->external_array_type());
+          external_elements, checked_key, map->elements_kind());
   return pixel_array_value;
 }
 
@@ -3890,34 +3890,38 @@ HInstruction* HGraphBuilder::BuildStoreKeyedSpecializedArrayElement(
   HLoadExternalArrayPointer* external_elements =
       new(zone()) HLoadExternalArrayPointer(elements);
   AddInstruction(external_elements);
-  ExternalArrayType array_type = expr->external_array_type();
-  switch (array_type) {
-    case kExternalPixelArray: {
+  JSObject::ElementsKind elements_kind = map->elements_kind();
+  switch (elements_kind) {
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS: {
       HClampToUint8* clamp = new(zone()) HClampToUint8(val);
       AddInstruction(clamp);
       val = clamp;
       break;
     }
-    case kExternalByteArray:
-    case kExternalUnsignedByteArray:
-    case kExternalShortArray:
-    case kExternalUnsignedShortArray:
-    case kExternalIntArray:
-    case kExternalUnsignedIntArray: {
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS: {
       HToInt32* floor_val = new(zone()) HToInt32(val);
       AddInstruction(floor_val);
       val = floor_val;
       break;
     }
-    case kExternalFloatArray:
-    case kExternalDoubleArray:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+    case JSObject::FAST_ELEMENTS:
+    case JSObject::FAST_DOUBLE_ELEMENTS:
+    case JSObject::DICTIONARY_ELEMENTS:
+      UNREACHABLE();
       break;
   }
   return new(zone()) HStoreKeyedSpecializedArrayElement(
       external_elements,
       checked_key,
       val,
-      expr->external_array_type());
+      map->elements_kind());
 }
 
 

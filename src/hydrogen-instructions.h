@@ -3474,11 +3474,11 @@ class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
  public:
   HLoadKeyedSpecializedArrayElement(HValue* external_elements,
                                     HValue* key,
-                                    ExternalArrayType array_type)
+                                    JSObject::ElementsKind elements_kind)
       : HBinaryOperation(external_elements, key),
-        array_type_(array_type) {
-    if (array_type == kExternalFloatArray ||
-        array_type == kExternalDoubleArray) {
+        elements_kind_(elements_kind) {
+    if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
+        elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
       set_representation(Representation::Double());
     } else {
       set_representation(Representation::Integer32());
@@ -3500,7 +3500,7 @@ class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
 
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
-  ExternalArrayType array_type() const { return array_type_; }
+  JSObject::ElementsKind elements_kind() const { return elements_kind_; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedSpecializedArrayElement)
 
@@ -3509,11 +3509,11 @@ class HLoadKeyedSpecializedArrayElement: public HBinaryOperation {
     if (!other->IsLoadKeyedSpecializedArrayElement()) return false;
     HLoadKeyedSpecializedArrayElement* cast_other =
         HLoadKeyedSpecializedArrayElement::cast(other);
-    return array_type_ == cast_other->array_type();
+    return elements_kind_ == cast_other->elements_kind();
   }
 
  private:
-  ExternalArrayType array_type_;
+  JSObject::ElementsKind elements_kind_;
 };
 
 
@@ -3656,8 +3656,8 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
   HStoreKeyedSpecializedArrayElement(HValue* external_elements,
                                      HValue* key,
                                      HValue* val,
-                                     ExternalArrayType array_type)
-      : array_type_(array_type) {
+                                     JSObject::ElementsKind elements_kind)
+      : elements_kind_(elements_kind) {
     SetFlag(kChangesSpecializedArrayElements);
     SetOperandAt(0, external_elements);
     SetOperandAt(1, key);
@@ -3670,8 +3670,10 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
     if (index == 0) {
       return Representation::External();
     } else {
-      if (index == 2 && (array_type() == kExternalFloatArray ||
-                         array_type() == kExternalDoubleArray)) {
+      bool float_or_double_elements =
+          elements_kind() == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
+          elements_kind() == JSObject::EXTERNAL_DOUBLE_ELEMENTS;
+      if (index == 2 && float_or_double_elements) {
         return Representation::Double();
       } else {
         return Representation::Integer32();
@@ -3682,12 +3684,12 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
-  ExternalArrayType array_type() const { return array_type_; }
+  JSObject::ElementsKind elements_kind() const { return elements_kind_; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement)
 
  private:
-  ExternalArrayType array_type_;
+  JSObject::ElementsKind elements_kind_;
 };
 
 

@@ -228,9 +228,6 @@ class TypeFeedbackOracle BASE_EMBEDDED {
                                  Handle<String> name,
                                  CallKind call_kind);
 
-  ExternalArrayType GetKeyedLoadExternalArrayType(Property* expr);
-  ExternalArrayType GetKeyedStoreExternalArrayType(Expression* expr);
-
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
 

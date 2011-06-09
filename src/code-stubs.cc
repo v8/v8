@@ -255,12 +255,12 @@ void KeyedStoreFastElementStub::Generate(MacroAssembler* masm) {
 
 
 void KeyedLoadExternalArrayStub::Generate(MacroAssembler* masm) {
-  KeyedLoadStubCompiler::GenerateLoadExternalArray(masm, array_type_);
+  KeyedLoadStubCompiler::GenerateLoadExternalArray(masm, elements_kind_);
 }
 
 
 void KeyedStoreExternalArrayStub::Generate(MacroAssembler* masm) {
-  KeyedStoreStubCompiler::GenerateStoreExternalArray(masm, array_type_);
+  KeyedStoreStubCompiler::GenerateStoreExternalArray(masm, elements_kind_);
 }
 
 

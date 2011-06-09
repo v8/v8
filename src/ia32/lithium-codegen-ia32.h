@@ -232,7 +232,7 @@ class LCodeGen BASE_EMBEDDED {
   int ToInteger32(LConstantOperand* op) const;
   Operand BuildExternalArrayOperand(LOperand* external_pointer,
                                     LOperand* key,
-                                    ExternalArrayType array_type);
+                                    JSObject::ElementsKind elements_kind);
 
   // Specific math operations - used from DoUnaryMathOperation.
   void EmitIntegerMathAbs(LUnaryMathOperation* instr);

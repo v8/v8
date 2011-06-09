@@ -1355,33 +1355,38 @@ void HLoadKeyedSpecializedArrayElement::PrintDataTo(
     StringStream* stream) {
   external_pointer()->PrintNameTo(stream);
   stream->Add(".");
-  switch (array_type()) {
-    case kExternalByteArray:
+  switch (elements_kind()) {
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
       stream->Add("byte");
       break;
-    case kExternalUnsignedByteArray:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       stream->Add("u_byte");
       break;
-    case kExternalShortArray:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
       stream->Add("short");
       break;
-    case kExternalUnsignedShortArray:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       stream->Add("u_short");
       break;
-    case kExternalIntArray:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
       stream->Add("int");
       break;
-    case kExternalUnsignedIntArray:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
       stream->Add("u_int");
       break;
-    case kExternalFloatArray:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
       stream->Add("float");
       break;
-    case kExternalDoubleArray:
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
       stream->Add("double");
       break;
-    case kExternalPixelArray:
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
       stream->Add("pixel");
+      break;
+    case JSObject::FAST_ELEMENTS:
+    case JSObject::FAST_DOUBLE_ELEMENTS:
+    case JSObject::DICTIONARY_ELEMENTS:
+      UNREACHABLE();
       break;
   }
   stream->Add("[");
@@ -1435,33 +1440,38 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
     StringStream* stream) {
   external_pointer()->PrintNameTo(stream);
   stream->Add(".");
-  switch (array_type()) {
-    case kExternalByteArray:
+  switch (elements_kind()) {
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
       stream->Add("byte");
       break;
-    case kExternalUnsignedByteArray:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       stream->Add("u_byte");
       break;
-    case kExternalShortArray:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
       stream->Add("short");
       break;
-    case kExternalUnsignedShortArray:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       stream->Add("u_short");
       break;
-    case kExternalIntArray:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
       stream->Add("int");
       break;
-    case kExternalUnsignedIntArray:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
       stream->Add("u_int");
       break;
-    case kExternalFloatArray:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
       stream->Add("float");
       break;
-    case kExternalDoubleArray:
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
       stream->Add("double");
       break;
-    case kExternalPixelArray:
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
       stream->Add("pixel");
+      break;
+    case JSObject::FAST_ELEMENTS:
+    case JSObject::FAST_DOUBLE_ELEMENTS:
+    case JSObject::DICTIONARY_ELEMENTS:
+      UNREACHABLE();
       break;
   }
   stream->Add("[");

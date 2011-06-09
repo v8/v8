@@ -261,17 +261,9 @@ class Expression: public AstNode {
     return Handle<Map>();
   }
 
-  ExternalArrayType external_array_type() const {
-    return external_array_type_;
-  }
-  void set_external_array_type(ExternalArrayType array_type) {
-    external_array_type_ = array_type;
-  }
-
   unsigned id() const { return id_; }
 
  private:
-  ExternalArrayType external_array_type_;
   unsigned id_;
 };
 

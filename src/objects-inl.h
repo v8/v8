@@ -2841,19 +2841,6 @@ void Code::set_check_type(CheckType value) {
 }
 
 
-ExternalArrayType Code::external_array_type() {
-  ASSERT(is_keyed_load_stub() || is_keyed_store_stub());
-  byte type = READ_BYTE_FIELD(this, kExternalArrayTypeOffset);
-  return static_cast<ExternalArrayType>(type);
-}
-
-
-void Code::set_external_array_type(ExternalArrayType value) {
-  ASSERT(is_keyed_load_stub() || is_keyed_store_stub());
-  WRITE_BYTE_FIELD(this, kExternalArrayTypeOffset, value);
-}
-
-
 byte Code::unary_op_type() {
   ASSERT(is_unary_op_stub());
   return READ_BYTE_FIELD(this, kUnaryOpTypeOffset);
