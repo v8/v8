@@ -1805,12 +1805,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
-Handle<Code> GetUnaryOpStub(int key, UnaryOpIC::TypeInfo type_info) {
-  UnaryOpStub stub(key, type_info);
-  return stub.GetCode();
-}
-
-
 const char* UnaryOpStub::GetName() {
   if (name_ != NULL) return name_;
   const int kMaxNameLength = 100;
@@ -2115,14 +2109,6 @@ void UnaryOpStub::GenerateGenericCodeFallback(
     default:
       UNREACHABLE();
   }
-}
-
-
-Handle<Code> GetBinaryOpStub(int key,
-                             BinaryOpIC::TypeInfo type_info,
-                             BinaryOpIC::TypeInfo result_type_info) {
-  BinaryOpStub stub(key, type_info, result_type_info);
-  return stub.GetCode();
 }
 
 

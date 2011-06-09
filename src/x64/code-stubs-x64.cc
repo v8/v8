@@ -406,12 +406,6 @@ void IntegerConvert(MacroAssembler* masm,
 }
 
 
-Handle<Code> GetUnaryOpStub(int key, UnaryOpIC::TypeInfo type_info) {
-  UnaryOpStub stub(key, type_info);
-  return stub.GetCode();
-}
-
-
 void UnaryOpStub::Generate(MacroAssembler* masm) {
   switch (operand_type_) {
     case UnaryOpIC::UNINITIALIZED:
@@ -674,14 +668,6 @@ const char* UnaryOpStub::GetName() {
                overwrite_name,
                UnaryOpIC::GetName(operand_type_));
   return name_;
-}
-
-
-Handle<Code> GetBinaryOpStub(int key,
-                             BinaryOpIC::TypeInfo type_info,
-                             BinaryOpIC::TypeInfo result_type_info) {
-  BinaryOpStub stub(key, type_info, result_type_info);
-  return stub.GetCode();
 }
 
 

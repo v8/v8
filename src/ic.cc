@@ -2293,11 +2293,6 @@ BinaryOpIC::TypeInfo BinaryOpIC::GetTypeInfo(Handle<Object> left,
 }
 
 
-// defined in code-stubs-<arch>.cc
-// Only needed to remove dependency of ic.cc on code-stubs-<arch>.h.
-Handle<Code> GetUnaryOpStub(int key, UnaryOpIC::TypeInfo type_info);
-
-
 RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
   ASSERT(args.length() == 4);
 
@@ -2311,7 +2306,8 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
   UnaryOpIC::TypeInfo type = UnaryOpIC::GetTypeInfo(operand);
   type = UnaryOpIC::ComputeNewType(type, previous_type);
 
-  Handle<Code> code = GetUnaryOpStub(key, type);
+  UnaryOpStub stub(key, type);
+  Handle<Code> code = stub.GetCode();
   if (!code.is_null()) {
     if (FLAG_trace_ic) {
       PrintF("[UnaryOpIC (%s->%s)#%s]\n",
@@ -2347,13 +2343,6 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
   }
   return *result;
 }
-
-// defined in code-stubs-<arch>.cc
-// Only needed to remove dependency of ic.cc on code-stubs-<arch>.h.
-Handle<Code> GetBinaryOpStub(int key,
-                             BinaryOpIC::TypeInfo type_info,
-                             BinaryOpIC::TypeInfo result_type);
-
 
 RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   ASSERT(args.length() == 5);
@@ -2393,7 +2382,8 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
     result_type = BinaryOpIC::HEAP_NUMBER;
   }
 
-  Handle<Code> code = GetBinaryOpStub(key, type, result_type);
+  BinaryOpStub stub(key, type, result_type);
+  Handle<Code> code = stub.GetCode();
   if (!code.is_null()) {
     if (FLAG_trace_ic) {
       PrintF("[BinaryOpIC (%s->(%s->%s))#%s]\n",
