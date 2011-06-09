@@ -591,6 +591,7 @@ class HValue: public ZoneObject {
   void SetOperandAt(int index, HValue* value);
 
   void DeleteAndReplaceWith(HValue* other);
+  void ReplaceAllUsesWith(HValue* other);
   bool HasNoUses() const { return use_list_ == NULL; }
   bool HasMultipleUses() const {
     return use_list_ != NULL && use_list_->tail() != NULL;
@@ -679,8 +680,6 @@ class HValue: public ZoneObject {
   // Remove the matching use from the use list if present.  Returns the
   // removed list node or NULL.
   HUseListNode* RemoveUse(HValue* value, int index);
-
-  void ReplaceAllUsesWith(HValue* other);
 
   void RegisterUse(int index, HValue* new_value);
 
@@ -2334,6 +2333,7 @@ class HBoundsCheck: public HBinaryOperation {
  public:
   HBoundsCheck(HValue* index, HValue* length)
       : HBinaryOperation(index, length) {
+    set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
   }
 
