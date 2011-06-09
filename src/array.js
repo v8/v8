@@ -1252,7 +1252,7 @@ function ArrayReduce(callback, current) {
   for (; i < length; i++) {
     var element = this[i];
     if (!IS_UNDEFINED(element) || i in this) {
-      current = callback.call(null, current, element, i, this);
+      current = callback.call(void 0, current, element, i, this);
     }
   }
   return current;
@@ -1283,7 +1283,7 @@ function ArrayReduceRight(callback, current) {
   for (; i >= 0; i--) {
     var element = this[i];
     if (!IS_UNDEFINED(element) || i in this) {
-      current = callback.call(null, current, element, i, this);
+      current = callback.call(void 0, current, element, i, this);
     }
   }
   return current;

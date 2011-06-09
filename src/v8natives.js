@@ -592,10 +592,10 @@ function GetProperty(obj, p) {
 // ES5 section 8.12.6
 function HasProperty(obj, p) {
   if (%IsJSProxy(obj)) {
-    var handler = %GetHandler(obj)
-    var has = handler.has
-    if (IS_UNDEFINED(has)) has = DerivedHasTrap
-    return ToBoolean(has.call(handler, obj, p))
+    var handler = %GetHandler(obj);
+    var has = handler.has;
+    if (IS_UNDEFINED(has)) has = DerivedHasTrap;
+    return ToBoolean(has.call(handler, obj, p));
   }
   var desc = GetProperty(obj, p);
   return IS_UNDEFINED(desc) ? false : true;
