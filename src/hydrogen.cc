@@ -2551,19 +2551,20 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void HGraphBuilder::VisitWithEnterStatement(WithEnterStatement* stmt) {
+void HGraphBuilder::VisitEnterWithContextStatement(
+    EnterWithContextStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  return Bailout("WithEnterStatement");
+  return Bailout("EnterWithContextStatement");
 }
 
 
-void HGraphBuilder::VisitWithExitStatement(WithExitStatement* stmt) {
+void HGraphBuilder::VisitExitContextStatement(ExitContextStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  return Bailout("WithExitStatement");
+  return Bailout("ExitContextStatement");
 }
 
 

@@ -60,8 +60,8 @@ namespace internal {
   V(ContinueStatement)                          \
   V(BreakStatement)                             \
   V(ReturnStatement)                            \
-  V(WithEnterStatement)                         \
-  V(WithExitStatement)                          \
+  V(EnterWithContextStatement)                  \
+  V(ExitContextStatement)                       \
   V(SwitchStatement)                            \
   V(DoWhileStatement)                           \
   V(WhileStatement)                             \
@@ -611,12 +611,12 @@ class ReturnStatement: public Statement {
 };
 
 
-class WithEnterStatement: public Statement {
+class EnterWithContextStatement: public Statement {
  public:
-  explicit WithEnterStatement(Expression* expression)
+  explicit EnterWithContextStatement(Expression* expression)
       : expression_(expression) { }
 
-  DECLARE_NODE_TYPE(WithEnterStatement)
+  DECLARE_NODE_TYPE(EnterWithContextStatement)
 
   Expression* expression() const { return expression_; }
 
@@ -627,13 +627,11 @@ class WithEnterStatement: public Statement {
 };
 
 
-class WithExitStatement: public Statement {
+class ExitContextStatement: public Statement {
  public:
-  WithExitStatement() { }
-
   virtual bool IsInlineable() const;
 
-  DECLARE_NODE_TYPE(WithExitStatement)
+  DECLARE_NODE_TYPE(ExitContextStatement)
 };
 
 

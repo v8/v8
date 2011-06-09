@@ -297,8 +297,8 @@ namespace internal {
   F(PromoteScheduledException, 0, 1) \
   \
   /* Contexts */ \
-  F(NewContext, 1, 1) \
-  F(PushContext, 1, 1) \
+  F(NewFunctionContext, 1, 1) \
+  F(PushWithContext, 1, 1) \
   F(PushCatchContext, 1, 1) \
   F(DeleteContextSlot, 2, 1) \
   F(LoadContextSlot, 2, 2) \

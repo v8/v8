@@ -1894,13 +1894,19 @@ bool Heap::CreateInitialMaps() {
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_context_map(Map::cast(obj));
+  set_function_context_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_catch_context_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_with_context_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
@@ -3919,38 +3925,47 @@ MaybeObject* Heap::AllocateFunctionContext(int length, JSFunction* function) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(context_map());
+  context->set_map(function_context_map());
   context->set_closure(function);
   context->set_fcontext(context);
   context->set_previous(NULL);
   context->set_extension(NULL);
   context->set_global(function->context()->global());
-  ASSERT(!context->IsGlobalContext());
-  ASSERT(context->is_function_context());
-  ASSERT(result->IsContext());
-  return result;
+  return context;
 }
 
 
-MaybeObject* Heap::AllocateWithContext(Context* previous,
-                                       JSObject* extension,
-                                       bool is_catch_context) {
+MaybeObject* Heap::AllocateCatchContext(Context* previous,
+                                        JSObject* extension) {
   Object* result;
   { MaybeObject* maybe_result = AllocateFixedArray(Context::MIN_CONTEXT_SLOTS);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(is_catch_context ? catch_context_map() :
-      context_map());
+  context->set_map(catch_context_map());
   context->set_closure(previous->closure());
   context->set_fcontext(previous->fcontext());
   context->set_previous(previous);
   context->set_extension(extension);
   context->set_global(previous->global());
-  ASSERT(!context->IsGlobalContext());
-  ASSERT(!context->is_function_context());
-  ASSERT(result->IsContext());
-  return result;
+  return context;
+}
+
+
+MaybeObject* Heap::AllocateWithContext(Context* previous,
+                                       JSObject* extension) {
+  Object* result;
+  { MaybeObject* maybe_result = AllocateFixedArray(Context::MIN_CONTEXT_SLOTS);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  Context* context = reinterpret_cast<Context*>(result);
+  context->set_map(with_context_map());
+  context->set_closure(previous->closure());
+  context->set_fcontext(previous->fcontext());
+  context->set_previous(previous);
+  context->set_extension(extension);
+  context->set_global(previous->global());
+  return context;
 }
 
 

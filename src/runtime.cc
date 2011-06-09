@@ -7883,7 +7883,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetConstructorDelegate) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NewContext) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NewFunctionContext) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
@@ -7901,50 +7901,50 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewContext) {
 }
 
 
-MUST_USE_RESULT static MaybeObject* PushContextHelper(Isolate* isolate,
-                                                      Object* object,
-                                                      bool is_catch_context) {
-  // Convert the object to a proper JavaScript object.
-  Object* js_object = object;
-  if (!js_object->IsJSObject()) {
-    MaybeObject* maybe_js_object = js_object->ToObject();
-    if (!maybe_js_object->ToObject(&js_object)) {
-      if (!Failure::cast(maybe_js_object)->IsInternalError()) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_PushWithContext) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  JSObject* extension_object;
+  if (args[0]->IsJSObject()) {
+    extension_object = JSObject::cast(args[0]);
+  } else {
+    // Convert the object to a proper JavaScript object.
+    MaybeObject* maybe_js_object = args[0]->ToObject();
+    if (!maybe_js_object->To(&extension_object)) {
+      if (Failure::cast(maybe_js_object)->IsInternalError()) {
+        HandleScope scope(isolate);
+        Handle<Object> handle = args.at<Object>(0);
+        Handle<Object> result =
+            isolate->factory()->NewTypeError("with_expression",
+                                             HandleVector(&handle, 1));
+        return isolate->Throw(*result);
+      } else {
         return maybe_js_object;
       }
-      HandleScope scope(isolate);
-      Handle<Object> handle(object, isolate);
-      Handle<Object> result =
-          isolate->factory()->NewTypeError("with_expression",
-                                           HandleVector(&handle, 1));
-      return isolate->Throw(*result);
     }
   }
 
-  Object* result;
-  { MaybeObject* maybe_result = isolate->heap()->AllocateWithContext(
-      isolate->context(), JSObject::cast(js_object), is_catch_context);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  Context* context = Context::cast(result);
+  Context* context;
+  MaybeObject* maybe_context =
+      isolate->heap()->AllocateWithContext(isolate->context(),
+                                           extension_object);
+  if (!maybe_context->To(&context)) return maybe_context;
   isolate->set_context(context);
-
-  return result;
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_PushContext) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-  return PushContextHelper(isolate, args[0], false);
+  return context;
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushCatchContext) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  return PushContextHelper(isolate, args[0], true);
+  JSObject* extension_object = JSObject::cast(args[0]);
+  Context* context;
+  MaybeObject* maybe_context =
+      isolate->heap()->AllocateCatchContext(isolate->context(),
+                                            extension_object);
+  if (!maybe_context->To(&context)) return maybe_context;
+  isolate->set_context(context);
+  return context;
 }
 
 
@@ -8607,9 +8607,8 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
     // Stop search when eval is found or when the global context is
     // reached.
     if (attributes != ABSENT || context->IsGlobalContext()) break;
-    if (context->is_function_context()) {
-      context = Handle<Context>(Context::cast(context->closure()->context()),
-                                isolate);
+    if (context->IsFunctionContext()) {
+      context = Handle<Context>(context->closure()->context(), isolate);
     } else {
       context = Handle<Context>(context->previous(), isolate);
     }
@@ -9842,8 +9841,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   Handle<SerializedScopeInfo> scope_info(function->shared()->scope_info());
   ScopeInfo<> info(*scope_info);
 
-  // Get the context.
-  Handle<Context> context(Context::cast(it.frame()->context()));
+  // Get the nearest enclosing function context.
+  Handle<Context> context(Context::cast(it.frame()->context())->fcontext());
 
   // Get the locals names and values into a temporary array.
   //
@@ -9859,25 +9858,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   }
 
   // Fill in the values of the locals.
-  for (int i = 0; i < info.NumberOfLocals(); i++) {
-    if (is_optimized_frame) {
-      // If we are inspecting an optimized frame use undefined as the
-      // value for all locals.
-      //
-      // TODO(1140): We should be able to get the correct values
-      // for locals in optimized frames.
+  if (is_optimized_frame) {
+    // If we are inspecting an optimized frame use undefined as the
+    // value for all locals.
+    //
+    // TODO(1140): We should be able to get the correct values
+    // for locals in optimized frames.
+    for (int i = 0; i < info.NumberOfLocals(); i++) {
       locals->set(i * 2 + 1, isolate->heap()->undefined_value());
-    } else if (i < info.number_of_stack_slots()) {
+    }
+  } else {
+    for (int i = 0; i < info.number_of_stack_slots(); i++) {
       // Get the value from the stack.
       locals->set(i * 2 + 1, it.frame()->GetExpression(i));
-    } else {
-      // Traverse the context chain to the function context as all local
-      // variables stored in the context will be on the function context.
+    }
+    for (int i = info.number_of_stack_slots(); i < info.NumberOfLocals(); i++) {
       Handle<String> name = info.LocalName(i);
-      while (!context->is_function_context()) {
-        context = Handle<Context>(context->previous());
-      }
-      ASSERT(context->is_function_context());
       locals->set(i * 2 + 1,
                   context->get(scope_info->ContextSlotIndex(*name, NULL)));
     }
@@ -10139,7 +10135,7 @@ static Handle<JSObject> MaterializeLocalScope(Isolate* isolate,
 // context.
 static Handle<JSObject> MaterializeClosure(Isolate* isolate,
                                            Handle<Context> context) {
-  ASSERT(context->is_function_context());
+  ASSERT(context->IsFunctionContext());
 
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
   Handle<SerializedScopeInfo> serialized_scope_info(shared->scope_info());
@@ -10238,7 +10234,7 @@ class ScopeIterator {
       int index = function_->shared()->scope_info()->
           StackSlotIndex(isolate_->heap()->result_symbol());
       at_local_ = index < 0;
-    } else if (context_->is_function_context()) {
+    } else if (context_->IsFunctionContext()) {
       at_local_ = true;
     } else if (context_->closure() != *function_) {
       // The context_ is a with block from the outer function.
@@ -10272,8 +10268,8 @@ class ScopeIterator {
     }
 
     // Move to the next context.
-    if (context_->is_function_context()) {
-      context_ = Handle<Context>(Context::cast(context_->closure()->context()));
+    if (context_->IsFunctionContext()) {
+      context_ = Handle<Context>(context_->closure()->context());
     } else {
       context_ = Handle<Context>(context_->previous());
     }
@@ -10281,7 +10277,7 @@ class ScopeIterator {
     // If passing the local scope indicate that the current scope is now the
     // local scope.
     if (!local_done_ &&
-        (context_->IsGlobalContext() || (context_->is_function_context()))) {
+        (context_->IsGlobalContext() || context_->IsFunctionContext())) {
       at_local_ = true;
     }
   }
@@ -10295,7 +10291,7 @@ class ScopeIterator {
       ASSERT(context_->global()->IsGlobalObject());
       return ScopeTypeGlobal;
     }
-    if (context_->is_function_context()) {
+    if (context_->IsFunctionContext()) {
       return ScopeTypeClosure;
     }
     ASSERT(context_->has_extension());
@@ -10863,19 +10859,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClearStepping) {
 
 // Creates a copy of the with context chain. The copy of the context chain is
 // is linked to the function context supplied.
-static Handle<Context> CopyWithContextChain(Handle<Context> context_chain,
-                                            Handle<Context> function_context) {
-  // At the bottom of the chain. Return the function context to link to.
-  if (context_chain->is_function_context()) {
-    return function_context;
+static Handle<Context> CopyWithContextChain(Isolate* isolate,
+                                            Handle<Context> current,
+                                            Handle<Context> base) {
+  // At the end of the chain. Return the base context to link to.
+  if (current->IsFunctionContext() || current->IsGlobalContext()) {
+    return base;
   }
 
-  // Recursively copy the with contexts.
-  Handle<Context> previous(context_chain->previous());
-  Handle<JSObject> extension(JSObject::cast(context_chain->extension()));
-  Handle<Context> context = CopyWithContextChain(previous, function_context);
-  return context->GetIsolate()->factory()->NewWithContext(
-      context, extension, context_chain->IsCatchContext());
+  // Recursively copy the with and catch contexts.
+  HandleScope scope(isolate);
+  Handle<Context> previous(current->previous());
+  Handle<Context> new_previous = CopyWithContextChain(isolate, previous, base);
+  Handle<JSObject> extension(JSObject::cast(current->extension()));
+  Handle<Context> new_current = current->IsCatchContext()
+      ? isolate->factory()->NewCatchContext(new_previous, extension)
+      : isolate->factory()->NewWithContext(new_previous, extension);
+  return scope.CloseAndEscape(new_current);
 }
 
 
@@ -11004,11 +11004,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   // Copy any with contexts present and chain them in front of this context.
   Handle<Context> frame_context(Context::cast(frame->context()));
   Handle<Context> function_context(frame_context->fcontext());
-  context = CopyWithContextChain(frame_context, context);
+  context = CopyWithContextChain(isolate, frame_context, context);
 
   if (additional_context->IsJSObject()) {
-    context = isolate->factory()->NewWithContext(context,
-        Handle<JSObject>::cast(additional_context), false);
+    Handle<JSObject> extension = Handle<JSObject>::cast(additional_context);
+    context = isolate->factory()->NewWithContext(context, extension);
   }
 
   // Wrap the evaluation statement in a new function compiled in the newly

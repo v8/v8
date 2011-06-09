@@ -534,19 +534,14 @@ bool Object::IsDeoptimizationOutputData() {
 
 bool Object::IsContext() {
   if (Object::IsHeapObject()) {
-    Heap* heap = HeapObject::cast(this)->GetHeap();
-    return (HeapObject::cast(this)->map() == heap->context_map() ||
-            HeapObject::cast(this)->map() == heap->catch_context_map() ||
-            HeapObject::cast(this)->map() == heap->global_context_map());
+    Map* map = HeapObject::cast(this)->map();
+    Heap* heap = map->GetHeap();
+    return (map == heap->function_context_map() ||
+            map == heap->catch_context_map() ||
+            map == heap->with_context_map() ||
+            map == heap->global_context_map());
   }
   return false;
-}
-
-
-bool Object::IsCatchContext() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map() ==
-      HeapObject::cast(this)->GetHeap()->catch_context_map();
 }
 
 

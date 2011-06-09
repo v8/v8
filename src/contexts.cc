@@ -96,7 +96,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       PrintF("\n");
     }
 
-    // check extension/with object
+    // Check extension/with/global object.
     if (context->has_extension()) {
       Handle<JSObject> extension = Handle<JSObject>(context->extension(),
                                                     isolate);
@@ -119,7 +119,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       }
     }
 
-    if (context->is_function_context()) {
+    // Only functions can have locals, parameters, and a function name.
+    if (context->IsFunctionContext()) {
       // we have context-local slots
 
       // check non-parameter locals in context
@@ -189,9 +190,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     // proceed with enclosing context
     if (context->IsGlobalContext()) {
       follow_context_chain = false;
-    } else if (context->is_function_context()) {
-      context = Handle<Context>(Context::cast(context->closure()->context()),
-                                isolate);
+    } else if (context->IsFunctionContext()) {
+      context = Handle<Context>(context->closure()->context(), isolate);
     } else {
       context = Handle<Context>(context->previous(), isolate);
     }
@@ -212,11 +212,12 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
   // before the global context and check that there are no context
   // extension objects (conservative check for with statements).
   while (!context->IsGlobalContext()) {
-    // Check if the context is a potentially a with context.
+    // Check if the context is a catch or with context, or has called
+    // non-strict eval.
     if (context->has_extension()) return false;
 
     // Not a with context so it must be a function context.
-    ASSERT(context->is_function_context());
+    ASSERT(context->IsFunctionContext());
 
     // Check non-parameter locals.
     Handle<SerializedScopeInfo> scope_info(

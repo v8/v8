@@ -90,14 +90,14 @@ void BreakableStatementChecker::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void BreakableStatementChecker::VisitWithEnterStatement(
-    WithEnterStatement* stmt) {
+void BreakableStatementChecker::VisitEnterWithContextStatement(
+    EnterWithContextStatement* stmt) {
   Visit(stmt->expression());
 }
 
 
-void BreakableStatementChecker::VisitWithExitStatement(
-    WithExitStatement* stmt) {
+void BreakableStatementChecker::VisitExitContextStatement(
+    ExitContextStatement* stmt) {
 }
 
 
@@ -952,18 +952,19 @@ void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
-  Comment cmnt(masm_, "[ WithEnterStatement");
+void FullCodeGenerator::VisitEnterWithContextStatement(
+    EnterWithContextStatement* stmt) {
+  Comment cmnt(masm_, "[ EnterWithContextStatement");
   SetStatementPosition(stmt);
 
   VisitForStackValue(stmt->expression());
-  __ CallRuntime(Runtime::kPushContext, 1);
+  __ CallRuntime(Runtime::kPushWithContext, 1);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
 
-void FullCodeGenerator::VisitWithExitStatement(WithExitStatement* stmt) {
-  Comment cmnt(masm_, "[ WithExitStatement");
+void FullCodeGenerator::VisitExitContextStatement(ExitContextStatement* stmt) {
+  Comment cmnt(masm_, "[ ExitContextStatement");
   SetStatementPosition(stmt);
 
   // Pop context.

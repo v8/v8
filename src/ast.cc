@@ -362,12 +362,12 @@ bool ForInStatement::IsInlineable() const {
 }
 
 
-bool WithEnterStatement::IsInlineable() const {
+bool EnterWithContextStatement::IsInlineable() const {
   return false;
 }
 
 
-bool WithExitStatement::IsInlineable() const {
+bool ExitContextStatement::IsInlineable() const {
   return false;
 }
 
