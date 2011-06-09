@@ -216,6 +216,7 @@ class HGraph: public ZoneObject {
   void InitializeInferredTypes();
   void InsertTypeConversions();
   void InsertRepresentationChanges();
+  void MarkDeoptimizeOnUndefined();
   void ComputeMinusZeroChecks();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
@@ -280,6 +281,7 @@ class HGraph: public ZoneObject {
 
   void InsertTypeConversions(HInstruction* instr);
   void PropagateMinusZeroChecks(HValue* value, BitVector* visited);
+  void RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi);
   void InsertRepresentationChangeForUse(HValue* value,
                                         HValue* use_value,
                                         int use_index,

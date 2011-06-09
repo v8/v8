@@ -30,9 +30,6 @@ prefix mjsunit
 # All tests in the bug directory are expected to fail.
 bugs: FAIL
 
-# Reliably fails when crankshaft is active, passes with --nocrankshaft
-bugs/bug-1434: FAIL || PASS
-
 ##############################################################################
 # Too slow in debug mode with --stress-opt
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug

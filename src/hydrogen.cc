@@ -1850,6 +1850,8 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   // change instructions for them.
   HInstruction* new_value = NULL;
   bool is_truncating = use_value->CheckFlag(HValue::kTruncatingToInt32);
+  bool deoptimize_on_undefined =
+      use_value->CheckFlag(HValue::kDeoptimizeOnUndefined);
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     // Try to create a new copy of the constant with the new representation.
@@ -1859,8 +1861,8 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   }
 
   if (new_value == NULL) {
-    new_value =
-        new(zone()) HChange(value, value->representation(), to, is_truncating);
+    new_value = new(zone()) HChange(value, value->representation(), to,
+                                    is_truncating, deoptimize_on_undefined);
   }
 
   new_value->InsertBefore(next);
@@ -1937,6 +1939,40 @@ void HGraph::InsertRepresentationChanges() {
     while (current != NULL) {
       InsertRepresentationChangesForValue(current);
       current = current->next();
+    }
+  }
+}
+
+
+void HGraph::RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi) {
+  if (phi->CheckFlag(HValue::kDeoptimizeOnUndefined)) return;
+  phi->SetFlag(HValue::kDeoptimizeOnUndefined);
+  for (int i = 0; i < phi->OperandCount(); ++i) {
+    HValue* input = phi->OperandAt(i);
+    if (input->IsPhi()) {
+      RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi::cast(input));
+    }
+  }
+}
+
+
+void HGraph::MarkDeoptimizeOnUndefined() {
+  HPhase phase("MarkDeoptimizeOnUndefined", this);
+  // Compute DeoptimizeOnUndefined flag for phis.
+  // Any phi that can reach a use with DeoptimizeOnUndefined set must
+  // have DeoptimizeOnUndefined set.  Currently only HCompare, with
+  // double input representation, has this flag set.
+  // The flag is used by HChange tagged->double, which must deoptimize
+  // if one of its uses has this flag set.
+  for (int i = 0; i < phi_list()->length(); i++) {
+    HPhi* phi = phi_list()->at(i);
+    if (phi->representation().IsDouble()) {
+      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+        if (it.value()->CheckFlag(HValue::kDeoptimizeOnUndefined)) {
+          RecursivelyMarkPhiDeoptimizeOnUndefined(phi);
+          break;
+        }
+      }
     }
   }
 }
@@ -2248,6 +2284,7 @@ HGraph* HGraphBuilder::CreateGraph() {
 
   graph()->InitializeInferredTypes();
   graph()->Canonicalize();
+  graph()->MarkDeoptimizeOnUndefined();
   graph()->InsertRepresentationChanges();
   graph()->ComputeMinusZeroChecks();
 
