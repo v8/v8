@@ -9,23 +9,47 @@ the V8 project do the following:
 
 $ svn co http://gyp.googlecode.com/svn/trunk build/gyp
 
+Note for the command lines below that Debug is the default configuration,
+so specifying that on the command lines is not required.
+
+
 To generate Makefiles and build 32-bit version on Linux:
 --------------------------------------------------------
 
-$ GYP_DEFINES=target_arch=ia32 build/gyp_v8
-$ make
+$ build/gyp_v8 -D target_arch=ia32
+$ make BUILDTYPE=Debug
+$ out/Debug/shell
+$ make BUILDTYPE=Release
+$ out/Release/shell
 
 To generate Makefiles and build 64-bit version on Linux:
 --------------------------------------------------------
 
-$ GYP_DEFINES=target_arch=x64 build/gyp_v8
-$ make
+$ build/gyp_v8 -D target_arch=x64
+$ make BUILDTYPE=Debug
+$ out/Debug/shell
+$ make BUILDTYPE=Release
+$ out/Release/shell
 
 To generate Makefiles and build for the arm simulator on Linux:
 ---------------------------------------------------------------
 
-$ build/gyp_v8 -I build/arm.gypi
-$ make
+$ build/gyp_v8 -I build/armu.gypi
+$ make BUILDTYPE=Debug
+$ out/Debug/shell
+$ make BUILDTYPE=Release
+$ out/Release/shell
+
+
+To generate Xcode project files on Mac OS:
+------------------------------------------
+
+$ build/gyp_v8 -D target_arch=ia32
+$ xcodebuild -project build/all.xcodeproj -configuration Debug
+$ samples/build/Debug/shell
+$ xcodebuild -project build/all.xcodeproj -configuration Release
+$ samples/build/Release/shell
+
 
 To generate Visual Studio solution and project files on Windows:
 ----------------------------------------------------------------
