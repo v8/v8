@@ -396,6 +396,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                                          FixedArray::BodyDescriptor,
                                          void>::Visit);
 
+    table_.Register(kVisitFixedDoubleArray, DataObjectVisitor::Visit);
+
     table_.Register(kVisitGlobalContext,
                     &FixedBodyVisitor<StaticMarkingVisitor,
                                       Context::MarkCompactBodyDescriptor,

@@ -533,6 +533,7 @@ enum InstanceType {
   EXTERNAL_FLOAT_ARRAY_TYPE,
   EXTERNAL_DOUBLE_ARRAY_TYPE,
   EXTERNAL_PIXEL_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
+  FIXED_DOUBLE_ARRAY_TYPE,
   FILLER_TYPE,  // LAST_DATA_TYPE
 
   // Structs.
@@ -732,6 +733,7 @@ class MaybeObject BASE_EMBEDDED {
   V(DeoptimizationInputData)                   \
   V(DeoptimizationOutputData)                  \
   V(FixedArray)                                \
+  V(FixedDoubleArray)                          \
   V(Context)                                   \
   V(CatchContext)                              \
   V(GlobalContext)                             \
@@ -799,6 +801,10 @@ class Object : public MaybeObject {
 
   // Extract the number.
   inline double Number();
+
+  // Returns true if the object is of the correct type to be used as a
+  // implementation of a JSObject's elements.
+  inline bool HasValidElements();
 
   inline bool HasSpecificClassOf(String* name);
 
@@ -1427,6 +1433,10 @@ class JSObject: public JSReceiver {
     // The "fast" kind for tagged values. Must be first to make it possible
     // to efficiently check maps if they have fast elements.
     FAST_ELEMENTS,
+
+    // The "fast" kind for unwrapped, non-tagged double values.
+    FAST_DOUBLE_ELEMENTS,
+
     // The "slow" kind.
     DICTIONARY_ELEMENTS,
     // The "fast" kind for external arrays
@@ -1478,6 +1488,7 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT inline MaybeObject* ResetElements();
   inline ElementsKind GetElementsKind();
   inline bool HasFastElements();
+  inline bool HasFastDoubleElements();
   inline bool HasDictionaryElements();
   inline bool HasExternalPixelElements();
   inline bool HasExternalArrayElements();
@@ -1637,6 +1648,9 @@ class JSObject: public JSReceiver {
   // storage would.  In that case the JSObject should have fast
   // elements.
   bool ShouldConvertToFastElements();
+  // Returns true if the elements of JSObject contains only values that can be
+  // represented in a FixedDoubleArray.
+  bool ShouldConvertToFastDoubleElements();
 
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
@@ -1676,6 +1690,12 @@ class JSObject: public JSReceiver {
                                               StrictModeFlag strict_mode,
                                               bool check_prototype = true);
 
+  MUST_USE_RESULT MaybeObject* SetFastDoubleElement(
+      uint32_t index,
+      Object* value,
+      StrictModeFlag strict_mode,
+      bool check_prototype = true);
+
   // Set the index'th array element.
   // A Failure object is returned if GC is needed.
   MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
@@ -1695,6 +1715,9 @@ class JSObject: public JSReceiver {
 
   MUST_USE_RESULT MaybeObject* SetFastElementsCapacityAndLength(int capacity,
                                                                 int length);
+  MUST_USE_RESULT MaybeObject* SetFastDoubleElementsCapacityAndLength(
+      int capacity,
+      int length);
   MUST_USE_RESULT MaybeObject* SetSlowElements(Object* length);
 
   // Lookup interceptors are used for handling properties controlled by host
@@ -1986,13 +2009,26 @@ class JSObject: public JSReceiver {
 };
 
 
-// FixedArray describes fixed-sized arrays with element type Object*.
-class FixedArray: public HeapObject {
+// Common superclass for FixedArrays that allow implementations to share
+// common accessors and some code paths.
+class FixedArrayBase: public HeapObject {
  public:
   // [length]: length of the array.
   inline int length();
   inline void set_length(int value);
 
+  inline static FixedArrayBase* cast(Object* object);
+
+  // Layout description.
+  // Length is smi tagged when it is stored.
+  static const int kLengthOffset = HeapObject::kHeaderSize;
+  static const int kHeaderSize = kLengthOffset + kPointerSize;
+};
+
+
+// FixedArray describes fixed-sized arrays with element type Object*.
+class FixedArray: public FixedArrayBase {
+ public:
   // Setter and getter for elements.
   inline Object* get(int index);
   // Setter that uses write barrier.
@@ -2043,11 +2079,6 @@ class FixedArray: public HeapObject {
   // Casting.
   static inline FixedArray* cast(Object* obj);
 
-  // Layout description.
-  // Length is smi tagged when it is stored.
-  static const int kLengthOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = kLengthOffset + kPointerSize;
-
   // Maximal allowed size, in bytes, of a single FixedArray.
   // Prevents overflowing size computations, as well as extreme memory
   // consumption.
@@ -2092,6 +2123,71 @@ class FixedArray: public HeapObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
+};
+
+
+// FixedDoubleArray describes fixed-sized arrays with element type double.
+class FixedDoubleArray: public FixedArrayBase {
+ public:
+  inline void Initialize(FixedArray* from);
+  inline void Initialize(FixedDoubleArray* from);
+  inline void Initialize(NumberDictionary* from);
+
+  // Setter and getter for elements.
+  inline double get(int index);
+  inline void set(int index, double value);
+  inline void set_the_hole(int index);
+
+  // Checking for the hole.
+  inline bool is_the_hole(int index);
+
+  // Garbage collection support.
+  inline static int SizeFor(int length) {
+    return kHeaderSize + length * kDoubleSize;
+  }
+
+  // The following can't be declared inline as const static
+  // because they're 64-bit.
+  static uint64_t kCanonicalNonHoleNanLower32;
+  static uint64_t kCanonicalNonHoleNanInt64;
+  static uint64_t kHoleNanInt64;
+
+  inline static bool is_the_hole_nan(double value) {
+    return BitCast<uint64_t, double>(value) == kHoleNanInt64;
+  }
+
+  inline static double hole_nan_as_double() {
+    return BitCast<double, uint64_t>(kHoleNanInt64);
+  }
+
+  inline static double canonical_not_the_hole_nan_as_double() {
+    return BitCast<double, uint64_t>(kCanonicalNonHoleNanInt64);
+  }
+
+  // Casting.
+  static inline FixedDoubleArray* cast(Object* obj);
+
+  // Maximal allowed size, in bytes, of a single FixedDoubleArray.
+  // Prevents overflowing size computations, as well as extreme memory
+  // consumption.
+  static const int kMaxSize = 512 * MB;
+  // Maximally allowed length of a FixedArray.
+  static const int kMaxLength = (kMaxSize - kHeaderSize) / kDoubleSize;
+
+  // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void FixedDoubleArrayPrint() {
+    FixedDoubleArrayPrint(stdout);
+  }
+  void FixedDoubleArrayPrint(FILE* out);
+#endif
+
+#ifdef DEBUG
+  void FixedDoubleArrayVerify();
+#endif
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
 };
 
 
@@ -3809,6 +3905,10 @@ class Map: public HeapObject {
     return elements_kind() == JSObject::FAST_ELEMENTS;
   }
 
+  inline bool has_fast_double_elements() {
+    return elements_kind() == JSObject::FAST_DOUBLE_ELEMENTS;
+  }
+
   inline bool has_external_array_elements() {
     JSObject::ElementsKind kind(elements_kind());
     return kind >= JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
@@ -3901,18 +4001,23 @@ class Map: public HeapObject {
   // instance descriptors.
   MUST_USE_RESULT MaybeObject* CopyDropTransitions();
 
-  // Returns this map if it has the fast elements bit set, otherwise
+  // Returns this map if it already has elements that are fast, otherwise
   // returns a copy of the map, with all transitions dropped from the
-  // descriptors and the fast elements bit set.
+  // descriptors and the ElementsKind set to FAST_ELEMENTS.
   MUST_USE_RESULT inline MaybeObject* GetFastElementsMap();
 
-  // Returns this map if it has the fast elements bit cleared,
-  // otherwise returns a copy of the map, with all transitions dropped
-  // from the descriptors and the fast elements bit cleared.
+  // Returns this map if it already has fast elements that are doubles,
+  // otherwise returns a copy of the map, with all transitions dropped from the
+  // descriptors and the ElementsKind set to FAST_DOUBLE_ELEMENTS.
+  MUST_USE_RESULT inline MaybeObject* GetFastDoubleElementsMap();
+
+  // Returns this map if already has dictionary elements, otherwise returns a
+  // copy of the map, with all transitions dropped from the descriptors and the
+  // ElementsKind set to DICTIONARY_ELEMENTS.
   MUST_USE_RESULT inline MaybeObject* GetSlowElementsMap();
 
   // Returns a new map with all transitions dropped from the descriptors and the
-  // external array elements bit set.
+  // ElementsKind set to one of the value corresponding to array_type.
   MUST_USE_RESULT MaybeObject* GetExternalArrayElementsMap(
       ExternalArrayType array_type,
       bool safe_to_add_transition);

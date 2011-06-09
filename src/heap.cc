@@ -1286,6 +1286,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitShortcutCandidate, &EvacuateShortcutCandidate);
     table_.Register(kVisitByteArray, &EvacuateByteArray);
     table_.Register(kVisitFixedArray, &EvacuateFixedArray);
+    table_.Register(kVisitFixedDoubleArray, &EvacuateFixedDoubleArray);
 
     table_.Register(kVisitGlobalContext,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
@@ -1430,6 +1431,18 @@ class ScavengingVisitor : public StaticVisitorBase {
                                                  slot,
                                                  object,
                                                  object_size);
+  }
+
+
+  static inline void EvacuateFixedDoubleArray(Map* map,
+                                              HeapObject** slot,
+                                              HeapObject* object) {
+    int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
+    int object_size = FixedDoubleArray::SizeFor(length);
+    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE>(map,
+                                              slot,
+                                              object,
+                                              object_size);
   }
 
 
@@ -1770,6 +1783,12 @@ bool Heap::CreateInitialMaps() {
   }
   set_undetectable_ascii_string_map(Map::cast(obj));
   Map::cast(obj)->set_is_undetectable();
+
+  { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_DOUBLE_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_fixed_double_array_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(BYTE_ARRAY_TYPE, kVariableSizeSentinel);
@@ -3809,6 +3828,62 @@ MaybeObject* Heap::AllocateUninitializedFixedArray(int length) {
   reinterpret_cast<FixedArray*>(obj)->set_map(fixed_array_map());
   FixedArray::cast(obj)->set_length(length);
   return obj;
+}
+
+
+MaybeObject* Heap::AllocateEmptyFixedDoubleArray() {
+  int size = FixedDoubleArray::SizeFor(0);
+  Object* result;
+  { MaybeObject* maybe_result =
+        AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  // Initialize the object.
+  reinterpret_cast<FixedDoubleArray*>(result)->set_map(
+      fixed_double_array_map());
+  reinterpret_cast<FixedDoubleArray*>(result)->set_length(0);
+  return result;
+}
+
+
+MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
+    int length,
+    PretenureFlag pretenure) {
+  if (length == 0) return empty_fixed_double_array();
+
+  Object* obj;
+  { MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+
+  reinterpret_cast<FixedDoubleArray*>(obj)->set_map(fixed_double_array_map());
+  FixedDoubleArray::cast(obj)->set_length(length);
+  return obj;
+}
+
+
+MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
+                                               PretenureFlag pretenure) {
+  if (length < 0 || length > FixedDoubleArray::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
+
+  AllocationSpace space =
+      (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  int size = FixedDoubleArray::SizeFor(length);
+  if (space == NEW_SPACE && size > kMaxObjectSizeInNewSpace) {
+    // Too big for new space.
+    space = LO_SPACE;
+  } else if (space == OLD_DATA_SPACE &&
+             size > MaxObjectSizeInPagedSpace()) {
+    // Too big for old data space.
+    space = LO_SPACE;
+  }
+
+  AllocationSpace retry_space =
+      (size <= MaxObjectSizeInPagedSpace()) ? OLD_DATA_SPACE : LO_SPACE;
+
+  return AllocateRaw(size, space, retry_space);
 }
 
 
