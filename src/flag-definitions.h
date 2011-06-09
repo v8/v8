@@ -137,8 +137,6 @@ DEFINE_int(deopt_every_n_times,
 DEFINE_bool(trap_on_deopt, false, "put a break point before deoptimizing")
 DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
-DEFINE_bool(aggressive_loop_invariant_motion, true,
-            "aggressive motion of instructions out of loops")
 DEFINE_bool(use_osr, true, "use on-stack replacement")
 
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")

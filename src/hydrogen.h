@@ -143,6 +143,9 @@ class HBasicBlock: public ZoneObject {
   bool IsInlineReturnTarget() const { return is_inline_return_target_; }
   void MarkAsInlineReturnTarget() { is_inline_return_target_ = true; }
 
+  bool IsDeoptimizing() const { return is_deoptimizing_; }
+  void MarkAsDeoptimizing() { is_deoptimizing_ = true; }
+
   inline Zone* zone();
 
 #ifdef DEBUG
@@ -175,6 +178,7 @@ class HBasicBlock: public ZoneObject {
   ZoneList<int> deleted_phis_;
   HBasicBlock* parent_loop_header_;
   bool is_inline_return_target_;
+  bool is_deoptimizing_;
 };
 
 
@@ -225,6 +229,7 @@ class HGraph: public ZoneObject {
   void OrderBlocks();
   void AssignDominators();
   void ReplaceCheckedValues();
+  void MarkAsDeoptimizingRecursively(HBasicBlock* block);
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.

@@ -68,7 +68,8 @@ HBasicBlock::HBasicBlock(HGraph* graph)
       last_instruction_index_(-1),
       deleted_phis_(4),
       parent_loop_header_(NULL),
-      is_inline_return_target_(false) { }
+      is_inline_return_target_(false),
+      is_deoptimizing_(false) { }
 
 
 void HBasicBlock::AttachLoopInformation() {
@@ -741,8 +742,20 @@ void HGraph::AssignDominators() {
       }
     }
   }
+
+  // Propagate flag marking blocks containing unconditional deoptimize.
+  MarkAsDeoptimizingRecursively(entry_block());
 }
 
+
+// Mark all blocks that are dominated by an unconditional deoptimize.
+void HGraph::MarkAsDeoptimizingRecursively(HBasicBlock* block) {
+  for (int i = 0; i < block->dominated_blocks()->length(); ++i) {
+    HBasicBlock* dominated = block->dominated_blocks()->at(i);
+    if (block->IsDeoptimizing()) dominated->MarkAsDeoptimizing();
+    MarkAsDeoptimizingRecursively(dominated);
+  }
+}
 
 void HGraph::EliminateRedundantPhis() {
   HPhase phase("Redundant phi elimination", this);
@@ -897,7 +910,7 @@ void HRangeAnalysis::TraceRange(const char* msg, ...) {
 
 void HRangeAnalysis::Analyze() {
   HPhase phase("Range analysis", graph_);
-  Analyze(graph_->blocks()->at(0));
+  Analyze(graph_->entry_block());
 }
 
 
@@ -1355,7 +1368,7 @@ void HGlobalValueNumberer::Analyze() {
     LoopInvariantCodeMotion();
   }
   HValueMap* map = new(zone()) HValueMap();
-  AnalyzeBlock(graph_->blocks()->at(0), map);
+  AnalyzeBlock(graph_->entry_block(), map);
 }
 
 
@@ -1447,37 +1460,9 @@ bool HGlobalValueNumberer::AllowCodeMotion() {
 
 bool HGlobalValueNumberer::ShouldMove(HInstruction* instr,
                                       HBasicBlock* loop_header) {
-  // If we've disabled code motion, don't move any instructions.
-  if (!AllowCodeMotion()) return false;
-
-  // If --aggressive-loop-invariant-motion, move everything except change
-  // instructions.
-  if (FLAG_aggressive_loop_invariant_motion && !instr->IsChange()) {
-    return true;
-  }
-
-  // Otherwise only move instructions that postdominate the loop header
-  // (i.e. are always executed inside the loop). This is to avoid
-  // unnecessary deoptimizations assuming the loop is executed at least
-  // once.  TODO(fschneider): Better type feedback should give us
-  // information about code that was never executed.
-  HBasicBlock* block = instr->block();
-  bool result = true;
-  if (block != loop_header) {
-    for (int i = 1; i < loop_header->predecessors()->length(); ++i) {
-      bool found = false;
-      HBasicBlock* pred = loop_header->predecessors()->at(i);
-      while (pred != loop_header) {
-        if (pred == block) found = true;
-        pred = pred->dominator();
-      }
-      if (!found) {
-        result = false;
-        break;
-      }
-    }
-  }
-  return result;
+  // If we've disabled code motion or we're in a block that unconditionally
+  // deoptimizes, don't move any instructions.
+  return AllowCodeMotion() && !instr->block()->IsDeoptimizing();
 }
 
 
@@ -4854,6 +4839,7 @@ void HGraphBuilder::VisitSub(UnaryOperation* expr) {
   TypeInfo info = oracle()->UnaryType(expr);
   if (info.IsUninitialized()) {
     AddInstruction(new(zone()) HSoftDeoptimize);
+    current_block()->MarkAsDeoptimizing();
     info = TypeInfo::Unknown();
   }
   Representation rep = ToRepresentation(info);
@@ -4869,6 +4855,7 @@ void HGraphBuilder::VisitBitNot(UnaryOperation* expr) {
   TypeInfo info = oracle()->UnaryType(expr);
   if (info.IsUninitialized()) {
     AddInstruction(new(zone()) HSoftDeoptimize);
+    current_block()->MarkAsDeoptimizing();
   }
   HInstruction* instr = new(zone()) HBitNot(value);
   ast_context()->ReturnInstruction(instr, expr->id());
@@ -5104,6 +5091,7 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
   TypeInfo info = oracle()->BinaryType(expr);
   if (info.IsUninitialized()) {
     AddInstruction(new(zone()) HSoftDeoptimize);
+    current_block()->MarkAsDeoptimizing();
     info = TypeInfo::Unknown();
   }
   HInstruction* instr = NULL;
@@ -5373,6 +5361,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   // Check if this expression was ever executed according to type feedback.
   if (type_info.IsUninitialized()) {
     AddInstruction(new(zone()) HSoftDeoptimize);
+    current_block()->MarkAsDeoptimizing();
     type_info = TypeInfo::Unknown();
   }
 
