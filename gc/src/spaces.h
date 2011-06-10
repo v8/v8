@@ -170,6 +170,8 @@ class Bitmap {
   static const uint32_t kBitsPerCell = 32;
   static const uint32_t kBitsPerCellLog2 = 5;
   static const uint32_t kBitIndexMask = kBitsPerCell - 1;
+  static const uint32_t kBytesPerCell = kBitsPerCell / kBitsPerByte;
+  static const uint32_t kBytesPerCellLog2 = kBitsPerCellLog2 - kBitsPerByteLog2;
 
   static const size_t kLength =
     (1 << kPageSizeBits) >> (kPointerSizeLog2);
@@ -652,6 +654,14 @@ class Space : public Malloced {
   // Returns size of objects. Can differ from the allocated size
   // (e.g. see LargeObjectSpace).
   virtual intptr_t SizeOfObjects() { return Size(); }
+
+  virtual int RoundSizeDownToObjectAlignment(int size) {
+    if (id_ == CODE_SPACE) {
+      return RoundDown(size, kCodeAlignment);
+    } else {
+      return RoundDown(size, kPointerSize);
+    }
+  }
 
 #ifdef ENABLE_HEAP_PROTECTION
   // Protect/unprotect the space by marking it read-only/writable.
@@ -2201,6 +2211,14 @@ class MapSpace : public FixedSpace {
     return false;  // TODO(gc): Bring back map compaction.
   }
 
+  virtual int RoundSizeDownToObjectAlignment(int size) {
+    if (IsPowerOf2(Map::kSize)) {
+      return RoundDown(size, Map::kSize);
+    } else {
+      return (size / Map::kSize) * Map::kSize;
+    }
+  }
+
  protected:
 #ifdef DEBUG
   virtual void VerifyObject(HeapObject* obj);
@@ -2230,6 +2248,14 @@ class CellSpace : public FixedSpace {
   CellSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
       : FixedSpace(heap, max_capacity, id, JSGlobalPropertyCell::kSize, "cell")
   {}
+
+  virtual int RoundSizeDownToObjectAlignment(int size) {
+    if (IsPowerOf2(JSGlobalPropertyCell::kSize)) {
+      return RoundDown(size, JSGlobalPropertyCell::kSize);
+    } else {
+      return (size / JSGlobalPropertyCell::kSize) * JSGlobalPropertyCell::kSize;
+    }
+  }
 
  protected:
 #ifdef DEBUG

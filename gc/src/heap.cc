@@ -4626,6 +4626,10 @@ void Heap::IteratePointersOnPage(
   Object* two_pointer_filler_map = HEAP->two_pointer_filler_map();
 
   while (visitable_end < end_of_page) {
+#ifdef DEBUG
+    int offset = visitable_start - page->ObjectAreaStart();
+    ASSERT(offset == space->RoundSizeDownToObjectAlignment(offset));
+#endif
     Object* o = *reinterpret_cast<Object**>(visitable_end);
     // Skip fillers but not things that look like fillers in the special
     // garbage section which can contain anything.

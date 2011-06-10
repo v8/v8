@@ -645,35 +645,16 @@ class RecordWriteStub: public CodeStub {
     // If we have to call into C then we need to save and restore all caller-
     // saved registers that were not already preserved.
 
-    // The three scratch registers (incl. rcx)
-    // will be restored by other means so we don't bother pushing them here.
+    // The three scratch registers (incl. rcx) will be restored by other means
+    // so we don't bother pushing them here.  Rbx, rbp and r12-15 are callee
+    // save and don't need to be preserved.
     void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
-      masm->int3();  // TODO(gc): Save the caller save registers.
-      if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(SSE2);
-        masm->subq(rsp,
-                   Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));
-        // Save all XMM registers except XMM0.
-        for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
-          XMMRegister reg = XMMRegister::from_code(i);
-          masm->movsd(Operand(rsp, (i - 1) * kDoubleSize), reg);
-        }
-      }
+      masm->PushCallerSaved(mode, scratch0_, scratch1_, rcx);
     }
 
     inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
                                            SaveFPRegsMode mode) {
-      if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(SSE2);
-        // Restore all XMM registers except XMM0.
-        for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
-          XMMRegister reg = XMMRegister::from_code(i);
-          masm->movsd(reg, Operand(rsp, (i - 1) * kDoubleSize));
-        }
-        masm->addq(rsp,
-                   Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));
-      }
-      masm->int3();  // TODO(gc): Restore the caller save registers.
+      masm->PopCallerSaved(mode, scratch0_, scratch1_, rcx);
     }
 
     inline Register object() { return object_; }
@@ -708,8 +689,17 @@ class RecordWriteStub: public CodeStub {
     friend class RecordWriteStub;
   };
 
+  enum OnNoNeedToInformIncrementalMarker {
+    kReturnOnNoNeedToInformIncrementalMarker,
+    kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
+  };
+
   void Generate(MacroAssembler* masm);
   void GenerateIncremental(MacroAssembler* masm);
+  void CheckNeedsToInformIncrementalMarker(
+      MacroAssembler* masm,
+      OnNoNeedToInformIncrementalMarker on_no_need);
+  void InformIncrementalMarker(MacroAssembler* masm);
 
   Major MajorKey() { return RecordWrite; }
 

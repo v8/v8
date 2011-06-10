@@ -707,7 +707,7 @@ class RecordWriteStub: public CodeStub {
 
   enum OnNoNeedToInformIncrementalMarker {
     kReturnOnNoNeedToInformIncrementalMarker,
-    kRememberedSetOnNoNeedToInformIncrementalMarker
+    kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
   void Generate(MacroAssembler* masm);

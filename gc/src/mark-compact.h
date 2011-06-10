@@ -129,6 +129,16 @@ class Marking {
     IMPOSSIBLE_COLOR
   };
 
+  static const char* ColorName(ObjectColor color) {
+    switch (color) {
+      case BLACK_OBJECT: return "black";
+      case WHITE_OBJECT: return "white";
+      case GREY_OBJECT: return "grey";
+      case IMPOSSIBLE_COLOR: return "impossible";
+    }
+    return "error";
+  }
+
   static ObjectColor Color(HeapObject* obj) {
     return Color(Marking::MarkBitFrom(obj));
   }

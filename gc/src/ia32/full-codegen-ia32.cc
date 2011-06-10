@@ -3203,10 +3203,13 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
                    not_zero,
                    &no_remembered_set,
                    Label::kNear);
+  // Possible optimization: do a check that both values are Smis
+  // (or them and test against Smi mask.)
 
-  __ mov(object, elements);
-  // Since we are swapping two objects, the incremental marker is not disturbed,
-  // so we don't call the stub that handles this.
+  // We are swapping two objects in an array and the incremental marker never
+  // pauses in the middle of scanning a single object.  Therefore the
+  // incremental marker is not disturbed, so we don't need to call the
+  // RecordWrite stub that notifies the incremental marker.
   __ RememberedSetHelper(
       index_1, temp, kDontSaveFPRegs, MacroAssembler::kFallThroughAtEnd);
   __ RememberedSetHelper(

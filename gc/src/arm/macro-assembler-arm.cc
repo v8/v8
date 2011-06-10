@@ -3128,11 +3128,11 @@ void MacroAssembler::CheckPageFlag(
 }
 
 
-void MacroAssembler::IsBlack(Register object,
-                             Register scratch0,
-                             Register scratch1,
-                             Label* is_black) {
-  HasColor(object, scratch0, scratch1, is_black, 1, 0);  // kBlackBitPattern.
+void MacroAssembler::JumpIfBlack(Register object,
+                                 Register scratch0,
+                                 Register scratch1,
+                                 Label* on_black) {
+  HasColor(object, scratch0, scratch1, on_black, 1, 0);  // kBlackBitPattern.
   ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
 }
 
@@ -3163,6 +3163,27 @@ void MacroAssembler::HasColor(Register object,
   tst(ip, Operand(1));
   b(second_bit == 1 ? ne : eq, has_color);
   bind(&other_color);
+}
+
+
+// Detect some, but not all, common pointer-free objects.  This is used by the
+// incremental write barrier which doesn't care about oddballs (they are always
+// marked black immediately so this code is not hit).
+void MacroAssembler::JumpIfDataObject(Register value,
+                                      Register scratch,
+                                      Label* not_data_object) {
+  Label is_data_object;
+  ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+  CompareRoot(scratch, Heap::kHeapNumberMapRootIndex);
+  b(eq, &is_data_object);
+  ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
+  ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
+  // If it's a string and it's not a cons string then it's an object containing
+  // no GC pointers.
+  ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  tst(scratch, Operand(kIsConsStringMask | kIsNotStringMask));
+  b(ne, not_data_object);
+  bind(&is_data_object);
 }
 
 

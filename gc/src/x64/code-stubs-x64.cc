@@ -298,24 +298,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
 
 void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
-  // We don't allow a GC during a store buffer overflow so there is no need to
-  // store the registers in any particular way, but we do have to store and
-  // restore them.
-  Register saved_regs[] =
-      { rax, rcx, rdx, rbx, rbp, rsi, rdi, r8, r9, r10, r11 };
-  const int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
-  for (int i = 0; i < kNumberOfSavedRegs; i++) {
-    __ push(saved_regs[i]);
-  }
-  // R12 to r15 are callee save on all platforms.
-  if (save_doubles_ == kSaveFPRegs) {
-    CpuFeatures::Scope scope(SSE2);
-    __ subq(rsp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      XMMRegister reg = XMMRegister::from_code(i);
-      __ movsd(Operand(rsp, i * kDoubleSize), reg);
-    }
-  }
+  __ PushCallerSaved(save_doubles_);
   const int argument_count = 1;
   __ PrepareCallCFunction(argument_count);
 #ifdef _WIN64
@@ -326,17 +309,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   __ CallCFunction(
       ExternalReference::store_buffer_overflow_function(masm->isolate()),
       argument_count);
-  if (save_doubles_ == kSaveFPRegs) {
-    CpuFeatures::Scope scope(SSE2);
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      XMMRegister reg = XMMRegister::from_code(i);
-      __ movsd(reg, Operand(rsp, i * kDoubleSize));
-    }
-    __ addq(rsp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
-  }
-  for (int i = kNumberOfSavedRegs - 1; i >= 0; i--) {
-    __ pop(saved_regs[i]);
-  }
+  __ PopCallerSaved(save_doubles_);
   __ ret(0);
 }
 
@@ -5206,7 +5179,106 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
   }
 
   __ bind(&skip_non_incremental_part);
-  __ int3();
+  GenerateIncremental(masm);
+}
+
+
+void RecordWriteStub::GenerateIncremental(MacroAssembler* masm) {
+  regs_.Save(masm);
+
+  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
+    Label dont_need_remembered_set;
+
+    __ movq(regs_.scratch0(), Operand(regs_.address(), 0));
+    __ JumpIfNotInNewSpace(regs_.scratch0(),
+                           regs_.scratch0(),
+                           &dont_need_remembered_set);
+
+    __ CheckPageFlag(regs_.object(),
+                     regs_.scratch0(),
+                     MemoryChunk::SCAN_ON_SCAVENGE,
+                     not_zero,
+                     &dont_need_remembered_set);
+
+    // First notify the incremental marker if necessary, then update the
+    // remembered set.
+    CheckNeedsToInformIncrementalMarker(
+        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker);
+    InformIncrementalMarker(masm);
+    regs_.Restore(masm);
+    __ RememberedSetHelper(
+        address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
+
+    __ bind(&dont_need_remembered_set);
+  }
+
+  CheckNeedsToInformIncrementalMarker(
+      masm, kReturnOnNoNeedToInformIncrementalMarker);
+  InformIncrementalMarker(masm);
+  regs_.Restore(masm);
+  __ ret(0);
+}
+
+
+void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
+  regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode_);
+#ifdef _WIN64
+  Register arg3 = r8;
+  Register arg2 = rdx;
+  Register arg1 = rcx;
+#else
+  Register arg3 = rdx;
+  Register arg2 = rsi;
+  Register arg1 = rdi;
+#endif
+  bool save_address = arg1.is(regs_.address());
+  if (save_address) {
+    __ movq(arg3, regs_.address());
+  }
+  __ Move(arg1, regs_.object());
+  if (save_address) {
+    __ movq(arg2, Operand(arg3, 0));
+  } else {
+    __ movq(arg2, Operand(regs_.address(), 0));
+  }
+  __ LoadAddress(arg3, ExternalReference::isolate_address());
+  // TODO(gc): Create a fast version of this C function that does not duplicate
+  // the checks done in the stub.
+  int argument_count = 3;
+  __ PrepareCallCFunction(argument_count);
+  __ CallCFunction(
+      ExternalReference::incremental_marking_record_write_function(
+          masm->isolate()),
+      argument_count);
+  regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode_);
+}
+
+
+void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
+    MacroAssembler* masm,
+    RecordWriteStub::OnNoNeedToInformIncrementalMarker on_no_need) {
+  Label on_black;
+
+  // Let's look at the color of the object:  If it is not black we don't have
+  // to inform the incremental marker.
+  __ JumpIfBlack(regs_.object(),
+                 regs_.scratch0(),
+                 regs_.scratch1(),
+                 &on_black,
+                 Label::kNear);
+
+  regs_.Restore(masm);
+  if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
+    __ RememberedSetHelper(
+        address_, value_, save_fp_regs_mode_, MacroAssembler::kReturnAtEnd);
+  } else {
+    __ ret(0);
+  }
+
+  __ bind(&on_black);
+
+  // TODO(gc): Add call to EnsureNotWhite here.
+  // Fall through when we need to inform the incremental marker.
 }
 
 

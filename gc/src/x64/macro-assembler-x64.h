@@ -139,6 +139,18 @@ class MacroAssembler: public Assembler {
   void CompareRoot(const Operand& with, Heap::RootListIndex index);
   void PushRoot(Heap::RootListIndex index);
 
+  // These functions do not arrange the registers in any particular order so
+  // they are not useful for calls that can cause a GC.  The caller can
+  // exclude up to 3 registers that do not need to be saved and restored.
+  void PushCallerSaved(SaveFPRegsMode fp_mode,
+                       Register exclusion1 = no_reg,
+                       Register exclusion2 = no_reg,
+                       Register exclusion3 = no_reg);
+  void PopCallerSaved(SaveFPRegsMode fp_mode,
+                      Register exclusion1 = no_reg,
+                      Register exclusion2 = no_reg,
+                      Register exclusion3 = no_reg);
+
   // ---------------------------------------------------------------------------
   // GC Support
 
@@ -162,14 +174,37 @@ class MacroAssembler: public Assembler {
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
 
-  // Check if object is in new space. The condition cc can be equal or
-  // not_equal. If it is equal a jump will be done if the object is on new
-  // space. The register scratch can be object itself, but it will be clobbered.
-  void InNewSpace(Register object,
-                  Register scratch,
-                  Condition cc,
-                  Label* branch,
-                  Label::Distance near_jump = Label::kFar);
+  // Check if object is in new space.  Jumps if the object is not in new space.
+  // The register scratch can be object itself, but it will be clobbered.
+  void JumpIfNotInNewSpace(Register object,
+                           Register scratch,
+                           Label* branch,
+                           Label::Distance distance = Label::kFar) {
+    InNewSpace(object, scratch, not_equal, branch, distance);
+  }
+
+  // Check if object is in new space.  Jumps if the object is in new space.
+  // The register scratch can be object itself, but it will be clobbered.
+  void JumpIfInNewSpace(Register object,
+                        Register scratch,
+                        Label* branch,
+                        Label::Distance distance = Label::kFar) {
+    InNewSpace(object, scratch, equal, branch, distance);
+  }
+
+  // Check if an object has the black incremental marking color.  Also uses rcx!
+  void JumpIfBlack(Register object,
+                   Register scratch0,
+                   Register scratch1,
+                   Label* on_black,
+                   Label::Distance on_black_distance = Label::kFar);
+
+  // Detects conservatively whether an object is data-only, ie it does need to
+  // be scanned by the garbage collector.
+  void JumpIfDataObject(Register value,
+                        Register scratch,
+                        Label* not_data_object,
+                        Label::Distance not_data_object_distance);
 
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
@@ -1237,6 +1272,20 @@ class MacroAssembler: public Assembler {
                                Register scratch,
                                bool gc_allowed);
 
+  // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
+  void InNewSpace(Register object,
+                  Register scratch,
+                  Condition cc,
+                  Label* branch,
+                  Label::Distance distance = Label::kFar);
+
+  // Helper for finding the mark bits for an address.  Afterwards, the
+  // bitmap register points at the word with the mark bits and the mask
+  // the position of the first bit.  Uses rcx as scratch and leaves addr_reg
+  // unchanged.
+  inline void GetMarkBits(Register addr_reg,
+                          Register bitmap_reg,
+                          Register mask_reg);
 
   // Compute memory operands for safepoint stack slots.
   Operand SafepointRegisterSlot(Register reg);

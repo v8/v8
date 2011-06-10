@@ -2289,13 +2289,13 @@ void MacroAssembler::CheckPageFlag(
 }
 
 
-void MacroAssembler::IsBlack(Register object,
-                             Register scratch0,
-                             Register scratch1,
-                             Label* is_black,
-                             Label::Distance is_black_near) {
+void MacroAssembler::JumpIfBlack(Register object,
+                                 Register scratch0,
+                                 Register scratch1,
+                                 Label* on_black,
+                                 Label::Distance on_black_near) {
   HasColor(object, scratch0, scratch1,
-           is_black, is_black_near,
+           on_black, on_black_near,
            1, 0);  // kBlackBitPattern.
   ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
 }
@@ -2329,21 +2329,24 @@ void MacroAssembler::HasColor(Register object,
 }
 
 
-void MacroAssembler::IsDataObject(Register value,
-                                  Register scratch,
-                                  Label* not_data_object,
-                                  Label::Distance not_data_object_distance) {
+// Detect some, but not all, common pointer-free objects.  This is used by the
+// incremental write barrier which doesn't care about oddballs (they are always
+// marked black immediately so this code is not hit).
+void MacroAssembler::JumpIfDataObject(
+    Register value,
+    Register scratch,
+    Label* not_data_object,
+    Label::Distance not_data_object_distance) {
   Label is_data_object;
   mov(scratch, FieldOperand(value, HeapObject::kMapOffset));
   cmp(scratch, FACTORY->heap_number_map());
   j(equal, &is_data_object, Label::kNear);
   ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
   ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
-  // If it's a string and it's not a cons string then it's an object that
-  // doesn't need scanning.
+  // If it's a string and it's not a cons string then it's an object containing
+  // no GC pointers.
   test_b(FieldOperand(scratch, Map::kInstanceTypeOffset),
          kIsConsStringMask | kIsNotStringMask);
-  // Jump if we need to mark it grey and push it.
   j(not_zero, not_data_object, not_data_object_distance);
   bind(&is_data_object);
 }
@@ -2356,10 +2359,11 @@ void MacroAssembler::GetMarkBits(Register addr_reg,
   mov(bitmap_reg, Operand(addr_reg));
   and_(bitmap_reg, ~Page::kPageAlignmentMask);
   mov(ecx, Operand(addr_reg));
-  shr(ecx, Bitmap::kBitsPerCellLog2);
+  int shift =
+      Bitmap::kBitsPerCellLog2 + kPointerSizeLog2 - Bitmap::kBytesPerCellLog2;
+  shr(ecx, shift);
   and_(ecx,
-       (Page::kPageAlignmentMask >> Bitmap::kBitsPerCellLog2) &
-           ~(kPointerSize - 1));
+       (Page::kPageAlignmentMask >> shift) & ~(Bitmap::kBytesPerCell - 1));
 
   add(bitmap_reg, Operand(ecx));
   mov(ecx, Operand(addr_reg));
@@ -2406,7 +2410,7 @@ void MacroAssembler::EnsureNotWhite(
   }
 
   // Value is white.  We check whether it is data that doesn't need scanning.
-  IsDataObject(value, ecx, value_is_white_and_not_data, distance);
+  JumpIfDataObject(value, ecx, value_is_white_and_not_data, distance);
 
   // Value is a data object, and it is white.  Mark it black.  Since we know
   // that the object is white we can make it black by flipping one bit.

@@ -1736,13 +1736,14 @@ HeapObject* OldSpaceFreeList::Allocate(int size_in_bytes) {
   if (new_node_size - size_in_bytes > kThreshold &&
       HEAP->incremental_marking()->IsMarkingIncomplete() &&
       FLAG_incremental_marking_steps) {
+    int linear_size = owner_->RoundSizeDownToObjectAlignment(kThreshold);
     // We don't want to give too large linear areas to the allocator while
     // incremental marking is going on, because we won't check again whether
     // we want to do another increment until the linear area is used up.
-    owner_->Free(new_node->address() + size_in_bytes + kThreshold,
-                 new_node_size - size_in_bytes - kThreshold);
+    owner_->Free(new_node->address() + size_in_bytes + linear_size,
+                 new_node_size - size_in_bytes - linear_size);
     owner_->SetTop(new_node->address() + size_in_bytes,
-                   new_node->address() + size_in_bytes + kThreshold);
+                   new_node->address() + size_in_bytes + linear_size);
   } else {
     // Normally we give the rest of the node to the allocator as its new
     // linear allocation area.
@@ -1843,7 +1844,7 @@ void PagedSpace::PrepareForMarkCompact(bool will_compact) {
 
 bool PagedSpace::ReserveSpace(int size_in_bytes) {
   ASSERT(size_in_bytes <= Page::kMaxHeapObjectSize);
-  ASSERT(size_in_bytes == RoundUp(size_in_bytes, kPointerSize));
+  ASSERT(size_in_bytes == RoundSizeDownToObjectAlignment(size_in_bytes));
   Address current_top = allocation_info_.top;
   Address new_top = current_top + size_in_bytes;
   if (new_top <= allocation_info_.limit) return true;

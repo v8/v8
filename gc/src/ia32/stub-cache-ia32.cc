@@ -1547,7 +1547,6 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
              Immediate(Smi::FromInt(kAllocationDelta)));
       __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
 
-      // Elements are in new space, so write barrier is not required.
       __ ret((argc + 1) * kPointerSize);
     }
 

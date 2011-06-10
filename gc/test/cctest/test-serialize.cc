@@ -569,9 +569,9 @@ TEST(LinearAllocation) {
         new_space_size,
         paged_space_size,  // Old pointer space.
         paged_space_size,  // Old data space.
-        paged_space_size,  // Code space.
-        paged_space_size,  // Map space.
-        paged_space_size,  // Cell space.
+        HEAP->code_space()->RoundSizeDownToObjectAlignment(paged_space_size),
+        HEAP->map_space()->RoundSizeDownToObjectAlignment(paged_space_size),
+        HEAP->cell_space()->RoundSizeDownToObjectAlignment(paged_space_size),
         size);             // Large object space.
     LinearAllocationScope linear_allocation_scope;
     const int kSmallFixedArrayLength = 4;

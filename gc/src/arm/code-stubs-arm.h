@@ -533,7 +533,17 @@ class RecordWriteStub: public CodeStub {
     friend class RecordWriteStub;
   };
 
+  enum OnNoNeedToInformIncrementalMarker {
+    kReturnOnNoNeedToInformIncrementalMarker,
+    kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
+  };
+
   void Generate(MacroAssembler* masm);
+  void GenerateIncremental(MacroAssembler* masm);
+  void CheckNeedsToInformIncrementalMarker(
+      MacroAssembler* masm,
+      OnNoNeedToInformIncrementalMarker on_no_need);
+  void InformIncrementalMarker(MacroAssembler* masm);
 
   Major MajorKey() { return RecordWrite; }
 

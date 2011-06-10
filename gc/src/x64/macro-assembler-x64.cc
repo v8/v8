@@ -200,6 +200,12 @@ void MacroAssembler::RememberedSetHelper(Register addr,
                                          Register scratch,
                                          SaveFPRegsMode save_fp,
                                          RememberedSetFinalAction and_then) {
+  if (FLAG_debug_code) {
+    Label ok;
+    JumpIfNotInNewSpace(addr, scratch, &ok, Label::kNear);
+    int3();
+    bind(&ok);
+  }
   // Load store buffer top.
   LoadRoot(scratch, Heap::kStoreBufferTopRootIndex);
   // Store pointer to buffer.
@@ -237,7 +243,7 @@ void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 Condition cc,
                                 Label* branch,
-                                Label::Distance near_jump) {
+                                Label::Distance distance) {
   if (Serializer::enabled()) {
     // Can't do arithmetic on external references if it might get serialized.
     // The mask isn't really an address.  We load it as an external reference in
@@ -252,7 +258,7 @@ void MacroAssembler::InNewSpace(Register object,
     }
     movq(kScratchRegister, ExternalReference::new_space_start(isolate()));
     cmpq(scratch, kScratchRegister);
-    j(cc, branch, near_jump);
+    j(cc, branch, distance);
   } else {
     ASSERT(is_int32(static_cast<int64_t>(HEAP->NewSpaceMask())));
     intptr_t new_space_start =
@@ -264,7 +270,7 @@ void MacroAssembler::InNewSpace(Register object,
       lea(scratch, Operand(object, kScratchRegister, times_1, 0));
     }
     and_(scratch, Immediate(static_cast<int32_t>(HEAP->NewSpaceMask())));
-    j(cc, branch, near_jump);
+    j(cc, branch, distance);
   }
 }
 
@@ -328,10 +334,6 @@ void MacroAssembler::RecordWrite(Register object,
   // context register, so we check that none of the clobbered
   // registers are rsi.
   ASSERT(!value.is(rsi) && !address.is(rsi));
-  if (remembered_set_action == OMIT_REMEMBERED_SET &&
-      !FLAG_incremental_marking) {
-    return;
-  }
 
   ASSERT(!object.is(value));
   ASSERT(!object.is(address));
@@ -480,7 +482,6 @@ void MacroAssembler::Abort(const char* msg) {
 
 void MacroAssembler::CallStub(CodeStub* stub, unsigned ast_id) {
   // ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
-  // TODO(gc): Fix this!
   // TODO(gc): Fix this!
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
 }
@@ -837,6 +838,57 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
   // Load the JavaScript builtin function from the builtins object.
   GetBuiltinFunction(rdi, id);
   movq(target, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+}
+
+
+static const Register saved_regs[] =
+    { rax, rcx, rdx, rbx, rbp, rsi, rdi, r8, r9, r10, r11 };
+static const int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
+
+
+void MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
+                                     Register exclusion1,
+                                     Register exclusion2,
+                                     Register exclusion3) {
+  // We don't allow a GC during a store buffer overflow so there is no need to
+  // store the registers in any particular way, but we do have to store and
+  // restore them.
+  for (int i = 0; i < kNumberOfSavedRegs; i++) {
+    Register reg = saved_regs[i];
+    if (!reg.is(exclusion1) && !reg.is(exclusion2) && !reg.is(exclusion3)) {
+      push(reg);
+    }
+  }
+  // R12 to r15 are callee save on all platforms.
+  if (fp_mode == kSaveFPRegs) {
+    CpuFeatures::Scope scope(SSE2);
+    subq(rsp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+      XMMRegister reg = XMMRegister::from_code(i);
+      movsd(Operand(rsp, i * kDoubleSize), reg);
+    }
+  }
+}
+
+
+void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
+                                    Register exclusion1,
+                                    Register exclusion2,
+                                    Register exclusion3) {
+  if (fp_mode == kSaveFPRegs) {
+    CpuFeatures::Scope scope(SSE2);
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+      XMMRegister reg = XMMRegister::from_code(i);
+      movsd(reg, Operand(rsp, i * kDoubleSize));
+    }
+    addq(rsp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
+  }
+  for (int i = kNumberOfSavedRegs - 1; i >= 0; i--) {
+    Register reg = saved_regs[i];
+    if (!reg.is(exclusion1) && !reg.is(exclusion2) && !reg.is(exclusion3)) {
+      pop(reg);
+    }
+  }
 }
 
 
@@ -3791,6 +3843,75 @@ void MacroAssembler::CheckPageFlag(
     testl(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(1 << flag));
   }
   j(cc, condition_met, condition_met_distance);
+}
+
+
+void MacroAssembler::JumpIfBlack(Register object,
+                                 Register bitmap_scratch,
+                                 Register mask_scratch,
+                                 Label* on_black,
+                                 Label::Distance on_black_distance) {
+  ASSERT(!AreAliased(object, bitmap_scratch, mask_scratch, rcx));
+  GetMarkBits(object, bitmap_scratch, mask_scratch);
+
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
+  // The mask_scratch register contains a 1 at the position of the first bit
+  // and a 0 at all other positions, including the position of the second bit.
+  movq(rcx, mask_scratch);
+  // Make rcx into a mask that covers both marking bits using the operation
+  // rcx = mask | (mask << 1).
+  lea(rcx, Operand(mask_scratch, mask_scratch, times_2, 0));
+  // Note that we are using a 4-byte aligned 8-byte load.
+  and_(rcx, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  cmpq(mask_scratch, rcx);
+  j(equal, on_black, on_black_distance);
+}
+
+
+// Detect some, but not all, common pointer-free objects.  This is used by the
+// incremental write barrier which doesn't care about oddballs (they are always
+// marked black immediately so this code is not hit).
+void MacroAssembler::JumpIfDataObject(
+    Register value,
+    Register scratch,
+    Label* not_data_object,
+    Label::Distance not_data_object_distance) {
+  Label is_data_object;
+  movq(scratch, FieldOperand(value, HeapObject::kMapOffset));
+  CompareRoot(scratch, Heap::kHeapNumberMapRootIndex);
+  j(equal, &is_data_object, Label::kNear);
+  ASSERT(kConsStringTag == 1 && kIsConsStringMask == 1);
+  ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
+  // If it's a string and it's not a cons string then it's an object containing
+  // no GC pointers.
+  testb(FieldOperand(scratch, Map::kInstanceTypeOffset),
+        Immediate(kIsConsStringMask | kIsNotStringMask));
+  j(not_zero, not_data_object, not_data_object_distance);
+  bind(&is_data_object);
+}
+
+
+void MacroAssembler::GetMarkBits(Register addr_reg,
+                                 Register bitmap_reg,
+                                 Register mask_reg) {
+  ASSERT(!AreAliased(addr_reg, bitmap_reg, mask_reg, rcx));
+  movq(bitmap_reg, addr_reg);
+  // Sign extended 32 bit immediate.
+  and_(bitmap_reg, Immediate(~Page::kPageAlignmentMask));
+  movq(rcx, addr_reg);
+  int shift =
+      Bitmap::kBitsPerCellLog2 + kPointerSizeLog2 - Bitmap::kBytesPerCellLog2;
+  shrl(rcx, Immediate(shift));
+  and_(rcx,
+       Immediate((Page::kPageAlignmentMask >> shift) &
+                 ~(Bitmap::kBytesPerCell - 1)));
+
+  addq(bitmap_reg, rcx);
+  movq(rcx, addr_reg);
+  shrl(rcx, Immediate(kPointerSizeLog2));
+  and_(rcx, Immediate((1 << Bitmap::kBitsPerCellLog2) - 1));
+  movl(mask_reg, Immediate(1));
+  shl_cl(mask_reg);
 }
 
 } }  // namespace v8::internal

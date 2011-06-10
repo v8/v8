@@ -2221,7 +2221,6 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   ASSERT(!value.is(object));
   Handle<JSGlobalPropertyCell> cell_handle(instr->hydrogen()->cell());
 
-  int offset = JSGlobalPropertyCell::kValueOffset;
   __ movq(address, cell_handle, RelocInfo::GLOBAL_PROPERTY_CELL);
 
   // If the cell we are storing to contains the hole it could have
@@ -2239,6 +2238,7 @@ void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
   Label smi_store;
   __ JumpIfSmi(value, &smi_store, Label::kNear);
 
+  int offset = JSGlobalPropertyCell::kValueOffset - kHeapObjectTag;
   __ lea(object, Operand(address, -offset));
   // Cells are always in the remembered set.
   __ RecordWrite(object,

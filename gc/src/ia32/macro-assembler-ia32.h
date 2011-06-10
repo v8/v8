@@ -93,17 +93,25 @@ class MacroAssembler: public Assembler {
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
 
-  void InNewSpace(Register object,
-                  Register scratch,
-                  Condition cc,
-                  Label* condition_met,
-                  Label::Distance condition_met_distance = Label::kFar);
+  // Check if object is in new space.  Jumps if the object is not in new space.
+  // The register scratch can be object itself, but it will be clobbered.
+  void JumpIfNotInNewSpace(Register object,
+                           Register scratch,
+                           Label* branch,
+                           Label::Distance distance = Label::kFar) {
+    InNewSpace(object, scratch, zero, branch, distance);
+  }
+
+  // Check if object is in new space.  Jumps if the object is in new space.
+  // The register scratch can be object itself, but it will be clobbered.
+  void JumpIfInNewSpace(Register object,
+                        Register scratch,
+                        Label* branch,
+                        Label::Distance distance = Label::kFar) {
+    InNewSpace(object, scratch, not_zero, branch, distance);
+  }
 
   // Check if an object has a given incremental marking color.  Also uses ecx!
-  // The color bits are found by splitting the address at the bit offset
-  // indicated by the mask: bits that are zero in the mask are used for the
-  // address of the bitmap, and bits that are one in the mask are used for the
-  // index of the bit.
   void HasColor(Register object,
                 Register scratch0,
                 Register scratch1,
@@ -112,11 +120,11 @@ class MacroAssembler: public Assembler {
                 int first_bit,
                 int second_bit);
 
-  void IsBlack(Register object,
-               Register scratch0,
-               Register scratch1,
-               Label* is_black,
-               Label::Distance is_black_distance = Label::kFar);
+  void JumpIfBlack(Register object,
+                   Register scratch0,
+                   Register scratch1,
+                   Label* on_black,
+                   Label::Distance on_black_distance = Label::kFar);
 
   // Checks the color of an object.  If the object is already grey or black
   // then we just fall through, since it is already live.  If it is white and
@@ -129,12 +137,12 @@ class MacroAssembler: public Assembler {
                       Label* object_is_white_and_not_data,
                       Label::Distance distance);
 
-  // Checks whether an object is data-only, ie it does need to be scanned by the
-  // garbage collector.
-  void IsDataObject(Register value,
-                    Register scratch,
-                    Label* not_data_object,
-                    Label::Distance not_data_object_distance);
+  // Detects conservatively whether an object is data-only, ie it does need to
+  // be scanned by the garbage collector.
+  void JumpIfDataObject(Register value,
+                        Register scratch,
+                        Label* not_data_object,
+                        Label::Distance not_data_object_distance);
 
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
@@ -784,6 +792,13 @@ class MacroAssembler: public Assembler {
   MUST_USE_RESULT MaybeObject* PopHandleScopeHelper(Register saved,
                                                     Register scratch,
                                                     bool gc_allowed);
+
+  // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
+  void InNewSpace(Register object,
+                  Register scratch,
+                  Condition cc,
+                  Label* condition_met,
+                  Label::Distance condition_met_distance = Label::kFar);
 
   // Helper for finding the mark bits for an address.  Afterwards, the
   // bitmap register points at the word with the mark bits and the mask

@@ -3275,6 +3275,10 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   // Possible optimization: do a check that both values are Smis
   // (or them and test against Smi mask.)
 
+  // We are swapping two objects in an array and the incremental marker never
+  // pauses in the middle of scanning a single object.  Therefore the
+  // incremental marker is not disturbed, so we don't need to call the
+  // RecordWrite stub that notifies the incremental marker.
   __ RememberedSetHelper(
       index1, scratch2, kDontSaveFPRegs, MacroAssembler::kFallThroughAtEnd);
   __ RememberedSetHelper(

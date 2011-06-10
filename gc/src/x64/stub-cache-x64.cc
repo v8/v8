@@ -1414,7 +1414,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
     __ j(not_equal, &call_builtin);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label exit, attempt_to_grow_elements, with_write_barrier;
+      Label attempt_to_grow_elements, with_write_barrier;
 
       // Get the array's length into rax and calculate new length.
       __ SmiToInteger32(rax, FieldOperand(rdx, JSArray::kLengthOffset));
@@ -1443,7 +1443,6 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       __ JumpIfNotSmi(rcx, &with_write_barrier);
 
-      __ bind(&exit);
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&with_write_barrier);
@@ -1491,6 +1490,13 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
         __ movq(Operand(rdx, i * kPointerSize), kScratchRegister);
       }
 
+      // We know the elements array is in new space so we don't need the
+      // remembered set, but we just pushed a value onto it so we may have to
+      // tell the incremental marker to rescan the object that we just grew.  We
+      // don't need to worry about the holes because they are in old space and
+      // already marked black.
+      __ RecordWrite(rbx, rdx, rcx, kDontSaveFPRegs, OMIT_REMEMBERED_SET);
+
       // Restore receiver to rdx as finish sequence assumes it's here.
       __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
@@ -1502,7 +1508,6 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ Integer32ToSmi(rax, rax);
       __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rax);
 
-      // Elements are in new space, so write barrier is not required.
       __ ret((argc + 1) * kPointerSize);
     }
 
@@ -2441,19 +2446,36 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
          Handle<Map>(object->map()));
   __ j(not_equal, &miss);
 
+  // Compute the cell operand to use.
+  __ Move(rbx, Handle<JSGlobalPropertyCell>(cell));
+  Operand cell_operand = FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset);
+
   // Check that the value in the cell is not the hole. If it is, this
   // cell could have been deleted and reintroducing the global needs
   // to update the property details in the property dictionary of the
   // global object. We bail out to the runtime system to do that.
-  __ Move(rbx, Handle<JSGlobalPropertyCell>(cell));
-  __ CompareRoot(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset),
-                 Heap::kTheHoleValueRootIndex);
+  __ CompareRoot(cell_operand, Heap::kTheHoleValueRootIndex);
   __ j(equal, &miss);
 
   // Store the value in the cell.
-  __ movq(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset), rax);
+  __ movq(cell_operand, rax);
+  Label done;
+  __ JumpIfSmi(rax, &done);
+
+  __ movq(rcx, rax);
+  __ lea(rdx, cell_operand);
+  // Cells are always in the remembered set.
+  __ RecordWrite(rbx,  // Object.
+                 rdx,  // Address.
+                 rcx,  // Value.
+                 kDontSaveFPRegs,
+                 OMIT_REMEMBERED_SET,
+                 OMIT_SMI_CHECK);
+
 
   // Return the value (register rax).
+  __ bind(&done);
+
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->named_store_global_inline(), 1);
   __ ret(0);

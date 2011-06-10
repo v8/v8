@@ -266,10 +266,10 @@ DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 DEFINE_bool(flush_code, false,
             "flush code that we expect not to use again before full gc")
-#ifdef V8_TARGET_ARCH_IA32
-DEFINE_bool(incremental_marking, true, "use incremental marking")
-#else
+#ifdef V8_TARGET_ARCH_ARM
 DEFINE_bool(incremental_marking, false, "use incremental marking")
+#else
+DEFINE_bool(incremental_marking, true, "use incremental marking")
 #endif
 DEFINE_bool(incremental_marking_steps, true, "do incremental marking steps")
 DEFINE_bool(trace_incremental_marking, false,
