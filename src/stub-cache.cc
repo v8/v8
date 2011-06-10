@@ -29,6 +29,7 @@
 
 #include "api.h"
 #include "arguments.h"
+#include "code-stubs.h"
 #include "gdb-jit.h"
 #include "ic-inl.h"
 #include "stub-cache.h"
@@ -502,12 +503,13 @@ MaybeObject* StubCache::ComputeKeyedLoadOrStoreElement(
   if (!maybe_code->IsUndefined()) return Code::cast(maybe_code);
 
   MaybeObject* maybe_new_code = NULL;
+  Map* receiver_map = receiver->map();
   if (is_store) {
     KeyedStoreStubCompiler compiler(strict_mode);
-    maybe_new_code = compiler.CompileStoreElement(receiver->map());
+    maybe_new_code = compiler.CompileStoreElement(receiver_map);
   } else {
     KeyedLoadStubCompiler compiler;
-    maybe_new_code = compiler.CompileLoadElement(receiver->map());
+    maybe_new_code = compiler.CompileLoadElement(receiver_map);
   }
   Code* code;
   if (!maybe_new_code->To(&code)) return maybe_new_code;
@@ -1645,6 +1647,21 @@ MaybeObject* KeyedLoadStubCompiler::GetCode(PropertyType type,
 }
 
 
+MaybeObject* KeyedLoadStubCompiler::ComputeSharedKeyedLoadElementStub(
+    Map* receiver_map) {
+  MaybeObject* maybe_stub = NULL;
+  if (receiver_map->has_fast_elements()) {
+    maybe_stub = KeyedLoadFastElementStub().TryGetCode();
+  } else if (receiver_map->has_external_array_elements()) {
+    JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+    maybe_stub = KeyedLoadExternalArrayStub(elements_kind).TryGetCode();
+  } else {
+    UNREACHABLE();
+  }
+  return maybe_stub;
+}
+
+
 MaybeObject* StoreStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(
       Code::STORE_IC, type, strict_mode_);
@@ -1678,6 +1695,22 @@ MaybeObject* KeyedStoreStubCompiler::GetCode(PropertyType type,
                    Code::cast(result->ToObjectUnchecked())));
   }
   return result;
+}
+
+
+MaybeObject* KeyedStoreStubCompiler::ComputeSharedKeyedStoreElementStub(
+    Map* receiver_map) {
+  MaybeObject* maybe_stub = NULL;
+  if (receiver_map->has_fast_elements()) {
+    bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
+    maybe_stub = KeyedStoreFastElementStub(is_js_array).TryGetCode();
+  } else if (receiver_map->has_external_array_elements()) {
+    JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+    maybe_stub = KeyedStoreExternalArrayStub(elements_kind).TryGetCode();
+  } else {
+    UNREACHABLE();
+  }
+  return maybe_stub;
 }
 
 

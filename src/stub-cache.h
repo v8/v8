@@ -661,6 +661,8 @@ class KeyedLoadStubCompiler: public StubCompiler {
   MaybeObject* GetCode(PropertyType type,
                        String* name,
                        InlineCacheState state = MONOMORPHIC);
+
+  MaybeObject* ComputeSharedKeyedLoadElementStub(Map* receiver_map);
 };
 
 
@@ -717,6 +719,8 @@ class KeyedStoreStubCompiler: public StubCompiler {
   MaybeObject* GetCode(PropertyType type,
                        String* name,
                        InlineCacheState state = MONOMORPHIC);
+
+  MaybeObject* ComputeSharedKeyedStoreElementStub(Map* receiver_map);
 
   StrictModeFlag strict_mode_;
 };
