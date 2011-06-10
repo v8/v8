@@ -483,6 +483,7 @@ class HValue: public ZoneObject {
     kCanOverflow,
     kBailoutOnMinusZero,
     kCanBeDivByZero,
+    kDeoptimizeOnUndefined,
     kIsArguments,
     kTruncatingToInt32,
     kLastFlag = kTruncatingToInt32
@@ -1033,8 +1034,11 @@ class HChange: public HUnaryOperation {
   HChange(HValue* value,
           Representation from,
           Representation to,
-          bool is_truncating)
-      : HUnaryOperation(value), from_(from) {
+          bool is_truncating,
+          bool deoptimize_on_undefined)
+      : HUnaryOperation(value),
+        from_(from),
+        deoptimize_on_undefined_(deoptimize_on_undefined) {
     ASSERT(!from.IsNone() && !to.IsNone());
     ASSERT(!from.Equals(to));
     set_representation(to);
@@ -1050,6 +1054,7 @@ class HChange: public HUnaryOperation {
 
   Representation from() const { return from_; }
   Representation to() const { return representation(); }
+  bool deoptimize_on_undefined() const { return deoptimize_on_undefined_; }
   virtual Representation RequiredInputRepresentation(int index) const {
     return from_;
   }
@@ -1065,11 +1070,13 @@ class HChange: public HUnaryOperation {
     if (!other->IsChange()) return false;
     HChange* change = HChange::cast(other);
     return value() == change->value()
-        && to().Equals(change->to());
+        && to().Equals(change->to())
+        && deoptimize_on_undefined() == change->deoptimize_on_undefined();
   }
 
  private:
   Representation from_;
+  bool deoptimize_on_undefined_;
 };
 
 
