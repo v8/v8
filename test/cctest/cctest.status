@@ -62,6 +62,7 @@ test-api/OutOfMemoryNested: SKIP
 test-log/ProfLazyMode: SKIP
 
 # BUG(945): Socket connect fails on ARM
+test-debug/DebuggerAgent: SKIP
 test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
 test-sockets/Socket: SKIP
 
