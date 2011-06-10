@@ -99,7 +99,7 @@ class RemoteDebugger {
 class ReceiverThread: public i::Thread {
  public:
   ReceiverThread(i::Isolate* isolate, RemoteDebugger* remote_debugger)
-      : Thread(isolate, "d8:ReceiverThrd"),
+      : Thread("d8:ReceiverThrd"),
         remote_debugger_(remote_debugger) {}
   ~ReceiverThread() {}
 
@@ -114,7 +114,7 @@ class ReceiverThread: public i::Thread {
 class KeyboardThread: public i::Thread {
  public:
   explicit KeyboardThread(i::Isolate* isolate, RemoteDebugger* remote_debugger)
-      : Thread(isolate, "d8:KeyboardThrd"),
+      : Thread("d8:KeyboardThrd"),
         remote_debugger_(remote_debugger) {}
   ~KeyboardThread() {}
 

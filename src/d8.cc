@@ -772,7 +772,7 @@ void Shell::RunShell() {
 class ShellThread : public i::Thread {
  public:
   ShellThread(i::Isolate* isolate, int no, i::Vector<const char> files)
-    : Thread(isolate, "d8:ShellThread"),
+    : Thread("d8:ShellThread"),
       no_(no), files_(files) { }
   virtual void Run();
  private:
