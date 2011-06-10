@@ -199,7 +199,6 @@ DEFINE_bool(opt, true, "use adaptive optimizations")
 DEFINE_bool(opt_eagerly, false, "be more eager when adaptively optimizing")
 DEFINE_bool(always_opt, false, "always try to optimize functions")
 DEFINE_bool(prepare_always_opt, false, "prepare for turning on always opt")
-DEFINE_bool(debug_info, true, "add debug information to compiled functions")
 DEFINE_bool(deopt, true, "support deoptimization")
 DEFINE_bool(trace_deopt, false, "trace deoptimization")
 
