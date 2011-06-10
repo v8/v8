@@ -771,7 +771,7 @@ void Shell::RunShell() {
 
 class ShellThread : public i::Thread {
  public:
-  ShellThread(i::Isolate* isolate, int no, i::Vector<const char> files)
+  ShellThread(int no, i::Vector<const char> files)
     : Thread("d8:ShellThread"),
       no_(no), files_(files) { }
   virtual void Run();
@@ -879,8 +879,7 @@ int Shell::RunMain(int argc, char* argv[]) {
         const char* files = ReadChars(argv[++i], &size);
         if (files == NULL) return 1;
         ShellThread* thread =
-            new ShellThread(i::Isolate::Current(),
-                            threads.length(),
+            new ShellThread(threads.length(),
                             i::Vector<const char>(files, size));
         thread->Start();
         threads.Add(thread);
