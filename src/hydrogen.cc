@@ -157,11 +157,8 @@ void HBasicBlock::Finish(HControlInstruction* end) {
   ASSERT(!IsFinished());
   AddInstruction(end);
   end_ = end;
-  if (end->FirstSuccessor() != NULL) {
-    end->FirstSuccessor()->RegisterPredecessor(this);
-    if (end->SecondSuccessor() != NULL) {
-      end->SecondSuccessor()->RegisterPredecessor(this);
-    }
+  for (HSuccessorIterator it(end); !it.Done(); it.Advance()) {
+    it.Current()->RegisterPredecessor(this);
   }
 }
 
@@ -401,8 +398,9 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
   void Analyze() {
     while (!stack_.is_empty()) {
       HControlInstruction* end = stack_.RemoveLast()->end();
-      PushBlock(end->FirstSuccessor());
-      PushBlock(end->SecondSuccessor());
+      for (HSuccessorIterator it(end); !it.Done(); it.Advance()) {
+        PushBlock(it.Current());
+      }
     }
   }
 
@@ -697,8 +695,9 @@ void HGraph::PostorderLoopBlocks(HLoopInformation* loop,
                                  HBasicBlock* loop_header) {
   for (int i = 0; i < loop->blocks()->length(); ++i) {
     HBasicBlock* b = loop->blocks()->at(i);
-    Postorder(b->end()->SecondSuccessor(), visited, order, loop_header);
-    Postorder(b->end()->FirstSuccessor(), visited, order, loop_header);
+    for (HSuccessorIterator it(b->end()); !it.Done(); it.Advance()) {
+      Postorder(it.Current(), visited, order, loop_header);
+    }
     if (b->IsLoopHeader() && b != loop->loop_header()) {
       PostorderLoopBlocks(b->loop_information(), visited, order, loop_header);
     }
@@ -715,11 +714,13 @@ void HGraph::Postorder(HBasicBlock* block,
   visited->Add(block->block_id());
   if (block->IsLoopHeader()) {
     PostorderLoopBlocks(block->loop_information(), visited, order, loop_header);
-    Postorder(block->end()->SecondSuccessor(), visited, order, block);
-    Postorder(block->end()->FirstSuccessor(), visited, order, block);
+    for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
+      Postorder(it.Current(), visited, order, block);
+    }
   } else {
-    Postorder(block->end()->SecondSuccessor(), visited, order, loop_header);
-    Postorder(block->end()->FirstSuccessor(), visited, order, loop_header);
+    for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
+      Postorder(it.Current(), visited, order, loop_header);
+    }
   }
   ASSERT(block->end()->FirstSuccessor() == NULL ||
          order->Contains(block->end()->FirstSuccessor()) ||
@@ -6139,15 +6140,15 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
       PrintEmptyProperty("predecessors");
     }
 
-    if (current->end() == NULL || current->end()->FirstSuccessor() == NULL) {
+    if (current->end()->SuccessorCount() == 0) {
       PrintEmptyProperty("successors");
-    } else if (current->end()->SecondSuccessor() == NULL) {
-      PrintBlockProperty("successors",
-                             current->end()->FirstSuccessor()->block_id());
-    } else {
-      PrintBlockProperty("successors",
-                             current->end()->FirstSuccessor()->block_id(),
-                             current->end()->SecondSuccessor()->block_id());
+    } else  {
+      PrintIndent();
+      trace_.Add("successors");
+      for (HSuccessorIterator it(current->end()); !it.Done(); it.Advance()) {
+        trace_.Add(" \"B%d\"", it.Current()->block_id());
+      }
+      trace_.Add("\n");
     }
 
     PrintEmptyProperty("xhandlers");

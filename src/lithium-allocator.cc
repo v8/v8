@@ -575,10 +575,10 @@ BitVector* LAllocator::ComputeLiveOut(HBasicBlock* block) {
   BitVector* live_out = new BitVector(next_virtual_register_);
 
   // Process all successor blocks.
-  HBasicBlock* successor = block->end()->FirstSuccessor();
-  while (successor != NULL) {
+  for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
     // Add values live on entry to the successor. Note the successor's
     // live_in will not be computed yet for backwards edges.
+    HBasicBlock* successor = it.Current();
     BitVector* live_in = live_in_sets_[successor->block_id()];
     if (live_in != NULL) live_out->Union(*live_in);
 
@@ -592,11 +592,6 @@ BitVector* LAllocator::ComputeLiveOut(HBasicBlock* block) {
         live_out->Add(phi->OperandAt(index)->id());
       }
     }
-
-    // Check if we are done with second successor.
-    if (successor == block->end()->SecondSuccessor()) break;
-
-    successor = block->end()->SecondSuccessor();
   }
 
   return live_out;

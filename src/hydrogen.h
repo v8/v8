@@ -1179,11 +1179,6 @@ class HTracer: public Malloced {
     trace_.Add("%s \"B%d\"\n", name, block_id);
   }
 
-  void PrintBlockProperty(const char* name, int block_id1, int block_id2) {
-    PrintIndent();
-    trace_.Add("%s \"B%d\" \"B%d\"\n", name, block_id1, block_id2);
-  }
-
   void PrintIntProperty(const char* name, int value) {
     PrintIndent();
     trace_.Add("%s %d\n", name, value);

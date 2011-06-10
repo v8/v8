@@ -686,21 +686,24 @@ void HAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 
 
 void HControlInstruction::PrintDataTo(StringStream* stream) {
-  if (FirstSuccessor() != NULL) {
-    int first_id = FirstSuccessor()->block_id();
-    if (SecondSuccessor() == NULL) {
-      stream->Add(" B%d", first_id);
-    } else {
-      int second_id = SecondSuccessor()->block_id();
-      stream->Add(" goto (B%d, B%d)", first_id, second_id);
-    }
+  stream->Add(" goto (");
+  bool first_block = true;
+  for (HSuccessorIterator it(this); !it.Done(); it.Advance()) {
+    stream->Add(first_block ? "B%d" : ", B%d", it.Current()->block_id());
+    first_block = false;
   }
+  stream->Add(")");
 }
 
 
 void HUnaryControlInstruction::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   HControlInstruction::PrintDataTo(stream);
+}
+
+
+void HReturn::PrintDataTo(StringStream* stream) {
+  value()->PrintNameTo(stream);
 }
 
 

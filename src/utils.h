@@ -793,6 +793,35 @@ inline Dest BitCast(const Source& source) {
   return BitCastHelper<Dest, Source>::cast(source);
 }
 
+
+template<typename ElementType, int NumElements>
+class EmbeddedContainer {
+ public:
+  EmbeddedContainer() : elems_() { }
+
+  int length() { return NumElements; }
+  ElementType& operator[](int i) {
+    ASSERT(i < length());
+    return elems_[i];
+  }
+
+ private:
+  ElementType elems_[NumElements];
+};
+
+
+template<typename ElementType>
+class EmbeddedContainer<ElementType, 0> {
+ public:
+  int length() { return 0; }
+  ElementType& operator[](int i) {
+    UNREACHABLE();
+    static ElementType t = 0;
+    return t;
+  }
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_UTILS_H_
