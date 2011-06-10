@@ -3099,7 +3099,7 @@ class V8EXPORT V8 {
    * still JavaScript frames on the stack and the termination
    * exception is still active.
    */
-  static bool IsExecutionTerminating(Isolate* isolate = NULL);
+  static bool IsExecutionTerminating();
 
   /**
    * Releases any resources used by v8 and stops any utility threads

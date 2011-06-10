@@ -87,8 +87,8 @@ class CcTest {
 class ApiTestFuzzer: public v8::internal::Thread {
  public:
   void CallTest();
-  explicit ApiTestFuzzer(int num)
-      : Thread("ApiTestFuzzer"),
+  explicit ApiTestFuzzer(v8::internal::Isolate* isolate, int num)
+      : Thread(isolate, "ApiTestFuzzer"),
         test_number_(num),
         gate_(v8::internal::OS::CreateSemaphore(0)),
         active_(true) {

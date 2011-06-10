@@ -150,17 +150,14 @@ class ContextSwitcher: public Thread {
   // Preempted thread needs to call back to the ContextSwitcher to acknowledge
   // the handling of a preemption request.
   static void PreemptionReceived();
-  
- private:
-  ContextSwitcher(Isolate* isolate, int every_n_ms);
 
-  Isolate* isolate() const { return isolate_; }
+ private:
+  explicit ContextSwitcher(Isolate* isolate, int every_n_ms);
 
   void Run();
 
   bool keep_going_;
   int sleep_ms_;
-  Isolate* isolate_;
 };
 
 } }  // namespace v8::internal

@@ -4902,10 +4902,9 @@ void V8::TerminateExecution(Isolate* isolate) {
 }
 
 
-bool V8::IsExecutionTerminating(Isolate* isolate) {
-  i::Isolate* i_isolate = isolate != NULL ?
-      reinterpret_cast<i::Isolate*>(isolate) : i::Isolate::Current();
-  return IsExecutionTerminatingCheck(i_isolate);
+bool V8::IsExecutionTerminating() {
+  i::Isolate* isolate = i::Isolate::Current();
+  return IsExecutionTerminatingCheck(isolate);
 }
 
 

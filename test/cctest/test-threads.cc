@@ -65,7 +65,7 @@ static Turn turn = FILL_CACHE;
 
 class ThreadA: public v8::internal::Thread {
  public:
-  ThreadA() : Thread("ThreadA") { }
+  explicit ThreadA(i::Isolate* isolate) : Thread(isolate, "ThreadA") { }
   void Run() {
     v8::Locker locker;
     v8::HandleScope scope;
@@ -101,7 +101,7 @@ class ThreadA: public v8::internal::Thread {
 
 class ThreadB: public v8::internal::Thread {
  public:
-  ThreadB() : Thread("ThreadB") { }
+  explicit ThreadB(i::Isolate* isolate) : Thread(isolate, "ThreadB") { }
   void Run() {
     do {
       {
@@ -126,8 +126,8 @@ class ThreadB: public v8::internal::Thread {
 TEST(JSFunctionResultCachesInTwoThreads) {
   v8::V8::Initialize();
 
-  ThreadA threadA;
-  ThreadB threadB;
+  ThreadA threadA(i::Isolate::Current());
+  ThreadB threadB(i::Isolate::Current());
 
   threadA.Start();
   threadB.Start();
@@ -144,7 +144,7 @@ class ThreadIdValidationThread : public v8::internal::Thread {
                            i::List<i::ThreadId>* refs,
                            unsigned int thread_no,
                            i::Semaphore* semaphore)
-    : Thread("ThreadRefValidationThread"),
+    : Thread(NULL, "ThreadRefValidationThread"),
       refs_(refs), thread_no_(thread_no), thread_to_start_(thread_to_start),
       semaphore_(semaphore) {
   }

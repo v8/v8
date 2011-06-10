@@ -48,7 +48,7 @@ static void DoTest() {
 
 class TestThread : public Thread {
  public:
-  TestThread() : Thread("TestThread") {}
+  TestThread() : Thread(NULL, "TestThread") {}
 
   virtual void Run() {
     DoTest();

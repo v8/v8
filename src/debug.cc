@@ -2820,7 +2820,7 @@ bool Debugger::StartAgent(const char* name, int port,
 
   if (Socket::Setup()) {
     if (agent_ == NULL) {
-      agent_ = new DebuggerAgent(name, port);
+      agent_ = new DebuggerAgent(isolate_, name, port);
       agent_->Start();
     }
     return true;
@@ -3122,7 +3122,7 @@ void LockingCommandMessageQueue::Clear() {
 
 
 MessageDispatchHelperThread::MessageDispatchHelperThread(Isolate* isolate)
-    : Thread("v8:MsgDispHelpr"),
+    : Thread(isolate, "v8:MsgDispHelpr"),
       sem_(OS::CreateSemaphore(0)), mutex_(OS::CreateMutex()),
       already_signalled_(false) {
 }

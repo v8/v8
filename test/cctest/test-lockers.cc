@@ -64,7 +64,7 @@ class KangarooThread : public v8::internal::Thread {
  public:
   KangarooThread(v8::Isolate* isolate,
                  v8::Handle<v8::Context> context, int value)
-      : Thread("KangarooThread"),
+      : Thread(NULL, "KangarooThread"),
         isolate_(isolate), context_(context), value_(value) {
   }
 
@@ -149,8 +149,8 @@ class JoinableThread {
  private:
   class ThreadWithSemaphore : public i::Thread {
    public:
-    ThreadWithSemaphore(JoinableThread* joinable_thread)
-      : Thread(joinable_thread->name_),
+    explicit ThreadWithSemaphore(JoinableThread* joinable_thread)
+      : Thread(NULL, joinable_thread->name_),
         joinable_thread_(joinable_thread) {
     }
 
