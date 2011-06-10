@@ -640,6 +640,7 @@ class Assembler : public AssemblerBase {
   void push_imm32(int32_t imm32);
   void push(Register src);
   void push(const Operand& src);
+  void push(Handle<Object> handle);
 
   void pop(Register dst);
   void pop(const Operand& dst);

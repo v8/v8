@@ -535,7 +535,7 @@ void ParseOptions(int argc,
                   string* file) {
   for (int i = 1; i < argc; i++) {
     string arg = argv[i];
-    int index = arg.find('=', 0);
+    size_t index = arg.find('=', 0);
     if (index == string::npos) {
       *file = arg;
     } else {

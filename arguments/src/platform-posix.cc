@@ -54,18 +54,6 @@
 namespace v8 {
 namespace internal {
 
-
-// Maximum size of the virtual memory.  0 means there is no artificial
-// limit.
-
-intptr_t OS::MaxVirtualMemory() {
-  struct rlimit limit;
-  int result = getrlimit(RLIMIT_DATA, &limit);
-  if (result != 0) return 0;
-  return limit.rlim_cur;
-}
-
-
 // ----------------------------------------------------------------------------
 // Math functions
 

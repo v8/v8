@@ -25,40 +25,55 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Check that reduce and reduceRight call the callback function with
+// undefined as the receiver (which for non-strict functions is
+// transformed to the global object).
 
-// An exception thrown in a function optimized by on-stack replacement (OSR)
-// should be able to construct a receiver from all optimized stack frames.
+// Check receiver for reduce and reduceRight.
 
-function A() { }
-A.prototype.f = function() { }
+var global = this;
+function non_strict(){ assertEquals(global, this); }
+function strict(){ "use strict"; assertEquals(void 0, this); }
+function strict_null(){ "use strict"; assertEquals(null, this); }
 
-function B() { }
+[2, 3].reduce(non_strict);
+[2, 3].reduce(strict);
+[2, 3].reduceRight(non_strict);
+[2, 3].reduceRight(strict);
 
-var o = new A();
 
-// This function throws if o does not have an f property, and should not be
-// inlined.
-function g() { try { return o.f(); } finally { }}
+// Check the receiver for callbacks in other array methods.
+[2, 3].every(non_strict);
+[2, 3].every(non_strict, undefined);
+[2, 3].every(non_strict, null);
+[2, 3].every(strict);
+[2, 3].every(strict, undefined);
+[2, 3].every(strict_null, null);
 
-// Optimization status (see runtime.cc):
-// 1 - yes, 2 - no, 3 - always, 4 - never.
+[2, 3].filter(non_strict);
+[2, 3].filter(non_strict, undefined);
+[2, 3].filter(non_strict, null);
+[2, 3].filter(strict);
+[2, 3].filter(strict, undefined);
+[2, 3].filter(strict_null, null);
 
-// This function should be optimized via OSR.
-function h() {
-  var optstatus = %GetOptimizationStatus(h);
-  if (optstatus == 4) {
-    // Optimizations are globally disabled; just run once.
-    g();
-  } else {
-    // Run for a bit as long as h is unoptimized.
-    while (%GetOptimizationStatus(h) == 2) {
-      for (var j = 0; j < 100; j++) g();
-    }
-    g();
-  }
-}
+[2, 3].forEach(non_strict);
+[2, 3].forEach(non_strict, undefined);
+[2, 3].forEach(non_strict, null);
+[2, 3].forEach(strict);
+[2, 3].forEach(strict, undefined);
+[2, 3].forEach(strict_null, null);
 
-h();
-o = new B();
-assertThrows("h()");
+[2, 3].map(non_strict);
+[2, 3].map(non_strict, undefined);
+[2, 3].map(non_strict, null);
+[2, 3].map(strict);
+[2, 3].map(strict, undefined);
+[2, 3].map(strict_null, null);
+
+[2, 3].some(non_strict);
+[2, 3].some(non_strict, undefined);
+[2, 3].some(non_strict, null);
+[2, 3].some(strict);
+[2, 3].some(strict, undefined);
+[2, 3].some(strict_null, null);

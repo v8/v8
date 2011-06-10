@@ -529,6 +529,7 @@ class Isolate {
   // Access to top context (where the current function object was created).
   Context* context() { return thread_local_top_.context_; }
   void set_context(Context* context) {
+    ASSERT(context == NULL || context->IsContext());
     thread_local_top_.context_ = context;
   }
   Context** context_address() { return &thread_local_top_.context_; }
@@ -895,14 +896,6 @@ class Isolate {
     return &interp_canonicalize_mapping_;
   }
 
-  ZoneObjectList* frame_element_constant_list() {
-    return &frame_element_constant_list_;
-  }
-
-  ZoneObjectList* result_constant_list() {
-    return &result_constant_list_;
-  }
-
   void* PreallocatedStorageNew(size_t size);
   void PreallocatedStorageDelete(void* p);
   void PreallocatedStorageInit(size_t size);
@@ -1011,6 +1004,7 @@ class Isolate {
     void Insert(PerIsolateThreadData* data);
     void Remove(Isolate* isolate, ThreadId thread_id);
     void Remove(PerIsolateThreadData* data);
+    void RemoveAllThreads(Isolate* isolate);
 
    private:
     PerIsolateThreadData* list_;
@@ -1157,8 +1151,6 @@ class Isolate {
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
-  ZoneObjectList frame_element_constant_list_;
-  ZoneObjectList result_constant_list_;
   void* embedder_data_;
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \

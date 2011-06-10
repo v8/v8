@@ -288,10 +288,6 @@ class OS {
   // positions indicated by the members of the CpuFeature enum from globals.h
   static uint64_t CpuFeaturesImpliedByPlatform();
 
-  // Maximum size of the virtual memory.  0 means there is no artificial
-  // limit.
-  static intptr_t MaxVirtualMemory();
-
   // Returns the double constant NAN
   static double nan_value();
 

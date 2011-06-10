@@ -471,6 +471,9 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
     sw(src, MemOperand(sp, 0));
   }
 
+  // Push a handle.
+  void Push(Handle<Object> handle);
+
   // Push two registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
     Subu(sp, sp, Operand(2 * kPointerSize));
@@ -722,6 +725,12 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
   void GetObjectType(Register function,
                      Register map,
                      Register type_reg);
+
+  // Check if a map for a JSObject indicates that the object has fast elements.
+  // Jump to the specified label if it does not.
+  void CheckFastElements(Register map,
+                         Register scratch,
+                         Label* fail);
 
   // Check if the map of an object is equal to a specified map (either
   // given directly or as an index into the root list) and branch to

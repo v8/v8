@@ -631,7 +631,9 @@ function ArraySlice(start, end) {
 
   if (end_i < start_i) return result;
 
-  if (IS_ARRAY(this)) {
+  if (IS_ARRAY(this) &&
+      (end_i > 1000) &&
+      (%EstimateNumberOfElements(this) < end_i)) {
     SmartSlice(this, start_i, end_i - start_i, len, result);
   } else {
     SimpleSlice(this, start_i, end_i - start_i, len, result);
@@ -1250,7 +1252,7 @@ function ArrayReduce(callback, current) {
   for (; i < length; i++) {
     var element = this[i];
     if (!IS_UNDEFINED(element) || i in this) {
-      current = callback.call(null, current, element, i, this);
+      current = callback.call(void 0, current, element, i, this);
     }
   }
   return current;
@@ -1281,7 +1283,7 @@ function ArrayReduceRight(callback, current) {
   for (; i >= 0; i--) {
     var element = this[i];
     if (!IS_UNDEFINED(element) || i in this) {
-      current = callback.call(null, current, element, i, this);
+      current = callback.call(void 0, current, element, i, this);
     }
   }
   return current;

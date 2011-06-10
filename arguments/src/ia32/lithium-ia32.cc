@@ -78,13 +78,13 @@ void LInstruction::VerifyCall() {
   ASSERT(Output() == NULL ||
          LUnallocated::cast(Output())->HasFixedPolicy() ||
          !LUnallocated::cast(Output())->HasRegisterPolicy());
-  for (UseIterator it(this); it.HasNext(); it.Advance()) {
-    LUnallocated* operand = LUnallocated::cast(it.Next());
+  for (UseIterator it(this); !it.Done(); it.Advance()) {
+    LUnallocated* operand = LUnallocated::cast(it.Current());
     ASSERT(operand->HasFixedPolicy() ||
            operand->IsUsedAtStart());
   }
-  for (TempIterator it(this); it.HasNext(); it.Advance()) {
-    LUnallocated* operand = LUnallocated::cast(it.Next());
+  for (TempIterator it(this); !it.Done(); it.Advance()) {
+    LUnallocated* operand = LUnallocated::cast(it.Current());
     ASSERT(operand->HasFixedPolicy() ||!operand->HasRegisterPolicy());
   }
 }
@@ -804,6 +804,11 @@ LInstruction* LChunkBuilder::DoBlockEntry(HBlockEntry* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoSoftDeoptimize(HSoftDeoptimize* instr) {
+  return AssignEnvironment(new LDeoptimize);
+}
+
+
 LInstruction* LChunkBuilder::DoDeoptimize(HDeoptimize* instr) {
   return AssignEnvironment(new LDeoptimize);
 }
@@ -1046,9 +1051,9 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 
 LInstruction* LChunkBuilder::DoTest(HTest* instr) {
   HValue* v = instr->value();
-  if (!v->EmitAtUses()) {
-    return new LBranch(UseRegisterAtStart(v));
-  } else if (v->IsClassOfTest()) {
+  if (!v->EmitAtUses()) return new LBranch(UseRegisterAtStart(v));
+  ASSERT(!v->HasSideEffects());
+  if (v->IsClassOfTest()) {
     HClassOfTest* compare = HClassOfTest::cast(v);
     ASSERT(compare->value()->representation().IsTagged());
     return new LClassOfTestAndBranch(UseTempRegister(compare->value()),
@@ -1056,7 +1061,6 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
                                      TempRegister());
   } else if (v->IsCompare()) {
     HCompare* compare = HCompare::cast(v);
-    Token::Value op = compare->token();
     HValue* left = compare->left();
     HValue* right = compare->right();
     Representation r = compare->GetInputRepresentation();
@@ -1065,19 +1069,12 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
       ASSERT(right->representation().IsInteger32());
       return new LCmpIDAndBranch(UseRegisterAtStart(left),
                                  UseOrConstantAtStart(right));
-    } else if (r.IsDouble()) {
+    } else {
+      ASSERT(r.IsDouble());
       ASSERT(left->representation().IsDouble());
       ASSERT(right->representation().IsDouble());
       return new LCmpIDAndBranch(UseRegisterAtStart(left),
                                  UseRegisterAtStart(right));
-    } else {
-      ASSERT(left->representation().IsTagged());
-      ASSERT(right->representation().IsTagged());
-      bool reversed = op == Token::GT || op == Token::LTE;
-      LOperand* left_operand = UseFixed(left, reversed ? eax : edx);
-      LOperand* right_operand = UseFixed(right, reversed ? edx : eax);
-      LCmpTAndBranch* result = new LCmpTAndBranch(left_operand, right_operand);
-      return MarkAsCall(result, instr);
     }
   } else if (v->IsIsSmi()) {
     HIsSmi* compare = HIsSmi::cast(v);
@@ -1120,14 +1117,6 @@ LInstruction* LChunkBuilder::DoTest(HTest* instr) {
     HCompareSymbolEq* compare = HCompareSymbolEq::cast(v);
     return new LCmpSymbolEqAndBranch(UseRegisterAtStart(compare->left()),
                                      UseRegisterAtStart(compare->right()));
-  } else if (v->IsInstanceOf()) {
-    HInstanceOf* instance_of = HInstanceOf::cast(v);
-    LOperand* left = UseFixed(instance_of->left(), InstanceofStub::left());
-    LOperand* right = UseFixed(instance_of->right(), InstanceofStub::right());
-    LOperand* context = UseFixed(instance_of->context(), esi);
-    LInstanceOfAndBranch* result =
-        new LInstanceOfAndBranch(context, left, right);
-    return MarkAsCall(result, instr);
   } else if (v->IsTypeofIs()) {
     HTypeofIs* typeof_is = HTypeofIs::cast(v);
     return new LTypeofIsAndBranch(UseTempRegister(typeof_is->value()));

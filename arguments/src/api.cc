@@ -38,6 +38,7 @@
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "messages.h"
+#include "natives.h"
 #include "parser.h"
 #include "platform.h"
 #include "profile-generator-inl.h"
@@ -97,13 +98,11 @@ namespace v8 {
     }                                                                          \
   } while (false)
 
-// TODO(isolates): Add a parameter to this macro for an isolate.
 
-#define API_ENTRY_CHECK(msg)                                                   \
+#define API_ENTRY_CHECK(isolate, msg)                                          \
   do {                                                                         \
     if (v8::Locker::IsActive()) {                                              \
-      ApiCheck(i::Isolate::Current()->thread_manager()->                       \
-                  IsLockedByCurrentThread(),                                   \
+      ApiCheck(isolate->thread_manager()->IsLockedByCurrentThread(),           \
                msg,                                                            \
                "Entering the V8 API without proper locking in place");         \
     }                                                                          \
@@ -176,8 +175,8 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.pending_global_handle_count = &pending_global_handle_count;
   int near_death_global_handle_count;
   heap_stats.near_death_global_handle_count = &near_death_global_handle_count;
-  int destroyed_global_handle_count;
-  heap_stats.destroyed_global_handle_count = &destroyed_global_handle_count;
+  int free_global_handle_count;
+  heap_stats.free_global_handle_count = &free_global_handle_count;
   intptr_t memory_allocator_size;
   heap_stats.memory_allocator_size = &memory_allocator_size;
   intptr_t memory_allocator_capacity;
@@ -311,6 +310,46 @@ static inline i::Isolate* EnterIsolateIfNeeded() {
 }
 
 
+StartupDataDecompressor::StartupDataDecompressor()
+    : raw_data(i::NewArray<char*>(V8::GetCompressedStartupDataCount())) {
+  for (int i = 0; i < V8::GetCompressedStartupDataCount(); ++i) {
+    raw_data[i] = NULL;
+  }
+}
+
+
+StartupDataDecompressor::~StartupDataDecompressor() {
+  for (int i = 0; i < V8::GetCompressedStartupDataCount(); ++i) {
+    i::DeleteArray(raw_data[i]);
+  }
+  i::DeleteArray(raw_data);
+}
+
+
+int StartupDataDecompressor::Decompress() {
+  int compressed_data_count = V8::GetCompressedStartupDataCount();
+  StartupData* compressed_data =
+      i::NewArray<StartupData>(compressed_data_count);
+  V8::GetCompressedStartupData(compressed_data);
+  for (int i = 0; i < compressed_data_count; ++i) {
+    char* decompressed = raw_data[i] =
+        i::NewArray<char>(compressed_data[i].raw_size);
+    if (compressed_data[i].compressed_size != 0) {
+      int result = DecompressData(decompressed,
+                                  &compressed_data[i].raw_size,
+                                  compressed_data[i].data,
+                                  compressed_data[i].compressed_size);
+      if (result != 0) return result;
+    } else {
+      ASSERT_EQ(0, compressed_data[i].raw_size);
+    }
+    compressed_data[i].data = decompressed;
+  }
+  V8::SetDecompressedStartupData(compressed_data);
+  return 0;
+}
+
+
 StartupData::CompressionAlgorithm V8::GetCompressedStartupDataAlgorithm() {
 #ifdef COMPRESS_STARTUP_DATA_BZ2
   return StartupData::kBZip2;
@@ -323,6 +362,8 @@ StartupData::CompressionAlgorithm V8::GetCompressedStartupDataAlgorithm() {
 enum CompressedStartupDataItems {
   kSnapshot = 0,
   kSnapshotContext,
+  kLibraries,
+  kExperimentalLibraries,
   kCompressedStartupDataCount
 };
 
@@ -347,6 +388,21 @@ void V8::GetCompressedStartupData(StartupData* compressed_data) {
   compressed_data[kSnapshotContext].compressed_size =
       i::Snapshot::context_size();
   compressed_data[kSnapshotContext].raw_size = i::Snapshot::context_raw_size();
+
+  i::Vector<const i::byte> libraries_source = i::Natives::GetScriptsSource();
+  compressed_data[kLibraries].data =
+      reinterpret_cast<const char*>(libraries_source.start());
+  compressed_data[kLibraries].compressed_size = libraries_source.length();
+  compressed_data[kLibraries].raw_size = i::Natives::GetRawScriptsSize();
+
+  i::Vector<const i::byte> exp_libraries_source =
+      i::ExperimentalNatives::GetScriptsSource();
+  compressed_data[kExperimentalLibraries].data =
+      reinterpret_cast<const char*>(exp_libraries_source.start());
+  compressed_data[kExperimentalLibraries].compressed_size =
+      exp_libraries_source.length();
+  compressed_data[kExperimentalLibraries].raw_size =
+      i::ExperimentalNatives::GetRawScriptsSize();
 #endif
 }
 
@@ -362,6 +418,20 @@ void V8::SetDecompressedStartupData(StartupData* decompressed_data) {
   i::Snapshot::set_context_raw_data(
       reinterpret_cast<const i::byte*>(
           decompressed_data[kSnapshotContext].data));
+
+  ASSERT_EQ(i::Natives::GetRawScriptsSize(),
+            decompressed_data[kLibraries].raw_size);
+  i::Vector<const char> libraries_source(
+      decompressed_data[kLibraries].data,
+      decompressed_data[kLibraries].raw_size);
+  i::Natives::SetRawScriptsSource(libraries_source);
+
+  ASSERT_EQ(i::ExperimentalNatives::GetRawScriptsSize(),
+            decompressed_data[kExperimentalLibraries].raw_size);
+  i::Vector<const char> exp_libraries_source(
+      decompressed_data[kExperimentalLibraries].data,
+      decompressed_data[kExperimentalLibraries].raw_size);
+  i::ExperimentalNatives::SetRawScriptsSource(exp_libraries_source);
 #endif
 }
 
@@ -573,8 +643,8 @@ void V8::DisposeGlobal(i::Object** obj) {
 
 
 HandleScope::HandleScope() {
-  API_ENTRY_CHECK("HandleScope::HandleScope");
   i::Isolate* isolate = i::Isolate::Current();
+  API_ENTRY_CHECK(isolate, "HandleScope::HandleScope");
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate->handle_scope_data();
   isolate_ = isolate;
@@ -630,12 +700,11 @@ i::Object** HandleScope::CreateHandle(i::HeapObject* value) {
 
 
 void Context::Enter() {
-  // TODO(isolates): Context should have a pointer to isolate.
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  i::Isolate* isolate = env->GetIsolate();
   if (IsDeadCheck(isolate, "v8::Context::Enter()")) return;
   ENTER_V8(isolate);
 
-  i::Handle<i::Context> env = Utils::OpenHandle(this);
   isolate->handle_scope_implementer()->EnterContext(env);
 
   isolate->handle_scope_implementer()->SaveContext(isolate->context());
@@ -644,7 +713,9 @@ void Context::Enter() {
 
 
 void Context::Exit() {
-  // TODO(isolates): Context should have a pointer to isolate.
+  // Exit is essentially a static function and doesn't use the
+  // receiver, so we have to get the current isolate from the thread
+  // local.
   i::Isolate* isolate = i::Isolate::Current();
   if (!isolate->IsInitialized()) return;
 
@@ -662,41 +733,31 @@ void Context::Exit() {
 
 
 void Context::SetData(v8::Handle<String> data) {
-  // TODO(isolates): Context should have a pointer to isolate.
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  i::Isolate* isolate = env->GetIsolate();
   if (IsDeadCheck(isolate, "v8::Context::SetData()")) return;
-  ENTER_V8(isolate);
-  {
-    i::HandleScope scope(isolate);
-    i::Handle<i::Context> env = Utils::OpenHandle(this);
-    i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
-    ASSERT(env->IsGlobalContext());
-    if (env->IsGlobalContext()) {
-      env->set_data(*raw_data);
-    }
+  i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
+  ASSERT(env->IsGlobalContext());
+  if (env->IsGlobalContext()) {
+    env->set_data(*raw_data);
   }
 }
 
 
 v8::Local<v8::Value> Context::GetData() {
-  // TODO(isolates): Context should have a pointer to isolate.
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  i::Isolate* isolate = env->GetIsolate();
   if (IsDeadCheck(isolate, "v8::Context::GetData()")) {
     return v8::Local<Value>();
   }
-  ENTER_V8(isolate);
   i::Object* raw_result = NULL;
-  {
-    i::HandleScope scope(isolate);
-    i::Handle<i::Context> env = Utils::OpenHandle(this);
-    ASSERT(env->IsGlobalContext());
-    if (env->IsGlobalContext()) {
-      raw_result = env->data();
-    } else {
-      return Local<Value>();
-    }
+  ASSERT(env->IsGlobalContext());
+  if (env->IsGlobalContext()) {
+    raw_result = env->data();
+  } else {
+    return Local<Value>();
   }
-  i::Handle<i::Object> result(raw_result);
+  i::Handle<i::Object> result(raw_result, isolate);
   return Utils::ToLocal(result);
 }
 
@@ -1546,26 +1607,27 @@ void Script::SetData(v8::Handle<String> data) {
 
 
 v8::TryCatch::TryCatch()
-    : next_(i::Isolate::Current()->try_catch_handler_address()),
-      exception_(HEAP->the_hole_value()),
+    : isolate_(i::Isolate::Current()),
+      next_(isolate_->try_catch_handler_address()),
+      exception_(isolate_->heap()->the_hole_value()),
       message_(i::Smi::FromInt(0)),
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
       rethrow_(false) {
-  i::Isolate::Current()->RegisterTryCatchHandler(this);
+  isolate_->RegisterTryCatchHandler(this);
 }
 
 
 v8::TryCatch::~TryCatch() {
-  i::Isolate* isolate = i::Isolate::Current();
+  ASSERT(isolate_ == i::Isolate::Current());
   if (rethrow_) {
     v8::HandleScope scope;
     v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(Exception());
-    isolate->UnregisterTryCatchHandler(this);
+    isolate_->UnregisterTryCatchHandler(this);
     v8::ThrowException(exc);
   } else {
-    isolate->UnregisterTryCatchHandler(this);
+    isolate_->UnregisterTryCatchHandler(this);
   }
 }
 
@@ -1588,10 +1650,11 @@ v8::Handle<v8::Value> v8::TryCatch::ReThrow() {
 
 
 v8::Local<Value> v8::TryCatch::Exception() const {
+  ASSERT(isolate_ == i::Isolate::Current());
   if (HasCaught()) {
     // Check for out of memory exception.
     i::Object* exception = reinterpret_cast<i::Object*>(exception_);
-    return v8::Utils::ToLocal(i::Handle<i::Object>(exception));
+    return v8::Utils::ToLocal(i::Handle<i::Object>(exception, isolate_));
   } else {
     return v8::Local<Value>();
   }
@@ -1599,15 +1662,15 @@ v8::Local<Value> v8::TryCatch::Exception() const {
 
 
 v8::Local<Value> v8::TryCatch::StackTrace() const {
+  ASSERT(isolate_ == i::Isolate::Current());
   if (HasCaught()) {
     i::Object* raw_obj = reinterpret_cast<i::Object*>(exception_);
     if (!raw_obj->IsJSObject()) return v8::Local<Value>();
-    v8::HandleScope scope;
-    i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj));
-    i::Handle<i::String> name = FACTORY->LookupAsciiSymbol("stack");
-    if (!obj->HasProperty(*name))
-      return v8::Local<Value>();
-    return scope.Close(v8::Utils::ToLocal(i::GetProperty(obj, name)));
+    i::HandleScope scope(isolate_);
+    i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
+    i::Handle<i::String> name = isolate_->factory()->LookupAsciiSymbol("stack");
+    if (!obj->HasProperty(*name)) return v8::Local<Value>();
+    return v8::Utils::ToLocal(scope.CloseAndEscape(i::GetProperty(obj, name)));
   } else {
     return v8::Local<Value>();
   }
@@ -1615,9 +1678,10 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
 
 
 v8::Local<v8::Message> v8::TryCatch::Message() const {
+  ASSERT(isolate_ == i::Isolate::Current());
   if (HasCaught() && message_ != i::Smi::FromInt(0)) {
     i::Object* message = reinterpret_cast<i::Object*>(message_);
-    return v8::Utils::MessageToLocal(i::Handle<i::Object>(message));
+    return v8::Utils::MessageToLocal(i::Handle<i::Object>(message, isolate_));
   } else {
     return v8::Local<v8::Message>();
   }
@@ -1625,7 +1689,8 @@ v8::Local<v8::Message> v8::TryCatch::Message() const {
 
 
 void v8::TryCatch::Reset() {
-  exception_ = HEAP->the_hole_value();
+  ASSERT(isolate_ == i::Isolate::Current());
+  exception_ = isolate_->heap()->the_hole_value();
   message_ = i::Smi::FromInt(0);
 }
 
@@ -4814,7 +4879,7 @@ int V8::GetCurrentThreadId() {
 void V8::TerminateExecution(int thread_id) {
   i::Isolate* isolate = i::Isolate::Current();
   if (!isolate->IsInitialized()) return;
-  API_ENTRY_CHECK("V8::TerminateExecution()");
+  API_ENTRY_CHECK(isolate, "V8::TerminateExecution()");
   // If the thread_id identifies the current thread just terminate
   // execution right away.  Otherwise, ask the thread manager to
   // terminate the thread with the given id if any.

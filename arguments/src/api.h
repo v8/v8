@@ -398,7 +398,6 @@ class StringTracker {
 // data.
 class HandleScopeImplementer {
  public:
-
   explicit HandleScopeImplementer(Isolate* isolate)
       : isolate_(isolate),
         blocks_(0),

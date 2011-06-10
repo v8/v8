@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -72,6 +72,9 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
 
     case FIXED_ARRAY_TYPE:
       return kVisitFixedArray;
+
+    case FIXED_DOUBLE_ARRAY_TYPE:
+      return kVisitFixedDoubleArray;
 
     case ODDBALL_TYPE:
       return kVisitOddball;

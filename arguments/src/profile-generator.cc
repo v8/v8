@@ -1096,7 +1096,7 @@ class RetainedSizeCalculator {
       : retained_size_(0) {
   }
 
-  int reained_size() const { return retained_size_; }
+  int retained_size() const { return retained_size_; }
 
   void Apply(HeapEntry** entry_ptr) {
     if ((*entry_ptr)->painted_reachable()) {
@@ -1137,7 +1137,7 @@ void HeapEntry::CalculateExactRetainedSize() {
 
   RetainedSizeCalculator ret_size_calc;
   snapshot()->IterateEntries(&ret_size_calc);
-  retained_size_ = ret_size_calc.reained_size();
+  retained_size_ = ret_size_calc.retained_size();
   ASSERT((retained_size_ & kExactRetainedSizeTag) == 0);
   retained_size_ |= kExactRetainedSizeTag;
 }

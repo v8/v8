@@ -99,6 +99,9 @@ private:
 // Flags for experimental language features.
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 
+// Flags for experimental implementation features.
+DEFINE_bool(unbox_double_arrays, false, "automatically unbox arrays of doubles")
+
 // Flags for Crankshaft.
 #ifdef V8_TARGET_ARCH_MIPS
   DEFINE_bool(crankshaft, false, "use crankshaft")

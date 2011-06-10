@@ -146,6 +146,7 @@ class LChunkBuilder;
   V(Shl)                                       \
   V(Shr)                                       \
   V(Simulate)                                  \
+  V(SoftDeoptimize)                            \
   V(StackCheck)                                \
   V(StoreContextSlot)                          \
   V(StoreGlobalCell)                           \
@@ -726,10 +727,6 @@ class HInstruction: public HValue {
   virtual void Verify();
 #endif
 
-  // Returns whether this is some kind of deoptimizing check
-  // instruction.
-  virtual bool IsCheckInstruction() const { return false; }
-
   virtual bool IsCall() { return false; }
 
   DECLARE_ABSTRACT_INSTRUCTION(Instruction)
@@ -847,6 +844,19 @@ class HBlockEntry: public HTemplateInstruction<0> {
 };
 
 
+// We insert soft-deoptimize when we hit code with unknown typefeedback,
+// so that we get a chance of re-optimizing with useful typefeedback.
+// HSoftDeoptimize does not end a basic block as opposed to HDeoptimize.
+class HSoftDeoptimize: public HTemplateInstruction<0> {
+ public:
+  virtual Representation RequiredInputRepresentation(int index) const {
+    return Representation::None();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(SoftDeoptimize)
+};
+
+
 class HDeoptimize: public HControlInstruction {
  public:
   explicit HDeoptimize(int environment_length)
@@ -859,6 +869,7 @@ class HDeoptimize: public HControlInstruction {
 
   virtual int OperandCount() { return values_.length(); }
   virtual HValue* OperandAt(int index) { return values_[index]; }
+  virtual void PrintDataTo(StringStream* stream);
 
   void AddEnvironmentValue(HValue* value) {
     values_.Add(NULL);
@@ -1841,8 +1852,6 @@ class HCheckMap: public HUnaryOperation {
     SetFlag(kDependsOnMaps);
   }
 
-  virtual bool IsCheckInstruction() const { return true; }
-
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -1875,8 +1884,6 @@ class HCheckFunction: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -1917,8 +1924,6 @@ class HCheckInstanceType: public HUnaryOperation {
   static HCheckInstanceType* NewIsSymbol(HValue* value) {
     return new HCheckInstanceType(value, IS_SYMBOL);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -1978,8 +1983,6 @@ class HCheckNonSmi: public HUnaryOperation {
     SetFlag(kUseGVN);
   }
 
-  virtual bool IsCheckInstruction() const { return true; }
-
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
@@ -2016,8 +2019,6 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
     SetFlag(kUseGVN);
     SetFlag(kDependsOnMaps);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
 #ifdef DEBUG
   virtual void Verify();
@@ -2058,8 +2059,6 @@ class HCheckSmi: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
@@ -2406,8 +2405,6 @@ class HBoundsCheck: public HBinaryOperation {
       : HBinaryOperation(index, length) {
     SetFlag(kUseGVN);
   }
-
-  virtual bool IsCheckInstruction() const { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Integer32();

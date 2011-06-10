@@ -153,29 +153,6 @@ Heap::Heap()
   max_semispace_size_ = reserved_semispace_size_ = V8_MAX_SEMISPACE_SIZE;
 #endif
 
-  intptr_t max_virtual = OS::MaxVirtualMemory();
-
-  if (max_virtual > 0) {
-    intptr_t half = max_virtual >> 1;
-    intptr_t quarter = max_virtual >> 2;
-    // If we have limits on the amount of virtual memory we can use then we may
-    // be forced to lower the allocation limits.  We reserve one quarter of the
-    // memory for young space and off-heap data.  The rest is distributed as
-    // described below.
-    if (code_range_size_ > 0) {
-      // Reserve a quarter of the memory for the code range.  The old space
-      // heap gets the remaining half.  There is some unavoidable double
-      // counting going on here since the heap size is measured in committed
-      // virtual memory and the code range is only reserved virtual memory.
-      code_range_size_ = Min(code_range_size_, quarter);
-      max_old_generation_size_ = Min(max_old_generation_size_, half);
-    } else {
-      // Reserve three quarters of the memory for the old space heap including
-      // the executable code.
-      max_old_generation_size_ = Min(max_old_generation_size_, half + quarter);
-    }
-  }
-
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   global_contexts_list_ = NULL;
   mark_compact_collector_.heap_ = this;
@@ -877,6 +854,9 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
   CompletelyClearInstanceofCache();
 
   if (is_compacting) FlushNumberStringCache();
+  if (FLAG_cleanup_code_caches_at_gc) {
+    polymorphic_code_cache()->set_cache(undefined_value());
+  }
 
   ClearNormalizedMapCaches();
 }
@@ -1060,9 +1040,10 @@ void Heap::Scavenge() {
   scavenge_visitor.VisitPointer(BitCast<Object**>(&global_contexts_list_));
 
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
-  isolate_->global_handles()->IdentifyWeakIndependentHandles(
+  isolate_->global_handles()->IdentifyNewSpaceWeakIndependentHandles(
       &IsUnscavengedHeapObject);
-  isolate_->global_handles()->IterateWeakIndependentRoots(&scavenge_visitor);
+  isolate_->global_handles()->IterateNewSpaceWeakIndependentRoots(
+      &scavenge_visitor);
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
 
@@ -1305,6 +1286,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitShortcutCandidate, &EvacuateShortcutCandidate);
     table_.Register(kVisitByteArray, &EvacuateByteArray);
     table_.Register(kVisitFixedArray, &EvacuateFixedArray);
+    table_.Register(kVisitFixedDoubleArray, &EvacuateFixedDoubleArray);
 
     table_.Register(kVisitGlobalContext,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
@@ -1449,6 +1431,18 @@ class ScavengingVisitor : public StaticVisitorBase {
                                                  slot,
                                                  object,
                                                  object_size);
+  }
+
+
+  static inline void EvacuateFixedDoubleArray(Map* map,
+                                              HeapObject** slot,
+                                              HeapObject* object) {
+    int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
+    int object_size = FixedDoubleArray::SizeFor(length);
+    EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE>(map,
+                                              slot,
+                                              object,
+                                              object_size);
   }
 
 
@@ -1661,6 +1655,11 @@ MaybeObject* Heap::AllocateCodeCache() {
 }
 
 
+MaybeObject* Heap::AllocatePolymorphicCodeCache() {
+  return AllocateStruct(POLYMORPHIC_CODE_CACHE_TYPE);
+}
+
+
 const Heap::StringTypeTable Heap::string_type_table[] = {
 #define STRING_TYPE_ELEMENT(type, size, name, camel_name)                      \
   {type, size, k##camel_name##MapRootIndex},
@@ -1784,6 +1783,12 @@ bool Heap::CreateInitialMaps() {
   }
   set_undetectable_ascii_string_map(Map::cast(obj));
   Map::cast(obj)->set_is_undetectable();
+
+  { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_DOUBLE_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_fixed_double_array_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(BYTE_ARRAY_TYPE, kVariableSizeSentinel);
@@ -2173,6 +2178,11 @@ bool Heap::CreateInitialObjects() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_non_monomorphic_cache(NumberDictionary::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocatePolymorphicCodeCache();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_polymorphic_code_cache(PolymorphicCodeCache::cast(obj));
 
   set_instanceof_cache_function(Smi::FromInt(0));
   set_instanceof_cache_map(Smi::FromInt(0));
@@ -3827,6 +3837,62 @@ MaybeObject* Heap::AllocateUninitializedFixedArray(int length) {
 }
 
 
+MaybeObject* Heap::AllocateEmptyFixedDoubleArray() {
+  int size = FixedDoubleArray::SizeFor(0);
+  Object* result;
+  { MaybeObject* maybe_result =
+        AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  // Initialize the object.
+  reinterpret_cast<FixedDoubleArray*>(result)->set_map(
+      fixed_double_array_map());
+  reinterpret_cast<FixedDoubleArray*>(result)->set_length(0);
+  return result;
+}
+
+
+MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
+    int length,
+    PretenureFlag pretenure) {
+  if (length == 0) return empty_fixed_double_array();
+
+  Object* obj;
+  { MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+
+  reinterpret_cast<FixedDoubleArray*>(obj)->set_map(fixed_double_array_map());
+  FixedDoubleArray::cast(obj)->set_length(length);
+  return obj;
+}
+
+
+MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
+                                               PretenureFlag pretenure) {
+  if (length < 0 || length > FixedDoubleArray::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
+
+  AllocationSpace space =
+      (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  int size = FixedDoubleArray::SizeFor(length);
+  if (space == NEW_SPACE && size > kMaxObjectSizeInNewSpace) {
+    // Too big for new space.
+    space = LO_SPACE;
+  } else if (space == OLD_DATA_SPACE &&
+             size > MaxObjectSizeInPagedSpace()) {
+    // Too big for old data space.
+    space = LO_SPACE;
+  }
+
+  AllocationSpace retry_space =
+      (size <= MaxObjectSizeInPagedSpace()) ? OLD_DATA_SPACE : LO_SPACE;
+
+  return AllocateRaw(size, space, retry_space);
+}
+
+
 MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
   Object* result;
   { MaybeObject* maybe_result = AllocateFixedArray(length, pretenure);
@@ -4605,7 +4671,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
       isolate_->global_handles()->IterateStrongRoots(v);
       break;
     case VISIT_ALL_IN_SCAVENGE:
-      isolate_->global_handles()->IterateStrongAndDependentRoots(v);
+      isolate_->global_handles()->IterateNewSpaceStrongAndDependentRoots(v);
       break;
     case VISIT_ALL_IN_SWEEP_NEWSPACE:
     case VISIT_ALL:

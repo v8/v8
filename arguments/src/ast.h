@@ -80,7 +80,6 @@ namespace internal {
   V(RegExpLiteral)                              \
   V(ObjectLiteral)                              \
   V(ArrayLiteral)                               \
-  V(CatchExtensionObject)                       \
   V(Assignment)                                 \
   V(Throw)                                      \
   V(Property)                                   \
@@ -614,19 +613,17 @@ class ReturnStatement: public Statement {
 
 class WithEnterStatement: public Statement {
  public:
-  explicit WithEnterStatement(Expression* expression, bool is_catch_block)
-      : expression_(expression), is_catch_block_(is_catch_block) { }
+  explicit WithEnterStatement(Expression* expression)
+      : expression_(expression) { }
 
   DECLARE_NODE_TYPE(WithEnterStatement)
 
   Expression* expression() const { return expression_; }
 
-  bool is_catch_block() const { return is_catch_block_; }
   virtual bool IsInlineable() const;
 
  private:
   Expression* expression_;
-  bool is_catch_block_;
 };
 
 
@@ -743,9 +740,7 @@ class IfStatement: public Statement {
 // stack in the compiler; this should probably be reworked.
 class TargetCollector: public AstNode {
  public:
-  explicit TargetCollector(ZoneList<Label*>* targets)
-      : targets_(targets) {
-  }
+  TargetCollector(): targets_(0) { }
 
   // Adds a jump target to the collector. The collector stores a pointer not
   // a copy of the target to make binding work, so make sure not to pass in
@@ -756,11 +751,11 @@ class TargetCollector: public AstNode {
   virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
   virtual TargetCollector* AsTargetCollector() { return this; }
 
-  ZoneList<Label*>* targets() { return targets_; }
+  ZoneList<Label*>* targets() { return &targets_; }
   virtual bool IsInlineable() const;
 
  private:
-  ZoneList<Label*>* targets_;
+  ZoneList<Label*> targets_;
 };
 
 
@@ -785,22 +780,20 @@ class TryStatement: public Statement {
 
 class TryCatchStatement: public TryStatement {
  public:
-  TryCatchStatement(Block* try_block,
-                    VariableProxy* catch_var,
-                    Block* catch_block)
+  TryCatchStatement(Block* try_block, Handle<String> name, Block* catch_block)
       : TryStatement(try_block),
-        catch_var_(catch_var),
+        name_(name),
         catch_block_(catch_block) {
   }
 
   DECLARE_NODE_TYPE(TryCatchStatement)
 
-  VariableProxy* catch_var() const { return catch_var_; }
   Block* catch_block() const { return catch_block_; }
+  Handle<String> name() const { return name_; }
   virtual bool IsInlineable() const;
 
  private:
-  VariableProxy* catch_var_;
+  Handle<String> name_;
   Block* catch_block_;
 };
 
@@ -1037,27 +1030,6 @@ class ArrayLiteral: public MaterializedLiteral {
   Handle<FixedArray> constant_elements_;
   ZoneList<Expression*>* values_;
   int first_element_id_;
-};
-
-
-// Node for constructing a context extension object for a catch block.
-// The catch context extension object has one property, the catch
-// variable, which should be DontDelete.
-class CatchExtensionObject: public Expression {
- public:
-  CatchExtensionObject(Literal* key, VariableProxy* value)
-      : key_(key), value_(value) {
-  }
-
-  DECLARE_NODE_TYPE(CatchExtensionObject)
-
-  Literal* key() const { return key_; }
-  VariableProxy* value() const { return value_; }
-  virtual bool IsInlineable() const;
-
- private:
-  Literal* key_;
-  VariableProxy* value_;
 };
 
 
@@ -1935,6 +1907,7 @@ class RegExpCharacterClass: public RegExpTree {
   uc16 standard_type() { return set_.standard_set_type(); }
   ZoneList<CharacterRange>* ranges() { return set_.ranges(); }
   bool is_negated() { return is_negated_; }
+
  private:
   CharacterSet set_;
   bool is_negated_;
@@ -2019,6 +1992,7 @@ class RegExpQuantifier: public RegExpTree {
   bool is_non_greedy() { return type_ == NON_GREEDY; }
   bool is_greedy() { return type_ == GREEDY; }
   RegExpTree* body() { return body_; }
+
  private:
   RegExpTree* body_;
   int min_;
@@ -2051,6 +2025,7 @@ class RegExpCapture: public RegExpTree {
   int index() { return index_; }
   static int StartRegister(int index) { return index * 2; }
   static int EndRegister(int index) { return index * 2 + 1; }
+
  private:
   RegExpTree* body_;
   int index_;
@@ -2081,6 +2056,7 @@ class RegExpLookahead: public RegExpTree {
   bool is_positive() { return is_positive_; }
   int capture_count() { return capture_count_; }
   int capture_from() { return capture_from_; }
+
  private:
   RegExpTree* body_;
   bool is_positive_;

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -54,6 +54,16 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateFixedArrayWithHoles(size, pretenure),
+      FixedArray);
+}
+
+
+Handle<FixedArray> Factory::NewFixedDoubleArray(int size,
+                                                PretenureFlag pretenure) {
+  ASSERT(0 <= size);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateUninitializedFixedDoubleArray(size, pretenure),
       FixedArray);
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -800,8 +800,8 @@ void LAllocator::MeetConstraintsBetween(LInstruction* first,
                                         int gap_index) {
   // Handle fixed temporaries.
   if (first != NULL) {
-    for (TempIterator it(first); it.HasNext(); it.Advance()) {
-      LUnallocated* temp = LUnallocated::cast(it.Next());
+    for (TempIterator it(first); !it.Done(); it.Advance()) {
+      LUnallocated* temp = LUnallocated::cast(it.Current());
       if (temp->HasFixedPolicy()) {
         AllocateFixed(temp, gap_index - 1, false);
       }
@@ -842,8 +842,8 @@ void LAllocator::MeetConstraintsBetween(LInstruction* first,
 
   // Handle fixed input operands of second instruction.
   if (second != NULL) {
-    for (UseIterator it(second); it.HasNext(); it.Advance()) {
-      LUnallocated* cur_input = LUnallocated::cast(it.Next());
+    for (UseIterator it(second); !it.Done(); it.Advance()) {
+      LUnallocated* cur_input = LUnallocated::cast(it.Current());
       if (cur_input->HasFixedPolicy()) {
         LUnallocated* input_copy = cur_input->CopyUnconstrained();
         bool is_tagged = HasTaggedValue(cur_input->VirtualRegister());
@@ -978,8 +978,8 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           }
         }
 
-        for (UseIterator it(instr); it.HasNext(); it.Advance()) {
-          LOperand* input = it.Next();
+        for (UseIterator it(instr); !it.Done(); it.Advance()) {
+          LOperand* input = it.Current();
 
           LifetimePosition use_pos;
           if (input->IsUnallocated() &&
@@ -993,8 +993,8 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           if (input->IsUnallocated()) live->Add(input->VirtualRegister());
         }
 
-        for (TempIterator it(instr); it.HasNext(); it.Advance()) {
-          LOperand* temp = it.Next();
+        for (TempIterator it(instr); !it.Done(); it.Advance()) {
+          LOperand* temp = it.Current();
           if (instr->IsMarkedAsCall()) {
             if (temp->IsRegister()) continue;
             if (temp->IsUnallocated()) {

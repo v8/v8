@@ -25,40 +25,54 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Test dictionary -> double elements -> dictionary elements round trip
 
-// An exception thrown in a function optimized by on-stack replacement (OSR)
-// should be able to construct a receiver from all optimized stack frames.
+var foo = new Array(500000);
 
-function A() { }
-A.prototype.f = function() { }
-
-function B() { }
-
-var o = new A();
-
-// This function throws if o does not have an f property, and should not be
-// inlined.
-function g() { try { return o.f(); } finally { }}
-
-// Optimization status (see runtime.cc):
-// 1 - yes, 2 - no, 3 - always, 4 - never.
-
-// This function should be optimized via OSR.
-function h() {
-  var optstatus = %GetOptimizationStatus(h);
-  if (optstatus == 4) {
-    // Optimizations are globally disabled; just run once.
-    g();
-  } else {
-    // Run for a bit as long as h is unoptimized.
-    while (%GetOptimizationStatus(h) == 2) {
-      for (var j = 0; j < 100; j++) g();
-    }
-    g();
+function func(a) {
+  for (var i= 0; i < 100000; ++i ) {
+    a[i] = i+0.5;
   }
 }
 
-h();
-o = new B();
-assertThrows("h()");
+func(foo);
+
+for (var i= 0; i < 100000; i += 500 ) {
+  assertEquals(i+0.5, foo[i]);
+}
+
+delete foo[5];
+// Don't use assertEquals for comparison to undefined due to
+assertTrue(undefined === foo[5]);
+assertTrue(undefined === foo[500000-1]);
+assertTrue(undefined === foo[-1]);
+assertEquals(500000, foo.length);
+
+// Cause the array to grow beyond it's JSArray length. This will double the
+// size of the capacity and force the array into "slow" dictionary case.
+foo[500001] = 50;
+assertEquals(50, foo[500001]);
+assertEquals(500002, foo.length);
+assertTrue(undefined === foo[5])
+assertTrue(undefined === foo[500000-1])
+assertTrue(undefined === foo[-1])
+assertEquals(500002, foo.length);
+
+// Test dictionary -> double elements -> fast elements.
+
+var foo2 = new Array(500000);
+func(foo2);
+delete foo2[5];
+
+// Convert back to fast elements and make sure the contents of the array are
+// unchanged.
+foo2[25] = new Object();
+for (var i= 0; i < 100000; i += 500 ) {
+  if (i != 25 && i != 5) {
+    assertEquals(i+0.5, foo2[i]);
+  }
+}
+assertTrue(undefined === foo2[5])
+assertTrue(undefined === foo2[500000-1])
+assertTrue(undefined === foo2[-1])
+assertEquals(500000, foo2.length);

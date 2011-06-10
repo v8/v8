@@ -293,11 +293,11 @@ void ObjectLiteral::CalculateEmitStore() {
 
 void TargetCollector::AddTarget(Label* target) {
   // Add the label to the collector, but discard duplicates.
-  int length = targets_->length();
+  int length = targets_.length();
   for (int i = 0; i < length; i++) {
-    if (targets_->at(i) == target) return;
+    if (targets_[i] == target) return;
   }
-  targets_->Add(target);
+  targets_.Add(target);
 }
 
 
@@ -388,11 +388,6 @@ bool TryCatchStatement::IsInlineable() const {
 
 
 bool TryFinallyStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool CatchExtensionObject::IsInlineable() const {
   return false;
 }
 

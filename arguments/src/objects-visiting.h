@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -52,6 +52,7 @@ class StaticVisitorBase : public AllStatic {
     kVisitShortcutCandidate,
     kVisitByteArray,
     kVisitFixedArray,
+    kVisitFixedDoubleArray,
     kVisitGlobalContext,
 
     // For data objects, JS objects and structs along with generic visitor which
@@ -285,6 +286,8 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
                                          FixedArray::BodyDescriptor,
                                          int>::Visit);
 
+    table_.Register(kVisitFixedDoubleArray, &VisitFixedDoubleArray);
+
     table_.Register(kVisitGlobalContext,
                     &FixedBodyVisitor<StaticVisitor,
                                       Context::ScavengeBodyDescriptor,
@@ -327,6 +330,11 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
  private:
   static inline int VisitByteArray(Map* map, HeapObject* object) {
     return reinterpret_cast<ByteArray*>(object)->ByteArraySize();
+  }
+
+  static inline int VisitFixedDoubleArray(Map* map, HeapObject* object) {
+    int length = reinterpret_cast<FixedDoubleArray*>(object)->length();
+    return FixedDoubleArray::SizeFor(length);
   }
 
   static inline int VisitSeqAsciiString(Map* map, HeapObject* object) {

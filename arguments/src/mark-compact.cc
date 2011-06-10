@@ -396,6 +396,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                                          FixedArray::BodyDescriptor,
                                          void>::Visit);
 
+    table_.Register(kVisitFixedDoubleArray, DataObjectVisitor::Visit);
+
     table_.Register(kVisitGlobalContext,
                     &FixedBodyVisitor<StaticMarkingVisitor,
                                       Context::MarkCompactBodyDescriptor,
@@ -1030,6 +1032,7 @@ class SymbolTableCleaner : public ObjectVisitor {
   int PointersRemoved() {
     return pointers_removed_;
   }
+
  private:
   Heap* heap_;
   int pointers_removed_;
@@ -1935,6 +1938,7 @@ class PointersToNewGenUpdatingVisitor: public ObjectVisitor {
     VisitPointer(&target);
     rinfo->set_call_address(Code::cast(target)->instruction_start());
   }
+
  private:
   Heap* heap_;
 };

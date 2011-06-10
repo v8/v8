@@ -26,8 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#include <stdlib.h>
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+#include <bzlib.h>
+#endif
 #include <errno.h>
+#include <stdlib.h>
 
 #include "v8.h"
 
@@ -483,7 +486,44 @@ void Shell::AddHistogramSample(void* histogram, int sample) {
 }
 
 
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+class BZip2Decompressor : public v8::StartupDataDecompressor {
+ public:
+  virtual ~BZip2Decompressor() { }
+
+ protected:
+  virtual int DecompressData(char* raw_data,
+                             int* raw_data_size,
+                             const char* compressed_data,
+                             int compressed_data_size) {
+    ASSERT_EQ(v8::StartupData::kBZip2,
+              v8::V8::GetCompressedStartupDataAlgorithm());
+    unsigned int decompressed_size = *raw_data_size;
+    int result =
+        BZ2_bzBuffToBuffDecompress(raw_data,
+                                   &decompressed_size,
+                                   const_cast<char*>(compressed_data),
+                                   compressed_data_size,
+                                   0, 1);
+    if (result == BZ_OK) {
+      *raw_data_size = decompressed_size;
+    }
+    return result;
+  }
+};
+#endif
+
+
 void Shell::Initialize() {
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+  BZip2Decompressor startup_data_decompressor;
+  int bz2_result = startup_data_decompressor.Decompress();
+  if (bz2_result != BZ_OK) {
+    fprintf(stderr, "bzip error code: %d\n", bz2_result);
+    exit(1);
+  }
+#endif
+
   Shell::counter_map_ = new CounterMap();
   // Set up counters
   if (i::StrLength(i::FLAG_map_counters) != 0)
@@ -566,7 +606,7 @@ void Shell::Initialize() {
   // Run the d8 shell utility script in the utility context
   int source_index = i::NativesCollection<i::D8>::GetIndex("d8");
   i::Vector<const char> shell_source
-      = i::NativesCollection<i::D8>::GetScriptSource(source_index);
+      = i::NativesCollection<i::D8>::GetRawScriptSource(source_index);
   i::Vector<const char> shell_source_name
       = i::NativesCollection<i::D8>::GetScriptName(source_index);
   Handle<String> source = String::New(shell_source.start(),

@@ -1307,6 +1307,7 @@ char* Isolate::RestoreThread(char* from) {
   if (RuntimeProfiler::IsEnabled() && current_vm_state() == JS) {
     RuntimeProfiler::IsolateEnteredJS(this);
   }
+  ASSERT(context() == NULL || context()->IsContext());
 #endif
   return from + sizeof(ThreadLocalTop);
 }
@@ -1346,6 +1347,16 @@ void Isolate::ThreadDataTable::Remove(Isolate* isolate,
   PerIsolateThreadData* data = Lookup(isolate, thread_id);
   if (data != NULL) {
     Remove(data);
+  }
+}
+
+
+void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
+  PerIsolateThreadData* data = list_;
+  while (data != NULL) {
+    PerIsolateThreadData* next = data->next_;
+    if (data->isolate() == isolate) Remove(data);
+    data = next;
   }
 }
 
@@ -1400,8 +1411,6 @@ Isolate::Isolate()
       ast_sentinels_(NULL),
       string_tracker_(NULL),
       regexp_stack_(NULL),
-      frame_element_constant_list_(0),
-      result_constant_list_(0),
       embedder_data_(NULL) {
   TRACE_ISOLATE(constructor);
 
@@ -1465,6 +1474,10 @@ void Isolate::TearDown() {
   SetIsolateThreadLocals(this, NULL);
 
   Deinit();
+
+  { ScopedLock lock(process_wide_mutex_);
+    thread_data_table_->RemoveAllThreads(this);
+  }
 
   if (!IsDefaultIsolate()) {
     delete this;

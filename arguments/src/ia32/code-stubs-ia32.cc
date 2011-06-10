@@ -309,7 +309,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
 class FloatingPointHelper : public AllStatic {
  public:
-
   enum ArgLocation {
     ARGS_ON_STACK,
     ARGS_IN_REGISTERS

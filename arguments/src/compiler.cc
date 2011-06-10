@@ -338,7 +338,7 @@ bool Compiler::MakeCodeForLiveEdit(CompilationInfo* info) {
 
 static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
-  CompilationZoneScope zone_scope(isolate, DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
 
   ASSERT(!isolate->global_context().is_null());
@@ -575,7 +575,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
 bool Compiler::CompileLazy(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
 
-  CompilationZoneScope zone_scope(isolate, DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(isolate, COMPILER);

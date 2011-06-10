@@ -85,7 +85,6 @@ SOURCES = {
     inspector.cc
     interpreter-irregexp.cc
     isolate.cc
-    json-parser.cc
     jsregexp.cc
     lithium-allocator.cc
     lithium.cc
@@ -316,11 +315,17 @@ def ConfigureObjectFiles():
   else:
     env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET')
 
+  def BuildJS2CEnv(type):
+    js2c_env = { 'TYPE': type, 'COMPRESSION': 'off' }
+    if 'COMPRESS_STARTUP_DATA_BZ2' in env['CPPDEFINES']:
+      js2c_env['COMPRESSION'] = 'bz2'
+    return js2c_env
+
   # Build the standard platform-independent source files.
   source_files = context.GetRelevantSources(SOURCES)
 
   d8_files = context.GetRelevantSources(D8_FILES)
-  d8_js = env.JS2C('d8-js.cc', 'd8.js', TYPE='D8')
+  d8_js = env.JS2C('d8-js.cc', 'd8.js', **{'TYPE': 'D8', 'COMPRESSION': 'off'})
   d8_js_obj = context.ConfigureObject(env, d8_js, CPPPATH=['.'])
   d8_objs = [context.ConfigureObject(env, [d8_files]), d8_js_obj]
 
@@ -328,14 +333,17 @@ def ConfigureObjectFiles():
   # compile it.
   library_files = [s for s in LIBRARY_FILES]
   library_files.append('macros.py')
-  libraries_src = env.JS2C(['libraries.cc'], library_files, TYPE='CORE')
+  libraries_src = env.JS2C(
+    ['libraries.cc'], library_files, **BuildJS2CEnv('CORE'))
   libraries_obj = context.ConfigureObject(env, libraries_src, CPPPATH=['.'])
 
   # Combine the experimental JavaScript library files into a C++ file
   # and compile it.
   experimental_library_files = [ s for s in EXPERIMENTAL_LIBRARY_FILES ]
   experimental_library_files.append('macros.py')
-  experimental_libraries_src = env.JS2C(['experimental-libraries.cc'], experimental_library_files, TYPE='EXPERIMENTAL')
+  experimental_libraries_src = env.JS2C(['experimental-libraries.cc'],
+                                        experimental_library_files,
+                                        **BuildJS2CEnv('EXPERIMENTAL'))
   experimental_libraries_obj = context.ConfigureObject(env, experimental_libraries_src, CPPPATH=['.'])
 
   source_objs = context.ConfigureObject(env, source_files)

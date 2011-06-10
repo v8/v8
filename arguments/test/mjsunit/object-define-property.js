@@ -1045,3 +1045,12 @@ Object.defineProperty(o, 'p',
 testDefineProperty(o, 'p',
   { enumerable : false, configurable : false },
   { get: undefined, set: setter1, enumerable : false, configurable : false });
+
+
+// Regression test: Ensure that growing dictionaries are not ignored.
+o = {};
+for (var i = 0; i < 1000; i++) {
+  // Non-enumerable property forces dictionary mode.
+  Object.defineProperty(o, i, {value: i, enumerable: false});
+}
+assertEquals(999, o[999]);

@@ -58,6 +58,10 @@ namespace internal {
 const int kGetterIndex = 0;
 const int kSetterIndex = 1;
 
+uint64_t FixedDoubleArray::kHoleNanInt64 = -1;
+uint64_t FixedDoubleArray::kCanonicalNonHoleNanLower32 = 0x7FF00000;
+uint64_t FixedDoubleArray::kCanonicalNonHoleNanInt64 =
+    kCanonicalNonHoleNanLower32 << 32;
 
 MUST_USE_RESULT static MaybeObject* CreateJSValue(JSFunction* constructor,
                                                   Object* value) {
@@ -1177,6 +1181,8 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
   switch (type) {
     case FIXED_ARRAY_TYPE:
       FixedArray::BodyDescriptor::IterateBody(this, object_size, v);
+      break;
+    case FIXED_DOUBLE_ARRAY_TYPE:
       break;
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -2613,10 +2619,12 @@ MaybeObject* NormalizedMapCache::Get(JSObject* obj,
                                      PropertyNormalizationMode mode) {
   Isolate* isolate = obj->GetIsolate();
   Map* fast = obj->map();
-  int index = Hash(fast) % kEntries;
+  int index = fast->Hash() % kEntries;
   Object* result = get(index);
-  if (result->IsMap() && CheckHit(Map::cast(result), fast, mode)) {
+  if (result->IsMap() &&
+      Map::cast(result)->EquivalentToForNormalization(fast, mode)) {
 #ifdef DEBUG
+    Map::cast(result)->SharedMapVerify();
     if (FLAG_enable_slow_asserts) {
       // The cached map should match newly created normalized map bit-by-bit.
       Object* fresh;
@@ -2649,43 +2657,6 @@ void NormalizedMapCache::Clear() {
   for (int i = 0; i != entries; i++) {
     set_undefined(i);
   }
-}
-
-
-int NormalizedMapCache::Hash(Map* fast) {
-  // For performance reasons we only hash the 3 most variable fields of a map:
-  // constructor, prototype and bit_field2.
-
-  // Shift away the tag.
-  int hash = (static_cast<uint32_t>(
-        reinterpret_cast<uintptr_t>(fast->constructor())) >> 2);
-
-  // XOR-ing the prototype and constructor directly yields too many zero bits
-  // when the two pointers are close (which is fairly common).
-  // To avoid this we shift the prototype 4 bits relatively to the constructor.
-  hash ^= (static_cast<uint32_t>(
-        reinterpret_cast<uintptr_t>(fast->prototype())) << 2);
-
-  return hash ^ (hash >> 16) ^ fast->bit_field2();
-}
-
-
-bool NormalizedMapCache::CheckHit(Map* slow,
-                                  Map* fast,
-                                  PropertyNormalizationMode mode) {
-#ifdef DEBUG
-  slow->SharedMapVerify();
-#endif
-  return
-    slow->constructor() == fast->constructor() &&
-    slow->prototype() == fast->prototype() &&
-    slow->inobject_properties() == ((mode == CLEAR_INOBJECT_PROPERTIES) ?
-                                    0 :
-                                    fast->inobject_properties()) &&
-    slow->instance_type() == fast->instance_type() &&
-    slow->bit_field() == fast->bit_field() &&
-    slow->bit_field2() == fast->bit_field2() &&
-    (slow->bit_field3() & ~(1<<Map::kIsShared)) == fast->bit_field3();
 }
 
 
@@ -2833,21 +2804,22 @@ MaybeObject* JSObject::TransformToFastProperties(int unused_property_fields) {
 
 MaybeObject* JSObject::NormalizeElements() {
   ASSERT(!HasExternalArrayElements());
+
   // Find the backing store.
-  FixedArray* original = FixedArray::cast(elements());
-  Map* old_map = original->map();
+  FixedArray* array = FixedArray::cast(elements());
+  Map* old_map = array->map();
   bool is_arguments =
       (old_map == old_map->heap()->non_strict_arguments_elements_map());
   if (is_arguments) {
-    original = FixedArray::cast(original->get(1));
+    array = FixedArray::cast(array->get(1));
   }
-  if (original->IsDictionary()) return original;
+  if (array->IsDictionary()) return array;
 
   ASSERT(HasFastElements() || HasFastArgumentsElements());
   // Compute the effective length and allocate a new backing store.
   int length = IsJSArray()
       ? Smi::cast(JSArray::cast(this)->length())->value()
-      : original->length();
+      : array->length();
   NumberDictionary* dictionary = NULL;
   { Object* object;
     MaybeObject* maybe = NumberDictionary::Allocate(length);
@@ -2856,14 +2828,33 @@ MaybeObject* JSObject::NormalizeElements() {
   }
 
   // Copy the elements to the new backing store.
+  bool has_double_elements = old_map->has_fast_double_elements();
   for (int i = 0; i < length; i++) {
-    Object* value = original->get(i);
+    Object* value = NULL;
+    if (has_double_elements) {
+      FixedDoubleArray* double_array = FixedDoubleArray::cast(array);
+      if (double_array->is_the_hole(i)) {
+        value = GetIsolate()->heap()->the_hole_value();
+      } else {
+        // Objects must be allocated in the old object space, since the
+        // overall number of HeapNumbers needed for the conversion might
+        // exceed the capacity of new space, and we would fail repeatedly
+        // trying to convert the FixedDoubleArray.
+        MaybeObject* maybe_value_object =
+            GetHeap()->AllocateHeapNumber(double_array->get(i), TENURED);
+        if (!maybe_value_object->ToObject(&value)) return maybe_value_object;
+      }
+    } else {
+      ASSERT(old_map->has_fast_elements());
+      value = array->get(i);
+    }
+    PropertyDetails details = PropertyDetails(NONE, NORMAL);
     if (!value->IsTheHole()) {
-      PropertyDetails details = PropertyDetails(NONE, NORMAL);
-      Object* new_dictionary;
-      MaybeObject* maybe = dictionary->AddNumberEntry(i, value, details);
-      if (!maybe->ToObject(&new_dictionary)) return maybe;
-      dictionary = NumberDictionary::cast(new_dictionary);
+      Object* result;
+      MaybeObject* maybe_result =
+          dictionary->AddNumberEntry(i, value, details);
+      if (!maybe_result->ToObject(&result)) return maybe_result;
+      dictionary = NumberDictionary::cast(result);
     }
   }
 
@@ -3083,14 +3074,22 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
         : DeleteElementWithInterceptor(index);
   }
 
-  ElementsKind kind = GetElementsKind();
-  switch (kind) {
+  switch (GetElementsKind()) {
     case FAST_ELEMENTS:
       return DeleteFastElement(index);
 
     case DICTIONARY_ELEMENTS:
       return DeleteDictionaryElement(index, mode);
 
+    case FAST_DOUBLE_ELEMENTS: {
+      int length = IsJSArray()
+          ? Smi::cast(JSArray::cast(this)->length())->value()
+          : FixedArray::cast(elements())->length();
+      if (index < static_cast<uint32_t>(length)) {
+        FixedDoubleArray::cast(elements())->set_the_hole(index);
+      }
+      break;
+    }
     case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
@@ -3240,6 +3239,7 @@ bool JSObject::ReferencesObject(Object* obj) {
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
       // Raw pixels and external arrays do not reference other
       // objects.
       break;
@@ -3536,6 +3536,7 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
+      case FAST_DOUBLE_ELEMENTS:
         // Ignore getters and setters on pixel and external array
         // elements.
         return heap->undefined_value();
@@ -3784,6 +3785,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
       case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
+      case FAST_DOUBLE_ELEMENTS:
         // Ignore getters and setters on pixel and external array
         // elements.
         return isolate->heap()->undefined_value();
@@ -4325,6 +4327,7 @@ class CodeCacheHashTableKey : public HashTableKey {
  private:
   String* name_;
   Code::Flags flags_;
+  // TODO(jkummerow): We should be able to get by without this.
   Code* code_;
 };
 
@@ -4344,7 +4347,7 @@ MaybeObject* CodeCacheHashTable::Put(String* name, Code* code) {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
-  // Don't use this, as the table might have grown.
+  // Don't use |this|, as the table might have grown.
   CodeCacheHashTable* cache = reinterpret_cast<CodeCacheHashTable*>(obj);
 
   int entry = cache->FindInsertionEntry(key.Hash());
@@ -4390,6 +4393,165 @@ static bool HasKey(FixedArray* array, Object* key) {
 }
 
 
+MaybeObject* PolymorphicCodeCache::Update(MapList* maps,
+                                          Code::Flags flags,
+                                          Code* code) {
+  // Initialize cache if necessary.
+  if (cache()->IsUndefined()) {
+    Object* result;
+    { MaybeObject* maybe_result =
+          PolymorphicCodeCacheHashTable::Allocate(
+              PolymorphicCodeCacheHashTable::kInitialSize);
+      if (!maybe_result->ToObject(&result)) return maybe_result;
+    }
+    set_cache(result);
+  } else {
+    // This entry shouldn't be contained in the cache yet.
+    ASSERT(PolymorphicCodeCacheHashTable::cast(cache())
+               ->Lookup(maps, flags)->IsUndefined());
+  }
+  PolymorphicCodeCacheHashTable* hash_table =
+      PolymorphicCodeCacheHashTable::cast(cache());
+  Object* new_cache;
+  { MaybeObject* maybe_new_cache = hash_table->Put(maps, flags, code);
+    if (!maybe_new_cache->ToObject(&new_cache)) return maybe_new_cache;
+  }
+  set_cache(new_cache);
+  return this;
+}
+
+
+Object* PolymorphicCodeCache::Lookup(MapList* maps, Code::Flags flags) {
+  if (!cache()->IsUndefined()) {
+    PolymorphicCodeCacheHashTable* hash_table =
+        PolymorphicCodeCacheHashTable::cast(cache());
+    return hash_table->Lookup(maps, flags);
+  } else {
+    return GetHeap()->undefined_value();
+  }
+}
+
+
+// Despite their name, object of this class are not stored in the actual
+// hash table; instead they're temporarily used for lookups. It is therefore
+// safe to have a weak (non-owning) pointer to a MapList as a member field.
+class PolymorphicCodeCacheHashTableKey : public HashTableKey {
+ public:
+  // Callers must ensure that |maps| outlives the newly constructed object.
+  PolymorphicCodeCacheHashTableKey(MapList* maps, int code_flags)
+      : maps_(maps),
+        code_flags_(code_flags) {}
+
+  bool IsMatch(Object* other) {
+    MapList other_maps(kDefaultListAllocationSize);
+    int other_flags;
+    FromObject(other, &other_flags, &other_maps);
+    if (code_flags_ != other_flags) return false;
+    if (maps_->length() != other_maps.length()) return false;
+    // Compare just the hashes first because it's faster.
+    int this_hash = MapsHashHelper(maps_, code_flags_);
+    int other_hash = MapsHashHelper(&other_maps, other_flags);
+    if (this_hash != other_hash) return false;
+
+    // Full comparison: for each map in maps_, look for an equivalent map in
+    // other_maps. This implementation is slow, but probably good enough for
+    // now because the lists are short (<= 4 elements currently).
+    for (int i = 0; i < maps_->length(); ++i) {
+      bool match_found = false;
+      for (int j = 0; j < other_maps.length(); ++j) {
+        if (maps_->at(i)->EquivalentTo(other_maps.at(j))) {
+          match_found = true;
+          break;
+        }
+      }
+      if (!match_found) return false;
+    }
+    return true;
+  }
+
+  static uint32_t MapsHashHelper(MapList* maps, int code_flags) {
+    uint32_t hash = code_flags;
+    for (int i = 0; i < maps->length(); ++i) {
+      hash ^= maps->at(i)->Hash();
+    }
+    return hash;
+  }
+
+  uint32_t Hash() {
+    return MapsHashHelper(maps_, code_flags_);
+  }
+
+  uint32_t HashForObject(Object* obj) {
+    MapList other_maps(kDefaultListAllocationSize);
+    int other_flags;
+    FromObject(obj, &other_flags, &other_maps);
+    return MapsHashHelper(&other_maps, other_flags);
+  }
+
+  MUST_USE_RESULT MaybeObject* AsObject() {
+    Object* obj;
+    // The maps in |maps_| must be copied to a newly allocated FixedArray,
+    // both because the referenced MapList is short-lived, and because C++
+    // objects can't be stored in the heap anyway.
+    { MaybeObject* maybe_obj =
+        HEAP->AllocateUninitializedFixedArray(maps_->length() + 1);
+      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    }
+    FixedArray* list = FixedArray::cast(obj);
+    list->set(0, Smi::FromInt(code_flags_));
+    for (int i = 0; i < maps_->length(); ++i) {
+      list->set(i + 1, maps_->at(i));
+    }
+    return list;
+  }
+
+ private:
+  static MapList* FromObject(Object* obj, int* code_flags, MapList* maps) {
+    FixedArray* list = FixedArray::cast(obj);
+    maps->Rewind(0);
+    *code_flags = Smi::cast(list->get(0))->value();
+    for (int i = 1; i < list->length(); ++i) {
+      maps->Add(Map::cast(list->get(i)));
+    }
+    return maps;
+  }
+
+  MapList* maps_;  // weak.
+  int code_flags_;
+  static const int kDefaultListAllocationSize =
+      KeyedIC::kMaxKeyedPolymorphism + 1;
+};
+
+
+Object* PolymorphicCodeCacheHashTable::Lookup(MapList* maps, int code_flags) {
+  PolymorphicCodeCacheHashTableKey key(maps, code_flags);
+  int entry = FindEntry(&key);
+  if (entry == kNotFound) return GetHeap()->undefined_value();
+  return get(EntryToIndex(entry) + 1);
+}
+
+
+MaybeObject* PolymorphicCodeCacheHashTable::Put(MapList* maps,
+                                                int code_flags,
+                                                Code* code) {
+  PolymorphicCodeCacheHashTableKey key(maps, code_flags);
+  Object* obj;
+  { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  PolymorphicCodeCacheHashTable* cache =
+      reinterpret_cast<PolymorphicCodeCacheHashTable*>(obj);
+  int entry = cache->FindInsertionEntry(key.Hash());
+  { MaybeObject* maybe_obj = key.AsObject();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  cache->set(EntryToIndex(entry), obj);
+  cache->set(EntryToIndex(entry) + 1, code);
+  cache->ElementAdded();
+  return cache;
+}
+
+
 MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
   ASSERT(!array->HasExternalArrayElements());
   switch (array->GetElementsKind()) {
@@ -4429,6 +4591,7 @@ MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
     case JSObject::EXTERNAL_FLOAT_ELEMENTS:
     case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
     case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+    case JSObject::FAST_DOUBLE_ELEMENTS:
       break;
   }
   UNREACHABLE();
@@ -6046,6 +6209,40 @@ void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
 }
 
 
+int Map::Hash() {
+  // For performance reasons we only hash the 3 most variable fields of a map:
+  // constructor, prototype and bit_field2.
+
+  // Shift away the tag.
+  int hash = (static_cast<uint32_t>(
+        reinterpret_cast<uintptr_t>(constructor())) >> 2);
+
+  // XOR-ing the prototype and constructor directly yields too many zero bits
+  // when the two pointers are close (which is fairly common).
+  // To avoid this we shift the prototype 4 bits relatively to the constructor.
+  hash ^= (static_cast<uint32_t>(
+        reinterpret_cast<uintptr_t>(prototype())) << 2);
+
+  return hash ^ (hash >> 16) ^ bit_field2();
+}
+
+
+bool Map::EquivalentToForNormalization(Map* other,
+                                       PropertyNormalizationMode mode) {
+  return
+    constructor() == other->constructor() &&
+    prototype() == other->prototype() &&
+    inobject_properties() == ((mode == CLEAR_INOBJECT_PROPERTIES) ?
+                              0 :
+                              other->inobject_properties()) &&
+    instance_type() == other->instance_type() &&
+    bit_field() == other->bit_field() &&
+    bit_field2() == other->bit_field2() &&
+    (bit_field3() & ~(1<<Map::kIsShared)) ==
+        (other->bit_field3() & ~(1<<Map::kIsShared));
+}
+
+
 void JSFunction::JSFunctionIterateBody(int object_size, ObjectVisitor* v) {
   // Iterate over all fields in the body but take care in dealing with
   // the code entry.
@@ -7085,7 +7282,6 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
     new_map = Map::cast(object);
   }
 
-  // Copy the elements to the new backing store.
   AssertNoAllocation no_gc;
   WriteBarrierMode mode = new_elements->GetWriteBarrierMode(no_gc);
   switch (GetElementsKind()) {
@@ -7116,6 +7312,29 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
       parameter_map->set(1, new_elements);
       break;
     }
+    case FAST_DOUBLE_ELEMENTS: {
+      FixedDoubleArray* old_elements = FixedDoubleArray::cast(elements());
+      uint32_t old_length = static_cast<uint32_t>(old_elements->length());
+      // Fill out the new array with this content and array holes.
+      for (uint32_t i = 0; i < old_length; i++) {
+        if (!old_elements->is_the_hole(i)) {
+          Object* obj;
+          // Objects must be allocated in the old object space, since the
+          // overall number of HeapNumbers needed for the conversion might
+          // exceed the capacity of new space, and we would fail repeatedly
+          // trying to convert the FixedDoubleArray.
+          MaybeObject* maybe_value_object =
+              GetHeap()->AllocateHeapNumber(old_elements->get(i), TENURED);
+          if (!maybe_value_object->ToObject(&obj)) return maybe_value_object;
+          // Force write barrier. It's not worth trying to exploit
+          // elems->GetWriteBarrierMode(), since it requires an
+          // AssertNoAllocation stack object that would have to be positioned
+          // after the HeapNumber allocation anyway.
+          new_elements->set(i, obj, UPDATE_WRITE_BARRIER);
+        }
+      }
+      break;
+    }
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
     case EXTERNAL_SHORT_ELEMENTS:
@@ -7135,6 +7354,55 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(int capacity,
   }
 
   return new_elements;
+}
+
+
+MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
+    int capacity,
+    int length) {
+  Heap* heap = GetHeap();
+  // We should never end in here with a pixel or external array.
+  ASSERT(!HasExternalArrayElements());
+
+  Object* obj;
+  { MaybeObject* maybe_obj =
+        heap->AllocateUninitializedFixedDoubleArray(capacity);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  FixedDoubleArray* elems = FixedDoubleArray::cast(obj);
+
+  { MaybeObject* maybe_obj = map()->GetFastDoubleElementsMap();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  Map* new_map = Map::cast(obj);
+
+  AssertNoAllocation no_gc;
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      elems->Initialize(FixedArray::cast(elements()));
+      break;
+    }
+    case FAST_DOUBLE_ELEMENTS: {
+      elems->Initialize(FixedDoubleArray::cast(elements()));
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      elems->Initialize(NumberDictionary::cast(elements()));
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
+  }
+
+  set_map(new_map);
+  set_elements(elems);
+
+  if (IsJSArray()) {
+    JSArray::cast(this)->set_length(Smi::FromInt(length));
+  }
+
+  return this;
 }
 
 
@@ -7177,6 +7445,7 @@ MaybeObject* JSObject::SetSlowElements(Object* len) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -7284,8 +7553,6 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
         return this;
       }
       case NON_STRICT_ARGUMENTS_ELEMENTS:
-        UNIMPLEMENTED();
-        break;
       case EXTERNAL_BYTE_ELEMENTS:
       case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       case EXTERNAL_SHORT_ELEMENTS:
@@ -7295,6 +7562,7 @@ MaybeObject* JSObject::SetElementsLength(Object* len) {
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
       case EXTERNAL_PIXEL_ELEMENTS:
+      case FAST_DOUBLE_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -7491,7 +7759,8 @@ bool JSObject::HasElementPostInterceptor(JSReceiver* receiver, uint32_t index) {
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
     case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS: {
+    case EXTERNAL_DOUBLE_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS: {
       ExternalArray* array = ExternalArray::cast(elements());
       if (index < static_cast<uint32_t>(array->length())) {
         return true;
@@ -7506,7 +7775,7 @@ bool JSObject::HasElementPostInterceptor(JSReceiver* receiver, uint32_t index) {
       break;
     }
     case NON_STRICT_ARGUMENTS_ELEMENTS:
-      UNIMPLEMENTED();
+      UNREACHABLE();
       break;
   }
 
@@ -7619,6 +7888,9 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
       if (index < static_cast<uint32_t>(array->length())) return FAST_ELEMENT;
       break;
     }
+    case FAST_DOUBLE_ELEMENTS:
+      UNREACHABLE();
+      break;
     case DICTIONARY_ELEMENTS: {
       if (element_dictionary()->FindEntry(index) !=
           NumberDictionary::kNotFound) {
@@ -7724,6 +7996,9 @@ bool JSObject::HasElementWithReceiver(JSReceiver* receiver, uint32_t index) {
       }
       break;
     }
+    case FAST_DOUBLE_ELEMENTS:
+      UNREACHABLE();
+      break;
     case DICTIONARY_ELEMENTS: {
       if (element_dictionary()->FindEntry(index)
           != NumberDictionary::kNotFound) {
@@ -8099,6 +8374,89 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
 }
 
 
+MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
+    uint32_t index,
+    Object* value,
+    StrictModeFlag strict_mode,
+    bool check_prototype) {
+  ASSERT(HasFastDoubleElements());
+
+  FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
+  uint32_t elms_length = static_cast<uint32_t>(elms->length());
+
+  // If storing to an element that isn't in the array, pass the store request
+  // up the prototype chain before storing in the receiver's elements.
+  if (check_prototype &&
+      (index >= elms_length || elms->is_the_hole(index))) {
+    bool found;
+    MaybeObject* result = SetElementWithCallbackSetterInPrototypes(index,
+                                                                   value,
+                                                                   &found,
+                                                                   strict_mode);
+    if (found) return result;
+  }
+
+  // If the value object is not a heap number, switch to fast elements and try
+  // again.
+  bool value_is_smi = value->IsSmi();
+  if (!value->IsNumber()) {
+    Object* obj;
+    uint32_t length = elms_length;
+    if (IsJSArray()) {
+      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
+    }
+    MaybeObject* maybe_obj =
+        SetFastElementsCapacityAndLength(elms_length, length);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    return SetFastElement(index, value, strict_mode, check_prototype);
+  }
+
+  double double_value = value_is_smi
+      ? static_cast<double>(Smi::cast(value)->value())
+      : HeapNumber::cast(value)->value();
+
+  // Check whether there is extra space in the fixed array.
+  if (index < elms_length) {
+    elms->set(index, double_value);
+    if (IsJSArray()) {
+      // Update the length of the array if needed.
+      uint32_t array_length = 0;
+      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&array_length));
+      if (index >= array_length) {
+        JSArray::cast(this)->set_length(Smi::FromInt(index + 1));
+      }
+    }
+    return value;
+  }
+
+  // Allow gap in fast case.
+  if ((index - elms_length) < kMaxGap) {
+    // Try allocating extra space.
+    int new_capacity = NewElementsCapacity(index+1);
+    if (new_capacity <= kMaxFastElementsLength ||
+        !ShouldConvertToSlowElements(new_capacity)) {
+      ASSERT(static_cast<uint32_t>(new_capacity) > index);
+      Object* obj;
+      { MaybeObject* maybe_obj =
+            SetFastDoubleElementsCapacityAndLength(new_capacity,
+                                                   index + 1);
+        if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+      }
+      FixedDoubleArray::cast(elements())->set(index, double_value);
+      return value;
+    }
+  }
+
+  // Otherwise default to slow case.
+  Object* obj;
+  { MaybeObject* maybe_obj = NormalizeElements();
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  ASSERT(HasDictionaryElements());
+  return SetElement(index, value, strict_mode, check_prototype);
+}
+
+
 MaybeObject* JSObject::SetElement(uint32_t index,
                                   Object* value,
                                   StrictModeFlag strict_mode,
@@ -8147,8 +8505,8 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
   switch (GetElementsKind()) {
     case FAST_ELEMENTS:
       return SetFastElement(index, value, strict_mode, check_prototype);
-    case DICTIONARY_ELEMENTS:
-      return SetDictionaryElement(index, value, strict_mode, check_prototype);
+    case FAST_DOUBLE_ELEMENTS:
+      return SetFastDoubleElement(index, value, strict_mode, check_prototype);
     case EXTERNAL_PIXEL_ELEMENTS: {
       ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
       return pixels->SetValue(index, value);
@@ -8188,6 +8546,8 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
       ExternalDoubleArray* array = ExternalDoubleArray::cast(elements());
       return array->SetValue(index, value);
     }
+    case DICTIONARY_ELEMENTS:
+      return SetDictionaryElement(index, value, strict_mode, check_prototype);
     case NON_STRICT_ARGUMENTS_ELEMENTS: {
       FixedArray* parameter_map = FixedArray::cast(elements());
       uint32_t length = parameter_map->length();
@@ -8246,6 +8606,15 @@ MaybeObject* JSObject::GetElementPostInterceptor(Object* receiver,
       if (index < static_cast<uint32_t>(elms->length())) {
         Object* value = elms->get(index);
         if (!value->IsTheHole()) return value;
+      }
+      break;
+    }
+    case FAST_DOUBLE_ELEMENTS: {
+      FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
+      if (index < static_cast<uint32_t>(elms->length())) {
+        if (!elms->is_the_hole(index)) {
+          return GetHeap()->NumberFromDouble(elms->get(index));
+        }
       }
       break;
     }
@@ -8349,6 +8718,16 @@ MaybeObject* JSObject::GetElementWithReceiver(Object* receiver,
       if (index < static_cast<uint32_t>(elms->length())) {
         Object* value = elms->get(index);
         if (!value->IsTheHole()) return value;
+      }
+      break;
+    }
+    case FAST_DOUBLE_ELEMENTS: {
+      FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
+      if (index < static_cast<uint32_t>(elms->length())) {
+        if (!elms->is_the_hole(index)) {
+          double double_value = elms->get(index);
+          return GetHeap()->NumberFromDouble(double_value);
+        }
       }
       break;
     }
@@ -8505,6 +8884,7 @@ MaybeObject* JSObject::GetExternalElement(uint32_t index) {
       }
       break;
     }
+    case FAST_DOUBLE_ELEMENTS:
     case FAST_ELEMENTS:
     case DICTIONARY_ELEMENTS:
       UNREACHABLE();
@@ -8544,6 +8924,14 @@ bool JSObject::HasDenseElements() {
       number_of_elements = dictionary->NumberOfElements();
       break;
     }
+    case FAST_DOUBLE_ELEMENTS: {
+      FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
+      capacity = elms->length();
+      for (int i = 0; i < capacity; i++) {
+        if (!elms->is_the_hole(i)) number_of_elements++;
+      }
+      break;
+    }
     case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
@@ -8561,15 +8949,21 @@ bool JSObject::HasDenseElements() {
 
 
 bool JSObject::ShouldConvertToSlowElements(int new_capacity) {
-  ASSERT(HasFastElements());
   // Keep the array in fast case if the current backing storage is
   // almost filled and if the new capacity is no more than twice the
   // old capacity.
-  FixedArray* backing_store = FixedArray::cast(elements());
-  if (backing_store->map() == GetHeap()->non_strict_arguments_elements_map()) {
-    backing_store = FixedArray::cast(backing_store->get(1));
+  int elements_length = 0;
+  if (elements()->map() == GetHeap()->non_strict_arguments_elements_map()) {
+    FixedArray* backing_store = FixedArray::cast(elements());
+    elements_length = FixedArray::cast(backing_store->get(1))->length();
+  } else if (HasFastElements()) {
+    elements_length = FixedArray::cast(elements())->length();
+  } else if (HasFastDoubleElements()) {
+    elements_length = FixedDoubleArray::cast(elements())->length();
+  } else {
+    UNREACHABLE();
   }
-  return !HasDenseElements() || ((new_capacity / 2) > backing_store->length());
+  return !HasDenseElements() || ((new_capacity / 2) > elements_length);
 }
 
 
@@ -8602,6 +8996,23 @@ bool JSObject::ShouldConvertToFastElements() {
   }
   return static_cast<uint32_t>(dictionary->Capacity()) >=
       (length / (2 * NumberDictionary::kEntrySize));
+}
+
+
+bool JSObject::ShouldConvertToFastDoubleElements() {
+  if (FLAG_unbox_double_arrays) {
+    ASSERT(HasDictionaryElements());
+    NumberDictionary* dictionary = NumberDictionary::cast(elements());
+    for (int i = 0; i < dictionary->Capacity(); i++) {
+      Object* key = dictionary->KeyAt(i);
+      if (key->IsNumber()) {
+        if (!dictionary->ValueAt(i)->IsNumber()) return false;
+      }
+    }
+    return true;
+  } else {
+    return false;
+  }
 }
 
 
@@ -8793,6 +9204,9 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
       ExternalArray* array = ExternalArray::cast(elements());
       return index < static_cast<uint32_t>(array->length());
     }
+    case FAST_DOUBLE_ELEMENTS:
+      UNREACHABLE();
+      break;
     case DICTIONARY_ELEMENTS: {
       return element_dictionary()->FindEntry(index)
           != NumberDictionary::kNotFound;
@@ -9042,6 +9456,9 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       ASSERT(!storage || storage->length() >= counter);
       break;
     }
+    case FAST_DOUBLE_ELEMENTS:
+      UNREACHABLE();
+      break;
     case DICTIONARY_ELEMENTS: {
       if (storage != NULL) {
         element_dictionary()->CopyKeysTo(storage, filter);
@@ -10147,6 +10564,7 @@ class TwoCharHashTableKey : public HashTableKey {
     UNREACHABLE();
     return NULL;
   }
+
  private:
   uint32_t c1_;
   uint32_t c2_;

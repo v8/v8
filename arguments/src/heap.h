@@ -66,6 +66,7 @@ inline Heap* _inline_get_heap_();
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
+  V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
   V(Map, meta_map, MetaMap)                                                    \
   V(Map, hash_table_map, HashTableMap)                                         \
@@ -78,6 +79,7 @@ inline Heap* _inline_get_heap_();
   V(Object, termination_exception, TerminationException)                       \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
+  V(FixedDoubleArray, empty_fixed_double_array, EmptyFixedDoubleArray)         \
   V(String, empty_string, EmptyString)                                         \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Map, string_map, StringMap)                                                \
@@ -121,6 +123,7 @@ inline Heap* _inline_get_heap_();
   V(Foreign, prototype_accessors, PrototypeAccessors)                          \
   V(NumberDictionary, code_stubs, CodeStubs)                                   \
   V(NumberDictionary, non_monomorphic_cache, NonMonomorphicCache)              \
+  V(PolymorphicCodeCache, polymorphic_code_cache, PolymorphicCodeCache)        \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
@@ -477,6 +480,9 @@ class Heap {
   // Allocates an empty code cache.
   MUST_USE_RESULT MaybeObject* AllocateCodeCache();
 
+  // Allocates an empty PolymorphicCodeCache.
+  MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
+
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
 
@@ -613,6 +619,17 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateFixedArrayWithHoles(
+      int length,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  MUST_USE_RESULT MaybeObject* AllocateRawFixedDoubleArray(
+      int length,
+      PretenureFlag pretenure);
+
+  // Allocates a fixed double array with uninitialized values. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  // Please note this does not perform a garbage collection.
+  MUST_USE_RESULT MaybeObject* AllocateUninitializedFixedDoubleArray(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -1456,6 +1473,9 @@ class Heap {
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
 
+  // Allocate empty fixed double array.
+  MUST_USE_RESULT MaybeObject* AllocateEmptyFixedDoubleArray();
+
   void SwitchScavengingVisitorsTableIfProfilingWasEnabled();
 
   // Performs a minor collection in new generation.
@@ -1633,7 +1653,7 @@ class HeapStats {
   int* weak_global_handle_count;        // 15
   int* pending_global_handle_count;     // 16
   int* near_death_global_handle_count;  // 17
-  int* destroyed_global_handle_count;   // 18
+  int* free_global_handle_count;        // 18
   intptr_t* memory_allocator_size;           // 19
   intptr_t* memory_allocator_capacity;       // 20
   int* objects_per_type;                // 21
@@ -1901,6 +1921,7 @@ class DescriptorLookupCache {
   void Clear();
 
   static const int kAbsent = -2;
+
  private:
   DescriptorLookupCache() {
     for (int i = 0; i < kLength; ++i) {

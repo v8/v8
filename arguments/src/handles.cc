@@ -228,12 +228,14 @@ void TransformToFastProperties(Handle<JSObject> object,
 }
 
 
-void NumberDictionarySet(Handle<NumberDictionary> dictionary,
-                         uint32_t index,
-                         Handle<Object> value,
-                         PropertyDetails details) {
-  CALL_HEAP_FUNCTION_VOID(dictionary->GetIsolate(),
-                          dictionary->Set(index, *value, details));
+Handle<NumberDictionary> NumberDictionarySet(
+    Handle<NumberDictionary> dictionary,
+    uint32_t index,
+    Handle<Object> value,
+    PropertyDetails details) {
+  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
+                     dictionary->Set(index, *value, details),
+                     NumberDictionary);
 }
 
 

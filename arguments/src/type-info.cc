@@ -224,8 +224,7 @@ TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
   switch (state) {
     case CompareIC::UNINITIALIZED:
       // Uninitialized means never executed.
-      // TODO(fschneider): Introduce a separate value for never-executed ICs.
-      return unknown;
+      return TypeInfo::Uninitialized();
     case CompareIC::SMIS:
       return TypeInfo::Smi();
     case CompareIC::HEAP_NUMBERS:
@@ -286,8 +285,7 @@ TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
     switch (type) {
       case BinaryOpIC::UNINITIALIZED:
         // Uninitialized means never executed.
-        // TODO(fschneider): Introduce a separate value for never-executed ICs
-        return unknown;
+        return TypeInfo::Uninitialized();
       case BinaryOpIC::SMI:
         switch (result_type) {
           case BinaryOpIC::UNINITIALIZED:
@@ -409,7 +407,7 @@ void TypeFeedbackOracle::SetInfo(unsigned ast_id, Object* target) {
   MaybeObject* maybe_result = dictionary_->AtNumberPut(ast_id, target);
   USE(maybe_result);
 #ifdef DEBUG
-  Object* result;
+  Object* result = NULL;
   // Dictionary has been allocated with sufficient size for all elements.
   ASSERT(maybe_result->ToObject(&result));
   ASSERT(*dictionary_ == result);

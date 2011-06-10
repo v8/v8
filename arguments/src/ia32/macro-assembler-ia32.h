@@ -591,6 +591,9 @@ class MacroAssembler: public Assembler {
 
   void Move(Register target, Handle<Object> value);
 
+  // Push a handle value.
+  void Push(Handle<Object> handle) { push(handle); }
+
   Handle<Object> CodeObject() {
     ASSERT(!code_object_.is_null());
     return code_object_;

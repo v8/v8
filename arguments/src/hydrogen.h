@@ -878,10 +878,6 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildBinaryOperation(BinaryOperation* expr,
                                      HValue* left,
                                      HValue* right);
-  HInstruction* BuildBinaryOperation(Token::Value op,
-                                     HValue* left,
-                                     HValue* right,
-                                     TypeInfo info);
   HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
   HLoadNamedField* BuildLoadNamedField(HValue* object,
@@ -1052,7 +1048,6 @@ class HStatistics: public Malloced {
   }
 
  private:
-
   HStatistics()
       : timing_(5),
         names_(5),

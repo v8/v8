@@ -127,7 +127,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     return re;
   }
   pattern = FlattenGetString(pattern);
-  CompilationZoneScope zone_scope(isolate, DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
   RegExpCompileData parse_result;
   FlatStringReader reader(isolate, pattern);
@@ -302,7 +302,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii) {
 bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   // Compile the RegExp.
   Isolate* isolate = re->GetIsolate();
-  CompilationZoneScope zone_scope(isolate, DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
   Object* entry = re->DataAt(JSRegExp::code_index(is_ascii));
   if (entry->IsJSObject()) {
@@ -811,6 +811,7 @@ class RegExpCompiler {
   inline bool ascii() { return ascii_; }
 
   static const int kNoRegister = -1;
+
  private:
   EndNode* accept_;
   int next_register_;
@@ -2767,6 +2768,7 @@ class AlternativeGenerationList {
   AlternativeGeneration* at(int i) {
     return alt_gens_[i];
   }
+
  private:
   static const int kAFew = 10;
   ZoneList<AlternativeGeneration*> alt_gens_;
@@ -3326,6 +3328,7 @@ class TableEntryHeaderPrinter {
     }
     stream()->Add("}}");
   }
+
  private:
   bool first_;
   StringStream* stream() { return stream_; }

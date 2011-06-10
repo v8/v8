@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -39,13 +39,18 @@ namespace internal {
 
 class Factory {
  public:
-  // Allocate a new fixed array with undefined entries.
+  // Allocate a new uninitialized fixed array.
   Handle<FixedArray> NewFixedArray(
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a new fixed array with non-existing entries (the hole).
   Handle<FixedArray> NewFixedArrayWithHoles(
+      int size,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocate a new uninitialized fixed double array.
+  Handle<FixedArray> NewFixedDoubleArray(
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 

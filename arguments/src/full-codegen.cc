@@ -187,11 +187,6 @@ void BreakableStatementChecker::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void BreakableStatementChecker::VisitCatchExtensionObject(
-    CatchExtensionObject* expr) {
-}
-
-
 void BreakableStatementChecker::VisitAssignment(Assignment* expr) {
   // If assigning to a property (including a global property) the assignment is
   // breakable.
@@ -962,15 +957,7 @@ void FullCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
   SetStatementPosition(stmt);
 
   VisitForStackValue(stmt->expression());
-  if (stmt->is_catch_block()) {
-    __ CallRuntime(Runtime::kPushCatchContext, 1);
-  } else {
-    __ CallRuntime(Runtime::kPushContext, 1);
-  }
-  // Both runtime calls return the new context in both the context and the
-  // result registers.
-
-  // Update local stack frame context field.
+  __ CallRuntime(Runtime::kPushContext, 1);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
@@ -1117,15 +1104,15 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   __ Call(&try_handler_setup);
   // Try handler code, exception in result register.
 
-  // Store exception in local .catch variable before executing catch block.
-  {
-    // The catch variable is *always* a variable proxy for a local variable.
-    Variable* catch_var = stmt->catch_var()->AsVariableProxy()->AsVariable();
-    ASSERT_NOT_NULL(catch_var);
-    Slot* variable_slot = catch_var->AsSlot();
-    ASSERT_NOT_NULL(variable_slot);
-    ASSERT_EQ(Slot::LOCAL, variable_slot->type());
-    StoreToFrameField(SlotOffset(variable_slot), result_register());
+  // Extend the context before executing the catch block.
+  { Comment cmnt(masm_, "[ Extend catch context");
+    __ Push(stmt->name());
+    __ push(result_register());
+    __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+    __ push(result_register());
+    __ CallRuntime(Runtime::kPushCatchContext, 1);
+    StoreToFrameField(StandardFrameConstants::kContextOffset,
+                      context_register());
   }
 
   Visit(stmt->catch_block());
@@ -1278,18 +1265,6 @@ void FullCodeGenerator::VisitSharedFunctionInfoLiteral(
     SharedFunctionInfoLiteral* expr) {
   Comment cmnt(masm_, "[ SharedFunctionInfoLiteral");
   EmitNewClosure(expr->shared_function_info(), false);
-}
-
-
-void FullCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
-  // Call runtime routine to allocate the catch extension object and
-  // assign the exception value to the catch variable.
-  Comment cmnt(masm_, "[ CatchExtensionObject");
-  VisitForStackValue(expr->key());
-  VisitForStackValue(expr->value());
-  // Create catch extension object.
-  __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
-  context()->Plug(result_register());
 }
 
 

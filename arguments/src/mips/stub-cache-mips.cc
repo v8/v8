@@ -126,7 +126,7 @@ MUST_USE_RESULT static MaybeObject* GenerateDictionaryNegativeLookup(
 
   // Check that receiver is a JSObject.
   __ lbu(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ Branch(miss_label, lt, scratch0, Operand(FIRST_JS_OBJECT_TYPE));
+  __ Branch(miss_label, lt, scratch0, Operand(FIRST_SPEC_OBJECT_TYPE));
 
   // Load properties array.
   Register properties = scratch0;
@@ -2096,9 +2096,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
 
   // Retrieve FCSR and check for fpu errors.
   __ cfc1(t5, FCSR);
-  __ srl(t5, t5, kFCSRFlagShift);
-  // Flag 1 marks an inaccurate but still good result so we ignore it.
-  __ And(t5, t5, Operand(kFCSRFlagMask ^ 1));
+  __ And(t5, t5, Operand(kFCSRExceptionFlagMask));
   __ Branch(&no_fpu_error, eq, t5, Operand(zero_reg));
 
   // Check for NaN, Infinity, and -Infinity.

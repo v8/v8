@@ -411,7 +411,7 @@ ContextSwitcher::ContextSwitcher(Isolate* isolate, int every_n_ms)
 // ContextSwitcher thread if needed.
 void ContextSwitcher::StartPreemption(int every_n_ms) {
   Isolate* isolate = Isolate::Current();
-  ASSERT(Locker::IsLocked());
+  ASSERT(Locker::IsLocked(reinterpret_cast<v8::Isolate*>(isolate)));
   if (isolate->context_switcher() == NULL) {
     // If the ContextSwitcher thread is not running at the moment start it now.
     isolate->set_context_switcher(new ContextSwitcher(isolate, every_n_ms));
@@ -428,7 +428,7 @@ void ContextSwitcher::StartPreemption(int every_n_ms) {
 // must cooperatively schedule amongst them from this point on.
 void ContextSwitcher::StopPreemption() {
   Isolate* isolate = Isolate::Current();
-  ASSERT(Locker::IsLocked());
+  ASSERT(Locker::IsLocked(reinterpret_cast<v8::Isolate*>(isolate)));
   if (isolate->context_switcher() != NULL) {
     // The ContextSwitcher thread is running. We need to stop it and release
     // its resources.

@@ -193,6 +193,7 @@ void MacroAssembler::RecordWriteHelper(Register object,
   sw(scratch, MemOperand(object, Page::kDirtyFlagOffset));
 }
 
+
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
   // Safepoints expect a block of kNumSafepointRegisters values on the
@@ -203,11 +204,13 @@ void MacroAssembler::PushSafepointRegisters() {
   MultiPush(kSafepointSavedRegisters);
 }
 
+
 void MacroAssembler::PopSafepointRegisters() {
   const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
   MultiPop(kSafepointSavedRegisters);
   Addu(sp, sp, Operand(num_unsaved * kPointerSize));
 }
+
 
 void MacroAssembler::PushSafepointRegistersAndDoubles() {
   PushSafepointRegisters();
@@ -218,6 +221,7 @@ void MacroAssembler::PushSafepointRegistersAndDoubles() {
   }
 }
 
+
 void MacroAssembler::PopSafepointRegistersAndDoubles() {
   for (int i = 0; i < FPURegister::kNumAllocatableRegisters; i+=2) {
     FPURegister reg = FPURegister::FromAllocationIndex(i);
@@ -226,6 +230,7 @@ void MacroAssembler::PopSafepointRegistersAndDoubles() {
   Addu(sp, sp, Operand(FPURegister::kNumAllocatableRegisters * kDoubleSize));
   PopSafepointRegisters();
 }
+
 
 void MacroAssembler::StoreToSafepointRegistersAndDoublesSlot(Register src,
                                                              Register dst) {
@@ -2011,6 +2016,12 @@ void MacroAssembler::Call(Label* target) {
 }
 
 
+void MacroAssembler::Push(Handle<Object> handle) {
+  li(at, Operand(handle));
+  push(at);
+}
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 void MacroAssembler::DebugBreak() {
@@ -2642,6 +2653,16 @@ void MacroAssembler::CopyBytes(Register src,
 }
 
 
+void MacroAssembler::CheckFastElements(Register map,
+                                       Register scratch,
+                                       Label* fail) {
+  STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
+  lbu(scratch, FieldMemOperand(map, Map::kBitField2Offset));
+  And(scratch, scratch, Operand(Map::kMaximumBitField2FastElementValue));
+  Branch(fail, hi, scratch, Operand(zero_reg));
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,
@@ -2930,8 +2951,8 @@ void MacroAssembler::IsInstanceJSObjectType(Register map,
                                             Register scratch,
                                             Label* fail) {
   lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  Branch(fail, lt, scratch, Operand(FIRST_JS_OBJECT_TYPE));
-  Branch(fail, gt, scratch, Operand(LAST_JS_OBJECT_TYPE));
+  Branch(fail, lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+  Branch(fail, gt, scratch, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
 }
 
 
@@ -3027,11 +3048,11 @@ MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub, Condition cond,
 }
 
 
-
 void MacroAssembler::TailCallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
+
 
 MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub,
                                              Condition cond,
@@ -3352,6 +3373,7 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
   li(a0, Operand(num_arguments));
   JumpToExternalReference(ext);
 }
+
 
 MaybeObject* MacroAssembler::TryTailCallExternalReference(
     const ExternalReference& ext, int num_arguments, int result_size) {
@@ -3757,6 +3779,7 @@ int MacroAssembler::ActivationFrameAlignment() {
   return FLAG_sim_stack_alignment;
 #endif  // defined(V8_HOST_ARCH_MIPS)
 }
+
 
 void MacroAssembler::AssertStackIsAligned() {
   if (emit_debug_code()) {
