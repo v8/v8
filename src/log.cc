@@ -83,7 +83,7 @@ class SlidingStateWindow {
 //
 class Profiler: public Thread {
  public:
-  explicit Profiler(Isolate* isolate);
+  Profiler();
   void Engage();
   void Disengage();
 
@@ -270,8 +270,8 @@ void SlidingStateWindow::AddState(StateTag state) {
 //
 // Profiler implementation.
 //
-Profiler::Profiler(Isolate* isolate)
-    : Thread(isolate, "v8:Profiler"),
+Profiler::Profiler()
+    : Thread("v8:Profiler"),
       head_(0),
       tail_(0),
       overflow_(false),
@@ -1858,7 +1858,7 @@ bool Logger::Setup() {
   }
 
   if (FLAG_prof) {
-    profiler_ = new Profiler(isolate);
+    profiler_ = new Profiler();
     if (!FLAG_prof_auto) {
       profiler_->pause();
     } else {
