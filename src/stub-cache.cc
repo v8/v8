@@ -1370,8 +1370,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
   JSObject* recv = JSObject::cast(args[0]);
   String* name = String::cast(args[1]);
   Object* value = args[2];
-  StrictModeFlag strict_mode =
-      static_cast<StrictModeFlag>(Smi::cast(args[3])->value());
+  StrictModeFlag strict_mode = static_cast<StrictModeFlag>(args.smi_at(3));
   ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
   ASSERT(recv->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
@@ -1383,8 +1382,8 @@ RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
 
 RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor) {
   JSObject* receiver = JSObject::cast(args[0]);
-  ASSERT(Smi::cast(args[1])->value() >= 0);
-  uint32_t index = Smi::cast(args[1])->value();
+  ASSERT(args.smi_at(1) >= 0);
+  uint32_t index = args.smi_at(1);
   return receiver->GetElementWithInterceptor(receiver, index);
 }
 

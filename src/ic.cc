@@ -578,13 +578,7 @@ bool CallICBase::TryUpdateExtraICState(LookupResult* lookup,
         // out of bounds, update the state to record this fact.
         if (StringStubState::decode(*extra_ic_state) == DEFAULT_STRING_STUB &&
             argc >= 1 && args[1]->IsNumber()) {
-          double index;
-          if (args[1]->IsSmi()) {
-            index = Smi::cast(args[1])->value();
-          } else {
-            ASSERT(args[1]->IsHeapNumber());
-            index = DoubleToInteger(HeapNumber::cast(args[1])->value());
-          }
+          double index = DoubleToInteger(args.number_at(1));
           if (index < 0 || index >= string->length()) {
             *extra_ic_state =
                 StringStubState::update(*extra_ic_state,
@@ -2294,10 +2288,10 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
 
   HandleScope scope(isolate);
   Handle<Object> operand = args.at<Object>(0);
-  int key = Smi::cast(args[1])->value();
-  Token::Value op = static_cast<Token::Value>(Smi::cast(args[2])->value());
+  int key = args.smi_at(1);
+  Token::Value op = static_cast<Token::Value>(args.smi_at(2));
   UnaryOpIC::TypeInfo previous_type =
-      static_cast<UnaryOpIC::TypeInfo>(Smi::cast(args[3])->value());
+      static_cast<UnaryOpIC::TypeInfo>(args.smi_at(3));
 
   UnaryOpIC::TypeInfo type = UnaryOpIC::GetTypeInfo(operand);
   type = UnaryOpIC::ComputeNewType(type, previous_type);
@@ -2346,10 +2340,10 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   HandleScope scope(isolate);
   Handle<Object> left = args.at<Object>(0);
   Handle<Object> right = args.at<Object>(1);
-  int key = Smi::cast(args[2])->value();
-  Token::Value op = static_cast<Token::Value>(Smi::cast(args[3])->value());
+  int key = args.smi_at(2);
+  Token::Value op = static_cast<Token::Value>(args.smi_at(3));
   BinaryOpIC::TypeInfo previous_type =
-      static_cast<BinaryOpIC::TypeInfo>(Smi::cast(args[4])->value());
+      static_cast<BinaryOpIC::TypeInfo>(args.smi_at(4));
 
   BinaryOpIC::TypeInfo type = BinaryOpIC::GetTypeInfo(left, right);
   type = BinaryOpIC::JoinTypes(type, previous_type);
@@ -2509,7 +2503,7 @@ CompareIC::State CompareIC::TargetState(State state,
 RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
-  CompareIC ic(isolate, static_cast<Token::Value>(Smi::cast(args[2])->value()));
+  CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
   ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
   return ic.target();
 }
