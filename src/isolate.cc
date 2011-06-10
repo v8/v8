@@ -190,8 +190,8 @@ class PreallocatedMemoryThread: public Thread {
 
 
  private:
-  explicit PreallocatedMemoryThread(Isolate* isolate)
-      : Thread(isolate, "v8:PreallocMem"),
+  PreallocatedMemoryThread()
+      : Thread("v8:PreallocMem"),
         keep_running_(true),
         wait_for_ever_semaphore_(OS::CreateSemaphore(0)),
         data_ready_semaphore_(OS::CreateSemaphore(0)),
@@ -219,7 +219,7 @@ class PreallocatedMemoryThread: public Thread {
 
 void Isolate::PreallocatedMemoryThreadStart() {
   if (preallocated_memory_thread_ != NULL) return;
-  preallocated_memory_thread_ = new PreallocatedMemoryThread(this);
+  preallocated_memory_thread_ = new PreallocatedMemoryThread();
   preallocated_memory_thread_->Start();
 }
 
@@ -1617,8 +1617,7 @@ bool Isolate::PreInit() {
   ASSERT(Isolate::Current() == this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   debug_ = new Debug(this);
-  debugger_ = new Debugger();
-  debugger_->isolate_ = this;
+  debugger_ = new Debugger(this);
 #endif
 
   memory_allocator_ = new MemoryAllocator();

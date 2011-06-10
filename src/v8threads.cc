@@ -401,9 +401,10 @@ void ThreadManager::TerminateExecution(ThreadId thread_id) {
 
 
 ContextSwitcher::ContextSwitcher(Isolate* isolate, int every_n_ms)
-  : Thread(isolate, "v8:CtxtSwitcher"),
+  : Thread("v8:CtxtSwitcher"),
     keep_going_(true),
-    sleep_ms_(every_n_ms) {
+    sleep_ms_(every_n_ms),
+    isolate_(isolate) {
 }
 
 

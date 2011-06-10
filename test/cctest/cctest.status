@@ -30,9 +30,6 @@ prefix cctest
 test-api/Bug*: FAIL
 
 ##############################################################################
-# BUG(281): This test fails on some Linuxes.
-test-debug/DebuggerAgent: PASS, (PASS || FAIL) if $system == linux
-
 # BUG(382): Weird test. Can't guarantee that it never times out.
 test-api/ApplyInterruption: PASS || TIMEOUT
 

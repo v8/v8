@@ -24,7 +24,7 @@ using i::TokenEnumerator;
 TEST(StartStop) {
   CpuProfilesCollection profiles;
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
+  ProfilerEventsProcessor processor(&generator);
   processor.Start();
   processor.Stop();
   processor.Join();
@@ -85,7 +85,7 @@ TEST(CodeEvents) {
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
+  ProfilerEventsProcessor processor(&generator);
   processor.Start();
 
   // Enqueue code creation events.
@@ -146,7 +146,7 @@ TEST(TickEvents) {
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
+  ProfilerEventsProcessor processor(&generator);
   processor.Start();
 
   processor.CodeCreateEvent(i::Logger::BUILTIN_TAG,
@@ -236,7 +236,7 @@ TEST(Issue1398) {
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
   ProfileGenerator generator(&profiles);
-  ProfilerEventsProcessor processor(i::Isolate::Current(), &generator);
+  ProfilerEventsProcessor processor(&generator);
   processor.Start();
 
   processor.CodeCreateEvent(i::Logger::BUILTIN_TAG,

@@ -3098,8 +3098,10 @@ class V8EXPORT V8 {
    * because of a call to TerminateExecution.  In that case there are
    * still JavaScript frames on the stack and the termination
    * exception is still active.
+   *
+   * \param isolate The isolate in which to check.
    */
-  static bool IsExecutionTerminating();
+  static bool IsExecutionTerminating(Isolate* isolate = NULL);
 
   /**
    * Releases any resources used by v8 and stops any utility threads

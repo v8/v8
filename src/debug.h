@@ -678,13 +678,14 @@ class MessageDispatchHelperThread;
 // Mutex to CommandMessageQueue.  Includes logging of all puts and gets.
 class LockingCommandMessageQueue BASE_EMBEDDED {
  public:
-  explicit LockingCommandMessageQueue(int size);
+  LockingCommandMessageQueue(Logger* logger, int size);
   ~LockingCommandMessageQueue();
   bool IsEmpty() const;
   CommandMessage Get();
   void Put(const CommandMessage& message);
   void Clear();
  private:
+  Logger* logger_;
   CommandMessageQueue queue_;
   Mutex* lock_;
   DISALLOW_COPY_AND_ASSIGN(LockingCommandMessageQueue);
@@ -811,7 +812,7 @@ class Debugger {
   bool IsDebuggerActive();
 
  private:
-  Debugger();
+  explicit Debugger(Isolate* isolate);
 
   void CallEventCallback(v8::DebugEvent event,
                          Handle<Object> exec_state,

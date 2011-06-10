@@ -170,7 +170,7 @@ class SourceGroup {
   class IsolateThread : public v8::internal::Thread {
    public:
     explicit IsolateThread(SourceGroup* group)
-        : v8::internal::Thread(NULL, GetThreadOptions()), group_(group) {}
+        : v8::internal::Thread(GetThreadOptions()), group_(group) {}
 
     virtual void Run() {
       group_->ExecuteInThread();

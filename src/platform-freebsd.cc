@@ -398,17 +398,15 @@ class Thread::PlatformData : public Malloced {
 };
 
 
-Thread::Thread(Isolate* isolate, const Options& options)
+Thread::Thread(const Options& options)
     : data_(new PlatformData),
-      isolate_(isolate),
       stack_size_(options.stack_size) {
   set_name(options.name);
 }
 
 
-Thread::Thread(Isolate* isolate, const char* name)
+Thread::Thread(const char* name)
     : data_(new PlatformData),
-      isolate_(isolate),
       stack_size_(0) {
   set_name(name);
 }
@@ -426,7 +424,6 @@ static void* ThreadEntry(void* arg) {
   // one) so we initialize it here too.
   thread->data()->thread_ = pthread_self();
   ASSERT(thread->data()->thread_ != kNoThread);
-  Thread::SetThreadLocal(Isolate::isolate_key(), thread->isolate());
   thread->Run();
   return NULL;
 }
@@ -660,7 +657,7 @@ class SignalSender : public Thread {
   };
 
   explicit SignalSender(int interval)
-      : Thread(NULL, "SignalSender"),
+      : Thread("SignalSender"),
         interval_(interval) {}
 
   static void AddActiveSampler(Sampler* sampler) {
