@@ -9913,6 +9913,19 @@ void CheckProperties(v8::Handle<v8::Value> val, int elmc, const char* elmv[]) {
 }
 
 
+void CheckOwnProperties(v8::Handle<v8::Value> val,
+                        int elmc,
+                        const char* elmv[]) {
+  v8::Handle<v8::Object> obj = val.As<v8::Object>();
+  v8::Handle<v8::Array> props = obj->GetOwnPropertyNames();
+  CHECK_EQ(elmc, props->Length());
+  for (int i = 0; i < elmc; i++) {
+    v8::String::Utf8Value elm(props->Get(v8::Integer::New(i)));
+    CHECK_EQ(elmv[i], *elm);
+  }
+}
+
+
 THREADED_TEST(PropertyEnumeration) {
   v8::HandleScope scope;
   LocalContext context;
@@ -9930,15 +9943,21 @@ THREADED_TEST(PropertyEnumeration) {
   int elmc0 = 0;
   const char** elmv0 = NULL;
   CheckProperties(elms->Get(v8::Integer::New(0)), elmc0, elmv0);
+  CheckOwnProperties(elms->Get(v8::Integer::New(0)), elmc0, elmv0);
   int elmc1 = 2;
   const char* elmv1[] = {"a", "b"};
   CheckProperties(elms->Get(v8::Integer::New(1)), elmc1, elmv1);
+  CheckOwnProperties(elms->Get(v8::Integer::New(1)), elmc1, elmv1);
   int elmc2 = 3;
   const char* elmv2[] = {"0", "1", "2"};
   CheckProperties(elms->Get(v8::Integer::New(2)), elmc2, elmv2);
+  CheckOwnProperties(elms->Get(v8::Integer::New(2)), elmc2, elmv2);
   int elmc3 = 4;
   const char* elmv3[] = {"w", "z", "x", "y"};
   CheckProperties(elms->Get(v8::Integer::New(3)), elmc3, elmv3);
+  int elmc4 = 2;
+  const char* elmv4[] = {"w", "z"};
+  CheckOwnProperties(elms->Get(v8::Integer::New(3)), elmc4, elmv4);
 }
 
 THREADED_TEST(PropertyEnumeration2) {

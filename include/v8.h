@@ -1465,6 +1465,13 @@ class Object : public Value {
   V8EXPORT Local<Array> GetPropertyNames();
 
   /**
+   * This function has the same functionality as GetPropertyNames but
+   * the returned array doesn't contain the names of properties from
+   * prototype objects.
+   */
+  V8EXPORT Local<Array> GetOwnPropertyNames();
+
+  /**
    * Get the prototype object.  This does not skip objects marked to
    * be skipped by __proto__ and it does not consult the security
    * handler.
