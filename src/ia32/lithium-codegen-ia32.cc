@@ -3424,8 +3424,9 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
 
 void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 XMMRegister result_reg,
+                                bool deoptimize_on_undefined,
                                 LEnvironment* env) {
-  NearLabel load_smi, heap_number, done;
+  NearLabel load_smi, done;
 
   // Smi check.
   __ test(input_reg, Immediate(kSmiTagMask));
@@ -3434,18 +3435,22 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   // Heap number map check.
   __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
          factory()->heap_number_map());
-  __ j(equal, &heap_number);
+  if (deoptimize_on_undefined) {
+    DeoptimizeIf(not_equal, env);
+  } else {
+    NearLabel heap_number;
+    __ j(equal, &heap_number);
+    __ cmp(input_reg, factory()->undefined_value());
+    DeoptimizeIf(not_equal, env);
 
-  __ cmp(input_reg, factory()->undefined_value());
-  DeoptimizeIf(not_equal, env);
+    // Convert undefined to NaN.
+    ExternalReference nan = ExternalReference::address_of_nan();
+    __ movdbl(result_reg, Operand::StaticVariable(nan));
+    __ jmp(&done);
 
-  // Convert undefined to NaN.
-  ExternalReference nan = ExternalReference::address_of_nan();
-  __ movdbl(result_reg, Operand::StaticVariable(nan));
-  __ jmp(&done);
-
+    __ bind(&heap_number);
+  }
   // Heap number to XMM conversion.
-  __ bind(&heap_number);
   __ movdbl(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
   __ jmp(&done);
 
@@ -3578,7 +3583,9 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   Register input_reg = ToRegister(input);
   XMMRegister result_reg = ToDoubleRegister(result);
 
-  EmitNumberUntagD(input_reg, result_reg, instr->environment());
+  EmitNumberUntagD(input_reg, result_reg,
+                   instr->hydrogen()->deoptimize_on_undefined(),
+                   instr->environment());
 }
 
 
