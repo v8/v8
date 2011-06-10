@@ -160,12 +160,17 @@ TEST(TerminateOnlyV8ThreadFromThreadItselfNoLoop) {
 
 class TerminatorThread : public v8::internal::Thread {
  public:
-  TerminatorThread() : Thread("TerminatorThread") { }
+  explicit TerminatorThread(i::Isolate* isolate)
+      : Thread("TerminatorThread"),
+        isolate_(reinterpret_cast<v8::Isolate*>(isolate)) { }
   void Run() {
     semaphore->Wait();
-    CHECK(!v8::V8::IsExecutionTerminating());
-    v8::V8::TerminateExecution();
+    CHECK(!v8::V8::IsExecutionTerminating(isolate_));
+    v8::V8::TerminateExecution(isolate_);
   }
+
+ private:
+  v8::Isolate* isolate_;
 };
 
 
@@ -173,7 +178,7 @@ class TerminatorThread : public v8::internal::Thread {
 // from the side by another thread.
 TEST(TerminateOnlyV8ThreadFromOtherThread) {
   semaphore = v8::internal::OS::CreateSemaphore(0);
-  TerminatorThread thread;
+  TerminatorThread thread(i::Isolate::Current());
   thread.Start();
 
   v8::HandleScope scope;
