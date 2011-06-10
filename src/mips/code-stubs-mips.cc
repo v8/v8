@@ -158,7 +158,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ lw(a3, MemOperand(sp, 0));
 
   // Setup the object header.
-  __ LoadRoot(a2, Heap::kContextMapRootIndex);
+  __ LoadRoot(a2, Heap::kFunctionContextMapRootIndex);
   __ sw(a2, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ li(a2, Operand(Smi::FromInt(length)));
   __ sw(a2, FieldMemOperand(v0, FixedArray::kLengthOffset));
@@ -187,7 +187,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 
   // Need to collect. Call into runtime system.
   __ bind(&gc);
-  __ TailCallRuntime(Runtime::kNewContext, 1, 1);
+  __ TailCallRuntime(Runtime::kNewFunctionContext, 1, 1);
 }
 
 

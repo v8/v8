@@ -890,7 +890,7 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #else  // V8_TARGET_ARCH_MIPS
   // Prevent gcc from using load-double (mips ldc1) on (possibly)
   // non-64-bit aligned HeapNumber::value.
-  static inline double read_double_field(HeapNumber* p, int offset) {
+  static inline double read_double_field(void* p, int offset) {
     union conversion {
       double d;
       uint32_t u[2];
@@ -909,7 +909,7 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #else  // V8_TARGET_ARCH_MIPS
   // Prevent gcc from using store-double (mips sdc1) on (possibly)
   // non-64-bit aligned HeapNumber::value.
-  static inline void write_double_field(HeapNumber* p, int offset,
+  static inline void write_double_field(void* p, int offset,
                                         double value) {
     union conversion {
       double d;
